@@ -1,7 +1,6 @@
+import { Button } from '@repo/design-system/components/ui/button';
 import type { Meta, StoryObj } from '@storybook/react';
 import { Loader2, Mail } from 'lucide-react';
-
-import { Button } from '@repo/design-system/components/ui/button';
 
 /**
  * Displays a button or a component that looks like a button.

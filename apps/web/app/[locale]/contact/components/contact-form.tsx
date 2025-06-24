@@ -63,11 +63,11 @@ export const ContactForm = ({ dictionary }: ContactFormProps) => {
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
-                      variant="outline"
                       className={cn(
                         'w-full max-w-sm justify-start text-left font-normal',
                         !date && 'text-muted-foreground'
                       )}
+                      variant="outline"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {date ? (
@@ -79,10 +79,10 @@ export const ContactForm = ({ dictionary }: ContactFormProps) => {
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
                     <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
                       initialFocus
+                      mode="single"
+                      onSelect={setDate}
+                      selected={date}
                     />
                   </PopoverContent>
                 </Popover>

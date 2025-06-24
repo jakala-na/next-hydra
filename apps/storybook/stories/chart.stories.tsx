@@ -1,3 +1,9 @@
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@repo/design-system/components/ui/chart';
 import type { Meta, StoryObj } from '@storybook/react';
 import { useMemo } from 'react';
 import {
@@ -13,13 +19,6 @@ import {
   PieChart,
   XAxis,
 } from 'recharts';
-
-import {
-  type ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@repo/design-system/components/ui/chart';
 
 const multiSeriesData = [
   { month: 'January', desktop: 186, mobile: 80 },
@@ -101,31 +100,31 @@ export const StackedAreaChart: Story = {
       >
         <CartesianGrid vertical={false} />
         <XAxis
-          dataKey="month"
-          tickLine={false}
           axisLine={false}
-          tickMargin={8}
+          dataKey="month"
           tickFormatter={(value) => value.slice(0, 3)}
+          tickLine={false}
+          tickMargin={8}
         />
         <ChartTooltip
-          cursor={false}
           content={<ChartTooltipContent indicator="dot" />}
+          cursor={false}
         />
         <Area
           dataKey="mobile"
-          type="natural"
           fill="var(--color-mobile)"
           fillOpacity={0.4}
-          stroke="var(--color-mobile)"
           stackId="a"
+          stroke="var(--color-mobile)"
+          type="natural"
         />
         <Area
           dataKey="desktop"
-          type="natural"
           fill="var(--color-desktop)"
           fillOpacity={0.4}
-          stroke="var(--color-desktop)"
           stackId="a"
+          stroke="var(--color-desktop)"
+          type="natural"
         />
       </AreaChart>
     </ChartContainer>
@@ -144,15 +143,15 @@ export const StackedBarChart: Story = {
       <BarChart accessibilityLayer data={multiSeriesData}>
         <CartesianGrid vertical={false} />
         <XAxis
+          axisLine={false}
           dataKey="month"
+          tickFormatter={(value) => value.slice(0, 3)}
           tickLine={false}
           tickMargin={10}
-          axisLine={false}
-          tickFormatter={(value) => value.slice(0, 3)}
         />
         <ChartTooltip
-          cursor={false}
           content={<ChartTooltipContent indicator="dashed" />}
+          cursor={false}
         />
         <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
         <Bar dataKey="mobile" fill="var(--color-mobile)" radius={4} />
@@ -180,29 +179,29 @@ export const MultiLineChart: Story = {
       >
         <CartesianGrid vertical={false} />
         <XAxis
-          dataKey="month"
-          tickLine={false}
           axisLine={false}
-          tickMargin={8}
+          dataKey="month"
           tickFormatter={(value) => value.slice(0, 3)}
+          tickLine={false}
+          tickMargin={8}
         />
         <ChartTooltip
-          cursor={false}
           content={<ChartTooltipContent hideLabel />}
+          cursor={false}
         />
         <Line
           dataKey="desktop"
-          type="natural"
+          dot={false}
           stroke="var(--color-desktop)"
           strokeWidth={2}
-          dot={false}
+          type="natural"
         />
         <Line
           dataKey="mobile"
-          type="natural"
+          dot={false}
           stroke="var(--color-mobile)"
           strokeWidth={2}
-          dot={false}
+          type="natural"
         />
       </LineChart>
     </ChartContainer>
@@ -224,14 +223,14 @@ export const DoughnutChart: Story = {
       <ChartContainer {...args}>
         <PieChart>
           <ChartTooltip
-            cursor={false}
             content={<ChartTooltipContent hideLabel />}
+            cursor={false}
           />
           <Pie
             data={singleSeriesData}
             dataKey="visitors"
-            nameKey="browser"
             innerRadius={48}
+            nameKey="browser"
             strokeWidth={5}
           >
             <Label
@@ -239,22 +238,22 @@ export const DoughnutChart: Story = {
                 if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
                   return (
                     <text
+                      dominantBaseline="middle"
+                      textAnchor="middle"
                       x={viewBox.cx}
                       y={viewBox.cy}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
                     >
                       <tspan
+                        className="fill-foreground font-bold text-3xl"
                         x={viewBox.cx}
                         y={viewBox.cy}
-                        className="fill-foreground font-bold text-3xl"
                       >
                         {totalVisitors.toLocaleString()}
                       </tspan>
                       <tspan
+                        className="fill-muted-foreground"
                         x={viewBox.cx}
                         y={(viewBox.cy || 0) + 24}
-                        className="fill-muted-foreground"
                       >
                         Visitors
                       </tspan>

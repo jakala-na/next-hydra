@@ -1,11 +1,11 @@
 'use server';
 
-import { env } from '@/env';
 import { resend } from '@repo/email';
 import { ContactTemplate } from '@repo/email/templates/contact';
 import { parseError } from '@repo/observability/error';
 import { createRateLimiter, slidingWindow } from '@repo/rate-limit';
 import { headers } from 'next/headers';
+import { env } from '@/env';
 
 export const contact = async (
   name: string,
@@ -36,7 +36,7 @@ export const contact = async (
       to: env.RESEND_FROM,
       subject: 'Contact form submission',
       replyTo: email,
-      react: <ContactTemplate name={name} email={email} message={message} />,
+      react: <ContactTemplate email={email} message={message} name={name} />,
     });
 
     return {};

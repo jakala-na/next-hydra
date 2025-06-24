@@ -1,10 +1,9 @@
-import type { Meta, StoryObj } from '@storybook/react';
-
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@repo/design-system/components/ui/popover';
+import type { Meta, StoryObj } from '@storybook/react';
 
 /**
  * Displays rich content in a portal, triggered by a button.

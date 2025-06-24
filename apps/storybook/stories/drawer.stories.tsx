@@ -1,5 +1,3 @@
-import type { Meta, StoryObj } from '@storybook/react';
-
 import {
   Drawer,
   DrawerClose,
@@ -10,6 +8,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@repo/design-system/components/ui/drawer';
+import type { Meta, StoryObj } from '@storybook/react';
 
 /**
  * A drawer component for React.
@@ -29,13 +28,13 @@ const meta: Meta<typeof Drawer> = {
         </DrawerHeader>
         <DrawerFooter>
           <button
-            type="button"
             className="rounded bg-primary px-4 py-2 text-primary-foreground"
+            type="button"
           >
             Submit
           </button>
           <DrawerClose>
-            <button type="button" className="hover:underline">
+            <button className="hover:underline" type="button">
               Cancel
             </button>
           </DrawerClose>

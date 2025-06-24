@@ -1,6 +1,5 @@
 'use client';
 
-import { env } from '@/env';
 import { ModeToggle } from '@repo/design-system/components/mode-toggle';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -11,12 +10,12 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from '@repo/design-system/components/ui/navigation-menu';
+import type { Dictionary } from '@repo/internationalization';
 import { Menu, MoveRight, X } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-
-import type { Dictionary } from '@repo/internationalization';
-import Image from 'next/image';
+import { env } from '@/env';
 import { LanguageSwitcher } from './language-switcher';
 import Logo from './logo.svg';
 
@@ -68,7 +67,7 @@ export const Header = ({ dictionary }: HeaderProps) => {
                   {item.href ? (
                     <>
                       <NavigationMenuLink asChild>
-                        <Button variant="ghost" asChild>
+                        <Button asChild variant="ghost">
                           <Link href={item.href}>{item.title}</Link>
                         </Button>
                       </NavigationMenuLink>
@@ -87,7 +86,7 @@ export const Header = ({ dictionary }: HeaderProps) => {
                                 {item.description}
                               </p>
                             </div>
-                            <Button size="sm" className="mt-10" asChild>
+                            <Button asChild className="mt-10" size="sm">
                               <Link href="/contact">
                                 {dictionary.web.global.primaryCta}
                               </Link>
@@ -96,9 +95,9 @@ export const Header = ({ dictionary }: HeaderProps) => {
                           <div className="flex h-full flex-col justify-end text-sm">
                             {item.items?.map((subItem, idx) => (
                               <NavigationMenuLink
+                                className="flex flex-row items-center justify-between rounded px-4 py-2 hover:bg-muted"
                                 href={subItem.href}
                                 key={idx}
-                                className="flex flex-row items-center justify-between rounded px-4 py-2 hover:bg-muted"
                               >
                                 <span>{subItem.title}</span>
                                 <MoveRight className="h-4 w-4 text-muted-foreground" />
@@ -116,16 +115,16 @@ export const Header = ({ dictionary }: HeaderProps) => {
         </div>
         <div className="flex items-center gap-2 lg:justify-center">
           <Image
-            src={Logo}
             alt="Logo"
-            width={24}
-            height={24}
             className="dark:invert"
+            height={24}
+            src={Logo}
+            width={24}
           />
           <p className="whitespace-nowrap font-semibold">next-forge</p>
         </div>
         <div className="flex w-full justify-end gap-4">
-          <Button variant="ghost" className="hidden md:inline" asChild>
+          <Button asChild className="hidden md:inline" variant="ghost">
             <Link href="/contact">{dictionary.web.header.contact}</Link>
           </Button>
           <div className="hidden border-r md:inline" />
@@ -135,7 +134,7 @@ export const Header = ({ dictionary }: HeaderProps) => {
           <div className="hidden md:inline">
             <ModeToggle />
           </div>
-          <Button variant="outline" asChild className="hidden md:inline">
+          <Button asChild className="hidden md:inline" variant="outline">
             <Link href={`${env.NEXT_PUBLIC_APP_URL}/sign-in`}>
               {dictionary.web.header.signIn}
             </Link>
@@ -147,7 +146,7 @@ export const Header = ({ dictionary }: HeaderProps) => {
           </Button>
         </div>
         <div className="flex w-12 shrink items-end justify-end lg:hidden">
-          <Button variant="ghost" onClick={() => setOpen(!isOpen)}>
+          <Button onClick={() => setOpen(!isOpen)} variant="ghost">
             {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
           {isOpen && (
@@ -157,15 +156,15 @@ export const Header = ({ dictionary }: HeaderProps) => {
                   <div className="flex flex-col gap-2">
                     {item.href ? (
                       <Link
-                        href={item.href}
                         className="flex items-center justify-between"
-                        target={
-                          item.href.startsWith('http') ? '_blank' : undefined
-                        }
+                        href={item.href}
                         rel={
                           item.href.startsWith('http')
                             ? 'noopener noreferrer'
                             : undefined
+                        }
+                        target={
+                          item.href.startsWith('http') ? '_blank' : undefined
                         }
                       >
                         <span className="text-lg">{item.title}</span>
@@ -176,9 +175,9 @@ export const Header = ({ dictionary }: HeaderProps) => {
                     )}
                     {item.items?.map((subItem) => (
                       <Link
-                        key={subItem.title}
-                        href={subItem.href}
                         className="flex items-center justify-between"
+                        href={subItem.href}
+                        key={subItem.title}
                       >
                         <span className="text-muted-foreground">
                           {subItem.title}

@@ -1,6 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react';
-
 import { Slider } from '@repo/design-system/components/ui/slider';
+import type { Meta, StoryObj } from '@storybook/react';
 
 /**
  * An input where the user selects a value from within a given range.

@@ -1,4 +1,3 @@
-import { env } from '@/env';
 import { analytics } from '@repo/analytics/posthog/server';
 import type {
   DeletedObjectJSON,
@@ -11,6 +10,7 @@ import { log } from '@repo/observability/log';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { Webhook } from 'svix';
+import { env } from '@/env';
 
 const handleUserCreated = (data: UserJSON) => {
   analytics.identify({
@@ -156,7 +156,7 @@ export const POST = async (request: Request): Promise<Response> => {
   const svixSignature = headerPayload.get('svix-signature');
 
   // If there are no headers, error out
-  if (!svixId || !svixTimestamp || !svixSignature) {
+  if (!(svixId && svixTimestamp && svixSignature)) {
     return new Response('Error occured -- no svix headers', {
       status: 400,
     });

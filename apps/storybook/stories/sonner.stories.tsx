@@ -1,8 +1,7 @@
+import { Toaster } from '@repo/design-system/components/ui/sonner';
 import { action } from '@storybook/addon-actions';
 import type { Meta, StoryObj } from '@storybook/react';
 import { toast } from 'sonner';
-
-import { Toaster } from '@repo/design-system/components/ui/sonner';
 
 /**
  * An opinionated toast component for React.
@@ -31,7 +30,6 @@ export const Default: Story = {
   render: (args) => (
     <div className="flex min-h-96 items-center justify-center space-x-2">
       <button
-        type="button"
         onClick={() =>
           toast('Event has been created', {
             description: new Date().toLocaleString(),
@@ -41,6 +39,7 @@ export const Default: Story = {
             },
           })
         }
+        type="button"
       >
         Show Toast
       </button>

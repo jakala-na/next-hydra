@@ -1,10 +1,9 @@
-import type { Meta, StoryObj } from '@storybook/react';
-
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from '@repo/design-system/components/ui/resizable';
+import type { Meta, StoryObj } from '@storybook/react';
 
 /**
  * Accessible resizable panel groups and layouts with keyboard support.

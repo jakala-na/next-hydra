@@ -1,5 +1,3 @@
-import type { Meta, StoryObj } from '@storybook/react';
-
 import {
   Sheet,
   SheetClose,
@@ -10,6 +8,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@repo/design-system/components/ui/sheet';
+import type { Meta, StoryObj } from '@storybook/react';
 
 /**
  * Extends the Dialog component to display content that complements the main
@@ -43,13 +42,13 @@ const meta: Meta<typeof SheetContent> = {
         </SheetHeader>
         <SheetFooter>
           <SheetClose>
-            <button type="button" className="hover:underline">
+            <button className="hover:underline" type="button">
               Cancel
             </button>
           </SheetClose>
           <button
-            type="button"
             className="rounded bg-primary px-4 py-2 text-primary-foreground"
+            type="button"
           >
             Submit
           </button>

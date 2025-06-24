@@ -46,7 +46,7 @@ export const Testimonials = ({ dictionary }: TestimonialsProps) => {
           <h2 className="text-left font-regular text-3xl tracking-tighter md:text-5xl lg:max-w-xl">
             {dictionary.web.home.testimonials.title}
           </h2>
-          <Carousel setApi={setApi} className="w-full">
+          <Carousel className="w-full" setApi={setApi}>
             <CarouselContent>
               {dictionary.web.home.testimonials.items.map((item, index) => (
                 <CarouselItem className="lg:basis-1/2" key={index}>

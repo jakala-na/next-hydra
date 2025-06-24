@@ -1,8 +1,8 @@
-import { env } from '@/env';
 import { legal } from '@repo/cms';
 import { Feed } from '@repo/cms/components/feed';
 import { Status } from '@repo/observability/status';
 import Link from 'next/link';
+import { env } from '@/env';
 
 export const Footer = () => (
   <Feed queries={[legal.postsQuery]}>
@@ -61,21 +61,21 @@ export const Footer = () => (
                 <div className="grid items-start gap-10 lg:grid-cols-3">
                   {navigationItems.map((item) => (
                     <div
-                      key={item.title}
                       className="flex flex-col items-start gap-1 text-base"
+                      key={item.title}
                     >
                       <div className="flex flex-col gap-2">
                         {item.href ? (
                           <Link
-                            href={item.href}
                             className="flex items-center justify-between"
-                            target={
-                              item.href.includes('http') ? '_blank' : undefined
-                            }
+                            href={item.href}
                             rel={
                               item.href.includes('http')
                                 ? 'noopener noreferrer'
                                 : undefined
+                            }
+                            target={
+                              item.href.includes('http') ? '_blank' : undefined
                             }
                           >
                             <span className="text-xl">{item.title}</span>
@@ -85,17 +85,17 @@ export const Footer = () => (
                         )}
                         {item.items?.map((subItem) => (
                           <Link
-                            key={subItem.title}
-                            href={subItem.href}
                             className="flex items-center justify-between"
-                            target={
-                              subItem.href.includes('http')
-                                ? '_blank'
-                                : undefined
-                            }
+                            href={subItem.href}
+                            key={subItem.title}
                             rel={
                               subItem.href.includes('http')
                                 ? 'noopener noreferrer'
+                                : undefined
+                            }
+                            target={
+                              subItem.href.includes('http')
+                                ? '_blank'
                                 : undefined
                             }
                           >

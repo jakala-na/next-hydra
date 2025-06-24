@@ -1,5 +1,3 @@
-import { Sidebar } from '@/components/sidebar';
-import { env } from '@/env';
 import { ArrowLeftIcon } from '@radix-ui/react-icons';
 import { blog } from '@repo/cms';
 import { Body } from '@repo/cms/components/body';
@@ -12,6 +10,8 @@ import { createMetadata } from '@repo/seo/metadata';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Sidebar } from '@/components/sidebar';
+import { env } from '@/env';
 
 const protocol = env.VERCEL_PROJECT_PRODUCTION_URL?.startsWith('https')
   ? 'https'
@@ -100,36 +100,36 @@ const BlogPost = async ({ params }: BlogPostProperties) => {
                     </p>
                     {page.image ? (
                       <Image
-                        src={page.image.url}
-                        width={page.image.width}
-                        height={page.image.height}
                         alt={page.image.alt ?? ''}
                         className="my-16 h-full w-full rounded-xl"
+                        height={page.image.height}
                         priority
+                        src={page.image.url}
+                        width={page.image.width}
                       />
                     ) : undefined}
                     <div className="mx-auto max-w-prose">
                       <Body
-                        content={page.body.json.content}
                         components={{
                           pre: ({ code, language }) => {
                             return (
                               <CodeBlock
-                                theme="vesper"
                                 snippets={[{ code, language }]}
+                                theme="vesper"
                               />
                             );
                           },
                         }}
+                        content={page.body.json.content}
                       />
                     </div>
                   </div>
                 </div>
                 <div className="sticky top-24 hidden shrink-0 md:block">
                   <Sidebar
-                    toc={<TableOfContents data={page.body.json.toc} />}
-                    readingTime={`${page.body.readingTime} min read`}
                     date={new Date(page.date)}
+                    readingTime={`${page.body.readingTime} min read`}
+                    toc={<TableOfContents data={page.body.json.toc} />}
                   />
                 </div>
               </div>

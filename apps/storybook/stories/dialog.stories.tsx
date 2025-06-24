@@ -1,5 +1,3 @@
-import type { Meta, StoryObj } from '@storybook/react';
-
 import {
   Dialog,
   DialogClose,
@@ -10,6 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@repo/design-system/components/ui/dialog';
+import type { Meta, StoryObj } from '@storybook/react';
 
 /**
  * A window overlaid on either the primary window or another dialog window,
@@ -32,13 +31,13 @@ const meta = {
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-4">
-          <button type="button" className="hover:underline">
+          <button className="hover:underline" type="button">
             Cancel
           </button>
           <DialogClose>
             <button
-              type="button"
               className="rounded bg-primary px-4 py-2 text-primary-foreground"
+              type="button"
             >
               Continue
             </button>

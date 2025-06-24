@@ -54,18 +54,18 @@ const BlogIndex = async ({ params }: BlogProps) => {
 
                 return data.blog.posts.items.map((post, index) => (
                   <Link
-                    href={`/blog/${post._slug}`}
                     className={cn(
                       'flex cursor-pointer flex-col gap-4 hover:opacity-75',
                       !index && 'md:col-span-2'
                     )}
+                    href={`/blog/${post._slug}`}
                     key={post._slug}
                   >
                     <Image
-                      src={post.image.url}
                       alt={post.image.alt ?? ''}
-                      width={post.image.width}
                       height={post.image.height}
+                      src={post.image.url}
+                      width={post.image.width}
                     />
                     <div className="flex flex-row items-center gap-4">
                       <p className="text-muted-foreground text-sm">

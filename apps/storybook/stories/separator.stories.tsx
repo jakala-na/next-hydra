@@ -1,6 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react';
-
 import { Separator } from '@repo/design-system/components/ui/separator';
+import type { Meta, StoryObj } from '@storybook/react';
 
 /**
  * Visually or semantically separates content.
@@ -23,7 +22,7 @@ export const Horizontal: Story = {
   render: () => (
     <div className="flex gap-2">
       <div>Left</div>
-      <Separator orientation="vertical" className="h-auto" />
+      <Separator className="h-auto" orientation="vertical" />
       <div>Right</div>
     </div>
   ),

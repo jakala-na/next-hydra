@@ -1,6 +1,3 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { BellRing } from 'lucide-react';
-
 import {
   Card,
   CardContent,
@@ -9,6 +6,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@repo/design-system/components/ui/card';
+import type { Meta, StoryObj } from '@storybook/react';
+import { BellRing } from 'lucide-react';
 
 const notifications = [
   {
@@ -44,7 +43,7 @@ const meta = {
       </CardHeader>
       <CardContent className="grid gap-4">
         {notifications.map((notification, index) => (
-          <div key={index} className="flex items-center gap-4">
+          <div className="flex items-center gap-4" key={index}>
             <BellRing className="size-6" />
             <div>
               <p>{notification.title}</p>
@@ -54,7 +53,7 @@ const meta = {
         ))}
       </CardContent>
       <CardFooter>
-        <button type="button" className="hover:underline">
+        <button className="hover:underline" type="button">
           Close
         </button>
       </CardFooter>

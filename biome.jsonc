@@ -1,0 +1,35 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.0.5/schema.json",
+  "extends": ["ultracite"],
+  "javascript": {
+    "globals": ["Liveblocks"]
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/packages/design-system/components/ui/**",
+      "!**/packages/design-system/lib/**",
+      "!**/packages/design-system/hooks/**",
+      "!**/packages/collaboration/config.ts",
+      "!**/apps/docs/**/*.json",
+      "!**/apps/email/.react-email/**"
+    ]
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "useSortedAttributes": "off"
+      }
+    }
+  },
+  "linter": {
+    "rules": {
+      "nursery": {
+        "noShadow": "warn"
+      },
+      "suspicious": {
+        "noConsole": "warn"
+      }
+    }
+  }
+}

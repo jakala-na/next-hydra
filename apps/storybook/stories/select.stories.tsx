@@ -1,5 +1,3 @@
-import type { Meta, StoryObj } from '@storybook/react';
-
 import {
   Select,
   SelectContent,
@@ -10,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/design-system/components/ui/select';
+import type { Meta, StoryObj } from '@storybook/react';
 
 /**
  * Displays a list of options for the user to pick from—triggered by a button.
@@ -38,7 +37,7 @@ const meta: Meta<typeof Select> = {
           <SelectLabel>Vegetables</SelectLabel>
           <SelectItem value="aubergine">Aubergine</SelectItem>
           <SelectItem value="broccoli">Broccoli</SelectItem>
-          <SelectItem value="carrot" disabled>
+          <SelectItem disabled value="carrot">
             Carrot
           </SelectItem>
           <SelectItem value="courgette">Courgette</SelectItem>

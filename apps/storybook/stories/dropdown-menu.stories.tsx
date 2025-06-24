@@ -1,6 +1,3 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { Mail, Plus, PlusCircle, Search, UserPlus } from 'lucide-react';
-
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -18,6 +15,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@repo/design-system/components/ui/dropdown-menu';
+import type { Meta, StoryObj } from '@storybook/react';
+import { Mail, Plus, PlusCircle, Search, UserPlus } from 'lucide-react';
 
 /**
  * Displays a menu to the user — such as a set of actions or functions —

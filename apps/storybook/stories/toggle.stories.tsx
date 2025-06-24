@@ -1,7 +1,6 @@
+import { Toggle } from '@repo/design-system/components/ui/toggle';
 import type { Meta, StoryObj } from '@storybook/react';
 import { Bold, Italic } from 'lucide-react';
-
-import { Toggle } from '@repo/design-system/components/ui/toggle';
 
 /**
  * A two-state button that can be either on or off.

@@ -1,12 +1,11 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { REGEXP_ONLY_DIGITS_AND_CHARS } from 'input-otp';
-
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSeparator,
   InputOTPSlot,
 } from '@repo/design-system/components/ui/input-otp';
+import type { Meta, StoryObj } from '@storybook/react';
+import { REGEXP_ONLY_DIGITS_AND_CHARS } from 'input-otp';
 
 /**
  * Accessible one-time password component with copy paste functionality.
