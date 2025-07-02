@@ -9,7 +9,6 @@
       "outputs": [
         ".next/**",
         "!.next/cache/**",
-        ".basehub/**",
         "**/generated/**",
         "storybook-static/**",
         ".react-email/**"
@@ -30,6 +29,9 @@
       "cache": false
     },
     "clean": {
+      "cache": false
+    },
+    "generate": {
       "cache": false
     },
     "//#clean": {

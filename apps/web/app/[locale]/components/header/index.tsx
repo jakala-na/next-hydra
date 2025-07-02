@@ -1,5 +1,6 @@
 'use client';
 
+import type { NavigationItem } from '@repo/cms/types';
 import { ModeToggle } from '@repo/design-system/components/mode-toggle';
 import { Button } from '@repo/design-system/components/ui/button';
 import {
@@ -21,40 +22,10 @@ import Logo from './logo.svg';
 
 type HeaderProps = {
   dictionary: Dictionary;
+  navigationItems: NavigationItem[];
 };
 
-export const Header = ({ dictionary }: HeaderProps) => {
-  const navigationItems = [
-    {
-      title: dictionary.web.header.home,
-      href: '/',
-      description: '',
-    },
-    {
-      title: dictionary.web.header.product.title,
-      description: dictionary.web.header.product.description,
-      items: [
-        {
-          title: dictionary.web.header.product.pricing,
-          href: '/pricing',
-        },
-      ],
-    },
-    {
-      title: dictionary.web.header.blog,
-      href: '/blog',
-      description: '',
-    },
-  ];
-
-  if (env.NEXT_PUBLIC_DOCS_URL) {
-    navigationItems.push({
-      title: dictionary.web.header.docs,
-      href: env.NEXT_PUBLIC_DOCS_URL,
-      description: '',
-    });
-  }
-
+export const Header = ({ dictionary, navigationItems }: HeaderProps) => {
   const [isOpen, setOpen] = useState(false);
   return (
     <header className="sticky top-0 left-0 z-40 w-full border-b bg-background">
@@ -65,13 +36,11 @@ export const Header = ({ dictionary }: HeaderProps) => {
               {navigationItems.map((item) => (
                 <NavigationMenuItem key={item.title}>
                   {item.href ? (
-                    <>
-                      <NavigationMenuLink asChild>
-                        <Button asChild variant="ghost">
-                          <Link href={item.href}>{item.title}</Link>
-                        </Button>
-                      </NavigationMenuLink>
-                    </>
+                    <NavigationMenuLink asChild>
+                      <Button asChild variant="ghost">
+                        <Link href={item.href}>{item.title}</Link>
+                      </Button>
+                    </NavigationMenuLink>
                   ) : (
                     <>
                       <NavigationMenuTrigger className="font-medium text-sm">
@@ -82,9 +51,6 @@ export const Header = ({ dictionary }: HeaderProps) => {
                           <div className="flex h-full flex-col justify-between">
                             <div className="flex flex-col">
                               <p className="text-base">{item.title}</p>
-                              <p className="text-muted-foreground text-sm">
-                                {item.description}
-                              </p>
                             </div>
                             <Button asChild className="mt-10" size="sm">
                               <Link href="/contact">
@@ -121,7 +87,7 @@ export const Header = ({ dictionary }: HeaderProps) => {
             src={Logo}
             width={24}
           />
-          <p className="whitespace-nowrap font-semibold">next-forge</p>
+          <p className="whitespace-nowrap font-semibold">next-cms-commerce</p>
         </div>
         <div className="flex w-full justify-end gap-4">
           <Button asChild className="hidden md:inline" variant="ghost">

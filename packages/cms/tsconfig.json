@@ -1,7 +1,17 @@
 {
-  "extends": "@repo/typescript-config/nextjs.json",
+  "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
-    "baseUrl": "."
+    "baseUrl": ".",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "plugins": [
+      {
+        "name": "gql.tada/ts-plugin",
+        "schema": "./gql/schema.graphql",
+        "tadaOutputLocation": "./gql/graphql-env.d.ts",
+        "tadaTurboLocation": "./gql/graphql-cache.d.ts"
+      }
+    ]
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

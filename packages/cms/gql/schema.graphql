@@ -1,0 +1,1285 @@
+type Query {
+  assets(uid: String!, locale: String = "en-us", fallback_locale: Boolean = false): SysAsset
+  all_assets(where: SysAssetWhere, locale: String = "en-us", order_by: [SysAssetOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllSysAsset
+  navigation(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Navigation
+  all_navigation(where: NavigationWhere, locale: String! = "en-us", order_by: [NavigationOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllNavigation
+  mega_menu(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): MegaMenu
+  all_mega_menu(where: MegaMenuWhere, locale: String! = "en-us", order_by: [MegaMenuOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllMegaMenu
+  page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Page
+  all_page(where: PageWhere, locale: String! = "en-us", order_by: [PageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllPage
+  product(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Product
+  all_product(where: ProductWhere, locale: String! = "en-us", order_by: [ProductOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllProduct
+  hero_banner(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): HeroBanner
+  all_hero_banner(where: HeroBannerWhere, locale: String! = "en-us", order_by: [HeroBannerOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllHeroBanner
+  product_listing_page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): ProductListingPage
+  all_product_listing_page(where: ProductListingPageWhere, locale: String! = "en-us", order_by: [ProductListingPageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllProductListingPage
+}
+
+type SysAsset {
+  title: String
+  url(
+    """
+    Contentstack Image Delivery API is used to retrieve, manipulate and/or convert image files of your Contentstack account and deliver it to your web or mobile properties
+    """
+    transform: SysAssetTransformUrl
+  ): String
+  permanent_url: String
+  content_type: String
+  filename: String
+  file_size: Int
+  description: String
+  dimension: SysAssetDimension
+  metadata: JSON
+  unique_identifier: String
+  parent_uid: String
+  system: SysAssetSystemField
+}
+
+input SysAssetTransformUrl {
+  height: String
+  width: String
+
+  """
+  Format parameter lets you converts a given image from one format to another
+  """
+  format: SysAssetImageFormats
+
+  """
+  The disable parameter disables the functionality that is enabled by default
+  """
+  disable: SysAssetDisableValues
+
+  """
+  Fit parameter enables you to fit the given image properly within the specified height and width
+  """
+  fit: SysAssetFitValues
+  quality: Int
+  crop: String
+  trim: String
+
+  """
+  The orient parameter lets you control the cardinal orientation of the given image
+  """
+  orient: SysAssetOrientValues
+  overlay: String
+  overlay_align: SysAssetOverlayAlignValues
+
+  """
+  The overlay_repeat parameter lets you define how the overlay image will be repeated on the given image
+  """
+  overlay_repeat: SysAssetOverlayRepeatValues
+
+  """
+  When the auto parameter is set to webp, it enables WebP image support. WebP images have higher compression rate with minimum loss of quality.
+  """
+  auto: SysAssetAutoValues
+
+  """The disposition parameter lets you allow image to download or render. """
+  disposition: SysAssetDispositionValues
+
+  """
+  The dpr parameter lets you deliver images with appropriate size to devices that come with a defined device pixel ratio. The device pixel ratio of any device determines the screen resolution that its CSS would interpret
+  """
+  dpr: String
+
+  """
+  The bg-color parameter lets you set a backgroud color for the given image. This is useful when applying padding or for replacing the transparent pixels of an image
+  """
+  bg_color: String
+
+  """
+  This parameter lets you add extra pixels to the edges of an image. You can specify values for top, right, bottom, and left padding for an image
+  """
+  pad: String
+
+  """
+  The value for this parameter can be set in pixels or percentage. For pixel value, use any whole number between 1 and 8192. For percentage value, use any decimal number between 0.0 and 0.99. When height is defined in percentage, it relative to the output image
+  """
+  overlay_height: String
+
+  """
+  The value for this parameter can be set in pixels or percentage. For pixel value, use any whole number between 1 and 8192. For percentage value, use any decimal number between 0.0 and 0.99. When width is defined in percentage, it is relative to the output image
+  """
+  overlay_width: String
+}
+
+enum SysAssetImageFormats {
+  """Convert an image to GIF format"""
+  GIF
+
+  """Convert an image to PNG format"""
+  PNG
+
+  """Convert an image to JPEG format"""
+  JPG
+
+  """
+  A Progressive JPEG is an image file created using a compression method that displays higher detail in progression
+  """
+  PJPG
+
+  """WEBP images are usually lower in size and have good quality"""
+  WEBP
+
+  """WEBP Lossless format"""
+  WEBPLL
+
+  """WEBP Lossy format"""
+  WEBPLY
+}
+
+enum SysAssetDisableValues {
+  """
+  UPSCALE is always enabled, in which the image is upscaled if the output image (by specifying the width or height) is bigger than the source image
+  """
+  UPSCALE
+}
+
+enum SysAssetFitValues {
+  BOUNDS
+  CROP
+}
+
+enum SysAssetOrientValues {
+  """Set image to default"""
+  DEFAULT
+
+  """Flip image horizontally"""
+  HORIZONTALLY
+
+  """Flip image horizontally and vertically"""
+  BOTH
+
+  """Flip image vertically"""
+  VERTICALLY
+
+  """Flip image horizontally and then rotate 90 degrees towards left"""
+  ROTATE90LEFT
+
+  """Rotate image 90 degrees towards right"""
+  ROTATE90RIGHT
+}
+
+"""
+The overlay_align parameter allows you to put one image on top of another
+"""
+enum SysAssetOverlayAlignValues {
+  """Align the overlay image to the top of the actual image"""
+  TOP
+
+  """Align the overlay image to the bottom of the actual image"""
+  BOTTOM
+
+  """Align the overlay image to the left of the actual image"""
+  LEFT
+
+  """Align the overlay image to the right of the actual image"""
+  RIGHT
+
+  """Align the overlay image to the middle (vertically) of the actual image"""
+  MIDDLE
+
+  """
+  Align the overlay image to the center (horizontally) of the actual image
+  """
+  CENTER
+}
+
+enum SysAssetOverlayRepeatValues {
+  """Horizontal repetition"""
+  X
+
+  """Vertical repetition"""
+  Y
+
+  """Horizontal and vertical repetition"""
+  BOTH
+}
+
+"""WEBP images are usually lower in size and have good quality."""
+enum SysAssetAutoValues {
+  WEBP
+}
+
+"""This parameter allows an image to be downloaded or rendered on page"""
+enum SysAssetDispositionValues {
+  """Allows to download an image"""
+  ATTACHMENT
+
+  """Allows an image to be rendered on page"""
+  INLINE
+}
+
+type SysAssetDimension {
+  width: Int
+  height: Int
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
+type SysAssetSystemField {
+  branch: String
+  created_at: DateTime
+  updated_at: DateTime
+  created_by: String
+  updated_by: String
+  uid: String
+  tags: [String]
+  version: Int
+  content_type_uid: String
+  publish_details: SystemPublishDetails
+  extensionConnection(skip: Int = 0, limit: Int = 25): SysExtensionConnection
+}
+
+"""
+This field accepts both ISODateString and ISODateTimeStringexample: 1992-08-14 or 1992-08-14T03:42:00.000Z
+"""
+scalar DateTime
+
+type SystemPublishDetails {
+  environment: String
+  locale: String
+  time: DateTime
+  user: String
+  variants: [SysVariants]
+}
+
+type SysVariants {
+  variant_uid: String
+  environment: String
+  locale: String
+  time: DateTime
+  user: String
+  alias: String
+}
+
+type SysExtensionConnection {
+  totalCount: Int
+  edges: [SysExtensionEdge]
+}
+
+type SysExtensionEdge {
+  node: SysMetadata
+}
+
+type SysMetadata {
+  metadata: [JSON]
+  extension_uid: String
+}
+
+type AllSysAsset {
+  total: Int
+  items: [SysAsset]
+}
+
+input SysAssetWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  url: String
+  url_ne: String
+  url_in: [String]
+  url_nin: [String]
+  url_exists: Boolean
+  filename: String
+  filename_ne: String
+  filename_in: [String]
+  filename_nin: [String]
+  filename_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  file_size: Int
+  file_size_ne: Int
+  file_size_in: [Int]
+  file_size_nin: [Int]
+  file_size_exists: Boolean
+  file_size_lt: Int
+  file_size_lte: Int
+  file_size_gt: Int
+  file_size_gte: Int
+  dimension_exists: Boolean
+  dimension: SysAssetDimensionWhere
+  tags: String
+  tags_in: [String]
+  tags_nin: [String]
+  parent_uid: String
+  parent_uid_ne: String
+  parent_uid_in: [String]
+  parent_uid_nin: [String]
+  parent_uid_exists: Boolean
+  AND: [SysAssetWhere]
+  OR: [SysAssetWhere]
+}
+
+input SysAssetDimensionWhere {
+  width: Int
+  width_ne: Int
+  width_in: [Int]
+  width_nin: [Int]
+  width_exists: Boolean
+  width_lt: Int
+  width_lte: Int
+  width_gt: Int
+  width_gte: Int
+  height: Int
+  height_ne: Int
+  height_in: [Int]
+  height_nin: [Int]
+  height_exists: Boolean
+  height_lt: Int
+  height_lte: Int
+  height_gt: Int
+  height_gte: Int
+}
+
+enum SysAssetOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type Navigation {
+  title: String
+  items: [NavigationItems]
+  system: EntrySystemField
+}
+
+type NavigationItems {
+  text: String
+  linkConnection: NavigationItemsLinkConnection
+  mega_menuConnection: NavigationItemsMegaMenuConnection
+}
+
+type NavigationItemsLinkConnection {
+  totalCount: Int
+  edges: [NavigationItemsLinkEdge]
+}
+
+type NavigationItemsLinkEdge {
+  node: NavigationItemsLinkNode
+}
+
+union NavigationItemsLinkNode = Page
+
+type Page {
+  title: String
+  url: String
+  components: [PageComponents]
+  seo: Seo
+  system: EntrySystemField
+}
+
+union PageComponents = PageComponentsTextBlock
+
+type PageComponentsTextBlock {
+  text_block: PageComponentsTextBlockBlock
+}
+
+type PageComponentsTextBlockBlock {
+  content: PageComponentsTextBlockBlockContent
+}
+
+type PageComponentsTextBlockBlockContent {
+  json: JSON
+  embedded_itemsConnection(skip: Int = 0, limit: Int = 100): PageComponentsTextBlockBlockContentEmbeddedItemsConnection
+}
+
+type PageComponentsTextBlockBlockContentEmbeddedItemsConnection {
+  totalCount: Int
+  edges: [PageComponentsTextBlockBlockContentEmbeddedItemsEdge]
+}
+
+type PageComponentsTextBlockBlockContentEmbeddedItemsEdge {
+  node: PageComponentsTextBlockBlockContentEmbeddedItemsNode
+}
+
+union PageComponentsTextBlockBlockContentEmbeddedItemsNode = SysAsset
+
+type Seo {
+  meta_title: String
+  meta_description: String
+  keywords: String
+  enable_search_indexing: Boolean
+}
+
+type EntrySystemField {
+  branch: String
+  created_at: DateTime
+  publish_details: SystemPublishDetails
+  updated_at: DateTime
+  created_by: String
+  updated_by: String
+  uid: String
+  tags: [String]
+  version: Int
+  content_type_uid: String
+  locale: String
+  extensionConnection(skip: Int = 0, limit: Int = 25): SysExtensionConnection
+}
+
+type NavigationItemsMegaMenuConnection {
+  totalCount: Int
+  edges: [NavigationItemsMegaMenuEdge]
+}
+
+type NavigationItemsMegaMenuEdge {
+  node: NavigationItemsMegaMenuNode
+}
+
+union NavigationItemsMegaMenuNode = MegaMenu
+
+type MegaMenu {
+  title: String
+  sections: [MegaMenuSections]
+  system: EntrySystemField
+}
+
+type MegaMenuSections {
+  title: String
+  linkConnection: MegaMenuSectionsLinkConnection
+  links: [MegaMenuSectionsLinks]
+}
+
+type MegaMenuSectionsLinkConnection {
+  totalCount: Int
+  edges: [MegaMenuSectionsLinkEdge]
+}
+
+type MegaMenuSectionsLinkEdge {
+  node: MegaMenuSectionsLinkNode
+}
+
+union MegaMenuSectionsLinkNode = Page
+
+type MegaMenuSectionsLinks {
+  text: String
+  thumbnailConnection: SysAssetConnection
+  linkConnection: MegaMenuSectionsLinksLinkConnection
+  link_text: String
+}
+
+type SysAssetConnection {
+  totalCount: Int
+  edges: [SysAssetEdge]
+}
+
+type SysAssetEdge {
+  node: SysAsset
+}
+
+type MegaMenuSectionsLinksLinkConnection {
+  totalCount: Int
+  edges: [MegaMenuSectionsLinksLinkEdge]
+}
+
+type MegaMenuSectionsLinksLinkEdge {
+  node: MegaMenuSectionsLinksLinkNode
+}
+
+union MegaMenuSectionsLinksLinkNode = Page
+
+type AllNavigation {
+  total: Int
+  items: [Navigation]
+}
+
+input NavigationWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  items: NavigationItemsWhere
+  items_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [NavigationWhere]
+  OR: [NavigationWhere]
+}
+
+input NavigationItemsWhere {
+  text: String
+  text_ne: String
+  text_in: [String]
+  text_nin: [String]
+  text_exists: Boolean
+  link: NavigationItemsLinkWhere
+  link_exists: Boolean
+  mega_menu: NavigationItemsMegaMenuWhere
+  mega_menu_exists: Boolean
+}
+
+input NavigationItemsLinkWhere {
+  page: PageWhere
+  MATCH: EvalReferenceEnum
+}
+
+input PageWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  url: String
+  url_ne: String
+  url_in: [String]
+  url_nin: [String]
+  url_exists: Boolean
+  components: PageComponentsWhere
+  components_exists: Boolean
+  seo: SeoWhere
+  seo_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [PageWhere]
+  OR: [PageWhere]
+}
+
+input PageComponentsWhere {
+  text_block: PageComponentsTextBlockBlockWhere
+  text_block_exists: Boolean
+}
+
+input PageComponentsTextBlockBlockWhere {
+  content: JSON
+  content_exists: Boolean
+}
+
+input SeoWhere {
+  meta_title: String
+  meta_title_ne: String
+  meta_title_in: [String]
+  meta_title_nin: [String]
+  meta_title_exists: Boolean
+  meta_description: String
+  meta_description_ne: String
+  meta_description_in: [String]
+  meta_description_nin: [String]
+  meta_description_exists: Boolean
+  keywords: String
+  keywords_ne: String
+  keywords_in: [String]
+  keywords_nin: [String]
+  keywords_exists: Boolean
+  enable_search_indexing: Boolean
+  enable_search_indexing_exists: Boolean
+  enable_search_indexing_ne: Boolean
+}
+
+input SystemPublishDetailsWhere {
+  time: DateTime
+  time_ne: DateTime
+  time_in: [DateTime]
+  time_nin: [DateTime]
+  time_lt: DateTime
+  time_lte: DateTime
+  time_gt: DateTime
+  time_gte: DateTime
+  user: String
+  user_ne: String
+  user_in: [String]
+  user_nin: [String]
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+}
+
+enum EvalReferenceEnum {
+  ANY
+  ALL
+}
+
+input NavigationItemsMegaMenuWhere {
+  mega_menu: MegaMenuWhere
+  MATCH: EvalReferenceEnum
+}
+
+input MegaMenuWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  sections: MegaMenuSectionsWhere
+  sections_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [MegaMenuWhere]
+  OR: [MegaMenuWhere]
+}
+
+input MegaMenuSectionsWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  link: MegaMenuSectionsLinkWhere
+  link_exists: Boolean
+  links: MegaMenuSectionsLinksWhere
+  links_exists: Boolean
+}
+
+input MegaMenuSectionsLinkWhere {
+  page: PageWhere
+  MATCH: EvalReferenceEnum
+}
+
+input MegaMenuSectionsLinksWhere {
+  text: String
+  text_ne: String
+  text_in: [String]
+  text_nin: [String]
+  text_exists: Boolean
+  thumbnail: SysAssetWhere
+  thumbnail_exists: Boolean
+  link: MegaMenuSectionsLinksLinkWhere
+  link_exists: Boolean
+  link_text: String
+  link_text_ne: String
+  link_text_in: [String]
+  link_text_nin: [String]
+  link_text_exists: Boolean
+}
+
+input MegaMenuSectionsLinksLinkWhere {
+  page: PageWhere
+  MATCH: EvalReferenceEnum
+}
+
+enum NavigationOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type AllMegaMenu {
+  total: Int
+  items: [MegaMenu]
+}
+
+enum MegaMenuOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type AllPage {
+  total: Int
+  items: [Page]
+}
+
+enum PageOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type Product {
+  title: String
+  url: String
+  description: String
+  featured_imageConnection(skip: Int = 0, limit: Int = 100): SysAssetConnection
+  price: Float
+  call_to_action: Link
+  system: EntrySystemField
+}
+
+type Link {
+  title: String
+  href: String
+}
+
+type AllProduct {
+  total: Int
+  items: [Product]
+}
+
+input ProductWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  url: String
+  url_ne: String
+  url_in: [String]
+  url_nin: [String]
+  url_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  featured_image_count: Int
+  featured_image: SysAssetWhere
+  featured_image_exists: Boolean
+  price: Float
+  price_in: [Float]
+  price_nin: [Float]
+  price_exists: Boolean
+  price_ne: Float
+  price_lt: Float
+  price_lte: Float
+  price_gt: Float
+  price_gte: Float
+  call_to_action: LinkWhere
+  call_to_action_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [ProductWhere]
+  OR: [ProductWhere]
+}
+
+input LinkWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  href: String
+  href_ne: String
+  href_in: [String]
+  href_nin: [String]
+  href_exists: Boolean
+}
+
+enum ProductOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type HeroBanner {
+  title: String
+  banner_imageConnection: SysAssetConnection
+  background_color: JSON
+  text_color: JSON
+  banner_description: String
+  call_to_action: Link
+  is_banner_image_full_width_: Boolean
+  banner_image_alignment: String
+  content_title_alignment: String
+  system: EntrySystemField
+}
+
+type AllHeroBanner {
+  total: Int
+  items: [HeroBanner]
+}
+
+input HeroBannerWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  banner_image: SysAssetWhere
+  banner_image_exists: Boolean
+  background_color: JSON
+  background_color_exists: Boolean
+  text_color: JSON
+  text_color_exists: Boolean
+  banner_description: String
+  banner_description_ne: String
+  banner_description_in: [String]
+  banner_description_nin: [String]
+  banner_description_exists: Boolean
+  call_to_action: LinkWhere
+  call_to_action_exists: Boolean
+  is_banner_image_full_width_: Boolean
+  is_banner_image_full_width__exists: Boolean
+  is_banner_image_full_width__ne: Boolean
+  banner_image_alignment: String
+  banner_image_alignment_ne: String
+  banner_image_alignment_in: [String]
+  banner_image_alignment_nin: [String]
+  banner_image_alignment_exists: Boolean
+  content_title_alignment: String
+  content_title_alignment_ne: String
+  content_title_alignment_in: [String]
+  content_title_alignment_nin: [String]
+  content_title_alignment_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [HeroBannerWhere]
+  OR: [HeroBannerWhere]
+}
+
+enum HeroBannerOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type ProductListingPage {
+  title: String
+  url: String
+  page_components: [ProductListingPagePageComponents]
+  seo: Seo
+  system: EntrySystemField
+}
+
+union ProductListingPagePageComponents = ProductListingPagePageComponentsHeroBanner | ProductListingPagePageComponentsProduct | ProductListingPagePageComponentsWidget
+
+type ProductListingPagePageComponentsHeroBanner {
+  hero_banner: ProductListingPagePageComponentsHeroBannerBlock
+}
+
+type ProductListingPagePageComponentsHeroBannerBlock {
+  hero_bannerConnection: ProductListingPagePageComponentsHeroBannerBlockHeroBannerConnection
+}
+
+type ProductListingPagePageComponentsHeroBannerBlockHeroBannerConnection {
+  totalCount: Int
+  edges: [ProductListingPagePageComponentsHeroBannerBlockHeroBannerEdge]
+}
+
+type ProductListingPagePageComponentsHeroBannerBlockHeroBannerEdge {
+  node: ProductListingPagePageComponentsHeroBannerBlockHeroBannerNode
+}
+
+union ProductListingPagePageComponentsHeroBannerBlockHeroBannerNode = HeroBanner
+
+type ProductListingPagePageComponentsProduct {
+  product: ProductListingPagePageComponentsProductBlock
+}
+
+type ProductListingPagePageComponentsProductBlock {
+  productConnection(skip: Int = 0, limit: Int = 100, where: SysRefProductListingPagePageComponentsProductBlockProductWhere): ProductListingPagePageComponentsProductBlockProductConnection
+}
+
+type ProductListingPagePageComponentsProductBlockProductConnection {
+  totalCount: Int
+  edges: [ProductListingPagePageComponentsProductBlockProductEdge]
+}
+
+type ProductListingPagePageComponentsProductBlockProductEdge {
+  node: ProductListingPagePageComponentsProductBlockProductNode
+}
+
+union ProductListingPagePageComponentsProductBlockProductNode = Product
+
+input SysRefProductListingPagePageComponentsProductBlockProductWhere {
+  product: SysRefProductWhere
+}
+
+input SysRefProductWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  url: String
+  url_ne: String
+  url_in: [String]
+  url_nin: [String]
+  url_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  price: Float
+  price_in: [Float]
+  price_nin: [Float]
+  price_exists: Boolean
+  price_ne: Float
+  price_lt: Float
+  price_lte: Float
+  price_gt: Float
+  price_gte: Float
+  call_to_action: LinkWhere
+}
+
+type ProductListingPagePageComponentsWidget {
+  widget: ProductListingPagePageComponentsWidgetBlock
+}
+
+type ProductListingPagePageComponentsWidgetBlock {
+  title_h2: String
+  related_productsConnection: ProductListingPagePageComponentsWidgetBlockRelatedProductsConnection
+}
+
+type ProductListingPagePageComponentsWidgetBlockRelatedProductsConnection {
+  totalCount: Int
+  edges: [ProductListingPagePageComponentsWidgetBlockRelatedProductsEdge]
+}
+
+type ProductListingPagePageComponentsWidgetBlockRelatedProductsEdge {
+  node: ProductListingPagePageComponentsWidgetBlockRelatedProductsNode
+}
+
+union ProductListingPagePageComponentsWidgetBlockRelatedProductsNode = ProductListingPage
+
+type AllProductListingPage {
+  total: Int
+  items: [ProductListingPage]
+}
+
+input ProductListingPageWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  url: String
+  url_ne: String
+  url_in: [String]
+  url_nin: [String]
+  url_exists: Boolean
+  page_components: ProductListingPagePageComponentsWhere
+  page_components_exists: Boolean
+  seo: SeoWhere
+  seo_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [ProductListingPageWhere]
+  OR: [ProductListingPageWhere]
+}
+
+input ProductListingPagePageComponentsWhere {
+  hero_banner: ProductListingPagePageComponentsHeroBannerBlockWhere
+  hero_banner_exists: Boolean
+  product: ProductListingPagePageComponentsProductBlockWhere
+  product_exists: Boolean
+  widget: ProductListingPagePageComponentsWidgetBlockWhere
+  widget_exists: Boolean
+}
+
+input ProductListingPagePageComponentsHeroBannerBlockWhere {
+  hero_banner: ProductListingPagePageComponentsHeroBannerBlockHeroBannerWhere
+  hero_banner_exists: Boolean
+}
+
+input ProductListingPagePageComponentsHeroBannerBlockHeroBannerWhere {
+  hero_banner: HeroBannerWhere
+  MATCH: EvalReferenceEnum
+}
+
+input ProductListingPagePageComponentsProductBlockWhere {
+  product: ProductListingPagePageComponentsProductBlockProductWhere
+  product_count: Int
+  product_exists: Boolean
+}
+
+input ProductListingPagePageComponentsProductBlockProductWhere {
+  product: ProductWhere
+  MATCH: EvalReferenceEnum
+}
+
+input ProductListingPagePageComponentsWidgetBlockWhere {
+  title_h2: String
+  title_h2_ne: String
+  title_h2_in: [String]
+  title_h2_nin: [String]
+  title_h2_exists: Boolean
+  related_products: ProductListingPagePageComponentsWidgetBlockRelatedProductsWhere
+  related_products_exists: Boolean
+}
+
+input ProductListingPagePageComponentsWidgetBlockRelatedProductsWhere {
+  product_listing_page: ProductListingPageWhere
+  MATCH: EvalReferenceEnum
+}
+
+enum ProductListingPageOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}

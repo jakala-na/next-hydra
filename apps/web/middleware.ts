@@ -1,4 +1,5 @@
 import { authMiddleware } from '@repo/auth/middleware';
+import { cmsMiddleware } from '@repo/cms/middleware';
 import { internationalizationMiddleware } from '@repo/internationalization/middleware';
 import { parseError } from '@repo/observability/error';
 import { secure } from '@repo/security';
@@ -24,12 +25,19 @@ const securityHeaders = env.FLAGS_SECRET
   ? noseconeMiddleware(noseconeOptionsWithToolbar)
   : noseconeMiddleware(noseconeOptions);
 
-const middleware = authMiddleware(async (_auth, request) => {
-  const i18nResponse = internationalizationMiddleware(
-    request as unknown as NextRequest
-  );
-  if (i18nResponse) {
-    return i18nResponse;
+const middleware = async (request: NextRequest) => {
+  // const middleware = authMiddleware(async (_auth, request) => {
+  // const i18nResponse = internationalizationMiddleware(
+  //   request as unknown as NextRequest
+  // );
+  // if (i18nResponse) {
+  //   return i18nResponse;
+  // }
+
+  // CMS middleware is needed to handle live preview
+  const cmsMiddlewareResponse = cmsMiddleware(request);
+  if (cmsMiddlewareResponse) {
+    return cmsMiddleware(request);
   }
 
   if (!env.ARCJET_KEY) {
@@ -53,6 +61,7 @@ const middleware = authMiddleware(async (_auth, request) => {
 
     return NextResponse.json({ error: message }, { status: 403 });
   }
-}) as unknown as NextMiddleware;
+};
+// }) as unknown as NextMiddleware;
 
 export default middleware;

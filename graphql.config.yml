@@ -1,0 +1,4 @@
+projects:
+  cms:
+    schema: './packages/cms/gql/schema.graphql'
+    documents: ['./packages/cms/**/*.{graphql,js,ts,jsx,tsx}']

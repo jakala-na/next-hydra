@@ -1,12 +1,6 @@
 {
-  "name": "next-forge",
-  "version": "5.0.2",
-  "bin": {
-    "next-forge": "dist/index.js"
-  },
-  "files": [
-    "dist/index.js"
-  ],
+  "name": "next-cms-commerce",
+  "version": "0.0.0",
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
@@ -18,18 +12,15 @@
     "boundaries": "turbo boundaries",
     "bump-deps": "npx npm-check-updates --deep -u -x react-day-picker",
     "bump-ui": "npx shadcn@latest add --all --overwrite -c packages/design-system",
-    "migrate": "cd packages/database && npx prisma format && npx prisma generate && npx prisma db push",
     "clean": "git clean -xdf node_modules"
   },
   "devDependencies": {
-    "@auto-it/first-time-contributor": "^11.3.0",
     "@biomejs/biome": "2.0.5",
     "@repo/typescript-config": "workspace:*",
     "@turbo/gen": "^2.5.3",
     "@types/node": "^22.15.21",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
-    "tsup": "^8.5.0",
     "turbo": "^2.5.3",
     "typescript": "^5.8.3",
     "ultracite": "^5.0.12",
