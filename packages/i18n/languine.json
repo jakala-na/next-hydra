@@ -1,0 +1,11 @@
+{
+  "locale": {
+    "source": "en",
+    "targets": ["fr-CA"]
+  },
+  "files": {
+    "json": {
+      "include": ["messages/[locale].json"]
+    }
+  }
+}

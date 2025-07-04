@@ -1,0 +1,5 @@
+version: 1
+files:
+  messages/en.json:
+    web.header.signIn: b6d4223e60986fa4c9af77ee5f7149c5
+    web.header.signUp: be11c74c1dd7f307bb80183a90dc2067

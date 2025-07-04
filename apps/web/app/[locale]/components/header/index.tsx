@@ -11,7 +11,7 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from '@repo/design-system/components/ui/navigation-menu';
-import type { Dictionary } from '@repo/internationalization';
+import { useTranslations } from '@repo/i18n';
 import { Menu, MoveRight, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -21,11 +21,11 @@ import { LanguageSwitcher } from './language-switcher';
 import Logo from './logo.svg';
 
 type HeaderProps = {
-  dictionary: Dictionary;
   navigationItems: NavigationItem[];
 };
 
-export const Header = ({ dictionary, navigationItems }: HeaderProps) => {
+export const Header = ({ navigationItems }: HeaderProps) => {
+  const t = useTranslations('web.header');
   const [isOpen, setOpen] = useState(false);
   return (
     <header className="sticky top-0 left-0 z-40 w-full border-b bg-background">
@@ -52,11 +52,6 @@ export const Header = ({ dictionary, navigationItems }: HeaderProps) => {
                             <div className="flex flex-col">
                               <p className="text-base">{item.title}</p>
                             </div>
-                            <Button asChild className="mt-10" size="sm">
-                              <Link href="/contact">
-                                {dictionary.web.global.primaryCta}
-                              </Link>
-                            </Button>
                           </div>
                           <div className="flex h-full flex-col justify-end text-sm">
                             {item.items?.map((subItem, idx) => (
@@ -90,9 +85,6 @@ export const Header = ({ dictionary, navigationItems }: HeaderProps) => {
           <p className="whitespace-nowrap font-semibold">next-cms-commerce</p>
         </div>
         <div className="flex w-full justify-end gap-4">
-          <Button asChild className="hidden md:inline" variant="ghost">
-            <Link href="/contact">{dictionary.web.header.contact}</Link>
-          </Button>
           <div className="hidden border-r md:inline" />
           <div className="hidden md:inline">
             <LanguageSwitcher />
@@ -101,13 +93,13 @@ export const Header = ({ dictionary, navigationItems }: HeaderProps) => {
             <ModeToggle />
           </div>
           <Button asChild className="hidden md:inline" variant="outline">
-            <Link href={`${env.NEXT_PUBLIC_APP_URL}/sign-in`}>
-              {dictionary.web.header.signIn}
+            <Link href={`${env.NEXT_PUBLIC_WEB_URL}/sign-in`}>
+              {t('signIn')}
             </Link>
           </Button>
           <Button asChild>
-            <Link href={`${env.NEXT_PUBLIC_APP_URL}/sign-up`}>
-              {dictionary.web.header.signUp}
+            <Link href={`${env.NEXT_PUBLIC_WEB_URL}/sign-up`}>
+              {t('signUp')}
             </Link>
           </Button>
         </div>

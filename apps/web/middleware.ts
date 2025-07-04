@@ -1,67 +1,27 @@
-import { authMiddleware } from '@repo/auth/middleware';
 import { cmsMiddleware } from '@repo/cms/middleware';
-import { internationalizationMiddleware } from '@repo/internationalization/middleware';
-import { parseError } from '@repo/observability/error';
-import { secure } from '@repo/security';
+import { i18nMiddleware } from '@repo/i18n/middleware';
+
 import {
-  noseconeMiddleware,
-  noseconeOptions,
-  noseconeOptionsWithToolbar,
-} from '@repo/security/middleware';
-import {
-  type NextMiddleware,
-  type NextRequest,
-  NextResponse,
-} from 'next/server';
-import { env } from '@/env';
+  createNEMO,
+  type GlobalMiddlewareConfig,
+  type MiddlewareConfig,
+} from '@rescale/nemo';
 
 export const config = {
   // matcher tells Next.js which routes to run the middleware on. This runs the
   // middleware on all routes except for static assets and Posthog ingest
-  matcher: ['/((?!_next/static|_next/image|ingest|favicon.ico).*)'],
+  matcher: ['/((?!api|_next/|_static|_vercel|ingest|[\\w-]+\\.\\w+).*)'],
 };
 
-const securityHeaders = env.FLAGS_SECRET
-  ? noseconeMiddleware(noseconeOptionsWithToolbar)
-  : noseconeMiddleware(noseconeOptions);
-
-const middleware = async (request: NextRequest) => {
-  // const middleware = authMiddleware(async (_auth, request) => {
-  // const i18nResponse = internationalizationMiddleware(
-  //   request as unknown as NextRequest
-  // );
-  // if (i18nResponse) {
-  //   return i18nResponse;
-  // }
-
-  // CMS middleware is needed to handle live preview
-  const cmsMiddlewareResponse = cmsMiddleware(request);
-  if (cmsMiddlewareResponse) {
-    return cmsMiddleware(request);
-  }
-
-  if (!env.ARCJET_KEY) {
-    return securityHeaders();
-  }
-
-  try {
-    await secure(
-      [
-        // See https://docs.arcjet.com/bot-protection/identifying-bots
-        'CATEGORY:SEARCH_ENGINE', // Allow search engines
-        'CATEGORY:PREVIEW', // Allow preview links to show OG images
-        'CATEGORY:MONITOR', // Allow uptime monitoring services
-      ],
-      request
-    );
-
-    return securityHeaders();
-  } catch (error) {
-    const message = parseError(error);
-
-    return NextResponse.json({ error: message }, { status: 403 });
-  }
+const globalMiddlewares: GlobalMiddlewareConfig = {
+  before: [cmsMiddleware, i18nMiddleware],
 };
-// }) as unknown as NextMiddleware;
+
+const middlewares: MiddlewareConfig = {
+  // biome-ignore lint/suspicious/noEmptyBlockStatements: no-op placeholder
+  '/': () => {}, // Path-based middlewares are not needed for now.
+};
+
+const middleware = createNEMO(middlewares, globalMiddlewares);
 
 export default middleware;

@@ -5,8 +5,10 @@ import { DesignSystemProvider } from '@repo/design-system';
 import { fonts } from '@repo/design-system/lib/fonts';
 import { cn } from '@repo/design-system/lib/utils';
 import { Toolbar } from '@repo/feature-flags/components/toolbar';
-import { getDictionary } from '@repo/internationalization';
+import { hasLocale, NextIntlClientProvider } from '@repo/i18n';
+import { routing } from '@repo/i18n/routing';
 import { draftMode, headers } from 'next/headers';
+import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Footer } from './components/footer';
 import { Header } from './components/header';
@@ -21,7 +23,9 @@ type RootLayoutProperties = {
 const RootLayout = async ({ children, params }: RootLayoutProperties) => {
   const { isEnabled: isDraftModeEnabled } = await draftMode();
   const { locale } = await params;
-  const dictionary = await getDictionary(locale);
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
   let livePreviewHash = '';
   if (isDraftModeEnabled) {
     livePreviewHash = (await headers()).get('x-live-preview') || '';
@@ -31,15 +35,17 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
   return (
     <html
       className={cn(fonts, 'scroll-smooth')}
-      lang="en"
+      lang={locale}
       suppressHydrationWarning
     >
       <body>
         <DesignSystemProvider>
-          <Header dictionary={dictionary} navigationItems={navigationItems} />
-          {children}
-          <Footer />
-          <LivePreview isEnabled={isDraftModeEnabled} />
+          <NextIntlClientProvider>
+            <Header navigationItems={navigationItems} />
+            {children}
+            <Footer />
+            <LivePreview isEnabled={isDraftModeEnabled} />
+          </NextIntlClientProvider>
         </DesignSystemProvider>
         <Toolbar />
       </body>
