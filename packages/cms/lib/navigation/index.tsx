@@ -2,7 +2,7 @@ import {
   unstable_cacheLife as cacheLife,
   unstable_cacheTag as cacheTag,
 } from 'next/cache';
-import type { NavigationItem } from 'types';
+import type { NavigationItem } from '../../types';
 import { graphqlClient } from '../../client';
 import { TAGS } from '../../constants';
 import { graphql } from '../../graphql';

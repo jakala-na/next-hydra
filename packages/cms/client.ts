@@ -73,4 +73,6 @@ const makeClient = (livePreviewHash?: string) => {
  * @see https://commerce.nearform.com/open-source/urql/docs/advanced/server-side-rendering/#nextjs
  */
 
-export const graphqlClient = memoize(makeClient);
+export const graphqlClient: (
+  livePreviewHash?: string
+) => ReturnType<typeof makeClient> = memoize(makeClient);
