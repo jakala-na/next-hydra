@@ -12,7 +12,7 @@ export async function GET() {
       httpOnly: true,
       path: '/',
       secure: true,
-      sameSite: 'none'
+      sameSite: 'none',
     });
   }
   redirect('/');

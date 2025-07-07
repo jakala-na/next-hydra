@@ -4,6 +4,7 @@
     "bradlc.vscode-tailwindcss",
     "unifiedjs.vscode-mdx",
     "mikestead.dotenv",
-    "christian-kohler.npm-intellisense"
+    "christian-kohler.npm-intellisense",
+    "GraphQL.vscode-graphql"
   ]
 }

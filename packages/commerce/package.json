@@ -1,5 +1,5 @@
 {
-  "name": "@repo/cms",
+  "name": "@repo/commerce",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,12 +9,10 @@
     "generate": "node --experimental-transform-types scripts/gql-sync.ts"
   },
   "dependencies": {
-    "@contentstack/delivery-sdk": "^4.7.1",
-    "@contentstack/live-preview-utils": "^3.2.3",
     "@gql.tada/cli-utils": "^1.6.3",
+    "dotenv": "^17.0.0",
     "@t3-oss/env-nextjs": "^0.13.4",
     "@urql/core": "^5.1.2",
-    "dotenv": "^17.0.0",
     "gql.tada": "^1.8.10",
     "lodash.memoize": "^4.1.2",
     "react": "^19.1.0",

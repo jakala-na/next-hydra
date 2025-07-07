@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "commercetools-developer": {
+      "type": "remote",
+      "url": "https://docs.commercetools.com/apis/mcp",
+      "enabled": true
+    }
+  }
+}
