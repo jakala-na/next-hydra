@@ -20,7 +20,8 @@
   "linter": {
     "rules": {
       "nursery": {
-        "noShadow": "warn"
+        "noShadow": "warn",
+        "noUselessEscapeInString": "off"
       },
       "suspicious": {
         "noConsole": "warn"

@@ -10,8 +10,8 @@ import { routing } from '@repo/i18n/routing';
 import { draftMode, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Footer } from './components/footer';
-import { Header } from './components/header';
+import { Footer } from '../components/footer';
+import { Header } from '../components/header';
 
 type RootLayoutProperties = {
   readonly children: ReactNode;

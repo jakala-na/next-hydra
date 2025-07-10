@@ -12,6 +12,10 @@
       "@repo/design-system/*": ["./*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../commerce/components/product/featured-products.tsx"
+  ],
   "exclude": ["node_modules"]
 }
