@@ -563,6 +563,9 @@ importers:
       lodash.memoize:
         specifier: ^4.1.2
         version: 4.1.2
+      next-safe-action:
+        specifier: ^8.0.7
+        version: 8.0.7(next@15.3.5(@opentelemetry/api@1.9.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react:
         specifier: ^19.1.0
         version: 19.1.0
@@ -7560,6 +7563,14 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  next-safe-action@8.0.7:
+    resolution: {integrity: sha512-clQRxsvf4nZktCYkP1seeNH5rOZjsx6VYSAlpphvXvW+INIBvGySEStKutwtAPFV0/uZFJmNPt77ankoepUYXQ==}
+    engines: {node: '>=18.17'}
+    peerDependencies:
+      next: '>= 14.0.0'
+      react: '>= 18.2.0'
+      react-dom: '>= 18.2.0'
 
   next-themes@0.4.6:
     resolution: {integrity: sha512-pZvgD5L0IEvX5/9GWyHMf3m8BKiVQwsCMHfoFosXtXBMnaS0ZnIJ9ST4b4NqLVKDEm8QBxoNNGNaBv2JNF6XNA==}
@@ -16961,6 +16972,12 @@ snapshots:
       use-intl: 4.3.3(react@19.1.0)
     optionalDependencies:
       typescript: 5.8.3
+
+  next-safe-action@8.0.7(next@15.3.5(@opentelemetry/api@1.9.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+    dependencies:
+      next: 15.3.5(@opentelemetry/api@1.9.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
 
   next-themes@0.4.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
