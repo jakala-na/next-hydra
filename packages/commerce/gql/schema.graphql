@@ -88,7 +88,7 @@ input AddCartCustomLineItem {
   priceMode: CustomLineItemPriceMode
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: CustomLineItemRecurrenceInfoInputDraft
   taxCategory: ResourceIdentifierInput
@@ -132,7 +132,7 @@ input AddCartLineItem {
   addedAt: DateTime
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: LineItemRecurrenceInfoInputDraft
   externalTaxRate: ExternalTaxRateDraft
@@ -224,7 +224,7 @@ input AddMyCartLineItem {
   addedAt: DateTime
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: LineItemRecurrenceInfoInputDraft
 }
@@ -387,7 +387,7 @@ input AddStagedOrderCustomLineItem {
   priceMode: CustomLineItemPriceMode
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: CustomLineItemRecurrenceInfoInputDraft
   shippingDetails: ItemShippingDetailsDraftType
@@ -450,7 +450,7 @@ input AddStagedOrderLineItem {
   addedAt: DateTime
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: LineItemRecurrenceInfoInputDraft
   externalTaxRate: ExternalTaxRateDraft
@@ -1191,6 +1191,11 @@ input BusinessUnitDraft {
   associates: [AssociateDraft!]
   associateMode: BusinessUnitAssociateMode
   approvalRuleMode: BusinessUnitApprovalRuleMode
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
+  customerGroupAssignments: [CustomerGroupAssignmentDraft!]
 }
 
 type BusinessUnitNameChanged implements MessagePayload {
@@ -1575,17 +1580,17 @@ input CartUpdateAction {
   addCustomLineItem: AddCartCustomLineItem
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   setLineItemRecurrenceInfo: SetLineItemRecurrenceInfo
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   setCustomLineItemRecurrenceInfo: SetCustomLineItemRecurrenceInfo
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   setReservationExpirationInMinutes: SetCartReservationExpirationInMinutes
   changeLineItemQuantity: ChangeCartLineItemQuantity
@@ -2612,7 +2617,7 @@ input CustomLineItemDraft {
   priceMode: CustomLineItemPriceMode
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: CustomLineItemRecurrenceInfoInputDraft
 }
@@ -2641,7 +2646,7 @@ type CustomLineItemDraftOutput {
   nameAllLocales: [LocalizedString!]!
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: CustomLineItemRecurrenceInfoDraft
 }
@@ -2661,7 +2666,7 @@ input CustomLineItemImportDraft {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 type CustomLineItemRecurrenceInfoDraft {
   recurrencePolicyRef: RecurrencePolicyReferenceIdentifier
@@ -2669,7 +2674,7 @@ type CustomLineItemRecurrenceInfoDraft {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 input CustomLineItemRecurrenceInfoInputDraft {
   recurrencePolicy: ResourceIdentifierInput!
@@ -3966,7 +3971,7 @@ input LineItemDraft {
   addedAt: DateTime
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: LineItemRecurrenceInfoInputDraft
   externalTaxRate: ExternalTaxRateDraft
@@ -3994,7 +3999,7 @@ type LineItemDraftOutput {
   supplyChannelResId: ResourceIdentifier
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: LineItemRecurrenceInfoDraft
 }
@@ -4015,7 +4020,7 @@ input LineItemImportDraft {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 type LineItemRecurrenceInfoDraft {
   recurrencePolicyRef: RecurrencePolicyReferenceIdentifier
@@ -4024,7 +4029,7 @@ type LineItemRecurrenceInfoDraft {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 input LineItemRecurrenceInfoInputDraft {
   recurrencePolicy: ResourceIdentifierInput!
@@ -5673,12 +5678,12 @@ type Mutation {
   ): AssociateRole
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   createRecurringOrder(draft: RecurringOrderDraft!): RecurringOrder
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   updateRecurringOrder(
     version: Long!
@@ -5692,12 +5697,12 @@ type Mutation {
   ): RecurringOrder
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   createRecurrencePolicy(draft: RecurrencePolicyDraft!): RecurrencePolicy
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   updateRecurrencePolicy(
     version: Long!
@@ -5865,12 +5870,12 @@ input MyCartUpdateAction {
   addLineItem: AddMyCartLineItem
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   setLineItemRecurrenceInfo: SetLineItemRecurrenceInfo
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   setCustomLineItemRecurrenceInfo: SetCustomLineItemRecurrenceInfo
   changeLineItemQuantity: ChangeCartLineItemQuantity
@@ -5915,7 +5920,7 @@ input MyLineItemDraft {
   addedAt: DateTime
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: LineItemRecurrenceInfoInputDraft
 }
@@ -5982,6 +5987,7 @@ input MyShoppingListDraft {
   textLineItems: [TextLineItemDraft!] = []
   custom: CustomFieldsDraft
   deleteDaysAfterLastModification: Int
+  store: ResourceIdentifierInput
 }
 
 input MyShoppingListUpdateAction {
@@ -7154,7 +7160,7 @@ input ProductPriceDataInput {
   tiers: [ProductPriceTierInput!] = []
   custom: CustomFieldsDraft
   discounted: DiscountedProductPriceValueInput
-  recurrencePolicy: ReferenceInput
+  recurrencePolicy: ResourceIdentifierInput
 }
 
 type ProductPriceDiscountUpdateMessagePayload {
@@ -8106,6 +8112,11 @@ input RecalculateCart {
   updateProductData: Boolean = false
 }
 
+type RecalculateStagedOrderOutput implements StagedOrderUpdateActionOutput {
+  type: String!
+  updateProductData: Boolean!
+}
+
 input RecurrencePolicyDraft {
   key: String!
   name: [LocalizedStringItemInputType!]
@@ -8178,7 +8189,7 @@ type RecurringOrderDeleted implements MessagePayload {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 input RecurringOrderDraft {
   key: String
@@ -8231,7 +8242,7 @@ input RecurringOrderStateDraft {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 type RecurringOrderStateTransition implements MessagePayload {
   force: Boolean!
@@ -9211,7 +9222,7 @@ input SetCartLocale {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 input SetCartReservationExpirationInMinutes {
   reservationExpirationInMinutes: Int!
@@ -9383,14 +9394,14 @@ input SetChannelRoles {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 input SetCustomLineItemRecurrenceInfo {
   customLineItemId: String!
   customLineItemKey: String
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: CustomLineItemRecurrenceInfoInputDraft
 }
@@ -9633,13 +9644,13 @@ input SetInventoryKey {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 input SetLineItemRecurrenceInfo {
   lineItemId: String!
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: LineItemRecurrenceInfoInputDraft
 }
@@ -11833,6 +11844,7 @@ input ShoppingListDraft {
   customer: ResourceIdentifierInput
   slug: [LocalizedStringItemInputType!]
   anonymousId: String
+  store: ResourceIdentifierInput
 }
 
 type ShoppingListLineItemAdded implements MessagePayload {
@@ -13277,6 +13289,11 @@ type BusinessUnit implements Versioned & ReferenceExpandable {
   topLevelUnitRef: KeyReference
   topLevelUnit: BusinessUnit!
   approvalRuleMode: BusinessUnitApprovalRuleMode!
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
+  customerGroupAssignments: [CustomerGroupAssignment!]
   id: String!
   version: Long!
   createdAt: DateTime!
@@ -13419,7 +13436,7 @@ type Cart implements Versioned & ReferenceExpandable {
 }
 
 "\nCart discounts are recalculated every time LineItems or CustomLineItems are added or removed from the Cart or an order is created from the cart.\n\nThe number of active cart discounts that do not require a discount code (isActive=true and requiresDiscountCode=false) is limited to 100.\n      "
-type CartDiscount implements Versioned & ReferenceExpandable {
+type CartDiscount implements Versioned & ReferenceExpandable & CartDiscountVisualizationData {
   cartPredicate: String!
   stackingMode: StackingMode!
   isActive: Boolean!
@@ -13470,6 +13487,7 @@ type CartDiscount implements Versioned & ReferenceExpandable {
   lastModifiedAt: DateTime!
   createdBy: Initiator
   lastModifiedBy: Initiator
+  type: String!
 }
 
 type CartDiscountLimitWithCurrent implements LimitWithCurrent {
@@ -13509,6 +13527,26 @@ interface CartDiscountTarget {
 
 interface CartDiscountValue {
   type: String!
+}
+
+type CartDiscountVisualization {
+  id: String!
+  sortOrder: String
+  itemCount: Long!
+  items: [CartDiscountVisualization!]!
+  data: CartDiscountVisualizationData!
+}
+
+interface CartDiscountVisualizationData {
+  type: String!
+}
+
+type CartDiscountVisualizationQueryResult {
+  offset: Int!
+  count: Int!
+  total: Long!
+  exists: Boolean!
+  results: [CartDiscountVisualization!]!
 }
 
 type CartLimitWithCurrent implements LimitWithCurrent {
@@ -13865,7 +13903,7 @@ type CustomLineItem {
   priceMode: CustomLineItemPriceMode!
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: CustomLineItemRecurrenceInfo
 }
@@ -13881,7 +13919,7 @@ enum CustomLineItemPriceMode {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 type CustomLineItemRecurrenceInfo {
   recurrencePolicy: RecurrencePolicy
@@ -14223,7 +14261,7 @@ enum DiscountCodeState {
 """
 BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
-type DiscountGroup implements Versioned {
+type DiscountGroup implements Versioned & CartDiscountVisualizationData {
   id: String!
   version: Long!
   key: String!
@@ -14256,6 +14294,7 @@ type DiscountGroup implements Versioned {
   lastModifiedAt: DateTime!
   createdBy: Initiator
   lastModifiedBy: Initiator
+  type: String!
 }
 
 type DiscountGroupLimitWithCurrent implements LimitWithCurrent {
@@ -14284,6 +14323,20 @@ type DiscountOnTotalPrice {
 
 interface DiscountTypeCombination {
   type: String!
+}
+
+"""
+Fields to access cart discounts and discount groups. Includes direct access to a single cartDiscount/discountGroup and searching for cartDiscounts/discountGroups.
+"""
+interface DiscountVisualizationQueryInterface {
+  cartDiscountVisualization(
+    """Queries with specified ID"""
+    id: String
+
+    """Queries with specified key"""
+    key: String
+  ): CartDiscountVisualization
+  cartDiscountVisualizations(where: String, sort: [String!], limit: Int, offset: Int): CartDiscountVisualizationQueryResult!
 }
 
 type DiscountedLineItemPortion {
@@ -14495,7 +14548,7 @@ type ImageProductSearch {
   label: String
 }
 
-type InStore implements CartDiscountQueryInterface & CartQueryInterface & CustomerActiveCartInterface & OrderQueryInterface & CustomerQueryInterface & ShippingMethodsByCartInterface & MeFieldInterface {
+type InStore implements CartDiscountQueryInterface & DiscountVisualizationQueryInterface & CartQueryInterface & CustomerActiveCartInterface & OrderQueryInterface & CustomerQueryInterface & ShippingMethodsByCartInterface & MeFieldInterface {
   """
   This field can only be used with an access token created with the password flow or with an anonymous session.
   
@@ -14607,6 +14660,14 @@ type InStore implements CartDiscountQueryInterface & CartQueryInterface & Custom
     key: String
   ): BusinessUnit
   businessUnits(where: String, sort: [String!], limit: Int, offset: Int): BusinessUnitQueryResult!
+  cartDiscountVisualization(
+    """Queries with specified ID"""
+    id: String
+
+    """Queries with specified key"""
+    key: String
+  ): CartDiscountVisualization
+  cartDiscountVisualizations(where: String, sort: [String!], limit: Int, offset: Int): CartDiscountVisualizationQueryResult!
 }
 
 type InStoreMe implements MeQueryInterface & CartQueryInterface & ActiveCartInterface & OrderQueryInterface & ShoppingListQueryInterface {
@@ -14883,7 +14944,7 @@ type LineItem {
   taxedPricePortions: [MethodTaxedPrice!]!
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrenceInfo: LineItemRecurrenceInfo
 }
@@ -14921,7 +14982,7 @@ enum LineItemPriceMode {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 type LineItemRecurrenceInfo {
   recurrencePolicy: RecurrencePolicy
@@ -15231,12 +15292,12 @@ type Order implements Versioned & ReferenceExpandable {
   quote: Quote
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurringOrderRef: Reference
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurringOrder: RecurringOrder
   custom: CustomFieldsType
@@ -15558,7 +15619,7 @@ enum PriceMode {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 enum PriceSelectionMode {
   """
@@ -15864,12 +15925,12 @@ type ProductPrice {
   custom: CustomFieldsType
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrencePolicy: RecurrencePolicy
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrencePolicyRef: Reference
 }
@@ -15987,6 +16048,25 @@ type ProductProjection {
   Fetch all variants, excluding the master variant. If `onlyMatching` is used, filter this list based on the the search query.
   """
   variants(onlyMatching: Boolean): [ProductSearchVariant!]!
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
+  attributesRaw(
+    """
+    The names of the attributes to include.
+    
+    If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
+    """
+    includeNames: [String!]
+
+    """
+    The names of the attributes to exclude.
+    
+    If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
+    """
+    excludeNames: [String!]
+  ): [RawProductSearchAttribute!]!
 
   """
   Fetch all variants, including the master variant in first position. If `onlyMatching` is used, filter this list based on the the search query.
@@ -16598,6 +16678,14 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
     key: String
   ): ProductDiscount
   productDiscounts(where: String, sort: [String!], limit: Int, offset: Int): ProductDiscountQueryResult!
+  cartDiscountVisualization(
+    """Queries with specified ID"""
+    id: String
+
+    """Queries with specified key"""
+    key: String
+  ): CartDiscountVisualization
+  cartDiscountVisualizations(where: String, sort: [String!], limit: Int, offset: Int): CartDiscountVisualizationQueryResult!
 
   """
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
@@ -16886,7 +16974,7 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
   recurringOrders(where: String, sort: [String!], limit: Int, offset: Int): RecurringOrderQueryResult!
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrencePolicy(
     """Queries with specified ID"""
@@ -17125,7 +17213,7 @@ type RawProductSearchAttribute {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 type RecurrencePolicy implements Versioned {
   id: String!
@@ -17171,7 +17259,7 @@ type RecurrencePolicyQueryResult {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 type RecurrencePolicyRef {
   typeId: String!
@@ -17183,7 +17271,7 @@ interface RecurrencePolicySchedule {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 type RecurringOrder implements Versioned {
   key: String
@@ -17224,7 +17312,7 @@ type RecurringOrderQueryResult {
 }
 
 """
-CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 enum RecurringOrderState {
   Active
@@ -17886,12 +17974,12 @@ type StandalonePrice implements Versioned {
   active: Boolean!
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrencePolicyRef: Reference
 
   """
-  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrencePolicy: RecurrencePolicy
   createdAt: DateTime!

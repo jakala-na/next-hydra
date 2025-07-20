@@ -11,7 +11,11 @@
         "tadaOutputLocation": "./gql/graphql-env.d.ts",
         "tadaTurboLocation": "./gql/graphql-cache.d.ts"
       }
-    ]
+    ],
+    "paths": {
+      "@repo/commerce/*": ["./*"],
+      "@repo/*": ["../*"]
+    }
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

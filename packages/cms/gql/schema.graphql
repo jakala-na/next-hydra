@@ -1,12 +1,12 @@
 type Query {
   assets(uid: String!, locale: String = "en-us", fallback_locale: Boolean = false): SysAsset
   all_assets(where: SysAssetWhere, locale: String = "en-us", order_by: [SysAssetOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllSysAsset
+  page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Page
+  all_page(where: PageWhere, locale: String! = "en-us", order_by: [PageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllPage
   navigation(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Navigation
   all_navigation(where: NavigationWhere, locale: String! = "en-us", order_by: [NavigationOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllNavigation
   mega_menu(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): MegaMenu
   all_mega_menu(where: MegaMenuWhere, locale: String! = "en-us", order_by: [MegaMenuOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllMegaMenu
-  page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Page
-  all_page(where: PageWhere, locale: String! = "en-us", order_by: [PageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllPage
   product(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Product
   all_product(where: ProductWhere, locale: String! = "en-us", order_by: [ProductOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllProduct
   hero_banner(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): HeroBanner
@@ -368,38 +368,16 @@ enum SysAssetOrderBy {
   updated_at_DESC
 }
 
-type Navigation {
-  title: String
-  items: [NavigationItems]
-  system: EntrySystemField
-}
-
-type NavigationItems {
-  text: String
-  linkConnection: NavigationItemsLinkConnection
-  mega_menuConnection: NavigationItemsMegaMenuConnection
-}
-
-type NavigationItemsLinkConnection {
-  totalCount: Int
-  edges: [NavigationItemsLinkEdge]
-}
-
-type NavigationItemsLinkEdge {
-  node: NavigationItemsLinkNode
-}
-
-union NavigationItemsLinkNode = Page
-
 type Page {
   title: String
   url: String
+  headline: String
   components: [PageComponents]
   seo: Seo
   system: EntrySystemField
 }
 
-union PageComponents = PageComponentsTextBlock
+union PageComponents = PageComponentsTextBlock | PageComponentsProductCards
 
 type PageComponentsTextBlock {
   text_block: PageComponentsTextBlockBlock
@@ -425,6 +403,15 @@ type PageComponentsTextBlockBlockContentEmbeddedItemsEdge {
 
 union PageComponentsTextBlockBlockContentEmbeddedItemsNode = SysAsset
 
+type PageComponentsProductCards {
+  product_cards: ProductCards
+}
+
+type ProductCards {
+  title: String
+  category: JSON
+}
+
 type Seo {
   meta_title: String
   meta_description: String
@@ -446,6 +433,172 @@ type EntrySystemField {
   locale: String
   extensionConnection(skip: Int = 0, limit: Int = 25): SysExtensionConnection
 }
+
+type AllPage {
+  total: Int
+  items: [Page]
+}
+
+input PageWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  url: String
+  url_ne: String
+  url_in: [String]
+  url_nin: [String]
+  url_exists: Boolean
+  headline: String
+  headline_ne: String
+  headline_in: [String]
+  headline_nin: [String]
+  headline_exists: Boolean
+  components: PageComponentsWhere
+  components_exists: Boolean
+  seo: SeoWhere
+  seo_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [PageWhere]
+  OR: [PageWhere]
+}
+
+input PageComponentsWhere {
+  text_block: PageComponentsTextBlockBlockWhere
+  text_block_exists: Boolean
+  product_cards: PageComponentsProductCardsWhere
+  product_cards_exists: Boolean
+}
+
+input PageComponentsTextBlockBlockWhere {
+  content: JSON
+  content_exists: Boolean
+}
+
+input PageComponentsProductCardsWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  category: JSON
+  category_exists: Boolean
+}
+
+input SeoWhere {
+  meta_title: String
+  meta_title_ne: String
+  meta_title_in: [String]
+  meta_title_nin: [String]
+  meta_title_exists: Boolean
+  meta_description: String
+  meta_description_ne: String
+  meta_description_in: [String]
+  meta_description_nin: [String]
+  meta_description_exists: Boolean
+  keywords: String
+  keywords_ne: String
+  keywords_in: [String]
+  keywords_nin: [String]
+  keywords_exists: Boolean
+  enable_search_indexing: Boolean
+  enable_search_indexing_exists: Boolean
+  enable_search_indexing_ne: Boolean
+}
+
+input SystemPublishDetailsWhere {
+  time: DateTime
+  time_ne: DateTime
+  time_in: [DateTime]
+  time_nin: [DateTime]
+  time_lt: DateTime
+  time_lte: DateTime
+  time_gt: DateTime
+  time_gte: DateTime
+  user: String
+  user_ne: String
+  user_in: [String]
+  user_nin: [String]
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+}
+
+enum PageOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type Navigation {
+  title: String
+  items: [NavigationItems]
+  system: EntrySystemField
+}
+
+type NavigationItems {
+  text: String
+  linkConnection: NavigationItemsLinkConnection
+  mega_menuConnection: NavigationItemsMegaMenuConnection
+}
+
+type NavigationItemsLinkConnection {
+  totalCount: Int
+  edges: [NavigationItemsLinkEdge]
+}
+
+type NavigationItemsLinkEdge {
+  node: NavigationItemsLinkNode
+}
+
+union NavigationItemsLinkNode = Page
 
 type NavigationItemsMegaMenuConnection {
   totalCount: Int
@@ -587,120 +740,6 @@ input NavigationItemsLinkWhere {
   MATCH: EvalReferenceEnum
 }
 
-input PageWhere {
-  title: String
-  title_ne: String
-  title_in: [String]
-  title_nin: [String]
-  title_exists: Boolean
-  url: String
-  url_ne: String
-  url_in: [String]
-  url_nin: [String]
-  url_exists: Boolean
-  components: PageComponentsWhere
-  components_exists: Boolean
-  seo: SeoWhere
-  seo_exists: Boolean
-  created_at: DateTime
-  created_at_in: [DateTime]
-  created_at_nin: [DateTime]
-  created_at_ne: DateTime
-  created_by: String
-  created_by_in: [String]
-  created_by_nin: [String]
-  created_by_ne: String
-  created_at_lt: DateTime
-  created_at_lte: DateTime
-  created_at_gt: DateTime
-  created_at_gte: DateTime
-  updated_at: DateTime
-  updated_at_in: [DateTime]
-  updated_at_nin: [DateTime]
-  updated_at_ne: DateTime
-  updated_by: String
-  updated_by_in: [String]
-  updated_by_nin: [String]
-  updated_by_ne: String
-  updated_at_lt: DateTime
-  updated_at_lte: DateTime
-  updated_at_gt: DateTime
-  updated_at_gte: DateTime
-  locale: String
-  locale_ne: String
-  locale_in: [String]
-  locale_nin: [String]
-  locale_exists: Boolean
-  uid: String
-  uid_ne: String
-  uid_in: [String]
-  uid_nin: [String]
-  uid_exists: Boolean
-  tags_in: [String]
-  tags_nin: [String]
-  version: Int
-  version_ne: Int
-  version_in: [Int]
-  version_nin: [Int]
-  version_lt: Int
-  version_lte: Int
-  version_gt: Int
-  version_gte: Int
-  publish_details: SystemPublishDetailsWhere
-  AND: [PageWhere]
-  OR: [PageWhere]
-}
-
-input PageComponentsWhere {
-  text_block: PageComponentsTextBlockBlockWhere
-  text_block_exists: Boolean
-}
-
-input PageComponentsTextBlockBlockWhere {
-  content: JSON
-  content_exists: Boolean
-}
-
-input SeoWhere {
-  meta_title: String
-  meta_title_ne: String
-  meta_title_in: [String]
-  meta_title_nin: [String]
-  meta_title_exists: Boolean
-  meta_description: String
-  meta_description_ne: String
-  meta_description_in: [String]
-  meta_description_nin: [String]
-  meta_description_exists: Boolean
-  keywords: String
-  keywords_ne: String
-  keywords_in: [String]
-  keywords_nin: [String]
-  keywords_exists: Boolean
-  enable_search_indexing: Boolean
-  enable_search_indexing_exists: Boolean
-  enable_search_indexing_ne: Boolean
-}
-
-input SystemPublishDetailsWhere {
-  time: DateTime
-  time_ne: DateTime
-  time_in: [DateTime]
-  time_nin: [DateTime]
-  time_lt: DateTime
-  time_lte: DateTime
-  time_gt: DateTime
-  time_gte: DateTime
-  user: String
-  user_ne: String
-  user_in: [String]
-  user_nin: [String]
-  locale: String
-  locale_ne: String
-  locale_in: [String]
-  locale_nin: [String]
-}
-
 enum EvalReferenceEnum {
   ANY
   ALL
@@ -820,18 +859,6 @@ type AllMegaMenu {
 }
 
 enum MegaMenuOrderBy {
-  created_at_ASC
-  created_at_DESC
-  updated_at_ASC
-  updated_at_DESC
-}
-
-type AllPage {
-  total: Int
-  items: [Page]
-}
-
-enum PageOrderBy {
   created_at_ASC
   created_at_DESC
   updated_at_ASC

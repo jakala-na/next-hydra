@@ -11,12 +11,9 @@ import { Languages } from 'lucide-react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 
 const languages = [
-  { label: '🇬🇧 English', value: 'en' },
-  { label: '🇪🇸 Español', value: 'es' },
-  { label: '🇩🇪 Deutsch', value: 'de' },
-  { label: '🇨🇳 中文', value: 'zh' },
-  { label: '🇫🇷 Français', value: 'fr' },
-  { label: '🇵🇹 Português', value: 'pt' },
+  { label: 'US (English)', value: 'en-US' },
+  { label: 'CA (English)', value: 'en-CA' },
+  { label: 'CA (Français)', value: 'fr-CA' },
 ];
 
 export const LanguageSwitcher = () => {
@@ -25,14 +22,11 @@ export const LanguageSwitcher = () => {
   const params = useParams();
 
   const switchLanguage = (locale: string) => {
-    const defaultLocale = 'en';
+    const defaultLocale = 'en-US';
     let newPathname = pathname;
 
     // Case 1: If current locale is default and missing from the URL
-    if (
-      !pathname.startsWith(`/${params.locale}`) &&
-      params.locale === defaultLocale
-    ) {
+    if (!pathname.startsWith(`/${params.locale}`) && params.locale === defaultLocale) {
       // Add the default locale to the beginning to normalize
       newPathname = `/${params.locale}${pathname}`;
     }
@@ -47,11 +41,7 @@ export const LanguageSwitcher = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          className="shrink-0 text-foreground"
-          size="icon"
-          variant="ghost"
-        >
+        <Button className="shrink-0 text-foreground" size="icon" variant="ghost">
           <Languages className="h-[1.2rem] w-[1.2rem]" />
           <span className="sr-only">Switch language</span>
         </Button>
