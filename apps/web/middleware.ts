@@ -9,8 +9,9 @@ import {
 
 export const config = {
   // matcher tells Next.js which routes to run the middleware on. This runs the
-  // middleware on all routes except for static assets and Posthog ingest
-  matcher: ['/((?!api|_next/|_static|_vercel|ingest|[\\w-]+\\.\\w+).*)'],
+  // middleware on all routes except for static assets and Posthog ingest. Keep in mind all routable files from apps/ directory
+  // like icon.png need the middleware to properly respond on /[locale] paths.
+  matcher: ['/((?!api|_next/|_static|_vercel|ingest).*)'],
 };
 
 const globalMiddlewares: GlobalMiddlewareConfig = {

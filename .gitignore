@@ -260,18 +260,11 @@ $RECYCLE.BIN/
 # Sentry Config File
 .env.sentry-build-plugin
 
-# BaseHub
-.basehub
-
-# AI Rules
-.cursorrules
-.github/copilot-instructions.md
-
-# Database
-packages/database/generated
-
 # react.email
 .react-email
 
 # Sentry
 .sentryclirc
+
+/apps/next-commerce
+/tmp

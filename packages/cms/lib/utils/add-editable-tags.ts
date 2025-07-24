@@ -8,7 +8,7 @@ type AddEditableTagsResult<T> = T & {
 
 export function addEditableTags<
   T extends { system: { content_type_uid: string | null; uid: string | null; locale: string | null } | null },
->(entry: T, livePreview: false): AddEditableTagsResult<T> {
+>(entry: T, livePreview: boolean): AddEditableTagsResult<T> {
   if (!(entry.system?.content_type_uid && entry.system?.uid && entry.system?.locale && livePreview)) {
     // Return with empty $ property to satisfy type
     return { ...entry, $: {} } as AddEditableTagsResult<T>;

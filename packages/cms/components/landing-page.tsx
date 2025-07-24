@@ -1,9 +1,10 @@
-import contentstack from '@contentstack/delivery-sdk';
 import { draftMode, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { graphqlClient } from '../client';
 import { graphql } from '../graphql';
 import { addEditableTags } from '../lib/utils/add-editable-tags';
+import { routing } from '@repo/i18n/routing';
+import { hasLocale } from '@repo/i18n';
 
 const ProductCardsFragment = graphql(`
     fragment ProductCards on ProductCards {
@@ -17,6 +18,8 @@ const getLocaleFromPath = (locale: string) => {
 };
 
 const getPage = async (url: string, locale: string, livePreviewHash: string | undefined) => {
+  'use cache';
+
   const pageQuery = graphql(
     `
       query PageQuery($url: String, $locale: String) {
@@ -57,7 +60,7 @@ const getPage = async (url: string, locale: string, livePreviewHash: string | un
     return;
   }
 
-  return addEditableTags(entry, livePreviewHash ? true : false);
+  return addEditableTags(entry, !!livePreviewHash);
 };
 
 export async function LandingPage(props: { url: string; locale: string }) {
@@ -68,6 +71,11 @@ export async function LandingPage(props: { url: string; locale: string }) {
   if (isDraftModeEnabled) {
     livePreviewHash = (await headers()).get('x-live-preview') || '';
   }
+
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+
 
   const pageData = await getPage(url, getLocaleFromPath(locale), livePreviewHash);
 

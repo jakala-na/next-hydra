@@ -33,11 +33,7 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
   const navigationItems = await getNavigation(locale, livePreviewHash);
 
   return (
-    <html
-      className={cn(fonts, 'scroll-smooth')}
-      lang={locale}
-      suppressHydrationWarning
-    >
+    <html className={cn(fonts, 'scroll-smooth')} lang={locale} suppressHydrationWarning>
       <body>
         <DesignSystemProvider>
           <NextIntlClientProvider>

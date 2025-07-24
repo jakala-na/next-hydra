@@ -4,6 +4,10 @@ interface PageProps {
   params: Promise<{ url: string[]; locale: string }>;
 }
 
+export function generateStaticParams() {
+  return [{ locale: 'en-US', url: [] }];
+}
+
 const Page = async ({ params }: PageProps) => {
   const { url, locale } = await params;
 

@@ -46,5 +46,4 @@ export const config: NextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-export const withAnalyzer = (sourceConfig: NextConfig): NextConfig =>
-  withBundleAnalyzer()(sourceConfig);
+export const withAnalyzer = (sourceConfig: NextConfig): NextConfig => withBundleAnalyzer()(sourceConfig);
