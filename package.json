@@ -21,7 +21,7 @@
     "@types/node": "^22.15.21",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
-    "turbo": "^2.5.3",
+    "turbo": "^2.5.5",
     "typescript": "^5.8.3",
     "ultracite": "^5.0.12",
     "vitest": "^3.1.4"
