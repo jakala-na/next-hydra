@@ -7,6 +7,10 @@ const otelRegex = /@opentelemetry\/instrumentation/;
 export const config: NextConfig = {
   experimental: {
     useCache: true,
+    browserDebugInfoInTerminal: true,
+    devtoolSegmentExplorer: true,
+    globalNotFound: true,
+    turbopackPersistentCaching: true,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
