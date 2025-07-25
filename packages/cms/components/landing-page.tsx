@@ -1,3 +1,4 @@
+import { ProductsCollection } from '@repo/commerce/lib/product';
 import { hasLocale } from '@repo/i18n';
 import { routing } from '@repo/i18n/routing';
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from 'next/cache';
@@ -68,15 +69,15 @@ const getPage = async (url: string, locale: string, livePreviewHash: string | un
 
 export async function LandingPage(props: { url: string; locale: string }) {
   const { url, locale } = props;
+
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
   const { isEnabled: isDraftModeEnabled } = await draftMode();
 
   let livePreviewHash = '';
   if (isDraftModeEnabled) {
     livePreviewHash = (await headers()).get('x-live-preview') || '';
-  }
-
-  if (!hasLocale(routing.locales, locale)) {
-    notFound();
   }
 
   const pageData = await getPage(url, getLocaleFromPath(locale), livePreviewHash);
@@ -88,7 +89,8 @@ export async function LandingPage(props: { url: string; locale: string }) {
   return (
     <div>
       <h1 {...pageData.$.headline}>{pageData.headline}</h1>
-      {/* {topComponents ? <ComponentRenderer data={topComponents} /> : null} */}
+      <ProductsCollection categoryKey="featured" />
+      {/* {pageData.components ? <ComponentRenderer data={pageData.components} /> : null} */}
     </div>
   );
 }

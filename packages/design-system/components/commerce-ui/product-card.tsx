@@ -11,7 +11,7 @@ const DEFAULT_IMAGE_URL =
 interface ProductCardProps {
   imageUrl?: string;
   discount?: string | null;
-  title?: string;
+  title: string;
   description?: string;
   price?: number;
   prefix?: string;
@@ -22,17 +22,17 @@ interface ProductCardProps {
 }
 
 function ProductCard({
-  description = 'Premium noise-cancelling headphones with surround sound technology and high comfort',
-  discount = '20% OFF',
-  freeShipping = true,
+  description,
+  discount,
+  freeShipping,
   imageUrl = DEFAULT_IMAGE_URL,
-  prefix = '$',
-  price = 98.96,
-  rating = 4.7,
-  reviewCount = 65,
-  title = 'Wireless headset',
+  prefix,
+  price,
+  rating,
+  reviewCount,
+  title,
   cta,
-}: ProductCardProps = {}) {
+}: ProductCardProps) {
   return (
     <div className="group relative flex w-[350px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
       {/* Image section with background and dynamic glow effect */}
@@ -49,54 +49,41 @@ function ProductCard({
         <div className="-bottom-10 -translate-x-1/2 absolute left-1/2 h-40 w-40 transform rounded-full bg-teal-500/20 blur-3xl" />
 
         <div className="transition-transform duration-500 group-hover:scale-105">
-          <ImageViewer
-            imageUrl={imageUrl}
-            classNameThumbnailViewer="rounded-lg object-contain h-[200px] mx-auto"
-          />
+          <ImageViewer imageUrl={imageUrl} classNameThumbnailViewer="rounded-lg object-contain h-[200px] mx-auto" />
         </div>
       </div>
 
       {/* Content section */}
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
-          <h3 className="mb-1.5 font-semibold text-gray-900 text-xl tracking-tight dark:text-gray-100">
-            {title}
-          </h3>
+          <h3 className="mb-1.5 font-semibold text-gray-900 text-xl tracking-tight dark:text-gray-100">{title}</h3>
 
           {/* Rating */}
-          <div className="mb-2 flex items-center">
-            <StarRating_Fractions
-              value={rating}
-              maxStars={5}
-              readOnly
-              iconSize={16}
-              color="#0d9488"
-            />
-            <span className="ml-2 text-gray-600 text-xs dark:text-gray-400">
-              {rating} ({reviewCount} reviews)
-            </span>
-          </div>
-
-          <p className="mb-3 line-clamp-2 text-gray-600 text-sm dark:text-gray-400">
-            {description}
-          </p>
+          {rating && reviewCount && (
+            <div className="mb-2 flex items-center">
+              <StarRating_Fractions value={rating} maxStars={5} readOnly iconSize={16} color="#0d9488" />
+              <span className="ml-2 text-gray-600 text-xs dark:text-gray-400">
+                {rating} ({reviewCount} reviews)
+              </span>
+            </div>
+          )}
+          <p className="mb-3 line-clamp-2 text-gray-600 text-sm dark:text-gray-400">{description}</p>
         </div>
 
         {/* Price and shipping info */}
         <div className="mt-auto flex flex-col">
-          <PriceFormat
-            prefix={prefix}
-            value={price}
-            className="font-bold text-2xl text-teal-700 dark:text-teal-400"
-          />
+          {price && (
+            <PriceFormat
+              prefix={prefix}
+              value={price}
+              className="font-bold text-2xl text-teal-700 dark:text-teal-400"
+            />
+          )}
 
           {freeShipping && (
             <p className="mt-1 inline-flex items-center text-green-600 text-sm dark:text-green-400">
-              <svg
-                className="mr-1 h-4 w-4"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
+              <svg className="mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <title>free shipping icon</title>
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
@@ -109,15 +96,17 @@ function ProductCard({
         </div>
 
         {/* Action buttons */}
-        <div className="mt-3 flex flex-col gap-2">
-          <Button
-            variant="outline"
-            className="w-full border-gray-300 bg-white text-gray-800 transition-all duration-200 hover:border-teal-500 hover:bg-teal-50 hover:text-teal-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-teal-500 dark:hover:bg-gray-700"
-            asChild
-          >
-            {cta}
-          </Button>
-        </div>
+        {cta && (
+          <div className="mt-3 flex flex-col gap-2">
+            <Button
+              variant="outline"
+              className="w-full border-gray-300 bg-white text-gray-800 transition-all duration-200 hover:border-teal-500 hover:bg-teal-50 hover:text-teal-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-teal-500 dark:hover:bg-gray-700"
+              asChild
+            >
+              {cta}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

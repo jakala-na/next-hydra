@@ -39,7 +39,7 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
           <NextIntlClientProvider>
             <Header navigationItems={navigationItems} />
             {children}
-            <Footer />
+            {/* <Footer /> */}
             <LivePreview isEnabled={isDraftModeEnabled} />
           </NextIntlClientProvider>
         </DesignSystemProvider>
