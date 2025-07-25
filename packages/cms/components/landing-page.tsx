@@ -7,13 +7,7 @@ import { notFound } from 'next/navigation';
 import { graphqlClient } from '../client';
 import { graphql } from '../graphql';
 import { addEditableTags } from '../lib/utils/add-editable-tags';
-
-const ProductCardsFragment = graphql(`
-    fragment ProductCards on ProductCards {
-        title
-        category
-    }
-`);
+import ComponentRenderer from './component-renderer';
 
 const getLocaleFromPath = (locale: string) => {
   return locale.toLowerCase();
@@ -35,11 +29,8 @@ const getPage = async (url: string, locale: string, livePreviewHash: string | un
           url
           headline
           components {
-            ... on PageComponentsProductCards {
-                product_cards {
-                    ... ProductCards
-                }
-            }
+            __typename
+            ...PageComponentsProductCards
           }
           system {
             uid
@@ -50,7 +41,7 @@ const getPage = async (url: string, locale: string, livePreviewHash: string | un
       }
       }
     `,
-    [ProductCardsFragment]
+    ComponentRenderer.fragments
   );
 
   const response = await graphqlClient(livePreviewHash).query(pageQuery, {
@@ -89,8 +80,7 @@ export async function LandingPage(props: { url: string; locale: string }) {
   return (
     <div>
       <h1 {...pageData.$.headline}>{pageData.headline}</h1>
-      <ProductsCollection categoryKey="featured" />
-      {/* {pageData.components ? <ComponentRenderer data={pageData.components} /> : null} */}
+      {pageData.components ? <ComponentRenderer data={pageData.components} /> : null}
     </div>
   );
 }

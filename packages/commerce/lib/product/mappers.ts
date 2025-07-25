@@ -12,12 +12,11 @@ export const productCardFragment = graphql(`
             url
           }
         }
-        # Get variants that matched the search query.
         allVariants {
           images {
             url
           }
-          price(currency: $currency) {
+          price(currency: $currency, channelId: $channelId) {
             key
             value {
               centAmount
