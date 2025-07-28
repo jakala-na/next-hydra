@@ -4,6 +4,7 @@ import { graphql } from '../../../graphql';
 import { action } from '../../utils/safe-action';
 import { productCardFragment, reshapeProductCard } from '../mappers';
 
+// TODO: This uses Product Projections Search API, but we may want to consider Product Search API.
 export const getProductsCollection = action
   .metadata({ actionName: 'getProductsCollection' })
   .inputSchema(
