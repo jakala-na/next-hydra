@@ -37,7 +37,7 @@ export const Header = ({ navigationItems }: HeaderProps) => {
                 <NavigationMenuItem key={item.title}>
                   {item.href ? (
                     <NavigationMenuLink asChild>
-                      <Button asChild variant="ghost">
+                      <Button asChild variant="tertiary">
                         <Link href={item.href}>{item.title}</Link>
                       </Button>
                     </NavigationMenuLink>
@@ -86,7 +86,7 @@ export const Header = ({ navigationItems }: HeaderProps) => {
           </div>
           <SignedOut>
             <SignInButton>
-              <Button className="hidden md:inline" variant="outline">
+              <Button className="hidden md:inline" variant="secondary">
                 {t('signIn')}
               </Button>
             </SignInButton>
@@ -99,7 +99,7 @@ export const Header = ({ navigationItems }: HeaderProps) => {
           </SignedIn>
         </div>
         <div className="flex w-12 shrink items-end justify-end lg:hidden">
-          <Button onClick={() => setOpen(!isOpen)} variant="ghost">
+          <Button onClick={() => setOpen(!isOpen)} variant="tertiary">
             {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
           {isOpen && (

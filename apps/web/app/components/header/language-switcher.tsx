@@ -41,7 +41,7 @@ export const LanguageSwitcher = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="shrink-0 text-foreground" size="icon" variant="ghost">
+        <Button className="shrink-0 text-foreground" variant="tertiary">
           <Languages className="h-[1.2rem] w-[1.2rem]" />
           <span className="sr-only">Switch language</span>
         </Button>

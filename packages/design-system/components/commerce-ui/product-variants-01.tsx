@@ -72,7 +72,7 @@ function ProductVariant_01({
   const defaultInitialVariant = initialVariant || variants[0].value;
 
   const [internalSelectedVariant, setInternalSelectedVariant] = useState(
-    defaultInitialVariant
+    defaultInitialVariant,
   );
   const [internalQuantity, setInternalQuantity] = useState(1);
 
@@ -279,7 +279,7 @@ function ProductVariant_01({
 
             <div className="mt-2 flex flex-col flex-wrap gap-3 sm:flex-row">
               <Button
-                variant="outline"
+                variant="secondary"
                 className="w-full border-gray-300 bg-white text-gray-800 transition-all duration-200 hover:border-teal-500 hover:bg-teal-50 hover:text-teal-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-teal-500 dark:hover:bg-gray-700"
                 onClick={handleAddToCart}
                 disabled={!isInStock || isLoading}
