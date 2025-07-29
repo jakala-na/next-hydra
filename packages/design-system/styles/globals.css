@@ -1,14 +1,21 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import url('color-primitives.css');
+
 @source "../**/*.{ts,tsx}";
 
 @plugin '@tailwindcss/typography';
 
+/* dark is referenced as chief-blue in designs */
 @custom-variant dark (&:is(.dark *));
+@custom-variant yakima-red-theme (&:is(.yakima-red-theme *));
+@custom-variant image-theme (&:is(.image-theme *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: var(--french-paper-50);
+  --foreground: var(--chief-blue-950);
+  --accent: var(--yakima-red-500);
+  --accent-foreground: var(--base-white);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -19,8 +26,6 @@
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.577 0.245 27.325);
   --success: oklch(50.8% 0.118 165.612);
@@ -43,11 +48,19 @@
   --sidebar-ring: oklch(0.708 0 0);
 
   --font-weight-bold: 700;
+
+  /* YCH Theme level variables*/
+  --button-primary-background: var(--chief-blue-950);
+  --button-primary-border: var(--chief-blue-950);
+  --button-primary-foreground: var(--base-white);
+  --button-secondary-foreground: var(--chief-blue-950);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
+  --background: var(--chief-blue-950);
+  --foreground: var(--base-white);
+  --accent: var(--yakima-red-500);
+  --accent-foreground: var(--base-white);
   --card: oklch(0.145 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.145 0 0);
@@ -58,8 +71,6 @@
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
   --success: oklch(50.8% 0.118 165.612);
@@ -79,9 +90,32 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+
+  /* YCH Theme level variables*/
+  --button-primary-background: var(--yakima-red-500);
+  --button-primary-border: var(--accent-foreground);
+  --button-primary-foreground: var(--base-white);
+  --button-secondary-foreground: var(--base-white);
+}
+
+/*
+  Custom theme variations.
+  See
+*/
+.yakima-red-theme {
+  --foreground: var(--base-white);
+  --background: var(--yakima-red-500);
+  --button-primary-border: var(--accent-foreground);
+}
+
+.image-theme {
+  --foreground: var(--base-white);
+  --button-primary-background: var(--yakima-red-500);
+  --button-primary-border: var(--accent-foreground);
 }
 
 @theme inline {
+  --color-base-white: var(--base-white);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -122,6 +156,60 @@
   --radius-xl: calc(var(--radius) + 4px);
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  /* YCH variables */
+  --color-button-primary: var(--button-primary-background);
+  --color-button-primary-foreground: var(--button-primary-foreground);
+  --color-button-secondary-foreground: var(--button-secondary-foreground);
+  --color-button-primary-border: var(--button-primary-border);
+
+  --color-chief-blue-50: var(--chief-blue-50);
+  --color-chief-blue-100: var(--chief-blue-100);
+  --color-chief-blue-200: var(--chief-blue-200);
+  --color-chief-blue-300: var(--chief-blue-300);
+  --color-chief-blue-400: var(--chief-blue-400);
+  --color-chief-blue-500: var(--chief-blue-500);
+  --color-chief-blue-600: var(--chief-blue-600);
+  --color-chief-blue-700: var(--chief-blue-700);
+  --color-chief-blue-800: var(--chief-blue-800);
+  --color-chief-blue-900: var(--chief-blue-900);
+  --color-chief-blue-950: var(--chief-blue-950);
+
+  --color-french-paper-50: var(--french-paper-50);
+  --color-french-paper-100: var(--french-paper-100);
+  --color-french-paper-200: var(--french-paper-200);
+  --color-french-paper-300: var(--french-paper-300);
+  --color-french-paper-400: var(--french-paper-400);
+  --color-french-paper-500: var(--french-paper-500);
+  --color-french-paper-600: var(--french-paper-600);
+  --color-french-paper-700: var(--french-paper-700);
+  --color-french-paper-800: var(--french-paper-800);
+  --color-french-paper-900: var(--french-paper-900);
+  --color-french-paper-950: var(--french-paper-700);
+
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
+  --color-neutral-400: var(--neutral-400);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
+  --color-neutral-900: var(--neutral-900);
+  --color-neutral-950: var(--neutral-950);
+
+  --color-yakima-red-50: var(--yakima-red-50);
+  --color-yakima-red-100: var(--yakima-red-100);
+  --color-yakima-red-200: var(--yakima-red-200);
+  --color-yakima-red-300: var(--yakima-red-300);
+  --color-yakima-red-400: var(--yakima-red-400);
+  --color-yakima-red-500: var(--yakima-red-500);
+  --color-yakima-red-600: var(--yakima-red-600);
+  --color-yakima-red-700: var(--yakima-red-700);
+  --color-yakima-red-800: var(--yakima-red-800);
+  --color-yakima-red-900: var(--yakima-red-900);
+  --color-yakima-red-950: var(--yakima-red-950);
 
   @keyframes accordion-down {
     from {
