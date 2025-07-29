@@ -52,6 +52,7 @@ Temporary Items
 
 # misc
 *.pem
+.idea
 
 # debug
 npm-debug.log*
