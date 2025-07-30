@@ -4,8 +4,13 @@
   "files": {
     "includes": [
       "**",
+<<<<<<< HEAD
       "!**/packages/cms/gql/*",
       "!**/packages/commerce/gql/*",
+=======
+      "!**/packages/design-system/lib/**",
+      "!**/packages/design-system/hooks/**",
+>>>>>>> ab10be7 (chore: remove prettier, reformat through ultracite)
       "!**/apps/email/.react-email/**"
     ]
   },

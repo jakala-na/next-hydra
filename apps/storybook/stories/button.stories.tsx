@@ -1,34 +1,34 @@
-import { Button } from "@repo/design-system/components/ui/button";
-import type { Meta, StoryObj } from "@storybook/react";
-import { ChevronRight } from "lucide-react";
+import { Button } from '@repo/design-system/components/ui/button';
+import type { Meta, StoryObj } from '@storybook/react';
+import { ChevronRight } from 'lucide-react';
 
 /**
  * Displays a button or a component that looks like a button.
  */
 const meta = {
-  title: "ui/Button",
+  title: 'ui/Button',
   component: Button,
-  tags: ["autodocs"],
+  tags: ['autodocs'],
   argTypes: {
     variant: {
-      control: "select",
-      options: ["primary", "secondary", "tertiary", "link"],
+      control: 'select',
+      options: ['primary', 'secondary', 'tertiary', 'link'],
     },
     size: {
-      options: ["none", "lg", "md", "sm"],
-      control: "select",
+      options: ['none', 'lg', 'md', 'sm'],
+      control: 'select',
     },
     children: {
-      control: "text",
+      control: 'text',
     },
   },
   parameters: {
-    layout: "centered",
+    layout: 'centered',
   },
   args: {
-    variant: "primary",
+    variant: 'primary',
     // size: "lg",
-    children: "Button",
+    children: 'Button',
     disabled: false,
   },
 } satisfies Meta<typeof Button>;
@@ -39,8 +39,8 @@ type Story = StoryObj<typeof meta>;
 
 export const Primary: Story = {
   args: {
-    variant: "primary",
-    size: "lg",
+    variant: 'primary',
+    size: 'lg',
   },
 };
 
@@ -51,8 +51,8 @@ export const Secondary: Story = {
     </Button>
   ),
   args: {
-    variant: "secondary",
-    size: "lg",
+    variant: 'secondary',
+    size: 'lg',
   },
 };
 
@@ -63,31 +63,31 @@ export const Tertiary: Story = {
     </Button>
   ),
   args: {
-    variant: "tertiary",
+    variant: 'tertiary',
   },
 };
 
 export const Link: Story = {
   args: {
-    variant: "link",
+    variant: 'link',
   },
 };
 
 export const Small: Story = {
   args: {
-    size: "sm",
+    size: 'sm',
   },
 };
 
 export const Medium: Story = {
   args: {
-    size: "md",
+    size: 'md',
   },
 };
 
 export const Large: Story = {
   args: {
-    size: "lg",
+    size: 'lg',
   },
 };
 
@@ -109,8 +109,8 @@ export const Disabled: Story = {
     </Button>
   ),
   args: {
-    variant: "primary",
-    size: "lg",
+    variant: 'primary',
+    size: 'lg',
     disabled: true,
   },
 };
