@@ -6,7 +6,7 @@ import {
   CommandItem,
   CommandList,
 } from '@repo/design-system/components/ui/command';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 import { CommandSeparator } from 'cmdk';
 
 /**

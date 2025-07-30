@@ -8,7 +8,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@repo/design-system/components/ui/sheet';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 
 /**
  * Extends the Dialog component to display content that complements the main

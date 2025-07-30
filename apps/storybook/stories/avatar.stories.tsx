@@ -3,7 +3,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from '@repo/design-system/components/ui/avatar';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 
 /**
  * An image element with a fallback for representing the user.
