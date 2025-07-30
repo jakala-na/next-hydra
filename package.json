@@ -38,7 +38,7 @@
   "type": "module",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
-      "npx ultracite format"
+      "npx biome check --fix"
     ]
   }
 }
