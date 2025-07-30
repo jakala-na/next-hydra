@@ -1,13 +1,11 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.0.5/schema.json",
   "extends": ["ultracite"],
-  "formatter": { "lineWidth": 120 },
   "files": {
     "includes": [
       "**",
-      "!**/packages/design-system/components/ui/**",
-      "!**/packages/design-system/lib/**",
-      "!**/packages/design-system/hooks/**",
+      "!**/packages/cms/gql/*",
+      "!**/packages/commerce/gql/*",
       "!**/apps/email/.react-email/**"
     ]
   },
@@ -18,4 +16,5 @@
       "suspicious": { "noConsole": "warn" }
     }
   }
+  //** TODO: Add GraphQL support when Embedded Language support drops https://github.com/biomejs/biome/issues/3334
 }
