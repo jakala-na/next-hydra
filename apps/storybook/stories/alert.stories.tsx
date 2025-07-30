@@ -3,7 +3,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@repo/design-system/components/ui/alert';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 import { AlertCircle } from 'lucide-react';
 
 /**

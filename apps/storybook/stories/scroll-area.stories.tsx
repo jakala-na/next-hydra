@@ -1,5 +1,5 @@
 import { ScrollArea } from '@repo/design-system/components/ui/scroll-area';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 
 /**
  * Augments native scroll functionality for custom, cross-browser styling.
