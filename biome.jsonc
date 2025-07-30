@@ -5,7 +5,6 @@
   "files": {
     "includes": [
       "**",
-      "!**/packages/design-system/components/ui/**",
       "!**/packages/design-system/lib/**",
       "!**/packages/design-system/hooks/**",
       "!**/apps/email/.react-email/**"

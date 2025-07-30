@@ -228,9 +228,6 @@ importers:
       postcss:
         specifier: ^8
         version: 8.5.6
-      prettier:
-        specifier: 3.6.2
-        version: 3.6.2
       storybook:
         specifier: ^8.6.14
         version: 8.6.14(bufferutil@4.0.9)(prettier@3.6.2)
@@ -720,9 +717,6 @@ importers:
       postcss:
         specifier: ^8.5.3
         version: 8.5.6
-      prettier:
-        specifier: 3.6.2
-        version: 3.6.2
       tailwindcss:
         specifier: ^4.1.7
         version: 4.1.7
