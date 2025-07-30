@@ -12,7 +12,8 @@
     "boundaries": "turbo boundaries",
     "bump-deps": "npx npm-check-updates --deep -u -x react-day-picker",
     "bump-ui": "npx shadcn@latest add --all --overwrite -c packages/design-system",
-    "clean": "git clean -xdf node_modules"
+    "clean": "git clean -xdf node_modules",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.5",
