@@ -25,7 +25,7 @@
       "performance": { "noNamespaceImport": "warn" },
       "nursery": {
         "noShadow": "warn",
-        "noUselessEscapeInString": "warn",
+        "noUselessEscapeInString": "off",
         "noUnknownAtRule": "warn",
         "useParseIntRadix": "warn",
         "noNestedComponentDefinitions": "warn",
