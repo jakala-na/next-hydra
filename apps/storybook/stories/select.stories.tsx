@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/design-system/components/ui/select';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 
 /**
  * Displays a list of options for the user to pick from—triggered by a button.

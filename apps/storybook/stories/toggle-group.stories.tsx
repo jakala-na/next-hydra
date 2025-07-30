@@ -2,7 +2,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '@repo/design-system/components/ui/toggle-group';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 import { Bold, Italic, Underline } from 'lucide-react';
 
 /**

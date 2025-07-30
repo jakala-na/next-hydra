@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@repo/design-system/components/ui/table';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 
 const invoices = [
   {

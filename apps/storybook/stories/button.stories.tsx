@@ -1,5 +1,5 @@
 import { Button } from '@repo/design-system/components/ui/button';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 import { ChevronRight } from 'lucide-react';
 
 /**

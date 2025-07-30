@@ -4,7 +4,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@repo/design-system/components/ui/tabs';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 
 /**
  * A set of layered sections of content—known as tab panels—that are displayed

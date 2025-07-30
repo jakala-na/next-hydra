@@ -4,7 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@repo/design-system/components/ui/accordion';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs';
 
 /**
  * A vertically stacked set of interactive headings that each reveal a section
