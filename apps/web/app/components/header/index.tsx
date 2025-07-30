@@ -1,6 +1,12 @@
 'use client';
 
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@repo/auth/client';
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+} from '@repo/auth/client';
 import type { NavigationItem } from '@repo/cms/types';
 import { ModeToggle } from '@repo/design-system/components/mode-toggle';
 import { Button } from '@repo/design-system/components/ui/button';
@@ -43,7 +49,9 @@ export const Header = ({ navigationItems }: HeaderProps) => {
                     </NavigationMenuLink>
                   ) : (
                     <>
-                      <NavigationMenuTrigger className="font-medium text-sm">{item.title}</NavigationMenuTrigger>
+                      <NavigationMenuTrigger className="font-medium text-sm">
+                        {item.title}
+                      </NavigationMenuTrigger>
                       <NavigationMenuContent className="!w-[450px] p-4">
                         <div className="flex grid-cols-2 flex-col gap-4 lg:grid">
                           <div className="flex h-full flex-col justify-between">
@@ -73,7 +81,13 @@ export const Header = ({ navigationItems }: HeaderProps) => {
           </NavigationMenu>
         </div>
         <div className="flex items-center gap-2 lg:justify-center">
-          <Image alt="Logo" className="dark:invert" height={24} src={Logo} width={24} />
+          <Image
+            alt="Logo"
+            className="dark:invert"
+            height={24}
+            src={Logo}
+            width={24}
+          />
           <p className="whitespace-nowrap font-semibold">next-cms-commerce</p>
         </div>
         <div className="flex w-full justify-end gap-4">
@@ -111,8 +125,14 @@ export const Header = ({ navigationItems }: HeaderProps) => {
                       <Link
                         className="flex items-center justify-between"
                         href={item.href}
-                        rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                        target={item.href.startsWith('http') ? '_blank' : undefined}
+                        rel={
+                          item.href.startsWith('http')
+                            ? 'noopener noreferrer'
+                            : undefined
+                        }
+                        target={
+                          item.href.startsWith('http') ? '_blank' : undefined
+                        }
                       >
                         <span className="text-lg">{item.title}</span>
                         <MoveRight className="h-4 w-4 stroke-1 text-muted-foreground" />
@@ -121,8 +141,14 @@ export const Header = ({ navigationItems }: HeaderProps) => {
                       <p className="text-lg">{item.title}</p>
                     )}
                     {item.items?.map((subItem) => (
-                      <Link className="flex items-center justify-between" href={subItem.href} key={subItem.title}>
-                        <span className="text-muted-foreground">{subItem.title}</span>
+                      <Link
+                        className="flex items-center justify-between"
+                        href={subItem.href}
+                        key={subItem.title}
+                      >
+                        <span className="text-muted-foreground">
+                          {subItem.title}
+                        </span>
                         <MoveRight className="h-4 w-4 stroke-1" />
                       </Link>
                     ))}

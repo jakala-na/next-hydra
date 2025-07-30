@@ -1,4 +1,4 @@
-'use server'
+'use server';
 import { addItemToCart } from '../add-to-cart';
 import { getOrCreateActiveCart } from '../queries/get-active-cart';
 
@@ -10,7 +10,6 @@ export interface AddToCartActionParams {
   customerId?: string;
   key?: string;
 }
-
 
 export async function addToCartAction(params: AddToCartActionParams) {
   try {

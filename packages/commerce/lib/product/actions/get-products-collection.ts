@@ -16,13 +16,16 @@ export const getProductsCollection = action
       channelId: z.string(),
     })
   )
-  .action(async ({ parsedInput: { categoryId, limit, locale, currency, channelId } }) => {
-    const client = graphqlClient();
+  .action(
+    async ({
+      parsedInput: { categoryId, limit, locale, currency, channelId },
+    }) => {
+      const client = graphqlClient();
 
-    const filter = `categories.id:"${categoryId}"`;
+      const filter = `categories.id:"${categoryId}"`;
 
-    const query = graphql(
-      `
+      const query = graphql(
+        `
       query productSearchCards($filter: String!, $limit: Int!, $locale: Locale!, $currency: Currency!, $channelId: String!) {
         productProjectionSearch(
           filters: { string: $filter }
@@ -34,9 +37,20 @@ export const getProductsCollection = action
         }
       }
     `,
-      [productCardFragment]
-    );
-    const response = await client.query(query, { filter, limit, locale, currency, channelId });
+        [productCardFragment]
+      );
+      const response = await client.query(query, {
+        filter,
+        limit,
+        locale,
+        currency,
+        channelId,
+      });
 
-    return response.data?.productProjectionSearch?.results?.map(reshapeProductCard) || [];
-  });
+      return (
+        response.data?.productProjectionSearch?.results?.map(
+          reshapeProductCard
+        ) || []
+      );
+    }
+  );

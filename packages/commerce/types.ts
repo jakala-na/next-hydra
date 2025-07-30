@@ -201,7 +201,7 @@ export type UpdateCartInput = {
   actions: CartUpdateAction[];
 };
 
-export type CartUpdateAction = 
+export type CartUpdateAction =
   | AddLineItemAction
   | RemoveLineItemAction
   | ChangeLineItemQuantityAction

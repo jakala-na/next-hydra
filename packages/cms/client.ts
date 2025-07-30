@@ -43,7 +43,9 @@ const makeClient = (livePreviewHash?: string) => {
       mapExchange({
         onError: (error) => {
           // Filter out expected errors like PERSISTED_QUERY_NOT_FOUND, pass others to the server.
-          const errors = error.graphQLErrors.filter((err) => err.message !== 'PersistedQueryNotFound');
+          const errors = error.graphQLErrors.filter(
+            (err) => err.message !== 'PersistedQueryNotFound'
+          );
 
           if (errors.length > 0) {
             // TODO: Add Sentry or similar error reporting.
@@ -51,7 +53,7 @@ const makeClient = (livePreviewHash?: string) => {
             console.error('GraphQL Errors:', JSON.stringify(errors, null, 2));
           }
         },
-        onOperation(operation) {
+        onOperation() {
           // console.dir(operation, { depth: null, colors: true });
         },
       }),
@@ -71,4 +73,6 @@ const makeClient = (livePreviewHash?: string) => {
  * @see https://commerce.nearform.com/open-source/urql/docs/advanced/server-side-rendering/#nextjs
  */
 
-export const graphqlClient: (livePreviewHash?: string) => ReturnType<typeof makeClient> = memoize(makeClient);
+export const graphqlClient: (
+  livePreviewHash?: string
+) => ReturnType<typeof makeClient> = memoize(makeClient);

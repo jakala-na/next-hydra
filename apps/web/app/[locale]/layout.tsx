@@ -10,7 +10,6 @@ import { routing } from '@repo/i18n/routing';
 import { draftMode, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Footer } from '../components/footer';
 import { Header } from '../components/header';
 
 type RootLayoutProperties = {
@@ -33,7 +32,11 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
   const navigationItems = await getNavigation(locale, livePreviewHash);
 
   return (
-    <html className={cn(fonts, 'scroll-smooth')} lang={locale} suppressHydrationWarning>
+    <html
+      className={cn(fonts, 'scroll-smooth')}
+      lang={locale}
+      suppressHydrationWarning
+    >
       <body>
         <DesignSystemProvider>
           <NextIntlClientProvider>

@@ -42,7 +42,9 @@ type ProductCard = {
   slug?: string;
 };
 
-export const reshapeProductCard = (_product: FragmentOf<typeof productCardFragment>): ProductCard => {
+export const reshapeProductCard = (
+  _product: FragmentOf<typeof productCardFragment>
+): ProductCard => {
   const product = readFragment(productCardFragment, _product);
 
   const masterVariant = product.masterVariant;

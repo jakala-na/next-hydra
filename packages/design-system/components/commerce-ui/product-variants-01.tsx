@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import ImageViewer from "@repo/components/commerce-ui/image-viewer-basic";
-import PriceFormat_Sale from "@repo/components/commerce-ui/price-format-sale";
-import QuantityInputBasic from "@repo/components/commerce-ui/quantity-input-basic";
+import ImageViewer from '@repo/components/commerce-ui/image-viewer-basic';
+import PriceFormat_Sale from '@repo/components/commerce-ui/price-format-sale';
+import QuantityInputBasic from '@repo/components/commerce-ui/quantity-input-basic';
 import VariantSelectorBasic, {
-  VariantItem as BaseVariantItem,
-} from "@repo/components/commerce-ui/variant-selector-basic";
-import { Button } from "@repo/components/ui/button";
-import { Clock } from "lucide-react";
-import { useState } from "react";
+  type VariantItem as BaseVariantItem,
+} from '@repo/components/commerce-ui/variant-selector-basic';
+import { Button } from '@repo/components/ui/button';
+import { Clock } from 'lucide-react';
+import { useState } from 'react';
 
 interface VariantItem extends BaseVariantItem {
   price: number;
@@ -47,9 +47,9 @@ interface ProductVariant01Props {
 }
 
 function ProductVariant_01({
-  badge = "New",
+  badge = 'New',
   defaultImage,
-  description = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+  description = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
   errorMessage = null,
   initialVariant,
   isLoading = false,
@@ -60,13 +60,13 @@ function ProductVariant_01({
   quantity: controlledQuantity,
   selectedVariant: controlledVariant,
   shippingInfo,
-  title = "Product Variant Title",
-  variantLabel = "Variant",
+  title = 'Product Variant Title',
+  variantLabel = 'Variant',
   variants,
 }: ProductVariant01Props) {
   // Ensure variants array is not empty
   if (!variants.length) {
-    throw new Error("At least one variant must be provided");
+    throw new Error('At least one variant must be provided');
   }
 
   const defaultInitialVariant = initialVariant || variants[0].value;
@@ -119,27 +119,27 @@ function ProductVariant_01({
 
   const handleAddToCart = () => {
     onAddToCart({
-      isOnSale: isOnSale,
+      isOnSale,
       originalPrice: isOnSale ? currentPrice : undefined,
       price: currentPrice,
-      quantity: quantity,
+      quantity,
       salePrice: isOnSale ? currentSalePrice : undefined,
       totalPrice: quantity * effectivePrice,
       variantId: selectedVariantId,
-      variantLabel: selectedVariant?.label || "",
+      variantLabel: selectedVariant?.label || '',
     });
   };
 
   const handleBuyNow = () => {
     onBuyNow({
-      isOnSale: isOnSale,
+      isOnSale,
       originalPrice: isOnSale ? currentPrice : undefined,
       price: currentPrice,
-      quantity: quantity,
+      quantity,
       salePrice: isOnSale ? currentSalePrice : undefined,
       totalPrice: quantity * effectivePrice,
       variantId: selectedVariantId,
-      variantLabel: selectedVariant?.label || "",
+      variantLabel: selectedVariant?.label || '',
     });
   };
 
@@ -159,7 +159,7 @@ function ProductVariant_01({
     return {
       ...variant,
       disabled: !isVariantInStock,
-      label: variant.label + (isVariantInStock ? "" : " (Out of Stock)"),
+      label: variant.label + (isVariantInStock ? '' : ' (Out of Stock)'),
     };
   });
 
@@ -167,18 +167,18 @@ function ProductVariant_01({
     <div className="my-6 grid max-w-screen-lg grid-cols-1 gap-12 rounded-lg md:grid-cols-2">
       <div className="relative h-fit w-full overflow-hidden rounded-2xl bg-gradient-to-br from-teal-50 to-cyan-50 p-5 dark:from-teal-950/30 dark:to-cyan-950/30">
         {badge && (
-          <span className="absolute top-4 left-4 z-10 rounded-full bg-gradient-to-r from-teal-500 to-cyan-600 px-3 py-1.5 text-xs font-bold text-white">
+          <span className="absolute top-4 left-4 z-10 rounded-full bg-gradient-to-r from-teal-500 to-cyan-600 px-3 py-1.5 font-bold text-white text-xs">
             {badge}
           </span>
         )}
         <div className="transition-transform duration-500 hover:scale-105">
           {isLoading ? (
             <div className="flex h-[300px] items-center justify-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-teal-200 border-t-teal-600"></div>
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-teal-200 border-t-teal-600" />
             </div>
           ) : (
             <ImageViewer
-              imageUrl={currentImage || ""}
+              imageUrl={currentImage || ''}
               classNameThumbnailViewer="rounded-lg object-contain h-[300px] mx-auto"
             />
           )}
@@ -188,14 +188,14 @@ function ProductVariant_01({
       <div className="flex flex-col gap-6">
         {isLoading ? (
           <div className="space-y-4">
-            <div className="h-8 w-3/4 animate-pulse rounded-md bg-gray-200 dark:bg-gray-700"></div>
-            <div className="h-16 animate-pulse rounded-md bg-gray-200 dark:bg-gray-700"></div>
-            <div className="h-8 w-1/3 animate-pulse rounded-md bg-gray-200 dark:bg-gray-700"></div>
+            <div className="h-8 w-3/4 animate-pulse rounded-md bg-gray-200 dark:bg-gray-700" />
+            <div className="h-16 animate-pulse rounded-md bg-gray-200 dark:bg-gray-700" />
+            <div className="h-8 w-1/3 animate-pulse rounded-md bg-gray-200 dark:bg-gray-700" />
           </div>
         ) : (
           <>
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+              <h2 className="font-bold text-3xl text-gray-900 tracking-tight dark:text-gray-100">
                 {title}
               </h2>
               <p className="mt-3 text-gray-600 dark:text-gray-400">
@@ -215,7 +215,7 @@ function ProductVariant_01({
               />
 
               {shippingInfo && (
-                <p className="mt-1 inline-flex items-center text-sm text-green-600 dark:text-green-400">
+                <p className="mt-1 inline-flex items-center text-green-600 text-sm dark:text-green-400">
                   <Clock className="mr-1 h-4 w-4" />
                   {shippingInfo}
                 </p>
@@ -224,24 +224,24 @@ function ProductVariant_01({
 
             {isInStock ? (
               <div className="rounded-md bg-green-50 p-3 text-green-800 dark:bg-green-900/20 dark:text-green-300">
-                <p className="text-sm font-bold">In Stock</p>
+                <p className="font-bold text-sm">In Stock</p>
                 {availableQuantity !== null &&
                   availableQuantity !== undefined &&
                   availableQuantity > 0 && (
-                    <span className="mt-1 text-sm font-normal">
+                    <span className="mt-1 font-normal text-sm">
                       {availableQuantity} units available
                     </span>
                   )}
               </div>
             ) : (
               <div className="rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-                <p className="text-sm font-bold">Currently out of stock</p>
+                <p className="font-bold text-sm">Currently out of stock</p>
               </div>
             )}
 
             <div className="space-y-6">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="mb-2 block font-medium text-gray-700 text-sm dark:text-gray-300">
                   {variantLabel}
                 </label>
                 <VariantSelectorBasic
@@ -260,7 +260,7 @@ function ProductVariant_01({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="mb-2 block font-medium text-gray-700 text-sm dark:text-gray-300">
                 Quantity
               </label>
               <QuantityInputBasic
@@ -284,14 +284,14 @@ function ProductVariant_01({
                 onClick={handleAddToCart}
                 disabled={!isInStock || isLoading}
               >
-                {isLoading ? "Loading..." : "Add to Cart"}
+                {isLoading ? 'Loading...' : 'Add to Cart'}
               </Button>
               <Button
                 className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 text-white transition-all hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500"
                 onClick={handleBuyNow}
                 disabled={!isInStock || isLoading}
               >
-                {isLoading ? "Loading..." : "Buy Now"}
+                {isLoading ? 'Loading...' : 'Buy Now'}
               </Button>
             </div>
 
@@ -301,7 +301,7 @@ function ProductVariant_01({
               </p>
               <div className="mt-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-teal-500"></div>
+                  <div className="h-3 w-3 rounded-full bg-teal-500" />
                   <p className="text-gray-700 dark:text-gray-300">
                     {selectedVariant?.label}
                   </p>
@@ -319,13 +319,13 @@ function ProductVariant_01({
                   )}
                 </p>
               </div>
-              <p className="mt-2 text-xs text-gray-500">
-                {quantity} {quantity > 1 ? "units" : "unit"} × $
+              <p className="mt-2 text-gray-500 text-xs">
+                {quantity} {quantity > 1 ? 'units' : 'unit'} × $
                 {effectivePrice.toFixed(2)} = $
                 {(quantity * effectivePrice).toFixed(2)}
               </p>
-              <p className="mt-1 text-xs text-gray-500">
-                {isInStock ? "In Stock" : "Out of Stock"}
+              <p className="mt-1 text-gray-500 text-xs">
+                {isInStock ? 'In Stock' : 'Out of Stock'}
                 {isInStock &&
                   availableQuantity !== null &&
                   availableQuantity !== undefined &&
