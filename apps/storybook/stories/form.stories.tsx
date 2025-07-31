@@ -11,7 +11,7 @@ import {
 import { action } from '@storybook/addon-actions';
 import type { Meta, StoryObj } from '@storybook/react';
 import { useForm } from 'react-hook-form';
-import { object, string } from 'zod';
+import * as z from 'zod';
 
 /**
  * Building forms with React Hook Form and Zod.
@@ -28,8 +28,8 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-const formSchema = object({
-  username: string().min(2, {
+const formSchema = z.object({
+  username: z.string().min(2, {
     message: 'Username must be at least 2 characters.',
   }),
 });
