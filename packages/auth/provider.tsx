@@ -12,12 +12,7 @@ type AuthProviderProperties = ComponentProps<typeof ClerkProvider> & {
   helpUrl?: string;
 };
 
-export const AuthProvider = ({
-  privacyUrl,
-  termsUrl,
-  helpUrl,
-  ...properties
-}: AuthProviderProperties) => {
+export const AuthProvider = ({ privacyUrl, termsUrl, helpUrl, ...properties }: AuthProviderProperties) => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const baseTheme = isDark ? dark : undefined;
@@ -49,10 +44,5 @@ export const AuthProvider = ({
     helpPageUrl: helpUrl,
   };
 
-  return (
-    <ClerkProvider
-      {...properties}
-      appearance={{ layout, baseTheme, elements, variables }}
-    />
-  );
+  return <ClerkProvider {...properties} appearance={{ layout, baseTheme, elements, variables }} />;
 };

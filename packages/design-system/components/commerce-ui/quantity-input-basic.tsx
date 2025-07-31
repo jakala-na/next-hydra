@@ -1,7 +1,7 @@
-"use client";
-import { cn } from "@repo/design-system/lib/utils";
-import { Minus, Plus } from "lucide-react";
-import { ChangeEvent, useState, useEffect } from "react";
+'use client';
+import { cn } from '@repo/design-system/lib/utils';
+import { Minus, Plus } from 'lucide-react';
+import { type ChangeEvent, useEffect, useState } from 'react';
 
 interface QuantityInputBasicProps {
   quantity: number;
@@ -47,7 +47,7 @@ const QuantityInputBasic = ({
     setInputValue(e.target.value);
 
     // If the input is a valid number, update the parent component
-    const value = parseInt(e.target.value);
+    const value = Number.parseInt(e.target.value);
     if (!isNaN(value) && value >= min && (max === null || value <= max)) {
       onChange(value);
     }
@@ -55,7 +55,7 @@ const QuantityInputBasic = ({
 
   const handleBlur = () => {
     // When the field loses focus, ensure we have a valid value
-    const value = parseInt(inputValue);
+    const value = Number.parseInt(inputValue);
     if (isNaN(value) || value < min) {
       // If invalid or below min, reset to min
       setInputValue(min.toString());
@@ -72,16 +72,12 @@ const QuantityInputBasic = ({
   };
 
   return (
-    <div
-      className={cn(
-        "inline-flex cursor-pointer rounded-lg shadow-xs shadow-black/5",
-        className
-      )}
-    >
+    <div className={cn('inline-flex cursor-pointer rounded-lg shadow-black/5 shadow-xs', className)}>
       <button
+        type="button"
         className={cn(
-          "hover:bg-muted-foreground/10 flex cursor-pointer items-center justify-center rounded-s-lg border px-3 py-1 focus-visible:z-10 disabled:cursor-not-allowed disabled:opacity-50",
-          disabled && "pointer-events-none"
+          'flex cursor-pointer items-center justify-center rounded-s-lg border px-3 py-1 hover:bg-muted-foreground/10 focus-visible:z-10 disabled:cursor-not-allowed disabled:opacity-50',
+          disabled && 'pointer-events-none'
         )}
         onClick={handleDecrease}
         disabled={disabled || quantity <= min}
@@ -101,9 +97,10 @@ const QuantityInputBasic = ({
         aria-label="Quantity"
       />
       <button
+        type="button"
         className={cn(
-          "hover:bg-muted-foreground/10 flex cursor-pointer items-center justify-center rounded-e-lg border px-3 py-1 focus-visible:z-10 disabled:cursor-not-allowed disabled:opacity-50",
-          disabled && "pointer-events-none"
+          'flex cursor-pointer items-center justify-center rounded-e-lg border px-3 py-1 hover:bg-muted-foreground/10 focus-visible:z-10 disabled:cursor-not-allowed disabled:opacity-50',
+          disabled && 'pointer-events-none'
         )}
         onClick={handleIncrease}
         disabled={disabled || (max !== null && quantity >= max)}

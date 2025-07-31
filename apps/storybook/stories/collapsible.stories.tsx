@@ -1,8 +1,4 @@
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@repo/design-system/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@repo/design-system/components/ui/collapsible';
 import type { Meta, StoryObj } from '@storybook/nextjs';
 import { Info } from 'lucide-react';
 
@@ -25,8 +21,7 @@ const meta = {
         <Info className="size-6" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        Yes. Free to use for personal and commercial projects. No attribution
-        required.
+        Yes. Free to use for personal and commercial projects. No attribution required.
       </CollapsibleContent>
     </Collapsible>
   ),

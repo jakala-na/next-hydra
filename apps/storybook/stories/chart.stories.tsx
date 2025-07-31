@@ -6,19 +6,7 @@ import {
 } from '@repo/design-system/components/ui/chart';
 import type { Meta, StoryObj } from '@storybook/nextjs';
 import { useMemo } from 'react';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Label,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  XAxis,
-} from 'recharts';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Label, Line, LineChart, Pie, PieChart, XAxis } from 'recharts';
 
 const multiSeriesData = [
   { month: 'January', desktop: 186, mobile: 80 },
@@ -106,10 +94,7 @@ export const StackedAreaChart: Story = {
           tickLine={false}
           tickMargin={8}
         />
-        <ChartTooltip
-          content={<ChartTooltipContent indicator="dot" />}
-          cursor={false}
-        />
+        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={false} />
         <Area
           dataKey="mobile"
           fill="var(--color-mobile)"
@@ -149,10 +134,7 @@ export const StackedBarChart: Story = {
           tickLine={false}
           tickMargin={10}
         />
-        <ChartTooltip
-          content={<ChartTooltipContent indicator="dashed" />}
-          cursor={false}
-        />
+        <ChartTooltip content={<ChartTooltipContent indicator="dashed" />} cursor={false} />
         <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
         <Bar dataKey="mobile" fill="var(--color-mobile)" radius={4} />
       </BarChart>
@@ -185,24 +167,9 @@ export const MultiLineChart: Story = {
           tickLine={false}
           tickMargin={8}
         />
-        <ChartTooltip
-          content={<ChartTooltipContent hideLabel />}
-          cursor={false}
-        />
-        <Line
-          dataKey="desktop"
-          dot={false}
-          stroke="var(--color-desktop)"
-          strokeWidth={2}
-          type="natural"
-        />
-        <Line
-          dataKey="mobile"
-          dot={false}
-          stroke="var(--color-mobile)"
-          strokeWidth={2}
-          type="natural"
-        />
+        <ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
+        <Line dataKey="desktop" dot={false} stroke="var(--color-desktop)" strokeWidth={2} type="natural" />
+        <Line dataKey="mobile" dot={false} stroke="var(--color-mobile)" strokeWidth={2} type="natural" />
       </LineChart>
     </ChartContainer>
   ),
@@ -222,39 +189,17 @@ export const DoughnutChart: Story = {
     return (
       <ChartContainer {...args}>
         <PieChart>
-          <ChartTooltip
-            content={<ChartTooltipContent hideLabel />}
-            cursor={false}
-          />
-          <Pie
-            data={singleSeriesData}
-            dataKey="visitors"
-            innerRadius={48}
-            nameKey="browser"
-            strokeWidth={5}
-          >
+          <ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
+          <Pie data={singleSeriesData} dataKey="visitors" innerRadius={48} nameKey="browser" strokeWidth={5}>
             <Label
               content={({ viewBox }) => {
                 if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
                   return (
-                    <text
-                      dominantBaseline="middle"
-                      textAnchor="middle"
-                      x={viewBox.cx}
-                      y={viewBox.cy}
-                    >
-                      <tspan
-                        className="fill-foreground font-bold text-3xl"
-                        x={viewBox.cx}
-                        y={viewBox.cy}
-                      >
+                    <text dominantBaseline="middle" textAnchor="middle" x={viewBox.cx} y={viewBox.cy}>
+                      <tspan className="fill-foreground font-bold text-3xl" x={viewBox.cx} y={viewBox.cy}>
                         {totalVisitors.toLocaleString()}
                       </tspan>
-                      <tspan
-                        className="fill-muted-foreground"
-                        x={viewBox.cx}
-                        y={(viewBox.cy || 0) + 24}
-                      >
+                      <tspan className="fill-muted-foreground" x={viewBox.cx} y={(viewBox.cy || 0) + 24}>
                         Visitors
                       </tspan>
                     </text>

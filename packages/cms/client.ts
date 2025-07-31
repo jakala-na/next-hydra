@@ -51,7 +51,7 @@ const makeClient = (livePreviewHash?: string) => {
             console.error('GraphQL Errors:', JSON.stringify(errors, null, 2));
           }
         },
-        onOperation(operation) {
+        onOperation() {
           // console.dir(operation, { depth: null, colors: true });
         },
       }),

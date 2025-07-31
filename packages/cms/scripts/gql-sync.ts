@@ -1,9 +1,5 @@
 import path from 'node:path';
-import {
-  generateOutput,
-  generateSchema,
-  generateTurbo,
-} from '@gql.tada/cli-utils';
+import { generateOutput, generateSchema, generateTurbo } from '@gql.tada/cli-utils';
 import { keys } from '../keys.ts';
 import 'dotenv/config';
 

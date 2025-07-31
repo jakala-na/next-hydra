@@ -1,7 +1,4 @@
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from '@repo/design-system/components/ui/radio-group';
+import { RadioGroup, RadioGroupItem } from '@repo/design-system/components/ui/radio-group';
 import type { Meta, StoryObj } from '@storybook/nextjs';
 
 /**

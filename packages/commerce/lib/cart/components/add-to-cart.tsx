@@ -2,10 +2,7 @@
 
 import { Button } from '@repo/design-system/components/ui/button';
 import { useState } from 'react';
-import {
-  type AddToCartActionParams,
-  addToCartAction,
-} from '../../actions/add-to-cart';
+import { type AddToCartActionParams, addToCartAction } from '../../actions/add-to-cart';
 
 export interface AddToCartProps {
   productId?: string;
@@ -15,6 +12,7 @@ export interface AddToCartProps {
   customerId?: string;
   disabled?: boolean;
   children?: React.ReactNode;
+  // biome-ignore lint: IN PROGRESS
   onSuccess?: (cart: any) => void;
   onError?: (error: string) => void;
   className?: string;
@@ -66,20 +64,14 @@ export function AddToCart({
         onError?.(result.error || 'Failed to add item to cart');
       }
     } catch (error) {
-      onError?.(
-        error instanceof Error ? error.message : 'Unknown error occurred'
-      );
+      onError?.(error instanceof Error ? error.message : 'Unknown error occurred');
     } finally {
       setIsPending(false);
     }
   };
 
   return (
-    <Button
-      onClick={handleAddToCart}
-      disabled={disabled || isPending}
-      className={className}
-    >
+    <Button onClick={handleAddToCart} disabled={disabled || isPending} className={className}>
       {isPending ? 'Adding...' : children}
     </Button>
   );

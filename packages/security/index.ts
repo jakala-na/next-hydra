@@ -1,18 +1,9 @@
-import arcjet, {
-  type ArcjetBotCategory,
-  type ArcjetWellKnownBot,
-  detectBot,
-  request,
-  shield,
-} from '@arcjet/next';
+import arcjet, { type ArcjetBotCategory, type ArcjetWellKnownBot, detectBot, request, shield } from '@arcjet/next';
 import { keys } from './keys';
 
 const arcjetKey = keys().ARCJET_KEY;
 
-export const secure = async (
-  allow: (ArcjetWellKnownBot | ArcjetBotCategory)[],
-  sourceRequest?: Request
-) => {
+export const secure = async (allow: (ArcjetWellKnownBot | ArcjetBotCategory)[], sourceRequest?: Request) => {
   if (!arcjetKey) {
     return;
   }
@@ -37,9 +28,7 @@ export const secure = async (
   const decision = await aj.protect(req);
 
   if (decision.isDenied()) {
-    console.warn(
-      `Arcjet decision: ${JSON.stringify(decision.reason, null, 2)}`
-    );
+    console.warn(`Arcjet decision: ${JSON.stringify(decision.reason, null, 2)}`);
 
     if (decision.reason.isBot()) {
       throw new Error('No bots allowed');

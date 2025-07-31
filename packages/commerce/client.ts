@@ -12,13 +12,13 @@ import { keys } from './keys';
 
 async function getAuthHeaders() {
   const { COMMERCETOOLS_CLIENT_ID, COMMERCETOOLS_CLIENT_SECRET, COMMERCETOOLS_SCOPE, COMMERCETOOLS_REGION } = keys();
-  
+
   // Get OAuth token
   const tokenResponse = await fetch(`https://auth.${COMMERCETOOLS_REGION}.commercetools.com/oauth/token`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${Buffer.from(`${COMMERCETOOLS_CLIENT_ID}:${COMMERCETOOLS_CLIENT_SECRET}`).toString('base64')}`,
+      Authorization: `Basic ${Buffer.from(`${COMMERCETOOLS_CLIENT_ID}:${COMMERCETOOLS_CLIENT_SECRET}`).toString('base64')}`,
     },
     body: `grant_type=client_credentials&scope=${COMMERCETOOLS_SCOPE}`,
   });
@@ -28,10 +28,10 @@ async function getAuthHeaders() {
   }
 
   const tokenData = await tokenResponse.json();
-  
+
   return {
     headers: {
-      'Authorization': `Bearer ${tokenData.access_token}`,
+      Authorization: `Bearer ${tokenData.access_token}`,
       'Content-Type': 'application/json',
     },
   };
@@ -39,7 +39,7 @@ async function getAuthHeaders() {
 
 const makeClient = () => {
   const { COMMERCETOOLS_PROJECT_KEY, COMMERCETOOLS_REGION } = keys();
-  
+
   const graphqlEndpoint = `https://api.${COMMERCETOOLS_REGION}.commercetools.com/${COMMERCETOOLS_PROJECT_KEY}/graphql`;
 
   return createClient({
@@ -65,9 +65,7 @@ const makeClient = () => {
       mapExchange({
         onError: (error) => {
           // Filter out expected errors, pass others to the server.
-          const errors = error.graphQLErrors.filter(
-            (err) => err.message !== 'PersistedQueryNotFound'
-          );
+          const errors = error.graphQLErrors.filter((err) => err.message !== 'PersistedQueryNotFound');
 
           if (errors.length > 0) {
             // TODO: Add Sentry or similar error reporting.
@@ -75,7 +73,7 @@ const makeClient = () => {
             console.error('GraphQL Errors:', JSON.stringify(errors, null, 2));
           }
         },
-        onOperation(operation) {
+        onOperation() {
           // console.dir(operation, { depth: null, colors: true });
         },
       }),

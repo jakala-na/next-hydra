@@ -1,4 +1,3 @@
-import { ProductsCollection } from '@repo/commerce/lib/product';
 import { hasLocale } from '@repo/i18n';
 import { routing } from '@repo/i18n/routing';
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from 'next/cache';

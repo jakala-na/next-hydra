@@ -1,5 +1,5 @@
-import { graphql } from '../graphql';
 import { graphqlClient } from '../client';
+import { graphql } from '../graphql';
 
 const GetActiveCartQuery = graphql(`
   query GetActiveCart($customerId: String!) {
@@ -65,7 +65,7 @@ const CreateCartMutation = graphql(`
 
 export async function getActiveCart(customerId: string) {
   const client = graphqlClient();
-  
+
   try {
     const result = await client.query(GetActiveCartQuery, {
       customerId,
@@ -82,9 +82,9 @@ export async function getActiveCart(customerId: string) {
   }
 }
 
-export async function createCart(customerId?: string, currency: string = 'USD') {
+export async function createCart(customerId?: string, currency = 'USD') {
   const client = graphqlClient();
-  
+
   try {
     const result = await client.mutation(CreateCartMutation, {
       draft: {
@@ -104,16 +104,16 @@ export async function createCart(customerId?: string, currency: string = 'USD') 
   }
 }
 
-export async function getOrCreateActiveCart(customerId: string, currency: string = 'USD') {
+export async function getOrCreateActiveCart(customerId: string, currency = 'USD') {
   try {
     const activeCart = await getActiveCart(customerId);
     if (activeCart) {
       return activeCart;
     }
-  } catch (error) {
+  } catch {
     // Cart might not exist, continue to create one
     console.log('No active cart found, creating new one...');
   }
-  
+
   return await createCart(customerId, currency);
 }

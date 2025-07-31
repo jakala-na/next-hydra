@@ -49,6 +49,7 @@ const ImageViewer_Basic = ({
       <DialogTrigger asChild>
         <div className={cn('cursor-pointer', className)}>
           {/* You can swap this with your preferred image optization technique, like using  next/image */}
+          {/* biome-ignore lint: IN PROGRESS */}
           <img
             src={thumbnailUrl || imageUrl}
             alt={`${imageTitle ?? 'Image'} - Preview`}
@@ -65,32 +66,25 @@ const ImageViewer_Basic = ({
         <DialogOverlay className="fixed inset-0 z-50 bg-black/80" />
         <DialogContent className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background p-0">
           <DialogTitle className="sr-only">{imageTitle || 'Image'}</DialogTitle>
-          <DialogDescription className="sr-only">
-            {imageTitle || 'Image'}
-          </DialogDescription>
+          <DialogDescription className="sr-only">{imageTitle || 'Image'}</DialogDescription>
           <div className="relative flex h-screen w-screen items-center justify-center">
-            <TransformWrapper
-              initialScale={1}
-              initialPositionX={0}
-              initialPositionY={0}
-            >
+            <TransformWrapper initialScale={1} initialPositionX={0} initialPositionY={0}>
               {({ zoomIn, zoomOut }) => (
                 <>
                   <TransformComponent>
                     {/* You can swap this with your preferred image optization technique, like using  next/image */}
+                    {/* biome-ignore lint: IN PROGRESS */}
                     <img
                       src={imageUrl}
                       alt={`${imageTitle ?? 'Image'} - Full`}
-                      className={cn(
-                        'max-h-[90vh] max-w-[90vw] object-contain',
-                        classNameImageViewer
-                      )}
+                      className={cn('max-h-[90vh] max-w-[90vw] object-contain', classNameImageViewer)}
                       onError={handleImgError}
                     />
                   </TransformComponent>
                   {showControls && (
                     <div className="-translate-x-1/2 absolute bottom-4 left-1/2 z-10 flex gap-2">
                       <button
+                        type="button"
                         onClick={() => zoomOut()}
                         className="cursor-pointer rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
                         aria-label="Zoom out"
@@ -98,6 +92,7 @@ const ImageViewer_Basic = ({
                         <MinusCircle className="size-6" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => zoomIn()}
                         className="cursor-pointer rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
                         aria-label="Zoom in"
@@ -111,6 +106,7 @@ const ImageViewer_Basic = ({
             </TransformWrapper>
             <DialogClose asChild>
               <button
+                type="button"
                 className="absolute top-4 right-4 z-10 cursor-pointer rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
                 aria-label="Close"
               >

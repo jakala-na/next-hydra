@@ -1,28 +1,21 @@
-import {
-  generateOutput,
-  generateSchema,
-  generateTurbo,
-} from '@gql.tada/cli-utils';
+import { generateOutput, generateSchema, generateTurbo } from '@gql.tada/cli-utils';
 import { keys } from '../keys.ts';
 import 'dotenv/config';
 import path from 'node:path';
 
 (async () => {
   try {
-    const authResponse = await fetch(
-      `https://auth.${keys().COMMERCETOOLS_REGION}.commercetools.com/oauth/token`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Basic ${Buffer.from(`${keys().COMMERCETOOLS_CLIENT_ID}:${keys().COMMERCETOOLS_CLIENT_SECRET}`).toString('base64')}`,
-        },
-        body: new URLSearchParams({
-          grant_type: 'client_credentials',
-          scope: `manage_shopping_lists:${keys().COMMERCETOOLS_PROJECT_KEY}`,
-        }),
-      }
-    );
+    const authResponse = await fetch(`https://auth.${keys().COMMERCETOOLS_REGION}.commercetools.com/oauth/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${Buffer.from(`${keys().COMMERCETOOLS_CLIENT_ID}:${keys().COMMERCETOOLS_CLIENT_SECRET}`).toString('base64')}`,
+      },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        scope: `manage_shopping_lists:${keys().COMMERCETOOLS_PROJECT_KEY}`,
+      }),
+    });
 
     const authData = await authResponse.json();
 
