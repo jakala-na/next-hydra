@@ -2,6 +2,7 @@
 
 import { Button } from '@repo/design-system/components/ui/button';
 import { useState } from 'react';
+import type { Cart } from '../../../types';
 import {
   type AddToCartActionParams,
   addToCartAction,
@@ -15,7 +16,7 @@ export interface AddToCartProps {
   customerId?: string;
   disabled?: boolean;
   children?: React.ReactNode;
-  onSuccess?: (cart: any) => void;
+  onSuccess?: (cart: Cart) => void;
   onError?: (error: string) => void;
   className?: string;
 }

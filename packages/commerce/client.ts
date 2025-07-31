@@ -11,27 +11,35 @@ import { mapExchange } from 'urql';
 import { keys } from './keys';
 
 async function getAuthHeaders() {
-  const { COMMERCETOOLS_CLIENT_ID, COMMERCETOOLS_CLIENT_SECRET, COMMERCETOOLS_SCOPE, COMMERCETOOLS_REGION } = keys();
-  
+  const {
+    COMMERCETOOLS_CLIENT_ID,
+    COMMERCETOOLS_CLIENT_SECRET,
+    COMMERCETOOLS_SCOPE,
+    COMMERCETOOLS_REGION,
+  } = keys();
+
   // Get OAuth token
-  const tokenResponse = await fetch(`https://auth.${COMMERCETOOLS_REGION}.commercetools.com/oauth/token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${Buffer.from(`${COMMERCETOOLS_CLIENT_ID}:${COMMERCETOOLS_CLIENT_SECRET}`).toString('base64')}`,
-    },
-    body: `grant_type=client_credentials&scope=${COMMERCETOOLS_SCOPE}`,
-  });
+  const tokenResponse = await fetch(
+    `https://auth.${COMMERCETOOLS_REGION}.commercetools.com/oauth/token`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${Buffer.from(`${COMMERCETOOLS_CLIENT_ID}:${COMMERCETOOLS_CLIENT_SECRET}`).toString('base64')}`,
+      },
+      body: `grant_type=client_credentials&scope=${COMMERCETOOLS_SCOPE}`,
+    }
+  );
 
   if (!tokenResponse.ok) {
     throw new Error(`Failed to get OAuth token: ${tokenResponse.statusText}`);
   }
 
   const tokenData = await tokenResponse.json();
-  
+
   return {
     headers: {
-      'Authorization': `Bearer ${tokenData.access_token}`,
+      Authorization: `Bearer ${tokenData.access_token}`,
       'Content-Type': 'application/json',
     },
   };
@@ -39,7 +47,7 @@ async function getAuthHeaders() {
 
 const makeClient = () => {
   const { COMMERCETOOLS_PROJECT_KEY, COMMERCETOOLS_REGION } = keys();
-  
+
   const graphqlEndpoint = `https://api.${COMMERCETOOLS_REGION}.commercetools.com/${COMMERCETOOLS_PROJECT_KEY}/graphql`;
 
   return createClient({
@@ -75,7 +83,7 @@ const makeClient = () => {
             console.error('GraphQL Errors:', JSON.stringify(errors, null, 2));
           }
         },
-        onOperation(operation) {
+        onOperation() {
           // console.dir(operation, { depth: null, colors: true });
         },
       }),
@@ -95,4 +103,5 @@ const makeClient = () => {
  * @see https://commerce.nearform.com/open-source/urql/docs/advanced/server-side-rendering/#nextjs
  */
 
-export const graphqlClient: () => ReturnType<typeof makeClient> = memoize(makeClient);
+export const graphqlClient: () => ReturnType<typeof makeClient> =
+  memoize(makeClient);

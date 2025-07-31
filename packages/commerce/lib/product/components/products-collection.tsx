@@ -2,7 +2,10 @@ import ProductCard from '@repo/design-system/components/commerce-ui/product-card
 import Link from 'next/link';
 import { getProductsCollection } from '../actions/get-products-collection';
 
-export default async function ProductsCollection(props: { title: string; categoryId: string }) {
+export default async function ProductsCollection(props: {
+  title: string;
+  categoryId: string;
+}) {
   const { title, categoryId } = props;
   // TODO: Pass locale from page.
   const res = await getProductsCollection({

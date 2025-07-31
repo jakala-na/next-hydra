@@ -1,4 +1,7 @@
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from 'next/cache';
+import {
+  unstable_cacheLife as cacheLife,
+  unstable_cacheTag as cacheTag,
+} from 'next/cache';
 import { graphqlClient } from '../../client';
 import { TAGS } from '../../constants';
 import { graphql } from '../../graphql';
@@ -34,7 +37,10 @@ export const getMenuQuery = graphql(`
   }
 `);
 
-export async function getNavigation(locale: string, livePreviewHash?: string): Promise<NavigationItem[]> {
+export async function getNavigation(
+  locale: string,
+  livePreviewHash?: string
+): Promise<NavigationItem[]> {
   'use cache';
   cacheTag(TAGS.menu);
   cacheLife('days');
@@ -45,7 +51,8 @@ export async function getNavigation(locale: string, livePreviewHash?: string): P
 
   return (
     res.data?.all_navigation?.items?.[0]?.items?.map((item) => {
-      const links = item?.linkConnection?.edges?.map((edge) => edge?.node) ?? [];
+      const links =
+        item?.linkConnection?.edges?.map((edge) => edge?.node) ?? [];
       return {
         title: item?.text ?? '',
         href: links[0]?.url ?? '',

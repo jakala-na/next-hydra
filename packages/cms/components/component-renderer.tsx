@@ -30,7 +30,9 @@ function isComponentKey(key: string): key is ComponentKey {
   return key in componentMap;
 }
 
-export default function ComponentRenderer<T extends DataWithTypename | DataWithTypename[]>({ data }: { data: T }) {
+export default function ComponentRenderer<
+  T extends DataWithTypename | DataWithTypename[],
+>({ data }: { data: T }) {
   if (data === null) {
     return null;
   }

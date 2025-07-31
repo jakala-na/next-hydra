@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { cn } from "@repo/design-system/lib/utils";
-import { NumericFormat } from "react-number-format";
+import { cn } from '@repo/design-system/lib/utils';
+import { NumericFormat } from 'react-number-format';
 
 interface PriceFormat_SaleProps extends React.HTMLAttributes<HTMLDivElement> {
   originalPrice: number;
@@ -22,12 +22,12 @@ const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
   classNameSalePercentage,
   classNameSalePrice,
   decimalScale = 2,
-  decimalSeparator = ",",
+  decimalSeparator = ',',
   originalPrice,
-  prefix = "$",
+  prefix = '$',
   salePrice,
   showSavePercentage = false,
-  thousandSeparator = ".",
+  thousandSeparator = '.',
 }) => {
   const isSale = salePrice !== undefined && salePrice < originalPrice;
   const savePercentage = isSale
@@ -35,7 +35,7 @@ const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
     : 0;
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+    <div className={cn('flex flex-wrap items-center gap-2', className)}>
       {isSale ? (
         <>
           <NumericFormat
@@ -46,7 +46,7 @@ const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
             prefix={prefix}
             displayType="text"
             className={cn(
-              "font-medium text-gray-500 line-through",
+              'font-medium text-gray-500 line-through',
               classNameOriginalPrice
             )}
           />
@@ -58,14 +58,14 @@ const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
             prefix={prefix}
             displayType="text"
             className={cn(
-              "text-[length:inherit] font-medium",
+              'font-medium text-[length:inherit]',
               classNameSalePrice
             )}
           />
           {showSavePercentage && (
             <span
               className={cn(
-                "rounded-sm bg-green-500/50 p-1 text-sm font-medium",
+                'rounded-sm bg-green-500/50 p-1 font-medium text-sm',
                 classNameSalePercentage
               )}
             >
@@ -82,7 +82,7 @@ const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
           prefix={prefix}
           displayType="text"
           className={cn(
-            "text-[length:inherit] font-medium",
+            'font-medium text-[length:inherit]',
             classNameSalePrice
           )}
         />

@@ -49,25 +49,38 @@ function ProductCard({
         <div className="-bottom-10 -translate-x-1/2 absolute left-1/2 h-40 w-40 transform rounded-full bg-teal-500/20 blur-3xl" />
 
         <div className="transition-transform duration-500 group-hover:scale-105">
-          <ImageViewer imageUrl={imageUrl} classNameThumbnailViewer="rounded-lg object-contain h-[200px] mx-auto" />
+          <ImageViewer
+            imageUrl={imageUrl}
+            classNameThumbnailViewer="rounded-lg object-contain h-[200px] mx-auto"
+          />
         </div>
       </div>
 
       {/* Content section */}
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
-          <h3 className="mb-1.5 font-semibold text-gray-900 text-xl tracking-tight dark:text-gray-100">{title}</h3>
+          <h3 className="mb-1.5 font-semibold text-gray-900 text-xl tracking-tight dark:text-gray-100">
+            {title}
+          </h3>
 
           {/* Rating */}
           {rating && reviewCount && (
             <div className="mb-2 flex items-center">
-              <StarRating_Fractions value={rating} maxStars={5} readOnly iconSize={16} color="#0d9488" />
+              <StarRating_Fractions
+                value={rating}
+                maxStars={5}
+                readOnly
+                iconSize={16}
+                color="#0d9488"
+              />
               <span className="ml-2 text-gray-600 text-xs dark:text-gray-400">
                 {rating} ({reviewCount} reviews)
               </span>
             </div>
           )}
-          <p className="mb-3 line-clamp-2 text-gray-600 text-sm dark:text-gray-400">{description}</p>
+          <p className="mb-3 line-clamp-2 text-gray-600 text-sm dark:text-gray-400">
+            {description}
+          </p>
         </div>
 
         {/* Price and shipping info */}
@@ -82,7 +95,11 @@ function ProductCard({
 
           {freeShipping && (
             <p className="mt-1 inline-flex items-center text-green-600 text-sm dark:text-green-400">
-              <svg className="mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+              <svg
+                className="mr-1 h-4 w-4"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
                 <title>free shipping icon</title>
                 <path
                   fillRule="evenodd"

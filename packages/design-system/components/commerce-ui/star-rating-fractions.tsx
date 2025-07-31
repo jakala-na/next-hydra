@@ -74,9 +74,13 @@ const StarRating_Fractions = ({
       const clickPosition = x / width;
 
       let fraction = 1;
-      if (clickPosition <= 0.25) fraction = 0.25;
-      else if (clickPosition <= 0.5) fraction = 0.5;
-      else if (clickPosition <= 0.75) fraction = 0.75;
+      if (clickPosition <= 0.25) {
+        fraction = 0.25;
+      } else if (clickPosition <= 0.5) {
+        fraction = 0.5;
+      } else if (clickPosition <= 0.75) {
+        fraction = 0.75;
+      }
 
       return index + fraction;
     },
@@ -85,7 +89,9 @@ const StarRating_Fractions = ({
 
   const handleStarClick = useCallback(
     (index: number, event: React.MouseEvent<SVGElement>) => {
-      if (readOnly || !onChange) return;
+      if (readOnly || !onChange) {
+        return;
+      }
       const newRating = calculateRating(index, event);
       onChange(newRating);
     },
@@ -114,8 +120,12 @@ const StarRating_Fractions = ({
         !readOnly && hoverRating !== null ? hoverRating : value;
       const difference = ratingToUse - index;
 
-      if (difference <= 0) return { color: 'gray', fill: 'transparent' };
-      if (difference >= 1) return { color, fill: color };
+      if (difference <= 0) {
+        return { color: 'gray', fill: 'transparent' };
+      }
+      if (difference >= 1) {
+        return { color, fill: color };
+      }
 
       return {
         color,

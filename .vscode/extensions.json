@@ -5,6 +5,7 @@
     "unifiedjs.vscode-mdx",
     "mikestead.dotenv",
     "christian-kohler.npm-intellisense",
-    "GraphQL.vscode-graphql"
+    "GraphQL.vscode-graphql",
+    "csstools.postcss"
   ]
 }

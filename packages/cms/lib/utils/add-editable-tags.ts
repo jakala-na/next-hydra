@@ -7,9 +7,22 @@ type AddEditableTagsResult<T> = T & {
 };
 
 export function addEditableTags<
-  T extends { system: { content_type_uid: string | null; uid: string | null; locale: string | null } | null },
+  T extends {
+    system: {
+      content_type_uid: string | null;
+      uid: string | null;
+      locale: string | null;
+    } | null;
+  },
 >(entry: T, livePreview: boolean): AddEditableTagsResult<T> {
-  if (!(entry.system?.content_type_uid && entry.system?.uid && entry.system?.locale && livePreview)) {
+  if (
+    !(
+      entry.system?.content_type_uid &&
+      entry.system?.uid &&
+      entry.system?.locale &&
+      livePreview
+    )
+  ) {
     // Return with empty $ property to satisfy type
     return { ...entry, $: {} } as AddEditableTagsResult<T>;
   }
@@ -20,7 +33,12 @@ export function addEditableTags<
     ...entry,
   };
 
-  contentstack.Utils.addEditableTags(entryWithTags, entry.system.content_type_uid, true, entry.system.locale);
+  contentstack.Utils.addEditableTags(
+    entryWithTags,
+    entry.system.content_type_uid,
+    true,
+    entry.system.locale
+  );
 
   // The Contentstack SDK mutates the entry in-place, so we just return it with the correct type
   return entryWithTags as unknown as AddEditableTagsResult<T>;

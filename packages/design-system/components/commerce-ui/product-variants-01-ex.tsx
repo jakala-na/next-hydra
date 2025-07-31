@@ -1,55 +1,55 @@
-"use client";
+'use client';
 
 // Example usage of ProductVariant_01 component
 
-import { useState } from "react";
 import ProductVariant_01, {
-  VariantItem,
-  VariantSelectionPayload,
-} from "@repo/components/commerce-ui/product-variants-01";
+  type VariantItem,
+  type VariantSelectionPayload,
+} from '@repo/components/commerce-ui/product-variants-01';
+import { useState } from 'react';
 
 const EXAMPLE_VARIANTS: VariantItem[] = [
   {
     availableQuantity: 5,
-    id: "variant-sport",
+    id: 'variant-sport',
     imageUrl:
-      "https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-1.jpg",
+      'https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-1.jpg',
     isInStock: true,
-    label: "Sport",
+    label: 'Sport',
     price: 109.99,
-    value: "variant-sport",
+    value: 'variant-sport',
   },
   {
     availableQuantity: 10,
-    id: "variant-prosound",
+    id: 'variant-prosound',
     imageUrl:
-      "https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-2.jpg",
+      'https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-2.jpg',
     isInStock: true,
-    label: "ProSound",
+    label: 'ProSound',
     price: 99.99,
     salePrice: 89.99,
-    value: "variant-prosound",
+    value: 'variant-prosound',
   },
   {
     availableQuantity: 0,
-    id: "variant-ultraquiet",
+    id: 'variant-ultraquiet',
     imageUrl:
-      "https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-3.jpg",
+      'https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-3.jpg',
     isInStock: false,
-    label: "UltraQuiet™",
+    label: 'UltraQuiet™',
     price: 89.99,
-    value: "variant-ultraquiet",
+    value: 'variant-ultraquiet',
   },
   {
     availableQuantity: 2,
-    id: "variant-extremesilence",
+    id: 'variant-extremesilence',
     imageUrl:
-      "https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-4.jpg",
+      'https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-4.jpg',
     isInStock: true,
-    label: "ExtremeSilence™",
+    label: 'ExtremeSilence™',
     price: 119.99,
     salePrice: 99.99,
-    value: "variant-extremesilence",
+    value: 'variant-extremesilence',
   },
 ];
 
@@ -76,7 +76,7 @@ export default function ProductVariantExample() {
 
   const handleAddToCart = (payload: VariantSelectionPayload) => {
     const variant = EXAMPLE_VARIANTS.find((v) => v.value === payload.variantId);
-    const stockStatus = variant?.isInStock ? "In Stock" : "Out of Stock";
+    const stockStatus = variant?.isInStock ? 'In Stock' : 'Out of Stock';
     window.alert(
       `Added ${payload.quantity} ${payload.variantLabel} to cart at $${payload.price} each.\nStock Status: ${stockStatus}`
     );
@@ -84,7 +84,7 @@ export default function ProductVariantExample() {
 
   const handleBuyNow = (payload: VariantSelectionPayload) => {
     const variant = EXAMPLE_VARIANTS.find((v) => v.value === payload.variantId);
-    const stockStatus = variant?.isInStock ? "In Stock" : "Out of Stock";
+    const stockStatus = variant?.isInStock ? 'In Stock' : 'Out of Stock';
     window.alert(
       `Buying ${payload.quantity} ${payload.variantLabel} at $${payload.price} each.\nStock Status: ${stockStatus}`
     );

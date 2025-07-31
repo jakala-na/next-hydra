@@ -11,10 +11,13 @@ export const ProductCardsFragment = graphql(`
     }
 `);
 
-export function ProductsCollection(props: { data: FragmentOf<typeof ProductCardsFragment> }) {
+export function ProductsCollection(props: {
+  data: FragmentOf<typeof ProductCardsFragment>;
+}) {
   const data = readFragment(ProductCardsFragment, props.data);
   const title = data.product_cards?.title || '';
-  const category = (data.product_cards?.category as CommercetoolsCategoryField).data[0];
+  const category = (data.product_cards?.category as CommercetoolsCategoryField)
+    .data[0];
   return <CommerceProductsCollection title={title} categoryId={category.id} />;
 }
 

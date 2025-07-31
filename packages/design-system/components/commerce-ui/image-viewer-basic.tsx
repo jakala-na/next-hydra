@@ -49,6 +49,7 @@ const ImageViewer_Basic = ({
       <DialogTrigger asChild>
         <div className={cn('cursor-pointer', className)}>
           {/* You can swap this with your preferred image optization technique, like using  next/image */}
+          {/* biome-ignore lint: IN PROGRESS */}
           <img
             src={thumbnailUrl || imageUrl}
             alt={`${imageTitle ?? 'Image'} - Preview`}
@@ -78,6 +79,7 @@ const ImageViewer_Basic = ({
                 <>
                   <TransformComponent>
                     {/* You can swap this with your preferred image optization technique, like using  next/image */}
+                    {/* biome-ignore lint: IN PROGRESS */}
                     <img
                       src={imageUrl}
                       alt={`${imageTitle ?? 'Image'} - Full`}
@@ -91,6 +93,7 @@ const ImageViewer_Basic = ({
                   {showControls && (
                     <div className="-translate-x-1/2 absolute bottom-4 left-1/2 z-10 flex gap-2">
                       <button
+                        type="button"
                         onClick={() => zoomOut()}
                         className="cursor-pointer rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
                         aria-label="Zoom out"
@@ -98,6 +101,7 @@ const ImageViewer_Basic = ({
                         <MinusCircle className="size-6" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => zoomIn()}
                         className="cursor-pointer rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
                         aria-label="Zoom in"
@@ -111,6 +115,7 @@ const ImageViewer_Basic = ({
             </TransformWrapper>
             <DialogClose asChild>
               <button
+                type="button"
                 className="absolute top-4 right-4 z-10 cursor-pointer rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
                 aria-label="Close"
               >

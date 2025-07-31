@@ -1,9 +1,7 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
-
-import { cn } from "@repo/design-system/lib/utils";
+import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
+import { cn } from '@repo/design-system/lib/utils';
 
 export interface VariantItem {
   id: string;
@@ -32,7 +30,7 @@ const VariantSelectorBasic = ({
 }: VariantSelectorBasicProps) => {
   return (
     <RadioGroupPrimitive.Root
-      className={cn("flex flex-wrap gap-3", className)}
+      className={cn('flex flex-wrap gap-3', className)}
       value={value}
       onValueChange={onValueChange}
     >
@@ -43,16 +41,16 @@ const VariantSelectorBasic = ({
             value={variant.value}
             disabled={variant.disabled}
             className={cn(
-              "peer relative h-10 w-full min-w-[80px] rounded-md border border-gray-300 px-3 py-2 text-center text-sm transition-all",
-              "dark:border-gray-600 dark:text-gray-100",
-              "data-[state=checked]:border-black dark:data-[state=checked]:border-white",
-              "focus:ring-2 focus:ring-black focus:ring-offset-2 focus:outline-none",
-              "dark:focus:ring-white dark:focus:ring-offset-gray-900",
-              "cursor-pointer disabled:cursor-not-allowed disabled:opacity-50",
+              'peer relative h-10 w-full min-w-[80px] rounded-md border border-gray-300 px-3 py-2 text-center text-sm transition-all',
+              'dark:border-gray-600 dark:text-gray-100',
+              'data-[state=checked]:border-black dark:data-[state=checked]:border-white',
+              'focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2',
+              'dark:focus:ring-white dark:focus:ring-offset-gray-900',
+              'cursor-pointer disabled:cursor-not-allowed disabled:opacity-50',
               itemClassName
             )}
           >
-            <span className={cn("font-medium", labelClassName)}>
+            <span className={cn('font-medium', labelClassName)}>
               {variant.label}
             </span>
           </RadioGroupPrimitive.Item>

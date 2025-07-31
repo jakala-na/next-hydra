@@ -1,7 +1,9 @@
-import { ProductsCollection } from '@repo/commerce/lib/product';
 import { hasLocale } from '@repo/i18n';
 import { routing } from '@repo/i18n/routing';
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from 'next/cache';
+import {
+  unstable_cacheLife as cacheLife,
+  unstable_cacheTag as cacheTag,
+} from 'next/cache';
 import { draftMode, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { graphqlClient } from '../client';
@@ -13,7 +15,11 @@ const getLocaleFromPath = (locale: string) => {
   return locale.toLowerCase();
 };
 
-const getPage = async (url: string, locale: string, livePreviewHash: string | undefined) => {
+const getPage = async (
+  url: string,
+  locale: string,
+  livePreviewHash: string | undefined
+) => {
   'use cache';
   cacheLife('minutes');
   cacheTag(`page:${url}`);
@@ -71,7 +77,11 @@ export async function LandingPage(props: { url: string; locale: string }) {
     livePreviewHash = (await headers()).get('x-live-preview') || '';
   }
 
-  const pageData = await getPage(url, getLocaleFromPath(locale), livePreviewHash);
+  const pageData = await getPage(
+    url,
+    getLocaleFromPath(locale),
+    livePreviewHash
+  );
 
   if (!pageData) {
     notFound();
@@ -80,7 +90,9 @@ export async function LandingPage(props: { url: string; locale: string }) {
   return (
     <div>
       <h1 {...pageData.$.headline}>{pageData.headline}</h1>
-      {pageData.components ? <ComponentRenderer data={pageData.components} /> : null}
+      {pageData.components ? (
+        <ComponentRenderer data={pageData.components} />
+      ) : null}
     </div>
   );
 }

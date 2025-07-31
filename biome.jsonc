@@ -12,8 +12,33 @@
   "assist": { "actions": { "source": { "useSortedAttributes": "off" } } },
   "linter": {
     "rules": {
-      "nursery": { "noShadow": "warn", "noUselessEscapeInString": "off" },
-      "suspicious": { "noConsole": "warn" }
+      "a11y": {
+        "noStaticElementInteractions": "warn",
+        "useSemanticElements": "warn",
+        "noSvgWithoutTitle": "warn",
+        "noLabelWithoutControl": "warn"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "warn",
+        "useOptionalChain": "warn"
+      },
+      "performance": { "noNamespaceImport": "warn" },
+      "nursery": {
+        "noShadow": "warn",
+        "noUselessEscapeInString": "off",
+        "noUnknownAtRule": "warn",
+        "useParseIntRadix": "warn",
+        "noNestedComponentDefinitions": "warn",
+        "noNoninteractiveElementInteractions": "warn"
+      },
+      "suspicious": {
+        "noConsole": "warn",
+        "noArrayIndexKey": "warn",
+        "noGlobalIsNan": "warn",
+        "noEmptyBlockStatements": "warn"
+      },
+      "style": { "useNodejsImportProtocol": "warn" },
+      "security": { "noDangerouslySetInnerHtml": "warn" }
     }
   }
   //** TODO: Add GraphQL support when Embedded Language support drops https://github.com/biomejs/biome/issues/3334
