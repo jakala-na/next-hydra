@@ -6,8 +6,7 @@ import { memo, useCallback, useState } from 'react';
 
 // Add ID generator outside component to maintain counter
 let nextId = 0;
-const generateStarIds = (count: number) =>
-  Array.from({ length: count }, () => `star-${nextId++}`);
+const generateStarIds = (count: number) => Array.from({ length: count }, () => `star-${nextId++}`);
 
 interface StarRatingBasicProps {
   value: number;
@@ -42,10 +41,7 @@ const StarIcon = memo(
       color={style.color}
       onClick={onClick}
       onMouseMove={onMouseMove}
-      className={cn(
-        'transition-colors duration-200',
-        isInteractive && 'cursor-pointer'
-      )}
+      className={cn('transition-colors duration-200', isInteractive && 'cursor-pointer')}
       style={style}
     />
   )
@@ -65,27 +61,30 @@ const StarRating_Fractions = ({
   // Generate stable IDs on component mount
   const [starIds] = useState(() => generateStarIds(maxStars));
 
-  const calculateRating = useCallback(
-    (index: number, event: React.MouseEvent<SVGElement>) => {
-      const star = event.currentTarget;
-      const rect = star.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const width = rect.width;
-      const clickPosition = x / width;
+  const calculateRating = useCallback((index: number, event: React.MouseEvent<SVGElement>) => {
+    const star = event.currentTarget;
+    const rect = star.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const width = rect.width;
+    const clickPosition = x / width;
 
-      let fraction = 1;
-      if (clickPosition <= 0.25) fraction = 0.25;
-      else if (clickPosition <= 0.5) fraction = 0.5;
-      else if (clickPosition <= 0.75) fraction = 0.75;
+    let fraction = 1;
+    if (clickPosition <= 0.25) {
+      fraction = 0.25;
+    } else if (clickPosition <= 0.5) {
+      fraction = 0.5;
+    } else if (clickPosition <= 0.75) {
+      fraction = 0.75;
+    }
 
-      return index + fraction;
-    },
-    []
-  );
+    return index + fraction;
+  }, []);
 
   const handleStarClick = useCallback(
     (index: number, event: React.MouseEvent<SVGElement>) => {
-      if (readOnly || !onChange) return;
+      if (readOnly || !onChange) {
+        return;
+      }
       const newRating = calculateRating(index, event);
       onChange(newRating);
     },
@@ -110,12 +109,15 @@ const StarRating_Fractions = ({
 
   const getStarStyle = useCallback(
     (index: number) => {
-      const ratingToUse =
-        !readOnly && hoverRating !== null ? hoverRating : value;
+      const ratingToUse = !readOnly && hoverRating !== null ? hoverRating : value;
       const difference = ratingToUse - index;
 
-      if (difference <= 0) return { color: 'gray', fill: 'transparent' };
-      if (difference >= 1) return { color, fill: color };
+      if (difference <= 0) {
+        return { color: 'gray', fill: 'transparent' };
+      }
+      if (difference >= 1) {
+        return { color, fill: color };
+      }
 
       return {
         color,
@@ -133,13 +135,7 @@ const StarRating_Fractions = ({
     // Only create gradient for partial star
     if (partialFill > 0) {
       return (
-        <linearGradient
-          id={starIds[partialStarIndex]}
-          x1="0%"
-          y1="0%"
-          x2="100%"
-          y2="0%"
-        >
+        <linearGradient id={starIds[partialStarIndex]} x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset={`${partialFill}%`} stopColor={color} />
           <stop offset={`${partialFill}%`} stopColor="transparent" />
         </linearGradient>
@@ -166,10 +162,7 @@ const StarRating_Fractions = ({
   };
 
   return (
-    <div
-      className={cn('relative flex items-center gap-x-0.5', className)}
-      onMouseLeave={handleMouseLeave}
-    >
+    <div className={cn('relative flex items-center gap-x-0.5', className)} onMouseLeave={handleMouseLeave}>
       <svg width="0" height="0" style={{ position: 'absolute' }}>
         <defs>{renderGradientDefs()}</defs>
       </svg>

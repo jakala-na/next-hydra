@@ -626,11 +626,11 @@ input AddressInput {
 enum AnonymousCartSignInMode {
   """
   `LineItem`s of the anonymous cart will be copied to the customer’s active cart that has been modified most recently.
-  
+
   The `CartState` of the anonymous cart gets changed to `Merged` while the `CartState` of the customer’s cart remains `Active`.
-  
+
   `CustomLineItems` and `CustomFields` of the anonymous cart will not be copied to the customers cart.
-  
+
   If a `LineItem` in the anonymous cart matches an existing line item in the customer’s cart (same product ID and variant ID), the maximum quantity of both LineItems is used as the new quantity. In that case `CustomFields` on the `LineItem` of the anonymous cart will not be in the resulting `LineItem`.
   """
   MergeWithExistingCustomerCart
@@ -1783,10 +1783,14 @@ input ChangeCartLineItemQuantity {
   lineItemKey: String
   quantity: Long!
 
-  """Only valid for the general Carts API. Ignored for the My Carts API."""
+  """
+  Only valid for the general Carts API. Ignored for the My Carts API.
+  """
   externalPrice: BaseMoneyInput
 
-  """Only valid for the general Carts API. Ignored for the My Carts API."""
+  """
+  Only valid for the general Carts API. Ignored for the My Carts API.
+  """
   externalTotalPrice: ExternalLineItemTotalPriceDraft
 }
 
@@ -2297,7 +2301,9 @@ input ChangeStandalonePriceActive {
 input ChangeStandalonePriceValue {
   value: BaseMoneyInput!
 
-  """default is `false`"""
+  """
+  default is `false`
+  """
   staged: Boolean
 }
 
@@ -2403,7 +2409,9 @@ input ChannelUpdateAction {
   setRoles: SetChannelRoles
 }
 
-"""Chosen discount type for the cart as part of best deal"""
+"""
+Chosen discount type for the cart as part of best deal
+"""
 enum ChosenDiscountType {
   CartDiscount
   ProductDiscount
@@ -2563,7 +2571,6 @@ A key-value pair representing the field name and value of one single custom fiel
 
 The value of this custom field consists of escaped JSON based on the FieldDefinition of the Type.
 
-
 Examples for `value`:
 
 * FieldType `String`: `"\"This is a string\""`
@@ -2577,10 +2584,9 @@ input CustomFieldInput {
 
   """
   The value of this custom field consists of escaped JSON based on the FieldDefinition of the Type.
-  
-  
+
   Examples for `value`:
-  
+
   * FieldType `String`: `"\"This is a string\""`
   * FieldType `DateTimeType`: `"\"2018-10-12T14:00:00.000Z\""`
   * FieldType `Number`: `"4"`
@@ -2733,9 +2739,9 @@ input CustomObjectDraft {
 
   """
   The value should be passed in a form of escaped JSON.
-  
+
   Example for `value` field:
-  
+
   ```
   "{ \"stringField\": \"myVal\", \"numberField\": 123, \"boolField\": false, \"nestedObject\": { \"nestedObjectKey\": \"anotherValue\" }, \"dateField\": \"2018-10-12T14:00:00.000Z\" }"
   ```
@@ -3010,7 +3016,9 @@ input CustomerSignInDraft {
   email: String!
   password: String!
 
-  """This field will be deprecated in favour of anonymousCart.id."""
+  """
+  This field will be deprecated in favour of anonymousCart.id.
+  """
   anonymousCartId: String
   anonymousCart: ResourceIdentifierInput
   anonymousCartSignInMode: AnonymousCartSignInMode = MergeWithExistingCustomerCart
@@ -3106,7 +3114,9 @@ input CustomerSignUpDraft {
   stores: [ResourceIdentifierInput!]
   customerNumber: String
 
-  """This field will be deprecated in favour of anonymousCart.id."""
+  """
+  This field will be deprecated in favour of anonymousCart.id.
+  """
   anonymousCartId: String
   anonymousCart: ResourceIdentifierInput
   externalId: String
@@ -3326,13 +3336,19 @@ input DiscountCodeDraft {
   """
   code: String!
 
-  """Name of the DiscountCode."""
+  """
+  Name of the DiscountCode.
+  """
   name: [LocalizedStringItemInputType!]
 
-  """User-defined unique identifier for the DiscountCode."""
+  """
+  User-defined unique identifier for the DiscountCode.
+  """
   key: String
 
-  """The description of the DiscountCode."""
+  """
+  The description of the DiscountCode.
+  """
   description: [LocalizedStringItemInputType!]
 
   """
@@ -3340,7 +3356,9 @@ input DiscountCodeDraft {
   """
   cartDiscounts: [ResourceIdentifierInput!]!
 
-  """Only active DiscountCodes can be applied to the Cart."""
+  """
+  Only active DiscountCodes can be applied to the Cart.
+  """
   isActive: Boolean = true
 
   """
@@ -3353,10 +3371,14 @@ input DiscountCodeDraft {
   """
   maxApplicationsPerCustomer: Long
 
-  """DiscountCode can only be applied to Carts that match this predicate."""
+  """
+  DiscountCode can only be applied to Carts that match this predicate.
+  """
   cartPredicate: String
 
-  """Custom Fields for the DiscountCode."""
+  """
+  Custom Fields for the DiscountCode.
+  """
   custom: CustomFieldsDraft
 
   """
@@ -3369,7 +3391,9 @@ input DiscountCodeDraft {
   """
   validUntil: DateTime
 
-  """Groups to which the DiscountCode will belong to."""
+  """
+  Groups to which the DiscountCode will belong to.
+  """
   groups: [String!] = []
 }
 
@@ -3465,14 +3489,14 @@ type EnumAttributeDefinitionType implements AttributeDefinitionType {
   values(
     """
     The keys of the enum values to include.
-    
+
     If neither `includeKeys` nor `excludeKeys` are provided, then all enum values are returned.
     """
     includeKeys: [String!]
 
     """
     The keys of the enum values to exclude.
-    
+
     If neither `includeKeys` nor `excludeKeys` are provided, then all enum values are returned.
     """
     excludeKeys: [String!]
@@ -4076,14 +4100,14 @@ type LocalizableEnumAttributeDefinitionType implements AttributeDefinitionType {
   values(
     """
     The keys of the enum values to include.
-    
+
     If neither `includeKeys` nor `excludeKeys` are provided, then all enum values are returned.
     """
     includeKeys: [String!]
 
     """
     The keys of the enum values to exclude.
-    
+
     If neither `includeKeys` nor `excludeKeys` are provided, then all enum values are returned.
     """
     excludeKeys: [String!]
@@ -4313,19 +4337,27 @@ type Mutation {
     version: Long!
     actions: [CustomerGroupUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CustomerGroup
   deleteCustomerGroup(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CustomerGroup
   createCategory(draft: CategoryDraft!): Category
@@ -4333,36 +4365,52 @@ type Mutation {
     version: Long!
     actions: [CategoryUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Category
   deleteCategory(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Category
   createChannel(draft: ChannelDraft!): Channel
   updateChannel(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
     version: Long!
     actions: [ChannelUpdateAction!]!
   ): Channel
   deleteChannel(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
     version: Long!
   ): Channel
@@ -4370,10 +4418,14 @@ type Mutation {
   deleteCustomObject(
     version: Long
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
     container: String
     personalDataErasure: Boolean = false
@@ -4383,19 +4435,27 @@ type Mutation {
     version: Long!
     actions: [ProductTypeUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ProductTypeDefinition
   deleteProductType(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ProductTypeDefinition
   createTypeDefinition(draft: TypeDefinitionDraft!): TypeDefinition
@@ -4403,19 +4463,27 @@ type Mutation {
     version: Long!
     actions: [TypeUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): TypeDefinition
   deleteTypeDefinition(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): TypeDefinition
   createShippingMethod(draft: ShippingMethodDraft!): ShippingMethod
@@ -4423,19 +4491,27 @@ type Mutation {
     version: Long!
     actions: [ShippingMethodUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShippingMethod
   deleteShippingMethod(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShippingMethod
   createZone(draft: CreateZone!): Zone
@@ -4443,19 +4519,27 @@ type Mutation {
     version: Long!
     actions: [ZoneUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Zone
   deleteZone(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Zone
   createTaxCategory(draft: TaxCategoryDraft!): TaxCategory
@@ -4463,19 +4547,27 @@ type Mutation {
     version: Long!
     actions: [TaxCategoryUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): TaxCategory
   deleteTaxCategory(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): TaxCategory
   createDiscountCode(draft: DiscountCodeDraft!): DiscountCode
@@ -4483,19 +4575,27 @@ type Mutation {
     version: Long!
     actions: [DiscountCodeUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): DiscountCode
   deleteDiscountCode(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): DiscountCode
   createCartDiscount(
@@ -4515,10 +4615,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CartDiscount
   deleteCartDiscount(
@@ -4529,10 +4633,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CartDiscount
   createProductDiscount(draft: ProductDiscountDraft!): ProductDiscount
@@ -4540,19 +4648,27 @@ type Mutation {
     version: Long!
     actions: [ProductDiscountUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ProductDiscount
   deleteProductDiscount(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ProductDiscount
 
@@ -4577,10 +4693,14 @@ type Mutation {
     """
     actions: [DiscountGroupUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): DiscountGroup
 
@@ -4590,10 +4710,14 @@ type Mutation {
   deleteDiscountGroup(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): DiscountGroup
   createAttributeGroup(draft: AttributeGroupDraft!): AttributeGroup
@@ -4601,19 +4725,27 @@ type Mutation {
     version: Long!
     actions: [AttributeGroupUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): AttributeGroup
   deleteAttributeGroup(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): AttributeGroup
   createProduct(draft: ProductDraft!): Product
@@ -4621,19 +4753,27 @@ type Mutation {
     version: Long!
     actions: [ProductUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Product
   deleteProduct(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Product
   createState(draft: StateDraft!): State
@@ -4641,19 +4781,27 @@ type Mutation {
     version: Long!
     actions: [StateUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): State
   deleteState(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): State
 
@@ -4671,25 +4819,25 @@ type Mutation {
 
   """
   Retrieves the authenticated customer (a customer that matches the given email/password pair).
-  
+
   There may be carts and orders created before the sign in that should be assigned to the customer account. With the `anonymousCartId`, a single anonymous cart can be assigned. With the `anonymousId`, all orders and carts that have this `anonymousId` set will be assigned to the customer.
   If both `anonymousCartId` and `anonymousId` are given, the anonymous cart must have the `anonymousId`.
-  
+
   Additionally, there might also exist one or more active customer carts from an earlier session. On customer sign in there are several ways how to proceed with this cart and the cart referenced by the `anonymousCartId`.
-  
+
   * If the customer does not have a cart yet, the anonymous cart becomes the customer's cart.
   * If the customer already has one or more carts, the content of the anonymous cart will be copied to the customer's active cart that has been modified most recently.
-  
+
     In this case the `CartState` of the anonymous cart gets changed to `Merged` while the customer's cart remains the `Active` cart.
-  
+
     If a `LineItem` in the anonymous cart matches an existing line item, or a `CustomLineItem` matches an existing custom line item in the customer's cart, the maximum quantity of both line items is used as the new quantity.
-  
+
     `ItemShippingDetails` are copied from the item with the highest quantity.
-  
+
     If `itemShippingAddresses` are different in the two carts, the resulting cart contains the addresses of both the customer cart and the anonymous cart.
-  
+
     Note, that it is not possible to merge carts that differ in their currency (set during creation of the cart).
-  
+
   If a cart is is returned as part of the `CustomerSignInResult`, it has been recalculated (it will have up-to-date prices, taxes and discounts, and invalid line items have been removed).
   """
   customerSignIn(
@@ -4709,10 +4857,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Customer
   deleteCustomer(
@@ -4724,10 +4876,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Customer
   customerChangePassword(
@@ -4744,7 +4900,7 @@ type Mutation {
 
   """
   The following workflow can be used to reset the customer’s password:
-  
+
   1. Create a password reset token and send it embedded in a link to the customer.
   2. When the customer clicks on the link, you may optionally retrieve customer by password token.
   3. When the customer entered new password, use reset customer’s password to reset the password.
@@ -4760,7 +4916,9 @@ type Mutation {
     storeKey: KeyReferenceInput
   ): Customer
 
-  """Verifies customer's email using a token."""
+  """
+  Verifies customer's email using a token.
+  """
   customerConfirmEmail(
     version: Long
     tokenValue: String!
@@ -4777,7 +4935,9 @@ type Mutation {
   customerCreatePasswordResetToken(
     email: String!
 
-    """The validity of the created token in minutes."""
+    """
+    The validity of the created token in minutes.
+    """
     ttlMinutes: Int
 
     """
@@ -4794,7 +4954,9 @@ type Mutation {
     id: String!
     version: Long
 
-    """The validity of the created token in minutes."""
+    """
+    The validity of the created token in minutes.
+    """
     ttlMinutes: Int!
 
     """
@@ -4822,14 +4984,14 @@ type Mutation {
 
   """
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
-  
+
   Retrieves the authenticated customer (a customer that matches the given email/password pair).
-  
+
   If used with an access token for Anonymous Sessions, all orders and carts belonging to the `anonymousId` will be assigned to the newly created customer.
-  
+
   * If the customer does not have a cart yet, the anonymous cart that was modified most recently becomes the customer's cart.
   * If the customer already has a cart, the most recently modified anonymous cart will be handled according to the `AnonymousCartSignInMode`.
-  
+
   If a cart is is returned as part of the `CustomerSignInResult`, it has been recalculated (it will have up-to-date prices, taxes and discounts, and invalid line items have been removed).
   """
   customerSignMeIn(
@@ -4915,19 +5077,27 @@ type Mutation {
     version: Long!
     actions: [InventoryEntryUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): InventoryEntry
   deleteInventoryEntry(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): InventoryEntry
   createCart(
@@ -4938,7 +5108,9 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
   ): Cart
   updateCart(
@@ -4950,13 +5122,19 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Cart
   deleteCart(
@@ -4968,13 +5146,19 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Cart
   replicateCart(
@@ -4986,7 +5170,9 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
   ): Cart
 
@@ -5041,7 +5227,9 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
   ): Order
   updateOrder(
@@ -5053,10 +5241,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
     orderNumber: String
   ): Order
@@ -5069,7 +5261,9 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
     orderNumber: String
   ): Order
@@ -5093,7 +5287,9 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
   ): Order
 
@@ -5108,19 +5304,27 @@ type Mutation {
     actions: [OrderEditUpdateAction!]!
     dryRun: Boolean = false
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): OrderEdit
   deleteOrderEdit(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): OrderEdit
   createShoppingList(
@@ -5131,7 +5335,9 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
   ): ShoppingList
   updateShoppingList(
@@ -5143,13 +5349,19 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
   deleteShoppingList(
@@ -5161,13 +5373,19 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
 
@@ -5195,10 +5413,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
 
@@ -5213,10 +5435,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
   createPayment(draft: PaymentDraft!): Payment
@@ -5224,20 +5450,28 @@ type Mutation {
     version: Long!
     actions: [PaymentUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Payment
   deletePayment(
     version: Long!
     personalDataErasure: Boolean = false
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Payment
 
@@ -5264,19 +5498,27 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ProductSelection
   deleteProductSelection(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ProductSelection
   createProductTailoring(
@@ -5292,16 +5534,24 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified Product ID"""
+    """
+    Queries with specified Product ID
+    """
     productId: String
 
-    """Queries with specified Product key"""
+    """
+    Queries with specified Product key
+    """
     productKey: String
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
     actions: [ProductTailoringUpdateAction!]!
     version: Long!
@@ -5312,16 +5562,24 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified Product ID"""
+    """
+    Queries with specified Product ID
+    """
     productId: String
 
-    """Queries with specified Product key"""
+    """
+    Queries with specified Product key
+    """
     productKey: String
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
     version: Long!
   ): ProductTailoring
@@ -5331,19 +5589,27 @@ type Mutation {
     version: Long!
     actions: [StoreUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Store
   deleteStore(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Store
   createReview(draft: ReviewDraft!): Review
@@ -5351,20 +5617,28 @@ type Mutation {
     version: Long!
     actions: [ReviewUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Review
   deleteReview(
     version: Long!
     personalDataErasure: Boolean = false
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Review
   createSubscription(draft: SubscriptionDraft!): CommercetoolsSubscription
@@ -5372,19 +5646,27 @@ type Mutation {
     version: Long!
     actions: [SubscriptionUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CommercetoolsSubscription
   deleteSubscription(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CommercetoolsSubscription
   createExtension(draft: ExtensionDraft!): Extension
@@ -5392,19 +5674,27 @@ type Mutation {
     version: Long!
     actions: [ExtensionUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Extension
   deleteExtension(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Extension
   createApiClient(draft: CreateApiClient!): APIClientWithSecret
@@ -5414,25 +5704,35 @@ type Mutation {
     version: Long!
     actions: [StandalonePriceUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): StandalonePrice
   deleteStandalonePrice(
     version: Long!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): StandalonePrice
   createQuoteRequest(
     draft: QuoteRequestDraft!
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
 
     """
@@ -5443,7 +5743,9 @@ type Mutation {
   updateQuoteRequest(
     version: Long!
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
     actions: [QuoteRequestUpdateAction!]!
 
@@ -5452,10 +5754,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): QuoteRequest
   deleteQuoteRequest(
@@ -5467,10 +5773,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): QuoteRequest
   createMyQuoteRequest(draft: MyQuoteRequestDraft!): QuoteRequest
@@ -5478,10 +5788,14 @@ type Mutation {
     version: Long!
     actions: [MyQuoteRequestUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): QuoteRequest
   createStagedQuote(
@@ -5501,10 +5815,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): StagedQuote
   deleteStagedQuote(
@@ -5516,10 +5834,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): StagedQuote
   createQuote(
@@ -5534,7 +5856,9 @@ type Mutation {
     version: Long!
     actions: [QuoteUpdateAction!]!
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
 
     """
@@ -5542,10 +5866,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Quote
   deleteQuote(
@@ -5557,53 +5885,73 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Quote
   updateMyQuote(
     version: Long!
     actions: [MyQuoteUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Quote
   createApprovalRule(
     draft: ApprovalRuleDraft!
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument!
   ): ApprovalRule
   updateApprovalRule(
     version: Long!
     actions: [ApprovalRuleUpdateAction!]!
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ApprovalRule
   updateApprovalFlow(
     version: Long!
     actions: [ApprovalFlowUpdateAction!]!
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument!
     id: String!
   ): ApprovalFlow
   createBusinessUnit(
     draft: BusinessUnitDraft!
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
 
     """
@@ -5615,7 +5963,9 @@ type Mutation {
     version: Long!
     actions: [BusinessUnitUpdateAction!]!
 
-    """Create/modify entity as an associate in business-unit."""
+    """
+    Create/modify entity as an associate in business-unit.
+    """
     asAssociate: AsAssociateArgument
 
     """
@@ -5623,10 +5973,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): BusinessUnit
   deleteBusinessUnit(
@@ -5638,10 +5992,14 @@ type Mutation {
     """
     storeKey: KeyReferenceInput
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): BusinessUnit
   createMyBusinessUnit(draft: MyBusinessUnitDraft!): BusinessUnit
@@ -5649,10 +6007,14 @@ type Mutation {
     version: Long!
     actions: [MyBusinessUnitUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): BusinessUnit
   createAssociateRole(draft: AssociateRoleDraft!): AssociateRole
@@ -5660,20 +6022,28 @@ type Mutation {
     version: Long!
     actions: [AssociateRoleUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): AssociateRole
   deleteAssociateRole(
     version: Long!
     personalDataErasure: Boolean = false
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): AssociateRole
 
@@ -5689,10 +6059,14 @@ type Mutation {
     version: Long!
     actions: [RecurringOrderUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): RecurringOrder
 
@@ -5708,10 +6082,14 @@ type Mutation {
     version: Long!
     actions: [RecurrencePolicyUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): RecurrencePolicy
 
@@ -5727,10 +6105,14 @@ type Mutation {
     version: Long!
     actions: [PaymentMethodUpdateAction!]!
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): PaymentMethod
 
@@ -5741,10 +6123,14 @@ type Mutation {
     version: Long!
     personalDataErasure: Boolean = false
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): PaymentMethod
 }
@@ -6935,7 +7321,6 @@ An input object used to define a ProductAttribute.
 
 The value should be passed in a form of escaped JSON.
 
-
 Examples for `value`:
 
 * FieldType `String`: `"\"This is a string\""`
@@ -6949,10 +7334,9 @@ input ProductAttributeInput {
 
   """
   The value should be passed in a form of escaped JSON.
-  
-  
+
   Examples for `value`:
-  
+
   * FieldType `String`: `"\"This is a string\""`
   * FieldType `DateTimeType`: `"\"2018-10-12T14:00:00.000Z\""`
   * FieldType `Number`: `"4"`
@@ -6974,10 +7358,14 @@ type ProductDeleted implements MessagePayload {
 }
 
 input ProductDiscountDraft {
-  """Type of Discount and its corresponding value."""
+  """
+  Type of Discount and its corresponding value.
+  """
   value: ProductDiscountValueInput!
 
-  """A valid ProductDiscount Predicate."""
+  """
+  A valid ProductDiscount Predicate.
+  """
   predicate: String!
 
   """
@@ -6986,16 +7374,24 @@ input ProductDiscountDraft {
   """
   sortOrder: String!
 
-  """Name of the ProductDiscount."""
+  """
+  Name of the ProductDiscount.
+  """
   name: [LocalizedStringItemInputType!]!
 
-  """Description of the ProductDiscount."""
+  """
+  Description of the ProductDiscount.
+  """
   description: [LocalizedStringItemInputType!]
 
-  """Date and time (UTC) from which the Discount is effective."""
+  """
+  Date and time (UTC) from which the Discount is effective.
+  """
   validFrom: DateTime
 
-  """Date and time (UTC) until which the Discount is effective."""
+  """
+  Date and time (UTC) until which the Discount is effective.
+  """
   validUntil: DateTime
 
   """
@@ -7003,7 +7399,9 @@ input ProductDiscountDraft {
   """
   isActive: Boolean = true
 
-  """User-defined unique identifier for the ProductDiscount."""
+  """
+  User-defined unique identifier for the ProductDiscount.
+  """
   key: String
 }
 
@@ -7063,7 +7461,6 @@ An input object used to define a ProductAttribute.
 
 The value should be passed in a form of escaped JSON.
 
-
 Examples for `value`:
 
 * FieldType `String`: `"\"This is a string\""`
@@ -7077,10 +7474,9 @@ input ProductLevelAttributeInput {
 
   """
   The value should be passed in a form of escaped JSON.
-  
-  
+
   Examples for `value`:
-  
+
   * FieldType `String`: `"\"This is a string\""`
   * FieldType `DateTimeType`: `"\"2018-10-12T14:00:00.000Z\""`
   * FieldType `Number`: `"4"`
@@ -7946,10 +8342,14 @@ input PublishProduct {
 }
 
 enum PublishScope {
-  """Publishes the complete staged projection"""
+  """
+  Publishes the complete staged projection
+  """
   All
 
-  """Publishes only prices on the staged projection"""
+  """
+  Publishes only prices on the staged projection
+  """
   Prices
 }
 
@@ -8832,7 +9232,9 @@ enum SelectionMode {
   MostExpensive
 }
 
-"""A set."""
+"""
+A set.
+"""
 scalar Set
 
 input SetApprovalFlowCustomField {
@@ -11723,7 +12125,9 @@ input ShippingMethodUpdateAction {
   setCustomField: SetShippingMethodCustomField
   setCustomType: SetShippingMethodCustomType
 
-  """This action is deprecated in favor of using 'setLocalizedDescription'"""
+  """
+  This action is deprecated in favor of using 'setLocalizedDescription'
+  """
   setDescription: SetShippingMethodDescription
   setKey: SetShippingMethodKey
   setLocalizedDescription: SetShippingMethodLocalizedDescription
@@ -12465,7 +12869,9 @@ input TextLineItemDraft {
   addedAt: DateTime
 }
 
-"""Time is a scalar value that represents an ISO8601 formatted time."""
+"""
+Time is a scalar value that represents an ISO8601 formatted time.
+"""
 scalar Time
 
 type TimeAttribute implements Attribute {
@@ -12824,7 +13230,9 @@ input setKey {
   key: String
 }
 
-"""API Clients can be used to obtain OAuth 2 access tokens"""
+"""
+API Clients can be used to obtain OAuth 2 access tokens
+"""
 type APIClientWithoutSecret {
   id: String!
   name: String!
@@ -12849,12 +13257,16 @@ enum ActionType {
   Update
 }
 
-"""A field to access the active cart."""
+"""
+A field to access the active cart.
+"""
 interface ActiveCartInterface {
   activeCart: Cart
 }
 
-"""An address represents a postal address."""
+"""
+An address represents a postal address.
+"""
 type Address {
   id: String
   streetName: String
@@ -12972,50 +13384,72 @@ type AsAssociate implements CartQueryInterface & OrderQueryInterface & QuoteQuer
   cart(id: String!): Cart
   carts(where: String, sort: [String!], limit: Int, offset: Int): CartQueryResult!
   order(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
     orderNumber: String
   ): Order
   orders(where: String, sort: [String!], limit: Int, offset: Int): OrderQueryResult!
   shoppingList(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
   shoppingLists(where: String, sort: [String!], limit: Int, offset: Int): ShoppingListQueryResult!
   quoteRequest(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): QuoteRequest
   quoteRequests(where: String, sort: [String!], limit: Int, offset: Int): QuoteRequestQueryResult!
   quote(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Quote
   quotes(where: String, sort: [String!], limit: Int, offset: Int): QuoteQueryResult!
   approvalRule(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ApprovalRule
   approvalRules(where: String, sort: [String!], limit: Int, offset: Int): ApprovalRuleQueryResult!
   approvalFlow(id: String!): ApprovalFlow
   approvalFlows(where: String, sort: [String!], limit: Int, offset: Int): ApprovalFlowQueryResult!
   businessUnit(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): BusinessUnit
   businessUnits(where: String, sort: [String!], limit: Int, offset: Int): BusinessUnitQueryResult!
@@ -13105,10 +13539,14 @@ type AssociateRoleQueryResult {
 }
 
 enum AttributeConstraint {
-  """No constraints are applied to the attribute"""
+  """
+  No constraints are applied to the attribute
+  """
   None
 
-  """Attribute value should be different in each variant"""
+  """
+  Attribute value should be different in each variant
+  """
   Unique
 
   """
@@ -13116,7 +13554,9 @@ enum AttributeConstraint {
   """
   CombinationUnique
 
-  """Attribute value should be the same in all variants"""
+  """
+  Attribute value should be the same in all variants
+  """
   SameForAll
 }
 
@@ -13239,7 +13679,9 @@ enum AttributionSource {
   Import
 }
 
-"""AuthenticationMode values."""
+"""
+AuthenticationMode values.
+"""
 enum AuthenticationMode {
   ExternalAuth
   Password
@@ -13384,7 +13826,9 @@ type Cart implements Versioned & ReferenceExpandable {
   customerEmail: String
   anonymousId: String
   lineItems(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
   ): [LineItem!]!
   customLineItems: [CustomLineItem!]!
@@ -13504,10 +13948,14 @@ Fields to access cartDiscounts. Includes direct access to a single cartDiscount 
 """
 interface CartDiscountQueryInterface {
   cartDiscount(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CartDiscount
   cartDiscounts(where: String, sort: [String!], limit: Int, offset: Int): CartDiscountQueryResult!
@@ -13559,16 +14007,24 @@ type CartLimitsProjection {
 }
 
 enum CartOrigin {
-  """The cart was created by the customer. This is the default value"""
+  """
+  The cart was created by the customer. This is the default value
+  """
   Customer
 
-  """The cart was created by the merchant on behalf of the customer"""
+  """
+  The cart was created by the merchant on behalf of the customer
+  """
   Merchant
 
-  """The cart was created by our platform and belongs to a Quote."""
+  """
+  The cart was created by our platform and belongs to a Quote.
+  """
   Quote
 
-  """The cart was created by the merchant as a recurring order."""
+  """
+  The cart was created by the merchant as a recurring order.
+  """
   RecurringOrder
 }
 
@@ -13589,7 +14045,9 @@ type CartQueryResult {
 }
 
 enum CartState {
-  """The cart can be updated and ordered. It is the default state."""
+  """
+  The cart can be updated and ordered. It is the default state.
+  """
   Active
 
   """
@@ -13602,7 +14060,9 @@ enum CartState {
   """
   Merged
 
-  """The cart was ordered. No further operations on the cart are allowed."""
+  """
+  The cart was ordered. No further operations on the cart are allowed.
+  """
   Ordered
 }
 
@@ -13698,13 +14158,19 @@ type Category implements Versioned & ReferenceExpandable {
   ): String
   metaDescriptionAllLocales: [LocalizedString!]
 
-  """Number of staged products in the category subtree."""
+  """
+  Number of staged products in the category subtree.
+  """
   stagedProductCount: Int!
 
-  """Number of direct child categories."""
+  """
+  Number of direct child categories.
+  """
   childCount: Int!
 
-  """Direct child categories."""
+  """
+  Direct child categories.
+  """
   children: [Category!]
   createdAt: DateTime!
   lastModifiedAt: DateTime!
@@ -13838,7 +14304,9 @@ type CommercetoolsSubscriptionQueryResult {
   results: [CommercetoolsSubscription!]!
 }
 
-"""[ISO 3166-1](http://en.wikipedia.org/wiki/ISO_3166-1) country code."""
+"""
+[ISO 3166-1](http://en.wikipedia.org/wiki/ISO_3166-1) country code.
+"""
 scalar Country
 
 """
@@ -13850,18 +14318,20 @@ type CustomFieldsType {
   typeRef: Reference!
   type: TypeDefinition
 
-  """This field contains non-typed data."""
+  """
+  This field contains non-typed data.
+  """
   customFieldsRaw(
     """
     The names of the custom fields to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     includeNames: [String!]
 
     """
     The names of the custom fields to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     excludeNames: [String!]
@@ -13914,7 +14384,9 @@ enum CustomLineItemPriceMode {
   """
   External
 
-  """This is the default mode."""
+  """
+  This is the default mode.
+  """
   Standard
 }
 
@@ -14004,7 +14476,9 @@ type Customer implements Versioned & ReferenceExpandable {
   lastModifiedBy: Initiator
 }
 
-"""A field to access a customer's active cart."""
+"""
+A field to access a customer's active cart.
+"""
 interface CustomerActiveCartInterface {
   customerActiveCart(customerId: String!): Cart
 }
@@ -14061,16 +14535,24 @@ Fields to access customer accounts. Includes direct access to a single customer 
 """
 interface CustomerQueryInterface {
   customer(
-    """Queries a customer with specified email token"""
+    """
+    Queries a customer with specified email token
+    """
     emailToken: String
 
-    """Queries a customer with specified password token"""
+    """
+    Queries a customer with specified password token
+    """
     passwordToken: String
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Customer
   customers(where: String, sort: [String!], limit: Int, offset: Int): CustomerQueryResult!
@@ -14095,7 +14577,9 @@ enum CustomerSearchStatus {
   Deactivated
 }
 
-"""DateTime is a scalar value that represents an ISO8601 formatted date."""
+"""
+DateTime is a scalar value that represents an ISO8601 formatted date.
+"""
 scalar Date
 
 """
@@ -14330,13 +14814,22 @@ Fields to access cart discounts and discount groups. Includes direct access to a
 """
 interface DiscountVisualizationQueryInterface {
   cartDiscountVisualization(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CartDiscountVisualization
-  cartDiscountVisualizations(where: String, sort: [String!], limit: Int, offset: Int): CartDiscountVisualizationQueryResult!
+  cartDiscountVisualizations(
+    where: String
+    sort: [String!]
+    limit: Int
+    offset: Int
+  ): CartDiscountVisualizationQueryResult!
 }
 
 type DiscountedLineItemPortion {
@@ -14551,16 +15044,20 @@ type ImageProductSearch {
 type InStore implements CartDiscountQueryInterface & DiscountVisualizationQueryInterface & CartQueryInterface & CustomerActiveCartInterface & OrderQueryInterface & CustomerQueryInterface & ShippingMethodsByCartInterface & MeFieldInterface {
   """
   This field can only be used with an access token created with the password flow or with an anonymous session.
-  
+
   It gives access to the data that is specific to the customer or the anonymous session linked to the access token.
   """
   me: InStoreMe!
   shippingMethodsByCart(id: String!): [ShippingMethod!]!
   cartDiscount(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CartDiscount
   cartDiscounts(where: String, sort: [String!], limit: Int, offset: Int): CartDiscountQueryResult!
@@ -14568,7 +15065,9 @@ type InStore implements CartDiscountQueryInterface & DiscountVisualizationQueryI
     projectExpandedProducts: Boolean = false
     localeProjection: [Locale!]
 
-    """Queries for a product with specified SKU"""
+    """
+    Queries for a product with specified SKU
+    """
     sku: String
 
     """
@@ -14576,23 +15075,35 @@ type InStore implements CartDiscountQueryInterface & DiscountVisualizationQueryI
     """
     variantKey: String
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Product
   customer(
-    """Queries a customer with specified email token"""
+    """
+    Queries a customer with specified email token
+    """
     emailToken: String
 
-    """Queries a customer with specified password token"""
+    """
+    Queries a customer with specified password token
+    """
     passwordToken: String
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Customer
   customers(where: String, sort: [String!], limit: Int, offset: Int): CustomerQueryResult!
@@ -14600,74 +15111,113 @@ type InStore implements CartDiscountQueryInterface & DiscountVisualizationQueryI
   carts(where: String, sort: [String!], limit: Int, offset: Int): CartQueryResult!
   customerActiveCart(customerId: String!): Cart
   order(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
     orderNumber: String
   ): Order
   orders(where: String, sort: [String!], limit: Int, offset: Int): OrderQueryResult!
   shoppingList(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
   shoppingLists(where: String, sort: [String!], limit: Int, offset: Int): ShoppingListQueryResult!
   productSelectionAssignments(where: String, sort: [String!], limit: Int, offset: Int): ProductAssignmentQueryResult!
   productTailoring(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
 
-    """Queries with specified Product ID"""
+    """
+    Queries with specified Product ID
+    """
     productId: String
 
-    """Queries with specified Product key"""
+    """
+    Queries with specified Product key
+    """
     productKey: String
   ): ProductTailoring
   productTailoringList(where: String, sort: [String!], limit: Int, offset: Int): ProductTailoringQueryResult!
   quoteRequest(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): QuoteRequest
   quoteRequests(where: String, sort: [String!], limit: Int, offset: Int): QuoteRequestQueryResult!
   stagedQuote(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): StagedQuote
   stagedQuotes(where: String, sort: [String!], limit: Int, offset: Int): StagedQuoteQueryResult!
   quote(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Quote
   quotes(where: String, sort: [String!], limit: Int, offset: Int): QuoteQueryResult!
   businessUnit(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): BusinessUnit
   businessUnits(where: String, sort: [String!], limit: Int, offset: Int): BusinessUnitQueryResult!
   cartDiscountVisualization(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CartDiscountVisualization
-  cartDiscountVisualizations(where: String, sort: [String!], limit: Int, offset: Int): CartDiscountVisualizationQueryResult!
+  cartDiscountVisualizations(
+    where: String
+    sort: [String!]
+    limit: Int
+    offset: Int
+  ): CartDiscountVisualizationQueryResult!
 }
 
 type InStoreMe implements MeQueryInterface & CartQueryInterface & ActiveCartInterface & OrderQueryInterface & ShoppingListQueryInterface {
@@ -14691,7 +15241,9 @@ type InStoreMe implements MeQueryInterface & CartQueryInterface & ActiveCartInte
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   order(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
     orderNumber: String
   ): Order
@@ -14705,10 +15257,14 @@ type InStoreMe implements MeQueryInterface & CartQueryInterface & ActiveCartInte
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   shoppingList(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
 
@@ -14753,14 +15309,14 @@ type InterfaceInteractionsRaw {
   fields(
     """
     The names of the custom fields to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     includeNames: [String!]
 
     """
     The names of the custom fields to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     excludeNames: [String!]
@@ -14848,7 +15404,9 @@ type ItemState {
   state: State
 }
 
-"""Raw JSON value"""
+"""
+Raw JSON value
+"""
 scalar Json
 
 type KeyReference {
@@ -14856,17 +15414,23 @@ type KeyReference {
   key: String!
 }
 
-"""A key that references a resource."""
+"""
+A key that references a resource.
+"""
 scalar KeyReferenceInput
 
 """
 BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
 enum Level {
-  """The attribute can be used on the variant level"""
+  """
+  The attribute can be used on the variant level
+  """
   Variant
 
-  """The attribute can be used on the product level"""
+  """
+  The attribute can be used on the product level
+  """
   Product
 }
 
@@ -14972,7 +15536,9 @@ enum LineItemPriceMode {
   """
   ExternalPrice
 
-  """The line item price with the total was set externally."""
+  """
+  The line item price with the total was set externally.
+  """
   ExternalTotal
 
   """
@@ -14991,7 +15557,9 @@ type LineItemRecurrenceInfo {
   priceSelectionMode: PriceSelectionMode!
 }
 
-"""Locale is a scalar value represented as a string language tag."""
+"""
+Locale is a scalar value represented as a string language tag.
+"""
 scalar Locale
 
 type LocalizedString {
@@ -15025,7 +15593,9 @@ type Me implements MeQueryInterface & CartQueryInterface & ActiveCartInterface &
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   order(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
     orderNumber: String
   ): Order
@@ -15039,10 +15609,14 @@ type Me implements MeQueryInterface & CartQueryInterface & ActiveCartInterface &
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   shoppingList(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
 
@@ -15065,10 +15639,14 @@ type Me implements MeQueryInterface & CartQueryInterface & ActiveCartInterface &
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   quoteRequest(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): QuoteRequest
 
@@ -15081,10 +15659,14 @@ type Me implements MeQueryInterface & CartQueryInterface & ActiveCartInterface &
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   quote(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Quote
 
@@ -15097,10 +15679,14 @@ type Me implements MeQueryInterface & CartQueryInterface & ActiveCartInterface &
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   businessUnit(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): BusinessUnit
 
@@ -15122,16 +15708,22 @@ interface MeQueryInterface implements CartQueryInterface & ActiveCartInterface &
   carts(where: String, sort: [String!], limit: Int, offset: Int): CartQueryResult!
   activeCart: Cart
   order(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
     orderNumber: String
   ): Order
   orders(where: String, sort: [String!], limit: Int, offset: Int): OrderQueryResult!
   shoppingList(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
   shoppingLists(where: String, sort: [String!], limit: Int, offset: Int): ShoppingListQueryResult!
@@ -15237,7 +15829,9 @@ type Order implements Versioned & ReferenceExpandable {
   customerEmail: String
   anonymousId: String
   lineItems(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
   ): [LineItem!]!
   customLineItems: [CustomLineItem!]!
@@ -15351,7 +15945,9 @@ Fields to access orders. Includes direct access to a single order and searching 
 """
 interface OrderQueryInterface {
   order(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
     orderNumber: String
   ): Order
@@ -15595,10 +16191,14 @@ enum Permission {
 }
 
 enum Placement {
-  """The Order or Cart is placed in-store."""
+  """
+  The Order or Cart is placed in-store.
+  """
   InStore
 
-  """The Order or Cart is placed online."""
+  """
+  The Order or Cart is placed online.
+  """
   Online
 }
 
@@ -15774,41 +16374,49 @@ type ProductData {
   variants(
     onlyMatching: Boolean
 
-    """Queries for products with specified SKUs"""
+    """
+    Queries for products with specified SKUs
+    """
     skus: [String!]
     isOnStock: Boolean
 
     """
     The IDs of channels for which to check the stock of the `isOnStock`.
-    
+
     Variant is returned if at least one of the channels is matching the `isOnStock`
-    
+
     If the list is not provided then noChannel is checked for `isOnStock`
     """
     stockChannelIds: [String!]
     hasImages: Boolean
   ): [ProductVariant!]!
 
-  """Fetch all variants, including the master variant in first position."""
+  """
+  Fetch all variants, including the master variant in first position.
+  """
   allVariants(
     onlyMatching: Boolean
 
-    """Queries for products with specified SKUs"""
+    """
+    Queries for products with specified SKUs
+    """
     skus: [String!]
     isOnStock: Boolean
 
     """
     The IDs of channels for which to check the stock of the `isOnStock`.
-    
+
     Variant is returned if at least one of the channels is matching the `isOnStock`
-    
+
     If the list is not provided then noChannel is checked for `isOnStock`
     """
     stockChannelIds: [String!]
     hasImages: Boolean
   ): [ProductVariant!]!
   variant(
-    """Queries for a variant with specified SKU"""
+    """
+    Queries for a variant with specified SKU
+    """
     sku: String
 
     """
@@ -16055,14 +16663,14 @@ type ProductProjection {
   attributesRaw(
     """
     The names of the attributes to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attributes to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     excludeNames: [String!]
@@ -16106,27 +16714,49 @@ type ProductSearchVariant {
   sku: String
   prices: [ProductPriceSearch!]
 
-  """Returns a single price based on the price selection rules."""
-  price(currency: Currency!, country: Country, customerGroupId: String, channelId: String, date: DateTime, recurrencePolicyId: String, returnAllPricesByRecurrencePolicy: Boolean): ProductPriceSearch
+  """
+  Returns a single price based on the price selection rules.
+  """
+  price(
+    currency: Currency!
+    country: Country
+    customerGroupId: String
+    channelId: String
+    date: DateTime
+    recurrencePolicyId: String
+    returnAllPricesByRecurrencePolicy: Boolean
+  ): ProductPriceSearch
 
-  """Returns all recurrence prices based on the price selection rules."""
-  allRecurrencePrices(currency: Currency!, country: Country, customerGroupId: String, channelId: String, date: DateTime, recurrencePolicyId: String, returnAllPricesByRecurrencePolicy: Boolean): [ProductPriceSearch!]
+  """
+  Returns all recurrence prices based on the price selection rules.
+  """
+  allRecurrencePrices(
+    currency: Currency!
+    country: Country
+    customerGroupId: String
+    channelId: String
+    date: DateTime
+    recurrencePolicyId: String
+    returnAllPricesByRecurrencePolicy: Boolean
+  ): [ProductPriceSearch!]
   images: [ImageProductSearch!]!
   assets: [Asset!]!
   availability: ProductSearchVariantAvailabilityWithChannels
 
-  """This field contains raw attributes data"""
+  """
+  This field contains raw attributes data
+  """
   attributesRaw(
     """
     The names of the attributes to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attributes to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     excludeNames: [String!]
@@ -16136,7 +16766,9 @@ type ProductSearchVariant {
   scopedPriceDiscounted: Boolean
 }
 
-"""Product variant availabilities"""
+"""
+Product variant availabilities
+"""
 type ProductSearchVariantAvailabilitiesResult {
   limit: Int
   offset: Int
@@ -16144,7 +16776,9 @@ type ProductSearchVariantAvailabilitiesResult {
   results: [ProductSearchVariantAvailabilityWithChannel!]!
 }
 
-"""Product variant availability"""
+"""
+Product variant availability
+"""
 type ProductSearchVariantAvailability {
   isOnStock: Boolean!
   restockableInDays: Int
@@ -16164,14 +16798,14 @@ type ProductSearchVariantAvailabilityWithChannels {
   channels(
     """
     The IDs of channels to include.
-    
+
     If neither `includeChannelIds` nor `excludeChannelIds` are provided, then all channels are returned.
     """
     includeChannelIds: [String!]
 
     """
     The IDs of channels to exclude.
-    
+
     If neither `includeChannelIds` nor `excludeChannelIds` are provided, then all channels are returned.
     """
     excludeChannelIds: [String!]
@@ -16218,7 +16852,9 @@ enum ProductSelectionMode {
   IndividualExclusion
 }
 
-"""Fields to access product selection assignments."""
+"""
+Fields to access product selection assignments.
+"""
 interface ProductSelectionQueryInterface {
   productSelectionAssignments(where: String, sort: [String!], limit: Int, offset: Int): ProductAssignmentQueryResult!
 }
@@ -16347,14 +16983,14 @@ type ProductTypeDefinition implements Versioned & ReferenceExpandable {
   attributeDefinitions(
     """
     The names of the attribute definitions to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attribute definitions are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attribute definitions to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attribute definitions are returned.
     """
     excludeNames: [String!]
@@ -16393,34 +17029,59 @@ type ProductVariant {
   sku: String
   prices: [ProductPrice!]
 
-  """Returns a single price based on the price selection rules."""
-  price(currency: Currency!, country: Country, customerGroupId: String, customerGroupAssignmentIds: [String!], channelId: String, date: DateTime, recurrencePolicyId: String, returnAllPricesByRecurrencePolicy: Boolean): ProductPrice
+  """
+  Returns a single price based on the price selection rules.
+  """
+  price(
+    currency: Currency!
+    country: Country
+    customerGroupId: String
+    customerGroupAssignmentIds: [String!]
+    channelId: String
+    date: DateTime
+    recurrencePolicyId: String
+    returnAllPricesByRecurrencePolicy: Boolean
+  ): ProductPrice
 
-  """Returns all recurrence prices based on the price selection rules."""
-  allRecurrencePrices(currency: Currency!, country: Country, customerGroupId: String, channelId: String, date: DateTime, recurrencePolicyId: String, returnAllPricesByRecurrencePolicy: Boolean): [ProductPrice!]
+  """
+  Returns all recurrence prices based on the price selection rules.
+  """
+  allRecurrencePrices(
+    currency: Currency!
+    country: Country
+    customerGroupId: String
+    channelId: String
+    date: DateTime
+    recurrencePolicyId: String
+    returnAllPricesByRecurrencePolicy: Boolean
+  ): [ProductPrice!]
   images: [Image!]!
   assets: [Asset!]!
   availability: ProductVariantAvailabilityWithChannels
 
-  """This field contains raw attributes data"""
+  """
+  This field contains raw attributes data
+  """
   attributesRaw(
     """
     The names of the attributes to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attributes to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     excludeNames: [String!]
   ): [RawProductAttribute!]!
 }
 
-"""Product variant availabilities"""
+"""
+Product variant availabilities
+"""
 type ProductVariantAvailabilitiesResult {
   limit: Int
   offset: Int
@@ -16428,7 +17089,9 @@ type ProductVariantAvailabilitiesResult {
   results: [ProductVariantAvailabilityWithChannel!]!
 }
 
-"""Product variant availability"""
+"""
+Product variant availability
+"""
 type ProductVariantAvailability {
   isOnStock: Boolean!
   restockableInDays: Int
@@ -16448,14 +17111,14 @@ type ProductVariantAvailabilityWithChannels {
   channels(
     """
     The IDs of channels to include.
-    
+
     If neither `includeChannelIds` nor `excludeChannelIds` are provided, then all channels are returned.
     """
     includeChannelIds: [String!]
 
     """
     The IDs of channels to exclude.
-    
+
     If neither `includeChannelIds` nor `excludeChannelIds` are provided, then all channels are returned.
     """
     excludeChannelIds: [String!]
@@ -16502,7 +17165,9 @@ enum ProductsSearchStatus {
   Deactivated
 }
 
-"""Contains information about the limits of your project."""
+"""
+Contains information about the limits of your project.
+"""
 type ProjectCustomLimitsProjection {
   query: QueryLimitsProjection!
   products: ProductLimitsProjection!
@@ -16529,7 +17194,9 @@ type ProjectCustomLimitsProjection {
   attributeGroups: AttributeGroupLimitsProjection!
 }
 
-"""Project contains information about project."""
+"""
+Project contains information about project.
+"""
 type ProjectProjection {
   key: String!
   name: String!
@@ -16560,7 +17227,7 @@ type ProjectProjection {
 type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQueryInterface & CustomerQueryInterface & ShoppingListQueryInterface & ShippingMethodsByCartInterface & MeFieldInterface & ProductSelectionQueryInterface {
   """
   This field can only be used with an access token created with the password flow or with an anonymous session.
-  
+
   It gives access to the data that is specific to the customer or the anonymous session linked to the access token.
   """
   me: Me!
@@ -16580,121 +17247,182 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
   """
   asAssociate(businessUnitKey: KeyReferenceInput!, associateId: String!): AsAssociate!
   customerGroup(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CustomerGroup
   customerGroups(where: String, sort: [String!], limit: Int, offset: Int): CustomerGroupQueryResult!
   category(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Category
   categories(where: String, sort: [String!], limit: Int, offset: Int): CategoryQueryResult!
   channel(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Channel
   channels(where: String, sort: [String!], limit: Int, offset: Int): ChannelQueryResult!
   customObject(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
     container: String
   ): CustomObject
   customObjects(where: String, sort: [String!], limit: Int, offset: Int, container: String!): CustomObjectQueryResult!
   productType(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ProductTypeDefinition
   productTypes(where: String, sort: [String!], limit: Int, offset: Int): ProductTypeDefinitionQueryResult!
   typeDefinition(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): TypeDefinition
   typeDefinitions(where: String, sort: [String!], limit: Int, offset: Int): TypeDefinitionQueryResult!
   shippingMethod(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShippingMethod
   shippingMethods(where: String, sort: [String!], limit: Int, offset: Int): ShippingMethodQueryResult!
   shippingMethodsByCart(id: String!): [ShippingMethod!]!
   shippingMethodsByLocation(country: Country!, state: String, currency: Currency): [ShippingMethod!]!
   zone(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Zone
   zones(where: String, sort: [String!], limit: Int, offset: Int): ZoneQueryResult!
   taxCategory(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): TaxCategory
   taxCategories(where: String, sort: [String!], limit: Int, offset: Int): TaxCategoryQueryResult!
   cartDiscount(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CartDiscount
   cartDiscounts(where: String, sort: [String!], limit: Int, offset: Int): CartDiscountQueryResult!
   discountCode(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): DiscountCode
   discountCodes(where: String, sort: [String!], limit: Int, offset: Int): DiscountCodeQueryResult!
   productDiscount(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ProductDiscount
   productDiscounts(where: String, sort: [String!], limit: Int, offset: Int): ProductDiscountQueryResult!
   cartDiscountVisualization(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CartDiscountVisualization
-  cartDiscountVisualizations(where: String, sort: [String!], limit: Int, offset: Int): CartDiscountVisualizationQueryResult!
+  cartDiscountVisualizations(
+    where: String
+    sort: [String!]
+    limit: Int
+    offset: Int
+  ): CartDiscountVisualizationQueryResult!
 
   """
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   discountGroup(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): DiscountGroup
 
@@ -16703,10 +17431,14 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
   """
   discountGroups(where: String, sort: [String!], limit: Int, offset: Int): DiscountGroupQueryResult!
   attributeGroup(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): AttributeGroup
   attributeGroups(where: String, sort: [String!], limit: Int, offset: Int): AttributeGroupQueryResult!
@@ -16714,7 +17446,9 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
     projectExpandedProducts: Boolean = false
     localeProjection: [Locale!]
 
-    """Queries for a product with specified SKU"""
+    """
+    Queries for a product with specified SKU
+    """
     sku: String
 
     """
@@ -16722,10 +17456,14 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
     """
     variantKey: String
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Product
   products(
@@ -16736,36 +17474,54 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
     projectExpandedProducts: Boolean = false
     localeProjection: [Locale!]
 
-    """Queries for products with specified SKUs"""
+    """
+    Queries for products with specified SKUs
+    """
     skus: [String!]
   ): ProductQueryResult!
   state(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): State
   states(where: String, sort: [String!], limit: Int, offset: Int): StateQueryResult!
   customer(
-    """Queries a customer with specified email token"""
+    """
+    Queries a customer with specified email token
+    """
     emailToken: String
 
-    """Queries a customer with specified password token"""
+    """
+    Queries a customer with specified password token
+    """
     passwordToken: String
 
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Customer
   customers(where: String, sort: [String!], limit: Int, offset: Int): CustomerQueryResult!
   inventoryEntry(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): InventoryEntry
   inventoryEntries(where: String, sort: [String!], limit: Int, offset: Int): InventoryEntryQueryResult!
@@ -16773,62 +17529,92 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
   carts(where: String, sort: [String!], limit: Int, offset: Int): CartQueryResult!
   customerActiveCart(customerId: String!): Cart
   message(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Message
   messages(where: String, sort: [String!], limit: Int, offset: Int): MessageQueryResult!
   order(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
     orderNumber: String
   ): Order
   orders(where: String, sort: [String!], limit: Int, offset: Int): OrderQueryResult!
   orderEdit(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): OrderEdit
   orderEdits(where: String, sort: [String!], limit: Int, offset: Int): OrderEditQueryResult!
   shoppingList(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
   shoppingLists(where: String, sort: [String!], limit: Int, offset: Int): ShoppingListQueryResult!
   payment(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Payment
   payments(where: String, sort: [String!], limit: Int, offset: Int): PaymentQueryResult!
   productSelection(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ProductSelection
   productSelections(where: String, sort: [String!], limit: Int, offset: Int): ProductSelectionQueryResult!
   productTailoring(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
 
-    """Queries with specified Product ID"""
+    """
+    Queries with specified Product ID
+    """
     productId: String
 
-    """Queries with specified Product key"""
+    """
+    Queries with specified Product key
+    """
     productKey: String
 
     """
@@ -16837,37 +17623,58 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
     storeKey: KeyReferenceInput
   ): ProductTailoring
   productTailoringList(where: String, sort: [String!], limit: Int, offset: Int): ProductTailoringQueryResult!
-  productProjectionsSuggest(searchKeywords: [SearchKeywordArgument!]!, fuzzy: Boolean, limit: Int = 10, staged: Boolean = false): SuggestResult!
+  productProjectionsSuggest(
+    searchKeywords: [SearchKeywordArgument!]!
+    fuzzy: Boolean
+    limit: Int = 10
+    staged: Boolean = false
+  ): SuggestResult!
   project: ProjectProjection!
   store(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Store
   stores(where: String, sort: [String!], limit: Int, offset: Int): StoreQueryResult!
   review(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Review
   reviews(where: String, sort: [String!], limit: Int, offset: Int): ReviewQueryResult!
   subscription(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): CommercetoolsSubscription
   subscriptions(where: String, sort: [String!], limit: Int, offset: Int): CommercetoolsSubscriptionQueryResult!
   extension(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Extension
   extensions(where: String, sort: [String!], limit: Int, offset: Int): ExtensionQueryResult!
@@ -16890,7 +17697,9 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
     priceSelector: PriceSelectorInput
     markMatchingVariants: Boolean = false
 
-    """Deprecated: please use 'markMatchingVariants'."""
+    """
+    Deprecated: please use 'markMatchingVariants'.
+    """
     markMatchingVariant: Boolean = false
     storeProjection: String
     localeProjection: [Locale!]
@@ -16902,10 +17711,14 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
   and associated to a ProductVariant through the sku field.
   """
   standalonePrice(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): StandalonePrice
 
@@ -16915,60 +17728,90 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
   """
   standalonePrices(where: String, sort: [String!], limit: Int, offset: Int): StandalonePriceQueryResult!
   quoteRequest(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): QuoteRequest
   quoteRequests(where: String, sort: [String!], limit: Int, offset: Int): QuoteRequestQueryResult!
   stagedQuote(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): StagedQuote
   stagedQuotes(where: String, sort: [String!], limit: Int, offset: Int): StagedQuoteQueryResult!
   quote(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Quote
   quotes(where: String, sort: [String!], limit: Int, offset: Int): QuoteQueryResult!
   businessUnit(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): BusinessUnit
   businessUnits(where: String, sort: [String!], limit: Int, offset: Int): BusinessUnitQueryResult!
   associate(
-    """Queries with specified Business Unit ID"""
+    """
+    Queries with specified Business Unit ID
+    """
     businessUnitId: String
 
-    """Queries with specified Business Unit key"""
+    """
+    Queries with specified Business Unit key
+    """
     businessUnitKey: String
 
-    """Queries the specific associate within the Business Unit"""
+    """
+    Queries the specific associate within the Business Unit
+    """
     associateId: String!
   ): BusinessUnitAssociateProjection
   associateRole(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): AssociateRole
   associateRoles(where: String, sort: [String!], limit: Int, offset: Int): AssociateRoleQueryResult!
   recurringOrder(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): RecurringOrder
   recurringOrders(where: String, sort: [String!], limit: Int, offset: Int): RecurringOrderQueryResult!
@@ -16977,10 +17820,14 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   recurrencePolicy(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): RecurrencePolicy
 
@@ -16994,10 +17841,14 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   paymentMethod(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): PaymentMethod
 
@@ -17018,7 +17869,9 @@ type Quote implements Versioned {
   customerGroupRef: Reference
   customerGroup: CustomerGroup
   lineItems(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
   ): [LineItem!]!
   customLineItems: [CustomLineItem!]!
@@ -17066,13 +17919,19 @@ type Quote implements Versioned {
   lastModifiedBy: Initiator
 }
 
-"""Fields to access Quotes."""
+"""
+Fields to access Quotes.
+"""
 interface QuoteQueryInterface {
   quote(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): Quote
   quotes(where: String, sort: [String!], limit: Int, offset: Int): QuoteQueryResult!
@@ -17092,7 +17951,9 @@ type QuoteRequest implements Versioned {
   customerGroupRef: Reference
   customerGroup: CustomerGroup
   lineItems(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
   ): [LineItem!]!
   customLineItems: [CustomLineItem!]!
@@ -17135,13 +17996,19 @@ type QuoteRequest implements Versioned {
   lastModifiedBy: Initiator
 }
 
-"""Fields to access QuoteRequests."""
+"""
+Fields to access QuoteRequests.
+"""
 interface QuoteRequestQueryInterface {
   quoteRequest(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): QuoteRequest
   quoteRequests(where: String, sort: [String!], limit: Int, offset: Int): QuoteRequestQueryResult!
@@ -17353,7 +18220,9 @@ type RefreshTokenLimitsProjection {
   total: RefreshTokenLimitWithCurrent!
 }
 
-"""Stores information about returns connected to this order."""
+"""
+Stores information about returns connected to this order.
+"""
 type ReturnInfo {
   items: [ReturnItem!]!
   returnTrackingId: String
@@ -17442,7 +18311,9 @@ enum RoundingMode {
   """
   HalfEven
 
-  """[Round half up](https://en.wikipedia.org/wiki/Rounding#Round_half_up)"""
+  """
+  [Round half up](https://en.wikipedia.org/wiki/Rounding#Round_half_up)
+  """
   HalfUp
 }
 
@@ -17679,7 +18550,9 @@ enum ShippingMethodState {
   MatchesCart
 }
 
-"""A field to retrieve available shipping methods for a cart."""
+"""
+A field to retrieve available shipping methods for a cart.
+"""
 interface ShippingMethodsByCartInterface {
   shippingMethodsByCart(id: String!): [ShippingMethod!]!
 }
@@ -17690,11 +18563,15 @@ enum ShippingMode {
   """
   Multiple
 
-  """Allows only one shipping method and shipping address for the cart"""
+  """
+  Allows only one shipping method and shipping address for the cart
+  """
   Single
 }
 
-"""Shipping Rate"""
+"""
+Shipping Rate
+"""
 type ShippingRate {
   price: Money!
   freeAbove: Money
@@ -17826,10 +18703,14 @@ Fields to access shopping lists. Includes direct access to a single list and sea
 """
 interface ShoppingListQueryInterface {
   shoppingList(
-    """Queries with specified ID"""
+    """
+    Queries with specified ID
+    """
     id: String
 
-    """Queries with specified key"""
+    """
+    Queries with specified key
+    """
     key: String
   ): ShoppingList
   shoppingLists(where: String, sort: [String!], limit: Int, offset: Int): ShoppingListQueryResult!
@@ -17851,14 +18732,18 @@ interface SkipConfiguration {
   type: String!
 }
 
-"""Describes how this discount interacts with other discounts"""
+"""
+Describes how this discount interacts with other discounts
+"""
 enum StackingMode {
   """
   Default. Continue applying other matching discounts after applying this one.
   """
   Stacking
 
-  """Don’t apply any more matching discounts after this one."""
+  """
+  Don’t apply any more matching discounts after this one.
+  """
   StopAfterThisDiscount
 }
 
@@ -17917,36 +18802,56 @@ StandalonePrices are managed and queried through the StandalonePrices API
 and associated to a ProductVariant through the sku field.
 """
 type StandalonePrice implements Versioned {
-  """Unique identifier of the StandalonePrice."""
+  """
+  Unique identifier of the StandalonePrice.
+  """
   id: String!
 
-  """Current version of the StandalonePrice."""
+  """
+  Current version of the StandalonePrice.
+  """
   version: Long!
 
-  """User-defined unique identifier of the StandalonePrice."""
+  """
+  User-defined unique identifier of the StandalonePrice.
+  """
   key: String
 
-  """SKU of the ProductVariant to which this Price is associated."""
+  """
+  SKU of the ProductVariant to which this Price is associated.
+  """
   sku: String!
 
-  """Money value of this Price."""
+  """
+  Money value of this Price.
+  """
   value: BaseMoney!
 
-  """Country for which this Price is valid."""
+  """
+  Country for which this Price is valid.
+  """
   country: Country
 
-  """CustomerGroup Reference for which this Price is valid."""
+  """
+  CustomerGroup Reference for which this Price is valid.
+  """
   customerGroupRef: Reference
   customerGroup: CustomerGroup
 
-  """Product distribution Channel for which this Price is valid."""
+  """
+  Product distribution Channel for which this Price is valid.
+  """
   channelRef: Reference
   channel: Channel
 
-  """Date from which the Price is valid."""
+  """
+  Date from which the Price is valid.
+  """
   validFrom: DateTime
 
-  """Date until the Price is valid."""
+  """
+  Date until the Price is valid.
+  """
   validUntil: DateTime
 
   """
@@ -17955,7 +18860,9 @@ type StandalonePrice implements Versioned {
   """
   tiers: [ProductPriceTier!]
 
-  """Set if a matching ProductDiscount exists."""
+  """
+  Set if a matching ProductDiscount exists.
+  """
   discounted: DiscountedProductPriceValue
 
   """
@@ -17963,7 +18870,9 @@ type StandalonePrice implements Versioned {
   """
   staged: StagedStandalonePrice
 
-  """Custom Fields for the StandalonePrice."""
+  """
+  Custom Fields for the StandalonePrice.
+  """
   custom: CustomFieldsType
   expiresAt: DateTime
 
@@ -18013,7 +18922,9 @@ enum StandalonePriceSearchStatus {
   Deactivated
 }
 
-"""[State](https://docs.commercetools.com/api/projects/states)"""
+"""
+[State](https://docs.commercetools.com/api/projects/states)
+"""
 type State implements Versioned & ReferenceExpandable {
   id: String!
   version: Long!
@@ -18079,7 +18990,9 @@ enum StateType {
   StagedQuoteState
 }
 
-"""Stores allow defining different contexts for a project."""
+"""
+Stores allow defining different contexts for a project.
+"""
 type Store implements Versioned & ReferenceExpandable {
   id: String!
   version: Long!
@@ -18231,7 +19144,9 @@ type TaxCategoryQueryResult {
 }
 
 enum TaxMode {
-  """No taxes are added to the cart."""
+  """
+  No taxes are added to the cart.
+  """
   Disabled
 
   """
@@ -18416,14 +19331,14 @@ type TypeDefinition implements Versioned & ReferenceExpandable {
   fieldDefinitions(
     """
     The names of the custom field definitions to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     includeNames: [String!]
 
     """
     The names of the custom field definitions to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     excludeNames: [String!]
@@ -18486,7 +19401,9 @@ YearMonth is a scalar value that represents an ISO8601 formatted year and month.
 """
 scalar YearMonth
 
-"""Zones allow defining ShippingRates for specific Locations."""
+"""
+Zones allow defining ShippingRates for specific Locations.
+"""
 type Zone implements Versioned & ReferenceExpandable {
   name: String!
   key: String

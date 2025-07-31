@@ -1,11 +1,7 @@
 import { cmsMiddleware } from '@repo/cms/middleware';
 import { i18nMiddleware } from '@repo/i18n/middleware';
 
-import {
-  createNEMO,
-  type GlobalMiddlewareConfig,
-  type MiddlewareConfig,
-} from '@rescale/nemo';
+import { createNEMO, type GlobalMiddlewareConfig, type MiddlewareConfig } from '@rescale/nemo';
 
 export const config = {
   // matcher tells Next.js which routes to run the middleware on. This runs the

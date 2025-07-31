@@ -1,8 +1,4 @@
-import {
-  defaults,
-  type NoseconeOptions,
-  withVercelToolbar,
-} from '@nosecone/next';
+import { defaults, type NoseconeOptions, withVercelToolbar } from '@nosecone/next';
 
 export { createMiddleware as noseconeMiddleware } from '@nosecone/next';
 
@@ -17,5 +13,4 @@ export const noseconeOptions: NoseconeOptions = {
   contentSecurityPolicy: false,
 };
 
-export const noseconeOptionsWithToolbar: NoseconeOptions =
-  withVercelToolbar(noseconeOptions);
+export const noseconeOptionsWithToolbar: NoseconeOptions = withVercelToolbar(noseconeOptions);

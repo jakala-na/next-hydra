@@ -1,18 +1,67 @@
 type Query {
   assets(uid: String!, locale: String = "en-us", fallback_locale: Boolean = false): SysAsset
-  all_assets(where: SysAssetWhere, locale: String = "en-us", order_by: [SysAssetOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllSysAsset
+  all_assets(
+    where: SysAssetWhere
+    locale: String = "en-us"
+    order_by: [SysAssetOrderBy] = [updated_at_DESC]
+    skip: Int = 0
+    limit: Int = 25
+    fallback_locale: Boolean = false
+  ): AllSysAsset
   page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Page
-  all_page(where: PageWhere, locale: String! = "en-us", order_by: [PageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllPage
+  all_page(
+    where: PageWhere
+    locale: String! = "en-us"
+    order_by: [PageOrderBy] = [updated_at_DESC]
+    skip: Int = 0
+    limit: Int = 25
+    fallback_locale: Boolean = false
+  ): AllPage
   navigation(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Navigation
-  all_navigation(where: NavigationWhere, locale: String! = "en-us", order_by: [NavigationOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllNavigation
+  all_navigation(
+    where: NavigationWhere
+    locale: String! = "en-us"
+    order_by: [NavigationOrderBy] = [updated_at_DESC]
+    skip: Int = 0
+    limit: Int = 25
+    fallback_locale: Boolean = false
+  ): AllNavigation
   mega_menu(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): MegaMenu
-  all_mega_menu(where: MegaMenuWhere, locale: String! = "en-us", order_by: [MegaMenuOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllMegaMenu
+  all_mega_menu(
+    where: MegaMenuWhere
+    locale: String! = "en-us"
+    order_by: [MegaMenuOrderBy] = [updated_at_DESC]
+    skip: Int = 0
+    limit: Int = 25
+    fallback_locale: Boolean = false
+  ): AllMegaMenu
   product(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Product
-  all_product(where: ProductWhere, locale: String! = "en-us", order_by: [ProductOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllProduct
+  all_product(
+    where: ProductWhere
+    locale: String! = "en-us"
+    order_by: [ProductOrderBy] = [updated_at_DESC]
+    skip: Int = 0
+    limit: Int = 25
+    fallback_locale: Boolean = false
+  ): AllProduct
   hero_banner(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): HeroBanner
-  all_hero_banner(where: HeroBannerWhere, locale: String! = "en-us", order_by: [HeroBannerOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllHeroBanner
+  all_hero_banner(
+    where: HeroBannerWhere
+    locale: String! = "en-us"
+    order_by: [HeroBannerOrderBy] = [updated_at_DESC]
+    skip: Int = 0
+    limit: Int = 25
+    fallback_locale: Boolean = false
+  ): AllHeroBanner
   product_listing_page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): ProductListingPage
-  all_product_listing_page(where: ProductListingPageWhere, locale: String! = "en-us", order_by: [ProductListingPageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllProductListingPage
+  all_product_listing_page(
+    where: ProductListingPageWhere
+    locale: String! = "en-us"
+    order_by: [ProductListingPageOrderBy] = [updated_at_DESC]
+    skip: Int = 0
+    limit: Int = 25
+    fallback_locale: Boolean = false
+  ): AllProductListingPage
 }
 
 type SysAsset {
@@ -74,7 +123,9 @@ input SysAssetTransformUrl {
   """
   auto: SysAssetAutoValues
 
-  """The disposition parameter lets you allow image to download or render. """
+  """
+  The disposition parameter lets you allow image to download or render.
+  """
   disposition: SysAssetDispositionValues
 
   """
@@ -104,13 +155,19 @@ input SysAssetTransformUrl {
 }
 
 enum SysAssetImageFormats {
-  """Convert an image to GIF format"""
+  """
+  Convert an image to GIF format
+  """
   GIF
 
-  """Convert an image to PNG format"""
+  """
+  Convert an image to PNG format
+  """
   PNG
 
-  """Convert an image to JPEG format"""
+  """
+  Convert an image to JPEG format
+  """
   JPG
 
   """
@@ -118,13 +175,19 @@ enum SysAssetImageFormats {
   """
   PJPG
 
-  """WEBP images are usually lower in size and have good quality"""
+  """
+  WEBP images are usually lower in size and have good quality
+  """
   WEBP
 
-  """WEBP Lossless format"""
+  """
+  WEBP Lossless format
+  """
   WEBPLL
 
-  """WEBP Lossy format"""
+  """
+  WEBP Lossy format
+  """
   WEBPLY
 }
 
@@ -141,22 +204,34 @@ enum SysAssetFitValues {
 }
 
 enum SysAssetOrientValues {
-  """Set image to default"""
+  """
+  Set image to default
+  """
   DEFAULT
 
-  """Flip image horizontally"""
+  """
+  Flip image horizontally
+  """
   HORIZONTALLY
 
-  """Flip image horizontally and vertically"""
+  """
+  Flip image horizontally and vertically
+  """
   BOTH
 
-  """Flip image vertically"""
+  """
+  Flip image vertically
+  """
   VERTICALLY
 
-  """Flip image horizontally and then rotate 90 degrees towards left"""
+  """
+  Flip image horizontally and then rotate 90 degrees towards left
+  """
   ROTATE90LEFT
 
-  """Rotate image 90 degrees towards right"""
+  """
+  Rotate image 90 degrees towards right
+  """
   ROTATE90RIGHT
 }
 
@@ -164,19 +239,29 @@ enum SysAssetOrientValues {
 The overlay_align parameter allows you to put one image on top of another
 """
 enum SysAssetOverlayAlignValues {
-  """Align the overlay image to the top of the actual image"""
+  """
+  Align the overlay image to the top of the actual image
+  """
   TOP
 
-  """Align the overlay image to the bottom of the actual image"""
+  """
+  Align the overlay image to the bottom of the actual image
+  """
   BOTTOM
 
-  """Align the overlay image to the left of the actual image"""
+  """
+  Align the overlay image to the left of the actual image
+  """
   LEFT
 
-  """Align the overlay image to the right of the actual image"""
+  """
+  Align the overlay image to the right of the actual image
+  """
   RIGHT
 
-  """Align the overlay image to the middle (vertically) of the actual image"""
+  """
+  Align the overlay image to the middle (vertically) of the actual image
+  """
   MIDDLE
 
   """
@@ -186,27 +271,41 @@ enum SysAssetOverlayAlignValues {
 }
 
 enum SysAssetOverlayRepeatValues {
-  """Horizontal repetition"""
+  """
+  Horizontal repetition
+  """
   X
 
-  """Vertical repetition"""
+  """
+  Vertical repetition
+  """
   Y
 
-  """Horizontal and vertical repetition"""
+  """
+  Horizontal and vertical repetition
+  """
   BOTH
 }
 
-"""WEBP images are usually lower in size and have good quality."""
+"""
+WEBP images are usually lower in size and have good quality.
+"""
 enum SysAssetAutoValues {
   WEBP
 }
 
-"""This parameter allows an image to be downloaded or rendered on page"""
+"""
+This parameter allows an image to be downloaded or rendered on page
+"""
 enum SysAssetDispositionValues {
-  """Allows to download an image"""
+  """
+  Allows to download an image
+  """
   ATTACHMENT
 
-  """Allows an image to be rendered on page"""
+  """
+  Allows an image to be rendered on page
+  """
   INLINE
 }
 
@@ -1098,7 +1197,10 @@ type ProductListingPage {
   system: EntrySystemField
 }
 
-union ProductListingPagePageComponents = ProductListingPagePageComponentsHeroBanner | ProductListingPagePageComponentsProduct | ProductListingPagePageComponentsWidget
+union ProductListingPagePageComponents =
+  | ProductListingPagePageComponentsHeroBanner
+  | ProductListingPagePageComponentsProduct
+  | ProductListingPagePageComponentsWidget
 
 type ProductListingPagePageComponentsHeroBanner {
   hero_banner: ProductListingPagePageComponentsHeroBannerBlock
@@ -1124,7 +1226,11 @@ type ProductListingPagePageComponentsProduct {
 }
 
 type ProductListingPagePageComponentsProductBlock {
-  productConnection(skip: Int = 0, limit: Int = 100, where: SysRefProductListingPagePageComponentsProductBlockProductWhere): ProductListingPagePageComponentsProductBlockProductConnection
+  productConnection(
+    skip: Int = 0
+    limit: Int = 100
+    where: SysRefProductListingPagePageComponentsProductBlockProductWhere
+  ): ProductListingPagePageComponentsProductBlockProductConnection
 }
 
 type ProductListingPagePageComponentsProductBlockProductConnection {

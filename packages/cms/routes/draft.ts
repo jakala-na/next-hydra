@@ -28,14 +28,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // Redirect to original path redirected=true to prevent infinite redirects.
     url.searchParams.set('redirected', 'true');
     url.searchParams.delete('originalPathname');
-    return NextResponse.redirect(
-      new URL(`${pathname}?${url.searchParams.toString()}`, url)
-    );
+    return NextResponse.redirect(new URL(`${pathname}?${url.searchParams.toString()}`, url));
   }
 
   // Error if no live preview token or pathname
-  return NextResponse.json(
-    { error: 'No live preview token or pathname' },
-    { status: 400 }
-  );
+  return NextResponse.json({ error: 'No live preview token or pathname' }, { status: 400 });
 }

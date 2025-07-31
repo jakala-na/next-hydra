@@ -5,6 +5,10 @@
   "files": {
     "includes": [
       "**",
+      "!**/packages/cms/gql/graphql-cache.*",
+      "!**/packages/cms/gql/graphql-env.*",
+      "!**/packages/commerce/gql/graphql-cache.*",
+      "!**/packages/commerce/gql/graphql-env.*",
       "!**/packages/design-system/lib/**",
       "!**/packages/design-system/hooks/**",
       "!**/apps/email/.react-email/**"
@@ -13,8 +17,33 @@
   "assist": { "actions": { "source": { "useSortedAttributes": "off" } } },
   "linter": {
     "rules": {
-      "nursery": { "noShadow": "warn", "noUselessEscapeInString": "off" },
-      "suspicious": { "noConsole": "warn" }
+      "a11y": {
+        "noStaticElementInteractions": "warn",
+        "useSemanticElements": "warn",
+        "noSvgWithoutTitle": "warn",
+        "noLabelWithoutControl": "warn"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "warn",
+        "useOptionalChain": "warn"
+      },
+      "performance": { "noNamespaceImport": "warn" },
+      "nursery": {
+        "noShadow": "warn",
+        "noUselessEscapeInString": "off",
+        "noUnknownAtRule": "warn",
+        "useParseIntRadix": "warn",
+        "noNestedComponentDefinitions": "warn",
+        "noNoninteractiveElementInteractions": "warn"
+      },
+      "suspicious": {
+        "noConsole": "warn",
+        "noArrayIndexKey": "warn",
+        "noGlobalIsNan": "warn",
+        "noEmptyBlockStatements": "warn"
+      },
+      "style": { "useNodejsImportProtocol": "warn" },
+      "security": { "noDangerouslySetInnerHtml": "warn" }
     }
   }
 }

@@ -7,5 +7,4 @@ import { routing } from './routing';
 // - https://github.com/vercel/next.js/tree/canary/examples/i18n-routing
 // - https://next-intl.dev/docs/routing/middleware
 
-export const i18nMiddleware: ReturnType<typeof createMiddleware> =
-  createMiddleware(routing);
+export const i18nMiddleware: ReturnType<typeof createMiddleware> = createMiddleware(routing);

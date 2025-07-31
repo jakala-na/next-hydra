@@ -17,20 +17,13 @@ const twitterHandle = '@vercel';
 const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
 const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 
-export const createMetadata = ({
-  title,
-  description,
-  image,
-  ...properties
-}: MetadataGenerator): Metadata => {
+export const createMetadata = ({ title, description, image, ...properties }: MetadataGenerator): Metadata => {
   const parsedTitle = `${title} | ${applicationName}`;
   const defaultMetadata: Metadata = {
     title: parsedTitle,
     description,
     applicationName,
-    metadataBase: productionUrl
-      ? new URL(`${protocol}://${productionUrl}`)
-      : undefined,
+    metadataBase: productionUrl ? new URL(`${protocol}://${productionUrl}`) : undefined,
     authors: [author],
     creator: author.name,
     formatDetection: {

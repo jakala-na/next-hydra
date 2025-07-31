@@ -33,7 +33,7 @@ const preview: Preview = {
         light: 'light',
         dark: 'dark',
         'yakima-red-theme': 'yakima-red-theme',
-        image: 'image-theme',
+        'image-theme': 'image-theme',
       },
       defaultTheme: 'light',
     }),

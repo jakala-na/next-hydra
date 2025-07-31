@@ -1,8 +1,4 @@
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@repo/design-system/components/ui/resizable';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@repo/design-system/components/ui/resizable';
 import type { Meta, StoryObj } from '@storybook/nextjs';
 
 /**

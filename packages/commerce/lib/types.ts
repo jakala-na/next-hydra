@@ -1,6 +1,5 @@
 export type Maybe<T> = T | null;
 
-
 export type CartProduct = {
   id: string;
   handle: string;

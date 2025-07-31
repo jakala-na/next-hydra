@@ -1,7 +1,7 @@
 import { Calendar } from '@repo/design-system/components/ui/calendar';
-import { action } from 'storybook/actions';
 import type { Meta, StoryObj } from '@storybook/nextjs';
 import { addDays } from 'date-fns';
+import { action } from 'storybook/actions';
 
 /**
  * A date field component that allows users to enter and edit date.
@@ -60,12 +60,7 @@ export const Range: Story = {
  */
 export const Disabled: Story = {
   args: {
-    disabled: [
-      addDays(new Date(), 1),
-      addDays(new Date(), 2),
-      addDays(new Date(), 3),
-      addDays(new Date(), 5),
-    ],
+    disabled: [addDays(new Date(), 1), addDays(new Date(), 2), addDays(new Date(), 3), addDays(new Date(), 5)],
   },
 };
 
