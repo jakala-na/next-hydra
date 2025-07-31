@@ -24,7 +24,7 @@
     "lint-staged": "^16.1.2",
     "turbo": "^2.5.5",
     "typescript": "^5.8.3",
-    "ultracite": "^5.0.12",
+    "ultracite": "^5.1.2",
     "vitest": "^3.1.4"
   },
   "engines": {
@@ -38,7 +38,7 @@
   "type": "module",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
-      "npx biome check --fix"
+      "npx ultracite format"
     ]
   }
 }
