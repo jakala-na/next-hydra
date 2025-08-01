@@ -86,12 +86,14 @@ export const Header = ({ navigationItems }: HeaderProps) => {
           </div>
           <SignedOut>
             <SignInButton>
-              <Button className="hidden md:inline" variant="secondary">
+              <Button className="hidden md:inline" variant="secondary" size="lg">
                 {t('signIn')}
               </Button>
             </SignInButton>
             <SignUpButton>
-              <Button>{t('signUp')}</Button>
+              <Button variant="primary" size="lg">
+                {t('signUp')}
+              </Button>
             </SignUpButton>
           </SignedOut>
           <SignedIn>
