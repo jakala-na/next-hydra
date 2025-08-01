@@ -7,17 +7,10 @@ import { cn } from '@repo/design-system/lib/utils';
 import { Toolbar } from '@repo/feature-flags/components/toolbar';
 import { hasLocale, NextIntlClientProvider } from '@repo/i18n';
 import { routing } from '@repo/i18n/routing';
-// import { Barlow } from 'next/font/google';
 import { draftMode, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Header } from '../components/header';
-
-// const barlow = Barlow({
-//   weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
-//   subsets: ['latin'],
-//   variable: '--font-barlow',
-// });
 
 type RootLayoutProperties = {
   readonly children: ReactNode;
