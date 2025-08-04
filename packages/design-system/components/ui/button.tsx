@@ -114,6 +114,14 @@ const buttonVariants = cva(baseClassNames, {
         'yakima-red-theme:active:text-chief-blue-950',
         'yakima-red-theme:disabled:text-yakima-red-300',
       ],
+      navigation: [
+        'rounded-full',
+        'py-1',
+        'px-4',
+        'hover:bg-alpha-80',
+        'focus-visible:bg-alpha-80',
+        'focus-visible:ring-chief-blue-300',
+      ],
     },
     size: {
       lg: ['h-10', 'py-1', 'px-5', 'rounded-full', 'has-[>svg]:pr-2.5'],

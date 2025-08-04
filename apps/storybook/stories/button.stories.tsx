@@ -1,6 +1,6 @@
 import { Button } from '@repo/design-system/components/ui/button';
 import type { Meta, StoryObj } from '@storybook/nextjs';
-import { ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 /**
  * Displays a button or a component that looks like a button.
@@ -64,6 +64,17 @@ export const Tertiary: Story = {
   ),
   args: {
     variant: 'tertiary',
+  },
+};
+
+export const Navigation: Story = {
+  render: (args) => (
+    <Button {...args}>
+      Button <ChevronDown className="size-6" />
+    </Button>
+  ),
+  args: {
+    variant: 'navigation',
   },
 };
 
