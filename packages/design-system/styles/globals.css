@@ -122,7 +122,7 @@
   --whole-leaf-900: #3e402b;
   --whole-leaf-950: #2d2f20;
 
-  --alpha-80: --alpha(#FFFFFF / 20%);
+  --alpha-80: --alpha(#ffffff / 20%);
   --background: var(--french-paper-50);
   --foreground: var(--chief-blue-950);
   --accent: var(--yakima-red-500);
@@ -168,7 +168,7 @@
 }
 
 .dark {
-  --alpha-80: --alpha(#0A0A0A / 20%);
+  --alpha-80: --alpha(#0a0a0a / 20%);
   --background: var(--chief-blue-950);
   --foreground: var(--base-white);
   --accent: var(--yakima-red-500);
