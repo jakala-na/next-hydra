@@ -5,7 +5,7 @@
 import ProductVariant_01, {
   type VariantItem,
   type VariantSelectionPayload,
-} from '@repo/components/commerce-ui/product-variants-01';
+} from '@repo/design-system/components/commerce-ui/product-variants-01';
 import { useState } from 'react';
 
 const EXAMPLE_VARIANTS: VariantItem[] = [

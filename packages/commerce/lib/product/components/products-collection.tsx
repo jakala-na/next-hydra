@@ -14,6 +14,7 @@ export default async function ProductsCollection(props: {
     locale: 'en-US',
     currency: 'USD',
     // FIXME: Default channel in our sandbox.
+    // Store: EU, US, CA
     channelId: 'bfb69a22-2ee2-4c1c-9f45-f9703c3ea77c',
   });
 
@@ -32,7 +33,8 @@ export default async function ProductsCollection(props: {
               key={product.id}
               title={product.title}
               description={product.description}
-              imageUrl={product.imageUrl}
+              imageUrl={product.featuredImage?.url}
+              imageTitle={product.featuredImage?.altText}
               price={product.priceFrom}
               prefix={`From ${product.currency}`}
               cta={<Link href={`/product/${product.slug}`}>Shop</Link>}

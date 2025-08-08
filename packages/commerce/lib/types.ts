@@ -1,5 +1,3 @@
-export type Maybe<T> = T | null;
-
 export type CartProduct = {
   id: string;
   handle: string;
@@ -25,20 +23,34 @@ export type Image = {
   altText: string;
 };
 
-export type Menu = {
-  title: string;
-  path: string;
-};
-
 export type Money = {
   amount: string;
   currencyCode: string;
 };
 
-export type ProductOption = {
-  id: string;
-  name: string;
-  values: string[];
+export type ProductOptionType = 'text' | 'enum';
+
+export type ProductOptionTextValue = {
+  value: string;
+};
+
+export type ProductOptionEnumValue = {
+  label: string;
+  value: string;
+};
+
+export type ProductOptionValueByType<T extends ProductOptionType> =
+  T extends 'enum'
+    ? ProductOptionEnumValue
+    : T extends 'text'
+      ? ProductOptionTextValue
+      : never;
+
+export type ProductOption<T extends ProductOptionType = ProductOptionType> = {
+  key: string;
+  label: string;
+  type: T;
+  values: ProductOptionValueByType<T>[];
 };
 
 export type ProductVariant = {
@@ -55,6 +67,7 @@ export type ProductVariant = {
 export type SEO = {
   title: string;
   description: string;
+  searchable: boolean;
 };
 
 export type Cart = {
@@ -77,23 +90,27 @@ export type Collection = {
   updatedAt: string;
 };
 
-export type Product = {
+export type ProductCard = {
   id: string;
-  handle: string;
-  availableForSale: boolean;
+  slug?: string;
+  featuredImage?: Image;
   title: string;
+  description?: string;
+  priceFrom?: number;
+  currency?: string;
+  rating?: number;
+  reviewCount?: number;
+};
+
+export type ProductDetails = {
+  id: string;
+  slug?: string;
+  title: string;
+  availableForSale: boolean;
   description: string;
-  descriptionHtml: string;
-  // options: ProductOption[];
-  priceRange: {
-    maxVariantPrice: Money;
-    minVariantPrice: Money;
-  };
-  sku: string;
-  // variants: Connection<ProductVariant>;
-  featuredImage: Image;
-  // images: Connection<Image>;
+  options: ProductOption[];
+  variants: ProductVariant[];
+  images?: Image[];
   seo: SEO;
-  // tags: string[];
   updatedAt: string | undefined | null;
 };

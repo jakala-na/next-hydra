@@ -1,16 +1,17 @@
 'use client';
 
-import ImageViewer from '@repo/components/commerce-ui/image-viewer-basic';
-import PriceFormat_Sale from '@repo/components/commerce-ui/price-format-sale';
-import QuantityInputBasic from '@repo/components/commerce-ui/quantity-input-basic';
+import ImageViewer from '@repo/design-system/components/commerce-ui/image-viewer-basic';
+import PriceFormat_Sale from '@repo/design-system/components/commerce-ui/price-format-sale';
+import QuantityInputBasic from '@repo/design-system/components/commerce-ui/quantity-input-basic';
 import VariantSelectorBasic, {
   type VariantItem as BaseVariantItem,
-} from '@repo/components/commerce-ui/variant-selector-basic';
-import { Button } from '@repo/components/ui/button';
+} from '@repo/design-system/components/commerce-ui/variant-selector-basic';
+import { Button } from '@repo/design-system/components/ui/button';
 import { Clock } from 'lucide-react';
 import { useState } from 'react';
 
 interface VariantItem extends BaseVariantItem {
+  id: string;
   price: number;
   salePrice?: number;
   imageUrl?: string;

@@ -2,7 +2,10 @@ import z from 'zod';
 import { graphqlClient } from '../../../client';
 import { graphql } from '../../../graphql';
 import { action } from '../../utils/safe-action';
-import { productCardFragment, reshapeProductCard } from '../mappers';
+import {
+  productCardFragment,
+  reshapeProductCard,
+} from '../mappers/product-card';
 
 // TODO: This uses Product Projections Search API, but we may want to consider Product Search API.
 export const getProductsCollection = action

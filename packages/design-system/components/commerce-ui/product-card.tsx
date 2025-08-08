@@ -10,6 +10,7 @@ const DEFAULT_IMAGE_URL =
 
 interface ProductCardProps {
   imageUrl?: string;
+  imageTitle?: string;
   discount?: string | null;
   title: string;
   description?: string;
@@ -26,6 +27,7 @@ function ProductCard({
   discount,
   freeShipping,
   imageUrl = DEFAULT_IMAGE_URL,
+  imageTitle,
   prefix,
   price,
   rating,
@@ -51,6 +53,7 @@ function ProductCard({
         <div className="transition-transform duration-500 group-hover:scale-105">
           <ImageViewer
             imageUrl={imageUrl}
+            imageTitle={imageTitle}
             classNameThumbnailViewer="rounded-lg object-contain h-[200px] mx-auto"
           />
         </div>
