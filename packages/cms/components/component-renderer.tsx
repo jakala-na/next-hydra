@@ -12,9 +12,11 @@
 
 import { ProductsCollection } from '@repo/cms/components/blocks/products-collection';
 import type { ComponentProps } from 'react';
+import { Tabs } from './blocks/tabs';
 
 export const componentMap = {
-  PageComponentsProductCards: ProductsCollection,
+  ProductCards: ProductsCollection,
+  Tabs,
 } as const;
 
 interface BaseData {
@@ -65,4 +67,4 @@ export default function ComponentRenderer<
 }
 
 // Collocate all fragments.
-ComponentRenderer.fragments = [ProductsCollection.fragment];
+ComponentRenderer.fragments = [ProductsCollection.fragment, Tabs.fragment];

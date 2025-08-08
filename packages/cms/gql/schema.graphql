@@ -1,16 +1,24 @@
 type Query {
   assets(uid: String!, locale: String = "en-us", fallback_locale: Boolean = false): SysAsset
   all_assets(where: SysAssetWhere, locale: String = "en-us", order_by: [SysAssetOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllSysAsset
+  homepage(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Homepage
+  all_homepage(where: HomepageWhere, locale: String! = "en-us", order_by: [HomepageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllHomepage
   page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Page
   all_page(where: PageWhere, locale: String! = "en-us", order_by: [PageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllPage
-  navigation(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Navigation
-  all_navigation(where: NavigationWhere, locale: String! = "en-us", order_by: [NavigationOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllNavigation
+  blocks(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Blocks
+  all_blocks(where: BlocksWhere, locale: String! = "en-us", order_by: [BlocksOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllBlocks
   mega_menu(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): MegaMenu
   all_mega_menu(where: MegaMenuWhere, locale: String! = "en-us", order_by: [MegaMenuOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllMegaMenu
-  product(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Product
-  all_product(where: ProductWhere, locale: String! = "en-us", order_by: [ProductOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllProduct
+  striking_hero_banner(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): StrikingHeroBanner
+  all_striking_hero_banner(where: StrikingHeroBannerWhere, locale: String! = "en-us", order_by: [StrikingHeroBannerOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllStrikingHeroBanner
   hero_banner(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): HeroBanner
   all_hero_banner(where: HeroBannerWhere, locale: String! = "en-us", order_by: [HeroBannerOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllHeroBanner
+  navigation(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Navigation
+  all_navigation(where: NavigationWhere, locale: String! = "en-us", order_by: [NavigationOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllNavigation
+  hero(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Hero
+  all_hero(where: HeroWhere, locale: String! = "en-us", order_by: [HeroOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllHero
+  product(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Product
+  all_product(where: ProductWhere, locale: String! = "en-us", order_by: [ProductOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllProduct
   product_listing_page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): ProductListingPage
   all_product_listing_page(where: ProductListingPageWhere, locale: String! = "en-us", order_by: [ProductListingPageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllProductListingPage
 }
@@ -368,55 +376,89 @@ enum SysAssetOrderBy {
   updated_at_DESC
 }
 
-type Page {
+type Homepage {
   title: String
   url: String
-  headline: String
-  components: [PageComponents]
-  seo: Seo
+  hero_sliderConnection(skip: Int = 0, limit: Int = 100, where: SysRefHomepageHeroSliderWhere): HomepageHeroSliderConnection
+  components: [HomepageComponents]
+  seo: SeoAndSearch
   system: EntrySystemField
 }
 
-union PageComponents = PageComponentsTextBlock | PageComponentsProductCards
-
-type PageComponentsTextBlock {
-  text_block: PageComponentsTextBlockBlock
-}
-
-type PageComponentsTextBlockBlock {
-  content: PageComponentsTextBlockBlockContent
-}
-
-type PageComponentsTextBlockBlockContent {
-  json: JSON
-  embedded_itemsConnection(skip: Int = 0, limit: Int = 100): PageComponentsTextBlockBlockContentEmbeddedItemsConnection
-}
-
-type PageComponentsTextBlockBlockContentEmbeddedItemsConnection {
+type HomepageHeroSliderConnection {
   totalCount: Int
-  edges: [PageComponentsTextBlockBlockContentEmbeddedItemsEdge]
+  edges: [HomepageHeroSliderEdge]
 }
 
-type PageComponentsTextBlockBlockContentEmbeddedItemsEdge {
-  node: PageComponentsTextBlockBlockContentEmbeddedItemsNode
+type HomepageHeroSliderEdge {
+  node: HomepageHeroSliderNode
 }
 
-union PageComponentsTextBlockBlockContentEmbeddedItemsNode = SysAsset
+union HomepageHeroSliderNode = StrikingHeroBanner
 
-type PageComponentsProductCards {
-  product_cards: ProductCards
-}
-
-type ProductCards {
+type StrikingHeroBanner {
   title: String
-  category: JSON
+  enable_live_text_and_cta: Boolean
+  content: String
+  json_rte: StrikingHeroBannerJsonRte
+  cta: StrikingHeroBannerCta
+  image: StrikingHeroBannerImage
+  video: StrikingHeroBannerVideo
+  styles: StrikingHeroBannerStyles
+  system: EntrySystemField
 }
 
-type Seo {
-  meta_title: String
-  meta_description: String
-  keywords: String
-  enable_search_indexing: Boolean
+type StrikingHeroBannerJsonRte {
+  json: JSON
+  embedded_itemsConnection(skip: Int = 0, limit: Int = 100): StrikingHeroBannerJsonRteEmbeddedItemsConnection
+}
+
+type StrikingHeroBannerJsonRteEmbeddedItemsConnection {
+  totalCount: Int
+  edges: [StrikingHeroBannerJsonRteEmbeddedItemsEdge]
+}
+
+type StrikingHeroBannerJsonRteEmbeddedItemsEdge {
+  node: StrikingHeroBannerJsonRteEmbeddedItemsNode
+}
+
+union StrikingHeroBannerJsonRteEmbeddedItemsNode = SysAsset
+
+type StrikingHeroBannerCta {
+  text: String
+  link: Link
+}
+
+type Link {
+  title: String
+  href: String
+}
+
+type StrikingHeroBannerImage {
+  image_desktopConnection: SysAssetConnection
+  image_tabletConnection: SysAssetConnection
+  image_mobileConnection: SysAssetConnection
+  alt_text: String
+  image_url: Link
+}
+
+type SysAssetConnection {
+  totalCount: Int
+  edges: [SysAssetEdge]
+}
+
+type SysAssetEdge {
+  node: SysAsset
+}
+
+type StrikingHeroBannerVideo {
+  videoConnection: SysAssetConnection
+  video_alt_text: String
+}
+
+type StrikingHeroBannerStyles {
+  mask_and_text_alignment: String
+  theme: String
 }
 
 type EntrySystemField {
@@ -434,12 +476,404 @@ type EntrySystemField {
   extensionConnection(skip: Int = 0, limit: Int = 25): SysExtensionConnection
 }
 
-type AllPage {
-  total: Int
-  items: [Page]
+input SysRefHomepageHeroSliderWhere {
+  striking_hero_banner: SysRefStrikingHeroBannerWhere
 }
 
-input PageWhere {
+input SysRefStrikingHeroBannerWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  enable_live_text_and_cta: Boolean
+  enable_live_text_and_cta_exists: Boolean
+  enable_live_text_and_cta_ne: Boolean
+  content: String
+  content_ne: String
+  content_in: [String]
+  content_nin: [String]
+  content_exists: Boolean
+  cta: SysStrikingHeroBannerCtaWhere
+  image: SysStrikingHeroBannerImageWhere
+  video: SysStrikingHeroBannerVideoWhere
+  styles: SysStrikingHeroBannerStylesWhere
+}
+
+input SysStrikingHeroBannerCtaWhere {
+  text: String
+  text_ne: String
+  text_in: [String]
+  text_nin: [String]
+  text_exists: Boolean
+  link: LinkWhere
+}
+
+input LinkWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  href: String
+  href_ne: String
+  href_in: [String]
+  href_nin: [String]
+  href_exists: Boolean
+}
+
+input SysStrikingHeroBannerImageWhere {
+  alt_text: String
+  alt_text_ne: String
+  alt_text_in: [String]
+  alt_text_nin: [String]
+  alt_text_exists: Boolean
+  image_url: LinkWhere
+}
+
+input SysStrikingHeroBannerVideoWhere {
+  video_alt_text: String
+  video_alt_text_ne: String
+  video_alt_text_in: [String]
+  video_alt_text_nin: [String]
+  video_alt_text_exists: Boolean
+}
+
+input SysStrikingHeroBannerStylesWhere {
+  mask_and_text_alignment: String
+  mask_and_text_alignment_ne: String
+  mask_and_text_alignment_in: [String]
+  mask_and_text_alignment_nin: [String]
+  mask_and_text_alignment_exists: Boolean
+  theme: String
+  theme_ne: String
+  theme_in: [String]
+  theme_nin: [String]
+  theme_exists: Boolean
+}
+
+union HomepageComponents = HomepageComponentsProminentFeaturedContent | HomepageComponentsImageAndText5050 | HomepageComponentsSocialFeed | HomepageComponentsKeyBenefits | HomepageComponentsCalloutBanner | HomepageComponentsReference | HomepageComponentsTabs | HomepageComponentsTabsOriginal
+
+type HomepageComponentsProminentFeaturedContent {
+  prominent_featured_content: ProminentFeaturedContent
+}
+
+type ProminentFeaturedContent {
+  title: String
+  description: String
+  cta: [ProminentFeaturedContentCta]
+  image: ProminentFeaturedContentImage
+  video: ProminentFeaturedContentVideo
+  styling: ProminentFeaturedContentStyling
+}
+
+type ProminentFeaturedContentCta {
+  cta_label: String
+  cta_link: Link
+}
+
+type ProminentFeaturedContentImage {
+  imageConnection: SysAssetConnection
+  alt_text: String
+}
+
+type ProminentFeaturedContentVideo {
+  videoConnection: SysAssetConnection
+  video_alt_text: String
+}
+
+type ProminentFeaturedContentStyling {
+  background: String
+}
+
+type HomepageComponentsImageAndText5050 {
+  image_and_text_50_50: ImageAndText5050
+}
+
+type ImageAndText5050 {
+  heading: String
+  description: String
+  cta: ImageAndText5050Cta
+  image: ImageAndText5050Image
+  styling: ImageAndText5050Styling
+}
+
+type ImageAndText5050Cta {
+  cta_label: String
+  cta_link: Link
+}
+
+type ImageAndText5050Image {
+  imageConnection: SysAssetConnection
+  image_alt_text: String
+}
+
+type ImageAndText5050Styling {
+  theme: String
+  background_pattern: String
+  background_and_field_pattern_color: String
+}
+
+type HomepageComponentsSocialFeed {
+  social_feed: SocialFeed
+}
+
+type SocialFeed {
+  heading: String
+  description: String
+  cta: [SocialFeedCta]
+  social_feed_integration_placeholder_field_: String
+}
+
+type SocialFeedCta {
+  label: String
+  link: Link
+}
+
+type HomepageComponentsKeyBenefits {
+  key_benefits: KeyBenefits
+}
+
+type KeyBenefits {
+  heading: String
+  description: String
+  cta: [KeyBenefitsCta]
+  key_benefit: [KeyBenefitsKeyBenefit]
+}
+
+type KeyBenefitsCta {
+  label: String
+  link: Link
+}
+
+type KeyBenefitsKeyBenefit {
+  title: String
+  description: String
+}
+
+type HomepageComponentsCalloutBanner {
+  callout_banner: CalloutBanner
+}
+
+type CalloutBanner {
+  heading: String
+  subheading: String
+  cta: [CalloutBannerCta]
+}
+
+type CalloutBannerCta {
+  cta_label: String
+  cta_link: Link
+}
+
+type HomepageComponentsReference {
+  reference: HomepageComponentsReferenceBlock
+}
+
+type HomepageComponentsReferenceBlock {
+  referenceConnection: HomepageComponentsReferenceBlockReferenceConnection
+}
+
+type HomepageComponentsReferenceBlockReferenceConnection {
+  totalCount: Int
+  edges: [HomepageComponentsReferenceBlockReferenceEdge]
+}
+
+type HomepageComponentsReferenceBlockReferenceEdge {
+  node: HomepageComponentsReferenceBlockReferenceNode
+}
+
+union HomepageComponentsReferenceBlockReferenceNode = StrikingHeroBanner
+
+type HomepageComponentsTabs {
+  tabs: Tabs
+}
+
+type Tabs {
+  heading: String
+  tabs: [TabsTabs]
+  styling: TabsStyling
+}
+
+union TabsTabs = TabsTabsTab
+
+type TabsTabsTab {
+  tab: TabsTabsTabBlock
+}
+
+type TabsTabsTabBlock {
+  label: String
+  content: [TabsTabsTabBlockContent]
+}
+
+union TabsTabsTabBlockContent = TabsTabsTabBlockContentRichText | TabsTabsTabBlockContentCardCollection
+
+type TabsTabsTabBlockContentRichText {
+  rich_text: TabsTabsTabBlockContentRichTextBlock
+}
+
+type TabsTabsTabBlockContentRichTextBlock {
+  content: TabsTabsTabBlockContentRichTextBlockContent
+}
+
+type TabsTabsTabBlockContentRichTextBlockContent {
+  json: JSON
+  embedded_itemsConnection(skip: Int = 0, limit: Int = 100): TabsTabsTabBlockContentRichTextBlockContentEmbeddedItemsConnection
+}
+
+type TabsTabsTabBlockContentRichTextBlockContentEmbeddedItemsConnection {
+  totalCount: Int
+  edges: [TabsTabsTabBlockContentRichTextBlockContentEmbeddedItemsEdge]
+}
+
+type TabsTabsTabBlockContentRichTextBlockContentEmbeddedItemsEdge {
+  node: TabsTabsTabBlockContentRichTextBlockContentEmbeddedItemsNode
+}
+
+union TabsTabsTabBlockContentRichTextBlockContentEmbeddedItemsNode = SysAsset
+
+type TabsTabsTabBlockContentCardCollection {
+  card_collection: TabsTabsTabBlockContentCardCollectionBlock
+}
+
+type TabsTabsTabBlockContentCardCollectionBlock {
+  contentConnection: TabsTabsTabBlockContentCardCollectionBlockContentConnection
+}
+
+type TabsTabsTabBlockContentCardCollectionBlockContentConnection {
+  totalCount: Int
+  edges: [TabsTabsTabBlockContentCardCollectionBlockContentEdge]
+}
+
+type TabsTabsTabBlockContentCardCollectionBlockContentEdge {
+  node: TabsTabsTabBlockContentCardCollectionBlockContentNode
+}
+
+union TabsTabsTabBlockContentCardCollectionBlockContentNode = Product
+
+type Product {
+  title: String
+  url: String
+  description: String
+  featured_imageConnection(skip: Int = 0, limit: Int = 100): SysAssetConnection
+  price: Float
+  call_to_action: Link
+  system: EntrySystemField
+}
+
+type TabsStyling {
+  background_pattern: String
+  background_and_field_pattern_color: String
+}
+
+type HomepageComponentsTabsOriginal {
+  tabs_original: TabbedCartCollection
+}
+
+type TabbedCartCollection {
+  collection_heading: String
+  collection_tabs: [TabbedCartCollectionCollectionTabs]
+  styling: TabbedCartCollectionStyling
+}
+
+type TabbedCartCollectionCollectionTabs {
+  tab_label: String
+  content_typeConnection: TabbedCartCollectionCollectionTabsContentTypeConnection
+  contentConnection: TabbedCartCollectionCollectionTabsContentConnection
+}
+
+type TabbedCartCollectionCollectionTabsContentTypeConnection {
+  totalCount: Int
+  edges: [TabbedCartCollectionCollectionTabsContentTypeEdge]
+}
+
+type TabbedCartCollectionCollectionTabsContentTypeEdge {
+  node: TabbedCartCollectionCollectionTabsContentTypeNode
+}
+
+union TabbedCartCollectionCollectionTabsContentTypeNode = Product
+
+type TabbedCartCollectionCollectionTabsContentConnection {
+  totalCount: Int
+  edges: [TabbedCartCollectionCollectionTabsContentEdge]
+}
+
+type TabbedCartCollectionCollectionTabsContentEdge {
+  node: TabbedCartCollectionCollectionTabsContentNode
+}
+
+union TabbedCartCollectionCollectionTabsContentNode = Blocks
+
+type Blocks {
+  title: String
+  content: [BlocksContent]
+  system: EntrySystemField
+}
+
+union BlocksContent = BlocksContentRichText | BlocksContentProductCollection
+
+type BlocksContentRichText {
+  rich_text: BlocksContentRichTextBlock
+}
+
+type BlocksContentRichTextBlock {
+  content: BlocksContentRichTextBlockContent
+}
+
+type BlocksContentRichTextBlockContent {
+  json: JSON
+  embedded_itemsConnection(skip: Int = 0, limit: Int = 100): BlocksContentRichTextBlockContentEmbeddedItemsConnection
+}
+
+type BlocksContentRichTextBlockContentEmbeddedItemsConnection {
+  totalCount: Int
+  edges: [BlocksContentRichTextBlockContentEmbeddedItemsEdge]
+}
+
+type BlocksContentRichTextBlockContentEmbeddedItemsEdge {
+  node: BlocksContentRichTextBlockContentEmbeddedItemsNode
+}
+
+union BlocksContentRichTextBlockContentEmbeddedItemsNode = SysAsset
+
+type BlocksContentProductCollection {
+  product_collection: BlocksContentProductCollectionBlock
+}
+
+type BlocksContentProductCollectionBlock {
+  productsConnection: BlocksContentProductCollectionBlockProductsConnection
+}
+
+type BlocksContentProductCollectionBlockProductsConnection {
+  totalCount: Int
+  edges: [BlocksContentProductCollectionBlockProductsEdge]
+}
+
+type BlocksContentProductCollectionBlockProductsEdge {
+  node: BlocksContentProductCollectionBlockProductsNode
+}
+
+union BlocksContentProductCollectionBlockProductsNode = Product
+
+type TabbedCartCollectionStyling {
+  background_pattern: String
+  background_and_field_pattern_color: String
+}
+
+type SeoAndSearch {
+  meta_title: String
+  meta_description: String
+  enable_search_indexing: Boolean
+  enable_internal_search_indexing: Boolean
+  open_graph_imageConnection: SysAssetConnection
+}
+
+type AllHomepage {
+  total: Int
+  items: [Homepage]
+}
+
+input HomepageWhere {
   title: String
   title_ne: String
   title_in: [String]
@@ -450,14 +884,12 @@ input PageWhere {
   url_in: [String]
   url_nin: [String]
   url_exists: Boolean
-  headline: String
-  headline_ne: String
-  headline_in: [String]
-  headline_nin: [String]
-  headline_exists: Boolean
-  components: PageComponentsWhere
+  hero_slider: HomepageHeroSliderWhere
+  hero_slider_count: Int
+  hero_slider_exists: Boolean
+  components: HomepageComponentsWhere
   components_exists: Boolean
-  seo: SeoWhere
+  seo: SeoAndSearchWhere
   seo_exists: Boolean
   created_at: DateTime
   created_at_in: [DateTime]
@@ -504,51 +936,135 @@ input PageWhere {
   version_gt: Int
   version_gte: Int
   publish_details: SystemPublishDetailsWhere
-  AND: [PageWhere]
-  OR: [PageWhere]
+  AND: [HomepageWhere]
+  OR: [HomepageWhere]
 }
 
-input PageComponentsWhere {
-  text_block: PageComponentsTextBlockBlockWhere
-  text_block_exists: Boolean
-  product_cards: PageComponentsProductCardsWhere
-  product_cards_exists: Boolean
+input HomepageHeroSliderWhere {
+  striking_hero_banner: StrikingHeroBannerWhere
+  MATCH: EvalReferenceEnum
 }
 
-input PageComponentsTextBlockBlockWhere {
-  content: JSON
-  content_exists: Boolean
-}
-
-input PageComponentsProductCardsWhere {
+input StrikingHeroBannerWhere {
   title: String
   title_ne: String
   title_in: [String]
   title_nin: [String]
   title_exists: Boolean
-  category: JSON
-  category_exists: Boolean
+  enable_live_text_and_cta: Boolean
+  enable_live_text_and_cta_exists: Boolean
+  enable_live_text_and_cta_ne: Boolean
+  content: String
+  content_ne: String
+  content_in: [String]
+  content_nin: [String]
+  content_exists: Boolean
+  json_rte: JSON
+  json_rte_exists: Boolean
+  cta: StrikingHeroBannerCtaWhere
+  cta_exists: Boolean
+  image: StrikingHeroBannerImageWhere
+  image_exists: Boolean
+  video: StrikingHeroBannerVideoWhere
+  video_exists: Boolean
+  styles: StrikingHeroBannerStylesWhere
+  styles_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [StrikingHeroBannerWhere]
+  OR: [StrikingHeroBannerWhere]
 }
 
-input SeoWhere {
-  meta_title: String
-  meta_title_ne: String
-  meta_title_in: [String]
-  meta_title_nin: [String]
-  meta_title_exists: Boolean
-  meta_description: String
-  meta_description_ne: String
-  meta_description_in: [String]
-  meta_description_nin: [String]
-  meta_description_exists: Boolean
-  keywords: String
-  keywords_ne: String
-  keywords_in: [String]
-  keywords_nin: [String]
-  keywords_exists: Boolean
-  enable_search_indexing: Boolean
-  enable_search_indexing_exists: Boolean
-  enable_search_indexing_ne: Boolean
+input StrikingHeroBannerCtaWhere {
+  text: String
+  text_ne: String
+  text_in: [String]
+  text_nin: [String]
+  text_exists: Boolean
+  link: LinkWhere
+  link_exists: Boolean
+}
+
+input StrikingHeroBannerImageWhere {
+  image_desktop: SysAssetWhere
+  image_desktop_exists: Boolean
+  image_tablet: SysAssetWhere
+  image_tablet_exists: Boolean
+  image_mobile: SysAssetWhere
+  image_mobile_exists: Boolean
+  alt_text: String
+  alt_text_ne: String
+  alt_text_in: [String]
+  alt_text_nin: [String]
+  alt_text_exists: Boolean
+  image_url: LinkWhere
+  image_url_exists: Boolean
+}
+
+input StrikingHeroBannerVideoWhere {
+  video: SysAssetWhere
+  video_exists: Boolean
+  video_alt_text: String
+  video_alt_text_ne: String
+  video_alt_text_in: [String]
+  video_alt_text_nin: [String]
+  video_alt_text_exists: Boolean
+}
+
+input StrikingHeroBannerStylesWhere {
+  mask_and_text_alignment: String
+  mask_and_text_alignment_ne: String
+  mask_and_text_alignment_in: [String]
+  mask_and_text_alignment_nin: [String]
+  mask_and_text_alignment_exists: Boolean
+  theme: String
+  theme_ne: String
+  theme_in: [String]
+  theme_nin: [String]
+  theme_exists: Boolean
 }
 
 input SystemPublishDetailsWhere {
@@ -570,319 +1086,298 @@ input SystemPublishDetailsWhere {
   locale_nin: [String]
 }
 
-enum PageOrderBy {
-  created_at_ASC
-  created_at_DESC
-  updated_at_ASC
-  updated_at_DESC
-}
-
-type Navigation {
-  title: String
-  items: [NavigationItems]
-  system: EntrySystemField
-}
-
-type NavigationItems {
-  text: String
-  linkConnection: NavigationItemsLinkConnection
-  mega_menuConnection: NavigationItemsMegaMenuConnection
-}
-
-type NavigationItemsLinkConnection {
-  totalCount: Int
-  edges: [NavigationItemsLinkEdge]
-}
-
-type NavigationItemsLinkEdge {
-  node: NavigationItemsLinkNode
-}
-
-union NavigationItemsLinkNode = Page
-
-type NavigationItemsMegaMenuConnection {
-  totalCount: Int
-  edges: [NavigationItemsMegaMenuEdge]
-}
-
-type NavigationItemsMegaMenuEdge {
-  node: NavigationItemsMegaMenuNode
-}
-
-union NavigationItemsMegaMenuNode = MegaMenu
-
-type MegaMenu {
-  title: String
-  sections: [MegaMenuSections]
-  system: EntrySystemField
-}
-
-type MegaMenuSections {
-  title: String
-  linkConnection: MegaMenuSectionsLinkConnection
-  links: [MegaMenuSectionsLinks]
-}
-
-type MegaMenuSectionsLinkConnection {
-  totalCount: Int
-  edges: [MegaMenuSectionsLinkEdge]
-}
-
-type MegaMenuSectionsLinkEdge {
-  node: MegaMenuSectionsLinkNode
-}
-
-union MegaMenuSectionsLinkNode = Page
-
-type MegaMenuSectionsLinks {
-  text: String
-  thumbnailConnection: SysAssetConnection
-  linkConnection: MegaMenuSectionsLinksLinkConnection
-  link_text: String
-}
-
-type SysAssetConnection {
-  totalCount: Int
-  edges: [SysAssetEdge]
-}
-
-type SysAssetEdge {
-  node: SysAsset
-}
-
-type MegaMenuSectionsLinksLinkConnection {
-  totalCount: Int
-  edges: [MegaMenuSectionsLinksLinkEdge]
-}
-
-type MegaMenuSectionsLinksLinkEdge {
-  node: MegaMenuSectionsLinksLinkNode
-}
-
-union MegaMenuSectionsLinksLinkNode = Page
-
-type AllNavigation {
-  total: Int
-  items: [Navigation]
-}
-
-input NavigationWhere {
-  title: String
-  title_ne: String
-  title_in: [String]
-  title_nin: [String]
-  title_exists: Boolean
-  items: NavigationItemsWhere
-  items_exists: Boolean
-  created_at: DateTime
-  created_at_in: [DateTime]
-  created_at_nin: [DateTime]
-  created_at_ne: DateTime
-  created_by: String
-  created_by_in: [String]
-  created_by_nin: [String]
-  created_by_ne: String
-  created_at_lt: DateTime
-  created_at_lte: DateTime
-  created_at_gt: DateTime
-  created_at_gte: DateTime
-  updated_at: DateTime
-  updated_at_in: [DateTime]
-  updated_at_nin: [DateTime]
-  updated_at_ne: DateTime
-  updated_by: String
-  updated_by_in: [String]
-  updated_by_nin: [String]
-  updated_by_ne: String
-  updated_at_lt: DateTime
-  updated_at_lte: DateTime
-  updated_at_gt: DateTime
-  updated_at_gte: DateTime
-  locale: String
-  locale_ne: String
-  locale_in: [String]
-  locale_nin: [String]
-  locale_exists: Boolean
-  uid: String
-  uid_ne: String
-  uid_in: [String]
-  uid_nin: [String]
-  uid_exists: Boolean
-  tags_in: [String]
-  tags_nin: [String]
-  version: Int
-  version_ne: Int
-  version_in: [Int]
-  version_nin: [Int]
-  version_lt: Int
-  version_lte: Int
-  version_gt: Int
-  version_gte: Int
-  publish_details: SystemPublishDetailsWhere
-  AND: [NavigationWhere]
-  OR: [NavigationWhere]
-}
-
-input NavigationItemsWhere {
-  text: String
-  text_ne: String
-  text_in: [String]
-  text_nin: [String]
-  text_exists: Boolean
-  link: NavigationItemsLinkWhere
-  link_exists: Boolean
-  mega_menu: NavigationItemsMegaMenuWhere
-  mega_menu_exists: Boolean
-}
-
-input NavigationItemsLinkWhere {
-  page: PageWhere
-  MATCH: EvalReferenceEnum
-}
-
 enum EvalReferenceEnum {
   ANY
   ALL
 }
 
-input NavigationItemsMegaMenuWhere {
-  mega_menu: MegaMenuWhere
-  MATCH: EvalReferenceEnum
+input HomepageComponentsWhere {
+  prominent_featured_content: HomepageComponentsProminentFeaturedContentWhere
+  prominent_featured_content_exists: Boolean
+  image_and_text_50_50: HomepageComponentsImageAndText5050Where
+  image_and_text_50_50_exists: Boolean
+  social_feed: HomepageComponentsSocialFeedWhere
+  social_feed_exists: Boolean
+  key_benefits: HomepageComponentsKeyBenefitsWhere
+  key_benefits_exists: Boolean
+  callout_banner: HomepageComponentsCalloutBannerWhere
+  callout_banner_exists: Boolean
+  reference: HomepageComponentsReferenceBlockWhere
+  reference_exists: Boolean
+  tabs: HomepageComponentsTabsWhere
+  tabs_exists: Boolean
+  tabs_original: HomepageComponentsTabsOriginalWhere
+  tabs_original_exists: Boolean
 }
 
-input MegaMenuWhere {
+input HomepageComponentsProminentFeaturedContentWhere {
   title: String
   title_ne: String
   title_in: [String]
   title_nin: [String]
   title_exists: Boolean
-  sections: MegaMenuSectionsWhere
-  sections_exists: Boolean
-  created_at: DateTime
-  created_at_in: [DateTime]
-  created_at_nin: [DateTime]
-  created_at_ne: DateTime
-  created_by: String
-  created_by_in: [String]
-  created_by_nin: [String]
-  created_by_ne: String
-  created_at_lt: DateTime
-  created_at_lte: DateTime
-  created_at_gt: DateTime
-  created_at_gte: DateTime
-  updated_at: DateTime
-  updated_at_in: [DateTime]
-  updated_at_nin: [DateTime]
-  updated_at_ne: DateTime
-  updated_by: String
-  updated_by_in: [String]
-  updated_by_nin: [String]
-  updated_by_ne: String
-  updated_at_lt: DateTime
-  updated_at_lte: DateTime
-  updated_at_gt: DateTime
-  updated_at_gte: DateTime
-  locale: String
-  locale_ne: String
-  locale_in: [String]
-  locale_nin: [String]
-  locale_exists: Boolean
-  uid: String
-  uid_ne: String
-  uid_in: [String]
-  uid_nin: [String]
-  uid_exists: Boolean
-  tags_in: [String]
-  tags_nin: [String]
-  version: Int
-  version_ne: Int
-  version_in: [Int]
-  version_nin: [Int]
-  version_lt: Int
-  version_lte: Int
-  version_gt: Int
-  version_gte: Int
-  publish_details: SystemPublishDetailsWhere
-  AND: [MegaMenuWhere]
-  OR: [MegaMenuWhere]
-}
-
-input MegaMenuSectionsWhere {
-  title: String
-  title_ne: String
-  title_in: [String]
-  title_nin: [String]
-  title_exists: Boolean
-  link: MegaMenuSectionsLinkWhere
-  link_exists: Boolean
-  links: MegaMenuSectionsLinksWhere
-  links_exists: Boolean
-}
-
-input MegaMenuSectionsLinkWhere {
-  page: PageWhere
-  MATCH: EvalReferenceEnum
-}
-
-input MegaMenuSectionsLinksWhere {
-  text: String
-  text_ne: String
-  text_in: [String]
-  text_nin: [String]
-  text_exists: Boolean
-  thumbnail: SysAssetWhere
-  thumbnail_exists: Boolean
-  link: MegaMenuSectionsLinksLinkWhere
-  link_exists: Boolean
-  link_text: String
-  link_text_ne: String
-  link_text_in: [String]
-  link_text_nin: [String]
-  link_text_exists: Boolean
-}
-
-input MegaMenuSectionsLinksLinkWhere {
-  page: PageWhere
-  MATCH: EvalReferenceEnum
-}
-
-enum NavigationOrderBy {
-  created_at_ASC
-  created_at_DESC
-  updated_at_ASC
-  updated_at_DESC
-}
-
-type AllMegaMenu {
-  total: Int
-  items: [MegaMenu]
-}
-
-enum MegaMenuOrderBy {
-  created_at_ASC
-  created_at_DESC
-  updated_at_ASC
-  updated_at_DESC
-}
-
-type Product {
-  title: String
-  url: String
   description: String
-  featured_imageConnection(skip: Int = 0, limit: Int = 100): SysAssetConnection
-  price: Float
-  call_to_action: Link
-  system: EntrySystemField
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  cta: ProminentFeaturedContentCtaWhere
+  cta_exists: Boolean
+  image: ProminentFeaturedContentImageWhere
+  image_exists: Boolean
+  video: ProminentFeaturedContentVideoWhere
+  video_exists: Boolean
+  styling: ProminentFeaturedContentStylingWhere
+  styling_exists: Boolean
 }
 
-type Link {
+input ProminentFeaturedContentCtaWhere {
+  cta_label: String
+  cta_label_ne: String
+  cta_label_in: [String]
+  cta_label_nin: [String]
+  cta_label_exists: Boolean
+  cta_link: LinkWhere
+  cta_link_exists: Boolean
+}
+
+input ProminentFeaturedContentImageWhere {
+  image: SysAssetWhere
+  image_exists: Boolean
+  alt_text: String
+  alt_text_ne: String
+  alt_text_in: [String]
+  alt_text_nin: [String]
+  alt_text_exists: Boolean
+}
+
+input ProminentFeaturedContentVideoWhere {
+  video: SysAssetWhere
+  video_exists: Boolean
+  video_alt_text: String
+  video_alt_text_ne: String
+  video_alt_text_in: [String]
+  video_alt_text_nin: [String]
+  video_alt_text_exists: Boolean
+}
+
+input ProminentFeaturedContentStylingWhere {
+  background: String
+  background_ne: String
+  background_in: [String]
+  background_nin: [String]
+  background_exists: Boolean
+}
+
+input HomepageComponentsImageAndText5050Where {
+  heading: String
+  heading_ne: String
+  heading_in: [String]
+  heading_nin: [String]
+  heading_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  cta: ImageAndText5050CtaWhere
+  cta_exists: Boolean
+  image: ImageAndText5050ImageWhere
+  image_exists: Boolean
+  styling: ImageAndText5050StylingWhere
+  styling_exists: Boolean
+}
+
+input ImageAndText5050CtaWhere {
+  cta_label: String
+  cta_label_ne: String
+  cta_label_in: [String]
+  cta_label_nin: [String]
+  cta_label_exists: Boolean
+  cta_link: LinkWhere
+  cta_link_exists: Boolean
+}
+
+input ImageAndText5050ImageWhere {
+  image: SysAssetWhere
+  image_exists: Boolean
+  image_alt_text: String
+  image_alt_text_ne: String
+  image_alt_text_in: [String]
+  image_alt_text_nin: [String]
+  image_alt_text_exists: Boolean
+}
+
+input ImageAndText5050StylingWhere {
+  theme: String
+  theme_ne: String
+  theme_in: [String]
+  theme_nin: [String]
+  theme_exists: Boolean
+  background_pattern: String
+  background_pattern_ne: String
+  background_pattern_in: [String]
+  background_pattern_nin: [String]
+  background_pattern_exists: Boolean
+  background_and_field_pattern_color: String
+  background_and_field_pattern_color_ne: String
+  background_and_field_pattern_color_in: [String]
+  background_and_field_pattern_color_nin: [String]
+  background_and_field_pattern_color_exists: Boolean
+}
+
+input HomepageComponentsSocialFeedWhere {
+  heading: String
+  heading_ne: String
+  heading_in: [String]
+  heading_nin: [String]
+  heading_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  cta: SocialFeedCtaWhere
+  cta_exists: Boolean
+  social_feed_integration_placeholder_field_: String
+  social_feed_integration_placeholder_field__ne: String
+  social_feed_integration_placeholder_field__in: [String]
+  social_feed_integration_placeholder_field__nin: [String]
+  social_feed_integration_placeholder_field__exists: Boolean
+}
+
+input SocialFeedCtaWhere {
+  label: String
+  label_ne: String
+  label_in: [String]
+  label_nin: [String]
+  label_exists: Boolean
+  link: LinkWhere
+  link_exists: Boolean
+}
+
+input HomepageComponentsKeyBenefitsWhere {
+  heading: String
+  heading_ne: String
+  heading_in: [String]
+  heading_nin: [String]
+  heading_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  cta: KeyBenefitsCtaWhere
+  cta_exists: Boolean
+  key_benefit: KeyBenefitsKeyBenefitWhere
+  key_benefit_exists: Boolean
+}
+
+input KeyBenefitsCtaWhere {
+  label: String
+  label_ne: String
+  label_in: [String]
+  label_nin: [String]
+  label_exists: Boolean
+  link: LinkWhere
+  link_exists: Boolean
+}
+
+input KeyBenefitsKeyBenefitWhere {
   title: String
-  href: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
 }
 
-type AllProduct {
-  total: Int
-  items: [Product]
+input HomepageComponentsCalloutBannerWhere {
+  heading: String
+  heading_ne: String
+  heading_in: [String]
+  heading_nin: [String]
+  heading_exists: Boolean
+  subheading: String
+  subheading_ne: String
+  subheading_in: [String]
+  subheading_nin: [String]
+  subheading_exists: Boolean
+  cta: CalloutBannerCtaWhere
+  cta_exists: Boolean
+}
+
+input CalloutBannerCtaWhere {
+  cta_label: String
+  cta_label_ne: String
+  cta_label_in: [String]
+  cta_label_nin: [String]
+  cta_label_exists: Boolean
+  cta_link: LinkWhere
+  cta_link_exists: Boolean
+}
+
+input HomepageComponentsReferenceBlockWhere {
+  reference: HomepageComponentsReferenceBlockReferenceWhere
+  reference_exists: Boolean
+}
+
+input HomepageComponentsReferenceBlockReferenceWhere {
+  striking_hero_banner: StrikingHeroBannerWhere
+  MATCH: EvalReferenceEnum
+}
+
+input HomepageComponentsTabsWhere {
+  heading: String
+  heading_ne: String
+  heading_in: [String]
+  heading_nin: [String]
+  heading_exists: Boolean
+  tabs: TabsTabsWhere
+  tabs_exists: Boolean
+  styling: TabsStylingWhere
+  styling_exists: Boolean
+}
+
+input TabsTabsWhere {
+  tab: TabsTabsTabBlockWhere
+  tab_exists: Boolean
+}
+
+input TabsTabsTabBlockWhere {
+  label: String
+  label_ne: String
+  label_in: [String]
+  label_nin: [String]
+  label_exists: Boolean
+  content: TabsTabsTabBlockContentWhere
+  content_exists: Boolean
+}
+
+input TabsTabsTabBlockContentWhere {
+  rich_text: TabsTabsTabBlockContentRichTextBlockWhere
+  rich_text_exists: Boolean
+  card_collection: TabsTabsTabBlockContentCardCollectionBlockWhere
+  card_collection_exists: Boolean
+}
+
+input TabsTabsTabBlockContentRichTextBlockWhere {
+  content: JSON
+  content_exists: Boolean
+}
+
+input TabsTabsTabBlockContentCardCollectionBlockWhere {
+  content: TabsTabsTabBlockContentCardCollectionBlockContentWhere
+  content_exists: Boolean
+}
+
+input TabsTabsTabBlockContentCardCollectionBlockContentWhere {
+  product: ProductWhere
+  MATCH: EvalReferenceEnum
 }
 
 input ProductWhere {
@@ -964,20 +1459,584 @@ input ProductWhere {
   OR: [ProductWhere]
 }
 
-input LinkWhere {
+input TabsStylingWhere {
+  background_pattern: String
+  background_pattern_ne: String
+  background_pattern_in: [String]
+  background_pattern_nin: [String]
+  background_pattern_exists: Boolean
+  background_and_field_pattern_color: String
+  background_and_field_pattern_color_ne: String
+  background_and_field_pattern_color_in: [String]
+  background_and_field_pattern_color_nin: [String]
+  background_and_field_pattern_color_exists: Boolean
+}
+
+input HomepageComponentsTabsOriginalWhere {
+  collection_heading: String
+  collection_heading_ne: String
+  collection_heading_in: [String]
+  collection_heading_nin: [String]
+  collection_heading_exists: Boolean
+  collection_tabs: TabbedCartCollectionCollectionTabsWhere
+  collection_tabs_exists: Boolean
+  styling: TabbedCartCollectionStylingWhere
+  styling_exists: Boolean
+}
+
+input TabbedCartCollectionCollectionTabsWhere {
+  tab_label: String
+  tab_label_ne: String
+  tab_label_in: [String]
+  tab_label_nin: [String]
+  tab_label_exists: Boolean
+  content_type: TabbedCartCollectionCollectionTabsContentTypeWhere
+  content_type_exists: Boolean
+  content: TabbedCartCollectionCollectionTabsContentWhere
+  content_exists: Boolean
+}
+
+input TabbedCartCollectionCollectionTabsContentTypeWhere {
+  product: ProductWhere
+  MATCH: EvalReferenceEnum
+}
+
+input TabbedCartCollectionCollectionTabsContentWhere {
+  blocks: BlocksWhere
+  MATCH: EvalReferenceEnum
+}
+
+input BlocksWhere {
   title: String
   title_ne: String
   title_in: [String]
   title_nin: [String]
   title_exists: Boolean
-  href: String
-  href_ne: String
-  href_in: [String]
-  href_nin: [String]
-  href_exists: Boolean
+  content: BlocksContentWhere
+  content_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [BlocksWhere]
+  OR: [BlocksWhere]
 }
 
-enum ProductOrderBy {
+input BlocksContentWhere {
+  rich_text: BlocksContentRichTextBlockWhere
+  rich_text_exists: Boolean
+  product_collection: BlocksContentProductCollectionBlockWhere
+  product_collection_exists: Boolean
+}
+
+input BlocksContentRichTextBlockWhere {
+  content: JSON
+  content_exists: Boolean
+}
+
+input BlocksContentProductCollectionBlockWhere {
+  products: BlocksContentProductCollectionBlockProductsWhere
+  products_exists: Boolean
+}
+
+input BlocksContentProductCollectionBlockProductsWhere {
+  product: ProductWhere
+  MATCH: EvalReferenceEnum
+}
+
+input TabbedCartCollectionStylingWhere {
+  background_pattern: String
+  background_pattern_ne: String
+  background_pattern_in: [String]
+  background_pattern_nin: [String]
+  background_pattern_exists: Boolean
+  background_and_field_pattern_color: String
+  background_and_field_pattern_color_ne: String
+  background_and_field_pattern_color_in: [String]
+  background_and_field_pattern_color_nin: [String]
+  background_and_field_pattern_color_exists: Boolean
+}
+
+input SeoAndSearchWhere {
+  meta_title: String
+  meta_title_ne: String
+  meta_title_in: [String]
+  meta_title_nin: [String]
+  meta_title_exists: Boolean
+  meta_description: String
+  meta_description_ne: String
+  meta_description_in: [String]
+  meta_description_nin: [String]
+  meta_description_exists: Boolean
+  enable_search_indexing: Boolean
+  enable_search_indexing_exists: Boolean
+  enable_search_indexing_ne: Boolean
+  enable_internal_search_indexing: Boolean
+  enable_internal_search_indexing_exists: Boolean
+  enable_internal_search_indexing_ne: Boolean
+  open_graph_image: SysAssetWhere
+  open_graph_image_exists: Boolean
+}
+
+enum HomepageOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type Page {
+  title: String
+  url: String
+  headline: String
+  components: [PageComponents]
+  seo: Seo
+  system: EntrySystemField
+}
+
+union PageComponents = PageComponentsTextBlock | PageComponentsProductCards | PageComponentsTabs
+
+type PageComponentsTextBlock {
+  text_block: PageComponentsTextBlockBlock
+}
+
+type PageComponentsTextBlockBlock {
+  content: PageComponentsTextBlockBlockContent
+}
+
+type PageComponentsTextBlockBlockContent {
+  json: JSON
+  embedded_itemsConnection(skip: Int = 0, limit: Int = 100): PageComponentsTextBlockBlockContentEmbeddedItemsConnection
+}
+
+type PageComponentsTextBlockBlockContentEmbeddedItemsConnection {
+  totalCount: Int
+  edges: [PageComponentsTextBlockBlockContentEmbeddedItemsEdge]
+}
+
+type PageComponentsTextBlockBlockContentEmbeddedItemsEdge {
+  node: PageComponentsTextBlockBlockContentEmbeddedItemsNode
+}
+
+union PageComponentsTextBlockBlockContentEmbeddedItemsNode = SysAsset
+
+type PageComponentsProductCards {
+  product_cards: ProductCards
+}
+
+type ProductCards {
+  title: String
+  category: JSON
+}
+
+type PageComponentsTabs {
+  tabs: Tabs
+}
+
+type Seo {
+  meta_title: String
+  meta_description: String
+  keywords: String
+  enable_search_indexing: Boolean
+}
+
+type AllPage {
+  total: Int
+  items: [Page]
+}
+
+input PageWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  url: String
+  url_ne: String
+  url_in: [String]
+  url_nin: [String]
+  url_exists: Boolean
+  headline: String
+  headline_ne: String
+  headline_in: [String]
+  headline_nin: [String]
+  headline_exists: Boolean
+  components: PageComponentsWhere
+  components_exists: Boolean
+  seo: SeoWhere
+  seo_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [PageWhere]
+  OR: [PageWhere]
+}
+
+input PageComponentsWhere {
+  text_block: PageComponentsTextBlockBlockWhere
+  text_block_exists: Boolean
+  product_cards: PageComponentsProductCardsWhere
+  product_cards_exists: Boolean
+  tabs: PageComponentsTabsWhere
+  tabs_exists: Boolean
+}
+
+input PageComponentsTextBlockBlockWhere {
+  content: JSON
+  content_exists: Boolean
+}
+
+input PageComponentsProductCardsWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  category: JSON
+  category_exists: Boolean
+}
+
+input PageComponentsTabsWhere {
+  heading: String
+  heading_ne: String
+  heading_in: [String]
+  heading_nin: [String]
+  heading_exists: Boolean
+  tabs: TabsTabsWhere
+  tabs_exists: Boolean
+  styling: TabsStylingWhere
+  styling_exists: Boolean
+}
+
+input SeoWhere {
+  meta_title: String
+  meta_title_ne: String
+  meta_title_in: [String]
+  meta_title_nin: [String]
+  meta_title_exists: Boolean
+  meta_description: String
+  meta_description_ne: String
+  meta_description_in: [String]
+  meta_description_nin: [String]
+  meta_description_exists: Boolean
+  keywords: String
+  keywords_ne: String
+  keywords_in: [String]
+  keywords_nin: [String]
+  keywords_exists: Boolean
+  enable_search_indexing: Boolean
+  enable_search_indexing_exists: Boolean
+  enable_search_indexing_ne: Boolean
+}
+
+enum PageOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type AllBlocks {
+  total: Int
+  items: [Blocks]
+}
+
+enum BlocksOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type MegaMenu {
+  title: String
+  sections: [MegaMenuSections]
+  system: EntrySystemField
+}
+
+type MegaMenuSections {
+  title: String
+  links: [MegaMenuSectionsLinks]
+  subsections: [MegaMenuSectionsSubsections]
+}
+
+type MegaMenuSectionsLinks {
+  text: String
+  description: String
+  thumbnailConnection: SysAssetConnection
+  linkConnection: MegaMenuSectionsLinksLinkConnection
+  link_text: String
+}
+
+type MegaMenuSectionsLinksLinkConnection {
+  totalCount: Int
+  edges: [MegaMenuSectionsLinksLinkEdge]
+}
+
+type MegaMenuSectionsLinksLinkEdge {
+  node: MegaMenuSectionsLinksLinkNode
+}
+
+union MegaMenuSectionsLinksLinkNode = Page
+
+type MegaMenuSectionsSubsections {
+  title: String
+  links: [MegaMenuSectionsSubsectionsLinks]
+}
+
+type MegaMenuSectionsSubsectionsLinks {
+  text: String
+  description: String
+  thumbnailConnection: SysAssetConnection
+  linkConnection: MegaMenuSectionsSubsectionsLinksLinkConnection
+  link_text: String
+}
+
+type MegaMenuSectionsSubsectionsLinksLinkConnection {
+  totalCount: Int
+  edges: [MegaMenuSectionsSubsectionsLinksLinkEdge]
+}
+
+type MegaMenuSectionsSubsectionsLinksLinkEdge {
+  node: MegaMenuSectionsSubsectionsLinksLinkNode
+}
+
+union MegaMenuSectionsSubsectionsLinksLinkNode = Page
+
+type AllMegaMenu {
+  total: Int
+  items: [MegaMenu]
+}
+
+input MegaMenuWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  sections: MegaMenuSectionsWhere
+  sections_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [MegaMenuWhere]
+  OR: [MegaMenuWhere]
+}
+
+input MegaMenuSectionsWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  links: MegaMenuSectionsLinksWhere
+  links_exists: Boolean
+  subsections: MegaMenuSectionsSubsectionsWhere
+  subsections_exists: Boolean
+}
+
+input MegaMenuSectionsLinksWhere {
+  text: String
+  text_ne: String
+  text_in: [String]
+  text_nin: [String]
+  text_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  thumbnail: SysAssetWhere
+  thumbnail_exists: Boolean
+  link: MegaMenuSectionsLinksLinkWhere
+  link_exists: Boolean
+  link_text: String
+  link_text_ne: String
+  link_text_in: [String]
+  link_text_nin: [String]
+  link_text_exists: Boolean
+}
+
+input MegaMenuSectionsLinksLinkWhere {
+  page: PageWhere
+  MATCH: EvalReferenceEnum
+}
+
+input MegaMenuSectionsSubsectionsWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  links: MegaMenuSectionsSubsectionsLinksWhere
+  links_exists: Boolean
+}
+
+input MegaMenuSectionsSubsectionsLinksWhere {
+  text: String
+  text_ne: String
+  text_in: [String]
+  text_nin: [String]
+  text_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  thumbnail: SysAssetWhere
+  thumbnail_exists: Boolean
+  link: MegaMenuSectionsSubsectionsLinksLinkWhere
+  link_exists: Boolean
+  link_text: String
+  link_text_ne: String
+  link_text_in: [String]
+  link_text_nin: [String]
+  link_text_exists: Boolean
+}
+
+input MegaMenuSectionsSubsectionsLinksLinkWhere {
+  page: PageWhere
+  MATCH: EvalReferenceEnum
+}
+
+enum MegaMenuOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type AllStrikingHeroBanner {
+  total: Int
+  items: [StrikingHeroBanner]
+}
+
+enum StrikingHeroBannerOrderBy {
   created_at_ASC
   created_at_DESC
   updated_at_ASC
@@ -1084,6 +2143,224 @@ input HeroBannerWhere {
 }
 
 enum HeroBannerOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type Navigation {
+  title: String
+  items: [NavigationItems]
+  system: EntrySystemField
+}
+
+type NavigationItems {
+  text: String
+  logoConnection: SysAssetConnection
+  linkConnection: NavigationItemsLinkConnection
+  mega_menuConnection: NavigationItemsMegaMenuConnection
+}
+
+type NavigationItemsLinkConnection {
+  totalCount: Int
+  edges: [NavigationItemsLinkEdge]
+}
+
+type NavigationItemsLinkEdge {
+  node: NavigationItemsLinkNode
+}
+
+union NavigationItemsLinkNode = Page
+
+type NavigationItemsMegaMenuConnection {
+  totalCount: Int
+  edges: [NavigationItemsMegaMenuEdge]
+}
+
+type NavigationItemsMegaMenuEdge {
+  node: NavigationItemsMegaMenuNode
+}
+
+union NavigationItemsMegaMenuNode = MegaMenu
+
+type AllNavigation {
+  total: Int
+  items: [Navigation]
+}
+
+input NavigationWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  items: NavigationItemsWhere
+  items_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [NavigationWhere]
+  OR: [NavigationWhere]
+}
+
+input NavigationItemsWhere {
+  text: String
+  text_ne: String
+  text_in: [String]
+  text_nin: [String]
+  text_exists: Boolean
+  logo: SysAssetWhere
+  logo_exists: Boolean
+  link: NavigationItemsLinkWhere
+  link_exists: Boolean
+  mega_menu: NavigationItemsMegaMenuWhere
+  mega_menu_exists: Boolean
+}
+
+input NavigationItemsLinkWhere {
+  page: PageWhere
+  MATCH: EvalReferenceEnum
+}
+
+input NavigationItemsMegaMenuWhere {
+  mega_menu: MegaMenuWhere
+  MATCH: EvalReferenceEnum
+}
+
+enum NavigationOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type Hero {
+  title: String
+  headline: String
+  system: EntrySystemField
+}
+
+type AllHero {
+  total: Int
+  items: [Hero]
+}
+
+input HeroWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  headline: String
+  headline_ne: String
+  headline_in: [String]
+  headline_nin: [String]
+  headline_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [HeroWhere]
+  OR: [HeroWhere]
+}
+
+enum HeroOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type AllProduct {
+  total: Int
+  items: [Product]
+}
+
+enum ProductOrderBy {
   created_at_ASC
   created_at_DESC
   updated_at_ASC

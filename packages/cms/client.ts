@@ -41,7 +41,7 @@ const makeClient = (livePreviewHash?: string) => {
        * @see https://github.com/urql-graphql/urql/issues/225#issuecomment-482592203
        */
       mapExchange({
-        onError: (error) => {
+        onError: (error, operation) => {
           // Filter out expected errors like PERSISTED_QUERY_NOT_FOUND, pass others to the server.
           const errors = error.graphQLErrors.filter(
             (err) => err.message !== 'PersistedQueryNotFound'
@@ -51,6 +51,11 @@ const makeClient = (livePreviewHash?: string) => {
             // TODO: Add Sentry or similar error reporting.
             // eslint-disable-next-line no-console -- logging errors to node.js console
             console.error('GraphQL Errors:', JSON.stringify(errors, null, 2));
+
+            console.dir(operation.query.loc?.source?.body, {
+              depth: null,
+              colors: true,
+            });
           }
         },
         onOperation() {

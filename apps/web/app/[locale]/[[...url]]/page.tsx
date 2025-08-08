@@ -1,4 +1,4 @@
-import { LandingPage } from '@repo/cms/components/landing-page';
+import { LandingPage } from '@repo/cms/components/pages/landing-page';
 
 interface PageProps {
   params: Promise<{ url: string[]; locale: string }>;
@@ -13,9 +13,8 @@ const Page = async ({ params }: PageProps) => {
 
   const urlStr = url?.join('/') ?? '/';
   return (
-    <main style={{ padding: 32 }}>
+    <main className="container mx-auto">
       <LandingPage url={urlStr} locale={locale} />
-      {/* <FeaturedProducts /> */}
     </main>
   );
 };

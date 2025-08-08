@@ -1,3 +1,4 @@
+import { flattenComponents } from '@repo/cms/lib/utils/flatten-components';
 import { hasLocale } from '@repo/i18n';
 import { routing } from '@repo/i18n/routing';
 import {
@@ -6,10 +7,10 @@ import {
 } from 'next/cache';
 import { draftMode, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { graphqlClient } from '../client';
-import { graphql } from '../graphql';
-import { addEditableTags } from '../lib/utils/add-editable-tags';
-import ComponentRenderer from './component-renderer';
+import { graphqlClient } from '../../client';
+import { graphql } from '../../graphql';
+import { addEditableTags } from '../../lib/utils/add-editable-tags';
+import ComponentRenderer from '../component-renderer';
 
 const getLocaleFromPath = (locale: string) => {
   return locale.toLowerCase();
@@ -36,7 +37,18 @@ const getPage = async (
           headline
           components {
             __typename
-            ...PageComponentsProductCards
+            ... on PageComponentsProductCards {
+              product_cards {
+                __typename
+                ...ProductCards
+              }
+            }
+            ... on PageComponentsTabs {
+              tabs {
+                __typename
+                ...Tabs
+              }
+            }
           }
           system {
             uid
@@ -91,7 +103,7 @@ export async function LandingPage(props: { url: string; locale: string }) {
     <div>
       <h1 {...pageData.$.headline}>{pageData.headline}</h1>
       {pageData.components ? (
-        <ComponentRenderer data={pageData.components} />
+        <ComponentRenderer data={flattenComponents(pageData.components)} />
       ) : null}
     </div>
   );
