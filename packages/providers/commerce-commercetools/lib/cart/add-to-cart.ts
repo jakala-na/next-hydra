@@ -44,26 +44,21 @@ const AddLineItemToCartMutation = graphql(`
 export async function addItemToCart(params: AddToCartParams) {
   const client = graphqlClient();
 
-  try {
-    const result = await client.mutation(AddLineItemToCartMutation, {
-      cartId: params.cartId,
-      version: params.version,
-      lineItem: {
-        productId: params.productId,
-        sku: params.sku,
-        variantId: params.variantId,
-        quantity: params.quantity,
-        key: params.key,
-      },
-    });
+  const result = await client.mutation(AddLineItemToCartMutation, {
+    cartId: params.cartId,
+    version: params.version,
+    lineItem: {
+      productId: params.productId,
+      sku: params.sku,
+      variantId: params.variantId,
+      quantity: params.quantity,
+      key: params.key,
+    },
+  });
 
-    if (result.error) {
-      throw new Error(`Failed to add item to cart: ${result.error.message}`);
-    }
-
-    return result.data?.updateCart;
-  } catch (error) {
-    console.error('Error adding item to cart:', error);
-    throw error;
+  if (result.error) {
+    throw new Error(`Failed to add item to cart: ${result.error.message}`);
   }
+
+  return result.data?.updateCart;
 }

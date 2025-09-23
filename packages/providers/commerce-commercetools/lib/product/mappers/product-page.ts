@@ -1,5 +1,5 @@
+import type { ProductDetails } from '@repo/commerce-domain';
 import { type FragmentOf, graphql, readFragment } from '../../../graphql';
-import type { ProductDetails } from '../../types';
 
 export const productPageFragment = graphql(`
   fragment ProductPage on Product {

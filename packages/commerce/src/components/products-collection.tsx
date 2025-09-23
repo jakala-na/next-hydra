@@ -1,28 +1,37 @@
 import ProductCard from '@repo/design-system/components/commerce-ui/product-card';
 import Link from 'next/link';
-import { getProductsCollection } from '../actions/get-products-collection';
 
-export default async function ProductsCollection(props: {
+import { getProductsCollection } from '../catalog';
+
+export type ProductsCollectionProps = {
   title: string;
   categoryId: string;
-}) {
-  const { title, categoryId } = props;
-  // TODO: Pass locale from page.
-  const res = await getProductsCollection({
+  locale: string;
+  currency: string;
+  channelId: string;
+  limit?: number;
+};
+
+export default async function ProductsCollection({
+  title,
+  categoryId,
+  locale,
+  currency,
+  channelId,
+  limit = 3,
+}: ProductsCollectionProps) {
+  const products = await getProductsCollection({
     categoryId,
-    limit: 3,
-    locale: 'en-US',
-    currency: 'USD',
-    // FIXME: Default channel in our sandbox.
-    // Store: EU, US, CA
-    channelId: 'bfb69a22-2ee2-4c1c-9f45-f9703c3ea77c',
+    locale,
+    currency,
+    channelId,
+    limit,
   });
 
-  if (!res.data || res.data.length === 0) {
+  if (products.length === 0) {
     return null;
   }
 
-  const products = res.data;
   return (
     <>
       <h3>{title}</h3>

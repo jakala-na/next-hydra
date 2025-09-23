@@ -6,6 +6,7 @@
       "**",
       "!**/packages/cms/gql/*",
       "!**/packages/commerce/gql/*",
+      "!**/packages/providers/commerce-commercetools/gql/*",
       "!**/apps/email/.react-email/**"
     ]
   },

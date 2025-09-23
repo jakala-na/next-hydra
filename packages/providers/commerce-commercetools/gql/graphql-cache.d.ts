@@ -1,5 +1,7 @@
 /* eslint-disable */
 /* prettier-ignore */
+/* biome-ignore lint/performance/noLargeFiles: generated Commercetools GraphQL cache. */
+/* biome-ignore lint/complexity/noBannedTypes: generated Commercetools GraphQL cache. */
 import type { TadaDocumentNode, $tada } from 'gql.tada';
 
 declare module 'gql.tada' {

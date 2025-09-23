@@ -1,5 +1,5 @@
+import type { ProductCard } from '@repo/commerce-domain';
 import { type FragmentOf, graphql, readFragment } from '../../../graphql';
-import type { ProductCard } from '../../types';
 
 export const productCardFragment = graphql(`
   fragment ProductCard on ProductProjection {
@@ -33,32 +33,45 @@ export const productCardFragment = graphql(`
   }
 `);
 
+type PriceSummary = {
+  minPriceCent?: number;
+  maxPriceCent?: number;
+  currencyCode?: string;
+};
+
+function summarizeVariantPricing(
+  variants: FragmentOf<typeof productCardFragment>['allVariants']
+): PriceSummary {
+  return variants.reduce<PriceSummary>((summary, variant) => {
+    const centAmount = variant.price?.value.centAmount;
+
+    if (typeof centAmount === 'number') {
+      summary.minPriceCent = Math.min(
+        summary.minPriceCent ?? centAmount,
+        centAmount
+      );
+      summary.maxPriceCent = Math.max(
+        summary.maxPriceCent ?? centAmount,
+        centAmount
+      );
+      if (!summary.currencyCode && variant.price?.value.currencyCode) {
+        summary.currencyCode = variant.price.value.currencyCode;
+      }
+    }
+
+    return summary;
+  }, {});
+}
+
 export const reshapeProductCard = (
   _product: FragmentOf<typeof productCardFragment>
 ): ProductCard => {
   const product = readFragment(productCardFragment, _product);
 
   const masterVariant = product.masterVariant;
-
-  // Collect max price and min price across variants.
-  let minPriceCent: number | undefined;
-  let maxPriceCent: number | undefined;
-  let currencyCode: string | undefined;
-
-  for (const v of product.allVariants) {
-    const centAmount = v.price?.value.centAmount;
-    if (typeof centAmount === 'number') {
-      if (minPriceCent === undefined || centAmount < minPriceCent) {
-        minPriceCent = centAmount;
-      }
-      if (maxPriceCent === undefined || centAmount > maxPriceCent) {
-        maxPriceCent = centAmount;
-      }
-      if (!currencyCode && v.price?.value.currencyCode) {
-        currencyCode = v.price.value.currencyCode;
-      }
-    }
-  }
+  const { currencyCode, minPriceCent } = summarizeVariantPricing(
+    product.allVariants
+  );
 
   return {
     id: product.id,

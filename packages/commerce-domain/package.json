@@ -1,5 +1,5 @@
 {
-  "name": "@repo/commerce",
+  "name": "@repo/commerce-domain",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,12 +7,7 @@
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
-  "dependencies": {
-    "@repo/commerce-commercetools": "workspace:*",
-    "@repo/commerce-domain": "workspace:*",
-    "@t3-oss/env-nextjs": "^0.13.4",
-    "zod": "^3.25.28"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "22.15.21"

@@ -42,7 +42,6 @@ export async function addToCartAction(params: AddToCartActionParams) {
       cart: updatedCart,
     };
   } catch (error) {
-    console.error('Error in addToCartAction:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred',

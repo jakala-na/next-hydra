@@ -26,6 +26,7 @@ import path from 'node:path';
 
     const authData = await authResponse.json();
 
+    // biome-ignore lint/suspicious/noConsole: emitting progress during CLI generation.
     console.log('\n🚀 Generating GraphQL Schema');
     await generateSchema({
       input: `https://api.${keys().COMMERCETOOLS_REGION}.commercetools.com/${keys().COMMERCETOOLS_PROJECT_KEY}/graphql`,
@@ -36,6 +37,7 @@ import path from 'node:path';
       tsconfig: undefined,
     });
 
+    // biome-ignore lint/suspicious/noConsole: emitting progress during CLI generation.
     console.log('\n🚀 Generating Types');
     await generateOutput({
       output: undefined,
@@ -43,6 +45,7 @@ import path from 'node:path';
       tsconfig: undefined,
     });
 
+    // biome-ignore lint/suspicious/noConsole: emitting progress during CLI generation.
     console.log('\n🚀 Generating Cache');
     await generateTurbo({
       output: undefined,
@@ -50,6 +53,7 @@ import path from 'node:path';
       tsconfig: undefined,
     });
   } catch (error) {
+    // biome-ignore lint/suspicious/noConsole: forwarding generation error to stderr.
     console.error(error);
   }
 })();

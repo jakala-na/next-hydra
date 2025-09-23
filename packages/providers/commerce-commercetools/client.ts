@@ -79,7 +79,7 @@ const makeClient = () => {
 
           if (errors.length > 0) {
             // TODO: Add Sentry or similar error reporting.
-            // eslint-disable-next-line no-console -- logging errors to node.js console
+            // biome-ignore lint/suspicious/noConsole: surfacing provider GraphQL errors on the server.
             console.error('GraphQL Errors:', JSON.stringify(errors, null, 2));
           }
         },

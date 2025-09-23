@@ -1,22 +1,31 @@
-import { getProduct } from '@repo/commerce/lib/product';
+import { getProduct } from '@repo/commerce';
 import ProductVariantExample from '@repo/design-system/components/commerce-ui/product-variants-01-ex';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+
+async function loadProduct(handle: string) {
+  try {
+    return await getProduct({
+      productKey: handle,
+      locale: 'en-US',
+      currency: 'USD',
+      channelId: 'bfb69a22-2ee2-4c1c-9f45-f9703c3ea77c',
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function generateMetadata(props: {
   params: Promise<{ handle: string }>;
 }): Promise<Metadata> {
   const params = await props.params;
-  const productResult = await getProduct({
-    productKey: params.handle,
-    locale: 'en-US',
-    currency: 'USD',
-    channelId: 'bfb69a22-2ee2-4c1c-9f45-f9703c3ea77c',
-  });
+  const product = await loadProduct(params.handle);
 
-  if (!productResult.data) {
+  if (!product) {
     return notFound();
   }
-  const product = productResult.data;
+
   const { title, description, seo } = product;
   const indexable = false;
 
@@ -51,17 +60,11 @@ export default async function ProductPage(props: {
   params: Promise<{ handle: string }>;
 }) {
   const params = await props.params;
-  const productResult = await getProduct({
-    productKey: params.handle,
-    locale: 'en-US',
-    currency: 'USD',
-    channelId: 'bfb69a22-2ee2-4c1c-9f45-f9703c3ea77c',
-  });
+  const product = await loadProduct(params.handle);
 
-  if (!productResult.data) {
+  if (!product) {
     return notFound();
   }
-  const product = productResult.data;
 
   const productJsonLd = {
     '@context': 'https://schema.org',
@@ -85,6 +88,7 @@ export default async function ProductPage(props: {
     <>
       <script
         type="application/ld+json"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires script injection.
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(productJsonLd),
         }}
