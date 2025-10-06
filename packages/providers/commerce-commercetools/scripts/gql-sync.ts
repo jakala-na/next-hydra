@@ -1,0 +1,59 @@
+import {
+  generateOutput,
+  generateSchema,
+  generateTurbo,
+} from '@gql.tada/cli-utils';
+import { keys } from '../keys.ts';
+import 'dotenv/config';
+import path from 'node:path';
+
+(async () => {
+  try {
+    const authResponse = await fetch(
+      `https://auth.${keys().COMMERCETOOLS_REGION}.commercetools.com/oauth/token`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${Buffer.from(`${keys().COMMERCETOOLS_CLIENT_ID}:${keys().COMMERCETOOLS_CLIENT_SECRET}`).toString('base64')}`,
+        },
+        body: new URLSearchParams({
+          grant_type: 'client_credentials',
+          scope: `manage_shopping_lists:${keys().COMMERCETOOLS_PROJECT_KEY}`,
+        }),
+      }
+    );
+
+    const authData = await authResponse.json();
+
+    // biome-ignore lint/suspicious/noConsole: emitting progress during CLI generation.
+    console.log('\n🚀 Generating GraphQL Schema');
+    await generateSchema({
+      input: `https://api.${keys().COMMERCETOOLS_REGION}.commercetools.com/${keys().COMMERCETOOLS_PROJECT_KEY}/graphql`,
+      output: path.join(process.cwd(), 'gql/schema.graphql'),
+      headers: {
+        Authorization: `${authData.token_type} ${authData.access_token}`,
+      },
+      tsconfig: undefined,
+    });
+
+    // biome-ignore lint/suspicious/noConsole: emitting progress during CLI generation.
+    console.log('\n🚀 Generating Types');
+    await generateOutput({
+      output: undefined,
+      disablePreprocessing: false,
+      tsconfig: undefined,
+    });
+
+    // biome-ignore lint/suspicious/noConsole: emitting progress during CLI generation.
+    console.log('\n🚀 Generating Cache');
+    await generateTurbo({
+      output: undefined,
+      failOnWarn: false,
+      tsconfig: undefined,
+    });
+  } catch (error) {
+    // biome-ignore lint/suspicious/noConsole: forwarding generation error to stderr.
+    console.error(error);
+  }
+})();

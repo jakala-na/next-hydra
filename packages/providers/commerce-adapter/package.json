@@ -1,5 +1,5 @@
 {
-  "name": "@repo/commerce",
+  "name": "@repo/commerce-adapter",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,10 +8,7 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@repo/commerce-adapter": "workspace:*",
-    "@repo/commerce-domain": "workspace:*",
-    "@t3-oss/env-nextjs": "^0.13.4",
-    "zod": "^3.25.28"
+    "@repo/commerce-commercetools": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

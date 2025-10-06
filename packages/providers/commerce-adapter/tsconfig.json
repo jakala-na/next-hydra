@@ -1,0 +1,15 @@
+{
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@repo/*": ["../*"],
+      "@repo/commerce-adapter": ["./index.ts"],
+      "@repo/commerce-adapter/*": ["./*"],
+      "@repo/commerce-commercetools": ["../commerce-commercetools"],
+      "@repo/commerce-commercetools/*": ["../commerce-commercetools/*"]
+    }
+  },
+  "include": ["**/*"],
+  "exclude": ["node_modules"]
+}
