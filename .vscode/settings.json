@@ -15,11 +15,10 @@
     "editor.defaultFormatter": "biomejs.biome"
   },
   "editor.codeActionsOnSave": {
-    "quickfix.biome": "explicit",
     "source.organizeImports.biome": "explicit",
     "source.fixAll.biome": "explicit"
   },
-  "editor.defaultFormatter": "biomejs.biome",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnPaste": true,
   "editor.formatOnSave": true,
   "emmet.showExpandedAbbreviation": "never",
@@ -27,6 +26,15 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "tailwindCSS.experimental.configFile": "packages/design-system/styles/globals.css",
   "[javascript][typescript][javascriptreact][typescriptreact][json][jsonc][css][graphql]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[graphql]": {
     "editor.defaultFormatter": "biomejs.biome"
   }
 }
