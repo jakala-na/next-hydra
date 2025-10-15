@@ -1,57 +1,59 @@
-'use client';
+"use client";
 
 // Example usage of ProductVariant_01 component
 
 import ProductVariant_01, {
   type VariantItem,
   type VariantSelectionPayload,
-} from '@repo/design-system/components/commerce-ui/product-variants-01';
-import { useState } from 'react';
+} from "@repo/design-system/components/commerce-ui/product-variants-01";
+import { useState } from "react";
 
-const EXAMPLE_VARIANTS: VariantItem[] = [
+type NonEmptyArray<T> = [T, ...T[]];
+
+const EXAMPLE_VARIANTS: NonEmptyArray<VariantItem> = [
   {
     availableQuantity: 5,
-    id: 'variant-sport',
+    id: "variant-sport",
     imageUrl:
-      'https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-1.jpg',
+      "https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-1.jpg",
     isInStock: true,
-    label: 'Sport',
+    label: "Sport",
     price: 109.99,
-    value: 'variant-sport',
+    value: "variant-sport",
   },
   {
     availableQuantity: 10,
-    id: 'variant-prosound',
+    id: "variant-prosound",
     imageUrl:
-      'https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-2.jpg',
+      "https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-2.jpg",
     isInStock: true,
-    label: 'ProSound',
+    label: "ProSound",
     price: 99.99,
     salePrice: 89.99,
-    value: 'variant-prosound',
+    value: "variant-prosound",
   },
   {
     availableQuantity: 0,
-    id: 'variant-ultraquiet',
+    id: "variant-ultraquiet",
     imageUrl:
-      'https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-3.jpg',
+      "https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-3.jpg",
     isInStock: false,
-    label: 'UltraQuiet™',
+    label: "UltraQuiet™",
     price: 89.99,
-    value: 'variant-ultraquiet',
+    value: "variant-ultraquiet",
   },
   {
     availableQuantity: 2,
-    id: 'variant-extremesilence',
+    id: "variant-extremesilence",
     imageUrl:
-      'https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-4.jpg',
+      "https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-4.jpg",
     isInStock: true,
-    label: 'ExtremeSilence™',
+    label: "ExtremeSilence™",
     price: 119.99,
     salePrice: 99.99,
-    value: 'variant-extremesilence',
+    value: "variant-extremesilence",
   },
-];
+] as const;
 
 export default function ProductVariantExample() {
   const [selectedVariant, setSelectedVariant] = useState<string>(
@@ -76,7 +78,8 @@ export default function ProductVariantExample() {
 
   const handleAddToCart = (payload: VariantSelectionPayload) => {
     const variant = EXAMPLE_VARIANTS.find((v) => v.value === payload.variantId);
-    const stockStatus = variant?.isInStock ? 'In Stock' : 'Out of Stock';
+    const stockStatus = variant?.isInStock ? "In Stock" : "Out of Stock";
+    // biome-ignore lint/suspicious/noAlert: this is an example
     window.alert(
       `Added ${payload.quantity} ${payload.variantLabel} to cart at $${payload.price} each.\nStock Status: ${stockStatus}`
     );
@@ -84,7 +87,8 @@ export default function ProductVariantExample() {
 
   const handleBuyNow = (payload: VariantSelectionPayload) => {
     const variant = EXAMPLE_VARIANTS.find((v) => v.value === payload.variantId);
-    const stockStatus = variant?.isInStock ? 'In Stock' : 'Out of Stock';
+    const stockStatus = variant?.isInStock ? "In Stock" : "Out of Stock";
+    // biome-ignore lint/suspicious/noAlert: this is an example
     window.alert(
       `Buying ${payload.quantity} ${payload.variantLabel} at $${payload.price} each.\nStock Status: ${stockStatus}`
     );

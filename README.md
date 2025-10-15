@@ -1,3 +1,3 @@
-# jakala-na / next-cms-commerce
+# jakala-na / next-hydra
 
-**Production-grade Turborepo template for Next.js Commerce.**
+**Production-grade Turborepo template for building enterprise digital commerce solutions.**

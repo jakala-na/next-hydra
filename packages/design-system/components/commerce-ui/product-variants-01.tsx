@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import ImageViewer from '@repo/design-system/components/commerce-ui/image-viewer-basic';
-import PriceFormat_Sale from '@repo/design-system/components/commerce-ui/price-format-sale';
-import QuantityInputBasic from '@repo/design-system/components/commerce-ui/quantity-input-basic';
+import ImageViewer from "@repo/design-system/components/commerce-ui/image-viewer-basic";
+import PriceFormat_Sale from "@repo/design-system/components/commerce-ui/price-format-sale";
+import QuantityInputBasic from "@repo/design-system/components/commerce-ui/quantity-input-basic";
 import VariantSelectorBasic, {
   type VariantItem as BaseVariantItem,
-} from '@repo/design-system/components/commerce-ui/variant-selector-basic';
-import { Button } from '@repo/design-system/components/ui/button';
-import { Clock } from 'lucide-react';
-import { useState } from 'react';
+} from "@repo/design-system/components/commerce-ui/variant-selector-basic";
+import { Button } from "@repo/design-system/components/ui/button";
+import { Clock } from "lucide-react";
+import { useState } from "react";
 
 interface VariantItem extends BaseVariantItem {
   id: string;
@@ -18,7 +18,7 @@ interface VariantItem extends BaseVariantItem {
   isInStock?: boolean;
   availableQuantity?: number | null;
 }
-interface VariantSelectionPayload {
+type VariantSelectionPayload = {
   variantId: string;
   variantLabel: string;
   quantity: number;
@@ -27,8 +27,8 @@ interface VariantSelectionPayload {
   salePrice?: number;
   totalPrice: number;
   isOnSale: boolean;
-}
-interface ProductVariant01Props {
+};
+type ProductVariant01Props = {
   title?: string;
   description?: string;
   badge?: string | null;
@@ -45,12 +45,12 @@ interface ProductVariant01Props {
   onQuantityChange?: (quantity: number) => void;
   isLoading?: boolean;
   errorMessage?: string | null;
-}
+};
 
 function ProductVariant_01({
-  badge = 'New',
+  badge = "New",
   defaultImage,
-  description = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+  description = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
   errorMessage = null,
   initialVariant,
   isLoading = false,
@@ -61,13 +61,13 @@ function ProductVariant_01({
   quantity: controlledQuantity,
   selectedVariant: controlledVariant,
   shippingInfo,
-  title = 'Product Variant Title',
-  variantLabel = 'Variant',
+  title = "Product Variant Title",
+  variantLabel = "Variant",
   variants,
 }: ProductVariant01Props) {
   // Ensure variants array is not empty
-  if (!variants.length) {
-    throw new Error('At least one variant must be provided');
+  if (variants[0] === undefined) {
+    throw new Error("At least one variant must be provided");
   }
 
   const defaultInitialVariant = initialVariant || variants[0].value;
@@ -127,7 +127,7 @@ function ProductVariant_01({
       salePrice: isOnSale ? currentSalePrice : undefined,
       totalPrice: quantity * effectivePrice,
       variantId: selectedVariantId,
-      variantLabel: selectedVariant?.label || '',
+      variantLabel: selectedVariant?.label || "",
     });
   };
 
@@ -140,7 +140,7 @@ function ProductVariant_01({
       salePrice: isOnSale ? currentSalePrice : undefined,
       totalPrice: quantity * effectivePrice,
       variantId: selectedVariantId,
-      variantLabel: selectedVariant?.label || '',
+      variantLabel: selectedVariant?.label || "",
     });
   };
 
@@ -160,7 +160,7 @@ function ProductVariant_01({
     return {
       ...variant,
       disabled: !isVariantInStock,
-      label: variant.label + (isVariantInStock ? '' : ' (Out of Stock)'),
+      label: variant.label + (isVariantInStock ? "" : " (Out of Stock)"),
     };
   });
 
@@ -179,7 +179,7 @@ function ProductVariant_01({
             </div>
           ) : (
             <ImageViewer
-              imageUrl={currentImage || ''}
+              imageUrl={currentImage || ""}
               classNameThumbnailViewer="rounded-lg object-contain h-[300px] mx-auto"
             />
           )}
@@ -285,14 +285,14 @@ function ProductVariant_01({
                 onClick={handleAddToCart}
                 disabled={!isInStock || isLoading}
               >
-                {isLoading ? 'Loading...' : 'Add to Cart'}
+                {isLoading ? "Loading..." : "Add to Cart"}
               </Button>
               <Button
                 className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 text-white transition-all hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500"
                 onClick={handleBuyNow}
                 disabled={!isInStock || isLoading}
               >
-                {isLoading ? 'Loading...' : 'Buy Now'}
+                {isLoading ? "Loading..." : "Buy Now"}
               </Button>
             </div>
 
@@ -321,12 +321,12 @@ function ProductVariant_01({
                 </p>
               </div>
               <p className="mt-2 text-gray-500 text-xs">
-                {quantity} {quantity > 1 ? 'units' : 'unit'} × $
+                {quantity} {quantity > 1 ? "units" : "unit"} × $
                 {effectivePrice.toFixed(2)} = $
                 {(quantity * effectivePrice).toFixed(2)}
               </p>
               <p className="mt-1 text-gray-500 text-xs">
-                {isInStock ? 'In Stock' : 'Out of Stock'}
+                {isInStock ? "In Stock" : "Out of Stock"}
                 {isInStock &&
                   availableQuantity !== null &&
                   availableQuantity !== undefined &&

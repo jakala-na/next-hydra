@@ -1,17 +1,18 @@
-import { LandingPage } from '@repo/cms/components/pages/landing-page';
+import { LandingPage } from "@repo/cms/components/pages/landing-page";
+import type { Locale } from "@repo/i18n";
 
-interface PageProps {
-  params: Promise<{ url: string[]; locale: string }>;
-}
+type PageProps = {
+  params: Promise<{ url: string[]; locale: Locale }>;
+};
 
 export function generateStaticParams() {
-  return [{ locale: 'en-US', url: [] }];
+  return [{ locale: "en-US", url: [] }];
 }
 
 const Page = async ({ params }: PageProps) => {
   const { url, locale } = await params;
 
-  const urlStr = url?.join('/') ?? '/';
+  const urlStr = url?.join("/") ?? "/";
   return (
     <main className="container mx-auto">
       <LandingPage url={urlStr} locale={locale} />

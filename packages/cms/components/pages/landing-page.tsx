@@ -1,52 +1,48 @@
-import { flattenComponents } from '@repo/cms/lib/utils/flatten-components';
-import { hasLocale } from '@repo/i18n';
-import { routing } from '@repo/i18n/routing';
+import { transformLocale } from "@repo/cms/lib/utils/transform-locale";
+import { cn } from "@repo/design-system/lib/utils";
+import type { Locale } from "@repo/i18n";
+import { hasLocale } from "@repo/i18n";
+import { routing } from "@repo/i18n/routing";
 import {
   unstable_cacheLife as cacheLife,
   unstable_cacheTag as cacheTag,
-} from 'next/cache';
-import { draftMode, headers } from 'next/headers';
-import { notFound } from 'next/navigation';
-import { graphqlClient } from '../../client';
-import { graphql } from '../../graphql';
-import { addEditableTags } from '../../lib/utils/add-editable-tags';
-import ComponentRenderer from '../component-renderer';
-
-const getLocaleFromPath = (locale: string) => {
-  return locale.toLowerCase();
-};
+} from "next/cache";
+import { draftMode, headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { graphqlClient } from "../../client";
+import { graphql } from "../../graphql";
+import { entryLivePreview } from "../../lib/utils/live-preview-helper";
+import ComponentRenderer from "../component-renderer";
 
 const getPage = async (
   url: string,
-  locale: string,
+  locale: Locale,
   livePreviewHash: string | undefined
 ) => {
-  'use cache';
-  cacheLife('minutes');
+  "use cache";
+  cacheLife("minutes");
   cacheTag(`page:${url}`);
 
   const pageQuery = graphql(
     `
-      query PageQuery($url: String, $locale: String) {
-        all_page(locale: $locale, fallback_locale: true, limit: 1, where:  {
-           url: $url
-        }) {
+    query PageQuery($url: String, $locale: String!) {
+      all_landing_page(
+          locale: $locale
+          fallback_locale: true
+          limit: 1
+          where: { url: $url }
+      ) {
         items {
           title
+          display_title
+          hide_display_title
           url
-          headline
           components {
             __typename
-            ... on PageComponentsProductCards {
-              product_cards {
+            ... on LandingPageComponentsHeroSection {
+              hero_section {
                 __typename
-                ...ProductCards
-              }
-            }
-            ... on PageComponentsTabs {
-              tabs {
-                __typename
-                ...Tabs
+                ...HeroSection
               }
             }
           }
@@ -57,26 +53,30 @@ const getPage = async (
           }
         }
       }
-      }
-    `,
-    ComponentRenderer.fragments
+    }
+  `,
+    [...ComponentRenderer.fragments]
   );
 
   const response = await graphqlClient(livePreviewHash).query(pageQuery, {
-    locale,
+    locale: transformLocale(locale),
     url,
   });
 
-  const entry = response.data?.all_page?.items?.[0];
+  if (response.error) {
+    throw new Error("Something went wrong");
+  }
+
+  const entry = response.data?.all_landing_page?.items?.[0];
 
   if (!entry) {
     return;
   }
 
-  return addEditableTags(entry, !!livePreviewHash);
+  return entry;
 };
 
-export async function LandingPage(props: { url: string; locale: string }) {
+export async function LandingPage(props: { url: string; locale: Locale }) {
   const { url, locale } = props;
 
   if (!hasLocale(routing.locales, locale)) {
@@ -84,27 +84,31 @@ export async function LandingPage(props: { url: string; locale: string }) {
   }
   const { isEnabled: isDraftModeEnabled } = await draftMode();
 
-  let livePreviewHash = '';
+  let livePreviewHash = "";
   if (isDraftModeEnabled) {
-    livePreviewHash = (await headers()).get('x-live-preview') || '';
+    livePreviewHash = (await headers()).get("x-live-preview") || "";
   }
 
-  const pageData = await getPage(
-    url,
-    getLocaleFromPath(locale),
-    livePreviewHash
-  );
+  const pageData = await getPage(url, locale, livePreviewHash);
 
   if (!pageData) {
     notFound();
   }
 
+  const livePreviewHelper = entryLivePreview(pageData, !!livePreviewHash);
+
   return (
-    <div>
-      <h1 {...pageData.$.headline}>{pageData.headline}</h1>
-      {pageData.components ? (
-        <ComponentRenderer data={flattenComponents(pageData.components)} />
-      ) : null}
-    </div>
+    <>
+      {pageData.display_title && (
+        <h1 className={cn(pageData.hide_display_title && "hidden")}>
+          {pageData.display_title}
+        </h1>
+      )}
+      <ComponentRenderer
+        data={pageData.components}
+        livePreviewHelper={livePreviewHelper?.getNestedHelper("components")}
+        dataType="modularBlocks"
+      />
+    </>
   );
 }
