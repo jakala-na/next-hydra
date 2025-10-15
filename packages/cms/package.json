@@ -15,7 +15,7 @@
     "@gql.tada/cli-utils": "^1.6.3",
     "@t3-oss/env-nextjs": "^0.13.4",
     "@urql/core": "^5.1.2",
-    "dotenv": "^17.0.0",
+    "dotenv": "^17.2.3",
     "gql.tada": "^1.8.10",
     "html-react-parser": "^5.2.7",
     "lodash.memoize": "^4.1.2",
