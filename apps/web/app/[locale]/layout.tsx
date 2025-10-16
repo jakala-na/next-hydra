@@ -1,16 +1,23 @@
-import './styles.css';
-import { LivePreview } from '@repo/cms/components/live-preview';
-import { getNavigation } from '@repo/cms/lib/navigation';
-import { DesignSystemProvider } from '@repo/design-system';
-import { fonts } from '@repo/design-system/lib/fonts';
-import { cn } from '@repo/design-system/lib/utils';
-import { Toolbar } from '@repo/feature-flags/components/toolbar';
-import { hasLocale, NextIntlClientProvider } from '@repo/i18n';
-import { routing } from '@repo/i18n/routing';
-import { draftMode, headers } from 'next/headers';
-import { notFound } from 'next/navigation';
-import type { ReactNode } from 'react';
-import { Header } from '../components/header';
+import "./styles.css";
+import { LivePreview } from "@repo/cms/components/live-preview";
+import { getNavigation } from "@repo/cms/lib/navigation";
+import { DesignSystemProvider } from "@repo/design-system";
+import { AccountMenuClient } from "@repo/design-system/components/layout/account-menu";
+import { MobileMenu } from "@repo/design-system/components/layout/mobile-menu";
+import { Navigation } from "@repo/design-system/components/layout/navigation";
+import { SearchAutocomplete } from "@repo/design-system/components/layout/search-autocomplete";
+import { CartSlot } from "@repo/design-system/components/layout/server/cart-button-slot";
+import { SiteHeader } from "@repo/design-system/components/layout/site-header";
+import { fonts } from "@repo/design-system/lib/fonts";
+import { cn } from "@repo/design-system/lib/utils";
+import { Toolbar } from "@repo/feature-flags/components/toolbar";
+import { hasLocale, NextIntlClientProvider } from "@repo/i18n";
+import { routing } from "@repo/i18n/routing";
+import { draftMode, headers } from "next/headers";
+import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
+import { Suspense } from "react";
+import { loadCart, loadRegions } from "../models/header";
 
 type RootLayoutProperties = {
   readonly children: ReactNode;
@@ -25,22 +32,38 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
-  let livePreviewHash = '';
+  let livePreviewHash = "";
   if (isDraftModeEnabled) {
-    livePreviewHash = (await headers()).get('x-live-preview') || '';
+    livePreviewHash = (await headers()).get("x-live-preview") || "";
   }
-  const navigationItems = await getNavigation(locale, livePreviewHash);
+  const navigation = await getNavigation(locale, livePreviewHash);
+  const regions = loadRegions();
+  const cartPromise = loadCart();
 
   return (
     <html
-      className={cn(fonts, 'scroll-smooth')}
+      className={cn(fonts, "scroll-smooth")}
       lang={locale}
       suppressHydrationWarning
     >
       <body>
         <DesignSystemProvider>
           <NextIntlClientProvider>
-            <Header navigationItems={navigationItems} />
+            <SiteHeader
+              MainNavigation={
+                <Navigation navigationItems={navigation.navigationItems} />
+              }
+              regions={regions}
+              Search={<SearchAutocomplete />}
+              BusinessUnitSwitcher={null}
+              MobileMenu={<MobileMenu />}
+              CartSlot={
+                <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+                  <CartSlot cartPromise={cartPromise} />
+                </Suspense>
+              }
+              AccountSlot={<AccountMenuClient />}
+            />
             {children}
             {/* <Footer /> */}
             <LivePreview isEnabled={isDraftModeEnabled} />

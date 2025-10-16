@@ -1,3 +1,9 @@
+import getLinkProps from "@repo/cms/components/link";
+import type {
+  NavigationItem,
+  NavigationItemIcon,
+} from "@repo/design-system/components/layout/navigation";
+import type { Locale } from "@repo/i18n";
 import {
   unstable_cacheLife as cacheLife,
   unstable_cacheTag as cacheTag,
@@ -5,7 +11,7 @@ import {
 import { graphqlClient } from "../../client";
 import { TAGS } from "../../constants";
 import { graphql } from "../../graphql";
-import type { NavigationItem } from "../../types";
+import { transformLocale } from "../utils/transform-locale";
 
 export const getMenuQuery = graphql(`
   query getMenu($locale: String!) {
@@ -16,17 +22,31 @@ export const getMenuQuery = graphql(`
           content_type_uid
         }
         title
-        items {
-          text
-          linkConnection {
-            edges {
-              node {
-                ... on LandingPage {
-                  system {
-                    uid
-                    content_type_uid
+        main_navigation {
+          items {
+            label
+            external_url
+            internal_contentConnection {
+              edges {
+                node {
+                  ... on LandingPage {
+                    url
                   }
-                  url
+                }
+              }
+            }
+            children {
+              label
+              description
+              icon
+              external_url
+              internal_contentConnection {
+                edges {
+                  node {
+                    ... on LandingPage {
+                      url
+                    }
+                  }
                 }
               }
             }
@@ -38,25 +58,41 @@ export const getMenuQuery = graphql(`
 `);
 
 export async function getNavigation(
-  locale: string,
+  locale: Locale,
   livePreviewHash?: string
-): Promise<NavigationItem[]> {
+): Promise<{ navigationItems: NavigationItem[] }> {
   "use cache";
   cacheTag(TAGS.menu);
   cacheLife("days");
 
   const res = await graphqlClient(livePreviewHash).query(getMenuQuery, {
-    locale: locale.toLowerCase(),
+    locale: transformLocale(locale),
   });
 
-  return (
-    res.data?.all_navigation?.items?.[0]?.items?.map((item) => {
-      const links =
-        item?.linkConnection?.edges?.map((edge) => edge?.node) ?? [];
+  const mainNavigation =
+    res.data?.all_navigation?.items?.[0]?.main_navigation?.items;
+
+  const navigationItems =
+    mainNavigation?.map((item) => {
+      const link = getLinkProps(item);
       return {
-        title: item?.text ?? "",
-        href: links[0]?.url ?? "",
+        title: link.label,
+        href: link.url,
+        children:
+          item?.children?.map((child) => {
+            const childLink = getLinkProps(child);
+            return {
+              title: childLink.label,
+              href: childLink.url,
+              description: child?.description ?? "",
+              // Assume the icon is a valid Lucide icon name.
+              icon: child?.icon
+                ? (child.icon as NavigationItemIcon)
+                : undefined,
+            };
+          }) ?? [],
       };
-    }) || []
-  );
+    }) ?? [];
+
+  return { navigationItems };
 }
