@@ -85,7 +85,11 @@ const resourcesMenu = [
   },
 ];
 
-export function MobileMenu() {
+export function MobileMenu({
+  AccountMenuSlot,
+}: {
+  AccountMenuSlot: React.ReactNode;
+}) {
   const { isSignedIn } = useAuth();
 
   return (
@@ -196,20 +200,7 @@ export function MobileMenu() {
           </nav>
 
           <div className="flex flex-col gap-2 border-t pt-4">
-            {!isSignedIn && (
-              <>
-                <Button
-                  asChild
-                  variant="outline"
-                  className="w-full bg-transparent"
-                >
-                  <Link href="/sign-in">Sign In</Link>
-                </Button>
-                <Button asChild className="w-full">
-                  <Link href="/sign-up">Sign Up</Link>
-                </Button>
-              </>
-            )}
+            {AccountMenuSlot}
           </div>
         </div>
       </SheetContent>

@@ -1,11 +1,5 @@
-import { Button } from "@repo/design-system/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@repo/design-system/components/ui/dropdown-menu";
-import { Bolt, Globe } from "lucide-react";
+import { RegionSelector } from "@repo/design-system/components/layout/region-selector";
+import { Bolt } from "lucide-react";
 import Link from "next/link";
 
 export type NavItem = {
@@ -35,10 +29,10 @@ export type AccountProps = {
 };
 
 export type Region = {
-  code: string;
-  name: string;
+  displayCode: string;
+  displayName: string;
   currency: string;
-  locale: string;
+  localeCode: string;
 };
 
 export type SiteHeaderProps = {
@@ -83,30 +77,5 @@ export function SiteHeader({
         </div>
       </div>
     </header>
-  );
-}
-
-function RegionSelector({ regions }: { regions: Region[] }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
-          <Globe className="h-4 w-4" />
-          <span className="hidden sm:inline">{regions[0]?.code}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        {regions.map((r) => (
-          <DropdownMenuItem key={r.code} className="cursor-pointer">
-            <div className="flex flex-col">
-              <span className="font-medium">{r.name}</span>
-              <span className="text-muted-foreground text-xs">
-                {r.currency}
-              </span>
-            </div>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }

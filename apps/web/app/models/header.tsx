@@ -15,7 +15,22 @@ export const loadCart = cache(
 );
 
 export const loadRegions = (): Region[] => [
-  { code: "US", name: "United States", currency: "USD", locale: "en-US" },
-  { code: "CA", name: "Canada", currency: "CAD", locale: "en-CA" },
-  { code: "FR", name: "France", currency: "EUR", locale: "fr-CA" },
+  {
+    displayCode: "US",
+    displayName: "United States (English)",
+    currency: "USD",
+    localeCode: "en-US",
+  },
+  {
+    displayCode: "CA (EN)",
+    displayName: "Canada (English)",
+    currency: "CAD",
+    localeCode: "en-CA",
+  },
+  {
+    displayCode: "CA (FR)",
+    displayName: "Canada (French)",
+    currency: "EUR",
+    localeCode: "fr-CA",
+  },
 ];

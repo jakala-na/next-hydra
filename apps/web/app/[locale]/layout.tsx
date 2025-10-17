@@ -56,13 +56,17 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
               regions={regions}
               Search={<SearchAutocomplete />}
               BusinessUnitSwitcher={null}
-              MobileMenu={<MobileMenu />}
+              MobileMenu={
+                <MobileMenu
+                  AccountMenuSlot={<AccountMenuClient variant="mobile" />}
+                />
+              }
               CartSlot={
                 <Suspense fallback={<div className="skeleton h-8 w-16" />}>
                   <CartSlot cartPromise={cartPromise} />
                 </Suspense>
               }
-              AccountSlot={<AccountMenuClient />}
+              AccountSlot={<AccountMenuClient variant="desktop" />}
             />
             {children}
             {/* <Footer /> */}
