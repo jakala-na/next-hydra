@@ -5,7 +5,9 @@ import { ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import type { CartSummaryProps } from "./site-header";
 
+// biome-ignore lint/correctness/noUnusedFunctionParameters: TODO: Implement cart flyout
 export function CartButtonClient({ count, href, subtotal }: CartSummaryProps) {
+  // biome-ignore lint/correctness/noUnusedVariables: TODO: Implement cart flyout
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -22,22 +24,7 @@ export function CartButtonClient({ count, href, subtotal }: CartSummaryProps) {
           </span>
         )}
       </Button>
-      {open && (
-        <div role="dialog" className="popover right-0">
-          <div className="p-3 text-sm">
-            {subtotal ? (
-              <>
-                Subtotal: {subtotal.value.toFixed(2)} {subtotal.currency}
-              </>
-            ) : (
-              <>Your cart is empty</>
-            )}
-            <a className="btn btn-primary mt-2" href={href}>
-              Go to cart
-            </a>
-          </div>
-        </div>
-      )}
+      {/* {<CartFlyout />} */}
     </div>
   );
 }
