@@ -1,9 +1,7 @@
 import "server-only";
 
-import type {
-  CartSummaryProps,
-  Region,
-} from "@repo/design-system/components/layout/site-header";
+import type { Region } from "@repo/design-system/components/layout/region-selector";
+import type { CartSummaryProps } from "@repo/design-system/components/layout/site-header";
 import { cache } from "react";
 
 export const loadCart = cache(
@@ -30,7 +28,7 @@ export const loadRegions = (): Region[] => [
   {
     displayCode: "CA (FR)",
     displayName: "Canada (French)",
-    currency: "EUR",
+    currency: "CAD",
     localeCode: "fr-CA",
   },
 ];

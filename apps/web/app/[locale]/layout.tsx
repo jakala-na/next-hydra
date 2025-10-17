@@ -3,8 +3,10 @@ import { LivePreview } from "@repo/cms/components/live-preview";
 import { getNavigation } from "@repo/cms/lib/navigation";
 import { DesignSystemProvider } from "@repo/design-system";
 import { AccountMenuClient } from "@repo/design-system/components/layout/account-menu";
+import { BusinessUnitSwitcher } from "@repo/design-system/components/layout/business-unit-switcher";
 import { MobileMenu } from "@repo/design-system/components/layout/mobile-menu";
 import { Navigation } from "@repo/design-system/components/layout/navigation";
+import { RegionSelector } from "@repo/design-system/components/layout/region-selector";
 import { SearchAutocomplete } from "@repo/design-system/components/layout/search-autocomplete";
 import { CartSlot } from "@repo/design-system/components/layout/server/cart-button-slot";
 import { SiteHeader } from "@repo/design-system/components/layout/site-header";
@@ -53,20 +55,18 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
               MainNavigation={
                 <Navigation navigationItems={navigation.navigationItems} />
               }
-              regions={regions}
+              RegionSelectorSlot={<RegionSelector regions={regions} />}
               Search={<SearchAutocomplete />}
-              BusinessUnitSwitcher={null}
+              BusinessUnitSwitcher={<BusinessUnitSwitcher />}
               MobileMenu={
-                <MobileMenu
-                  AccountMenuSlot={<AccountMenuClient variant="mobile" />}
-                />
+                <MobileMenu navigationItems={navigation.navigationItems} />
               }
               CartSlot={
                 <Suspense fallback={<div className="skeleton h-8 w-16" />}>
                   <CartSlot cartPromise={cartPromise} />
                 </Suspense>
               }
-              AccountSlot={<AccountMenuClient variant="desktop" />}
+              AccountSlot={<AccountMenuClient />}
             />
             {children}
             {/* <Footer /> */}

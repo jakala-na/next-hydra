@@ -1,4 +1,3 @@
-import { ModeToggle } from "@repo/design-system/components/mode-toggle";
 import { CommandIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -13,9 +12,6 @@ const AuthLayout = ({ children }: AuthLayoutProps) => (
       <div className="relative z-20 flex items-center font-medium text-lg">
         <CommandIcon className="mr-2 h-6 w-6" />
         Next Hydra
-      </div>
-      <div className="absolute top-4 right-4">
-        <ModeToggle />
       </div>
     </div>
     <div className="lg:p-8">

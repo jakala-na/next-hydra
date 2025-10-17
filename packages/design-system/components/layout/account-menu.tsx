@@ -8,34 +8,41 @@ import {
   UserButton,
 } from "@repo/auth/client";
 import { Button } from "@repo/design-system/components/ui/button";
-import { cn } from "@repo/design-system/lib/utils";
 import { useTranslations } from "@repo/i18n";
 
-export function AccountMenuClient({
-  variant,
-}: {
-  variant: "mobile" | "desktop";
-}) {
+export function AccountMenuClient() {
   const t = useTranslations("web.header");
   return (
-    <div
-      className={cn(
-        "relative",
-        variant === "mobile" ? "block md:hidden" : "hidden md:block"
-      )}
-    >
+    <div className="flex items-center gap-3 text-xs sm:text-sm">
       <SignedOut>
-        <SignInButton>
-          <Button className="inline" variant="outline">
-            {t("signIn")}
-          </Button>
-        </SignInButton>
-        <SignUpButton>
-          <Button>{t("signUp")}</Button>
-        </SignUpButton>
+        <div className="flex items-center gap-2">
+          <SignInButton>
+            <Button
+              variant="link"
+              size="sm"
+              className="px-0 text-[inherit] hover:text-[inherit] hover:underline"
+            >
+              {t("signIn")}
+            </Button>
+          </SignInButton>
+          <span aria-hidden="true" className="hidden sm:inline">
+            /
+          </span>
+          <SignUpButton>
+            <Button
+              variant="link"
+              size="sm"
+              className="px-0 text-[inherit] hover:text-[inherit] hover:underline"
+            >
+              {t("signUp")}
+            </Button>
+          </SignUpButton>
+        </div>
       </SignedOut>
       <SignedIn>
-        <UserButton />
+        <div className="flex items-center">
+          <UserButton />
+        </div>
       </SignedIn>
     </div>
   );

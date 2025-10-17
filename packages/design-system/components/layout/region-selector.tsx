@@ -11,7 +11,13 @@ import { cn } from "@repo/design-system/lib/utils";
 import { Check, Globe } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useMemo, useTransition } from "react";
-import type { Region } from "./site-header";
+
+export type Region = {
+  displayCode: string;
+  displayName: string;
+  currency: string;
+  localeCode: string;
+};
 
 const DEFAULT_LOCALE = "en-US";
 
@@ -105,7 +111,7 @@ export const RegionSelector = ({ regions }: RegionSelectorProps) => {
           disabled={isPending}
         >
           <Globe className="h-4 w-4" />
-          <span className="hidden sm:inline">
+          <span className="font-medium">
             {activeRegion?.displayCode ?? regions[0]?.displayCode}
           </span>
         </Button>
