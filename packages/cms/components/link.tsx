@@ -24,19 +24,43 @@ type LinkProps = {
  * // LinkProps for the CTA or link fields
  * ```
  */
+
+// Overload for single input
+export default function getLinkProps(cta: CMSLinkInput): LinkProps;
+
+// Overload for array input
 export default function getLinkProps(
   cta: CMSLinkInput[] | null | undefined
-): LinkProps[] {
+): LinkProps[];
+
+// Implementation
+export default function getLinkProps(
+  cta: CMSLinkInput | CMSLinkInput[] | null | undefined
+): LinkProps | LinkProps[] {
+  // Handle single input (non-array)
+  if (cta && !Array.isArray(cta)) {
+    return {
+      label: cta.label ?? "",
+      url:
+        getNodesFromConnection(cta.internal_contentConnection)?.[0]?.url ||
+        cta.external_url ||
+        "",
+    };
+  }
+
+  // Handle array input (or null/undefined)
   return (
-    cta
-      ?.filter((i) => i !== null)
-      .map((ctaItem) => ({
-        label: ctaItem.label ?? "",
-        url:
-          getNodesFromConnection(ctaItem.internal_contentConnection)?.[0]
-            ?.url ||
-          ctaItem.external_url ||
-          "",
-      })) || []
+    (Array.isArray(cta)
+      ? cta
+          .filter((i) => i !== null)
+          .map((ctaItem) => ({
+            label: ctaItem.label ?? "",
+            url:
+              getNodesFromConnection(ctaItem.internal_contentConnection)?.[0]
+                ?.url ||
+              ctaItem.external_url ||
+              "",
+          }))
+      : []) || []
   );
 }

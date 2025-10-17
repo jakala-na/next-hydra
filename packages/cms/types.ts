@@ -11,15 +11,6 @@ export type Edge<T> = {
   node: T;
 };
 
-export type NavigationItem = {
-  title: string;
-  href?: string;
-  items?: {
-    title: string;
-    href: string;
-  }[];
-};
-
 export type CMSLocale = Lowercase<Locale>;
 
 export type ComponentBaseProps = {

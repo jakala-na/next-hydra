@@ -1,6 +1,5 @@
-import { ModeToggle } from '@repo/design-system/components/mode-toggle';
-import { CommandIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { CommandIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 type AuthLayoutProps = {
   readonly children: ReactNode;
@@ -12,10 +11,7 @@ const AuthLayout = ({ children }: AuthLayoutProps) => (
       <div className="absolute inset-0 bg-zinc-900" />
       <div className="relative z-20 flex items-center font-medium text-lg">
         <CommandIcon className="mr-2 h-6 w-6" />
-        Next Commerce
-      </div>
-      <div className="absolute top-4 right-4">
-        <ModeToggle />
+        Next Hydra
       </div>
     </div>
     <div className="lg:p-8">
