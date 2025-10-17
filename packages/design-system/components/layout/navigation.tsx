@@ -1,3 +1,5 @@
+"use client";
+
 import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 import Link from "next/link";
 import {
