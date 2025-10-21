@@ -1,5 +1,25 @@
 version: 1
 files:
-  messages/en.json:
+  messages/en-US.json:
     web.header.signIn: b6d4223e60986fa4c9af77ee5f7149c5
-    web.header.signUp: be11c74c1dd7f307bb80183a90dc2067
+    web.header.signUp: d67850bd126f070221dcfd5fa6317043
+    web.product.addToCart: 638f592f71fc3fac3351534e69f9d29f
+    web.product.quoteRequest: 7f11cb1197d8388b0107d2390f2e440b
+    web.product.viewDetails: 5d5cd268b8acccf04f63d81c5d0d2cab
+    web.product.errorLoadingProduct: f414a9a2dadf8c6d17dbe84e696151f8
+    web.product.inStock: 69d08bd5f8cf4e228930935c3f13e42f
+    web.product.outOfStock: e990b6285ed2a575c561235378a5e691
+    web.product.currentlyOutOfStock: a445c2660c6619b44a69f2b7fb3afc98
+    web.product.unitsAvailable: 02c8cde49cb422948c516a3135e3ea89
+    web.product.quantity: 694e8d1f2ee056f98ee488bdc4982d73
+    web.product.loading: 8524de963f07201e5c086830d370797f
+    web.product.selectedConfiguration: 7f6423c047eb9c69fac94e5b1d931fe8
+    web.product.units: 41065d38e6cc9f55156ec8e848124b35
+    web.product.outOfStockSuffix: 6173923e694b03d591cd0dc887d49630
+    web.product.productHasNoVariants: 0cdfe49e2415cc958451c2449c94631b
+    web.navigation.home: 8cf04a9734132302f96da8e113e80ce5
+    web.navigation.products: 068f80c7519d0528fb08e82137a72131
+    web.navigation.categoryFallback: 3adbdb3ac060038aa0e6e6c138ef9873
+    web.cart.addedToCartAlert: b7a8a1c087098f599d886e8666cb831d
+    web.cart.stockIn: 69d08bd5f8cf4e228930935c3f13e42f
+    web.cart.stockOut: e990b6285ed2a575c561235378a5e691

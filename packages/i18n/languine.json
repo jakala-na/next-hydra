@@ -1,7 +1,8 @@
 {
+  "projectId": "prj_lfchttjmciyt6ymsyr1vjuip",
   "locale": {
-    "source": "en",
-    "targets": ["fr-CA"]
+    "source": "en-US",
+    "targets": ["fr-FR", "de-DE", "it-IT", "es-ES", "pt-PT", "nl-NL", "en-GB"]
   },
   "files": {
     "json": {

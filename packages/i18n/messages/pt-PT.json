@@ -1,0 +1,38 @@
+{
+  "web": {
+    "header": {
+      "signUp": "Inscrever-se",
+      "signIn": "Iniciar sessão"
+    },
+    "product": {
+      "addToCart": "Adicionar ao Carrinho",
+      "quoteRequest": "Solicitar um Orçamento",
+      "badgeNew": "Novo",
+      "titlePlaceholder": "Título da Variante do Produto",
+      "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+      "errorLoadingProduct": "Erro ao carregar o produto",
+      "inStock": "Em Estoque",
+      "outOfStock": "Fora de Estoque",
+      "currentlyOutOfStock": "Atualmente fora de estoque",
+      "unitsAvailable": "{count, plural, one {# unidade disponível} other {# unidades disponíveis}}",
+      "quantity": "Quantidade",
+      "loading": "A carregar...",
+      "selectedConfiguration": "Configuração Selecionada:",
+      "units": "{count, plural, one {unidade} other {unidades}}",
+      "outOfStockSuffix": "(Fora de Estoque)",
+      "variantLabel": "Variante",
+      "productHasNoVariants": "O produto não tem variantes",
+      "viewDetails": "Ver Detalhes"
+    },
+    "navigation": {
+      "home": "Início",
+      "products": "Produtos",
+      "categoryFallback": "Categoria"
+    },
+    "cart": {
+      "addedToCartAlert": "Adicionado {quantity} {variantLabel} ao carrinho a {price} cada.\nEstado do Stock: {stockStatus}",
+      "stockIn": "Em Estoque",
+      "stockOut": "Fora de Estoque"
+    }
+  }
+}

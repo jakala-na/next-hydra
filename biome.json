@@ -1,0 +1,63 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["ultracite"],
+  "files": {
+    "includes": [
+      "**",
+      "!**/packages/cms/gql/*",
+      "!**/packages/commerce/gql/*",
+      "!**/apps/email/.react-email/",
+      "!**/node_modules",
+      "!**/.next"
+    ],
+    "experimentalScannerIgnores": [".git", ".next", ".turbo", "node_modules"]
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "useSortedAttributes": "off"
+      }
+    }
+  },
+  "linter": {
+    "rules": {
+      "a11y": {
+        "noStaticElementInteractions": "warn",
+        "useSemanticElements": "warn",
+        "noSvgWithoutTitle": "warn",
+        "noLabelWithoutControl": "warn",
+        "noNoninteractiveElementInteractions": "warn"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "off",
+        "useOptionalChain": "warn"
+      },
+      "performance": {
+        "noNamespaceImport": "warn"
+      },
+      "correctness": {
+        "noNestedComponentDefinitions": "warn",
+        "useParseIntRadix": "warn"
+      },
+      "nursery": {
+        "noShadow": "warn",
+        "useConsistentTypeDefinitions": "off"
+      },
+      "suspicious": {
+        "noConsole": "warn",
+        "noArrayIndexKey": "warn",
+        "noGlobalIsNan": "warn",
+        "noEmptyBlockStatements": "warn",
+        "noUselessEscapeInString": "off",
+        "noUnknownAtRules": "warn"
+      },
+      "style": {
+        "useNodejsImportProtocol": "warn",
+        "noMagicNumbers": "warn"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      }
+    }
+  }
+}

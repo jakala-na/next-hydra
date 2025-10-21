@@ -45,6 +45,12 @@ const getPage = async (
                 ...HeroSection
               }
             }
+            ... on LandingPageComponentsDynamicProductCollection {
+              dynamic_product_collection {
+                __typename
+                ...DynamicProductCollection
+              }
+            }
           }
           system {
             uid

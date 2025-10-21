@@ -22,7 +22,7 @@ export type Region = {
 const DEFAULT_LOCALE = "en-US";
 
 type RegionSelectorProps = {
-  regions: Region[];
+  regions: readonly Region[];
 };
 
 const escapeForRegExp = (value: string) =>

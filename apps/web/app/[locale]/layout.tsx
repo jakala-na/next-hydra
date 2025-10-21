@@ -58,8 +58,11 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
               RegionSelectorSlot={<RegionSelector regions={regions} />}
               Search={<SearchAutocomplete />}
               BusinessUnitSwitcher={<BusinessUnitSwitcher />}
-              MobileMenu={
-                <MobileMenu navigationItems={navigation.navigationItems} />
+              MobileMenuSlot={
+                <MobileMenu
+                  key={"menu-slot"}
+                  navigationItems={navigation.navigationItems}
+                />
               }
               CartSlot={
                 <Suspense fallback={<div className="skeleton h-8 w-16" />}>

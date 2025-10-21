@@ -13,11 +13,7 @@ const Page = async ({ params }: PageProps) => {
   const { url, locale } = await params;
 
   const urlStr = url?.join("/") ?? "/";
-  return (
-    <main className="container mx-auto">
-      <LandingPage url={urlStr} locale={locale} />
-    </main>
-  );
+  return <LandingPage url={urlStr} locale={locale} />;
 };
 
 export default Page;

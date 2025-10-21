@@ -1,0 +1,38 @@
+{
+  "web": {
+    "header": {
+      "signUp": "Registrarse",
+      "signIn": "Iniciar sesión"
+    },
+    "product": {
+      "addToCart": "Añadir al carrito",
+      "quoteRequest": "Solicitar un presupuesto",
+      "badgeNew": "Nuevo",
+      "titlePlaceholder": "Título de la variante del producto",
+      "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+      "errorLoadingProduct": "Error al cargar el producto",
+      "inStock": "En stock",
+      "outOfStock": "Agotado",
+      "currentlyOutOfStock": "Actualmente agotado",
+      "unitsAvailable": "{count, plural, one {# unidad disponible} other {# unidades disponibles}}",
+      "quantity": "Cantidad",
+      "loading": "Cargando...",
+      "selectedConfiguration": "Configuración seleccionada:",
+      "units": "{count, plural, one {unidad} other {unidades}}",
+      "outOfStockSuffix": "(Agotado)",
+      "variantLabel": "Variante",
+      "productHasNoVariants": "El producto no tiene variantes",
+      "viewDetails": "Ver detalles"
+    },
+    "navigation": {
+      "home": "Inicio",
+      "products": "Productos",
+      "categoryFallback": "Categoría"
+    },
+    "cart": {
+      "addedToCartAlert": "Se añadieron {quantity} {variantLabel} al carrito a {price} cada uno.\nEstado del stock: {stockStatus}",
+      "stockIn": "En Stock",
+      "stockOut": "Agotado"
+    }
+  }
+}

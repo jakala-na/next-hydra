@@ -4,6 +4,8 @@
     "baseUrl": ".",
     "allowImportingTsExtensions": true,
     "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
     "plugins": [
       {
         "name": "gql.tada/ts-plugin",

@@ -1,0 +1,38 @@
+{
+  "web": {
+    "header": {
+      "signUp": "S'inscrire",
+      "signIn": "Se connecter"
+    },
+    "product": {
+      "addToCart": "Ajouter au panier",
+      "quoteRequest": "Demander un devis",
+      "badgeNew": "Nouveau",
+      "titlePlaceholder": "Titre de la variante du produit",
+      "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+      "errorLoadingProduct": "Erreur de chargement du produit",
+      "inStock": "En stock",
+      "outOfStock": "Rupture de stock",
+      "currentlyOutOfStock": "Actuellement en rupture de stock",
+      "unitsAvailable": "{count, plural, one {# unité disponible} other {# unités disponibles}}",
+      "quantity": "Quantité",
+      "loading": "Chargement...",
+      "selectedConfiguration": "Configuration sélectionnée :",
+      "units": "{count, plural, one {unité} other {unités}}",
+      "outOfStockSuffix": "(Rupture de stock)",
+      "variantLabel": "Variante",
+      "productHasNoVariants": "Le produit n'a pas de variantes",
+      "viewDetails": "Voir les détails"
+    },
+    "navigation": {
+      "home": "Accueil",
+      "products": "Produits",
+      "categoryFallback": "Catégorie"
+    },
+    "cart": {
+      "addedToCartAlert": "Ajouté {quantity} {variantLabel} au panier à {price} chacun.\nÉtat du stock : {stockStatus}",
+      "stockIn": "En Stock",
+      "stockOut": "Rupture de Stock"
+    }
+  }
+}

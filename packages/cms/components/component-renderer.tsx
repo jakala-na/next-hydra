@@ -10,12 +10,14 @@
  * 5. It should skip rendering if component is not found in the componentMap.
  */
 import { VB_EmptyBlockParentClass } from "@contentstack/live-preview-utils";
+import { DynamicProductCollection } from "@repo/cms/components/blocks/dynamic-product-collection";
 import { HeroSection } from "@repo/cms/components/blocks/hero-section";
 import type { ComponentProps } from "react";
 import type { LivePreviewHelper } from "../lib/utils/live-preview-helper";
 
 export const componentMap = {
   HeroSection,
+  DynamicProductCollection,
 } as const;
 
 type BaseData = {
@@ -284,4 +286,7 @@ export default function ComponentRenderer<
 }
 
 // Re-export all fragments.
-ComponentRenderer.fragments = [HeroSection.fragment];
+ComponentRenderer.fragments = [
+  HeroSection.fragment,
+  DynamicProductCollection.fragment,
+];

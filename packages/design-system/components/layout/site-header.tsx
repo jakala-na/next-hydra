@@ -33,7 +33,7 @@ export type SiteHeaderProps = {
   RegionSelectorSlot: React.ReactNode;
   Search?: React.ReactNode;
   BusinessUnitSwitcher?: React.ReactNode;
-  MobileMenu?: React.ReactNode;
+  MobileMenuSlot?: React.ReactNode;
   CartSlot: React.ReactNode;
   AccountSlot: React.ReactNode;
 };
@@ -42,7 +42,7 @@ export function SiteHeader({
   RegionSelectorSlot,
   Search,
   BusinessUnitSwitcher,
-  MobileMenu,
+  MobileMenuSlot,
   MainNavigation,
   CartSlot,
   AccountSlot,
@@ -74,7 +74,7 @@ export function SiteHeader({
         <div className="flex items-center gap-2">
           <div className="hidden lg:block">{Search}</div>
           {CartSlot}
-          {MobileMenu}
+          {MobileMenuSlot}
         </div>
       </div>
     </header>
