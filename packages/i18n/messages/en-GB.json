@@ -32,7 +32,40 @@
     "cart": {
       "addedToCartAlert": "Added {quantity} {variantLabel} to cart at {price} each.\nStock Status: {stockStatus}",
       "stockIn": "In Stock",
-      "stockOut": "Out of Stock"
+      "stockOut": "Out of Stock",
+      "toast": {
+        "addedToCart": "Added to basket",
+        "removedFromCart": "Removed from basket",
+        "updatedQuantity": "Updated quantity",
+        "failedToAdd": "Failed to add to basket",
+        "failedToRemove": "Failed to remove item",
+        "failedToUpdate": "Failed to update quantity"
+      },
+      "title": "Shopping Basket ({count})",
+      "empty": {
+        "heading": "Your basket is empty",
+        "description": "Add some heavy machinery to get started",
+        "actions": {
+          "browseProducts": "Browse Products"
+        }
+      },
+      "summary": {
+        "subtotal": {
+          "label": "Subtotal"
+        },
+        "shipping": {
+          "label": "Delivery",
+          "description": "Calculated at checkout"
+        },
+        "total": {
+          "label": "Total"
+        },
+        "taxesAndShippingNotice": "Taxes and delivery calculated at checkout"
+      },
+      "actions": {
+        "checkout": "Proceed to Checkout",
+        "continueShopping": "Continue Shopping"
+      }
     }
   }
 }

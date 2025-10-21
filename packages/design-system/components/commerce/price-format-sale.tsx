@@ -40,8 +40,7 @@ const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
               classNameOriginalPrice
             )}
           >
-            {format.number(originalPrice, {
-              style: "currency",
+            {format.number(originalPrice, "wholeMoneyWithCurrency", {
               currency: currencyCode,
             })}
           </span>
@@ -51,8 +50,7 @@ const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
               classNameSalePrice
             )}
           >
-            {format.number(salePrice, {
-              style: "currency",
+            {format.number(salePrice, "wholeMoneyWithCurrency", {
               currency: currencyCode,
             })}
           </span>
@@ -74,8 +72,7 @@ const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
             classNameSalePrice
           )}
         >
-          {format.number(originalPrice, {
-            style: "currency",
+          {format.number(originalPrice, "wholeMoneyWithCurrency", {
             currency: currencyCode,
           })}
         </span>
