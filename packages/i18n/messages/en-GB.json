@@ -1,0 +1,38 @@
+{
+  "web": {
+    "header": {
+      "signUp": "Sign Up",
+      "signIn": "Sign in"
+    },
+    "product": {
+      "addToCart": "Add to Basket",
+      "quoteRequest": "Request a Quote",
+      "badgeNew": "New",
+      "titlePlaceholder": "Product Variant Title",
+      "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+      "errorLoadingProduct": "Error loading product",
+      "inStock": "In Stock",
+      "outOfStock": "Out of Stock",
+      "currentlyOutOfStock": "Currently out of stock",
+      "unitsAvailable": "{count, plural, one {# unit available} other {# units available}}",
+      "quantity": "Quantity",
+      "loading": "Loading...",
+      "selectedConfiguration": "Selected Configuration:",
+      "units": "{count, plural, one {unit} other {units}}",
+      "outOfStockSuffix": "(Out of Stock)",
+      "variantLabel": "Variant",
+      "productHasNoVariants": "Product has no variants",
+      "viewDetails": "View Details"
+    },
+    "navigation": {
+      "home": "Home",
+      "products": "Products",
+      "categoryFallback": "Category"
+    },
+    "cart": {
+      "addedToCartAlert": "Added {quantity} {variantLabel} to cart at {price} each.\nStock Status: {stockStatus}",
+      "stockIn": "In Stock",
+      "stockOut": "Out of Stock"
+    }
+  }
+}

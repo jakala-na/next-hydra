@@ -3,6 +3,32 @@
     "header": {
       "signIn": "Sign in",
       "signUp": "Sign Up"
+    },
+    "product": {
+      "addToCart": "Add to Cart",
+      "quoteRequest": "Request a Quote",
+      "viewDetails": "View Details",
+      "errorLoadingProduct": "Error loading product",
+      "inStock": "In Stock",
+      "outOfStock": "Out of Stock",
+      "currentlyOutOfStock": "Currently out of stock",
+      "unitsAvailable": "{count, plural, one {# unit available} other {# units available}}",
+      "quantity": "Quantity",
+      "loading": "Loading...",
+      "selectedConfiguration": "Selected Configuration:",
+      "units": "{count, plural, one {unit} other {units}}",
+      "outOfStockSuffix": "(Out of Stock)",
+      "productHasNoVariants": "Product has no variants"
+    },
+    "navigation": {
+      "home": "Home",
+      "products": "Products",
+      "categoryFallback": "Category"
+    },
+    "cart": {
+      "addedToCartAlert": "Added {quantity} {variantLabel} to cart at {price} each.\nStock Status: {stockStatus}",
+      "stockIn": "In Stock",
+      "stockOut": "Out of Stock"
     }
   }
 }

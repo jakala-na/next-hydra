@@ -1,15 +1,12 @@
-'use client';
+"use client";
 
-import { cn } from '@repo/design-system/lib/utils';
-import { NumericFormat } from 'react-number-format';
+import { cn } from "@repo/design-system/lib/utils";
+import { useFormatter } from "@repo/i18n";
 
 interface PriceFormat_SaleProps extends React.HTMLAttributes<HTMLDivElement> {
   originalPrice: number;
   salePrice?: number;
-  prefix?: string;
-  thousandSeparator?: string;
-  decimalSeparator?: string;
-  decimalScale?: number;
+  currencyCode?: string;
   showSavePercentage?: boolean;
   classNameOriginalPrice?: string;
   classNameSalePrice?: string;
@@ -17,55 +14,52 @@ interface PriceFormat_SaleProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
+  currencyCode,
   className,
   classNameOriginalPrice,
   classNameSalePercentage,
   classNameSalePrice,
-  decimalScale = 2,
-  decimalSeparator = ',',
   originalPrice,
-  prefix = '$',
   salePrice,
   showSavePercentage = false,
-  thousandSeparator = '.',
 }) => {
+  const format = useFormatter();
+
   const isSale = salePrice !== undefined && salePrice < originalPrice;
   const savePercentage = isSale
     ? ((originalPrice - salePrice) / originalPrice) * 100
     : 0;
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-2', className)}>
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
       {isSale ? (
         <>
-          <NumericFormat
-            value={originalPrice}
-            thousandSeparator={thousandSeparator}
-            decimalSeparator={decimalSeparator}
-            decimalScale={decimalScale}
-            prefix={prefix}
-            displayType="text"
+          <span
             className={cn(
-              'font-medium text-gray-500 line-through',
+              "font-medium text-gray-500 line-through",
               classNameOriginalPrice
             )}
-          />
-          <NumericFormat
-            value={salePrice}
-            thousandSeparator={thousandSeparator}
-            decimalSeparator={decimalSeparator}
-            decimalScale={decimalScale}
-            prefix={prefix}
-            displayType="text"
+          >
+            {format.number(originalPrice, {
+              style: "currency",
+              currency: currencyCode,
+            })}
+          </span>
+          <span
             className={cn(
-              'font-medium text-[length:inherit]',
+              "font-medium text-[length:inherit]",
               classNameSalePrice
             )}
-          />
+          >
+            {format.number(salePrice, {
+              style: "currency",
+              currency: currencyCode,
+            })}
+          </span>
           {showSavePercentage && (
             <span
               className={cn(
-                'rounded-sm bg-green-500/50 p-1 font-medium text-sm',
+                "rounded-sm bg-green-500/50 p-1 font-medium text-sm",
                 classNameSalePercentage
               )}
             >
@@ -74,18 +68,17 @@ const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
           )}
         </>
       ) : (
-        <NumericFormat
-          value={originalPrice}
-          thousandSeparator={thousandSeparator}
-          decimalSeparator={decimalSeparator}
-          decimalScale={decimalScale}
-          prefix={prefix}
-          displayType="text"
+        <span
           className={cn(
-            'font-medium text-[length:inherit]',
+            "font-medium text-[length:inherit]",
             classNameSalePrice
           )}
-        />
+        >
+          {format.number(originalPrice, {
+            style: "currency",
+            currency: currencyCode,
+          })}
+        </span>
       )}
     </div>
   );

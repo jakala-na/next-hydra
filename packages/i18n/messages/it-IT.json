@@ -1,0 +1,38 @@
+{
+  "web": {
+    "header": {
+      "signUp": "Registrati",
+      "signIn": "Accedi"
+    },
+    "product": {
+      "addToCart": "Aggiungi al carrello",
+      "quoteRequest": "Richiedi un preventivo",
+      "badgeNew": "Nuovo",
+      "titlePlaceholder": "Titolo della variante del prodotto",
+      "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+      "errorLoadingProduct": "Errore nel caricamento del prodotto",
+      "inStock": "Disponibile",
+      "outOfStock": "Esaurito",
+      "currentlyOutOfStock": "Attualmente esaurito",
+      "unitsAvailable": "{count, plural, one {# unità disponibile} other {# unità disponibili}}",
+      "quantity": "Quantità",
+      "loading": "Caricamento...",
+      "selectedConfiguration": "Configurazione selezionata:",
+      "units": "{count, plural, one {unità} other {unità}}",
+      "outOfStockSuffix": "(Esaurito)",
+      "variantLabel": "Variante",
+      "productHasNoVariants": "Il prodotto non ha varianti",
+      "viewDetails": "Visualizza dettagli"
+    },
+    "navigation": {
+      "home": "Home",
+      "products": "Prodotti",
+      "categoryFallback": "Categoria"
+    },
+    "cart": {
+      "addedToCartAlert": "Aggiunto {quantity} {variantLabel} al carrello a {price} ciascuno.\nStato disponibilità: {stockStatus}",
+      "stockIn": "Disponibile",
+      "stockOut": "Esaurito"
+    }
+  }
+}
