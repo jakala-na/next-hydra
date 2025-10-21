@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { cn } from '@repo/design-system/lib/utils';
-import { Star } from 'lucide-react';
-import { memo, useCallback, useState } from 'react';
+import { cn } from "@repo/design-system/lib/utils";
+import { Star } from "lucide-react";
+import { memo, useCallback, useState } from "react";
 
 // Add ID generator outside component to maintain counter
 let nextId = 0;
@@ -43,18 +43,18 @@ const StarIcon = memo(
       onClick={onClick}
       onMouseMove={onMouseMove}
       className={cn(
-        'transition-colors duration-200',
-        isInteractive && 'cursor-pointer'
+        "transition-colors duration-200",
+        isInteractive && "cursor-pointer"
       )}
       style={style}
     />
   )
 );
-StarIcon.displayName = 'StarIcon';
+StarIcon.displayName = "StarIcon";
 
 const StarRating_Fractions = ({
   className,
-  color = '#e4c616',
+  color = "#e4c616",
   iconSize = 24,
   maxStars = 5,
   onChange,
@@ -121,7 +121,7 @@ const StarRating_Fractions = ({
       const difference = ratingToUse - index;
 
       if (difference <= 0) {
-        return { color: 'gray', fill: 'transparent' };
+        return { color: "gray", fill: "transparent" };
       }
       if (difference >= 1) {
         return { color, fill: color };
@@ -158,8 +158,8 @@ const StarRating_Fractions = ({
     return null;
   };
 
-  const renderStars = () => {
-    return Array.from({ length: maxStars }).map((_, index) => {
+  const renderStars = () =>
+    Array.from({ length: maxStars }).map((_, index) => {
       const style = getStarStyle(index);
       return (
         <StarIcon
@@ -173,14 +173,13 @@ const StarRating_Fractions = ({
         />
       );
     });
-  };
 
   return (
     <div
-      className={cn('relative flex items-center gap-x-0.5', className)}
+      className={cn("relative flex items-center gap-x-0.5", className)}
       onMouseLeave={handleMouseLeave}
     >
-      <svg width="0" height="0" style={{ position: 'absolute' }}>
+      <svg width="0" height="0" style={{ position: "absolute" }}>
         <defs>{renderGradientDefs()}</defs>
       </svg>
       {renderStars()}

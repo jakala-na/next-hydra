@@ -18,7 +18,7 @@ export async function ProductCollection(props: ProductCollectionProps) {
   const { title, description, categoryId, limit = 3, excludeProductId } = props;
   const products = await productService.getProductsCollection(
     {
-      filter: categoryId ? `categories.id:"${categoryId}` : "",
+      filter: categoryId ? `categories.id:"${categoryId}"` : "",
       limit,
       excludeProductId,
     },

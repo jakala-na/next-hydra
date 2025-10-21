@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Dialog,
@@ -9,13 +9,11 @@ import {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
-} from '@radix-ui/react-dialog';
-import { cn } from '@repo/design-system/lib/utils';
-import { MinusCircle, PlusCircle, X } from 'lucide-react';
-import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
-
-const DEFAULT_PLACEHOLDER_URL =
-  'https://raw.githubusercontent.com/stackzero-labs/ui/refs/heads/main/public/placeholders/headphone-2.jpg';
+} from "@radix-ui/react-dialog";
+import { cn } from "@repo/design-system/lib/utils";
+import { MinusCircle, PlusCircle, X } from "lucide-react";
+import Image from "next/image";
+import { TransformComponent, TransformWrapper } from "react-zoom-pan-pinch";
 
 interface ImageViewerProps {
   className?: string;
@@ -35,27 +33,26 @@ const ImageViewer_Basic = ({
   classNameThumbnailViewer,
   imageTitle,
   imageUrl,
-  placeholderUrl = DEFAULT_PLACEHOLDER_URL,
+  placeholderUrl,
   showControls = true,
   thumbnailUrl,
 }: ImageViewerProps) => {
   const handleImgError = (event: React.SyntheticEvent<HTMLImageElement>) => {
-    console.error('Image failed to load', event.currentTarget.src);
-    event.currentTarget.src = placeholderUrl;
+    console.error("Image failed to load", event.currentTarget.src);
+    event.currentTarget.src = placeholderUrl ?? "";
   };
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <div className={cn('cursor-pointer', className)}>
-          {/* You can swap this with your preferred image optization technique, like using  next/image */}
-          {/* biome-ignore lint: IN PROGRESS */}
-          <img
+        <div className={cn("cursor-pointer", className)}>
+          <Image
             src={thumbnailUrl || imageUrl}
-            alt={`${imageTitle ?? 'Image'} - Preview`}
-            width="100%"
+            alt={`${imageTitle ?? ""}`}
+            width={500}
+            height={500}
             className={cn(
-              'h-auto w-full rounded-lg object-contain transition-opacity hover:opacity-90',
+              "h-auto w-full rounded-lg object-contain transition-opacity hover:opacity-90",
               classNameThumbnailViewer
             )}
             onError={handleImgError}
@@ -65,9 +62,9 @@ const ImageViewer_Basic = ({
       <DialogPortal>
         <DialogOverlay className="fixed inset-0 z-50 bg-black/80" />
         <DialogContent className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background p-0">
-          <DialogTitle className="sr-only">{imageTitle || 'Image'}</DialogTitle>
+          <DialogTitle className="sr-only">{imageTitle || "Image"}</DialogTitle>
           <DialogDescription className="sr-only">
-            {imageTitle || 'Image'}
+            {imageTitle || "Image"}
           </DialogDescription>
           <div className="relative flex h-screen w-screen items-center justify-center">
             <TransformWrapper
@@ -78,15 +75,15 @@ const ImageViewer_Basic = ({
               {({ zoomIn, zoomOut }) => (
                 <>
                   <TransformComponent>
-                    {/* You can swap this with your preferred image optization technique, like using  next/image */}
-                    {/* biome-ignore lint: IN PROGRESS */}
-                    <img
+                    <Image
                       src={imageUrl}
-                      alt={`${imageTitle ?? 'Image'} - Full`}
+                      alt={`${imageTitle ?? ""}`}
                       className={cn(
-                        'max-h-[90vh] max-w-[90vw] object-contain',
+                        "h-auto max-h-[90vh] w-full max-w-[90vw] object-contain",
                         classNameImageViewer
                       )}
+                      width={1000}
+                      height={1000}
                       onError={handleImgError}
                     />
                   </TransformComponent>

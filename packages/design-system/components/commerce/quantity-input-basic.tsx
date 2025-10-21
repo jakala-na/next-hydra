@@ -1,7 +1,7 @@
-'use client';
-import { cn } from '@repo/design-system/lib/utils';
-import { Minus, Plus } from 'lucide-react';
-import { type ChangeEvent, useEffect, useState } from 'react';
+"use client";
+import { cn } from "@repo/design-system/lib/utils";
+import { Minus, Plus } from "lucide-react";
+import { type ChangeEvent, useEffect, useState } from "react";
 
 interface QuantityInputBasicProps {
   quantity: number;
@@ -74,15 +74,15 @@ const QuantityInputBasic = ({
   return (
     <div
       className={cn(
-        'inline-flex cursor-pointer rounded-lg shadow-black/5 shadow-xs',
+        "inline-flex cursor-pointer rounded-lg shadow-black/5 shadow-xs",
         className
       )}
     >
       <button
         type="button"
         className={cn(
-          'flex cursor-pointer items-center justify-center rounded-s-lg border px-3 py-1 hover:bg-muted-foreground/10 focus-visible:z-10 disabled:cursor-not-allowed disabled:opacity-50',
-          disabled && 'pointer-events-none'
+          "flex cursor-pointer items-center justify-center rounded-s-lg border px-3 py-1 hover:bg-muted-foreground/10 focus-visible:z-10 disabled:cursor-not-allowed disabled:opacity-50",
+          disabled && "pointer-events-none"
         )}
         onClick={handleDecrease}
         disabled={disabled || quantity <= min}
@@ -104,8 +104,8 @@ const QuantityInputBasic = ({
       <button
         type="button"
         className={cn(
-          'flex cursor-pointer items-center justify-center rounded-e-lg border px-3 py-1 hover:bg-muted-foreground/10 focus-visible:z-10 disabled:cursor-not-allowed disabled:opacity-50',
-          disabled && 'pointer-events-none'
+          "flex cursor-pointer items-center justify-center rounded-e-lg border px-3 py-1 hover:bg-muted-foreground/10 focus-visible:z-10 disabled:cursor-not-allowed disabled:opacity-50",
+          disabled && "pointer-events-none"
         )}
         onClick={handleIncrease}
         disabled={disabled || (max !== null && quantity >= max)}

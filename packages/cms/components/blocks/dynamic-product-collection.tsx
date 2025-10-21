@@ -22,7 +22,8 @@ export async function DynamicProductCollection(props: {
   const title = data.heading || "";
   const description = data.description;
   const category = (data.product_category as CommercetoolsCategoryField)
-    .data[0];
+    ?.data[0];
+
   return (
     <CommerceProductCollection
       title={title}

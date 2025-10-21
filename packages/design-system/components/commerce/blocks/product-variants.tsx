@@ -1,11 +1,11 @@
 "use client";
 
-import ImageViewer from "@repo/design-system/components/commerce-ui/image-viewer-basic";
-import PriceFormat_Sale from "@repo/design-system/components/commerce-ui/price-format-sale";
-import QuantityInputBasic from "@repo/design-system/components/commerce-ui/quantity-input-basic";
+import ImageViewer from "@repo/design-system/components/commerce/image-viewer-basic";
+import PriceFormat_Sale from "@repo/design-system/components/commerce/price-format-sale";
+import QuantityInputBasic from "@repo/design-system/components/commerce/quantity-input-basic";
 import VariantSelectorBasic, {
   type VariantItem as BaseVariantItem,
-} from "@repo/design-system/components/commerce-ui/variant-selector-basic";
+} from "@repo/design-system/components/commerce/variant-selector-basic";
 import { Button } from "@repo/design-system/components/ui/button";
 import { useFormatter, useTranslations } from "@repo/i18n";
 import { Clock } from "lucide-react";

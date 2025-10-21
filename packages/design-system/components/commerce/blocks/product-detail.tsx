@@ -5,7 +5,7 @@ import {
   default as ProductVariant,
   type VariantItem,
   type VariantSelectionPayload,
-} from "@repo/design-system/components/commerce-ui/product-variants";
+} from "@repo/design-system/components/commerce/blocks/product-variants";
 import { QuoteRequestDialog } from "@repo/design-system/components/quote-request-dialog";
 import { useFormatter, useTranslations } from "@repo/i18n";
 import { useState } from "react";
