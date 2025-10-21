@@ -1,71 +1,35 @@
-import { type FragmentOf, graphql, readFragment } from "@repo/cms/graphql";
-import { getNodesFromConnection } from "@repo/cms/lib/utils/connection";
-import { renderRichText } from "@repo/cms/lib/utils/rich-text-utils";
-import type { ComponentBaseProps } from "@repo/cms/types";
 import { HeroSection as HeroSectionComponent } from "@repo/design-system/components/cms/blocks/hero-section";
-import getLinkProps from "../link";
-
-export const HeroSectionFragment = graphql(`
-  fragment HeroSection on HeroSection {
-    tagline
-    title
-    description {
-      json
-    }
-    imageConnection {
-      edges {
-        node {
-          ... on SysAsset {
-            url
-            dimension {
-              width
-              height
-            }
-          }
-        }
-      }
-    }
-    image_alt
-    cta {
-      label
-      internal_contentConnection {
-        edges {
-          node {
-            ... on LandingPage {
-              url
-              title
-            }
-          }
-        }
-      }
-      external_url
-    }
-  }
-`);
+import { renderToHtml } from "@uniformdev/richtext";
+import  { transformLocale } from "@repo/cms/lib/utils/transform-locale";
+import type { Locale } from "@repo/cms/i18n/locales";
 
 export function HeroSection(
   props: {
-    data: FragmentOf<typeof HeroSectionFragment>;
-  } & ComponentBaseProps
+    data: any
+    locale: Locale
+  }
 ) {
-  const data = readFragment(HeroSectionFragment, props.data);
-
-  const image = getNodesFromConnection(data.imageConnection).map((node) => ({
-    url: node?.url || "",
-    altText: data.image_alt || "",
-    width: node?.dimension?.width ?? undefined,
-    height: node?.dimension?.height ?? undefined,
-  }))[0];
-
+  const { data, locale } = props;
+  const localeCode = transformLocale(locale);
+  const imageProps = {
+    url: data.image.locales[localeCode][0].fields.url.value,
+    altText: data.image.locales[localeCode][0].fields.title.value,
+    width: data.image.locales[localeCode][0].fields.width.value,
+    height: data.image.locales[localeCode][0].fields.height.value,
+  };
+  console.log('data.description', data.description.locales[localeCode]);
+  const title = props.data.title.locales[localeCode] ?? '';
+  const tagline = props.data.tagline.locales[localeCode] ?? '';
+  const description = renderToHtml(props.data.description.locales[localeCode]);
+  
   return (
     <HeroSectionComponent
-      image={image}
-      ctaLinks={getLinkProps(data.cta)}
-      tagline={data.tagline ?? ""}
-      title={data.title ?? ""}
-      description={renderRichText(data.description?.json)}
+      image={imageProps}
+      ctaLinks={[]}
+      tagline={tagline}
+      title={title}
+      description={description}
     />
   );
 }
 
-HeroSection.fragment = HeroSectionFragment;

@@ -1,4 +1,3 @@
-import { transformLocale } from "@repo/cms/lib/utils/transform-locale";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
 import { hasLocale } from "@repo/i18n";
@@ -9,106 +8,34 @@ import {
 } from "next/cache";
 import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { graphqlClient } from "../../client";
-import { graphql } from "../../graphql";
-import { entryLivePreview } from "../../lib/utils/live-preview-helper";
-import ComponentRenderer from "../component-renderer";
+import { getRouteClient } from "@repo/cms/client";
+import { entryLivePreview } from "@repo/cms/lib/utils/live-preview-helper";
+import ComponentRenderer from "@repo/cms/components/component-renderer";
 
-const getPage = async (
-  url: string,
-  locale: Locale,
-  livePreviewHash: string | undefined
-) => {
+export async function LandingPage(props: { url: string; locale: Locale }) {
   "use cache";
+  const { url, locale } = props;
   cacheLife("minutes");
   cacheTag(`page:${url}`);
 
-  const pageQuery = graphql(
-    `
-    query PageQuery($url: String, $locale: String!) {
-      all_landing_page(
-          locale: $locale
-          fallback_locale: true
-          limit: 1
-          where: { url: $url }
-      ) {
-        items {
-          title
-          display_title
-          hide_display_title
-          url
-          components {
-            __typename
-            ... on LandingPageComponentsHeroSection {
-              hero_section {
-                __typename
-                ...HeroSection
-              }
-            }
-          }
-          system {
-            uid
-            content_type_uid
-            locale
-          }
-        }
-      }
-    }
-  `,
-    [...ComponentRenderer.fragments]
-  );
+  const route = {
+    params: {path: url},
+    searchParams: {}
+  };
 
-  const response = await graphqlClient(livePreviewHash).query(pageQuery, {
-    locale: transformLocale(locale),
-    url,
-  });
-
-  if (response.error) {
-    throw new Error("Something went wrong");
-  }
-
-  const entry = response.data?.all_landing_page?.items?.[0];
-
-  if (!entry) {
-    return;
-  }
-
-  return entry;
-};
-
-export async function LandingPage(props: { url: string; locale: Locale }) {
-  const { url, locale } = props;
-
-  if (!hasLocale(routing.locales, locale)) {
+  const client = getRouteClient();
+  const response = await client.getRoute({ path: url, resolutionDepth: 3 });
+  
+  if (response.type === 'composition') {
+    const composition = response.compositionApiResponse.composition;
+    return (
+      <>
+        <ComponentRenderer components={composition.slots?.content ?? []} locale={locale} />
+      </>
+    );
+  } else if (response.type === 'notFound') {
     notFound();
+  } else if (response.type === 'redirect') {
+    // TODO: Handle redirect
   }
-  const { isEnabled: isDraftModeEnabled } = await draftMode();
-
-  let livePreviewHash = "";
-  if (isDraftModeEnabled) {
-    livePreviewHash = (await headers()).get("x-live-preview") || "";
-  }
-
-  const pageData = await getPage(url, locale, livePreviewHash);
-
-  if (!pageData) {
-    notFound();
-  }
-
-  const livePreviewHelper = entryLivePreview(pageData, !!livePreviewHash);
-
-  return (
-    <>
-      {pageData.display_title && (
-        <h1 className={cn(pageData.hide_display_title && "hidden")}>
-          {pageData.display_title}
-        </h1>
-      )}
-      <ComponentRenderer
-        data={pageData.components}
-        livePreviewHelper={livePreviewHelper?.getNestedHelper("components")}
-        dataType="modularBlocks"
-      />
-    </>
-  );
 }

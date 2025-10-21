@@ -7,16 +7,11 @@ export const withCMS = (config: NextConfig) => ({
       ...(config.images?.remotePatterns || []),
       {
         protocol: "https",
-        hostname: "images.contentstack.io",
-      },
-      {
-        protocol: "https",
-        hostname: "images.cdn.us-central1.gcp.commercetools.com",
+        hostname: "img.uniform.global",
       },
     ],
   },
   allowedDevOrigins: [
     ...(config.allowedDevOrigins || []),
-    "app.contentstack.com",
   ],
 });
