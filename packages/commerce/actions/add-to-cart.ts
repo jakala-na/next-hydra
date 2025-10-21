@@ -25,7 +25,7 @@ export const addToCart = inStoreAction
       // Get existing cart.
       const cartResult = await getCartForContext(ctx);
       if (isOk(cartResult)) {
-        cart = cartResult.data;
+        cart = cartResult.data.cart;
       }
 
       // Create cart if it doesn't exist.
@@ -35,7 +35,9 @@ export const addToCart = inStoreAction
         });
         if (isOk(createResult)) {
           cart = createResult.data;
-          await setAnonymousCartId(cart.id, ctx.locale);
+          if (cart !== null) {
+            await setAnonymousCartId(cart.id, ctx.locale);
+          }
         }
       }
 
@@ -69,6 +71,7 @@ export const addToCart = inStoreAction
 
       return Ok({
         cart: updatedCart,
+        currency: ctx.currency,
         issues,
       });
     }

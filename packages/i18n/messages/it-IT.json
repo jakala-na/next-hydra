@@ -32,7 +32,40 @@
     "cart": {
       "addedToCartAlert": "Aggiunto {quantity} {variantLabel} al carrello a {price} ciascuno.\nStato disponibilità: {stockStatus}",
       "stockIn": "Disponibile",
-      "stockOut": "Esaurito"
+      "stockOut": "Esaurito",
+      "toast": {
+        "addedToCart": "Aggiunto al carrello",
+        "removedFromCart": "Rimosso dal carrello",
+        "updatedQuantity": "Quantità aggiornata",
+        "failedToAdd": "Impossibile aggiungere al carrello",
+        "failedToRemove": "Impossibile rimuovere l'elemento",
+        "failedToUpdate": "Impossibile aggiornare la quantità"
+      },
+      "title": "Carrello ({count})",
+      "empty": {
+        "heading": "Il tuo carrello è vuoto",
+        "description": "Aggiungi della macchina pesante per iniziare",
+        "actions": {
+          "browseProducts": "Sfoglia Prodotti"
+        }
+      },
+      "summary": {
+        "subtotal": {
+          "label": "Subtotale"
+        },
+        "shipping": {
+          "label": "Spedizione",
+          "description": "Calcolato al momento del pagamento"
+        },
+        "total": {
+          "label": "Totale"
+        },
+        "taxesAndShippingNotice": "Tasse e spedizione calcolate al momento del pagamento"
+      },
+      "actions": {
+        "checkout": "Procedi al pagamento",
+        "continueShopping": "Continua a fare acquisti"
+      }
     }
   }
 }

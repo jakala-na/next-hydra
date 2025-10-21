@@ -32,7 +32,40 @@
     "cart": {
       "addedToCartAlert": "Toegevoegd {quantity} {variantLabel} aan winkelwagentje voor {price} per stuk.\nVoorraadstatus: {stockStatus}",
       "stockIn": "Op Voorraad",
-      "stockOut": "Niet Op Voorraad"
+      "stockOut": "Niet Op Voorraad",
+      "toast": {
+        "addedToCart": "Aan winkelwagentje toegevoegd",
+        "removedFromCart": "Uit winkelwagentje verwijderd",
+        "updatedQuantity": "Hoeveelheid bijgewerkt",
+        "failedToAdd": "Toevoegen aan winkelwagentje mislukt",
+        "failedToRemove": "Artikel verwijderen mislukt",
+        "failedToUpdate": "Hoeveelheid bijwerken mislukt"
+      },
+      "title": "Winkelwagentje ({count})",
+      "empty": {
+        "heading": "Je winkelwagentje is leeg",
+        "description": "Voeg wat zware machines toe om te beginnen",
+        "actions": {
+          "browseProducts": "Blader door Producten"
+        }
+      },
+      "summary": {
+        "subtotal": {
+          "label": "Subtotaal"
+        },
+        "shipping": {
+          "label": "Verzending",
+          "description": "Bereken bij afrekenen"
+        },
+        "total": {
+          "label": "Totaal"
+        },
+        "taxesAndShippingNotice": "Belastingen en verzending berekend bij afrekenen"
+      },
+      "actions": {
+        "checkout": "Ga naar Afrekenen",
+        "continueShopping": "Blijf Winkelen"
+      }
     }
   }
 }

@@ -6,8 +6,9 @@ import {
   type VariantItem,
   type VariantSelectionPayload,
 } from "@repo/design-system/components/commerce/blocks/product-variants";
+import { useCart } from "@repo/design-system/components/commerce/providers/cart-context";
 import { QuoteRequestDialog } from "@repo/design-system/components/quote-request-dialog";
-import { useFormatter, useTranslations } from "@repo/i18n";
+import { useTranslations } from "@repo/i18n";
 import { useState } from "react";
 
 interface ProductDetailProps {
@@ -16,9 +17,8 @@ interface ProductDetailProps {
 
 export function ProductDetail({ productData }: ProductDetailProps) {
   const t = useTranslations("web.product");
-  const cartT = useTranslations("web.cart");
   const navigationT = useTranslations("web.navigation");
-  const format = useFormatter();
+  const { addItem, openCart } = useCart();
   // Map ProductDetailsDTO.variants -> ProductVariant props (VariantItem[])
   const CENTS_IN_UNIT = 100;
   const mappedVariants: VariantItem[] = productData.variants.map(
@@ -69,24 +69,13 @@ export function ProductDetail({ productData }: ProductDetailProps) {
     }
   };
 
-  const handleAddToCart = (payload: VariantSelectionPayload) => {
-    const variant = mappedVariants.find((v) => v.value === payload.variantId);
-    const stockStatus = variant?.isInStock
-      ? cartT("stockIn")
-      : cartT("stockOut");
-    const formattedPrice = format.number(payload.price, {
-      style: "currency",
-      currency: variant?.currencyCode || "USD",
+  const handleAddToCart = async (payload: VariantSelectionPayload) => {
+    await addItem({
+      productId: productData.id,
+      variantId: payload.variantId,
+      quantity: payload.quantity,
     });
-    // biome-ignore lint/suspicious/noAlert: example feedback
-    window.alert(
-      cartT("addedToCartAlert", {
-        quantity: payload.quantity,
-        variantLabel: payload.variantLabel,
-        price: formattedPrice,
-        stockStatus,
-      })
-    );
+    openCart();
   };
 
   const handleQuoteRequest = () => {

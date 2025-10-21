@@ -32,7 +32,40 @@
     "cart": {
       "addedToCartAlert": "Se añadieron {quantity} {variantLabel} al carrito a {price} cada uno.\nEstado del stock: {stockStatus}",
       "stockIn": "En Stock",
-      "stockOut": "Agotado"
+      "stockOut": "Agotado",
+      "toast": {
+        "addedToCart": "Añadido al carrito",
+        "removedFromCart": "Eliminado del carrito",
+        "updatedQuantity": "Cantidad actualizada",
+        "failedToAdd": "Error al añadir al carrito",
+        "failedToRemove": "Error al eliminar el artículo",
+        "failedToUpdate": "Error al actualizar la cantidad"
+      },
+      "title": "Carrito de Compras ({count})",
+      "empty": {
+        "heading": "Tu carrito está vacío",
+        "description": "Agrega maquinaria pesada para comenzar",
+        "actions": {
+          "browseProducts": "Explorar Productos"
+        }
+      },
+      "summary": {
+        "subtotal": {
+          "label": "Subtotal"
+        },
+        "shipping": {
+          "label": "Envío",
+          "description": "Calculado en el pago"
+        },
+        "total": {
+          "label": "Total"
+        },
+        "taxesAndShippingNotice": "Impuestos y envío calculados en el pago"
+      },
+      "actions": {
+        "checkout": "Proceder al Pago",
+        "continueShopping": "Continuar Comprando"
+      }
     }
   }
 }

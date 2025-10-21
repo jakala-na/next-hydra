@@ -32,7 +32,40 @@
     "cart": {
       "addedToCartAlert": "Adicionado {quantity} {variantLabel} ao carrinho a {price} cada.\nEstado do Stock: {stockStatus}",
       "stockIn": "Em Estoque",
-      "stockOut": "Fora de Estoque"
+      "stockOut": "Fora de Estoque",
+      "toast": {
+        "addedToCart": "Adicionado ao carrinho",
+        "removedFromCart": "Removido do carrinho",
+        "updatedQuantity": "Quantidade atualizada",
+        "failedToAdd": "Falha ao adicionar ao carrinho",
+        "failedToRemove": "Falha ao remover item",
+        "failedToUpdate": "Falha ao atualizar quantidade"
+      },
+      "title": "Carrinho de Compras ({count})",
+      "empty": {
+        "heading": "Seu carrinho está vazio",
+        "description": "Adicione algumas máquinas pesadas para começar",
+        "actions": {
+          "browseProducts": "Navegar Produtos"
+        }
+      },
+      "summary": {
+        "subtotal": {
+          "label": "Subtotal"
+        },
+        "shipping": {
+          "label": "Envio",
+          "description": "Calculado na finalização da compra"
+        },
+        "total": {
+          "label": "Total"
+        },
+        "taxesAndShippingNotice": "Impostos e envio calculados na finalização da compra"
+      },
+      "actions": {
+        "checkout": "Prosseguir para a Finalização da Compra",
+        "continueShopping": "Continuar Comprando"
+      }
     }
   }
 }

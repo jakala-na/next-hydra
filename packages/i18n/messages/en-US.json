@@ -26,9 +26,42 @@
       "categoryFallback": "Category"
     },
     "cart": {
+      "title": "Shopping Cart ({count})",
+      "empty": {
+        "heading": "Your cart is empty",
+        "description": "Add some heavy machinery to get started",
+        "actions": {
+          "browseProducts": "Browse Products"
+        }
+      },
+      "summary": {
+        "subtotal": {
+          "label": "Subtotal"
+        },
+        "shipping": {
+          "label": "Shipping",
+          "description": "Calculated at checkout"
+        },
+        "total": {
+          "label": "Total"
+        },
+        "taxesAndShippingNotice": "Taxes and shipping calculated at checkout"
+      },
+      "actions": {
+        "checkout": "Proceed to Checkout",
+        "continueShopping": "Continue Shopping"
+      },
       "addedToCartAlert": "Added {quantity} {variantLabel} to cart at {price} each.\nStock Status: {stockStatus}",
       "stockIn": "In Stock",
-      "stockOut": "Out of Stock"
+      "stockOut": "Out of Stock",
+      "toast": {
+        "addedToCart": "Added to cart",
+        "removedFromCart": "Removed from cart",
+        "updatedQuantity": "Updated quantity",
+        "failedToAdd": "Failed to add to cart",
+        "failedToRemove": "Failed to remove item",
+        "failedToUpdate": "Failed to update quantity"
+      }
     }
   }
 }

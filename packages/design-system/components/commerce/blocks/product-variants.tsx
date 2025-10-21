@@ -304,19 +304,20 @@ function ProductVariant({
                   {isOnSale ? (
                     <span>
                       <span className="mr-2 line-through opacity-70">
-                        {format.number(currentPrice, {
-                          style: "currency",
+                        {format.number(currentPrice, "wholeMoneyWithCurrency", {
                           currency: currencyCode,
                         })}
                       </span>
-                      {format.number(currentSalePrice ?? currentPrice, {
-                        style: "currency",
-                        currency: currencyCode,
-                      })}
+                      {format.number(
+                        currentSalePrice ?? currentPrice,
+                        "wholeMoneyWithCurrency",
+                        {
+                          currency: currencyCode,
+                        }
+                      )}
                     </span>
                   ) : (
-                    format.number(currentPrice, {
-                      style: "currency",
+                    format.number(currentPrice, "wholeMoneyWithCurrency", {
                       currency: currencyCode,
                     })
                   )}
@@ -324,15 +325,17 @@ function ProductVariant({
               </div>
               <p className="mt-2 text-muted-foreground text-xs">
                 {quantity} {t("units", { count: quantity })} ×{" "}
-                {format.number(effectivePrice, {
-                  style: "currency",
+                {format.number(effectivePrice, "wholeMoneyWithCurrency", {
                   currency: currencyCode,
                 })}{" "}
                 ={" "}
-                {format.number(quantity * effectivePrice, {
-                  style: "currency",
-                  currency: currencyCode,
-                })}
+                {format.number(
+                  quantity * effectivePrice,
+                  "wholeMoneyWithCurrency",
+                  {
+                    currency: currencyCode,
+                  }
+                )}
               </p>
               <p className="mt-1 text-muted-foreground text-xs">
                 {isInStock ? t("inStock") : t("outOfStock")}
