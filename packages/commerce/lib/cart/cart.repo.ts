@@ -7,7 +7,7 @@ import {
   reshapeProductAttributes,
 } from "../product/mappers/attributes";
 import { productPriceFragment, reshapePrice } from "../product/mappers/price";
-import type { Cart } from "../types";
+import type { Cart, LineItem } from "../types";
 import { type ActionResult, domainError, Err, Ok } from "../utils/errors";
 import type {
   AddToCartRepoParams,
@@ -75,7 +75,7 @@ const reshapeCart = (
 ): Cart => {
   const parsedData = readFragment(CartFragment, fragment);
 
-  const lineItems = parsedData.lineItems.map((item) => ({
+  const lineItems: LineItem[] = parsedData.lineItems.map((item) => ({
     id: item.id,
     name: item.name,
     productId: item.productId,
@@ -90,7 +90,11 @@ const reshapeCart = (
     variant: item.variant
       ? {
           id: item.variant.id,
-          images: item.variant.images || [],
+          images:
+            item.variant.images.map((image) => ({
+              url: image.url,
+              altText: image.label ?? "",
+            })) || [],
           attributes: reshapeProductAttributes(
             item.productType?.key as ProductTypeKey,
             item.variant.attributesRaw || [],

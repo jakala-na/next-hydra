@@ -1,5 +1,5 @@
-import type { Cart } from "@repo/commerce/types";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
+import type { Cart } from "../types";
 import type { ActionResult } from "../utils/errors";
 import type { PolicyViolation } from "./policy/cart-policy.types";
 
