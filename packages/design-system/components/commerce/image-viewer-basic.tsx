@@ -39,7 +39,9 @@ const ImageViewer_Basic = ({
 }: ImageViewerProps) => {
   const handleImgError = (event: React.SyntheticEvent<HTMLImageElement>) => {
     console.error("Image failed to load", event.currentTarget.src);
-    event.currentTarget.src = placeholderUrl ?? "";
+    if (placeholderUrl) {
+      event.currentTarget.src = placeholderUrl;
+    }
   };
 
   return (
