@@ -3,10 +3,7 @@ import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
 import { hasLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
-import {
-  unstable_cacheLife as cacheLife,
-  unstable_cacheTag as cacheTag,
-} from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { graphqlClient } from "../../client";
