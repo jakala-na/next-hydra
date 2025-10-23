@@ -6,8 +6,7 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false",
-    "generate": "node --experimental-transform-types scripts/gql-sync.ts",
-    "test": "ts-node uniform_test.ts"
+    "generate": "node --experimental-transform-types scripts/gql-sync.ts"
   },
   "dependencies": {
     "@contentstack/delivery-sdk": "^4.7.1",
