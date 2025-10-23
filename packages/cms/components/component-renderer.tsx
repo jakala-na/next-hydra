@@ -18,7 +18,7 @@ export const componentMap = {
   heroSection: HeroSection,
 } as const;
 
-export default function ComponentRenderer({
+export default async function ComponentRenderer({
   components,
   locale,
 }: {
