@@ -1,14 +1,14 @@
-import { AspectRatio } from '@repo/design-system/components/ui/aspect-ratio';
-import type { Meta, StoryObj } from '@storybook/react';
-import Image from 'next/image';
+import { AspectRatio } from "@repo/design-system/components/ui/aspect-ratio";
+import type { Meta, StoryObj } from "@storybook/nextjs";
+import Image from "next/image";
 
 /**
  * Displays content within a desired ratio.
  */
 const meta: Meta<typeof AspectRatio> = {
-  title: 'ui/AspectRatio',
+  title: "ui/AspectRatio",
   component: AspectRatio,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {},
   render: (args) => (
     <AspectRatio {...args} className="bg-slate-50 dark:bg-slate-800">

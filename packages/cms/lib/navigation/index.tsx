@@ -4,10 +4,7 @@ import type {
   NavigationItemIcon,
 } from "@repo/design-system/components/layout/navigation";
 import type { Locale } from "@repo/i18n";
-import {
-  unstable_cacheLife as cacheLife,
-  unstable_cacheTag as cacheTag,
-} from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { graphqlClient } from "../../client";
 import { TAGS } from "../../constants";
 import { graphql } from "../../graphql";

@@ -3,25 +3,25 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@repo/design-system/components/ui/accordion';
-import type { Meta, StoryObj } from '@storybook/react';
+} from "@repo/design-system/components/ui/accordion";
+import type { Meta, StoryObj } from "@storybook/nextjs";
 
 /**
  * A vertically stacked set of interactive headings that each reveal a section
  * of content.
  */
 const meta = {
-  title: 'ui/Accordion',
+  title: "ui/Accordion",
   component: Accordion,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {
     type: {
-      options: ['single', 'multiple'],
-      control: { type: 'radio' },
+      options: ["single", "multiple"],
+      control: { type: "radio" },
     },
   },
   args: {
-    type: 'single',
+    type: "single",
     collapsible: true,
   },
   render: (args) => (

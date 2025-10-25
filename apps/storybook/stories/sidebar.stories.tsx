@@ -2,7 +2,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from '@repo/design-system/components/ui/avatar';
+} from "@repo/design-system/components/ui/avatar";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,12 +10,12 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from '@repo/design-system/components/ui/breadcrumb';
+} from "@repo/design-system/components/ui/breadcrumb";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@repo/design-system/components/ui/collapsible';
+} from "@repo/design-system/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,8 +25,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from '@repo/design-system/components/ui/dropdown-menu';
-import { Separator } from '@repo/design-system/components/ui/separator';
+} from "@repo/design-system/components/ui/dropdown-menu";
+import { Separator } from "@repo/design-system/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -45,8 +45,8 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
-} from '@repo/design-system/components/ui/sidebar';
-import type { Meta, StoryObj } from '@storybook/react';
+} from "@repo/design-system/components/ui/sidebar";
+import type { Meta, StoryObj } from "@storybook/nextjs";
 import {
   AudioWaveform,
   BadgeCheck,
@@ -71,13 +71,13 @@ import {
   Sparkles,
   SquareTerminal,
   Trash2,
-} from 'lucide-react';
-import { useState } from 'react';
+} from "lucide-react";
+import { useState } from "react";
 
 const meta: Meta<typeof Sidebar> = {
-  title: 'ui/Sidebar',
+  title: "ui/Sidebar",
   component: Sidebar,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {},
 };
 export default meta;
@@ -86,128 +86,128 @@ type Story = StoryObj<typeof Sidebar>;
 
 const data = {
   user: {
-    name: 'shadcn',
-    email: 'm@example.com',
-    avatar: '/avatars/shadcn.jpg',
+    name: "shadcn",
+    email: "m@example.com",
+    avatar: "/avatars/shadcn.jpg",
   },
   teams: [
     {
-      name: 'Acme Inc',
+      name: "Acme Inc",
       logo: GalleryVerticalEnd,
-      plan: 'Enterprise',
+      plan: "Enterprise",
     },
     {
-      name: 'Acme Corp.',
+      name: "Acme Corp.",
       logo: AudioWaveform,
-      plan: 'Startup',
+      plan: "Startup",
     },
     {
-      name: 'Evil Corp.',
+      name: "Evil Corp.",
       logo: Command,
-      plan: 'Free',
+      plan: "Free",
     },
   ],
   navMain: [
     {
-      title: 'Playground',
-      url: '#',
+      title: "Playground",
+      url: "#",
       icon: SquareTerminal,
       isActive: true,
       items: [
         {
-          title: 'History',
-          url: '#',
+          title: "History",
+          url: "#",
         },
         {
-          title: 'Starred',
-          url: '#',
+          title: "Starred",
+          url: "#",
         },
         {
-          title: 'Settings',
-          url: '#',
+          title: "Settings",
+          url: "#",
         },
       ],
     },
     {
-      title: 'Models',
-      url: '#',
+      title: "Models",
+      url: "#",
       icon: Bot,
       items: [
         {
-          title: 'Genesis',
-          url: '#',
+          title: "Genesis",
+          url: "#",
         },
         {
-          title: 'Explorer',
-          url: '#',
+          title: "Explorer",
+          url: "#",
         },
         {
-          title: 'Quantum',
-          url: '#',
+          title: "Quantum",
+          url: "#",
         },
       ],
     },
     {
-      title: 'Documentation',
-      url: '#',
+      title: "Documentation",
+      url: "#",
       icon: BookOpen,
       items: [
         {
-          title: 'Introduction',
-          url: '#',
+          title: "Introduction",
+          url: "#",
         },
         {
-          title: 'Get Started',
-          url: '#',
+          title: "Get Started",
+          url: "#",
         },
         {
-          title: 'Tutorials',
-          url: '#',
+          title: "Tutorials",
+          url: "#",
         },
         {
-          title: 'Changelog',
-          url: '#',
+          title: "Changelog",
+          url: "#",
         },
       ],
     },
     {
-      title: 'Settings',
-      url: '#',
+      title: "Settings",
+      url: "#",
       icon: Settings2,
       items: [
         {
-          title: 'General',
-          url: '#',
+          title: "General",
+          url: "#",
         },
         {
-          title: 'Team',
-          url: '#',
+          title: "Team",
+          url: "#",
         },
         {
-          title: 'Billing',
-          url: '#',
+          title: "Billing",
+          url: "#",
         },
         {
-          title: 'Limits',
-          url: '#',
+          title: "Limits",
+          url: "#",
         },
       ],
     },
   ],
   projects: [
     {
-      name: 'Design Engineering',
-      url: '#',
+      name: "Design Engineering",
+      url: "#",
       icon: Frame,
     },
     {
-      name: 'Sales & Marketing',
-      url: '#',
+      name: "Sales & Marketing",
+      url: "#",
       icon: PieChart,
     },
     {
-      name: 'Travel',
-      url: '#',
+      name: "Travel",
+      url: "#",
       icon: Map,
     },
   ],

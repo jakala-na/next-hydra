@@ -1,5 +1,5 @@
 {
-  "name": "next-cms-commerce",
+  "name": "next-hydra",
   "version": "0.0.0",
   "scripts": {
     "build": "turbo build",

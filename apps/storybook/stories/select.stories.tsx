@@ -7,16 +7,16 @@ import {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from '@repo/design-system/components/ui/select';
-import type { Meta, StoryObj } from '@storybook/react';
+} from "@repo/design-system/components/ui/select";
+import type { Meta, StoryObj } from "@storybook/nextjs";
 
 /**
  * Displays a list of options for the user to pick from—triggered by a button.
  */
 const meta: Meta<typeof Select> = {
-  title: 'ui/Select',
+  title: "ui/Select",
   component: Select,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {},
   render: (args) => (
     <Select {...args}>
@@ -55,7 +55,7 @@ const meta: Meta<typeof Select> = {
     </Select>
   ),
   parameters: {
-    layout: 'centered',
+    layout: "centered",
   },
 } satisfies Meta<typeof Select>;
 

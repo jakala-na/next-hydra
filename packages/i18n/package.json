@@ -8,13 +8,13 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "next-intl": "^4.3.3"
+    "next-intl": "^4.4.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "22.15.21",
-    "@types/react": "19.1.8",
-    "@types/react-dom": "^19.1.6",
-    "next": "15.4.2-canary.14"
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "next": "16.0.0"
   }
 }

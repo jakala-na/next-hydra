@@ -1,21 +1,21 @@
-import { Label } from '@repo/design-system/components/ui/label';
-import type { Meta, StoryObj } from '@storybook/react';
+import { Label } from "@repo/design-system/components/ui/label";
+import type { Meta, StoryObj } from "@storybook/nextjs";
 
 /**
  * Renders an accessible label associated with controls.
  */
 const meta = {
-  title: 'ui/Label',
+  title: "ui/Label",
   component: Label,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {
     children: {
-      control: { type: 'text' },
+      control: { type: "text" },
     },
   },
   args: {
-    children: 'Your email address',
-    htmlFor: 'email',
+    children: "Your email address",
+    htmlFor: "email",
   },
 } satisfies Meta<typeof Label>;
 

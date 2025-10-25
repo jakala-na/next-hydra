@@ -8,9 +8,7 @@ export const config: NextConfig = {
   experimental: {
     useCache: true,
     browserDebugInfoInTerminal: true,
-    devtoolSegmentExplorer: true,
-    globalNotFound: true,
-    turbopackPersistentCaching: false, // TODO: Enable this when stable.
+    turbopackFileSystemCacheForDev: true,
   },
   images: {
     formats: ["image/avif", "image/webp"],
