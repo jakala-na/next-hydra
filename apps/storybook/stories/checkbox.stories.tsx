@@ -1,16 +1,16 @@
-import { Checkbox } from '@repo/design-system/components/ui/checkbox';
-import type { Meta, StoryObj } from '@storybook/react';
+import { Checkbox } from "@repo/design-system/components/ui/checkbox";
+import type { Meta, StoryObj } from "@storybook/nextjs";
 
 /**
  * A control that allows the user to toggle between checked and not checked.
  */
 const meta: Meta<typeof Checkbox> = {
-  title: 'ui/Checkbox',
+  title: "ui/Checkbox",
   component: Checkbox,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {},
   args: {
-    id: 'terms',
+    id: "terms",
     disabled: false,
   },
   render: (args) => (
@@ -25,7 +25,7 @@ const meta: Meta<typeof Checkbox> = {
     </div>
   ),
   parameters: {
-    layout: 'centered',
+    layout: "centered",
   },
 } satisfies Meta<typeof Checkbox>;
 
@@ -43,7 +43,7 @@ export const Default: Story = {};
  */
 export const Disabled: Story = {
   args: {
-    id: 'disabled-terms',
+    id: "disabled-terms",
     disabled: true,
   },
 };

@@ -1,27 +1,27 @@
 import {
   ToggleGroup,
   ToggleGroupItem,
-} from '@repo/design-system/components/ui/toggle-group';
-import type { Meta, StoryObj } from '@storybook/react';
-import { Bold, Italic, Underline } from 'lucide-react';
+} from "@repo/design-system/components/ui/toggle-group";
+import type { Meta, StoryObj } from "@storybook/nextjs";
+import { Bold, Italic, Underline } from "lucide-react";
 
 /**
  * A set of two-state buttons that can be toggled on or off.
  */
 const meta = {
-  title: 'ui/ToggleGroup',
+  title: "ui/ToggleGroup",
   component: ToggleGroup,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {
     type: {
-      options: ['multiple', 'single'],
-      control: { type: 'radio' },
+      options: ["multiple", "single"],
+      control: { type: "radio" },
     },
   },
   args: {
-    variant: 'default',
-    size: 'default',
-    type: 'multiple',
+    variant: "default",
+    size: "default",
+    type: "multiple",
     disabled: false,
   },
   render: (args) => (
@@ -38,7 +38,7 @@ const meta = {
     </ToggleGroup>
   ),
   parameters: {
-    layout: 'centered',
+    layout: "centered",
   },
 } satisfies Meta<typeof ToggleGroup>;
 
@@ -57,7 +57,7 @@ export const Default: Story = {};
  */
 export const Outline: Story = {
   args: {
-    variant: 'outline',
+    variant: "outline",
   },
 };
 
@@ -67,7 +67,7 @@ export const Outline: Story = {
  */
 export const Single: Story = {
   args: {
-    type: 'single',
+    type: "single",
   },
 };
 
@@ -77,7 +77,7 @@ export const Single: Story = {
  */
 export const Small: Story = {
   args: {
-    size: 'sm',
+    size: "sm",
   },
 };
 
@@ -87,7 +87,7 @@ export const Small: Story = {
  */
 export const Large: Story = {
   args: {
-    size: 'lg',
+    size: "lg",
   },
 };
 

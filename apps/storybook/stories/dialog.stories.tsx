@@ -7,17 +7,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@repo/design-system/components/ui/dialog';
-import type { Meta, StoryObj } from '@storybook/react';
+} from "@repo/design-system/components/ui/dialog";
+import type { Meta, StoryObj } from "@storybook/nextjs";
 
 /**
  * A window overlaid on either the primary window or another dialog window,
  * rendering the content underneath inert.
  */
 const meta = {
-  title: 'ui/Dialog',
+  title: "ui/Dialog",
   component: Dialog,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {},
   render: (args) => (
     <Dialog {...args}>
@@ -47,7 +47,7 @@ const meta = {
     </Dialog>
   ),
   parameters: {
-    layout: 'centered',
+    layout: "centered",
   },
 } satisfies Meta<typeof Dialog>;
 
