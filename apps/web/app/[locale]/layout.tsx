@@ -28,7 +28,6 @@ import {
 import { regions } from "@repo/i18n/config";
 import { routing } from "@repo/i18n/routing";
 import { draftMode, headers } from "next/headers";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
@@ -103,7 +102,6 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
                   }
                   AccountSlot={<AccountMenuClient />}
                 />
-                <Link href={"/en-US/test"}>Go to test page</Link>
                 {children}
                 {/* <Footer /> */}
                 <LivePreview isEnabled={isDraftModeEnabled} />
