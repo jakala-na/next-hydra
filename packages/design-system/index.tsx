@@ -1,9 +1,8 @@
-import { AnalyticsProvider } from '@repo/analytics';
-import { AuthProvider } from '@repo/auth/provider';
-import type { ThemeProviderProps } from 'next-themes';
-import { Toaster } from './components/ui/sonner';
-import { TooltipProvider } from './components/ui/tooltip';
-import { ThemeProvider } from './providers/theme';
+import { AnalyticsProvider } from "@repo/analytics";
+import type { ThemeProviderProps } from "next-themes";
+import { Toaster } from "./components/ui/sonner";
+import { TooltipProvider } from "./components/ui/tooltip";
+import { ThemeProvider } from "./providers/theme";
 
 type DesignSystemProviderProperties = ThemeProviderProps & {
   privacyUrl?: string;
@@ -13,17 +12,12 @@ type DesignSystemProviderProperties = ThemeProviderProps & {
 
 export const DesignSystemProvider = ({
   children,
-  privacyUrl,
-  termsUrl,
-  helpUrl,
   ...properties
 }: DesignSystemProviderProperties) => (
   <ThemeProvider {...properties}>
-    <AuthProvider helpUrl={helpUrl} privacyUrl={privacyUrl} termsUrl={termsUrl}>
-      <AnalyticsProvider>
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster />
-      </AnalyticsProvider>
-    </AuthProvider>
+    <AnalyticsProvider>
+      <TooltipProvider>{children}</TooltipProvider>
+      <Toaster />
+    </AnalyticsProvider>
   </ThemeProvider>
 );

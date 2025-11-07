@@ -8,6 +8,7 @@ import parse, {
   Element,
   type HTMLReactParserOptions,
 } from "html-react-parser";
+import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -96,7 +97,7 @@ export function renderRichText(
         const children = domNode.children as DOMNode[];
 
         return (
-          <Link href={href} className="embedded-entry-link">
+          <Link href={href as Route} className="embedded-entry-link">
             {domToReact(children, options)}
           </Link>
         );

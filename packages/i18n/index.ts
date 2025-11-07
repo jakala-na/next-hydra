@@ -6,6 +6,6 @@ export {
   useFormatter,
   useTranslations,
 } from "next-intl";
-export { getLocale, getTranslations } from "next-intl/server";
+export { getLocale, getTranslations, setRequestLocale } from "next-intl/server";
 
 import "./global";

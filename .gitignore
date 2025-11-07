@@ -268,3 +268,6 @@ $RECYCLE.BIN/
 
 /apps/next-commerce
 /tmp
+
+# JetBrains
+.idea

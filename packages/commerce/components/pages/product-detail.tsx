@@ -1,5 +1,7 @@
 import { productService } from "@repo/commerce/lib/product/product.service";
 import { ProductDetail } from "@repo/design-system/components/commerce/blocks/product-detail";
+import { hasLocale, setRequestLocale } from "@repo/i18n";
+import { routing } from "@repo/i18n/routing";
 import type { Locale } from "@repo/i18n/types";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -49,6 +51,10 @@ export default async function ProductPage(props: {
   params: Promise<{ slug: string; locale: Locale }>;
 }) {
   const { slug, locale } = await props.params;
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+  setRequestLocale(locale);
 
   const productResult = await productService.getProductBySlug(slug, locale);
 

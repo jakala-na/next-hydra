@@ -100,8 +100,8 @@ export function HeroSection({
                 src={image.url}
                 alt={image.altText}
                 fill
+                preload
                 className="object-cover"
-                priority
               />
             </div>
           )}

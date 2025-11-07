@@ -17,8 +17,8 @@ import {
 } from "@repo/design-system/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { DynamicIcon } from "lucide-react/dynamic";
+import type { Route } from "next";
 import Link from "next/link";
-
 import type { NavigationItem } from "./navigation";
 
 type MobileMenuProps = {
@@ -72,7 +72,7 @@ export function MobileMenu({ navigationItems }: MobileMenuProps) {
                         <div className="flex flex-col gap-1">
                           {item.href ? (
                             <Link
-                              href={item.href}
+                              href={item.href as Route}
                               className="group flex gap-3 rounded-md border-transparent border-l-2 p-3 font-medium text-sm transition-colors hover:border-primary hover:bg-neutral-100"
                             >
                               <span className="text-primary">
@@ -84,7 +84,7 @@ export function MobileMenu({ navigationItems }: MobileMenuProps) {
                             <Link
                               // eslint-disable-next-line react/no-array-index-key
                               key={`child-${childIndex.toString()}`}
-                              href={child.href}
+                              href={child.href as Route}
                               className="group flex gap-3 rounded-md border-transparent border-l-2 p-3 transition-colors hover:border-primary hover:bg-neutral-100"
                             >
                               {child.icon ? (
@@ -119,7 +119,7 @@ export function MobileMenu({ navigationItems }: MobileMenuProps) {
                   <Link
                     // eslint-disable-next-line react/no-array-index-key
                     key={`link-${index.toString()}`}
-                    href={item.href}
+                    href={item.href as Route}
                     className="py-2 font-medium text-lg transition-colors hover:text-primary"
                   >
                     {item.title}

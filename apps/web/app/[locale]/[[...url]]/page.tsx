@@ -5,10 +5,6 @@ type PageProps = {
   params: Promise<{ url: string[]; locale: Locale }>;
 };
 
-export function generateStaticParams() {
-  return [{ locale: "en-US", url: [] }];
-}
-
 const Page = async ({ params }: PageProps) => {
   const { url, locale } = await params;
 

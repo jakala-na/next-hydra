@@ -63,17 +63,17 @@ type CartProviderProps = {
 
 export function CartProvider({
   children,
-  cartPromise,
+  // cartPromise,
   actions,
 }: CartProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const t = useTranslations("web.cart");
-  const initialCart = use(cartPromise);
-  const initialCartWithIssues = initialCart?.ok
-    ? (initialCart.data ?? null)
-    : null;
+  // const initialCart = use(cartPromise);
+  // const initialCartWithIssues = initialCart?.ok
+  //   ? (initialCart.data ?? null)
+  //   : null;
   const [cartWithIssues, setCartWithIssues] = useState<CartWithIssues | null>(
-    initialCartWithIssues ?? null
+    null // initialCartWithIssues ?? null
   );
 
   const cart: Cart | null = cartWithIssues?.cart ?? null;

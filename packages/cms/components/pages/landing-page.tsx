@@ -1,9 +1,8 @@
 import { transformLocale } from "@repo/cms/lib/utils/transform-locale";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
-import { hasLocale } from "@repo/i18n";
+import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
-import { cacheLife, cacheTag } from "next/cache";
 import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { graphqlClient } from "../../client";
@@ -11,15 +10,12 @@ import { graphql } from "../../graphql";
 import { entryLivePreview } from "../../lib/utils/live-preview-helper";
 import ComponentRenderer from "../component-renderer";
 
-const getPage = async (
+const getPageCached = async (
   url: string,
   locale: Locale,
   livePreviewHash: string | undefined
 ) => {
   "use cache";
-  cacheLife("minutes");
-  cacheTag(`page:${url}`);
-
   const pageQuery = graphql(
     `
     query PageQuery($url: String, $locale: String!) {
@@ -85,6 +81,10 @@ export async function LandingPage(props: { url: string; locale: Locale }) {
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
+  // Enable static rendering
+  setRequestLocale(locale);
+
+  // Check draft mode and headers outside of cached function
   const { isEnabled: isDraftModeEnabled } = await draftMode();
 
   let livePreviewHash = "";
@@ -92,7 +92,8 @@ export async function LandingPage(props: { url: string; locale: Locale }) {
     livePreviewHash = (await headers()).get("x-live-preview") || "";
   }
 
-  const pageData = await getPage(url, locale, livePreviewHash);
+  // Call cached function with livePreviewHash parameter
+  const pageData = await getPageCached(url, locale, livePreviewHash);
 
   if (!pageData) {
     notFound();

@@ -9,6 +9,7 @@ import {
 } from "@repo/design-system/components/ui/dropdown-menu";
 import { cn } from "@repo/design-system/lib/utils";
 import { Check, Globe } from "lucide-react";
+import type { Route } from "next";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useMemo, useTransition } from "react";
 
@@ -96,7 +97,7 @@ export const RegionSelector = ({ regions }: RegionSelectorProps) => {
     const nextPath = buildPathWithLocale(region.localeCode);
 
     startTransition(() => {
-      router.push(nextPath);
+      router.push(nextPath as Route);
     });
   };
 

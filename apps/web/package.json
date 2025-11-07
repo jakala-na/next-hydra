@@ -24,7 +24,7 @@
     "@repo/security": "workspace:*",
     "@repo/seo": "workspace:*",
     "@rescale/nemo": "^2.0.2",
-    "@sentry/nextjs": "^10.21.0",
+    "@sentry/nextjs": "^10.22.0",
     "@t3-oss/env-nextjs": "^0.13.4",
     "date-fns": "^4.1.0",
     "import-in-the-middle": "^1.13.2",

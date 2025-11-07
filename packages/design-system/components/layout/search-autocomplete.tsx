@@ -3,6 +3,7 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Search, X } from "lucide-react";
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -152,7 +153,7 @@ export function SearchAutocomplete() {
             {results.map((product) => (
               <Link
                 key={product.id}
-                href={`/products/${product.slug}`}
+                href={`/products/${product.slug}` as Route}
                 onClick={() => {
                   setIsOpen(false);
                   setQuery("");
@@ -181,7 +182,7 @@ export function SearchAutocomplete() {
           </div>
           <div className="border-t p-2">
             <Link
-              href={`/products?q=${encodeURIComponent(query)}`}
+              href={`/products?q=${encodeURIComponent(query)}` as Route}
               onClick={() => {
                 setIsOpen(false);
                 setQuery("");

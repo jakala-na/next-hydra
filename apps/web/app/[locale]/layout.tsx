@@ -1,4 +1,5 @@
 import "./styles.css";
+import { AuthProvider } from "@repo/auth/provider";
 import { LivePreview } from "@repo/cms/components/live-preview";
 import { getNavigation } from "@repo/cms/lib/navigation";
 import { addToCart } from "@repo/commerce/actions/add-to-cart";
@@ -19,10 +20,15 @@ import { SiteHeader } from "@repo/design-system/components/layout/site-header";
 import { fonts } from "@repo/design-system/lib/fonts";
 import { cn } from "@repo/design-system/lib/utils";
 import { Toolbar } from "@repo/feature-flags/components/toolbar";
-import { hasLocale, NextIntlClientProvider } from "@repo/i18n";
+import {
+  hasLocale,
+  NextIntlClientProvider,
+  setRequestLocale,
+} from "@repo/i18n";
 import { regions } from "@repo/i18n/config";
 import { routing } from "@repo/i18n/routing";
 import { draftMode, headers } from "next/headers";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
@@ -34,12 +40,17 @@ type RootLayoutProperties = {
   }>;
 };
 
+export const generateStaticParams = async () =>
+  routing.locales.map((locale) => ({ locale }));
+
 const RootLayout = async ({ children, params }: RootLayoutProperties) => {
-  const { isEnabled: isDraftModeEnabled } = await draftMode();
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
+  // Enable static rendering
+  setRequestLocale(locale);
+  const { isEnabled: isDraftModeEnabled } = await draftMode();
   let livePreviewHash = "";
   if (isDraftModeEnabled) {
     livePreviewHash = (await headers()).get("x-live-preview") || "";
@@ -57,38 +68,49 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
       suppressHydrationWarning
     >
       <body>
-        <DesignSystemProvider>
-          <NextIntlClientProvider>
-            <DesignSystemCartProvider
-              cartPromise={cartPromise}
-              actions={{ addToCart, changeCartItemsQuantity, removeCartItem }}
-            >
-              <SiteHeader
-                MainNavigation={
-                  <Navigation navigationItems={navigation.navigationItems} />
-                }
-                RegionSelectorSlot={<RegionSelector regions={regions} />}
-                Search={<SearchAutocomplete />}
-                BusinessUnitSwitcher={<BusinessUnitSwitcher />}
-                MobileMenuSlot={
-                  <MobileMenu
-                    key={"menu-slot"}
-                    navigationItems={navigation.navigationItems}
-                  />
-                }
-                CartSlot={
-                  <Suspense fallback={<div className="skeleton h-8 w-16" />}>
-                    <CartButtonClient />
-                  </Suspense>
-                }
-                AccountSlot={<AccountMenuClient />}
-              />
-              {children}
-              {/* <Footer /> */}
-              <LivePreview isEnabled={isDraftModeEnabled} />
-            </DesignSystemCartProvider>
-          </NextIntlClientProvider>
-        </DesignSystemProvider>
+        <AuthProvider>
+          <DesignSystemProvider>
+            <NextIntlClientProvider>
+              <DesignSystemCartProvider
+                cartPromise={cartPromise}
+                actions={{
+                  addToCart,
+                  changeCartItemsQuantity,
+                  removeCartItem,
+                }}
+              >
+                <SiteHeader
+                  MainNavigation={
+                    <Navigation navigationItems={navigation.navigationItems} />
+                  }
+                  RegionSelectorSlot={<RegionSelector regions={regions} />}
+                  Search={<SearchAutocomplete />}
+                  BusinessUnitSwitcher={
+                    <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+                      <BusinessUnitSwitcher />
+                    </Suspense>
+                  }
+                  MobileMenuSlot={
+                    <MobileMenu
+                      key={"menu-slot"}
+                      navigationItems={navigation.navigationItems}
+                    />
+                  }
+                  CartSlot={
+                    <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+                      <CartButtonClient />
+                    </Suspense>
+                  }
+                  AccountSlot={<AccountMenuClient />}
+                />
+                <Link href={"/en-US/test"}>Go to test page</Link>
+                {children}
+                {/* <Footer /> */}
+                <LivePreview isEnabled={isDraftModeEnabled} />
+              </DesignSystemCartProvider>
+            </NextIntlClientProvider>
+          </DesignSystemProvider>
+        </AuthProvider>
         <Toolbar />
       </body>
     </html>
