@@ -19,27 +19,27 @@ import { SiteHeader } from "@repo/design-system/components/layout/site-header";
 import { fonts } from "@repo/design-system/lib/fonts";
 import { cn } from "@repo/design-system/lib/utils";
 import { Toolbar } from "@repo/feature-flags/components/toolbar";
-import { hasLocale, NextIntlClientProvider } from "@repo/i18n";
+import {
+  hasLocale,
+  NextIntlClientProvider,
+  setRequestLocale,
+} from "@repo/i18n";
 import { regions } from "@repo/i18n/config";
 import { routing } from "@repo/i18n/routing";
 import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
 import { Suspense } from "react";
 
-type RootLayoutProperties = {
-  readonly children: ReactNode;
-  readonly params: Promise<{
-    locale: string;
-  }>;
-};
-
-const RootLayout = async ({ children, params }: RootLayoutProperties) => {
+export default async function RootLayout({
+  children,
+  params,
+}: LayoutProps<"/[locale]">) {
   const { isEnabled: isDraftModeEnabled } = await draftMode();
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
+  setRequestLocale(locale);
   let livePreviewHash = "";
   if (isDraftModeEnabled) {
     livePreviewHash = (await headers()).get("x-live-preview") || "";
@@ -93,6 +93,4 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
       </body>
     </html>
   );
-};
-
-export default RootLayout;
+}

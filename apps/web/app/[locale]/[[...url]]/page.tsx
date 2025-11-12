@@ -1,19 +1,16 @@
 import { LandingPage } from "@repo/cms/components/pages/landing-page";
-import type { Locale } from "@repo/i18n";
+import { hasLocale, setRequestLocale } from "@repo/i18n";
+import { routing } from "@repo/i18n/routing";
+import { notFound } from "next/navigation";
 
-type PageProps = {
-  params: Promise<{ url: string[]; locale: Locale }>;
-};
-
-export function generateStaticParams() {
-  return [{ locale: "en-US", url: [] }];
-}
-
-const Page = async ({ params }: PageProps) => {
+export default async function Page({
+  params,
+}: PageProps<"/[locale]/[[...url]]">) {
   const { url, locale } = await params;
-
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+  setRequestLocale(locale);
   const urlStr = url?.join("/") ?? "/";
   return <LandingPage url={urlStr} locale={locale} />;
-};
-
-export default Page;
+}
