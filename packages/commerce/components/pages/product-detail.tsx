@@ -4,10 +4,11 @@ import type { Locale } from "@repo/i18n/types";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-export async function generateMetadata(props: {
-  params: Promise<{ slug: string; locale: Locale }>;
+export async function generateMetadataHandler(props: {
+  slug: string;
+  locale: Locale;
 }): Promise<Metadata> {
-  const { slug, locale } = await props.params;
+  const { slug, locale } = props;
 
   const productResult = await productService.getProductBySlug(slug, locale);
 
@@ -45,10 +46,11 @@ export async function generateMetadata(props: {
   };
 }
 
-export default async function ProductPage(props: {
-  params: Promise<{ slug: string; locale: Locale }>;
+export async function ProductDetailPage(props: {
+  slug: string;
+  locale: Locale;
 }) {
-  const { slug, locale } = await props.params;
+  const { slug, locale } = props;
 
   const productResult = await productService.getProductBySlug(slug, locale);
 
