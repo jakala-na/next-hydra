@@ -31,9 +31,8 @@ import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-export const generateStaticParams = () => {
+export const generateStaticParams = () =>
   routing.locales.map((locale) => ({ locale }));
-};
 
 export default async function RootLayout({
   children,
