@@ -1,4 +1,4 @@
-import { hasLocale, type Locale, setRequestLocale } from "@repo/i18n";
+import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import { createMetadata } from "@repo/seo/metadata";
 import type { Metadata } from "next";
@@ -13,18 +13,14 @@ const SignUp = dynamic(() =>
 
 export const metadata: Metadata = createMetadata({ title, description });
 
-type SignUpPageProps = {
-  params: Promise<{ locale: Locale }>;
-};
-
-const SignUpPage = async ({ params }: SignUpPageProps) => {
+export default async function SignUpPage({
+  params,
+}: PageProps<"/[locale]/sign-up/[[...sign-up]]">) {
   const { locale } = await params;
-
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
   setRequestLocale(locale);
-
   return (
     <>
       <div className="flex flex-col space-y-2 text-center">
@@ -34,6 +30,4 @@ const SignUpPage = async ({ params }: SignUpPageProps) => {
       <SignUp />
     </>
   );
-};
-
-export default SignUpPage;
+}

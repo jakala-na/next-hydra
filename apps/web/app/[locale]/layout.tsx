@@ -29,20 +29,16 @@ import { regions } from "@repo/i18n/config";
 import { routing } from "@repo/i18n/routing";
 import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
 import { Suspense } from "react";
 
-type RootLayoutProperties = {
-  readonly children: ReactNode;
-  readonly params: Promise<{
-    locale: string;
-  }>;
+export const generateStaticParams = () => {
+  routing.locales.map((locale) => ({ locale }));
 };
 
-export const generateStaticParams = async () =>
-  routing.locales.map((locale) => ({ locale }));
-
-const RootLayout = async ({ children, params }: RootLayoutProperties) => {
+export default async function RootLayout({
+  children,
+  params,
+}: LayoutProps<"/[locale]">) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) {
     notFound();
@@ -113,6 +109,4 @@ const RootLayout = async ({ children, params }: RootLayoutProperties) => {
       </body>
     </html>
   );
-};
-
-export default RootLayout;
+}

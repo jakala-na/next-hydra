@@ -1,15 +1,14 @@
 import { productService } from "@repo/commerce/lib/product/product.service";
 import { ProductDetail } from "@repo/design-system/components/commerce/blocks/product-detail";
-import { hasLocale, setRequestLocale } from "@repo/i18n";
-import { routing } from "@repo/i18n/routing";
 import type { Locale } from "@repo/i18n/types";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-export async function generateMetadata(props: {
-  params: Promise<{ slug: string; locale: Locale }>;
+export async function generateMetadataHandler(props: {
+  slug: string;
+  locale: Locale;
 }): Promise<Metadata> {
-  const { slug, locale } = await props.params;
+  const { slug, locale } = props;
 
   const productResult = await productService.getProductBySlug(slug, locale);
 
@@ -47,14 +46,11 @@ export async function generateMetadata(props: {
   };
 }
 
-export default async function ProductPage(props: {
-  params: Promise<{ slug: string; locale: Locale }>;
+export async function ProductDetailPage(props: {
+  slug: string;
+  locale: Locale;
 }) {
-  const { slug, locale } = await props.params;
-  if (!hasLocale(routing.locales, locale)) {
-    notFound();
-  }
-  setRequestLocale(locale);
+  const { slug, locale } = props;
 
   const productResult = await productService.getProductBySlug(slug, locale);
 
