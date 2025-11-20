@@ -28,6 +28,7 @@ const globalMiddlewares: GlobalMiddlewareConfig = {
       // next-intl returns new headers in NextResponse.next() which is being treated
       // as final forward response by NEMO and headers are lost instead of being
       // forwarded to the next middleware.
+      // @see https://github.com/z4nr34l/nemo/issues/170
       const forwardedLocaleHeader = response?.headers.get(
         "x-middleware-request-x-next-intl-locale"
       );
