@@ -3,7 +3,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@repo/design-system/components/ui/resizable";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * Accessible resizable panel groups and layouts with keyboard support.

@@ -1,5 +1,5 @@
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * Displays a form textarea or a component that looks like a textarea.

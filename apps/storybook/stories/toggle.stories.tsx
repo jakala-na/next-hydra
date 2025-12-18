@@ -1,5 +1,5 @@
 import { Toggle } from "@repo/design-system/components/ui/toggle";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Bold, Italic } from "lucide-react";
 
 /**

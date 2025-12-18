@@ -18,7 +18,7 @@
     "gql.tada": "^1.8.10",
     "lodash.memoize": "^4.1.2",
     "next-safe-action": "^8.0.7",
-    "react": "^19.2.0",
+    "react": "^19.2.3",
     "urql": "^4.2.2",
     "wonka": "^6.3.5",
     "zod": "^3.25.28"
@@ -27,8 +27,8 @@
     "@repo/typescript-config": "workspace:*",
     "@types/lodash.memoize": "^4.1.9",
     "@types/node": "22.15.21",
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
-    "next": "16.0.7"
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "next": "16.0.10"
   }
 }

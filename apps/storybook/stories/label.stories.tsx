@@ -1,5 +1,5 @@
 import { Label } from "@repo/design-system/components/ui/label";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * Renders an accessible label associated with controls.

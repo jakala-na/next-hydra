@@ -15,7 +15,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@repo/design-system/components/ui/dropdown-menu";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Mail, Plus, PlusCircle, Search, UserPlus } from "lucide-react";
 
 /**

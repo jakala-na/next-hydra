@@ -1,5 +1,5 @@
 import { Button } from "@repo/design-system/components/ui/button";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Loader2, Mail } from "lucide-react";
 
 /**
