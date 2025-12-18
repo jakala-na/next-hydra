@@ -1,6 +1,8 @@
+// This file has been automatically migrated to valid ESM format by Storybook.
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import type { StorybookConfig } from "@storybook/nextjs";
+import { fileURLToPath } from 'node:url';
+import type { StorybookConfig } from "@storybook/nextjs-vite";
 
 const require = createRequire(import.meta.url);
 
@@ -11,6 +13,9 @@ const require = createRequire(import.meta.url);
 const getAbsolutePath = (value: string) =>
   dirname(require.resolve(join(value, "package.json")));
 
+const logtailShimPath = fileURLToPath(
+  new URL('./shims/logtail.ts', import.meta.url)
+);
 const config: StorybookConfig = {
   stories: [
     "../stories/**/*.mdx",
@@ -23,10 +28,20 @@ const config: StorybookConfig = {
     getAbsolutePath("@storybook/addon-docs"),
   ],
   framework: {
-    name: getAbsolutePath("@storybook/nextjs"),
+    name: getAbsolutePath("@storybook/nextjs-vite"),
     options: {},
   },
   staticDirs: ["../public"],
+  viteFinal: (config) => {
+    if (config.resolve) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@repo': '../../packages',
+        '@logtail/next': logtailShimPath,
+      };
+    }
+    return config;
+  },
 };
 
 export default config;

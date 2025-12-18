@@ -3,7 +3,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@repo/design-system/components/ui/collapsible";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Info } from "lucide-react";
 
 /**

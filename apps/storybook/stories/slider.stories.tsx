@@ -1,5 +1,5 @@
 import { Slider } from "@repo/design-system/components/ui/slider";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * An input where the user selects a value from within a given range.

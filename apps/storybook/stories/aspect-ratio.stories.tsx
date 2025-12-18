@@ -1,5 +1,5 @@
 import { AspectRatio } from "@repo/design-system/components/ui/aspect-ratio";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import Image from "next/image";
 
 /**

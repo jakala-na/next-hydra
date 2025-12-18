@@ -13,7 +13,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@repo/design-system/components/ui/context-menu";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * Displays a menu to the user — such as a set of actions or functions —

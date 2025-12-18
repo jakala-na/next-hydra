@@ -46,7 +46,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@repo/design-system/components/ui/sidebar";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import {
   AudioWaveform,
   BadgeCheck,

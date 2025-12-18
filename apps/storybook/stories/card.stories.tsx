@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/design-system/components/ui/card";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { BellRing } from "lucide-react";
 
 const notifications = [

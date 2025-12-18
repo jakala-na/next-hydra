@@ -4,7 +4,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@repo/design-system/components/ui/tooltip";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Plus } from "lucide-react";
 
 /**

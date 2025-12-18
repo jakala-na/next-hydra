@@ -1,5 +1,5 @@
 import { Input } from "@repo/design-system/components/ui/input";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * Displays a form input field or a component that looks like an input field.

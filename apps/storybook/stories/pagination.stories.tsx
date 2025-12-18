@@ -7,7 +7,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@repo/design-system/components/ui/pagination";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * Pagination with page navigation, next and previous links.
