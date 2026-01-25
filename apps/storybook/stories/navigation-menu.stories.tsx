@@ -7,7 +7,7 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@repo/design-system/components/ui/navigation-menu";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * A collection of links for navigating websites.

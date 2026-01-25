@@ -8,7 +8,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@repo/design-system/components/ui/form";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { useForm } from "react-hook-form";
 import { action } from "storybook/actions";
 import * as z from "zod";

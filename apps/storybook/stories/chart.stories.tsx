@@ -4,7 +4,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@repo/design-system/components/ui/chart";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { useMemo } from "react";
 import {
   Area,

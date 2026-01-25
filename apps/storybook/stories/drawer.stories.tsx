@@ -8,7 +8,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@repo/design-system/components/ui/drawer";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * A drawer component for React.

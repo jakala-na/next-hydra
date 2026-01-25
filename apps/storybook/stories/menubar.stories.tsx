@@ -15,7 +15,7 @@ import {
   MenubarSubTrigger,
   MenubarTrigger,
 } from "@repo/design-system/components/ui/menubar";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * A visually persistent menu common in desktop applications that provides

@@ -1,3 +1,4 @@
+import type { LivePreviewProps } from "@repo/design-system/lib/types";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
@@ -17,6 +18,9 @@ type HeroSectionProps = {
     label: string;
     url: string;
   }[];
+  livePreviewProps?: LivePreviewProps<
+    ["tagline", "title", "description", "image", "cta"]
+  >;
 };
 
 export function HeroSection({
@@ -25,32 +29,45 @@ export function HeroSection({
   image,
   ctaLinks,
   tagline,
+  livePreviewProps,
 }: HeroSectionProps) {
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative overflow-hidden" {...livePreviewProps?.root}>
       <div className="container px-4 py-24 md:px-6 lg:px-8 lg:py-32">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div className="space-y-8">
             {tagline && (
               <div className="inline-block">
-                <span className="rounded-full bg-primary/10 px-4 py-2 font-medium text-primary text-sm">
+                <span
+                  className="rounded-full bg-primary/10 px-4 py-2 font-medium text-primary text-sm"
+                  {...livePreviewProps?.tagline}
+                >
                   {tagline}
                 </span>
               </div>
             )}
 
-            <h1 className="text-balance font-bold text-5xl tracking-tight lg:text-7xl">
+            <h1
+              className="text-balance font-bold text-5xl tracking-tight lg:text-7xl"
+              {...livePreviewProps?.title}
+            >
               {title}
             </h1>
 
             {description && (
-              <div className="max-w-xl text-muted-foreground text-xl leading-relaxed">
+              <div
+                className="max-w-xl text-muted-foreground text-xl leading-relaxed"
+                {...livePreviewProps?.description}
+              >
                 {description}
               </div>
             )}
 
             {ctaLinks && ctaLinks.length > 0 && (
-              <div className="flex flex-col gap-4 sm:flex-row">
+              <div
+                className="flex flex-col gap-4 sm:flex-row"
+                {...livePreviewProps?.cta}
+              >
                 {ctaLinks.map((cta, index) => {
                   if (index === 0) {
                     return (
@@ -95,7 +112,10 @@ export function HeroSection({
           </div>
 
           {image && (
-            <div className="relative h-[600px] overflow-hidden rounded-lg bg-muted">
+            <div
+              className="relative h-[600px] overflow-hidden rounded-lg bg-muted"
+              {...livePreviewProps?.image}
+            >
               <Image
                 src={image.url}
                 alt={image.altText}

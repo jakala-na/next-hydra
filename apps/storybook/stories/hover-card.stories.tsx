@@ -3,7 +3,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@repo/design-system/components/ui/hover-card";
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 /**
  * For sighted users to preview content available behind a link.

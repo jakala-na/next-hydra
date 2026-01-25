@@ -48,7 +48,16 @@ export function HeroSection(
     data: FragmentOf<typeof HeroSectionFragment>;
   } & ComponentBaseProps
 ) {
+  const { livePreviewHelper } = props;
   const data = readFragment(HeroSectionFragment, props.data);
+
+  const livePreviewProps = livePreviewHelper?.getUIProps({
+    tagline: "tagline",
+    title: "title",
+    description: "description",
+    image: "image",
+    cta: "cta",
+  });
 
   const image = getNodesFromConnection(data.imageConnection).map((node) => ({
     url: node?.url || "",
@@ -64,6 +73,7 @@ export function HeroSection(
       tagline={data.tagline ?? ""}
       title={data.title ?? ""}
       description={renderRichText(data.description?.json)}
+      livePreviewProps={livePreviewProps}
     />
   );
 }
