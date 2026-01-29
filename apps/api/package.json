@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@repo/analytics": "workspace:*",
-    "@repo/auth": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/next-config": "workspace:*",
     "@repo/observability": "workspace:*",

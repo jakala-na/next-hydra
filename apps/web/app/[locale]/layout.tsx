@@ -1,5 +1,5 @@
 import "./styles.css";
-import { AuthProvider } from "@repo/auth/provider";
+import { AuthProvider } from "@repo/auth-workos/provider";
 import { LivePreview } from "@repo/cms/components/live-preview";
 import { getNavigation } from "@repo/cms/lib/navigation";
 import { addToCart } from "@repo/commerce/actions/add-to-cart";

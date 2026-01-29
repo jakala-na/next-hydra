@@ -1,5 +1,5 @@
 {
-  "name": "@repo/feature-flags",
+  "name": "@repo/auth-clerk",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -7,19 +7,22 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.34.0",
+    "@clerk/themes": "^2.2.46",
     "@repo/analytics": "workspace:*",
-    "@repo/auth-workos": "workspace:*",
-    "@repo/design-system": "workspace:*",
+    "@repo/observability": "workspace:*",
     "@t3-oss/env-nextjs": "^0.13.4",
-    "@vercel/toolbar": "^0.1.37",
-    "flags": "^4.0.1",
+    "next-themes": "^0.4.6",
     "react": "^19.2.3",
+    "server-only": "^0.0.1",
+    "svix": "^1.84.1",
     "zod": "^3.25.28"
   },
   "peerDependencies": {
-    "next": "16"
+    "next": "16.0.10"
   },
   "devDependencies": {
+    "@clerk/types": "^4.59.1",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "22.15.21",
     "@types/react": "^19.2.7",

@@ -2,7 +2,9 @@
   "web": {
     "header": {
       "signUp": "Anmelden",
-      "signIn": "Anmelden"
+      "signIn": "Anmelden",
+      "signOut": "Abmelden",
+      "user": "Benutzer"
     },
     "product": {
       "addToCart": "In den Warenkorb",
