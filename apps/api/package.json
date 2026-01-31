@@ -19,9 +19,9 @@
     "@sentry/nextjs": "^10.22.0",
     "@t3-oss/env-nextjs": "^0.13.4",
     "import-in-the-middle": "2.0.0",
-    "next": "16.0.10",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "next": "16.1.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
     "require-in-the-middle": "8.0.1",
     "svix": "^1.66.0",
     "vitest": "^3.1.4",
@@ -30,7 +30,7 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "22.15.21",
-    "@types/react": "^19.2.7",
+    "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "concurrently": "^9.1.2",
     "typescript": "^5.8.3"

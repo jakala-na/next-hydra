@@ -7,6 +7,10 @@ const otelRegex = /@opentelemetry\/instrumentation/;
 export const config: NextConfig = {
   experimental: {
     browserDebugInfoInTerminal: true,
+    // Enable filesystem caching for `next dev`
+    turbopackFileSystemCacheForDev: true,
+    // Enable filesystem caching for `next build`
+    turbopackFileSystemCacheForBuild: true,
   },
   cacheComponents: true,
   typedRoutes: true,
