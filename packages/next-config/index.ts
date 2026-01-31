@@ -6,13 +6,10 @@ const otelRegex = /@opentelemetry\/instrumentation/;
 
 export const config: NextConfig = {
   experimental: {
+    useCache: true,
     browserDebugInfoInTerminal: true,
-    // Enable filesystem caching for `next dev`
-    turbopackFileSystemCacheForDev: true,
-    // Enable filesystem caching for `next build`
-    turbopackFileSystemCacheForBuild: true,
   },
-  cacheComponents: true,
+  cacheComponents: false, // Waiting for https://github.com/amannn/next-intl/issues/1493 support and other ecosystem updates.
   typedRoutes: true,
   images: {
     formats: ["image/avif", "image/webp"],
