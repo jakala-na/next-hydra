@@ -8,23 +8,13 @@ import {
   DropdownMenuTrigger,
 } from "@repo/design-system/components/ui/dropdown-menu";
 import { cn } from "@repo/design-system/lib/utils";
+import { regions } from "@repo/i18n/config";
 import { Check, Globe } from "lucide-react";
 import type { Route } from "next";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useMemo, useTransition } from "react";
 
-export type Region = {
-  displayCode: string;
-  displayName: string;
-  currency: string;
-  localeCode: string;
-};
-
 const DEFAULT_LOCALE = "en-US";
-
-type RegionSelectorProps = {
-  regions: readonly Region[];
-};
 
 const escapeForRegExp = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -33,7 +23,7 @@ const escapeForRegExp = (value: string) =>
  * TODO: Get router and pathname from next-intl.
  * @see https://github.com/amannn/next-intl/blob/main/examples/example-app-router/src/components/LocaleSwitcherSelect.tsx
  */
-export const RegionSelector = ({ regions }: RegionSelectorProps) => {
+export const RegionSelector = () => {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
@@ -55,7 +45,7 @@ export const RegionSelector = ({ regions }: RegionSelectorProps) => {
 
   const activeRegion = useMemo(
     () => regions.find((region) => region.localeCode === currentLocale),
-    [regions, currentLocale]
+    [currentLocale]
   );
 
   const resolvePathname = () => {
@@ -89,7 +79,7 @@ export const RegionSelector = ({ regions }: RegionSelectorProps) => {
     return `/${nextLocale}`;
   };
 
-  const handleRegionChange = (region: Region) => {
+  const handleRegionChange = (region: (typeof regions)[number]) => {
     if (region.localeCode === currentLocale) {
       return;
     }

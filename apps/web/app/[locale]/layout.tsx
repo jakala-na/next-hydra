@@ -8,7 +8,7 @@ import { removeCartItem } from "@repo/commerce/actions/remove-cart-item";
 import { getCartForContext } from "@repo/commerce/lib/cart/utils/get-cart";
 import { storeService } from "@repo/commerce/lib/store/store.service";
 import { DesignSystemProvider } from "@repo/design-system";
-import { CartProvider as DesignSystemCartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
+import { CartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
 import { AccountMenuClient } from "@repo/design-system/components/layout/account-menu";
 import { BusinessUnitSwitcher } from "@repo/design-system/components/layout/business-unit-switcher";
 import { CartButtonClient } from "@repo/design-system/components/layout/cart-button";
@@ -25,11 +25,32 @@ import {
   NextIntlClientProvider,
   setRequestLocale,
 } from "@repo/i18n";
-import { regions } from "@repo/i18n/config";
 import { routing } from "@repo/i18n/routing";
+import type { Locale } from "@repo/i18n/types";
+import { ShoppingCart } from "lucide-react";
 import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+
+/**
+ * Creates cart promise - starts fetching immediately (including cookies()).
+ * Does NOT await - returns a promise that will be passed through context.
+ */
+async function getCart(locale: Locale) {
+  const context = await storeService.getStoreContextByLocale(locale);
+  return getCartForContext(context);
+}
+
+/** Skeleton for cart button while loading */
+function CartButtonSkeleton() {
+  return (
+    <div className="relative">
+      <div className="flex h-10 w-10 items-center justify-center">
+        <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+      </div>
+    </div>
+  );
+}
 
 export const generateStaticParams = () =>
   routing.locales.map((locale) => ({ locale }));
@@ -50,10 +71,10 @@ export default async function RootLayout({
     livePreviewHash = (await headers()).get("x-live-preview") || "";
   }
   const navigation = await getNavigation(locale, livePreviewHash);
-  const contextPromise = storeService.getStoreContextByLocale(locale);
-  const cartPromise = contextPromise.then((context) =>
-    getCartForContext(context)
-  );
+
+  // Create cart promise - starts fetching immediately (incl. cookies())
+  // Do NOT await - pass the promise through to be resolved at leaf nodes
+  const cartPromise = getCart(locale);
 
   return (
     <html
@@ -65,7 +86,7 @@ export default async function RootLayout({
         <AuthProvider>
           <DesignSystemProvider>
             <NextIntlClientProvider>
-              <DesignSystemCartProvider
+              <CartProvider
                 cartPromise={cartPromise}
                 actions={{
                   addToCart,
@@ -77,7 +98,11 @@ export default async function RootLayout({
                   MainNavigation={
                     <Navigation navigationItems={navigation.navigationItems} />
                   }
-                  RegionSelectorSlot={<RegionSelector regions={regions} />}
+                  RegionSelectorSlot={
+                    <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+                      <RegionSelector />
+                    </Suspense>
+                  }
                   Search={<SearchAutocomplete />}
                   BusinessUnitSwitcher={
                     <Suspense fallback={<div className="skeleton h-8 w-16" />}>
@@ -91,16 +116,15 @@ export default async function RootLayout({
                     />
                   }
                   CartSlot={
-                    <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+                    <Suspense fallback={<CartButtonSkeleton />}>
                       <CartButtonClient />
                     </Suspense>
                   }
                   AccountSlot={<AccountMenuClient />}
                 />
                 {children}
-                {/* <Footer /> */}
                 <LivePreview isEnabled={isDraftModeEnabled} />
-              </DesignSystemCartProvider>
+              </CartProvider>
             </NextIntlClientProvider>
           </DesignSystemProvider>
         </AuthProvider>
