@@ -4,6 +4,7 @@ import { renderRichText } from "@repo/cms/lib/utils/rich-text-utils";
 import type { ComponentBaseProps } from "@repo/cms/types";
 import { HeroSection as HeroSectionComponent } from "@repo/design-system/components/cms/blocks/hero-section";
 import getLinkProps from "../link";
+import { Locale } from "@repo/i18n";
 
 export const HeroSectionFragment = graphql(`
   fragment HeroSection on HeroSection {
@@ -46,6 +47,7 @@ export const HeroSectionFragment = graphql(`
 export function HeroSection(
   props: {
     data: FragmentOf<typeof HeroSectionFragment>;
+    locale: Locale;
   } & ComponentBaseProps
 ) {
   const { livePreviewHelper } = props;

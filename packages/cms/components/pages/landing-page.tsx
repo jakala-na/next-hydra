@@ -112,6 +112,7 @@ export async function LandingPage(props: { url: string; locale: Locale }) {
         data={pageData.components}
         livePreviewHelper={livePreviewHelper?.getNestedHelper("components")}
         dataType="modularBlocks"
+        locale={locale}
       />
     </>
   );
