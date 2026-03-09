@@ -1,15 +1,15 @@
 export type ErrorCode =
-  | 'UNAUTHENTICATED'
-  | 'FORBIDDEN'
-  | 'NOT_FOUND'
-  | 'CONFLICT'
-  | 'RATE_LIMITED'
-  | 'BAD_INPUT'
-  | 'NETWORK_ERROR'
-  | 'UNKNOWN';
+  | "UNAUTHENTICATED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "CONFLICT"
+  | "RATE_LIMITED"
+  | "BAD_INPUT"
+  | "NETWORK_ERROR"
+  | "UNKNOWN";
 
 export type DomainError<TDetails = unknown> = {
-  type: 'DomainError';
+  type: "DomainError";
   code: ErrorCode;
   message: string; // developer-readable, not necessarily shown to end user
   details?: TDetails; // extra context (ids, constraint names, etc.)
@@ -20,7 +20,7 @@ export const domainError = <D = unknown>(
   message: string,
   details?: D,
   cause?: unknown
-): DomainError<D> => ({ type: 'DomainError', code, message, details, cause });
+): DomainError<D> => ({ type: "DomainError", code, message, details, cause });
 
 export type ActionOk<T> = { ok: true; data: T };
 export type ActionFail<E> = { ok: false; error: DomainError<E> };

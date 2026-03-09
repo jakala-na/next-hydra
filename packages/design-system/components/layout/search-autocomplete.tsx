@@ -120,7 +120,7 @@ export function SearchAutocomplete() {
   return (
     <div ref={searchRef} className="relative w-full max-w-md">
       <div className="relative">
-        <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
           placeholder="Search products..."
@@ -133,7 +133,7 @@ export function SearchAutocomplete() {
           <Button
             variant="ghost"
             size="icon"
-            className="-translate-y-1/2 absolute top-1/2 right-1 h-7 w-7"
+            className="absolute top-1/2 right-1 h-7 w-7 -translate-y-1/2"
             onClick={handleClear}
           >
             <X className="h-4 w-4" />

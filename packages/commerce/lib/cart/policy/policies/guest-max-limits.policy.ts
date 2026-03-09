@@ -2,11 +2,11 @@ import type {
   CartPolicy,
   PolicyValidationContext,
   PolicyViolation,
-} from '../cart-policy.types';
-import { policyViolation } from '../cart-policy.types';
+} from "../cart-policy.types";
+import { policyViolation } from "../cart-policy.types";
 
 const MAX_GUEST_TOTAL_ITEMS = 50 as const;
-const GUEST_MAX_LIMITS_POLICY_NAME = 'guest-max-limits' as const;
+const GUEST_MAX_LIMITS_POLICY_NAME = "guest-max-limits" as const;
 
 const isGuestContext = (context: PolicyValidationContext): boolean => {
   if (context.customerId) {
@@ -24,7 +24,7 @@ type GuestLimitViolationParams = {
   maxQuantity: number;
   totalQuantity: number;
   excessQuantity: number;
-  lineItem: PolicyValidationContext['cart']['lineItems'][number];
+  lineItem: PolicyValidationContext["cart"]["lineItems"][number];
 };
 
 const buildGuestQuantityViolation = ({
@@ -34,11 +34,11 @@ const buildGuestQuantityViolation = ({
   lineItem,
 }: GuestLimitViolationParams): PolicyViolation => {
   const productLabel = lineItem.name ?? lineItem.productId;
-  const unitLabel = excessQuantity === 1 ? 'unit' : 'units';
+  const unitLabel = excessQuantity === 1 ? "unit" : "units";
 
   return policyViolation({
     policyName: GUEST_MAX_LIMITS_POLICY_NAME,
-    violationType: 'MAX_GUEST_TOTAL_ITEMS_EXCEEDED',
+    violationType: "MAX_GUEST_TOTAL_ITEMS_EXCEEDED",
     message: `Guest carts are limited to ${maxQuantity} total items. Remove at least ${excessQuantity} ${unitLabel} from ${productLabel}.`,
     affectedItems: [
       {
@@ -61,7 +61,7 @@ export const createGuestMaxLimitsPolicy = (
   maxQuantity: number = MAX_GUEST_TOTAL_ITEMS
 ): CartPolicy => ({
   name: GUEST_MAX_LIMITS_POLICY_NAME,
-  description: 'Enforces guest cart total item limits for anonymous shoppers',
+  description: "Enforces guest cart total item limits for anonymous shoppers",
 
   appliesTo: (context: PolicyValidationContext): boolean => {
     return isGuestContext(context);

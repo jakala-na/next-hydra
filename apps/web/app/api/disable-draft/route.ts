@@ -1,1 +1,1 @@
-export { GET } from '@repo/cms/routes/disable-draft';
+export { GET } from "@repo/cms/routes/disable-draft";

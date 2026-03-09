@@ -12,9 +12,9 @@
 import { VB_EmptyBlockParentClass } from "@contentstack/live-preview-utils";
 import { DynamicProductCollection } from "@repo/cms/components/blocks/dynamic-product-collection";
 import { HeroSection } from "@repo/cms/components/blocks/hero-section";
+import type { Locale } from "@repo/i18n";
 import type { ComponentProps } from "react";
 import type { LivePreviewHelper } from "../lib/utils/live-preview-helper";
-import { Locale } from "@repo/i18n";
 
 export const componentMap = {
   HeroSection,

@@ -1,8 +1,8 @@
-import { cartPolicyService } from '../policy';
+import { cartPolicyService } from "../policy";
 import type {
   PolicyValidationContext,
   PolicyViolation,
-} from '../policy/cart-policy.types';
+} from "../policy/cart-policy.types";
 
 /**
  * Validates a cart against all registered policies
