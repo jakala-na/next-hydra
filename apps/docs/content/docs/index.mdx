@@ -1,0 +1,149 @@
+---
+title: Get started
+description: Scaffold next-hydra, provision the required services, and configure your keys.
+---
+
+This guide helps you run the next-hydra demo locally using the default provider stack: `commercetools`, `Contentstack`, and `WorkOS`.
+
+## Before you begin
+
+You will need:
+
+- Node.js and `pnpm`
+- a new `commercetools` project
+- a new `Contentstack` stack
+- a new `WorkOS` app
+
+This starter is a monorepo, so we recommend `pnpm` for both scaffolding and local development.
+
+The goal is simple: get the demo running locally with the same provider path used by the starter.
+
+## Step 1. Scaffold the project
+
+Use `create-next-hydra` to scaffold a new workspace.
+
+```bash
+pnpm create next-hydra@latest
+```
+
+Follow the CLI prompts to scaffold the project in a new directory. Once the code is in place, you can provision the services the demo expects.
+
+## Step 2. Create your commercetools project
+
+Start by creating a commercetools trial account here: [commercetools free trial](https://commercetools.com/free-trial). It is the default commerce integration used throughout the repo, including product, cart, and store services.
+
+When commercetools asks how to initialize the new project, choose the sample dataset option and select `B2B: Heavy Machinery`. This is the recommended dataset for next-hydra because it is what powers the demo experience.
+
+What you should do in commercetools:
+
+1. Create a new commercetools project from the trial account.
+2. Choose `Sample dataset` instead of an empty project.
+3. Select `B2B: Heavy Machinery`.
+4. Create an API client for the storefront using the Scopes from `Frontend B2B` template.
+5. Copy the project key, client id, client secret, region, and scopes into your local env file.
+
+You will need these values from commercetools:
+
+| Key | Purpose |
+| --- | --- |
+| `COMMERCETOOLS_PROJECT_KEY` | commercetools project identifier |
+| `COMMERCETOOLS_CLIENT_ID` | API client id |
+| `COMMERCETOOLS_CLIENT_SECRET` | API client secret |
+| `COMMERCETOOLS_SCOPE` | OAuth scopes for the project |
+| `COMMERCETOOLS_REGION` | commercetools region, for example `us-central1` or `eu-central1` |
+| `NEXT_PUBLIC_COMMERCETOOLS_PROJECT_KEY` | public project key for storefront reads |
+| `NEXT_PUBLIC_COMMERCETOOLS_REGION` | public region for storefront reads |
+
+## Step 3. Set up Contentstack
+
+Create a Contentstack trial account here: [Contentstack free trial](https://www.contentstack.com/try-for-free). Contentstack powers the default CMS integration, content blocks, draft mode, and live preview flow in the repo.
+
+This part of the setup is still a work in progress in the docs. For now, create the minimum content model needed by the starter:
+
+1. Create a new Contentstack stack.
+2. Create a `Landing Page` content type.
+3. Create a `Navigation` content type.
+4. Create an environment for local development.
+5. Generate delivery and preview tokens for that environment.
+
+The schema export and a fuller Contentstack bootstrap flow will be documented separately.
+
+You will need these values from Contentstack:
+
+| Key | Purpose |
+| --- | --- |
+| `CONTENTSTACK_ENVIRONMENT` | stack environment name |
+| `CONTENTSTACK_API_KEY` | stack api key |
+| `CONTENTSTACK_DELIVERY_TOKEN` | delivery token for published content |
+| `CONTENTSTACK_PREVIEW_TOKEN` | preview token for draft and preview content |
+| `CONTENTSTACK_WEBHOOK_SECRET` | webhook secret for inbound callbacks |
+| `NEXT_PUBLIC_CONTENTSTACK_API_KEY` | public api key for live preview wiring |
+| `NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT` | public environment value for live preview wiring |
+
+## Step 4. Configure WorkOS
+
+next-hydra uses `WorkOS` as the default auth path. The web app is wired to WorkOS today.
+
+Create a WorkOS app, configure your local redirect URI, and collect these values:
+
+| Key | Purpose |
+| --- | --- |
+| `WORKOS_API_KEY` | WorkOS server API key |
+| `WORKOS_CLIENT_ID` | WorkOS client id |
+| `WORKOS_COOKIE_PASSWORD` | cookie encryption secret, minimum 32 characters |
+| `NEXT_PUBLIC_WORKOS_REDIRECT_URI` | redirect URI used after auth flows |
+
+WorkOS is the supported setup path for this page because it matches the current `apps/web` wiring.
+
+### Clerk adapter option
+
+The repo also includes a `Clerk` adapter package, but swapping auth providers is not just an env change. It requires changing the app wiring from the WorkOS package to the Clerk package
+
+## Step 5. Add your environment variables
+
+Once you have values from `commercetools`, `Contentstack`, and `WorkOS`, add them to your local env file.
+
+```bash title="./apps/web/.env.local"
+COMMERCETOOLS_PROJECT_KEY=your-project-key
+COMMERCETOOLS_CLIENT_ID=your-client-id
+COMMERCETOOLS_CLIENT_SECRET=your-client-secret
+COMMERCETOOLS_SCOPE=manage_project:your-project-key
+COMMERCETOOLS_REGION=your-region
+NEXT_PUBLIC_COMMERCETOOLS_PROJECT_KEY=your-project-key
+NEXT_PUBLIC_COMMERCETOOLS_REGION=your-region
+
+CONTENTSTACK_ENVIRONMENT=development
+CONTENTSTACK_API_KEY=your-api-key
+CONTENTSTACK_DELIVERY_TOKEN=cs_delivery_token
+CONTENTSTACK_PREVIEW_TOKEN=cs_preview_token
+CONTENTSTACK_WEBHOOK_SECRET=your-webhook-secret
+NEXT_PUBLIC_CONTENTSTACK_API_KEY=your-api-key
+NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT=development
+
+WORKOS_API_KEY=sk_live_or_test
+WORKOS_CLIENT_ID=client_123
+WORKOS_COOKIE_PASSWORD=replace-with-a-32-character-secret
+NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
+```
+
+If you want to explore analytics, observability, email, or security integrations later, add those after the demo is already running.
+
+## Step 6. Run the demo locally
+
+Once the required environment variables are in place, install dependencies and start the workspace.
+
+```bash
+pnpm install
+pnpm turbo dev --filter=web
+```
+
+This starts only the web app, which is the fastest way to verify the demo locally.
+
+Open `http://localhost:3001` to verify the storefront boots with your configured providers.
+
+## What next?
+
+<Cards>
+  <Card title="Read the repo overview" href="https://github.com/jakala-na/next-hydra" />
+  <Card title="Review Next.js docs" href="https://nextjs.org/docs" />
+</Cards>
