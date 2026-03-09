@@ -37,7 +37,8 @@
         "useOptionalChain": "warn"
       },
       "performance": {
-        "noNamespaceImport": "warn"
+        "noNamespaceImport": "warn",
+        "noBarrelFile": "off"
       },
       "correctness": {
         "noNestedComponentDefinitions": "warn",
