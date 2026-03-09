@@ -12,6 +12,11 @@
     "boundaries": "turbo boundaries",
     "bump-deps": "npx npm-check-updates --deep -u -x react-day-picker",
     "bump-ui": "npx shadcn@latest add --all --overwrite -c packages/design-system",
+    "changeset": "pnpm dlx @changesets/cli",
+    "changeset:status": "pnpm dlx @changesets/cli status --verbose",
+    "version:cli": "pnpm dlx @changesets/cli version",
+    "release:create-next-hydra:dry-run": "node scripts/release-create-next-hydra.mjs --dry-run",
+    "release:create-next-hydra": "node scripts/release-create-next-hydra.mjs --version",
     "clean": "git clean -xdf node_modules",
     "prepare": "husky"
   },
