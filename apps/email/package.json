@@ -13,14 +13,14 @@
     "@react-email/components": "0.4.0",
     "@react-email/preview-server": "^4.2.7",
     "@repo/email": "workspace:*",
-    "react": "19.2.3",
+    "react": "19.2.4",
     "react-email": "4.2.7"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "22.15.21",
-    "@types/react": "^19.2.7",
-    "next": "16.0.10",
+    "@types/react": "^19.2.10",
+    "next": "16.1.6",
     "typescript": "^5.8.3"
   }
 }

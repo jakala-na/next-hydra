@@ -17,6 +17,7 @@ import {
   use,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -24,36 +25,23 @@ import { toast } from "sonner";
 
 const CENTS_PER_UNIT = 100 as const;
 
-export type CartItem = {
-  id: string;
-  productId?: number;
-  name: string;
-  variant: string;
-  price: number;
-  quantity: number;
-  image: string;
-};
-
-type CartContextType = {
-  items: CartItem[];
-  totalItems: number;
-  totalPrice: number;
-  currencyCode: CurrencyCode;
-  addItem: (item: AddToCartInput) => Promise<void>;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
-  isOpen: boolean;
-  openCart: () => void;
-  closeCart: () => void;
-};
-
-const CartContext = createContext<CartContextType | undefined>(undefined);
-
 type CartActions = {
   addToCart: AddToCartAction;
   changeCartItemsQuantity: ChangeCartItemsQuantityAction;
   removeCartItem: RemoveCartItemAction;
 };
+
+type CartContextType = {
+  cartPromise: Promise<ActionResult<CartWithIssues>>;
+  cart: CartWithIssues | null;
+  setCart: (cart: CartWithIssues | null) => void;
+  isOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
+  actions: CartActions;
+};
+
+const CartContext = createContext<CartContextType | null>(null);
 
 type CartProviderProps = {
   children: ReactNode;
@@ -61,23 +49,110 @@ type CartProviderProps = {
   actions: CartActions;
 };
 
+/**
+ * CartProvider - stores cart promise without resolving it.
+ * - Promise is passed through context, NOT resolved here
+ * - Leaf components call use() inside their own Suspense boundaries
+ * - Shared state is updated when cart data is resolved or after actions
+ */
 export function CartProvider({
   children,
   cartPromise,
   actions,
 }: CartProviderProps) {
+  const [cart, setCart] = useState<CartWithIssues | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const t = useTranslations("web.cart");
-  const initialCart = use(cartPromise);
-  const initialCartWithIssues = initialCart?.ok
-    ? (initialCart.data ?? null)
-    : null;
-  const [cartWithIssues, setCartWithIssues] = useState<CartWithIssues | null>(
-    initialCartWithIssues ?? null
+
+  const openCart = useCallback(() => setIsOpen(true), []);
+  const closeCart = useCallback(() => setIsOpen(false), []);
+
+  const value = useMemo(
+    () => ({
+      cartPromise,
+      cart,
+      setCart,
+      isOpen,
+      openCart,
+      closeCart,
+      actions,
+    }),
+    [cartPromise, cart, isOpen, openCart, closeCart, actions]
   );
 
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+}
+
+/**
+ * useCartData - resolves cart promise and syncs to shared state.
+ * IMPORTANT: Components using this hook MUST be wrapped in Suspense!
+ * This hook causes suspension until the cart promise resolves.
+ */
+export function useCartData() {
+  const ctx = useContext(CartContext);
+
+  if (!ctx) {
+    throw new Error("useCartData must be used within CartProvider");
+  }
+
+  const { cartPromise, cart, setCart } = ctx;
+
+  // Resolve promise - this causes suspension!
+  const result = use(cartPromise);
+  const resolvedCart = result?.ok ? (result.data ?? null) : null;
+
+  // Sync resolved cart to shared state on first resolve
+  useEffect(() => {
+    if (resolvedCart && !cart) {
+      setCart(resolvedCart);
+    }
+  }, [resolvedCart, cart, setCart]);
+
+  // Return shared state if available, otherwise the freshly resolved cart
+  return cart ?? resolvedCart;
+}
+
+/**
+ * useCartState - access cart UI state (open/close) without resolving promise.
+ * Safe to use anywhere - does NOT cause suspension.
+ */
+export function useCartState() {
+  const ctx = useContext(CartContext);
+
+  if (!ctx) {
+    throw new Error("useCartState must be used within CartProvider");
+  }
+
+  return {
+    isOpen: ctx.isOpen,
+    openCart: ctx.openCart,
+    closeCart: ctx.closeCart,
+  };
+}
+
+/**
+ * useCart - access cart data and mutation functions.
+ * Uses shared state (already resolved by useCartData).
+ * Does NOT cause suspension - cart should already be in state.
+ */
+export function useCart() {
+  const ctx = useContext(CartContext);
+  const t = useTranslations("web.cart");
+
+  if (!ctx) {
+    throw new Error("useCart must be used within CartProvider");
+  }
+
+  const {
+    cart: cartWithIssues,
+    setCart,
+    isOpen,
+    openCart,
+    closeCart,
+    actions,
+  } = ctx;
   const cart: Cart | null = cartWithIssues?.cart ?? null;
-  const currencyCode = cartWithIssues?.currency ?? "USD";
+  const currencyCode: CurrencyCode = cartWithIssues?.currency ?? "USD";
+
   const items = useMemo(() => {
     const lineItems = cart?.lineItems ?? [];
     return lineItems.map((li: LineItem) => {
@@ -111,81 +186,91 @@ export function CartProvider({
     return sum;
   }, [items]);
 
-  const removeItem = useCallback(
-    async (id: string) => {
-      const newCartData = await actions.removeCartItem({ lineItemId: id });
-      if (newCartData?.data?.ok && newCartData.data.data) {
-        setCartWithIssues(newCartData.data.data);
-        toast.success(t("toast.removedFromCart"));
-      } else {
-        toast.error(t("toast.failedToRemove"));
-      }
-    },
-    [actions, t]
-  );
-
-  const updateQuantity = useCallback(
-    async (id: string, quantity: number) => {
-      const newCartData = await actions.changeCartItemsQuantity({
-        lineItemId: id,
-        quantity,
-      });
-      if (newCartData?.data?.ok && newCartData.data.data) {
-        setCartWithIssues(newCartData.data.data);
-        toast.success(t("toast.updatedQuantity"));
-      } else {
-        toast.error(t("toast.failedToUpdate"));
-      }
-    },
-    [actions, t]
-  );
-
   const addItem = useCallback(
     async (input: AddToCartInput) => {
-      const newCartData = await actions.addToCart(input);
-      if (newCartData?.data?.ok && newCartData.data.data) {
-        setCartWithIssues(newCartData.data.data);
-        setIsOpen(true);
+      const result = await actions.addToCart(input);
+      if (result?.data?.ok && result.data.data) {
+        setCart(result.data.data);
+        openCart();
         toast.success(t("toast.addedToCart"));
       } else {
         toast.error(t("toast.failedToAdd"));
       }
     },
-    [actions, t]
+    [actions, setCart, openCart, t]
   );
 
-  const openCart = useCallback(() => {
-    setIsOpen(true);
-  }, []);
-
-  const closeCart = useCallback(() => {
-    setIsOpen(false);
-  }, []);
-
-  return (
-    <CartContext.Provider
-      value={{
-        items,
-        totalItems,
-        totalPrice,
-        addItem,
-        removeItem,
-        updateQuantity,
-        isOpen,
-        openCart,
-        closeCart,
-        currencyCode,
-      }}
-    >
-      {children}
-    </CartContext.Provider>
+  const removeItem = useCallback(
+    async (id: string) => {
+      const result = await actions.removeCartItem({ lineItemId: id });
+      if (result?.data?.ok && result.data.data) {
+        setCart(result.data.data);
+        toast.success(t("toast.removedFromCart"));
+      } else {
+        toast.error(t("toast.failedToRemove"));
+      }
+    },
+    [actions, setCart, t]
   );
+
+  const updateQuantity = useCallback(
+    async (id: string, quantity: number) => {
+      const result = await actions.changeCartItemsQuantity({
+        lineItemId: id,
+        quantity,
+      });
+      if (result?.data?.ok && result.data.data) {
+        setCart(result.data.data);
+        toast.success(t("toast.updatedQuantity"));
+      } else {
+        toast.error(t("toast.failedToUpdate"));
+      }
+    },
+    [actions, setCart, t]
+  );
+
+  return {
+    items,
+    totalItems,
+    totalPrice,
+    currencyCode,
+    addItem,
+    removeItem,
+    updateQuantity,
+    isOpen,
+    openCart,
+    closeCart,
+  };
 }
 
-export function useCart() {
-  const context = useContext(CartContext);
-  if (context === undefined) {
-    throw new Error("useCart must be used within a CartProvider");
+/**
+ * useCartActions - access cart actions without needing cart data.
+ * Safe to use anywhere - for components that only need to add items.
+ * Does NOT cause suspension.
+ */
+export function useCartActions() {
+  const ctx = useContext(CartContext);
+  const t = useTranslations("web.cart");
+
+  if (!ctx) {
+    throw new Error("useCartActions must be used within CartProvider");
   }
-  return context;
+
+  const { setCart, isOpen, openCart, closeCart, actions } = ctx;
+
+  const addItem = useCallback(
+    async (input: AddToCartInput) => {
+      const result = await actions.addToCart(input);
+      if (result?.data?.ok && result.data.data) {
+        setCart(result.data.data);
+        openCart();
+        toast.success(t("toast.addedToCart"));
+      } else {
+        toast.error(t("toast.failedToAdd"));
+      }
+    },
+    [actions, setCart, openCart, t]
+  );
+
+  return { isOpen, openCart, closeCart, addItem };
 }

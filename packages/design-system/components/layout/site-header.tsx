@@ -1,5 +1,6 @@
 "use client";
 import { Bolt } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 
 export type NavItem = {
@@ -64,7 +65,7 @@ export function SiteHeader({
 
       <div className="container flex h-16 items-center justify-between gap-4 py-2">
         <div className="flex h-full items-center gap-6">
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href={"/" as Route} className="flex items-center space-x-2">
             <Bolt className="h-8 w-8" />
             <span className="font-bold text-xl">TitanMach</span>
           </Link>

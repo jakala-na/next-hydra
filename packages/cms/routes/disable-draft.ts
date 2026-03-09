@@ -1,19 +1,20 @@
-import { cookies, draftMode } from 'next/headers';
-import { redirect } from 'next/navigation';
-
+import type { Route } from "next";
+import { cookies, draftMode } from "next/headers";
+import { redirect } from "next/navigation";
 export async function GET() {
   (await draftMode()).disable();
   // Set __prerender_bypass expire date to past.
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     (await cookies()).set({
-      name: '__prerender_bypass',
-      value: '',
+      name: "__prerender_bypass",
+      value: "",
       expires: new Date(0), // Set expiration date to the past
       httpOnly: true,
-      path: '/',
+      path: "/",
       secure: true,
-      sameSite: 'none',
+      sameSite: "none",
     });
   }
-  redirect('/');
+
+  redirect("/" as Route);
 }

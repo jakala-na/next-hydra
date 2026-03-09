@@ -1,6 +1,5 @@
 import { productService } from "@repo/commerce/lib/product/product.service";
 import { ProductCollection as ProductCollectionComponent } from "@repo/design-system/components/commerce/blocks/product-collection";
-import { getLocale } from "@repo/i18n";
 import type { Locale } from "@repo/i18n/types";
 import type { ReactNode } from "react";
 
@@ -14,8 +13,14 @@ interface ProductCollectionProps {
 }
 
 export async function ProductCollection(props: ProductCollectionProps) {
-  const locale = await getLocale();
-  const { title, description, categoryId, limit = 3, excludeProductId } = props;
+  const {
+    title,
+    description,
+    categoryId,
+    limit = 3,
+    excludeProductId,
+    locale,
+  } = props;
   const products = await productService.getProductsCollection(
     {
       filter: categoryId ? `categories.id:"${categoryId}"` : "",

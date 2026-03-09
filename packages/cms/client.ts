@@ -3,16 +3,16 @@
  * @see https://nextjs.org/docs/app/building-your-application/rendering/composition-patterns#keeping-server-only-code-out-of-the-client-environment
  */
 
-import 'server-only';
+import "server-only";
 
-import { createClient, fetchExchange } from '@urql/core';
-import memoize from 'lodash.memoize';
-import { mapExchange } from 'urql';
-import { keys } from './keys';
+import { createClient, fetchExchange } from "@urql/core";
+import memoize from "lodash.memoize";
+import { mapExchange } from "urql";
+import { keys } from "./keys";
 
 const makeClient = (livePreviewHash?: string) => {
-  const graphqlHostName = 'graphql.contentstack.com';
-  const graphqlLivePreviewHostName = 'graphql-preview.contentstack.com';
+  const graphqlHostName = "graphql.contentstack.com";
+  const graphqlLivePreviewHostName = "graphql-preview.contentstack.com";
 
   const graphqlEndpoint = `https://${livePreviewHash ? graphqlLivePreviewHostName : graphqlHostName}/stacks/${keys().CONTENTSTACK_API_KEY}?environment=${keys().CONTENTSTACK_ENVIRONMENT}`;
 
@@ -44,13 +44,13 @@ const makeClient = (livePreviewHash?: string) => {
         onError: (error, operation) => {
           // Filter out expected errors like PERSISTED_QUERY_NOT_FOUND, pass others to the server.
           const errors = error.graphQLErrors.filter(
-            (err) => err.message !== 'PersistedQueryNotFound'
+            (err) => err.message !== "PersistedQueryNotFound"
           );
 
           if (errors.length > 0) {
             // TODO: Add Sentry or similar error reporting.
             // eslint-disable-next-line no-console -- logging errors to node.js console
-            console.error('GraphQL Errors:', JSON.stringify(errors, null, 2));
+            console.error("GraphQL Errors:", JSON.stringify(errors, null, 2));
 
             console.dir(operation.query.loc?.source?.body, {
               depth: null,

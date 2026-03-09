@@ -64,21 +64,22 @@ export type AttributesSchemaHeavyLiftingEquipment = {
 
 export type AttributesSchemaGenericProduct = Record<string, never>;
 
-type ExtractedLocalizedValue<TAttr> = TAttr extends ProductAttribute<infer K>
-  ? K extends "lenum"
-    ? EnumValue
-    : K extends "enum"
+type ExtractedLocalizedValue<TAttr> =
+  TAttr extends ProductAttribute<infer K>
+    ? K extends "lenum"
       ? EnumValue
-      : K extends "ltext"
-        ? string
-        : K extends "text"
+      : K extends "enum"
+        ? EnumValue
+        : K extends "ltext"
           ? string
-          : K extends "number"
-            ? number
-            : K extends "boolean"
-              ? boolean
-              : never
-  : never;
+          : K extends "text"
+            ? string
+            : K extends "number"
+              ? number
+              : K extends "boolean"
+                ? boolean
+                : never
+    : never;
 
 export type ExtractedAttributes<TKey extends ProductTypeKey = ProductTypeKey> =
   {

@@ -1,8 +1,11 @@
 import { type FragmentOf, graphql, readFragment } from "@repo/cms/graphql";
 import { renderRichText } from "@repo/cms/lib/utils/rich-text-utils";
-import type { CommercetoolsCategoryField } from "@repo/cms/types";
+import type {
+  CommercetoolsCategoryField,
+  ComponentBaseProps,
+} from "@repo/cms/types";
 import { ProductCollection as CommerceProductCollection } from "@repo/commerce/components/blocks/product-collection";
-import { getLocale } from "@repo/i18n";
+import type { Locale } from "@repo/i18n";
 
 export const dynamicProductCollectionFragment = graphql(`
     fragment DynamicProductCollection on DynamicProductCollection {
@@ -14,10 +17,13 @@ export const dynamicProductCollectionFragment = graphql(`
     }
 `);
 
-export async function DynamicProductCollection(props: {
-  data: FragmentOf<typeof dynamicProductCollectionFragment>;
-}) {
-  const locale = await getLocale();
+export function DynamicProductCollection(
+  props: {
+    data: FragmentOf<typeof dynamicProductCollectionFragment>;
+    locale: Locale;
+  } & ComponentBaseProps
+) {
+  const locale = props.locale;
   const data = readFragment(dynamicProductCollectionFragment, props.data);
   const title = data.heading || "";
   const description = data.description;

@@ -1,11 +1,11 @@
-import type { ActionResult } from '../../utils/errors';
-import { domainError, Err, Ok } from '../../utils/errors';
+import type { ActionResult } from "../../utils/errors";
+import { domainError, Err, Ok } from "../../utils/errors";
 import type {
   CartPolicy,
   PolicyValidationContext,
   PolicyValidationResult,
   PolicyValidatorErrorDetails,
-} from './cart-policy.types';
+} from "./cart-policy.types";
 
 /**
  * Cart Policy Service
@@ -65,8 +65,8 @@ export class CartPolicyService {
           return [
             {
               policyName: policy.name,
-              violationType: 'POLICY_ERROR',
-              message: `Policy validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              violationType: "POLICY_ERROR",
+              message: `Policy validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
               metadata: { error },
             },
           ];
@@ -86,8 +86,8 @@ export class CartPolicyService {
     if (!result.valid) {
       return Err(
         domainError<PolicyValidatorErrorDetails>(
-          'BAD_INPUT',
-          'Cart validation failed - policy violations detected',
+          "BAD_INPUT",
+          "Cart validation failed - policy violations detected",
           {
             violations: allViolations,
             context: {

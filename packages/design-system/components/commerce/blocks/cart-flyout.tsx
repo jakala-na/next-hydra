@@ -10,6 +10,7 @@ import {
 } from "@repo/design-system/components/ui/sheet";
 import { useFormatter, useTranslations } from "@repo/i18n";
 import { Minus, Plus, ShoppingBag, X } from "lucide-react";
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -51,7 +52,10 @@ export function CartFlyout() {
               {t("empty.description")}
             </p>
             <Button onClick={closeCart} asChild>
-              <Link href="/products">{t("empty.actions.browseProducts")}</Link>
+              {/* @todo: implement products page and remove type assertion */}
+              <Link href={"/products" as Route}>
+                {t("empty.actions.browseProducts")}
+              </Link>
             </Button>
           </div>
         ) : (
@@ -150,7 +154,10 @@ export function CartFlyout() {
 
               <div className="space-y-2">
                 <Button className="h-12 w-full" size="lg" asChild>
-                  <Link href="/checkout">{t("actions.checkout")}</Link>
+                  {/* @todo: implement checkout page and remove type assertion */}
+                  <Link href={"/checkout" as Route}>
+                    {t("actions.checkout")}
+                  </Link>
                 </Button>
                 <Button
                   variant="outline"

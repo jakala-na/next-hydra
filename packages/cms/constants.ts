@@ -1,3 +1,3 @@
 export const TAGS = {
-  menu: 'menu',
+  menu: "menu",
 };

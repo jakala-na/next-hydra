@@ -1,1 +1,1 @@
-export { GET } from '@repo/cms/routes/draft';
+export { GET } from "@repo/cms/routes/draft";

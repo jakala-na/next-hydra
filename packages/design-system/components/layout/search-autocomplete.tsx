@@ -3,6 +3,7 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { Input } from "@repo/design-system/components/ui/input";
 import { Search, X } from "lucide-react";
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -119,7 +120,7 @@ export function SearchAutocomplete() {
   return (
     <div ref={searchRef} className="relative w-full max-w-md">
       <div className="relative">
-        <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
           placeholder="Search products..."
@@ -132,7 +133,7 @@ export function SearchAutocomplete() {
           <Button
             variant="ghost"
             size="icon"
-            className="-translate-y-1/2 absolute top-1/2 right-1 h-7 w-7"
+            className="absolute top-1/2 right-1 h-7 w-7 -translate-y-1/2"
             onClick={handleClear}
           >
             <X className="h-4 w-4" />
@@ -152,7 +153,7 @@ export function SearchAutocomplete() {
             {results.map((product) => (
               <Link
                 key={product.id}
-                href={`/products/${product.slug}`}
+                href={`/products/${product.slug}` as Route}
                 onClick={() => {
                   setIsOpen(false);
                   setQuery("");
@@ -181,7 +182,7 @@ export function SearchAutocomplete() {
           </div>
           <div className="border-t p-2">
             <Link
-              href={`/products?q=${encodeURIComponent(query)}`}
+              href={`/products?q=${encodeURIComponent(query)}` as Route}
               onClick={() => {
                 setIsOpen(false);
                 setQuery("");

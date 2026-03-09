@@ -1,1 +1,1 @@
-export { default } from '@repo/i18n/request';
+export { default } from "@repo/i18n/request";

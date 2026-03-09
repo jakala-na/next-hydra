@@ -1,6 +1,7 @@
 "use client";
 
 import { DynamicIcon, type IconName } from "lucide-react/dynamic";
+import type { Route } from "next";
 import Link from "next/link";
 import {
   NavigationMenu,
@@ -33,20 +34,20 @@ export function Navigation({ navigationItems }: NavigationProps) {
     <nav className="hidden items-center lg:flex">
       <NavigationMenu>
         <NavigationMenuList>
-          {navigationItems.map((item) => {
+          {navigationItems.map((item, index) => {
             const hasChildren =
               Array.isArray(item.children) && item.children.length > 0;
 
             if (hasChildren) {
               return (
-                <NavigationMenuItem key={item.title}>
+                <NavigationMenuItem key={index}>
                   <NavigationMenuTrigger>{item.title}</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="w-[400px] p-2">
-                      {item.children?.map((child) => (
-                        <NavigationMenuLink asChild key={child.href}>
+                      {item.children?.map((child, childIndex) => (
+                        <NavigationMenuLink asChild key={childIndex}>
                           <Link
-                            href={child.href}
+                            href={child.href as Route}
                             className="group flex select-none gap-4 rounded-md p-3 leading-none no-underline outline-none transition-all hover:bg-neutral-100"
                           >
                             <div className="text-foreground transition-colors group-hover:text-primary">

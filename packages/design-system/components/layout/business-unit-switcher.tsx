@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@repo/auth/client";
+import { useAuth } from "@repo/auth-workos/client";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
   DropdownMenu,
@@ -12,7 +12,14 @@ import {
 } from "@repo/design-system/components/ui/dropdown-menu";
 import { Building2, Check, ChevronDown } from "lucide-react";
 
-const businessUnits = [
+type BusinessUnit = {
+  id: string;
+  name: string;
+  role: string;
+};
+
+// TODO: Replace with actual business unit data from API/context
+const mockBusinessUnits: BusinessUnit[] = [
   {
     id: "1",
     name: "Business Unit 1",
@@ -25,22 +32,16 @@ const businessUnits = [
   },
 ];
 
-const user = {
-  id: "1",
-  name: "John Doe",
-  email: "john.doe@example.com",
-  businessUnits,
-  currentBusinessUnit: businessUnits[0],
-};
+const currentBusinessUnit = mockBusinessUnits[0];
 
 const switchBusinessUnit = (businessUnitId: string) => {
   console.log(`Switching to business unit ${businessUnitId}`);
 };
 
 export function BusinessUnitSwitcher() {
-  const { isSignedIn } = useAuth();
+  const { user } = useAuth();
 
-  if (!isSignedIn || businessUnits.length <= 1) {
+  if (!user || mockBusinessUnits.length <= 1) {
     return null;
   }
 
@@ -53,14 +54,14 @@ export function BusinessUnitSwitcher() {
           className="max-w-[200px] gap-2 bg-transparent"
         >
           <Building2 className="h-4 w-4 shrink-0" />
-          <span className="truncate">{user.currentBusinessUnit?.name}</span>
+          <span className="truncate">{currentBusinessUnit?.name}</span>
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[280px]">
         <DropdownMenuLabel>Switch Business Unit</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {user.businessUnits.map((unit) => (
+        {mockBusinessUnits.map((unit) => (
           <DropdownMenuItem
             key={unit.id}
             onClick={() => switchBusinessUnit(unit.id)}
@@ -68,7 +69,7 @@ export function BusinessUnitSwitcher() {
           >
             <Check
               className={`mt-0.5 h-4 w-4 shrink-0 ${
-                unit.id === user.currentBusinessUnit?.id
+                unit.id === currentBusinessUnit?.id
                   ? "opacity-100"
                   : "opacity-0"
               }`}

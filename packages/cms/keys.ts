@@ -1,13 +1,13 @@
-import { createEnv } from '@t3-oss/env-nextjs';
-import { z } from 'zod';
+import { createEnv } from "@t3-oss/env-nextjs";
+import { z } from "zod";
 
 export const keys = () =>
   createEnv({
     server: {
       CONTENTSTACK_ENVIRONMENT: z.string(),
       CONTENTSTACK_API_KEY: z.string(),
-      CONTENTSTACK_DELIVERY_TOKEN: z.string().startsWith('cs'),
-      CONTENTSTACK_PREVIEW_TOKEN: z.string().startsWith('cs'),
+      CONTENTSTACK_DELIVERY_TOKEN: z.string().startsWith("cs"),
+      CONTENTSTACK_PREVIEW_TOKEN: z.string().startsWith("cs"),
       CONTENTSTACK_WEBHOOK_SECRET: z.string(),
     },
     client: {

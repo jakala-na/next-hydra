@@ -48,6 +48,8 @@ async function getProductsCollection(
   },
   locale: Locale
 ): Promise<ProductCardDTO[]> {
+  "use cache";
+
   const ctx = await storeService.getStoreContextByLocale(locale);
   const projections = await productRepo.getProductProjectionsCollection(
     { filter: params.filter, limit: params.limit },

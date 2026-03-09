@@ -90,7 +90,7 @@ const ImageViewer_Basic = ({
                     />
                   </TransformComponent>
                   {showControls && (
-                    <div className="-translate-x-1/2 absolute bottom-4 left-1/2 z-10 flex gap-2">
+                    <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2">
                       <button
                         type="button"
                         onClick={() => zoomOut()}

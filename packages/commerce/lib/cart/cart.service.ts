@@ -1,14 +1,14 @@
-import type { Locale } from '@repo/i18n/types';
-import type { Cart } from '../types';
-import { storeService } from '../store/store.service';
-import type { ActionResult } from '../utils/errors';
-import { cartRepo } from './cart.repo';
+import type { Locale } from "@repo/i18n/types";
+import { storeService } from "../store/store.service";
+import type { Cart } from "../types";
+import type { ActionResult } from "../utils/errors";
+import { cartRepo } from "./cart.repo";
 import type {
   AddToCartParams,
   CartService,
   ChangeItemQuantityParams,
   RemoveItemFromCartParams,
-} from './types';
+} from "./types";
 
 function getCustomerActiveCart(
   customerId: string,
@@ -17,10 +17,7 @@ function getCustomerActiveCart(
   return cartRepo.getCustomerActiveCart(customerId, locale);
 }
 
-function getCartById(
-  id: string,
-  locale: Locale
-): Promise<ActionResult<Cart>> {
+function getCartById(id: string, locale: Locale): Promise<ActionResult<Cart>> {
   return cartRepo.getCartById(id, locale);
 }
 
@@ -42,7 +39,7 @@ async function addItemToCart(
 ): Promise<ActionResult<Cart>> {
   const ctx = await storeService.getStoreContextByLocale(params.locale);
   if (!ctx.distributionChannelKey) {
-    throw new Error('Distribution channel key not found');
+    throw new Error("Distribution channel key not found");
   }
   return cartRepo.addItemToCart({
     ...params,

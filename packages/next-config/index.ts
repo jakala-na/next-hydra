@@ -8,8 +8,9 @@ export const config: NextConfig = {
   experimental: {
     useCache: true,
     browserDebugInfoInTerminal: true,
-    turbopackFileSystemCacheForDev: true,
   },
+  cacheComponents: false, // Waiting for https://github.com/amannn/next-intl/issues/1493 support and other ecosystem updates.
+  typedRoutes: true,
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [

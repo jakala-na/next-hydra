@@ -1,16 +1,20 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "extends": ["ultracite"],
+  "extends": [
+    "ultracite/biome/core",
+    "ultracite/biome/react",
+    "ultracite/biome/next"
+  ],
   "files": {
     "includes": [
-      "**",
       "!**/packages/cms/gql/*",
       "!**/packages/commerce/gql/*",
       "!**/apps/email/.react-email/",
       "!**/node_modules",
-      "!**/.next"
-    ],
-    "experimentalScannerIgnores": [".git", ".next", ".turbo", "node_modules"]
+      "!**/.next",
+      "!**/.git",
+      "!**/.turbo"
+    ]
   },
   "assist": {
     "actions": {
@@ -33,15 +37,15 @@
         "useOptionalChain": "warn"
       },
       "performance": {
-        "noNamespaceImport": "warn"
+        "noNamespaceImport": "warn",
+        "noBarrelFile": "off"
       },
       "correctness": {
         "noNestedComponentDefinitions": "warn",
         "useParseIntRadix": "warn"
       },
       "nursery": {
-        "noShadow": "warn",
-        "useConsistentTypeDefinitions": "off"
+        "noShadow": "warn"
       },
       "suspicious": {
         "noConsole": "warn",
@@ -53,7 +57,8 @@
       },
       "style": {
         "useNodejsImportProtocol": "warn",
-        "noMagicNumbers": "warn"
+        "noMagicNumbers": "warn",
+        "useConsistentTypeDefinitions": "off"
       },
       "security": {
         "noDangerouslySetInnerHtml": "warn"

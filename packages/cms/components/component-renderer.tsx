@@ -12,6 +12,7 @@
 import { VB_EmptyBlockParentClass } from "@contentstack/live-preview-utils";
 import { DynamicProductCollection } from "@repo/cms/components/blocks/dynamic-product-collection";
 import { HeroSection } from "@repo/cms/components/blocks/hero-section";
+import type { Locale } from "@repo/i18n";
 import type { ComponentProps } from "react";
 import type { LivePreviewHelper } from "../lib/utils/live-preview-helper";
 
@@ -142,11 +143,13 @@ export default function ComponentRenderer<
   T extends DataWithTypename | DataWithTypename[] | GraphQLComponent[],
 >({
   data,
+  locale,
   livePreviewHelper,
   skipParentProps = false,
   dataType = "standalone",
 }: {
   data: T;
+  locale: Locale;
   livePreviewHelper?: LivePreviewHelper;
   skipParentProps?: boolean;
   dataType?: "modularBlocks" | "standalone" | "singleModularBlock";
@@ -195,6 +198,7 @@ export default function ComponentRenderer<
                 // biome-ignore lint/suspicious/noArrayIndexKey: this is fine for server rendered content.
                 <div key={index} {...livePreviewHelper?.getProps(`${index}`)}>
                   <ComponentRenderer
+                    locale={locale}
                     data={itemData}
                     livePreviewHelper={componentHelper}
                     skipParentProps={true}
@@ -233,6 +237,7 @@ export default function ComponentRenderer<
         <Component
           /* biome-ignore lint/suspicious/noExplicitAny: -- At this point we know data is one of the accepted props for the component */
           data={itemData as any}
+          locale={locale}
           livePreviewHelper={componentHelper}
         />
       );
@@ -250,6 +255,7 @@ export default function ComponentRenderer<
           if (isComponentKey(item.__typename)) {
             return (
               <ComponentRenderer
+                locale={locale}
                 // biome-ignore lint/suspicious/noArrayIndexKey: this is fine for server rendered content.
                 key={index}
                 data={item}
@@ -276,6 +282,7 @@ export default function ComponentRenderer<
         <Component
           /* biome-ignore lint/suspicious/noExplicitAny: -- At this point we know data is one of the accepted props for the component */
           data={data as any}
+          locale={locale}
           livePreviewHelper={livePreviewHelper}
         />
       </div>
