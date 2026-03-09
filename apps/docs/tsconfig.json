@@ -17,6 +17,7 @@
     "incremental": true,
     "paths": {
       "@/*": ["./*"],
+      "@repo/*": ["../../packages/*"],
       "fumadocs-mdx:collections/*": [".source/*"]
     },
     "plugins": [
