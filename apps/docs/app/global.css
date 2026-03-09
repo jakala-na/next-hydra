@@ -126,14 +126,6 @@
   }
 }
 
-/* Transparent header: remove bg, blur, and border */
-#nd-home-layout.home-nav-transparent #nd-nav > div {
-  background-color: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border-bottom-color: transparent !important;
-}
-
 /* Collapse the header's flow space so content slides up behind it */
 #nd-home-layout.home-nav-transparent #nd-nav {
   margin-bottom: calc(-1 * var(--fd-nav-height, 3.5rem));
