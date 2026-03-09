@@ -5,14 +5,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
   const options = baseOptions();
 
   return (
-    <HomeLayout
-      {...options}
-      className="home-nav-transparent"
-      nav={{
-        ...options.nav,
-        transparentMode: "always",
-      }}
-    >
+    <HomeLayout {...options} className="home-nav-transparent">
       {children}
     </HomeLayout>
   );

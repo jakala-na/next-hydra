@@ -126,22 +126,6 @@
   }
 }
 
-/* Keep the home header floating over the hero, but give it a real glass layer. */
-#nd-home-layout.home-nav-transparent #nd-nav > div {
-  background-color: color-mix(
-    in oklab,
-    var(--color-fd-background) 72%,
-    transparent
-  ) !important;
-  backdrop-filter: saturate(160%) blur(18px) !important;
-  -webkit-backdrop-filter: saturate(160%) blur(18px) !important;
-  border-bottom-color: color-mix(
-    in oklab,
-    var(--color-fd-border) 72%,
-    transparent
-  ) !important;
-}
-
 /* Collapse the header's flow space so content slides up behind it */
 #nd-home-layout.home-nav-transparent #nd-nav {
   margin-bottom: calc(-1 * var(--fd-nav-height, 3.5rem));
