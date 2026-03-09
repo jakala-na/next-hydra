@@ -1,3 +1,4 @@
+import { VercelAnalytics } from "@repo/analytics/vercel";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import "./global.css";
 import { Inter, JetBrains_Mono } from "next/font/google";
@@ -21,6 +22,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-screen flex-col">
         <RootProvider>{children}</RootProvider>
+        <VercelAnalytics />
       </body>
     </html>
   );
