@@ -68,6 +68,127 @@
         "checkout": "Prosseguir para a Finalização da Compra",
         "continueShopping": "Continuar Comprando"
       }
+    },
+    "registration": {
+      "page": {
+        "eyebrow": "Registo da empresa",
+        "title": "Registe a sua empresa e peça acesso.",
+        "description": "Partilhe os dados da sua empresa e do contacto principal. Se o registo for aprovado, enviaremos um link seguro para concluir a configuração do acesso."
+      },
+      "awaiting": {
+        "eyebrow": "Revisão em curso",
+        "title": "O seu registo está em análise.",
+        "description": "O seu registo foi recebido. Enviaremos os próximos passos por e-mail assim que a sua empresa for aprovada.",
+        "descriptionWithEmail": "{email} está agora na fila de revisão. Enviaremos os próximos passos por e-mail assim que a sua empresa for aprovada.",
+        "backToSite": "Voltar ao site"
+      },
+      "form": {
+        "sections": {
+          "company": "Informações da empresa",
+          "contact": "Contacto principal"
+        },
+        "fields": {
+          "companyName": {
+            "label": "Nome da empresa",
+            "placeholder": "Nome da empresa"
+          },
+          "companyPhone": {
+            "label": "Telefone da empresa",
+            "placeholder": "Telefone da empresa"
+          },
+          "vatId": {
+            "label": "NIF / IVA",
+            "placeholder": "NIF / IVA"
+          },
+          "country": {
+            "label": "País",
+            "placeholder": "Selecione um país"
+          },
+          "streetAddress": {
+            "label": "Morada",
+            "placeholder": "Morada"
+          },
+          "addressLine2": {
+            "label": "Morada linha 2",
+            "placeholder": "Suite, piso, edifício ou departamento"
+          },
+          "postalCode": {
+            "label": "Código postal",
+            "placeholder": "Código postal"
+          },
+          "city": {
+            "label": "Cidade",
+            "placeholder": "Cidade"
+          },
+          "region": {
+            "requiredLabel": "Estado / província",
+            "optionalLabel": "Estado / região"
+          },
+          "firstName": {
+            "label": "Nome",
+            "placeholder": "Nome"
+          },
+          "lastName": {
+            "label": "Apelido",
+            "placeholder": "Apelido"
+          },
+          "email": {
+            "label": "E-mail",
+            "placeholder": "E-mail"
+          }
+        },
+        "disclaimer": "Revemos cada registo de empresa antes de conceder acesso. Se for aprovado, enviaremos ao contacto principal um link seguro para concluir a configuração da conta.",
+        "actions": {
+          "submit": "Registar empresa",
+          "submitting": "A enviar..."
+        },
+        "errors": {
+          "invalidSubmission": "Reveja os campos assinalados e tente novamente.",
+          "submitFailed": "Não foi possível enviar o seu registo neste momento. Tente novamente."
+        },
+        "validation": {
+          "companyName": "Introduza o nome da empresa.",
+          "companyNameMax": "O nome da empresa é demasiado longo.",
+          "companyPhone": "Introduza um número de telefone empresarial válido.",
+          "vatId": "O NIF / IVA é demasiado longo.",
+          "firstName": "Introduza um nome.",
+          "firstNameMax": "O nome é demasiado longo.",
+          "lastName": "Introduza um apelido.",
+          "lastNameMax": "O apelido é demasiado longo.",
+          "email": "Introduza um endereço de e-mail válido.",
+          "streetAddress": "Introduza uma morada.",
+          "postalCode": "Introduza um código postal.",
+          "city": "Introduza uma cidade.",
+          "region": "Introduza um estado, província ou região.",
+          "country": "Selecione um país."
+        }
+      },
+      "gate": {
+        "actions": {
+          "signOut": "Terminar sessão",
+          "backToHome": "Voltar ao início"
+        },
+        "accessUnavailable": {
+          "eyebrow": "Acesso indisponível",
+          "title": "Esta conta não está ligada a uma conta empresarial.",
+          "description": "Use o link enviado por e-mail após a aprovação ou contacte o suporte se esperava ter acesso."
+        },
+        "rejected": {
+          "eyebrow": "Registo não aprovado",
+          "title": "O registo da sua empresa não foi aprovado.",
+          "description": "Contacte o suporte se precisar de uma nova revisão ou quiser enviar dados atualizados."
+        },
+        "failed": {
+          "eyebrow": "Registo indisponível",
+          "title": "Não foi possível concluir o seu registo.",
+          "description": "Contacte o suporte ou envie um novo registo mais tarde."
+        },
+        "pending": {
+          "eyebrow": "Revisão em curso",
+          "title": "O registo da sua empresa continua em análise.",
+          "description": "Enviaremos os próximos passos por e-mail assim que a sua empresa for aprovada."
+        }
+      }
     }
   }
 }

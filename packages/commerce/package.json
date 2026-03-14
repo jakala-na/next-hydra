@@ -17,7 +17,7 @@
     "dotenv": "^17.0.0",
     "gql.tada": "^1.8.10",
     "lodash.memoize": "^4.1.2",
-    "next-safe-action": "^8.0.7",
+    "next-safe-action": "^8.1.8",
     "react": "^19.2.4",
     "urql": "^4.2.2",
     "wonka": "^6.3.5",

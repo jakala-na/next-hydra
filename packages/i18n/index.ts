@@ -4,6 +4,7 @@ export {
   type Locale,
   NextIntlClientProvider,
   useFormatter,
+  useLocale,
   useTranslations,
 } from "next-intl";
 export { getLocale, getTranslations, setRequestLocale } from "next-intl/server";

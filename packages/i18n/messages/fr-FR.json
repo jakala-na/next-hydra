@@ -68,6 +68,127 @@
         "checkout": "Passer à la caisse",
         "continueShopping": "Continuer vos achats"
       }
+    },
+    "registration": {
+      "page": {
+        "eyebrow": "Inscription de l'entreprise",
+        "title": "Enregistrez votre entreprise et demandez l’accès.",
+        "description": "Partagez les informations de votre entreprise et celles du contact principal. Si votre inscription est approuvée, nous vous enverrons un lien sécurisé pour finaliser la configuration de l’accès."
+      },
+      "awaiting": {
+        "eyebrow": "Examen en cours",
+        "title": "Votre inscription est en cours d’examen.",
+        "description": "Votre inscription a bien été reçue. Nous vous enverrons la suite par e-mail dès que votre entreprise aura été approuvée.",
+        "descriptionWithEmail": "{email} est maintenant dans la file d’examen. Nous vous enverrons la suite par e-mail dès que votre entreprise aura été approuvée.",
+        "backToSite": "Retour au site"
+      },
+      "form": {
+        "sections": {
+          "company": "Informations sur l'entreprise",
+          "contact": "Contact principal"
+        },
+        "fields": {
+          "companyName": {
+            "label": "Nom de l'entreprise",
+            "placeholder": "Nom de l'entreprise"
+          },
+          "companyPhone": {
+            "label": "Téléphone de l'entreprise",
+            "placeholder": "Téléphone de l'entreprise"
+          },
+          "vatId": {
+            "label": "Numéro fiscal / TVA",
+            "placeholder": "Numéro fiscal / TVA"
+          },
+          "country": {
+            "label": "Pays",
+            "placeholder": "Sélectionnez un pays"
+          },
+          "streetAddress": {
+            "label": "Adresse",
+            "placeholder": "Adresse"
+          },
+          "addressLine2": {
+            "label": "Adresse ligne 2",
+            "placeholder": "Bureau, étage, bâtiment ou service"
+          },
+          "postalCode": {
+            "label": "Code postal",
+            "placeholder": "Code postal"
+          },
+          "city": {
+            "label": "Ville",
+            "placeholder": "Ville"
+          },
+          "region": {
+            "requiredLabel": "État / province",
+            "optionalLabel": "État / région"
+          },
+          "firstName": {
+            "label": "Prénom",
+            "placeholder": "Prénom"
+          },
+          "lastName": {
+            "label": "Nom",
+            "placeholder": "Nom"
+          },
+          "email": {
+            "label": "E-mail",
+            "placeholder": "E-mail"
+          }
+        },
+        "disclaimer": "Nous examinons chaque inscription d’entreprise avant d’accorder l’accès. Si elle est approuvée, nous enverrons à votre contact principal un lien sécurisé pour terminer la configuration du compte.",
+        "actions": {
+          "submit": "Enregistrer l'entreprise",
+          "submitting": "Envoi..."
+        },
+        "errors": {
+          "invalidSubmission": "Veuillez vérifier les champs indiqués et réessayer.",
+          "submitFailed": "Nous n’avons pas pu envoyer votre inscription pour le moment. Veuillez réessayer."
+        },
+        "validation": {
+          "companyName": "Saisissez le nom de l'entreprise.",
+          "companyNameMax": "Le nom de l'entreprise est trop long.",
+          "companyPhone": "Saisissez un numéro de téléphone professionnel valide.",
+          "vatId": "Le numéro fiscal / TVA est trop long.",
+          "firstName": "Saisissez un prénom.",
+          "firstNameMax": "Le prénom est trop long.",
+          "lastName": "Saisissez un nom.",
+          "lastNameMax": "Le nom est trop long.",
+          "email": "Saisissez une adresse e-mail valide.",
+          "streetAddress": "Saisissez une adresse.",
+          "postalCode": "Saisissez un code postal.",
+          "city": "Saisissez une ville.",
+          "region": "Saisissez un état, une province ou une région.",
+          "country": "Sélectionnez un pays."
+        }
+      },
+      "gate": {
+        "actions": {
+          "signOut": "Se déconnecter",
+          "backToHome": "Retour à l'accueil"
+        },
+        "accessUnavailable": {
+          "eyebrow": "Accès indisponible",
+          "title": "Ce compte n’est pas associé à un compte entreprise.",
+          "description": "Utilisez le lien reçu par e-mail après approbation ou contactez le support si vous pensiez avoir accès."
+        },
+        "rejected": {
+          "eyebrow": "Inscription non approuvée",
+          "title": "L’inscription de votre entreprise n’a pas été approuvée.",
+          "description": "Contactez le support si vous avez besoin d’un nouvel examen ou si vous souhaitez envoyer des informations mises à jour."
+        },
+        "failed": {
+          "eyebrow": "Inscription indisponible",
+          "title": "Nous n’avons pas pu finaliser votre inscription.",
+          "description": "Veuillez contacter le support ou soumettre une nouvelle inscription plus tard."
+        },
+        "pending": {
+          "eyebrow": "Examen en cours",
+          "title": "L’inscription de votre entreprise est toujours en cours d’examen.",
+          "description": "Nous vous enverrons la suite par e-mail dès que votre entreprise aura été approuvée."
+        }
+      }
     }
   }
 }
