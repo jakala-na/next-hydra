@@ -2,7 +2,7 @@ import {
   registrationApprovalDecisionSchema,
   registrationInputSchema,
   registrationWorkflowInputSchema,
-} from "@repo/commerce/lib/b2b-registration/schema";
+} from "@repo/registration/contracts/schema";
 import { expect, test } from "vitest";
 
 test("registration input requires company and account fields", () => {

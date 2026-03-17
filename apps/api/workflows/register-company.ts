@@ -2,13 +2,8 @@ import {
   createWorkosInvitation,
   type WorkosInvitation,
 } from "@repo/auth-workos/admin";
-import type {
-  RegistrationApprovalDecision,
-  RegistrationWorkflowInput,
-} from "@repo/commerce/lib/b2b-registration/schema";
 import {
   createPendingCustomerAndBusinessUnit,
-  logRegistrationError,
   saveRegistrationHookToken,
   saveRegistrationInvitation,
   updateRegistrationApprovalStatus,
@@ -17,6 +12,11 @@ import {
   sendApprovedEmail,
   sendAwaitingApprovalEmail,
 } from "@repo/email/registration";
+import { log } from "@repo/observability/log";
+import type {
+  RegistrationApprovalDecision,
+  RegistrationWorkflowInput,
+} from "@repo/registration/contracts/schema";
 import { createHook } from "workflow";
 
 async function createCommerceResources(input: RegistrationWorkflowInput) {
@@ -63,11 +63,6 @@ async function notifyApproved(
   await sendApprovedEmail(input, onboardingUrl);
 }
 
-async function captureWorkflowFailure(registrationId: string, error: unknown) {
-  "use step";
-  await logRegistrationError(registrationId, error);
-}
-
 export async function registerCompanyWorkflow(
   input: RegistrationWorkflowInput
 ) {
@@ -92,7 +87,10 @@ export async function registerCompanyWorkflow(
 
     return record;
   } catch (error) {
-    await captureWorkflowFailure(input.registrationId, error);
+    log.error("B2B registration workflow failed", {
+      registrationId: input.registrationId,
+      error,
+    });
     throw error;
   }
 }

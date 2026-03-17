@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useHookFormAction } from "@next-safe-action/adapter-react-hook-form/hooks";
-import { requiresRegion } from "@repo/commerce/lib/b2b-registration/schema";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
   Card,
@@ -30,23 +29,21 @@ import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useLocale, useTranslations } from "@repo/i18n";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import type { FieldPath } from "react-hook-form";
+import type { SubmitRegistrationAction } from "../contracts/actions/submit-registration";
+import { requiresRegion } from "../contracts/schema";
 import {
+  createRegistrationFormSchema,
   getCountryOptions,
-  type RegistrationFormInput,
-  registrationFormSchema,
+  type RegistrationFormValues,
 } from "../lib/registration-form-schema";
-import { translateRegistrationMessage } from "../lib/registration-i18n";
-import { submitRegistrationAction } from "../lib/submit-registration-action";
 
 type RegistrationFormProps = {
-  readonly apiBaseUrl: string;
+  readonly action: SubmitRegistrationAction;
   readonly awaitingApprovalUrl: string;
 };
 
-const defaultValues: RegistrationFormInput = {
-  apiBaseUrl: "",
+const defaultValues: RegistrationFormValues = {
   companyName: "",
   companyPhone: "",
   vatId: "",
@@ -64,11 +61,8 @@ const defaultValues: RegistrationFormInput = {
 };
 
 function TranslatedFormMessage({ className }: { readonly className?: string }) {
-  const t = useTranslations("web.registration.form");
   const { error, formMessageId } = useFormField();
-  const body = error?.message
-    ? translateRegistrationMessage(t, String(error.message))
-    : null;
+  const body = error?.message ? String(error.message) : null;
 
   if (!body) {
     return null;
@@ -90,14 +84,15 @@ function ReservedFormMessage() {
 }
 
 export function RegistrationForm({
-  apiBaseUrl,
+  action: submitAction,
   awaitingApprovalUrl,
 }: RegistrationFormProps) {
   const t = useTranslations("web.registration.form");
+  const registrationFormSchema = createRegistrationFormSchema(t);
   const locale = useLocale();
   const router = useRouter();
   const { action, form, handleSubmitWithAction } = useHookFormAction(
-    submitRegistrationAction,
+    submitAction,
     zodResolver(registrationFormSchema),
     {
       actionProps: {
@@ -108,10 +103,7 @@ export function RegistrationForm({
         },
       },
       formProps: {
-        defaultValues: {
-          ...defaultValues,
-          apiBaseUrl,
-        },
+        defaultValues,
       },
     }
   );
@@ -122,29 +114,11 @@ export function RegistrationForm({
     action.result.validationErrors?._errors?.[0] ??
     action.result.serverError ??
     null;
-  const renderRowFieldMessage = (name: FieldPath<RegistrationFormInput>) => {
+  const renderRowFieldMessage = (name: FieldPath<RegistrationFormValues>) => {
     const message = form.getFieldState(name, form.formState).error?.message;
 
-    return (
-      <p className="min-h-5 text-destructive text-sm">
-        {message ? translateRegistrationMessage(t, message) : ""}
-      </p>
-    );
+    return <p className="min-h-5 text-destructive text-sm">{message ?? ""}</p>;
   };
-
-  useEffect(() => {
-    form.setValue("apiBaseUrl", apiBaseUrl, {
-      shouldDirty: false,
-      shouldTouch: false,
-      shouldValidate: false,
-    });
-  }, [apiBaseUrl, form]);
-
-  useEffect(() => {
-    if (!isRegionRequired) {
-      form.clearErrors("address.region");
-    }
-  }, [form, isRegionRequired]);
 
   return (
     <Form {...form}>
@@ -180,7 +154,6 @@ export function RegistrationForm({
                     <Input
                       placeholder={t("fields.companyPhone.placeholder")}
                       {...field}
-                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <ReservedFormMessage />
@@ -197,7 +170,6 @@ export function RegistrationForm({
                     <Input
                       placeholder={t("fields.vatId.placeholder")}
                       {...field}
-                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <ReservedFormMessage />
@@ -210,7 +182,21 @@ export function RegistrationForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t("fields.country.label")}</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+
+                      if (!requiresRegion(value)) {
+                        form.setValue("address.region", "", {
+                          shouldDirty: true,
+                          shouldTouch: true,
+                          shouldValidate: false,
+                        });
+                        form.clearErrors("address.region");
+                      }
+                    }}
+                    value={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger className="w-full">
                         <SelectValue
@@ -264,7 +250,6 @@ export function RegistrationForm({
                           : t("fields.region.optionalLabel")
                       }
                       {...field}
-                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <ReservedFormMessage />
@@ -282,7 +267,6 @@ export function RegistrationForm({
                       className="min-h-28"
                       placeholder={t("fields.addressLine2.placeholder")}
                       {...field}
-                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <ReservedFormMessage />
@@ -397,7 +381,7 @@ export function RegistrationForm({
 
         {formError ? (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 text-sm">
-            {translateRegistrationMessage(t, formError)}
+            {formError}
           </p>
         ) : null}
 

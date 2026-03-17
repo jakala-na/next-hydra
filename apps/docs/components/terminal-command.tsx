@@ -22,7 +22,11 @@ export function TerminalCommand({ command }: { command: string }) {
           aria-label={checked ? "Copied command" : "Copy command"}
           className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-fd-border bg-fd-background/80 text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
         >
-          {checked ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {checked ? (
+            <Check className="h-3.5 w-3.5" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
         </button>
       </div>
       <div className="flex items-center gap-2 px-4 py-3 font-mono text-sm">

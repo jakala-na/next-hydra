@@ -1,16 +1,22 @@
 {
-  "name": "@repo/auth-workos",
+  "name": "@repo/registration",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@next-safe-action/adapter-react-hook-form": "^2.0.2",
+    "@orpc/client": "^1.13.7",
+    "@orpc/server": "^1.13.7",
+    "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
-    "@t3-oss/env-nextjs": "^0.13.4",
-    "@workos-inc/authkit-nextjs": "^2.13.0",
+    "next-safe-action": "^8.1.8",
     "react": "^19.2.4",
+    "react-hook-form": "^7.68.0",
     "server-only": "^0.0.1",
     "zod": "^3.25.28"
   },

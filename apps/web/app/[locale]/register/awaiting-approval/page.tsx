@@ -1,20 +1,17 @@
-import { getTranslations } from "@repo/i18n";
-import type { Locale } from "@repo/i18n/types";
-
-type AwaitingApprovalPageProps = {
-  readonly params: Promise<{
-    locale: Locale;
-  }>;
-  readonly searchParams: Promise<{
-    email?: string;
-  }>;
-};
+import { getTranslations, hasLocale, setRequestLocale } from "@repo/i18n";
+import { routing } from "@repo/i18n/routing";
+import { notFound } from "next/navigation";
 
 export default async function AwaitingApprovalPage({
   params,
   searchParams,
-}: AwaitingApprovalPageProps) {
+}: PageProps<"/[locale]/register/awaiting-approval">) {
   const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) {
+    notFound();
+  }
+  setRequestLocale(locale);
+
   const { email } = await searchParams;
   const t = await getTranslations({
     locale,
@@ -24,13 +21,13 @@ export default async function AwaitingApprovalPage({
   return (
     <main className="flex min-h-[calc(100vh-10rem)] items-center justify-center bg-stone-100 px-6 py-16">
       <div className="max-w-xl rounded-[2rem] border border-stone-300 bg-white p-10 text-center shadow-sm">
-        <p className="text-sm uppercase tracking-[0.24em] text-stone-500">
+        <p className="text-sm text-stone-500 uppercase tracking-[0.24em]">
           {t("eyebrow")}
         </p>
         <h1 className="mt-4 font-semibold text-4xl text-stone-950">
           {t("title")}
         </h1>
-        <p className="mt-6 text-base leading-7 text-stone-600">
+        <p className="mt-6 text-base text-stone-600 leading-7">
           {typeof email === "string"
             ? t("descriptionWithEmail", { email })
             : t("description")}

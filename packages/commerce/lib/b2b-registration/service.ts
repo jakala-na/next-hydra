@@ -7,14 +7,13 @@ import type {
   CustomObject,
 } from "@commercetools/platform-sdk";
 import { log } from "@repo/observability/log";
-import { apiRoot } from "../client/api-root";
-import { REGISTRATION_BY_ID_CONTAINER } from "./constants";
 import type {
+  InvitationState,
   RegistrationApprovalDecision,
-  RegistrationInvitationState,
   RegistrationRecord,
   RegistrationWorkflowInput,
-} from "./schema";
+} from "@repo/registration/contracts/schema";
+import { apiRoot } from "../client/api-root";
 
 const ISO_NOW = () => new Date().toISOString();
 
@@ -24,33 +23,21 @@ const createCustomerKey = (registrationId: string) =>
 const createBusinessUnitKey = (registrationId: string) =>
   `registration-business-unit-${registrationId}`;
 
+const REGISTRATION_BY_ID_CONTAINER = "b2b-registration-by-id";
+const NOT_FOUND_STATUS_CODE = 404;
+
 export const shouldIgnoreInvitationRevocation = (
-  record: Pick<
-    RegistrationRecord,
-    "workosUserId" | "authEmail" | "invitationState"
-  >
+  record: Pick<RegistrationRecord, "userId" | "authEmail" | "invitationState">
 ) =>
   Boolean(
-    record.workosUserId ||
-      record.authEmail ||
-      record.invitationState === "accepted"
+    record.userId || record.authEmail || record.invitationState === "accepted"
   );
-
-export function assertApprovedRegistrationHasInvitation(
-  record: Pick<RegistrationRecord, "registrationId" | "invitationId">
-) {
-  if (!record.invitationId) {
-    throw new Error(
-      `Approved registration ${record.registrationId} is missing invitationId`
-    );
-  }
-}
 
 const isNotFoundError = (error: unknown) =>
   typeof error === "object" &&
   error !== null &&
   "statusCode" in error &&
-  error.statusCode === 404;
+  error.statusCode === NOT_FOUND_STATUS_CODE;
 
 async function getCustomObject(
   container: string,
@@ -80,7 +67,7 @@ async function queryRegistrationRecord(
 }
 
 async function queryRegistrationRecords(
-  where: string,
+  where?: string,
   limit = 20
 ): Promise<RegistrationRecord[]> {
   const response = await apiRoot
@@ -88,9 +75,9 @@ async function queryRegistrationRecords(
     .withContainer({ container: REGISTRATION_BY_ID_CONTAINER })
     .get({
       queryArgs: {
-        where,
         limit,
         withTotal: false,
+        ...(where ? { where } : {}),
       },
     })
     .execute();
@@ -172,12 +159,10 @@ export async function getRegistrationRecord(
   return (customObject?.value as RegistrationRecord | undefined) ?? null;
 }
 
-export function getRegistrationRecordByWorkosUserId(
-  workosUserId: string
+export function getRegistrationRecordByUserId(
+  userId: string
 ): Promise<RegistrationRecord | null> {
-  return queryRegistrationRecord(
-    `value(workosUserId = ${JSON.stringify(workosUserId)})`
-  );
+  return queryRegistrationRecord(`value(userId = ${JSON.stringify(userId)})`);
 }
 
 export function getRegistrationRecordByInvitationId(
@@ -195,6 +180,12 @@ export async function getLatestRegistrationRecordByAuthEmail(
     `value(authEmail = ${JSON.stringify(email)})`
   );
   return records[0] ?? null;
+}
+
+export function listRegistrationRecords(
+  limit = 100
+): Promise<RegistrationRecord[]> {
+  return queryRegistrationRecords(undefined, limit);
 }
 
 export async function markRegistrationWorkflowStartFailed(
@@ -325,15 +316,15 @@ export async function createPendingCustomerAndBusinessUnit(
     businessUnitId: businessUnit.id,
     businessUnitKey,
     updatedAt: now,
-    workosUserId: existingRecord?.workosUserId,
+    userId: existingRecord?.userId,
     authEmail: existingRecord?.authEmail,
     authFirstName: existingRecord?.authFirstName,
     authLastName: existingRecord?.authLastName,
     invitationId: existingRecord?.invitationId,
     invitationState: existingRecord?.invitationState,
-    invitedAt: existingRecord?.invitedAt,
+    invitationCreatedAt: existingRecord?.invitationCreatedAt,
     invitationAcceptedAt: existingRecord?.invitationAcceptedAt,
-    identitySyncedAt: existingRecord?.identitySyncedAt,
+    identityLinkedAt: existingRecord?.identityLinkedAt,
     hookToken: existingRecord?.hookToken,
     approvedAt: existingRecord?.approvedAt,
     rejectedAt: existingRecord?.rejectedAt,
@@ -372,7 +363,7 @@ export async function saveRegistrationInvitation(
   registrationId: string,
   invitation: {
     id: string;
-    state?: RegistrationInvitationState;
+    state?: InvitationState;
   }
 ): Promise<RegistrationRecord> {
   const record = await getRegistrationRecord(registrationId);
@@ -386,7 +377,7 @@ export async function saveRegistrationInvitation(
     ...record,
     invitationId: invitation.id,
     invitationState: invitation.state ?? "pending",
-    invitedAt: record.invitedAt ?? now,
+    invitationCreatedAt: record.invitationCreatedAt ?? now,
     updatedAt: now,
   };
 
@@ -398,7 +389,7 @@ export async function saveRegistrationInvitation(
 async function syncCustomerIdentity(
   record: RegistrationRecord,
   identity: {
-    workosUserId: string;
+    userId: string;
     email: string;
     firstName?: string;
     lastName?: string;
@@ -416,10 +407,10 @@ async function syncCustomerIdentity(
   const customer = customerResponse.body;
   const actions: CustomerUpdateAction[] = [];
 
-  if (customer.externalId !== identity.workosUserId) {
+  if (customer.externalId !== identity.userId) {
     actions.push({
       action: "setExternalId",
-      externalId: identity.workosUserId,
+      externalId: identity.userId,
     });
   }
 
@@ -471,7 +462,7 @@ async function syncCustomerIdentity(
 export async function syncRegistrationIdentityFromInvitation(
   invitationId: string,
   identity: {
-    workosUserId: string;
+    userId: string;
     email: string;
     firstName?: string;
     lastName?: string;
@@ -488,13 +479,13 @@ export async function syncRegistrationIdentityFromInvitation(
   const now = ISO_NOW();
   const updatedRecord: RegistrationRecord = {
     ...record,
-    workosUserId: identity.workosUserId,
+    userId: identity.userId,
     authEmail: identity.email,
     authFirstName: identity.firstName ?? record.authFirstName,
     authLastName: identity.lastName ?? record.authLastName,
     invitationState: "accepted",
     invitationAcceptedAt: record.invitationAcceptedAt ?? now,
-    identitySyncedAt: now,
+    identityLinkedAt: now,
     updatedAt: now,
   };
 
@@ -518,7 +509,7 @@ export async function markRegistrationInvitationRevoked(
       {
         registrationId: record.registrationId,
         invitationId,
-        workosUserId: record.workosUserId,
+        userId: record.userId,
         authEmail: record.authEmail,
         invitationState: record.invitationState,
       }
@@ -566,7 +557,11 @@ export async function updateRegistrationApprovalStatus(
   };
 
   if (approval.decision === "approved") {
-    assertApprovedRegistrationHasInvitation(record);
+    if (!record.invitationId) {
+      throw new Error(
+        `Approved registration ${record.registrationId} is missing invitationId`
+      );
+    }
 
     nextRecord = {
       ...nextRecord,
@@ -605,14 +600,4 @@ export async function updateRegistrationApprovalStatus(
   await saveRegistrationRecord(nextRecord);
 
   return nextRecord;
-}
-
-export function logRegistrationError(
-  registrationId: string,
-  error: unknown
-): void {
-  log.error("B2B registration workflow failed", {
-    registrationId,
-    error,
-  });
 }

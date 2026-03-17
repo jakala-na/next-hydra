@@ -41,13 +41,19 @@ importers:
         version: 5.9.3
       ultracite:
         specifier: ^7.0.12
-        version: 7.0.12(typescript@5.9.3)
+        version: 7.0.12(@orpc/server@1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9)))(typescript@5.9.3)
       vitest:
         specifier: ^3.1.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@22.15.21)(jiti@2.6.1)(jsdom@26.1.0(bufferutil@4.0.9))(lightningcss@1.30.2)(msw@2.12.10(@types/node@22.15.21)(typescript@5.9.3))(terser@5.44.0)(yaml@2.8.2)
 
   apps/api:
     dependencies:
+      '@orpc/client':
+        specifier: ^1.13.7
+        version: 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/server':
+        specifier: ^1.13.7
+        version: 1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9))
       '@repo/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
@@ -69,6 +75,9 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@repo/registration':
+        specifier: workspace:*
+        version: link:../../packages/registration
       '@repo/testing':
         specifier: workspace:*
         version: link:../../packages/testing
@@ -334,6 +343,9 @@ importers:
       '@arcjet/next':
         specifier: 1.0.0-beta.7
         version: 1.0.0-beta.7(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
+      '@orpc/client':
+        specifier: ^1.13.7
+        version: 1.13.7(@opentelemetry/api@1.9.0)
       '@radix-ui/react-icons':
         specifier: ^1.3.2
         version: 1.3.2(react@19.2.4)
@@ -367,6 +379,9 @@ importers:
       '@repo/rate-limit':
         specifier: workspace:*
         version: link:../../packages/rate-limit
+      '@repo/registration':
+        specifier: workspace:*
+        version: link:../../packages/registration
       '@repo/security':
         specifier: workspace:*
         version: link:../../packages/security
@@ -532,12 +547,9 @@ importers:
 
   packages/auth-workos:
     dependencies:
-      '@hookform/resolvers':
-        specifier: ^5.2.2
-        version: 5.2.2(react-hook-form@7.68.0(react@19.2.4))
-      '@next-safe-action/adapter-react-hook-form':
-        specifier: ^2.0.2
-        version: 2.0.2(@hookform/resolvers@5.2.2(react-hook-form@7.68.0(react@19.2.4)))(next-safe-action@8.1.8(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-hook-form@7.68.0(react@19.2.4))(react@19.2.4)
+      '@repo/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@t3-oss/env-nextjs':
         specifier: ^0.13.4
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
@@ -547,15 +559,9 @@ importers:
       next:
         specifier: 16.1.6
         version: 16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      next-safe-action:
-        specifier: ^8.1.8
-        version: 8.1.8(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react:
         specifier: ^19.2.4
         version: 19.2.4
-      react-hook-form:
-        specifier: ^7.68.0
-        version: 7.68.0(react@19.2.4)
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
@@ -651,6 +657,9 @@ importers:
       '@gql.tada/cli-utils':
         specifier: ^1.6.3
         version: 1.7.2(@0no-co/graphqlsp@1.12.16(graphql@16.12.0)(typescript@5.9.3))(graphql@16.12.0)(typescript@5.9.3)
+      '@repo/registration':
+        specifier: workspace:*
+        version: link:../registration
       '@t3-oss/env-nextjs':
         specifier: ^0.13.4
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
@@ -918,6 +927,9 @@ importers:
       '@react-email/components':
         specifier: 0.4.0
         version: 0.4.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@repo/registration':
+        specifier: workspace:*
+        version: link:../registration
       '@t3-oss/env-nextjs':
         specifier: ^0.13.4
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
@@ -1101,6 +1113,61 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  packages/registration:
+    dependencies:
+      '@hookform/resolvers':
+        specifier: ^5.2.2
+        version: 5.2.2(react-hook-form@7.68.0(react@19.2.4))
+      '@next-safe-action/adapter-react-hook-form':
+        specifier: ^2.0.2
+        version: 2.0.2(@hookform/resolvers@5.2.2(react-hook-form@7.68.0(react@19.2.4)))(next-safe-action@8.1.8(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-hook-form@7.68.0(react@19.2.4))(react@19.2.4)
+      '@orpc/client':
+        specifier: ^1.13.7
+        version: 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/server':
+        specifier: ^1.13.7
+        version: 1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9))
+      '@repo/design-system':
+        specifier: workspace:*
+        version: link:../design-system
+      '@repo/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      next:
+        specifier: 16.1.6
+        version: 16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      next-safe-action:
+        specifier: ^8.1.8
+        version: 8.1.8(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-hook-form:
+        specifier: ^7.68.0
+        version: 7.68.0(react@19.2.4)
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
+      zod:
+        specifier: ^3.25.28
+        version: 3.25.76
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 22.15.21
+        version: 22.15.21
+      '@types/react':
+        specifier: ^19.2.10
+        version: 19.2.10
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.10)
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -3479,6 +3546,57 @@ packages:
   '@orama/orama@3.1.18':
     resolution: {integrity: sha512-a61ljmRVVyG5MC/698C8/FfFDw5a8LOIvyOLW5fztgUXqUpc1jOfQzOitSCbge657OgXXThmY3Tk8fpiDb4UcA==}
     engines: {node: '>= 20.0.0'}
+
+  '@orpc/client@1.13.7':
+    resolution: {integrity: sha512-qqmS28q0GOo9sfTstAc6cy0NoitYvdwZlgGBLXDgXsHNtSkkSm3nI5M1ohgWYpSL+lfP/jWriTbJJrBYPzyCiQ==}
+
+  '@orpc/contract@1.13.7':
+    resolution: {integrity: sha512-zRm+5tvn8DVM4DHJVxQEiuoM7mGdlgIQzRjTqnJMBRV0+rBNyZniokZCGwfJHKCjtBaAtJWieuJLQ+dFj3gbcw==}
+
+  '@orpc/interop@1.13.7':
+    resolution: {integrity: sha512-mIO/g0el/yJ19Z73MW9au4SmPlZcuM1WSCXpZUBmU2wtJfY32bakUkC+V2J47xDvknMEAEpMHxwCiEhIjbzflg==}
+
+  '@orpc/server@1.13.7':
+    resolution: {integrity: sha512-M0HimrQ0L/7OBwyVBZddUvKtx+du95QPv+wTxVRibU4P6TwgdmKJrLOwCOhGtMbieSQXHDBacscUWA6QDdUm3Q==}
+    peerDependencies:
+      crossws: '>=0.3.4'
+      ws: '>=8.18.1'
+    peerDependenciesMeta:
+      crossws:
+        optional: true
+      ws:
+        optional: true
+
+  '@orpc/shared@1.13.7':
+    resolution: {integrity: sha512-yP0oDIC98sZHqSTmr4SUXJo4RNw9yias1GYVJTiVTXrRUEdniafkLrSkOrOHgrILP3w93sKiE69V3+/T0TNSOQ==}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.9.0'
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+
+  '@orpc/standard-server-aws-lambda@1.13.7':
+    resolution: {integrity: sha512-92WfdR2f3RvYarDW0JAGLzq68yOqNimD162/7DEddR8K1NlgWd+l6aAyCODnfXEj1tguS5/8xXbLUlXojXhhxw==}
+
+  '@orpc/standard-server-fastify@1.13.7':
+    resolution: {integrity: sha512-2I9yc+OUqf3J9hxys4MiR12eB5uhbEX+eFQ00VQROkMhWjjjj6Gp8eOVS+LlatrWDpD1Rn+VVqyi9yNpaFoviQ==}
+    peerDependencies:
+      fastify: '>=5.6.1'
+    peerDependenciesMeta:
+      fastify:
+        optional: true
+
+  '@orpc/standard-server-fetch@1.13.7':
+    resolution: {integrity: sha512-Hj+41HAlao+JXuLffeLrPiADu8mhGqwVB34lf+JSLKGtZhxaX4n4MeZMYhFioExXC+/tanvSrbKKkJimfznIWQ==}
+
+  '@orpc/standard-server-node@1.13.7':
+    resolution: {integrity: sha512-ruRSytJhdDnab5rPdyBE6FYZBXdhdkFCEB9okekLUlIJ9BVhkOBe3JNO41iJlGf8JOVdBeO9lJTG/ShauofZQA==}
+
+  '@orpc/standard-server-peer@1.13.7':
+    resolution: {integrity: sha512-mbjmkEVGtsWvGBBEieUuXdX+MAzllQZ0D9Z79kU4Ns9sVaBcvjCYSrL29/iXcYqVGTx23LS9PaYnIurAQejzSQ==}
+
+  '@orpc/standard-server@1.13.7':
+    resolution: {integrity: sha512-5btxVTRAtgl9lmzg1XTCJYT8qd2QAAwcQ6XRvGXgLz56rSUCMf2vl3WeWPwlwiXXpueNvucPea/CaRGhJ9ZTeQ==}
 
   '@parcel/watcher-android-arm64@2.5.1':
     resolution: {integrity: sha512-KF8+j9nNbUN8vzOFDpRMsaKBHZ/mcjEjMToVMJOhTozkDonQFFrRcfdLWn6yWKCmJKmdVxSgHiYvTCef4/qcBA==}
@@ -6841,6 +6959,10 @@ packages:
     resolution: {integrity: sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==}
     engines: {node: '>=18'}
 
+  cookie@1.1.1:
+    resolution: {integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==}
+    engines: {node: '>=18'}
+
   core-js-pure@3.46.0:
     resolution: {integrity: sha512-NMCW30bHNofuhwLhYPt66OLOKTMbOhgTTatKVbaQC3KRHpTCiRIBYvtshr+NBYSnBxwAFhjW/RfJ0XbIjS16rw==}
 
@@ -9344,6 +9466,9 @@ packages:
     resolution: {integrity: sha512-XgFPPM+B28FtCCgSb9I+s9szOC1vZRSwgWsRUA5ylIxRTgKozqjOCrVOqGsYABPYK5qnfqClxZTFBa8PKt2v6Q==}
     engines: {node: '>=12'}
 
+  openapi-types@12.1.3:
+    resolution: {integrity: sha512-N4YtSYJqghVu4iek2ZUvcN/0aqH1kRDuNqzcycDxhOUpg7GdvLa2F3DgS6yBNhInhv2r/6I0Flkn7CqL8+nIcw==}
+
   opener@1.5.2:
     resolution: {integrity: sha512-ur5UIdyw5Y7yEj9wLzhqXiy6GZ3Mwx0yGI+5sMn2r0N0v3cKJvUmFH5yPP+WXh9e0xfyzyJX95D8l088DNFj7A==}
     hasBin: true
@@ -9728,6 +9853,10 @@ packages:
   quick-lru@5.1.1:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
     engines: {node: '>=10'}
+
+  radash@12.1.1:
+    resolution: {integrity: sha512-h36JMxKRqrAxVD8201FrCpyeNuUY9Y5zZwujr20fFO77tpUtGa6EZzfKw/3WaiBX95fq7+MpsuMLNdSnORAwSA==}
+    engines: {node: '>=14.18.0'}
 
   radix-ui@1.4.3:
     resolution: {integrity: sha512-aWizCQiyeAenIdUbqEpXgRA1ya65P13NKn/W8rWkcN0OPkRDxdBVLWnIEDsS2RpwCK2nobI7oMUSmexzTDyAmA==}
@@ -13670,6 +13799,97 @@ snapshots:
       '@opentelemetry/core': 2.2.0(@opentelemetry/api@1.9.0)
 
   '@orama/orama@3.1.18': {}
+
+  '@orpc/client@1.13.7(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-fetch': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-peer': 1.13.7(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+
+  '@orpc/contract@1.13.7(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@orpc/client': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+      '@standard-schema/spec': 1.1.0
+      openapi-types: 12.1.3
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+
+  '@orpc/interop@1.13.7': {}
+
+  '@orpc/server@1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9))':
+    dependencies:
+      '@orpc/client': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/contract': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/interop': 1.13.7
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-aws-lambda': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-fastify': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-fetch': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-node': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-peer': 1.13.7(@opentelemetry/api@1.9.0)
+      cookie: 1.1.1
+    optionalDependencies:
+      ws: 8.19.0(bufferutil@4.0.9)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - fastify
+
+  '@orpc/shared@1.13.7(@opentelemetry/api@1.9.0)':
+    dependencies:
+      radash: 12.1.1
+      type-fest: 5.4.4
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+
+  '@orpc/standard-server-aws-lambda@1.13.7(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-fetch': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-node': 1.13.7(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+
+  '@orpc/standard-server-fastify@1.13.7(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-node': 1.13.7(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+
+  '@orpc/standard-server-fetch@1.13.7(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server': 1.13.7(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+
+  '@orpc/standard-server-node@1.13.7(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server-fetch': 1.13.7(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+
+  '@orpc/standard-server-peer@1.13.7(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server': 1.13.7(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+
+  '@orpc/standard-server@1.13.7(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
 
   '@parcel/watcher-android-arm64@2.5.1':
     optional: true
@@ -17929,6 +18149,8 @@ snapshots:
 
   cookie@1.0.2: {}
 
+  cookie@1.1.1: {}
+
   core-js-pure@3.46.0: {}
 
   core-js@3.41.0: {}
@@ -20862,6 +21084,8 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
+  openapi-types@12.1.3: {}
+
   opener@1.5.2: {}
 
   ora@4.1.1:
@@ -21252,6 +21476,8 @@ snapshots:
 
   quick-lru@5.1.1: {}
 
+  radash@12.1.1: {}
+
   radix-ui@1.4.3(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
       '@radix-ui/primitive': 1.1.3
@@ -21504,7 +21730,7 @@ snapshots:
 
   react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
-      cookie: 1.0.2
+      cookie: 1.1.1
       react: 19.2.4
       set-cookie-parser: 2.7.2
     optionalDependencies:
@@ -22686,10 +22912,11 @@ snapshots:
 
   trough@2.2.0: {}
 
-  trpc-cli@0.12.2(@trpc/server@11.8.1(typescript@5.9.3))(zod@4.3.6):
+  trpc-cli@0.12.2(@orpc/server@1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9)))(@trpc/server@11.8.1(typescript@5.9.3))(zod@4.3.6):
     dependencies:
       commander: 14.0.2
     optionalDependencies:
+      '@orpc/server': 1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9))
       '@trpc/server': 11.8.1(typescript@5.9.3)
       zod: 4.3.6
 
@@ -22805,7 +23032,7 @@ snapshots:
 
   ulid@3.0.2: {}
 
-  ultracite@7.0.12(typescript@5.9.3):
+  ultracite@7.0.12(@orpc/server@1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9)))(typescript@5.9.3):
     dependencies:
       '@clack/prompts': 0.11.0
       '@trpc/server': 11.8.1(typescript@5.9.3)
@@ -22813,7 +23040,7 @@ snapshots:
       glob: 13.0.0
       jsonc-parser: 3.3.1
       nypm: 0.6.4
-      trpc-cli: 0.12.2(@trpc/server@11.8.1(typescript@5.9.3))(zod@4.3.6)
+      trpc-cli: 0.12.2(@orpc/server@1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9)))(@trpc/server@11.8.1(typescript@5.9.3))(zod@4.3.6)
       zod: 4.3.6
     transitivePeerDependencies:
       - '@orpc/server'

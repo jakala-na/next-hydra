@@ -1,7 +1,5 @@
 import "./styles.css";
-import { RegistrationAccessGate } from "@repo/auth-workos/components/registration-access-gate";
 import { AuthProvider } from "@repo/auth-workos/provider";
-import { withAuth } from "@repo/auth-workos/server";
 import { LivePreview } from "@repo/cms/components/live-preview";
 import { getNavigation } from "@repo/cms/lib/navigation";
 import { addToCart } from "@repo/commerce/actions/add-to-cart";
@@ -61,7 +59,6 @@ export default async function RootLayout({
     notFound();
   }
   setRequestLocale(locale);
-  const auth = await withAuth();
   const { isEnabled: isDraftModeEnabled } = await draftMode();
   const livePreviewHash = isDraftModeEnabled
     ? ((await headers()).get("x-live-preview") ?? "")
@@ -88,47 +85,36 @@ export default async function RootLayout({
                   removeCartItem,
                 }}
               >
-                <RegistrationAccessGate
-                  workosUserEmail={auth.user?.email ?? undefined}
-                  workosUserId={auth.user?.id}
-                >
-                  <SiteHeader
-                    MainNavigation={
-                      <Navigation
-                        navigationItems={navigation.navigationItems}
-                      />
-                    }
-                    RegionSelectorSlot={
-                      <Suspense
-                        fallback={<div className="skeleton h-8 w-16" />}
-                      >
-                        <RegionSelector />
-                      </Suspense>
-                    }
-                    Search={<SearchAutocomplete />}
-                    BusinessUnitSwitcher={
-                      <Suspense
-                        fallback={<div className="skeleton h-8 w-16" />}
-                      >
-                        <BusinessUnitSwitcher />
-                      </Suspense>
-                    }
-                    MobileMenuSlot={
-                      <MobileMenu
-                        key="menu-slot"
-                        navigationItems={navigation.navigationItems}
-                      />
-                    }
-                    CartSlot={
-                      <Suspense fallback={<CartButtonSkeleton />}>
-                        <CartButtonClient />
-                      </Suspense>
-                    }
-                    AccountSlot={<AccountMenuClient />}
-                  />
-                  {children}
-                  <LivePreview isEnabled={isDraftModeEnabled} />
-                </RegistrationAccessGate>
+                <SiteHeader
+                  MainNavigation={
+                    <Navigation navigationItems={navigation.navigationItems} />
+                  }
+                  RegionSelectorSlot={
+                    <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+                      <RegionSelector />
+                    </Suspense>
+                  }
+                  Search={<SearchAutocomplete />}
+                  BusinessUnitSwitcher={
+                    <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+                      <BusinessUnitSwitcher />
+                    </Suspense>
+                  }
+                  MobileMenuSlot={
+                    <MobileMenu
+                      key="menu-slot"
+                      navigationItems={navigation.navigationItems}
+                    />
+                  }
+                  CartSlot={
+                    <Suspense fallback={<CartButtonSkeleton />}>
+                      <CartButtonClient />
+                    </Suspense>
+                  }
+                  AccountSlot={<AccountMenuClient />}
+                />
+                {children}
+                <LivePreview isEnabled={isDraftModeEnabled} />
               </CartProvider>
             </NextIntlClientProvider>
           </DesignSystemProvider>

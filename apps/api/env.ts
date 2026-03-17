@@ -8,7 +8,14 @@ import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
 export const env = createEnv({
-  extends: [analytics(), authWorkos(), commerce(), core(), email(), observability()],
+  extends: [
+    analytics(),
+    authWorkos(),
+    commerce(),
+    core(),
+    email(),
+    observability(),
+  ],
   server: {
     REGISTRATION_APPROVAL_SECRET: z.string().min(16),
     WORKOS_WEBHOOK_SECRET: z.string().min(1),

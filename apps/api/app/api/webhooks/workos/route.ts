@@ -1,10 +1,10 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { getWorkosUser } from "@repo/auth-workos/admin";
 import {
   markRegistrationInvitationRevoked,
   syncRegistrationIdentityFromInvitation,
 } from "@repo/commerce/lib/b2b-registration/service";
 import { log } from "@repo/observability/log";
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { ZodError, z } from "zod";
 import { env } from "../../../../env";
 
@@ -38,7 +38,7 @@ const parseSignatureHeader = (header: string) => {
 const isValidWorkosSignature = (rawBody: string, signatureHeader: string) => {
   const { timestamp, signature } = parseSignatureHeader(signatureHeader);
 
-  if (!timestamp || !signature) {
+  if (!(timestamp && signature)) {
     return false;
   }
 
@@ -71,13 +71,19 @@ export async function POST(request: Request): Promise<Response> {
     const signatureHeader = request.headers.get("workos-signature");
 
     if (!signatureHeader) {
-      return Response.json({ error: "Missing WorkOS signature" }, { status: 401 });
+      return Response.json(
+        { error: "Missing WorkOS signature" },
+        { status: 401 }
+      );
     }
 
     const rawBody = await request.text();
 
     if (!isValidWorkosSignature(rawBody, signatureHeader)) {
-      return Response.json({ error: "Invalid WorkOS signature" }, { status: 401 });
+      return Response.json(
+        { error: "Invalid WorkOS signature" },
+        { status: 401 }
+      );
     }
 
     const payload = webhookEventSchema.parse(JSON.parse(rawBody));
@@ -103,7 +109,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const user = await getWorkosUser(data.accepted_user_id);
     const record = await syncRegistrationIdentityFromInvitation(data.id, {
-      workosUserId: user.id,
+      userId: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -120,7 +126,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: true });
   } catch (error) {
     if (error instanceof SyntaxError || error instanceof ZodError) {
-      return Response.json({ error: "Invalid WorkOS webhook payload" }, { status: 400 });
+      return Response.json(
+        { error: "Invalid WorkOS webhook payload" },
+        { status: 400 }
+      );
     }
 
     throw error;
