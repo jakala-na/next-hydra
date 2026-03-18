@@ -1122,12 +1122,12 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.68.0(react@19.2.4))
-      '@next-safe-action/adapter-react-hook-form':
-        specifier: ^2.0.2
-        version: 2.0.2(@hookform/resolvers@5.2.2(react-hook-form@7.68.0(react@19.2.4)))(next-safe-action@8.1.8(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-hook-form@7.68.0(react@19.2.4))(react@19.2.4)
       '@orpc/client':
         specifier: ^1.13.7
         version: 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/react':
+        specifier: ^1.13.7
+        version: 1.13.7(@opentelemetry/api@1.9.0)(react@19.2.4)(ws@8.19.0(bufferutil@4.0.9))
       '@orpc/server':
         specifier: ^1.13.7
         version: 1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9))
@@ -1140,9 +1140,6 @@ importers:
       next:
         specifier: 16.1.6
         version: 16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      next-safe-action:
-        specifier: ^8.1.8
-        version: 8.1.8(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react:
         specifier: ^19.2.4
         version: 19.2.4
@@ -3124,17 +3121,6 @@ packages:
       '@nestjs/websockets':
         optional: true
 
-  '@next-safe-action/adapter-react-hook-form@2.0.2':
-    resolution: {integrity: sha512-2qn856RcTkkDT2okSH8a2YWKozRaQt7AxXCYVNOHuwT0f/vqAPg1JTCdywovegCQ2bBNVvgj7OINFJ+LBFb1ug==}
-    engines: {node: '>=18.17'}
-    peerDependencies:
-      '@hookform/resolvers': '>= 5.0.0'
-      next: '>= 14.0.0'
-      next-safe-action: '>=8.1.7'
-      react: '>= 18.2.0'
-      react-dom: '>= 18.2.0'
-      react-hook-form: '>= 7.0.0'
-
   '@next/bundle-analyzer@15.3.2':
     resolution: {integrity: sha512-zY5O1PNKNxWEjaFX8gKzm77z2oL0cnj+m5aiqNBgay9LPLCDO13Cf+FJONeNq/nJjeXptwHFT9EMmTecF9U4Iw==}
 
@@ -3555,6 +3541,14 @@ packages:
 
   '@orpc/interop@1.13.7':
     resolution: {integrity: sha512-mIO/g0el/yJ19Z73MW9au4SmPlZcuM1WSCXpZUBmU2wtJfY32bakUkC+V2J47xDvknMEAEpMHxwCiEhIjbzflg==}
+
+  '@orpc/openapi-client@1.13.7':
+    resolution: {integrity: sha512-0oWElGEtZ/EbfwOliMI6PccALpi8tp3aOyU746kJQRKTkSAwGohyRvfRA1R7BLbA3xwHTdNYB6ThaeYLvqiA0g==}
+
+  '@orpc/react@1.13.7':
+    resolution: {integrity: sha512-8ITBNd8x2kVkL1Wxvnq3MOiBQTVNnu24Q78vet5GYsci38mAy0hpzQhsh6bWo/rZUagqCIDqAK1MER3JP9iX+g==}
+    peerDependencies:
+      react: '>=18.0.0'
 
   '@orpc/server@1.13.7':
     resolution: {integrity: sha512-M0HimrQ0L/7OBwyVBZddUvKtx+du95QPv+wTxVRibU4P6TwgdmKJrLOwCOhGtMbieSQXHDBacscUWA6QDdUm3Q==}
@@ -13375,15 +13369,6 @@ snapshots:
       tslib: 2.8.1
       uid: 2.0.2
 
-  '@next-safe-action/adapter-react-hook-form@2.0.2(@hookform/resolvers@5.2.2(react-hook-form@7.68.0(react@19.2.4)))(next-safe-action@8.1.8(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-hook-form@7.68.0(react@19.2.4))(react@19.2.4)':
-    dependencies:
-      '@hookform/resolvers': 5.2.2(react-hook-form@7.68.0(react@19.2.4))
-      next: 16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      next-safe-action: 8.1.8(next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
-      react-hook-form: 7.68.0(react@19.2.4)
-
   '@next/bundle-analyzer@15.3.2(bufferutil@4.0.9)':
     dependencies:
       webpack-bundle-analyzer: 4.10.1(bufferutil@4.0.9)
@@ -13819,6 +13804,29 @@ snapshots:
       - '@opentelemetry/api'
 
   '@orpc/interop@1.13.7': {}
+
+  '@orpc/openapi-client@1.13.7(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@orpc/client': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/contract': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/standard-server': 1.13.7(@opentelemetry/api@1.9.0)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+
+  '@orpc/react@1.13.7(@opentelemetry/api@1.9.0)(react@19.2.4)(ws@8.19.0(bufferutil@4.0.9))':
+    dependencies:
+      '@orpc/client': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/contract': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/openapi-client': 1.13.7(@opentelemetry/api@1.9.0)
+      '@orpc/server': 1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9))
+      '@orpc/shared': 1.13.7(@opentelemetry/api@1.9.0)
+      react: 19.2.4
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - crossws
+      - fastify
+      - ws
 
   '@orpc/server@1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9))':
     dependencies:
@@ -15305,7 +15313,7 @@ snapshots:
       json5: 2.2.3
       log-symbols: 4.1.0
       module-punycode: punycode@2.3.1
-      next: 15.5.2(@babel/core@7.26.10)(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.2.4))(react@19.0.0)
+      next: 15.5.2(@babel/core@7.26.10)(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       node-html-parser: 7.0.1
       ora: 5.4.1
       pretty-bytes: 6.1.1
@@ -20838,7 +20846,7 @@ snapshots:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
 
-  next@15.5.2(@babel/core@7.26.10)(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.2.4))(react@19.0.0):
+  next@15.5.2(@babel/core@7.26.10)(@opentelemetry/api@1.9.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:
       '@next/env': 15.5.2
       '@swc/helpers': 0.5.15

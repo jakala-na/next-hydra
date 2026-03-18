@@ -2,7 +2,7 @@ import { getTranslations, hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import { RegistrationForm } from "@repo/registration/components/registration-form";
 import { notFound } from "next/navigation";
-import { submitRegistrationAction } from "@/lib/submit-registration-action";
+import { submitRegistration } from "@/lib/registration-actionables";
 
 export default async function RegisterPage({
   params,
@@ -33,7 +33,7 @@ export default async function RegisterPage({
         </div>
 
         <RegistrationForm
-          action={submitRegistrationAction}
+          submit={submitRegistration}
           awaitingApprovalUrl={"/register/awaiting-approval"}
         />
       </div>

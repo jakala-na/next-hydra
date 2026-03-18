@@ -1,4 +1,10 @@
 import type { MessageKeys, Messages, NestedKeyOf } from "@repo/i18n";
+import type {
+  RegistrationConflictReason,
+  RegistrationErrorCode,
+  RegistrationErrorData,
+  RegistrationOperation,
+} from "../contracts/error-codes";
 import {
   type DecideRegistrationInput,
   type DecideRegistrationResult,
@@ -15,7 +21,7 @@ import {
   registrationWorkflowInputSchema,
   type StartRegistrationResult,
 } from "../contracts/schema";
-import { RegistrationConflictError, RegistrationNotFoundError } from "./errors";
+import { type ActionResult, domainError, Err, Ok } from "../lib/result";
 
 type RegistrationMessageKey = MessageKeys<
   Messages["web"]["registration"],
@@ -48,6 +54,12 @@ type RegistrationWorkflowDeps = {
 
 export type RegistrationApplication = ReturnType<
   typeof createRegistrationApplication
+>;
+
+type RegistrationApplicationResult<T> = ActionResult<
+  T,
+  RegistrationErrorCode,
+  RegistrationErrorData
 >;
 
 const DEFAULT_LIST_LIMIT = 20;
@@ -119,13 +131,49 @@ const decodeCursor = (cursor: string) => {
   }
 };
 
+const unknownError = (operation: RegistrationOperation, cause: unknown) =>
+  domainError(
+    "UNKNOWN",
+    `Registration ${operation} failed`,
+    { operation },
+    cause
+  );
+
+const submitFailedError = (cause: unknown) =>
+  domainError(
+    "SUBMIT_FAILED",
+    "Registration workflow failed to start",
+    { reason: "workflow_start_failed" as const },
+    cause
+  );
+
+const registrationNotFoundError = (registrationId?: string) =>
+  domainError(
+    "REGISTRATION_NOT_FOUND",
+    "Registration not found",
+    registrationId ? { registrationId } : {}
+  );
+
+const registrationConflictError = (
+  reason: RegistrationConflictReason,
+  registrationId?: string
+) =>
+  domainError(
+    "REGISTRATION_CONFLICT",
+    "Registration cannot be processed in its current state",
+    {
+      registrationId,
+      reason,
+    }
+  );
+
 export function createRegistrationApplication(
   storage: RegistrationStorage,
   workflow: RegistrationWorkflowDeps
 ) {
   const submitRegistration = async (
     input: RegistrationInput
-  ): Promise<StartRegistrationResult> => {
+  ): Promise<RegistrationApplicationResult<StartRegistrationResult>> => {
     const registrationId = crypto.randomUUID();
     const workflowInput = registrationWorkflowInputSchema.parse({
       ...input,
@@ -136,116 +184,136 @@ export function createRegistrationApplication(
       await storage.createPendingRegistrationRecord(workflowInput);
       const run = await workflow.startWorkflow(workflowInput);
 
-      return {
+      return Ok({
         registrationId,
         runId: run.runId,
         status: "pending",
-      };
+      });
     } catch (error) {
-      await storage.markRegistrationWorkflowStartFailed(
-        workflowInput,
-        "gate.failed.description" as RegistrationMessageKey
-      );
-      throw error;
+      try {
+        await storage.markRegistrationWorkflowStartFailed(
+          workflowInput,
+          "gate.failed.description" as RegistrationMessageKey
+        );
+      } catch (markError) {
+        return Err(unknownError("submit", markError));
+      }
+
+      return Err(submitFailedError(error));
     }
   };
 
   const getRegistration = async (
     input: GetRegistrationInput
-  ): Promise<RegistrationDetail> => {
+  ): Promise<RegistrationApplicationResult<RegistrationDetail>> => {
     const { registrationId } = getRegistrationInputSchema.parse(input);
-    const record = await storage.getRegistrationRecord(registrationId);
 
-    if (!record) {
-      throw new RegistrationNotFoundError("Registration not found");
+    try {
+      const record = await storage.getRegistrationRecord(registrationId);
+
+      if (!record) {
+        return Err(registrationNotFoundError(registrationId));
+      }
+
+      return Ok(toRegistrationDetail(record));
+    } catch (error) {
+      return Err(unknownError("get", error));
     }
-
-    return toRegistrationDetail(record);
   };
 
   const listRegistrations = async (
     input: ListRegistrationsInput
-  ): Promise<ListRegistrationsResult> => {
+  ): Promise<RegistrationApplicationResult<ListRegistrationsResult>> => {
     const parsedInput = listRegistrationsInputSchema.parse(input);
-    const limit = parsedInput.limit ?? DEFAULT_LIST_LIMIT;
-    const records = await storage.listRegistrationRecords(MAX_CURSOR_WINDOW);
-    const cursor = parsedInput.cursor ? decodeCursor(parsedInput.cursor) : null;
 
-    const filtered = records
-      .filter((record) =>
-        parsedInput.status ? record.status === parsedInput.status : true
-      )
-      .filter((record) =>
-        parsedInput.search ? matchesSearch(record, parsedInput.search) : true
-      )
-      .filter((record) => {
-        if (!cursor) {
-          return true;
-        }
+    try {
+      const limit = parsedInput.limit ?? DEFAULT_LIST_LIMIT;
+      const records = await storage.listRegistrationRecords(MAX_CURSOR_WINDOW);
+      const cursor = parsedInput.cursor
+        ? decodeCursor(parsedInput.cursor)
+        : null;
 
-        if (record.updatedAt < cursor.updatedAt) {
-          return true;
-        }
+      const filtered = records
+        .filter((record) =>
+          parsedInput.status ? record.status === parsedInput.status : true
+        )
+        .filter((record) =>
+          parsedInput.search ? matchesSearch(record, parsedInput.search) : true
+        )
+        .filter((record) => {
+          if (!cursor) {
+            return true;
+          }
 
-        if (record.updatedAt > cursor.updatedAt) {
-          return false;
-        }
+          if (record.updatedAt < cursor.updatedAt) {
+            return true;
+          }
 
-        return record.registrationId < cursor.registrationId;
+          if (record.updatedAt > cursor.updatedAt) {
+            return false;
+          }
+
+          return record.registrationId < cursor.registrationId;
+        });
+
+      const items = filtered.slice(0, limit).map(toRegistrationDetail);
+      const next = filtered[limit];
+
+      return Ok({
+        items,
+        nextCursor: next ? encodeCursor(next) : undefined,
       });
-
-    const items = filtered.slice(0, limit).map(toRegistrationDetail);
-    const next = filtered[limit];
-
-    return {
-      items,
-      nextCursor: next ? encodeCursor(next) : undefined,
-    };
+    } catch (error) {
+      return Err(unknownError("list", error));
+    }
   };
 
   const decideRegistration = async (
     input: DecideRegistrationInput
-  ): Promise<DecideRegistrationResult> => {
-    const record = await storage.getRegistrationRecord(input.registrationId);
+  ): Promise<RegistrationApplicationResult<DecideRegistrationResult>> => {
+    try {
+      const record = await storage.getRegistrationRecord(input.registrationId);
 
-    if (!record) {
-      throw new RegistrationNotFoundError("Registration not found");
-    }
+      if (!record) {
+        return Err(registrationNotFoundError(input.registrationId));
+      }
 
-    if (record.status === "approved") {
-      if (!record.invitationId) {
-        throw new RegistrationConflictError(
-          `Approved registration ${record.registrationId} is missing invitationId`
+      if (record.status === "approved") {
+        return Err(
+          registrationConflictError("already_approved", record.registrationId)
         );
       }
 
-      return {
+      if (record.status === "rejected") {
+        return Err(
+          registrationConflictError("already_rejected", record.registrationId)
+        );
+      }
+
+      if (!record.hookToken) {
+        return Err(
+          registrationConflictError(
+            "not_waiting_for_approval",
+            record.registrationId
+          )
+        );
+      }
+
+      if (input.decision === "approved" && !record.invitationId) {
+        return Err(
+          registrationConflictError("missing_invitation", record.registrationId)
+        );
+      }
+
+      await workflow.resumeApproval(record.hookToken, input);
+
+      return Ok({
         registrationId: record.registrationId,
-        status: record.status,
-        idempotent: true,
-      };
+        status: "resumed",
+      });
+    } catch (error) {
+      return Err(unknownError("decide", error));
     }
-
-    if (record.status === "rejected") {
-      return {
-        registrationId: record.registrationId,
-        status: record.status,
-        idempotent: true,
-      };
-    }
-
-    if (!record.hookToken) {
-      throw new RegistrationConflictError(
-        "Registration is not waiting for approval"
-      );
-    }
-
-    await workflow.resumeApproval(record.hookToken, input);
-
-    return {
-      registrationId: record.registrationId,
-      status: "resumed",
-    };
   };
 
   return {

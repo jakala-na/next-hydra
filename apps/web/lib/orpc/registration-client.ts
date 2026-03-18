@@ -1,8 +1,7 @@
-"use server";
+import "server-only";
 
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
-import { createSubmitRegistrationAction } from "@repo/registration/actions/create-submit-registration-action";
 import type { RegistrationRemoteClient } from "@repo/registration/orpc/types";
 import { env } from "@/env";
 
@@ -13,15 +12,11 @@ const apiBaseUrl = (env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002").replace(
   ""
 );
 
-const client: RegistrationRemoteClient = createORPCClient(
+export const registrationClient: RegistrationRemoteClient = createORPCClient(
   new RPCLink({
     url: `${apiBaseUrl}/rpc`,
   }),
   {
     path: ["registration"],
   }
-);
-
-export const submitRegistrationAction = createSubmitRegistrationAction(
-  async (input) => client.submit(input)
 );
