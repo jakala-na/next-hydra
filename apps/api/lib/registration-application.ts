@@ -8,7 +8,7 @@ import { createRegistrationApplication } from "@repo/registration/application";
 import type {
   RegistrationApprovalDecision,
   RegistrationWorkflowInput,
-} from "@repo/registration/contracts/schema";
+} from "@repo/registration/domain/types";
 import { resumeHook, start } from "workflow/api";
 import { registerCompanyWorkflow } from "@/workflows/register-company";
 

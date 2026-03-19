@@ -1,5 +1,5 @@
 import { resend } from "@repo/email";
-import type { RegistrationWorkflowInput } from "@repo/registration/contracts/schema";
+import type { RegistrationWorkflowInput } from "@repo/registration/domain/types";
 import { keys as emailKeys } from "./keys";
 import RegistrationApprovedTemplate from "./templates/registration-approved";
 import RegistrationAwaitingApprovalTemplate from "./templates/registration-awaiting-approval";

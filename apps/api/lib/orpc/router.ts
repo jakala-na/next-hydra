@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
-import type { UnauthorizedRegistrationErrorData } from "@repo/registration/contracts/error-codes";
 import { createRegistrationProcedures } from "@repo/registration/orpc/create-registration-procedures";
+import type { UnauthorizedRegistrationErrorData } from "@repo/registration/orpc/error-codes";
 import type { RegistrationProcedureContext } from "@repo/registration/orpc/types";
 import { env } from "../../env";
 import { registrationApplication } from "../registration-application";

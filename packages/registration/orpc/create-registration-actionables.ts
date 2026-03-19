@@ -1,14 +1,14 @@
 import { ORPCError, os } from "@orpc/server";
+import type { RegistrationRemoteClient } from "./create-registration-procedures";
 import {
   type RegistrationErrorCode,
   type RegistrationErrorDataMap,
   registrationSubmitErrorMap,
-} from "../contracts/error-codes";
+} from "./error-codes";
 import {
   registrationInputSchema,
   startRegistrationResultSchema,
-} from "../contracts/schema";
-import type { RegistrationRemoteClient } from "./types";
+} from "./schemas";
 
 type RegistrationSubmitExecutor = Pick<RegistrationRemoteClient, "submit">;
 

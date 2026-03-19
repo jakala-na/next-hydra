@@ -1,15 +1,16 @@
 import { ORPCError, os, type RouterClient } from "@orpc/server";
 import type { RegistrationApplication } from "../application";
+import { type DomainError, isOk } from "../domain/result";
 import {
-  type RegistrationOperation,
   type RegistrationErrorDataMap,
+  type RegistrationOperation,
   registrationAdminErrorMap,
   registrationDecideErrorMap,
   registrationGetErrorMap,
   registrationListErrorMap,
   registrationSubmitErrorMap,
   type UnauthorizedRegistrationErrorData,
-} from "../contracts/error-codes";
+} from "./error-codes";
 import {
   decideRegistrationInputSchema,
   decideRegistrationResultSchema,
@@ -19,8 +20,7 @@ import {
   registrationDetailSchema,
   registrationInputSchema,
   startRegistrationResultSchema,
-} from "../contracts/schema";
-import { type DomainError, isOk } from "../lib/result";
+} from "./schemas";
 
 export type RegistrationProcedureContext = {
   approvalSecret?: string;
@@ -160,7 +160,10 @@ export function createRegistrationProcedures(
           return result.data;
         }
 
-        return toProcedureError(result.error as RegistrationProcedureDomainError, "submit");
+        return toProcedureError(
+          result.error as RegistrationProcedureDomainError,
+          "submit"
+        );
       }),
     get: adminProcedure
       .errors(registrationGetErrorMap)
@@ -173,7 +176,10 @@ export function createRegistrationProcedures(
           return result.data;
         }
 
-        return toProcedureError(result.error as RegistrationProcedureDomainError, "get");
+        return toProcedureError(
+          result.error as RegistrationProcedureDomainError,
+          "get"
+        );
       }),
     list: adminProcedure
       .errors(registrationListErrorMap)
@@ -186,7 +192,10 @@ export function createRegistrationProcedures(
           return result.data;
         }
 
-        return toProcedureError(result.error as RegistrationProcedureDomainError, "list");
+        return toProcedureError(
+          result.error as RegistrationProcedureDomainError,
+          "list"
+        );
       }),
     decide: adminProcedure
       .errors(registrationDecideErrorMap)
@@ -199,7 +208,10 @@ export function createRegistrationProcedures(
           return result.data;
         }
 
-        return toProcedureError(result.error as RegistrationProcedureDomainError, "decide");
+        return toProcedureError(
+          result.error as RegistrationProcedureDomainError,
+          "decide"
+        );
       }),
   };
 }

@@ -1,18 +1,25 @@
 import { z } from "zod";
+import type {
+  RegistrationConflictReason,
+  RegistrationOperation,
+} from "../domain/errors";
 
-export const registrationConflictReasonSchema = z.enum([
-  "already_approved",
-  "already_rejected",
-  "not_waiting_for_approval",
-  "missing_invitation",
-]);
+export const registrationConflictReasonSchema =
+  z.custom<RegistrationConflictReason>(
+    (value) =>
+      value === "already_approved" ||
+      value === "already_rejected" ||
+      value === "not_waiting_for_approval" ||
+      value === "missing_invitation"
+  );
 
-export const registrationOperationSchema = z.enum([
-  "submit",
-  "get",
-  "list",
-  "decide",
-]);
+export const registrationOperationSchema = z.custom<RegistrationOperation>(
+  (value) =>
+    value === "submit" ||
+    value === "get" ||
+    value === "list" ||
+    value === "decide"
+);
 
 export const unauthorizedRegistrationErrorDataSchema = z
   .object({
@@ -99,32 +106,16 @@ export const registrationDecideErrorMap = {
   UNKNOWN: unknownRegistrationError,
 } as const;
 
-export type RegistrationConflictReason = z.infer<
-  typeof registrationConflictReasonSchema
->;
-export type RegistrationOperation = z.infer<typeof registrationOperationSchema>;
-export type UnauthorizedRegistrationErrorData = z.infer<
-  typeof unauthorizedRegistrationErrorDataSchema
->;
-export type RegistrationNotFoundErrorData = z.infer<
-  typeof registrationNotFoundErrorDataSchema
->;
-export type RegistrationConflictErrorData = z.infer<
-  typeof registrationConflictErrorDataSchema
->;
-export type SubmitFailedRegistrationErrorData = z.infer<
-  typeof submitFailedRegistrationErrorDataSchema
->;
-export type UnknownRegistrationErrorData = z.infer<
-  typeof unknownRegistrationErrorDataSchema
->;
-export type RegistrationErrorDataMap = {
-  UNAUTHORIZED: UnauthorizedRegistrationErrorData;
-  REGISTRATION_NOT_FOUND: RegistrationNotFoundErrorData;
-  REGISTRATION_CONFLICT: RegistrationConflictErrorData;
-  SUBMIT_FAILED: SubmitFailedRegistrationErrorData;
-  UNKNOWN: UnknownRegistrationErrorData;
-};
-export type RegistrationErrorCode = keyof RegistrationErrorDataMap;
-export type RegistrationErrorData =
-  RegistrationErrorDataMap[keyof RegistrationErrorDataMap];
+export type {
+  RegistrationActionResult,
+  RegistrationConflictErrorData,
+  RegistrationConflictReason,
+  RegistrationErrorCode,
+  RegistrationErrorData,
+  RegistrationErrorDataMap,
+  RegistrationNotFoundErrorData,
+  RegistrationOperation,
+  SubmitFailedRegistrationErrorData,
+  UnauthorizedRegistrationErrorData,
+  UnknownRegistrationErrorData,
+} from "../domain/errors";

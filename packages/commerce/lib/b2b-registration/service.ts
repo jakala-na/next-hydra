@@ -12,7 +12,7 @@ import type {
   RegistrationApprovalDecision,
   RegistrationRecord,
   RegistrationWorkflowInput,
-} from "@repo/registration/contracts/schema";
+} from "@repo/registration/domain/types";
 import { apiRoot } from "../client/api-root";
 
 const ISO_NOW = () => new Date().toISOString();

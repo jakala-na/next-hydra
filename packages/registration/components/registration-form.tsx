@@ -32,13 +32,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { FieldPath } from "react-hook-form";
 import { useForm } from "react-hook-form";
-import { requiresRegion } from "../contracts/schema";
+import { requiresRegion } from "../domain/types";
+import type { RegistrationSubmitActionable } from "../orpc/types";
 import {
   createRegistrationFormSchema,
   getCountryOptions,
   type RegistrationFormValues,
-} from "../lib/registration-form-schema";
-import type { RegistrationSubmitActionable } from "../orpc/types";
+} from "./registration-form-schema";
 
 type RegistrationFormProps = {
   readonly submit: RegistrationSubmitActionable;

@@ -1,6 +1,6 @@
 import type { MessageKeys, Messages, NestedKeyOf } from "@repo/i18n";
 import { z } from "zod";
-import { requiresRegion } from "../contracts/schema";
+import { REGISTRATION_FIELD_LIMITS, requiresRegion } from "../domain/types";
 
 type RegistrationFormMessageKey = MessageKeys<
   Messages["web"]["registration"]["form"],
@@ -278,17 +278,33 @@ export const createRegistrationFormSchema = (t: RegistrationFormTranslator) =>
       companyName: z
         .string()
         .min(1, t("validation.companyName"))
-        .max(120, t("validation.companyNameMax")),
-      companyPhone: z.string().max(32, t("validation.companyPhone")),
-      vatId: z.string().max(64, t("validation.vatId")),
+        .max(
+          REGISTRATION_FIELD_LIMITS.companyName,
+          t("validation.companyNameMax")
+        ),
+      companyPhone: z
+        .string()
+        .max(
+          REGISTRATION_FIELD_LIMITS.companyPhone,
+          t("validation.companyPhone")
+        ),
+      vatId: z
+        .string()
+        .max(REGISTRATION_FIELD_LIMITS.vatId, t("validation.vatId")),
       contactFirstName: z
         .string()
         .min(1, t("validation.firstName"))
-        .max(80, t("validation.firstNameMax")),
+        .max(
+          REGISTRATION_FIELD_LIMITS.contactName,
+          t("validation.firstNameMax")
+        ),
       contactLastName: z
         .string()
         .min(1, t("validation.lastName"))
-        .max(80, t("validation.lastNameMax")),
+        .max(
+          REGISTRATION_FIELD_LIMITS.contactName,
+          t("validation.lastNameMax")
+        ),
       email: z.string().email(t("validation.email")),
       address: z.object({
         streetName: z.string().min(1, t("validation.streetAddress")),

@@ -2,7 +2,7 @@ import {
   registrationApprovalDecisionSchema,
   registrationInputSchema,
   registrationWorkflowInputSchema,
-} from "@repo/registration/contracts/schema";
+} from "@repo/registration/orpc/schemas";
 import { expect, test } from "vitest";
 
 test("registration input requires company and account fields", () => {

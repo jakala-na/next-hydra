@@ -16,7 +16,7 @@ import { log } from "@repo/observability/log";
 import type {
   RegistrationApprovalDecision,
   RegistrationWorkflowInput,
-} from "@repo/registration/contracts/schema";
+} from "@repo/registration/domain/types";
 import { createHook } from "workflow";
 
 async function createCommerceResources(input: RegistrationWorkflowInput) {

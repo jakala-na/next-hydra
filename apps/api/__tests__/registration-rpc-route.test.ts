@@ -1,6 +1,6 @@
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
-import { Err, domainError } from "@repo/registration/lib/result";
+import { domainError, Err } from "@repo/registration/domain/result";
 import type { RegistrationRemoteClient } from "@repo/registration/orpc/types";
 import { beforeEach, expect, test, vi } from "vitest";
 
@@ -194,7 +194,9 @@ test("submit failures map to SUBMIT_FAILED", async () => {
 
 test("unexpected list errors map to UNKNOWN", async () => {
   listRegistrations.mockResolvedValue(
-    Err(domainError("UNKNOWN", "Registration list failed", { operation: "list" }))
+    Err(
+      domainError("UNKNOWN", "Registration list failed", { operation: "list" })
+    )
   );
 
   const client = await createClient({

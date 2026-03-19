@@ -1,11 +1,5 @@
 import { z } from "zod";
-
-export const REGION_REQUIRED_COUNTRY_CODES = ["US", "CA"] as const;
-
-export const requiresRegion = (country: string) =>
-  REGION_REQUIRED_COUNTRY_CODES.includes(
-    country.toUpperCase() as (typeof REGION_REQUIRED_COUNTRY_CODES)[number]
-  );
+import { REGISTRATION_FIELD_LIMITS, requiresRegion } from "../domain/types";
 
 export const companyAddressSchema = z
   .object({
@@ -29,11 +23,20 @@ export const companyAddressSchema = z
 
 export const registrationInputSchema = z
   .object({
-    companyName: z.string().min(1).max(120),
-    companyPhone: z.string().max(32).optional(),
-    vatId: z.string().max(64).optional(),
-    contactFirstName: z.string().min(1).max(80),
-    contactLastName: z.string().min(1).max(80),
+    companyName: z.string().min(1).max(REGISTRATION_FIELD_LIMITS.companyName),
+    companyPhone: z
+      .string()
+      .max(REGISTRATION_FIELD_LIMITS.companyPhone)
+      .optional(),
+    vatId: z.string().max(REGISTRATION_FIELD_LIMITS.vatId).optional(),
+    contactFirstName: z
+      .string()
+      .min(1)
+      .max(REGISTRATION_FIELD_LIMITS.contactName),
+    contactLastName: z
+      .string()
+      .min(1)
+      .max(REGISTRATION_FIELD_LIMITS.contactName),
     email: z.string().email(),
     address: companyAddressSchema,
   })
@@ -46,9 +49,9 @@ export const registrationWorkflowInputSchema = registrationInputSchema.extend({
 export const registrationApprovalDecisionSchema = z
   .object({
     decision: z.enum(["approved", "rejected"]),
-    reason: z.string().max(500).optional(),
+    reason: z.string().max(REGISTRATION_FIELD_LIMITS.approvalReason).optional(),
     actorEmail: z.string().email().optional(),
-    actorName: z.string().max(120).optional(),
+    actorName: z.string().max(REGISTRATION_FIELD_LIMITS.actorName).optional(),
   })
   .strict();
 
@@ -113,7 +116,12 @@ export const listRegistrationsInputSchema = z
     status: registrationStatusSchema.optional(),
     search: z.string().min(1).optional(),
     cursor: z.string().optional(),
-    limit: z.number().int().min(1).max(100).optional(),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(REGISTRATION_FIELD_LIMITS.listLimit)
+      .optional(),
   })
   .strict();
 
@@ -136,31 +144,3 @@ export const decideRegistrationResultSchema = z
     idempotent: z.boolean().optional(),
   })
   .strict();
-
-export type RegistrationInput = z.infer<typeof registrationInputSchema>;
-export type RegistrationWorkflowInput = z.infer<
-  typeof registrationWorkflowInputSchema
->;
-export type RegistrationApprovalDecision = z.infer<
-  typeof registrationApprovalDecisionSchema
->;
-export type RegistrationStatus = z.infer<typeof registrationStatusSchema>;
-export type InvitationState = z.infer<typeof invitationStateSchema>;
-export type RegistrationRecord = z.infer<typeof registrationRecordSchema>;
-export type RegistrationDetail = z.infer<typeof registrationDetailSchema>;
-export type StartRegistrationResult = z.infer<
-  typeof startRegistrationResultSchema
->;
-export type GetRegistrationInput = z.infer<typeof getRegistrationInputSchema>;
-export type ListRegistrationsInput = z.infer<
-  typeof listRegistrationsInputSchema
->;
-export type ListRegistrationsResult = z.infer<
-  typeof listRegistrationsResultSchema
->;
-export type DecideRegistrationInput = z.infer<
-  typeof decideRegistrationInputSchema
->;
-export type DecideRegistrationResult = z.infer<
-  typeof decideRegistrationResultSchema
->;
