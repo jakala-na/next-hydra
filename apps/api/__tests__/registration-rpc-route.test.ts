@@ -1,8 +1,27 @@
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
-import { domainError, Err } from "@repo/registration/domain/result";
+import {
+  RegistrationConflictError,
+  RegistrationNotFoundError,
+  RegistrationSubmitFailedError,
+  RegistrationUnknownError,
+} from "@repo/registration/domain/errors";
 import type { RegistrationRemoteClient } from "@repo/registration/orpc/types";
 import { beforeEach, expect, test, vi } from "vitest";
+
+const ok = <T>(value: T) => ({
+  status: "ok" as const,
+  value,
+  match: <R>(handlers: { ok: (value: T) => R; err: (error: never) => R }) =>
+    handlers.ok(value),
+});
+
+const err = <E>(error: E) => ({
+  status: "error" as const,
+  error,
+  match: <R>(handlers: { ok: (value: never) => R; err: (error: E) => R }) =>
+    handlers.err(error),
+});
 
 const submitRegistration = vi.fn();
 const getRegistration = vi.fn();
@@ -57,14 +76,13 @@ beforeEach(() => {
 });
 
 test("submit procedure returns the pending workflow result", async () => {
-  submitRegistration.mockResolvedValue({
-    ok: true,
-    data: {
+  submitRegistration.mockResolvedValue(
+    ok({
       registrationId: crypto.randomUUID(),
       runId: "run_123",
       status: "pending",
-    },
-  });
+    })
+  );
 
   const client = await createClient();
   const result = await client.submit({
@@ -105,8 +123,8 @@ test("protected procedures reject unauthenticated callers", async () => {
 
 test("not found errors map through the rpc transport", async () => {
   getRegistration.mockResolvedValue(
-    Err(
-      domainError("REGISTRATION_NOT_FOUND", "Registration not found", {
+    err(
+      new RegistrationNotFoundError({
         registrationId: crypto.randomUUID(),
       })
     )
@@ -129,15 +147,11 @@ test("not found errors map through the rpc transport", async () => {
 
 test("decide conflicts map through the rpc transport", async () => {
   decideRegistration.mockResolvedValue(
-    Err(
-      domainError(
-        "REGISTRATION_CONFLICT",
-        "Registration cannot be processed in its current state",
-        {
-          registrationId: crypto.randomUUID(),
-          reason: "already_approved",
-        }
-      )
+    err(
+      new RegistrationConflictError({
+        registrationId: crypto.randomUUID(),
+        reason: "already_approved",
+      })
     )
   );
 
@@ -162,9 +176,10 @@ test("decide conflicts map through the rpc transport", async () => {
 
 test("submit failures map to SUBMIT_FAILED", async () => {
   submitRegistration.mockResolvedValue(
-    Err(
-      domainError("SUBMIT_FAILED", "Registration workflow failed to start", {
+    err(
+      new RegistrationSubmitFailedError({
         reason: "workflow_start_failed",
+        cause: new Error("workflow failed"),
       })
     )
   );
@@ -194,8 +209,11 @@ test("submit failures map to SUBMIT_FAILED", async () => {
 
 test("unexpected list errors map to UNKNOWN", async () => {
   listRegistrations.mockResolvedValue(
-    Err(
-      domainError("UNKNOWN", "Registration list failed", { operation: "list" })
+    err(
+      new RegistrationUnknownError({
+        operation: "list",
+        cause: new Error("list failed"),
+      })
     )
   );
 

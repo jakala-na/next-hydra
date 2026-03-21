@@ -1,14 +1,15 @@
+import { Result } from "better-result";
 import {
-  type RegistrationActionResult,
-  registrationConflictError,
-  registrationNotFoundError,
-  unknownRegistrationError,
+  RegistrationApprovalProcessError,
+  RegistrationConflictError,
+  RegistrationNotFoundError,
+  type RegistrationResult,
+  RegistrationStoreError,
 } from "../domain/errors";
 import type {
   RegistrationApprovalProcessPort,
   RegistrationStorePort,
 } from "../domain/ports";
-import { Err, Ok } from "../domain/result";
 import type {
   DecideRegistrationInput,
   DecideRegistrationResult,
@@ -24,51 +25,83 @@ export function createDecideRegistration(
 ) {
   return async function decideRegistration(
     input: DecideRegistrationInput
-  ): Promise<RegistrationActionResult<DecideRegistrationResult>> {
-    try {
-      const record = await options.registrations.getRegistrationRecord(
-        input.registrationId
-      );
+  ): Promise<RegistrationResult<DecideRegistrationResult>> {
+    const recordResult = await Result.tryPromise({
+      try: () =>
+        options.registrations.getRegistrationRecord(input.registrationId),
+      catch: (cause) =>
+        new RegistrationStoreError({
+          operation: "get_registration_record",
+          cause,
+        }),
+    });
 
-      if (!record) {
-        return Err(registrationNotFoundError(input.registrationId));
-      }
-
-      if (record.status === "approved") {
-        return Err(
-          registrationConflictError("already_approved", record.registrationId)
-        );
-      }
-
-      if (record.status === "rejected") {
-        return Err(
-          registrationConflictError("already_rejected", record.registrationId)
-        );
-      }
-
-      if (!record.hookToken) {
-        return Err(
-          registrationConflictError(
-            "not_waiting_for_approval",
-            record.registrationId
-          )
-        );
-      }
-
-      if (input.decision === "approved" && !record.invitationId) {
-        return Err(
-          registrationConflictError("missing_invitation", record.registrationId)
-        );
-      }
-
-      await options.approvalProcess.resumeApproval(record.hookToken, input);
-
-      return Ok({
-        registrationId: record.registrationId,
-        status: "resumed",
-      });
-    } catch (error) {
-      return Err(unknownRegistrationError("decide", error));
+    if (recordResult.isErr()) {
+      return recordResult;
     }
+
+    const record = recordResult.value;
+
+    if (!record) {
+      return Result.err(
+        new RegistrationNotFoundError({ registrationId: input.registrationId })
+      );
+    }
+
+    if (record.status === "approved") {
+      return Result.err(
+        new RegistrationConflictError({
+          reason: "already_approved",
+          registrationId: record.registrationId,
+        })
+      );
+    }
+
+    if (record.status === "rejected") {
+      return Result.err(
+        new RegistrationConflictError({
+          reason: "already_rejected",
+          registrationId: record.registrationId,
+        })
+      );
+    }
+
+    if (!record.hookToken) {
+      return Result.err(
+        new RegistrationConflictError({
+          reason: "not_waiting_for_approval",
+          registrationId: record.registrationId,
+        })
+      );
+    }
+
+    const hookToken = record.hookToken;
+
+    if (input.decision === "approved" && !record.invitationId) {
+      return Result.err(
+        new RegistrationConflictError({
+          reason: "missing_invitation",
+          registrationId: record.registrationId,
+        })
+      );
+    }
+
+    const resumeResult = await Result.tryPromise({
+      try: () => options.approvalProcess.resumeApproval(hookToken, input),
+      catch: (cause) =>
+        new RegistrationApprovalProcessError({
+          operation: "resume_approval",
+          cause,
+        }),
+    });
+
+    if (resumeResult.isErr()) {
+      return resumeResult;
+    }
+
+    return Result.ok({
+      registrationId: record.registrationId,
+      status: "resumed",
+    });
   };
 }

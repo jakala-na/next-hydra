@@ -1,9 +1,9 @@
+import { Result } from "better-result";
 import {
-  type RegistrationActionResult,
-  unknownRegistrationError,
+  type RegistrationResult,
+  RegistrationStoreError,
 } from "../domain/errors";
 import type { RegistrationStorePort } from "../domain/ports";
-import { Err, Ok } from "../domain/result";
 import type {
   ListRegistrationsInput,
   ListRegistrationsResult,
@@ -74,45 +74,53 @@ export function createListRegistrations(
 ) {
   return async function listRegistrations(
     input: ListRegistrationsInput
-  ): Promise<RegistrationActionResult<ListRegistrationsResult>> {
-    try {
-      const limit = input.limit ?? DEFAULT_LIST_LIMIT;
-      const records =
-        await options.registrations.listRegistrationRecords(MAX_CURSOR_WINDOW);
-      const cursor = input.cursor ? decodeCursor(input.cursor) : null;
+  ): Promise<RegistrationResult<ListRegistrationsResult>> {
+    const recordsResult = await Result.tryPromise({
+      try: () =>
+        options.registrations.listRegistrationRecords(MAX_CURSOR_WINDOW),
+      catch: (cause) =>
+        new RegistrationStoreError({
+          operation: "list_registration_records",
+          cause,
+        }),
+    });
 
-      const filtered = records
-        .filter((record) =>
-          input.status ? record.status === input.status : true
-        )
-        .filter((record) =>
-          input.search ? matchesSearch(record, input.search) : true
-        )
-        .filter((record) => {
-          if (!cursor) {
-            return true;
-          }
-
-          if (record.updatedAt < cursor.updatedAt) {
-            return true;
-          }
-
-          if (record.updatedAt > cursor.updatedAt) {
-            return false;
-          }
-
-          return record.registrationId < cursor.registrationId;
-        });
-
-      const items = filtered.slice(0, limit).map(toRegistrationDetail);
-      const next = filtered[limit];
-
-      return Ok({
-        items,
-        nextCursor: next ? encodeCursor(next) : undefined,
-      });
-    } catch (error) {
-      return Err(unknownRegistrationError("list", error));
+    if (recordsResult.isErr()) {
+      return recordsResult;
     }
+
+    const limit = input.limit ?? DEFAULT_LIST_LIMIT;
+    const cursor = input.cursor ? decodeCursor(input.cursor) : null;
+
+    const filtered = recordsResult.value
+      .filter((record) =>
+        input.status ? record.status === input.status : true
+      )
+      .filter((record) =>
+        input.search ? matchesSearch(record, input.search) : true
+      )
+      .filter((record) => {
+        if (!cursor) {
+          return true;
+        }
+
+        if (record.updatedAt < cursor.updatedAt) {
+          return true;
+        }
+
+        if (record.updatedAt > cursor.updatedAt) {
+          return false;
+        }
+
+        return record.registrationId < cursor.registrationId;
+      });
+
+    const items = filtered.slice(0, limit).map(toRegistrationDetail);
+    const next = filtered[limit];
+
+    return Result.ok({
+      items,
+      nextCursor: next ? encodeCursor(next) : undefined,
+    });
   };
 }

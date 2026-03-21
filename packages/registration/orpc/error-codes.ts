@@ -107,7 +107,6 @@ export const registrationDecideErrorMap = {
 } as const;
 
 export type {
-  RegistrationActionResult,
   RegistrationConflictErrorData,
   RegistrationConflictReason,
   RegistrationErrorCode,

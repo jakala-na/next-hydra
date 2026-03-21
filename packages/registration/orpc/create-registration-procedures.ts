@@ -1,15 +1,23 @@
 import { ORPCError, os, type RouterClient } from "@orpc/server";
+import { matchError, Result } from "better-result";
 import type { RegistrationApplication } from "../application";
-import { type DomainError, isOk } from "../domain/result";
+import type {
+  RegistrationApprovalProcessError,
+  RegistrationConflictError,
+  RegistrationErrorDataMap,
+  RegistrationNotFoundError,
+  RegistrationOperation,
+  RegistrationResult,
+  RegistrationStoreError,
+  RegistrationSubmitFailedError,
+  RegistrationUnknownError,
+} from "../domain/errors";
 import {
-  type RegistrationErrorDataMap,
-  type RegistrationOperation,
   registrationAdminErrorMap,
   registrationDecideErrorMap,
   registrationGetErrorMap,
   registrationListErrorMap,
   registrationSubmitErrorMap,
-  type UnauthorizedRegistrationErrorData,
 } from "./error-codes";
 import {
   decideRegistrationInputSchema,
@@ -34,17 +42,12 @@ type CreateRegistrationProceduresOptions = {
 const publicProcedure = os.$context<RegistrationProcedureContext>();
 
 type RegistrationProcedureDomainError =
-  | DomainError<"UNAUTHORIZED", RegistrationErrorDataMap["UNAUTHORIZED"]>
-  | DomainError<
-      "REGISTRATION_NOT_FOUND",
-      RegistrationErrorDataMap["REGISTRATION_NOT_FOUND"]
-    >
-  | DomainError<
-      "REGISTRATION_CONFLICT",
-      RegistrationErrorDataMap["REGISTRATION_CONFLICT"]
-    >
-  | DomainError<"SUBMIT_FAILED", RegistrationErrorDataMap["SUBMIT_FAILED"]>
-  | DomainError<"UNKNOWN", RegistrationErrorDataMap["UNKNOWN"]>;
+  | RegistrationNotFoundError
+  | RegistrationConflictError
+  | RegistrationSubmitFailedError
+  | RegistrationStoreError
+  | RegistrationApprovalProcessError
+  | RegistrationUnknownError;
 
 const toUnknownProcedureError = (
   operation: RegistrationOperation,
@@ -65,78 +68,88 @@ const toUnknownProcedureError = (
 const toProcedureError = (
   error: RegistrationProcedureDomainError,
   operation: RegistrationOperation
-): never => {
-  switch (error.code) {
-    case "UNAUTHORIZED":
-      throw new ORPCError<
-        "UNAUTHORIZED",
-        RegistrationErrorDataMap["UNAUTHORIZED"]
-      >("UNAUTHORIZED", {
-        data: (error.details ?? {
-          reason: "invalid_approval_secret",
-        }) satisfies UnauthorizedRegistrationErrorData,
-        message: error.message,
-        status: 401,
-        cause: error.cause,
-      });
-    case "REGISTRATION_NOT_FOUND":
+): never =>
+  matchError(error, {
+    RegistrationNotFoundError: (registrationError) => {
       throw new ORPCError<
         "REGISTRATION_NOT_FOUND",
         RegistrationErrorDataMap["REGISTRATION_NOT_FOUND"]
       >("REGISTRATION_NOT_FOUND", {
-        data: error.details ?? {},
-        message: error.message,
+        data: registrationError.registrationId
+          ? { registrationId: registrationError.registrationId }
+          : {},
+        message: registrationError.message,
         status: 404,
-        cause: error.cause,
+        cause: registrationError.cause,
       });
-    case "REGISTRATION_CONFLICT":
-      if (!error.details) {
-        return toUnknownProcedureError(
-          operation,
-          "Registration conflict details were missing",
-          error.cause ?? error
-        );
-      }
-
+    },
+    RegistrationConflictError: (registrationError) => {
       throw new ORPCError<
         "REGISTRATION_CONFLICT",
         RegistrationErrorDataMap["REGISTRATION_CONFLICT"]
       >("REGISTRATION_CONFLICT", {
-        data: error.details,
-        message: error.message,
+        data: {
+          registrationId: registrationError.registrationId,
+          reason: registrationError.reason,
+        },
+        message: registrationError.message,
         status: 409,
-        cause: error.cause,
+        cause: registrationError.cause,
       });
-    case "SUBMIT_FAILED":
-      if (!error.details) {
-        return toUnknownProcedureError(
-          operation,
-          "Registration submit failure details were missing",
-          error.cause ?? error
-        );
-      }
-
+    },
+    RegistrationSubmitFailedError: (registrationError) => {
       throw new ORPCError<
         "SUBMIT_FAILED",
         RegistrationErrorDataMap["SUBMIT_FAILED"]
       >("SUBMIT_FAILED", {
-        data: error.details,
-        message: error.message,
+        data: {
+          reason: registrationError.reason,
+        },
+        message: registrationError.message,
         status: 500,
-        cause: error.cause,
+        cause: registrationError.compensationCause
+          ? {
+              cause: registrationError.cause,
+              compensationCause: registrationError.compensationCause,
+            }
+          : registrationError.cause,
       });
-    default:
+    },
+    RegistrationStoreError: (registrationError) => {
+      return toUnknownProcedureError(
+        operation,
+        registrationError.message,
+        registrationError.cause
+      );
+    },
+    RegistrationApprovalProcessError: (registrationError) => {
+      return toUnknownProcedureError(
+        operation,
+        registrationError.message,
+        registrationError.cause
+      );
+    },
+    RegistrationUnknownError: (registrationError) => {
       throw new ORPCError<"UNKNOWN", RegistrationErrorDataMap["UNKNOWN"]>(
         "UNKNOWN",
         {
-          data: error.details ?? { operation },
-          message: error.message,
+          data: { operation: registrationError.operation },
+          message: registrationError.message,
           status: 500,
-          cause: error.cause,
+          cause: registrationError.cause,
         }
       );
-  }
-};
+    },
+  });
+
+const unwrapResult = <T>(
+  result: RegistrationResult<T>,
+  operation: RegistrationOperation
+): T =>
+  Result.match(result, {
+    ok: (value) => value,
+    err: (error) => toProcedureError(error, operation),
+  });
 
 export function createRegistrationProcedures(
   options: CreateRegistrationProceduresOptions
@@ -154,14 +167,8 @@ export function createRegistrationProcedures(
       .input(registrationInputSchema)
       .output(startRegistrationResultSchema)
       .handler(async ({ input }) => {
-        const result = await options.application.submitRegistration(input);
-
-        if (isOk(result)) {
-          return result.data;
-        }
-
-        return toProcedureError(
-          result.error as RegistrationProcedureDomainError,
+        return unwrapResult(
+          await options.application.submitRegistration(input),
           "submit"
         );
       }),
@@ -170,14 +177,8 @@ export function createRegistrationProcedures(
       .input(getRegistrationInputSchema)
       .output(registrationDetailSchema)
       .handler(async ({ input }) => {
-        const result = await options.application.getRegistration(input);
-
-        if (isOk(result)) {
-          return result.data;
-        }
-
-        return toProcedureError(
-          result.error as RegistrationProcedureDomainError,
+        return unwrapResult(
+          await options.application.getRegistration(input),
           "get"
         );
       }),
@@ -186,14 +187,8 @@ export function createRegistrationProcedures(
       .input(listRegistrationsInputSchema)
       .output(listRegistrationsResultSchema)
       .handler(async ({ input }) => {
-        const result = await options.application.listRegistrations(input);
-
-        if (isOk(result)) {
-          return result.data;
-        }
-
-        return toProcedureError(
-          result.error as RegistrationProcedureDomainError,
+        return unwrapResult(
+          await options.application.listRegistrations(input),
           "list"
         );
       }),
@@ -202,14 +197,8 @@ export function createRegistrationProcedures(
       .input(decideRegistrationInputSchema)
       .output(decideRegistrationResultSchema)
       .handler(async ({ input }) => {
-        const result = await options.application.decideRegistration(input);
-
-        if (isOk(result)) {
-          return result.data;
-        }
-
-        return toProcedureError(
-          result.error as RegistrationProcedureDomainError,
+        return unwrapResult(
+          await options.application.decideRegistration(input),
           "decide"
         );
       }),

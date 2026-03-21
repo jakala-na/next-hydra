@@ -1,4 +1,4 @@
-import { type ActionResult, domainError } from "./result";
+import { type Result, TaggedError } from "better-result";
 
 export type RegistrationConflictReason =
   | "already_approved"
@@ -41,47 +41,113 @@ export type RegistrationErrorCode = keyof RegistrationErrorDataMap;
 export type RegistrationErrorData =
   RegistrationErrorDataMap[keyof RegistrationErrorDataMap];
 
-export type RegistrationActionResult<T> = ActionResult<
-  T,
-  RegistrationErrorCode,
-  RegistrationErrorData
->;
+export class RegistrationNotFoundError extends TaggedError(
+  "RegistrationNotFoundError"
+)<RegistrationNotFoundErrorData & { message: string }>() {
+  constructor(args: RegistrationNotFoundErrorData = {}) {
+    super({
+      ...args,
+      message: "Registration not found",
+    });
+  }
+}
 
-export const unknownRegistrationError = (
-  operation: RegistrationOperation,
-  cause: unknown
-) =>
-  domainError(
-    "UNKNOWN",
-    `Registration ${operation} failed`,
-    { operation },
-    cause
-  );
+export class RegistrationConflictError extends TaggedError(
+  "RegistrationConflictError"
+)<RegistrationConflictErrorData & { message: string }>() {
+  constructor(args: RegistrationConflictErrorData) {
+    super({
+      ...args,
+      message: "Registration cannot be processed in its current state",
+    });
+  }
+}
 
-export const submitFailedRegistrationError = (cause: unknown) =>
-  domainError(
-    "SUBMIT_FAILED",
-    "Registration workflow failed to start",
-    { reason: "workflow_start_failed" as const },
-    cause
-  );
-
-export const registrationNotFoundError = (registrationId?: string) =>
-  domainError(
-    "REGISTRATION_NOT_FOUND",
-    "Registration not found",
-    registrationId ? { registrationId } : {}
-  );
-
-export const registrationConflictError = (
-  reason: RegistrationConflictReason,
-  registrationId?: string
-) =>
-  domainError(
-    "REGISTRATION_CONFLICT",
-    "Registration cannot be processed in its current state",
-    {
-      registrationId,
-      reason,
+export class RegistrationSubmitFailedError extends TaggedError(
+  "RegistrationSubmitFailedError"
+)<
+  SubmitFailedRegistrationErrorData & {
+    message: string;
+    cause: unknown;
+    compensationCause?: unknown;
+  }
+>() {
+  constructor(
+    args: SubmitFailedRegistrationErrorData & {
+      cause: unknown;
+      compensationCause?: unknown;
     }
-  );
+  ) {
+    super({
+      ...args,
+      message: "Registration workflow failed to start",
+    });
+  }
+}
+
+export type RegistrationStoreOperation =
+  | "create_pending_registration_record"
+  | "mark_registration_workflow_start_failed"
+  | "get_registration_record"
+  | "list_registration_records";
+
+export class RegistrationStoreError extends TaggedError(
+  "RegistrationStoreError"
+)<{
+  operation: RegistrationStoreOperation;
+  message: string;
+  cause: unknown;
+}>() {
+  constructor(args: {
+    operation: RegistrationStoreOperation;
+    cause: unknown;
+  }) {
+    super({
+      ...args,
+      message: `Registration store operation failed: ${args.operation}`,
+    });
+  }
+}
+
+export type RegistrationApprovalProcessOperation =
+  | "start_workflow"
+  | "resume_approval";
+
+export class RegistrationApprovalProcessError extends TaggedError(
+  "RegistrationApprovalProcessError"
+)<{
+  operation: RegistrationApprovalProcessOperation;
+  message: string;
+  cause: unknown;
+}>() {
+  constructor(args: {
+    operation: RegistrationApprovalProcessOperation;
+    cause: unknown;
+  }) {
+    super({
+      ...args,
+      message: `Registration approval process failed: ${args.operation}`,
+    });
+  }
+}
+
+export class RegistrationUnknownError extends TaggedError(
+  "RegistrationUnknownError"
+)<UnknownRegistrationErrorData & { message: string; cause: unknown }>() {
+  constructor(args: UnknownRegistrationErrorData & { cause: unknown }) {
+    super({
+      ...args,
+      message: `Registration ${args.operation} failed`,
+    });
+  }
+}
+
+export type RegistrationError =
+  | RegistrationNotFoundError
+  | RegistrationConflictError
+  | RegistrationSubmitFailedError
+  | RegistrationStoreError
+  | RegistrationApprovalProcessError
+  | RegistrationUnknownError;
+
+export type RegistrationResult<T> = Result<T, RegistrationError>;

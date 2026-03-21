@@ -1,10 +1,10 @@
+import { Result } from "better-result";
 import {
-  type RegistrationActionResult,
-  registrationNotFoundError,
-  unknownRegistrationError,
+  RegistrationNotFoundError,
+  type RegistrationResult,
+  RegistrationStoreError,
 } from "../domain/errors";
 import type { RegistrationStorePort } from "../domain/ports";
-import { Err, Ok } from "../domain/result";
 import {
   type GetRegistrationInput,
   type RegistrationDetail,
@@ -18,19 +18,27 @@ type CreateGetRegistrationOptions = {
 export function createGetRegistration(options: CreateGetRegistrationOptions) {
   return async function getRegistration(
     input: GetRegistrationInput
-  ): Promise<RegistrationActionResult<RegistrationDetail>> {
-    try {
-      const record = await options.registrations.getRegistrationRecord(
-        input.registrationId
-      );
+  ): Promise<RegistrationResult<RegistrationDetail>> {
+    const recordResult = await Result.tryPromise({
+      try: () =>
+        options.registrations.getRegistrationRecord(input.registrationId),
+      catch: (cause) =>
+        new RegistrationStoreError({
+          operation: "get_registration_record",
+          cause,
+        }),
+    });
 
-      if (!record) {
-        return Err(registrationNotFoundError(input.registrationId));
-      }
-
-      return Ok(toRegistrationDetail(record));
-    } catch (error) {
-      return Err(unknownRegistrationError("get", error));
+    if (recordResult.isErr()) {
+      return recordResult;
     }
+
+    if (!recordResult.value) {
+      return Result.err(
+        new RegistrationNotFoundError({ registrationId: input.registrationId })
+      );
+    }
+
+    return Result.ok(toRegistrationDetail(recordResult.value));
   };
 }
