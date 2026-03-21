@@ -22,8 +22,12 @@ const globalMiddlewares: GlobalMiddlewareConfig = {
     (req, event) =>
       workosAuth(req, event as unknown as Parameters<typeof workosAuth>[1]),
     (req) => {
-      // API routes are intentionally left alone; only page routes need locale handling.
-      if (req.nextUrl.pathname.startsWith("/api")) {
+      // API routes and root-level admin routes are intentionally left alone.
+      if (
+        req.nextUrl.pathname.startsWith("/api") ||
+        req.nextUrl.pathname === "/admin" ||
+        req.nextUrl.pathname.startsWith("/admin/")
+      ) {
         return;
       }
 

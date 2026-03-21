@@ -12,7 +12,6 @@ import {
   sendApprovedEmail,
   sendAwaitingApprovalEmail,
 } from "@repo/email/registration";
-import { log } from "@repo/observability/log";
 import type {
   RegistrationApprovalDecision,
   RegistrationWorkflowInput,
@@ -87,7 +86,7 @@ export async function registerCompanyWorkflow(
 
     return record;
   } catch (error) {
-    log.error("B2B registration workflow failed", {
+    console.error("B2B registration workflow failed", {
       registrationId: input.registrationId,
       error,
     });

@@ -46,9 +46,26 @@ export const submitFailedRegistrationErrorDataSchema = z
   })
   .strict();
 
-export const unknownRegistrationErrorDataSchema = z
+export const internalRegistrationErrorDataSchema = z
   .object({
     operation: registrationOperationSchema,
+    causeName: z.string().optional(),
+    causeMessage: z.string().optional(),
+  })
+  .strict();
+
+export const outputValidationRegistrationErrorDataSchema = z
+  .object({
+    operation: registrationOperationSchema,
+    issues: z.array(
+      z
+        .object({
+          path: z.array(z.union([z.string(), z.number()])),
+          message: z.string(),
+          code: z.string(),
+        })
+        .strict()
+    ),
   })
   .strict();
 
@@ -78,8 +95,14 @@ export const submitFailedRegistrationError = {
 
 export const unknownRegistrationError = {
   status: 500,
-  message: "Registration operation failed",
-  data: unknownRegistrationErrorDataSchema,
+  message: "Registration internal error",
+  data: internalRegistrationErrorDataSchema,
+} as const;
+
+export const outputValidationRegistrationError = {
+  status: 500,
+  message: "Registration output validation failed",
+  data: outputValidationRegistrationErrorDataSchema,
 } as const;
 
 export const registrationAdminErrorMap = {
@@ -88,25 +111,34 @@ export const registrationAdminErrorMap = {
 
 export const registrationSubmitErrorMap = {
   SUBMIT_FAILED: submitFailedRegistrationError,
-  UNKNOWN: unknownRegistrationError,
+  REGISTRATION_INTERNAL: unknownRegistrationError,
+  REGISTRATION_OUTPUT_VALIDATION_FAILED: outputValidationRegistrationError,
 } as const;
 
 export const registrationGetErrorMap = {
+  ...registrationAdminErrorMap,
   REGISTRATION_NOT_FOUND: registrationNotFoundError,
-  UNKNOWN: unknownRegistrationError,
+  REGISTRATION_INTERNAL: unknownRegistrationError,
+  REGISTRATION_OUTPUT_VALIDATION_FAILED: outputValidationRegistrationError,
 } as const;
 
 export const registrationListErrorMap = {
-  UNKNOWN: unknownRegistrationError,
+  ...registrationAdminErrorMap,
+  REGISTRATION_INTERNAL: unknownRegistrationError,
+  REGISTRATION_OUTPUT_VALIDATION_FAILED: outputValidationRegistrationError,
 } as const;
 
 export const registrationDecideErrorMap = {
+  ...registrationAdminErrorMap,
   REGISTRATION_NOT_FOUND: registrationNotFoundError,
   REGISTRATION_CONFLICT: registrationConflictError,
-  UNKNOWN: unknownRegistrationError,
+  REGISTRATION_INTERNAL: unknownRegistrationError,
+  REGISTRATION_OUTPUT_VALIDATION_FAILED: outputValidationRegistrationError,
 } as const;
 
 export type {
+  InternalRegistrationErrorData,
+  OutputValidationRegistrationErrorData,
   RegistrationConflictErrorData,
   RegistrationConflictReason,
   RegistrationErrorCode,
@@ -114,7 +146,7 @@ export type {
   RegistrationErrorDataMap,
   RegistrationNotFoundErrorData,
   RegistrationOperation,
+  RegistrationValidationIssue,
   SubmitFailedRegistrationErrorData,
   UnauthorizedRegistrationErrorData,
-  UnknownRegistrationErrorData,
 } from "../domain/errors";

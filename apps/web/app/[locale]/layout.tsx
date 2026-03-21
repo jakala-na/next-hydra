@@ -1,5 +1,3 @@
-import "./styles.css";
-import { AuthProvider } from "@repo/auth-workos/provider";
 import { LivePreview } from "@repo/cms/components/live-preview";
 import { getNavigation } from "@repo/cms/lib/navigation";
 import { addToCart } from "@repo/commerce/actions/add-to-cart";
@@ -7,7 +5,6 @@ import { changeCartItemsQuantity } from "@repo/commerce/actions/change-cart-item
 import { removeCartItem } from "@repo/commerce/actions/remove-cart-item";
 import { getCartForContext } from "@repo/commerce/lib/cart/utils/get-cart";
 import { storeService } from "@repo/commerce/lib/store/store.service";
-import { DesignSystemProvider } from "@repo/design-system";
 import { CartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
 import { AccountMenuClient } from "@repo/design-system/components/layout/account-menu";
 import { BusinessUnitSwitcher } from "@repo/design-system/components/layout/business-unit-switcher";
@@ -17,9 +14,6 @@ import { Navigation } from "@repo/design-system/components/layout/navigation";
 import { RegionSelector } from "@repo/design-system/components/layout/region-selector";
 import { SearchAutocomplete } from "@repo/design-system/components/layout/search-autocomplete";
 import { SiteHeader } from "@repo/design-system/components/layout/site-header";
-import { fonts } from "@repo/design-system/lib/fonts";
-import { cn } from "@repo/design-system/lib/utils";
-import { Toolbar } from "@repo/feature-flags/components/toolbar";
 import {
   hasLocale,
   NextIntlClientProvider,
@@ -68,59 +62,46 @@ export default async function RootLayout({
   const cartPromise = getCart(locale);
 
   return (
-    <html
-      className={cn(fonts, "scroll-smooth")}
-      lang={locale}
-      suppressHydrationWarning
-    >
-      <body>
-        <AuthProvider>
-          <DesignSystemProvider>
-            <NextIntlClientProvider>
-              <CartProvider
-                cartPromise={cartPromise}
-                actions={{
-                  addToCart,
-                  changeCartItemsQuantity,
-                  removeCartItem,
-                }}
-              >
-                <SiteHeader
-                  MainNavigation={
-                    <Navigation navigationItems={navigation.navigationItems} />
-                  }
-                  RegionSelectorSlot={
-                    <Suspense fallback={<div className="skeleton h-8 w-16" />}>
-                      <RegionSelector />
-                    </Suspense>
-                  }
-                  Search={<SearchAutocomplete />}
-                  BusinessUnitSwitcher={
-                    <Suspense fallback={<div className="skeleton h-8 w-16" />}>
-                      <BusinessUnitSwitcher />
-                    </Suspense>
-                  }
-                  MobileMenuSlot={
-                    <MobileMenu
-                      key="menu-slot"
-                      navigationItems={navigation.navigationItems}
-                    />
-                  }
-                  CartSlot={
-                    <Suspense fallback={<CartButtonSkeleton />}>
-                      <CartButtonClient />
-                    </Suspense>
-                  }
-                  AccountSlot={<AccountMenuClient />}
-                />
-                {children}
-                <LivePreview isEnabled={isDraftModeEnabled} />
-              </CartProvider>
-            </NextIntlClientProvider>
-          </DesignSystemProvider>
-        </AuthProvider>
-        <Toolbar />
-      </body>
-    </html>
+    <NextIntlClientProvider>
+      <CartProvider
+        cartPromise={cartPromise}
+        actions={{
+          addToCart,
+          changeCartItemsQuantity,
+          removeCartItem,
+        }}
+      >
+        <SiteHeader
+          MainNavigation={
+            <Navigation navigationItems={navigation.navigationItems} />
+          }
+          RegionSelectorSlot={
+            <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+              <RegionSelector />
+            </Suspense>
+          }
+          Search={<SearchAutocomplete />}
+          BusinessUnitSwitcher={
+            <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+              <BusinessUnitSwitcher />
+            </Suspense>
+          }
+          MobileMenuSlot={
+            <MobileMenu
+              key="menu-slot"
+              navigationItems={navigation.navigationItems}
+            />
+          }
+          CartSlot={
+            <Suspense fallback={<CartButtonSkeleton />}>
+              <CartButtonClient />
+            </Suspense>
+          }
+          AccountSlot={<AccountMenuClient />}
+        />
+        {children}
+        <LivePreview isEnabled={isDraftModeEnabled} />
+      </CartProvider>
+    </NextIntlClientProvider>
   );
 }

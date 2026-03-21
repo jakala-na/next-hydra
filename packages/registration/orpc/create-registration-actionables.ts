@@ -12,20 +12,25 @@ import {
 
 type RegistrationSubmitExecutor = Pick<RegistrationRemoteClient, "submit">;
 
+const getCauseMetadata = (cause: unknown) =>
+  cause instanceof Error
+    ? {
+        causeName: cause.name,
+        causeMessage: cause.message,
+      }
+    : {};
+
 const toActionableError = (error: unknown): never => {
   if (error instanceof ORPCError) {
     throw error;
   }
 
-  throw new ORPCError<"UNKNOWN", RegistrationErrorDataMap["UNKNOWN"]>(
-    "UNKNOWN",
-    {
-      data: { operation: "submit" },
-      message: "Registration submit bridge failed",
-      status: 500,
-      cause: error,
-    }
-  );
+  throw new ORPCError("REGISTRATION_INTERNAL", {
+    data: { operation: "submit", ...getCauseMetadata(error) },
+    message: "Registration submit bridge failed",
+    status: 500,
+    cause: error,
+  });
 };
 
 export function createRegistrationActionables(

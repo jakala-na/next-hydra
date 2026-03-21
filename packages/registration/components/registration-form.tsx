@@ -103,7 +103,8 @@ export function RegistrationForm({
         if (isDefinedError(error)) {
           switch (error.code) {
             case "SUBMIT_FAILED":
-            case "UNKNOWN":
+            case "REGISTRATION_INTERNAL":
+            case "REGISTRATION_OUTPUT_VALIDATION_FAILED":
               setFormError(t("errors.submitFailed"));
               return;
             default:

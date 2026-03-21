@@ -6,7 +6,8 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false",
-    "generate": "node --experimental-transform-types scripts/gql-sync.ts"
+    "generate": "node --experimental-transform-types scripts/gql-sync.ts",
+    "clear:b2b-registrations": "node --experimental-transform-types scripts/clear-b2b-registration-custom-objects.ts"
   },
   "dependencies": {
     "@commercetools/platform-sdk": "^8.16.0",

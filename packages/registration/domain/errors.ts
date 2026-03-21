@@ -25,8 +25,21 @@ export type SubmitFailedRegistrationErrorData = {
   reason: "workflow_start_failed" | "unexpected";
 };
 
-export type UnknownRegistrationErrorData = {
+export type RegistrationValidationIssue = {
+  path: Array<string | number>;
+  message: string;
+  code: string;
+};
+
+export type InternalRegistrationErrorData = {
   operation: RegistrationOperation;
+  causeName?: string;
+  causeMessage?: string;
+};
+
+export type OutputValidationRegistrationErrorData = {
+  operation: RegistrationOperation;
+  issues: RegistrationValidationIssue[];
 };
 
 export type RegistrationErrorDataMap = {
@@ -34,7 +47,8 @@ export type RegistrationErrorDataMap = {
   REGISTRATION_NOT_FOUND: RegistrationNotFoundErrorData;
   REGISTRATION_CONFLICT: RegistrationConflictErrorData;
   SUBMIT_FAILED: SubmitFailedRegistrationErrorData;
-  UNKNOWN: UnknownRegistrationErrorData;
+  REGISTRATION_INTERNAL: InternalRegistrationErrorData;
+  REGISTRATION_OUTPUT_VALIDATION_FAILED: OutputValidationRegistrationErrorData;
 };
 
 export type RegistrationErrorCode = keyof RegistrationErrorDataMap;
@@ -133,8 +147,8 @@ export class RegistrationApprovalProcessError extends TaggedError(
 
 export class RegistrationUnknownError extends TaggedError(
   "RegistrationUnknownError"
-)<UnknownRegistrationErrorData & { message: string; cause: unknown }>() {
-  constructor(args: UnknownRegistrationErrorData & { cause: unknown }) {
+)<InternalRegistrationErrorData & { message: string; cause: unknown }>() {
+  constructor(args: InternalRegistrationErrorData & { cause: unknown }) {
     super({
       ...args,
       message: `Registration ${args.operation} failed`,

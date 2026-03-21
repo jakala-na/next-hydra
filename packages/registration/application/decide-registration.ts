@@ -77,15 +77,6 @@ export function createDecideRegistration(
 
     const hookToken = record.hookToken;
 
-    if (input.decision === "approved" && !record.invitationId) {
-      return Result.err(
-        new RegistrationConflictError({
-          reason: "missing_invitation",
-          registrationId: record.registrationId,
-        })
-      );
-    }
-
     const resumeResult = await Result.tryPromise({
       try: () => options.approvalProcess.resumeApproval(hookToken, input),
       catch: (cause) =>

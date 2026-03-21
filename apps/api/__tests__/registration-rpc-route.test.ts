@@ -207,7 +207,7 @@ test("submit failures map to SUBMIT_FAILED", async () => {
   });
 });
 
-test("unexpected list errors map to UNKNOWN", async () => {
+test("unexpected list errors map to REGISTRATION_INTERNAL", async () => {
   listRegistrations.mockResolvedValue(
     err(
       new RegistrationUnknownError({
@@ -222,8 +222,8 @@ test("unexpected list errors map to UNKNOWN", async () => {
   });
 
   await expect(client.list({})).rejects.toMatchObject({
-    code: "UNKNOWN",
-    data: { operation: "list" },
+    code: "REGISTRATION_INTERNAL",
+    data: { operation: "list", causeMessage: "list failed" },
     status: 500,
   });
 });

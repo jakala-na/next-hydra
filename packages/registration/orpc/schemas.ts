@@ -1,13 +1,16 @@
 import { z } from "zod";
 import { REGISTRATION_FIELD_LIMITS, requiresRegion } from "../domain/types";
 
+const optionalString = (schema: z.ZodString) =>
+  schema.nullish().transform((value) => value ?? undefined);
+
 export const companyAddressSchema = z
   .object({
     streetName: z.string().min(1),
-    additionalStreetInfo: z.string().optional(),
+    additionalStreetInfo: optionalString(z.string()),
     postalCode: z.string().min(1),
     city: z.string().min(1),
-    region: z.string().optional(),
+    region: optionalString(z.string()),
     country: z.string().length(2),
   })
   .strict()
@@ -24,11 +27,10 @@ export const companyAddressSchema = z
 export const registrationInputSchema = z
   .object({
     companyName: z.string().min(1).max(REGISTRATION_FIELD_LIMITS.companyName),
-    companyPhone: z
-      .string()
-      .max(REGISTRATION_FIELD_LIMITS.companyPhone)
-      .optional(),
-    vatId: z.string().max(REGISTRATION_FIELD_LIMITS.vatId).optional(),
+    companyPhone: optionalString(
+      z.string().max(REGISTRATION_FIELD_LIMITS.companyPhone)
+    ),
+    vatId: optionalString(z.string().max(REGISTRATION_FIELD_LIMITS.vatId)),
     contactFirstName: z
       .string()
       .min(1)
@@ -49,9 +51,13 @@ export const registrationWorkflowInputSchema = registrationInputSchema.extend({
 export const registrationApprovalDecisionSchema = z
   .object({
     decision: z.enum(["approved", "rejected"]),
-    reason: z.string().max(REGISTRATION_FIELD_LIMITS.approvalReason).optional(),
-    actorEmail: z.string().email().optional(),
-    actorName: z.string().max(REGISTRATION_FIELD_LIMITS.actorName).optional(),
+    reason: optionalString(
+      z.string().max(REGISTRATION_FIELD_LIMITS.approvalReason)
+    ),
+    actorEmail: optionalString(z.string().email()),
+    actorName: optionalString(
+      z.string().max(REGISTRATION_FIELD_LIMITS.actorName)
+    ),
   })
   .strict();
 
@@ -66,27 +72,30 @@ export const invitationStateSchema = z.enum(["pending", "accepted", "revoked"]);
 
 export const registrationRecordSchema = registrationWorkflowInputSchema.extend({
   status: registrationStatusSchema,
-  userId: z.string().optional(),
-  authEmail: z.string().optional(),
-  authFirstName: z.string().optional(),
-  authLastName: z.string().optional(),
-  invitationId: z.string().optional(),
-  invitationState: invitationStateSchema.optional(),
-  invitationCreatedAt: z.string().optional(),
-  invitationAcceptedAt: z.string().optional(),
-  identityLinkedAt: z.string().optional(),
-  customerId: z.string().optional(),
-  customerKey: z.string().optional(),
-  businessUnitId: z.string().optional(),
-  businessUnitKey: z.string().optional(),
-  hookToken: z.string().optional(),
+  userId: optionalString(z.string()),
+  authEmail: optionalString(z.string()),
+  authFirstName: optionalString(z.string()),
+  authLastName: optionalString(z.string()),
+  invitationId: optionalString(z.string()),
+  invitationState: invitationStateSchema
+    .nullable()
+    .optional()
+    .transform((value) => value ?? undefined),
+  invitationCreatedAt: optionalString(z.string()),
+  invitationAcceptedAt: optionalString(z.string()),
+  identityLinkedAt: optionalString(z.string()),
+  customerId: optionalString(z.string()),
+  customerKey: optionalString(z.string()),
+  businessUnitId: optionalString(z.string()),
+  businessUnitKey: optionalString(z.string()),
+  hookToken: optionalString(z.string()),
   createdAt: z.string(),
   updatedAt: z.string(),
-  approvedAt: z.string().optional(),
-  rejectedAt: z.string().optional(),
-  approvalReason: z.string().optional(),
-  actorEmail: z.string().optional(),
-  actorName: z.string().optional(),
+  approvedAt: optionalString(z.string()),
+  rejectedAt: optionalString(z.string()),
+  approvalReason: optionalString(z.string()),
+  actorEmail: optionalString(z.string()),
+  actorName: optionalString(z.string()),
 });
 
 export const registrationDetailSchema = registrationRecordSchema.omit({
