@@ -2,8 +2,11 @@ import "server-only";
 import { PostHog } from "posthog-node";
 import { keys } from "../keys";
 
-export const analytics = new PostHog(keys().NEXT_PUBLIC_POSTHOG_KEY, {
-  host: keys().NEXT_PUBLIC_POSTHOG_HOST,
+const { NEXT_PUBLIC_POSTHOG_KEY, NEXT_PUBLIC_POSTHOG_HOST } = keys();
+
+export const analytics = new PostHog(NEXT_PUBLIC_POSTHOG_KEY ?? "", {
+  host: NEXT_PUBLIC_POSTHOG_HOST,
+  disabled: !NEXT_PUBLIC_POSTHOG_KEY,
 
   // Don't batch events and flush immediately - we're running in a serverless environment
   flushAt: 1,
