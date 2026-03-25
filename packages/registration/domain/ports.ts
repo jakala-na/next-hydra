@@ -1,3 +1,9 @@
+import type { Result } from "better-result";
+import type {
+  RegistrationApprovalProcessError,
+  RegistrationNotFoundError,
+  RegistrationStoreError,
+} from "./errors";
 import type {
   RegistrationApprovalDecision,
   RegistrationRecord,
@@ -5,28 +11,44 @@ import type {
   StartRegistrationResult,
 } from "./types";
 
+export type RegistrationStoreResult<T> = Result<T, RegistrationStoreError>;
+
+export type RegistrationStoreLookupResult<T> = Result<
+  T,
+  RegistrationNotFoundError | RegistrationStoreError
+>;
+
+export type RegistrationApprovalProcessResult<T> = Result<
+  T,
+  RegistrationApprovalProcessError
+>;
+
 export type RegistrationStorePort = {
   createPendingRegistrationRecord(
     input: RegistrationWorkflowInput
-  ): Promise<RegistrationRecord>;
+  ): Promise<RegistrationStoreResult<RegistrationRecord>>;
   markRegistrationWorkflowStartFailed(
     input: RegistrationWorkflowInput,
     reason?: string
-  ): Promise<RegistrationRecord>;
+  ): Promise<RegistrationStoreResult<RegistrationRecord>>;
   getRegistrationRecord(
     registrationId: string
-  ): Promise<RegistrationRecord | null>;
-  listRegistrationRecords(limit: number): Promise<RegistrationRecord[]>;
+  ): Promise<RegistrationStoreLookupResult<RegistrationRecord>>;
+  listRegistrationRecords(
+    limit: number
+  ): Promise<RegistrationStoreResult<RegistrationRecord[]>>;
 };
 
 export type RegistrationApprovalProcessPort = {
   startWorkflow(
     input: RegistrationWorkflowInput
-  ): Promise<Pick<StartRegistrationResult, "runId">>;
+  ): Promise<
+    RegistrationApprovalProcessResult<Pick<StartRegistrationResult, "runId">>
+  >;
   resumeApproval(
     hookToken: string,
     approval: RegistrationApprovalDecision
-  ): Promise<void>;
+  ): Promise<RegistrationApprovalProcessResult<void>>;
 };
 
 export type RegistrationIdPort = {

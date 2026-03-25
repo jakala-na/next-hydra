@@ -1,9 +1,7 @@
 import type { MessageKeys, Messages, NestedKeyOf } from "@repo/i18n";
 import { Result } from "better-result";
 import {
-  RegistrationApprovalProcessError,
   type RegistrationResult,
-  RegistrationStoreError,
   RegistrationSubmitFailedError,
 } from "../domain/errors";
 import type {
@@ -40,42 +38,24 @@ export function createSubmitRegistration(
       registrationId,
     };
 
-    const createRecordResult = await Result.tryPromise({
-      try: () =>
-        options.registrations.createPendingRegistrationRecord(workflowInput),
-      catch: (cause) =>
-        new RegistrationStoreError({
-          operation: "create_pending_registration_record",
-          cause,
-        }),
-    });
+    const createRecordResult =
+      await options.registrations.createPendingRegistrationRecord(
+        workflowInput
+      );
 
     if (createRecordResult.isErr()) {
-      return createRecordResult;
+      return Result.err(createRecordResult.error);
     }
 
-    const runResult = await Result.tryPromise({
-      try: () => options.approvalProcess.startWorkflow(workflowInput),
-      catch: (cause) =>
-        new RegistrationApprovalProcessError({
-          operation: "start_workflow",
-          cause,
-        }),
-    });
+    const runResult =
+      await options.approvalProcess.startWorkflow(workflowInput);
 
     if (runResult.isErr()) {
-      const compensationResult = await Result.tryPromise({
-        try: () =>
-          options.registrations.markRegistrationWorkflowStartFailed(
-            workflowInput,
-            "gate.failed.description" as RegistrationMessageKey
-          ),
-        catch: (cause) =>
-          new RegistrationStoreError({
-            operation: "mark_registration_workflow_start_failed",
-            cause,
-          }),
-      });
+      const compensationResult =
+        await options.registrations.markRegistrationWorkflowStartFailed(
+          workflowInput,
+          "gate.failed.description" as RegistrationMessageKey
+        );
 
       return Result.err(
         new RegistrationSubmitFailedError({

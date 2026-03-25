@@ -1,10 +1,7 @@
 import { Result } from "better-result";
 import {
-  RegistrationApprovalProcessError,
   RegistrationConflictError,
-  RegistrationNotFoundError,
   type RegistrationResult,
-  RegistrationStoreError,
 } from "../domain/errors";
 import type {
   RegistrationApprovalProcessPort,
@@ -26,27 +23,15 @@ export function createDecideRegistration(
   return async function decideRegistration(
     input: DecideRegistrationInput
   ): Promise<RegistrationResult<DecideRegistrationResult>> {
-    const recordResult = await Result.tryPromise({
-      try: () =>
-        options.registrations.getRegistrationRecord(input.registrationId),
-      catch: (cause) =>
-        new RegistrationStoreError({
-          operation: "get_registration_record",
-          cause,
-        }),
-    });
+    const recordResult = await options.registrations.getRegistrationRecord(
+      input.registrationId
+    );
 
     if (recordResult.isErr()) {
-      return recordResult;
+      return Result.err(recordResult.error);
     }
 
     const record = recordResult.value;
-
-    if (!record) {
-      return Result.err(
-        new RegistrationNotFoundError({ registrationId: input.registrationId })
-      );
-    }
 
     if (record.status === "approved") {
       return Result.err(
@@ -77,17 +62,13 @@ export function createDecideRegistration(
 
     const hookToken = record.hookToken;
 
-    const resumeResult = await Result.tryPromise({
-      try: () => options.approvalProcess.resumeApproval(hookToken, input),
-      catch: (cause) =>
-        new RegistrationApprovalProcessError({
-          operation: "resume_approval",
-          cause,
-        }),
-    });
+    const resumeResult = await options.approvalProcess.resumeApproval(
+      hookToken,
+      input
+    );
 
     if (resumeResult.isErr()) {
-      return resumeResult;
+      return Result.err(resumeResult.error);
     }
 
     return Result.ok({

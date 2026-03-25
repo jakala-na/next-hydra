@@ -1,9 +1,5 @@
 import { Result } from "better-result";
-import {
-  RegistrationNotFoundError,
-  type RegistrationResult,
-  RegistrationStoreError,
-} from "../domain/errors";
+import type { RegistrationResult } from "../domain/errors";
 import type { RegistrationStorePort } from "../domain/ports";
 import {
   type GetRegistrationInput,
@@ -19,24 +15,12 @@ export function createGetRegistration(options: CreateGetRegistrationOptions) {
   return async function getRegistration(
     input: GetRegistrationInput
   ): Promise<RegistrationResult<RegistrationDetail>> {
-    const recordResult = await Result.tryPromise({
-      try: () =>
-        options.registrations.getRegistrationRecord(input.registrationId),
-      catch: (cause) =>
-        new RegistrationStoreError({
-          operation: "get_registration_record",
-          cause,
-        }),
-    });
+    const recordResult = await options.registrations.getRegistrationRecord(
+      input.registrationId
+    );
 
     if (recordResult.isErr()) {
-      return recordResult;
-    }
-
-    if (!recordResult.value) {
-      return Result.err(
-        new RegistrationNotFoundError({ registrationId: input.registrationId })
-      );
+      return Result.err(recordResult.error);
     }
 
     return Result.ok(toRegistrationDetail(recordResult.value));

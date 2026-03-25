@@ -1,8 +1,5 @@
 import { Result } from "better-result";
-import {
-  type RegistrationResult,
-  RegistrationStoreError,
-} from "../domain/errors";
+import type { RegistrationResult } from "../domain/errors";
 import type { RegistrationStorePort } from "../domain/ports";
 import type {
   ListRegistrationsInput,
@@ -75,18 +72,11 @@ export function createListRegistrations(
   return async function listRegistrations(
     input: ListRegistrationsInput
   ): Promise<RegistrationResult<ListRegistrationsResult>> {
-    const recordsResult = await Result.tryPromise({
-      try: () =>
-        options.registrations.listRegistrationRecords(MAX_CURSOR_WINDOW),
-      catch: (cause) =>
-        new RegistrationStoreError({
-          operation: "list_registration_records",
-          cause,
-        }),
-    });
+    const recordsResult =
+      await options.registrations.listRegistrationRecords(MAX_CURSOR_WINDOW);
 
     if (recordsResult.isErr()) {
-      return recordsResult;
+      return Result.err(recordsResult.error);
     }
 
     const limit = input.limit ?? DEFAULT_LIST_LIMIT;
