@@ -23,6 +23,7 @@ vi.mock("@repo/observability/log", () => ({
 
 vi.mock("../env", () => ({
   env: {
+    WORKOS_API_KEY: "sk_test_123",
     WORKOS_WEBHOOK_SECRET: "workos-test-secret",
   },
 }));
@@ -114,7 +115,7 @@ test("accepted invitation events require an accepted user id", async () => {
     createWebhookRequest({
       event: "invitation.accepted",
       id: "evt_123",
-      data: { id: "inv_123" },
+      data: { id: "inv_123", acceptedUserId: null },
     })
   );
 

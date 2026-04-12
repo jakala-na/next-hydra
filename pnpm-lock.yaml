@@ -87,6 +87,9 @@ importers:
       '@t3-oss/env-nextjs':
         specifier: ^0.13.4
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
+      '@workos-inc/node':
+        specifier: ^8.12.1
+        version: 8.12.1
       better-result:
         specifier: 2.7.0
         version: 2.7.0
@@ -6214,6 +6217,10 @@ packages:
     resolution: {integrity: sha512-8h6XjIJf8nqNGYQMkWsjZ72WXMtzqrb4Azz39schXWoSRmwoK6tK+GpeAviJ9slddiJdOcp0Ht9/r+L6pGQMCg==}
     engines: {node: '>=16'}
 
+  '@workos-inc/node@8.12.1':
+    resolution: {integrity: sha512-jOYaZACPGb4o1QYvy7NbbBBaDhGUitU6oH//vSYWMh3p2Le5yOt4Q01RQPl78fUKjG7CVtGhVcLi4QLB1+cAtA==}
+    engines: {node: '>=20.15.0'}
+
   '@xhmikosr/archive-type@7.1.0':
     resolution: {integrity: sha512-xZEpnGplg1sNPyEgFh0zbHxqlw5dtYg6viplmWSxUj12+QjU9SKu3U/2G73a15pEjLaOqTefNSZ1fOPUOT4Xgg==}
     engines: {node: '>=18'}
@@ -7570,8 +7577,8 @@ packages:
   eventemitter3@4.0.7:
     resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
 
-  eventemitter3@5.0.1:
-    resolution: {integrity: sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA==}
+  eventemitter3@5.0.4:
+    resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
 
   events-universal@1.0.1:
     resolution: {integrity: sha512-LUd5euvbMLpwOF8m6ivPCbhQeSiYVNb8Vs0fQ8QjXo0JTkEHpz8pxdQf0gStltaPpw0Cca8b39KxvK9cfKRiAw==}
@@ -17403,6 +17410,10 @@ snapshots:
       - koa
       - next
 
+  '@workos-inc/node@8.12.1':
+    dependencies:
+      eventemitter3: 5.0.4
+
   '@xhmikosr/archive-type@7.1.0':
     dependencies:
       file-type: 20.5.0
@@ -18809,7 +18820,7 @@ snapshots:
 
   eventemitter3@4.0.7: {}
 
-  eventemitter3@5.0.1: {}
+  eventemitter3@5.0.4: {}
 
   events-universal@1.0.1:
     dependencies:
@@ -20075,7 +20086,7 @@ snapshots:
     dependencies:
       cli-truncate: 5.1.1
       colorette: 2.0.20
-      eventemitter3: 5.0.1
+      eventemitter3: 5.0.4
       log-update: 6.1.0
       rfdc: 1.4.1
       wrap-ansi: 9.0.2
