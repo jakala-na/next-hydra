@@ -1,40 +1,20 @@
-import { ORPCError, os } from "@orpc/server";
-import type { RegistrationRemoteClient } from "./create-registration-procedures";
-import {
-  type RegistrationErrorCode,
-  type RegistrationErrorDataMap,
-  registrationSubmitErrorMap,
-} from "./error-codes";
+import { safe } from "@orpc/client";
+import { os } from "@orpc/server";
 import {
   registrationInputSchema,
   startRegistrationResultSchema,
-} from "./schemas";
+} from "../domain/schemas";
+import type { RegistrationRemoteClient } from "./create-registration-procedures";
+import { registrationSubmitErrorMap } from "./error-codes";
 
 type RegistrationSubmitExecutor = Pick<RegistrationRemoteClient, "submit">;
-
-const getCauseMetadata = (cause: unknown) =>
-  cause instanceof Error
-    ? {
-        causeName: cause.name,
-        causeMessage: cause.message,
-      }
-    : {};
-
-const toActionableError = (error: unknown): never => {
-  if (error instanceof ORPCError) {
-    throw error;
-  }
-
-  throw new ORPCError("REGISTRATION_INTERNAL", {
-    data: { operation: "submit", ...getCauseMetadata(error) },
-    message: "Registration submit bridge failed",
-    status: 500,
-    cause: error,
-  });
+type CreateRegistrationActionablesOptions = {
+  executor: RegistrationSubmitExecutor;
+  rpcUrl?: string;
 };
 
 export function createRegistrationActionables(
-  executor: RegistrationSubmitExecutor
+  options: CreateRegistrationActionablesOptions
 ) {
   return {
     submit: os
@@ -42,16 +22,13 @@ export function createRegistrationActionables(
       .errors(registrationSubmitErrorMap)
       .output(startRegistrationResultSchema)
       .handler(async ({ input }) => {
-        try {
-          return await executor.submit(input);
-        } catch (error) {
-          return toActionableError(
-            error as ORPCError<
-              RegistrationErrorCode,
-              RegistrationErrorDataMap[keyof RegistrationErrorDataMap]
-            >
-          );
+        const [error, data] = await safe(options.executor.submit(input));
+
+        if (!error) {
+          return data;
         }
+
+        throw error;
       })
       .actionable(),
   };

@@ -30,13 +30,17 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { decideRegistration } from "@/lib/admin-registration-actionables";
+import {
+  canDecideRegistration,
+  getRegistrationDecisionConflictMessage,
+  getRegistrationDecisionUnavailableMessage,
+} from "./registration-lifecycle";
 import { RegistrationStatusBadge } from "./registration-status-badge";
 
 const decisionFormSchema = z.object({
   reason: z
     .string()
     .trim()
-    .min(3, "Please add a short reason.")
     .max(
       REGISTRATION_FIELD_LIMITS.approvalReason,
       `Keep the reason under ${REGISTRATION_FIELD_LIMITS.approvalReason} characters.`
@@ -100,8 +104,8 @@ export function RegistrationDecisionSheet({
         setActiveDecision(null);
         toast.success(`Registration ${outcome}.`, {
           description:
-            result.status === "resumed"
-              ? "The workflow resumed and the dashboard will refresh."
+            result.status === "approval_processing"
+              ? "The decision is processing and the dashboard will refresh."
               : undefined,
         });
         router.replace(closeHref as Route);
@@ -116,7 +120,7 @@ export function RegistrationDecisionSheet({
           switch (definedError.code) {
             case "REGISTRATION_CONFLICT":
               setSubmitError(
-                "This registration is no longer waiting for approval."
+                getRegistrationDecisionConflictMessage(definedError.data.reason)
               );
               return;
             case "REGISTRATION_NOT_FOUND":
@@ -136,8 +140,12 @@ export function RegistrationDecisionSheet({
     return null;
   }
 
-  const isPending = registration.status === "pending";
+  const canSubmitDecision =
+    canDecide && canDecideRegistration(registration.status);
   const isSubmitting = status === "pending";
+  const decisionUnavailableMessage = getRegistrationDecisionUnavailableMessage(
+    registration.status
+  );
 
   const handleSubmitDecision =
     (decision: "approved" | "rejected"): SubmitHandler<DecisionFormValues> =>
@@ -298,7 +306,7 @@ export function RegistrationDecisionSheet({
                       <FormControl>
                         <Textarea
                           {...field}
-                          disabled={!(canDecide && isPending) || isSubmitting}
+                          disabled={!canSubmitDecision || isSubmitting}
                           placeholder="Summarize why this registration should be approved or rejected."
                           rows={6}
                         />
@@ -316,7 +324,7 @@ export function RegistrationDecisionSheet({
 
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                   <Button
-                    disabled={!(canDecide && isPending) || isSubmitting}
+                    disabled={!canSubmitDecision || isSubmitting}
                     onClick={() => submitDecision("rejected")}
                     type="button"
                     variant="outline"
@@ -324,7 +332,7 @@ export function RegistrationDecisionSheet({
                     {isSubmitting ? "Saving..." : "Reject registration"}
                   </Button>
                   <Button
-                    disabled={!(canDecide && isPending) || isSubmitting}
+                    disabled={!canSubmitDecision || isSubmitting}
                     onClick={() => submitDecision("approved")}
                     type="button"
                   >
@@ -332,12 +340,11 @@ export function RegistrationDecisionSheet({
                   </Button>
                 </div>
 
-                {isPending ? null : (
+                {decisionUnavailableMessage ? (
                   <p className="text-muted-foreground text-sm">
-                    This registration is already finalized and cannot be updated
-                    from the dashboard.
+                    {decisionUnavailableMessage}
                   </p>
-                )}
+                ) : null}
               </form>
             </Form>
           </section>

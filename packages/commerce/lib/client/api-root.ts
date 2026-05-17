@@ -73,7 +73,23 @@ const ctpClient = new ClientBuilder()
   // .withLoggerMiddleware() // TODO: Uncomment this when we have a logger
   .build();
 
+const ctpClientWithoutConcurrentModificationRetry = new ClientBuilder()
+  .withProjectKey(projectKey)
+  .withClientCredentialsFlow(authMiddlewareOptions)
+  .withHttpMiddleware(httpMiddlewareOptions)
+  .build();
+
 // --- Create the API Root ---
 export const apiRoot = createApiBuilderFromCtpClient(ctpClient).withProjectKey({
   projectKey,
 });
+
+// Temporary escape hatch for state-machine writes where a concurrent modification
+// is a meaningful conflict, not a retryable transport detail. Revisit the shared
+// apiRoot retry policy later and prefer explicit per-action retry composition.
+export const apiRootWithoutConcurrentModificationRetry =
+  createApiBuilderFromCtpClient(
+    ctpClientWithoutConcurrentModificationRetry
+  ).withProjectKey({
+    projectKey,
+  });

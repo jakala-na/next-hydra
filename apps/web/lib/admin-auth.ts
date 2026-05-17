@@ -31,6 +31,12 @@ export async function getAdminActor() {
   const session = await requireAdminPermission(
     ADMIN_REGISTRATION_DECIDE_PERMISSION
   );
+  const actorEmail = session.user.email;
+
+  if (!actorEmail) {
+    throw new Error("Admin actor is missing email");
+  }
+
   const actorName = [session.user.firstName, session.user.lastName]
     .filter(
       (value): value is string => typeof value === "string" && value.length > 0
@@ -38,7 +44,7 @@ export async function getAdminActor() {
     .join(" ");
 
   return {
-    actorEmail: session.user.email ?? undefined,
-    actorName: actorName || session.user.email || undefined,
+    actorEmail,
+    actorName,
   };
 }

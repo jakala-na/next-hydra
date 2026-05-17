@@ -1,21 +1,17 @@
 import { Badge } from "@repo/design-system/components/ui/badge";
 import type { RegistrationStatus } from "@repo/registration/domain/types";
-
-const statusLabelMap: Record<RegistrationStatus, string> = {
-  pending: "Pending",
-  approved: "Approved",
-  rejected: "Rejected",
-  workflow_start_failed: "Workflow failed",
-};
+import { registrationStatusLabels } from "./registration-lifecycle";
 
 const statusVariantMap: Record<
   RegistrationStatus,
   "default" | "secondary" | "destructive" | "outline"
 > = {
-  pending: "secondary",
+  submitted: "secondary",
+  awaiting_approval: "secondary",
+  approval_processing: "outline",
+  submission_incomplete: "outline",
   approved: "default",
   rejected: "destructive",
-  workflow_start_failed: "outline",
 };
 
 export function RegistrationStatusBadge({
@@ -24,6 +20,8 @@ export function RegistrationStatusBadge({
   status: RegistrationStatus;
 }) {
   return (
-    <Badge variant={statusVariantMap[status]}>{statusLabelMap[status]}</Badge>
+    <Badge variant={statusVariantMap[status]}>
+      {registrationStatusLabels[status]}
+    </Badge>
   );
 }

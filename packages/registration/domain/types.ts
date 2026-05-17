@@ -17,17 +17,17 @@ export const requiresRegion = (country: string) =>
 
 export type CompanyAddress = {
   streetName: string;
-  additionalStreetInfo?: string;
+  additionalStreetInfo: string;
   postalCode: string;
   city: string;
-  region?: string;
+  region: string;
   country: string;
 };
 
 export type RegistrationInput = {
   companyName: string;
-  companyPhone?: string;
-  vatId?: string;
+  companyPhone: string;
+  vatId: string;
   contactFirstName: string;
   contactLastName: string;
   email: string;
@@ -41,15 +41,17 @@ export type RegistrationWorkflowInput = RegistrationInput & {
 export type RegistrationApprovalDecision = {
   decision: "approved" | "rejected";
   reason?: string;
-  actorEmail?: string;
-  actorName?: string;
+  actorEmail: string;
+  actorName: string;
 };
 
 export type RegistrationStatus =
-  | "pending"
+  | "submitted"
+  | "awaiting_approval"
+  | "approval_processing"
+  | "submission_incomplete"
   | "approved"
-  | "rejected"
-  | "workflow_start_failed";
+  | "rejected";
 
 export type InvitationState = "pending" | "accepted" | "revoked";
 
@@ -73,9 +75,16 @@ export type RegistrationRecord = RegistrationWorkflowInput & {
   updatedAt: string;
   approvedAt?: string;
   rejectedAt?: string;
+  approvalDecision?: RegistrationApprovalDecision["decision"];
   approvalReason?: string;
   actorEmail?: string;
   actorName?: string;
+  decisionSubmittedAt?: string;
+};
+
+export type VersionedRegistrationRecord = {
+  record: RegistrationRecord;
+  version: number;
 };
 
 export type RegistrationDetail = Omit<
@@ -105,7 +114,7 @@ export const toRegistrationDetail = (
 export type StartRegistrationResult = {
   registrationId: string;
   runId: string;
-  status: "pending";
+  status: "submitted";
 };
 
 export type GetRegistrationInput = {
@@ -130,6 +139,6 @@ export type DecideRegistrationInput = RegistrationApprovalDecision & {
 
 export type DecideRegistrationResult = {
   registrationId: string;
-  status: "approved" | "rejected" | "resumed";
+  status: "approval_processing" | "approved" | "rejected";
   idempotent?: boolean;
 };

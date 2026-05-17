@@ -30,6 +30,10 @@ import { formatDistanceToNowStrict } from "date-fns";
 import type { Route } from "next";
 import Link from "next/link";
 import { RegistrationDecisionSheet } from "@/components/admin/registration-decision-sheet";
+import {
+  registrationStatusFilters,
+  registrationStatusLabels,
+} from "@/components/admin/registration-lifecycle";
 import { RegistrationStatusBadge } from "@/components/admin/registration-status-badge";
 import {
   ADMIN_REGISTRATION_DECIDE_PERMISSION,
@@ -44,11 +48,14 @@ import {
 type AdminSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const PAGE_SIZE = 20;
-const statusOptions = ["pending", "approved", "rejected"] as const;
-
-const isStatus = (value?: string): value is (typeof statusOptions)[number] =>
+const isStatus = (
+  value?: string
+): value is (typeof registrationStatusFilters)[number] =>
   Boolean(
-    value && statusOptions.includes(value as (typeof statusOptions)[number])
+    value &&
+      registrationStatusFilters.includes(
+        value as (typeof registrationStatusFilters)[number]
+      )
   );
 
 const getSingleParam = (
@@ -146,7 +153,7 @@ export default async function AdminRegistrationsPage({
     getSingleParam(params.cursorStack)
       ?.split(".")
       .filter((value) => value.length > 0) ?? [];
-  const status = isStatus(rawStatus) ? rawStatus : "pending";
+  const status = isStatus(rawStatus) ? rawStatus : "submitted";
   const search = rawSearch && rawSearch.length > 0 ? rawSearch : undefined;
   const canDecide =
     session.permissions?.includes(ADMIN_REGISTRATION_DECIDE_PERMISSION) ??
@@ -234,7 +241,7 @@ export default async function AdminRegistrationsPage({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {statusOptions.map((option) => {
+            {registrationStatusFilters.map((option) => {
               const href = buildAdminHref({
                 status: option,
                 search,
@@ -247,8 +254,7 @@ export default async function AdminRegistrationsPage({
                   variant={option === status ? "default" : "outline"}
                 >
                   <Link href={href as Route}>
-                    {option.charAt(0).toUpperCase()}
-                    {option.slice(1)}
+                    {registrationStatusLabels[option]}
                   </Link>
                 </Button>
               );

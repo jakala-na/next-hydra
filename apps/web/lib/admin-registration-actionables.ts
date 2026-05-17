@@ -1,38 +1,14 @@
 "use server";
 
+import { safe } from "@orpc/client";
 import { ORPCError, os } from "@orpc/server";
-import type {
-  RegistrationErrorCode,
-  RegistrationErrorDataMap,
-} from "@repo/registration/orpc/error-codes";
-import { registrationDecideErrorMap } from "@repo/registration/orpc/error-codes";
 import {
   decideRegistrationInputSchema,
   decideRegistrationResultSchema,
-} from "@repo/registration/orpc/schemas";
+} from "@repo/registration/domain/schemas";
+import { registrationDecideErrorMap } from "@repo/registration/orpc/error-codes";
 import { getAdminActor } from "@/lib/admin-auth";
 import { adminRegistrationClient } from "@/lib/orpc/admin-registration-client";
-
-const getCauseMetadata = (cause: unknown) =>
-  cause instanceof Error
-    ? {
-        causeName: cause.name,
-        causeMessage: cause.message,
-      }
-    : {};
-
-const toActionableError = (error: unknown): never => {
-  if (error instanceof ORPCError) {
-    throw error;
-  }
-
-  throw new ORPCError("REGISTRATION_INTERNAL", {
-    data: { operation: "decide", ...getCauseMetadata(error) },
-    message: "Registration decision bridge failed",
-    status: 500,
-    cause: error,
-  });
-};
 
 export const decideRegistration = os
   .input(
@@ -42,19 +18,26 @@ export const decideRegistration = os
   .output(decideRegistrationResultSchema)
   .handler(async ({ input }) => {
     const actor = await getAdminActor();
-
-    try {
-      return await adminRegistrationClient.decide({
+    const [error, data] = await safe(
+      adminRegistrationClient.decide({
         ...input,
         ...actor,
-      });
-    } catch (error) {
-      return toActionableError(
-        error as ORPCError<
-          RegistrationErrorCode,
-          RegistrationErrorDataMap[keyof RegistrationErrorDataMap]
-        >
-      );
+      })
+    );
+
+    if (!error) {
+      return data;
     }
+
+    if (
+      error instanceof ORPCError &&
+      (error.code === "UNAUTHORIZED" ||
+        error.code === "REGISTRATION_NOT_FOUND" ||
+        error.code === "REGISTRATION_CONFLICT")
+    ) {
+      throw error;
+    }
+
+    throw error;
   })
   .actionable();

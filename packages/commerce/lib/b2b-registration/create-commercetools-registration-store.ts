@@ -4,6 +4,7 @@ import {
 } from "@repo/registration/domain/errors";
 import type { RegistrationStorePort } from "@repo/registration/domain/ports";
 import type {
+  RegistrationApprovalDecision,
   RegistrationRecord,
   RegistrationWorkflowInput,
 } from "@repo/registration/domain/types";
@@ -12,7 +13,8 @@ import {
   createPendingRegistrationRecord as createPendingRegistrationRecordInStore,
   getRegistrationRecord as getRegistrationRecordFromStore,
   listRegistrationRecords as listRegistrationRecordsFromStore,
-  markRegistrationWorkflowStartFailed as markRegistrationWorkflowStartFailedInStore,
+  markRegistrationApprovalProcessing as markRegistrationApprovalProcessingInStore,
+  markRegistrationSubmissionIncomplete as markRegistrationSubmissionIncompleteInStore,
 } from "./service";
 
 type CommercetoolsRegistrationStoreDependencies = {
@@ -23,9 +25,12 @@ type CommercetoolsRegistrationStoreDependencies = {
     registrationId: string
   ): Promise<RegistrationRecord | null>;
   listRegistrationRecords(limit: number): Promise<RegistrationRecord[]>;
-  markRegistrationWorkflowStartFailed(
-    input: RegistrationWorkflowInput,
-    reason?: string
+  markRegistrationApprovalProcessing(
+    registrationId: string,
+    approval: RegistrationApprovalDecision
+  ): Promise<RegistrationRecord>;
+  markRegistrationSubmissionIncomplete(
+    input: RegistrationWorkflowInput
   ): Promise<RegistrationRecord>;
 };
 
@@ -33,8 +38,9 @@ const defaultDependencies: CommercetoolsRegistrationStoreDependencies = {
   createPendingRegistrationRecord: createPendingRegistrationRecordInStore,
   getRegistrationRecord: getRegistrationRecordFromStore,
   listRegistrationRecords: listRegistrationRecordsFromStore,
-  markRegistrationWorkflowStartFailed:
-    markRegistrationWorkflowStartFailedInStore,
+  markRegistrationApprovalProcessing: markRegistrationApprovalProcessingInStore,
+  markRegistrationSubmissionIncomplete:
+    markRegistrationSubmissionIncompleteInStore,
 };
 
 export function createCommercetoolsRegistrationStore(
@@ -83,13 +89,26 @@ export function createCommercetoolsRegistrationStore(
           }),
       });
     },
-    markRegistrationWorkflowStartFailed(input, reason) {
+    markRegistrationApprovalProcessing(registrationId, approval) {
       return Result.tryPromise({
         try: () =>
-          dependencies.markRegistrationWorkflowStartFailed(input, reason),
+          dependencies.markRegistrationApprovalProcessing(
+            registrationId,
+            approval
+          ),
         catch: (cause: unknown): RegistrationStoreError =>
           new RegistrationStoreError({
-            operation: "mark_registration_workflow_start_failed",
+            operation: "mark_registration_approval_processing",
+            cause,
+          }),
+      });
+    },
+    markRegistrationSubmissionIncomplete(input) {
+      return Result.tryPromise({
+        try: () => dependencies.markRegistrationSubmissionIncomplete(input),
+        catch: (cause: unknown): RegistrationStoreError =>
+          new RegistrationStoreError({
+            operation: "mark_registration_submission_incomplete",
             cause,
           }),
       });

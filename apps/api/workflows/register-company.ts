@@ -68,10 +68,9 @@ export async function registerCompanyWorkflow(
   "use workflow";
 
   try {
-    await notifyAwaitingApproval(input);
-
     const approvalHook = createHook<RegistrationApprovalDecision>();
     await persistHookToken(input.registrationId, approvalHook.token);
+    await notifyAwaitingApproval(input);
 
     const approval = await approvalHook;
     if (approval.decision === "rejected") {

@@ -7,13 +7,18 @@ import type {
   CustomObject,
 } from "@commercetools/platform-sdk";
 import { log } from "@repo/observability/log";
+import { registrationRecordSchema } from "@repo/registration/domain/schemas";
 import type {
   InvitationState,
   RegistrationApprovalDecision,
   RegistrationRecord,
   RegistrationWorkflowInput,
+  VersionedRegistrationRecord,
 } from "@repo/registration/domain/types";
-import { apiRoot } from "../client/api-root";
+import {
+  apiRoot,
+  apiRootWithoutConcurrentModificationRetry,
+} from "../client/api-root";
 
 const ISO_NOW = () => new Date().toISOString();
 
@@ -26,11 +31,18 @@ const createBusinessUnitKey = (registrationId: string) =>
 const REGISTRATION_BY_ID_CONTAINER = "b2b-registration-by-id";
 const NOT_FOUND_STATUS_CODE = 404;
 
+const toVersionedRegistrationRecord = (
+  customObject: CustomObject,
+): VersionedRegistrationRecord => ({
+  record: registrationRecordSchema.parse(customObject.value),
+  version: customObject.version,
+});
+
 export const shouldIgnoreInvitationRevocation = (
-  record: Pick<RegistrationRecord, "userId" | "authEmail" | "invitationState">
+  record: Pick<RegistrationRecord, "userId" | "authEmail" | "invitationState">,
 ) =>
   Boolean(
-    record.userId || record.authEmail || record.invitationState === "accepted"
+    record.userId || record.authEmail || record.invitationState === "accepted",
   );
 
 const isNotFoundError = (error: unknown) =>
@@ -41,7 +53,7 @@ const isNotFoundError = (error: unknown) =>
 
 async function getCustomObject(
   container: string,
-  key: string
+  key: string,
 ): Promise<CustomObject | null> {
   try {
     const response = await apiRoot
@@ -59,16 +71,46 @@ async function getCustomObject(
   }
 }
 
+const getRegistrationRecordParseMetadata = (customObject: CustomObject) => ({
+  container: customObject.container,
+  key: customObject.key,
+  id: customObject.id,
+  version: customObject.version,
+});
+
 async function queryRegistrationRecord(
-  where: string
+  where: string,
 ): Promise<RegistrationRecord | null> {
   const records = await queryRegistrationRecords(where, 1);
   return records[0] ?? null;
 }
 
+async function queryVersionedRegistrationRecord(
+  where: string,
+): Promise<VersionedRegistrationRecord | null> {
+  const response = await apiRoot
+    .customObjects()
+    .withContainer({ container: REGISTRATION_BY_ID_CONTAINER })
+    .get({
+      queryArgs: {
+        limit: 1,
+        where,
+        withTotal: false,
+      },
+    })
+    .execute();
+  const customObject = response.body.results[0];
+
+  if (!customObject) {
+    return null;
+  }
+
+  return toVersionedRegistrationRecord(customObject);
+}
+
 async function queryRegistrationRecords(
   where?: string,
-  limit = 20
+  limit = 20,
 ): Promise<RegistrationRecord[]> {
   const response = await apiRoot
     .customObjects()
@@ -82,26 +124,56 @@ async function queryRegistrationRecords(
     })
     .execute();
 
-  return response.body.results
-    .map((result) => result.value as RegistrationRecord)
-    .sort(
-      (left, right) =>
-        right.updatedAt.localeCompare(left.updatedAt) ||
-        right.createdAt.localeCompare(left.createdAt)
-    );
+  const records: RegistrationRecord[] = [];
+
+  for (const result of response.body.results) {
+    const parsed = registrationRecordSchema.safeParse(result.value);
+
+    if (parsed.success) {
+      records.push(parsed.data);
+      continue;
+    }
+
+    log.warn("Ignoring invalid registration record in list query", {
+      ...getRegistrationRecordParseMetadata(result),
+      issues: parsed.error.issues.map((issue) => ({
+        path: issue.path,
+        code: issue.code,
+        message: issue.message,
+      })),
+    });
+  }
+
+  return records.sort(
+    (left, right) =>
+      right.updatedAt.localeCompare(left.updatedAt) ||
+      right.createdAt.localeCompare(left.createdAt),
+  );
 }
 
 async function upsertCustomObject(
   container: string,
   key: string,
-  value: unknown
+  value: unknown,
+  options: {
+    version?: number;
+    retryOnConcurrentModification?: boolean;
+  } = {},
 ): Promise<void> {
-  await apiRoot
+  const root =
+    options.retryOnConcurrentModification === false
+      ? apiRootWithoutConcurrentModificationRetry
+      : apiRoot;
+
+  await root
     .customObjects()
     .post({
       body: {
         container,
         key,
+        ...(typeof options.version === "number"
+          ? { version: options.version }
+          : {}),
         value,
       },
     })
@@ -138,76 +210,123 @@ async function getBusinessUnitByKey(key: string): Promise<BusinessUnit | null> {
   }
 }
 
-export async function saveRegistrationRecord(
-  record: RegistrationRecord
+async function saveRegistrationRecord(
+  record: RegistrationRecord,
 ): Promise<void> {
+  const value = registrationRecordSchema.parse(record);
+
   await upsertCustomObject(
     REGISTRATION_BY_ID_CONTAINER,
-    record.registrationId,
-    record
+    value.registrationId,
+    value,
   );
+}
+
+export async function updateRegistrationRecord(
+  versionedRecord: VersionedRegistrationRecord,
+): Promise<RegistrationRecord> {
+  if (
+    !Number.isInteger(versionedRecord.version) ||
+    versionedRecord.version < 1
+  ) {
+    throw new Error("Registration record update requires a version");
+  }
+
+  const value = registrationRecordSchema.parse(versionedRecord.record);
+
+  await upsertCustomObject(
+    REGISTRATION_BY_ID_CONTAINER,
+    value.registrationId,
+    value,
+    {
+      retryOnConcurrentModification: false,
+      version: versionedRecord.version,
+    },
+  );
+
+  return value;
+}
+
+async function getVersionedRegistrationRecord(
+  registrationId: string,
+): Promise<VersionedRegistrationRecord | null> {
+  const customObject = await getCustomObject(
+    REGISTRATION_BY_ID_CONTAINER,
+    registrationId,
+  );
+
+  if (!customObject) {
+    return null;
+  }
+
+  return toVersionedRegistrationRecord(customObject);
 }
 
 export async function getRegistrationRecord(
-  registrationId: string
+  registrationId: string,
 ): Promise<RegistrationRecord | null> {
   const customObject = await getCustomObject(
     REGISTRATION_BY_ID_CONTAINER,
-    registrationId
+    registrationId,
   );
 
-  return (customObject?.value as RegistrationRecord | undefined) ?? null;
+  return customObject
+    ? registrationRecordSchema.parse(customObject.value)
+    : null;
 }
 
 export function getRegistrationRecordByUserId(
-  userId: string
+  userId: string,
 ): Promise<RegistrationRecord | null> {
   return queryRegistrationRecord(`value(userId = ${JSON.stringify(userId)})`);
 }
 
 export function getRegistrationRecordByInvitationId(
-  invitationId: string
+  invitationId: string,
 ): Promise<RegistrationRecord | null> {
   return queryRegistrationRecord(
-    `value(invitationId = ${JSON.stringify(invitationId)})`
+    `value(invitationId = ${JSON.stringify(invitationId)})`,
   );
 }
 
 export async function getLatestRegistrationRecordByAuthEmail(
-  email: string
+  email: string,
 ): Promise<RegistrationRecord | null> {
   const records = await queryRegistrationRecords(
-    `value(authEmail = ${JSON.stringify(email)})`
+    `value(authEmail = ${JSON.stringify(email)})`,
   );
   return records[0] ?? null;
 }
 
 export function listRegistrationRecords(
-  limit = 100
+  limit = 100,
 ): Promise<RegistrationRecord[]> {
   return queryRegistrationRecords(undefined, limit);
 }
 
-export async function markRegistrationWorkflowStartFailed(
+export async function markRegistrationSubmissionIncomplete(
   input: RegistrationWorkflowInput,
-  reason?: string
 ): Promise<RegistrationRecord> {
+  const record = await getVersionedRegistrationRecord(input.registrationId);
+
+  if (!record) {
+    throw new Error(`Registration ${input.registrationId} not found`);
+  }
+
   const now = ISO_NOW();
-  const record: RegistrationRecord = {
-    ...input,
-    status: "workflow_start_failed",
-    createdAt: now,
-    updatedAt: now,
-    approvalReason: reason,
-  };
-
-  await saveRegistrationRecord(record);
-
-  return record;
+  return updateRegistrationRecord({
+    record: {
+      ...record.record,
+      ...input,
+      status: "submission_incomplete",
+      updatedAt: now,
+    },
+    version: record.version,
+  });
 }
 
 export async function createPendingRegistrationRecord(
-  input: RegistrationWorkflowInput
+  input: RegistrationWorkflowInput,
 ): Promise<RegistrationRecord> {
   const existing = await getRegistrationRecord(input.registrationId);
 
@@ -218,7 +337,7 @@ export async function createPendingRegistrationRecord(
   const now = ISO_NOW();
   const record: RegistrationRecord = {
     ...input,
-    status: "pending",
+    status: "submitted",
     createdAt: now,
     updatedAt: now,
   };
@@ -229,13 +348,16 @@ export async function createPendingRegistrationRecord(
 }
 
 export async function createPendingCustomerAndBusinessUnit(
-  input: RegistrationWorkflowInput
+  input: RegistrationWorkflowInput,
 ): Promise<RegistrationRecord> {
-  const existingRecord = await getRegistrationRecord(input.registrationId);
+  const existingRecord = await getVersionedRegistrationRecord(
+    input.registrationId,
+  );
   const customerKey =
-    existingRecord?.customerKey ?? createCustomerKey(input.registrationId);
+    existingRecord?.record.customerKey ??
+    createCustomerKey(input.registrationId);
   const businessUnitKey =
-    existingRecord?.businessUnitKey ??
+    existingRecord?.record.businessUnitKey ??
     createBusinessUnitKey(input.registrationId);
 
   let customer = await getCustomerByKey(customerKey);
@@ -305,33 +427,42 @@ export async function createPendingCustomerAndBusinessUnit(
 
   const now = ISO_NOW();
   const record: RegistrationRecord = {
-    ...(existingRecord ?? {
+    ...(existingRecord?.record ?? {
       ...input,
       createdAt: now,
     }),
     ...input,
-    status: existingRecord?.status ?? "pending",
+    status: existingRecord?.record.status ?? "submitted",
     customerId: customer.id,
     customerKey,
     businessUnitId: businessUnit.id,
     businessUnitKey,
     updatedAt: now,
-    userId: existingRecord?.userId,
-    authEmail: existingRecord?.authEmail,
-    authFirstName: existingRecord?.authFirstName,
-    authLastName: existingRecord?.authLastName,
-    invitationId: existingRecord?.invitationId,
-    invitationState: existingRecord?.invitationState,
-    invitationCreatedAt: existingRecord?.invitationCreatedAt,
-    invitationAcceptedAt: existingRecord?.invitationAcceptedAt,
-    identityLinkedAt: existingRecord?.identityLinkedAt,
-    hookToken: existingRecord?.hookToken,
-    approvedAt: existingRecord?.approvedAt,
-    rejectedAt: existingRecord?.rejectedAt,
-    approvalReason: existingRecord?.approvalReason,
-    actorEmail: existingRecord?.actorEmail,
-    actorName: existingRecord?.actorName,
+    userId: existingRecord?.record.userId,
+    authEmail: existingRecord?.record.authEmail,
+    authFirstName: existingRecord?.record.authFirstName,
+    authLastName: existingRecord?.record.authLastName,
+    invitationId: existingRecord?.record.invitationId,
+    invitationState: existingRecord?.record.invitationState,
+    invitationCreatedAt: existingRecord?.record.invitationCreatedAt,
+    invitationAcceptedAt: existingRecord?.record.invitationAcceptedAt,
+    identityLinkedAt: existingRecord?.record.identityLinkedAt,
+    hookToken: existingRecord?.record.hookToken,
+    approvedAt: existingRecord?.record.approvedAt,
+    rejectedAt: existingRecord?.record.rejectedAt,
+    approvalDecision: existingRecord?.record.approvalDecision,
+    approvalReason: existingRecord?.record.approvalReason,
+    actorEmail: existingRecord?.record.actorEmail,
+    actorName: existingRecord?.record.actorName,
+    decisionSubmittedAt: existingRecord?.record.decisionSubmittedAt,
   };
+
+  if (existingRecord) {
+    return updateRegistrationRecord({
+      record,
+      version: existingRecord.version,
+    });
+  }
 
   await saveRegistrationRecord(record);
 
@@ -340,23 +471,23 @@ export async function createPendingCustomerAndBusinessUnit(
 
 export async function saveRegistrationHookToken(
   registrationId: string,
-  hookToken: string
+  hookToken: string,
 ): Promise<RegistrationRecord> {
-  const record = await getRegistrationRecord(registrationId);
+  const record = await getVersionedRegistrationRecord(registrationId);
 
   if (!record) {
     throw new Error(`Registration ${registrationId} not found`);
   }
 
-  const updatedRecord: RegistrationRecord = {
-    ...record,
-    hookToken,
-    updatedAt: ISO_NOW(),
-  };
-
-  await saveRegistrationRecord(updatedRecord);
-
-  return updatedRecord;
+  return updateRegistrationRecord({
+    record: {
+      ...record.record,
+      hookToken,
+      status: "awaiting_approval",
+      updatedAt: ISO_NOW(),
+    },
+    version: record.version,
+  });
 }
 
 export async function saveRegistrationInvitation(
@@ -364,26 +495,51 @@ export async function saveRegistrationInvitation(
   invitation: {
     id: string;
     state?: InvitationState;
-  }
+  },
 ): Promise<RegistrationRecord> {
-  const record = await getRegistrationRecord(registrationId);
+  const record = await getVersionedRegistrationRecord(registrationId);
 
   if (!record) {
     throw new Error(`Registration ${registrationId} not found`);
   }
 
   const now = ISO_NOW();
-  const updatedRecord: RegistrationRecord = {
-    ...record,
-    invitationId: invitation.id,
-    invitationState: invitation.state ?? "pending",
-    invitationCreatedAt: record.invitationCreatedAt ?? now,
-    updatedAt: now,
-  };
+  return updateRegistrationRecord({
+    record: {
+      ...record.record,
+      invitationId: invitation.id,
+      invitationState: invitation.state ?? "pending",
+      invitationCreatedAt: record.record.invitationCreatedAt ?? now,
+      updatedAt: now,
+    },
+    version: record.version,
+  });
+}
 
-  await saveRegistrationRecord(updatedRecord);
+export async function markRegistrationApprovalProcessing(
+  registrationId: string,
+  approval: RegistrationApprovalDecision,
+): Promise<RegistrationRecord> {
+  const record = await getVersionedRegistrationRecord(registrationId);
 
-  return updatedRecord;
+  if (!record) {
+    throw new Error(`Registration ${registrationId} not found`);
+  }
+
+  const now = ISO_NOW();
+  return updateRegistrationRecord({
+    record: {
+      ...record.record,
+      status: "approval_processing",
+      approvalDecision: approval.decision,
+      approvalReason: approval.reason,
+      actorEmail: approval.actorEmail,
+      actorName: approval.actorName,
+      decisionSubmittedAt: now,
+      updatedAt: now,
+    },
+    version: record.version,
+  });
 }
 
 async function syncCustomerIdentity(
@@ -393,7 +549,7 @@ async function syncCustomerIdentity(
     email: string;
     firstName?: string;
     lastName?: string;
-  }
+  },
 ): Promise<void> {
   if (!record.customerId) {
     return;
@@ -466,119 +622,132 @@ export async function syncRegistrationIdentityFromInvitation(
     email: string;
     firstName?: string;
     lastName?: string;
-  }
+  },
 ): Promise<RegistrationRecord | null> {
-  const record = await getRegistrationRecordByInvitationId(invitationId);
+  const record = await queryVersionedRegistrationRecord(
+    `value(invitationId = ${JSON.stringify(invitationId)})`,
+  );
 
   if (!record) {
     return null;
   }
 
-  await syncCustomerIdentity(record, identity);
+  await syncCustomerIdentity(record.record, identity);
 
   const now = ISO_NOW();
-  const updatedRecord: RegistrationRecord = {
-    ...record,
-    userId: identity.userId,
-    authEmail: identity.email,
-    authFirstName: identity.firstName ?? record.authFirstName,
-    authLastName: identity.lastName ?? record.authLastName,
-    invitationState: "accepted",
-    invitationAcceptedAt: record.invitationAcceptedAt ?? now,
-    identityLinkedAt: now,
-    updatedAt: now,
-  };
-
-  await saveRegistrationRecord(updatedRecord);
-
-  return updatedRecord;
+  return updateRegistrationRecord({
+    record: {
+      ...record.record,
+      userId: identity.userId,
+      authEmail: identity.email,
+      authFirstName: identity.firstName ?? record.record.authFirstName,
+      authLastName: identity.lastName ?? record.record.authLastName,
+      invitationState: "accepted",
+      invitationAcceptedAt: record.record.invitationAcceptedAt ?? now,
+      identityLinkedAt: now,
+      updatedAt: now,
+    },
+    version: record.version,
+  });
 }
 
 export async function markRegistrationInvitationRevoked(
-  invitationId: string
+  invitationId: string,
 ): Promise<RegistrationRecord | null> {
-  const record = await getRegistrationRecordByInvitationId(invitationId);
+  const record = await queryVersionedRegistrationRecord(
+    `value(invitationId = ${JSON.stringify(invitationId)})`,
+  );
 
   if (!record) {
     return null;
   }
 
-  if (shouldIgnoreInvitationRevocation(record)) {
+  if (shouldIgnoreInvitationRevocation(record.record)) {
     log.error(
       "Received invitation.revoked for an already linked registration",
       {
-        registrationId: record.registrationId,
+        registrationId: record.record.registrationId,
         invitationId,
-        userId: record.userId,
-        authEmail: record.authEmail,
-        invitationState: record.invitationState,
-      }
+        userId: record.record.userId,
+        authEmail: record.record.authEmail,
+        invitationState: record.record.invitationState,
+      },
     );
-    return record;
+    return record.record;
   }
 
-  if (record.invitationState === "revoked") {
-    return record;
+  if (record.record.invitationState === "revoked") {
+    return record.record;
   }
 
-  const updatedRecord: RegistrationRecord = {
-    ...record,
-    invitationState: "revoked",
-    updatedAt: ISO_NOW(),
-  };
-
-  await saveRegistrationRecord(updatedRecord);
-
-  return updatedRecord;
+  return updateRegistrationRecord({
+    record: {
+      ...record.record,
+      invitationState: "revoked",
+      updatedAt: ISO_NOW(),
+    },
+    version: record.version,
+  });
 }
 
 export async function updateRegistrationApprovalStatus(
   registrationId: string,
-  approval: RegistrationApprovalDecision
+  approval: RegistrationApprovalDecision,
 ): Promise<RegistrationRecord> {
-  const record = await getRegistrationRecord(registrationId);
+  const record = await getVersionedRegistrationRecord(registrationId);
 
   if (!record) {
     throw new Error(`Registration ${registrationId} not found`);
   }
 
-  if (record.status === "approved" || record.status === "rejected") {
-    return record;
+  if (
+    record.record.status === "approved" ||
+    record.record.status === "rejected"
+  ) {
+    return record.record;
   }
 
   const now = ISO_NOW();
-  let nextRecord: RegistrationRecord = {
-    ...record,
-    status: approval.decision,
-    updatedAt: now,
-    approvalReason: approval.reason,
-    actorEmail: approval.actorEmail,
-    actorName: approval.actorName,
+  let nextRecord: VersionedRegistrationRecord = {
+    record: {
+      ...record.record,
+      status: approval.decision,
+      updatedAt: now,
+      approvalDecision: approval.decision,
+      approvalReason: approval.reason,
+      actorEmail: approval.actorEmail,
+      actorName: approval.actorName,
+      decisionSubmittedAt: record.record.decisionSubmittedAt,
+    },
+    version: record.version,
   };
 
   if (approval.decision === "approved") {
-    if (!record.invitationId) {
+    if (!record.record.invitationId) {
       throw new Error(
-        `Approved registration ${record.registrationId} is missing invitationId`
+        `Approved registration ${record.record.registrationId} is missing invitationId`,
       );
     }
 
     nextRecord = {
-      ...nextRecord,
-      approvedAt: now,
-      rejectedAt: undefined,
+      record: {
+        ...nextRecord.record,
+        approvedAt: now,
+        rejectedAt: undefined,
+      },
+      version: nextRecord.version,
     };
 
-    if (record.businessUnitId) {
+    if (record.record.businessUnitId) {
       const businessUnitResponse = await apiRoot
         .businessUnits()
-        .withId({ ID: record.businessUnitId })
+        .withId({ ID: record.record.businessUnitId })
         .get()
         .execute();
 
       await apiRoot
         .businessUnits()
-        .withId({ ID: record.businessUnitId })
+        .withId({ ID: record.record.businessUnitId })
         .post({
           body: {
             version: businessUnitResponse.body.version,
@@ -591,13 +760,14 @@ export async function updateRegistrationApprovalStatus(
 
   if (approval.decision === "rejected") {
     nextRecord = {
-      ...nextRecord,
-      rejectedAt: now,
-      approvedAt: undefined,
+      record: {
+        ...nextRecord.record,
+        rejectedAt: now,
+        approvedAt: undefined,
+      },
+      version: nextRecord.version,
     };
   }
 
-  await saveRegistrationRecord(nextRecord);
-
-  return nextRecord;
+  return updateRegistrationRecord(nextRecord);
 }

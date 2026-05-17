@@ -3,9 +3,14 @@ import { RPCLink } from "@orpc/client/fetch";
 import {
   RegistrationConflictError,
   RegistrationNotFoundError,
-  RegistrationSubmitFailedError,
-  RegistrationUnknownError,
+  RegistrationSubmissionIncompleteError,
 } from "@repo/registration/domain/errors";
+import {
+  registrationDecideErrorMap,
+  registrationGetErrorMap,
+  registrationListErrorMap,
+  registrationSubmitErrorMap,
+} from "@repo/registration/orpc/error-codes";
 import type { RegistrationRemoteClient } from "@repo/registration/orpc/types";
 import { beforeEach, expect, test, vi } from "vitest";
 
@@ -75,23 +80,42 @@ beforeEach(() => {
   decideRegistration.mockReset();
 });
 
-test("submit procedure returns the pending workflow result", async () => {
+test("registration procedure error maps expose only known domain and boundary errors", () => {
+  expect(Object.keys(registrationSubmitErrorMap)).toEqual([
+    "REGISTRATION_SUBMISSION_INCOMPLETE",
+  ]);
+  expect(Object.keys(registrationGetErrorMap)).toEqual([
+    "UNAUTHORIZED",
+    "REGISTRATION_NOT_FOUND",
+  ]);
+  expect(Object.keys(registrationListErrorMap)).toEqual(["UNAUTHORIZED"]);
+  expect(Object.keys(registrationDecideErrorMap)).toEqual([
+    "UNAUTHORIZED",
+    "REGISTRATION_NOT_FOUND",
+    "REGISTRATION_CONFLICT",
+  ]);
+});
+
+test("submit procedure returns the submitted workflow result", async () => {
   submitRegistration.mockResolvedValue(
     ok({
       registrationId: crypto.randomUUID(),
       runId: "run_123",
-      status: "pending",
+      status: "submitted",
     })
   );
 
   const client = await createClient();
   const result = await client.submit({
     companyName: "Hydra Industrial",
+    companyPhone: "",
+    vatId: "",
     contactFirstName: "Ava",
     contactLastName: "Stone",
     email: "ava@example.com",
     address: {
       streetName: "Canal Street",
+      additionalStreetInfo: "",
       postalCode: "10013",
       city: "New York",
       region: "NY",
@@ -101,7 +125,7 @@ test("submit procedure returns the pending workflow result", async () => {
 
   expect(result).toMatchObject({
     runId: "run_123",
-    status: "pending",
+    status: "submitted",
   });
   expect(submitRegistration).toHaveBeenCalledOnce();
 });
@@ -113,6 +137,8 @@ test("protected procedures reject unauthenticated callers", async () => {
     client.decide({
       registrationId: crypto.randomUUID(),
       decision: "approved",
+      actorEmail: "admin@example.com",
+      actorName: "Ava Admin",
     })
   ).rejects.toMatchObject({
     code: "UNAUTHORIZED",
@@ -150,7 +176,7 @@ test("decide conflicts map through the rpc transport", async () => {
     err(
       new RegistrationConflictError({
         registrationId: crypto.randomUUID(),
-        reason: "already_approved",
+        reason: "approved_registration_cannot_be_rejected",
       })
     )
   );
@@ -163,22 +189,26 @@ test("decide conflicts map through the rpc transport", async () => {
     client.decide({
       registrationId: crypto.randomUUID(),
       decision: "approved",
+      actorEmail: "admin@example.com",
+      actorName: "Ava Admin",
     })
   ).rejects.toMatchObject({
     code: "REGISTRATION_CONFLICT",
     data: {
       registrationId: expect.any(String),
-      reason: "already_approved",
+      reason: "approved_registration_cannot_be_rejected",
     },
     status: 409,
   });
 });
 
-test("submit failures map to SUBMIT_FAILED", async () => {
+test("submission incomplete errors map through the rpc transport", async () => {
+  const registrationId = crypto.randomUUID();
+
   submitRegistration.mockResolvedValue(
     err(
-      new RegistrationSubmitFailedError({
-        reason: "workflow_start_failed",
+      new RegistrationSubmissionIncompleteError({
+        registrationId,
         cause: new Error("workflow failed"),
       })
     )
@@ -189,11 +219,14 @@ test("submit failures map to SUBMIT_FAILED", async () => {
   await expect(
     client.submit({
       companyName: "Hydra Industrial",
+      companyPhone: "",
+      vatId: "",
       contactFirstName: "Ava",
       contactLastName: "Stone",
       email: "ava@example.com",
       address: {
         streetName: "Canal Street",
+        additionalStreetInfo: "",
         postalCode: "10013",
         city: "New York",
         region: "NY",
@@ -201,29 +234,22 @@ test("submit failures map to SUBMIT_FAILED", async () => {
       },
     })
   ).rejects.toMatchObject({
-    code: "SUBMIT_FAILED",
-    data: { reason: "workflow_start_failed" },
+    code: "REGISTRATION_SUBMISSION_INCOMPLETE",
+    data: { registrationId },
     status: 500,
   });
 });
 
-test("unexpected list errors map to REGISTRATION_INTERNAL", async () => {
-  listRegistrations.mockResolvedValue(
-    err(
-      new RegistrationUnknownError({
-        operation: "list",
-        cause: new Error("list failed"),
-      })
-    )
-  );
+test("unexpected list errors panic as untyped internal server errors", async () => {
+  listRegistrations.mockRejectedValue(new Error("list failed"));
 
   const client = await createClient({
     "x-registration-approval-secret": "test-approval-secret",
   });
 
   await expect(client.list({})).rejects.toMatchObject({
-    code: "REGISTRATION_INTERNAL",
-    data: { operation: "list", causeMessage: "list failed" },
+    code: "INTERNAL_SERVER_ERROR",
+    data: undefined,
     status: 500,
   });
 });

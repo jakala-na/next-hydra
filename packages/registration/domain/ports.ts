@@ -27,9 +27,12 @@ export type RegistrationStorePort = {
   createPendingRegistrationRecord(
     input: RegistrationWorkflowInput
   ): Promise<RegistrationStoreResult<RegistrationRecord>>;
-  markRegistrationWorkflowStartFailed(
-    input: RegistrationWorkflowInput,
-    reason?: string
+  markRegistrationApprovalProcessing(
+    registrationId: string,
+    approval: RegistrationApprovalDecision
+  ): Promise<RegistrationStoreResult<RegistrationRecord>>;
+  markRegistrationSubmissionIncomplete(
+    input: RegistrationWorkflowInput
   ): Promise<RegistrationStoreResult<RegistrationRecord>>;
   getRegistrationRecord(
     registrationId: string

@@ -35,9 +35,10 @@ import { useForm } from "react-hook-form";
 import { requiresRegion } from "../domain/types";
 import type { RegistrationSubmitActionable } from "../orpc/types";
 import {
-  createRegistrationFormSchema,
+  createRegistrationFormErrorMap,
   getCountryOptions,
   type RegistrationFormValues,
+  registrationFormSchema,
 } from "./registration-form-schema";
 
 type RegistrationFormProps = {
@@ -82,12 +83,13 @@ export function RegistrationForm({
   awaitingApprovalUrl,
 }: RegistrationFormProps) {
   const t = useTranslations("web.registration.form");
-  const registrationFormSchema = createRegistrationFormSchema(t);
   const locale = useLocale();
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
   const form = useForm<RegistrationFormValues>({
-    resolver: zodResolver(registrationFormSchema),
+    resolver: zodResolver(registrationFormSchema, {
+      errorMap: createRegistrationFormErrorMap(t),
+    } as never),
     defaultValues,
     mode: "onBlur",
   });
@@ -102,9 +104,7 @@ export function RegistrationForm({
       onError((error) => {
         if (isDefinedError(error)) {
           switch (error.code) {
-            case "SUBMIT_FAILED":
-            case "REGISTRATION_INTERNAL":
-            case "REGISTRATION_OUTPUT_VALIDATION_FAILED":
+            case "REGISTRATION_SUBMISSION_INCOMPLETE":
               setFormError(t("errors.submitFailed"));
               return;
             default:
@@ -112,7 +112,7 @@ export function RegistrationForm({
           }
         }
 
-        setFormError(t("errors.invalidSubmission"));
+        setFormError(t("errors.submitFailed"));
       }),
     ],
   });
@@ -131,7 +131,7 @@ export function RegistrationForm({
         className="grid gap-6"
         onSubmit={form.handleSubmit((values) => {
           setFormError(null);
-          execute(values);
+          execute(registrationFormSchema.parse(values));
         })}
       >
         <Card className="border-stone-300 shadow-none">

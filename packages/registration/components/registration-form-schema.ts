@@ -1,6 +1,6 @@
 import type { MessageKeys, Messages, NestedKeyOf } from "@repo/i18n";
-import { z } from "zod";
-import { REGISTRATION_FIELD_LIMITS, requiresRegion } from "../domain/types";
+import type { z } from "zod";
+import { COUNTRY_CODES, registrationInputSchema } from "../domain/schemas";
 
 type RegistrationFormMessageKey = MessageKeys<
   Messages["web"]["registration"]["form"],
@@ -8,258 +8,6 @@ type RegistrationFormMessageKey = MessageKeys<
 >;
 
 type RegistrationFormTranslator = (key: RegistrationFormMessageKey) => string;
-
-export const COUNTRY_CODES = [
-  "AD",
-  "AE",
-  "AF",
-  "AG",
-  "AI",
-  "AL",
-  "AM",
-  "AO",
-  "AQ",
-  "AR",
-  "AS",
-  "AT",
-  "AU",
-  "AW",
-  "AX",
-  "AZ",
-  "BA",
-  "BB",
-  "BD",
-  "BE",
-  "BF",
-  "BG",
-  "BH",
-  "BI",
-  "BJ",
-  "BL",
-  "BM",
-  "BN",
-  "BO",
-  "BQ",
-  "BR",
-  "BS",
-  "BT",
-  "BV",
-  "BW",
-  "BY",
-  "BZ",
-  "CA",
-  "CC",
-  "CD",
-  "CF",
-  "CG",
-  "CH",
-  "CI",
-  "CK",
-  "CL",
-  "CM",
-  "CN",
-  "CO",
-  "CR",
-  "CU",
-  "CV",
-  "CW",
-  "CX",
-  "CY",
-  "CZ",
-  "DE",
-  "DJ",
-  "DK",
-  "DM",
-  "DO",
-  "DZ",
-  "EC",
-  "EE",
-  "EG",
-  "EH",
-  "ER",
-  "ES",
-  "ET",
-  "FI",
-  "FJ",
-  "FK",
-  "FM",
-  "FO",
-  "FR",
-  "GA",
-  "GB",
-  "GD",
-  "GE",
-  "GF",
-  "GG",
-  "GH",
-  "GI",
-  "GL",
-  "GM",
-  "GN",
-  "GP",
-  "GQ",
-  "GR",
-  "GS",
-  "GT",
-  "GU",
-  "GW",
-  "GY",
-  "HK",
-  "HM",
-  "HN",
-  "HR",
-  "HT",
-  "HU",
-  "ID",
-  "IE",
-  "IL",
-  "IM",
-  "IN",
-  "IO",
-  "IQ",
-  "IR",
-  "IS",
-  "IT",
-  "JE",
-  "JM",
-  "JO",
-  "JP",
-  "KE",
-  "KG",
-  "KH",
-  "KI",
-  "KM",
-  "KN",
-  "KP",
-  "KR",
-  "KW",
-  "KY",
-  "KZ",
-  "LA",
-  "LB",
-  "LC",
-  "LI",
-  "LK",
-  "LR",
-  "LS",
-  "LT",
-  "LU",
-  "LV",
-  "LY",
-  "MA",
-  "MC",
-  "MD",
-  "ME",
-  "MF",
-  "MG",
-  "MH",
-  "MK",
-  "ML",
-  "MM",
-  "MN",
-  "MO",
-  "MP",
-  "MQ",
-  "MR",
-  "MS",
-  "MT",
-  "MU",
-  "MV",
-  "MW",
-  "MX",
-  "MY",
-  "MZ",
-  "NA",
-  "NC",
-  "NE",
-  "NF",
-  "NG",
-  "NI",
-  "NL",
-  "NO",
-  "NP",
-  "NR",
-  "NU",
-  "NZ",
-  "OM",
-  "PA",
-  "PE",
-  "PF",
-  "PG",
-  "PH",
-  "PK",
-  "PL",
-  "PM",
-  "PN",
-  "PR",
-  "PS",
-  "PT",
-  "PW",
-  "PY",
-  "QA",
-  "RE",
-  "RO",
-  "RS",
-  "RU",
-  "RW",
-  "SA",
-  "SB",
-  "SC",
-  "SD",
-  "SE",
-  "SG",
-  "SH",
-  "SI",
-  "SJ",
-  "SK",
-  "SL",
-  "SM",
-  "SN",
-  "SO",
-  "SR",
-  "SS",
-  "ST",
-  "SV",
-  "SX",
-  "SY",
-  "SZ",
-  "TC",
-  "TD",
-  "TF",
-  "TG",
-  "TH",
-  "TJ",
-  "TK",
-  "TL",
-  "TM",
-  "TN",
-  "TO",
-  "TR",
-  "TT",
-  "TV",
-  "TW",
-  "TZ",
-  "UA",
-  "UG",
-  "UM",
-  "US",
-  "UY",
-  "UZ",
-  "VA",
-  "VC",
-  "VE",
-  "VG",
-  "VI",
-  "VN",
-  "VU",
-  "WF",
-  "WS",
-  "YE",
-  "YT",
-  "ZA",
-  "ZM",
-  "ZW",
-] as const;
 
 export const getCountryOptions = (locale: string) => {
   const countryDisplayNames = new Intl.DisplayNames([locale], {
@@ -272,67 +20,87 @@ export const getCountryOptions = (locale: string) => {
   })).sort((left, right) => left.label.localeCompare(right.label));
 };
 
-export const createRegistrationFormSchema = (t: RegistrationFormTranslator) =>
-  z
-    .object({
-      companyName: z
-        .string()
-        .min(1, t("validation.companyName"))
-        .max(
-          REGISTRATION_FIELD_LIMITS.companyName,
-          t("validation.companyNameMax")
-        ),
-      companyPhone: z
-        .string()
-        .max(
-          REGISTRATION_FIELD_LIMITS.companyPhone,
-          t("validation.companyPhone")
-        ),
-      vatId: z
-        .string()
-        .max(REGISTRATION_FIELD_LIMITS.vatId, t("validation.vatId")),
-      contactFirstName: z
-        .string()
-        .min(1, t("validation.firstName"))
-        .max(
-          REGISTRATION_FIELD_LIMITS.contactName,
-          t("validation.firstNameMax")
-        ),
-      contactLastName: z
-        .string()
-        .min(1, t("validation.lastName"))
-        .max(
-          REGISTRATION_FIELD_LIMITS.contactName,
-          t("validation.lastNameMax")
-        ),
-      email: z.string().email(t("validation.email")),
-      address: z.object({
-        streetName: z.string().min(1, t("validation.streetAddress")),
-        additionalStreetInfo: z.string(),
-        postalCode: z.string().min(1, t("validation.postalCode")),
-        city: z.string().min(1, t("validation.city")),
-        region: z.string(),
-        country: z
-          .string()
-          .refine(
-            (value) =>
-              COUNTRY_CODES.includes(value as (typeof COUNTRY_CODES)[number]),
-            t("validation.country")
-          ),
-      }),
-    })
-    .superRefine((values, ctx) => {
-      if (requiresRegion(values.address.country) && !values.address.region) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["address", "region"],
-          message: t("validation.region"),
-        });
-      }
-    });
+const validationMessages = {
+  companyName: {
+    required: "validation.companyName",
+    max: "validation.companyNameMax",
+  },
+  companyPhone: { max: "validation.companyPhone" },
+  vatId: { max: "validation.vatId" },
+  contactFirstName: {
+    required: "validation.firstName",
+    max: "validation.firstNameMax",
+  },
+  contactLastName: {
+    required: "validation.lastName",
+    max: "validation.lastNameMax",
+  },
+  email: { invalid: "validation.email" },
+  "address.streetName": { required: "validation.streetAddress" },
+  "address.postalCode": { required: "validation.postalCode" },
+  "address.city": { required: "validation.city" },
+  "address.region": { required: "validation.region" },
+  "address.country": { invalid: "validation.country" },
+} as const;
 
-export type RegistrationFormSchema = ReturnType<
-  typeof createRegistrationFormSchema
->;
-export type RegistrationFormValues = z.infer<RegistrationFormSchema>;
-export type RegistrationFormInput = z.infer<RegistrationFormSchema>;
+type ValidationMessageKind = "required" | "max" | "invalid";
+type ValidationMessagePath = keyof typeof validationMessages;
+
+const pathKey = (path: (string | number)[]) => path.join(".");
+
+const getValidationMessageKey = (
+  key: string,
+  kind: ValidationMessageKind
+): RegistrationFormMessageKey | undefined => {
+  if (!(key in validationMessages)) {
+    return;
+  }
+
+  const messages = validationMessages[key as ValidationMessagePath];
+  return kind in messages
+    ? (messages[kind as keyof typeof messages] as RegistrationFormMessageKey)
+    : undefined;
+};
+
+export const createRegistrationFormErrorMap =
+  (t: RegistrationFormTranslator): z.ZodErrorMap =>
+  (issue, ctx) => {
+    const key = pathKey(issue.path);
+
+    if (issue.code === "too_small") {
+      const messageKey = getValidationMessageKey(key, "required");
+
+      if (messageKey) {
+        return { message: t(messageKey) };
+      }
+    }
+
+    if (issue.code === "too_big") {
+      const messageKey = getValidationMessageKey(key, "max");
+
+      if (messageKey) {
+        return { message: t(messageKey) };
+      }
+    }
+
+    if (issue.code === "invalid_string" && key === "email") {
+      return { message: t(validationMessages.email.invalid) };
+    }
+
+    if (issue.code === "custom") {
+      const messageKey =
+        getValidationMessageKey(key, "invalid") ??
+        getValidationMessageKey(key, "required");
+
+      if (messageKey) {
+        return { message: t(messageKey) };
+      }
+    }
+
+    return { message: ctx.defaultError };
+  };
+
+export const registrationFormSchema = registrationInputSchema;
+
+export type RegistrationFormValues = z.infer<typeof registrationFormSchema>;
+export type RegistrationFormInput = z.infer<typeof registrationFormSchema>;

@@ -1,8 +1,7 @@
-import type { MessageKeys, Messages, NestedKeyOf } from "@repo/i18n";
 import { Result } from "better-result";
 import {
   type RegistrationResult,
-  RegistrationSubmitFailedError,
+  RegistrationSubmissionIncompleteError,
 } from "../domain/errors";
 import type {
   RegistrationApprovalProcessPort,
@@ -15,11 +14,6 @@ import type {
   StartRegistrationResult,
 } from "../domain/types";
 
-type RegistrationMessageKey = MessageKeys<
-  Messages["web"]["registration"],
-  NestedKeyOf<Messages["web"]["registration"]>
->;
-
 type CreateSubmitRegistrationOptions = {
   registrations: RegistrationStorePort;
   approvalProcess: RegistrationApprovalProcessPort;
@@ -31,7 +25,12 @@ export function createSubmitRegistration(
 ) {
   return async function submitRegistration(
     input: RegistrationInput
-  ): Promise<RegistrationResult<StartRegistrationResult>> {
+  ): Promise<
+    RegistrationResult<
+      StartRegistrationResult,
+      RegistrationSubmissionIncompleteError
+    >
+  > {
     const registrationId = options.ids.create();
     const workflowInput: RegistrationWorkflowInput = {
       ...input,
@@ -44,7 +43,7 @@ export function createSubmitRegistration(
       );
 
     if (createRecordResult.isErr()) {
-      return Result.err(createRecordResult.error);
+      throw createRecordResult.error;
     }
 
     const runResult =
@@ -52,18 +51,18 @@ export function createSubmitRegistration(
 
     if (runResult.isErr()) {
       const compensationResult =
-        await options.registrations.markRegistrationWorkflowStartFailed(
-          workflowInput,
-          "gate.failed.description" as RegistrationMessageKey
+        await options.registrations.markRegistrationSubmissionIncomplete(
+          workflowInput
         );
 
+      if (compensationResult.isErr()) {
+        throw compensationResult.error;
+      }
+
       return Result.err(
-        new RegistrationSubmitFailedError({
-          reason: "workflow_start_failed",
+        new RegistrationSubmissionIncompleteError({
+          registrationId,
           cause: runResult.error.cause,
-          compensationCause: compensationResult.isErr()
-            ? compensationResult.error.cause
-            : undefined,
         })
       );
     }
@@ -71,7 +70,7 @@ export function createSubmitRegistration(
     return Result.ok({
       registrationId,
       runId: runResult.value.runId,
-      status: "pending",
+      status: "submitted",
     });
   };
 }

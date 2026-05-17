@@ -3,24 +3,12 @@ import { matchError, Result } from "better-result";
 import type { z } from "zod";
 import type { RegistrationApplication } from "../application";
 import type {
-  RegistrationApprovalProcessError,
   RegistrationConflictError,
   RegistrationErrorDataMap,
   RegistrationNotFoundError,
-  RegistrationOperation,
   RegistrationResult,
-  RegistrationStoreError,
-  RegistrationSubmitFailedError,
-  RegistrationUnknownError,
-  RegistrationValidationIssue,
+  RegistrationSubmissionIncompleteError,
 } from "../domain/errors";
-import {
-  registrationAdminErrorMap,
-  registrationDecideErrorMap,
-  registrationGetErrorMap,
-  registrationListErrorMap,
-  registrationSubmitErrorMap,
-} from "./error-codes";
 import {
   decideRegistrationInputSchema,
   decideRegistrationResultSchema,
@@ -30,7 +18,14 @@ import {
   registrationDetailSchema,
   registrationInputSchema,
   startRegistrationResultSchema,
-} from "./schemas";
+} from "../domain/schemas";
+import {
+  registrationAdminErrorMap,
+  registrationDecideErrorMap,
+  registrationGetErrorMap,
+  registrationListErrorMap,
+  registrationSubmitErrorMap,
+} from "./error-codes";
 
 export type RegistrationProcedureContext = {
   approvalSecret?: string;
@@ -46,114 +41,25 @@ const publicProcedure = os.$context<RegistrationProcedureContext>();
 type RegistrationProcedureDomainError =
   | RegistrationNotFoundError
   | RegistrationConflictError
-  | RegistrationSubmitFailedError
-  | RegistrationStoreError
-  | RegistrationApprovalProcessError
-  | RegistrationUnknownError;
+  | RegistrationSubmissionIncompleteError;
 
-const getCauseMetadata = (cause: unknown) =>
-  cause instanceof Error
-    ? {
-        causeName: cause.name,
-        causeMessage: cause.message,
-      }
-    : {};
-
-const logRegistrationError = (
-  kind: "internal" | "output_validation" | "submit_failed",
-  payload: Record<string, unknown>
-) => {
-  console.error(`Registration ${kind} error`, payload);
-};
-
-const toInternalProcedureError = (
-  operation: RegistrationOperation,
-  message: string,
-  cause: unknown
+const toSubmissionIncompleteProcedureError = (
+  registrationError: RegistrationSubmissionIncompleteError
 ): never => {
-  const data = {
-    operation,
-    ...getCauseMetadata(cause),
-  } satisfies RegistrationErrorDataMap["REGISTRATION_INTERNAL"];
-
-  logRegistrationError("internal", {
-    message,
-    ...data,
-  });
-
   throw new ORPCError<
-    "REGISTRATION_INTERNAL",
-    RegistrationErrorDataMap["REGISTRATION_INTERNAL"]
-  >("REGISTRATION_INTERNAL", {
-    data,
-    message,
-    status: 500,
-    cause,
-  });
-};
-
-const toOutputValidationProcedureError = (
-  operation: RegistrationOperation,
-  message: string,
-  cause: unknown,
-  issues: RegistrationValidationIssue[]
-): never => {
-  const data = {
-    operation,
-    issues,
-  } satisfies RegistrationErrorDataMap["REGISTRATION_OUTPUT_VALIDATION_FAILED"];
-
-  logRegistrationError("output_validation", {
-    operation,
-    message,
-    issues,
-    ...getCauseMetadata(cause),
-  });
-
-  throw new ORPCError<
-    "REGISTRATION_OUTPUT_VALIDATION_FAILED",
-    RegistrationErrorDataMap["REGISTRATION_OUTPUT_VALIDATION_FAILED"]
-  >("REGISTRATION_OUTPUT_VALIDATION_FAILED", {
-    data,
-    message,
-    status: 500,
-    cause,
-  });
-};
-
-const toSubmitFailedProcedureError = (
-  registrationError: RegistrationSubmitFailedError
-): never => {
-  logRegistrationError("submit_failed", {
-    reason: registrationError.reason,
-    cause: getCauseMetadata(registrationError.cause),
-    compensationCause: registrationError.compensationCause
-      ? getCauseMetadata(registrationError.compensationCause)
-      : undefined,
-  });
-
-  throw new ORPCError<
-    "SUBMIT_FAILED",
-    RegistrationErrorDataMap["SUBMIT_FAILED"]
-  >("SUBMIT_FAILED", {
+    "REGISTRATION_SUBMISSION_INCOMPLETE",
+    RegistrationErrorDataMap["REGISTRATION_SUBMISSION_INCOMPLETE"]
+  >("REGISTRATION_SUBMISSION_INCOMPLETE", {
     data: {
-      reason: registrationError.reason,
+      registrationId: registrationError.registrationId,
     },
     message: registrationError.message,
     status: 500,
-    cause: registrationError.compensationCause
-      ? {
-          cause: registrationError.cause,
-          compensationCause: registrationError.compensationCause,
-        }
-      : registrationError.cause,
+    cause: registrationError.cause,
   });
 };
 
-const toProcedureError = (
-  error: RegistrationProcedureDomainError,
-  operation: RegistrationOperation
-): never =>
+const toProcedureError = (error: RegistrationProcedureDomainError): never =>
   matchError(error, {
     RegistrationNotFoundError: (registrationError) => {
       throw new ORPCError<
@@ -182,60 +88,20 @@ const toProcedureError = (
         cause: registrationError.cause,
       });
     },
-    RegistrationSubmitFailedError: toSubmitFailedProcedureError,
-    RegistrationStoreError: (registrationError) => {
-      return toInternalProcedureError(
-        operation,
-        registrationError.message,
-        registrationError.cause
-      );
-    },
-    RegistrationApprovalProcessError: (registrationError) => {
-      return toInternalProcedureError(
-        operation,
-        registrationError.message,
-        registrationError.cause
-      );
-    },
-    RegistrationUnknownError: (registrationError) => {
-      return toInternalProcedureError(
-        registrationError.operation,
-        registrationError.message,
-        registrationError.cause
-      );
-    },
+    RegistrationSubmissionIncompleteError: toSubmissionIncompleteProcedureError,
   });
 
-const unwrapResult = <T>(
-  result: RegistrationResult<T>,
-  operation: RegistrationOperation
-): T =>
+const unwrapResult = <T>(result: RegistrationResult<T>): T =>
   Result.match(result, {
     ok: (value) => value,
-    err: (error) => toProcedureError(error, operation),
+    err: (error) => toProcedureError(error),
   });
 
 const validateProcedureOutput = <TSchema extends z.ZodTypeAny>(
   schema: TSchema,
-  output: z.output<TSchema>,
-  operation: RegistrationOperation
+  output: z.output<TSchema>
 ) => {
-  const result = schema.safeParse(output);
-
-  if (!result.success) {
-    return toOutputValidationProcedureError(
-      operation,
-      `Registration ${operation} output validation failed`,
-      result.error,
-      result.error.issues.map((issue) => ({
-        path: issue.path,
-        message: issue.message,
-        code: issue.code,
-      }))
-    );
-  }
-
-  return result.data;
+  return schema.parse(output);
 };
 
 export function createRegistrationProcedures(
@@ -256,11 +122,7 @@ export function createRegistrationProcedures(
       .handler(async ({ input }) => {
         return validateProcedureOutput(
           startRegistrationResultSchema,
-          unwrapResult(
-            await options.application.submitRegistration(input),
-            "submit"
-          ),
-          "submit"
+          unwrapResult(await options.application.submitRegistration(input))
         );
       }),
     get: adminProcedure
@@ -270,8 +132,7 @@ export function createRegistrationProcedures(
       .handler(async ({ input }) => {
         return validateProcedureOutput(
           registrationDetailSchema,
-          unwrapResult(await options.application.getRegistration(input), "get"),
-          "get"
+          unwrapResult(await options.application.getRegistration(input))
         );
       }),
     list: adminProcedure
@@ -281,11 +142,7 @@ export function createRegistrationProcedures(
       .handler(async ({ input }) => {
         return validateProcedureOutput(
           listRegistrationsResultSchema,
-          unwrapResult(
-            await options.application.listRegistrations(input),
-            "list"
-          ),
-          "list"
+          await options.application.listRegistrations(input)
         );
       }),
     decide: adminProcedure
@@ -295,11 +152,7 @@ export function createRegistrationProcedures(
       .handler(async ({ input }) => {
         return validateProcedureOutput(
           decideRegistrationResultSchema,
-          unwrapResult(
-            await options.application.decideRegistration(input),
-            "decide"
-          ),
-          "decide"
+          unwrapResult(await options.application.decideRegistration(input))
         );
       }),
   };

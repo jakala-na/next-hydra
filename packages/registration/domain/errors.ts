@@ -1,16 +1,11 @@
 import { type Result, TaggedError } from "better-result";
 
 export type RegistrationConflictReason =
-  | "already_approved"
-  | "already_rejected"
-  | "not_waiting_for_approval"
-  | "missing_invitation";
-
-export type RegistrationOperation = "submit" | "get" | "list" | "decide";
-
-export type UnauthorizedRegistrationErrorData = {
-  reason: "invalid_approval_secret";
-};
+  | "approval_not_ready"
+  | "registration_submission_incomplete"
+  | "approved_registration_cannot_be_rejected"
+  | "rejected_registration_cannot_be_approved"
+  | "decision_already_in_progress";
 
 export type RegistrationNotFoundErrorData = {
   registrationId?: string;
@@ -21,34 +16,14 @@ export type RegistrationConflictErrorData = {
   reason: RegistrationConflictReason;
 };
 
-export type SubmitFailedRegistrationErrorData = {
-  reason: "workflow_start_failed" | "unexpected";
-};
-
-export type RegistrationValidationIssue = {
-  path: Array<string | number>;
-  message: string;
-  code: string;
-};
-
-export type InternalRegistrationErrorData = {
-  operation: RegistrationOperation;
-  causeName?: string;
-  causeMessage?: string;
-};
-
-export type OutputValidationRegistrationErrorData = {
-  operation: RegistrationOperation;
-  issues: RegistrationValidationIssue[];
+export type RegistrationSubmissionIncompleteErrorData = {
+  registrationId: string;
 };
 
 export type RegistrationErrorDataMap = {
-  UNAUTHORIZED: UnauthorizedRegistrationErrorData;
   REGISTRATION_NOT_FOUND: RegistrationNotFoundErrorData;
   REGISTRATION_CONFLICT: RegistrationConflictErrorData;
-  SUBMIT_FAILED: SubmitFailedRegistrationErrorData;
-  REGISTRATION_INTERNAL: InternalRegistrationErrorData;
-  REGISTRATION_OUTPUT_VALIDATION_FAILED: OutputValidationRegistrationErrorData;
+  REGISTRATION_SUBMISSION_INCOMPLETE: RegistrationSubmissionIncompleteErrorData;
 };
 
 export type RegistrationErrorCode = keyof RegistrationErrorDataMap;
@@ -77,31 +52,28 @@ export class RegistrationConflictError extends TaggedError(
   }
 }
 
-export class RegistrationSubmitFailedError extends TaggedError(
-  "RegistrationSubmitFailedError"
+export class RegistrationSubmissionIncompleteError extends TaggedError(
+  "RegistrationSubmissionIncompleteError"
 )<
-  SubmitFailedRegistrationErrorData & {
+  RegistrationSubmissionIncompleteErrorData & {
     message: string;
     cause: unknown;
-    compensationCause?: unknown;
   }
 >() {
   constructor(
-    args: SubmitFailedRegistrationErrorData & {
-      cause: unknown;
-      compensationCause?: unknown;
-    }
+    args: RegistrationSubmissionIncompleteErrorData & { cause: unknown }
   ) {
     super({
       ...args,
-      message: "Registration workflow failed to start",
+      message: "Registration submission is incomplete",
     });
   }
 }
 
 export type RegistrationStoreOperation =
   | "create_pending_registration_record"
-  | "mark_registration_workflow_start_failed"
+  | "mark_registration_approval_processing"
+  | "mark_registration_submission_incomplete"
   | "get_registration_record"
   | "list_registration_records";
 
@@ -145,23 +117,12 @@ export class RegistrationApprovalProcessError extends TaggedError(
   }
 }
 
-export class RegistrationUnknownError extends TaggedError(
-  "RegistrationUnknownError"
-)<InternalRegistrationErrorData & { message: string; cause: unknown }>() {
-  constructor(args: InternalRegistrationErrorData & { cause: unknown }) {
-    super({
-      ...args,
-      message: `Registration ${args.operation} failed`,
-    });
-  }
-}
-
 export type RegistrationError =
   | RegistrationNotFoundError
   | RegistrationConflictError
-  | RegistrationSubmitFailedError
-  | RegistrationStoreError
-  | RegistrationApprovalProcessError
-  | RegistrationUnknownError;
+  | RegistrationSubmissionIncompleteError;
 
-export type RegistrationResult<T> = Result<T, RegistrationError>;
+export type RegistrationResult<
+  T,
+  TError extends RegistrationError = RegistrationError,
+> = Result<T, TError>;

@@ -1,5 +1,3 @@
-import { Result } from "better-result";
-import type { RegistrationResult } from "../domain/errors";
 import type { RegistrationStorePort } from "../domain/ports";
 import type {
   ListRegistrationsInput,
@@ -71,12 +69,12 @@ export function createListRegistrations(
 ) {
   return async function listRegistrations(
     input: ListRegistrationsInput
-  ): Promise<RegistrationResult<ListRegistrationsResult>> {
+  ): Promise<ListRegistrationsResult> {
     const recordsResult =
       await options.registrations.listRegistrationRecords(MAX_CURSOR_WINDOW);
 
     if (recordsResult.isErr()) {
-      return Result.err(recordsResult.error);
+      throw recordsResult.error;
     }
 
     const limit = input.limit ?? DEFAULT_LIST_LIMIT;
@@ -108,9 +106,9 @@ export function createListRegistrations(
     const items = filtered.slice(0, limit).map(toRegistrationDetail);
     const next = filtered[limit];
 
-    return Result.ok({
+    return {
       items,
       nextCursor: next ? encodeCursor(next) : undefined,
-    });
+    };
   };
 }

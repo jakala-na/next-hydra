@@ -11,10 +11,11 @@ const apiBaseUrl = (env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002").replace(
   TRAILING_SLASH_PATTERN,
   ""
 );
+export const registrationRpcUrl = `${apiBaseUrl}/rpc`;
 
 export const registrationClient: RegistrationRemoteClient = createORPCClient(
   new RPCLink({
-    url: `${apiBaseUrl}/rpc`,
+    url: registrationRpcUrl,
   }),
   {
     path: ["registration"],
