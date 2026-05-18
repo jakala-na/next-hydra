@@ -3,6 +3,8 @@
   "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
     "exactOptionalPropertyTypes": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "noImplicitOverride": true,
     "noUnusedLocals": true,
     "plugins": [
