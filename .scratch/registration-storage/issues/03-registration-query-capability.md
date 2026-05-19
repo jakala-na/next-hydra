@@ -10,7 +10,7 @@ Status: ready-for-agent
 
 Add a separate registration query capability for admin listing behavior without expanding the point-addressable write storage contract. This slice should preserve the current admin list semantics while making query support an explicit dependency that can be implemented differently by different providers.
 
-The completed slice should support listing registrations with status filtering, free-text search over company and contact fields, cursor pagination, and stable newest-first ordering. The implementation should remain separate from versioned writes so future key-value or projected-read-model providers are not forced into pretending they support generic predicates. Providers may implement this query capability and `VersionedKeyValueStore` over the same backend, such as Commercetools custom objects, but list/search/query operations must not be added to `VersionedKeyValueStore`.
+The completed slice should support listing registrations with status filtering, cursor pagination, and stable provider-native ordering. Free-text search over company and contact fields is intentionally deferred out of the provider query capability; the admin UI can layer search over loaded result sets, likely with Fuse.js, until a dedicated search/read-model index is needed. The implementation should remain separate from versioned writes so future key-value or projected-read-model providers are not forced into pretending they support generic predicates. Providers may implement this query capability and `VersionedKeyValueStore` over the same backend, such as Commercetools custom objects, but list/query operations must not be added to `VersionedKeyValueStore`.
 
 User stories covered: 20, 21, 22, 23, 24.
 
@@ -20,11 +20,11 @@ User stories covered: 20, 21, 22, 23, 24.
 - [ ] The write storage capability remains limited to load, create-only insert, and version-checked update by registration ID.
 - [ ] `VersionedKeyValueStore` does not grow list, search, or predicate query operations.
 - [ ] Admin listing supports filtering by registration status.
-- [ ] Admin listing supports free-text search over company name, contact first name, contact last name, and email.
+- [ ] Admin listing deliberately leaves free-text search outside the provider query capability; frontend/client search can be layered separately over loaded results, likely with Fuse.js.
 - [ ] Admin listing supports cursor pagination.
-- [ ] Admin listing sorts newest-first by update time and then registration ID for stable pagination.
+- [ ] Admin listing sorts newest-first by provider update time and provider tie-breaker for stable pagination.
 - [ ] The query result shape is suitable for the existing admin registration list workflow.
-- [ ] Tests cover status filtering, search fields, cursor behavior, stable sorting, and page boundaries.
+- [ ] Tests cover status filtering, cursor behavior, stable sorting, and page boundaries.
 - [ ] The implementation does not introduce a generic query builder yet.
 - [ ] Provider-specific query implementation details remain outside the registration domain model.
 
