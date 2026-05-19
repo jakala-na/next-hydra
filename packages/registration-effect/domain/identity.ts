@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Redacted, Schema, SchemaGetter } from "effect";
 
 export const Email = Schema.String.pipe(Schema.brand("Email"));
 export type Email = typeof Email.Type;
@@ -30,12 +30,28 @@ export type Region = typeof Region.Type;
 export const CountryCode = Schema.String.pipe(Schema.brand("CountryCode"));
 export type CountryCode = typeof CountryCode.Type;
 
-export const RedactedEmail = Schema.Redacted(Email, { label: "email" });
+export const makePersistedRedacted = <S extends Schema.Top>(
+  schema: S,
+  label: string
+) =>
+  schema.pipe(
+    Schema.decodeTo(Schema.Redacted(schema, { label }), {
+      decode: SchemaGetter.transform((value: S["Type"]) =>
+        Redacted.make(value, { label })
+      ),
+      encode: SchemaGetter.transform((value: Redacted.Redacted<S["Type"]>) =>
+        Redacted.value(value)
+      ),
+    })
+  );
+
+export const RedactedEmail = makePersistedRedacted(Email, "email");
 export type RedactedEmail = typeof RedactedEmail.Type;
 
-export const RedactedPersonName = Schema.Redacted(PersonName, {
-  label: "personName",
-});
+export const RedactedPersonName = makePersistedRedacted(
+  PersonName,
+  "personName"
+);
 export type RedactedPersonName = typeof RedactedPersonName.Type;
 
 export const AuthUserId = Schema.String.pipe(Schema.brand("AuthUserId"));

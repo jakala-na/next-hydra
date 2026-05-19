@@ -6,6 +6,7 @@ import {
   City,
   CompanyName,
   CountryCode,
+  makePersistedRedacted,
   PhoneNumber,
   PostalCode,
   RedactedEmail,
@@ -16,34 +17,31 @@ import {
 } from "./identity";
 import { RegistrationInvitation } from "./invitations";
 
-export const RedactedCompanyPhone = Schema.Redacted(PhoneNumber, {
-  label: "companyPhone",
-});
+export const RedactedCompanyPhone = makePersistedRedacted(
+  PhoneNumber,
+  "companyPhone"
+);
 export type RedactedCompanyPhone = typeof RedactedCompanyPhone.Type;
 
-export const RedactedVatId = Schema.Redacted(VatId, {
-  label: "vatId",
-});
+export const RedactedVatId = makePersistedRedacted(VatId, "vatId");
 export type RedactedVatId = typeof RedactedVatId.Type;
 
-export const RedactedAddressLine = Schema.Redacted(AddressLine, {
-  label: "addressLine",
-});
+export const RedactedAddressLine = makePersistedRedacted(
+  AddressLine,
+  "addressLine"
+);
 export type RedactedAddressLine = typeof RedactedAddressLine.Type;
 
-export const RedactedPostalCode = Schema.Redacted(PostalCode, {
-  label: "postalCode",
-});
+export const RedactedPostalCode = makePersistedRedacted(
+  PostalCode,
+  "postalCode"
+);
 export type RedactedPostalCode = typeof RedactedPostalCode.Type;
 
-export const RedactedCity = Schema.Redacted(City, {
-  label: "city",
-});
+export const RedactedCity = makePersistedRedacted(City, "city");
 export type RedactedCity = typeof RedactedCity.Type;
 
-export const RedactedRegion = Schema.Redacted(Region, {
-  label: "region",
-});
+export const RedactedRegion = makePersistedRedacted(Region, "region");
 export type RedactedRegion = typeof RedactedRegion.Type;
 
 export class CompanyAddress extends Schema.Class<CompanyAddress>(

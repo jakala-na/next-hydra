@@ -17,3 +17,17 @@ The Effect v4 repository is cloned to `~/.local/share/effect-solutions/effect` f
 Use this to explore APIs, find usage examples, and understand implementation
 details when the documentation isn't enough.
 <!-- effect-solutions:end -->
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked as local markdown under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the default five-role vocabulary. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repo uses a multi-context layout routed by `CONTEXT-MAP.md`; shared agent guidance belongs in this file. See `docs/agents/domain.md`.

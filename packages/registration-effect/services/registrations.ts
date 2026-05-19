@@ -1,13 +1,4 @@
-import {
-  Clock,
-  Context,
-  Effect,
-  Layer,
-  Option,
-  Random,
-  Ref,
-  Schema,
-} from "effect";
+import { Clock, Context, Effect, Layer, Option, Random, Schema } from "effect";
 import type { ApprovedDecision, RejectedDecision } from "../domain/approval";
 import type { CommerceAccount } from "../domain/commerce";
 import { RegistrationId } from "../domain/identity";
@@ -16,9 +7,14 @@ import {
   ApprovedRegistration,
   AwaitingApprovalRegistration,
   type CompanyRegistrationDetails,
-  type Registration,
+  Registration,
   RejectedRegistration,
 } from "../domain/registration";
+import {
+  type StoreConflict,
+  type StoreError,
+  VersionedKeyValueStore,
+} from "./versioned-key-value-store";
 
 export class RegistrationNotFound extends Schema.TaggedErrorClass<RegistrationNotFound>()(
   "RegistrationNotFound",
@@ -36,10 +32,40 @@ export class RegistrationTransitionConflict extends Schema.TaggedErrorClass<Regi
   }
 ) {}
 
-export type RegistrationCreateError = never;
+export class RegistrationConcurrentModification extends Schema.TaggedErrorClass<RegistrationConcurrentModification>()(
+  "RegistrationConcurrentModification",
+  {
+    registrationId: RegistrationId,
+  }
+) {}
+
+export class RegistrationAlreadyExists extends Schema.TaggedErrorClass<RegistrationAlreadyExists>()(
+  "RegistrationAlreadyExists",
+  {
+    registrationId: RegistrationId,
+  }
+) {}
+
+export class RegistrationPersistenceFailure extends Schema.TaggedErrorClass<RegistrationPersistenceFailure>()(
+  "RegistrationPersistenceFailure",
+  {
+    registrationId: RegistrationId,
+    operation: Schema.Literals(["read", "create", "update"]),
+    cause: Schema.Defect,
+  }
+) {}
+
+export type RegistrationReadError =
+  | RegistrationNotFound
+  | RegistrationPersistenceFailure;
+export type RegistrationCreateError =
+  | RegistrationAlreadyExists
+  | RegistrationPersistenceFailure;
 export type RegistrationTransitionError =
   | RegistrationNotFound
-  | RegistrationTransitionConflict;
+  | RegistrationTransitionConflict
+  | RegistrationConcurrentModification
+  | RegistrationPersistenceFailure;
 
 export interface CreateAwaitingApprovalRegistrationInput {
   readonly details: CompanyRegistrationDetails;
@@ -57,11 +83,27 @@ export interface MarkRegistrationRejectedInput {
   readonly decision: RejectedDecision;
 }
 
-type RegistrationStore = ReadonlyMap<RegistrationId, Registration>;
-
 const nowDate = Clock.currentTimeMillis.pipe(
   Effect.map((time) => new Date(time))
 );
+
+const registrationKey = (id: RegistrationId) => String(id);
+
+const mapStoreUpdateConflict =
+  (registrationId: RegistrationId) => (_error: StoreConflict) =>
+    new RegistrationConcurrentModification({ registrationId });
+
+const mapStoreError =
+  (
+    registrationId: RegistrationId,
+    operation: RegistrationPersistenceFailure["operation"]
+  ) =>
+  (error: StoreError) =>
+    new RegistrationPersistenceFailure({
+      registrationId,
+      operation,
+      cause: error.cause,
+    });
 
 export class Registrations extends Context.Service<
   Registrations,
@@ -71,7 +113,7 @@ export class Registrations extends Context.Service<
     ) => Effect.Effect<AwaitingApprovalRegistration, RegistrationCreateError>;
     readonly get: (
       id: RegistrationId
-    ) => Effect.Effect<Registration, RegistrationNotFound>;
+    ) => Effect.Effect<Registration, RegistrationReadError>;
     readonly markApproved: (
       input: MarkRegistrationApprovedInput
     ) => Effect.Effect<ApprovedRegistration, RegistrationTransitionError>;
@@ -80,20 +122,22 @@ export class Registrations extends Context.Service<
     ) => Effect.Effect<RejectedRegistration, RegistrationTransitionError>;
   }
 >()("@repo/registration-effect/Registrations") {
-  static readonly layerMemory = Layer.effect(
+  static readonly layerStorage = Layer.effect(
     Registrations,
     Effect.gen(function* () {
-      const store = yield* Ref.make<RegistrationStore>(new Map());
+      const store = yield* VersionedKeyValueStore;
 
       const get = Effect.fn("Registrations.get")((id: RegistrationId) =>
-        Ref.get(store).pipe(
-          Effect.flatMap((registrations) =>
-            Option.fromNullishOr(registrations.get(id)).pipe(
-              Effect.fromOption,
-              Effect.mapError(
-                () => new RegistrationNotFound({ registrationId: id })
-              )
-            )
+        store.get(registrationKey(id), Registration).pipe(
+          Effect.flatMap((registration) =>
+            Option.match(registration, {
+              onNone: () =>
+                Effect.fail(new RegistrationNotFound({ registrationId: id })),
+              onSome: (versioned) => Effect.succeed(versioned.value),
+            })
+          ),
+          Effect.catchTag("StoreError", (error) =>
+            Effect.fail(mapStoreError(id, "read")(error))
           )
         )
       );
@@ -111,9 +155,18 @@ export class Registrations extends Context.Service<
           updatedAt: createdAt,
         });
 
-        yield* Ref.update(store, (registrations) =>
-          new Map(registrations).set(id, registration)
-        );
+        yield* store
+          .insert(registrationKey(id), Registration, registration)
+          .pipe(
+            Effect.catchTags({
+              StoreConflict: () =>
+                Effect.fail(
+                  new RegistrationAlreadyExists({ registrationId: id })
+                ),
+              StoreError: (error) =>
+                Effect.fail(mapStoreError(id, "create")(error)),
+            })
+          );
 
         return registration;
       });
@@ -121,16 +174,32 @@ export class Registrations extends Context.Service<
       const markApproved = Effect.fn("Registrations.markApproved")(function* (
         input: MarkRegistrationApprovedInput
       ) {
-        const current = yield* get(input.registrationId);
+        const key = registrationKey(input.registrationId);
+        const current = yield* store.get(key, Registration).pipe(
+          Effect.flatMap((registration) =>
+            Option.match(registration, {
+              onNone: () =>
+                Effect.fail(
+                  new RegistrationNotFound({
+                    registrationId: input.registrationId,
+                  })
+                ),
+              onSome: Effect.succeed,
+            })
+          ),
+          Effect.catchTag("StoreError", (error) =>
+            Effect.fail(mapStoreError(input.registrationId, "read")(error))
+          )
+        );
 
-        if (current._tag === "ApprovedRegistration") {
-          return current;
+        if (current.value._tag === "ApprovedRegistration") {
+          return current.value;
         }
 
-        if (current._tag === "RejectedRegistration") {
+        if (current.value._tag === "RejectedRegistration") {
           return yield* new RegistrationTransitionConflict({
             registrationId: input.registrationId,
-            currentState: current._tag,
+            currentState: current.value._tag,
             attemptedDecision: "approved",
           });
         }
@@ -138,17 +207,22 @@ export class Registrations extends Context.Service<
         const updatedAt = yield* nowDate;
         const approved = new ApprovedRegistration({
           _tag: "ApprovedRegistration",
-          id: current.id,
-          details: current.details,
+          id: current.value.id,
+          details: current.value.details,
           decision: input.decision,
           commerceAccount: input.commerceAccount,
           invitation: input.invitation,
-          createdAt: current.createdAt,
+          createdAt: current.value.createdAt,
           updatedAt,
         });
 
-        yield* Ref.update(store, (registrations) =>
-          new Map(registrations).set(input.registrationId, approved)
+        yield* store.update(key, Registration, current, approved).pipe(
+          Effect.catchTags({
+            StoreConflict: (error) =>
+              Effect.fail(mapStoreUpdateConflict(input.registrationId)(error)),
+            StoreError: (error) =>
+              Effect.fail(mapStoreError(input.registrationId, "update")(error)),
+          })
         );
 
         return approved;
@@ -157,16 +231,32 @@ export class Registrations extends Context.Service<
       const markRejected = Effect.fn("Registrations.markRejected")(function* (
         input: MarkRegistrationRejectedInput
       ) {
-        const current = yield* get(input.registrationId);
+        const key = registrationKey(input.registrationId);
+        const current = yield* store.get(key, Registration).pipe(
+          Effect.flatMap((registration) =>
+            Option.match(registration, {
+              onNone: () =>
+                Effect.fail(
+                  new RegistrationNotFound({
+                    registrationId: input.registrationId,
+                  })
+                ),
+              onSome: Effect.succeed,
+            })
+          ),
+          Effect.catchTag("StoreError", (error) =>
+            Effect.fail(mapStoreError(input.registrationId, "read")(error))
+          )
+        );
 
-        if (current._tag === "RejectedRegistration") {
-          return current;
+        if (current.value._tag === "RejectedRegistration") {
+          return current.value;
         }
 
-        if (current._tag === "ApprovedRegistration") {
+        if (current.value._tag === "ApprovedRegistration") {
           return yield* new RegistrationTransitionConflict({
             registrationId: input.registrationId,
-            currentState: current._tag,
+            currentState: current.value._tag,
             attemptedDecision: "rejected",
           });
         }
@@ -174,15 +264,20 @@ export class Registrations extends Context.Service<
         const updatedAt = yield* nowDate;
         const rejected = new RejectedRegistration({
           _tag: "RejectedRegistration",
-          id: current.id,
-          details: current.details,
+          id: current.value.id,
+          details: current.value.details,
           decision: input.decision,
-          createdAt: current.createdAt,
+          createdAt: current.value.createdAt,
           updatedAt,
         });
 
-        yield* Ref.update(store, (registrations) =>
-          new Map(registrations).set(input.registrationId, rejected)
+        yield* store.update(key, Registration, current, rejected).pipe(
+          Effect.catchTags({
+            StoreConflict: (error) =>
+              Effect.fail(mapStoreUpdateConflict(input.registrationId)(error)),
+            StoreError: (error) =>
+              Effect.fail(mapStoreError(input.registrationId, "update")(error)),
+          })
         );
 
         return rejected;
@@ -195,5 +290,9 @@ export class Registrations extends Context.Service<
         markRejected,
       };
     })
+  );
+
+  static readonly layerMemory = Registrations.layerStorage.pipe(
+    Layer.provide(VersionedKeyValueStore.layerMemory)
   );
 }

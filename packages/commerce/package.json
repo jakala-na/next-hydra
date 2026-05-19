@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false",
     "generate": "node --experimental-transform-types scripts/gql-sync.ts",
     "clear:b2b-registrations": "node --experimental-transform-types scripts/clear-b2b-registration-custom-objects.ts"
@@ -15,10 +16,12 @@
     "@gql.tada/cli-utils": "^1.6.3",
     "@repo/observability": "workspace:*",
     "@repo/registration": "workspace:*",
+    "@repo/registration-effect": "workspace:*",
     "@t3-oss/env-nextjs": "^0.13.4",
     "@urql/core": "^5.1.2",
     "better-result": "2.7.0",
     "dotenv": "^17.0.0",
+    "effect": "4.0.0-beta.67",
     "gql.tada": "^1.8.10",
     "lodash.memoize": "^4.1.2",
     "next-safe-action": "^8.1.8",
@@ -28,6 +31,7 @@
     "zod": "^3.25.28"
   },
   "devDependencies": {
+    "@effect/vitest": "4.0.0-beta.67",
     "@repo/typescript-config": "workspace:*",
     "@types/lodash.memoize": "^4.1.9",
     "@types/node": "22.15.21",
