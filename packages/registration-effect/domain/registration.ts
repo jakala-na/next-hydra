@@ -67,9 +67,17 @@ export class CompanyRegistrationDetails extends Schema.Class<CompanyRegistration
   address: CompanyAddress,
 }) {}
 
+export const RegistrationStatus = Schema.Literals([
+  "awaiting_approval",
+  "approved",
+  "rejected",
+]);
+export type RegistrationStatus = typeof RegistrationStatus.Type;
+
 export class AwaitingApprovalRegistration extends Schema.TaggedClass<AwaitingApprovalRegistration>()(
   "AwaitingApprovalRegistration",
   {
+    status: Schema.Literal(RegistrationStatus.literals[0]),
     id: RegistrationId,
     details: CompanyRegistrationDetails,
     createdAt: Schema.Date,
@@ -80,6 +88,7 @@ export class AwaitingApprovalRegistration extends Schema.TaggedClass<AwaitingApp
 export class ApprovedRegistration extends Schema.TaggedClass<ApprovedRegistration>()(
   "ApprovedRegistration",
   {
+    status: Schema.Literal(RegistrationStatus.literals[1]),
     id: RegistrationId,
     details: CompanyRegistrationDetails,
     decision: ApprovedDecision,
@@ -93,6 +102,7 @@ export class ApprovedRegistration extends Schema.TaggedClass<ApprovedRegistratio
 export class RejectedRegistration extends Schema.TaggedClass<RejectedRegistration>()(
   "RejectedRegistration",
   {
+    status: Schema.Literal(RegistrationStatus.literals[2]),
     id: RegistrationId,
     details: CompanyRegistrationDetails,
     decision: RejectedDecision,

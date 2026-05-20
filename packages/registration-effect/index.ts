@@ -73,6 +73,8 @@ export {
   RedactedVatId,
   type RedactedVatId as RedactedVatIdType,
   type Registration,
+  RegistrationStatus,
+  type RegistrationStatus as RegistrationStatusType,
   RejectedRegistration,
 } from "./domain/registration";
 export {
@@ -128,7 +130,6 @@ export {
   listRegistrationRecords,
   normalizeRegistrationQuerySort,
   parseRegistrationQueryCursor,
-  RegistrationListItem,
   RegistrationQueries,
   type RegistrationQueryCursor,
   type RegistrationQueryError,
@@ -140,9 +141,7 @@ export {
   type RegistrationQuerySortDirection as RegistrationQuerySortDirectionType,
   RegistrationQuerySortField,
   type RegistrationQuerySortField as RegistrationQuerySortFieldType,
-  RegistrationQueryStatus,
-  type RegistrationQueryStatus as RegistrationQueryStatusType,
-  registrationQueryCursorFromItem,
+  registrationQueryCursorFromRecord,
 } from "./services/registration-queries";
 export {
   type CreateAwaitingApprovalRegistrationInput,

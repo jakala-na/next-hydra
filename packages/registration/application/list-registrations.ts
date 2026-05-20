@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { RegistrationStorePort } from "../domain/ports";
 import type {
   ListRegistrationsInput,
@@ -13,6 +14,13 @@ type CreateListRegistrationsOptions = {
 const DEFAULT_LIST_LIMIT = 20;
 const MAX_CURSOR_WINDOW = 100;
 
+const listRegistrationsCursorSchema = z
+  .object({
+    registrationId: z.string(),
+    updatedAt: z.string(),
+  })
+  .strict();
+
 const matchesSearch = (record: RegistrationRecord, search: string) => {
   const query = search.toLowerCase();
 
@@ -25,9 +33,7 @@ const matchesSearch = (record: RegistrationRecord, search: string) => {
     record.contactFirstName,
     record.contactLastName,
     record.email,
-  ]
-    .filter((value): value is string => typeof value === "string")
-    .map((value) => value.toLowerCase());
+  ].map((value) => value.toLowerCase());
 
   return haystack.some((value) => value.includes(query));
 };
@@ -42,23 +48,11 @@ const encodeCursor = (record: RegistrationRecord) =>
 
 const decodeCursor = (cursor: string) => {
   try {
-    const decoded = JSON.parse(
-      Buffer.from(cursor, "base64url").toString("utf8")
+    const decoded = listRegistrationsCursorSchema.safeParse(
+      JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"))
     );
 
-    if (
-      typeof decoded !== "object" ||
-      decoded === null ||
-      typeof decoded.registrationId !== "string" ||
-      typeof decoded.updatedAt !== "string"
-    ) {
-      return null;
-    }
-
-    return decoded as {
-      registrationId: string;
-      updatedAt: string;
-    };
+    return decoded.success ? decoded.data : null;
   } catch {
     return null;
   }

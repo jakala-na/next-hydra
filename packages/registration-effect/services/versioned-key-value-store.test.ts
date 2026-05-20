@@ -79,6 +79,7 @@ const key = String(registrationId);
 
 const awaiting = new AwaitingApprovalRegistration({
   _tag: "AwaitingApprovalRegistration",
+  status: "awaiting_approval",
   id: registrationId,
   details,
   createdAt: new Date(0),
@@ -88,6 +89,7 @@ const awaiting = new AwaitingApprovalRegistration({
 const makeApproved = (registration: AwaitingApprovalRegistration) =>
   new ApprovedRegistration({
     _tag: "ApprovedRegistration",
+    status: "approved",
     id: registration.id,
     details: registration.details,
     decision: new ApprovedDecision({

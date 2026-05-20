@@ -2,11 +2,26 @@ import "dotenv/config";
 
 import { describe, expect, it } from "@effect/vitest";
 import {
-  type RegistrationListItem,
+  AddressLine,
+  City,
+  CompanyName,
+  CountryCode,
+  Email,
+  PersonName,
+  PostalCode,
+  RegistrationId,
+} from "@repo/registration-effect/domain/identity";
+import {
+  AwaitingApprovalRegistration,
+  CompanyAddress,
+  CompanyRegistrationDetails,
+} from "@repo/registration-effect/domain/registration";
+import {
   RegistrationQueries,
+  type RegistrationQueryRecord,
 } from "@repo/registration-effect/services/registration-queries";
-import { Effect } from "effect";
-import { vi } from "vitest";
+import { Effect, Redacted } from "effect";
+import { afterAll, beforeAll, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@repo/commerce/keys", () => ({
@@ -39,34 +54,145 @@ const hasRequiredEnv = requiredEnv.every(
 const shouldRunLive = process.env.COMMERCETOOLS_LIVE_TESTS === "1";
 
 const describeLive = shouldRunLive && hasRequiredEnv ? describe : describe.skip;
+const liveContainer = `registration-queries-live-${Date.now()}`;
+const seededKeys = [
+  "registration-query-live-a",
+  "registration-query-live-b",
+  "registration-query-live-c",
+] as const;
+
+const makeRegistration = (id: string, companyName: string, createdAt: Date) =>
+  new AwaitingApprovalRegistration({
+    _tag: "AwaitingApprovalRegistration",
+    status: "awaiting_approval",
+    id: RegistrationId.make(id),
+    details: new CompanyRegistrationDetails({
+      companyName: CompanyName.make(companyName),
+      contactFirstName: Redacted.make(PersonName.make("Ada"), {
+        label: "personName",
+      }),
+      contactLastName: Redacted.make(PersonName.make("Lovelace"), {
+        label: "personName",
+      }),
+      email: Redacted.make(Email.make(`${id}@example.com`), {
+        label: "email",
+      }),
+      address: new CompanyAddress({
+        streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
+          label: "addressLine",
+        }),
+        postalCode: Redacted.make(PostalCode.make("10001"), {
+          label: "postalCode",
+        }),
+        city: Redacted.make(City.make("New York"), { label: "city" }),
+        country: CountryCode.make("US"),
+      }),
+    }),
+    createdAt,
+    updatedAt: createdAt,
+  });
+
+const seedLiveRegistrations = async () => {
+  const { apiRoot } = await import("../../client/api-root");
+  const { encodeRegistrationStorageValue } = await import(
+    "./registration-queries"
+  );
+  const registrations = [
+    makeRegistration(
+      "registration-query-live-a",
+      "Hydra Alpha",
+      new Date("2026-01-01T00:00:00.000Z")
+    ),
+    makeRegistration(
+      "registration-query-live-b",
+      "Hydra Beta",
+      new Date("2026-01-02T00:00:00.000Z")
+    ),
+    makeRegistration(
+      "registration-query-live-c",
+      "Hydra Gamma",
+      new Date("2026-01-03T00:00:00.000Z")
+    ),
+  ];
+
+  for (const registration of registrations) {
+    const value = await Effect.runPromise(
+      encodeRegistrationStorageValue(registration) as Effect.Effect<
+        unknown,
+        unknown,
+        never
+      >
+    );
+
+    await apiRoot
+      .customObjects()
+      .post({
+        body: {
+          container: liveContainer,
+          key: String(registration.id),
+          value,
+        },
+      })
+      .execute();
+  }
+};
+
+const deleteLiveRegistrations = async () => {
+  const { apiRoot } = await import("../../client/api-root");
+
+  for (const key of seededKeys) {
+    try {
+      const response = await apiRoot
+        .customObjects()
+        .withContainerAndKey({ container: liveContainer, key })
+        .get()
+        .execute();
+
+      await apiRoot
+        .customObjects()
+        .withContainerAndKey({ container: liveContainer, key })
+        .delete({
+          queryArgs: {
+            version: response.body.version,
+          },
+        })
+        .execute();
+    } catch {
+      // Best-effort cleanup for live-test data.
+    }
+  }
+};
 
 const compareNewestFirst = (
-  left: RegistrationListItem,
-  right: RegistrationListItem
+  left: RegistrationQueryRecord,
+  right: RegistrationQueryRecord
 ) =>
   left.lastModifiedAt.getTime() > right.lastModifiedAt.getTime() ||
   (left.lastModifiedAt.getTime() === right.lastModifiedAt.getTime() &&
     left.id > right.id);
 
 const compareOldestFirst = (
-  left: RegistrationListItem,
-  right: RegistrationListItem
+  left: RegistrationQueryRecord,
+  right: RegistrationQueryRecord
 ) =>
   left.lastModifiedAt.getTime() < right.lastModifiedAt.getTime() ||
   (left.lastModifiedAt.getTime() === right.lastModifiedAt.getTime() &&
     left.id < right.id);
 
 const compareCreatedFirst = (
-  left: RegistrationListItem,
-  right: RegistrationListItem
+  left: RegistrationQueryRecord,
+  right: RegistrationQueryRecord
 ) =>
   left.createdAt.getTime() < right.createdAt.getTime() ||
   (left.createdAt.getTime() === right.createdAt.getTime() &&
     left.id < right.id);
 
 const expectOrdered = (
-  items: readonly RegistrationListItem[],
-  compare: (left: RegistrationListItem, right: RegistrationListItem) => boolean
+  items: readonly RegistrationQueryRecord[],
+  compare: (
+    left: RegistrationQueryRecord,
+    right: RegistrationQueryRecord
+  ) => boolean
 ) => {
   for (let index = 1; index < items.length; index++) {
     const previous = items[index - 1];
@@ -81,6 +207,9 @@ const expectOrdered = (
 };
 
 describeLive("layerCommercetoolsRegistrationQueries live", () => {
+  beforeAll(seedLiveRegistrations);
+  afterAll(deleteLiveRegistrations);
+
   it.live(
     "pages registrations through Commercetools without the admin UI",
     () =>
@@ -90,9 +219,7 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
         );
         const layer = layerCommercetoolsRegistrationQueries({
           batchSize: 2,
-          container:
-            process.env.COMMERCETOOLS_REGISTRATION_QUERY_CONTAINER ??
-            "b2b-registration-by-id",
+          container: liveContainer,
         });
 
         yield* Effect.gen(function* () {
@@ -129,9 +256,7 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
       );
       const layer = layerCommercetoolsRegistrationQueries({
         batchSize: 2,
-        container:
-          process.env.COMMERCETOOLS_REGISTRATION_QUERY_CONTAINER ??
-          "b2b-registration-by-id",
+        container: liveContainer,
       });
 
       yield* Effect.gen(function* () {
@@ -163,9 +288,7 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
       );
       const layer = layerCommercetoolsRegistrationQueries({
         batchSize: 2,
-        container:
-          process.env.COMMERCETOOLS_REGISTRATION_QUERY_CONTAINER ??
-          "b2b-registration-by-id",
+        container: liveContainer,
       });
 
       yield* Effect.gen(function* () {

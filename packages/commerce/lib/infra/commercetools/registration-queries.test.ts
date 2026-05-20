@@ -36,7 +36,10 @@ import { encodeJsonString } from "@repo/registration-effect/services/versioned-k
 import type { Schema } from "effect";
 import { Effect, Redacted } from "effect";
 import { beforeEach, vi } from "vitest";
-import { layerCommercetoolsRegistrationQueries } from "./registration-queries";
+import {
+  encodeRegistrationStorageValue,
+  layerCommercetoolsRegistrationQueries,
+} from "./registration-queries";
 
 const mocks = vi.hoisted(() => {
   const executeMock = vi.fn();
@@ -102,6 +105,7 @@ const makeDetails = (companyName: string) =>
 const makeAwaiting = (id: string, companyName = "Hydra Supplies") =>
   new AwaitingApprovalRegistration({
     _tag: "AwaitingApprovalRegistration",
+    status: "awaiting_approval",
     id: RegistrationId.make(id),
     details: makeDetails(companyName),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -111,6 +115,7 @@ const makeAwaiting = (id: string, companyName = "Hydra Supplies") =>
 const makeApproved = (registration: AwaitingApprovalRegistration) =>
   new ApprovedRegistration({
     _tag: "ApprovedRegistration",
+    status: "approved",
     id: registration.id,
     details: registration.details,
     decision: new ApprovedDecision({
@@ -196,9 +201,9 @@ describe("layerCommercetoolsRegistrationQueries", () => {
 
         const result = yield* queries.list({ limit: 1 });
 
-        expect(result.items.map((item) => item.registrationId)).toEqual([
-          "registration-3",
-        ]);
+        expect(
+          result.items.map((item) => String(item.registration.id))
+        ).toEqual(["registration-3"]);
         expect(result.nextCursor).toBeDefined();
         expect(withContainer).toHaveBeenCalledWith({ container });
         expect(get).toHaveBeenCalledWith({
@@ -259,9 +264,9 @@ describe("layerCommercetoolsRegistrationQueries", () => {
         limit: 1,
       });
 
-      expect(secondPage.items.map((item) => item.registrationId)).toEqual([
-        "registration-2",
-      ]);
+      expect(
+        secondPage.items.map((item) => String(item.registration.id))
+      ).toEqual(["registration-2"]);
       expect(get).toHaveBeenLastCalledWith({
         queryArgs: {
           limit: 2,
@@ -319,11 +324,44 @@ describe("layerCommercetoolsRegistrationQueries", () => {
         });
 
         expect(execute).toHaveBeenCalledTimes(2);
-        expect(result.items.map((item) => item.registrationId)).toEqual([
-          "registration-2",
-        ]);
+        expect(
+          result.items.map((item) => String(item.registration.id))
+        ).toEqual(["registration-2"]);
         expect(result.nextCursor).toBeDefined();
       }).pipe(Effect.provide(layer))
+  );
+
+  it.effect("decodes storage status values without persisting _tag", () =>
+    Effect.gen(function* () {
+      const registration = makeAwaiting("registration-1");
+      const customObjectValue =
+        yield* encodeRegistrationStorageValue(registration);
+
+      expect(customObjectValue).toMatchObject({
+        status: "awaiting_approval",
+      });
+      expect(JSON.stringify(customObjectValue)).not.toContain('"_tag"');
+
+      execute.mockResolvedValueOnce({
+        body: {
+          results: [
+            {
+              createdAt: registration.createdAt.toISOString(),
+              id: "custom-object-1",
+              lastModifiedAt: "2026-01-01T00:00:00.000Z",
+              value: customObjectValue,
+            },
+          ],
+        },
+      });
+      const queries = yield* RegistrationQueries;
+
+      const result = yield* queries.list({ limit: 1 });
+
+      expect(result.items.map((item) => String(item.registration.id))).toEqual([
+        "registration-1",
+      ]);
+    }).pipe(Effect.provide(layer))
   );
 
   it.effect(
@@ -378,9 +416,9 @@ describe("layerCommercetoolsRegistrationQueries", () => {
           sort: { field: "lastModifiedAt", direction: "asc" },
         });
 
-        expect(secondPage.items.map((item) => item.registrationId)).toEqual([
-          "registration-2",
-        ]);
+        expect(
+          secondPage.items.map((item) => String(item.registration.id))
+        ).toEqual(["registration-2"]);
         expect(get).toHaveBeenLastCalledWith({
           queryArgs: {
             limit: 2,
@@ -444,9 +482,9 @@ describe("layerCommercetoolsRegistrationQueries", () => {
         sort: { field: "createdAt", direction: "asc" },
       });
 
-      expect(secondPage.items.map((item) => item.registrationId)).toEqual([
-        "registration-b",
-      ]);
+      expect(
+        secondPage.items.map((item) => String(item.registration.id))
+      ).toEqual(["registration-b"]);
       expect(get).toHaveBeenLastCalledWith({
         queryArgs: {
           limit: 2,

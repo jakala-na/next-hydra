@@ -15,6 +15,7 @@ import type {
   RegistrationWorkflowInput,
   VersionedRegistrationRecord,
 } from "@repo/registration/domain/types";
+import { z } from "zod";
 import {
   apiRoot,
   apiRootWithoutConcurrentModificationRetry,
@@ -30,30 +31,33 @@ const createBusinessUnitKey = (registrationId: string) =>
 
 const REGISTRATION_BY_ID_CONTAINER = "b2b-registration-by-id";
 const NOT_FOUND_STATUS_CODE = 404;
+const commercetoolsStatusCodeErrorSchema = z
+  .object({
+    statusCode: z.number(),
+  })
+  .passthrough();
 
 const toVersionedRegistrationRecord = (
-  customObject: CustomObject,
+  customObject: CustomObject
 ): VersionedRegistrationRecord => ({
   record: registrationRecordSchema.parse(customObject.value),
   version: customObject.version,
 });
 
 export const shouldIgnoreInvitationRevocation = (
-  record: Pick<RegistrationRecord, "userId" | "authEmail" | "invitationState">,
+  record: Pick<RegistrationRecord, "userId" | "authEmail" | "invitationState">
 ) =>
   Boolean(
-    record.userId || record.authEmail || record.invitationState === "accepted",
+    record.userId || record.authEmail || record.invitationState === "accepted"
   );
 
 const isNotFoundError = (error: unknown) =>
-  typeof error === "object" &&
-  error !== null &&
-  "statusCode" in error &&
-  error.statusCode === NOT_FOUND_STATUS_CODE;
+  commercetoolsStatusCodeErrorSchema.safeParse(error).data?.statusCode ===
+  NOT_FOUND_STATUS_CODE;
 
 async function getCustomObject(
   container: string,
-  key: string,
+  key: string
 ): Promise<CustomObject | null> {
   try {
     const response = await apiRoot
@@ -79,14 +83,14 @@ const getRegistrationRecordParseMetadata = (customObject: CustomObject) => ({
 });
 
 async function queryRegistrationRecord(
-  where: string,
+  where: string
 ): Promise<RegistrationRecord | null> {
   const records = await queryRegistrationRecords(where, 1);
   return records[0] ?? null;
 }
 
 async function queryVersionedRegistrationRecord(
-  where: string,
+  where: string
 ): Promise<VersionedRegistrationRecord | null> {
   const response = await apiRoot
     .customObjects()
@@ -110,7 +114,7 @@ async function queryVersionedRegistrationRecord(
 
 async function queryRegistrationRecords(
   where?: string,
-  limit = 20,
+  limit = 20
 ): Promise<RegistrationRecord[]> {
   const response = await apiRoot
     .customObjects()
@@ -147,7 +151,7 @@ async function queryRegistrationRecords(
   return records.sort(
     (left, right) =>
       right.updatedAt.localeCompare(left.updatedAt) ||
-      right.createdAt.localeCompare(left.createdAt),
+      right.createdAt.localeCompare(left.createdAt)
   );
 }
 
@@ -158,7 +162,7 @@ async function upsertCustomObject(
   options: {
     version?: number;
     retryOnConcurrentModification?: boolean;
-  } = {},
+  } = {}
 ): Promise<void> {
   const root =
     options.retryOnConcurrentModification === false
@@ -211,19 +215,19 @@ async function getBusinessUnitByKey(key: string): Promise<BusinessUnit | null> {
 }
 
 async function saveRegistrationRecord(
-  record: RegistrationRecord,
+  record: RegistrationRecord
 ): Promise<void> {
   const value = registrationRecordSchema.parse(record);
 
   await upsertCustomObject(
     REGISTRATION_BY_ID_CONTAINER,
     value.registrationId,
-    value,
+    value
   );
 }
 
 export async function updateRegistrationRecord(
-  versionedRecord: VersionedRegistrationRecord,
+  versionedRecord: VersionedRegistrationRecord
 ): Promise<RegistrationRecord> {
   if (
     !Number.isInteger(versionedRecord.version) ||
@@ -241,18 +245,18 @@ export async function updateRegistrationRecord(
     {
       retryOnConcurrentModification: false,
       version: versionedRecord.version,
-    },
+    }
   );
 
   return value;
 }
 
 async function getVersionedRegistrationRecord(
-  registrationId: string,
+  registrationId: string
 ): Promise<VersionedRegistrationRecord | null> {
   const customObject = await getCustomObject(
     REGISTRATION_BY_ID_CONTAINER,
-    registrationId,
+    registrationId
   );
 
   if (!customObject) {
@@ -263,11 +267,11 @@ async function getVersionedRegistrationRecord(
 }
 
 export async function getRegistrationRecord(
-  registrationId: string,
+  registrationId: string
 ): Promise<RegistrationRecord | null> {
   const customObject = await getCustomObject(
     REGISTRATION_BY_ID_CONTAINER,
-    registrationId,
+    registrationId
   );
 
   return customObject
@@ -276,36 +280,36 @@ export async function getRegistrationRecord(
 }
 
 export function getRegistrationRecordByUserId(
-  userId: string,
+  userId: string
 ): Promise<RegistrationRecord | null> {
   return queryRegistrationRecord(`value(userId = ${JSON.stringify(userId)})`);
 }
 
 export function getRegistrationRecordByInvitationId(
-  invitationId: string,
+  invitationId: string
 ): Promise<RegistrationRecord | null> {
   return queryRegistrationRecord(
-    `value(invitationId = ${JSON.stringify(invitationId)})`,
+    `value(invitationId = ${JSON.stringify(invitationId)})`
   );
 }
 
 export async function getLatestRegistrationRecordByAuthEmail(
-  email: string,
+  email: string
 ): Promise<RegistrationRecord | null> {
   const records = await queryRegistrationRecords(
-    `value(authEmail = ${JSON.stringify(email)})`,
+    `value(authEmail = ${JSON.stringify(email)})`
   );
   return records[0] ?? null;
 }
 
 export function listRegistrationRecords(
-  limit = 100,
+  limit = 100
 ): Promise<RegistrationRecord[]> {
   return queryRegistrationRecords(undefined, limit);
 }
 
 export async function markRegistrationSubmissionIncomplete(
-  input: RegistrationWorkflowInput,
+  input: RegistrationWorkflowInput
 ): Promise<RegistrationRecord> {
   const record = await getVersionedRegistrationRecord(input.registrationId);
 
@@ -326,7 +330,7 @@ export async function markRegistrationSubmissionIncomplete(
 }
 
 export async function createPendingRegistrationRecord(
-  input: RegistrationWorkflowInput,
+  input: RegistrationWorkflowInput
 ): Promise<RegistrationRecord> {
   const existing = await getRegistrationRecord(input.registrationId);
 
@@ -348,10 +352,10 @@ export async function createPendingRegistrationRecord(
 }
 
 export async function createPendingCustomerAndBusinessUnit(
-  input: RegistrationWorkflowInput,
+  input: RegistrationWorkflowInput
 ): Promise<RegistrationRecord> {
   const existingRecord = await getVersionedRegistrationRecord(
-    input.registrationId,
+    input.registrationId
   );
   const customerKey =
     existingRecord?.record.customerKey ??
@@ -471,7 +475,7 @@ export async function createPendingCustomerAndBusinessUnit(
 
 export async function saveRegistrationHookToken(
   registrationId: string,
-  hookToken: string,
+  hookToken: string
 ): Promise<RegistrationRecord> {
   const record = await getVersionedRegistrationRecord(registrationId);
 
@@ -495,7 +499,7 @@ export async function saveRegistrationInvitation(
   invitation: {
     id: string;
     state?: InvitationState;
-  },
+  }
 ): Promise<RegistrationRecord> {
   const record = await getVersionedRegistrationRecord(registrationId);
 
@@ -518,7 +522,7 @@ export async function saveRegistrationInvitation(
 
 export async function markRegistrationApprovalProcessing(
   registrationId: string,
-  approval: RegistrationApprovalDecision,
+  approval: RegistrationApprovalDecision
 ): Promise<RegistrationRecord> {
   const record = await getVersionedRegistrationRecord(registrationId);
 
@@ -549,7 +553,7 @@ async function syncCustomerIdentity(
     email: string;
     firstName?: string;
     lastName?: string;
-  },
+  }
 ): Promise<void> {
   if (!record.customerId) {
     return;
@@ -577,22 +581,14 @@ async function syncCustomerIdentity(
     });
   }
 
-  if (
-    typeof identity.firstName === "string" &&
-    identity.firstName.length > 0 &&
-    customer.firstName !== identity.firstName
-  ) {
+  if (identity.firstName && customer.firstName !== identity.firstName) {
     actions.push({
       action: "setFirstName",
       firstName: identity.firstName,
     });
   }
 
-  if (
-    typeof identity.lastName === "string" &&
-    identity.lastName.length > 0 &&
-    customer.lastName !== identity.lastName
-  ) {
+  if (identity.lastName && customer.lastName !== identity.lastName) {
     actions.push({
       action: "setLastName",
       lastName: identity.lastName,
@@ -622,10 +618,10 @@ export async function syncRegistrationIdentityFromInvitation(
     email: string;
     firstName?: string;
     lastName?: string;
-  },
+  }
 ): Promise<RegistrationRecord | null> {
   const record = await queryVersionedRegistrationRecord(
-    `value(invitationId = ${JSON.stringify(invitationId)})`,
+    `value(invitationId = ${JSON.stringify(invitationId)})`
   );
 
   if (!record) {
@@ -652,10 +648,10 @@ export async function syncRegistrationIdentityFromInvitation(
 }
 
 export async function markRegistrationInvitationRevoked(
-  invitationId: string,
+  invitationId: string
 ): Promise<RegistrationRecord | null> {
   const record = await queryVersionedRegistrationRecord(
-    `value(invitationId = ${JSON.stringify(invitationId)})`,
+    `value(invitationId = ${JSON.stringify(invitationId)})`
   );
 
   if (!record) {
@@ -671,7 +667,7 @@ export async function markRegistrationInvitationRevoked(
         userId: record.record.userId,
         authEmail: record.record.authEmail,
         invitationState: record.record.invitationState,
-      },
+      }
     );
     return record.record;
   }
@@ -692,7 +688,7 @@ export async function markRegistrationInvitationRevoked(
 
 export async function updateRegistrationApprovalStatus(
   registrationId: string,
-  approval: RegistrationApprovalDecision,
+  approval: RegistrationApprovalDecision
 ): Promise<RegistrationRecord> {
   const record = await getVersionedRegistrationRecord(registrationId);
 
@@ -725,7 +721,7 @@ export async function updateRegistrationApprovalStatus(
   if (approval.decision === "approved") {
     if (!record.record.invitationId) {
       throw new Error(
-        `Approved registration ${record.record.registrationId} is missing invitationId`,
+        `Approved registration ${record.record.registrationId} is missing invitationId`
       );
     }
 

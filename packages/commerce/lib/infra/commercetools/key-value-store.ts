@@ -6,7 +6,7 @@ import {
   StoreVersion,
   VersionedKeyValueStore,
 } from "@repo/registration-effect/services/versioned-key-value-store";
-import { Effect, Layer, Option, type Schema } from "effect";
+import { Effect, Layer, Option, Schema } from "effect";
 import {
   apiRoot,
   apiRootWithoutConcurrentModificationRetry,
@@ -20,14 +20,32 @@ interface CommercetoolsCustomObject {
   readonly version: number;
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+const CommercetoolsStatusCodeError = Schema.Struct({
+  statusCode: Schema.Number,
+});
+
+const CommercetoolsCodeError = Schema.Struct({
+  code: Schema.String,
+});
+
+const ErrorMessage = Schema.Struct({
+  message: Schema.String,
+});
 
 const hasStatusCode = (error: unknown, statusCode: number) =>
-  isObject(error) && error.statusCode === statusCode;
+  Option.match(
+    Schema.decodeUnknownOption(CommercetoolsStatusCodeError)(error),
+    {
+      onNone: () => false,
+      onSome: (decoded) => decoded.statusCode === statusCode,
+    }
+  );
 
 const hasCode = (error: unknown, code: string) =>
-  isObject(error) && error.code === code;
+  Option.match(Schema.decodeUnknownOption(CommercetoolsCodeError)(error), {
+    onNone: () => false,
+    onSome: (decoded) => decoded.code === code,
+  });
 
 const isNotFoundError = (error: unknown) =>
   hasStatusCode(error, NOT_FOUND_STATUS_CODE);
@@ -56,9 +74,8 @@ const storeConflict = (
     key,
     operation,
     reason:
-      isObject(cause) && typeof cause.message === "string"
-        ? cause.message
-        : "Commercetools custom object version conflict",
+      Option.getOrUndefined(Schema.decodeUnknownOption(ErrorMessage)(cause))
+        ?.message ?? "Commercetools custom object version conflict",
   });
 
 const versionFromCustomObject = (version: number) =>
@@ -142,7 +159,11 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
               Option.match(customObject, {
                 onNone: () => Effect.succeed(Option.none()),
                 onSome: (stored) => {
-                  if (typeof stored.value !== "string") {
+                  const encoded = Option.getOrUndefined(
+                    Schema.decodeUnknownOption(Schema.String)(stored.value)
+                  );
+
+                  if (!encoded) {
                     return Effect.fail(
                       storeError(
                         key,
@@ -154,7 +175,7 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
                     );
                   }
 
-                  return decodeJsonString(schema, stored.value).pipe(
+                  return decodeJsonString(schema, encoded).pipe(
                     Effect.map((value) =>
                       Option.some({
                         value,

@@ -149,6 +149,7 @@ export class Registrations extends Context.Service<
         const createdAt = yield* nowDate;
         const registration = new AwaitingApprovalRegistration({
           _tag: "AwaitingApprovalRegistration",
+          status: "awaiting_approval",
           id,
           details: input.details,
           createdAt,
@@ -207,6 +208,7 @@ export class Registrations extends Context.Service<
         const updatedAt = yield* nowDate;
         const approved = new ApprovedRegistration({
           _tag: "ApprovedRegistration",
+          status: "approved",
           id: current.value.id,
           details: current.value.details,
           decision: input.decision,
@@ -264,6 +266,7 @@ export class Registrations extends Context.Service<
         const updatedAt = yield* nowDate;
         const rejected = new RejectedRegistration({
           _tag: "RejectedRegistration",
+          status: "rejected",
           id: current.value.id,
           details: current.value.details,
           decision: input.decision,

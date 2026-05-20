@@ -93,6 +93,7 @@ const makeAwaiting = ({
 }) =>
   new AwaitingApprovalRegistration({
     _tag: "AwaitingApprovalRegistration",
+    status: "awaiting_approval",
     id: RegistrationId.make(id),
     details: makeDetails({ companyName, firstName, lastName, email }),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -102,6 +103,7 @@ const makeAwaiting = ({
 const makeApproved = (registration: AwaitingApprovalRegistration) =>
   new ApprovedRegistration({
     _tag: "ApprovedRegistration",
+    status: "approved",
     id: registration.id,
     details: registration.details,
     decision: new ApprovedDecision({
@@ -135,6 +137,7 @@ const makeApproved = (registration: AwaitingApprovalRegistration) =>
 const makeRejected = (registration: AwaitingApprovalRegistration) =>
   new RejectedRegistration({
     _tag: "RejectedRegistration",
+    status: "rejected",
     id: registration.id,
     details: registration.details,
     decision: new RejectedDecision({
@@ -196,10 +199,10 @@ describe("RegistrationQueries.layerMemoryFrom", () => {
 
       const result = yield* queries.list({ status: "approved" });
 
-      expect(result.items.map((item) => item.registrationId)).toEqual([
+      expect(result.items.map((item) => String(item.registration.id))).toEqual([
         "registration-approved",
       ]);
-      expect(result.items[0]?.status).toBe("approved");
+      expect(result.items[0]?.registration.status).toBe("approved");
     })
   );
 
@@ -237,7 +240,7 @@ describe("RegistrationQueries.layerMemoryFrom", () => {
 
       const result = yield* queries.list({});
 
-      expect(result.items.map((item) => item.registrationId)).toEqual([
+      expect(result.items.map((item) => String(item.registration.id))).toEqual([
         "registration-a",
         "registration-c",
         "registration-b",
@@ -285,14 +288,12 @@ describe("RegistrationQueries.layerMemoryFrom", () => {
         limit: 2,
       });
 
-      expect(firstPage.items.map((item) => item.registrationId)).toEqual([
-        "registration-d",
-        "registration-c",
-      ]);
-      expect(secondPage.items.map((item) => item.registrationId)).toEqual([
-        "registration-b",
-        "registration-a",
-      ]);
+      expect(
+        firstPage.items.map((item) => String(item.registration.id))
+      ).toEqual(["registration-d", "registration-c"]);
+      expect(
+        secondPage.items.map((item) => String(item.registration.id))
+      ).toEqual(["registration-b", "registration-a"]);
       expect(secondPage.nextCursor).toBeUndefined();
     })
   );
@@ -334,13 +335,12 @@ describe("RegistrationQueries.layerMemoryFrom", () => {
         limit: 2,
       });
 
-      expect(firstPage.items.map((item) => item.registrationId)).toEqual([
-        "registration-c",
-        "registration-b",
-      ]);
-      expect(secondPage.items.map((item) => item.registrationId)).toEqual([
-        "registration-a",
-      ]);
+      expect(
+        firstPage.items.map((item) => String(item.registration.id))
+      ).toEqual(["registration-c", "registration-b"]);
+      expect(
+        secondPage.items.map((item) => String(item.registration.id))
+      ).toEqual(["registration-a"]);
     })
   );
 
@@ -408,14 +408,12 @@ describe("RegistrationQueries.layerMemoryFrom", () => {
         sort: { field: "createdAt", direction: "asc" },
       });
 
-      expect(firstPage.items.map((item) => item.registrationId)).toEqual([
-        "registration-z",
-        "registration-a",
-      ]);
-      expect(secondPage.items.map((item) => item.registrationId)).toEqual([
-        "registration-h-1",
-        "registration-h-2",
-      ]);
+      expect(
+        firstPage.items.map((item) => String(item.registration.id))
+      ).toEqual(["registration-z", "registration-a"]);
+      expect(
+        secondPage.items.map((item) => String(item.registration.id))
+      ).toEqual(["registration-h-1", "registration-h-2"]);
     })
   );
 

@@ -1,24 +1,24 @@
 import {
   type Registration,
   Registration as RegistrationSchema,
+  RegistrationStatus,
+  type RegistrationStatus as RegistrationStatusType,
 } from "@repo/registration-effect/domain/registration";
 import {
   encodeRegistrationQueryCursor,
   type ListRegistrationsInput,
   normalizeRegistrationQuerySort,
   parseRegistrationQueryCursor,
-  RegistrationListItem,
   RegistrationQueries,
   type RegistrationQueryCursor,
   RegistrationQueryFailure,
   type RegistrationQueryRecord,
   type RegistrationQuerySortDirection,
   type RegistrationQuerySortField,
-  type RegistrationQueryStatus,
-  registrationQueryCursorFromItem,
+  registrationQueryCursorFromRecord,
 } from "@repo/registration-effect/services/registration-queries";
 import { decodeJsonString } from "@repo/registration-effect/services/versioned-key-value-store";
-import { Effect, Layer, Redacted } from "effect";
+import { Effect, Layer, Option, Schema } from "effect";
 import { apiRoot } from "../../client/api-root";
 
 interface CommercetoolsCustomObject {
@@ -69,6 +69,75 @@ const sortExpressions = (
   return [`${field} ${direction}`, `id ${direction}`];
 };
 
+const RegistrationJson = Schema.toCodecJson(RegistrationSchema);
+const UnknownStringRecord = Schema.Record(Schema.String, Schema.Unknown);
+
+const decodeUnknownStringRecord = (value: unknown) =>
+  Option.getOrUndefined(Schema.decodeUnknownOption(UnknownStringRecord)(value));
+
+const tagFromStatus = (
+  status: Registration["status"]
+): Registration["_tag"] => {
+  switch (status) {
+    case "awaiting_approval":
+      return "AwaitingApprovalRegistration";
+    case "approved":
+      return "ApprovedRegistration";
+    case "rejected":
+      return "RejectedRegistration";
+    default:
+      return status satisfies never;
+  }
+};
+
+const withoutTopLevelTag = (value: unknown) => {
+  const record = decodeUnknownStringRecord(value);
+
+  if (!record) {
+    return value;
+  }
+
+  const { _tag, ...rest } = record;
+
+  return rest;
+};
+
+const withTopLevelTagFromStatus = (value: unknown) => {
+  const record = decodeUnknownStringRecord(value);
+
+  if (!record || record._tag !== undefined) {
+    return value;
+  }
+
+  const status = Option.getOrUndefined(
+    Schema.decodeUnknownOption(RegistrationStatus)(record.status)
+  );
+
+  if (!status) {
+    return value;
+  }
+
+  return {
+    _tag: tagFromStatus(status),
+    ...record,
+  };
+};
+
+export const encodeRegistrationStorageValue = (registration: Registration) =>
+  Schema.encodeEffect(RegistrationJson)(registration).pipe(
+    Effect.map(withoutTopLevelTag)
+  );
+
+const decodeRegistrationValue = (value: unknown) => {
+  if (typeof value === "string") {
+    return decodeJsonString(RegistrationSchema, value);
+  }
+
+  return Schema.decodeUnknownEffect(RegistrationJson)(
+    withTopLevelTagFromStatus(value)
+  );
+};
+
 const queryCustomObjects = ({
   container,
   cursor,
@@ -110,15 +179,7 @@ const queryCustomObjects = ({
 
 const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
   Effect.gen(function* () {
-    if (typeof customObject.value !== "string") {
-      return yield* new RegistrationQueryFailure({
-        operation: "list",
-        cause: new Error("Expected custom object value to be a JSON string"),
-      });
-    }
-
-    const registration = yield* decodeJsonString(
-      RegistrationSchema,
+    const registration = yield* decodeRegistrationValue(
       customObject.value
     ).pipe(
       Effect.mapError(
@@ -160,36 +221,7 @@ const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
 
 const statusFromRecord = (
   record: RegistrationQueryRecord
-): RegistrationQueryStatus => {
-  switch (record.registration._tag) {
-    case "AwaitingApprovalRegistration":
-      return "awaiting_approval";
-    case "ApprovedRegistration":
-      return "approved";
-    case "RejectedRegistration":
-      return "rejected";
-    default:
-      return record.registration satisfies never;
-  }
-};
-
-const toListItem = (record: RegistrationQueryRecord) =>
-  new RegistrationListItem({
-    id: record.id,
-    registrationId: String(record.registration.id),
-    status: statusFromRecord(record),
-    companyName: String(record.registration.details.companyName),
-    contactFirstName: String(
-      Redacted.value(record.registration.details.contactFirstName)
-    ),
-    contactLastName: String(
-      Redacted.value(record.registration.details.contactLastName)
-    ),
-    email: String(Redacted.value(record.registration.details.email)),
-    createdAt: record.createdAt,
-    updatedAt: record.registration.updatedAt,
-    lastModifiedAt: record.lastModifiedAt,
-  });
+): RegistrationStatusType => record.registration.status;
 
 export interface CommercetoolsRegistrationQueriesOptions {
   readonly container: string;
@@ -233,7 +265,7 @@ export const layerCommercetoolsRegistrationQueries = ({
 
           for (const customObject of response.results) {
             const record = yield* decodeCustomObject(customObject);
-            cursor = registrationQueryCursorFromItem(toListItem(record), sort);
+            cursor = registrationQueryCursorFromRecord(record, sort);
 
             if (input.status && statusFromRecord(record) !== input.status) {
               continue;
@@ -247,15 +279,13 @@ export const layerCommercetoolsRegistrationQueries = ({
           }
         }
 
-        const items = accepted
-          .slice(0, limit)
-          .map((record) => toListItem(record));
+        const items = accepted.slice(0, limit);
 
         const last = items.at(-1);
         const nextCursor =
           accepted.length > limit && last
             ? encodeRegistrationQueryCursor(
-                registrationQueryCursorFromItem(last, sort)
+                registrationQueryCursorFromRecord(last, sort)
               )
             : undefined;
 
