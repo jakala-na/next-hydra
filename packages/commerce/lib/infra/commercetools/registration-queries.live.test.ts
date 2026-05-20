@@ -1,8 +1,11 @@
 import "dotenv/config";
 
 import { describe, expect, it } from "@effect/vitest";
+import { RegistrationReviewerActor } from "@repo/registration-effect/domain/actors";
+import { RejectedDecision } from "@repo/registration-effect/domain/approval";
 import {
   AddressLine,
+  AuthUserId,
   City,
   CompanyName,
   CountryCode,
@@ -15,6 +18,7 @@ import {
   AwaitingApprovalRegistration,
   CompanyAddress,
   CompanyRegistrationDetails,
+  RejectedRegistration,
 } from "@repo/registration-effect/domain/registration";
 import {
   RegistrationQueries,
@@ -59,7 +63,17 @@ const seededKeys = [
   "registration-query-live-a",
   "registration-query-live-b",
   "registration-query-live-c",
+  "registration-query-live-rejected",
 ] as const;
+
+const reviewer = new RegistrationReviewerActor({
+  actorType: "registration_reviewer",
+  authUserId: AuthUserId.make("auth-reviewer-live"),
+  email: Redacted.make(Email.make("reviewer@example.com"), {
+    label: "email",
+  }),
+  name: "Registration Reviewer",
+});
 
 const makeRegistration = (id: string, companyName: string, createdAt: Date) =>
   new AwaitingApprovalRegistration({
@@ -92,6 +106,28 @@ const makeRegistration = (id: string, companyName: string, createdAt: Date) =>
     updatedAt: createdAt,
   });
 
+const makeRejectedRegistration = (
+  id: string,
+  companyName: string,
+  createdAt: Date
+) => {
+  const registration = makeRegistration(id, companyName, createdAt);
+
+  return new RejectedRegistration({
+    _tag: "RejectedRegistration",
+    status: "rejected",
+    id: registration.id,
+    details: registration.details,
+    decision: new RejectedDecision({
+      decision: "rejected",
+      actor: reviewer,
+      decidedAt: createdAt,
+    }),
+    createdAt: registration.createdAt,
+    updatedAt: registration.updatedAt,
+  });
+};
+
 const seedLiveRegistrations = async () => {
   const { apiRoot } = await import("../../client/api-root");
   const { encodeRegistrationStorageValue } = await import(
@@ -112,6 +148,11 @@ const seedLiveRegistrations = async () => {
       "registration-query-live-c",
       "Hydra Gamma",
       new Date("2026-01-03T00:00:00.000Z")
+    ),
+    makeRejectedRegistration(
+      "registration-query-live-rejected",
+      "Hydra Rejected",
+      new Date("2026-01-04T00:00:00.000Z")
     ),
   ];
 
@@ -309,6 +350,55 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
 
         expectOrdered(items, compareCreatedFirst);
         expect(new Set(items.map((item) => item.id)).size).toBe(items.length);
+      }).pipe(Effect.provide(layer));
+    })
+  );
+
+  it.live("combines status filtering with cursor pagination", () =>
+    Effect.gen(function* () {
+      const { layerCommercetoolsRegistrationQueries } = yield* Effect.promise(
+        () => import("./registration-queries")
+      );
+      const layer = layerCommercetoolsRegistrationQueries({
+        batchSize: 2,
+        container: liveContainer,
+      });
+
+      yield* Effect.gen(function* () {
+        const queries = yield* RegistrationQueries;
+        const firstPage = yield* queries.list({
+          limit: 1,
+          status: "awaiting_approval",
+        });
+
+        expect(firstPage.items).toHaveLength(1);
+        expect(firstPage.items[0]?.registration.status).toBe(
+          "awaiting_approval"
+        );
+        expect(firstPage.nextCursor).toBeDefined();
+
+        const secondPage = firstPage.nextCursor
+          ? yield* queries.list({
+              cursor: firstPage.nextCursor,
+              limit: 1,
+              status: "awaiting_approval",
+            })
+          : { items: [] };
+
+        expect(secondPage.items).toHaveLength(1);
+        expect(secondPage.items[0]?.registration.status).toBe(
+          "awaiting_approval"
+        );
+
+        const registrationIds = new Set(
+          [...firstPage.items, ...secondPage.items].map((item) =>
+            String(item.registration.id)
+          )
+        );
+
+        expect(registrationIds.has("registration-query-live-rejected")).toBe(
+          false
+        );
       }).pipe(Effect.provide(layer));
     })
   );

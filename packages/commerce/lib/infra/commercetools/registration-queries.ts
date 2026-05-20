@@ -32,7 +32,6 @@ interface CommercetoolsCustomObjectPagedQueryResponse {
   readonly results: readonly CommercetoolsCustomObject[];
 }
 
-const DEFAULT_PROVIDER_BATCH_SIZE = 100;
 const MAX_PROVIDER_BATCH_SIZE = 500;
 const DEFAULT_LIST_LIMIT = 20;
 const MIN_LIST_LIMIT = 1;
@@ -60,6 +59,29 @@ const cursorPredicate = (cursor: RegistrationQueryCursor) => {
   const sortField = cursor.sort.field;
 
   return `${sortField} ${operator} "${sortValue}" or (${sortField} = "${sortValue}" and id ${operator} "${id}")`;
+};
+
+const statusPredicate = (status: RegistrationStatusType) =>
+  `value(status = "${escapePredicateString(status)}")`;
+
+const wherePredicate = ({
+  cursor,
+  status,
+}: {
+  readonly cursor?: RegistrationQueryCursor;
+  readonly status?: RegistrationStatusType;
+}) => {
+  const predicates: string[] = [];
+
+  if (status) {
+    predicates.push(statusPredicate(status));
+  }
+
+  if (cursor) {
+    predicates.push(`(${cursorPredicate(cursor)})`);
+  }
+
+  return predicates.length > 0 ? predicates.join(" and ") : undefined;
 };
 
 const sortExpressions = (
@@ -142,6 +164,7 @@ const queryCustomObjects = ({
   container,
   cursor,
   sort,
+  status,
   limit,
 }: {
   readonly container: string;
@@ -150,10 +173,12 @@ const queryCustomObjects = ({
     readonly field: RegistrationQuerySortField;
     readonly direction: RegistrationQuerySortDirection;
   };
+  readonly status?: RegistrationStatusType;
   readonly limit: number;
 }) =>
   Effect.tryPromise({
     try: async () => {
+      const where = wherePredicate({ cursor, status });
       const response = await apiRoot
         .customObjects()
         .withContainer({ container })
@@ -163,7 +188,7 @@ const queryCustomObjects = ({
             offset: 0,
             sort: sortExpressions(sort.field, sort.direction),
             withTotal: false,
-            ...(cursor ? { where: cursorPredicate(cursor) } : {}),
+            ...(where ? { where } : {}),
           },
         })
         .execute();
@@ -219,10 +244,6 @@ const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
     } satisfies RegistrationQueryRecord;
   });
 
-const statusFromRecord = (
-  record: RegistrationQueryRecord
-): RegistrationStatusType => record.registration.status;
-
 export interface CommercetoolsRegistrationQueriesOptions {
   readonly container: string;
   readonly batchSize?: number;
@@ -230,7 +251,6 @@ export interface CommercetoolsRegistrationQueriesOptions {
 
 export const layerCommercetoolsRegistrationQueries = ({
   container,
-  batchSize = DEFAULT_PROVIDER_BATCH_SIZE,
 }: CommercetoolsRegistrationQueriesOptions) =>
   Layer.succeed(
     RegistrationQueries,
@@ -240,50 +260,23 @@ export const layerCommercetoolsRegistrationQueries = ({
       ) {
         const limit = normalizeLimit(input.limit);
         const sort = normalizeRegistrationQuerySort(input.sort);
-        const providerLimit = clamp(
-          batchSize,
-          limit + 1,
-          MAX_PROVIDER_BATCH_SIZE
+        const cursor = yield* parseRegistrationQueryCursor(input.cursor, sort);
+        const response = yield* queryCustomObjects({
+          container,
+          cursor,
+          sort,
+          status: input.status,
+          limit: clamp(limit + 1, MIN_LIST_LIMIT, MAX_PROVIDER_BATCH_SIZE),
+        });
+        const records = yield* Effect.forEach(
+          response.results,
+          decodeCustomObject
         );
-
-        const accepted: RegistrationQueryRecord[] = [];
-        let cursor = yield* parseRegistrationQueryCursor(input.cursor, sort);
-        let hasMoreProviderRecords = true;
-
-        while (accepted.length <= limit && hasMoreProviderRecords) {
-          const response = yield* queryCustomObjects({
-            container,
-            cursor,
-            sort,
-            limit: providerLimit,
-          });
-          hasMoreProviderRecords = response.results.length === providerLimit;
-
-          if (response.results.length === 0) {
-            break;
-          }
-
-          for (const customObject of response.results) {
-            const record = yield* decodeCustomObject(customObject);
-            cursor = registrationQueryCursorFromRecord(record, sort);
-
-            if (input.status && statusFromRecord(record) !== input.status) {
-              continue;
-            }
-
-            accepted.push(record);
-
-            if (accepted.length > limit) {
-              break;
-            }
-          }
-        }
-
-        const items = accepted.slice(0, limit);
+        const items = records.slice(0, limit);
 
         const last = items.at(-1);
         const nextCursor =
-          accepted.length > limit && last
+          records.length > limit && last
             ? encodeRegistrationQueryCursor(
                 registrationQueryCursorFromRecord(last, sort)
               )

@@ -1,27 +1,15 @@
 import { describe, expect, it } from "@effect/vitest";
-import { RegistrationReviewerActor } from "@repo/registration-effect/domain/actors";
-import { ApprovedDecision } from "@repo/registration-effect/domain/approval";
-import { CommerceAccount } from "@repo/registration-effect/domain/commerce";
 import {
   AddressLine,
-  AuthUserId,
   City,
-  CommerceBusinessUnitId,
-  CommerceCustomerId,
   CompanyName,
   CountryCode,
   Email,
-  InvitationId,
   PersonName,
   PostalCode,
   RegistrationId,
 } from "@repo/registration-effect/domain/identity";
 import {
-  PendingRegistrationInvitation,
-  RegistrationApprovalIntent,
-} from "@repo/registration-effect/domain/invitations";
-import {
-  ApprovedRegistration,
   AwaitingApprovalRegistration,
   CompanyAddress,
   CompanyRegistrationDetails,
@@ -71,15 +59,6 @@ const layer = layerCommercetoolsRegistrationQueries({
   container,
 });
 
-const reviewer = new RegistrationReviewerActor({
-  actorType: "registration_reviewer",
-  authUserId: AuthUserId.make("auth-reviewer-1"),
-  email: Redacted.make(Email.make("reviewer@example.com"), {
-    label: "email",
-  }),
-  name: "Registration Reviewer",
-});
-
 const makeDetails = (companyName: string) =>
   new CompanyRegistrationDetails({
     companyName: CompanyName.make(companyName),
@@ -110,40 +89,6 @@ const makeAwaiting = (id: string, companyName = "Hydra Supplies") =>
     details: makeDetails(companyName),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-  });
-
-const makeApproved = (registration: AwaitingApprovalRegistration) =>
-  new ApprovedRegistration({
-    _tag: "ApprovedRegistration",
-    status: "approved",
-    id: registration.id,
-    details: registration.details,
-    decision: new ApprovedDecision({
-      decision: "approved",
-      actor: reviewer,
-      decidedAt: new Date("2026-01-02T00:00:00.000Z"),
-    }),
-    commerceAccount: new CommerceAccount({
-      registrationId: registration.id,
-      customerId: CommerceCustomerId.make(`customer-${registration.id}`),
-      businessUnitId: CommerceBusinessUnitId.make(
-        `business-unit-${registration.id}`
-      ),
-    }),
-    invitation: new PendingRegistrationInvitation({
-      _tag: "PendingInvitation",
-      id: InvitationId.make(`invitation-${registration.id}`),
-      intent: new RegistrationApprovalIntent({
-        intent: "registration_approval",
-        registrationId: registration.id,
-        inviteeEmail: registration.details.email,
-        role: "owner",
-      }),
-      issuedBy: reviewer,
-      createdAt: new Date("2026-01-02T00:00:00.000Z"),
-    }),
-    createdAt: registration.createdAt,
-    updatedAt: registration.updatedAt,
   });
 
 const customObject = (
@@ -273,62 +218,114 @@ describe("layerCommercetoolsRegistrationQueries", () => {
           offset: 0,
           sort: ["lastModifiedAt desc", "id desc"],
           where:
-            'lastModifiedAt < "2026-01-03T00:00:00.000Z" or (lastModifiedAt = "2026-01-03T00:00:00.000Z" and id < "custom-object-3")',
+            '(lastModifiedAt < "2026-01-03T00:00:00.000Z" or (lastModifiedAt = "2026-01-03T00:00:00.000Z" and id < "custom-object-3"))',
           withTotal: false,
         },
       });
     }).pipe(Effect.provide(layer))
   );
 
-  it.effect(
-    "keeps fetching provider pages until status filtering has a page",
-    () =>
-      Effect.gen(function* () {
-        execute.mockResolvedValueOnce({
-          body: {
-            results: [
-              yield* customObject(
-                "custom-object-4",
-                "2026-01-04T00:00:00.000Z",
-                makeApproved(makeAwaiting("registration-4"))
-              ),
-              yield* customObject(
-                "custom-object-3",
-                "2026-01-03T00:00:00.000Z",
-                makeApproved(makeAwaiting("registration-3"))
-              ),
-            ],
-          },
-        });
-        execute.mockResolvedValueOnce({
-          body: {
-            results: [
-              yield* customObject(
-                "custom-object-2",
-                "2026-01-02T00:00:00.000Z",
-                makeAwaiting("registration-2")
-              ),
-              yield* customObject(
-                "custom-object-1",
-                "2026-01-01T00:00:00.000Z",
-                makeAwaiting("registration-1")
-              ),
-            ],
-          },
-        });
-        const queries = yield* RegistrationQueries;
+  it.effect("pushes status filtering into the provider predicate", () =>
+    Effect.gen(function* () {
+      execute.mockResolvedValueOnce({
+        body: {
+          results: [
+            yield* customObject(
+              "custom-object-2",
+              "2026-01-02T00:00:00.000Z",
+              makeAwaiting("registration-2")
+            ),
+            yield* customObject(
+              "custom-object-1",
+              "2026-01-01T00:00:00.000Z",
+              makeAwaiting("registration-1")
+            ),
+          ],
+        },
+      });
+      const queries = yield* RegistrationQueries;
 
-        const result = yield* queries.list({
-          limit: 1,
-          status: "awaiting_approval",
-        });
+      const result = yield* queries.list({
+        limit: 1,
+        status: "awaiting_approval",
+      });
 
-        expect(execute).toHaveBeenCalledTimes(2);
-        expect(
-          result.items.map((item) => String(item.registration.id))
-        ).toEqual(["registration-2"]);
-        expect(result.nextCursor).toBeDefined();
-      }).pipe(Effect.provide(layer))
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(result.items.map((item) => String(item.registration.id))).toEqual([
+        "registration-2",
+      ]);
+      expect(result.nextCursor).toBeDefined();
+      expect(get).toHaveBeenCalledWith({
+        queryArgs: {
+          limit: 2,
+          offset: 0,
+          sort: ["lastModifiedAt desc", "id desc"],
+          where: 'value(status = "awaiting_approval")',
+          withTotal: false,
+        },
+      });
+    }).pipe(Effect.provide(layer))
+  );
+
+  it.effect("combines status and cursor predicates in one provider query", () =>
+    Effect.gen(function* () {
+      execute.mockResolvedValueOnce({
+        body: {
+          results: [
+            yield* customObject(
+              "custom-object-3",
+              "2026-01-03T00:00:00.000Z",
+              makeAwaiting("registration-3")
+            ),
+            yield* customObject(
+              "custom-object-2",
+              "2026-01-02T00:00:00.000Z",
+              makeAwaiting("registration-2")
+            ),
+          ],
+        },
+      });
+      execute.mockResolvedValueOnce({
+        body: {
+          results: [
+            yield* customObject(
+              "custom-object-2",
+              "2026-01-02T00:00:00.000Z",
+              makeAwaiting("registration-2")
+            ),
+          ],
+        },
+      });
+      const queries = yield* RegistrationQueries;
+
+      const firstPage = yield* queries.list({
+        limit: 1,
+        status: "awaiting_approval",
+      });
+      const cursor = firstPage.nextCursor;
+      if (!cursor) {
+        throw new Error("Expected a next cursor");
+      }
+      const secondPage = yield* queries.list({
+        cursor,
+        limit: 1,
+        status: "awaiting_approval",
+      });
+
+      expect(
+        secondPage.items.map((item) => String(item.registration.id))
+      ).toEqual(["registration-2"]);
+      expect(get).toHaveBeenLastCalledWith({
+        queryArgs: {
+          limit: 2,
+          offset: 0,
+          sort: ["lastModifiedAt desc", "id desc"],
+          where:
+            'value(status = "awaiting_approval") and (lastModifiedAt < "2026-01-03T00:00:00.000Z" or (lastModifiedAt = "2026-01-03T00:00:00.000Z" and id < "custom-object-3"))',
+          withTotal: false,
+        },
+      });
+    }).pipe(Effect.provide(layer))
   );
 
   it.effect("decodes storage status values without persisting _tag", () =>
@@ -425,7 +422,7 @@ describe("layerCommercetoolsRegistrationQueries", () => {
             offset: 0,
             sort: ["lastModifiedAt asc", "id asc"],
             where:
-              'lastModifiedAt > "2026-01-01T00:00:00.000Z" or (lastModifiedAt = "2026-01-01T00:00:00.000Z" and id > "custom-object-1")',
+              '(lastModifiedAt > "2026-01-01T00:00:00.000Z" or (lastModifiedAt = "2026-01-01T00:00:00.000Z" and id > "custom-object-1"))',
             withTotal: false,
           },
         });
@@ -491,7 +488,7 @@ describe("layerCommercetoolsRegistrationQueries", () => {
           offset: 0,
           sort: ["createdAt asc", "id asc"],
           where:
-            'createdAt > "2026-01-01T00:00:00.000Z" or (createdAt = "2026-01-01T00:00:00.000Z" and id > "custom-object-a")',
+            '(createdAt > "2026-01-01T00:00:00.000Z" or (createdAt = "2026-01-01T00:00:00.000Z" and id > "custom-object-a"))',
           withTotal: false,
         },
       });
