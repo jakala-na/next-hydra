@@ -21,10 +21,6 @@ import {
   VatId,
 } from "../domain/identity";
 import {
-  PendingRegistrationInvitation,
-  RegistrationApprovalIntent,
-} from "../domain/invitations";
-import {
   CompanyAddress,
   CompanyRegistrationDetails,
 } from "../domain/registration";
@@ -101,19 +97,8 @@ const makeCommerceAccount = (registrationId: RegistrationId) =>
     businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
   });
 
-const makeInvitation = (registrationId: RegistrationId) =>
-  new PendingRegistrationInvitation({
-    _tag: "PendingInvitation",
-    id: InvitationId.make("invitation-1"),
-    intent: new RegistrationApprovalIntent({
-      intent: "registration_approval",
-      registrationId,
-      inviteeEmail: details.email,
-      role: "owner",
-    }),
-    issuedBy: reviewer,
-    createdAt: new Date(1),
-  });
+const makeInvitationId = (_registrationId: RegistrationId) =>
+  InvitationId.make("invitation-1");
 
 const expectDomainPersistenceFailure = (exit: Exit.Exit<unknown, unknown>) => {
   expect(Exit.isFailure(exit)).toBe(true);
@@ -157,6 +142,7 @@ describe("Registrations over versioned storage", () => {
                 })
               ),
             update: store.update,
+            values: store.values,
           });
         }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
       );
@@ -201,6 +187,7 @@ describe("Registrations over versioned storage", () => {
                 })
               ),
             update: store.update,
+            values: store.values,
           });
         }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
       );
@@ -234,6 +221,14 @@ describe("Registrations over versioned storage", () => {
           ),
         insert: () => Effect.void,
         update: () => Effect.void,
+        values: () =>
+          Effect.fail(
+            new StoreError({
+              key: "registration-1",
+              operation: "read",
+              cause: "forced read failure",
+            })
+          ),
       })
     );
     const layer = Registrations.layerStorage.pipe(Layer.provide(failingStore));
@@ -273,11 +268,32 @@ describe("Registrations over versioned storage", () => {
         registrationId: created.id,
         decision: makeDecision(),
         commerceAccount: makeCommerceAccount(created.id),
-        invitation: makeInvitation(created.id),
+        invitationId: makeInvitationId(created.id),
       });
 
       expect(approved._tag).toBe("ApprovedRegistration");
       expect(approved.createdAt).toStrictEqual(created.createdAt);
+      expect(approved.invitationId).toBe(makeInvitationId(created.id));
+    }).pipe(Effect.provide(Registrations.layerMemory))
+  );
+
+  it.effect("finds approved registrations by invitation id", () =>
+    Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const created = yield* registrations.createAwaitingApproval({ details });
+      const invitationId = makeInvitationId(created.id);
+
+      yield* registrations.markApproved({
+        registrationId: created.id,
+        decision: makeDecision(),
+        commerceAccount: makeCommerceAccount(created.id),
+        invitationId,
+      });
+
+      const found = yield* registrations.findByInvitationId(invitationId);
+
+      expect(found.id).toBe(created.id);
+      expect(found.invitationId).toBe(invitationId);
     }).pipe(Effect.provide(Registrations.layerMemory))
   );
 
@@ -304,7 +320,7 @@ describe("Registrations over versioned storage", () => {
         registrationId: created.id,
         decision: makeDecision(),
         commerceAccount: makeCommerceAccount(created.id),
-        invitation: makeInvitation(created.id),
+        invitationId: makeInvitationId(created.id),
       });
 
       const exit = yield* registrations
@@ -340,6 +356,7 @@ describe("Registrations over versioned storage", () => {
                 reason: "forced conflict",
               })
             ),
+          values: store.values,
         });
       }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
     );
@@ -356,7 +373,7 @@ describe("Registrations over versioned storage", () => {
           registrationId: created.id,
           decision: makeDecision(),
           commerceAccount: makeCommerceAccount(created.id),
-          invitation: makeInvitation(created.id),
+          invitationId: makeInvitationId(created.id),
         })
         .pipe(Effect.exit);
 
@@ -391,6 +408,7 @@ describe("Registrations over versioned storage", () => {
                   cause: "forced update failure",
                 })
               ),
+            values: store.values,
           });
         }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
       );
@@ -409,7 +427,7 @@ describe("Registrations over versioned storage", () => {
             registrationId: created.id,
             decision: makeDecision(),
             commerceAccount: makeCommerceAccount(created.id),
-            invitation: makeInvitation(created.id),
+            invitationId: makeInvitationId(created.id),
           })
           .pipe(Effect.exit);
 

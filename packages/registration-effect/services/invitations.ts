@@ -39,9 +39,28 @@ export class InvitationConflict extends Schema.TaggedErrorClass<InvitationConfli
   }
 ) {}
 
-export type InvitationIssueError = InvitationConflict;
-export type InvitationAcceptError = InvitationNotFound | InvitationConflict;
-export type InvitationRevokeError = InvitationNotFound | InvitationConflict;
+export class InvitationProviderFailure extends Schema.TaggedErrorClass<InvitationProviderFailure>()(
+  "InvitationProviderFailure",
+  {
+    operation: Schema.Literals(["issue", "read", "accept", "revoke"]),
+    cause: Schema.Defect,
+  }
+) {}
+
+export type InvitationIssueError =
+  | InvitationConflict
+  | InvitationProviderFailure;
+export type InvitationReadError =
+  | InvitationNotFound
+  | InvitationProviderFailure;
+export type InvitationAcceptError =
+  | InvitationNotFound
+  | InvitationConflict
+  | InvitationProviderFailure;
+export type InvitationRevokeError =
+  | InvitationNotFound
+  | InvitationConflict
+  | InvitationProviderFailure;
 
 export interface IssueInvitationInput {
   readonly intent: InvitationIntent;
@@ -103,6 +122,9 @@ export class Invitations extends Context.Service<
     readonly issue: (
       input: IssueInvitationInput
     ) => Effect.Effect<PendingInvitation, InvitationIssueError>;
+    readonly get: (
+      invitationId: InvitationId
+    ) => Effect.Effect<Invitation, InvitationReadError>;
     readonly accept: (
       input: AcceptInvitationInput
     ) => Effect.Effect<AcceptedInvitation, InvitationAcceptError>;
@@ -174,6 +196,16 @@ export class Invitations extends Context.Service<
         );
 
         return invitation;
+      });
+
+      const get = Effect.fn("Invitations.get")(function* (
+        invitationId: InvitationId
+      ) {
+        const invitations = yield* Ref.get(store);
+        return yield* Option.fromNullishOr(invitations.get(invitationId)).pipe(
+          Effect.fromOption,
+          Effect.mapError(() => new InvitationNotFound({ invitationId }))
+        );
       });
 
       const accept = Effect.fn("Invitations.accept")(function* (
@@ -274,6 +306,7 @@ export class Invitations extends Context.Service<
 
       return {
         issue,
+        get,
         accept,
         revoke,
       };

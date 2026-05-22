@@ -10,8 +10,10 @@ import {
   CommerceCustomerId,
   type RegistrationId,
 } from "../domain/identity";
-import type { AcceptedInvitation } from "../domain/invitations";
-import type { Registration } from "../domain/registration";
+import type {
+  ApprovedRegistration,
+  Registration,
+} from "../domain/registration";
 import type { CompanyRole } from "../domain/roles";
 
 export class CommerceAccountError extends Schema.TaggedErrorClass<CommerceAccountError>()(
@@ -22,7 +24,7 @@ export class CommerceAccountError extends Schema.TaggedErrorClass<CommerceAccoun
 ) {}
 
 export interface LinkRegistrantIdentityInput {
-  readonly invitation: AcceptedInvitation;
+  readonly registration: ApprovedRegistration;
   readonly acceptedIdentity: AcceptedAuthIdentity;
 }
 
@@ -113,13 +115,7 @@ export class CommerceAccounts extends Context.Service<
         Effect.gen(function* () {
           const current = yield* Ref.get(state);
 
-          if (input.invitation.intent.intent !== "registration_approval") {
-            return yield* new CommerceAccountError({
-              reason: "Invitation is not for registration approval",
-            });
-          }
-
-          const registrationId = input.invitation.intent.registrationId;
+          const registrationId = input.registration.id;
           const account = current.accountsByRegistration.get(registrationId);
 
           if (!account) {
@@ -169,8 +165,8 @@ export class CommerceAccounts extends Context.Service<
             const existing =
               current.associatesByBusinessUnit.get(input.businessUnitId) ?? [];
             const existingAssociate = existing.find(
-              (membership) =>
-                membership.authUserId === input.acceptedIdentity.authUserId
+              (associate) =>
+                associate.authUserId === input.acceptedIdentity.authUserId
             );
 
             if (existingAssociate) {

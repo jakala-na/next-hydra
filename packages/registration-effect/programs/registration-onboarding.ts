@@ -7,13 +7,9 @@ import type {
   InvitationId,
   RegistrationId,
 } from "../domain/identity";
-import {
-  PendingRegistrationInvitation,
-  RegistrationApprovalIntent,
-} from "../domain/invitations";
+import { ProviderInvitationIntent } from "../domain/invitations";
 import type {
   ApprovedRegistration,
-  Registration,
   RejectedRegistration,
 } from "../domain/registration";
 import {
@@ -22,11 +18,11 @@ import {
 } from "../services/commerce-account";
 import {
   type InvitationAcceptError,
-  InvitationConflict,
   type InvitationIssueError,
   Invitations,
 } from "../services/invitations";
 import {
+  type RegistrationFindByInvitationError,
   Registrations,
   type RegistrationTransitionError,
 } from "../services/registrations";
@@ -80,9 +76,8 @@ export const approveRegistration = (
 
     const commerceAccount =
       yield* commerceAccounts.createFromRegistration(registration);
-    const intent = new RegistrationApprovalIntent({
-      intent: "registration_approval",
-      registrationId: registration.id,
+    const intent = new ProviderInvitationIntent({
+      intent: "provider_managed",
       inviteeEmail: registration.details.email,
       role: "owner",
     });
@@ -90,19 +85,12 @@ export const approveRegistration = (
       intent,
       issuedBy: registrationSystemActor,
     });
-    const registrationInvitation = new PendingRegistrationInvitation({
-      _tag: "PendingInvitation",
-      id: invitation.id,
-      intent,
-      issuedBy: invitation.issuedBy,
-      createdAt: invitation.createdAt,
-    });
 
     return yield* registrations.markApproved({
       registrationId: input.registrationId,
       decision,
       commerceAccount,
-      invitation: registrationInvitation,
+      invitationId: invitation.id,
     });
   });
 
@@ -138,8 +126,10 @@ export const rejectRegistration = (
 export const acceptRegistrationInvitation = (
   input: AcceptRegistrationInvitationInput
 ): Effect.Effect<
-  Registration,
-  InvitationAcceptError | CommerceAccountError | RegistrationTransitionError,
+  ApprovedRegistration,
+  | InvitationAcceptError
+  | CommerceAccountError
+  | RegistrationFindByInvitationError,
   Invitations | CommerceAccounts | Registrations
 > =>
   Effect.gen(function* () {
@@ -147,22 +137,20 @@ export const acceptRegistrationInvitation = (
     const commerceAccounts = yield* CommerceAccounts;
     const registrations = yield* Registrations;
 
-    const invitation = yield* invitations.accept({
+    const registration = yield* registrations.findByInvitationId(
+      input.invitationId
+    );
+
+    yield* invitations.accept({
       invitationId: input.invitationId,
       acceptedIdentity: input.acceptedIdentity,
-      expectedIntent: "registration_approval",
+      expectedIntent: "provider_managed",
     });
 
-    if (invitation.intent.intent !== "registration_approval") {
-      return yield* new InvitationConflict({
-        reason: "Invitation is not for registration approval",
-      });
-    }
-
     yield* commerceAccounts.linkRegistrantIdentity({
-      invitation,
+      registration,
       acceptedIdentity: input.acceptedIdentity,
     });
 
-    return yield* registrations.get(invitation.intent.registrationId);
+    return registration;
   });

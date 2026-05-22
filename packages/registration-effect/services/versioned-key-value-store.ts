@@ -125,6 +125,13 @@ export class VersionedKeyValueStore extends Context.Service<
       StoreConflict | StoreError,
       S["DecodingServices"] | S["EncodingServices"]
     >;
+    readonly values: <S extends Schema.Top>(
+      schema: S
+    ) => Effect.Effect<
+      readonly Versioned<S["Type"]>[],
+      StoreError,
+      S["DecodingServices"]
+    >;
   }
 >()("@repo/registration-effect/VersionedKeyValueStore") {
   static readonly layerMemory = Layer.effect(
@@ -208,10 +215,24 @@ export class VersionedKeyValueStore extends Context.Service<
         });
       });
 
+      const values = Effect.fn("VersionedKeyValueStore.values")(
+        <S extends Schema.Top>(schema: S) =>
+          SynchronizedRef.get(store).pipe(
+            Effect.flatMap((entries) =>
+              Effect.forEach(
+                entries,
+                ([key, stored]) => decodeValue(key, schema, stored),
+                { concurrency: "unbounded" }
+              )
+            )
+          )
+      );
+
       return {
         get,
         insert,
         update,
+        values,
       };
     })
   );

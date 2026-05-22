@@ -29,6 +29,7 @@ import {
 } from "../services/commerce-account";
 import {
   InvitationConflict,
+  InvitationNotFound,
   Invitations,
   type IssueInvitationInput,
 } from "../services/invitations";
@@ -112,12 +113,14 @@ describe("registration onboarding", () => {
           actor: reviewer,
           reason: "Looks good",
         });
+        const invitations = yield* Invitations;
+        const invitation = yield* invitations.get(approved.invitationId);
 
         expect(approved._tag).toBe("ApprovedRegistration");
         expect(approved.decision.decision).toBe("approved");
         expect(approved.commerceAccount.registrationId).toBe(registration.id);
-        expect(approved.invitation._tag).toBe("PendingInvitation");
-        expect(approved.invitation.intent.intent).toBe("registration_approval");
+        expect(invitation._tag).toBe("PendingInvitation");
+        expect(invitation.intent.intent).toBe("provider_managed");
         expect(String(approved.details.vatId)).toBe("<redacted:vatId>");
         expect(String(approved.details.email)).toBe("<redacted:email>");
         expect(String(approved.details.address.streetName)).toBe(
@@ -126,11 +129,9 @@ describe("registration onboarding", () => {
         expect(String(approved.details.address.postalCode)).toBe(
           "<redacted:postalCode>"
         );
-        expect(String(approved.invitation.intent.inviteeEmail)).toBe(
-          "<redacted:email>"
-        );
-        expect(approved.invitation.intent.role).toBe("owner");
-        expect(approved.invitation.issuedBy.actorType).toBe("system");
+        expect(String(invitation.intent.inviteeEmail)).toBe("<redacted:email>");
+        expect(invitation.intent.role).toBe("owner");
+        expect(invitation.issuedBy.actorType).toBe("system");
       }).pipe(Effect.provide(layerMemory))
   );
 
@@ -150,7 +151,7 @@ describe("registration onboarding", () => {
       expect(second.commerceAccount.customerId).toBe(
         first.commerceAccount.customerId
       );
-      expect(second.invitation.id).toBe(first.invitation.id);
+      expect(second.invitationId).toBe(first.invitationId);
     }).pipe(Effect.provide(layerMemory))
   );
 
@@ -262,6 +263,12 @@ describe("registration onboarding", () => {
           Effect.fail(
             new InvitationConflict({ reason: "not used in this test" })
           ),
+        get: () =>
+          Effect.fail(
+            new InvitationNotFound({
+              invitationId: InvitationId.make("not-used"),
+            })
+          ),
         revoke: () =>
           Effect.fail(
             new InvitationConflict({ reason: "not used in this test" })
@@ -293,7 +300,7 @@ describe("registration onboarding", () => {
         expect(approved.commerceAccount.customerId).toBe(
           CommerceCustomerId.make(`customer-${registration.id}`)
         );
-        expect(approved.invitation.id).toBe(
+        expect(approved.invitationId).toBe(
           InvitationId.make("invitation-retry")
         );
       }).pipe(Effect.provide(failingLayer));
@@ -311,11 +318,11 @@ describe("registration onboarding", () => {
         });
 
         const first = yield* acceptRegistrationInvitation({
-          invitationId: approved.invitation.id,
+          invitationId: approved.invitationId,
           acceptedIdentity,
         });
         const second = yield* acceptRegistrationInvitation({
-          invitationId: approved.invitation.id,
+          invitationId: approved.invitationId,
           acceptedIdentity,
         });
 
@@ -335,7 +342,7 @@ describe("registration onboarding", () => {
         });
 
         yield* acceptRegistrationInvitation({
-          invitationId: approved.invitation.id,
+          invitationId: approved.invitationId,
           acceptedIdentity,
         });
 
@@ -353,7 +360,7 @@ describe("registration onboarding", () => {
         });
 
         const exit = yield* acceptRegistrationInvitation({
-          invitationId: approved.invitation.id,
+          invitationId: approved.invitationId,
           acceptedIdentity: differentIdentity,
         }).pipe(Effect.exit);
 
@@ -402,14 +409,14 @@ describe("registration onboarding", () => {
         actor: reviewer,
       });
       yield* acceptRegistrationInvitation({
-        invitationId: approved.invitation.id,
+        invitationId: approved.invitationId,
         acceptedIdentity,
       });
 
       const invitations = yield* Invitations;
       const exit = yield* invitations
         .revoke({
-          invitationId: approved.invitation.id,
+          invitationId: approved.invitationId,
           revokedBy: reviewer,
         })
         .pipe(Effect.exit);

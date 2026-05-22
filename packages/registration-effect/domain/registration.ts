@@ -6,6 +6,7 @@ import {
   City,
   CompanyName,
   CountryCode,
+  InvitationId,
   makePersistedRedacted,
   PhoneNumber,
   PostalCode,
@@ -15,7 +16,6 @@ import {
   RegistrationId,
   VatId,
 } from "./identity";
-import { RegistrationInvitation } from "./invitations";
 
 export const RedactedCompanyPhone = makePersistedRedacted(
   PhoneNumber,
@@ -93,7 +93,7 @@ export class ApprovedRegistration extends Schema.TaggedClass<ApprovedRegistratio
     details: CompanyRegistrationDetails,
     decision: ApprovedDecision,
     commerceAccount: CommerceAccount,
-    invitation: RegistrationInvitation,
+    invitationId: InvitationId,
     createdAt: Schema.Date,
     updatedAt: Schema.Date,
   }

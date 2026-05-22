@@ -1,8 +1,7 @@
 import { Clock, Context, Effect, Layer, Option, Random, Schema } from "effect";
 import type { ApprovedDecision, RejectedDecision } from "../domain/approval";
 import type { CommerceAccount } from "../domain/commerce";
-import { RegistrationId } from "../domain/identity";
-import type { PendingRegistrationInvitation } from "../domain/invitations";
+import { InvitationId, RegistrationId } from "../domain/identity";
 import {
   ApprovedRegistration,
   AwaitingApprovalRegistration,
@@ -20,6 +19,13 @@ export class RegistrationNotFound extends Schema.TaggedErrorClass<RegistrationNo
   "RegistrationNotFound",
   {
     registrationId: RegistrationId,
+  }
+) {}
+
+export class RegistrationNotFoundByInvitationId extends Schema.TaggedErrorClass<RegistrationNotFoundByInvitationId>()(
+  "RegistrationNotFoundByInvitationId",
+  {
+    invitationId: InvitationId,
   }
 ) {}
 
@@ -58,6 +64,9 @@ export class RegistrationPersistenceFailure extends Schema.TaggedErrorClass<Regi
 export type RegistrationReadError =
   | RegistrationNotFound
   | RegistrationPersistenceFailure;
+export type RegistrationFindByInvitationError =
+  | RegistrationNotFoundByInvitationId
+  | RegistrationPersistenceFailure;
 export type RegistrationCreateError =
   | RegistrationAlreadyExists
   | RegistrationPersistenceFailure;
@@ -75,7 +84,7 @@ export interface MarkRegistrationApprovedInput {
   readonly registrationId: RegistrationId;
   readonly decision: ApprovedDecision;
   readonly commerceAccount: CommerceAccount;
-  readonly invitation: PendingRegistrationInvitation;
+  readonly invitationId: InvitationId;
 }
 
 export interface MarkRegistrationRejectedInput {
@@ -114,6 +123,9 @@ export class Registrations extends Context.Service<
     readonly get: (
       id: RegistrationId
     ) => Effect.Effect<Registration, RegistrationReadError>;
+    readonly findByInvitationId: (
+      invitationId: InvitationId
+    ) => Effect.Effect<ApprovedRegistration, RegistrationFindByInvitationError>;
     readonly markApproved: (
       input: MarkRegistrationApprovedInput
     ) => Effect.Effect<ApprovedRegistration, RegistrationTransitionError>;
@@ -172,6 +184,34 @@ export class Registrations extends Context.Service<
         return registration;
       });
 
+      const findByInvitationId = Effect.fn("Registrations.findByInvitationId")(
+        (invitationId: InvitationId) =>
+          store.values(Registration).pipe(
+            Effect.flatMap((registrations) => {
+              const registration = registrations
+                .map((versioned) => versioned.value)
+                .find(
+                  (candidate): candidate is ApprovedRegistration =>
+                    candidate._tag === "ApprovedRegistration" &&
+                    candidate.invitationId === invitationId
+                );
+
+              if (!registration) {
+                return Effect.fail(
+                  new RegistrationNotFoundByInvitationId({ invitationId })
+                );
+              }
+
+              return Effect.succeed(registration);
+            }),
+            Effect.catchTag("StoreError", (error) =>
+              Effect.fail(
+                mapStoreError(RegistrationId.make(error.key), "read")(error)
+              )
+            )
+          )
+      );
+
       const markApproved = Effect.fn("Registrations.markApproved")(function* (
         input: MarkRegistrationApprovedInput
       ) {
@@ -213,7 +253,7 @@ export class Registrations extends Context.Service<
           details: current.value.details,
           decision: input.decision,
           commerceAccount: input.commerceAccount,
-          invitation: input.invitation,
+          invitationId: input.invitationId,
           createdAt: current.value.createdAt,
           updatedAt,
         });
@@ -288,6 +328,7 @@ export class Registrations extends Context.Service<
 
       return {
         createAwaitingApproval,
+        findByInvitationId,
         get,
         markApproved,
         markRejected,

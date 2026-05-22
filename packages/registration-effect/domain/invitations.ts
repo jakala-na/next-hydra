@@ -27,9 +27,18 @@ export class CompanyMemberIntent extends Schema.Class<CompanyMemberIntent>(
   role: CompanyMemberInvitationRole,
 }) {}
 
+export class ProviderInvitationIntent extends Schema.Class<ProviderInvitationIntent>(
+  "ProviderInvitationIntent"
+)({
+  intent: Schema.Literal("provider_managed"),
+  inviteeEmail: RedactedEmail,
+  role: Schema.String,
+}) {}
+
 export const InvitationIntent = Schema.Union([
   RegistrationApprovalIntent,
   CompanyMemberIntent,
+  ProviderInvitationIntent,
 ]);
 export type InvitationIntent = typeof InvitationIntent.Type;
 

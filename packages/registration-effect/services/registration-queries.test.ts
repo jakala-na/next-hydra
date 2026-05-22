@@ -18,10 +18,6 @@ import {
   RegistrationId,
 } from "../domain/identity";
 import {
-  PendingRegistrationInvitation,
-  RegistrationApprovalIntent,
-} from "../domain/invitations";
-import {
   ApprovedRegistration,
   AwaitingApprovalRegistration,
   CompanyAddress,
@@ -118,18 +114,7 @@ const makeApproved = (registration: AwaitingApprovalRegistration) =>
         `business-unit-${registration.id}`
       ),
     }),
-    invitation: new PendingRegistrationInvitation({
-      _tag: "PendingInvitation",
-      id: InvitationId.make(`invitation-${registration.id}`),
-      intent: new RegistrationApprovalIntent({
-        intent: "registration_approval",
-        registrationId: registration.id,
-        inviteeEmail: registration.details.email,
-        role: "owner",
-      }),
-      issuedBy: reviewer,
-      createdAt: new Date("2026-01-02T00:00:00.000Z"),
-    }),
+    invitationId: InvitationId.make(`invitation-${registration.id}`),
     createdAt: registration.createdAt,
     updatedAt: registration.updatedAt,
   });
