@@ -51,12 +51,6 @@ importers:
 
   apps/api:
     dependencies:
-      '@orpc/client':
-        specifier: ^1.13.7
-        version: 1.13.7(@opentelemetry/api@1.9.0)
-      '@orpc/server':
-        specifier: ^1.13.7
-        version: 1.13.7(@opentelemetry/api@1.9.0)(ws@8.19.0(bufferutil@4.0.9))
       '@repo/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
@@ -78,9 +72,6 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../../packages/observability
-      '@repo/registration':
-        specifier: workspace:*
-        version: link:../../packages/registration
       '@repo/registration-effect':
         specifier: workspace:*
         version: link:../../packages/registration-effect
@@ -96,9 +87,6 @@ importers:
       '@workos-inc/node':
         specifier: ^8.12.1
         version: 8.12.1
-      better-result:
-        specifier: 2.7.0
-        version: 2.7.0
       effect:
         specifier: 4.0.0-beta.67
         version: 4.0.0-beta.67
@@ -693,9 +681,6 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../observability
-      '@repo/registration':
-        specifier: workspace:*
-        version: link:../registration
       '@repo/registration-effect':
         specifier: workspace:*
         version: link:../registration-effect
@@ -705,9 +690,6 @@ importers:
       '@urql/core':
         specifier: ^5.1.2
         version: 5.2.0(graphql@16.12.0)
-      better-result:
-        specifier: 2.7.0
-        version: 2.7.0
       dotenv:
         specifier: ^17.0.0
         version: 17.3.1
@@ -975,9 +957,6 @@ importers:
       '@react-email/components':
         specifier: 0.4.0
         version: 0.4.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@repo/registration':
-        specifier: workspace:*
-        version: link:../registration
       '@repo/registration-effect':
         specifier: workspace:*
         version: link:../registration-effect

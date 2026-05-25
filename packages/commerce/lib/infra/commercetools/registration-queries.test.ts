@@ -53,7 +53,7 @@ vi.mock("../../client/api-root", () => ({
 
 const { customObjects, execute, get, withContainer } = mocks;
 
-const container = "b2b-registration-by-id";
+const container = "b2b-registration-effect-by-id";
 const layer = layerCommercetoolsRegistrationQueries({
   batchSize: 2,
   container,

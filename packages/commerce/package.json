@@ -7,19 +7,16 @@
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "test": "vitest run",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false",
-    "generate": "node --experimental-transform-types scripts/gql-sync.ts",
-    "clear:b2b-registrations": "node --experimental-transform-types scripts/clear-b2b-registration-custom-objects.ts"
+    "generate": "node --experimental-transform-types scripts/gql-sync.ts"
   },
   "dependencies": {
     "@commercetools/platform-sdk": "^8.16.0",
     "@commercetools/ts-client": "^4.2.1",
     "@gql.tada/cli-utils": "^1.6.3",
     "@repo/observability": "workspace:*",
-    "@repo/registration": "workspace:*",
     "@repo/registration-effect": "workspace:*",
     "@t3-oss/env-nextjs": "^0.13.4",
     "@urql/core": "^5.1.2",
-    "better-result": "2.7.0",
     "dotenv": "^17.0.0",
     "effect": "4.0.0-beta.67",
     "gql.tada": "^1.8.10",

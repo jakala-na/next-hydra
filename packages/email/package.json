@@ -7,7 +7,6 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@repo/registration": "workspace:*",
     "@repo/registration-effect": "workspace:*",
     "@react-email/components": "0.4.0",
     "@t3-oss/env-nextjs": "^0.13.4",

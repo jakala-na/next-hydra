@@ -11,8 +11,6 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@orpc/client": "^1.13.7",
-    "@orpc/server": "^1.13.7",
     "@repo/analytics": "workspace:*",
     "@repo/auth-workos": "workspace:*",
     "@repo/commerce": "workspace:*",
@@ -20,13 +18,11 @@
     "@repo/email": "workspace:*",
     "@repo/next-config": "workspace:*",
     "@repo/observability": "workspace:*",
-    "@repo/registration": "workspace:*",
     "@repo/registration-effect": "workspace:*",
     "@repo/testing": "workspace:*",
     "@sentry/nextjs": "^10.22.0",
     "@t3-oss/env-nextjs": "^0.13.4",
     "@workos-inc/node": "^8.12.1",
-    "better-result": "2.7.0",
     "effect": "4.0.0-beta.67",
     "import-in-the-middle": "2.0.0",
     "next": "16.1.6",
