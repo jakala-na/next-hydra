@@ -9,6 +9,7 @@ import type {
 export class RegistrationEmailFailure extends Schema.TaggedErrorClass<RegistrationEmailFailure>()(
   "RegistrationEmailFailure",
   {
+    message: Schema.String,
     notification: Schema.Literals([
       "registrant_awaiting_approval",
       "approver_awaiting_approval",

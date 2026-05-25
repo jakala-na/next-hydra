@@ -28,6 +28,7 @@ import {
 export class InvitationNotFound extends Schema.TaggedErrorClass<InvitationNotFound>()(
   "InvitationNotFound",
   {
+    message: Schema.String,
     invitationId: InvitationId,
   }
 ) {}
@@ -35,13 +36,14 @@ export class InvitationNotFound extends Schema.TaggedErrorClass<InvitationNotFou
 export class InvitationConflict extends Schema.TaggedErrorClass<InvitationConflict>()(
   "InvitationConflict",
   {
-    reason: Schema.String,
+    message: Schema.String,
   }
 ) {}
 
 export class InvitationProviderFailure extends Schema.TaggedErrorClass<InvitationProviderFailure>()(
   "InvitationProviderFailure",
   {
+    message: Schema.String,
     operation: Schema.Literals(["issue", "read", "accept", "revoke"]),
     cause: Schema.Defect,
   }
@@ -152,7 +154,7 @@ export class Invitations extends Context.Service<
           if (existing) {
             if (existing._tag !== "PendingInvitation") {
               return yield* new InvitationConflict({
-                reason: "Registration approval invitation already progressed",
+                message: "Registration approval invitation already progressed",
               });
             }
 
@@ -172,7 +174,7 @@ export class Invitations extends Context.Service<
               existing.intent.role !== input.intent.role
             ) {
               return yield* new InvitationConflict({
-                reason:
+                message:
                   "Pending company invitation already exists with a different role",
               });
             }
@@ -204,7 +206,13 @@ export class Invitations extends Context.Service<
         const invitations = yield* Ref.get(store);
         return yield* Option.fromNullishOr(invitations.get(invitationId)).pipe(
           Effect.fromOption,
-          Effect.mapError(() => new InvitationNotFound({ invitationId }))
+          Effect.mapError(
+            () =>
+              new InvitationNotFound({
+                message: `Invitation ${invitationId} was not found`,
+                invitationId,
+              })
+          )
         );
       });
 
@@ -217,13 +225,17 @@ export class Invitations extends Context.Service<
         ).pipe(
           Effect.fromOption,
           Effect.mapError(
-            () => new InvitationNotFound({ invitationId: input.invitationId })
+            () =>
+              new InvitationNotFound({
+                message: `Invitation ${input.invitationId} was not found`,
+                invitationId: input.invitationId,
+              })
           )
         );
 
         if (current.intent.intent !== input.expectedIntent) {
           return yield* new InvitationConflict({
-            reason: `Invitation is not for ${input.expectedIntent}`,
+            message: `Invitation is not for ${input.expectedIntent}`,
           });
         }
 
@@ -235,13 +247,13 @@ export class Invitations extends Context.Service<
           }
 
           return yield* new InvitationConflict({
-            reason: "Invitation was accepted by a different auth user",
+            message: "Invitation was accepted by a different auth user",
           });
         }
 
         if (current._tag === "RevokedInvitation") {
           return yield* new InvitationConflict({
-            reason: "Revoked invitations cannot be accepted",
+            message: "Revoked invitations cannot be accepted",
           });
         }
 
@@ -272,13 +284,17 @@ export class Invitations extends Context.Service<
         ).pipe(
           Effect.fromOption,
           Effect.mapError(
-            () => new InvitationNotFound({ invitationId: input.invitationId })
+            () =>
+              new InvitationNotFound({
+                message: `Invitation ${input.invitationId} was not found`,
+                invitationId: input.invitationId,
+              })
           )
         );
 
         if (current._tag === "AcceptedInvitation") {
           return yield* new InvitationConflict({
-            reason: "Accepted invitations cannot be revoked",
+            message: "Accepted invitations cannot be revoked",
           });
         }
 

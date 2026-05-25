@@ -31,6 +31,7 @@ export const layerResendEmailProvider = Layer.succeed(
         },
         catch: (cause: unknown) =>
           new EmailProviderFailure({
+            message: `Failed to send email: ${getErrorCause(cause).message}`,
             operation: "send",
             cause: getErrorCause(cause),
           }),

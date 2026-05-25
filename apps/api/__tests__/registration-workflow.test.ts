@@ -111,24 +111,23 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
     Registrations,
     Registrations.of({
       createAwaitingApproval: () => Effect.die("not used"),
-      findByInvitationId: (invitationId) => {
-        if (
-          current._tag === "ApprovedRegistration" &&
-          current.invitationId === invitationId
-        ) {
-          return Effect.succeed(current);
-        }
-
-        return Effect.die("registration invitation not found");
-      },
+      findByInvitationId: () => Effect.die("not used"),
       get: (registrationId) =>
         current.id === registrationId
           ? Effect.succeed(current)
-          : Effect.fail(new RegistrationNotFound({ registrationId })),
+          : Effect.fail(
+              new RegistrationNotFound({
+                message: `Registration ${registrationId} was not found`,
+                registrationId,
+              })
+            ),
       markApproved: (input) => {
         if (current.id !== input.registrationId) {
           return Effect.fail(
-            new RegistrationNotFound({ registrationId: input.registrationId })
+            new RegistrationNotFound({
+              message: `Registration ${input.registrationId} was not found`,
+              registrationId: input.registrationId,
+            })
           );
         }
 
@@ -150,7 +149,10 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
       markRejected: (input) => {
         if (current.id !== input.registrationId) {
           return Effect.fail(
-            new RegistrationNotFound({ registrationId: input.registrationId })
+            new RegistrationNotFound({
+              message: `Registration ${input.registrationId} was not found`,
+              registrationId: input.registrationId,
+            })
           );
         }
 
@@ -224,14 +226,22 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
 
         return invitation
           ? Effect.succeed(invitation)
-          : Effect.fail(new InvitationNotFound({ invitationId }));
+          : Effect.fail(
+              new InvitationNotFound({
+                message: `Invitation ${invitationId} was not found`,
+                invitationId,
+              })
+            );
       },
       accept: (input) => {
         const invitation = invitations.get(String(input.invitationId));
 
         if (!invitation) {
           return Effect.fail(
-            new InvitationNotFound({ invitationId: input.invitationId })
+            new InvitationNotFound({
+              message: `Invitation ${input.invitationId} was not found`,
+              invitationId: input.invitationId,
+            })
           );
         }
 

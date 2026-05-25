@@ -31,6 +31,7 @@ export interface ListRegistrationsResult {
 export class RegistrationQueryFailure extends Schema.TaggedErrorClass<RegistrationQueryFailure>()(
   "RegistrationQueryFailure",
   {
+    message: Schema.String,
     operation: Schema.Literal("list"),
     cause: Schema.Defect,
   }
@@ -39,6 +40,7 @@ export class RegistrationQueryFailure extends Schema.TaggedErrorClass<Registrati
 export class RegistrationQueryInvalidCursor extends Schema.TaggedErrorClass<RegistrationQueryInvalidCursor>()(
   "RegistrationQueryInvalidCursor",
   {
+    message: Schema.String,
     operation: Schema.Literal("list"),
     cursor: Schema.String,
   }
@@ -227,6 +229,7 @@ export const parseRegistrationQueryCursor = (
   if (!decoded) {
     return Effect.fail(
       new RegistrationQueryInvalidCursor({
+        message: `Invalid registration query cursor for list: ${cursor}`,
         operation: "list",
         cursor,
       })
@@ -236,6 +239,7 @@ export const parseRegistrationQueryCursor = (
   if (!cursorMatchesSort(decoded, sort)) {
     return Effect.fail(
       new RegistrationQueryInvalidCursor({
+        message: `Invalid registration query cursor for list: ${cursor}`,
         operation: "list",
         cursor,
       })
@@ -280,6 +284,9 @@ export const listRegistrationRecords = (
       },
       catch: (cause) =>
         new RegistrationQueryFailure({
+          message: `Failed to list registrations: ${
+            cause instanceof Error ? cause.message : String(cause)
+          }`,
           operation: "list",
           cause,
         }),

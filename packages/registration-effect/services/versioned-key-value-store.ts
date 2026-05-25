@@ -18,15 +18,16 @@ export interface Versioned<A> {
 export class StoreConflict extends Schema.TaggedErrorClass<StoreConflict>()(
   "StoreConflict",
   {
+    message: Schema.String,
     key: Schema.String,
     operation: Schema.Literals(["insert", "update"]),
-    reason: Schema.String,
   }
 ) {}
 
 export class StoreError extends Schema.TaggedErrorClass<StoreError>()(
   "StoreError",
   {
+    message: Schema.String,
     key: Schema.String,
     operation: Schema.Literals(["read", "insert", "update"]),
     cause: Schema.Defect,
@@ -50,6 +51,9 @@ const storeError = (
   cause: unknown
 ) =>
   new StoreError({
+    message: `Failed to ${operation} store value ${key}: ${
+      cause instanceof Error ? cause.message : String(cause)
+    }`,
     key,
     operation,
     cause,
@@ -170,9 +174,9 @@ export class VersionedKeyValueStore extends Context.Service<
           if (entries.has(key)) {
             return Effect.fail(
               new StoreConflict({
+                message: `Store insert conflict for ${key}: Key already exists`,
                 key,
                 operation: "insert",
-                reason: "Key already exists",
               })
             );
           }
@@ -197,9 +201,9 @@ export class VersionedKeyValueStore extends Context.Service<
           if (!stored || stored.version !== current.version) {
             return Effect.fail(
               new StoreConflict({
+                message: `Store update conflict for ${key}: Stored version does not match current version`,
                 key,
                 operation: "update",
-                reason: "Stored version does not match current version",
               })
             );
           }

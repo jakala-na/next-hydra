@@ -62,6 +62,9 @@ const storeError = (
   cause: unknown
 ) =>
   new StoreError({
+    message: `Failed to ${operation} store value ${key}: ${
+      cause instanceof Error ? cause.message : String(cause)
+    }`,
     key,
     operation,
     cause,
@@ -73,11 +76,12 @@ const storeConflict = (
   cause: unknown
 ) =>
   new StoreConflict({
+    message: `Store ${operation} conflict for ${key}: ${
+      Option.getOrUndefined(Schema.decodeUnknownOption(ErrorMessage)(cause))
+        ?.message ?? "Commercetools custom object version conflict"
+    }`,
     key,
     operation,
-    reason:
-      Option.getOrUndefined(Schema.decodeUnknownOption(ErrorMessage)(cause))
-        ?.message ?? "Commercetools custom object version conflict",
   });
 
 const versionFromCustomObject = (version: number) =>

@@ -210,11 +210,11 @@ describe("registration onboarding", () => {
     () => {
       const commerceFailureLayer = Layer.succeed(CommerceAccounts)({
         createFromRegistration: () =>
-          Effect.fail(new CommerceAccountError({ reason: "commerce down" })),
+          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         linkRegistrantIdentity: () =>
-          Effect.fail(new CommerceAccountError({ reason: "commerce down" })),
+          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         addAssociate: () =>
-          Effect.fail(new CommerceAccountError({ reason: "commerce down" })),
+          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
       });
       const layer = Layer.mergeAll(
         Registrations.layerMemory,
@@ -248,7 +248,7 @@ describe("registration onboarding", () => {
             if (issueAttempts === 1) {
               return Effect.fail(
                 new InvitationConflict({
-                  reason: "invitation provider down",
+                  message: "invitation provider down",
                 })
               );
             }
@@ -265,17 +265,18 @@ describe("registration onboarding", () => {
           }),
         accept: () =>
           Effect.fail(
-            new InvitationConflict({ reason: "not used in this test" })
+            new InvitationConflict({ message: "not used in this test" })
           ),
         get: () =>
           Effect.fail(
             new InvitationNotFound({
+              message: "Invitation not-used was not found",
               invitationId: InvitationId.make("not-used"),
             })
           ),
         revoke: () =>
           Effect.fail(
-            new InvitationConflict({ reason: "not used in this test" })
+            new InvitationConflict({ message: "not used in this test" })
           ),
       });
       const failingLayer = Layer.mergeAll(
@@ -322,10 +323,12 @@ describe("registration onboarding", () => {
         });
 
         const first = yield* acceptRegistrationInvitation({
+          registrationId: approved.id,
           invitationId: approved.invitationId,
           acceptedIdentity,
         });
         const second = yield* acceptRegistrationInvitation({
+          registrationId: approved.id,
           invitationId: approved.invitationId,
           acceptedIdentity,
         });
@@ -384,6 +387,7 @@ describe("registration onboarding", () => {
       });
 
       yield* acceptRegistrationInvitation({
+        registrationId: approved.id,
         invitationId: approved.invitationId,
         acceptedIdentity,
       });
@@ -403,6 +407,7 @@ describe("registration onboarding", () => {
         });
 
         yield* acceptRegistrationInvitation({
+          registrationId: approved.id,
           invitationId: approved.invitationId,
           acceptedIdentity,
         });
@@ -421,6 +426,7 @@ describe("registration onboarding", () => {
         });
 
         const exit = yield* acceptRegistrationInvitation({
+          registrationId: approved.id,
           invitationId: approved.invitationId,
           acceptedIdentity: differentIdentity,
         }).pipe(Effect.exit);
@@ -434,6 +440,11 @@ describe("registration onboarding", () => {
     () =>
       Effect.gen(function* () {
         const invitations = yield* Invitations;
+        const registration = yield* createRegistration;
+        const approved = yield* approveRegistration({
+          registrationId: registration.id,
+          actor: reviewer,
+        });
         const companyInvitation = yield* invitations.issue({
           issuedBy: reviewer,
           intent: new CompanyMemberIntent({
@@ -445,6 +456,7 @@ describe("registration onboarding", () => {
         });
 
         const wrongProgramExit = yield* acceptRegistrationInvitation({
+          registrationId: approved.id,
           invitationId: companyInvitation.id,
           acceptedIdentity,
         }).pipe(Effect.exit);
@@ -470,6 +482,7 @@ describe("registration onboarding", () => {
         actor: reviewer,
       });
       yield* acceptRegistrationInvitation({
+        registrationId: approved.id,
         invitationId: approved.invitationId,
         acceptedIdentity,
       });

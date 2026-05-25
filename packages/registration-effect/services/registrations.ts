@@ -18,6 +18,7 @@ import {
 export class RegistrationNotFound extends Schema.TaggedErrorClass<RegistrationNotFound>()(
   "RegistrationNotFound",
   {
+    message: Schema.String,
     registrationId: RegistrationId,
   }
 ) {}
@@ -25,6 +26,7 @@ export class RegistrationNotFound extends Schema.TaggedErrorClass<RegistrationNo
 export class RegistrationNotFoundByInvitationId extends Schema.TaggedErrorClass<RegistrationNotFoundByInvitationId>()(
   "RegistrationNotFoundByInvitationId",
   {
+    message: Schema.String,
     invitationId: InvitationId,
   }
 ) {}
@@ -32,6 +34,7 @@ export class RegistrationNotFoundByInvitationId extends Schema.TaggedErrorClass<
 export class RegistrationTransitionConflict extends Schema.TaggedErrorClass<RegistrationTransitionConflict>()(
   "RegistrationTransitionConflict",
   {
+    message: Schema.String,
     registrationId: RegistrationId,
     currentState: Schema.String,
     attemptedDecision: Schema.Literals(["approved", "rejected"]),
@@ -41,6 +44,7 @@ export class RegistrationTransitionConflict extends Schema.TaggedErrorClass<Regi
 export class RegistrationConcurrentModification extends Schema.TaggedErrorClass<RegistrationConcurrentModification>()(
   "RegistrationConcurrentModification",
   {
+    message: Schema.String,
     registrationId: RegistrationId,
   }
 ) {}
@@ -48,6 +52,7 @@ export class RegistrationConcurrentModification extends Schema.TaggedErrorClass<
 export class RegistrationAlreadyExists extends Schema.TaggedErrorClass<RegistrationAlreadyExists>()(
   "RegistrationAlreadyExists",
   {
+    message: Schema.String,
     registrationId: RegistrationId,
   }
 ) {}
@@ -55,6 +60,7 @@ export class RegistrationAlreadyExists extends Schema.TaggedErrorClass<Registrat
 export class RegistrationPersistenceFailure extends Schema.TaggedErrorClass<RegistrationPersistenceFailure>()(
   "RegistrationPersistenceFailure",
   {
+    message: Schema.String,
     registrationId: RegistrationId,
     operation: Schema.Literals(["read", "create", "update"]),
     cause: Schema.Defect,
@@ -100,7 +106,10 @@ const registrationKey = (id: RegistrationId) => String(id);
 
 const mapStoreUpdateConflict =
   (registrationId: RegistrationId) => (_error: StoreConflict) =>
-    new RegistrationConcurrentModification({ registrationId });
+    new RegistrationConcurrentModification({
+      message: `Registration ${registrationId} was modified concurrently`,
+      registrationId,
+    });
 
 const mapStoreError =
   (
@@ -109,6 +118,7 @@ const mapStoreError =
   ) =>
   (error: StoreError) =>
     new RegistrationPersistenceFailure({
+      message: `Failed to ${operation} registration ${registrationId}: ${error.message}`,
       registrationId,
       operation,
       cause: error.cause,
@@ -144,7 +154,12 @@ export class Registrations extends Context.Service<
           Effect.flatMap((registration) =>
             Option.match(registration, {
               onNone: () =>
-                Effect.fail(new RegistrationNotFound({ registrationId: id })),
+                Effect.fail(
+                  new RegistrationNotFound({
+                    message: `Registration ${id} was not found`,
+                    registrationId: id,
+                  })
+                ),
               onSome: (versioned) => Effect.succeed(versioned.value),
             })
           ),
@@ -174,7 +189,10 @@ export class Registrations extends Context.Service<
             Effect.catchTags({
               StoreConflict: () =>
                 Effect.fail(
-                  new RegistrationAlreadyExists({ registrationId: id })
+                  new RegistrationAlreadyExists({
+                    message: `Registration ${id} already exists`,
+                    registrationId: id,
+                  })
                 ),
               StoreError: (error) =>
                 Effect.fail(mapStoreError(id, "create")(error)),
@@ -198,7 +216,10 @@ export class Registrations extends Context.Service<
 
               if (!registration) {
                 return Effect.fail(
-                  new RegistrationNotFoundByInvitationId({ invitationId })
+                  new RegistrationNotFoundByInvitationId({
+                    message: `Registration for invitation ${invitationId} was not found`,
+                    invitationId,
+                  })
                 );
               }
 
@@ -222,6 +243,7 @@ export class Registrations extends Context.Service<
               onNone: () =>
                 Effect.fail(
                   new RegistrationNotFound({
+                    message: `Registration ${input.registrationId} was not found`,
                     registrationId: input.registrationId,
                   })
                 ),
@@ -239,6 +261,7 @@ export class Registrations extends Context.Service<
 
         if (current.value._tag === "RejectedRegistration") {
           return yield* new RegistrationTransitionConflict({
+            message: `Cannot mark registration ${input.registrationId} as approved from ${current.value._tag}`,
             registrationId: input.registrationId,
             currentState: current.value._tag,
             attemptedDecision: "approved",
@@ -280,6 +303,7 @@ export class Registrations extends Context.Service<
               onNone: () =>
                 Effect.fail(
                   new RegistrationNotFound({
+                    message: `Registration ${input.registrationId} was not found`,
                     registrationId: input.registrationId,
                   })
                 ),
@@ -297,6 +321,7 @@ export class Registrations extends Context.Service<
 
         if (current.value._tag === "ApprovedRegistration") {
           return yield* new RegistrationTransitionConflict({
+            message: `Cannot mark registration ${input.registrationId} as rejected from ${current.value._tag}`,
             registrationId: input.registrationId,
             currentState: current.value._tag,
             attemptedDecision: "rejected",

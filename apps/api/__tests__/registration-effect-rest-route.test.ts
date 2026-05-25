@@ -116,7 +116,12 @@ const makeApiLayer = (seed: readonly Registration[] = []) => {
 
     return registration
       ? Effect.succeed(registration)
-      : Effect.fail(new RegistrationNotFound({ registrationId }));
+      : Effect.fail(
+          new RegistrationNotFound({
+            message: `Registration ${registrationId} was not found`,
+            registrationId,
+          })
+        );
   });
 
   const registrationsLayer = Layer.succeed(

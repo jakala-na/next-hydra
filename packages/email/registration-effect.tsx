@@ -40,6 +40,7 @@ const toFailure =
   (notification: RegistrationEmailFailure["notification"]) =>
   (cause: EmailProviderFailure) =>
     new RegistrationEmailFailure({
+      message: `Failed to send ${notification} email: ${cause.message}`,
       notification,
       cause,
     });

@@ -6,7 +6,7 @@ import type { CompanyMemberInvitationRole } from "../domain/roles";
 export class InvitationPolicyError extends Schema.TaggedErrorClass<InvitationPolicyError>()(
   "InvitationPolicyError",
   {
-    reason: Schema.String,
+    message: Schema.String,
   }
 ) {}
 
@@ -37,7 +37,7 @@ export class CompanyInvitationPolicy extends Context.Service<
         ? Effect.void
         : Effect.fail(
             new InvitationPolicyError({
-              reason: "Only company owners can issue associate invitations",
+              message: "Only company owners can issue associate invitations",
             })
           ),
     authorizeRevokeInvite: (input) =>
@@ -45,7 +45,7 @@ export class CompanyInvitationPolicy extends Context.Service<
         ? Effect.void
         : Effect.fail(
             new InvitationPolicyError({
-              reason: "Only company owners can revoke invitations",
+              message: "Only company owners can revoke invitations",
             })
           ),
   });

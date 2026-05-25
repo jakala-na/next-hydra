@@ -31,6 +31,25 @@ const CommercetoolsStatusCodeError = Schema.Struct({
   statusCode: Schema.Number,
 });
 
+const CommercetoolsErrorInfo = Schema.Struct({
+  statusCode: Schema.optional(Schema.Number),
+  code: Schema.optional(Schema.String),
+  message: Schema.optional(Schema.String),
+  body: Schema.optional(
+    Schema.Struct({
+      message: Schema.optional(Schema.String),
+      errors: Schema.optional(
+        Schema.Array(
+          Schema.Struct({
+            code: Schema.optional(Schema.String),
+            message: Schema.optional(Schema.String),
+          })
+        )
+      ),
+    })
+  ),
+});
+
 const isNotFoundError = (error: unknown) =>
   Schema.decodeUnknownOption(CommercetoolsStatusCodeError)(error).pipe(
     (option) =>
@@ -38,9 +57,41 @@ const isNotFoundError = (error: unknown) =>
       option.value.statusCode === NOT_FOUND_STATUS_CODE
   );
 
+const formatCause = (cause: unknown) => {
+  if (cause instanceof Error) {
+    return cause.message;
+  }
+
+  const decoded = Schema.decodeUnknownOption(CommercetoolsErrorInfo)(cause);
+  if (decoded._tag === "Some") {
+    const error = decoded.value;
+    const errors =
+      error.body?.errors?.map((detail) =>
+        [detail.code, detail.message].filter(Boolean).join(": ")
+      ) ?? [];
+    const parts = [
+      error.statusCode ? `status ${String(error.statusCode)}` : undefined,
+      error.code,
+      error.message,
+      error.body?.message,
+      ...errors,
+    ].filter(Boolean);
+
+    if (parts.length > 0) {
+      return parts.join("; ");
+    }
+  }
+
+  try {
+    return JSON.stringify(cause);
+  } catch {
+    return String(cause);
+  }
+};
+
 const accountError = (reason: string, cause?: unknown) =>
   new CommerceAccountError({
-    reason: cause ? `${reason}: ${String(cause)}` : reason,
+    message: cause ? `${reason}: ${formatCause(cause)}` : reason,
   });
 
 const customerKey = (registration: Registration) =>

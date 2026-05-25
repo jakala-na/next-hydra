@@ -136,9 +136,9 @@ describe("Registrations over versioned storage", () => {
             insert: (key) =>
               Effect.fail(
                 new StoreConflict({
+                  message: `Store insert conflict for ${key}: forced conflict`,
                   key,
                   operation: "insert",
-                  reason: "forced conflict",
                 })
               ),
             update: store.update,
@@ -181,6 +181,7 @@ describe("Registrations over versioned storage", () => {
             insert: (key) =>
               Effect.fail(
                 new StoreError({
+                  message: `Failed to insert store value ${key}: forced insert failure`,
                   key,
                   operation: "insert",
                   cause: "forced insert failure",
@@ -214,6 +215,7 @@ describe("Registrations over versioned storage", () => {
         get: (key) =>
           Effect.fail(
             new StoreError({
+              message: `Failed to read store value ${key}: forced read failure`,
               key,
               operation: "read",
               cause: "forced read failure",
@@ -224,6 +226,8 @@ describe("Registrations over versioned storage", () => {
         values: () =>
           Effect.fail(
             new StoreError({
+              message:
+                "Failed to read store value registration-1: forced read failure",
               key: "registration-1",
               operation: "read",
               cause: "forced read failure",
@@ -351,9 +355,9 @@ describe("Registrations over versioned storage", () => {
           update: (key) =>
             Effect.fail(
               new StoreConflict({
+                message: `Store update conflict for ${key}: forced conflict`,
                 key,
                 operation: "update",
-                reason: "forced conflict",
               })
             ),
           values: store.values,
@@ -403,6 +407,7 @@ describe("Registrations over versioned storage", () => {
             update: (key) =>
               Effect.fail(
                 new StoreError({
+                  message: `Failed to update store value ${key}: forced update failure`,
                   key,
                   operation: "update",
                   cause: "forced update failure",

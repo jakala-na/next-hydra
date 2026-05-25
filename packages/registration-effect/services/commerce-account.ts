@@ -19,7 +19,7 @@ import type { CompanyRole } from "../domain/roles";
 export class CommerceAccountError extends Schema.TaggedErrorClass<CommerceAccountError>()(
   "CommerceAccountError",
   {
-    reason: Schema.String,
+    message: Schema.String,
   }
 ) {}
 
@@ -85,7 +85,7 @@ export class CommerceAccounts extends Context.Service<
 
           if (registration._tag === "RejectedRegistration") {
             return yield* new CommerceAccountError({
-              reason: "Cannot provision commerce for a rejected registration",
+              message: "Cannot provision commerce for a rejected registration",
             });
           }
 
@@ -120,7 +120,7 @@ export class CommerceAccounts extends Context.Service<
 
           if (!account) {
             return yield* new CommerceAccountError({
-              reason: "Commerce account does not exist for registration",
+              message: "Commerce account does not exist for registration",
             });
           }
 
@@ -145,7 +145,7 @@ export class CommerceAccounts extends Context.Service<
 
             if (!account) {
               return yield* new CommerceAccountError({
-                reason: "Commerce account does not exist for business unit",
+                message: "Commerce account does not exist for business unit",
               });
             }
 

@@ -22,7 +22,8 @@ import {
   Invitations,
 } from "../services/invitations";
 import {
-  type RegistrationFindByInvitationError,
+  RegistrationNotFoundByInvitationId,
+  type RegistrationReadError,
   Registrations,
   type RegistrationTransitionError,
 } from "../services/registrations";
@@ -44,6 +45,7 @@ export interface RejectRegistrationInput {
 }
 
 export interface AcceptRegistrationInvitationInput {
+  readonly registrationId: RegistrationId;
   readonly invitationId: InvitationId;
   readonly acceptedIdentity: AcceptedAuthIdentity;
 }
@@ -129,7 +131,8 @@ export const acceptRegistrationInvitation = (
   ApprovedRegistration,
   | InvitationAcceptError
   | CommerceAccountError
-  | RegistrationFindByInvitationError,
+  | RegistrationReadError
+  | RegistrationNotFoundByInvitationId,
   Invitations | CommerceAccounts | Registrations
 > =>
   Effect.gen(function* () {
@@ -137,8 +140,18 @@ export const acceptRegistrationInvitation = (
     const commerceAccounts = yield* CommerceAccounts;
     const registrations = yield* Registrations;
 
-    const registration = yield* registrations.findByInvitationId(
-      input.invitationId
+    const registration = yield* registrations.get(input.registrationId).pipe(
+      Effect.flatMap((candidate) =>
+        candidate._tag === "ApprovedRegistration" &&
+        candidate.invitationId === input.invitationId
+          ? Effect.succeed(candidate)
+          : Effect.fail(
+              new RegistrationNotFoundByInvitationId({
+                message: `Registration for invitation ${input.invitationId} was not found`,
+                invitationId: input.invitationId,
+              })
+            )
+      )
     );
 
     yield* invitations.accept({

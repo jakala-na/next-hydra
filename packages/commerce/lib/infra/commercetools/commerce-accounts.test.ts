@@ -23,7 +23,10 @@ import {
   CompanyAddress,
   CompanyRegistrationDetails,
 } from "@repo/registration-effect/domain/registration";
-import { CommerceAccounts } from "@repo/registration-effect/services/commerce-account";
+import {
+  CommerceAccountError,
+  CommerceAccounts,
+} from "@repo/registration-effect/services/commerce-account";
 import { Effect, Redacted } from "effect";
 import { beforeEach, vi } from "vitest";
 import { layerCommercetoolsCommerceAccounts } from "./commerce-accounts";
@@ -149,6 +152,19 @@ beforeEach(() => {
 });
 
 describe("layerCommercetoolsCommerceAccounts", () => {
+  it("uses the commerce failure reason as the error message", () => {
+    const error = new CommerceAccountError({
+      message: "Failed to add Commercetools business unit associate",
+    });
+
+    expect(error.message).toBe(
+      "Failed to add Commercetools business unit associate"
+    );
+    expect(error.stack).toContain(
+      "Failed to add Commercetools business unit associate"
+    );
+  });
+
   it.effect("sets the WorkOS user id as the customer external id", () =>
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
@@ -226,5 +242,106 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         },
       });
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect(
+    "does not update the business unit when the owner associate already exists",
+    () =>
+      Effect.gen(function* () {
+        mocks.customerGetExecute.mockResolvedValueOnce({
+          body: {
+            id: "customer-1",
+            version: 8,
+            externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+            email: "ada@example.com",
+            firstName: "Ada",
+            lastName: "Lovelace",
+          },
+        });
+        mocks.businessUnitGetExecute.mockResolvedValueOnce({
+          body: {
+            id: "business-unit-1",
+            version: 3,
+            status: "Active",
+            associates: [
+              {
+                customer: { typeId: "customer", id: "customer-1" },
+                associateRoleAssignments: [
+                  {
+                    associateRole: {
+                      typeId: "associate-role",
+                      key: "owner",
+                    },
+                    inheritance: "Enabled",
+                  },
+                ],
+              },
+            ],
+          },
+        });
+
+        const commerceAccounts = yield* CommerceAccounts;
+        yield* commerceAccounts.linkRegistrantIdentity({
+          registration,
+          acceptedIdentity,
+        });
+
+        expect(mocks.customerPost).not.toHaveBeenCalled();
+        expect(mocks.businessUnitPost).not.toHaveBeenCalled();
+      }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect(
+    "includes Commercetools response details when owner association fails",
+    () =>
+      Effect.gen(function* () {
+        mocks.customerGetExecute.mockResolvedValueOnce({
+          body: {
+            id: "customer-1",
+            version: 8,
+            externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+            email: "ada@example.com",
+            firstName: "Ada",
+            lastName: "Lovelace",
+          },
+        });
+        mocks.businessUnitGetExecute.mockResolvedValueOnce({
+          body: {
+            id: "business-unit-1",
+            version: 3,
+            status: "Active",
+            associates: [],
+          },
+        });
+        mocks.businessUnitPostExecute.mockRejectedValueOnce({
+          statusCode: 400,
+          body: {
+            message: "The referenced associate role does not exist.",
+            errors: [
+              {
+                code: "ReferencedResourceNotFound",
+                message: "Referenced resource with key owner was not found.",
+              },
+            ],
+          },
+        });
+
+        const commerceAccounts = yield* CommerceAccounts;
+        const error = yield* commerceAccounts
+          .linkRegistrantIdentity({
+            registration,
+            acceptedIdentity,
+          })
+          .pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(CommerceAccountError);
+        expect(error.message).toContain(
+          "Failed to add Commercetools business unit associate"
+        );
+        expect(error.message).toContain(
+          "The referenced associate role does not exist."
+        );
+        expect(error.message).toContain("ReferencedResourceNotFound");
+      }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 });

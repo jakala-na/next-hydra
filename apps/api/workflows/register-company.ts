@@ -22,7 +22,6 @@ import {
   toRegistrationDetailResponse,
   toReviewerActor,
 } from "@repo/registration-effect/http/registration-api";
-import { Registrations } from "@repo/registration-effect/services/registrations";
 import { Effect, Redacted } from "effect";
 import { createHook } from "workflow";
 import { registrationEffectLayer } from "@/lib/registration-effect-runtime";
@@ -124,25 +123,21 @@ async function notifyApprovedStep(input: RegistrationWorkflowInput) {
 }
 
 async function acceptInvitationStep(
+  input: RegistrationWorkflowInput,
   invitationId: string,
-  event: Extract<RegistrationInvitationEvent, { readonly event: "accepted" }>
+  event: Extract<RegistrationInvitationEvent, { readonly event: "accepted" }>,
+  fallback: {
+    readonly firstName: string;
+    readonly lastName: string;
+  }
 ) {
   "use step";
 
   const registration = await Effect.runPromise(
-    Effect.gen(function* () {
-      const invitationIdValue = InvitationId.make(invitationId);
-      const registrations = yield* Registrations;
-      const approved =
-        yield* registrations.findByInvitationId(invitationIdValue);
-
-      return yield* acceptRegistrationInvitation({
-        invitationId: invitationIdValue,
-        acceptedIdentity: toAcceptedAuthIdentity(event, {
-          firstName: Redacted.value(approved.details.contactFirstName),
-          lastName: Redacted.value(approved.details.contactLastName),
-        }),
-      });
+    acceptRegistrationInvitation({
+      registrationId: RegistrationId.make(input.registrationId),
+      invitationId: InvitationId.make(invitationId),
+      acceptedIdentity: toAcceptedAuthIdentity(event, fallback),
     }).pipe(Effect.provide(registrationEffectLayer))
   );
 
@@ -204,7 +199,10 @@ export async function registerCompanyWorkflow(
     });
 
     if (invitationEvent.event === "accepted") {
-      return await acceptInvitationStep(invitationId, invitationEvent);
+      return await acceptInvitationStep(input, invitationId, invitationEvent, {
+        firstName: registration.contactFirstName,
+        lastName: registration.contactLastName,
+      });
     }
 
     return registration;

@@ -197,6 +197,9 @@ const queryCustomObjects = ({
     },
     catch: (cause) =>
       new RegistrationQueryFailure({
+        message: `Failed to list registrations: ${
+          cause instanceof Error ? cause.message : String(cause)
+        }`,
         operation: "list",
         cause,
       }),
@@ -210,6 +213,9 @@ const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
       Effect.mapError(
         (cause) =>
           new RegistrationQueryFailure({
+            message: `Failed to list registrations: ${
+              cause instanceof Error ? cause.message : String(cause)
+            }`,
             operation: "list",
             cause,
           })
@@ -220,6 +226,7 @@ const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
 
     if (Number.isNaN(createdAt.getTime())) {
       return yield* new RegistrationQueryFailure({
+        message: `Failed to list registrations: Invalid custom object createdAt ${customObject.createdAt}`,
         operation: "list",
         cause: new Error(
           `Invalid custom object createdAt ${customObject.createdAt}`
@@ -229,6 +236,7 @@ const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
 
     if (Number.isNaN(lastModifiedAt.getTime())) {
       return yield* new RegistrationQueryFailure({
+        message: `Failed to list registrations: Invalid custom object lastModifiedAt ${customObject.lastModifiedAt}`,
         operation: "list",
         cause: new Error(
           `Invalid custom object lastModifiedAt ${customObject.lastModifiedAt}`

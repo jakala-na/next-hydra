@@ -146,18 +146,27 @@ const providerFailure = (
   cause: unknown
 ) =>
   new InvitationProviderFailure({
+    message: `Failed to ${operation} invitation: ${
+      cause instanceof Error ? cause.message : String(cause)
+    }`,
     operation,
     cause,
   });
 
 const readFailure = (invitationId: InvitationId, cause: unknown) =>
   cause instanceof NotFoundException
-    ? new InvitationNotFound({ invitationId })
+    ? new InvitationNotFound({
+        message: `Invitation ${invitationId} was not found`,
+        invitationId,
+      })
     : providerFailure("read", cause);
 
 const revokeFailure = (invitationId: InvitationId, cause: unknown) =>
   cause instanceof NotFoundException
-    ? new InvitationNotFound({ invitationId })
+    ? new InvitationNotFound({
+        message: `Invitation ${invitationId} was not found`,
+        invitationId,
+      })
     : providerFailure("revoke", cause);
 
 export const makeWorkosInvitations = (
@@ -193,7 +202,7 @@ export const makeWorkosInvitations = (
 
     if (invitation.state === "revoked" || invitation.state === "expired") {
       return yield* new InvitationConflict({
-        reason: "Invitation can no longer be accepted by the provider",
+        message: "Invitation can no longer be accepted by the provider",
       });
     }
 
@@ -224,7 +233,7 @@ export const makeWorkosInvitations = (
 
     if (revoked._tag !== "RevokedInvitation") {
       return yield* new InvitationConflict({
-        reason: "Invitation was not revoked by the provider",
+        message: "Invitation was not revoked by the provider",
       });
     }
 

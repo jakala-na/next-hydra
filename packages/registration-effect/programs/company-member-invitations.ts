@@ -110,13 +110,13 @@ export const acceptCompanyMemberInvitation = (
 
     if (invitation.intent.intent !== "company_member") {
       return yield* new InvitationConflict({
-        reason: "Invitation is not for company membership",
+        message: "Invitation is not for company membership",
       });
     }
 
     if (invitation.intent.role !== "associate") {
       return yield* new InvitationConflict({
-        reason: "Company member invitations can only grant associate access",
+        message: "Company member invitations can only grant associate access",
       });
     }
 
