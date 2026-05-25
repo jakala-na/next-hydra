@@ -39,7 +39,7 @@ type WorkosSdk = Pick<WorkOS, "userManagement">;
 
 export type WorkosInvitationUserManagement = Pick<
   WorkosSdk["userManagement"],
-  "sendInvitation" | "getInvitation" | "acceptInvitation" | "revokeInvitation"
+  "sendInvitation" | "getInvitation" | "revokeInvitation"
 >;
 
 const toDate = (value: string | null | undefined) =>
@@ -96,6 +96,7 @@ const pendingFromWorkos = (
     intent: input.intent,
     issuedBy: input.issuedBy,
     createdAt: toDate(invitation.createdAt),
+    acceptInvitationUrl: invitation.acceptInvitationUrl,
   });
 
 const invitationFromWorkos = (
@@ -129,11 +130,13 @@ const invitationFromWorkos = (
       return new PendingInvitation({
         _tag: "PendingInvitation",
         ...base,
+        acceptInvitationUrl: invitation.acceptInvitationUrl,
       });
     default:
       return new PendingInvitation({
         _tag: "PendingInvitation",
         ...base,
+        acceptInvitationUrl: invitation.acceptInvitationUrl,
       });
   }
 };
@@ -151,11 +154,6 @@ const readFailure = (invitationId: InvitationId, cause: unknown) =>
   cause instanceof NotFoundException
     ? new InvitationNotFound({ invitationId })
     : providerFailure("read", cause);
-
-const acceptFailure = (invitationId: InvitationId, cause: unknown) =>
-  cause instanceof NotFoundException
-    ? new InvitationNotFound({ invitationId })
-    : providerFailure("accept", cause);
 
 const revokeFailure = (invitationId: InvitationId, cause: unknown) =>
   cause instanceof NotFoundException
@@ -189,18 +187,30 @@ export const makeWorkosInvitations = (
     input: AcceptInvitationInput
   ) {
     const invitation = yield* Effect.tryPromise({
-      try: () => userManagement.acceptInvitation(input.invitationId),
-      catch: (cause) => acceptFailure(input.invitationId, cause),
+      try: () => userManagement.getInvitation(input.invitationId),
+      catch: (cause) => readFailure(input.invitationId, cause),
     });
-    const accepted = invitationFromWorkos(invitation, input.acceptedIdentity);
 
-    if (accepted._tag !== "AcceptedInvitation") {
+    if (invitation.state === "revoked" || invitation.state === "expired") {
       return yield* new InvitationConflict({
-        reason: "Invitation was not accepted by the provider",
+        reason: "Invitation can no longer be accepted by the provider",
       });
     }
 
-    return accepted;
+    const acceptedAt =
+      invitation.state === "accepted"
+        ? toDate(invitation.acceptedAt)
+        : new Date();
+
+    return new AcceptedInvitation({
+      _tag: "AcceptedInvitation",
+      id: invitationIdFromWorkos(invitation),
+      intent: providerIntentFromWorkos(invitation),
+      issuedBy: registrationSystemActor,
+      acceptedBy: input.acceptedIdentity,
+      createdAt: toDate(invitation.createdAt),
+      acceptedAt,
+    });
   });
 
   const revoke = Effect.fn("Invitations.Workos.revoke")(function* (

@@ -64,7 +64,6 @@ const item = new StoredItem({
   id: key,
   createdAt: new Date(0),
 });
-const encodedItem = `{"id":"item-1","createdAt":"1970-01-01T00:00:00.000Z"}`;
 const layer = layerCommercetoolsCustomObjectKeyValueStore({ container });
 
 const concurrentModificationError = Object.assign(
@@ -100,25 +99,26 @@ describe("layerCommercetoolsCustomObjectKeyValueStore", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  it.effect(
-    "decodes custom object JSON string values with provider versions",
-    () =>
-      Effect.gen(function* () {
-        getExecute.mockResolvedValueOnce({
-          body: {
-            value: encodedItem,
-            version: 7,
+  it.effect("decodes custom object JSON values with provider versions", () =>
+    Effect.gen(function* () {
+      getExecute.mockResolvedValueOnce({
+        body: {
+          value: {
+            id: "item-1",
+            createdAt: "1970-01-01T00:00:00.000Z",
           },
-        });
-        const store = yield* VersionedKeyValueStore;
+          version: 7,
+        },
+      });
+      const store = yield* VersionedKeyValueStore;
 
-        const stored = yield* store
-          .get(key, StoredItem)
-          .pipe(Effect.flatMap(Effect.fromOption));
+      const stored = yield* store
+        .get(key, StoredItem)
+        .pipe(Effect.flatMap(Effect.fromOption));
 
-        expect(stored.value).toStrictEqual(item);
-        expect(stored.version).toBe(StoreVersion.make("7"));
-      }).pipe(Effect.provide(layer))
+      expect(stored.value).toStrictEqual(item);
+      expect(stored.version).toBe(StoreVersion.make("7"));
+    }).pipe(Effect.provide(layer))
   );
 
   it.effect("uses version zero for create-only inserts", () =>
@@ -134,7 +134,10 @@ describe("layerCommercetoolsCustomObjectKeyValueStore", () => {
           container,
           key,
           version: 0,
-          value: expect.stringContaining("1970-01-01T00:00:00.000Z"),
+          value: {
+            id: "item-1",
+            createdAt: "1970-01-01T00:00:00.000Z",
+          },
         },
       });
     }).pipe(Effect.provide(layer))
@@ -157,7 +160,10 @@ describe("layerCommercetoolsCustomObjectKeyValueStore", () => {
           container,
           key,
           version: 7,
-          value: expect.stringContaining("1970-01-01T00:00:00.001Z"),
+          value: {
+            id: "item-1",
+            createdAt: "1970-01-01T00:00:00.001Z",
+          },
         },
       });
     }).pipe(Effect.provide(layer))
@@ -196,11 +202,11 @@ describe("layerCommercetoolsCustomObjectKeyValueStore", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  it.effect("maps invalid custom object values to store read errors", () =>
+  it.effect("maps string custom object values to store read errors", () =>
     Effect.gen(function* () {
       getExecute.mockResolvedValueOnce({
         body: {
-          value: "{",
+          value: `{"id":"item-1","createdAt":"1970-01-01T00:00:00.000Z"}`,
           version: 7,
         },
       });

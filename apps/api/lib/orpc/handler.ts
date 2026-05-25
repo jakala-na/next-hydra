@@ -1,5 +1,6 @@
-import { RPCHandler } from "@orpc/server/fetch";
 import { ORPCError } from "@orpc/server";
+import { RPCHandler } from "@orpc/server/fetch";
+import { log } from "@repo/observability/log";
 import type { RegistrationProcedureContext } from "@repo/registration/orpc/types";
 import { router } from "./router";
 
@@ -13,7 +14,7 @@ const rpcHandler = new RPCHandler<RegistrationProcedureContext>(router, {
           throw error;
         }
 
-        console.error("Unhandled registration RPC error", {
+        log.error("Unhandled registration RPC error", {
           path: options.request.url.pathname,
           cause: error,
         });

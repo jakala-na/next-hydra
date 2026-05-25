@@ -1,15 +1,13 @@
 import { Badge } from "@repo/design-system/components/ui/badge";
-import type { RegistrationStatus } from "@repo/registration/domain/types";
 import { registrationStatusLabels } from "./registration-lifecycle";
+import type { RegistrationDetailStatus } from "./registration-view-models";
 
 const statusVariantMap: Record<
-  RegistrationStatus,
+  RegistrationDetailStatus,
   "default" | "secondary" | "destructive" | "outline"
 > = {
-  submitted: "secondary",
   awaiting_approval: "secondary",
-  approval_processing: "outline",
-  submission_incomplete: "outline",
+  approval_processing: "secondary",
   approved: "default",
   rejected: "destructive",
 };
@@ -17,7 +15,7 @@ const statusVariantMap: Record<
 export function RegistrationStatusBadge({
   status,
 }: {
-  status: RegistrationStatus;
+  status: RegistrationDetailStatus;
 }) {
   return (
     <Badge variant={statusVariantMap[status]}>

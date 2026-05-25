@@ -15,6 +15,7 @@ import {
 } from "../registration-effect/domain/identity";
 import { CompanyMemberIntent } from "../registration-effect/domain/invitations";
 import {
+  InvitationConflict,
   InvitationNotFound,
   InvitationProviderFailure,
   Invitations,
@@ -86,7 +87,6 @@ const makeUserManagement = (
     return Promise.resolve(makeWorkosInvitation("pending"));
   },
   getInvitation: () => Promise.resolve(makeWorkosInvitation("accepted")),
-  acceptInvitation: () => Promise.resolve(makeWorkosInvitation("accepted")),
   revokeInvitation: () => Promise.resolve(makeWorkosInvitation("revoked")),
   ...overrides,
 });
@@ -141,7 +141,9 @@ describe("makeWorkosInvitations", () => {
     );
   });
 
-  it("accepts invitations through the WorkOS SDK", async () => {
+  it("accepts webhook-confirmed invitations without mutating WorkOS state", async () => {
+    let readInvitationId: string | undefined;
+
     await Effect.runPromise(
       Effect.gen(function* () {
         const invitations = yield* Invitations;
@@ -154,7 +156,74 @@ describe("makeWorkosInvitations", () => {
         expect(accepted._tag).toBe("AcceptedInvitation");
         expect(accepted.acceptedBy).toStrictEqual(acceptedIdentity);
         expect(accepted.intent.intent).toBe("provider_managed");
-      }).pipe(Effect.provide(makeLayer(makeUserManagement())))
+      }).pipe(
+        Effect.provide(
+          makeLayer(
+            makeUserManagement({
+              getInvitation: (invitationId) => {
+                readInvitationId = invitationId;
+                return Promise.resolve(makeWorkosInvitation("accepted"));
+              },
+            })
+          )
+        )
+      )
+    );
+
+    expect(readInvitationId).toBe("invitation-1");
+  });
+
+  it("trusts accepted identity from the webhook while WorkOS is eventually consistent", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const invitations = yield* Invitations;
+        const accepted = yield* invitations.accept({
+          invitationId: InvitationId.make("invitation-1"),
+          acceptedIdentity,
+          expectedIntent: "company_member",
+        });
+
+        expect(accepted._tag).toBe("AcceptedInvitation");
+        expect(accepted.acceptedBy).toStrictEqual(acceptedIdentity);
+      }).pipe(
+        Effect.provide(
+          makeLayer(
+            makeUserManagement({
+              getInvitation: () =>
+                Promise.resolve(makeWorkosInvitation("pending")),
+            })
+          )
+        )
+      )
+    );
+  });
+
+  it("rejects revoked or expired invitations", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const invitations = yield* Invitations;
+        const exit = yield* invitations
+          .accept({
+            invitationId: InvitationId.make("invitation-1"),
+            acceptedIdentity,
+            expectedIntent: "company_member",
+          })
+          .pipe(Effect.exit);
+
+        expect(Exit.isFailure(exit)).toBe(true);
+        if (Exit.isFailure(exit)) {
+          expect(exit.cause.toString()).toContain(InvitationConflict.name);
+        }
+      }).pipe(
+        Effect.provide(
+          makeLayer(
+            makeUserManagement({
+              getInvitation: () =>
+                Promise.resolve(makeWorkosInvitation("revoked")),
+            })
+          )
+        )
+      )
     );
   });
 
@@ -209,7 +278,7 @@ describe("makeWorkosInvitations", () => {
         Effect.provide(
           makeLayer(
             makeUserManagement({
-              acceptInvitation: () => Promise.reject(new Error("workos down")),
+              getInvitation: () => Promise.reject(new Error("workos down")),
             })
           )
         )

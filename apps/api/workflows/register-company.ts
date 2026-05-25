@@ -1,65 +1,183 @@
 import {
-  createWorkosInvitation,
-  type WorkosInvitation,
-} from "@repo/auth-workos/admin";
+  acceptRegistrationInvitation,
+  approveRegistration,
+  getRegistrationApprovalHookToken,
+  getRegistrationInvitationHookToken,
+  notifyRegistrationApproved,
+  notifyRegistrationAwaitingApproval,
+  notifyRegistrationRejected,
+  RegistrationId,
+  rejectRegistration,
+} from "@repo/registration-effect";
 import {
-  createPendingCustomerAndBusinessUnit,
-  saveRegistrationHookToken,
-  saveRegistrationInvitation,
-  updateRegistrationApprovalStatus,
-} from "@repo/commerce/lib/b2b-registration/service";
+  AcceptedAuthIdentity,
+  AuthUserId,
+  Email,
+  InvitationId,
+  PersonName,
+} from "@repo/registration-effect/domain/identity";
 import {
-  sendApprovedEmail,
-  sendAwaitingApprovalEmail,
-} from "@repo/email/registration";
-import type {
-  RegistrationApprovalDecision,
-  RegistrationWorkflowInput,
-} from "@repo/registration/domain/types";
+  type RegistrationDetailResponse,
+  RegistrationReviewerInput,
+  toRegistrationDetailResponse,
+  toReviewerActor,
+} from "@repo/registration-effect/http/registration-api";
+import { Registrations } from "@repo/registration-effect/services/registrations";
+import { Effect, Redacted } from "effect";
 import { createHook } from "workflow";
+import { registrationEffectLayer } from "@/lib/registration-effect-runtime";
+import type {
+  RegistrationInvitationEvent,
+  RegistrationWorkflowDecision,
+  RegistrationWorkflowInput,
+} from "@/lib/registration-workflow-contract";
 
-async function createCommerceResources(input: RegistrationWorkflowInput) {
-  "use step";
-  return await createPendingCustomerAndBusinessUnit(input);
-}
+const toPlainRegistrationDetailResponse = (
+  registration: RegistrationDetailResponse
+) => ({
+  registrationId: String(registration.registrationId),
+  status: registration.status,
+  companyName: registration.companyName,
+  companyPhone: registration.companyPhone,
+  vatId: registration.vatId,
+  contactFirstName: registration.contactFirstName,
+  contactLastName: registration.contactLastName,
+  email: registration.email,
+  address: { ...registration.address },
+  ...(registration.invitationId
+    ? { invitationId: String(registration.invitationId) }
+    : {}),
+  createdAt: registration.createdAt,
+  updatedAt: registration.updatedAt,
+  ...(registration.approvedAt ? { approvedAt: registration.approvedAt } : {}),
+  ...(registration.rejectedAt ? { rejectedAt: registration.rejectedAt } : {}),
+  ...(registration.approvalReason
+    ? { approvalReason: registration.approvalReason }
+    : {}),
+  ...(registration.actorEmail ? { actorEmail: registration.actorEmail } : {}),
+  ...(registration.actorName ? { actorName: registration.actorName } : {}),
+});
 
-async function notifyAwaitingApproval(input: RegistrationWorkflowInput) {
-  "use step";
-  await sendAwaitingApprovalEmail(input);
-}
+const toAcceptedAuthIdentity = (
+  event: Extract<RegistrationInvitationEvent, { readonly event: "accepted" }>,
+  fallback: {
+    readonly firstName: string;
+    readonly lastName: string;
+  }
+) =>
+  new AcceptedAuthIdentity({
+    authUserId: AuthUserId.make(event.acceptedIdentity.authUserId),
+    email: Redacted.make(Email.make(event.acceptedIdentity.email), {
+      label: "email",
+    }),
+    firstName: Redacted.make(
+      PersonName.make(event.acceptedIdentity.firstName ?? fallback.firstName),
+      {
+        label: "personName",
+      }
+    ),
+    lastName: Redacted.make(
+      PersonName.make(event.acceptedIdentity.lastName ?? fallback.lastName),
+      {
+        label: "personName",
+      }
+    ),
+  });
 
-async function persistHookToken(registrationId: string, hookToken: string) {
-  "use step";
-  await saveRegistrationHookToken(registrationId, hookToken);
-}
-
-async function markApprovalDecision(
-  registrationId: string,
-  approval: RegistrationApprovalDecision
-) {
-  "use step";
-  return await updateRegistrationApprovalStatus(registrationId, approval);
-}
-
-async function createInvitation(email: string) {
-  "use step";
-  return await createWorkosInvitation({ email });
-}
-
-async function persistInvitation(
-  registrationId: string,
-  invitation: Pick<WorkosInvitation, "id" | "state">
-) {
-  "use step";
-  await saveRegistrationInvitation(registrationId, invitation);
-}
-
-async function notifyApproved(
+async function approveRegistrationStep(
   input: RegistrationWorkflowInput,
-  onboardingUrl: string
+  decision: RegistrationWorkflowDecision
 ) {
   "use step";
-  await sendApprovedEmail(input, onboardingUrl);
+
+  const registration = await Effect.runPromise(
+    approveRegistration({
+      registrationId: RegistrationId.make(input.registrationId),
+      actor: toReviewerActor(new RegistrationReviewerInput(decision.reviewer)),
+      ...(decision.reason === undefined ? {} : { reason: decision.reason }),
+    }).pipe(Effect.provide(registrationEffectLayer))
+  );
+
+  return toPlainRegistrationDetailResponse(
+    toRegistrationDetailResponse(registration)
+  );
+}
+
+async function notifyAwaitingApprovalStep(input: RegistrationWorkflowInput) {
+  "use step";
+
+  await Effect.runPromise(
+    notifyRegistrationAwaitingApproval({
+      registrationId: RegistrationId.make(input.registrationId),
+    }).pipe(Effect.provide(registrationEffectLayer))
+  );
+}
+
+async function notifyApprovedStep(input: RegistrationWorkflowInput) {
+  "use step";
+
+  await Effect.runPromise(
+    notifyRegistrationApproved({
+      registrationId: RegistrationId.make(input.registrationId),
+    }).pipe(Effect.provide(registrationEffectLayer))
+  );
+}
+
+async function acceptInvitationStep(
+  invitationId: string,
+  event: Extract<RegistrationInvitationEvent, { readonly event: "accepted" }>
+) {
+  "use step";
+
+  const registration = await Effect.runPromise(
+    Effect.gen(function* () {
+      const invitationIdValue = InvitationId.make(invitationId);
+      const registrations = yield* Registrations;
+      const approved =
+        yield* registrations.findByInvitationId(invitationIdValue);
+
+      return yield* acceptRegistrationInvitation({
+        invitationId: invitationIdValue,
+        acceptedIdentity: toAcceptedAuthIdentity(event, {
+          firstName: Redacted.value(approved.details.contactFirstName),
+          lastName: Redacted.value(approved.details.contactLastName),
+        }),
+      });
+    }).pipe(Effect.provide(registrationEffectLayer))
+  );
+
+  return toPlainRegistrationDetailResponse(
+    toRegistrationDetailResponse(registration)
+  );
+}
+
+async function rejectRegistrationStep(
+  input: RegistrationWorkflowInput,
+  decision: RegistrationWorkflowDecision
+) {
+  "use step";
+
+  const registration = await Effect.runPromise(
+    rejectRegistration({
+      registrationId: RegistrationId.make(input.registrationId),
+      actor: toReviewerActor(new RegistrationReviewerInput(decision.reviewer)),
+      ...(decision.reason === undefined ? {} : { reason: decision.reason }),
+    }).pipe(Effect.provide(registrationEffectLayer))
+  );
+
+  return toPlainRegistrationDetailResponse(
+    toRegistrationDetailResponse(registration)
+  );
+}
+
+async function notifyRejectedStep(input: RegistrationWorkflowInput) {
+  "use step";
+
+  await Effect.runPromise(
+    notifyRegistrationRejected({
+      registrationId: RegistrationId.make(input.registrationId),
+    }).pipe(Effect.provide(registrationEffectLayer))
+  );
 }
 
 export async function registerCompanyWorkflow(
@@ -67,28 +185,32 @@ export async function registerCompanyWorkflow(
 ) {
   "use workflow";
 
-  try {
-    const approvalHook = createHook<RegistrationApprovalDecision>();
-    await persistHookToken(input.registrationId, approvalHook.token);
-    await notifyAwaitingApproval(input);
+  await notifyAwaitingApprovalStep(input);
 
-    const approval = await approvalHook;
-    if (approval.decision === "rejected") {
-      return markApprovalDecision(input.registrationId, approval);
+  const decision = await createHook<RegistrationWorkflowDecision>({
+    token: getRegistrationApprovalHookToken(input.registrationId),
+  });
+
+  if (decision.decision === "approved") {
+    const registration = await approveRegistrationStep(input, decision);
+    await notifyApprovedStep(input);
+    const invitationId = registration.invitationId;
+    if (!invitationId) {
+      throw new Error("Approved registration is missing an invitation id");
     }
 
-    await createCommerceResources(input);
-    const invitation = await createInvitation(input.email);
-    await persistInvitation(input.registrationId, invitation);
-    const record = await markApprovalDecision(input.registrationId, approval);
-    await notifyApproved(input, invitation.acceptInvitationUrl);
-
-    return record;
-  } catch (error) {
-    console.error("B2B registration workflow failed", {
-      registrationId: input.registrationId,
-      error,
+    const invitationEvent = await createHook<RegistrationInvitationEvent>({
+      token: getRegistrationInvitationHookToken(invitationId),
     });
-    throw error;
+
+    if (invitationEvent.event === "accepted") {
+      return await acceptInvitationStep(invitationId, invitationEvent);
+    }
+
+    return registration;
   }
+
+  const registration = await rejectRegistrationStep(input, decision);
+  await notifyRejectedStep(input);
+  return registration;
 }

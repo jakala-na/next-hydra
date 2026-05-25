@@ -1,4 +1,28 @@
 export {
+  type ApproveRegistrationInput as ApproveRegistrationViewInput,
+  canDecideRegistration,
+  DecisionFormSchema,
+  type DecisionFormValues,
+  getRegistrationDecisionUnavailableMessage,
+  type RegistrationDecisionResult,
+  type RegistrationDetailView,
+  type RejectRegistrationInput as RejectRegistrationViewInput,
+  registrationStatusFilters,
+  registrationStatusLabels,
+  toRegistrationDetailView,
+} from "./components/admin/registration-view-models";
+export { registrationFormInputToDetails } from "./components/registration-form-domain";
+export {
+  getCountryOptions,
+  makeRegistrationFormInputSchema,
+  type RegistrationFormFieldErrors,
+  type RegistrationFormInput,
+  RegistrationFormInputSchema,
+  type RegistrationFormResult,
+  type RegistrationFormValues,
+  requiresRegion,
+} from "./components/registration-form-schema";
+export {
   type Actor,
   CompanyActor,
   RegistrationReviewerActor,
@@ -85,6 +109,28 @@ export {
   type CompanyRole as CompanyRoleType,
 } from "./domain/roles";
 export {
+  getRegistrationApprovalHookToken,
+  getRegistrationInvitationHookToken,
+} from "./domain/workflow";
+export {
+  CreateRegistrationRequest,
+  CreateRegistrationResponse,
+  ListRegistrationsQuery,
+  ListRegistrationsResponse,
+  RegistrationAddressInput,
+  RegistrationApiConflict,
+  RegistrationApiError,
+  RegistrationApiGroup,
+  RegistrationApiNotFound,
+  RegistrationApiUnauthorized,
+  RegistrationDecisionAcceptedResponse,
+  RegistrationDecisionRequest,
+  RegistrationDecisionResponse,
+  RegistrationDetailResponse,
+  RegistrationHttpApi,
+  RegistrationReviewerInput,
+} from "./http/registration-api";
+export {
   type AcceptCompanyMemberInvitationInput,
   acceptCompanyMemberInvitation,
   type IssueCompanyMemberInviteInput,
@@ -92,6 +138,12 @@ export {
   type RevokeCompanyMemberInviteInput,
   revokeCompanyMemberInvite,
 } from "./programs/company-member-invitations";
+export {
+  type NotifyRegistrationInput,
+  notifyRegistrationApproved,
+  notifyRegistrationAwaitingApproval,
+  notifyRegistrationRejected,
+} from "./programs/registration-notifications";
 export {
   type AcceptRegistrationInvitationInput,
   type ApproveRegistrationInput,
@@ -113,6 +165,12 @@ export {
   InvitationPolicyError,
 } from "./services/company-invitation-policy";
 export {
+  type EmailDelivery,
+  type EmailMessage,
+  EmailProvider,
+  EmailProviderFailure,
+} from "./services/email-provider";
+export {
   type AcceptInvitationInput,
   type InvitationAcceptError,
   InvitationConflict,
@@ -125,6 +183,15 @@ export {
   type IssueInvitationInput,
   type RevokeInvitationInput,
 } from "./services/invitations";
+export {
+  RegistrationEmailFailure,
+  type RegistrationEmailNotification,
+  RegistrationEmails,
+  type SendApprovedRegistrantEmailInput,
+  type SendAwaitingApprovalApproverEmailInput,
+  type SendAwaitingApprovalRegistrantEmailInput,
+  type SendRejectedRegistrantEmailInput,
+} from "./services/registration-emails";
 export {
   decodeRegistrationQueryCursor,
   encodeRegistrationQueryCursor,

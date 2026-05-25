@@ -1,6 +1,4 @@
 import {
-  decodeJsonString,
-  encodeJsonString,
   StoreConflict,
   StoreError,
   StoreVersion,
@@ -18,6 +16,10 @@ const CONCURRENT_MODIFICATION_STATUS_CODE = 409;
 interface CommercetoolsCustomObject {
   readonly value: unknown;
   readonly version: number;
+}
+
+interface CommercetoolsCustomObjectPagedQueryResponse {
+  readonly results: readonly CommercetoolsCustomObject[];
 }
 
 const CommercetoolsStatusCodeError = Schema.Struct({
@@ -98,6 +100,36 @@ const versionToNumber = (key: string, version: StoreVersion) =>
     )
   );
 
+const encodeJsonValue = <S extends Schema.Top>(
+  key: string,
+  operation: "insert" | "update",
+  schema: S,
+  value: S["Type"]
+) =>
+  Schema.encodeEffect(Schema.toCodecJson(schema))(value).pipe(
+    Effect.mapError((error) => storeError(key, operation, error))
+  );
+
+const decodeJsonValue = <S extends Schema.Top>(
+  key: string,
+  schema: S,
+  value: unknown
+) => {
+  if (typeof value === "string") {
+    return Effect.fail(
+      storeError(
+        key,
+        "read",
+        new Error("Expected custom object value to be JSON, received string")
+      )
+    );
+  }
+
+  return Schema.decodeUnknownEffect(Schema.toCodecJson(schema))(value).pipe(
+    Effect.mapError((error) => storeError(key, "read", error))
+  );
+};
+
 const readCustomObject = (container: string, key: string) =>
   Effect.tryPromise({
     try: async () => {
@@ -123,7 +155,7 @@ const writeCustomObject = (
   container: string,
   key: string,
   version: number,
-  value: string
+  value: unknown
 ) =>
   Effect.tryPromise({
     try: async () => {
@@ -142,6 +174,25 @@ const writeCustomObject = (
     catch: (error) => error,
   });
 
+const queryCustomObjects = (container: string) =>
+  Effect.tryPromise({
+    try: async () => {
+      const response = await apiRoot
+        .customObjects()
+        .withContainer({ container })
+        .get({
+          queryArgs: {
+            limit: 500,
+            withTotal: false,
+          },
+        })
+        .execute();
+
+      return response.body as CommercetoolsCustomObjectPagedQueryResponse;
+    },
+    catch: (error) => storeError(container, "read", error),
+  });
+
 export interface CommercetoolsCustomObjectKeyValueStoreOptions {
   readonly container: string;
 }
@@ -158,33 +209,15 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
             Effect.flatMap((customObject) =>
               Option.match(customObject, {
                 onNone: () => Effect.succeed(Option.none()),
-                onSome: (stored) => {
-                  const encoded = Option.getOrUndefined(
-                    Schema.decodeUnknownOption(Schema.String)(stored.value)
-                  );
-
-                  if (!encoded) {
-                    return Effect.fail(
-                      storeError(
-                        key,
-                        "read",
-                        new Error(
-                          "Expected custom object value to be a JSON string"
-                        )
-                      )
-                    );
-                  }
-
-                  return decodeJsonString(schema, encoded).pipe(
+                onSome: (stored) =>
+                  decodeJsonValue(key, schema, stored.value).pipe(
                     Effect.map((value) =>
                       Option.some({
                         value,
                         version: versionFromCustomObject(stored.version),
                       })
-                    ),
-                    Effect.mapError((error) => storeError(key, "read", error))
-                  );
-                },
+                    )
+                  ),
               })
             )
           )
@@ -196,9 +229,7 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
           schema: S,
           value: S["Type"]
         ) {
-          const encoded = yield* encodeJsonString(schema, value).pipe(
-            Effect.mapError((error) => storeError(key, "insert", error))
-          );
+          const encoded = yield* encodeJsonValue(key, "insert", schema, value);
 
           yield* writeCustomObject(container, key, 0, encoded).pipe(
             Effect.mapError((error) =>
@@ -218,9 +249,7 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
           next: S["Type"]
         ) {
           const version = yield* versionToNumber(key, current.version);
-          const encoded = yield* encodeJsonString(schema, next).pipe(
-            Effect.mapError((error) => storeError(key, "update", error))
-          );
+          const encoded = yield* encodeJsonValue(key, "update", schema, next);
 
           yield* writeCustomObject(container, key, version, encoded).pipe(
             Effect.mapError((error) =>
@@ -232,10 +261,30 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
         }
       );
 
+      const values = Effect.fn("CommercetoolsCustomObjectKeyValueStore.values")(
+        <S extends Schema.Top>(schema: S) =>
+          queryCustomObjects(container).pipe(
+            Effect.flatMap((response) =>
+              Effect.forEach(
+                response.results,
+                (stored) =>
+                  decodeJsonValue(container, schema, stored.value).pipe(
+                    Effect.map((value) => ({
+                      value,
+                      version: versionFromCustomObject(stored.version),
+                    }))
+                  ),
+                { concurrency: "unbounded" }
+              )
+            )
+          )
+      );
+
       return VersionedKeyValueStore.of({
         get,
         insert,
         update,
+        values,
       });
     })
   );

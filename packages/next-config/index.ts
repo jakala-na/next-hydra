@@ -9,6 +9,11 @@ export const config: NextConfig = {
     useCache: true,
     browserDebugInfoInTerminal: true,
   },
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
+  },
   cacheComponents: false, // Waiting for https://github.com/amannn/next-intl/issues/1493 support and other ecosystem updates.
   typedRoutes: true,
   images: {
@@ -43,10 +48,10 @@ export const config: NextConfig = {
     ];
   },
 
-  webpack(config) {
-    config.ignoreWarnings = [{ module: otelRegex }];
+  webpack(webpackConfig) {
+    webpackConfig.ignoreWarnings = [{ module: otelRegex }];
 
-    return config;
+    return webpackConfig;
   },
 
   // This is required to support PostHog trailing slash API requests

@@ -49,6 +49,7 @@ export class PendingInvitation extends Schema.TaggedClass<PendingInvitation>()(
     intent: InvitationIntent,
     issuedBy: Actor,
     createdAt: Schema.Date,
+    acceptInvitationUrl: Schema.optional(Schema.String),
   }
 ) {}
 
@@ -90,6 +91,7 @@ export class PendingRegistrationInvitation extends Schema.TaggedClass<PendingReg
     intent: RegistrationApprovalIntent,
     issuedBy: Actor,
     createdAt: Schema.Date,
+    acceptInvitationUrl: Schema.optional(Schema.String),
   }
 ) {}
 

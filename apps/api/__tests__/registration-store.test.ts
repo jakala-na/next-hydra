@@ -67,7 +67,7 @@ beforeEach(() => {
   lockCustomObjects.mockClear();
 });
 
-test("saving a registration hook token marks the registration awaiting approval", async () => {
+test("marking a registration awaiting approval uses a versioned write", async () => {
   getExecute.mockResolvedValue({
     body: {
       value: submittedRegistration,
@@ -76,15 +76,13 @@ test("saving a registration hook token marks the registration awaiting approval"
   });
   lockPostExecute.mockResolvedValue({});
 
-  const { saveRegistrationHookToken } = await loadStore();
-  const record = await saveRegistrationHookToken(
-    submittedRegistration.registrationId,
-    "hook_123"
+  const { markRegistrationAwaitingApproval } = await loadStore();
+  const record = await markRegistrationAwaitingApproval(
+    submittedRegistration.registrationId
   );
 
   expect(record).toMatchObject({
     registrationId: submittedRegistration.registrationId,
-    hookToken: "hook_123",
     status: "awaiting_approval",
   });
   expect(lockPost).toHaveBeenCalledWith({
@@ -93,7 +91,6 @@ test("saving a registration hook token marks the registration awaiting approval"
       key: submittedRegistration.registrationId,
       version: 3,
       value: expect.objectContaining({
-        hookToken: "hook_123",
         status: "awaiting_approval",
       }),
     },
@@ -104,7 +101,6 @@ test("marking approval processing uses a versioned write without concurrent modi
   const awaitingApprovalRegistration: RegistrationRecord = {
     ...submittedRegistration,
     status: "awaiting_approval",
-    hookToken: "hook_123",
   };
 
   getExecute.mockResolvedValue({
@@ -186,10 +182,10 @@ test("reading a registration record rejects stored values outside the schema", a
     },
   });
 
-  const { saveRegistrationHookToken } = await loadStore();
+  const { markRegistrationAwaitingApproval } = await loadStore();
 
   await expect(
-    saveRegistrationHookToken(submittedRegistration.registrationId, "hook_123")
+    markRegistrationAwaitingApproval(submittedRegistration.registrationId)
   ).rejects.toThrow();
   expect(lockPost).not.toHaveBeenCalled();
 });

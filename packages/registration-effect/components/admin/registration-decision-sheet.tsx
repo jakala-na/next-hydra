@@ -1,8 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { isDefinedError, onError, onSuccess } from "@orpc/client";
-import { useServerAction } from "@orpc/react/hooks";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
   Form,
@@ -20,39 +18,38 @@ import {
   SheetTitle,
 } from "@repo/design-system/components/ui/sheet";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import type { RegistrationDetail } from "@repo/registration/domain/types";
-import { REGISTRATION_FIELD_LIMITS } from "@repo/registration/domain/types";
+import { Schema } from "effect";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { SubmitHandler } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
-import { decideRegistration } from "@/lib/admin-registration-actionables";
 import {
   canDecideRegistration,
-  getRegistrationDecisionConflictMessage,
   getRegistrationDecisionUnavailableMessage,
+  registrationStatusLabels,
 } from "./registration-lifecycle";
 import { RegistrationStatusBadge } from "./registration-status-badge";
-
-const decisionFormSchema = z.object({
-  reason: z
-    .string()
-    .trim()
-    .max(
-      REGISTRATION_FIELD_LIMITS.approvalReason,
-      `Keep the reason under ${REGISTRATION_FIELD_LIMITS.approvalReason} characters.`
-    ),
-});
-
-type DecisionFormValues = z.infer<typeof decisionFormSchema>;
+import {
+  type ApproveRegistrationInput,
+  DecisionFormSchema,
+  type DecisionFormValues,
+  type RegistrationDecisionResult,
+  type RegistrationDetailView,
+  type RejectRegistrationInput,
+} from "./registration-view-models";
 
 type RegistrationDecisionSheetProps = {
-  closeHref: string;
-  registration: RegistrationDetail | null;
-  canDecide: boolean;
+  readonly approve: (
+    input: ApproveRegistrationInput
+  ) => Promise<RegistrationDecisionResult>;
+  readonly canDecide: boolean;
+  readonly closeHref: string;
+  readonly registration: RegistrationDetailView | null;
+  readonly reject?: (
+    input: RejectRegistrationInput
+  ) => Promise<RegistrationDecisionResult>;
 };
 
 const formatDateTime = (value?: string) => {
@@ -66,7 +63,7 @@ const formatDateTime = (value?: string) => {
   }).format(new Date(value));
 };
 
-const getAddress = (registration: RegistrationDetail) =>
+const getAddress = (registration: RegistrationDetailView) =>
   [
     registration.address.streetName,
     registration.address.additionalStreetInfo,
@@ -80,60 +77,22 @@ const getAddress = (registration: RegistrationDetail) =>
     .join(", ");
 
 export function RegistrationDecisionSheet({
+  approve,
   closeHref,
   registration,
   canDecide,
+  reject,
 }: RegistrationDecisionSheetProps) {
   const router = useRouter();
-  const [activeDecision, setActiveDecision] = useState<
-    "approved" | "rejected" | null
-  >(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<DecisionFormValues>({
-    resolver: zodResolver(decisionFormSchema),
+    resolver: standardSchemaResolver(
+      Schema.toStandardSchemaV1(DecisionFormSchema)
+    ),
     defaultValues: {
       reason: registration?.approvalReason ?? "",
     },
-  });
-  const { execute, status } = useServerAction(decideRegistration, {
-    interceptors: [
-      onSuccess((result) => {
-        const outcome = activeDecision === "rejected" ? "rejected" : "approved";
-
-        setSubmitError(null);
-        setActiveDecision(null);
-        toast.success(`Registration ${outcome}.`, {
-          description:
-            result.status === "approval_processing"
-              ? "The decision is processing and the dashboard will refresh."
-              : undefined,
-        });
-        router.replace(closeHref as Route);
-        router.refresh();
-      }),
-      onError((error) => {
-        setActiveDecision(null);
-
-        const definedError = isDefinedError(error) ? error : null;
-
-        if (definedError) {
-          switch (definedError.code) {
-            case "REGISTRATION_CONFLICT":
-              setSubmitError(
-                getRegistrationDecisionConflictMessage(definedError.data.reason)
-              );
-              return;
-            case "REGISTRATION_NOT_FOUND":
-              setSubmitError("This registration could not be found anymore.");
-              return;
-            default:
-              break;
-          }
-        }
-
-        setSubmitError("The decision could not be saved. Please try again.");
-      }),
-    ],
   });
 
   if (!registration) {
@@ -142,21 +101,53 @@ export function RegistrationDecisionSheet({
 
   const canSubmitDecision =
     canDecide && canDecideRegistration(registration.status);
-  const isSubmitting = status === "pending";
   const decisionUnavailableMessage = getRegistrationDecisionUnavailableMessage(
     registration.status
   );
 
   const handleSubmitDecision =
     (decision: "approved" | "rejected"): SubmitHandler<DecisionFormValues> =>
-    (values) => {
-      setActiveDecision(decision);
+    async (values) => {
       setSubmitError(null);
-      execute({
-        registrationId: registration.registrationId,
-        decision,
-        reason: values.reason,
-      });
+      setIsSubmitting(true);
+
+      try {
+        const action = decision === "approved" ? approve : reject;
+
+        if (!action) {
+          setSubmitError("This decision is not available.");
+          return;
+        }
+
+        const result = await action({
+          registrationId: registration.registrationId,
+          ...(values.reason ? { reason: values.reason } : {}),
+        });
+
+        switch (result._tag) {
+          case "Success":
+            setSubmitError(null);
+            toast.success(
+              `Registration ${registrationStatusLabels[
+                result.status
+              ].toLowerCase()}.`
+            );
+            router.replace(closeHref as Route);
+            router.refresh();
+            return;
+          case "Conflict":
+          case "NotFound":
+          case "Failure":
+            setSubmitError(result.message);
+            return;
+          default:
+            result satisfies never;
+        }
+      } catch {
+        setSubmitError("The decision could not be saved. Please try again.");
+      } finally {
+        setIsSubmitting(false);
+      }
     };
 
   const submitDecision = (decision: "approved" | "rejected") =>
@@ -251,14 +242,16 @@ export function RegistrationDecisionSheet({
                   {formatDateTime(registration.updatedAt)}
                 </dd>
               </div>
-              <div>
-                <dt className="text-muted-foreground text-xs uppercase tracking-[0.14em]">
-                  Invitation State
-                </dt>
-                <dd className="mt-1 text-sm">
-                  {registration.invitationState || "-"}
-                </dd>
-              </div>
+              {registration.invitationId ? (
+                <div>
+                  <dt className="text-muted-foreground text-xs uppercase tracking-[0.14em]">
+                    Invitation
+                  </dt>
+                  <dd className="mt-1 break-all text-sm">
+                    {registration.invitationId}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </section>
 

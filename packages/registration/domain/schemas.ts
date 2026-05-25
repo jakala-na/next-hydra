@@ -343,7 +343,6 @@ export const registrationRecordSchema = registrationWorkflowInputSchema.extend({
   customerKey: optionalString(z.string()),
   businessUnitId: optionalString(z.string()),
   businessUnitKey: optionalString(z.string()),
-  hookToken: optionalString(z.string()),
   createdAt: z.string(),
   updatedAt: z.string(),
   approvedAt: optionalString(z.string()),
@@ -356,7 +355,6 @@ export const registrationRecordSchema = registrationWorkflowInputSchema.extend({
 });
 
 export const registrationDetailSchema = registrationRecordSchema.omit({
-  hookToken: true,
   customerId: true,
   customerKey: true,
   businessUnitId: true,

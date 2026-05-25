@@ -1,7 +1,5 @@
 "use client";
 
-import { signOutAction } from "@repo/auth-workos/actions";
-import { useAuth } from "@repo/auth-workos/client";
 import {
   Avatar,
   AvatarFallback,
@@ -15,43 +13,44 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/design-system/components/ui/dropdown-menu";
-import { useTranslations } from "@repo/i18n";
 import { LogOut } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 
-type SignedInProps = {
-  children: React.ReactNode;
+export type AccountMenuUser = {
+  readonly email?: string | null;
+  readonly firstName?: string | null;
+  readonly lastName?: string | null;
+  readonly profilePictureUrl?: string | null;
 };
 
-function SignedIn({ children }: SignedInProps) {
-  const { user, loading } = useAuth();
-  if (loading || !user) {
-    return null;
-  }
-  return <>{children}</>;
-}
-
-type SignedOutProps = {
-  children: React.ReactNode;
+export type AccountMenuLabels = {
+  readonly user: string;
+  readonly signIn: string;
+  readonly signOut: string;
+  readonly signUp: string;
 };
 
-function SignedOut({ children }: SignedOutProps) {
-  const { user, loading } = useAuth();
-  if (loading || user) {
-    return null;
-  }
-  return <>{children}</>;
-}
-
-type SignInButtonProps = {
-  children: React.ReactNode;
+export type AccountMenuProps = {
+  readonly labels: AccountMenuLabels;
+  readonly loading?: boolean;
+  readonly signInHref?: string;
+  readonly signOutAction?: (formData: FormData) => void | Promise<void>;
+  readonly signUpHref?: string;
+  readonly user?: AccountMenuUser | null;
 };
 
 // Use prefetch=false to avoid RSC fetch issues when redirecting to external auth
-function SignInButton({ children }: SignInButtonProps) {
+function AuthLink({
+  children,
+  href,
+}: {
+  readonly children: React.ReactNode;
+  readonly href: string;
+}) {
   return (
     <Link
-      href="/api/auth/signin"
+      href={href as Route}
       prefetch={false}
       style={{ textDecoration: "none" }}
     >
@@ -60,35 +59,19 @@ function SignInButton({ children }: SignInButtonProps) {
   );
 }
 
-type SignUpButtonProps = {
-  children: React.ReactNode;
-};
-
-// Use prefetch=false to avoid RSC fetch issues when redirecting to external auth
-function SignUpButton({ children }: SignUpButtonProps) {
-  return (
-    <Link
-      href="/api/auth/signup"
-      prefetch={false}
-      style={{ textDecoration: "none" }}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function UserButton() {
-  const { user } = useAuth();
-  const t = useTranslations("web.header");
-
-  if (!user) {
-    return null;
-  }
-
+function UserButton({
+  labels,
+  signOutAction,
+  user,
+}: {
+  readonly labels: AccountMenuLabels;
+  readonly signOutAction?: (formData: FormData) => void | Promise<void>;
+  readonly user: AccountMenuUser;
+}) {
   const displayName =
     user.firstName && user.lastName
       ? `${user.firstName} ${user.lastName}`
-      : user.email || t("user");
+      : user.email || labels.user;
   const initials =
     user.firstName && user.lastName
       ? `${user.firstName[0]}${user.lastName[0]}`
@@ -128,7 +111,7 @@ function UserButton() {
             className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
           >
             <LogOut className="mr-2 size-4" />
-            <span>{t("signOut")}</span>
+            <span>{labels.signOut}</span>
           </button>
         </form>
       </DropdownMenuContent>
@@ -136,40 +119,53 @@ function UserButton() {
   );
 }
 
-export function AccountMenuClient() {
-  const t = useTranslations("web.header");
+export function AccountMenu({
+  labels,
+  loading,
+  signInHref = "/api/auth/signin",
+  signOutAction,
+  signUpHref = "/api/auth/signup",
+  user,
+}: AccountMenuProps) {
+  if (loading) {
+    return null;
+  }
+
   return (
     <div className="flex items-center gap-3 text-xs sm:text-sm">
-      <SignedOut>
+      {user ? (
+        <div className="flex items-center">
+          <UserButton
+            labels={labels}
+            signOutAction={signOutAction}
+            user={user}
+          />
+        </div>
+      ) : (
         <div className="flex items-center gap-2">
-          <SignInButton>
+          <AuthLink href={signInHref}>
             <Button
               variant="link"
               size="sm"
               className="px-0 text-[inherit] hover:text-[inherit] hover:underline"
             >
-              {t("signIn")}
+              {labels.signIn}
             </Button>
-          </SignInButton>
+          </AuthLink>
           <span aria-hidden="true" className="hidden sm:inline">
             /
           </span>
-          <SignUpButton>
+          <AuthLink href={signUpHref}>
             <Button
               variant="link"
               size="sm"
               className="px-0 text-[inherit] hover:text-[inherit] hover:underline"
             >
-              {t("signUp")}
+              {labels.signUp}
             </Button>
-          </SignUpButton>
+          </AuthLink>
         </div>
-      </SignedOut>
-      <SignedIn>
-        <div className="flex items-center">
-          <UserButton />
-        </div>
-      </SignedIn>
+      )}
     </div>
   );
 }

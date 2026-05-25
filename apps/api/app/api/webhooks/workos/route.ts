@@ -1,10 +1,8 @@
 import { getWorkosUser } from "@repo/auth-workos/admin";
-import {
-  markRegistrationInvitationRevoked,
-  syncRegistrationIdentityFromInvitation,
-} from "@repo/commerce/lib/b2b-registration/service";
 import { log } from "@repo/observability/log";
+import { getRegistrationInvitationHookToken } from "@repo/registration-effect";
 import { WorkOS } from "@workos-inc/node";
+import { resumeHook } from "workflow/api";
 import { env } from "../../../../env";
 
 const workos = new WorkOS(env.WORKOS_API_KEY);
@@ -28,37 +26,35 @@ export async function POST(request: Request): Promise<Response> {
 
     switch (payload.event) {
       case "invitation.revoked":
-        await markRegistrationInvitationRevoked(payload.data.id);
+        await resumeHook(getRegistrationInvitationHookToken(payload.data.id), {
+          event: "revoked",
+        });
         return Response.json({ ok: true });
       case "invitation.accepted": {
-        if (!payload.data.acceptedUserId) {
+        const invitationEventData = payload.data as typeof payload.data & {
+          readonly accepted_user_id?: string | null;
+        };
+        const acceptedUserId =
+          invitationEventData.acceptedUserId ??
+          invitationEventData.accepted_user_id;
+
+        if (!acceptedUserId) {
           return Response.json(
             { error: "Invitation accepted event missing accepted user id" },
             { status: 400 }
           );
         }
 
-        const user = await getWorkosUser(payload.data.acceptedUserId);
-        const record = await syncRegistrationIdentityFromInvitation(
-          payload.data.id,
-          {
-            userId: user.id,
+        const user = await getWorkosUser(acceptedUserId);
+        await resumeHook(getRegistrationInvitationHookToken(payload.data.id), {
+          event: "accepted",
+          acceptedIdentity: {
+            authUserId: user.id,
             email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-          }
-        );
-
-        if (!record) {
-          log.warn(
-            "Received WorkOS invitation event for unknown registration",
-            {
-              invitationId: payload.data.id,
-              eventId: payload.id,
-              eventType: payload.event,
-            }
-          );
-        }
+            ...(user.firstName ? { firstName: user.firstName } : {}),
+            ...(user.lastName ? { lastName: user.lastName } : {}),
+          },
+        });
 
         return Response.json({ ok: true });
       }
@@ -83,6 +79,7 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
+    log.warn("WorkOS webhook processing failed", { error });
     throw error;
   }
 }

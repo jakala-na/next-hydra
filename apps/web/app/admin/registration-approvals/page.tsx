@@ -22,28 +22,30 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/design-system/components/ui/table";
-import type {
-  RegistrationDetail,
-  RegistrationStatus,
-} from "@repo/registration/domain/types";
-import { formatDistanceToNowStrict } from "date-fns";
-import type { Route } from "next";
-import Link from "next/link";
-import { RegistrationDecisionSheet } from "@/components/admin/registration-decision-sheet";
+import type { RegistrationDetailView } from "@repo/registration-effect";
+import { RegistrationDecisionSheet } from "@repo/registration-effect/components/admin/registration-decision-sheet";
 import {
   registrationStatusFilters,
   registrationStatusLabels,
-} from "@/components/admin/registration-lifecycle";
-import { RegistrationStatusBadge } from "@/components/admin/registration-status-badge";
+} from "@repo/registration-effect/components/admin/registration-lifecycle";
+import { RegistrationStatusBadge } from "@repo/registration-effect/components/admin/registration-status-badge";
+import type { RegistrationDetailStatus } from "@repo/registration-effect/components/admin/registration-view-models";
+import { formatDistanceToNowStrict } from "date-fns";
+import type { Route } from "next";
+import Link from "next/link";
 import {
   ADMIN_REGISTRATION_DECIDE_PERMISSION,
   ADMIN_REGISTRATION_READ_PERMISSION,
   requireAdminPermission,
 } from "@/lib/admin-auth";
 import {
-  getAdminRegistration,
-  listAdminRegistrations,
-} from "@/lib/admin-registration";
+  getAdminRegistrationEffect,
+  listAdminRegistrationsEffect,
+} from "@/lib/admin-registration-effect";
+import {
+  approveRegistrationEffect,
+  rejectRegistrationEffect,
+} from "@/lib/admin-registration-effect-actions";
 
 type AdminSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -72,7 +74,7 @@ const getBaseParams = ({
   status,
   search,
 }: {
-  status?: RegistrationStatus;
+  status?: RegistrationDetailStatus;
   search?: string;
 }) => {
   const params = new URLSearchParams();
@@ -95,7 +97,7 @@ const buildAdminHref = ({
   cursorStack,
   registrationId,
 }: {
-  status?: RegistrationStatus;
+  status?: RegistrationDetailStatus;
   search?: string;
   cursor?: string;
   cursorStack?: string[];
@@ -133,7 +135,7 @@ const formatLastUpdated = (value: string) => {
   return `${formatDistanceToNowStrict(date, { addSuffix: true })} (${formatDateTime(value)})`;
 };
 
-const getReviewSummary = (registration: RegistrationDetail) =>
+const getReviewSummary = (registration: RegistrationDetailView) =>
   `${registration.contactFirstName} ${registration.contactLastName} - ${registration.email}`;
 
 export default async function AdminRegistrationsPage({
@@ -153,21 +155,21 @@ export default async function AdminRegistrationsPage({
     getSingleParam(params.cursorStack)
       ?.split(".")
       .filter((value) => value.length > 0) ?? [];
-  const status = isStatus(rawStatus) ? rawStatus : "submitted";
+  const status = isStatus(rawStatus) ? rawStatus : "awaiting_approval";
   const search = rawSearch && rawSearch.length > 0 ? rawSearch : undefined;
   const canDecide =
     session.permissions?.includes(ADMIN_REGISTRATION_DECIDE_PERMISSION) ??
     false;
 
   const [listResult, selectedRegistration] = await Promise.all([
-    listAdminRegistrations({
+    listAdminRegistrationsEffect({
       status,
       search,
       cursor: currentCursor,
       limit: PAGE_SIZE,
     }),
     registrationId
-      ? getAdminRegistration({ registrationId })
+      ? getAdminRegistrationEffect({ registrationId })
       : Promise.resolve(null),
   ]);
 
@@ -346,9 +348,11 @@ export default async function AdminRegistrationsPage({
       </Card>
 
       <RegistrationDecisionSheet
+        approve={approveRegistrationEffect}
         canDecide={canDecide}
         closeHref={closeHref}
         registration={selectedRegistration}
+        reject={rejectRegistrationEffect}
       />
     </div>
   );

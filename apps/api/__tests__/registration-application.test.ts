@@ -9,6 +9,7 @@ import type {
   RegistrationStatus,
   RegistrationWorkflowInput,
 } from "@repo/registration/domain/types";
+import { getRegistrationApprovalHookToken } from "@repo/registration/domain/types";
 import { beforeEach, expect, test, vi } from "vitest";
 
 const createPendingRegistrationRecord = vi.fn();
@@ -259,25 +260,8 @@ test.each([
   expect(resumeHook).not.toHaveBeenCalled();
 });
 
-test("decideRegistration panics when an awaiting approval registration has no hook token", async () => {
-  const record = createRegistrationRecord("awaiting_approval");
-  getRegistrationRecord.mockResolvedValue(record);
-
-  const { registrationApplication } = await loadApplication();
-
-  await expect(
-    registrationApplication.decideRegistration({
-      registrationId: record.registrationId,
-      decision: "approved",
-      ...adminActor,
-    })
-  ).rejects.toThrow("Awaiting approval registration is missing hook token");
-});
-
 test("decideRegistration persists approval processing before resuming the workflow", async () => {
-  const record = createRegistrationRecord("awaiting_approval", {
-    hookToken: "hook_123",
-  });
+  const record = createRegistrationRecord("awaiting_approval");
   const decision: RegistrationApprovalDecision = {
     decision: "approved",
     reason: "Looks good",
@@ -310,9 +294,12 @@ test("decideRegistration persists approval processing before resuming the workfl
     record.registrationId,
     decision
   );
-  expect(resumeHook).toHaveBeenCalledWith("hook_123", {
-    ...decision,
-  });
+  expect(resumeHook).toHaveBeenCalledWith(
+    getRegistrationApprovalHookToken(record.registrationId),
+    {
+      ...decision,
+    }
+  );
   expect(
     markRegistrationApprovalProcessing.mock.invocationCallOrder[0] as number
   ).toBeLessThan(resumeHook.mock.invocationCallOrder[0] as number);
@@ -327,9 +314,7 @@ test("decideRegistration persists approval processing before resuming the workfl
 });
 
 test("decideRegistration treats a lost approval-processing lock write as idempotent for the same decision", async () => {
-  const record = createRegistrationRecord("awaiting_approval", {
-    hookToken: "hook_123",
-  });
+  const record = createRegistrationRecord("awaiting_approval");
   const processingRecord: RegistrationRecord = {
     ...record,
     status: "approval_processing",
@@ -366,9 +351,7 @@ test("decideRegistration treats a lost approval-processing lock write as idempot
 });
 
 test("decideRegistration returns a conflict when a lost approval-processing lock write finds an opposite decision", async () => {
-  const record = createRegistrationRecord("awaiting_approval", {
-    hookToken: "hook_123",
-  });
+  const record = createRegistrationRecord("awaiting_approval");
   const processingRecord: RegistrationRecord = {
     ...record,
     status: "approval_processing",

@@ -8,8 +8,10 @@
   },
   "dependencies": {
     "@repo/registration": "workspace:*",
+    "@repo/registration-effect": "workspace:*",
     "@react-email/components": "0.4.0",
     "@t3-oss/env-nextjs": "^0.13.4",
+    "effect": "4.0.0-beta.67",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "resend": "^4.5.1",

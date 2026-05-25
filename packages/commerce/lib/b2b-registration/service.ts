@@ -451,7 +451,6 @@ export async function createPendingCustomerAndBusinessUnit(
     invitationCreatedAt: existingRecord?.record.invitationCreatedAt,
     invitationAcceptedAt: existingRecord?.record.invitationAcceptedAt,
     identityLinkedAt: existingRecord?.record.identityLinkedAt,
-    hookToken: existingRecord?.record.hookToken,
     approvedAt: existingRecord?.record.approvedAt,
     rejectedAt: existingRecord?.record.rejectedAt,
     approvalDecision: existingRecord?.record.approvalDecision,
@@ -473,9 +472,8 @@ export async function createPendingCustomerAndBusinessUnit(
   return record;
 }
 
-export async function saveRegistrationHookToken(
-  registrationId: string,
-  hookToken: string
+export async function markRegistrationAwaitingApproval(
+  registrationId: string
 ): Promise<RegistrationRecord> {
   const record = await getVersionedRegistrationRecord(registrationId);
 
@@ -486,7 +484,6 @@ export async function saveRegistrationHookToken(
   return updateRegistrationRecord({
     record: {
       ...record.record,
-      hookToken,
       status: "awaiting_approval",
       updatedAt: ISO_NOW(),
     },

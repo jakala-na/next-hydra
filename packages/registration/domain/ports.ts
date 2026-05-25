@@ -49,7 +49,7 @@ export type RegistrationApprovalProcessPort = {
     RegistrationApprovalProcessResult<Pick<StartRegistrationResult, "runId">>
   >;
   resumeApproval(
-    hookToken: string,
+    registrationId: string,
     approval: RegistrationApprovalDecision
   ): Promise<RegistrationApprovalProcessResult<void>>;
 };

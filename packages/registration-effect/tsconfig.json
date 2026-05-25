@@ -1,12 +1,14 @@
 {
   "$schema": "https://raw.githubusercontent.com/Effect-TS/language-service/refs/heads/main/schema.json",
-  "extends": "@repo/typescript-config/base.json",
+  "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
     "exactOptionalPropertyTypes": true,
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
     "noImplicitOverride": true,
     "noUnusedLocals": true,
+    "paths": {
+      "@repo/*": ["../*"],
+      "@repo/registration-effect/*": ["./*"]
+    },
     "plugins": [
       {
         "name": "@effect/language-service"
@@ -14,6 +16,6 @@
     ],
     "sourceMap": true
   },
-  "include": ["**/*.ts"],
+  "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]
 }

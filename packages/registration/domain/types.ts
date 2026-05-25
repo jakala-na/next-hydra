@@ -38,6 +38,9 @@ export type RegistrationWorkflowInput = RegistrationInput & {
   registrationId: string;
 };
 
+export const getRegistrationApprovalHookToken = (registrationId: string) =>
+  `registration-approval:${registrationId}`;
+
 export type RegistrationApprovalDecision = {
   decision: "approved" | "rejected";
   reason?: string;
@@ -70,7 +73,6 @@ export type RegistrationRecord = RegistrationWorkflowInput & {
   customerKey?: string;
   businessUnitId?: string;
   businessUnitKey?: string;
-  hookToken?: string;
   createdAt: string;
   updatedAt: string;
   approvedAt?: string;
@@ -89,18 +91,13 @@ export type VersionedRegistrationRecord = {
 
 export type RegistrationDetail = Omit<
   RegistrationRecord,
-  | "hookToken"
-  | "customerId"
-  | "customerKey"
-  | "businessUnitId"
-  | "businessUnitKey"
+  "customerId" | "customerKey" | "businessUnitId" | "businessUnitKey"
 >;
 
 export const toRegistrationDetail = (
   record: RegistrationRecord
 ): RegistrationDetail => {
   const {
-    hookToken: _hookToken,
     customerId: _customerId,
     customerKey: _customerKey,
     businessUnitId: _businessUnitId,

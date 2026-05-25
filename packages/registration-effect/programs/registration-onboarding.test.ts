@@ -2,6 +2,10 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Exit, Layer, Redacted } from "effect";
 import { RegistrationReviewerActor } from "../domain/actors";
 import {
+  CommerceAccount,
+  CommerceAssociateMembership,
+} from "../domain/commerce";
+import {
   AcceptedAuthIdentity,
   AddressLine,
   AuthUserId,
@@ -330,6 +334,63 @@ describe("registration onboarding", () => {
         expect(second._tag).toBe("ApprovedRegistration");
       }).pipe(Effect.provide(layerMemory))
   );
+
+  it.effect("adds the accepted registrant as the business unit owner", () => {
+    const linkedIdentities: AcceptedAuthIdentity[] = [];
+    const commerceLayer = Layer.succeed(
+      CommerceAccounts,
+      CommerceAccounts.of({
+        createFromRegistration: (registration) =>
+          Effect.succeed(
+            new CommerceAccount({
+              registrationId: registration.id,
+              customerId: CommerceCustomerId.make(
+                `customer-${registration.id}`
+              ),
+              businessUnitId: CommerceBusinessUnitId.make(
+                `business-unit-${registration.id}`
+              ),
+            })
+          ),
+        linkRegistrantIdentity: (input) =>
+          Effect.sync(() => {
+            linkedIdentities.push(input.acceptedIdentity);
+            return input.registration.commerceAccount;
+          }),
+        addAssociate: (input) =>
+          Effect.sync(() => {
+            return new CommerceAssociateMembership({
+              businessUnitId: input.businessUnitId,
+              customerId: CommerceCustomerId.make(
+                `customer-${input.acceptedIdentity.authUserId}`
+              ),
+              authUserId: input.acceptedIdentity.authUserId,
+              role: input.role,
+            });
+          }),
+      })
+    );
+    const layer = Layer.mergeAll(
+      Registrations.layerMemory,
+      commerceLayer,
+      Invitations.layerMemory
+    );
+
+    return Effect.gen(function* () {
+      const registration = yield* createRegistration;
+      const approved = yield* approveRegistration({
+        registrationId: registration.id,
+        actor: reviewer,
+      });
+
+      yield* acceptRegistrationInvitation({
+        invitationId: approved.invitationId,
+        acceptedIdentity,
+      });
+
+      expect(linkedIdentities).toEqual([acceptedIdentity]);
+    }).pipe(Effect.provide(layer));
+  });
 
   it.effect(
     "fails registration invitation acceptance by a different auth user",

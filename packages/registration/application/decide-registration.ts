@@ -142,11 +142,6 @@ export function createDecideRegistration(
       return acceptedDecisionResult;
     }
 
-    if (!record.hookToken) {
-      throw new Error("Awaiting approval registration is missing hook token");
-    }
-
-    const hookToken = record.hookToken;
     const { registrationId: _registrationId, ...approval } = input;
     const processingResult =
       await options.registrations.markRegistrationApprovalProcessing(
@@ -175,7 +170,7 @@ export function createDecideRegistration(
     }
 
     const resumeResult = await options.approvalProcess.resumeApproval(
-      hookToken,
+      record.registrationId,
       approval
     );
 

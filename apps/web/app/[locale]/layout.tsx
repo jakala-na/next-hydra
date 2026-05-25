@@ -6,8 +6,6 @@ import { removeCartItem } from "@repo/commerce/actions/remove-cart-item";
 import { getCartForContext } from "@repo/commerce/lib/cart/utils/get-cart";
 import { storeService } from "@repo/commerce/lib/store/store.service";
 import { CartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
-import { AccountMenuClient } from "@repo/design-system/components/layout/account-menu";
-import { BusinessUnitSwitcher } from "@repo/design-system/components/layout/business-unit-switcher";
 import { CartButtonClient } from "@repo/design-system/components/layout/cart-button";
 import { MobileMenu } from "@repo/design-system/components/layout/mobile-menu";
 import { Navigation } from "@repo/design-system/components/layout/navigation";
@@ -25,6 +23,8 @@ import { ShoppingCart } from "lucide-react";
 import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { AccountMenuClient } from "@/components/layout/account-menu-client";
+import { BusinessUnitSwitcher } from "@/components/layout/business-unit-switcher";
 
 async function getCart(locale: Locale) {
   const context = await storeService.getStoreContextByLocale(locale);
