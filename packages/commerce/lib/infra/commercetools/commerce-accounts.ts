@@ -15,6 +15,7 @@ import {
   type AcceptedAuthIdentity,
   CommerceBusinessUnitId,
   CommerceCustomerId,
+  type RedactedEmail,
 } from "@repo/registration-effect/domain/identity";
 import type { Registration } from "@repo/registration-effect/domain/registration";
 import type { CompanyRole } from "@repo/registration-effect/domain/roles";
@@ -497,9 +498,33 @@ const ensureBusinessUnitAssociate = (input: {
   });
 };
 
+const hasCustomerWithEmail = Effect.fn(
+  "CommercetoolsCommerceAccounts.hasCustomerWithEmail"
+)((email: RedactedEmail) =>
+  Effect.tryPromise({
+    try: async () => {
+      const response = await apiRoot
+        .customers()
+        .get({
+          queryArgs: {
+            where: "email = :email",
+            "var.email": Redacted.value(email),
+            limit: 1,
+          },
+        })
+        .execute();
+
+      return response.body.results.length > 0;
+    },
+    catch: (cause) =>
+      accountError("Failed to check Commercetools customer email", cause),
+  })
+);
+
 export const layerCommercetoolsCommerceAccounts = Layer.succeed(
   CommerceAccounts,
   CommerceAccounts.of({
+    hasCustomerWithEmail,
     createFromRegistration: Effect.fn(
       "CommercetoolsCommerceAccounts.createFromRegistration"
     )(function* (registration) {

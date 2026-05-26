@@ -10,7 +10,11 @@ import {
   RegistrationReviewerInput,
   toCompanyRegistrationDetails,
 } from "@repo/registration-effect/http/registration-api";
-import { CommerceAccounts } from "@repo/registration-effect/services/commerce-account";
+import {
+  CommerceAccountError,
+  CommerceAccounts,
+} from "@repo/registration-effect/services/commerce-account";
+import { IdentityUsers } from "@repo/registration-effect/services/identity-users";
 import { Invitations } from "@repo/registration-effect/services/invitations";
 import {
   listRegistrationRecords,
@@ -20,11 +24,14 @@ import {
   RegistrationNotFound,
   Registrations,
 } from "@repo/registration-effect/services/registrations";
+import { VatValidator } from "@repo/registration-effect/services/vat-validator";
 import { Context, Effect, Layer } from "effect";
 import { beforeEach, expect, test, vi } from "vitest";
 
 const HTTP_OK = 200;
 const HTTP_CREATED = 201;
+const HTTP_INTERNAL_SERVER_ERROR = 500;
+const HTTP_UNPROCESSABLE_ENTITY = 422;
 
 const workflowApiMocks = vi.hoisted(() => ({
   resumeHook: vi.fn(),
@@ -84,19 +91,30 @@ const request = (
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
-const makeAwaitingRegistration = (registrationId: string) =>
+const makeAwaitingRegistration = (
+  registrationId: string,
+  payload: typeof registrationPayload = registrationPayload
+) =>
   new AwaitingApprovalRegistration({
     _tag: "AwaitingApprovalRegistration",
     status: "awaiting_approval",
     id: RegistrationId.make(registrationId),
     details: toCompanyRegistrationDetails(
-      new CreateRegistrationRequest(registrationPayload)
+      new CreateRegistrationRequest(payload)
     ),
     createdAt: new Date("2026-03-22T00:00:00.000Z"),
     updatedAt: new Date("2026-03-22T00:00:00.000Z"),
   });
 
-const makeApiLayer = (seed: readonly Registration[] = []) => {
+const makeApiLayer = (
+  seed: readonly Registration[] = [],
+  options: {
+    readonly hasCustomerWithEmail?: boolean;
+    readonly hasCustomerWithEmailFailure?: CommerceAccountError;
+    readonly hasIdentityUserWithEmail?: boolean;
+    readonly invalidVatIds?: readonly string[];
+  } = {}
+) => {
   const registrations = new Map<string, Registration>(
     seed.map((registration) => [String(registration.id), registration])
   );
@@ -153,13 +171,37 @@ const makeApiLayer = (seed: readonly Registration[] = []) => {
     RegistrationQueries,
     RegistrationQueries.of({ list })
   );
+  const commerceAccountsLayer = Layer.succeed(
+    CommerceAccounts,
+    CommerceAccounts.of({
+      createFromRegistration: () => Effect.die("not used"),
+      linkRegistrantIdentity: () => Effect.die("not used"),
+      addAssociate: () => Effect.die("not used"),
+      hasCustomerWithEmail: () =>
+        options.hasCustomerWithEmailFailure
+          ? Effect.fail(options.hasCustomerWithEmailFailure)
+          : Effect.succeed(options.hasCustomerWithEmail ?? false),
+    })
+  );
+  const identityUsersLayer = Layer.succeed(
+    IdentityUsers,
+    IdentityUsers.of({
+      hasUserWithEmail: () =>
+        Effect.succeed(options.hasIdentityUserWithEmail ?? false),
+    })
+  );
+  const vatValidatorLayer = VatValidator.layerMemoryFrom({
+    invalidVatIds: options.invalidVatIds ?? [],
+  });
 
   return {
     get,
     layer: Layer.mergeAll(
       registrationsLayer,
       queriesLayer,
-      CommerceAccounts.layerMemory,
+      commerceAccountsLayer,
+      identityUsersLayer,
+      vatValidatorLayer,
       Invitations.layerMemory
     ),
     list,
@@ -228,6 +270,213 @@ test("POST /registrations creates an Effect registration and starts the workflow
     expect(workflowApiMocks.start).toHaveBeenCalledWith(expect.any(Function), [
       { registrationId: body.registrationId },
     ]);
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations treats preflight provider failures as internal defects", async () => {
+  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  const api = makeApiLayer([], {
+    hasCustomerWithEmailFailure: new CommerceAccountError({
+      message: "Commercetools unavailable",
+    }),
+  });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", registrationPayload),
+      emptyContext()
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).not.toContain("RegistrationApiError");
+    expect(body).not.toContain("CommerceAccountError");
+    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations treats workflow start failures as internal defects", async () => {
+  workflowApiMocks.start.mockRejectedValue(new Error("workflow unavailable"));
+  const api = makeApiLayer();
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", registrationPayload),
+      emptyContext()
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).not.toContain("RegistrationApiError");
+    expect(body).not.toContain("workflow unavailable");
+    expect(api.registrations.size).toBe(1);
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations rejects duplicate pending registration emails as field errors", async () => {
+  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  const existing = makeAwaitingRegistration(crypto.randomUUID(), {
+    ...registrationPayload,
+    vatId: "VAT-OTHER",
+  });
+  const api = makeApiLayer([existing]);
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", {
+        ...registrationPayload,
+        email: " ADA@example.com ",
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_UNPROCESSABLE_ENTITY);
+    expect(body).toMatchObject({
+      _tag: "RegistrationApiValidationError",
+      reasons: [
+        {
+          _tag: "DuplicateRegistrationEmail",
+          path: "email",
+          code: "duplicateEmail",
+        },
+      ],
+    });
+    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations rejects invalid VAT ids as field errors", async () => {
+  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  const api = makeApiLayer([], { invalidVatIds: ["VAT-123"] });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", registrationPayload),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_UNPROCESSABLE_ENTITY);
+    expect(body).toMatchObject({
+      _tag: "RegistrationApiValidationError",
+      reasons: [
+        {
+          _tag: "InvalidRegistrationVatId",
+          path: "vatId",
+          code: "invalidVatId",
+        },
+      ],
+    });
+    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations can return multiple validation reasons", async () => {
+  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  const existing = makeAwaitingRegistration(crypto.randomUUID(), {
+    ...registrationPayload,
+    vatId: "VAT-OTHER",
+  });
+  const api = makeApiLayer([existing], { invalidVatIds: ["VAT-123"] });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", registrationPayload),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_UNPROCESSABLE_ENTITY);
+    expect(body).toMatchObject({
+      _tag: "RegistrationApiValidationError",
+      reasons: [
+        {
+          _tag: "DuplicateRegistrationEmail",
+          path: "email",
+          code: "duplicateEmail",
+        },
+        {
+          _tag: "InvalidRegistrationVatId",
+          path: "vatId",
+          code: "invalidVatId",
+        },
+      ],
+    });
+    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations rejects existing customer emails as field errors", async () => {
+  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  const api = makeApiLayer([], { hasCustomerWithEmail: true });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", registrationPayload),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_UNPROCESSABLE_ENTITY);
+    expect(body).toMatchObject({
+      _tag: "RegistrationApiValidationError",
+      reasons: [
+        {
+          _tag: "DuplicateRegistrationEmail",
+          path: "email",
+          code: "duplicateEmail",
+        },
+      ],
+    });
+    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations rejects existing WorkOS user emails as field errors", async () => {
+  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  const api = makeApiLayer([], { hasIdentityUserWithEmail: true });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", registrationPayload),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_UNPROCESSABLE_ENTITY);
+    expect(body).toMatchObject({
+      _tag: "RegistrationApiValidationError",
+      reasons: [
+        {
+          _tag: "DuplicateRegistrationEmail",
+          path: "email",
+          code: "duplicateEmail",
+        },
+      ],
+    });
+    expect(workflowApiMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }

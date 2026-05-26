@@ -156,6 +156,8 @@
           "lastName": "Voer een achternaam in.",
           "lastNameMax": "De achternaam is te lang.",
           "email": "Voer een geldig e-mailadres in.",
+          "duplicateEmail": "Dit e-mailadres is al gekoppeld aan een bestaande of openstaande registratie.",
+          "invalidVatId": "Voer een geldig btw-nummer / fiscaal nummer in.",
           "streetAddress": "Voer een adres in.",
           "postalCode": "Voer een postcode in.",
           "city": "Voer een plaats in.",

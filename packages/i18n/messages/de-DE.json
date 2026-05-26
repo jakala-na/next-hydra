@@ -156,6 +156,8 @@
           "lastName": "Geben Sie einen Nachnamen ein.",
           "lastNameMax": "Der Nachname ist zu lang.",
           "email": "Geben Sie eine gültige E-Mail-Adresse ein.",
+          "duplicateEmail": "Diese E-Mail-Adresse ist bereits mit einer bestehenden oder ausstehenden Registrierung verknüpft.",
+          "invalidVatId": "Geben Sie eine gültige Steuer- oder USt-IdNr. ein.",
           "streetAddress": "Geben Sie eine Straße und Hausnummer ein.",
           "postalCode": "Geben Sie eine Postleitzahl ein.",
           "city": "Geben Sie eine Stadt ein.",

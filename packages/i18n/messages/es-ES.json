@@ -156,6 +156,8 @@
           "lastName": "Introduce los apellidos.",
           "lastNameMax": "Los apellidos son demasiado largos.",
           "email": "Introduce una dirección de correo válida.",
+          "duplicateEmail": "Este correo electrónico ya está asociado a un registro existente o pendiente.",
+          "invalidVatId": "Introduce un NIF / IVA válido.",
           "streetAddress": "Introduce una dirección.",
           "postalCode": "Introduce un código postal.",
           "city": "Introduce una ciudad.",

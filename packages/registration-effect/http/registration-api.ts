@@ -29,6 +29,7 @@ import {
   RegistrationStatus,
 } from "../domain/registration";
 import type { CommerceAccountError } from "../services/commerce-account";
+import type { IdentityUserLookupFailure } from "../services/identity-users";
 import type { InvitationIssueError } from "../services/invitations";
 import type { RegistrationQueryError } from "../services/registration-queries";
 import type {
@@ -67,6 +68,41 @@ export class RegistrationApiUnauthorized extends Schema.TaggedErrorClass<Registr
     message: Schema.String,
   },
   { httpApiStatus: 401 }
+) {}
+
+export const RegistrationApiFieldPath = Schema.Literals(["email", "vatId"]);
+export type RegistrationApiFieldPath = typeof RegistrationApiFieldPath.Type;
+
+export class DuplicateRegistrationEmail extends Schema.TaggedClass<DuplicateRegistrationEmail>()(
+  "DuplicateRegistrationEmail",
+  {
+    path: RegistrationApiFieldPath,
+    code: Schema.Literal("duplicateEmail"),
+  }
+) {}
+
+export class InvalidRegistrationVatId extends Schema.TaggedClass<InvalidRegistrationVatId>()(
+  "InvalidRegistrationVatId",
+  {
+    path: RegistrationApiFieldPath,
+    code: Schema.Literal("invalidVatId"),
+  }
+) {}
+
+export const RegistrationApiValidationReason = Schema.Union([
+  DuplicateRegistrationEmail,
+  InvalidRegistrationVatId,
+]);
+export type RegistrationApiValidationReason =
+  typeof RegistrationApiValidationReason.Type;
+
+export class RegistrationApiValidationError extends Schema.TaggedErrorClass<RegistrationApiValidationError>()(
+  "RegistrationApiValidationError",
+  {
+    message: Schema.String,
+    reasons: Schema.NonEmptyArray(RegistrationApiValidationReason),
+  },
+  { httpApiStatus: 422 }
 ) {}
 
 export class RegistrationAddressInput extends Schema.Class<RegistrationAddressInput>(
@@ -176,6 +212,7 @@ const RegistrationApiErrors = [
   RegistrationApiConflict,
   RegistrationApiNotFound,
   RegistrationApiUnauthorized,
+  RegistrationApiValidationError,
 ] as const;
 
 export class RegistrationApiGroup extends HttpApiGroup.make("registrations")
@@ -367,6 +404,7 @@ export const toApiError = (
     | RegistrationTransitionError
     | RegistrationQueryError
     | CommerceAccountError
+    | IdentityUserLookupFailure
     | InvitationIssueError
 ) => {
   switch (error._tag) {

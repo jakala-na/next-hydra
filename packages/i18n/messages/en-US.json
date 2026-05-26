@@ -152,6 +152,8 @@
           "lastName": "Enter a last name.",
           "lastNameMax": "Last name is too long.",
           "email": "Enter a valid email address.",
+          "duplicateEmail": "This email is already associated with an existing or pending registration.",
+          "invalidVatId": "Enter a valid tax ID / VAT number.",
           "streetAddress": "Enter a street address.",
           "postalCode": "Enter a postal code.",
           "city": "Enter a city.",

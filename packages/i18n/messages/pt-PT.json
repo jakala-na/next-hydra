@@ -156,6 +156,8 @@
           "lastName": "Introduza um apelido.",
           "lastNameMax": "O apelido é demasiado longo.",
           "email": "Introduza um endereço de e-mail válido.",
+          "duplicateEmail": "Este email já está associado a um registo existente ou pendente.",
+          "invalidVatId": "Introduza um NIF / IVA válido.",
           "streetAddress": "Introduza uma morada.",
           "postalCode": "Introduza um código postal.",
           "city": "Introduza uma cidade.",

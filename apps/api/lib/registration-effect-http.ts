@@ -1,8 +1,16 @@
+import type {
+  CompanyRegistrationDetails,
+  RegistrationStatus,
+} from "@repo/registration-effect/domain/registration";
 import {
   CreateRegistrationResponse,
+  DuplicateRegistrationEmail,
+  InvalidRegistrationVatId,
   ListRegistrationsResponse,
   RegistrationApiError,
   RegistrationApiUnauthorized,
+  RegistrationApiValidationError,
+  type RegistrationApiValidationReason,
   RegistrationDecisionAcceptedResponse,
   RegistrationHttpApi,
   type RegistrationReviewerInput,
@@ -10,17 +18,24 @@ import {
   toCompanyRegistrationDetails,
   toRegistrationDetailResponse,
 } from "@repo/registration-effect/http/registration-api";
-import type { CommerceAccounts } from "@repo/registration-effect/services/commerce-account";
+import { CommerceAccounts } from "@repo/registration-effect/services/commerce-account";
+import { IdentityUsers } from "@repo/registration-effect/services/identity-users";
 import type { Invitations } from "@repo/registration-effect/services/invitations";
 import { RegistrationQueries } from "@repo/registration-effect/services/registration-queries";
 import { Registrations } from "@repo/registration-effect/services/registrations";
-import { Effect, Layer } from "effect";
+import { VatValidator } from "@repo/registration-effect/services/vat-validator";
+import { type Context, Effect, Layer, Redacted } from "effect";
 import { HttpRouter, HttpServer } from "effect/unstable/http";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 import type { RegistrationWorkflowDecision } from "./registration-workflow-contract";
 
 type RegistrationEffectRuntimeLayer = Layer.Layer<
-  Registrations | RegistrationQueries | CommerceAccounts | Invitations,
+  | Registrations
+  | RegistrationQueries
+  | CommerceAccounts
+  | IdentityUsers
+  | VatValidator
+  | Invitations,
   unknown,
   never
 >;
@@ -50,8 +65,15 @@ const authorizeAdmin = (
       );
 
 const toRegistrationHttpError = (
-  error: Parameters<typeof toApiError>[0] | RegistrationApiError
-) => (error instanceof RegistrationApiError ? error : toApiError(error));
+  error:
+    | Parameters<typeof toApiError>[0]
+    | RegistrationApiError
+    | RegistrationApiValidationError
+) =>
+  error instanceof RegistrationApiError ||
+  error instanceof RegistrationApiValidationError
+    ? error
+    : toApiError(error);
 
 const matchesSearch = (
   registration: ReturnType<typeof toRegistrationDetailResponse>,
@@ -78,6 +100,152 @@ const toWorkflowReviewer = (reviewer: RegistrationReviewerInput) => ({
   name: reviewer.name,
 });
 
+const duplicateRegistrationStatuses = [
+  "awaiting_approval",
+] as const satisfies readonly RegistrationStatus[];
+
+const normalizedEmail = (email: string) => email.trim().toLowerCase();
+
+type RegistrationQueriesService = Context.Service.Shape<
+  typeof RegistrationQueries
+>;
+
+type CommerceAccountsService = Context.Service.Shape<typeof CommerceAccounts>;
+
+type IdentityUsersService = Context.Service.Shape<typeof IdentityUsers>;
+type VatValidatorService = Context.Service.Shape<typeof VatValidator>;
+
+const registrationEmailMatches = (
+  registration: ReturnType<typeof toRegistrationDetailResponse>,
+  email: string
+) => normalizedEmail(registration.email) === email;
+
+const hasRegistrationWithEmail = (
+  queries: RegistrationQueriesService,
+  status: (typeof duplicateRegistrationStatuses)[number],
+  email: string,
+  cursor?: string
+): Effect.Effect<boolean> =>
+  queries
+    .list({
+      status,
+      limit: 100,
+      ...(cursor === undefined ? {} : { cursor }),
+    })
+    .pipe(
+      Effect.flatMap((result) => {
+        const hasMatch = result.items.some((item) =>
+          registrationEmailMatches(
+            toRegistrationDetailResponse(item.registration),
+            email
+          )
+        );
+
+        if (hasMatch || result.nextCursor === undefined) {
+          return Effect.succeed(hasMatch);
+        }
+
+        return hasRegistrationWithEmail(
+          queries,
+          status,
+          email,
+          result.nextCursor
+        );
+      })
+    )
+    .pipe(Effect.orDie);
+
+const hasCustomerWithEmail = (
+  commerceAccounts: CommerceAccountsService,
+  details: CompanyRegistrationDetails
+) => commerceAccounts.hasCustomerWithEmail(details.email).pipe(Effect.orDie);
+
+const hasIdentityUserWithEmail = (
+  identityUsers: IdentityUsersService,
+  details: CompanyRegistrationDetails
+) => identityUsers.hasUserWithEmail(details.email).pipe(Effect.orDie);
+
+const isInvalidVatId = (
+  vatValidator: VatValidatorService,
+  details: CompanyRegistrationDetails
+) =>
+  details.vatId
+    ? vatValidator.isValid(details.vatId).pipe(Effect.map((valid) => !valid))
+    : Effect.succeed(false);
+
+const hasPendingRegistrationWithEmail = (
+  queries: RegistrationQueriesService,
+  email: string
+) =>
+  Effect.forEach(duplicateRegistrationStatuses, (status) =>
+    hasRegistrationWithEmail(queries, status, email)
+  ).pipe(Effect.map((matches) => matches.some(Boolean)));
+
+const toNonEmptyValidationReasons = (
+  reasons: readonly RegistrationApiValidationReason[]
+) =>
+  reasons.length > 0
+    ? ([reasons[0], ...reasons.slice(1)] as [
+        RegistrationApiValidationReason,
+        ...RegistrationApiValidationReason[],
+      ])
+    : undefined;
+
+const validateCreateRegistration = (
+  payload: Parameters<typeof toCompanyRegistrationDetails>[0],
+  queries: RegistrationQueriesService,
+  commerceAccounts: CommerceAccountsService,
+  identityUsers: IdentityUsersService,
+  vatValidator: VatValidatorService
+): Effect.Effect<CompanyRegistrationDetails, RegistrationApiValidationError> =>
+  Effect.gen(function* () {
+    const details = toCompanyRegistrationDetails(payload);
+    const email = normalizedEmail(String(Redacted.value(details.email)));
+    const [
+      hasCustomer,
+      hasIdentityUser,
+      hasPendingEmailRegistration,
+      invalidVatId,
+    ] = yield* Effect.all(
+      [
+        hasCustomerWithEmail(commerceAccounts, details),
+        hasIdentityUserWithEmail(identityUsers, details),
+        hasPendingRegistrationWithEmail(queries, email),
+        isInvalidVatId(vatValidator, details),
+      ],
+      { concurrency: "unbounded" }
+    );
+    const validationReasons = toNonEmptyValidationReasons([
+      ...(hasCustomer || hasIdentityUser || hasPendingEmailRegistration
+        ? [
+            new DuplicateRegistrationEmail({
+              path: "email",
+              code: "duplicateEmail",
+            }),
+          ]
+        : []),
+      ...(invalidVatId
+        ? [
+            new InvalidRegistrationVatId({
+              path: "vatId",
+              code: "invalidVatId",
+            }),
+          ]
+        : []),
+    ]);
+
+    if (validationReasons) {
+      return yield* Effect.fail(
+        new RegistrationApiValidationError({
+          message: "Registration has field validation errors",
+          reasons: validationReasons,
+        })
+      );
+    }
+
+    return details;
+  });
+
 const makeRegistrationEffectHttpHandlers = ({
   approvalSecret,
   resumeRegistrationWorkflow,
@@ -92,26 +260,33 @@ const makeRegistrationEffectHttpHandlers = ({
     Effect.fn(function* (handlers) {
       const registrations = yield* Registrations;
       const queries = yield* RegistrationQueries;
+      const commerceAccounts = yield* CommerceAccounts;
+      const identityUsers = yield* IdentityUsers;
+      const vatValidator = yield* VatValidator;
 
       return handlers
         .handle("create", ({ payload }) =>
-          registrations
-            .createAwaitingApproval({
-              details: toCompanyRegistrationDetails(payload),
-            })
-            .pipe(
-              Effect.tap((registration) =>
-                startRegistrationWorkflow(String(registration.id))
-              ),
-              Effect.map(
-                (registration) =>
-                  new CreateRegistrationResponse({
-                    registrationId: registration.id,
-                    status: "awaiting_approval",
-                  })
-              ),
-              Effect.mapError(toRegistrationHttpError)
-            )
+          Effect.gen(function* () {
+            const details = yield* validateCreateRegistration(
+              payload,
+              queries,
+              commerceAccounts,
+              identityUsers,
+              vatValidator
+            );
+            const registration = yield* registrations.createAwaitingApproval({
+              details,
+            });
+
+            yield* startRegistrationWorkflow(String(registration.id)).pipe(
+              Effect.orDie
+            );
+
+            return new CreateRegistrationResponse({
+              registrationId: registration.id,
+              status: "awaiting_approval",
+            });
+          }).pipe(Effect.mapError(toRegistrationHttpError))
         )
         .handle("list", ({ query }) =>
           queries

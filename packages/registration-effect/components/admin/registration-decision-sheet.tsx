@@ -21,7 +21,7 @@ import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { Schema } from "effect";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SubmitHandler } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -86,6 +86,8 @@ export function RegistrationDecisionSheet({
   const router = useRouter();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOpen, setIsOpen] = useState(Boolean(registration));
+  const registrationId = registration?.registrationId;
   const form = useForm<DecisionFormValues>({
     resolver: standardSchemaResolver(
       Schema.toStandardSchemaV1(DecisionFormSchema)
@@ -94,6 +96,10 @@ export function RegistrationDecisionSheet({
       reason: registration?.approvalReason ?? "",
     },
   });
+
+  useEffect(() => {
+    setIsOpen(Boolean(registrationId));
+  }, [registrationId]);
 
   if (!registration) {
     return null;
@@ -127,6 +133,7 @@ export function RegistrationDecisionSheet({
         switch (result._tag) {
           case "Success":
             setSubmitError(null);
+            setIsOpen(false);
             toast.success(
               `Registration ${registrationStatusLabels[
                 result.status
@@ -166,11 +173,12 @@ export function RegistrationDecisionSheet({
   return (
     <Sheet
       onOpenChange={(open) => {
+        setIsOpen(open);
         if (!open) {
           router.replace(closeHref as Route);
         }
       }}
-      open
+      open={isOpen}
     >
       <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
         <SheetHeader className="border-b px-6 py-5">

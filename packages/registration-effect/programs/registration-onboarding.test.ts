@@ -213,6 +213,8 @@ describe("registration onboarding", () => {
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         linkRegistrantIdentity: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+        hasCustomerWithEmail: () =>
+          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         addAssociate: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
       });
@@ -360,6 +362,7 @@ describe("registration onboarding", () => {
             linkedIdentities.push(input.acceptedIdentity);
             return input.registration.commerceAccount;
           }),
+        hasCustomerWithEmail: () => Effect.succeed(false),
         addAssociate: (input) =>
           Effect.sync(() => {
             return new CommerceAssociateMembership({

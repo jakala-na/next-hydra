@@ -156,6 +156,8 @@
           "lastName": "Inserisci un cognome.",
           "lastNameMax": "Il cognome è troppo lungo.",
           "email": "Inserisci un indirizzo email valido.",
+          "duplicateEmail": "Questo indirizzo email è già associato a una registrazione esistente o in sospeso.",
+          "invalidVatId": "Inserisci una Partita IVA / un Codice fiscale valido.",
           "streetAddress": "Inserisci un indirizzo.",
           "postalCode": "Inserisci un CAP.",
           "city": "Inserisci una città.",

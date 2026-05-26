@@ -266,7 +266,7 @@ export const COUNTRY_CODES = [
   "ZW",
 ] as const;
 
-type RegistrationFormMessageKey =
+export type RegistrationFormMessageKey =
   | "validation.companyName"
   | "validation.companyNameMax"
   | "validation.companyPhone"
@@ -276,11 +276,13 @@ type RegistrationFormMessageKey =
   | "validation.lastName"
   | "validation.lastNameMax"
   | "validation.email"
+  | "validation.invalidVatId"
   | "validation.streetAddress"
   | "validation.postalCode"
   | "validation.city"
   | "validation.region"
-  | "validation.country";
+  | "validation.country"
+  | "validation.duplicateEmail";
 
 type RegistrationFormTranslator = (key: RegistrationFormMessageKey) => string;
 
@@ -401,13 +403,17 @@ export const RegistrationFormInputSchema =
 export type RegistrationFormInput = typeof RegistrationFormInputSchema.Type;
 export type RegistrationFormValues = typeof RegistrationFormInputSchema.Encoded;
 
+export type RegistrationFormFieldPath =
+  | keyof Omit<RegistrationFormInput, "address">
+  | `address.${keyof RegistrationFormInput["address"]}`;
+
+export type RegistrationFormFieldErrorCode = "duplicateEmail" | "invalidVatId";
+
 export type RegistrationFormFieldErrors = Partial<
-  Record<
-    | keyof Omit<RegistrationFormInput, "address">
-    | `address.${keyof RegistrationFormInput["address"]}`,
-    string
-  >
+  Record<RegistrationFormFieldPath, RegistrationFormFieldErrorCode>
 >;
+
+export type RegistrationFormErrorCode = "invalidSubmission" | "submitFailed";
 
 export type RegistrationFormResult =
   | {
@@ -421,5 +427,5 @@ export type RegistrationFormResult =
     }
   | {
       readonly _tag: "FormError";
-      readonly message: string;
+      readonly code: RegistrationFormErrorCode;
     };

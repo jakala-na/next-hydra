@@ -171,6 +171,11 @@ export {
   EmailProviderFailure,
 } from "./services/email-provider";
 export {
+  IdentityUserLookupFailure,
+  IdentityUsers,
+  normalizedIdentityEmail,
+} from "./services/identity-users";
+export {
   type AcceptInvitationInput,
   type InvitationAcceptError,
   InvitationConflict,
@@ -229,3 +234,7 @@ export {
   RegistrationTransitionConflict,
   type RegistrationTransitionError,
 } from "./services/registrations";
+export {
+  VatValidator,
+  type VatValidatorMemoryInput,
+} from "./services/vat-validator";

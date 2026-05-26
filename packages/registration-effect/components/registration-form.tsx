@@ -34,8 +34,10 @@ import { useForm } from "react-hook-form";
 import {
   getCountryOptions,
   makeRegistrationFormInputSchema,
+  type RegistrationFormFieldErrorCode,
   type RegistrationFormFieldErrors,
   type RegistrationFormInput,
+  type RegistrationFormMessageKey,
   type RegistrationFormResult,
   type RegistrationFormValues,
   requiresRegion,
@@ -67,12 +69,21 @@ const defaultValues: RegistrationFormValues = {
 
 const setServerFieldErrors = (
   form: UseFormReturn<RegistrationFormValues>,
-  errors: RegistrationFormFieldErrors
+  errors: RegistrationFormFieldErrors,
+  t: (key: RegistrationFormMessageKey) => string
 ) => {
-  for (const [name, message] of Object.entries(errors)) {
-    if (message) {
+  const messages = {
+    duplicateEmail: "validation.duplicateEmail",
+    invalidVatId: "validation.invalidVatId",
+  } as const satisfies Record<
+    RegistrationFormFieldErrorCode,
+    RegistrationFormMessageKey
+  >;
+
+  for (const [name, code] of Object.entries(errors)) {
+    if (code) {
       form.setError(name as FieldPath<RegistrationFormValues>, {
-        message,
+        message: t(messages[code]),
         type: "server",
       });
     }
@@ -151,10 +162,10 @@ export function RegistrationForm({
                 );
                 return;
               case "FieldErrors":
-                setServerFieldErrors(form, result.errors);
+                setServerFieldErrors(form, result.errors, t);
                 return;
               case "FormError":
-                setFormError(result.message);
+                setFormError(t(`errors.${result.code}`));
                 return;
               default:
                 result satisfies never;

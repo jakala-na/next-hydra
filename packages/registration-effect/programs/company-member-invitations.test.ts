@@ -35,18 +35,19 @@ const commerceAccount = new CommerceAccount({
 const commerceAccountsLayer = Layer.succeed(CommerceAccounts, {
   createFromRegistration: () => Effect.succeed(commerceAccount),
   linkRegistrantIdentity: () => Effect.succeed(commerceAccount),
+  hasCustomerWithEmail: () => Effect.succeed(false),
   addAssociate: (input) =>
     Effect.sync(() => {
       const alreadyAccepted = acceptedMemberships.some(
-        (membership) =>
-          membership.businessUnitId === input.businessUnitId &&
-          membership.authUserId === input.acceptedIdentity.authUserId
+        (acceptedMembership) =>
+          acceptedMembership.businessUnitId === input.businessUnitId &&
+          acceptedMembership.authUserId === input.acceptedIdentity.authUserId
       );
       if (alreadyAccepted) {
         const existingMembership = acceptedMemberships.find(
-          (membership) =>
-            membership.businessUnitId === input.businessUnitId &&
-            membership.authUserId === input.acceptedIdentity.authUserId
+          (acceptedMembership) =>
+            acceptedMembership.businessUnitId === input.businessUnitId &&
+            acceptedMembership.authUserId === input.acceptedIdentity.authUserId
         );
         if (existingMembership) {
           return existingMembership;

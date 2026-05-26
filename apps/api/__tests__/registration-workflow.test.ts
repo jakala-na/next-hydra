@@ -302,6 +302,7 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
           );
           return linkedRegistration.commerceAccount;
         }),
+      hasCustomerWithEmail: () => Effect.succeed(false),
       addAssociate: ({ acceptedIdentity, businessUnitId, role }) =>
         Effect.sync(() => {
           const membership = new CommerceAssociateMembership({

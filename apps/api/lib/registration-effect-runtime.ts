@@ -1,3 +1,4 @@
+import { identityUsersLayerWorkos } from "@repo/auth-workos/identity-users";
 import { invitationsLayerWorkos } from "@repo/auth-workos/invitations";
 import { layerCommercetoolsCommerceAccounts } from "@repo/commerce/lib/infra/commercetools/commerce-accounts";
 import { layerCommercetoolsCustomObjectKeyValueStore } from "@repo/commerce/lib/infra/commercetools/key-value-store";
@@ -5,6 +6,7 @@ import { layerCommercetoolsRegistrationQueries } from "@repo/commerce/lib/infra/
 import { layerRegistrationEmails } from "@repo/email/registration-effect";
 import { layerResendEmailProvider } from "@repo/email/resend-provider";
 import { Registrations } from "@repo/registration-effect/services/registrations";
+import { VatValidator } from "@repo/registration-effect/services/vat-validator";
 import { Layer } from "effect";
 import { env } from "@/env";
 
@@ -28,6 +30,12 @@ export const registrationEffectLayer = Registrations.layerStorage.pipe(
     })
   ),
   Layer.provideMerge(layerCommercetoolsCommerceAccounts),
+  Layer.provideMerge(identityUsersLayerWorkos),
   Layer.provideMerge(invitationsLayerWorkos),
+  Layer.provideMerge(
+    VatValidator.layerMemoryFrom({
+      invalidVatIds: ["INVALID-VAT", "VAT-INVALID", "000"],
+    })
+  ),
   Layer.provideMerge(registrationEmailsLayer)
 );

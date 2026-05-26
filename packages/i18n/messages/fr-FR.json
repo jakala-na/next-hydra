@@ -156,6 +156,8 @@
           "lastName": "Saisissez un nom.",
           "lastNameMax": "Le nom est trop long.",
           "email": "Saisissez une adresse e-mail valide.",
+          "duplicateEmail": "Cette adresse e-mail est déjà associée à une inscription existante ou en attente.",
+          "invalidVatId": "Saisissez un numéro fiscal / TVA valide.",
           "streetAddress": "Saisissez une adresse.",
           "postalCode": "Saisissez un code postal.",
           "city": "Saisissez une ville.",

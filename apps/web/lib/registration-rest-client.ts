@@ -14,10 +14,12 @@ export const registrationRestUrl = (path: string) =>
 
 export class RegistrationRestError extends Error {
   readonly status: number;
+  readonly body: unknown;
 
-  constructor(status: number) {
+  constructor(status: number, body: unknown) {
     super(`Registration REST request failed with ${status}`);
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -35,7 +37,8 @@ export async function fetchRegistrationRest<T>(
   });
 
   if (!response.ok) {
-    throw new RegistrationRestError(response.status);
+    const body = await response.json().catch(() => undefined);
+    throw new RegistrationRestError(response.status, body);
   }
 
   return (await response.json()) as T;

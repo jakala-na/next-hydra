@@ -5,9 +5,15 @@ import {
   RegistrationFormInputSchema,
   type RegistrationFormResult,
 } from "@repo/registration-effect";
-import type { CreateRegistrationResponse } from "@repo/registration-effect/http/registration-api";
+import {
+  type CreateRegistrationResponse,
+  RegistrationApiValidationError,
+} from "@repo/registration-effect/http/registration-api";
 import { Effect, Schema } from "effect";
-import { fetchRegistrationRest } from "./registration-rest-client";
+import {
+  fetchRegistrationRest,
+  RegistrationRestError,
+} from "./registration-rest-client";
 
 const toRegistrationInput = (
   input: RegistrationFormInput
@@ -49,12 +55,34 @@ export async function submitRegistrationEffect(
       registrationId: registration.registrationId,
     };
   } catch (error) {
+    if (error instanceof RegistrationRestError) {
+      const validationError = Schema.decodeUnknownOption(
+        RegistrationApiValidationError
+      )(error.body);
+
+      if (validationError._tag === "Some") {
+        return {
+          _tag: "FieldErrors",
+          errors: Object.fromEntries(
+            validationError.value.reasons.map((reason) => [
+              reason.path,
+              reason.code,
+            ])
+          ),
+        };
+      }
+    }
+
+    if (Schema.isSchemaError(error)) {
+      return {
+        _tag: "FormError",
+        code: "invalidSubmission",
+      };
+    }
+
     return {
       _tag: "FormError",
-      message:
-        typeof error === "object" && error && "_tag" in error
-          ? "The registration details are invalid."
-          : "The registration could not be submitted. Please try again.",
+      code: "submitFailed",
     };
   }
 }

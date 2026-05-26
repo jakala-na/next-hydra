@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Ref, Schema } from "effect";
+import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
@@ -8,6 +8,7 @@ import {
   type AcceptedAuthIdentity,
   CommerceBusinessUnitId,
   CommerceCustomerId,
+  type RedactedEmail,
   type RegistrationId,
 } from "../domain/identity";
 import type {
@@ -33,6 +34,9 @@ export interface AddAssociateInput {
   readonly acceptedIdentity: AcceptedAuthIdentity;
   readonly role: Extract<CompanyRole, "associate">;
 }
+
+const normalizedEmail = (email: RedactedEmail) =>
+  Redacted.value(email).trim().toLowerCase();
 
 interface CommerceState {
   readonly accountsByRegistration: ReadonlyMap<RegistrationId, CommerceAccount>;
@@ -66,6 +70,9 @@ export class CommerceAccounts extends Context.Service<
     readonly addAssociate: (
       input: AddAssociateInput
     ) => Effect.Effect<CommerceAssociateMembership, CommerceAccountError>;
+    readonly hasCustomerWithEmail: (
+      email: RedactedEmail
+    ) => Effect.Effect<boolean, CommerceAccountError>;
   }
 >()("@repo/registration-effect/CommerceAccounts") {
   static readonly layerMemory = Layer.effect(
@@ -195,10 +202,25 @@ export class CommerceAccounts extends Context.Service<
           })
       );
 
+      const hasCustomerWithEmail = Effect.fn(
+        "CommerceAccounts.hasCustomerWithEmail"
+      )((email: RedactedEmail) =>
+        Ref.get(state).pipe(
+          Effect.map((current) => {
+            const targetEmail = normalizedEmail(email);
+
+            return [...current.customersByAuthUserId.values()].some(
+              (customer) => normalizedEmail(customer.email) === targetEmail
+            );
+          })
+        )
+      );
+
       return {
         createFromRegistration,
         linkRegistrantIdentity,
         addAssociate,
+        hasCustomerWithEmail,
       };
     })
   );
