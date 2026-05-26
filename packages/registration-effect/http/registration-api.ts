@@ -89,9 +89,18 @@ export class InvalidRegistrationVatId extends Schema.TaggedClass<InvalidRegistra
   }
 ) {}
 
+export class UnsupportedRegistrationCountry extends Schema.TaggedClass<UnsupportedRegistrationCountry>()(
+  "UnsupportedRegistrationCountry",
+  {
+    code: Schema.Literal("unsupportedRegistrationCountry"),
+    country: CountryCode,
+  }
+) {}
+
 export const RegistrationApiValidationReason = Schema.Union([
   DuplicateRegistrationEmail,
   InvalidRegistrationVatId,
+  UnsupportedRegistrationCountry,
 ]);
 export type RegistrationApiValidationReason =
   typeof RegistrationApiValidationReason.Type;

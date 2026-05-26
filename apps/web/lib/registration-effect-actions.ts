@@ -4,6 +4,7 @@ import {
   type RegistrationFormInput,
   RegistrationFormInputSchema,
   type RegistrationFormResult,
+  type RegistrationFormValidationErrorCode,
 } from "@repo/registration-effect";
 import {
   type CreateRegistrationResponse,
@@ -61,14 +62,19 @@ export async function submitRegistrationEffect(
       )(error.body);
 
       if (validationError._tag === "Some") {
+        const fieldErrors = Object.fromEntries(
+          validationError.value.reasons
+            .filter((reason) => "path" in reason)
+            .map((reason) => [reason.path, reason.code])
+        );
+        const formErrors = validationError.value.reasons
+          .filter((reason) => !("path" in reason))
+          .map((reason) => reason.code as RegistrationFormValidationErrorCode);
+
         return {
-          _tag: "FieldErrors",
-          errors: Object.fromEntries(
-            validationError.value.reasons.map((reason) => [
-              reason.path,
-              reason.code,
-            ])
-          ),
+          _tag: "ValidationErrors",
+          fieldErrors,
+          formErrors,
         };
       }
     }

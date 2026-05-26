@@ -39,6 +39,7 @@ import {
   type RegistrationFormInput,
   type RegistrationFormMessageKey,
   type RegistrationFormResult,
+  type RegistrationFormValidationErrorCode,
   type RegistrationFormValues,
   requiresRegion,
 } from "./registration-form-schema";
@@ -88,6 +89,19 @@ const setServerFieldErrors = (
       });
     }
   }
+};
+
+const getServerFormErrorMessageKey = (
+  code: RegistrationFormValidationErrorCode
+) => {
+  const messages = {
+    unsupportedRegistrationCountry: "errors.unsupportedRegistrationCountry",
+  } as const satisfies Record<
+    RegistrationFormValidationErrorCode,
+    RegistrationFormMessageKey
+  >;
+
+  return messages[code];
 };
 
 function TranslatedFormMessage({ className }: { readonly className?: string }) {
@@ -161,8 +175,16 @@ export function RegistrationForm({
                     `${awaitingApprovalUrl}?email=${encodeURIComponent(values.email)}`) as Route
                 );
                 return;
-              case "FieldErrors":
-                setServerFieldErrors(form, result.errors, t);
+              case "ValidationErrors":
+                setServerFieldErrors(form, result.fieldErrors, t);
+                {
+                  const [firstFormError] = result.formErrors;
+                  setFormError(
+                    firstFormError
+                      ? t(getServerFormErrorMessageKey(firstFormError))
+                      : null
+                  );
+                }
                 return;
               case "FormError":
                 setFormError(t(`errors.${result.code}`));

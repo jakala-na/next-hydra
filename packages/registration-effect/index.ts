@@ -19,6 +19,7 @@ export {
   type RegistrationFormInput,
   RegistrationFormInputSchema,
   type RegistrationFormResult,
+  type RegistrationFormValidationErrorCode,
   type RegistrationFormValues,
   requiresRegion,
 } from "./components/registration-form-schema";
@@ -197,6 +198,7 @@ export {
   type SendAwaitingApprovalRegistrantEmailInput,
   type SendRejectedRegistrantEmailInput,
 } from "./services/registration-emails";
+export { RegistrationMarketPolicy } from "./services/registration-market-policy";
 export {
   decodeRegistrationQueryCursor,
   encodeRegistrationQueryCursor,

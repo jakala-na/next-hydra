@@ -17,10 +17,12 @@ import {
   toApiError,
   toCompanyRegistrationDetails,
   toRegistrationDetailResponse,
+  UnsupportedRegistrationCountry,
 } from "@repo/registration-effect/http/registration-api";
 import { CommerceAccounts } from "@repo/registration-effect/services/commerce-account";
 import { IdentityUsers } from "@repo/registration-effect/services/identity-users";
 import type { Invitations } from "@repo/registration-effect/services/invitations";
+import { RegistrationMarketPolicy } from "@repo/registration-effect/services/registration-market-policy";
 import { RegistrationQueries } from "@repo/registration-effect/services/registration-queries";
 import { Registrations } from "@repo/registration-effect/services/registrations";
 import { VatValidator } from "@repo/registration-effect/services/vat-validator";
@@ -34,6 +36,7 @@ type RegistrationEffectRuntimeLayer = Layer.Layer<
   | RegistrationQueries
   | CommerceAccounts
   | IdentityUsers
+  | RegistrationMarketPolicy
   | VatValidator
   | Invitations,
   unknown,
@@ -113,6 +116,9 @@ type RegistrationQueriesService = Context.Service.Shape<
 type CommerceAccountsService = Context.Service.Shape<typeof CommerceAccounts>;
 
 type IdentityUsersService = Context.Service.Shape<typeof IdentityUsers>;
+type RegistrationMarketPolicyService = Context.Service.Shape<
+  typeof RegistrationMarketPolicy
+>;
 type VatValidatorService = Context.Service.Shape<typeof VatValidator>;
 
 const registrationEmailMatches = (
@@ -173,6 +179,14 @@ const isInvalidVatId = (
     ? vatValidator.isValid(details.vatId).pipe(Effect.map((valid) => !valid))
     : Effect.succeed(false);
 
+const isUnsupportedRegistrationCountry = (
+  marketPolicy: RegistrationMarketPolicyService,
+  details: CompanyRegistrationDetails
+) =>
+  marketPolicy
+    .canRegisterCompany(details.address.country)
+    .pipe(Effect.map((supported) => !supported));
+
 const hasPendingRegistrationWithEmail = (
   queries: RegistrationQueriesService,
   email: string
@@ -196,6 +210,7 @@ const validateCreateRegistration = (
   queries: RegistrationQueriesService,
   commerceAccounts: CommerceAccountsService,
   identityUsers: IdentityUsersService,
+  marketPolicy: RegistrationMarketPolicyService,
   vatValidator: VatValidatorService
 ): Effect.Effect<CompanyRegistrationDetails, RegistrationApiValidationError> =>
   Effect.gen(function* () {
@@ -205,12 +220,14 @@ const validateCreateRegistration = (
       hasCustomer,
       hasIdentityUser,
       hasPendingEmailRegistration,
+      unsupportedRegistrationCountry,
       invalidVatId,
     ] = yield* Effect.all(
       [
         hasCustomerWithEmail(commerceAccounts, details),
         hasIdentityUserWithEmail(identityUsers, details),
         hasPendingRegistrationWithEmail(queries, email),
+        isUnsupportedRegistrationCountry(marketPolicy, details),
         isInvalidVatId(vatValidator, details),
       ],
       { concurrency: "unbounded" }
@@ -229,6 +246,14 @@ const validateCreateRegistration = (
             new InvalidRegistrationVatId({
               path: "vatId",
               code: "invalidVatId",
+            }),
+          ]
+        : []),
+      ...(unsupportedRegistrationCountry
+        ? [
+            new UnsupportedRegistrationCountry({
+              code: "unsupportedRegistrationCountry",
+              country: details.address.country,
             }),
           ]
         : []),
@@ -262,6 +287,7 @@ const makeRegistrationEffectHttpHandlers = ({
       const queries = yield* RegistrationQueries;
       const commerceAccounts = yield* CommerceAccounts;
       const identityUsers = yield* IdentityUsers;
+      const marketPolicy = yield* RegistrationMarketPolicy;
       const vatValidator = yield* VatValidator;
 
       return handlers
@@ -272,6 +298,7 @@ const makeRegistrationEffectHttpHandlers = ({
               queries,
               commerceAccounts,
               identityUsers,
+              marketPolicy,
               vatValidator
             );
             const registration = yield* registrations.createAwaitingApproval({

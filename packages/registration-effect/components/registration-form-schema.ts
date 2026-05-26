@@ -282,7 +282,8 @@ export type RegistrationFormMessageKey =
   | "validation.city"
   | "validation.region"
   | "validation.country"
-  | "validation.duplicateEmail";
+  | "validation.duplicateEmail"
+  | "errors.unsupportedRegistrationCountry";
 
 type RegistrationFormTranslator = (key: RegistrationFormMessageKey) => string;
 
@@ -413,6 +414,9 @@ export type RegistrationFormFieldErrors = Partial<
   Record<RegistrationFormFieldPath, RegistrationFormFieldErrorCode>
 >;
 
+export type RegistrationFormValidationErrorCode =
+  "unsupportedRegistrationCountry";
+
 export type RegistrationFormErrorCode = "invalidSubmission" | "submitFailed";
 
 export type RegistrationFormResult =
@@ -422,8 +426,9 @@ export type RegistrationFormResult =
       readonly redirectTo?: string;
     }
   | {
-      readonly _tag: "FieldErrors";
-      readonly errors: RegistrationFormFieldErrors;
+      readonly _tag: "ValidationErrors";
+      readonly fieldErrors: RegistrationFormFieldErrors;
+      readonly formErrors: readonly RegistrationFormValidationErrorCode[];
     }
   | {
       readonly _tag: "FormError";

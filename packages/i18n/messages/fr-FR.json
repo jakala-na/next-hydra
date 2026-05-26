@@ -144,6 +144,7 @@
         },
         "errors": {
           "invalidSubmission": "Veuillez vérifier les champs indiqués et réessayer.",
+          "unsupportedRegistrationCountry": "Nous ne pouvons pas encore accepter les inscriptions d’entreprises depuis ce pays.",
           "submitFailed": "Nous n’avons pas pu envoyer votre inscription pour le moment. Veuillez réessayer."
         },
         "validation": {

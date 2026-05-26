@@ -144,6 +144,7 @@
         },
         "errors": {
           "invalidSubmission": "Controlla i campi evidenziati e riprova.",
+          "unsupportedRegistrationCountry": "Non possiamo ancora accettare registrazioni aziendali da questo paese.",
           "submitFailed": "Non è stato possibile inviare la registrazione in questo momento. Riprova."
         },
         "validation": {

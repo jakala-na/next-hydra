@@ -144,6 +144,7 @@
         },
         "errors": {
           "invalidSubmission": "Please review the highlighted fields and try again.",
+          "unsupportedRegistrationCountry": "We cannot accept company registrations from this country yet.",
           "submitFailed": "We could not submit your registration right now. Please try again."
         },
         "validation": {

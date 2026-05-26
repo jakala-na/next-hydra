@@ -1,4 +1,7 @@
-import { RegistrationId } from "@repo/registration-effect/domain/identity";
+import {
+  CountryCode,
+  RegistrationId,
+} from "@repo/registration-effect/domain/identity";
 import {
   AwaitingApprovalRegistration,
   type Registration,
@@ -16,6 +19,7 @@ import {
 } from "@repo/registration-effect/services/commerce-account";
 import { IdentityUsers } from "@repo/registration-effect/services/identity-users";
 import { Invitations } from "@repo/registration-effect/services/invitations";
+import { RegistrationMarketPolicy } from "@repo/registration-effect/services/registration-market-policy";
 import {
   listRegistrationRecords,
   RegistrationQueries,
@@ -113,6 +117,7 @@ const makeApiLayer = (
     readonly hasCustomerWithEmailFailure?: CommerceAccountError;
     readonly hasIdentityUserWithEmail?: boolean;
     readonly invalidVatIds?: readonly string[];
+    readonly supportedRegistrationCountries?: readonly string[];
   } = {}
 ) => {
   const registrations = new Map<string, Registration>(
@@ -193,6 +198,14 @@ const makeApiLayer = (
   const vatValidatorLayer = VatValidator.layerMemoryFrom({
     invalidVatIds: options.invalidVatIds ?? [],
   });
+  const registrationMarketPolicyLayer =
+    RegistrationMarketPolicy.layerMemoryFrom({
+      supportedCountries: (
+        options.supportedRegistrationCountries ?? [
+          registrationPayload.address.country,
+        ]
+      ).map((country) => CountryCode.make(country)),
+    });
 
   return {
     get,
@@ -201,6 +214,7 @@ const makeApiLayer = (
       queriesLayer,
       commerceAccountsLayer,
       identityUsersLayer,
+      registrationMarketPolicyLayer,
       vatValidatorLayer,
       Invitations.layerMemory
     ),
@@ -415,6 +429,43 @@ test("POST /registrations can return multiple validation reasons", async () => {
           _tag: "InvalidRegistrationVatId",
           path: "vatId",
           code: "invalidVatId",
+        },
+      ],
+    });
+    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations can return field and unsupported country form validation reasons together", async () => {
+  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  const api = makeApiLayer([], {
+    invalidVatIds: ["VAT-123"],
+    supportedRegistrationCountries: ["CA"],
+  });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", registrationPayload),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_UNPROCESSABLE_ENTITY);
+    expect(body).toMatchObject({
+      _tag: "RegistrationApiValidationError",
+      reasons: [
+        {
+          _tag: "InvalidRegistrationVatId",
+          path: "vatId",
+          code: "invalidVatId",
+        },
+        {
+          _tag: "UnsupportedRegistrationCountry",
+          code: "unsupportedRegistrationCountry",
+          country: "US",
         },
       ],
     });
