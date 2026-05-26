@@ -271,3 +271,12 @@ $RECYCLE.BIN/
 
 # JetBrains
 .idea
+
+# Local security scans
+.deepsec/
+
+# Local agent/reference workspaces
+repos/
+
+# Local compiler caches
+apps/api/.swc/
