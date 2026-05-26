@@ -5,19 +5,34 @@ import type {
   RegistrationDecisionResult,
   RejectRegistrationInput,
 } from "@repo/registration-effect/components/admin/registration-view-models";
+import { revalidatePath } from "next/cache";
 import {
   approveRegistrationEffect as approveRegistrationEffectService,
   rejectRegistrationEffect as rejectRegistrationEffectService,
 } from "./admin-registration-effect";
 
+const revalidateRegistrationApprovals = (
+  result: RegistrationDecisionResult
+) => {
+  if (result._tag === "Success") {
+    revalidatePath("/admin/registration-approvals");
+  }
+
+  return result;
+};
+
 export async function approveRegistrationEffect(
   input: ApproveRegistrationInput
 ): Promise<RegistrationDecisionResult> {
-  return await approveRegistrationEffectService(input);
+  return revalidateRegistrationApprovals(
+    await approveRegistrationEffectService(input)
+  );
 }
 
 export async function rejectRegistrationEffect(
   input: RejectRegistrationInput
 ): Promise<RegistrationDecisionResult> {
-  return await rejectRegistrationEffectService(input);
+  return revalidateRegistrationApprovals(
+    await rejectRegistrationEffectService(input)
+  );
 }

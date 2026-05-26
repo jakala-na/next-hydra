@@ -3,6 +3,7 @@ import {
   RegistrationId,
 } from "@repo/registration-effect/domain/identity";
 import {
+  ApprovalProcessingRegistration,
   AwaitingApprovalRegistration,
   type Registration,
 } from "@repo/registration-effect/domain/registration";
@@ -168,6 +169,27 @@ const makeApiLayer = (
         }),
       findByInvitationId: () => Effect.die("not used"),
       get,
+      markApprovalProcessing: ({ registrationId, decision }) =>
+        Effect.sync(() => {
+          const current = registrations.get(String(registrationId));
+
+          if (!current) {
+            throw new Error(`Registration ${registrationId} was not found`);
+          }
+
+          const processing = new ApprovalProcessingRegistration({
+            _tag: "ApprovalProcessingRegistration",
+            status: "approval_processing",
+            id: current.id,
+            details: current.details,
+            requestedDecision: decision,
+            createdAt: current.createdAt,
+            updatedAt: new Date("2026-03-22T00:00:01.000Z"),
+          });
+
+          registrations.set(String(registrationId), processing);
+          return processing;
+        }),
       markApproved: () => Effect.die("not used"),
       markRejected: () => Effect.die("not used"),
     })
@@ -614,6 +636,39 @@ test("POST /registrations/:id/approve resumes the deterministic workflow hook", 
     expect(
       workflowApiMocks.resumeHook.mock.calls[0]?.[1].reviewer
     ).not.toBeInstanceOf(RegistrationReviewerInput);
+    expect(api.registrations.get(String(registration.id))?.status).toBe(
+      "approval_processing"
+    );
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/approve moves accepted decisions out of awaiting approval list", async () => {
+  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  const registration = makeAwaitingRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration]);
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    await handler(
+      request(
+        "POST",
+        `/registrations/${registration.id}/approve`,
+        reviewerPayload,
+        { "x-registration-approval-secret": "test-approval-secret" }
+      ),
+      emptyContext()
+    );
+
+    const response = await handler(
+      request("GET", "/registrations?status=awaiting_approval"),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.items).toHaveLength(0);
   } finally {
     await dispose();
   }

@@ -28,6 +28,7 @@ export async function fetchRegistrationRest<T>(
   init?: RequestInit
 ): Promise<T> {
   const response = await fetch(registrationRestUrl(path), {
+    cache: "no-store",
     ...init,
     headers: {
       accept: "application/json",

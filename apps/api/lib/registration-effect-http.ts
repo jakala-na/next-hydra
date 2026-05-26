@@ -72,9 +72,11 @@ const toRegistrationHttpError = (
     | Parameters<typeof toApiError>[0]
     | RegistrationApiError
     | RegistrationApiValidationError
+    | RegistrationApiUnauthorized
 ) =>
   error instanceof RegistrationApiError ||
-  error instanceof RegistrationApiValidationError
+  error instanceof RegistrationApiValidationError ||
+  error instanceof RegistrationApiUnauthorized
     ? error
     : toApiError(error);
 
@@ -105,6 +107,7 @@ const toWorkflowReviewer = (reviewer: RegistrationReviewerInput) => ({
 
 const duplicateRegistrationStatuses = [
   "awaiting_approval",
+  "approval_processing",
 ] as const satisfies readonly RegistrationStatus[];
 
 const normalizedEmail = (email: string) => email.trim().toLowerCase();
@@ -350,48 +353,52 @@ const makeRegistrationEffectHttpHandlers = ({
             )
         )
         .handle("approve", ({ headers, params, payload }) =>
-          authorizeAdmin(
-            approvalSecret,
-            headers["x-registration-approval-secret"]
-          ).pipe(
-            Effect.andThen(
-              resumeRegistrationWorkflow(String(params.registrationId), {
-                decision: "approved",
-                reviewer: toWorkflowReviewer(payload.reviewer),
-                ...(payload.reason === undefined
-                  ? {}
-                  : { reason: payload.reason }),
-              })
-            ),
-            Effect.as(
-              new RegistrationDecisionAcceptedResponse({
-                registrationId: params.registrationId,
-                status: "approval_processing",
-              })
-            )
-          )
+          Effect.gen(function* () {
+            yield* authorizeAdmin(
+              approvalSecret,
+              headers["x-registration-approval-secret"]
+            );
+            yield* resumeRegistrationWorkflow(String(params.registrationId), {
+              decision: "approved",
+              reviewer: toWorkflowReviewer(payload.reviewer),
+              ...(payload.reason === undefined
+                ? {}
+                : { reason: payload.reason }),
+            });
+            yield* registrations.markApprovalProcessing({
+              registrationId: params.registrationId,
+              decision: "approved",
+            });
+
+            return new RegistrationDecisionAcceptedResponse({
+              registrationId: params.registrationId,
+              status: "approval_processing",
+            });
+          }).pipe(Effect.mapError(toRegistrationHttpError))
         )
         .handle("reject", ({ headers, params, payload }) =>
-          authorizeAdmin(
-            approvalSecret,
-            headers["x-registration-approval-secret"]
-          ).pipe(
-            Effect.andThen(
-              resumeRegistrationWorkflow(String(params.registrationId), {
-                decision: "rejected",
-                reviewer: toWorkflowReviewer(payload.reviewer),
-                ...(payload.reason === undefined
-                  ? {}
-                  : { reason: payload.reason }),
-              })
-            ),
-            Effect.as(
-              new RegistrationDecisionAcceptedResponse({
-                registrationId: params.registrationId,
-                status: "approval_processing",
-              })
-            )
-          )
+          Effect.gen(function* () {
+            yield* authorizeAdmin(
+              approvalSecret,
+              headers["x-registration-approval-secret"]
+            );
+            yield* resumeRegistrationWorkflow(String(params.registrationId), {
+              decision: "rejected",
+              reviewer: toWorkflowReviewer(payload.reviewer),
+              ...(payload.reason === undefined
+                ? {}
+                : { reason: payload.reason }),
+            });
+            yield* registrations.markApprovalProcessing({
+              registrationId: params.registrationId,
+              decision: "rejected",
+            });
+
+            return new RegistrationDecisionAcceptedResponse({
+              registrationId: params.registrationId,
+              status: "approval_processing",
+            });
+          }).pipe(Effect.mapError(toRegistrationHttpError))
         );
     })
   );

@@ -69,6 +69,7 @@ export class CompanyRegistrationDetails extends Schema.Class<CompanyRegistration
 
 export const RegistrationStatus = Schema.Literals([
   "awaiting_approval",
+  "approval_processing",
   "approved",
   "rejected",
 ]);
@@ -85,10 +86,22 @@ export class AwaitingApprovalRegistration extends Schema.TaggedClass<AwaitingApp
   }
 ) {}
 
+export class ApprovalProcessingRegistration extends Schema.TaggedClass<ApprovalProcessingRegistration>()(
+  "ApprovalProcessingRegistration",
+  {
+    status: Schema.Literal(RegistrationStatus.literals[1]),
+    id: RegistrationId,
+    details: CompanyRegistrationDetails,
+    requestedDecision: Schema.Literals(["approved", "rejected"]),
+    createdAt: Schema.Date,
+    updatedAt: Schema.Date,
+  }
+) {}
+
 export class ApprovedRegistration extends Schema.TaggedClass<ApprovedRegistration>()(
   "ApprovedRegistration",
   {
-    status: Schema.Literal(RegistrationStatus.literals[1]),
+    status: Schema.Literal(RegistrationStatus.literals[2]),
     id: RegistrationId,
     details: CompanyRegistrationDetails,
     decision: ApprovedDecision,
@@ -102,7 +115,7 @@ export class ApprovedRegistration extends Schema.TaggedClass<ApprovedRegistratio
 export class RejectedRegistration extends Schema.TaggedClass<RejectedRegistration>()(
   "RejectedRegistration",
   {
-    status: Schema.Literal(RegistrationStatus.literals[2]),
+    status: Schema.Literal(RegistrationStatus.literals[3]),
     id: RegistrationId,
     details: CompanyRegistrationDetails,
     decision: RejectedDecision,
@@ -113,6 +126,7 @@ export class RejectedRegistration extends Schema.TaggedClass<RejectedRegistratio
 
 export const Registration = Schema.Union([
   AwaitingApprovalRegistration,
+  ApprovalProcessingRegistration,
   ApprovedRegistration,
   RejectedRegistration,
 ]);

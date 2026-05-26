@@ -3,6 +3,7 @@ import type { ApprovedDecision, RejectedDecision } from "../domain/approval";
 import type { CommerceAccount } from "../domain/commerce";
 import { InvitationId, RegistrationId } from "../domain/identity";
 import {
+  ApprovalProcessingRegistration,
   ApprovedRegistration,
   AwaitingApprovalRegistration,
   type CompanyRegistrationDetails,
@@ -93,6 +94,11 @@ export interface MarkRegistrationApprovedInput {
   readonly invitationId: InvitationId;
 }
 
+export interface MarkRegistrationApprovalProcessingInput {
+  readonly registrationId: RegistrationId;
+  readonly decision: "approved" | "rejected";
+}
+
 export interface MarkRegistrationRejectedInput {
   readonly registrationId: RegistrationId;
   readonly decision: RejectedDecision;
@@ -136,6 +142,9 @@ export class Registrations extends Context.Service<
     readonly findByInvitationId: (
       invitationId: InvitationId
     ) => Effect.Effect<ApprovedRegistration, RegistrationFindByInvitationError>;
+    readonly markApprovalProcessing: (
+      input: MarkRegistrationApprovalProcessingInput
+    ) => Effect.Effect<Registration, RegistrationTransitionError>;
     readonly markApproved: (
       input: MarkRegistrationApprovedInput
     ) => Effect.Effect<ApprovedRegistration, RegistrationTransitionError>;
@@ -259,6 +268,18 @@ export class Registrations extends Context.Service<
           return current.value;
         }
 
+        if (
+          current.value._tag === "ApprovalProcessingRegistration" &&
+          current.value.requestedDecision !== "approved"
+        ) {
+          return yield* new RegistrationTransitionConflict({
+            message: `Cannot mark registration ${input.registrationId} as approved from ${current.value._tag}`,
+            registrationId: input.registrationId,
+            currentState: current.value._tag,
+            attemptedDecision: "approved",
+          });
+        }
+
         if (current.value._tag === "RejectedRegistration") {
           return yield* new RegistrationTransitionConflict({
             message: `Cannot mark registration ${input.registrationId} as approved from ${current.value._tag}`,
@@ -293,6 +314,76 @@ export class Registrations extends Context.Service<
         return approved;
       });
 
+      const markApprovalProcessing = Effect.fn(
+        "Registrations.markApprovalProcessing"
+      )(function* (input: MarkRegistrationApprovalProcessingInput) {
+        const key = registrationKey(input.registrationId);
+        const current = yield* store.get(key, Registration).pipe(
+          Effect.flatMap((registration) =>
+            Option.match(registration, {
+              onNone: () =>
+                Effect.fail(
+                  new RegistrationNotFound({
+                    message: `Registration ${input.registrationId} was not found`,
+                    registrationId: input.registrationId,
+                  })
+                ),
+              onSome: Effect.succeed,
+            })
+          ),
+          Effect.catchTag("StoreError", (error) =>
+            Effect.fail(mapStoreError(input.registrationId, "read")(error))
+          )
+        );
+
+        if (
+          current.value._tag === "ApprovalProcessingRegistration" &&
+          current.value.requestedDecision === input.decision
+        ) {
+          return current.value;
+        }
+
+        if (
+          (current.value._tag === "ApprovedRegistration" &&
+            input.decision === "approved") ||
+          (current.value._tag === "RejectedRegistration" &&
+            input.decision === "rejected")
+        ) {
+          return current.value;
+        }
+
+        if (current.value._tag !== "AwaitingApprovalRegistration") {
+          return yield* new RegistrationTransitionConflict({
+            message: `Cannot mark registration ${input.registrationId} as ${input.decision} from ${current.value._tag}`,
+            registrationId: input.registrationId,
+            currentState: current.value._tag,
+            attemptedDecision: input.decision,
+          });
+        }
+
+        const updatedAt = yield* nowDate;
+        const processing = new ApprovalProcessingRegistration({
+          _tag: "ApprovalProcessingRegistration",
+          status: "approval_processing",
+          id: current.value.id,
+          details: current.value.details,
+          requestedDecision: input.decision,
+          createdAt: current.value.createdAt,
+          updatedAt,
+        });
+
+        yield* store.update(key, Registration, current, processing).pipe(
+          Effect.catchTags({
+            StoreConflict: (error) =>
+              Effect.fail(mapStoreUpdateConflict(input.registrationId)(error)),
+            StoreError: (error) =>
+              Effect.fail(mapStoreError(input.registrationId, "update")(error)),
+          })
+        );
+
+        return processing;
+      });
+
       const markRejected = Effect.fn("Registrations.markRejected")(function* (
         input: MarkRegistrationRejectedInput
       ) {
@@ -317,6 +408,18 @@ export class Registrations extends Context.Service<
 
         if (current.value._tag === "RejectedRegistration") {
           return current.value;
+        }
+
+        if (
+          current.value._tag === "ApprovalProcessingRegistration" &&
+          current.value.requestedDecision !== "rejected"
+        ) {
+          return yield* new RegistrationTransitionConflict({
+            message: `Cannot mark registration ${input.registrationId} as rejected from ${current.value._tag}`,
+            registrationId: input.registrationId,
+            currentState: current.value._tag,
+            attemptedDecision: "rejected",
+          });
         }
 
         if (current.value._tag === "ApprovedRegistration") {
@@ -354,6 +457,7 @@ export class Registrations extends Context.Service<
       return {
         createAwaitingApproval,
         findByInvitationId,
+        markApprovalProcessing,
         get,
         markApproved,
         markRejected,

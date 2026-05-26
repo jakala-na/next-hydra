@@ -30,7 +30,6 @@ import {
 } from "@repo/registration-effect/components/admin/registration-lifecycle";
 import { RegistrationStatusBadge } from "@repo/registration-effect/components/admin/registration-status-badge";
 import type { RegistrationDetailStatus } from "@repo/registration-effect/components/admin/registration-view-models";
-import { formatDistanceToNowStrict } from "date-fns";
 import type { Route } from "next";
 import Link from "next/link";
 import {
@@ -123,17 +122,14 @@ const buildAdminHref = ({
     : "/admin/registration-approvals";
 };
 
-const formatDateTime = (value: string) =>
+const formatDate = (value: string) =>
   new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "numeric",
+    year: "2-digit",
   }).format(new Date(value));
-
-const formatLastUpdated = (value: string) => {
-  const date = new Date(value);
-
-  return `${formatDistanceToNowStrict(date, { addSuffix: true })} (${formatDateTime(value)})`;
-};
 
 const getReviewSummary = (registration: RegistrationDetailView) =>
   `${registration.contactFirstName} ${registration.contactLastName} - ${registration.email}`;
@@ -269,9 +265,9 @@ export default async function AdminRegistrationsPage({
             <TableHeader>
               <TableRow>
                 <TableHead className="px-6">Company</TableHead>
-                <TableHead>Contact</TableHead>
+                <TableHead className="hidden xl:table-cell">Contact</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Last updated</TableHead>
+                <TableHead className="w-20 text-xs">Updated</TableHead>
                 <TableHead className="px-6 text-right">Review</TableHead>
               </TableRow>
             </TableHeader>
@@ -297,7 +293,7 @@ export default async function AdminRegistrationsPage({
 
                   return (
                     <TableRow key={registration.registrationId}>
-                      <TableCell className="px-6 py-4 align-top">
+                      <TableCell className="whitespace-normal px-6 py-4 align-top">
                         <div className="grid gap-1">
                           <p className="font-medium text-sm text-stone-950">
                             {registration.companyName}
@@ -307,14 +303,14 @@ export default async function AdminRegistrationsPage({
                           </p>
                         </div>
                       </TableCell>
-                      <TableCell className="py-4 align-top text-sm text-stone-700">
+                      <TableCell className="hidden py-4 align-top text-sm text-stone-700 xl:table-cell">
                         {getReviewSummary(registration)}
                       </TableCell>
                       <TableCell className="py-4 align-top">
                         <RegistrationStatusBadge status={registration.status} />
                       </TableCell>
-                      <TableCell className="py-4 align-top text-sm text-stone-700">
-                        {formatLastUpdated(registration.updatedAt)}
+                      <TableCell className="py-4 align-top text-stone-600 text-xs">
+                        {formatDate(registration.updatedAt)}
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right align-top">
                         <Button asChild size="sm" variant="outline">

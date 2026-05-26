@@ -103,6 +103,8 @@ const tagFromStatus = (
   switch (status) {
     case "awaiting_approval":
       return "AwaitingApprovalRegistration";
+    case "approval_processing":
+      return "ApprovalProcessingRegistration";
     case "approved":
       return "ApprovedRegistration";
     case "rejected":

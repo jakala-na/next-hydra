@@ -1,6 +1,10 @@
 "use client";
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import {
+  Alert,
+  AlertDescription,
+} from "@repo/design-system/components/ui/alert";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
   Card,
@@ -199,6 +203,12 @@ export function RegistrationForm({
           }
         })}
       >
+        {formError ? (
+          <Alert variant="destructive">
+            <AlertDescription>{formError}</AlertDescription>
+          </Alert>
+        ) : null}
+
         <Card className="border-stone-300 shadow-none">
           <CardHeader>
             <CardTitle>{t("sections.company")}</CardTitle>
@@ -499,12 +509,6 @@ export function RegistrationForm({
             </div>
           </CardContent>
         </Card>
-
-        {formError ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 text-sm">
-            {formError}
-          </p>
-        ) : null}
 
         <div className="flex items-center justify-between gap-4">
           <p className="max-w-xl text-sm text-stone-600">{t("disclaimer")}</p>

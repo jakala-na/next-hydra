@@ -27,6 +27,7 @@ import {
   PendingInvitation,
 } from "@repo/registration-effect/domain/invitations";
 import {
+  ApprovalProcessingRegistration,
   ApprovedRegistration,
   AwaitingApprovalRegistration,
   CompanyAddress,
@@ -121,6 +122,29 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
                 registrationId,
               })
             ),
+      markApprovalProcessing: (input) => {
+        if (current.id !== input.registrationId) {
+          return Effect.fail(
+            new RegistrationNotFound({
+              message: `Registration ${input.registrationId} was not found`,
+              registrationId: input.registrationId,
+            })
+          );
+        }
+
+        const processing = new ApprovalProcessingRegistration({
+          _tag: "ApprovalProcessingRegistration",
+          status: "approval_processing",
+          id: current.id,
+          details: current.details,
+          requestedDecision: input.decision,
+          createdAt: current.createdAt,
+          updatedAt: new Date("2026-03-22T00:00:01.000Z"),
+        });
+
+        current = processing;
+        return Effect.succeed(processing);
+      },
       markApproved: (input) => {
         if (current.id !== input.registrationId) {
           return Effect.fail(

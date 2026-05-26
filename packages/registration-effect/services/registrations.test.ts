@@ -281,6 +281,44 @@ describe("Registrations over versioned storage", () => {
     }).pipe(Effect.provide(Registrations.layerMemory))
   );
 
+  it.effect("moves accepted approval decisions into processing", () =>
+    Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const created = yield* registrations.createAwaitingApproval({ details });
+
+      const processing = yield* registrations.markApprovalProcessing({
+        registrationId: created.id,
+        decision: "approved",
+      });
+
+      expect(processing._tag).toBe("ApprovalProcessingRegistration");
+      expect(processing.status).toBe("approval_processing");
+      if (processing._tag === "ApprovalProcessingRegistration") {
+        expect(processing.requestedDecision).toBe("approved");
+      }
+    }).pipe(Effect.provide(Registrations.layerMemory))
+  );
+
+  it.effect("finalizes processing approvals", () =>
+    Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const created = yield* registrations.createAwaitingApproval({ details });
+      yield* registrations.markApprovalProcessing({
+        registrationId: created.id,
+        decision: "approved",
+      });
+
+      const approved = yield* registrations.markApproved({
+        registrationId: created.id,
+        decision: makeDecision(),
+        commerceAccount: makeCommerceAccount(created.id),
+        invitationId: makeInvitationId(created.id),
+      });
+
+      expect(approved._tag).toBe("ApprovedRegistration");
+    }).pipe(Effect.provide(Registrations.layerMemory))
+  );
+
   it.effect("finds approved registrations by invitation id", () =>
     Effect.gen(function* () {
       const registrations = yield* Registrations;
