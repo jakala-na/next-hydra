@@ -15,19 +15,19 @@
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "better-result": "2.7.0",
-    "react": "^19.2.4",
+    "react": "catalog:",
     "react-hook-form": "^7.68.0",
-    "server-only": "^0.0.1",
+    "server-only": "catalog:",
     "zod": "^3.25.28"
   },
   "peerDependencies": {
-    "next": "16.1.6"
+    "next": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "22.15.21",
-    "@types/react": "^19.2.10",
-    "@types/react-dom": "^19.2.3",
-    "typescript": "^5.8.3"
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:"
   }
 }

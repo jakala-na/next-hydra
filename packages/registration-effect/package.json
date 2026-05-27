@@ -9,24 +9,25 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "devDependencies": {
-    "@effect/vitest": "4.0.0-beta.67",
+    "@effect/vitest": "catalog:",
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "22.15.21",
-    "@types/react": "^19.2.10",
-    "@types/react-dom": "^19.2.3",
-    "typescript": "^5.8.3"
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:",
+    "effect": "catalog:"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@repo/design-system": "workspace:*",
     "@repo/form": "workspace:*",
     "@repo/i18n": "workspace:*",
-    "effect": "4.0.0-beta.67",
-    "react": "^19.2.4",
+    "react": "catalog:",
     "react-hook-form": "^7.68.0",
     "sonner": "^2.0.7"
   },
   "peerDependencies": {
-    "next": "16.1.6"
+    "next": "catalog:",
+    "effect": "catalog:"
   }
 }

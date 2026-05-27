@@ -10,20 +10,26 @@
     "@logtail/next": "^0.2.0",
     "@sentry/effect": "^10.54.0",
     "@sentry/nextjs": "^10.54.0",
-    "@t3-oss/env-nextjs": "^0.13.4",
-    "effect": "4.0.0-beta.67",
-    "react": "^19.2.4",
-    "server-only": "^0.0.1",
+    "@t3-oss/env-nextjs": "catalog:",
+    "react": "catalog:",
+    "server-only": "catalog:",
     "zod": "^3.25.28"
   },
   "peerDependencies": {
-    "next": "16.1.6"
+    "next": "catalog:",
+    "effect": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "22.15.21",
-    "@types/react": "^19.2.10",
-    "@types/react-dom": "^19.2.3",
-    "typescript": "^5.8.3"
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:",
+    "effect": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "effect": {
+      "optional": true
+    }
   }
 }
