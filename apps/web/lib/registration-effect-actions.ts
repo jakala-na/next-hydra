@@ -1,94 +1,122 @@
 "use server";
 
+import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import {
+  type RegistrationFormError,
+  type RegistrationFormFieldError,
   type RegistrationFormInput,
   RegistrationFormInputSchema,
   type RegistrationFormResult,
-  type RegistrationFormValidationErrorCode,
+  type RegistrationFormValues,
 } from "@repo/registration-effect";
 import {
-  type CreateRegistrationResponse,
-  RegistrationApiValidationError,
+  CreateRegistrationRequest,
+  type RegistrationApiValidationError,
 } from "@repo/registration-effect/http/registration-api";
 import { Effect, Schema } from "effect";
-import {
-  fetchRegistrationRest,
-  RegistrationRestError,
-} from "./registration-rest-client";
+import { makeRegistrationRestClient } from "./registration-rest-client";
 
 const toRegistrationInput = (
   input: RegistrationFormInput
-): Record<string, unknown> => ({
-  companyName: input.companyName,
-  companyPhone: input.companyPhone,
-  vatId: input.vatId,
-  contactFirstName: input.contactFirstName,
-  contactLastName: input.contactLastName,
-  email: input.email,
-  address: {
-    streetName: input.address.streetName,
-    additionalStreetInfo: input.address.additionalStreetInfo,
-    postalCode: input.address.postalCode,
-    city: input.address.city,
-    region: input.address.region,
-    country: input.address.country,
-  },
-});
+): CreateRegistrationRequest =>
+  new CreateRegistrationRequest({
+    companyName: input.companyName,
+    companyPhone: input.companyPhone,
+    vatId: input.vatId,
+    contactFirstName: input.contactFirstName,
+    contactLastName: input.contactLastName,
+    email: input.email,
+    address: {
+      streetName: input.address.streetName,
+      additionalStreetInfo: input.address.additionalStreetInfo,
+      postalCode: input.address.postalCode,
+      city: input.address.city,
+      region: input.address.region,
+      country: input.address.country,
+    },
+  });
+
+const toValidationErrors = (
+  error: RegistrationApiValidationError
+): RegistrationFormResult => {
+  const fieldErrors: RegistrationFormFieldError[] = [];
+  const formErrors: RegistrationFormError[] = [];
+
+  for (const reason of error.reasons) {
+    switch (reason._tag) {
+      case "DuplicateRegistrationEmail":
+        fieldErrors.push({
+          path: reason.path,
+          code: reason.code,
+        });
+        break;
+      case "InvalidRegistrationVatId":
+        fieldErrors.push({
+          path: reason.path,
+          code: reason.code,
+        });
+        break;
+      case "UnsupportedRegistrationCountry":
+        formErrors.push({
+          code: reason.code,
+        });
+        break;
+      default:
+        reason satisfies never;
+    }
+  }
+
+  return {
+    status: "invalid",
+    fieldErrors,
+    formErrors,
+  };
+};
+
+const submitRegistrationProgram = (input: RegistrationFormValues) =>
+  Effect.gen(function* () {
+    const decoded = yield* Schema.decodeUnknownEffect(
+      RegistrationFormInputSchema
+    )(input);
+
+    const client = yield* makeRegistrationRestClient();
+    const registration = yield* client.registrations.create({
+      payload: toRegistrationInput(decoded),
+    });
+
+    return {
+      status: "submitted",
+      registrationId: registration.registrationId,
+    } satisfies RegistrationFormResult;
+  }).pipe(
+    Effect.catchTags({
+      RegistrationApiValidationError: (error) =>
+        Effect.succeed(toValidationErrors(error)),
+      SchemaError: () =>
+        Effect.succeed({
+          status: "invalid",
+          fieldErrors: [],
+          formErrors: [{ code: "invalidSubmission" }],
+        } satisfies RegistrationFormResult),
+    }),
+    Effect.tapCause((cause) =>
+      Effect.logError("Failed to submit registration form", cause).pipe(
+        Effect.withLogSpan("registration.form.submit.failure")
+      )
+    ),
+    Effect.withSpan("registration.form.submit"),
+    Effect.annotateSpans({
+      "registration.operation": "form.submit",
+    }),
+    Effect.annotateLogs({
+      operation: "registration.form.submit",
+      service: "web",
+    }),
+    Effect.provide(sentryEffectTelemetryLayer)
+  );
 
 export async function submitRegistrationEffect(
-  input: RegistrationFormInput
+  input: RegistrationFormValues
 ): Promise<RegistrationFormResult> {
-  try {
-    const decoded = await Effect.runPromise(
-      Schema.decodeUnknownEffect(RegistrationFormInputSchema)(input)
-    );
-    const registration =
-      await fetchRegistrationRest<CreateRegistrationResponse>(
-        "/registrations",
-        {
-          method: "POST",
-          body: JSON.stringify(toRegistrationInput(decoded)),
-        }
-      );
-
-    return {
-      _tag: "Success",
-      registrationId: registration.registrationId,
-    };
-  } catch (error) {
-    if (error instanceof RegistrationRestError) {
-      const validationError = Schema.decodeUnknownOption(
-        RegistrationApiValidationError
-      )(error.body);
-
-      if (validationError._tag === "Some") {
-        const fieldErrors = Object.fromEntries(
-          validationError.value.reasons
-            .filter((reason) => "path" in reason)
-            .map((reason) => [reason.path, reason.code])
-        );
-        const formErrors = validationError.value.reasons
-          .filter((reason) => !("path" in reason))
-          .map((reason) => reason.code as RegistrationFormValidationErrorCode);
-
-        return {
-          _tag: "ValidationErrors",
-          fieldErrors,
-          formErrors,
-        };
-      }
-    }
-
-    if (Schema.isSchemaError(error)) {
-      return {
-        _tag: "FormError",
-        code: "invalidSubmission",
-      };
-    }
-
-    return {
-      _tag: "FormError",
-      code: "submitFailed",
-    };
-  }
+  return await Effect.runPromise(submitRegistrationProgram(input));
 }

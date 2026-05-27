@@ -1,9 +1,18 @@
+import { RegistrationReviewerActor } from "@repo/registration-effect/domain/actors";
+import { ApprovedDecision } from "@repo/registration-effect/domain/approval";
+import { CommerceAccount } from "@repo/registration-effect/domain/commerce";
 import {
+  AuthUserId,
+  CommerceBusinessUnitId,
+  CommerceCustomerId,
   CountryCode,
+  Email,
+  InvitationId,
   RegistrationId,
 } from "@repo/registration-effect/domain/identity";
 import {
   ApprovalProcessingRegistration,
+  ApprovedRegistration,
   AwaitingApprovalRegistration,
   type Registration,
 } from "@repo/registration-effect/domain/registration";
@@ -28,9 +37,10 @@ import {
 import {
   RegistrationNotFound,
   Registrations,
+  RegistrationTransitionConflict,
 } from "@repo/registration-effect/services/registrations";
 import { VatValidator } from "@repo/registration-effect/services/vat-validator";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Redacted } from "effect";
 import { beforeEach, expect, test, vi } from "vitest";
 
 const HTTP_OK = 200;
@@ -111,6 +121,40 @@ const makeAwaitingRegistration = (
     updatedAt: new Date("2026-03-22T00:00:00.000Z"),
   });
 
+const makeApprovedRegistration = (
+  registrationId: string,
+  payload: typeof registrationPayload = registrationPayload
+) => {
+  const awaiting = makeAwaitingRegistration(registrationId, payload);
+
+  return new ApprovedRegistration({
+    _tag: "ApprovedRegistration",
+    status: "approved",
+    id: awaiting.id,
+    details: awaiting.details,
+    decision: new ApprovedDecision({
+      decision: "approved",
+      actor: new RegistrationReviewerActor({
+        actorType: "registration_reviewer",
+        authUserId: AuthUserId.make("auth-reviewer-1"),
+        email: Redacted.make(Email.make("reviewer@example.com"), {
+          label: "email",
+        }),
+        name: "Registration Reviewer",
+      }),
+      decidedAt: new Date("2026-03-22T00:00:01.000Z"),
+    }),
+    commerceAccount: new CommerceAccount({
+      registrationId: awaiting.id,
+      customerId: CommerceCustomerId.make("customer-1"),
+      businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+    }),
+    invitationId: InvitationId.make("invitation-1"),
+    createdAt: awaiting.createdAt,
+    updatedAt: new Date("2026-03-22T00:00:01.000Z"),
+  });
+};
+
 const makeApiLayer = (
   seed: readonly Registration[] = [],
   options: {
@@ -170,11 +214,27 @@ const makeApiLayer = (
       findByInvitationId: () => Effect.die("not used"),
       get,
       markApprovalProcessing: ({ registrationId, decision }) =>
-        Effect.sync(() => {
+        Effect.gen(function* () {
           const current = registrations.get(String(registrationId));
 
           if (!current) {
-            throw new Error(`Registration ${registrationId} was not found`);
+            return yield* Effect.fail(
+              new RegistrationNotFound({
+                message: `Registration ${registrationId} was not found`,
+                registrationId,
+              })
+            );
+          }
+
+          if (current._tag !== "AwaitingApprovalRegistration") {
+            return yield* Effect.fail(
+              new RegistrationTransitionConflict({
+                message: `Cannot mark registration ${registrationId} as ${decision} from ${current._tag}`,
+                registrationId,
+                currentState: current._tag,
+                attemptedDecision: decision,
+              })
+            );
           }
 
           const processing = new ApprovalProcessingRegistration({
@@ -669,6 +729,32 @@ test("POST /registrations/:id/approve moves accepted decisions out of awaiting a
 
     expect(response.status).toBe(HTTP_OK);
     expect(body.items).toHaveLength(0);
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/reject does not resume workflow when transition conflicts", async () => {
+  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  const registration = makeApprovedRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration]);
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request(
+        "POST",
+        `/registrations/${registration.id}/reject`,
+        reviewerPayload,
+        { "x-registration-approval-secret": "test-approval-secret" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body._tag).toBe("RegistrationAlreadyApproved");
+    expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }

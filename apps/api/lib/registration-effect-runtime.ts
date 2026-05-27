@@ -5,6 +5,7 @@ import { layerCommercetoolsCustomObjectKeyValueStore } from "@repo/commerce/lib/
 import { layerCommercetoolsRegistrationQueries } from "@repo/commerce/lib/infra/commercetools/registration-queries";
 import { layerRegistrationEmails } from "@repo/email/registration-effect";
 import { layerResendEmailProvider } from "@repo/email/resend-provider";
+import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import { RegistrationMarketPolicy } from "@repo/registration-effect/services/registration-market-policy";
 import { Registrations } from "@repo/registration-effect/services/registrations";
 import { VatValidator } from "@repo/registration-effect/services/vat-validator";
@@ -39,5 +40,6 @@ export const registrationEffectLayer = Registrations.layerStorage.pipe(
       invalidVatIds: ["INVALID-VAT", "VAT-INVALID", "000"],
     })
   ),
-  Layer.provideMerge(registrationEmailsLayer)
+  Layer.provideMerge(registrationEmailsLayer),
+  Layer.provideMerge(sentryEffectTelemetryLayer)
 );

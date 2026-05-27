@@ -1,5 +1,7 @@
 import "server-only";
 
+import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
+import { RegistrationId } from "@repo/registration-effect";
 import type {
   ApproveRegistrationInput,
   RegistrationDecisionResult,
@@ -7,21 +9,24 @@ import type {
   RegistrationDetailView,
   RejectRegistrationInput,
 } from "@repo/registration-effect/components/admin/registration-view-models";
-import type {
-  ListRegistrationsResponse,
-  RegistrationDecisionResponse,
-  RegistrationDetailResponse,
+import {
+  RegistrationAlreadyApproved,
+  RegistrationAlreadyRejected,
+  RegistrationApiConflict,
+  RegistrationApiNotFound,
+  RegistrationDecisionAlreadyProcessing,
+  RegistrationDecisionRequest,
+  type RegistrationDetailResponse,
+  RegistrationReviewerInput,
 } from "@repo/registration-effect/http/registration-api";
+import { Effect } from "effect";
 import { env } from "@/env";
 import {
   ADMIN_REGISTRATION_DECIDE_PERMISSION,
   getAdminActor,
   requireAdminPermission,
 } from "./admin-auth";
-import {
-  fetchRegistrationRest,
-  RegistrationRestError,
-} from "./registration-rest-client";
+import { makeRegistrationRestClient } from "./registration-rest-client";
 
 export type ListAdminRegistrationsEffectInput = {
   readonly status?: RegistrationDetailStatus;
@@ -41,8 +46,25 @@ const EFFECT_REGISTRATION_STATUSES = [
   "rejected",
 ] as const satisfies readonly RegistrationDetailStatus[];
 
-const HTTP_NOT_FOUND = 404;
-const HTTP_CONFLICT = 409;
+const logDecisionFailure = (
+  input: (ApproveRegistrationInput | RejectRegistrationInput) & {
+    readonly decision: "approved" | "rejected";
+  },
+  error: unknown
+): Promise<void> => {
+  return Effect.runPromise(
+    Effect.logError("Failed to save registration decision", error).pipe(
+      Effect.annotateLogs({
+        operation: "registration.admin.decision.save",
+        "registration.decision": input.decision,
+        "registration.id": input.registrationId,
+        service: "web-admin",
+      }),
+      Effect.withLogSpan("registration.admin.decision.save"),
+      Effect.provide(sentryEffectTelemetryLayer)
+    )
+  );
+};
 
 const isEffectRegistrationStatus = (
   status: RegistrationDetailStatus | undefined
@@ -80,36 +102,25 @@ const toRegistrationDetailView = (
   ...(registration.actorName ? { actorName: registration.actorName } : {}),
 });
 
-const buildListPath = (input: ListAdminRegistrationsEffectInput) => {
-  const params = new URLSearchParams();
-
-  if (isEffectRegistrationStatus(input.status)) {
-    params.set("status", input.status);
-  }
-
-  if (input.search) {
-    params.set("search", input.search);
-  }
-
-  if (input.cursor) {
-    params.set("cursor", input.cursor);
-  }
-
-  if (input.limit) {
-    params.set("limit", String(input.limit));
-  }
-
-  const query = params.toString();
-  return query ? `/registrations?${query}` : "/registrations";
-};
-
 export async function listAdminRegistrationsEffect(
   input: ListAdminRegistrationsEffectInput
 ): Promise<ListAdminRegistrationsEffectResult> {
   await requireAdminPermission("registration.read");
 
-  const result = await fetchRegistrationRest<ListRegistrationsResponse>(
-    buildListPath(input)
+  const result = await Effect.runPromise(
+    Effect.gen(function* () {
+      const client = yield* makeRegistrationRestClient();
+      return yield* client.registrations.list({
+        query: {
+          ...(isEffectRegistrationStatus(input.status)
+            ? { status: input.status }
+            : {}),
+          ...(input.search ? { search: input.search } : {}),
+          ...(input.cursor ? { cursor: input.cursor } : {}),
+          ...(input.limit ? { limit: input.limit } : {}),
+        },
+      });
+    })
   );
   const items = result.items.map(toRegistrationDetailView);
 
@@ -125,15 +136,19 @@ export async function getAdminRegistrationEffect(input: {
 
   try {
     return toRegistrationDetailView(
-      await fetchRegistrationRest<RegistrationDetailResponse>(
-        `/registrations/${input.registrationId}`
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const client = yield* makeRegistrationRestClient();
+          return yield* client.registrations.get({
+            params: {
+              registrationId: RegistrationId.make(input.registrationId),
+            },
+          });
+        })
       )
     );
   } catch (error) {
-    if (
-      error instanceof RegistrationRestError &&
-      error.status === HTTP_NOT_FOUND
-    ) {
+    if (error instanceof RegistrationApiNotFound) {
       return null;
     }
 
@@ -142,28 +157,58 @@ export async function getAdminRegistrationEffect(input: {
 }
 
 const decisionFailure = (error: unknown): RegistrationDecisionResult => {
-  if (error instanceof RegistrationRestError) {
-    switch (error.status) {
-      case HTTP_NOT_FOUND:
-        return {
-          _tag: "NotFound",
-          message: "This registration could not be found anymore.",
-        };
-      case HTTP_CONFLICT:
-        return {
-          _tag: "Conflict",
-          message:
-            "This registration cannot be updated in its current workflow state.",
-        };
-      default:
-        break;
-    }
+  if (error instanceof RegistrationApiNotFound) {
+    return {
+      status: "invalid",
+      fieldErrors: [],
+      formErrors: [
+        {
+          code: "registrationNotFound",
+        },
+      ],
+    };
   }
 
-  return {
-    _tag: "Failure",
-    message: "The decision could not be saved. Please try again.",
-  };
+  if (error instanceof RegistrationAlreadyApproved) {
+    return {
+      status: "invalid",
+      fieldErrors: [],
+      formErrors: [
+        {
+          code: "registrationAlreadyApproved",
+        },
+      ],
+    };
+  }
+
+  if (error instanceof RegistrationAlreadyRejected) {
+    return {
+      status: "invalid",
+      fieldErrors: [],
+      formErrors: [
+        {
+          code: "registrationAlreadyRejected",
+        },
+      ],
+    };
+  }
+
+  if (
+    error instanceof RegistrationDecisionAlreadyProcessing ||
+    error instanceof RegistrationApiConflict
+  ) {
+    return {
+      status: "invalid",
+      fieldErrors: [],
+      formErrors: [
+        {
+          code: "registrationDecisionAlreadyProcessing",
+        },
+      ],
+    };
+  }
+
+  throw error;
 };
 
 const decideRegistration = async (
@@ -177,38 +222,61 @@ const decideRegistration = async (
   const actor = await getAdminActor();
 
   if (!env.REGISTRATION_APPROVAL_SECRET) {
-    return {
-      _tag: "Failure",
-      message:
-        "REGISTRATION_APPROVAL_SECRET must be configured to decide registrations.",
-    };
+    throw new Error(
+      "REGISTRATION_APPROVAL_SECRET must be configured to decide registrations."
+    );
   }
 
+  const approvalSecret = env.REGISTRATION_APPROVAL_SECRET;
+
   try {
-    const result = await fetchRegistrationRest<RegistrationDecisionResponse>(
-      `/registrations/${input.registrationId}/${input.decision === "approved" ? "approve" : "reject"}`,
-      {
-        method: "POST",
-        headers: {
-          "x-registration-approval-secret": env.REGISTRATION_APPROVAL_SECRET,
-        },
-        body: JSON.stringify({
-          reviewer: {
-            authUserId: session.user.id,
-            email: actor.actorEmail,
-            name: actor.actorName || actor.actorEmail,
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const client = yield* makeRegistrationRestClient();
+        const request = {
+          params: {
+            registrationId: RegistrationId.make(input.registrationId),
           },
-          ...(input.reason ? { reason: input.reason } : {}),
+          headers: {
+            "x-registration-approval-secret": approvalSecret,
+          },
+          payload: new RegistrationDecisionRequest({
+            reviewer: new RegistrationReviewerInput({
+              authUserId: session.user.id,
+              email: actor.actorEmail,
+              name: actor.actorName || actor.actorEmail,
+            }),
+            ...(input.reason ? { reason: input.reason } : {}),
+          }),
+        };
+
+        return input.decision === "approved"
+          ? yield* client.registrations.approve(request)
+          : yield* client.registrations.reject(request);
+      }).pipe(
+        Effect.annotateLogs({
+          operation: "registration.admin.decision.submit",
+          "registration.decision": input.decision,
+          "registration.id": input.registrationId,
+          service: "web-admin",
         }),
-      }
+        Effect.annotateSpans({
+          "registration.decision": input.decision,
+          "registration.id": input.registrationId,
+          "registration.operation": "decision.submit",
+        }),
+        Effect.withSpan("registration.admin.decision.submit"),
+        Effect.provide(sentryEffectTelemetryLayer)
+      )
     );
 
     return {
-      _tag: "Success",
+      status: "accepted",
       registrationId: String(result.registrationId),
-      status: result.status,
+      registrationStatus: result.status,
     };
   } catch (error) {
+    await logDecisionFailure(input, error);
     return decisionFailure(error);
   }
 };

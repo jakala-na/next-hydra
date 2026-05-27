@@ -1,3 +1,7 @@
-import { initializeSentry } from "@repo/observability/instrumentation";
+import {
+  captureSentryRequestError,
+  initializeSentry,
+} from "@repo/observability/instrumentation";
 
-export const register = initializeSentry();
+export const register = initializeSentry;
+export const onRequestError = captureSentryRequestError;

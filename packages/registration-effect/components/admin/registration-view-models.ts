@@ -1,3 +1,4 @@
+import type { InvalidFormActionResult } from "@repo/form";
 import { Redacted, Schema } from "effect";
 import type { RegistrationReviewerActor } from "../../domain/actors";
 import type {
@@ -86,25 +87,20 @@ export type RejectRegistrationInput = Pick<
 
 export type RegistrationDecisionResult =
   | {
-      readonly _tag: "Success";
+      readonly status: "accepted";
       readonly registrationId: string;
-      readonly status: Extract<
+      readonly registrationStatus: Extract<
         RegistrationDetailStatus,
         "approval_processing" | "approved" | "rejected"
       >;
     }
-  | {
-      readonly _tag: "Conflict";
-      readonly message: string;
-    }
-  | {
-      readonly _tag: "NotFound";
-      readonly message: string;
-    }
-  | {
-      readonly _tag: "Failure";
-      readonly message: string;
-    };
+  | InvalidFormActionResult<never, never, RegistrationDecisionFormErrorCode>;
+
+export type RegistrationDecisionFormErrorCode =
+  | "registrationAlreadyApproved"
+  | "registrationAlreadyRejected"
+  | "registrationDecisionAlreadyProcessing"
+  | "registrationNotFound";
 
 const reviewerEmail = (actor: RegistrationReviewerActor) =>
   String(Redacted.value(actor.email));

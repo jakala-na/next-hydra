@@ -1,3 +1,8 @@
+import type {
+  FormActionFieldError,
+  FormActionFormError,
+  InvalidFormActionResult,
+} from "@repo/form";
 import { Schema } from "effect";
 
 export const REGION_REQUIRED_COUNTRY_CODES = ["US", "CA"] as const;
@@ -283,6 +288,8 @@ export type RegistrationFormMessageKey =
   | "validation.region"
   | "validation.country"
   | "validation.duplicateEmail"
+  | "errors.invalidSubmission"
+  | "errors.submitFailed"
   | "errors.unsupportedRegistrationCountry";
 
 type RegistrationFormTranslator = (key: RegistrationFormMessageKey) => string;
@@ -405,32 +412,31 @@ export type RegistrationFormInput = typeof RegistrationFormInputSchema.Type;
 export type RegistrationFormValues = typeof RegistrationFormInputSchema.Encoded;
 
 export type RegistrationFormFieldPath =
-  | keyof Omit<RegistrationFormInput, "address">
-  | `address.${keyof RegistrationFormInput["address"]}`;
+  | keyof Omit<RegistrationFormValues, "address">
+  | `address.${keyof RegistrationFormValues["address"]}`;
 
 export type RegistrationFormFieldErrorCode = "duplicateEmail" | "invalidVatId";
 
-export type RegistrationFormFieldErrors = Partial<
-  Record<RegistrationFormFieldPath, RegistrationFormFieldErrorCode>
+export type RegistrationFormFieldError = FormActionFieldError<
+  RegistrationFormFieldPath,
+  RegistrationFormFieldErrorCode
 >;
 
 export type RegistrationFormValidationErrorCode =
-  "unsupportedRegistrationCountry";
+  | "invalidSubmission"
+  | "unsupportedRegistrationCountry";
 
-export type RegistrationFormErrorCode = "invalidSubmission" | "submitFailed";
+export type RegistrationFormError =
+  FormActionFormError<RegistrationFormValidationErrorCode>;
 
 export type RegistrationFormResult =
   | {
-      readonly _tag: "Success";
+      readonly status: "submitted";
       readonly registrationId: string;
       readonly redirectTo?: string;
     }
-  | {
-      readonly _tag: "ValidationErrors";
-      readonly fieldErrors: RegistrationFormFieldErrors;
-      readonly formErrors: readonly RegistrationFormValidationErrorCode[];
-    }
-  | {
-      readonly _tag: "FormError";
-      readonly code: RegistrationFormErrorCode;
-    };
+  | InvalidFormActionResult<
+      RegistrationFormFieldPath,
+      RegistrationFormFieldErrorCode,
+      RegistrationFormValidationErrorCode
+    >;

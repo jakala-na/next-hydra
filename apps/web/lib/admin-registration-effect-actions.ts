@@ -14,7 +14,7 @@ import {
 const revalidateRegistrationApprovals = (
   result: RegistrationDecisionResult
 ) => {
-  if (result._tag === "Success") {
+  if (result.status === "accepted") {
     revalidatePath("/admin/registration-approvals");
   }
 

@@ -28,29 +28,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/design-system/components/ui/select";
+import {
+  type ReactHookFormActionErrorMessages,
+  setReactHookFormActionErrors,
+  setReactHookFormRootError,
+} from "@repo/form/react-hook-form";
 import { useLocale, useTranslations } from "@repo/i18n";
 import { Schema } from "effect";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import type { FieldPath, UseFormReturn } from "react-hook-form";
+import type { FieldPath } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import {
   getCountryOptions,
   makeRegistrationFormInputSchema,
-  type RegistrationFormFieldErrorCode,
-  type RegistrationFormFieldErrors,
-  type RegistrationFormInput,
-  type RegistrationFormMessageKey,
+  type RegistrationFormError,
+  type RegistrationFormFieldError,
   type RegistrationFormResult,
-  type RegistrationFormValidationErrorCode,
   type RegistrationFormValues,
   requiresRegion,
 } from "./registration-form-schema";
 
 type RegistrationFormProps = {
   readonly submit: (
-    input: RegistrationFormInput
+    input: RegistrationFormValues
   ) => Promise<RegistrationFormResult>;
   readonly awaitingApprovalUrl: string;
 };
@@ -70,42 +71,6 @@ const defaultValues: RegistrationFormValues = {
     region: "",
     country: "US",
   },
-};
-
-const setServerFieldErrors = (
-  form: UseFormReturn<RegistrationFormValues>,
-  errors: RegistrationFormFieldErrors,
-  t: (key: RegistrationFormMessageKey) => string
-) => {
-  const messages = {
-    duplicateEmail: "validation.duplicateEmail",
-    invalidVatId: "validation.invalidVatId",
-  } as const satisfies Record<
-    RegistrationFormFieldErrorCode,
-    RegistrationFormMessageKey
-  >;
-
-  for (const [name, code] of Object.entries(errors)) {
-    if (code) {
-      form.setError(name as FieldPath<RegistrationFormValues>, {
-        message: t(messages[code]),
-        type: "server",
-      });
-    }
-  }
-};
-
-const getServerFormErrorMessageKey = (
-  code: RegistrationFormValidationErrorCode
-) => {
-  const messages = {
-    unsupportedRegistrationCountry: "errors.unsupportedRegistrationCountry",
-  } as const satisfies Record<
-    RegistrationFormValidationErrorCode,
-    RegistrationFormMessageKey
-  >;
-
-  return messages[code];
 };
 
 function TranslatedFormMessage({ className }: { readonly className?: string }) {
@@ -130,8 +95,6 @@ export function RegistrationForm({
   const t = useTranslations("web.registration.form");
   const locale = useLocale();
   const router = useRouter();
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const registrationFormSchema = makeRegistrationFormInputSchema(t);
   const form = useForm<RegistrationFormValues>({
     resolver: standardSchemaResolver(
@@ -143,6 +106,23 @@ export function RegistrationForm({
   const selectedCountry = form.watch("address.country");
   const isRegionRequired = requiresRegion(selectedCountry);
   const countryOptions = getCountryOptions(locale);
+  const actionErrorMessages = {
+    field: {
+      duplicateEmail: t("validation.duplicateEmail"),
+      invalidVatId: t("validation.invalidVatId"),
+    },
+    form: {
+      invalidSubmission: t("errors.invalidSubmission"),
+      unsupportedRegistrationCountry: t(
+        "errors.unsupportedRegistrationCountry"
+      ),
+    },
+  } satisfies ReactHookFormActionErrorMessages<
+    RegistrationFormFieldError["code"],
+    RegistrationFormError["code"]
+  >;
+  const formError = form.formState.errors.root?.serverError?.message;
+  const isSubmitting = form.formState.isSubmitting;
   const renderRowFieldMessage = (name: FieldPath<RegistrationFormValues>) => {
     const message = form.getFieldState(name, form.formState).error?.message;
 
@@ -154,7 +134,7 @@ export function RegistrationForm({
       <form
         className="grid gap-6"
         onSubmit={form.handleSubmit(async (values) => {
-          setFormError(null);
+          form.clearErrors("root");
 
           if (
             requiresRegion(values.address.country) &&
@@ -167,39 +147,24 @@ export function RegistrationForm({
             return;
           }
 
-          setIsSubmitting(true);
-
           try {
             const result = await submit(values);
 
-            switch (result._tag) {
-              case "Success":
+            switch (result.status) {
+              case "submitted":
                 router.push(
                   (result.redirectTo ??
                     `${awaitingApprovalUrl}?email=${encodeURIComponent(values.email)}`) as Route
                 );
                 return;
-              case "ValidationErrors":
-                setServerFieldErrors(form, result.fieldErrors, t);
-                {
-                  const [firstFormError] = result.formErrors;
-                  setFormError(
-                    firstFormError
-                      ? t(getServerFormErrorMessageKey(firstFormError))
-                      : null
-                  );
-                }
-                return;
-              case "FormError":
-                setFormError(t(`errors.${result.code}`));
+              case "invalid":
+                setReactHookFormActionErrors(form, result, actionErrorMessages);
                 return;
               default:
                 result satisfies never;
             }
           } catch {
-            setFormError(t("errors.submitFailed"));
-          } finally {
-            setIsSubmitting(false);
+            setReactHookFormRootError(form, t("errors.submitFailed"));
           }
         })}
       >

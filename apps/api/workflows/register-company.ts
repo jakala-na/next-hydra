@@ -83,18 +83,55 @@ const toAcceptedAuthIdentity = (
     ),
   });
 
+const runWorkflowStep = <A, R>(
+  effect: Effect.Effect<A, unknown, R>,
+  input: RegistrationWorkflowInput,
+  step: string,
+  annotations: Record<string, string> = {}
+) => {
+  const runnable = effect.pipe(
+    Effect.annotateLogs({
+      operation: `registration.workflow.${step}`,
+      "registration.id": input.registrationId,
+      service: "registration-workflow",
+      "workflow.name": "registerCompanyWorkflow",
+      "workflow.step": step,
+      ...annotations,
+    }),
+    Effect.annotateSpans({
+      "registration.id": input.registrationId,
+      "registration.operation": step,
+      "workflow.name": "registerCompanyWorkflow",
+      "workflow.step": step,
+      ...Object.fromEntries(
+        Object.entries(annotations).map(([key, value]) => [
+          `registration.${key}`,
+          value,
+        ])
+      ),
+    }),
+    Effect.withSpan(`registration.workflow.${step}`),
+    Effect.provide(registrationEffectLayer)
+  ) as Effect.Effect<A, unknown, never>;
+
+  return Effect.runPromise(runnable);
+};
+
 async function approveRegistrationStep(
   input: RegistrationWorkflowInput,
   decision: RegistrationWorkflowDecision
 ) {
   "use step";
 
-  const registration = await Effect.runPromise(
+  const registration = await runWorkflowStep(
     approveRegistration({
       registrationId: RegistrationId.make(input.registrationId),
       actor: toReviewerActor(new RegistrationReviewerInput(decision.reviewer)),
       ...(decision.reason === undefined ? {} : { reason: decision.reason }),
-    }).pipe(Effect.provide(registrationEffectLayer))
+    }),
+    input,
+    "approve",
+    { decision: decision.decision }
   );
 
   return toPlainRegistrationDetailResponse(
@@ -105,20 +142,24 @@ async function approveRegistrationStep(
 async function notifyAwaitingApprovalStep(input: RegistrationWorkflowInput) {
   "use step";
 
-  await Effect.runPromise(
+  await runWorkflowStep(
     notifyRegistrationAwaitingApproval({
       registrationId: RegistrationId.make(input.registrationId),
-    }).pipe(Effect.provide(registrationEffectLayer))
+    }),
+    input,
+    "notify-awaiting-approval"
   );
 }
 
 async function notifyApprovedStep(input: RegistrationWorkflowInput) {
   "use step";
 
-  await Effect.runPromise(
+  await runWorkflowStep(
     notifyRegistrationApproved({
       registrationId: RegistrationId.make(input.registrationId),
-    }).pipe(Effect.provide(registrationEffectLayer))
+    }),
+    input,
+    "notify-approved"
   );
 }
 
@@ -133,12 +174,15 @@ async function acceptInvitationStep(
 ) {
   "use step";
 
-  const registration = await Effect.runPromise(
+  const registration = await runWorkflowStep(
     acceptRegistrationInvitation({
       registrationId: RegistrationId.make(input.registrationId),
       invitationId: InvitationId.make(invitationId),
       acceptedIdentity: toAcceptedAuthIdentity(event, fallback),
-    }).pipe(Effect.provide(registrationEffectLayer))
+    }),
+    input,
+    "accept-invitation",
+    { invitationId }
   );
 
   return toPlainRegistrationDetailResponse(
@@ -152,12 +196,15 @@ async function rejectRegistrationStep(
 ) {
   "use step";
 
-  const registration = await Effect.runPromise(
+  const registration = await runWorkflowStep(
     rejectRegistration({
       registrationId: RegistrationId.make(input.registrationId),
       actor: toReviewerActor(new RegistrationReviewerInput(decision.reviewer)),
       ...(decision.reason === undefined ? {} : { reason: decision.reason }),
-    }).pipe(Effect.provide(registrationEffectLayer))
+    }),
+    input,
+    "reject",
+    { decision: decision.decision }
   );
 
   return toPlainRegistrationDetailResponse(
@@ -168,10 +215,12 @@ async function rejectRegistrationStep(
 async function notifyRejectedStep(input: RegistrationWorkflowInput) {
   "use step";
 
-  await Effect.runPromise(
+  await runWorkflowStep(
     notifyRegistrationRejected({
       registrationId: RegistrationId.make(input.registrationId),
-    }).pipe(Effect.provide(registrationEffectLayer))
+    }),
+    input,
+    "notify-rejected"
   );
 }
 

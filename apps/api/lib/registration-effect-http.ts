@@ -303,12 +303,20 @@ const makeRegistrationEffectHttpHandlers = ({
               identityUsers,
               marketPolicy,
               vatValidator
-            );
+            ).pipe(Effect.withSpan("registration.api.create.validate"));
             const registration = yield* registrations.createAwaitingApproval({
               details,
             });
+            yield* Effect.annotateCurrentSpan({
+              "registration.id": String(registration.id),
+            });
 
             yield* startRegistrationWorkflow(String(registration.id)).pipe(
+              Effect.withSpan("registration.workflow.start", {
+                attributes: {
+                  "registration.id": String(registration.id),
+                },
+              }),
               Effect.orDie
             );
 
@@ -316,7 +324,17 @@ const makeRegistrationEffectHttpHandlers = ({
               registrationId: registration.id,
               status: "awaiting_approval",
             });
-          }).pipe(Effect.mapError(toRegistrationHttpError))
+          }).pipe(
+            Effect.annotateLogs({
+              operation: "registration.api.create",
+              service: "registration-api",
+            }),
+            Effect.annotateSpans({
+              "registration.operation": "create",
+            }),
+            Effect.withSpan("registration.api.create"),
+            Effect.mapError(toRegistrationHttpError)
+          )
         )
         .handle("list", ({ query }) =>
           queries
@@ -358,6 +376,10 @@ const makeRegistrationEffectHttpHandlers = ({
               approvalSecret,
               headers["x-registration-approval-secret"]
             );
+            yield* registrations.markApprovalProcessing({
+              registrationId: params.registrationId,
+              decision: "approved",
+            });
             yield* resumeRegistrationWorkflow(String(params.registrationId), {
               decision: "approved",
               reviewer: toWorkflowReviewer(payload.reviewer),
@@ -365,16 +387,30 @@ const makeRegistrationEffectHttpHandlers = ({
                 ? {}
                 : { reason: payload.reason }),
             });
-            yield* registrations.markApprovalProcessing({
-              registrationId: params.registrationId,
-              decision: "approved",
-            });
 
             return new RegistrationDecisionAcceptedResponse({
               registrationId: params.registrationId,
               status: "approval_processing",
             });
-          }).pipe(Effect.mapError(toRegistrationHttpError))
+          }).pipe(
+            Effect.tapCause((cause) =>
+              Effect.logError("Failed to accept registration decision", cause)
+            ),
+            Effect.annotateLogs({
+              operation: "registration.api.decision.accept",
+              "registration.decision": "approved",
+              "registration.id": String(params.registrationId),
+              service: "registration-api",
+            }),
+            Effect.annotateSpans({
+              "registration.decision": "approved",
+              "registration.id": String(params.registrationId),
+              "registration.operation": "decision.accept",
+            }),
+            Effect.withSpan("registration.api.decision.accept"),
+            Effect.withLogSpan("registration.api.decision.accept"),
+            Effect.mapError(toRegistrationHttpError)
+          )
         )
         .handle("reject", ({ headers, params, payload }) =>
           Effect.gen(function* () {
@@ -382,6 +418,10 @@ const makeRegistrationEffectHttpHandlers = ({
               approvalSecret,
               headers["x-registration-approval-secret"]
             );
+            yield* registrations.markApprovalProcessing({
+              registrationId: params.registrationId,
+              decision: "rejected",
+            });
             yield* resumeRegistrationWorkflow(String(params.registrationId), {
               decision: "rejected",
               reviewer: toWorkflowReviewer(payload.reviewer),
@@ -389,16 +429,30 @@ const makeRegistrationEffectHttpHandlers = ({
                 ? {}
                 : { reason: payload.reason }),
             });
-            yield* registrations.markApprovalProcessing({
-              registrationId: params.registrationId,
-              decision: "rejected",
-            });
 
             return new RegistrationDecisionAcceptedResponse({
               registrationId: params.registrationId,
               status: "approval_processing",
             });
-          }).pipe(Effect.mapError(toRegistrationHttpError))
+          }).pipe(
+            Effect.tapCause((cause) =>
+              Effect.logError("Failed to accept registration decision", cause)
+            ),
+            Effect.annotateLogs({
+              operation: "registration.api.decision.accept",
+              "registration.decision": "rejected",
+              "registration.id": String(params.registrationId),
+              service: "registration-api",
+            }),
+            Effect.annotateSpans({
+              "registration.decision": "rejected",
+              "registration.id": String(params.registrationId),
+              "registration.operation": "decision.accept",
+            }),
+            Effect.withSpan("registration.api.decision.accept"),
+            Effect.withLogSpan("registration.api.decision.accept"),
+            Effect.mapError(toRegistrationHttpError)
+          )
         );
     })
   );

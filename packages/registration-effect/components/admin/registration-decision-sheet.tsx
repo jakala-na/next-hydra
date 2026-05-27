@@ -18,6 +18,11 @@ import {
   SheetTitle,
 } from "@repo/design-system/components/ui/sheet";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
+import {
+  type ReactHookFormActionErrorMessages,
+  setReactHookFormActionErrors,
+  setReactHookFormRootError,
+} from "@repo/form/react-hook-form";
 import { Schema } from "effect";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
@@ -35,6 +40,7 @@ import {
   type ApproveRegistrationInput,
   DecisionFormSchema,
   type DecisionFormValues,
+  type RegistrationDecisionFormErrorCode,
   type RegistrationDecisionResult,
   type RegistrationDetailView,
   type RejectRegistrationInput,
@@ -84,8 +90,6 @@ export function RegistrationDecisionSheet({
   reject,
 }: RegistrationDecisionSheetProps) {
   const router = useRouter();
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpen, setIsOpen] = useState(Boolean(registration));
   const registrationId = registration?.registrationId;
   const form = useForm<DecisionFormValues>({
@@ -96,10 +100,31 @@ export function RegistrationDecisionSheet({
       reason: registration?.approvalReason ?? "",
     },
   });
+  const submitError = form.formState.errors.root?.serverError?.message;
+  const isSubmitting = form.formState.isSubmitting;
+  const actionErrorMessages = {
+    field: {},
+    form: {
+      registrationAlreadyApproved:
+        "This registration has already been approved.",
+      registrationAlreadyRejected:
+        "This registration has already been rejected.",
+      registrationDecisionAlreadyProcessing:
+        "This registration decision is already being processed.",
+      registrationNotFound: "This registration could not be found anymore.",
+    },
+  } satisfies ReactHookFormActionErrorMessages<
+    never,
+    RegistrationDecisionFormErrorCode
+  >;
 
   useEffect(() => {
     setIsOpen(Boolean(registrationId));
-  }, [registrationId]);
+    form.clearErrors("root");
+    form.reset({
+      reason: registration?.approvalReason ?? "",
+    });
+  }, [form, registration?.approvalReason, registrationId]);
 
   if (!registration) {
     return null;
@@ -114,14 +139,13 @@ export function RegistrationDecisionSheet({
   const handleSubmitDecision =
     (decision: "approved" | "rejected"): SubmitHandler<DecisionFormValues> =>
     async (values) => {
-      setSubmitError(null);
-      setIsSubmitting(true);
+      form.clearErrors("root");
 
       try {
         const action = decision === "approved" ? approve : reject;
 
         if (!action) {
-          setSubmitError("This decision is not available.");
+          setReactHookFormRootError(form, "This decision is not available.");
           return;
         }
 
@@ -130,30 +154,30 @@ export function RegistrationDecisionSheet({
           ...(values.reason ? { reason: values.reason } : {}),
         });
 
-        switch (result._tag) {
-          case "Success":
-            setSubmitError(null);
+        switch (result.status) {
+          case "accepted":
+            form.clearErrors("root");
+            form.reset({ reason: "" });
             setIsOpen(false);
             toast.success(
               `Registration ${registrationStatusLabels[
-                result.status
+                result.registrationStatus
               ].toLowerCase()}.`
             );
             router.replace(closeHref as Route);
             router.refresh();
             return;
-          case "Conflict":
-          case "NotFound":
-          case "Failure":
-            setSubmitError(result.message);
+          case "invalid":
+            setReactHookFormActionErrors(form, result, actionErrorMessages);
             return;
           default:
             result satisfies never;
         }
       } catch {
-        setSubmitError("The decision could not be saved. Please try again.");
-      } finally {
-        setIsSubmitting(false);
+        setReactHookFormRootError(
+          form,
+          "The decision could not be saved. Please try again."
+        );
       }
     };
 
@@ -175,6 +199,8 @@ export function RegistrationDecisionSheet({
       onOpenChange={(open) => {
         setIsOpen(open);
         if (!open) {
+          form.clearErrors("root");
+          form.reset({ reason: "" });
           router.replace(closeHref as Route);
         }
       }}

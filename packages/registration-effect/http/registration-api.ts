@@ -54,6 +54,30 @@ export class RegistrationApiConflict extends Schema.TaggedErrorClass<Registratio
   { httpApiStatus: 409 }
 ) {}
 
+export class RegistrationAlreadyApproved extends Schema.TaggedErrorClass<RegistrationAlreadyApproved>()(
+  "RegistrationAlreadyApproved",
+  {
+    message: Schema.String,
+  },
+  { httpApiStatus: 409 }
+) {}
+
+export class RegistrationAlreadyRejected extends Schema.TaggedErrorClass<RegistrationAlreadyRejected>()(
+  "RegistrationAlreadyRejected",
+  {
+    message: Schema.String,
+  },
+  { httpApiStatus: 409 }
+) {}
+
+export class RegistrationDecisionAlreadyProcessing extends Schema.TaggedErrorClass<RegistrationDecisionAlreadyProcessing>()(
+  "RegistrationDecisionAlreadyProcessing",
+  {
+    message: Schema.String,
+  },
+  { httpApiStatus: 409 }
+) {}
+
 export class RegistrationApiNotFound extends Schema.TaggedErrorClass<RegistrationApiNotFound>()(
   "RegistrationApiNotFound",
   {
@@ -218,7 +242,10 @@ export class ListRegistrationsQuery extends Schema.Class<ListRegistrationsQuery>
 
 const RegistrationApiErrors = [
   RegistrationApiError,
+  RegistrationAlreadyApproved,
+  RegistrationAlreadyRejected,
   RegistrationApiConflict,
+  RegistrationDecisionAlreadyProcessing,
   RegistrationApiNotFound,
   RegistrationApiUnauthorized,
   RegistrationApiValidationError,
@@ -422,13 +449,31 @@ export const toApiError = (
         message: "Registration was not found",
       });
     case "RegistrationAlreadyExists":
-    case "RegistrationTransitionConflict":
     case "RegistrationConcurrentModification":
     case "RegistrationQueryInvalidCursor":
     case "InvitationConflict":
       return new RegistrationApiConflict({
         message: error._tag,
       });
+    case "RegistrationTransitionConflict":
+      switch (error.currentState) {
+        case "ApprovedRegistration":
+          return new RegistrationAlreadyApproved({
+            message: error.message,
+          });
+        case "RejectedRegistration":
+          return new RegistrationAlreadyRejected({
+            message: error.message,
+          });
+        case "ApprovalProcessingRegistration":
+          return new RegistrationDecisionAlreadyProcessing({
+            message: error.message,
+          });
+        default:
+          return new RegistrationApiConflict({
+            message: error._tag,
+          });
+      }
     default:
       return new RegistrationApiError({
         message: error._tag,
