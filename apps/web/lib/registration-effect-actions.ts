@@ -14,6 +14,7 @@ import {
   type RegistrationApiValidationError,
 } from "@repo/registration-effect/http/registration-api";
 import { Effect, Schema } from "effect";
+import { redirect } from "next/navigation";
 import { makeRegistrationRestClient } from "./registration-rest-client";
 
 const toRegistrationInput = (
@@ -116,7 +117,14 @@ const submitRegistrationProgram = (input: RegistrationFormValues) =>
   );
 
 export async function submitRegistrationEffect(
+  awaitingApprovalUrl: string,
   input: RegistrationFormValues
 ): Promise<RegistrationFormResult> {
-  return await Effect.runPromise(submitRegistrationProgram(input));
+  const result = await Effect.runPromise(submitRegistrationProgram(input));
+
+  if (result.status === "submitted") {
+    redirect(awaitingApprovalUrl);
+  }
+
+  return result;
 }

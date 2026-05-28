@@ -79,7 +79,6 @@
         "eyebrow": "Revisão em curso",
         "title": "O seu registo está em análise.",
         "description": "O seu registo foi recebido. Enviaremos os próximos passos por e-mail assim que a sua empresa for aprovada.",
-        "descriptionWithEmail": "{email} está agora na fila de revisão. Enviaremos os próximos passos por e-mail assim que a sua empresa for aprovada.",
         "backToSite": "Voltar ao site"
       },
       "form": {

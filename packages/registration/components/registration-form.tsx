@@ -95,11 +95,9 @@ export function RegistrationForm({
   });
   const { execute, status } = useServerAction(submit, {
     interceptors: [
-      onSuccess((_, { input }) => {
+      onSuccess(() => {
         setFormError(null);
-        router.push(
-          `${awaitingApprovalUrl}?email=${encodeURIComponent(input.email)}` as Route
-        );
+        router.push(awaitingApprovalUrl as Route);
       }),
       onError((error) => {
         if (isDefinedError(error)) {

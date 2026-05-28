@@ -79,7 +79,6 @@
         "eyebrow": "Verifica in corso",
         "title": "La tua registrazione è in fase di verifica.",
         "description": "Abbiamo ricevuto la tua registrazione. Ti invieremo i prossimi passaggi via email non appena la tua azienda sarà approvata.",
-        "descriptionWithEmail": "{email} è ora nella coda di verifica. Ti invieremo i prossimi passaggi via email non appena la tua azienda sarà approvata.",
         "backToSite": "Torna al sito"
       },
       "form": {

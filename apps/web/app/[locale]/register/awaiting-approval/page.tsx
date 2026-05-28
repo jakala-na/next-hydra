@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 
 export default async function AwaitingApprovalPage({
   params,
-  searchParams,
 }: PageProps<"/[locale]/register/awaiting-approval">) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) {
@@ -12,7 +11,6 @@ export default async function AwaitingApprovalPage({
   }
   setRequestLocale(locale);
 
-  const { email } = await searchParams;
   const t = await getTranslations({
     locale,
     namespace: "web.registration.awaiting",
@@ -28,9 +26,7 @@ export default async function AwaitingApprovalPage({
           {t("title")}
         </h1>
         <p className="mt-6 text-base text-stone-600 leading-7">
-          {typeof email === "string"
-            ? t("descriptionWithEmail", { email })
-            : t("description")}
+          {t("description")}
         </p>
         <div className="mt-8 flex justify-center gap-4">
           <a className="text-sm text-stone-900 underline" href="/">

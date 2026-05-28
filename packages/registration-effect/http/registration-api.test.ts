@@ -20,6 +20,7 @@ import {
 } from "../domain/registration";
 import {
   CreateRegistrationRequest,
+  ListRegistrationsQuery,
   RegistrationDecisionAcceptedResponse,
   RegistrationDecisionResponse,
   RegistrationReviewerInput,
@@ -125,6 +126,24 @@ describe("Registration REST contract mappers", () => {
       });
 
       expect(response).toBeInstanceOf(RegistrationDecisionAcceptedResponse);
+    })
+  );
+
+  it.effect("encodes list query values for generated REST clients", () =>
+    Effect.gen(function* () {
+      const query = new ListRegistrationsQuery({
+        status: "awaiting_approval",
+        limit: 20,
+      });
+
+      const encoded = yield* Schema.encodeUnknownEffect(ListRegistrationsQuery)(
+        query
+      );
+
+      expect(encoded).toEqual({
+        status: "awaiting_approval",
+        limit: "20",
+      });
     })
   );
 });

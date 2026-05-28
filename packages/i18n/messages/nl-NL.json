@@ -79,7 +79,6 @@
         "eyebrow": "Beoordeling bezig",
         "title": "Uw registratie wordt beoordeeld.",
         "description": "Uw registratie is ontvangen. We sturen de volgende stappen per e-mail zodra uw bedrijf is goedgekeurd.",
-        "descriptionWithEmail": "{email} staat nu in de beoordelingswachtrij. We sturen de volgende stappen per e-mail zodra uw bedrijf is goedgekeurd.",
         "backToSite": "Terug naar de site"
       },
       "form": {

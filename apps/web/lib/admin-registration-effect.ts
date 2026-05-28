@@ -10,6 +10,7 @@ import type {
   RejectRegistrationInput,
 } from "@repo/registration-effect/components/admin/registration-view-models";
 import {
+  ListRegistrationsQuery,
   RegistrationAlreadyApproved,
   RegistrationAlreadyRejected,
   RegistrationApiConflict,
@@ -111,14 +112,14 @@ export async function listAdminRegistrationsEffect(
     Effect.gen(function* () {
       const client = yield* makeRegistrationRestClient();
       return yield* client.registrations.list({
-        query: {
+        query: new ListRegistrationsQuery({
           ...(isEffectRegistrationStatus(input.status)
             ? { status: input.status }
             : {}),
           ...(input.search ? { search: input.search } : {}),
           ...(input.cursor ? { cursor: input.cursor } : {}),
           ...(input.limit ? { limit: input.limit } : {}),
-        },
+        }),
       });
     })
   );

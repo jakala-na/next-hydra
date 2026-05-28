@@ -33,8 +33,10 @@ export default async function RegisterPage({
         </div>
 
         <RegistrationForm
-          submit={submitRegistrationEffect}
-          awaitingApprovalUrl={`/${locale}/register/awaiting-approval`}
+          submit={submitRegistrationEffect.bind(
+            null,
+            `/${locale}/register/awaiting-approval`
+          )}
         />
       </div>
     </main>

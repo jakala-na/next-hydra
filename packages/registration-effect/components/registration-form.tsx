@@ -35,8 +35,7 @@ import {
 } from "@repo/form/react-hook-form";
 import { useLocale, useTranslations } from "@repo/i18n";
 import { Schema } from "effect";
-import type { Route } from "next";
-import { useRouter } from "next/navigation";
+import { unstable_rethrow } from "next/navigation";
 import type { FieldPath } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import {
@@ -53,7 +52,6 @@ type RegistrationFormProps = {
   readonly submit: (
     input: RegistrationFormValues
   ) => Promise<RegistrationFormResult>;
-  readonly awaitingApprovalUrl: string;
 };
 
 const defaultValues: RegistrationFormValues = {
@@ -88,13 +86,9 @@ function TranslatedFormMessage({ className }: { readonly className?: string }) {
   );
 }
 
-export function RegistrationForm({
-  submit,
-  awaitingApprovalUrl,
-}: RegistrationFormProps) {
+export function RegistrationForm({ submit }: RegistrationFormProps) {
   const t = useTranslations("web.registration.form");
   const locale = useLocale();
-  const router = useRouter();
   const registrationFormSchema = makeRegistrationFormInputSchema(t);
   const form = useForm<RegistrationFormValues>({
     resolver: standardSchemaResolver(
@@ -152,10 +146,6 @@ export function RegistrationForm({
 
             switch (result.status) {
               case "submitted":
-                router.push(
-                  (result.redirectTo ??
-                    `${awaitingApprovalUrl}?email=${encodeURIComponent(values.email)}`) as Route
-                );
                 return;
               case "invalid":
                 setReactHookFormActionErrors(form, result, actionErrorMessages);
@@ -163,7 +153,8 @@ export function RegistrationForm({
               default:
                 result satisfies never;
             }
-          } catch {
+          } catch (error) {
+            unstable_rethrow(error);
             setReactHookFormRootError(form, t("errors.submitFailed"));
           }
         })}

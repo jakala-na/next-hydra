@@ -79,7 +79,6 @@
         "eyebrow": "Prüfung läuft",
         "title": "Ihre Registrierung wird geprüft.",
         "description": "Ihre Registrierung ist eingegangen. Wir senden Ihnen die nächsten Schritte per E-Mail, sobald Ihr Unternehmen genehmigt wurde.",
-        "descriptionWithEmail": "{email} befindet sich jetzt in der Prüfwarteschlange. Wir senden Ihnen die nächsten Schritte per E-Mail, sobald Ihr Unternehmen genehmigt wurde.",
         "backToSite": "Zurück zur Website"
       },
       "form": {

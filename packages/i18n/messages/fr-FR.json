@@ -79,7 +79,6 @@
         "eyebrow": "Examen en cours",
         "title": "Votre inscription est en cours d’examen.",
         "description": "Votre inscription a bien été reçue. Nous vous enverrons la suite par e-mail dès que votre entreprise aura été approuvée.",
-        "descriptionWithEmail": "{email} est maintenant dans la file d’examen. Nous vous enverrons la suite par e-mail dès que votre entreprise aura été approuvée.",
         "backToSite": "Retour au site"
       },
       "form": {

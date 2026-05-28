@@ -75,7 +75,6 @@
         "eyebrow": "Review in progress",
         "title": "Your registration is under review.",
         "description": "Your registration has been received. We will email next steps once your company has been approved.",
-        "descriptionWithEmail": "{email} is now in the review queue. We will email next steps once your company has been approved.",
         "backToSite": "Back to site"
       },
       "form": {

@@ -79,7 +79,6 @@
         "eyebrow": "Revisión en curso",
         "title": "Tu registro está en revisión.",
         "description": "Hemos recibido tu registro. Te enviaremos los siguientes pasos por correo cuando tu empresa haya sido aprobada.",
-        "descriptionWithEmail": "{email} está ahora en la cola de revisión. Te enviaremos los siguientes pasos por correo cuando tu empresa haya sido aprobada.",
         "backToSite": "Volver al sitio"
       },
       "form": {
