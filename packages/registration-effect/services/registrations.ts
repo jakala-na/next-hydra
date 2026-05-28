@@ -1,3 +1,8 @@
+import {
+  type StoreConflict,
+  type StoreError,
+  VersionedKeyValueStore,
+} from "@repo/versioned-store";
 import { Clock, Context, Effect, Layer, Option, Random, Schema } from "effect";
 import type { ApprovedDecision, RejectedDecision } from "../domain/approval";
 import type { CommerceAccount } from "../domain/commerce";
@@ -10,11 +15,6 @@ import {
   Registration,
   RejectedRegistration,
 } from "../domain/registration";
-import {
-  type StoreConflict,
-  type StoreError,
-  VersionedKeyValueStore,
-} from "./versioned-key-value-store";
 
 export class RegistrationNotFound extends Schema.TaggedErrorClass<RegistrationNotFound>()(
   "RegistrationNotFound",

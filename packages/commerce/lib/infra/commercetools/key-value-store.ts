@@ -3,7 +3,7 @@ import {
   StoreError,
   StoreVersion,
   VersionedKeyValueStore,
-} from "@repo/registration-effect/services/versioned-key-value-store";
+} from "@repo/versioned-store";
 import { Effect, Layer, Option, Schema } from "effect";
 import {
   apiRoot,

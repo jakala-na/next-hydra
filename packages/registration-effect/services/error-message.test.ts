@@ -1,4 +1,5 @@
 import { EmailProviderFailure } from "@repo/email";
+import { StoreConflict, StoreError } from "@repo/versioned-store";
 import { describe, expect, it } from "vitest";
 import { InvitationId, RegistrationId } from "../domain/identity";
 import { CommerceAccountError } from "./commerce-account";
@@ -21,7 +22,6 @@ import {
   RegistrationPersistenceFailure,
   RegistrationTransitionConflict,
 } from "./registrations";
-import { StoreConflict, StoreError } from "./versioned-key-value-store";
 
 const registrationId = RegistrationId.make("registration-1");
 const invitationId = InvitationId.make("invitation-1");

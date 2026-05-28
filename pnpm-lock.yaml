@@ -729,6 +729,9 @@ importers:
       '@repo/registration-effect':
         specifier: workspace:*
         version: link:../registration-effect
+      '@repo/versioned-store':
+        specifier: workspace:*
+        version: link:../versioned-store
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
@@ -1289,6 +1292,9 @@ importers:
       '@repo/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@repo/versioned-store':
+        specifier: workspace:*
+        version: link:../versioned-store
       next:
         specifier: 'catalog:'
         version: 16.1.6(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1387,6 +1393,24 @@ importers:
         version: 3.2.4(@types/debug@4.1.12)(@types/node@25.1.0)(jiti@2.6.1)(jsdom@26.1.0(bufferutil@4.0.9))(lightningcss@1.30.2)(msw@2.12.10(@types/node@25.1.0)(typescript@5.9.3))(terser@5.44.0)(yaml@2.9.0)
 
   packages/typescript-config: {}
+
+  packages/versioned-store:
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.15.21
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-beta.67
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: ^3.1.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@22.15.21)(jiti@2.6.1)(jsdom@26.1.0(bufferutil@4.0.9))(lightningcss@1.30.2)(msw@2.12.10(@types/node@22.15.21)(typescript@5.9.3))(terser@5.44.0)(yaml@2.9.0)
 
 packages:
 

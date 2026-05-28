@@ -23,6 +23,7 @@
     "@repo/email": "workspace:*",
     "@repo/form": "workspace:*",
     "@repo/i18n": "workspace:*",
+    "@repo/versioned-store": "workspace:*",
     "react": "catalog:",
     "react-hook-form": "^7.68.0",
     "sonner": "^2.0.7"

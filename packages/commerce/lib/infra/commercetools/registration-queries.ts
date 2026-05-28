@@ -17,7 +17,7 @@ import {
   type RegistrationQuerySortField,
   registrationQueryCursorFromRecord,
 } from "@repo/registration-effect/services/registration-queries";
-import { decodeJsonString } from "@repo/registration-effect/services/versioned-key-value-store";
+import { decodeJsonString } from "@repo/versioned-store";
 import { Effect, Layer, Option, Schema } from "effect";
 import { apiRoot } from "../../client/api-root";
 

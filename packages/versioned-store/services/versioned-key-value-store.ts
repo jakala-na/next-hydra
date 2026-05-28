@@ -137,7 +137,7 @@ export class VersionedKeyValueStore extends Context.Service<
       S["DecodingServices"]
     >;
   }
->()("@repo/registration-effect/VersionedKeyValueStore") {
+>()("@repo/versioned-store/VersionedKeyValueStore") {
   static readonly layerMemory = Layer.effect(
     VersionedKeyValueStore,
     Effect.gen(function* () {

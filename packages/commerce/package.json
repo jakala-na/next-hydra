@@ -15,6 +15,7 @@
     "@gql.tada/cli-utils": "^1.6.3",
     "@repo/observability": "workspace:*",
     "@repo/registration-effect": "workspace:*",
+    "@repo/versioned-store": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
     "@urql/core": "^5.1.2",
     "dotenv": "^17.0.0",

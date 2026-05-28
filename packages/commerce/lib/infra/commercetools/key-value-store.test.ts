@@ -4,7 +4,7 @@ import {
   StoreError,
   StoreVersion,
   VersionedKeyValueStore,
-} from "@repo/registration-effect/services/versioned-key-value-store";
+} from "@repo/versioned-store";
 import { Effect, Option, Schema } from "effect";
 import { beforeEach, vi } from "vitest";
 import { layerCommercetoolsCustomObjectKeyValueStore } from "./key-value-store";

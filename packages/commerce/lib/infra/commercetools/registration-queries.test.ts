@@ -20,7 +20,7 @@ import {
   RegistrationQueryFailure,
   RegistrationQueryInvalidCursor,
 } from "@repo/registration-effect/services/registration-queries";
-import { encodeJsonString } from "@repo/registration-effect/services/versioned-key-value-store";
+import { encodeJsonString } from "@repo/versioned-store";
 import type { Schema } from "effect";
 import { Effect, Redacted } from "effect";
 import { beforeEach, vi } from "vitest";

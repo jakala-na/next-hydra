@@ -1,4 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
+import {
+  StoreConflict,
+  StoreError,
+  VersionedKeyValueStore,
+} from "@repo/versioned-store";
 import { Effect, Exit, Layer, Redacted } from "effect";
 import { RegistrationReviewerActor } from "../domain/actors";
 import { ApprovedDecision, RejectedDecision } from "../domain/approval";
@@ -32,11 +37,6 @@ import {
   Registrations,
   RegistrationTransitionConflict,
 } from "./registrations";
-import {
-  StoreConflict,
-  StoreError,
-  VersionedKeyValueStore,
-} from "./versioned-key-value-store";
 
 const details = new CompanyRegistrationDetails({
   companyName: CompanyName.make("Hydra Supplies"),
