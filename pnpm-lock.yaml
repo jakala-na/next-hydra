@@ -120,6 +120,9 @@ importers:
       '@repo/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@repo/versioned-store':
+        specifier: workspace:*
+        version: link:../../packages/versioned-store
       '@sentry/nextjs':
         specifier: ^10.22.0
         version: 10.54.0(@opentelemetry/core@2.7.1(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(next@16.1.6(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(webpack@5.102.1(@swc/core@1.15.3))
@@ -726,9 +729,6 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../observability
-      '@repo/registration-effect':
-        specifier: workspace:*
-        version: link:../registration-effect
       '@repo/versioned-store':
         specifier: workspace:*
         version: link:../versioned-store
@@ -1280,6 +1280,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.68.0(react@19.2.4))
+      '@repo/commerce':
+        specifier: workspace:*
+        version: link:../commerce
       '@repo/design-system':
         specifier: workspace:*
         version: link:../design-system

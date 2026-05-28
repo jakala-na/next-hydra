@@ -7,23 +7,21 @@ import type {
   CustomerDraft,
   CustomerUpdateAction,
 } from "@commercetools/platform-sdk";
+import { Effect, Layer, Redacted, Schema } from "effect";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
-} from "@repo/registration-effect/domain/commerce";
-import {
-  type AcceptedAuthIdentity,
   CommerceBusinessUnitId,
+  type CommerceCompanyRole,
   CommerceCustomerId,
-  type RedactedEmail,
-} from "@repo/registration-effect/domain/identity";
-import type { Registration } from "@repo/registration-effect/domain/registration";
-import type { CompanyRole } from "@repo/registration-effect/domain/roles";
+} from "../../../domain/commerce-account";
 import {
+  type AcceptedCommerceIdentity,
   CommerceAccountError,
+  type CommerceAccountRegistrationInput,
   CommerceAccounts,
-} from "@repo/registration-effect/services/commerce-account";
-import { Effect, Layer, Redacted, Schema } from "effect";
+  type RedactedString,
+} from "../../../services/commerce-accounts";
 import { apiRoot } from "../../client/api-root";
 
 const NOT_FOUND_STATUS_CODE = 404;
@@ -95,27 +93,27 @@ const accountError = (reason: string, cause?: unknown) =>
     message: cause ? `${reason}: ${formatCause(cause)}` : reason,
   });
 
-const customerKey = (registration: Registration) =>
+const customerKey = (registration: CommerceAccountRegistrationInput) =>
   `registration-customer-${registration.id}`;
 
-const businessUnitKey = (registration: Registration) =>
+const businessUnitKey = (registration: CommerceAccountRegistrationInput) =>
   `registration-business-unit-${registration.id}`;
 
-const associateRoleKey = (role: CompanyRole) => role;
+const associateRoleKey = (role: CommerceCompanyRole) => role;
 
-const customerKeyFromAcceptedIdentity = (identity: AcceptedAuthIdentity) =>
+const customerKeyFromAcceptedIdentity = (identity: AcceptedCommerceIdentity) =>
   `auth-customer-${authUserId(identity)}`;
 
-const authUserId = (identity: AcceptedAuthIdentity) =>
+const authUserId = (identity: AcceptedCommerceIdentity) =>
   String(identity.authUserId);
 
-const customerEmail = (identity: AcceptedAuthIdentity) =>
+const customerEmail = (identity: AcceptedCommerceIdentity) =>
   Redacted.value(identity.email);
 
-const customerFirstName = (identity: AcceptedAuthIdentity) =>
+const customerFirstName = (identity: AcceptedCommerceIdentity) =>
   Redacted.value(identity.firstName);
 
-const customerLastName = (identity: AcceptedAuthIdentity) =>
+const customerLastName = (identity: AcceptedCommerceIdentity) =>
   Redacted.value(identity.lastName);
 
 const getCustomerByKey = (key: string) =>
@@ -188,7 +186,7 @@ const queryFirstCustomer = (where: string) =>
       accountError("Failed to query Commercetools customer", cause),
   });
 
-const getCustomerByAcceptedIdentity = (identity: AcceptedAuthIdentity) =>
+const getCustomerByAcceptedIdentity = (identity: AcceptedCommerceIdentity) =>
   queryFirstCustomer(
     `externalId = ${JSON.stringify(authUserId(identity))} or email = ${JSON.stringify(customerEmail(identity))}`
   );
@@ -208,7 +206,7 @@ const getBusinessUnitById = (commerceBusinessUnitId: CommerceBusinessUnitId) =>
   });
 
 const toCustomerDraft = (
-  registration: Registration,
+  registration: CommerceAccountRegistrationInput,
   key: string
 ): CustomerDraft => {
   const details = registration.details;
@@ -250,7 +248,7 @@ const toCustomerDraft = (
 };
 
 const toBusinessUnitDraft = (
-  registration: Registration,
+  registration: CommerceAccountRegistrationInput,
   key: string
 ): BusinessUnitDraft => {
   const details = registration.details;
@@ -288,7 +286,10 @@ const toBusinessUnitDraft = (
   };
 };
 
-const createCustomer = (registration: Registration, key: string) =>
+const createCustomer = (
+  registration: CommerceAccountRegistrationInput,
+  key: string
+) =>
   Effect.tryPromise({
     try: async () => {
       const response = await apiRoot
@@ -302,7 +303,9 @@ const createCustomer = (registration: Registration, key: string) =>
       accountError("Failed to create Commercetools customer", cause),
   });
 
-const createCustomerFromAcceptedIdentity = (identity: AcceptedAuthIdentity) =>
+const createCustomerFromAcceptedIdentity = (
+  identity: AcceptedCommerceIdentity
+) =>
   Effect.tryPromise({
     try: async () => {
       const response = await apiRoot
@@ -326,7 +329,10 @@ const createCustomerFromAcceptedIdentity = (identity: AcceptedAuthIdentity) =>
       accountError("Failed to create Commercetools customer", cause),
   });
 
-const createBusinessUnit = (registration: Registration, key: string) =>
+const createBusinessUnit = (
+  registration: CommerceAccountRegistrationInput,
+  key: string
+) =>
   Effect.tryPromise({
     try: async () => {
       const response = await apiRoot
@@ -349,7 +355,7 @@ const toCommerceBusinessUnitId = (businessUnit: BusinessUnit) =>
 const syncCustomerIdentity = (
   customer: Customer,
   input: {
-    readonly acceptedIdentity: AcceptedAuthIdentity;
+    readonly acceptedIdentity: AcceptedCommerceIdentity;
   }
 ) => {
   const actions: CustomerUpdateAction[] = [];
@@ -411,7 +417,7 @@ const syncCustomerIdentity = (
   });
 };
 
-const ensureAcceptedIdentityCustomer = (identity: AcceptedAuthIdentity) =>
+const ensureAcceptedIdentityCustomer = (identity: AcceptedCommerceIdentity) =>
   Effect.gen(function* () {
     const existing =
       (yield* getCustomerByAcceptedIdentity(identity)) ??
@@ -424,7 +430,7 @@ const ensureAcceptedIdentityCustomer = (identity: AcceptedAuthIdentity) =>
 
 const associateDraft = (
   customer: Customer,
-  role: CompanyRole
+  role: CommerceCompanyRole
 ): AssociateDraft => ({
   customer: { typeId: "customer", id: customer.id },
   associateRoleAssignments: [
@@ -441,7 +447,7 @@ const associateDraft = (
 const hasAssociateRole = (
   businessUnit: BusinessUnit,
   customer: Customer,
-  role: CompanyRole
+  role: CommerceCompanyRole
 ) => {
   const roleKey = associateRoleKey(role);
   return businessUnit.associates?.some(
@@ -456,7 +462,7 @@ const hasAssociateRole = (
 const ensureBusinessUnitAssociate = (input: {
   readonly businessUnit: BusinessUnit;
   readonly customer: Customer;
-  readonly role: CompanyRole;
+  readonly role: CommerceCompanyRole;
 }) => {
   if (hasAssociateRole(input.businessUnit, input.customer, input.role)) {
     return Effect.succeed(input.businessUnit);
@@ -500,7 +506,7 @@ const ensureBusinessUnitAssociate = (input: {
 
 const hasCustomerWithEmail = Effect.fn(
   "CommercetoolsCommerceAccounts.hasCustomerWithEmail"
-)((email: RedactedEmail) =>
+)((email: RedactedString) =>
   Effect.tryPromise({
     try: async () => {
       const response = await apiRoot

@@ -1,3 +1,7 @@
+import {
+  type CommerceAccountError,
+  CommerceAccounts,
+} from "@repo/commerce/services/commerce-accounts";
 import { Effect } from "effect";
 import type { CompanyActor } from "../domain/actors";
 import type {
@@ -12,10 +16,6 @@ import {
   type RevokedInvitation,
 } from "../domain/invitations";
 import type { CompanyMemberInvitationRole } from "../domain/roles";
-import {
-  type CommerceAccountError,
-  CommerceAccounts,
-} from "../services/commerce-account";
 import {
   CompanyInvitationPolicy,
   type InvitationPolicyError,

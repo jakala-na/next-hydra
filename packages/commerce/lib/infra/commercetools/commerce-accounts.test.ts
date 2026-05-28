@@ -1,34 +1,16 @@
 import { describe, expect, it } from "@effect/vitest";
-import { RegistrationReviewerActor } from "@repo/registration-effect/domain/actors";
-import { ApprovedDecision } from "@repo/registration-effect/domain/approval";
-import { CommerceAccount } from "@repo/registration-effect/domain/commerce";
-import {
-  AcceptedAuthIdentity,
-  AddressLine,
-  AuthUserId,
-  City,
-  CommerceBusinessUnitId,
-  CommerceCustomerId,
-  CompanyName,
-  CountryCode,
-  Email,
-  InvitationId,
-  PersonName,
-  PhoneNumber,
-  PostalCode,
-  RegistrationId,
-} from "@repo/registration-effect/domain/identity";
-import {
-  ApprovedRegistration,
-  CompanyAddress,
-  CompanyRegistrationDetails,
-} from "@repo/registration-effect/domain/registration";
-import {
-  CommerceAccountError,
-  CommerceAccounts,
-} from "@repo/registration-effect/services/commerce-account";
 import { Effect, Redacted } from "effect";
 import { beforeEach, vi } from "vitest";
+import {
+  CommerceAccount,
+  CommerceBusinessUnitId,
+  CommerceCustomerId,
+} from "../../../domain/commerce-account";
+import {
+  type AcceptedCommerceIdentity,
+  CommerceAccountError,
+  CommerceAccounts,
+} from "../../../services/commerce-accounts";
 import { layerCommercetoolsCommerceAccounts } from "./commerce-accounts";
 
 const mocks = vi.hoisted(() => {
@@ -76,65 +58,23 @@ vi.mock("../../client/api-root", () => ({
   },
 }));
 
-const details = new CompanyRegistrationDetails({
-  companyName: CompanyName.make("Hydra Supplies"),
-  companyPhone: Redacted.make(PhoneNumber.make("+1 555 0100"), {
-    label: "companyPhone",
-  }),
-  contactFirstName: Redacted.make(PersonName.make("Ada"), {
+const acceptedIdentity: AcceptedCommerceIdentity = {
+  authUserId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+  email: Redacted.make("ada@example.com", { label: "email" }),
+  firstName: Redacted.make("Ada", { label: "personName" }),
+  lastName: Redacted.make("Lovelace", {
     label: "personName",
   }),
-  contactLastName: Redacted.make(PersonName.make("Lovelace"), {
-    label: "personName",
-  }),
-  email: Redacted.make(Email.make("ada@example.com"), { label: "email" }),
-  address: new CompanyAddress({
-    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
-      label: "addressLine",
-    }),
-    postalCode: Redacted.make(PostalCode.make("10001"), {
-      label: "postalCode",
-    }),
-    city: Redacted.make(City.make("New York"), { label: "city" }),
-    country: CountryCode.make("US"),
-  }),
-});
+};
 
-const acceptedIdentity = new AcceptedAuthIdentity({
-  authUserId: AuthUserId.make("user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV"),
-  email: Redacted.make(Email.make("ada@example.com"), { label: "email" }),
-  firstName: Redacted.make(PersonName.make("Ada"), { label: "personName" }),
-  lastName: Redacted.make(PersonName.make("Lovelace"), {
-    label: "personName",
-  }),
-});
-
-const registration = new ApprovedRegistration({
-  _tag: "ApprovedRegistration",
-  status: "approved",
-  id: RegistrationId.make("registration-1"),
-  details,
-  decision: new ApprovedDecision({
-    decision: "approved",
-    actor: new RegistrationReviewerActor({
-      actorType: "registration_reviewer",
-      authUserId: AuthUserId.make("reviewer-1"),
-      email: Redacted.make(Email.make("reviewer@example.com"), {
-        label: "email",
-      }),
-      name: "Reviewer",
-    }),
-    decidedAt: new Date(0),
-  }),
+const registration = {
+  id: "registration-1",
   commerceAccount: new CommerceAccount({
-    registrationId: RegistrationId.make("registration-1"),
+    registrationId: "registration-1",
     customerId: CommerceCustomerId.make("customer-1"),
     businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
   }),
-  invitationId: InvitationId.make("invitation-1"),
-  createdAt: new Date(0),
-  updatedAt: new Date(0),
-});
+};
 
 beforeEach(() => {
   mocks.customerGet.mockClear();

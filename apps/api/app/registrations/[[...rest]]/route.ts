@@ -3,8 +3,8 @@ import { RegistrationApiError } from "@repo/registration-effect/http/registratio
 import { Effect } from "effect";
 import { resumeHook, start } from "workflow/api";
 import { env } from "@/env";
+import { registrationEffectLayer } from "@/lib/registration/runtime";
 import { makeRegistrationEffectHttpHandler } from "@/lib/registration-effect-http";
-import { registrationEffectLayer } from "@/lib/registration-effect-runtime";
 import type { RegistrationWorkflowDecision } from "@/lib/registration-workflow-contract";
 import { registerCompanyWorkflow } from "@/workflows/register-company";
 

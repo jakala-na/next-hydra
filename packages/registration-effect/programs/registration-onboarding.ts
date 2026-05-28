@@ -1,3 +1,7 @@
+import {
+  type CommerceAccountError,
+  CommerceAccounts,
+} from "@repo/commerce/services/commerce-accounts";
 import { Clock, Effect } from "effect";
 import type { RegistrationReviewerActor } from "../domain/actors";
 import { registrationSystemActor } from "../domain/actors";
@@ -12,10 +16,6 @@ import type {
   ApprovedRegistration,
   RejectedRegistration,
 } from "../domain/registration";
-import {
-  type CommerceAccountError,
-  CommerceAccounts,
-} from "../services/commerce-account";
 import {
   type InvitationAcceptError,
   type InvitationIssueError,

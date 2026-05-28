@@ -1,6 +1,5 @@
-import "dotenv/config";
+// biome-ignore-all lint/suspicious/noMisplacedAssertion: Assertions run inside Effect programs executed by the test helper.
 
-import { describe, expect, it } from "@effect/vitest";
 import { RegistrationReviewerActor } from "@repo/registration-effect/domain/actors";
 import { RejectedDecision } from "@repo/registration-effect/domain/approval";
 import {
@@ -25,7 +24,12 @@ import {
   type RegistrationQueryRecord,
 } from "@repo/registration-effect/services/registration-queries";
 import { Effect, Redacted } from "effect";
-import { afterAll, beforeAll, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+const itEffect = (
+  name: string,
+  effect: () => Effect.Effect<unknown, unknown, never>
+) => it(name, () => Effect.runPromise(effect()));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@repo/commerce/keys", () => ({
@@ -129,9 +133,9 @@ const makeRejectedRegistration = (
 };
 
 const seedLiveRegistrations = async () => {
-  const { apiRoot } = await import("../../client/api-root");
+  const { apiRoot } = await import("@repo/commerce/lib/client/api-root");
   const { encodeRegistrationStorageValue } = await import(
-    "./registration-queries"
+    "./commercetools-registration-queries"
   );
   const registrations = [
     makeRegistration(
@@ -179,7 +183,7 @@ const seedLiveRegistrations = async () => {
 };
 
 const deleteLiveRegistrations = async () => {
-  const { apiRoot } = await import("../../client/api-root");
+  const { apiRoot } = await import("@repo/commerce/lib/client/api-root");
 
   for (const key of seededKeys) {
     try {
@@ -251,12 +255,12 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
   beforeAll(seedLiveRegistrations);
   afterAll(deleteLiveRegistrations);
 
-  it.live(
+  itEffect(
     "pages registrations through Commercetools without the admin UI",
     () =>
       Effect.gen(function* () {
         const { layerCommercetoolsRegistrationQueries } = yield* Effect.promise(
-          () => import("./registration-queries")
+          () => import("./commercetools-registration-queries")
         );
         const layer = layerCommercetoolsRegistrationQueries({
           batchSize: 2,
@@ -290,10 +294,10 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
       })
   );
 
-  it.live("sorts live registrations by last modified ascending", () =>
+  itEffect("sorts live registrations by last modified ascending", () =>
     Effect.gen(function* () {
       const { layerCommercetoolsRegistrationQueries } = yield* Effect.promise(
-        () => import("./registration-queries")
+        () => import("./commercetools-registration-queries")
       );
       const layer = layerCommercetoolsRegistrationQueries({
         batchSize: 2,
@@ -322,10 +326,10 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
     })
   );
 
-  it.live("sorts live registrations by created time", () =>
+  itEffect("sorts live registrations by created time", () =>
     Effect.gen(function* () {
       const { layerCommercetoolsRegistrationQueries } = yield* Effect.promise(
-        () => import("./registration-queries")
+        () => import("./commercetools-registration-queries")
       );
       const layer = layerCommercetoolsRegistrationQueries({
         batchSize: 2,
@@ -354,10 +358,10 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
     })
   );
 
-  it.live("combines status filtering with cursor pagination", () =>
+  itEffect("combines status filtering with cursor pagination", () =>
     Effect.gen(function* () {
       const { layerCommercetoolsRegistrationQueries } = yield* Effect.promise(
-        () => import("./registration-queries")
+        () => import("./commercetools-registration-queries")
       );
       const layer = layerCommercetoolsRegistrationQueries({
         batchSize: 2,

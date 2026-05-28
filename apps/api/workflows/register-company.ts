@@ -24,7 +24,7 @@ import {
 } from "@repo/registration-effect/http/registration-api";
 import { Effect, Redacted } from "effect";
 import { createHook } from "workflow";
-import { registrationEffectLayer } from "@/lib/registration-effect-runtime";
+import { registrationEffectLayer } from "@/lib/registration/runtime";
 import type {
   RegistrationInvitationEvent,
   RegistrationWorkflowDecision,

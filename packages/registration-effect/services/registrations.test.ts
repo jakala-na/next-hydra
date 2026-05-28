@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
+import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import {
   StoreConflict,
   StoreError,
@@ -7,7 +8,6 @@ import {
 import { Effect, Exit, Layer, Redacted } from "effect";
 import { RegistrationReviewerActor } from "../domain/actors";
 import { ApprovedDecision, RejectedDecision } from "../domain/approval";
-import { CommerceAccount } from "../domain/commerce";
 import {
   AddressLine,
   AuthUserId,

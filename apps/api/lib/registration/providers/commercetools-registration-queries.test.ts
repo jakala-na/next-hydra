@@ -1,4 +1,5 @@
-import { describe, expect, it } from "@effect/vitest";
+// biome-ignore-all lint/suspicious/noMisplacedAssertion: Assertions run inside Effect programs executed by the test helper.
+
 import {
   AddressLine,
   City,
@@ -23,11 +24,16 @@ import {
 import { encodeJsonString } from "@repo/versioned-store";
 import type { Schema } from "effect";
 import { Effect, Redacted } from "effect";
-import { beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   encodeRegistrationStorageValue,
   layerCommercetoolsRegistrationQueries,
-} from "./registration-queries";
+} from "./commercetools-registration-queries";
+
+const itEffect = (
+  name: string,
+  effect: () => Effect.Effect<unknown, unknown, never>
+) => it(name, () => Effect.runPromise(effect()));
 
 const mocks = vi.hoisted(() => {
   const executeMock = vi.fn();
@@ -45,7 +51,7 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../client/api-root", () => ({
+vi.mock("@repo/commerce/lib/client/api-root", () => ({
   apiRoot: {
     customObjects: mocks.customObjects,
   },
@@ -122,47 +128,45 @@ beforeEach(() => {
 });
 
 describe("layerCommercetoolsRegistrationQueries", () => {
-  it.effect(
-    "queries custom objects by lastModifiedAt and id cursor order",
-    () =>
-      Effect.gen(function* () {
-        execute.mockResolvedValueOnce({
-          body: {
-            results: [
-              yield* customObject(
-                "custom-object-3",
-                "2026-01-03T00:00:00.000Z",
-                makeAwaiting("registration-3", "Hydra Three")
-              ),
-              yield* customObject(
-                "custom-object-2",
-                "2026-01-02T00:00:00.000Z",
-                makeAwaiting("registration-2", "Hydra Two")
-              ),
-            ],
-          },
-        });
-        const queries = yield* RegistrationQueries;
+  itEffect("queries custom objects by lastModifiedAt and id cursor order", () =>
+    Effect.gen(function* () {
+      execute.mockResolvedValueOnce({
+        body: {
+          results: [
+            yield* customObject(
+              "custom-object-3",
+              "2026-01-03T00:00:00.000Z",
+              makeAwaiting("registration-3", "Hydra Three")
+            ),
+            yield* customObject(
+              "custom-object-2",
+              "2026-01-02T00:00:00.000Z",
+              makeAwaiting("registration-2", "Hydra Two")
+            ),
+          ],
+        },
+      });
+      const queries = yield* RegistrationQueries;
 
-        const result = yield* queries.list({ limit: 1 });
+      const result = yield* queries.list({ limit: 1 });
 
-        expect(
-          result.items.map((item) => String(item.registration.id))
-        ).toEqual(["registration-3"]);
-        expect(result.nextCursor).toBeDefined();
-        expect(withContainer).toHaveBeenCalledWith({ container });
-        expect(get).toHaveBeenCalledWith({
-          queryArgs: {
-            limit: 2,
-            offset: 0,
-            sort: ["lastModifiedAt desc", "id desc"],
-            withTotal: false,
-          },
-        });
-      }).pipe(Effect.provide(layer))
+      expect(result.items.map((item) => String(item.registration.id))).toEqual([
+        "registration-3",
+      ]);
+      expect(result.nextCursor).toBeDefined();
+      expect(withContainer).toHaveBeenCalledWith({ container });
+      expect(get).toHaveBeenCalledWith({
+        queryArgs: {
+          limit: 2,
+          offset: 0,
+          sort: ["lastModifiedAt desc", "id desc"],
+          withTotal: false,
+        },
+      });
+    }).pipe(Effect.provide(layer))
   );
 
-  it.effect("uses the opaque cursor as a Commercetools seek predicate", () =>
+  itEffect("uses the opaque cursor as a Commercetools seek predicate", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
         body: {
@@ -225,7 +229,7 @@ describe("layerCommercetoolsRegistrationQueries", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  it.effect("pushes status filtering into the provider predicate", () =>
+  itEffect("pushes status filtering into the provider predicate", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
         body: {
@@ -267,7 +271,7 @@ describe("layerCommercetoolsRegistrationQueries", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  it.effect("combines status and cursor predicates in one provider query", () =>
+  itEffect("combines status and cursor predicates in one provider query", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
         body: {
@@ -328,7 +332,7 @@ describe("layerCommercetoolsRegistrationQueries", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  it.effect("decodes storage status values without persisting _tag", () =>
+  itEffect("decodes storage status values without persisting _tag", () =>
     Effect.gen(function* () {
       const registration = makeAwaiting("registration-1");
       const customObjectValue =
@@ -337,7 +341,7 @@ describe("layerCommercetoolsRegistrationQueries", () => {
       expect(customObjectValue).toMatchObject({
         status: "awaiting_approval",
       });
-      expect(JSON.stringify(customObjectValue)).not.toContain('"_tag"');
+      expect(Object.hasOwn(customObjectValue as object, "_tag")).toBe(false);
 
       execute.mockResolvedValueOnce({
         body: {
@@ -361,7 +365,7 @@ describe("layerCommercetoolsRegistrationQueries", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  it.effect(
+  itEffect(
     "uses provider ascending keyset pagination for last modified sort",
     () =>
       Effect.gen(function* () {
@@ -429,7 +433,7 @@ describe("layerCommercetoolsRegistrationQueries", () => {
       }).pipe(Effect.provide(layer))
   );
 
-  it.effect("uses provider keyset pagination for created at sort", () =>
+  itEffect("uses provider keyset pagination for created at sort", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
         body: {
@@ -495,7 +499,7 @@ describe("layerCommercetoolsRegistrationQueries", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  it.effect("maps invalid custom object payloads to query failures", () =>
+  itEffect("maps invalid custom object payloads to query failures", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
         body: {
@@ -518,7 +522,7 @@ describe("layerCommercetoolsRegistrationQueries", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  it.effect("fails malformed cursors before querying Commercetools", () =>
+  itEffect("fails malformed cursors before querying Commercetools", () =>
     Effect.gen(function* () {
       const queries = yield* RegistrationQueries;
 

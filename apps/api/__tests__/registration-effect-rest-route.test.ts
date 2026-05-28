@@ -1,6 +1,10 @@
+import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
+import {
+  CommerceAccountError,
+  CommerceAccounts,
+} from "@repo/commerce/services/commerce-accounts";
 import { RegistrationReviewerActor } from "@repo/registration-effect/domain/actors";
 import { ApprovedDecision } from "@repo/registration-effect/domain/approval";
-import { CommerceAccount } from "@repo/registration-effect/domain/commerce";
 import {
   AuthUserId,
   CommerceBusinessUnitId,
@@ -23,10 +27,6 @@ import {
   RegistrationReviewerInput,
   toCompanyRegistrationDetails,
 } from "@repo/registration-effect/http/registration-api";
-import {
-  CommerceAccountError,
-  CommerceAccounts,
-} from "@repo/registration-effect/services/commerce-account";
 import { IdentityUsers } from "@repo/registration-effect/services/identity-users";
 import { Invitations } from "@repo/registration-effect/services/invitations";
 import { RegistrationMarketPolicy } from "@repo/registration-effect/services/registration-market-policy";

@@ -1,3 +1,4 @@
+import type { CommerceAccountError } from "@repo/commerce/services/commerce-accounts";
 import { Redacted, Schema } from "effect";
 import {
   HttpApi,
@@ -28,7 +29,6 @@ import {
   type Registration,
   RegistrationStatus,
 } from "../domain/registration";
-import type { CommerceAccountError } from "../services/commerce-account";
 import type { IdentityUserLookupFailure } from "../services/identity-users";
 import type { InvitationIssueError } from "../services/invitations";
 import type { RegistrationQueryError } from "../services/registration-queries";

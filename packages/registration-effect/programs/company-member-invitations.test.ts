@@ -1,10 +1,11 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Exit, Layer, Redacted } from "effect";
-import { CompanyActor } from "../domain/actors";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
-} from "../domain/commerce";
+} from "@repo/commerce/domain/commerce-account";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import { Effect, Exit, Layer, Redacted } from "effect";
+import { CompanyActor } from "../domain/actors";
 import {
   AcceptedAuthIdentity,
   AuthUserId,
@@ -15,7 +16,6 @@ import {
   RegistrationId,
 } from "../domain/identity";
 import { RegistrationApprovalIntent } from "../domain/invitations";
-import { CommerceAccounts } from "../services/commerce-account";
 import { CompanyInvitationPolicy } from "../services/company-invitation-policy";
 import { Invitations } from "../services/invitations";
 import {

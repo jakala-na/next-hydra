@@ -2,20 +2,47 @@ import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
-  CommerceCustomer,
-} from "../domain/commerce";
-import {
-  type AcceptedAuthIdentity,
   CommerceBusinessUnitId,
+  type CommerceCompanyRole,
+  CommerceCustomer,
   CommerceCustomerId,
-  type RedactedEmail,
-  type RegistrationId,
-} from "../domain/identity";
-import type {
-  ApprovedRegistration,
-  Registration,
-} from "../domain/registration";
-import type { CompanyRole } from "../domain/roles";
+} from "../domain/commerce-account";
+
+type RegistrationLikeTag =
+  | "AwaitingApprovalRegistration"
+  | "ApprovalProcessingRegistration"
+  | "ApprovedRegistration"
+  | "RejectedRegistration";
+
+export type RedactedString = Redacted.Redacted<string>;
+
+export interface CommerceAccountRegistrationInput {
+  readonly _tag: RegistrationLikeTag;
+  readonly id: string;
+  readonly details: {
+    readonly companyName: string;
+    readonly companyPhone?: RedactedString | undefined;
+    readonly vatId?: RedactedString | undefined;
+    readonly contactFirstName: RedactedString;
+    readonly contactLastName: RedactedString;
+    readonly email: RedactedString;
+    readonly address: {
+      readonly streetName: RedactedString;
+      readonly additionalStreetInfo?: RedactedString | undefined;
+      readonly postalCode: RedactedString;
+      readonly city: RedactedString;
+      readonly region?: RedactedString | undefined;
+      readonly country: string;
+    };
+  };
+}
+
+export interface AcceptedCommerceIdentity {
+  readonly authUserId: string;
+  readonly email: RedactedString;
+  readonly firstName: RedactedString;
+  readonly lastName: RedactedString;
+}
 
 export class CommerceAccountError extends Schema.TaggedErrorClass<CommerceAccountError>()(
   "CommerceAccountError",
@@ -25,25 +52,28 @@ export class CommerceAccountError extends Schema.TaggedErrorClass<CommerceAccoun
 ) {}
 
 export interface LinkRegistrantIdentityInput {
-  readonly registration: ApprovedRegistration;
-  readonly acceptedIdentity: AcceptedAuthIdentity;
+  readonly registration: {
+    readonly id: string;
+    readonly commerceAccount: CommerceAccount;
+  };
+  readonly acceptedIdentity: AcceptedCommerceIdentity;
 }
 
 export interface AddAssociateInput {
   readonly businessUnitId: CommerceBusinessUnitId;
-  readonly acceptedIdentity: AcceptedAuthIdentity;
-  readonly role: Extract<CompanyRole, "associate">;
+  readonly acceptedIdentity: AcceptedCommerceIdentity;
+  readonly role: Extract<CommerceCompanyRole, "associate">;
 }
 
-const normalizedEmail = (email: RedactedEmail) =>
+const normalizedEmail = (email: RedactedString) =>
   Redacted.value(email).trim().toLowerCase();
 
 interface CommerceState {
-  readonly accountsByRegistration: ReadonlyMap<RegistrationId, CommerceAccount>;
+  readonly accountsByRegistration: ReadonlyMap<string, CommerceAccount>;
   readonly customersByAuthUserId: ReadonlyMap<string, CommerceCustomer>;
   readonly linkedRegistrantIdentities: ReadonlyMap<
-    RegistrationId,
-    AcceptedAuthIdentity
+    string,
+    AcceptedCommerceIdentity
   >;
   readonly associatesByBusinessUnit: ReadonlyMap<
     CommerceBusinessUnitId,
@@ -62,7 +92,7 @@ export class CommerceAccounts extends Context.Service<
   CommerceAccounts,
   {
     readonly createFromRegistration: (
-      registration: Registration
+      registration: CommerceAccountRegistrationInput
     ) => Effect.Effect<CommerceAccount, CommerceAccountError>;
     readonly linkRegistrantIdentity: (
       input: LinkRegistrantIdentityInput
@@ -71,10 +101,10 @@ export class CommerceAccounts extends Context.Service<
       input: AddAssociateInput
     ) => Effect.Effect<CommerceAssociateMembership, CommerceAccountError>;
     readonly hasCustomerWithEmail: (
-      email: RedactedEmail
+      email: RedactedString
     ) => Effect.Effect<boolean, CommerceAccountError>;
   }
->()("@repo/registration-effect/CommerceAccounts") {
+>()("@repo/commerce/CommerceAccounts") {
   static readonly layerMemory = Layer.effect(
     CommerceAccounts,
     Effect.gen(function* () {
@@ -82,7 +112,7 @@ export class CommerceAccounts extends Context.Service<
 
       const createFromRegistration = Effect.fn(
         "CommerceAccounts.createFromRegistration"
-      )((registration: Registration) =>
+      )((registration: CommerceAccountRegistrationInput) =>
         Effect.gen(function* () {
           const current = yield* Ref.get(state);
           const existing = current.accountsByRegistration.get(registration.id);
@@ -204,7 +234,7 @@ export class CommerceAccounts extends Context.Service<
 
       const hasCustomerWithEmail = Effect.fn(
         "CommerceAccounts.hasCustomerWithEmail"
-      )((email: RedactedEmail) =>
+      )((email: RedactedString) =>
         Ref.get(state).pipe(
           Effect.map((current) => {
             const targetEmail = normalizedEmail(email);

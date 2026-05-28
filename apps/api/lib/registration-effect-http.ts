@@ -1,3 +1,4 @@
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import type {
   CompanyRegistrationDetails,
   RegistrationStatus,
@@ -19,7 +20,6 @@ import {
   toRegistrationDetailResponse,
   UnsupportedRegistrationCountry,
 } from "@repo/registration-effect/http/registration-api";
-import { CommerceAccounts } from "@repo/registration-effect/services/commerce-account";
 import { IdentityUsers } from "@repo/registration-effect/services/identity-users";
 import type { Invitations } from "@repo/registration-effect/services/invitations";
 import { RegistrationMarketPolicy } from "@repo/registration-effect/services/registration-market-policy";

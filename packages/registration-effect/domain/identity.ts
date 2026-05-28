@@ -1,4 +1,12 @@
+import {
+  CommerceBusinessUnitId as CommerceBusinessUnitIdSchema,
+  CommerceCustomerId as CommerceCustomerIdSchema,
+} from "@repo/commerce/domain/commerce-account";
 import { Redacted, Schema, SchemaGetter } from "effect";
+export const CommerceBusinessUnitId = CommerceBusinessUnitIdSchema;
+export const CommerceCustomerId = CommerceCustomerIdSchema;
+export type CommerceBusinessUnitId = typeof CommerceBusinessUnitId.Type;
+export type CommerceCustomerId = typeof CommerceCustomerId.Type;
 
 export const Email = Schema.String.pipe(Schema.brand("Email"));
 export type Email = typeof Email.Type;
@@ -64,16 +72,6 @@ export type RegistrationId = typeof RegistrationId.Type;
 
 export const InvitationId = Schema.String.pipe(Schema.brand("InvitationId"));
 export type InvitationId = typeof InvitationId.Type;
-
-export const CommerceCustomerId = Schema.String.pipe(
-  Schema.brand("CommerceCustomerId")
-);
-export type CommerceCustomerId = typeof CommerceCustomerId.Type;
-
-export const CommerceBusinessUnitId = Schema.String.pipe(
-  Schema.brand("CommerceBusinessUnitId")
-);
-export type CommerceBusinessUnitId = typeof CommerceBusinessUnitId.Type;
 
 export class AcceptedAuthIdentity extends Schema.Class<AcceptedAuthIdentity>(
   "AcceptedAuthIdentity"

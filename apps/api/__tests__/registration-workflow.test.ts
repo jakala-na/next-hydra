@@ -1,13 +1,14 @@
 import {
+  CommerceAccount,
+  CommerceAssociateMembership,
+} from "@repo/commerce/domain/commerce-account";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import {
   getRegistrationApprovalHookToken,
   getRegistrationInvitationHookToken,
   RegistrationId,
 } from "@repo/registration-effect";
 import { RegistrationReviewerActor } from "@repo/registration-effect/domain/actors";
-import {
-  CommerceAccount,
-  CommerceAssociateMembership,
-} from "@repo/registration-effect/domain/commerce";
 import {
   AddressLine,
   City,
@@ -35,7 +36,6 @@ import {
   type Registration,
   RejectedRegistration,
 } from "@repo/registration-effect/domain/registration";
-import { CommerceAccounts } from "@repo/registration-effect/services/commerce-account";
 import {
   InvitationNotFound,
   Invitations,
@@ -365,7 +365,7 @@ const loadWorkflow = async (
     Registrations | CommerceAccounts | Invitations | RegistrationEmails
   >
 ) => {
-  vi.doMock("../lib/registration-effect-runtime", () => ({
+  vi.doMock("../lib/registration/runtime", () => ({
     registrationEffectLayer: layer,
   }));
 

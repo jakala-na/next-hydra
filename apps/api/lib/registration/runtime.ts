@@ -2,7 +2,6 @@ import { identityUsersLayerWorkos } from "@repo/auth-workos/identity-users";
 import { invitationsLayerWorkos } from "@repo/auth-workos/invitations";
 import { layerCommercetoolsCommerceAccounts } from "@repo/commerce/lib/infra/commercetools/commerce-accounts";
 import { layerCommercetoolsCustomObjectKeyValueStore } from "@repo/commerce/lib/infra/commercetools/key-value-store";
-import { layerCommercetoolsRegistrationQueries } from "@repo/commerce/lib/infra/commercetools/registration-queries";
 import { layerResendEmailProvider } from "@repo/email/resend-provider";
 import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import { layerRegistrationEmails } from "@repo/registration-effect";
@@ -11,6 +10,7 @@ import { Registrations } from "@repo/registration-effect/services/registrations"
 import { VatValidator } from "@repo/registration-effect/services/vat-validator";
 import { Layer } from "effect";
 import { env } from "@/env";
+import { layerCommercetoolsRegistrationQueries } from "./providers/commercetools-registration-queries";
 
 export const REGISTRATION_EFFECT_CONTAINER =
   process.env.REGISTRATION_EFFECT_CONTAINER ?? "b2b-registration-effect-by-id";

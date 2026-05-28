@@ -1,3 +1,4 @@
+import { apiRoot } from "@repo/commerce/lib/client/api-root";
 import {
   type Registration,
   Registration as RegistrationSchema,
@@ -19,7 +20,6 @@ import {
 } from "@repo/registration-effect/services/registration-queries";
 import { decodeJsonString } from "@repo/versioned-store";
 import { Effect, Layer, Option, Schema } from "effect";
-import { apiRoot } from "../../client/api-root";
 
 interface CommercetoolsCustomObject {
   readonly id: string;
@@ -68,8 +68,8 @@ const wherePredicate = ({
   cursor,
   status,
 }: {
-  readonly cursor?: RegistrationQueryCursor;
-  readonly status?: RegistrationStatusType;
+  readonly cursor?: RegistrationQueryCursor | undefined;
+  readonly status?: RegistrationStatusType | undefined;
 }) => {
   const predicates: string[] = [];
 
@@ -170,12 +170,12 @@ const queryCustomObjects = ({
   limit,
 }: {
   readonly container: string;
-  readonly cursor?: RegistrationQueryCursor;
+  readonly cursor?: RegistrationQueryCursor | undefined;
   readonly sort: {
     readonly field: RegistrationQuerySortField;
     readonly direction: RegistrationQuerySortDirection;
   };
-  readonly status?: RegistrationStatusType;
+  readonly status?: RegistrationStatusType | undefined;
   readonly limit: number;
 }) =>
   Effect.tryPromise({

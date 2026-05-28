@@ -33,19 +33,12 @@ export {
 } from "./domain/actors";
 export { ApprovedDecision, RejectedDecision } from "./domain/approval";
 export {
-  CommerceAccount,
-  CommerceAssociateMembership,
-  CommerceCustomer,
-} from "./domain/commerce";
-export {
   AcceptedAuthIdentity,
   AddressLine,
   type AddressLine as AddressLineType,
   AuthUserId,
   City,
   type City as CityType,
-  CommerceBusinessUnitId,
-  CommerceCustomerId,
   CompanyName,
   type CompanyName as CompanyNameType,
   CountryCode,
@@ -157,12 +150,6 @@ export {
   type RejectRegistrationInput,
   rejectRegistration,
 } from "./programs/registration-onboarding";
-export {
-  type AddAssociateInput,
-  CommerceAccountError,
-  CommerceAccounts,
-  type LinkRegistrantIdentityInput,
-} from "./services/commerce-account";
 export {
   type AuthorizeIssueInviteInput,
   type AuthorizeRevokeInviteInput,

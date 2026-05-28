@@ -1,8 +1,8 @@
+import { CommerceAccountError } from "@repo/commerce/services/commerce-accounts";
 import { EmailProviderFailure } from "@repo/email";
 import { StoreConflict, StoreError } from "@repo/versioned-store";
 import { describe, expect, it } from "vitest";
 import { InvitationId, RegistrationId } from "../domain/identity";
-import { CommerceAccountError } from "./commerce-account";
 import { InvitationPolicyError } from "./company-invitation-policy";
 import {
   InvitationConflict,

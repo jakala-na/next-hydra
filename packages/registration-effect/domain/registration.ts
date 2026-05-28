@@ -1,6 +1,6 @@
+import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import { Schema } from "effect";
 import { ApprovedDecision, RejectedDecision } from "./approval";
-import { CommerceAccount } from "./commerce";
 import {
   AddressLine,
   City,

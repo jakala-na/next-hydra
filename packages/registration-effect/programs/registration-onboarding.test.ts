@@ -1,10 +1,15 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Exit, Layer, Redacted } from "effect";
-import { RegistrationReviewerActor } from "../domain/actors";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
-} from "../domain/commerce";
+} from "@repo/commerce/domain/commerce-account";
+import {
+  type AcceptedCommerceIdentity,
+  CommerceAccountError,
+  CommerceAccounts,
+} from "@repo/commerce/services/commerce-accounts";
+import { Effect, Exit, Layer, Redacted } from "effect";
+import { RegistrationReviewerActor } from "../domain/actors";
 import {
   AcceptedAuthIdentity,
   AddressLine,
@@ -27,10 +32,6 @@ import {
   CompanyAddress,
   CompanyRegistrationDetails,
 } from "../domain/registration";
-import {
-  CommerceAccountError,
-  CommerceAccounts,
-} from "../services/commerce-account";
 import {
   InvitationConflict,
   InvitationNotFound,
@@ -341,7 +342,7 @@ describe("registration onboarding", () => {
   );
 
   it.effect("adds the accepted registrant as the business unit owner", () => {
-    const linkedIdentities: AcceptedAuthIdentity[] = [];
+    const linkedIdentities: AcceptedCommerceIdentity[] = [];
     const commerceLayer = Layer.succeed(
       CommerceAccounts,
       CommerceAccounts.of({

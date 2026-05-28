@@ -1,3 +1,4 @@
+import type { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import {
   type StoreConflict,
   type StoreError,
@@ -5,7 +6,6 @@ import {
 } from "@repo/versioned-store";
 import { Clock, Context, Effect, Layer, Option, Random, Schema } from "effect";
 import type { ApprovedDecision, RejectedDecision } from "../domain/approval";
-import type { CommerceAccount } from "../domain/commerce";
 import { InvitationId, RegistrationId } from "../domain/identity";
 import {
   ApprovalProcessingRegistration,
