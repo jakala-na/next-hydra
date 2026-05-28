@@ -9,18 +9,18 @@ import {
   PersonName,
   PostalCode,
   RegistrationId,
-} from "@repo/registration-effect/domain/identity";
+} from "@repo/registration/domain/identity";
 import {
   AwaitingApprovalRegistration,
   CompanyAddress,
   CompanyRegistrationDetails,
   Registration,
-} from "@repo/registration-effect/domain/registration";
+} from "@repo/registration/domain/registration";
 import {
   RegistrationQueries,
   RegistrationQueryFailure,
   RegistrationQueryInvalidCursor,
-} from "@repo/registration-effect/services/registration-queries";
+} from "@repo/registration/services/registration-queries";
 import { encodeJsonString } from "@repo/versioned-store";
 import type { Schema } from "effect";
 import { Effect, Redacted } from "effect";
@@ -59,7 +59,7 @@ vi.mock("@repo/commerce/lib/client/api-root", () => ({
 
 const { customObjects, execute, get, withContainer } = mocks;
 
-const container = "b2b-registration-effect-by-id";
+const container = "b2b-registration-by-id";
 const layer = layerCommercetoolsRegistrationQueries({
   batchSize: 2,
   container,

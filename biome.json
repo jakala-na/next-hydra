@@ -69,8 +69,7 @@
     {
       "includes": [
         "apps/api/**",
-        "packages/registration-effect/**",
-        "packages/registration/application/**",
+        "packages/registration/**",
         "packages/commerce/lib/infra/**",
         "packages/commerce/lib/b2b-registration/**"
       ],

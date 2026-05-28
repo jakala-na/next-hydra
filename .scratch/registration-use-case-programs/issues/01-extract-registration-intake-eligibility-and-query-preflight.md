@@ -8,7 +8,7 @@ Status: ready-for-agent
 
 ## What to build
 
-Extract public Registration intake and eligibility behaviour from the HTTP adapter into named Registration Effect programs. The resulting use-case surface should validate a company access request, run provider-independent eligibility checks, create an awaiting approval Registration only when eligibility passes, and keep provider-specific details behind capability services supplied by Layers.
+Extract public Registration intake and eligibility behaviour from the HTTP adapter into named Registration programs. The resulting use-case surface should validate a company access request, run provider-independent eligibility checks, create an awaiting approval Registration only when eligibility passes, and keep provider-specific details behind capability services supplied by Layers.
 
 This slice should also move query-owned preflight/read-model semantics out of transport code where they belong to Registration queries. Pending email lookup and list/search semantics should be owned by the query/read-model capability rather than by recursive HTTP helper logic or post-pagination filtering in the adapter.
 
@@ -30,7 +30,7 @@ The public HTTP create/list contract should remain stable. The HTTP adapter shou
 - [ ] Program tests cover successful awaiting approval creation, duplicate pending Registration email, existing Commerce customer email, existing identity user email, invalid VAT, unsupported country, multiple validation reasons, and provider lookup failure semantics.
 - [ ] Query tests cover pending email existence and list/search/cursor behaviour without relying on HTTP post-filtering.
 - [ ] Route tests focus on HTTP schema decoding, response status/error mapping, and adapter wiring rather than duplicating all intake/eligibility behaviour.
-- [ ] The package typechecks and the relevant Registration Effect/API tests pass.
+- [ ] The package typechecks and the relevant Registration/API tests pass.
 
 ## Blocked by
 

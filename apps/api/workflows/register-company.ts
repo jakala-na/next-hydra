@@ -8,23 +8,23 @@ import {
   notifyRegistrationRejected,
   RegistrationId,
   rejectRegistration,
-} from "@repo/registration-effect";
+} from "@repo/registration";
 import {
   AcceptedAuthIdentity,
   AuthUserId,
   Email,
   InvitationId,
   PersonName,
-} from "@repo/registration-effect/domain/identity";
+} from "@repo/registration/domain/identity";
 import {
   type RegistrationDetailResponse,
   RegistrationReviewerInput,
   toRegistrationDetailResponse,
   toReviewerActor,
-} from "@repo/registration-effect/http/registration-api";
+} from "@repo/registration/http/registration-api";
 import { Effect, Redacted } from "effect";
 import { createHook } from "workflow";
-import { registrationEffectLayer } from "@/lib/registration/runtime";
+import { registrationLayer } from "@/lib/registration/runtime";
 import type {
   RegistrationInvitationEvent,
   RegistrationWorkflowDecision,
@@ -111,7 +111,7 @@ const runWorkflowStep = <A, R>(
       ),
     }),
     Effect.withSpan(`registration.workflow.${step}`),
-    Effect.provide(registrationEffectLayer)
+    Effect.provide(registrationLayer)
   ) as Effect.Effect<A, unknown, never>;
 
   return Effect.runPromise(runnable);

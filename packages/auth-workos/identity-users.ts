@@ -1,10 +1,10 @@
 import {
   IdentityUserLookupFailure,
   IdentityUsers,
-} from "@repo/registration-effect/services/identity-users";
+} from "@repo/registration/services/identity-users";
 import { WorkOS } from "@workos-inc/node";
 import { Config, Effect, Layer, Option, Redacted } from "effect";
-import type { RedactedEmail } from "../registration-effect/domain/identity";
+import type { RedactedEmail } from "@repo/registration/domain/identity";
 
 type WorkosSdk = Pick<WorkOS, "userManagement">;
 

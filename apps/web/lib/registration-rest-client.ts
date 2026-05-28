@@ -1,6 +1,6 @@
 import "server-only";
 
-import { RegistrationHttpApi } from "@repo/registration-effect/http/registration-api";
+import { RegistrationHttpApi } from "@repo/registration/http/registration-api";
 import { Effect } from "effect";
 import {
   FetchHttpClient,

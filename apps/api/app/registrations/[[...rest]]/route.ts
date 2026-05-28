@@ -1,10 +1,10 @@
-import { getRegistrationApprovalHookToken } from "@repo/registration-effect";
-import { RegistrationApiError } from "@repo/registration-effect/http/registration-api";
+import { getRegistrationApprovalHookToken } from "@repo/registration";
+import { RegistrationApiError } from "@repo/registration/http/registration-api";
 import { Effect } from "effect";
 import { resumeHook, start } from "workflow/api";
 import { env } from "@/env";
-import { registrationEffectLayer } from "@/lib/registration/runtime";
-import { makeRegistrationEffectHttpHandler } from "@/lib/registration-effect-http";
+import { registrationLayer } from "@/lib/registration/runtime";
+import { makeRegistrationHttpHandler } from "@/lib/registration/http";
 import type { RegistrationWorkflowDecision } from "@/lib/registration-workflow-contract";
 import { registerCompanyWorkflow } from "@/workflows/register-company";
 
@@ -36,9 +36,9 @@ const resumeRegistrationWorkflow = (
       }),
   });
 
-const { handler } = makeRegistrationEffectHttpHandler({
+const { handler } = makeRegistrationHttpHandler({
   approvalSecret: env.REGISTRATION_APPROVAL_SECRET,
-  layer: registrationEffectLayer,
+  layer: registrationLayer,
   resumeRegistrationWorkflow,
   startRegistrationWorkflow,
 });

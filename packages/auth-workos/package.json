@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@repo/i18n": "workspace:*",
-    "@repo/registration-effect": "workspace:*",
+    "@repo/registration": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
     "@workos-inc/authkit-nextjs": "^2.13.0",
     "@workos-inc/node": "^8.12.1",
@@ -27,6 +27,7 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "typescript": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "vitest": "^3.1.4"
   }
 }

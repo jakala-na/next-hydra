@@ -4,7 +4,7 @@ import {
 } from "@workos-inc/node";
 import { Effect, Exit, Layer, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
-import { CompanyActor } from "../registration-effect/domain/actors";
+import { CompanyActor } from "@repo/registration/domain/actors";
 import {
   AcceptedAuthIdentity,
   AuthUserId,
@@ -12,14 +12,14 @@ import {
   Email,
   InvitationId,
   PersonName,
-} from "../registration-effect/domain/identity";
-import { CompanyMemberIntent } from "../registration-effect/domain/invitations";
+} from "@repo/registration/domain/identity";
+import { CompanyMemberIntent } from "@repo/registration/domain/invitations";
 import {
   InvitationConflict,
   InvitationNotFound,
   InvitationProviderFailure,
   Invitations,
-} from "../registration-effect/services/invitations";
+} from "@repo/registration/services/invitations";
 import {
   makeWorkosInvitations,
   type WorkosInvitationUserManagement,

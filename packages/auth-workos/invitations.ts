@@ -5,21 +5,21 @@ import {
   type SendInvitationOptions as WorkosSendInvitationOptions,
 } from "@workos-inc/node";
 import { Config, Effect, Layer, Option, Redacted } from "effect";
-import { registrationSystemActor } from "../registration-effect/domain/actors";
+import { registrationSystemActor } from "@repo/registration/domain/actors";
 import {
   AcceptedAuthIdentity,
   AuthUserId,
   Email,
   InvitationId,
   PersonName,
-} from "../registration-effect/domain/identity";
+} from "@repo/registration/domain/identity";
 import {
   AcceptedInvitation,
   type Invitation,
   PendingInvitation,
   ProviderInvitationIntent,
   RevokedInvitation,
-} from "../registration-effect/domain/invitations";
+} from "@repo/registration/domain/invitations";
 import {
   type AcceptInvitationInput,
   InvitationConflict,
@@ -28,7 +28,7 @@ import {
   Invitations,
   type IssueInvitationInput,
   type RevokeInvitationInput,
-} from "../registration-effect/services/invitations";
+} from "@repo/registration/services/invitations";
 
 export type {
   Invitation as WorkosInvitation,

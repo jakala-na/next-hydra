@@ -1,8 +1,8 @@
 import { getTranslations, hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
-import { RegistrationForm } from "@repo/registration-effect/components/registration-form";
+import { RegistrationForm } from "@repo/registration/components/registration-form";
 import { notFound } from "next/navigation";
-import { submitRegistrationEffect } from "@/lib/registration-effect-actions";
+import { submitRegistration } from "@/lib/registration-actions";
 
 export default async function RegisterPage({
   params,
@@ -33,7 +33,7 @@ export default async function RegisterPage({
         </div>
 
         <RegistrationForm
-          submit={submitRegistrationEffect.bind(
+          submit={submitRegistration.bind(
             null,
             `/${locale}/register/awaiting-approval`
           )}

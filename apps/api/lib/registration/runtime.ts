@@ -4,19 +4,19 @@ import { layerCommercetoolsCommerceAccounts } from "@repo/commerce/lib/infra/com
 import { layerCommercetoolsCustomObjectKeyValueStore } from "@repo/commerce/lib/infra/commercetools/key-value-store";
 import { layerResendEmailProvider } from "@repo/email/resend-provider";
 import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
-import { layerRegistrationEmails } from "@repo/registration-effect";
-import { RegistrationMarketPolicy } from "@repo/registration-effect/services/registration-market-policy";
-import { Registrations } from "@repo/registration-effect/services/registrations";
-import { VatValidator } from "@repo/registration-effect/services/vat-validator";
+import { layerRegistrationEmails } from "@repo/registration";
+import { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
+import { Registrations } from "@repo/registration/services/registrations";
+import { VatValidator } from "@repo/registration/services/vat-validator";
 import { Layer } from "effect";
 import { env } from "@/env";
 import { layerCommercetoolsRegistrationQueries } from "./providers/commercetools-registration-queries";
 
-export const REGISTRATION_EFFECT_CONTAINER =
-  process.env.REGISTRATION_EFFECT_CONTAINER ?? "b2b-registration-effect-by-id";
+export const REGISTRATION_CONTAINER =
+  process.env.REGISTRATION_CONTAINER ?? "b2b-registration-by-id";
 
 const registrationStorageLayer = layerCommercetoolsCustomObjectKeyValueStore({
-  container: REGISTRATION_EFFECT_CONTAINER,
+  container: REGISTRATION_CONTAINER,
 });
 
 const registrationEmailsLayer = layerRegistrationEmails({
@@ -24,11 +24,11 @@ const registrationEmailsLayer = layerRegistrationEmails({
   webUrl: env.NEXT_PUBLIC_WEB_URL,
 }).pipe(Layer.provide(layerResendEmailProvider));
 
-export const registrationEffectLayer = Registrations.layerStorage.pipe(
+export const registrationLayer = Registrations.layerStorage.pipe(
   Layer.provide(registrationStorageLayer),
   Layer.provideMerge(
     layerCommercetoolsRegistrationQueries({
-      container: REGISTRATION_EFFECT_CONTAINER,
+      container: REGISTRATION_CONTAINER,
     })
   ),
   Layer.provideMerge(layerCommercetoolsCommerceAccounts),

@@ -85,7 +85,7 @@ Listing, searching, filtering, and pagination are modeled as a separate `Registr
 - Add program-level tests showing that approval and rejection surface storage conflicts without hiding retry policy.
 - Add Commercetools provider tests around request shape and error mapping. The important behaviors are `version: 0` on insert, provider version on update, concurrent modification mapping, and schema decode failures.
 - Add query service tests that preserve existing admin list semantics: status filters, search fields, cursor behavior, stable sorting, and page boundaries.
-- Reuse the existing Effect test style in the registration-effect package for service and program tests.
+- Reuse the existing Effect test style in the registration package for service and program tests.
 
 ## Out of Scope
 

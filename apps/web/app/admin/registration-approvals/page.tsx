@@ -22,14 +22,14 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/design-system/components/ui/table";
-import type { RegistrationDetailView } from "@repo/registration-effect";
-import { RegistrationDecisionSheet } from "@repo/registration-effect/components/admin/registration-decision-sheet";
+import type { RegistrationDetailView } from "@repo/registration";
+import { RegistrationDecisionSheet } from "@repo/registration/components/admin/registration-decision-sheet";
 import {
   registrationStatusFilters,
   registrationStatusLabels,
-} from "@repo/registration-effect/components/admin/registration-lifecycle";
-import { RegistrationStatusBadge } from "@repo/registration-effect/components/admin/registration-status-badge";
-import type { RegistrationDetailStatus } from "@repo/registration-effect/components/admin/registration-view-models";
+} from "@repo/registration/components/admin/registration-lifecycle";
+import { RegistrationStatusBadge } from "@repo/registration/components/admin/registration-status-badge";
+import type { RegistrationDetailStatus } from "@repo/registration/components/admin/registration-view-models";
 import type { Route } from "next";
 import Link from "next/link";
 import {
@@ -38,13 +38,13 @@ import {
   requireAdminPermission,
 } from "@/lib/admin-auth";
 import {
-  getAdminRegistrationEffect,
-  listAdminRegistrationsEffect,
-} from "@/lib/admin-registration-effect";
+  getAdminRegistration,
+  listAdminRegistrations,
+} from "@/lib/admin-registration";
 import {
-  approveRegistrationEffect,
-  rejectRegistrationEffect,
-} from "@/lib/admin-registration-effect-actions";
+  approveRegistration,
+  rejectRegistration,
+} from "@/lib/admin-registration-actions";
 
 type AdminSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -158,14 +158,14 @@ export default async function AdminRegistrationsPage({
     false;
 
   const [listResult, selectedRegistration] = await Promise.all([
-    listAdminRegistrationsEffect({
+    listAdminRegistrations({
       status,
       search,
       cursor: currentCursor,
       limit: PAGE_SIZE,
     }),
     registrationId
-      ? getAdminRegistrationEffect({ registrationId })
+      ? getAdminRegistration({ registrationId })
       : Promise.resolve(null),
   ]);
 
@@ -344,11 +344,11 @@ export default async function AdminRegistrationsPage({
       </Card>
 
       <RegistrationDecisionSheet
-        approve={approveRegistrationEffect}
+        approve={approveRegistration}
         canDecide={canDecide}
         closeHref={closeHref}
         registration={selectedRegistration}
-        reject={rejectRegistrationEffect}
+        reject={rejectRegistration}
       />
     </div>
   );

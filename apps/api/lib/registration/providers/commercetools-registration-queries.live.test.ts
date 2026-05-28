@@ -1,7 +1,7 @@
 // biome-ignore-all lint/suspicious/noMisplacedAssertion: Assertions run inside Effect programs executed by the test helper.
 
-import { RegistrationReviewerActor } from "@repo/registration-effect/domain/actors";
-import { RejectedDecision } from "@repo/registration-effect/domain/approval";
+import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
+import { RejectedDecision } from "@repo/registration/domain/approval";
 import {
   AddressLine,
   AuthUserId,
@@ -12,17 +12,17 @@ import {
   PersonName,
   PostalCode,
   RegistrationId,
-} from "@repo/registration-effect/domain/identity";
+} from "@repo/registration/domain/identity";
 import {
   AwaitingApprovalRegistration,
   CompanyAddress,
   CompanyRegistrationDetails,
   RejectedRegistration,
-} from "@repo/registration-effect/domain/registration";
+} from "@repo/registration/domain/registration";
 import {
   RegistrationQueries,
   type RegistrationQueryRecord,
-} from "@repo/registration-effect/services/registration-queries";
+} from "@repo/registration/services/registration-queries";
 import { Effect, Redacted } from "effect";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 

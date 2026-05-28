@@ -1,11 +1,11 @@
 import { apiRoot } from "@repo/commerce/lib/client/api-root";
-import type { RedactedEmail } from "@repo/registration-effect/domain/identity";
+import type { RedactedEmail } from "@repo/registration/domain/identity";
 import {
   type Registration,
   Registration as RegistrationSchema,
   RegistrationStatus,
   type RegistrationStatus as RegistrationStatusType,
-} from "@repo/registration-effect/domain/registration";
+} from "@repo/registration/domain/registration";
 import {
   encodeRegistrationQueryCursor,
   type ListRegistrationsInput,
@@ -18,7 +18,7 @@ import {
   type RegistrationQuerySortDirection,
   type RegistrationQuerySortField,
   registrationQueryCursorFromRecord,
-} from "@repo/registration-effect/services/registration-queries";
+} from "@repo/registration/services/registration-queries";
 import { decodeJsonString } from "@repo/versioned-store";
 import { Effect, Layer, Option, Redacted, Schema } from "effect";
 

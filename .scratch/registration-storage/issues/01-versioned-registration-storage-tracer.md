@@ -33,7 +33,7 @@ User stories covered: 1, 4, 5, 6, 7, 8, 11, 13, 15, 16, 19.
 - [x] The memory implementation enforces versioned write behavior rather than acting like a plain map.
 - [x] Tests cover missing lookup, create-only insert, create conflict, storage failure mapping, successful versioned update, stale update conflict, approval, rejection, invalid transitions, and conflict propagation.
 - [x] Existing registration onboarding program tests continue to pass through the refactored `Registrations` service.
-- [x] The package typechecks with the repo's existing registration-effect typecheck command.
+- [x] The package typechecks with the repo's existing registration typecheck command.
 
 ## Blocked by
 

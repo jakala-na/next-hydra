@@ -123,7 +123,7 @@ class RegistrationStorage extends Context.Service<
       next: Registration
     ) => Effect.Effect<void, RegistrationStorageError | RegistrationWriteConflict>
   }
->()("@repo/registration-effect/RegistrationStorage") {}
+>()("@repo/registration/RegistrationStorage") {}
 ```
 
 Rejected callback-style shape:

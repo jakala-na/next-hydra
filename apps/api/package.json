@@ -18,7 +18,7 @@
     "@repo/email": "workspace:*",
     "@repo/next-config": "workspace:*",
     "@repo/observability": "workspace:*",
-    "@repo/registration-effect": "workspace:*",
+    "@repo/registration": "workspace:*",
     "@repo/testing": "workspace:*",
     "@repo/versioned-store": "workspace:*",
     "@sentry/nextjs": "^10.22.0",

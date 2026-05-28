@@ -7,8 +7,8 @@ import {
   getRegistrationApprovalHookToken,
   getRegistrationInvitationHookToken,
   RegistrationId,
-} from "@repo/registration-effect";
-import { RegistrationReviewerActor } from "@repo/registration-effect/domain/actors";
+} from "@repo/registration";
+import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
 import {
   AddressLine,
   City,
@@ -22,11 +22,11 @@ import {
   PhoneNumber,
   PostalCode,
   VatId,
-} from "@repo/registration-effect/domain/identity";
+} from "@repo/registration/domain/identity";
 import {
   AcceptedInvitation,
   PendingInvitation,
-} from "@repo/registration-effect/domain/invitations";
+} from "@repo/registration/domain/invitations";
 import {
   ApprovalProcessingRegistration,
   ApprovedRegistration,
@@ -35,19 +35,19 @@ import {
   CompanyRegistrationDetails,
   type Registration,
   RejectedRegistration,
-} from "@repo/registration-effect/domain/registration";
+} from "@repo/registration/domain/registration";
 import {
   InvitationNotFound,
   Invitations,
-} from "@repo/registration-effect/services/invitations";
+} from "@repo/registration/services/invitations";
 import {
   type RegistrationEmailNotification,
   RegistrationEmails,
-} from "@repo/registration-effect/services/registration-emails";
+} from "@repo/registration/services/registration-emails";
 import {
   RegistrationNotFound,
   Registrations,
-} from "@repo/registration-effect/services/registrations";
+} from "@repo/registration/services/registrations";
 import { Effect, Layer, Redacted } from "effect";
 import { beforeEach, expect, test, vi } from "vitest";
 
@@ -366,7 +366,7 @@ const loadWorkflow = async (
   >
 ) => {
   vi.doMock("../lib/registration/runtime", () => ({
-    registrationEffectLayer: layer,
+    registrationLayer: layer,
   }));
 
   return await import("../workflows/register-company");

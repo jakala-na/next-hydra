@@ -22,7 +22,7 @@
     "@repo/next-config": "workspace:*",
     "@repo/observability": "workspace:*",
     "@repo/rate-limit": "workspace:*",
-    "@repo/registration-effect": "workspace:*",
+    "@repo/registration": "workspace:*",
     "@repo/security": "workspace:*",
     "@repo/seo": "workspace:*",
     "@hookform/resolvers": "^5.2.2",

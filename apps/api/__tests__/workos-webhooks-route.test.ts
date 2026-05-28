@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { getRegistrationInvitationHookToken } from "@repo/registration-effect";
+import { getRegistrationInvitationHookToken } from "@repo/registration";
 import { beforeEach, expect, test, vi } from "vitest";
 
 const HTTP_OK = 200;

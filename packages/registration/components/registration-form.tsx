@@ -1,8 +1,10 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { isDefinedError, onError, onSuccess } from "@orpc/client";
-import { useServerAction } from "@orpc/react/hooks";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import {
+  Alert,
+  AlertDescription,
+} from "@repo/design-system/components/ui/alert";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
   Card,
@@ -26,24 +28,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/design-system/components/ui/select";
+import {
+  type ReactHookFormActionErrorMessages,
+  setReactHookFormActionErrors,
+  setReactHookFormRootError,
+} from "@repo/form/react-hook-form";
 import { useLocale, useTranslations } from "@repo/i18n";
-import type { Route } from "next";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { Schema } from "effect";
+import { unstable_rethrow } from "next/navigation";
 import type { FieldPath } from "react-hook-form";
 import { useForm } from "react-hook-form";
-import { requiresRegion } from "../domain/types";
-import type { RegistrationSubmitActionable } from "../orpc/types";
 import {
-  createRegistrationFormErrorMap,
   getCountryOptions,
+  makeRegistrationFormInputSchema,
+  type RegistrationFormError,
+  type RegistrationFormFieldError,
+  type RegistrationFormResult,
   type RegistrationFormValues,
-  registrationFormSchema,
+  requiresRegion,
 } from "./registration-form-schema";
 
 type RegistrationFormProps = {
-  readonly submit: RegistrationSubmitActionable;
-  readonly awaitingApprovalUrl: string;
+  readonly submit: (
+    input: RegistrationFormValues
+  ) => Promise<RegistrationFormResult>;
 };
 
 const defaultValues: RegistrationFormValues = {
@@ -78,45 +86,37 @@ function TranslatedFormMessage({ className }: { readonly className?: string }) {
   );
 }
 
-export function RegistrationForm({
-  submit,
-  awaitingApprovalUrl,
-}: RegistrationFormProps) {
+export function RegistrationForm({ submit }: RegistrationFormProps) {
   const t = useTranslations("web.registration.form");
   const locale = useLocale();
-  const router = useRouter();
-  const [formError, setFormError] = useState<string | null>(null);
+  const registrationFormSchema = makeRegistrationFormInputSchema(t);
   const form = useForm<RegistrationFormValues>({
-    resolver: zodResolver(registrationFormSchema, {
-      errorMap: createRegistrationFormErrorMap(t),
-    } as never),
+    resolver: standardSchemaResolver(
+      Schema.toStandardSchemaV1(registrationFormSchema)
+    ),
     defaultValues,
     mode: "onBlur",
-  });
-  const { execute, status } = useServerAction(submit, {
-    interceptors: [
-      onSuccess(() => {
-        setFormError(null);
-        router.push(awaitingApprovalUrl as Route);
-      }),
-      onError((error) => {
-        if (isDefinedError(error)) {
-          switch (error.code) {
-            case "REGISTRATION_SUBMISSION_INCOMPLETE":
-              setFormError(t("errors.submitFailed"));
-              return;
-            default:
-              break;
-          }
-        }
-
-        setFormError(t("errors.submitFailed"));
-      }),
-    ],
   });
   const selectedCountry = form.watch("address.country");
   const isRegionRequired = requiresRegion(selectedCountry);
   const countryOptions = getCountryOptions(locale);
+  const actionErrorMessages = {
+    field: {
+      duplicateEmail: t("validation.duplicateEmail"),
+      invalidVatId: t("validation.invalidVatId"),
+    },
+    form: {
+      invalidSubmission: t("errors.invalidSubmission"),
+      unsupportedRegistrationCountry: t(
+        "errors.unsupportedRegistrationCountry"
+      ),
+    },
+  } satisfies ReactHookFormActionErrorMessages<
+    RegistrationFormFieldError["code"],
+    RegistrationFormError["code"]
+  >;
+  const formError = form.formState.errors.root?.serverError?.message;
+  const isSubmitting = form.formState.isSubmitting;
   const renderRowFieldMessage = (name: FieldPath<RegistrationFormValues>) => {
     const message = form.getFieldState(name, form.formState).error?.message;
 
@@ -127,11 +127,44 @@ export function RegistrationForm({
     <Form {...form}>
       <form
         className="grid gap-6"
-        onSubmit={form.handleSubmit((values) => {
-          setFormError(null);
-          execute(registrationFormSchema.parse(values));
+        onSubmit={form.handleSubmit(async (values) => {
+          form.clearErrors("root");
+
+          if (
+            requiresRegion(values.address.country) &&
+            !values.address.region
+          ) {
+            form.setError("address.region", {
+              message: t("validation.region"),
+              type: "manual",
+            });
+            return;
+          }
+
+          try {
+            const result = await submit(values);
+
+            switch (result.status) {
+              case "submitted":
+                return;
+              case "invalid":
+                setReactHookFormActionErrors(form, result, actionErrorMessages);
+                return;
+              default:
+                result satisfies never;
+            }
+          } catch (error) {
+            unstable_rethrow(error);
+            setReactHookFormRootError(form, t("errors.submitFailed"));
+          }
         })}
       >
+        {formError ? (
+          <Alert variant="destructive">
+            <AlertDescription>{formError}</AlertDescription>
+          </Alert>
+        ) : null}
+
         <Card className="border-stone-300 shadow-none">
           <CardHeader>
             <CardTitle>{t("sections.company")}</CardTitle>
@@ -433,22 +466,10 @@ export function RegistrationForm({
           </CardContent>
         </Card>
 
-        {formError ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 text-sm">
-            {formError}
-          </p>
-        ) : null}
-
         <div className="flex items-center justify-between gap-4">
           <p className="max-w-xl text-sm text-stone-600">{t("disclaimer")}</p>
-          <Button
-            className="min-w-40"
-            disabled={status === "pending"}
-            type="submit"
-          >
-            {status === "pending"
-              ? t("actions.submitting")
-              : t("actions.submit")}
+          <Button className="min-w-40" disabled={isSubmitting} type="submit">
+            {isSubmitting ? t("actions.submitting") : t("actions.submit")}
           </Button>
         </div>
       </form>

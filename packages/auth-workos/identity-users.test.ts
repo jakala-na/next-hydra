@@ -1,8 +1,8 @@
-import { Email } from "@repo/registration-effect/domain/identity";
+import { Email } from "@repo/registration/domain/identity";
 import {
   IdentityUserLookupFailure,
   IdentityUsers,
-} from "@repo/registration-effect/services/identity-users";
+} from "@repo/registration/services/identity-users";
 import { Effect, Layer, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 import {

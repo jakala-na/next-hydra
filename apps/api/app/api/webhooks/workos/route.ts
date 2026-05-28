@@ -1,6 +1,6 @@
 import { getWorkosUser } from "@repo/auth-workos/admin";
 import { log } from "@repo/observability/log";
-import { getRegistrationInvitationHookToken } from "@repo/registration-effect";
+import { getRegistrationInvitationHookToken } from "@repo/registration";
 import { WorkOS } from "@workos-inc/node";
 import { resumeHook } from "workflow/api";
 import { env } from "../../../../env";

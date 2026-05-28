@@ -8,7 +8,7 @@ Status: ready-for-agent
 
 ## What to build
 
-Extract approve/reject decision acceptance orchestration from the HTTP adapter into a named Registration Effect program. The program should represent the use case where a reviewer decision is accepted for asynchronous processing: authorize or receive an already-authorized reviewer decision from the adapter, mark the Registration as approval processing for the requested decision, and resume workflow through a small edge capability.
+Extract approve/reject decision acceptance orchestration from the HTTP adapter into a named Registration program. The program should represent the use case where a reviewer decision is accepted for asynchronous processing: authorize or receive an already-authorized reviewer decision from the adapter, mark the Registration as approval processing for the requested decision, and resume workflow through a small edge capability.
 
 The program should not approve or reject the Registration finally. Final approval/rejection remains the role of Registration onboarding programs executed by workflow. The HTTP approve/reject handlers should keep the same external contract and remain responsible for transport concerns such as header extraction, payload decoding, and HTTP error/status mapping.
 
@@ -25,7 +25,7 @@ The program should not approve or reject the Registration finally. Final approva
 - [ ] The HTTP approve/reject handlers keep their external contract and become thin transport/auth/error-mapping adapters over the program.
 - [ ] Program tests cover transition conflict before workflow resume, approval-processing state for approve, approval-processing state for reject, accepted response data, and workflow resume payload shape.
 - [ ] Route tests focus on auth/header handling, schema decoding, response mapping, and confirming workflow is not resumed after transition conflicts.
-- [ ] The package typechecks and the relevant Registration Effect/API tests pass.
+- [ ] The package typechecks and the relevant Registration/API tests pass.
 
 ## Blocked by
 

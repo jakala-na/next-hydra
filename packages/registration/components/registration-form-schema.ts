@@ -1,13 +1,303 @@
-import type { MessageKeys, Messages, NestedKeyOf } from "@repo/i18n";
-import type { z } from "zod";
-import { COUNTRY_CODES, registrationInputSchema } from "../domain/schemas";
+import type {
+  FormActionFieldError,
+  FormActionFormError,
+  InvalidFormActionResult,
+} from "@repo/form";
+import { Schema } from "effect";
 
-type RegistrationFormMessageKey = MessageKeys<
-  Messages["web"]["registration"]["form"],
-  NestedKeyOf<Messages["web"]["registration"]["form"]>
->;
+export const REGION_REQUIRED_COUNTRY_CODES = ["US", "CA"] as const;
+
+export const REGISTRATION_FIELD_LIMITS = {
+  companyName: 120,
+  companyPhone: 32,
+  vatId: 64,
+  contactName: 80,
+  approvalReason: 500,
+  actorName: 120,
+  listLimit: 100,
+} as const;
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const COUNTRY_CODES = [
+  "AD",
+  "AE",
+  "AF",
+  "AG",
+  "AI",
+  "AL",
+  "AM",
+  "AO",
+  "AQ",
+  "AR",
+  "AS",
+  "AT",
+  "AU",
+  "AW",
+  "AX",
+  "AZ",
+  "BA",
+  "BB",
+  "BD",
+  "BE",
+  "BF",
+  "BG",
+  "BH",
+  "BI",
+  "BJ",
+  "BL",
+  "BM",
+  "BN",
+  "BO",
+  "BQ",
+  "BR",
+  "BS",
+  "BT",
+  "BV",
+  "BW",
+  "BY",
+  "BZ",
+  "CA",
+  "CC",
+  "CD",
+  "CF",
+  "CG",
+  "CH",
+  "CI",
+  "CK",
+  "CL",
+  "CM",
+  "CN",
+  "CO",
+  "CR",
+  "CU",
+  "CV",
+  "CW",
+  "CX",
+  "CY",
+  "CZ",
+  "DE",
+  "DJ",
+  "DK",
+  "DM",
+  "DO",
+  "DZ",
+  "EC",
+  "EE",
+  "EG",
+  "EH",
+  "ER",
+  "ES",
+  "ET",
+  "FI",
+  "FJ",
+  "FK",
+  "FM",
+  "FO",
+  "FR",
+  "GA",
+  "GB",
+  "GD",
+  "GE",
+  "GF",
+  "GG",
+  "GH",
+  "GI",
+  "GL",
+  "GM",
+  "GN",
+  "GP",
+  "GQ",
+  "GR",
+  "GS",
+  "GT",
+  "GU",
+  "GW",
+  "GY",
+  "HK",
+  "HM",
+  "HN",
+  "HR",
+  "HT",
+  "HU",
+  "ID",
+  "IE",
+  "IL",
+  "IM",
+  "IN",
+  "IO",
+  "IQ",
+  "IR",
+  "IS",
+  "IT",
+  "JE",
+  "JM",
+  "JO",
+  "JP",
+  "KE",
+  "KG",
+  "KH",
+  "KI",
+  "KM",
+  "KN",
+  "KP",
+  "KR",
+  "KW",
+  "KY",
+  "KZ",
+  "LA",
+  "LB",
+  "LC",
+  "LI",
+  "LK",
+  "LR",
+  "LS",
+  "LT",
+  "LU",
+  "LV",
+  "LY",
+  "MA",
+  "MC",
+  "MD",
+  "ME",
+  "MF",
+  "MG",
+  "MH",
+  "MK",
+  "ML",
+  "MM",
+  "MN",
+  "MO",
+  "MP",
+  "MQ",
+  "MR",
+  "MS",
+  "MT",
+  "MU",
+  "MV",
+  "MW",
+  "MX",
+  "MY",
+  "MZ",
+  "NA",
+  "NC",
+  "NE",
+  "NF",
+  "NG",
+  "NI",
+  "NL",
+  "NO",
+  "NP",
+  "NR",
+  "NU",
+  "NZ",
+  "OM",
+  "PA",
+  "PE",
+  "PF",
+  "PG",
+  "PH",
+  "PK",
+  "PL",
+  "PM",
+  "PN",
+  "PR",
+  "PS",
+  "PT",
+  "PW",
+  "PY",
+  "QA",
+  "RE",
+  "RO",
+  "RS",
+  "RU",
+  "RW",
+  "SA",
+  "SB",
+  "SC",
+  "SD",
+  "SE",
+  "SG",
+  "SH",
+  "SI",
+  "SJ",
+  "SK",
+  "SL",
+  "SM",
+  "SN",
+  "SO",
+  "SR",
+  "SS",
+  "ST",
+  "SV",
+  "SX",
+  "SY",
+  "SZ",
+  "TC",
+  "TD",
+  "TF",
+  "TG",
+  "TH",
+  "TJ",
+  "TK",
+  "TL",
+  "TM",
+  "TN",
+  "TO",
+  "TR",
+  "TT",
+  "TV",
+  "TW",
+  "TZ",
+  "UA",
+  "UG",
+  "UM",
+  "US",
+  "UY",
+  "UZ",
+  "VA",
+  "VC",
+  "VE",
+  "VG",
+  "VI",
+  "VN",
+  "VU",
+  "WF",
+  "WS",
+  "YE",
+  "YT",
+  "ZA",
+  "ZM",
+  "ZW",
+] as const;
+
+export type RegistrationFormMessageKey =
+  | "validation.companyName"
+  | "validation.companyNameMax"
+  | "validation.companyPhone"
+  | "validation.vatId"
+  | "validation.firstName"
+  | "validation.firstNameMax"
+  | "validation.lastName"
+  | "validation.lastNameMax"
+  | "validation.email"
+  | "validation.invalidVatId"
+  | "validation.streetAddress"
+  | "validation.postalCode"
+  | "validation.city"
+  | "validation.region"
+  | "validation.country"
+  | "validation.duplicateEmail"
+  | "errors.invalidSubmission"
+  | "errors.submitFailed"
+  | "errors.unsupportedRegistrationCountry";
 
 type RegistrationFormTranslator = (key: RegistrationFormMessageKey) => string;
+
+export const requiresRegion = (country: string) =>
+  REGION_REQUIRED_COUNTRY_CODES.includes(
+    country.toUpperCase() as (typeof REGION_REQUIRED_COUNTRY_CODES)[number]
+  );
 
 export const getCountryOptions = (locale: string) => {
   const countryDisplayNames = new Intl.DisplayNames([locale], {
@@ -20,87 +310,133 @@ export const getCountryOptions = (locale: string) => {
   })).sort((left, right) => left.label.localeCompare(right.label));
 };
 
-const validationMessages = {
-  companyName: {
-    required: "validation.companyName",
-    max: "validation.companyNameMax",
-  },
-  companyPhone: { max: "validation.companyPhone" },
-  vatId: { max: "validation.vatId" },
-  contactFirstName: {
-    required: "validation.firstName",
-    max: "validation.firstNameMax",
-  },
-  contactLastName: {
-    required: "validation.lastName",
-    max: "validation.lastNameMax",
-  },
-  email: { invalid: "validation.email" },
-  "address.streetName": { required: "validation.streetAddress" },
-  "address.postalCode": { required: "validation.postalCode" },
-  "address.city": { required: "validation.city" },
-  "address.region": { required: "validation.region" },
-  "address.country": { invalid: "validation.country" },
-} as const;
+const stringWithLength = ({
+  max,
+  maxMessage,
+}: {
+  readonly max: number;
+  readonly maxMessage: string;
+}) =>
+  Schema.Trim.pipe(
+    Schema.check(Schema.isMaxLength(max, { message: maxMessage }))
+  );
 
-type ValidationMessageKind = "required" | "max" | "invalid";
-type ValidationMessagePath = keyof typeof validationMessages;
+const requiredString = ({
+  requiredMessage,
+  max,
+  maxMessage,
+}: {
+  readonly requiredMessage: string;
+  readonly max: number;
+  readonly maxMessage: string;
+}) =>
+  Schema.Trim.pipe(
+    Schema.check(
+      Schema.isMinLength(1, {
+        message: requiredMessage,
+      }),
+      Schema.isMaxLength(max, {
+        message: maxMessage,
+      })
+    )
+  );
 
-const pathKey = (path: (string | number)[]) => path.join(".");
+export const makeRegistrationFormInputSchema = (
+  t: RegistrationFormTranslator
+) => {
+  const addressSchema = Schema.Struct({
+    streetName: requiredString({
+      requiredMessage: t("validation.streetAddress"),
+      max: REGISTRATION_FIELD_LIMITS.companyName,
+      maxMessage: t("validation.streetAddress"),
+    }),
+    additionalStreetInfo: stringWithLength({
+      max: REGISTRATION_FIELD_LIMITS.companyName,
+      maxMessage: t("validation.streetAddress"),
+    }),
+    postalCode: requiredString({
+      requiredMessage: t("validation.postalCode"),
+      max: REGISTRATION_FIELD_LIMITS.companyPhone,
+      maxMessage: t("validation.postalCode"),
+    }),
+    city: requiredString({
+      requiredMessage: t("validation.city"),
+      max: REGISTRATION_FIELD_LIMITS.contactName,
+      maxMessage: t("validation.city"),
+    }),
+    region: Schema.Trim,
+    country: Schema.Literals(COUNTRY_CODES),
+  });
 
-const getValidationMessageKey = (
-  key: string,
-  kind: ValidationMessageKind
-): RegistrationFormMessageKey | undefined => {
-  if (!(key in validationMessages)) {
-    return;
-  }
-
-  const messages = validationMessages[key as ValidationMessagePath];
-  return kind in messages
-    ? (messages[kind as keyof typeof messages] as RegistrationFormMessageKey)
-    : undefined;
+  return Schema.Struct({
+    companyName: requiredString({
+      requiredMessage: t("validation.companyName"),
+      max: REGISTRATION_FIELD_LIMITS.companyName,
+      maxMessage: t("validation.companyNameMax"),
+    }),
+    companyPhone: stringWithLength({
+      max: REGISTRATION_FIELD_LIMITS.companyPhone,
+      maxMessage: t("validation.companyPhone"),
+    }),
+    vatId: stringWithLength({
+      max: REGISTRATION_FIELD_LIMITS.vatId,
+      maxMessage: t("validation.vatId"),
+    }),
+    contactFirstName: requiredString({
+      requiredMessage: t("validation.firstName"),
+      max: REGISTRATION_FIELD_LIMITS.contactName,
+      maxMessage: t("validation.firstNameMax"),
+    }),
+    contactLastName: requiredString({
+      requiredMessage: t("validation.lastName"),
+      max: REGISTRATION_FIELD_LIMITS.contactName,
+      maxMessage: t("validation.lastNameMax"),
+    }),
+    email: Schema.Trim.pipe(
+      Schema.check(
+        Schema.isPattern(EMAIL_PATTERN, {
+          message: t("validation.email"),
+        })
+      )
+    ),
+    address: addressSchema,
+  });
 };
 
-export const createRegistrationFormErrorMap =
-  (t: RegistrationFormTranslator): z.ZodErrorMap =>
-  (issue, ctx) => {
-    const key = pathKey(issue.path);
+const defaultMessage = (key: RegistrationFormMessageKey) => key;
 
-    if (issue.code === "too_small") {
-      const messageKey = getValidationMessageKey(key, "required");
+export const RegistrationFormInputSchema =
+  makeRegistrationFormInputSchema(defaultMessage);
 
-      if (messageKey) {
-        return { message: t(messageKey) };
-      }
+export type RegistrationFormInput = typeof RegistrationFormInputSchema.Type;
+export type RegistrationFormValues = typeof RegistrationFormInputSchema.Encoded;
+
+export type RegistrationFormFieldPath =
+  | keyof Omit<RegistrationFormValues, "address">
+  | `address.${keyof RegistrationFormValues["address"]}`;
+
+export type RegistrationFormFieldErrorCode = "duplicateEmail" | "invalidVatId";
+
+export type RegistrationFormFieldError = FormActionFieldError<
+  RegistrationFormFieldPath,
+  RegistrationFormFieldErrorCode
+>;
+
+export type RegistrationFormValidationErrorCode =
+  | "invalidSubmission"
+  | "unsupportedRegistrationCountry";
+
+export type RegistrationFormError =
+  FormActionFormError<RegistrationFormValidationErrorCode>;
+
+export type RegistrationFormResult =
+  | {
+      readonly status: "submitted";
+      readonly registrationId: string;
+      readonly redirectTo?: string;
     }
-
-    if (issue.code === "too_big") {
-      const messageKey = getValidationMessageKey(key, "max");
-
-      if (messageKey) {
-        return { message: t(messageKey) };
-      }
-    }
-
-    if (issue.code === "invalid_string" && key === "email") {
-      return { message: t(validationMessages.email.invalid) };
-    }
-
-    if (issue.code === "custom") {
-      const messageKey =
-        getValidationMessageKey(key, "invalid") ??
-        getValidationMessageKey(key, "required");
-
-      if (messageKey) {
-        return { message: t(messageKey) };
-      }
-    }
-
-    return { message: ctx.defaultError };
-  };
-
-export const registrationFormSchema = registrationInputSchema;
-
-export type RegistrationFormValues = z.infer<typeof registrationFormSchema>;
-export type RegistrationFormInput = z.infer<typeof registrationFormSchema>;
+  | InvalidFormActionResult<
+      RegistrationFormFieldPath,
+      RegistrationFormFieldErrorCode,
+      RegistrationFormValidationErrorCode
+    >;

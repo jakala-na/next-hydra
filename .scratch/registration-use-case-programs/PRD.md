@@ -4,13 +4,13 @@ Status: ready-for-agent
 
 ## Problem Statement
 
-The Registration Effect implementation has clear capability services for persistence, queries, identity, Commerce, invitations, VAT, market policy, and email delivery, but some Registration use-case orchestration is still embedded inside entry adapters. The HTTP adapter currently owns Registration submission policy, duplicate email preflight checks, provider lookup ordering, workflow handoff, search filtering, and transport error mapping in one place.
+The Registration implementation has clear capability services for persistence, queries, identity, Commerce, invitations, VAT, market policy, and email delivery, but some Registration use-case orchestration is still embedded inside entry adapters. The HTTP adapter currently owns Registration submission policy, duplicate email preflight checks, provider lookup ordering, workflow handoff, search filtering, and transport error mapping in one place.
 
 This makes it harder to understand which module owns which level of behaviour. It also makes reusable Registration behaviour depend on HTTP even when a caller could use local Effect layers directly. The team wants the Registration context to keep provider-specific assumptions out of domain programs while making use-case policy testable without crossing transport seams.
 
 ## Solution
 
-Refactor Registration Effect so use cases are named Effect programs that compose provider-independent capability services. Entry adapters such as HTTP handlers, workflow entrypoints, server actions, jobs, and tests should stay thin: they decode input, extract adapter-specific authorization, compose live layers, run programs, and map outputs/errors to adapter-specific responses.
+Refactor Registration so use cases are named Effect programs that compose provider-independent capability services. Entry adapters such as HTTP handlers, workflow entrypoints, server actions, jobs, and tests should stay thin: they decode input, extract adapter-specific authorization, compose live layers, run programs, and map outputs/errors to adapter-specific responses.
 
 Capability services remain the replaceable seams supplied by Layers. Programs own the ordering and policy of capability calls. Provider-specific assumptions remain in app/provider layer composition and concrete adapters, not in Registration use-case programs.
 

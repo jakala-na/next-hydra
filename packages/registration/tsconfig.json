@@ -1,5 +1,21 @@
 {
+  "$schema": "https://raw.githubusercontent.com/Effect-TS/language-service/refs/heads/main/schema.json",
   "extends": "@repo/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "paths": {
+      "@repo/*": ["../*"],
+      "@repo/registration/*": ["./*"]
+    },
+    "plugins": [
+      {
+        "name": "@effect/language-service"
+      }
+    ],
+    "sourceMap": true
+  },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]
 }
