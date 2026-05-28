@@ -1,4 +1,5 @@
 import { apiRoot } from "@repo/commerce/lib/client/api-root";
+import type { RedactedEmail } from "@repo/registration-effect/domain/identity";
 import {
   type Registration,
   Registration as RegistrationSchema,
@@ -19,7 +20,7 @@ import {
   registrationQueryCursorFromRecord,
 } from "@repo/registration-effect/services/registration-queries";
 import { decodeJsonString } from "@repo/versioned-store";
-import { Effect, Layer, Option, Schema } from "effect";
+import { Effect, Layer, Option, Redacted, Schema } from "effect";
 
 interface CommercetoolsCustomObject {
   readonly id: string;
@@ -89,6 +90,42 @@ const sortExpressions = (
   direction: RegistrationQuerySortDirection
 ) => {
   return [`${field} ${direction}`, `id ${direction}`];
+};
+
+const normalizedEmail = (email: RedactedEmail) =>
+  Redacted.value(email).trim().toLowerCase();
+
+const registrationMatchesEmail = (
+  registration: Registration,
+  email: RedactedEmail
+) =>
+  Redacted.value(registration.details.email).trim().toLowerCase() ===
+  normalizedEmail(email);
+
+const normalizedSearch = (search: string | undefined) => {
+  const trimmed = search?.trim().toLowerCase();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+};
+
+const registrationMatchesSearch = (
+  registration: Registration,
+  search: string | undefined
+) => {
+  const normalized = normalizedSearch(search);
+
+  if (!normalized) {
+    return true;
+  }
+
+  const details = registration.details;
+
+  return [
+    String(details.companyName),
+    Redacted.value(details.contactFirstName),
+    Redacted.value(details.contactLastName),
+    Redacted.value(details.email),
+    details.vatId ? Redacted.value(details.vatId) : "",
+  ].some((value) => value.toLowerCase().includes(normalized));
 };
 
 const RegistrationJson = Schema.toCodecJson(RegistrationSchema);
@@ -261,38 +298,121 @@ export interface CommercetoolsRegistrationQueriesOptions {
 
 export const layerCommercetoolsRegistrationQueries = ({
   container,
-}: CommercetoolsRegistrationQueriesOptions) =>
-  Layer.succeed(
+}: CommercetoolsRegistrationQueriesOptions) => {
+  const list = Effect.fn("CommercetoolsRegistrationQueries.list")(function* (
+    input: ListRegistrationsInput
+  ) {
+    const limit = normalizeLimit(input.limit);
+    const sort = normalizeRegistrationQuerySort(input.sort);
+    const cursor = yield* parseRegistrationQueryCursor(input.cursor, sort);
+    const search = normalizedSearch(input.search);
+
+    if (!search) {
+      const response = yield* queryCustomObjects({
+        container,
+        cursor,
+        sort,
+        status: input.status,
+        limit: clamp(limit + 1, MIN_LIST_LIMIT, MAX_PROVIDER_BATCH_SIZE),
+      });
+      const records = yield* Effect.forEach(
+        response.results,
+        decodeCustomObject
+      );
+      const items = records.slice(0, limit);
+
+      const last = items.at(-1);
+      const nextCursor =
+        records.length > limit && last
+          ? encodeRegistrationQueryCursor(
+              registrationQueryCursorFromRecord(last, sort)
+            )
+          : undefined;
+
+      return nextCursor ? { items, nextCursor } : { items };
+    }
+
+    let providerCursor = cursor;
+    const matched: RegistrationQueryRecord[] = [];
+    let hasMoreProviderRecords = true;
+
+    while (matched.length <= limit && hasMoreProviderRecords) {
+      const response = yield* queryCustomObjects({
+        container,
+        cursor: providerCursor,
+        sort,
+        status: input.status,
+        limit: MAX_PROVIDER_BATCH_SIZE,
+      });
+      const records = yield* Effect.forEach(
+        response.results,
+        decodeCustomObject
+      );
+
+      matched.push(
+        ...records.filter((record) =>
+          registrationMatchesSearch(record.registration, input.search)
+        )
+      );
+
+      const lastProviderRecord = records.at(-1);
+      providerCursor = lastProviderRecord
+        ? registrationQueryCursorFromRecord(lastProviderRecord, sort)
+        : undefined;
+      hasMoreProviderRecords =
+        records.length === MAX_PROVIDER_BATCH_SIZE &&
+        providerCursor !== undefined;
+    }
+
+    const items = matched.slice(0, limit);
+
+    const last = items.at(-1);
+    const nextCursor =
+      matched.length > limit && last
+        ? encodeRegistrationQueryCursor(
+            registrationQueryCursorFromRecord(last, sort)
+          )
+        : undefined;
+
+    return nextCursor ? { items, nextCursor } : { items };
+  });
+
+  const hasPendingEmail = Effect.fn(
+    "CommercetoolsRegistrationQueries.hasPendingEmail"
+  )(function* (email: RedactedEmail) {
+    for (const status of [
+      "awaiting_approval",
+      "approval_processing",
+    ] as const) {
+      let cursor: string | undefined;
+
+      do {
+        const result = yield* list({
+          status,
+          limit: MAX_LIST_LIMIT,
+          ...(cursor === undefined ? {} : { cursor }),
+        });
+
+        if (
+          result.items.some((item) =>
+            registrationMatchesEmail(item.registration, email)
+          )
+        ) {
+          return true;
+        }
+
+        cursor = result.nextCursor;
+      } while (cursor !== undefined);
+    }
+
+    return false;
+  });
+
+  return Layer.succeed(
     RegistrationQueries,
     RegistrationQueries.of({
-      list: Effect.fn("CommercetoolsRegistrationQueries.list")(function* (
-        input: ListRegistrationsInput
-      ) {
-        const limit = normalizeLimit(input.limit);
-        const sort = normalizeRegistrationQuerySort(input.sort);
-        const cursor = yield* parseRegistrationQueryCursor(input.cursor, sort);
-        const response = yield* queryCustomObjects({
-          container,
-          cursor,
-          sort,
-          status: input.status,
-          limit: clamp(limit + 1, MIN_LIST_LIMIT, MAX_PROVIDER_BATCH_SIZE),
-        });
-        const records = yield* Effect.forEach(
-          response.results,
-          decodeCustomObject
-        );
-        const items = records.slice(0, limit);
-
-        const last = items.at(-1);
-        const nextCursor =
-          records.length > limit && last
-            ? encodeRegistrationQueryCursor(
-                registrationQueryCursorFromRecord(last, sort)
-              )
-            : undefined;
-
-        return nextCursor ? { items, nextCursor } : { items };
-      }),
+      hasPendingEmail,
+      list,
     })
   );
+};

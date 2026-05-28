@@ -29,6 +29,7 @@ import {
   type Registration,
   RegistrationStatus,
 } from "../domain/registration";
+import { RegistrationIntakeValidationReason } from "../programs/registration-intake";
 import type { IdentityUserLookupFailure } from "../services/identity-users";
 import type { InvitationIssueError } from "../services/invitations";
 import type { RegistrationQueryError } from "../services/registration-queries";
@@ -94,40 +95,16 @@ export class RegistrationApiUnauthorized extends Schema.TaggedErrorClass<Registr
   { httpApiStatus: 401 }
 ) {}
 
-export const RegistrationApiFieldPath = Schema.Literals(["email", "vatId"]);
-export type RegistrationApiFieldPath = typeof RegistrationApiFieldPath.Type;
+export const RegistrationApiValidationReason =
+  RegistrationIntakeValidationReason;
+export type RegistrationApiValidationReason =
+  typeof RegistrationApiValidationReason.Type;
 
-export class DuplicateRegistrationEmail extends Schema.TaggedClass<DuplicateRegistrationEmail>()(
-  "DuplicateRegistrationEmail",
-  {
-    path: RegistrationApiFieldPath,
-    code: Schema.Literal("duplicateEmail"),
-  }
-) {}
-
-export class InvalidRegistrationVatId extends Schema.TaggedClass<InvalidRegistrationVatId>()(
-  "InvalidRegistrationVatId",
-  {
-    path: RegistrationApiFieldPath,
-    code: Schema.Literal("invalidVatId"),
-  }
-) {}
-
-export class UnsupportedRegistrationCountry extends Schema.TaggedClass<UnsupportedRegistrationCountry>()(
-  "UnsupportedRegistrationCountry",
-  {
-    code: Schema.Literal("unsupportedRegistrationCountry"),
-    country: CountryCode,
-  }
-) {}
-
-export const RegistrationApiValidationReason = Schema.Union([
+export {
   DuplicateRegistrationEmail,
   InvalidRegistrationVatId,
   UnsupportedRegistrationCountry,
-]);
-export type RegistrationApiValidationReason =
-  typeof RegistrationApiValidationReason.Type;
+} from "../programs/registration-intake";
 
 export class RegistrationApiValidationError extends Schema.TaggedErrorClass<RegistrationApiValidationError>()(
   "RegistrationApiValidationError",

@@ -137,6 +137,16 @@ export {
   revokeCompanyMemberInvite,
 } from "./programs/company-member-invitations";
 export {
+  checkRegistrationEligibility,
+  DuplicateRegistrationEmail,
+  InvalidRegistrationVatId,
+  RegistrationIntakeValidationError,
+  RegistrationIntakeValidationReason,
+  type SubmitRegistrationForReviewInput,
+  submitRegistrationForReview,
+  UnsupportedRegistrationCountry,
+} from "./programs/registration-intake";
+export {
   type NotifyRegistrationInput,
   notifyRegistrationApproved,
   notifyRegistrationAwaitingApproval,
@@ -150,6 +160,12 @@ export {
   type RejectRegistrationInput,
   rejectRegistration,
 } from "./programs/registration-onboarding";
+export {
+  type AcceptRegistrationReviewDecisionInput,
+  acceptRegistrationReviewDecision,
+  type RegistrationReviewWorkflowDecision,
+  type RegistrationReviewWorkflowReviewer,
+} from "./programs/registration-review";
 export {
   type AuthorizeIssueInviteInput,
   type AuthorizeRevokeInviteInput,

@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Redacted, Schema } from "effect";
+import type { RedactedEmail } from "../domain/identity";
 import type { Registration, RegistrationStatus } from "../domain/registration";
 
 export const RegistrationQuerySortField = Schema.Literals([
@@ -18,6 +19,7 @@ export interface RegistrationQuerySort {
 
 export interface ListRegistrationsInput {
   readonly status?: RegistrationStatus;
+  readonly search?: string;
   readonly sort?: RegistrationQuerySort;
   readonly cursor?: string;
   readonly limit?: number;
@@ -74,6 +76,50 @@ export interface RegistrationQueryRecord {
   readonly createdAt: Date;
   readonly lastModifiedAt: Date;
 }
+
+const pendingRegistrationStatuses = [
+  "awaiting_approval",
+  "approval_processing",
+] as const satisfies readonly RegistrationStatus[];
+
+const normalizedEmail = (email: RedactedEmail | string) =>
+  (typeof email === "string" ? email : Redacted.value(email))
+    .trim()
+    .toLowerCase();
+
+const normalizedSearch = (search: string | undefined) => {
+  const trimmed = search?.trim().toLowerCase();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+};
+
+const registrationMatchesSearch = (
+  registration: Registration,
+  search: string | undefined
+) => {
+  const normalized = normalizedSearch(search);
+
+  if (!normalized) {
+    return true;
+  }
+
+  const details = registration.details;
+
+  return [
+    String(details.companyName),
+    Redacted.value(details.contactFirstName),
+    Redacted.value(details.contactLastName),
+    Redacted.value(details.email),
+    details.vatId ? Redacted.value(details.vatId) : "",
+  ].some((value) => value.toLowerCase().includes(normalized));
+};
+
+const isPendingRegistrationWithEmail = (
+  registration: Registration,
+  email: RedactedEmail
+) =>
+  pendingRegistrationStatuses.some(
+    (status) => status === registration.status
+  ) && normalizedEmail(registration.details.email) === normalizedEmail(email);
 
 const normalizeLimit = (limit: number | undefined) => {
   if (limit === undefined) {
@@ -266,6 +312,9 @@ export const listRegistrationRecords = (
           .filter((record) =>
             input.status ? record.registration.status === input.status : true
           )
+          .filter((record) =>
+            registrationMatchesSearch(record.registration, input.search)
+          )
           .filter((record) => (cursor ? isAfterCursor(record, cursor) : true));
         const items = filtered.slice(0, limit);
         let nextCursor: string | undefined;
@@ -299,6 +348,9 @@ export class RegistrationQueries extends Context.Service<
     readonly list: (
       input: ListRegistrationsInput
     ) => Effect.Effect<ListRegistrationsResult, RegistrationQueryError>;
+    readonly hasPendingEmail: (
+      email: RedactedEmail
+    ) => Effect.Effect<boolean, RegistrationQueryError>;
   }
 >()("@repo/registration-effect/RegistrationQueries") {
   static readonly layerMemoryFrom = (
@@ -309,6 +361,23 @@ export class RegistrationQueries extends Context.Service<
       RegistrationQueries.of({
         list: Effect.fn("RegistrationQueries.list")((input) =>
           listRegistrationRecords(records, input)
+        ),
+        hasPendingEmail: Effect.fn("RegistrationQueries.hasPendingEmail")(
+          (email) =>
+            Effect.try({
+              try: () =>
+                Array.from(records).some((record) =>
+                  isPendingRegistrationWithEmail(record.registration, email)
+                ),
+              catch: (cause) =>
+                new RegistrationQueryFailure({
+                  message: `Failed to list registrations: ${
+                    cause instanceof Error ? cause.message : String(cause)
+                  }`,
+                  operation: "list",
+                  cause,
+                }),
+            })
         ),
       })
     );

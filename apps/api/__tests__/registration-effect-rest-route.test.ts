@@ -45,6 +45,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 
 const HTTP_OK = 200;
 const HTTP_CREATED = 201;
+const HTTP_CONFLICT = 409;
 const HTTP_INTERNAL_SERVER_ERROR = 500;
 const HTTP_UNPROCESSABLE_ENTITY = 422;
 
@@ -256,7 +257,31 @@ const makeApiLayer = (
   );
   const queriesLayer = Layer.succeed(
     RegistrationQueries,
-    RegistrationQueries.of({ list })
+    RegistrationQueries.of({
+      hasPendingEmail: (email) =>
+        listRegistrationRecords(
+          Array.from(registrations.values()).map((registration) => ({
+            id: String(registration.id),
+            registration,
+            createdAt: registration.createdAt,
+            lastModifiedAt: registration.updatedAt,
+          })),
+          {}
+        ).pipe(
+          Effect.map((result) =>
+            result.items.some(
+              (item) =>
+                (item.registration.status === "awaiting_approval" ||
+                  item.registration.status === "approval_processing") &&
+                String(Redacted.value(item.registration.details.email))
+                  .trim()
+                  .toLowerCase() ===
+                  String(Redacted.value(email)).trim().toLowerCase()
+            )
+          )
+        ),
+      list,
+    })
   );
   const commerceAccountsLayer = Layer.succeed(
     CommerceAccounts,
@@ -629,6 +654,7 @@ test("GET /registrations lists registrations through RegistrationQueries", async
 
     expect(response.status).toBe(HTTP_OK);
     expect(api.list).toHaveBeenCalledWith({
+      search: "Hydra",
       status: "awaiting_approval",
     });
     expect(body.items).toHaveLength(1);
@@ -752,7 +778,7 @@ test("POST /registrations/:id/reject does not resume workflow when transition co
     );
     const body = await response.json();
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(HTTP_CONFLICT);
     expect(body._tag).toBe("RegistrationAlreadyApproved");
     expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
   } finally {

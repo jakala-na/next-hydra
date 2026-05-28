@@ -158,6 +158,70 @@ const listWith = (records: readonly RegistrationQueryRecord[]) =>
   );
 
 describe("RegistrationQueries.layerMemoryFrom", () => {
+  it.effect("searches registrations before paginating results", () =>
+    Effect.gen(function* () {
+      const queries = yield* listWith([
+        record(
+          makeAwaiting({
+            id: "registration-match-newest",
+            updatedAt: "2026-01-04T00:00:00.000Z",
+            companyName: "Hydra Supplies",
+          })
+        ),
+        record(
+          makeAwaiting({
+            id: "registration-non-match",
+            updatedAt: "2026-01-03T00:00:00.000Z",
+            companyName: "Acme Industrial",
+          })
+        ),
+        record(
+          makeAwaiting({
+            id: "registration-match-oldest",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+            companyName: "Hydra Parts",
+          })
+        ),
+      ]);
+
+      const result = yield* queries.list({ limit: 2, search: "hydra" });
+
+      expect(result.items.map((item) => String(item.registration.id))).toEqual([
+        "registration-match-newest",
+        "registration-match-oldest",
+      ]);
+      expect(result.nextCursor).toBeUndefined();
+    })
+  );
+
+  it.effect("finds pending registrations by normalized email", () =>
+    Effect.gen(function* () {
+      const awaiting = makeAwaiting({
+        id: "registration-awaiting",
+        updatedAt: "2026-01-03T00:00:00.000Z",
+        email: "Ada@Example.com",
+      });
+      const approved = makeApproved(
+        makeAwaiting({
+          id: "registration-approved",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+          email: "grace@example.com",
+        })
+      );
+      const queries = yield* listWith([record(awaiting), record(approved)]);
+
+      const hasPendingEmail = yield* queries.hasPendingEmail(
+        Redacted.make(Email.make(" ada@example.com "), { label: "email" })
+      );
+      const hasApprovedEmailOnly = yield* queries.hasPendingEmail(
+        Redacted.make(Email.make("grace@example.com"), { label: "email" })
+      );
+
+      expect(hasPendingEmail).toBe(true);
+      expect(hasApprovedEmailOnly).toBe(false);
+    })
+  );
+
   it.effect("filters registrations by status", () =>
     Effect.gen(function* () {
       const awaiting = makeAwaiting({
