@@ -20,6 +20,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@repo/design-system": "workspace:*",
+    "@repo/email": "workspace:*",
     "@repo/form": "workspace:*",
     "@repo/i18n": "workspace:*",
     "react": "catalog:",

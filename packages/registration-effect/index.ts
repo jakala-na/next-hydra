@@ -170,12 +170,6 @@ export {
   InvitationPolicyError,
 } from "./services/company-invitation-policy";
 export {
-  type EmailDelivery,
-  type EmailMessage,
-  EmailProvider,
-  EmailProviderFailure,
-} from "./services/email-provider";
-export {
   IdentityUserLookupFailure,
   IdentityUsers,
   normalizedIdentityEmail,
@@ -202,6 +196,10 @@ export {
   type SendAwaitingApprovalRegistrantEmailInput,
   type SendRejectedRegistrantEmailInput,
 } from "./services/registration-emails";
+export {
+  layerRegistrationEmails,
+  type RegistrationEmailsLayerOptions,
+} from "./services/registration-emails-live";
 export { RegistrationMarketPolicy } from "./services/registration-market-policy";
 export {
   decodeRegistrationQueryCursor,

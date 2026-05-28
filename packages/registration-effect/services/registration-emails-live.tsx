@@ -1,18 +1,15 @@
-import type { Registration } from "@repo/registration-effect/domain/registration";
-import {
-  type EmailMessage,
-  EmailProvider,
-  type EmailProviderFailure,
-} from "@repo/registration-effect/services/email-provider";
+import type { EmailMessage, EmailProviderFailure } from "@repo/email";
+import { EmailProvider } from "@repo/email";
+import RegistrationApprovedTemplate from "@repo/email/templates/registration-approved";
+import RegistrationAwaitingApprovalTemplate from "@repo/email/templates/registration-awaiting-approval";
+import RegistrationAwaitingApproverTemplate from "@repo/email/templates/registration-awaiting-approver";
+import RegistrationRejectedTemplate from "@repo/email/templates/registration-rejected";
+import { Effect, Layer, Redacted } from "effect";
+import type { Registration } from "../domain/registration";
 import {
   RegistrationEmailFailure,
   RegistrationEmails,
-} from "@repo/registration-effect/services/registration-emails";
-import { Effect, Layer, Redacted } from "effect";
-import RegistrationApprovedTemplate from "./templates/registration-approved";
-import RegistrationAwaitingApprovalTemplate from "./templates/registration-awaiting-approval";
-import RegistrationAwaitingApproverTemplate from "./templates/registration-awaiting-approver";
-import RegistrationRejectedTemplate from "./templates/registration-rejected";
+} from "./registration-emails";
 
 export interface RegistrationEmailsLayerOptions {
   readonly approverEmail: string;
@@ -85,13 +82,13 @@ export const layerRegistrationEmails = ({
             subject: `${getCompanyName(registration)} registration needs review`,
             react: (
               <RegistrationAwaitingApproverTemplate
+                approvalUrl={getApprovalUrl(webUrl, registration)}
                 companyName={getCompanyName(registration)}
                 contactName={getContactName(registration)}
-                approvalUrl={getApprovalUrl(webUrl, registration)}
               />
             ),
           }),
-        sendApprovedToRegistrant: ({ registration, invitation }) =>
+        sendApprovedToRegistrant: ({ invitation, registration }) =>
           sendRegistrationEmail(emailProvider, "registrant_approved", {
             to: getRegistrationEmail(registration),
             subject: `${getCompanyName(registration)} account approved`,
@@ -114,7 +111,9 @@ export const layerRegistrationEmails = ({
               <RegistrationRejectedTemplate
                 companyName={getCompanyName(registration)}
                 contactName={getContactName(registration)}
-                reason={registration.decision.reason}
+                {...(registration.decision.reason
+                  ? { reason: registration.decision.reason }
+                  : {})}
               />
             ),
           }),

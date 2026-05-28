@@ -1,22 +1,21 @@
-import {
-  EmailProvider,
-  EmailProviderFailure,
-} from "@repo/registration-effect/services/email-provider";
 import { Effect, Layer } from "effect";
-import { resend } from ".";
+import { Resend } from "resend";
 import { keys } from "./keys";
+import { EmailProvider, EmailProviderFailure } from "./provider";
 
 const getErrorCause = (cause: unknown) =>
   cause instanceof Error ? cause : new Error(String(cause));
 
-export const layerResendEmailProvider = Layer.succeed(
-  EmailProvider,
-  EmailProvider.of({
+export const layerResendEmailProvider = Layer.sync(EmailProvider, () => {
+  const emailKeys = keys();
+  const resend = new Resend(emailKeys.RESEND_TOKEN);
+
+  return EmailProvider.of({
     send: (message) =>
       Effect.tryPromise({
         try: async () => {
           const result = await resend.emails.send({
-            from: keys().RESEND_FROM,
+            from: emailKeys.RESEND_FROM,
             to: message.to,
             subject: message.subject,
             react: message.react,
@@ -36,5 +35,5 @@ export const layerResendEmailProvider = Layer.succeed(
             cause: getErrorCause(cause),
           }),
       }),
-  })
-);
+  });
+});

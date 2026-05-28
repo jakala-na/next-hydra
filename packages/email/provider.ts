@@ -28,7 +28,7 @@ export class EmailProvider extends Context.Service<
       message: EmailMessage
     ) => Effect.Effect<EmailDelivery, EmailProviderFailure>;
   }
->()("@repo/registration-effect/EmailProvider") {
+>()("@repo/email/EmailProvider") {
   static readonly layerMemory = Layer.effect(
     EmailProvider,
     Effect.gen(function* () {

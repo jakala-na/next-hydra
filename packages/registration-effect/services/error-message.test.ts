@@ -1,8 +1,8 @@
+import { EmailProviderFailure } from "@repo/email";
 import { describe, expect, it } from "vitest";
 import { InvitationId, RegistrationId } from "../domain/identity";
 import { CommerceAccountError } from "./commerce-account";
 import { InvitationPolicyError } from "./company-invitation-policy";
-import { EmailProviderFailure } from "./email-provider";
 import {
   InvitationConflict,
   InvitationNotFound,
