@@ -18,12 +18,15 @@ import {
   CompanyAddress,
   CompanyRegistrationDetails,
 } from "../domain/registration";
+import { RegistrationQueryFailure } from "../services/registration-queries";
 import {
   CreateRegistrationRequest,
   ListRegistrationsQuery,
+  RegistrationApiError,
   RegistrationDecisionAcceptedResponse,
   RegistrationDecisionResponse,
   RegistrationReviewerInput,
+  toApiError,
   toCompanyRegistrationDetails,
   toRegistrationDetailResponse,
   toReviewerActor,
@@ -146,4 +149,20 @@ describe("Registration REST contract mappers", () => {
       });
     })
   );
+
+  it("preserves internal registration error messages in API errors", () => {
+    const error = toApiError(
+      new RegistrationQueryFailure({
+        message:
+          'Failed to list registrations: SchemaError(Missing key at ["id"])',
+        operation: "list",
+        cause: new Error('SchemaError(Missing key at ["id"])'),
+      })
+    );
+
+    expect(error).toBeInstanceOf(RegistrationApiError);
+    expect(error.message).toBe(
+      'Failed to list registrations: SchemaError(Missing key at ["id"])'
+    );
+  });
 });

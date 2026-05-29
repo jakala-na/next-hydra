@@ -423,14 +423,14 @@ export const toApiError = (
   switch (error._tag) {
     case "RegistrationNotFound":
       return new RegistrationApiNotFound({
-        message: "Registration was not found",
+        message: error.message,
       });
     case "RegistrationAlreadyExists":
     case "RegistrationConcurrentModification":
     case "RegistrationQueryInvalidCursor":
     case "InvitationConflict":
       return new RegistrationApiConflict({
-        message: error._tag,
+        message: error.message,
       });
     case "RegistrationTransitionConflict":
       switch (error.currentState) {
@@ -448,12 +448,12 @@ export const toApiError = (
           });
         default:
           return new RegistrationApiConflict({
-            message: error._tag,
+            message: error.message,
           });
       }
     default:
       return new RegistrationApiError({
-        message: error._tag,
+        message: error.message,
       });
   }
 };

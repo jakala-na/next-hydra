@@ -2,7 +2,7 @@ import type { CommerceAccounts } from "@repo/commerce/services/commerce-accounts
 import {
   CreateRegistrationResponse,
   ListRegistrationsResponse,
-  RegistrationApiError,
+  type RegistrationApiError,
   RegistrationApiUnauthorized,
   RegistrationApiValidationError,
   RegistrationDecisionAcceptedResponse,
@@ -13,7 +13,7 @@ import {
   toReviewerActor,
 } from "@repo/registration/http/registration-api";
 import {
-  RegistrationIntakeValidationError,
+  type RegistrationIntakeValidationError,
   submitRegistrationForReview,
 } from "@repo/registration/programs/registration-intake";
 import { acceptRegistrationReviewDecision } from "@repo/registration/programs/registration-review";
@@ -72,22 +72,19 @@ const toRegistrationHttpError = (
     | RegistrationApiValidationError
     | RegistrationApiUnauthorized
 ) => {
-  if (
-    error instanceof RegistrationApiError ||
-    error instanceof RegistrationApiValidationError ||
-    error instanceof RegistrationApiUnauthorized
-  ) {
-    return error;
+  switch (error._tag) {
+    case "RegistrationApiError":
+    case "RegistrationApiUnauthorized":
+    case "RegistrationApiValidationError":
+      return error;
+    case "RegistrationIntakeValidationError":
+      return new RegistrationApiValidationError({
+        message: error.message,
+        reasons: error.reasons,
+      });
+    default:
+      return toApiError(error);
   }
-
-  if (error instanceof RegistrationIntakeValidationError) {
-    return new RegistrationApiValidationError({
-      message: error.message,
-      reasons: error.reasons,
-    });
-  }
-
-  return toApiError(error);
 };
 
 const makeRegistrationHttpHandlers = ({
@@ -160,6 +157,13 @@ const makeRegistrationHttpHandlers = ({
                     ? { items, nextCursor: result.nextCursor }
                     : { items }
                 );
+              }),
+              Effect.tapErrorTag("RegistrationQueryFailure", (error) =>
+                Effect.logError(error.message)
+              ),
+              Effect.annotateLogs({
+                operation: "registration.api.list",
+                service: "registration-api",
               }),
               Effect.mapError(toRegistrationHttpError)
             )

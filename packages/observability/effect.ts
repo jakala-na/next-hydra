@@ -1,10 +1,18 @@
-import * as Sentry from "@sentry/effect/server";
-import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
-import * as Tracer from "effect/Tracer";
+import {
+  SentryEffectLogger,
+  SentryEffectMetricsLayer,
+  SentryEffectTracer,
+} from "@sentry/effect/server";
+import { mergeAll, succeed } from "effect/Layer";
+import {
+  formatSimple,
+  layer as loggerLayer,
+  withLeveledConsole,
+} from "effect/Logger";
+import { Tracer } from "effect/Tracer";
 
-export const sentryEffectTelemetryLayer = Layer.mergeAll(
-  Layer.succeed(Tracer.Tracer, Sentry.SentryEffectTracer),
-  Logger.layer([Sentry.SentryEffectLogger]),
-  Sentry.SentryEffectMetricsLayer
+export const sentryEffectTelemetryLayer = mergeAll(
+  succeed(Tracer, SentryEffectTracer),
+  loggerLayer([withLeveledConsole(formatSimple), SentryEffectLogger]),
+  SentryEffectMetricsLayer
 );
