@@ -264,7 +264,7 @@ const makeRegistrationHttpApiLayer = (
     openapiPath: "/openapi.json",
   }).pipe(
     Layer.provide(makeRegistrationHttpHandlers(dependencies)),
-    Layer.provide(dependencies.layer),
+    Layer.provideMerge(dependencies.layer),
     Layer.provide(HttpServer.layerServices)
   );
 

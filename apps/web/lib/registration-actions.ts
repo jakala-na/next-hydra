@@ -1,5 +1,7 @@
 "use server";
 
+import { getLocale } from "@repo/i18n";
+import { redirect } from "@repo/i18n/navigation";
 import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import {
   type RegistrationFormError,
@@ -14,7 +16,6 @@ import {
   type RegistrationApiValidationError,
 } from "@repo/registration/http/registration-api";
 import { Effect, Schema } from "effect";
-import { redirect } from "next/navigation";
 import { makeRegistrationRestClient } from "./registration-rest-client";
 
 const toRegistrationInput = (
@@ -117,13 +118,14 @@ const submitRegistrationProgram = (input: RegistrationFormValues) =>
   );
 
 export async function submitRegistration(
-  awaitingApprovalUrl: string,
+  awaitingApprovalHref: string,
   input: RegistrationFormValues
 ): Promise<RegistrationFormResult> {
   const result = await Effect.runPromise(submitRegistrationProgram(input));
 
   if (result.status === "submitted") {
-    redirect(awaitingApprovalUrl);
+    const locale = await getLocale();
+    redirect({ href: awaitingApprovalHref, locale });
   }
 
   return result;
