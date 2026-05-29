@@ -17,7 +17,7 @@
     "paths": {
       "@/*": ["./*"],
       "@repo/*": ["../../packages/*"],
-      "fumadocs-mdx:collections/*": [".source/*"]
+      "fumadocs-mdx:collections/*": ["./.source/*"]
     },
     "plugins": [
       {
