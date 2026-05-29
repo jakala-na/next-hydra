@@ -38,7 +38,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsgo --noEmit -p tsconfig.json",
     "pack": "npm pack",
     "publish:dry-run": "npm publish --access public --dry-run",
     "publish:public": "npm publish --access public",

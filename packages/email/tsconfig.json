@@ -1,8 +1,5 @@
 {
-  "extends": "@repo/typescript-config/nextjs.json",
-  "compilerOptions": {
-    "baseUrl": "."
-  },
+  "extends": "@repo/typescript-config/effect.json",
   "include": ["./*.ts", "./*.tsx", "./templates/**/*.tsx"],
   "exclude": ["node_modules"]
 }

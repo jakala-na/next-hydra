@@ -219,23 +219,19 @@ const makeApiLayer = (
           const current = registrations.get(String(registrationId));
 
           if (!current) {
-            return yield* Effect.fail(
-              new RegistrationNotFound({
-                message: `Registration ${registrationId} was not found`,
-                registrationId,
-              })
-            );
+            return yield* new RegistrationNotFound({
+              message: `Registration ${registrationId} was not found`,
+              registrationId,
+            });
           }
 
           if (current._tag !== "AwaitingApprovalRegistration") {
-            return yield* Effect.fail(
-              new RegistrationTransitionConflict({
-                message: `Cannot mark registration ${registrationId} as ${decision} from ${current._tag}`,
-                registrationId,
-                currentState: current._tag,
-                attemptedDecision: decision,
-              })
-            );
+            return yield* new RegistrationTransitionConflict({
+              message: `Cannot mark registration ${registrationId} as ${decision} from ${current._tag}`,
+              registrationId,
+              currentState: current._tag,
+              attemptedDecision: decision,
+            });
           }
 
           const processing = new ApprovalProcessingRegistration({

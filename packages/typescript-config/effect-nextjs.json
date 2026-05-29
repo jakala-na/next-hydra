@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Effect-TS/language-service/refs/heads/main/schema.json",
+  "display": "Effect Next.js",
+  "extends": "./nextjs.json",
+  "compilerOptions": {
+    "plugins": [
+      { "name": "next" },
+      {
+        "name": "@effect/language-service",
+        "includeSuggestionsInTsc": false
+      }
+    ]
+  }
+}

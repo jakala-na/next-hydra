@@ -26,6 +26,14 @@ import { apiRoot } from "../../client/api-root";
 
 const NOT_FOUND_STATUS_CODE = 404;
 
+class CommercetoolsRequestFailure extends Schema.TaggedErrorClass<CommercetoolsRequestFailure>()(
+  "CommercetoolsRequestFailure",
+  {
+    message: Schema.String,
+    cause: Schema.Defect,
+  }
+) {}
+
 const CommercetoolsStatusCodeError = Schema.Struct({
   statusCode: Schema.Number,
 });
@@ -50,7 +58,9 @@ const CommercetoolsErrorInfo = Schema.Struct({
 });
 
 const isNotFoundError = (error: unknown) =>
-  Schema.decodeUnknownOption(CommercetoolsStatusCodeError)(error).pipe(
+  Schema.decodeUnknownOption(CommercetoolsStatusCodeError)(
+    commercetoolsFailureCause(error)
+  ).pipe(
     (option) =>
       option._tag === "Some" &&
       option.value.statusCode === NOT_FOUND_STATUS_CODE
@@ -91,7 +101,11 @@ const formatCause = (cause: unknown) => {
 const accountError = (reason: string, cause?: unknown) =>
   new CommerceAccountError({
     message: cause ? `${reason}: ${formatCause(cause)}` : reason,
+    ...(cause ? { cause } : {}),
   });
+
+const commercetoolsFailureCause = (error: unknown) =>
+  error instanceof CommercetoolsRequestFailure ? error.cause : error;
 
 const customerKey = (registration: CommerceAccountRegistrationInput) =>
   `registration-customer-${registration.id}`;
@@ -126,13 +140,20 @@ const getCustomerByKey = (key: string) =>
         .execute();
       return response.body;
     },
-    catch: (cause) => cause,
+    catch: (cause) =>
+      new CommercetoolsRequestFailure({
+        message: "Failed to read Commercetools customer by key",
+        cause,
+      }),
   }).pipe(
-    Effect.catch((cause) =>
-      isNotFoundError(cause)
+    Effect.catch((failure) =>
+      isNotFoundError(failure)
         ? Effect.succeed(null)
         : Effect.fail(
-            accountError("Failed to read Commercetools customer", cause)
+            accountError(
+              "Failed to read Commercetools customer",
+              commercetoolsFailureCause(failure)
+            )
           )
     )
   );
@@ -147,13 +168,20 @@ const getBusinessUnitByKey = (key: string) =>
         .execute();
       return response.body;
     },
-    catch: (cause) => cause,
+    catch: (cause) =>
+      new CommercetoolsRequestFailure({
+        message: "Failed to read Commercetools business unit by key",
+        cause,
+      }),
   }).pipe(
-    Effect.catch((cause) =>
-      isNotFoundError(cause)
+    Effect.catch((failure) =>
+      isNotFoundError(failure)
         ? Effect.succeed(null)
         : Effect.fail(
-            accountError("Failed to read Commercetools business unit", cause)
+            accountError(
+              "Failed to read Commercetools business unit",
+              commercetoolsFailureCause(failure)
+            )
           )
     )
   );

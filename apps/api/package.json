@@ -8,7 +8,7 @@
     "analyze": "ANALYZE=true npm run build",
     "test": "NODE_ENV=test vitest run",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+    "typecheck": "next typegen && tsgo --noEmit"
   },
   "dependencies": {
     "@repo/analytics": "workspace:*",

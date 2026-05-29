@@ -5,6 +5,9 @@ import type { NextConfig } from "next";
 const otelRegex = /@opentelemetry\/instrumentation/;
 
 export const config: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   experimental: {
     useCache: true,
     browserDebugInfoInTerminal: true,
