@@ -3,7 +3,12 @@
   "display": "Effect",
   "extends": "./base.json",
   "compilerOptions": {
-    "plugins": [{ "name": "@effect/language-service" }],
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "includeSuggestionsInTsc": false
+      }
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowJs": true,

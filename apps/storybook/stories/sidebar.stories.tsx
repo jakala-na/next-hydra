@@ -213,9 +213,15 @@ const data = {
   ],
 };
 
+const [initialTeam] = data.teams;
+
+if (initialTeam === undefined) {
+  throw new Error("Sidebar story requires at least one team.");
+}
+
 export const Base: Story = {
   render: () => {
-    const [activeTeam, setActiveTeam] = useState(data.teams[0]);
+    const [activeTeam, setActiveTeam] = useState(initialTeam);
 
     return (
       <SidebarProvider>

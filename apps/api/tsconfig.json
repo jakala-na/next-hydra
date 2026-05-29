@@ -1,7 +1,6 @@
 {
   "extends": "@repo/typescript-config/effect-nextjs.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
       "@repo/*": ["../../packages/*"]

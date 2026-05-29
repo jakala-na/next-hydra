@@ -23,6 +23,8 @@
   "editor.formatOnSave": true,
   "emmet.showExpandedAbbreviation": "never",
   "prettier.enable": false,
+  "js/ts.experimental.useTsgo": true,
+  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "tailwindCSS.experimental.configFile": "packages/design-system/styles/globals.css",
@@ -37,5 +39,6 @@
   },
   "[graphql]": {
     "editor.defaultFormatter": "biomejs.biome"
-  }
+  },
+  "typescript.native-preview.tsdk": "/Users/asgorobets/Sites/next-hydra/node_modules/@typescript/native-preview"
 }

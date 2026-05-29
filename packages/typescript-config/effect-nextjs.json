@@ -3,6 +3,12 @@
   "display": "Effect Next.js",
   "extends": "./nextjs.json",
   "compilerOptions": {
-    "plugins": [{ "name": "next" }, { "name": "@effect/language-service" }]
+    "plugins": [
+      { "name": "next" },
+      {
+        "name": "@effect/language-service",
+        "includeSuggestionsInTsc": false
+      }
+    ]
   }
 }
