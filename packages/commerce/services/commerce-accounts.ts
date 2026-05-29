@@ -48,6 +48,7 @@ export class CommerceAccountError extends Schema.TaggedErrorClass<CommerceAccoun
   "CommerceAccountError",
   {
     message: Schema.String,
+    cause: Schema.optional(Schema.Defect),
   }
 ) {}
 

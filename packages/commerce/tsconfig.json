@@ -1,5 +1,5 @@
 {
-  "extends": "@repo/typescript-config/nextjs.json",
+  "extends": "@repo/typescript-config/effect-nextjs.json",
   "compilerOptions": {
     "baseUrl": ".",
     "allowImportingTsExtensions": true,
@@ -8,10 +8,16 @@
     "declarationMap": false,
     "plugins": [
       {
+        "name": "next"
+      },
+      {
         "name": "gql.tada/ts-plugin",
         "schema": "./gql/schema.graphql",
         "tadaOutputLocation": "./gql/graphql-env.d.ts",
         "tadaTurboLocation": "./gql/graphql-cache.d.ts"
+      },
+      {
+        "name": "@effect/language-service"
       }
     ],
     "paths": {

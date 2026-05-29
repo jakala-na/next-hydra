@@ -13,6 +13,14 @@ import {
 const NOT_FOUND_STATUS_CODE = 404;
 const CONCURRENT_MODIFICATION_STATUS_CODE = 409;
 
+class CommercetoolsRequestFailure extends Schema.TaggedErrorClass<CommercetoolsRequestFailure>()(
+  "CommercetoolsRequestFailure",
+  {
+    message: Schema.String,
+    cause: Schema.Defect,
+  }
+) {}
+
 interface CommercetoolsCustomObject {
   readonly value: unknown;
   readonly version: number;
@@ -36,7 +44,9 @@ const ErrorMessage = Schema.Struct({
 
 const hasStatusCode = (error: unknown, statusCode: number) =>
   Option.match(
-    Schema.decodeUnknownOption(CommercetoolsStatusCodeError)(error),
+    Schema.decodeUnknownOption(CommercetoolsStatusCodeError)(
+      commercetoolsFailureCause(error)
+    ),
     {
       onNone: () => false,
       onSome: (decoded) => decoded.statusCode === statusCode,
@@ -44,10 +54,15 @@ const hasStatusCode = (error: unknown, statusCode: number) =>
   );
 
 const hasCode = (error: unknown, code: string) =>
-  Option.match(Schema.decodeUnknownOption(CommercetoolsCodeError)(error), {
-    onNone: () => false,
-    onSome: (decoded) => decoded.code === code,
-  });
+  Option.match(
+    Schema.decodeUnknownOption(CommercetoolsCodeError)(
+      commercetoolsFailureCause(error)
+    ),
+    {
+      onNone: () => false,
+      onSome: (decoded) => decoded.code === code,
+    }
+  );
 
 const isNotFoundError = (error: unknown) =>
   hasStatusCode(error, NOT_FOUND_STATUS_CODE);
@@ -83,6 +98,9 @@ const storeConflict = (
     key,
     operation,
   });
+
+const commercetoolsFailureCause = (error: unknown) =>
+  error instanceof CommercetoolsRequestFailure ? error.cause : error;
 
 const versionFromCustomObject = (version: number) =>
   StoreVersion.make(String(version));
@@ -145,13 +163,19 @@ const readCustomObject = (container: string, key: string) =>
 
       return response.body as CommercetoolsCustomObject;
     },
-    catch: (error) => error,
+    catch: (cause) =>
+      new CommercetoolsRequestFailure({
+        message: "Failed to read Commercetools custom object",
+        cause,
+      }),
   }).pipe(
     Effect.map(Option.some),
-    Effect.catch((error) =>
-      isNotFoundError(error)
+    Effect.catch((failure) =>
+      isNotFoundError(failure)
         ? Effect.succeed(Option.none())
-        : Effect.fail(storeError(key, "read", error))
+        : Effect.fail(
+            storeError(key, "read", commercetoolsFailureCause(failure))
+          )
     )
   );
 
@@ -175,7 +199,11 @@ const writeCustomObject = (
         })
         .execute();
     },
-    catch: (error) => error,
+    catch: (cause) =>
+      new CommercetoolsRequestFailure({
+        message: "Failed to write Commercetools custom object",
+        cause,
+      }),
   });
 
 const queryCustomObjects = (container: string) =>
@@ -238,8 +266,8 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
           yield* writeCustomObject(container, key, 0, encoded).pipe(
             Effect.mapError((error) =>
               isConflictError(error)
-                ? storeConflict(key, "insert", error)
-                : storeError(key, "insert", error)
+                ? storeConflict(key, "insert", commercetoolsFailureCause(error))
+                : storeError(key, "insert", commercetoolsFailureCause(error))
             )
           );
         }
@@ -258,8 +286,8 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
           yield* writeCustomObject(container, key, version, encoded).pipe(
             Effect.mapError((error) =>
               isConflictError(error)
-                ? storeConflict(key, "update", error)
-                : storeError(key, "update", error)
+                ? storeConflict(key, "update", commercetoolsFailureCause(error))
+                : storeError(key, "update", commercetoolsFailureCause(error))
             )
           );
         }
