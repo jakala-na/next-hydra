@@ -7,7 +7,7 @@ const opts = {
   dsn: keys().NEXT_PUBLIC_SENTRY_DSN,
   enableLogs: isDevelopment,
   spotlight: isDevelopment,
-  tracesSampleRate: isDevelopment ? 1 : undefined,
+  tracesSampleRate: isDevelopment ? 1 : 0.1,
 } satisfies Parameters<typeof init>[0];
 
 export const initializeSentry = () => {

@@ -9,8 +9,11 @@ import {
 } from "@rescale/nemo";
 
 export const config = {
-  // Run middleware on page routes while still allowing WorkOS auth handlers under /api/auth.
-  matcher: ["/((?!api|_next/|_static|_vercel|ingest).*)", "/api/auth/:path*"],
+  // Run middleware on page routes while allowing WorkOS auth and Sentry tunnel handlers.
+  matcher: [
+    "/((?!api|_next/|_static|_vercel|ingest|monitoring).*)",
+    "/api/auth/:path*",
+  ],
 };
 
 const workosAuth = authProxy();
