@@ -68,6 +68,129 @@
         "checkout": "Zur Kasse gehen",
         "continueShopping": "Einkauf fortsetzen"
       }
+    },
+    "registration": {
+      "page": {
+        "eyebrow": "Firmenregistrierung",
+        "title": "Registrieren Sie Ihr Unternehmen und beantragen Sie Zugang.",
+        "description": "Teilen Sie die Angaben zu Ihrem Unternehmen und zur hauptverantwortlichen Kontaktperson mit. Wenn Ihre Registrierung genehmigt wird, senden wir Ihnen einen sicheren Link, um den Zugang abzuschließen."
+      },
+      "awaiting": {
+        "eyebrow": "Prüfung läuft",
+        "title": "Ihre Registrierung wird geprüft.",
+        "description": "Ihre Registrierung ist eingegangen. Wir senden Ihnen die nächsten Schritte per E-Mail, sobald Ihr Unternehmen genehmigt wurde.",
+        "backToSite": "Zurück zur Website"
+      },
+      "form": {
+        "sections": {
+          "company": "Unternehmensinformationen",
+          "contact": "Hauptansprechperson"
+        },
+        "fields": {
+          "companyName": {
+            "label": "Unternehmensname",
+            "placeholder": "Unternehmensname"
+          },
+          "companyPhone": {
+            "label": "Firmentelefon",
+            "placeholder": "Firmentelefon"
+          },
+          "vatId": {
+            "label": "Steuer- / USt-IdNr.",
+            "placeholder": "Steuer- / USt-IdNr."
+          },
+          "country": {
+            "label": "Land",
+            "placeholder": "Land auswählen"
+          },
+          "streetAddress": {
+            "label": "Straße und Hausnummer",
+            "placeholder": "Straße und Hausnummer"
+          },
+          "addressLine2": {
+            "label": "Adresszeile 2",
+            "placeholder": "Suite, Etage, Gebäude oder Abteilung"
+          },
+          "postalCode": {
+            "label": "Postleitzahl",
+            "placeholder": "Postleitzahl"
+          },
+          "city": {
+            "label": "Stadt",
+            "placeholder": "Stadt"
+          },
+          "region": {
+            "requiredLabel": "Bundesland / Provinz",
+            "optionalLabel": "Bundesland / Region"
+          },
+          "firstName": {
+            "label": "Vorname",
+            "placeholder": "Vorname"
+          },
+          "lastName": {
+            "label": "Nachname",
+            "placeholder": "Nachname"
+          },
+          "email": {
+            "label": "E-Mail",
+            "placeholder": "E-Mail"
+          }
+        },
+        "disclaimer": "Wir prüfen jede Unternehmensregistrierung, bevor wir Zugang gewähren. Wenn sie genehmigt wird, senden wir Ihrer hauptverantwortlichen Kontaktperson einen sicheren Link, um die Kontoeinrichtung abzuschließen.",
+        "actions": {
+          "submit": "Unternehmen registrieren",
+          "submitting": "Wird gesendet..."
+        },
+        "errors": {
+          "invalidSubmission": "Bitte prüfen Sie die markierten Felder und versuchen Sie es erneut.",
+          "unsupportedRegistrationCountry": "Wir können Unternehmensregistrierungen aus diesem Land derzeit nicht annehmen.",
+          "submitFailed": "Ihre Registrierung konnte derzeit nicht gesendet werden. Bitte versuchen Sie es erneut."
+        },
+        "validation": {
+          "companyName": "Geben Sie den Unternehmensnamen ein.",
+          "companyNameMax": "Der Unternehmensname ist zu lang.",
+          "companyPhone": "Geben Sie eine gültige Firmenrufnummer ein.",
+          "vatId": "Die Steuer- / USt-IdNr. ist zu lang.",
+          "firstName": "Geben Sie einen Vornamen ein.",
+          "firstNameMax": "Der Vorname ist zu lang.",
+          "lastName": "Geben Sie einen Nachnamen ein.",
+          "lastNameMax": "Der Nachname ist zu lang.",
+          "email": "Geben Sie eine gültige E-Mail-Adresse ein.",
+          "duplicateEmail": "Diese E-Mail-Adresse ist bereits mit einer bestehenden oder ausstehenden Registrierung verknüpft.",
+          "invalidVatId": "Geben Sie eine gültige Steuer- oder USt-IdNr. ein.",
+          "streetAddress": "Geben Sie eine Straße und Hausnummer ein.",
+          "postalCode": "Geben Sie eine Postleitzahl ein.",
+          "city": "Geben Sie eine Stadt ein.",
+          "region": "Geben Sie ein Bundesland, eine Provinz oder Region ein.",
+          "country": "Wählen Sie ein Land aus."
+        }
+      },
+      "gate": {
+        "actions": {
+          "signOut": "Abmelden",
+          "backToHome": "Zur Startseite"
+        },
+        "accessUnavailable": {
+          "eyebrow": "Zugang nicht verfügbar",
+          "title": "Dieses Konto ist nicht mit einem Unternehmenskonto verbunden.",
+          "description": "Verwenden Sie den Link aus der E-Mail nach der Genehmigung oder wenden Sie sich an den Support, wenn Sie Zugriff erwartet haben."
+        },
+        "rejected": {
+          "eyebrow": "Registrierung nicht genehmigt",
+          "title": "Ihre Unternehmensregistrierung wurde nicht genehmigt.",
+          "description": "Wenden Sie sich an den Support, wenn Sie eine erneute Prüfung benötigen oder aktualisierte Angaben einreichen möchten."
+        },
+        "failed": {
+          "eyebrow": "Registrierung nicht verfügbar",
+          "title": "Ihre Registrierung konnte nicht abgeschlossen werden.",
+          "description": "Bitte wenden Sie sich an den Support oder reichen Sie später eine neue Registrierung ein."
+        },
+        "pending": {
+          "eyebrow": "Prüfung läuft",
+          "title": "Ihre Unternehmensregistrierung wird noch geprüft.",
+          "description": "Wir senden Ihnen die nächsten Schritte per E-Mail, sobald Ihr Unternehmen genehmigt wurde."
+        }
+      }
     }
   }
 }

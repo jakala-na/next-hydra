@@ -64,6 +64,129 @@
         "failedToRemove": "Failed to remove item",
         "failedToUpdate": "Failed to update quantity"
       }
+    },
+    "registration": {
+      "page": {
+        "eyebrow": "Company registration",
+        "title": "Register your company and request access.",
+        "description": "Share your company details and a primary contact. If your registration is approved, we will email a secure link so you can finish setting up access."
+      },
+      "awaiting": {
+        "eyebrow": "Review in progress",
+        "title": "Your registration is under review.",
+        "description": "Your registration has been received. We will email next steps once your company has been approved.",
+        "backToSite": "Back to site"
+      },
+      "form": {
+        "sections": {
+          "company": "Company information",
+          "contact": "Primary contact"
+        },
+        "fields": {
+          "companyName": {
+            "label": "Company name",
+            "placeholder": "Company name"
+          },
+          "companyPhone": {
+            "label": "Company phone",
+            "placeholder": "Company phone"
+          },
+          "vatId": {
+            "label": "Tax ID / VAT number",
+            "placeholder": "Tax ID / VAT number"
+          },
+          "country": {
+            "label": "Country",
+            "placeholder": "Select a country"
+          },
+          "streetAddress": {
+            "label": "Street address",
+            "placeholder": "Street address"
+          },
+          "addressLine2": {
+            "label": "Address line 2",
+            "placeholder": "Suite, floor, building, or department"
+          },
+          "postalCode": {
+            "label": "Postal code",
+            "placeholder": "Postal code"
+          },
+          "city": {
+            "label": "City",
+            "placeholder": "City"
+          },
+          "region": {
+            "requiredLabel": "State / province",
+            "optionalLabel": "State / region"
+          },
+          "firstName": {
+            "label": "First name",
+            "placeholder": "First name"
+          },
+          "lastName": {
+            "label": "Last name",
+            "placeholder": "Last name"
+          },
+          "email": {
+            "label": "Email",
+            "placeholder": "Email"
+          }
+        },
+        "disclaimer": "We review each company registration before granting access. If approved, we will email your primary contact a secure link to finish setting up the account.",
+        "actions": {
+          "submit": "Register company",
+          "submitting": "Submitting..."
+        },
+        "errors": {
+          "invalidSubmission": "Please review the highlighted fields and try again.",
+          "unsupportedRegistrationCountry": "We cannot accept company registrations from this country yet.",
+          "submitFailed": "We could not submit your registration right now. Please try again."
+        },
+        "validation": {
+          "companyName": "Enter your company name.",
+          "companyNameMax": "Company name is too long.",
+          "companyPhone": "Enter a valid company phone number.",
+          "vatId": "Tax ID / VAT number is too long.",
+          "firstName": "Enter a first name.",
+          "firstNameMax": "First name is too long.",
+          "lastName": "Enter a last name.",
+          "lastNameMax": "Last name is too long.",
+          "email": "Enter a valid email address.",
+          "duplicateEmail": "This email is already associated with an existing or pending registration.",
+          "invalidVatId": "Enter a valid tax ID / VAT number.",
+          "streetAddress": "Enter a street address.",
+          "postalCode": "Enter a postal code.",
+          "city": "Enter a city.",
+          "region": "Enter a state, province, or region.",
+          "country": "Select a country."
+        }
+      },
+      "gate": {
+        "actions": {
+          "signOut": "Sign out",
+          "backToHome": "Back to home"
+        },
+        "accessUnavailable": {
+          "eyebrow": "Access unavailable",
+          "title": "This account is not connected to a company account.",
+          "description": "Use the email link sent after approval, or contact support if you expected access."
+        },
+        "rejected": {
+          "eyebrow": "Registration not approved",
+          "title": "Your company registration was not approved.",
+          "description": "Contact support if you need another review or want to submit updated details."
+        },
+        "failed": {
+          "eyebrow": "Registration unavailable",
+          "title": "We could not complete your registration.",
+          "description": "Please contact support or submit a new registration later."
+        },
+        "pending": {
+          "eyebrow": "Review in progress",
+          "title": "Your company registration is still under review.",
+          "description": "We will email next steps once your company has been approved."
+        }
+      }
     }
   }
 }

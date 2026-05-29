@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Registration Architecture Map</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --page: #f7f5f0;
+        --ink: #202124;
+        --muted: #686b70;
+        --line: #c8c1b6;
+        --surface: #ffffff;
+        --transport: #d9ecff;
+        --program: #dff3e3;
+        --domain: #fff0c2;
+        --capability: #efe7ff;
+        --adapter: #f7d9d2;
+        --storage: #dde1e6;
+        --accent: #0f766e;
+        --shadow: 0 10px 30px rgb(32 33 36 / 10%);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--ink);
+        font:
+          14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system,
+          BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 32px;
+      }
+
+      header {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 28px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 30px;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      .lede {
+        max-width: 840px;
+        color: var(--muted);
+        font-size: 16px;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .legend span,
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 999px;
+        padding: 3px 10px;
+        border: 1px solid rgb(32 33 36 / 12%);
+        font-size: 12px;
+        font-weight: 650;
+        white-space: nowrap;
+      }
+
+      .transport {
+        background: var(--transport);
+      }
+
+      .program {
+        background: var(--program);
+      }
+
+      .domain {
+        background: var(--domain);
+      }
+
+      .capability {
+        background: var(--capability);
+      }
+
+      .adapter {
+        background: var(--adapter);
+      }
+
+      .storage {
+        background: var(--storage);
+      }
+
+      .accent {
+        color: var(--accent);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(720px, 1.25fr) minmax(320px, 0.75fr);
+        gap: 24px;
+        align-items: start;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid rgb(32 33 36 / 10%);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+
+      .map {
+        overflow: auto;
+        padding: 24px;
+      }
+
+      .tree {
+        min-width: 1060px;
+        display: grid;
+        gap: 22px;
+      }
+
+      .tier {
+        display: grid;
+        grid-template-columns: 170px 1fr;
+        gap: 18px;
+        align-items: stretch;
+      }
+
+      .tier-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding-top: 12px;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(190px, 1fr));
+        gap: 14px;
+        position: relative;
+      }
+
+      .card {
+        border: 1px solid rgb(32 33 36 / 12%);
+        border-radius: 8px;
+        padding: 12px;
+        min-height: 112px;
+        display: grid;
+        gap: 8px;
+        align-content: start;
+        position: relative;
+      }
+
+      .card h3 {
+        font-size: 15px;
+        line-height: 1.25;
+        letter-spacing: 0;
+      }
+
+      .card p {
+        color: #4f545a;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .card strong {
+        font-weight: 750;
+      }
+
+      .wide {
+        grid-column: span 2;
+      }
+
+      .full {
+        grid-column: 1 / -1;
+      }
+
+      .rail {
+        position: absolute;
+        left: 50%;
+        top: -22px;
+        width: 1px;
+        height: 22px;
+        background: var(--line);
+      }
+
+      .branch::before {
+        content: "";
+        position: absolute;
+        top: -12px;
+        left: 8%;
+        right: 8%;
+        height: 1px;
+        background: var(--line);
+      }
+
+      .branch .card::before {
+        content: "";
+        position: absolute;
+        top: -12px;
+        left: 50%;
+        width: 1px;
+        height: 12px;
+        background: var(--line);
+      }
+
+      .roles {
+        padding: 22px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .roles h2 {
+        font-size: 20px;
+        line-height: 1.2;
+      }
+
+      .role-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .role {
+        display: grid;
+        gap: 4px;
+        border-top: 1px solid rgb(32 33 36 / 10%);
+        padding-top: 12px;
+      }
+
+      .role h3 {
+        font-size: 14px;
+        line-height: 1.25;
+      }
+
+      .role p {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .callout {
+        border-left: 4px solid var(--accent);
+        padding: 12px 14px;
+        background: #eefbf8;
+        border-radius: 0 8px 8px 0;
+        color: #23413d;
+      }
+
+      @media (max-width: 1100px) {
+        main {
+          padding: 20px;
+        }
+
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Registration Architecture Map</h1>
+        <p class="lede">
+          The current hierarchy from app-facing adapters through Effect
+          use-case programs, provider-independent capability services, provider
+          adapters, and storage.
+        </p>
+        <div class="legend" aria-label="Legend">
+          <span class="transport">Transport / app seam</span>
+          <span class="program">Use-case program</span>
+          <span class="domain">Registration module</span>
+          <span class="capability">Capability module</span>
+          <span class="adapter">Provider adapter</span>
+          <span class="storage">Storage</span>
+        </div>
+      </header>
+
+      <section class="layout">
+        <div class="panel map" aria-label="Architecture hierarchy">
+          <div class="tree">
+            <section class="tier">
+              <div class="tier-label">App-facing seams</div>
+              <div class="cards">
+                <article class="card transport">
+                  <h3>apps/web UI + Server Actions</h3>
+                  <p>Owns user interaction, form shape, view models, and cache revalidation.</p>
+                </article>
+                <article class="card transport">
+                  <h3>apps/api HTTP adapter</h3>
+                  <p>Owns HTTP schemas, auth/header extraction, response status mapping.</p>
+                </article>
+                <article class="card transport">
+                  <h3>Workflow adapter</h3>
+                  <p>Starts and resumes workflow runs that must execute in the API app.</p>
+                </article>
+                <article class="card transport">
+                  <h3>Local callers</h3>
+                  <p>Jobs, tests, admin code, or server code that can use local Effect layers.</p>
+                </article>
+              </div>
+            </section>
+
+            <section class="tier">
+              <div class="tier-label">Use-case programs</div>
+              <div class="cards branch">
+                <span class="rail" aria-hidden="true"></span>
+                <article class="card program wide">
+                  <h3>submitRegistrationForReview</h3>
+                  <p>
+                    Public Registration intake: accepts company details, checks
+                    eligibility, and creates an awaiting approval Registration.
+                  </p>
+                </article>
+                <article class="card program">
+                  <h3>checkRegistrationEligibility</h3>
+                  <p>
+                    Preflight policy for pending email, Commerce customer,
+                    identity user, country, and VAT checks.
+                  </p>
+                </article>
+                <article class="card program">
+                  <h3>acceptRegistrationReviewDecision</h3>
+                  <p>
+                    Reviewer decision acceptance: marks approval processing and
+                    resumes workflow through an injected edge function.
+                  </p>
+                </article>
+                <article class="card program">
+                  <h3>RegistrationOnboarding</h3>
+                  <p>
+                    Workflow-called programs: provision Commerce, issue
+                    invitations, finalize approved or rejected state.
+                  </p>
+                </article>
+                <article class="card program">
+                  <h3>RegistrationNotifications</h3>
+                  <p>
+                    Existing workflow-called module: read current state and send
+                    the right Registration email.
+                  </p>
+                </article>
+                <article class="card program">
+                  <h3>CompanyMemberInvitations</h3>
+                  <p>
+                    Existing-company invitation use cases over invitation,
+                    policy, and Commerce capabilities.
+                  </p>
+                </article>
+              </div>
+            </section>
+
+            <section class="tier">
+              <div class="tier-label">Registration core</div>
+              <div class="cards branch">
+                <article class="card domain full">
+                  <h3>Registrations</h3>
+                  <p>
+                    Owns the Registration aggregate persistence and lifecycle:
+                    create awaiting approval, get, mark processing, mark
+                    approved, mark rejected. It should not own provider
+                    preflight checks.
+                  </p>
+                </article>
+              </div>
+            </section>
+
+            <section class="tier">
+              <div class="tier-label">Capabilities</div>
+              <div class="cards branch">
+                <article class="card capability">
+                  <h3>RegistrationQueries</h3>
+                  <p>
+                    Read-model capability for list, cursor, search, and pending
+                    Registration email lookup.
+                  </p>
+                </article>
+                <article class="card capability">
+                  <h3>VersionedKeyValueStore</h3>
+                  <p>Schema-aware optimistic-concurrency storage capability.</p>
+                </article>
+                <article class="card capability">
+                  <h3>CommerceAccounts</h3>
+                  <p>Provider-independent Commerce account and customer checks.</p>
+                </article>
+                <article class="card capability">
+                  <h3>IdentityUsers</h3>
+                  <p>Provider-independent identity lookup by normalized email.</p>
+                </article>
+                <article class="card capability">
+                  <h3>Invitations</h3>
+                  <p>Issue, read, accept, and revoke provider invitations.</p>
+                </article>
+                <article class="card capability">
+                  <h3>RegistrationMarketPolicy</h3>
+                  <p>Answers whether a company country can register.</p>
+                </article>
+                <article class="card capability">
+                  <h3>VatValidator</h3>
+                  <p>Answers whether a submitted VAT identifier is acceptable.</p>
+                </article>
+                <article class="card capability">
+                  <h3>RegistrationEmails</h3>
+                  <p>Registration-specific email sending capability.</p>
+                </article>
+              </div>
+            </section>
+
+            <section class="tier">
+              <div class="tier-label">Provider adapters</div>
+              <div class="cards branch">
+                <article class="card adapter">
+                  <h3>Commercetools store adapter</h3>
+                  <p>Implements VersionedKeyValueStore with custom objects.</p>
+                </article>
+                <article class="card adapter">
+                  <h3>Commercetools query adapter</h3>
+                  <p>
+                    Implements RegistrationQueries. Status/cursor sort is
+                    provider-pushed; search and email checks scan decoded values
+                    in batches.
+                  </p>
+                </article>
+                <article class="card adapter">
+                  <h3>Commercetools commerce adapter</h3>
+                  <p>Implements CommerceAccounts.</p>
+                </article>
+                <article class="card adapter">
+                  <h3>WorkOS adapters</h3>
+                  <p>Implement IdentityUsers and Invitations.</p>
+                </article>
+                <article class="card adapter">
+                  <h3>Resend adapter</h3>
+                  <p>Implements the email provider used by RegistrationEmails.</p>
+                </article>
+              </div>
+            </section>
+
+            <section class="tier">
+              <div class="tier-label">External systems</div>
+              <div class="cards branch">
+                <article class="card storage">
+                  <h3>Commercetools custom objects</h3>
+                  <p>Durable versioned Registration storage.</p>
+                </article>
+                <article class="card storage">
+                  <h3>Commercetools customers / business units</h3>
+                  <p>Commerce account provisioning and customer lookup.</p>
+                </article>
+                <article class="card storage">
+                  <h3>WorkOS</h3>
+                  <p>Identity users and provider-managed invitations.</p>
+                </article>
+                <article class="card storage">
+                  <h3>Resend</h3>
+                  <p>Email delivery.</p>
+                </article>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <aside class="panel roles" aria-label="Service role notes">
+          <h2>Ownership Notes</h2>
+          <p class="callout">
+            The main rule: capability services are replaceable seams supplied
+            by Layer; use-case programs compose those capabilities; adapters
+            expose programs over HTTP, workflow, server actions, jobs, or tests.
+          </p>
+          <div class="role-list">
+            <div class="role">
+              <h3>HTTP adapter</h3>
+              <p>Thin transport seam. It should translate HTTP into module calls and map module errors back to HTTP responses.</p>
+            </div>
+            <div class="role">
+              <h3>Programs <span class="badge program">Effect.fn</span></h3>
+              <p>Own Registration use-case ordering and policy. They are exported functions, not new capability services by default.</p>
+            </div>
+            <div class="role">
+              <h3>Registration intake</h3>
+              <p>`submitRegistrationForReview` uses `checkRegistrationEligibility`, then creates an awaiting approval Registration.</p>
+            </div>
+            <div class="role">
+              <h3>Registration review</h3>
+              <p>`acceptRegistrationReviewDecision` marks processing before resuming workflow, and does not resume after transition conflicts.</p>
+            </div>
+            <div class="role">
+              <h3>Registrations</h3>
+              <p>Owns versioned aggregate storage and lifecycle transitions only. This keeps ADR-0001 intact.</p>
+            </div>
+            <div class="role">
+              <h3>RegistrationQueries</h3>
+              <p>Owns read-model behaviour that key-value Registration storage should not promise, including search and pending email lookup.</p>
+            </div>
+            <div class="role">
+              <h3>Workflow adapter</h3>
+              <p>Remains API-owned. HTTP passes a small resume function into the review program when asynchronous processing is required.</p>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,6 +1,4 @@
-export const Contentstack = (
-  props: React.HTMLAttributes<HTMLSpanElement>
-) => (
+export const Contentstack = (props: React.HTMLAttributes<HTMLSpanElement>) => (
   <span
     aria-label="Contentstack"
     role="img"

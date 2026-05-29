@@ -39,8 +39,9 @@ What you should do in commercetools:
 1. Create a new commercetools project from the trial account.
 2. Choose `Sample dataset` instead of an empty project.
 3. Select `B2B: Heavy Machinery`.
-4. Create an API client for the storefront using the Scopes from `Frontend B2B` template.
-5. Copy the project key, client id, client secret, region, and scopes into your local env file.
+4. Enable **Product projection search** in the Merchant Center by navigating to **Settings** > **Project settings** > **Storefront Search**—without it, product search in the app will not work. See [Product projection search](https://docs.commercetools.com/api/projects/product-projection-search).
+5. Create an API client for the storefront using the Scopes from `Frontend B2B` template, and add the **Custom objects** scope (in addition to every scope that template already includes).
+6. Copy the project key, client id, client secret, region, and scopes into your local env file.
 
 You will need these values from commercetools:
 
@@ -101,32 +102,9 @@ The repo also includes a `Clerk` adapter package, but swapping auth providers is
 
 ## Step 5. Add your environment variables
 
-Once you have values from `commercetools`, `Contentstack`, and `WorkOS`, add them to your local env file.
+Copy `apps/web/.env.example` to `apps/web/.env.local` and `apps/api/.env.example` to `apps/api/.env.local`, then fill in your values.
 
-```bash title="./apps/web/.env.local"
-COMMERCETOOLS_PROJECT_KEY=your-project-key
-COMMERCETOOLS_CLIENT_ID=your-client-id
-COMMERCETOOLS_CLIENT_SECRET=your-client-secret
-COMMERCETOOLS_SCOPE=manage_project:your-project-key
-COMMERCETOOLS_REGION=your-region
-NEXT_PUBLIC_COMMERCETOOLS_PROJECT_KEY=your-project-key
-NEXT_PUBLIC_COMMERCETOOLS_REGION=your-region
-
-CONTENTSTACK_ENVIRONMENT=development
-CONTENTSTACK_API_KEY=your-api-key
-CONTENTSTACK_DELIVERY_TOKEN=cs_delivery_token
-CONTENTSTACK_PREVIEW_TOKEN=cs_preview_token
-CONTENTSTACK_WEBHOOK_SECRET=your-webhook-secret
-NEXT_PUBLIC_CONTENTSTACK_API_KEY=your-api-key
-NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT=development
-
-WORKOS_API_KEY=sk_live_or_test
-WORKOS_CLIENT_ID=client_123
-WORKOS_COOKIE_PASSWORD=replace-with-a-32-character-secret
-NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
-```
-
-If you want to explore analytics, observability, email, or security integrations later, add those after the demo is already running.
+The apps use [t3-env](https://env.t3.gg) (`@t3-oss/env-nextjs`); if a required value is missing or invalid, the app will not start. Run each app to confirm everything is set.
 
 ## Step 6. Run the demo locally
 

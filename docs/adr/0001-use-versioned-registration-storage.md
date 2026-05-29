@@ -1,0 +1,3 @@
+# Use Versioned Key-Value Storage Behind Registrations
+
+Registration persistence stores only the domain `Registration` union, while workflow metadata, provider payloads, retry state, and read-model denormalizations stay outside the aggregate. `Registrations` depends on a small schema-aware `VersionedKeyValueStore` capability so approval and rejection races can be rejected with provider-backed optimistic concurrency; Commercetools implements this with custom object versions, including `version: 0` for create-only inserts. Query and list behavior is separated into `RegistrationQueries` because key-value storage does not provide portable listing or predicate semantics.

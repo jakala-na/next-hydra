@@ -34,7 +34,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^22.15.21",
-    "typescript": "^5.8.3"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   }
 }

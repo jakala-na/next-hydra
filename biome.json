@@ -64,5 +64,16 @@
         "noDangerouslySetInnerHtml": "warn"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "apps/api/**",
+        "packages/registration/**",
+        "packages/commerce/lib/infra/**",
+        "packages/commerce/lib/b2b-registration/**"
+      ],
+      "plugins": ["./plugins/biome/no-manual-boundary-decoding.grit"]
+    }
+  ]
 }

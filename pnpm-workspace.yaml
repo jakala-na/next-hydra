@@ -1,3 +1,32 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - apps/*
+  - packages/*
+catalog:
+  '@effect/vitest': 4.0.0-beta.67
+  '@next/bundle-analyzer': 16.1.6
+  '@next/third-parties': 16.1.6
+  '@t3-oss/env-nextjs': ^0.13.4
+  '@types/node': 22.15.21
+  '@types/react': 19.2.10
+  '@types/react-dom': 19.2.3
+  effect: 4.0.0-beta.67
+  next: 16.1.6
+  react: 19.2.4
+  react-dom: 19.2.4
+  server-only: ^0.0.1
+  typescript: 5.9.3
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@sentry/cli'
+  - '@swc/core'
+  - esbuild
+  - sharp
+ignoredBuiltDependencies:
+  - '@clerk/shared'
+  - '@nestjs/core'
+  - bufferutil
+  - cbor-extract
+  - core-js
+  - core-js-pure
+  - msgpackr-extract
+  - msw

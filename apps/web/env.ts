@@ -8,6 +8,7 @@ import { keys as observability } from "@repo/observability/keys";
 import { keys as rateLimit } from "@repo/rate-limit/keys";
 import { keys as security } from "@repo/security/keys";
 import { createEnv } from "@t3-oss/env-nextjs";
+import { z } from "zod";
 
 export const env = createEnv({
   extends: [
@@ -21,7 +22,11 @@ export const env = createEnv({
     security(),
     rateLimit(),
   ],
-  server: {},
+  server: {
+    REGISTRATION_APPROVAL_SECRET: z.string().min(16).optional(),
+  },
   client: {},
-  runtimeEnv: {},
+  runtimeEnv: {
+    REGISTRATION_APPROVAL_SECRET: process.env.REGISTRATION_APPROVAL_SECRET,
+  },
 });

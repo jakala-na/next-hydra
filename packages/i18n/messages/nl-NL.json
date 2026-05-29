@@ -68,6 +68,129 @@
         "checkout": "Ga naar Afrekenen",
         "continueShopping": "Blijf Winkelen"
       }
+    },
+    "registration": {
+      "page": {
+        "eyebrow": "Bedrijfsregistratie",
+        "title": "Registreer uw bedrijf en vraag toegang aan.",
+        "description": "Deel de gegevens van uw bedrijf en uw hoofdcontactpersoon. Als uw registratie wordt goedgekeurd, sturen we een beveiligde link om de toegang af te ronden."
+      },
+      "awaiting": {
+        "eyebrow": "Beoordeling bezig",
+        "title": "Uw registratie wordt beoordeeld.",
+        "description": "Uw registratie is ontvangen. We sturen de volgende stappen per e-mail zodra uw bedrijf is goedgekeurd.",
+        "backToSite": "Terug naar de site"
+      },
+      "form": {
+        "sections": {
+          "company": "Bedrijfsgegevens",
+          "contact": "Hoofdcontactpersoon"
+        },
+        "fields": {
+          "companyName": {
+            "label": "Bedrijfsnaam",
+            "placeholder": "Bedrijfsnaam"
+          },
+          "companyPhone": {
+            "label": "Telefoonnummer van het bedrijf",
+            "placeholder": "Telefoonnummer van het bedrijf"
+          },
+          "vatId": {
+            "label": "Btw-nummer / fiscaal nummer",
+            "placeholder": "Btw-nummer / fiscaal nummer"
+          },
+          "country": {
+            "label": "Land",
+            "placeholder": "Selecteer een land"
+          },
+          "streetAddress": {
+            "label": "Adres",
+            "placeholder": "Adres"
+          },
+          "addressLine2": {
+            "label": "Adresregel 2",
+            "placeholder": "Suite, verdieping, gebouw of afdeling"
+          },
+          "postalCode": {
+            "label": "Postcode",
+            "placeholder": "Postcode"
+          },
+          "city": {
+            "label": "Plaats",
+            "placeholder": "Plaats"
+          },
+          "region": {
+            "requiredLabel": "Staat / provincie",
+            "optionalLabel": "Staat / regio"
+          },
+          "firstName": {
+            "label": "Voornaam",
+            "placeholder": "Voornaam"
+          },
+          "lastName": {
+            "label": "Achternaam",
+            "placeholder": "Achternaam"
+          },
+          "email": {
+            "label": "E-mailadres",
+            "placeholder": "E-mailadres"
+          }
+        },
+        "disclaimer": "We beoordelen elke bedrijfsregistratie voordat we toegang verlenen. Als de registratie wordt goedgekeurd, sturen we uw hoofdcontactpersoon een beveiligde link om het account af te ronden.",
+        "actions": {
+          "submit": "Bedrijf registreren",
+          "submitting": "Bezig met verzenden..."
+        },
+        "errors": {
+          "invalidSubmission": "Controleer de gemarkeerde velden en probeer het opnieuw.",
+          "unsupportedRegistrationCountry": "We kunnen nog geen bedrijfsregistraties uit dit land accepteren.",
+          "submitFailed": "We konden uw registratie nu niet verzenden. Probeer het opnieuw."
+        },
+        "validation": {
+          "companyName": "Voer de bedrijfsnaam in.",
+          "companyNameMax": "De bedrijfsnaam is te lang.",
+          "companyPhone": "Voer een geldig telefoonnummer van het bedrijf in.",
+          "vatId": "Het btw-nummer / fiscale nummer is te lang.",
+          "firstName": "Voer een voornaam in.",
+          "firstNameMax": "De voornaam is te lang.",
+          "lastName": "Voer een achternaam in.",
+          "lastNameMax": "De achternaam is te lang.",
+          "email": "Voer een geldig e-mailadres in.",
+          "duplicateEmail": "Dit e-mailadres is al gekoppeld aan een bestaande of openstaande registratie.",
+          "invalidVatId": "Voer een geldig btw-nummer / fiscaal nummer in.",
+          "streetAddress": "Voer een adres in.",
+          "postalCode": "Voer een postcode in.",
+          "city": "Voer een plaats in.",
+          "region": "Voer een staat, provincie of regio in.",
+          "country": "Selecteer een land."
+        }
+      },
+      "gate": {
+        "actions": {
+          "signOut": "Afmelden",
+          "backToHome": "Terug naar home"
+        },
+        "accessUnavailable": {
+          "eyebrow": "Toegang niet beschikbaar",
+          "title": "Dit account is niet gekoppeld aan een bedrijfsaccount.",
+          "description": "Gebruik de e-maillink die na goedkeuring is verzonden of neem contact op met support als u toegang verwachtte."
+        },
+        "rejected": {
+          "eyebrow": "Registratie niet goedgekeurd",
+          "title": "Uw bedrijfsregistratie is niet goedgekeurd.",
+          "description": "Neem contact op met support als u een nieuwe beoordeling nodig hebt of bijgewerkte gegevens wilt indienen."
+        },
+        "failed": {
+          "eyebrow": "Registratie niet beschikbaar",
+          "title": "We konden uw registratie niet voltooien.",
+          "description": "Neem contact op met support of dien later een nieuwe registratie in."
+        },
+        "pending": {
+          "eyebrow": "Beoordeling bezig",
+          "title": "Uw bedrijfsregistratie wordt nog beoordeeld.",
+          "description": "We sturen de volgende stappen per e-mail zodra uw bedrijf is goedgekeurd."
+        }
+      }
     }
   }
 }

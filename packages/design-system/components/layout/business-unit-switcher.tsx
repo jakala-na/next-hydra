@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuth } from "@repo/auth-workos/client";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
   DropdownMenu,
@@ -12,36 +11,29 @@ import {
 } from "@repo/design-system/components/ui/dropdown-menu";
 import { Building2, Check, ChevronDown } from "lucide-react";
 
-type BusinessUnit = {
-  id: string;
-  name: string;
-  role: string;
+export type BusinessUnitSwitcherItem = {
+  readonly id: string;
+  readonly name: string;
+  readonly role: string;
 };
 
-// TODO: Replace with actual business unit data from API/context
-const mockBusinessUnits: BusinessUnit[] = [
-  {
-    id: "1",
-    name: "Business Unit 1",
-    role: "Admin",
-  },
-  {
-    id: "2",
-    name: "Business Unit 2",
-    role: "User",
-  },
-];
-
-const currentBusinessUnit = mockBusinessUnits[0];
-
-const switchBusinessUnit = (businessUnitId: string) => {
-  console.log(`Switching to business unit ${businessUnitId}`);
+export type BusinessUnitSwitcherProps = {
+  readonly currentBusinessUnitId?: string;
+  readonly items: readonly BusinessUnitSwitcherItem[];
+  readonly label?: string;
+  readonly onSwitchBusinessUnit?: (businessUnitId: string) => void;
 };
 
-export function BusinessUnitSwitcher() {
-  const { user } = useAuth();
+export function BusinessUnitSwitcher({
+  currentBusinessUnitId,
+  items,
+  label = "Switch Business Unit",
+  onSwitchBusinessUnit,
+}: BusinessUnitSwitcherProps) {
+  const currentBusinessUnit =
+    items.find((unit) => unit.id === currentBusinessUnitId) ?? items[0];
 
-  if (!user || mockBusinessUnits.length <= 1) {
+  if (items.length <= 1) {
     return null;
   }
 
@@ -59,12 +51,12 @@ export function BusinessUnitSwitcher() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[280px]">
-        <DropdownMenuLabel>Switch Business Unit</DropdownMenuLabel>
+        <DropdownMenuLabel>{label}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {mockBusinessUnits.map((unit) => (
+        {items.map((unit) => (
           <DropdownMenuItem
             key={unit.id}
-            onClick={() => switchBusinessUnit(unit.id)}
+            onClick={() => onSwitchBusinessUnit?.(unit.id)}
             className="flex cursor-pointer items-start gap-2 py-3"
           >
             <Check

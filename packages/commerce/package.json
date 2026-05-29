@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false",
     "generate": "node --experimental-transform-types scripts/gql-sync.ts"
   },
@@ -12,23 +13,31 @@
     "@commercetools/platform-sdk": "^8.16.0",
     "@commercetools/ts-client": "^4.2.1",
     "@gql.tada/cli-utils": "^1.6.3",
-    "@t3-oss/env-nextjs": "^0.13.4",
+    "@repo/observability": "workspace:*",
+    "@repo/versioned-store": "workspace:*",
+    "@t3-oss/env-nextjs": "catalog:",
     "@urql/core": "^5.1.2",
     "dotenv": "^17.0.0",
     "gql.tada": "^1.8.10",
     "lodash.memoize": "^4.1.2",
-    "next-safe-action": "^8.0.7",
-    "react": "^19.2.4",
+    "next-safe-action": "^8.1.8",
+    "react": "catalog:",
+    "server-only": "catalog:",
     "urql": "^4.2.2",
     "wonka": "^6.3.5",
     "zod": "^3.25.28"
   },
   "devDependencies": {
+    "@effect/vitest": "catalog:",
     "@repo/typescript-config": "workspace:*",
     "@types/lodash.memoize": "^4.1.9",
-    "@types/node": "22.15.21",
-    "@types/react": "^19.2.10",
-    "@types/react-dom": "^19.2.3",
-    "next": "16.1.6"
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "next": "catalog:",
+    "effect": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
   }
 }

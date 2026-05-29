@@ -12,9 +12,9 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "22.15.21",
-    "@types/react": "^19.2.10",
-    "@types/react-dom": "^19.2.3",
-    "next": "16.1.6"
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "next": "catalog:"
   }
 }

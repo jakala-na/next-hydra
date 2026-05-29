@@ -9,48 +9,35 @@ import {
 } from "@rescale/nemo";
 
 export const config = {
-  // matcher tells Next.js which routes to run the middleware on. This runs the
-  // middleware on all routes except for static assets and Posthog ingest. Keep in mind all routable files from apps/ directory
-  // like icon.png need the middleware to properly respond on /[locale] paths.
-  // Note: /api/auth/* is included for WorkOS auth handling, other API routes are excluded.
+  // Run middleware on page routes while still allowing WorkOS auth handlers under /api/auth.
   matcher: ["/((?!api|_next/|_static|_vercel|ingest).*)", "/api/auth/:path*"],
 };
 
-// WorkOS auth middleware instance
 const workosAuth = authProxy();
 
 const globalMiddlewares: GlobalMiddlewareConfig = {
   before: [
     cmsProxy,
-    // WorkOS auth middleware - runs on all routes for server-side auth support
-    (req, event) => {
-      const response = workosAuth(
-        req,
-        event as unknown as Parameters<typeof workosAuth>[1]
-      );
-
-      return response;
-    },
-    // i18n middleware - skip for API routes
+    // NEMO's event type is broader than NextFetchEvent, but WorkOS expects the Next type.
+    (req, event) =>
+      workosAuth(req, event as unknown as Parameters<typeof workosAuth>[1]),
     (req) => {
-      if (req.nextUrl.pathname.startsWith("/api")) {
+      // API routes and root-level admin routes are intentionally left alone.
+      if (
+        req.nextUrl.pathname.startsWith("/api") ||
+        req.nextUrl.pathname === "/admin" ||
+        req.nextUrl.pathname.startsWith("/admin/")
+      ) {
         return;
       }
 
-      const response = i18nProxy(req);
-
-      if (!response?.ok) {
-        return response;
-      }
-
-      return response;
+      return i18nProxy(req);
     },
   ],
 };
 
 const middlewares: MiddlewareConfig = {
-  // biome-ignore lint/suspicious/noEmptyBlockStatements: no-op placeholder
-  "/": () => {}, // Path-based middlewares are not needed for now.
+  "/": () => undefined,
 };
 
 const proxy = createNEMO(middlewares, globalMiddlewares);

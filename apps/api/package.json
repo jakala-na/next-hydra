@@ -12,27 +12,35 @@
   },
   "dependencies": {
     "@repo/analytics": "workspace:*",
+    "@repo/auth-workos": "workspace:*",
+    "@repo/commerce": "workspace:*",
     "@repo/design-system": "workspace:*",
+    "@repo/email": "workspace:*",
     "@repo/next-config": "workspace:*",
     "@repo/observability": "workspace:*",
+    "@repo/registration": "workspace:*",
     "@repo/testing": "workspace:*",
+    "@repo/versioned-store": "workspace:*",
     "@sentry/nextjs": "^10.22.0",
-    "@t3-oss/env-nextjs": "^0.13.4",
+    "@t3-oss/env-nextjs": "catalog:",
+    "@workos-inc/node": "^8.12.1",
+    "effect": "catalog:",
     "import-in-the-middle": "2.0.0",
-    "next": "16.1.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "require-in-the-middle": "8.0.1",
     "svix": "^1.66.0",
     "vitest": "^3.1.4",
+    "workflow": "4.2.0-beta.67",
     "zod": "^3.25.28"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "22.15.21",
-    "@types/react": "^19.2.10",
-    "@types/react-dom": "^19.2.3",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "concurrently": "^9.1.2",
-    "typescript": "^5.8.3"
+    "typescript": "catalog:"
   }
 }
