@@ -7,7 +7,7 @@
     "start": "next start",
     "analyze": "ANALYZE=true npm run build",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "next typegen && tsgo --noEmit"
   },
   "dependencies": {
     "@arcjet/next": "1.0.0-beta.7",
