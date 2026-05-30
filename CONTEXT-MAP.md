@@ -9,4 +9,4 @@ Shared agent operating guidance belongs in `AGENTS.md`, not in this map.
 | Context | Context doc | ADRs | Notes |
 | ------- | ----------- | ---- | ----- |
 | Registration | `CONTEXT.md` | `docs/adr/` | Current domain context for company access requests. Split into a context-specific directory when additional bounded contexts are introduced. |
-
+| Checkout | `packages/commerce/CONTEXT.md` | `docs/adr/` | Current domain context for turning a cart into an order-ready purchase. |
