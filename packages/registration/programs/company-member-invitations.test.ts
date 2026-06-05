@@ -35,6 +35,7 @@ const commerceAccount = new CommerceAccount({
 const commerceAccountsLayer = Layer.succeed(CommerceAccounts, {
   createFromRegistration: () => Effect.succeed(commerceAccount),
   linkRegistrantIdentity: () => Effect.succeed(commerceAccount),
+  getCustomerIdByAuthUserId: () => Effect.die("not used"),
   hasCustomerWithEmail: () => Effect.succeed(false),
   addAssociate: (input) =>
     Effect.sync(() => {

@@ -1,14 +1,102 @@
-import type { Locale, LocaleCountry } from "@repo/i18n/types";
+import type { Locale } from "@repo/i18n/types";
+import { Option, Schema } from "effect";
 import { cookies } from "next/headers";
+import { CartId, StoreKey } from "../../../domain/cart";
+import type { StoreContext } from "../../store/types";
+import {
+  getDefaultCurrencyByLocale,
+  getStoreKeyByLocale,
+} from "../../store/utils/mappings";
 
-export const ANONYMOUS_CART_COOKIE_NAME = "cart_id";
+export const ANONYMOUS_CART_COOKIE_NAME = "cart";
+const CART_COOKIE_MAX_AGE_DAYS = 90;
 
-export const getCountryCodeFromLocale = (locale: Locale) =>
-  locale.split("-")[1] as LocaleCountry;
+export class AnonymousCartCookie extends Schema.Class<AnonymousCartCookie>(
+  "AnonymousCartCookie"
+)({
+  cartId: CartId,
+  currency: Schema.NonEmptyString,
+  locale: Schema.NonEmptyString,
+  storeKey: StoreKey,
+}) {}
 
-const getCookieName = (locale: Locale) => {
-  const localeCountry = getCountryCodeFromLocale(locale).toLowerCase();
-  return `${localeCountry}:${ANONYMOUS_CART_COOKIE_NAME}`;
+export type AnonymousCartCookieContext = Pick<
+  StoreContext,
+  "currency" | "locale" | "storeKey"
+>;
+
+const AnonymousCartCookieJson = Schema.fromJsonString(AnonymousCartCookie);
+const decodeCookieWireValue = (value: string) => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+export const getAnonymousCartCookieContextByLocale = (
+  locale: Locale
+): AnonymousCartCookieContext => ({
+  currency: getDefaultCurrencyByLocale(locale),
+  locale,
+  storeKey: getStoreKeyByLocale(locale),
+});
+
+export const makeAnonymousCartCookie = ({
+  cartId,
+  context,
+}: {
+  readonly cartId: string;
+  readonly context: AnonymousCartCookieContext;
+}) =>
+  new AnonymousCartCookie({
+    cartId: CartId.make(cartId),
+    currency: context.currency,
+    locale: context.locale,
+    storeKey: StoreKey.make(context.storeKey),
+  });
+
+export const encodeAnonymousCartCookie = (
+  cookie: AnonymousCartCookie
+): string =>
+  encodeURIComponent(Schema.encodeSync(AnonymousCartCookieJson)(cookie));
+
+export const decodeAnonymousCartCookie = (
+  value: string | undefined
+): AnonymousCartCookie | null => {
+  if (value === undefined || value.length === 0) {
+    return null;
+  }
+
+  const result = Schema.decodeUnknownOption(AnonymousCartCookieJson)(
+    decodeCookieWireValue(value)
+  );
+
+  return Option.getOrNull(result);
+};
+
+const anonymousCartCookieMatchesContext = (
+  cookie: AnonymousCartCookie,
+  context: AnonymousCartCookieContext
+) =>
+  cookie.currency === context.currency &&
+  cookie.locale === context.locale &&
+  cookie.storeKey === context.storeKey;
+
+export const getAnonymousCartIdFromCookieValue = (
+  value: string | undefined,
+  context: AnonymousCartCookieContext
+): string | null => {
+  const cartCookie = decodeAnonymousCartCookie(value);
+
+  if (
+    cartCookie === null ||
+    !anonymousCartCookieMatchesContext(cartCookie, context)
+  ) {
+    return null;
+  }
+
+  return cartCookie.cartId;
 };
 
 const CART_COOKIE_OPTIONS = {
@@ -16,18 +104,20 @@ const CART_COOKIE_OPTIONS = {
   secure: process.env.NODE_ENV === "production",
   sameSite: "lax" as const,
   path: "/",
-  maxAge: 60 * 60 * 24 * 90, // 90 days
+  maxAge: 60 * 60 * 24 * CART_COOKIE_MAX_AGE_DAYS,
 };
 
 /**
  * Get the anonymous cart ID from cookies
  */
 export async function getAnonymousCartId(
-  locale: Locale
+  context: AnonymousCartCookieContext
 ): Promise<string | null> {
   const cookieStore = await cookies();
-  const cartCookie = cookieStore.get(getCookieName(locale));
-  return cartCookie?.value || null;
+  return getAnonymousCartIdFromCookieValue(
+    cookieStore.get(ANONYMOUS_CART_COOKIE_NAME)?.value,
+    context
+  );
 }
 
 /**
@@ -35,10 +125,14 @@ export async function getAnonymousCartId(
  */
 export async function setAnonymousCartId(
   cartId: string,
-  locale: Locale
+  context: AnonymousCartCookieContext
 ): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.set(getCookieName(locale), cartId, CART_COOKIE_OPTIONS);
+  cookieStore.set(
+    ANONYMOUS_CART_COOKIE_NAME,
+    encodeAnonymousCartCookie(makeAnonymousCartCookie({ cartId, context })),
+    CART_COOKIE_OPTIONS
+  );
 }
 
 /**

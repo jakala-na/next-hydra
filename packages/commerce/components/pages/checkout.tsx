@@ -6,11 +6,18 @@ import {
   CheckoutLocale,
   type CheckoutState,
   type CheckoutStepId,
-  StorefrontAnonymousCheckoutScope,
 } from "../../domain/checkout";
+import {
+  AnonymousCommercePrincipal,
+  CommerceRequestContext,
+} from "../../domain/commerce-request-context";
 import { getAnonymousCartId } from "../../lib/cart/utils/anonymous-cart-cookies";
 import { CheckoutSession } from "../../lib/checkout/checkout-session";
 import { checkoutRuntimeLayerCommercetools } from "../../lib/checkout/commercetools";
+import { toCheckoutScope } from "../../lib/checkout/request-context";
+import { storeService } from "../../lib/store/store.service";
+
+const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
 
 const stepLabels: Record<CheckoutStepId, string> = {
   contact: "Contact",
@@ -27,17 +34,23 @@ const formatMoney = (
   new Intl.NumberFormat(locale, {
     style: "currency",
     currency: money.currencyCode,
-  }).format(money.centAmount / 100);
+  }).format(money.centAmount / CENTS_PER_MAJOR_CURRENCY_UNIT);
 
 const getState = async (locale: Locale) => {
-  const anonymousCartId = await getAnonymousCartId(locale);
-  const scope = new StorefrontAnonymousCheckoutScope({
-    channel: "storefrontAnonymous",
+  const storeContext = await storeService.getStoreContextByLocale(locale);
+  const anonymousCartId = await getAnonymousCartId(storeContext);
+
+  if (anonymousCartId === null || anonymousCartId.length === 0) {
+    return null;
+  }
+
+  const context = new CommerceRequestContext({
     locale: CheckoutLocale.make(locale),
-    ...(anonymousCartId === null || anonymousCartId.length === 0
-      ? {}
-      : { anonymousCartId: CartId.make(anonymousCartId) }),
+    principal: new AnonymousCommercePrincipal({
+      anonymousCartId: CartId.make(anonymousCartId),
+    }),
   });
+  const scope = toCheckoutScope(context);
 
   return Effect.runPromise(
     CheckoutSession.getCurrent(scope).pipe(

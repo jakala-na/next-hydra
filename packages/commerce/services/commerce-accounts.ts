@@ -7,6 +7,7 @@ import {
   CommerceCustomer,
   CommerceCustomerId,
 } from "../domain/commerce-account";
+import { AuthUserId } from "../domain/commerce-request-context";
 
 type RegistrationLikeTag =
   | "AwaitingApprovalRegistration"
@@ -49,6 +50,14 @@ export class CommerceAccountError extends Schema.TaggedErrorClass<CommerceAccoun
   {
     message: Schema.String,
     cause: Schema.optional(Schema.Defect),
+  }
+) {}
+
+export class CommerceCustomerIdNotFound extends Schema.TaggedErrorClass<CommerceCustomerIdNotFound>()(
+  "CommerceCustomerIdNotFound",
+  {
+    message: Schema.String,
+    authUserId: AuthUserId,
   }
 ) {}
 
@@ -104,6 +113,12 @@ export class CommerceAccounts extends Context.Service<
     readonly hasCustomerWithEmail: (
       email: RedactedString
     ) => Effect.Effect<boolean, CommerceAccountError>;
+    readonly getCustomerIdByAuthUserId: (
+      authUserId: AuthUserId
+    ) => Effect.Effect<
+      CommerceCustomerId,
+      CommerceCustomerIdNotFound | CommerceAccountError
+    >;
   }
 >()("@repo/commerce/CommerceAccounts") {
   static readonly layerMemory = Layer.effect(
@@ -247,11 +262,44 @@ export class CommerceAccounts extends Context.Service<
         )
       );
 
+      const getCustomerIdByAuthUserId = Effect.fn(
+        "CommerceAccounts.getCustomerIdByAuthUserId"
+      )((authUserId: AuthUserId) =>
+        Effect.gen(function* () {
+          const current = yield* Ref.get(state);
+          const customer = current.customersByAuthUserId.get(
+            String(authUserId)
+          );
+          if (customer) {
+            return customer.customerId;
+          }
+
+          for (const [
+            registrationId,
+            identity,
+          ] of current.linkedRegistrantIdentities) {
+            if (identity.authUserId === String(authUserId)) {
+              const account =
+                current.accountsByRegistration.get(registrationId);
+              if (account) {
+                return account.customerId;
+              }
+            }
+          }
+
+          return yield* new CommerceCustomerIdNotFound({
+            message: "Commerce customer id does not exist for auth user",
+            authUserId,
+          });
+        })
+      );
+
       return {
         createFromRegistration,
         linkRegistrantIdentity,
         addAssociate,
         hasCustomerWithEmail,
+        getCustomerIdByAuthUserId,
       };
     })
   );

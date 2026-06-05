@@ -326,6 +326,7 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
           );
           return linkedRegistration.commerceAccount;
         }),
+      getCustomerIdByAuthUserId: () => Effect.die("not used"),
       hasCustomerWithEmail: () => Effect.succeed(false),
       addAssociate: ({ acceptedIdentity, businessUnitId, role }) =>
         Effect.sync(() => {

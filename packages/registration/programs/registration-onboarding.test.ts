@@ -212,6 +212,8 @@ describe("registration onboarding", () => {
       const commerceFailureLayer = Layer.succeed(CommerceAccounts)({
         createFromRegistration: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+        getCustomerIdByAuthUserId: () =>
+          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         linkRegistrantIdentity: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         hasCustomerWithEmail: () =>
@@ -358,6 +360,7 @@ describe("registration onboarding", () => {
               ),
             })
           ),
+        getCustomerIdByAuthUserId: () => Effect.die("not used"),
         linkRegistrantIdentity: (input) =>
           Effect.sync(() => {
             linkedIdentities.push(input.acceptedIdentity);

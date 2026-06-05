@@ -11,14 +11,12 @@ import {
   CheckoutLocale,
   type CheckoutScope,
   CheckoutState,
-  StorefrontAnonymousCheckoutScope,
-  StorefrontCustomerCheckoutScope,
 } from "../domain/checkout";
-import { CommerceCustomerId } from "../domain/commerce-account";
 
 export class CheckoutApiError extends Schema.TaggedErrorClass<CheckoutApiError>()(
   "CheckoutApiError",
   {
+    code: Schema.Literal("checkout.internal"),
     message: Schema.String,
   },
   { httpApiStatus: 500 }
@@ -27,6 +25,7 @@ export class CheckoutApiError extends Schema.TaggedErrorClass<CheckoutApiError>(
 export class CheckoutApiNotFound extends Schema.TaggedErrorClass<CheckoutApiNotFound>()(
   "CheckoutApiNotFound",
   {
+    code: Schema.Literal("checkout.notFound"),
     message: Schema.String,
   },
   { httpApiStatus: 404 }
@@ -35,17 +34,17 @@ export class CheckoutApiNotFound extends Schema.TaggedErrorClass<CheckoutApiNotF
 export class CheckoutApiBadRequest extends Schema.TaggedErrorClass<CheckoutApiBadRequest>()(
   "CheckoutApiBadRequest",
   {
+    code: Schema.Literal("checkout.badRequest"),
     message: Schema.String,
   },
   { httpApiStatus: 400 }
 ) {}
 
-export class CommerceContextHeaders extends Schema.Class<CommerceContextHeaders>(
-  "CommerceContextHeaders"
+export class CheckoutRequestHeaders extends Schema.Class<CheckoutRequestHeaders>(
+  "CheckoutRequestHeaders"
 )({
   "x-context-locale": CheckoutLocale,
   "x-context-anonymous-cart-id": Schema.optional(CartId),
-  "x-context-customer-id": Schema.optional(CommerceCustomerId),
 }) {}
 
 const CheckoutApiErrors = [
@@ -72,7 +71,7 @@ export class CheckoutScopeMiddleware extends HttpApiMiddleware.Service<
 export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
   .add(
     HttpApiEndpoint.get("current", "/checkout/current", {
-      headers: CommerceContextHeaders,
+      headers: CheckoutRequestHeaders,
       success: CheckoutState,
       error: CheckoutApiErrors,
     })
@@ -93,26 +92,3 @@ export class CheckoutHttpApi extends HttpApi.make("checkout-http-api")
       version: "1.0.0",
     })
   ) {}
-
-export const toCheckoutScope = (
-  headers: CommerceContextHeaders
-): CheckoutScope => {
-  const locale = headers["x-context-locale"];
-  const customerId = headers["x-context-customer-id"];
-
-  if (customerId) {
-    return new StorefrontCustomerCheckoutScope({
-      channel: "storefrontCustomer",
-      locale,
-      customerId,
-    });
-  }
-
-  return new StorefrontAnonymousCheckoutScope({
-    channel: "storefrontAnonymous",
-    locale,
-    ...(headers["x-context-anonymous-cart-id"] === undefined
-      ? {}
-      : { anonymousCartId: headers["x-context-anonymous-cart-id"] }),
-  });
-};

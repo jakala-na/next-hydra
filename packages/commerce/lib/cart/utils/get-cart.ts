@@ -15,7 +15,7 @@ export const getCartForContext = async (
   ctx: StoreContext
 ): Promise<ActionResult<CartWithIssues>> => {
   // Anonymous cart.
-  const existentCartId = await getAnonymousCartId(ctx.locale);
+  const existentCartId = await getAnonymousCartId(ctx);
   if (!existentCartId) {
     return Err(domainError("NOT_FOUND", "Cart id not found"));
   }

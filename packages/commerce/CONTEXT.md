@@ -44,6 +44,14 @@ _Avoid_: Checkout state update
 A typed reason a Checkout Mutation could not save its requested details.
 _Avoid_: Exception, generic error
 
+**Commerce Principal**:
+The verified request identity used by commerce adapters before deriving checkout or cart access, such as anonymous cart possession or authenticated customer identity.
+_Avoid_: HTTP headers, Checkout Scope, Registration Actor
+
+**Commerce Request Context**:
+The resolved adapter boundary context that combines request context such as locale with a verified Commerce Principal before commerce-specific scopes are derived.
+_Avoid_: Auth session, raw request, Checkout Scope
+
 **Checkout Scope**:
 The value object that identifies which storefront Checkout context is being evaluated, such as anonymous checkout for a locale/cart or customer checkout for a locale/customer.
 _Avoid_: HTTP headers, cookie bag, auth session
@@ -171,6 +179,8 @@ _Avoid_: Review checkout, order summary
 - A **Checkout State Builder** does not fetch provider data or resolve request context.
 - A **Cart For Checkout** decoder maps provider Cart data into the Checkout Cart projection before **Checkout State** is built.
 - A **Current Checkout Scope** can be supplied by HTTP middleware for API handlers or constructed directly by Server Components when the caller already knows the current buyer/cart context.
+- A **Commerce Request Context** combines resolved locale with a **Commerce Principal** before a Checkout adapter derives **Checkout Scope**.
+- Anonymous **Commerce Principal** access is possession-based and grants access only to the possessed anonymous Cart flow.
 - HTTP adapters resolve or receive **Checkout Scope**, run one **Checkout Use-Case Program**, and map typed errors to transport responses.
 - A first-slice **Checkout State** reports current **Checkout Details**, binary step status, active step, and **Checkout Violations**.
 - A first-slice **Checkout State** does not report structured incompletion reasons.

@@ -106,6 +106,7 @@ const commerceAccountsLayer = ({
       createFromRegistration: (
         _registration: CommerceAccountRegistrationInput
       ) => Effect.die("not used"),
+      getCustomerIdByAuthUserId: () => Effect.die("not used"),
       hasCustomerWithEmail: () =>
         failure ? Effect.fail(failure) : Effect.succeed(hasCustomerWithEmail),
       linkRegistrantIdentity: () => Effect.die("not used"),

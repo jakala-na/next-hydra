@@ -86,20 +86,29 @@ Checkout behavior should live outside the HTTP boundary. Server components, serv
 - Define a storefront Checkout Scope value so HTTP handlers and Next.js server components/actions can resolve the current checkout context before running `CheckoutSession`.
 - Treat `toCheckoutScope` as adapter input mapping for the first HTTP read adapter, not as a use-case program.
 - Add a request-scoped `CurrentCheckoutScope` context Service when HTTP scope resolution moves into middleware. It should carry the already-resolved Checkout Scope for handlers and remain separate from the domain `CheckoutSession` capability.
-- Add a `CheckoutScopeResolver` Service only if resolving Checkout Scope becomes pluggable behavior across cookies, headers, auth session, store context, or other adapter inputs.
-- Server Components can construct or receive Checkout Scope directly when they already know the current buyer/cart context, then call `CheckoutSession.getCurrent` through the runtime layer.
+- Add a `CheckoutScopeResolver` Service only if resolving Checkout Scope becomes pluggable behavior across cookies, headers, bearer JWTs, store context, or other adapter inputs.
+- Server Components can construct Commerce Request Context or Checkout Scope directly when they already have trusted in-process context, then call `CheckoutSession.getCurrent` through the runtime layer.
 - Start with storefront Checkout Scope for anonymous and customer checkout. Admin/support checkout can be designed later when that workflow is stable.
 - Compose provider-specific Layers through a reusable checkout runtime layer that can be shared by HTTP adapters and in-process callers.
 - Expose checkout behavior through the HTTP API incrementally as each behavior slice lands rather than deferring API clients to a final adapter pass.
 - HTTP current-checkout endpoints should derive authorization and cart access from request context, not from trusting a submitted cart id as the security boundary.
-- Use `x-context-anonymous-cart-id` for the first HTTP current-checkout read adapter when a test or non-cookie client needs to pass the anonymous Cart ID explicitly.
+- Use Commerce Request Context as the schema-backed adapter boundary value that combines resolved locale with a verified Commerce Principal before Checkout Scope is derived.
+- Keep Commerce Principal as the verified request identity or possession value. It does not include locale.
+- Use `x-context-anonymous-cart-id` for the first HTTP current-checkout read adapter when a test, mobile, or other non-browser client needs to pass the anonymous Cart ID explicitly.
 - Treat HTTP APIs as public-facing adapters that authenticate or resolve their own request context. Do not assume only a trusted Next.js app can call them.
-- Model request authentication as verified principals, not trusted headers. Expected principals are anonymous, customer, and machine.
+- Model request authentication as verified Commerce Principals, not trusted identity headers. Expected Checkout principals are anonymous and customer.
 - For browser anonymous requests, resolve Anonymous Cart ID from a signed or HTTP-only cookie when available. Possession of the anonymous Cart token is acceptable only for anonymous Cart access.
-- For authenticated customer requests, resolve customer identity from a verified auth/session token, such as an auth-provider JWT with validated issuer, audience, signature, expiry, and required scopes or claims.
-- Do not trust caller-supplied `x-context-customer-id` as a public identity boundary. Customer ID should come from verified claims or from an `authUserId -> CommerceAccount -> customerId` lookup.
-- For machine-to-machine requests, use service credentials or JWTs with explicit scopes. Machine tokens grant capabilities, not arbitrary customer impersonation. On-behalf-of behavior requires a separate explicit authorization model.
-- Keep `x-context-*` headers as adapter context inputs, not domain authority. They are suitable for locale and temporary test/internal anonymous Cart inputs, but security-sensitive identity must be resolved by middleware.
+- For browser anonymous requests, the anonymous cart cookie wins over `x-context-anonymous-cart-id` when both are present.
+- For authenticated customer requests, use `Authorization: Bearer <jwt>` as the customer identity input. Checkout HTTP adapters validate issuer, audience, signature, expiry, and required scopes or claims, then extract verified `authUserId`.
+- For the first request-context resolver pass, derive Commerce Customer ID from verified `authUserId -> CommerceAccount -> customerId` lookup. Customer ID claims can be added later only as a trusted optimization with explicit consistency rules.
+- Do not trust caller-supplied `x-context-customer-id` as a public identity boundary. Remove it from the public checkout API contract and ignore it if a caller sends it anyway.
+- Machine-to-machine callers are out of scope for Checkout because Checkout interactions are offered by a user. Machine Commerce Principals can be designed later for other commerce APIs when there is a concrete use case.
+- Keep `x-context-*` headers as adapter context inputs, not domain authority. They are suitable for resolved locale and non-browser anonymous Cart possession, but security-sensitive identity must come from verified bearer JWTs or trusted in-process context.
+- Invalid, expired, or malformed bearer JWTs should remain typed internal auth failures but map publicly to HTTP 404 with stable error code `checkout.notFound` for current-checkout reads.
+- No valid customer JWT plus no anonymous cart possession should map to HTTP 404 with stable error code `checkout.notFound`.
+- Valid customer JWT with no Commerce Customer ID mapping should remain a typed internal account-mapping failure but map publicly to HTTP 404 `checkout.notFound` for current-checkout reads.
+- Future checkout mutation slices can define sharper write-specific auth/error mapping instead of inheriting the current-checkout read collapsing rule.
+- Provider/runtime failures during JWT validation or Commerce Customer ID lookup should map externally to HTTP 500.
 - Keep Checkout State lean. It reports current Checkout Details, binary step status, active step, and one global list of Checkout Violations.
 - Keep unsaved option catalogs outside Checkout State. Address book entries, customer profile candidates, and similar choices come from separate resolver or option capabilities.
 - Use Checkout Read Schema for ordinary incomplete checkout. It must decode incomplete Contact and incomplete Delivery Details.
@@ -176,8 +185,12 @@ Checkout behavior should live outside the HTTP boundary. Server components, serv
 - Test adapters lightly: decoding, mapping structured failures, invoking `CheckoutSession`, and triggering revalidation where applicable.
 - Test request-context resolution so customer identity cannot be spoofed through `x-context-customer-id`.
 - Test browser anonymous context resolution from cookie-backed Anonymous Cart ID.
-- Test non-web customer context resolution from verified bearer JWT claims or account lookup.
-- Test machine-to-machine context separately from customer context, including rejection of unauthorized on-behalf-of access.
+- Test non-web customer context resolution from verified bearer JWT plus `authUserId -> CommerceAccount -> customerId` lookup.
+- Test invalid JWT rejection as HTTP 404 `checkout.notFound` for `/checkout/current`.
+- Test no valid JWT and no anonymous cart possession as HTTP 404 `checkout.notFound`.
+- Test valid JWT with no Commerce Customer ID mapping as HTTP 404 `checkout.notFound` for `/checkout/current`.
+- Test provider/runtime failures during JWT validation or Commerce Customer ID lookup as external HTTP 500.
+- Test machine-to-machine Checkout requests as unsupported unless a later explicit use case introduces them.
 - Use Effect-native tests and Layers for new Effect modules.
 - Existing Cart Policy service tests and commerce provider tests provide prior art for policy behavior and provider adapter boundaries.
 - Existing Registration Effect tests provide architectural prior art for testing use-case programs with memory layers.

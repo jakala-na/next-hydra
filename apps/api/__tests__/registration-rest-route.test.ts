@@ -285,6 +285,7 @@ const makeApiLayer = (
       createFromRegistration: () => Effect.die("not used"),
       linkRegistrantIdentity: () => Effect.die("not used"),
       addAssociate: () => Effect.die("not used"),
+      getCustomerIdByAuthUserId: () => Effect.die("not used"),
       hasCustomerWithEmail: () =>
         options.hasCustomerWithEmailFailure
           ? Effect.fail(options.hasCustomerWithEmailFailure)

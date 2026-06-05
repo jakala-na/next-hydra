@@ -15,11 +15,13 @@ import {
   type CommerceCompanyRole,
   CommerceCustomerId,
 } from "../../../domain/commerce-account";
+import type { AuthUserId } from "../../../domain/commerce-request-context";
 import {
   type AcceptedCommerceIdentity,
   CommerceAccountError,
   type CommerceAccountRegistrationInput,
   CommerceAccounts,
+  CommerceCustomerIdNotFound,
   type RedactedString,
 } from "../../../services/commerce-accounts";
 import { apiRoot } from "../../client/api-root";
@@ -218,6 +220,23 @@ const getCustomerByAcceptedIdentity = (identity: AcceptedCommerceIdentity) =>
   queryFirstCustomer(
     `externalId = ${JSON.stringify(authUserId(identity))} or email = ${JSON.stringify(customerEmail(identity))}`
   );
+
+const getCustomerIdByAuthUserId = Effect.fn(
+  "CommercetoolsCommerceAccounts.getCustomerIdByAuthUserId"
+)(function* (input: AuthUserId) {
+  const customer = yield* queryFirstCustomer(
+    `externalId = ${JSON.stringify(String(input))}`
+  );
+
+  if (!customer) {
+    return yield* new CommerceCustomerIdNotFound({
+      message: "Commerce customer id does not exist for auth user",
+      authUserId: input,
+    });
+  }
+
+  return toCommerceCustomerId(customer);
+});
 
 const getBusinessUnitById = (commerceBusinessUnitId: CommerceBusinessUnitId) =>
   Effect.tryPromise({
@@ -559,6 +578,7 @@ export const layerCommercetoolsCommerceAccounts = Layer.succeed(
   CommerceAccounts,
   CommerceAccounts.of({
     hasCustomerWithEmail,
+    getCustomerIdByAuthUserId,
     createFromRegistration: Effect.fn(
       "CommercetoolsCommerceAccounts.createFromRegistration"
     )(function* (registration) {

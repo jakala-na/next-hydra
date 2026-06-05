@@ -13,6 +13,7 @@
     "@commercetools/platform-sdk": "^8.16.0",
     "@commercetools/ts-client": "^4.2.1",
     "@gql.tada/cli-utils": "^1.6.3",
+    "@repo/i18n": "workspace:*",
     "@repo/observability": "workspace:*",
     "@repo/versioned-store": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",

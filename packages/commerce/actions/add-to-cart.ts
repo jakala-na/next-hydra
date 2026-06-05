@@ -36,7 +36,7 @@ export const addToCart = inStoreAction
         if (isOk(createResult)) {
           cart = createResult.data;
           if (cart !== null) {
-            await setAnonymousCartId(cart.id, ctx.locale);
+            await setAnonymousCartId(cart.id, ctx);
           }
         }
       }
