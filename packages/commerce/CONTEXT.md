@@ -9,11 +9,11 @@ The buyer-facing process for completing the information and choices required bef
 _Avoid_: Checkout page, checkout wizard
 
 **Cart**:
-The current collection of products and cart-owned checkout facts being prepared for purchase.
+The current collection of products and cart-owned checkout details being prepared for purchase.
 _Avoid_: Checkout state
 
 **Cart Policy**:
-A rule based only on Cart facts that determines whether the Cart is purchasable as currently composed.
+A rule based only on Cart data that determines whether the Cart is purchasable as currently composed.
 _Avoid_: Checkout policy
 
 **Cart Policy Violation**:
@@ -32,24 +32,52 @@ _Avoid_: Completed checkout schema
 The stricter structural shape required to perform a Checkout action.
 _Avoid_: Checkout state schema
 
-**Checkout Fact**:
-A current fact used to evaluate Checkout, either saved on the Cart or derived for the current Cart.
+**Checkout Detail**:
+A current detail used to evaluate Checkout, either saved on the Cart or derived for the current Cart.
 _Avoid_: Option list, choice catalog
 
 **Checkout Mutation**:
-An action that saves a cart-backed checkout fact without owning Checkout State.
+An action that saves cart-backed checkout details without owning Checkout State.
 _Avoid_: Checkout state update
 
 **Checkout Mutation Failure**:
-A typed reason a Checkout Mutation could not save its requested facts.
+A typed reason a Checkout Mutation could not save its requested details.
 _Avoid_: Exception, generic error
+
+**Checkout Scope**:
+The value object that identifies which storefront Checkout context is being evaluated, such as anonymous checkout for a locale/cart or customer checkout for a locale/customer.
+_Avoid_: HTTP headers, cookie bag, auth session
+
+**Current Checkout Scope**:
+A request-scoped Effect context value supplied by an adapter or middleware when transport context has already been resolved.
+_Avoid_: Checkout capability, persistent session
+
+**CheckoutSession**:
+The public Effect Service for Checkout use-case programs.
+_Avoid_: HTTP handler, stored session data
+
+**Checkout Use-Case Program**:
+An externally meaningful Checkout operation exposed by `CheckoutSession`, such as getting current Checkout State or saving Contact.
+_Avoid_: Mapper, decoder, implementation helper
+
+**Checkout State Builder**:
+The internal function that builds `CheckoutState` from already-resolved Checkout inputs.
+_Avoid_: Fetcher, Service, use-case program
+
+**Cart For Checkout**:
+The schema-backed Cart projection containing only Cart fields needed to evaluate Checkout.
+_Avoid_: Full provider Cart, cart-like object
+
+**Checkout Scope Resolver**:
+An optional adapter capability for resolving Checkout Scope from cookies, headers, auth session, store context, or other request data when that behavior becomes pluggable.
+_Avoid_: Domain checkout rule
 
 **Checkout Version Conflict**:
 A Checkout Mutation Failure caused by attempting to save against stale Cart state.
 _Avoid_: Generic persistence error
 
 **Checkout Policy**:
-A rule that can block Checkout progress based on the Cart, buyer facts, and checkout facts.
+A rule that can block Checkout progress based on the Cart, buyer context, and checkout details.
 _Avoid_: Cart policy
 
 **Checkout Policy Violation**:
@@ -65,7 +93,7 @@ A normalized violation included in Checkout State, preserving whether it came fr
 _Avoid_: Step error
 
 **Checkout Step**:
-A section of Checkout with a completion condition derived from current checkout facts.
+A section of Checkout with a completion condition derived from current checkout details.
 _Avoid_: Saved step, persisted step
 
 **Contact**:
@@ -73,7 +101,7 @@ The Checkout Step that establishes how the buyer is known for Checkout.
 _Avoid_: Buyer identification, login step, account step
 
 **Contact Input**:
-A fact or choice submitted to resolve Contact for the current Checkout.
+A detail or choice submitted to resolve Contact for the current Checkout.
 _Avoid_: Provider payload, form field
 
 **Contact Source Policy**:
@@ -136,50 +164,57 @@ _Avoid_: Review checkout, order summary
 
 - A **Checkout** has exactly one **Active Checkout Step**.
 - A **Checkout** requires an existing non-empty **Cart**.
-- A **Checkout State** is a lean read model derived from the current **Cart**, buyer facts, and **Checkout Facts**.
-- A first-slice **Checkout State** reports current **Checkout Facts**, binary step status, active step, and **Checkout Violations**.
+- A **Checkout State** is a lean read model derived from the current **Cart**, buyer context, and **Checkout Details**.
+- `CheckoutSession.getCurrent` is the use-case program that gets current **Checkout State** for a **Checkout Scope**.
+- A **Checkout State Builder** receives an already-resolved **Checkout Scope**, **Cart For Checkout**, **Checkout Details**, buyer context, **Cart Policy Violations**, and **Checkout Policy Violations**.
+- A **Checkout State Builder** validates that Checkout can start, computes binary **Checkout Step** status, computes the **Active Checkout Step**, normalizes violations, and returns **Checkout State**.
+- A **Checkout State Builder** does not fetch provider data or resolve request context.
+- A **Cart For Checkout** decoder maps provider Cart data into the Checkout Cart projection before **Checkout State** is built.
+- A **Current Checkout Scope** can be supplied by HTTP middleware for API handlers or constructed directly by Server Components when the caller already knows the current buyer/cart context.
+- HTTP adapters resolve or receive **Checkout Scope**, run one **Checkout Use-Case Program**, and map typed errors to transport responses.
+- A first-slice **Checkout State** reports current **Checkout Details**, binary step status, active step, and **Checkout Violations**.
 - A first-slice **Checkout State** does not report structured incompletion reasons.
 - Blocking violations in **Checkout State** are global and do not have to belong to a **Checkout Step**.
 - A **Checkout State** does not own option lists that have not been saved to the **Cart**.
 - A **Checkout Read Schema** can represent ordinary incomplete **Checkout**.
-- A **Checkout Action Schema** can require the facts needed for a specific action.
+- A **Checkout Action Schema** can require the details needed for a specific action.
 - A **Checkout State** includes **Checkout Violations** as one global list.
 - A **Checkout Violation** preserves whether it came from a **Cart Policy** or **Checkout Policy**.
 - First-slice **Checkout Violations** are blocking.
-- A **Checkout Mutation** can change the **Cart** facts from which **Checkout State** is derived.
-- A **Checkout Mutation Failure** prevents the requested facts from being saved.
-- Replacement-style **Checkout Mutations** are idempotent for the same requested facts.
-- A **Checkout Version Conflict** prevents stale checkout facts from overwriting newer Cart state.
-- A **Checkout Mutation Failure** occurs when the selected **Contact Source** cannot provide required **Buyer Contact** facts.
+- A **Checkout Mutation** can change the **Cart** details from which **Checkout State** is derived.
+- A **Checkout Mutation Failure** prevents the requested details from being saved.
+- Replacement-style **Checkout Mutations** are idempotent for the same requested details.
+- A **Checkout Version Conflict** prevents stale checkout details from overwriting newer Cart state.
+- A **Checkout Mutation Failure** occurs when the selected **Contact Source** cannot provide required **Buyer Contact** details.
 - A **Checkout Mutation Failure** occurs when the selected **Contact Source** is not allowed for the current **Checkout**.
 - A **Checkout Mutation Failure** occurs when an **Address Book Reference** cannot resolve to a **Shipping Address**.
-- A **Checkout Step Completion** is derived from current checkout facts and is not stored independently.
+- A **Checkout Step Completion** is derived from current checkout details and is not stored independently.
 - First-slice **Checkout Step** status is binary: complete or incomplete.
 - The **Active Checkout Step** is the first incomplete **Checkout Step** in the step sequence.
 - A **Checkout Step** after the **Active Checkout Step** is unavailable until earlier completion conditions are satisfied.
 - A blocking **Cart Policy Violation** prevents Checkout from advancing to a step that assumes a purchasable Cart.
-- **Contact** is complete when required **Buyer Contact** facts are available to the current **Checkout** and the current buyer mode is allowed.
-- Required **Buyer Contact** facts are email address, first name, and last name.
+- **Contact** is complete when required **Buyer Contact** details are available to the current **Checkout** and the current buyer mode is allowed.
+- Required **Buyer Contact** details are email address, first name, and last name.
 - Phone number is optional **Buyer Contact**.
 - Authenticated B2B **Checkout** also requires an eligible buyer and **Buying Context** before **Contact** is complete.
 - For authenticated B2B **Checkout**, **Buyer Contact** alone is not sufficient to complete **Contact**.
 - Resolving **Buying Context** is part of **Contact** when it is required for **Checkout**.
 - **Buyer Contact** can be recorded for the **Cart** even when it is derived from a known buyer.
-- Authenticated buyers can save **Buyer Contact** facts that differ from their profile.
+- Authenticated buyers can save **Buyer Contact** details that differ from their profile.
 - **Contact Input** can be entered by the buyer or derived from the customer profile.
 - **Contact Input** includes a **Contact Source** when more than one strategy can resolve **Buyer Contact**.
-- **Manual** is the **Contact Source** for buyer-entered **Buyer Contact** facts.
-- **Customer Profile** is the **Contact Source** for **Buyer Contact** facts derived from the current customer profile.
+- **Manual** is the **Contact Source** for buyer-entered **Buyer Contact** details.
+- **Customer Profile** is the **Contact Source** for **Buyer Contact** details derived from the current customer profile.
 - **Contact Source** resolves a complete **Buyer Contact**; partial overrides are not part of the current Contact language.
 - A **Contact Source Policy** can make a **Contact Source** unavailable for the current **Checkout**.
-- **Checkout State** derives **Contact Source Policy** results from current facts; stored carts are re-evaluated rather than migrated.
+- **Checkout State** derives **Contact Source Policy** results from current details; stored carts are re-evaluated rather than migrated.
 - A previously saved **Contact Source** that becomes disallowed no longer satisfies **Contact**.
 - **Contact Source Policy** results are represented as **Contact** incompletion, not **Checkout Policy Violations**.
 - **Buying Context** is not a **Contact Source** for **Buyer Contact**.
 - Saving **Contact** submits the **Contact Inputs** needed to resolve **Contact** for the current **Checkout**.
 - Saving **Contact** is a replacement-style **Checkout Mutation** and is allowed even when **Contact** is already complete.
 - **Delivery Details** is complete when **Shipping Address** is present and structurally valid.
-- **Delivery Details** follows **Contact** when delivery facts are incomplete.
+- **Delivery Details** follows **Contact** when delivery details are incomplete.
 - **Manual** is the **Delivery Details Source** for buyer-entered **Shipping Address**.
 - **Address Book** is the **Delivery Details Source** for **Shipping Address** selected from saved addresses.
 - **Address Book** **Delivery Details Source** submits an **Address Book Reference** rather than a copied **Shipping Address**.
@@ -196,19 +231,19 @@ _Avoid_: Review checkout, order summary
 ## Example Dialogue
 
 > **Dev:** "Should we save that the shipping step is complete?"
-> **Domain expert:** "No — **Checkout Step Completion** is derived from the current checkout facts, because address or cart changes can make a completed step incomplete again."
+> **Domain expert:** "No — **Checkout Step Completion** is derived from the current checkout details, because address or cart changes can make a completed step incomplete again."
 
 > **Dev:** "Does Checkout have its own stored state?"
-> **Domain expert:** "No — **Checkout State** is derived from the current **Cart** and buyer facts."
+> **Domain expert:** "No — **Checkout State** is derived from the current **Cart** and buyer context."
 
 > **Dev:** "Does saving Delivery Details return and store a new Checkout State?"
 > **Domain expert:** "No — saving Delivery Details is a **Checkout Mutation**; **Checkout State** is recomputed from the updated **Cart**."
 
 > **Dev:** "Is a provider outage a Checkout Policy Violation?"
-> **Domain expert:** "No — provider failures are **Checkout Mutation Failures** when they prevent saving facts."
+> **Domain expert:** "No — provider failures are **Checkout Mutation Failures** when they prevent saving details."
 
-> **Dev:** "If the same Delivery Details are submitted twice, should that create duplicate checkout facts?"
-> **Domain expert:** "No — replacement-style **Checkout Mutations** are idempotent for the same requested facts."
+> **Dev:** "If the same Delivery Details are submitted twice, should that create duplicate checkout details?"
+> **Domain expert:** "No — replacement-style **Checkout Mutations** are idempotent for the same requested details."
 
 > **Dev:** "Can a buyer start Checkout without a Cart?"
 > **Domain expert:** "No — **Checkout** requires an existing non-empty **Cart**."
@@ -253,22 +288,22 @@ _Avoid_: Review checkout, order summary
 > **Domain expert:** "No — **Payment Options** is the buyer-facing step; **Payment Methods** are what the buyer selects."
 
 > **Dev:** "If the buyer is already signed in, do we still show **Contact**?"
-> **Domain expert:** "Only if required contact or buyer-context facts are incomplete; otherwise **Contact** is already complete and Checkout advances to the next incomplete step."
+> **Domain expert:** "Only if required contact details or buyer context are incomplete; otherwise **Contact** is already complete and Checkout advances to the next incomplete step."
 
 > **Dev:** "If the buyer is already signed in, should saving Contact fail because the contact details are derived?"
-> **Domain expert:** "No — saving **Contact** can record or replace derived **Buyer Contact** facts for the **Cart**, and repeated saves are idempotent."
+> **Domain expert:** "No — saving **Contact** can record or replace derived **Buyer Contact** details for the **Cart**, and repeated saves are idempotent."
 
 > **Dev:** "If an authenticated buyer changes the cart contact email, does that change who the buyer is?"
-> **Domain expert:** "No — **Buyer Contact** is an order communication fact; it does not change the authenticated buyer or **Buying Context**."
+> **Domain expert:** "No — **Buyer Contact** is order communication detail; it does not change the authenticated buyer or **Buying Context**."
 
-> **Dev:** "If the buyer profile has an email, but the current Checkout does not yet have required Buyer Contact facts, is Contact complete?"
-> **Domain expert:** "No — **Contact** is complete when required **Buyer Contact** facts are available to the current **Checkout**, not merely known elsewhere about the buyer."
+> **Dev:** "If the buyer profile has an email, but the current Checkout does not yet have required Buyer Contact details, is Contact complete?"
+> **Domain expert:** "No — **Contact** is complete when required **Buyer Contact** details are available to the current **Checkout**, not merely known elsewhere about the buyer."
 
 > **Dev:** "Is email enough to complete Contact?"
-> **Domain expert:** "No — required **Buyer Contact** facts are email address, first name, and last name; phone number is optional."
+> **Domain expert:** "No — required **Buyer Contact** details are email address, first name, and last name; phone number is optional."
 
 > **Dev:** "After signing in and merging a guest cart, what happens if the buyer context cannot be determined?"
-> **Domain expert:** "**Contact** becomes the **Active Checkout Step** until the required buyer-context facts are available."
+> **Domain expert:** "**Contact** becomes the **Active Checkout Step** until the required buyer context is available."
 
 > **Dev:** "If Buyer Contact is complete after sign-in, but Buying Context is unresolved, is Contact complete?"
 > **Domain expert:** "No — authenticated B2B **Checkout** requires both **Buyer Contact** and **Buying Context** before **Contact** is complete."
@@ -280,13 +315,13 @@ _Avoid_: Review checkout, order summary
 > **Domain expert:** "No — saving **Contact** submits the **Contact Inputs** needed to resolve **Contact**; those inputs can be entered manually or derived from the customer profile."
 
 > **Dev:** "Does Checkout State expose profile email choices or address book entries?"
-> **Domain expert:** "No — **Checkout State** is a lean read model of current **Checkout Facts**; option lists come from separate capabilities before they are saved to the **Cart**."
+> **Domain expert:** "No — **Checkout State** is a lean read model of current **Checkout Details**; option lists come from separate capabilities before they are saved to the **Cart**."
 
-> **Dev:** "Should getCheckoutState fail schema decoding when Contact is incomplete?"
-> **Domain expert:** "No — the **Checkout Read Schema** can represent ordinary incomplete **Checkout**; stricter **Checkout Action Schemas** enforce facts required by specific actions."
+> **Dev:** "Should Checkout State fail schema decoding when Contact is incomplete?"
+> **Domain expert:** "No — the **Checkout Read Schema** can represent ordinary incomplete **Checkout**; stricter **Checkout Action Schemas** enforce details required by specific actions."
 
 > **Dev:** "Should Checkout State explain why every incomplete step is incomplete?"
-> **Domain expert:** "Not in the first slice — first-slice **Checkout State** reports step status and current facts, not structured incompletion reasons."
+> **Domain expert:** "Not in the first slice — first-slice **Checkout State** reports step status and current details, not structured incompletion reasons."
 
 > **Dev:** "After saving Contact, do we record a source for each contact field?"
 > **Domain expert:** "No — **Contact Source** is the selected strategy for resolving **Buyer Contact**, not field-level provenance."
@@ -300,14 +335,14 @@ _Avoid_: Review checkout, order summary
 > **Dev:** "Can Customer Profile Contact Source include a manual email override?"
 > **Domain expert:** "Not now — **Contact Source** resolves a complete **Buyer Contact**; partial overrides are not part of the current Contact language."
 
-> **Dev:** "If Customer Profile is selected but the profile lacks a required contact fact, should Contact save and remain incomplete?"
+> **Dev:** "If Customer Profile is selected but the profile lacks a required contact detail, should Contact save and remain incomplete?"
 > **Domain expert:** "No — saving **Contact** fails with a **Checkout Mutation Failure** because the selected **Contact Source** cannot resolve required **Buyer Contact**."
 
 > **Dev:** "Should Checkout State include every possible Contact Source option?"
 > **Domain expert:** "No — **Checkout State** reports whether the current **Contact Source** satisfies **Contact**; selectable options are not owned by **Checkout State** until saved."
 
 > **Dev:** "If the store later disallows Manual Contact Source for authenticated customers, do older carts need a migration?"
-> **Domain expert:** "No — **Checkout State** is derived again from current facts and **Contact Source Policy** results."
+> **Domain expert:** "No — **Checkout State** is derived again from current details and **Contact Source Policy** results."
 
 > **Dev:** "If a client submits Manual Contact Source when Manual is not allowed, should Checkout save it and show a policy violation?"
 > **Domain expert:** "No — saving **Contact** fails with a **Checkout Mutation Failure** because the selected **Contact Source** is not allowed."
@@ -333,8 +368,8 @@ _Avoid_: Review checkout, order summary
 ## Flagged Ambiguities
 
 - "open step" was used near UI state — resolved: the domain term is **Active Checkout Step**, and there is exactly one during Checkout.
-- "buyer identification" was used for the first step — resolved: **Contact** is the Checkout Step; **Buying Context** and **Buyer Contact** are facts that can satisfy it.
+- "buyer identification" was used for the first step — resolved: **Contact** is the Checkout Step; **Buying Context** and **Buyer Contact** are details that can satisfy it.
 - "context step" was used near contact collection — resolved: the Checkout Step is **Contact** unless the discussion is specifically about choosing **Buying Context**.
-- "contact information" was used to include shipping address — resolved: **Contact** owns buyer contact facts, while **Delivery Details** owns **Shipping Address**.
-- "cart policy" was used for address-dependent restrictions — resolved: rules that depend on checkout facts such as **Shipping Address** are **Checkout Policies**, even when their violations are displayed beside cart items.
+- "contact information" was used to include shipping address — resolved: **Contact** owns buyer contact details, while **Delivery Details** owns **Shipping Address**.
+- "cart policy" was used for address-dependent restrictions — resolved: rules that depend on checkout details such as **Shipping Address** are **Checkout Policies**, even when their violations are displayed beside cart items.
 - "account" and "company" were used near buyer selection — unresolved: the canonical business-context term is **Buying Context** until the concrete B2B model chooses whether that means Business Unit, Company Location, or another domain term.

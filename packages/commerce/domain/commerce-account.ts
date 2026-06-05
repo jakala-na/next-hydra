@@ -1,11 +1,11 @@
 import { Schema } from "effect";
 
-export const CommerceCustomerId = Schema.String.pipe(
+export const CommerceCustomerId = Schema.NonEmptyString.pipe(
   Schema.brand("CommerceCustomerId")
 );
 export type CommerceCustomerId = typeof CommerceCustomerId.Type;
 
-export const CommerceBusinessUnitId = Schema.String.pipe(
+export const CommerceBusinessUnitId = Schema.NonEmptyString.pipe(
   Schema.brand("CommerceBusinessUnitId")
 );
 export type CommerceBusinessUnitId = typeof CommerceBusinessUnitId.Type;

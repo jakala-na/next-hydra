@@ -20,10 +20,10 @@ This slice proves the core checkout state model after Contact and Delivery Detai
 - [ ] Checkout Policy Violations are normalized into Checkout Violations.
 - [ ] Each Checkout Violation preserves its source as Cart Policy or Checkout Policy.
 - [ ] Each Checkout Violation can target a Checkout Step, a cart item, or the whole Cart.
-- [ ] Violations do not have to belong to a Checkout Step.
+- [ ] Violations can be step-targeted, cart-targeted, or global.
 - [ ] All first-slice Checkout Violations are blocking.
-- [ ] Blocking violations do not create a third Checkout Step status.
-- [ ] Checkout Policy can evaluate checkout facts saved by Contact and Delivery Details.
+- [ ] Blocking violations are represented separately from binary Checkout Step status.
+- [ ] Checkout Policy can evaluate checkout details saved by Contact and Delivery Details.
 - [ ] Cart Policy remains a separate capability even when Checkout displays its violations.
 - [ ] The cart sidebar renders whole-cart and cart-item violations from the global list.
 - [ ] The active step can render step-targeted violations from the same global list when present.
@@ -34,4 +34,3 @@ This slice proves the core checkout state model after Contact and Delivery Detai
 
 - `.scratch/checkout-effect-slice/issues/01-checkout-effect-kernel-and-current-state-tracer.md`
 - `.scratch/checkout-effect-slice/issues/03-manual-delivery-details-save.md`
-
