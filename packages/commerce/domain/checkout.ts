@@ -77,6 +77,12 @@ export const CheckoutContact = Schema.Struct({
 });
 export type CheckoutContact = typeof CheckoutContact.Type;
 
+export const CheckoutCartReference = Schema.Struct({
+  id: CartId,
+  version: Schema.Number,
+});
+export type CheckoutCartReference = typeof CheckoutCartReference.Type;
+
 export const BuyingContext = Schema.Struct({
   businessUnitId: CommerceBusinessUnitId,
 });

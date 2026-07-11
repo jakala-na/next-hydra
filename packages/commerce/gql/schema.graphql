@@ -228,6 +228,14 @@ input AddInventoryEntryQuantity {
   quantity: Long!
 }
 
+input AddMcpServerTool {
+  tool: String!
+}
+
+input AddMcpServerToolCustomization {
+  toolCustomization: ToolCustomizationDraft!
+}
+
 input AddMyBusinessUnitAddress {
   address: AddressInput!
 }
@@ -587,9 +595,9 @@ input AddTypeLocalizedEnumValue {
 }
 
 input AddVariantAsset {
-  asset: AssetDraftInput!
-  position: Int
   staged: Boolean = true
+  position: Int
+  asset: AssetDraftInput!
 }
 
 input AddVariantExternalImage {
@@ -706,11 +714,11 @@ interface AllocationInterface {
 enum AnonymousCartSignInMode {
   """
   `LineItem`s of the anonymous cart will be copied to the customer’s active cart that has been modified most recently.
-  
+
   The `CartState` of the anonymous cart gets changed to `Merged` while the `CartState` of the customer’s cart remains `Active`.
-  
+
   `CustomLineItems` and `CustomFields` of the anonymous cart will not be copied to the customers cart.
-  
+
   If a `LineItem` in the anonymous cart matches an existing line item in the customer’s cart (same product ID and variant ID), the maximum quantity of both LineItems is used as the new quantity. In that case `CustomFields` on the `LineItem` of the anonymous cart will not be in the resulting `LineItem`.
   """
   MergeWithExistingCustomerCart
@@ -1462,6 +1470,45 @@ type BooleanAttributeDefinitionType implements AttributeDefinitionType {
 
 type BooleanType implements FieldType {
   name: String!
+}
+
+input BulkUpdateVariantsInput {
+  items: [BulkUpdateVariantsItemInput!]!
+  actions: [VariantBulkAction!]!
+  versionControl: VersionControl = On
+}
+
+type BulkUpdateVariantsItemError {
+  code: String
+  message: String
+}
+
+input BulkUpdateVariantsItemInput {
+  id: String
+  key: String
+  version: Long
+}
+
+type BulkUpdateVariantsItemResult {
+  status: BulkUpdateVariantsItemStatus!
+  resource: BulkUpdateVariantsResource
+  errors: [BulkUpdateVariantsItemError!]
+}
+
+enum BulkUpdateVariantsItemStatus {
+  Success
+  Fail
+}
+
+type BulkUpdateVariantsResource {
+  id: String!
+  version: Long!
+}
+
+type BulkUpdateVariantsResponse {
+  successCount: Int!
+  failureCount: Int!
+  results: [BulkUpdateVariantsItemResult!]!
 }
 
 type BusinessUnit implements Versioned & ReferenceExpandable {
@@ -2358,11 +2405,11 @@ type CartLock {
 enum CartMergeMode {
   """
   `LineItem`s of the anonymous cart will be copied to the customer’s active cart that has been modified most recently.
-  
+
   The `CartState` of the anonymous cart gets changed to `Merged` while the `CartState` of the customer’s cart remains `Active`.
-  
+
   `CustomLineItems` and `CustomFields` of the anonymous cart will not be copied to the customers cart.
-  
+
   If a `LineItem` in the anonymous cart matches an existing line item in the customer’s cart (same product ID and variant ID), the maximum quantity of both LineItems is used as the new quantity. In that case `CustomFields` on the `LineItem` of the anonymous cart will not be in the resulting `LineItem`.
   """
   MergeWithExistingCustomerCart
@@ -3443,6 +3490,18 @@ input ChangeTypeName {
   name: [LocalizedStringItemInputType!]!
 }
 
+input ChangeVariantAssetName {
+  staged: Boolean = true
+  name: [LocalizedStringItemInputType!]!
+  assetKey: String
+  assetId: String
+}
+
+input ChangeVariantAssetOrder {
+  staged: Boolean = true
+  assetOrder: [String!]!
+}
+
 input ChangeZoneName {
   name: String!
 }
@@ -3591,6 +3650,24 @@ type CloudEventsSubscriptionsFormat implements NotificationFormat {
 
 input CloudEventsSubscriptionsFormatInput {
   cloudEventsVersion: String!
+}
+
+type CommerceMcpServerConfig implements McpServerConfig {
+  type: McpServerType!
+  majorVersion: String!
+  url: String!
+  tools: [String!]!
+  toolCustomizations: [ToolCustomization!]!
+  jsonOutputFiltering: McpServerJsonOutputFiltering
+  toolOutputFormatting: McpServerToolOutputFormatting
+}
+
+input CommerceMcpServerConfigDraft {
+  majorVersion: String!
+  tools: [String!]!
+  toolCustomizations: [ToolCustomizationDraft!]
+  jsonOutputFiltering: McpServerJsonOutputFilteringInput
+  toolOutputFormatting: McpServerToolOutputFormatting
 }
 
 type CommercetoolsSubscription implements Versioned {
@@ -3754,10 +3831,10 @@ input CustomFieldInput {
 
   """
   The value of this custom field consists of escaped JSON based on the FieldDefinition of the Type.
-  
-  
+
+
   Examples for `value`:
-  
+
   * FieldType `String`: `"\"This is a string\""`
   * FieldType `DateTimeType`: `"\"2018-10-12T14:00:00.000Z\""`
   * FieldType `Number`: `"4"`
@@ -3789,14 +3866,14 @@ type CustomFieldsType {
   customFieldsRaw(
     """
     The names of the custom fields to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     includeNames: [String!]
 
     """
     The names of the custom fields to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     excludeNames: [String!]
@@ -3991,9 +4068,9 @@ input CustomObjectDraft {
 
   """
   The value should be passed in a form of escaped JSON.
-  
+
   Example for `value` field:
-  
+
   ```
   "{ \"stringField\": \"myVal\", \"numberField\": 123, \"boolField\": false, \"nestedObject\": { \"nestedObjectKey\": \"anotherValue\" }, \"dateField\": \"2018-10-12T14:00:00.000Z\" }"
   ```
@@ -5208,14 +5285,14 @@ type EnumAttributeDefinitionType implements AttributeDefinitionType {
   values(
     """
     The keys of the enum values to include.
-    
+
     If neither `includeKeys` nor `excludeKeys` are provided, then all enum values are returned.
     """
     includeKeys: [String!]
 
     """
     The keys of the enum values to exclude.
-    
+
     If neither `includeKeys` nor `excludeKeys` are provided, then all enum values are returned.
     """
     excludeKeys: [String!]
@@ -5296,6 +5373,11 @@ type Extension implements Versioned & ReferenceExpandable {
   """
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
+  dependenciesRef: [Reference!]!
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
   additionalContext: ExtensionAdditionalContext
 
   """
@@ -5340,6 +5422,11 @@ input ExtensionDraft {
   """
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
+  dependencies: [ResourceIdentifierInput!]
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
   additionalContext: ExtensionAdditionalContextInput
 
   """
@@ -5374,6 +5461,11 @@ input ExtensionUpdateAction {
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
   setExpansionPaths: SetExtensionExpansionPaths
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
+  setDependencies: SetExtensionDependencies
   setKey: SetExtensionKey
   setTimeoutInMs: SetExtensionTimeoutInMs
 }
@@ -5784,7 +5876,7 @@ type ImportStagedOrderCustomLineItemStateOutput implements StagedOrderUpdateActi
   type: String!
   customLineItemId: String
   customLineItemKey: String
-  state: Set!
+  state: [ItemState!]!
 }
 
 input ImportStagedOrderLineItemState {
@@ -5797,13 +5889,13 @@ type ImportStagedOrderLineItemStateOutput implements StagedOrderUpdateActionOutp
   type: String!
   lineItemId: String
   lineItemKey: String
-  state: Set!
+  state: [ItemState!]!
 }
 
 type InStore implements CartDiscountQueryInterface & DiscountVisualizationQueryInterface & CartQueryInterface & CustomerActiveCartInterface & OrderQueryInterface & CustomerQueryInterface & ShippingMethodsByCartInterface & MeFieldInterface {
   """
   This field can only be used with an access token created with the password flow or with an anonymous session.
-  
+
   It gives access to the data that is specific to the customer or the anonymous session linked to the access token.
   """
   me: InStoreMe!
@@ -5816,6 +5908,14 @@ type InStore implements CartDiscountQueryInterface & DiscountVisualizationQueryI
     key: String
   ): CartDiscount
   cartDiscounts(where: String, sort: [String!], limit: Int, offset: Int): CartDiscountQueryResult!
+  discountCode(
+    """Queries with specified ID"""
+    id: String
+
+    """Queries with specified key"""
+    key: String
+  ): DiscountCode
+  discountCodes(where: String, sort: [String!], limit: Int, offset: Int): DiscountCodeQueryResult!
   product(
     projectExpandedProducts: Boolean = false
     localeProjection: [Locale!]
@@ -5912,6 +6012,84 @@ type InStore implements CartDiscountQueryInterface & DiscountVisualizationQueryI
     key: String
   ): BusinessUnit
   businessUnits(where: String, sort: [String!], limit: Int, offset: Int): BusinessUnitQueryResult!
+  productProjectionVariantAttributes(
+    """Queries with specified ID"""
+    id: String
+
+    """Queries with specified key"""
+    key: String
+    staged: Boolean! = false
+
+    """
+    The names of the attributes to include. At least one needs to be specified.
+    """
+    includeAttributeNames: [String!]!
+    localeProjection: [Locale!]
+
+    """
+    The IDs of channels to include.
+
+    If no channels is provided only the `noChannel` is returned.
+    """
+    includeChannelIds: [String!]
+  ): ProductProjectionVariantAttributes
+
+  """Query a single variant projection by id, key, or sku and other args"""
+  variantProjection(
+    """Queries with specified ID"""
+    id: String
+
+    """Queries with specified key"""
+    key: String
+
+    """Queries for a variant projection with specified SKU"""
+    sku: String
+
+    """
+    If true, queries staged projections. If false (default), queries current (published) projections.
+    """
+    staged: Boolean! = false
+
+    """
+    Filters localized fields (name, slug, description, attribute labels) to the specified locales
+    """
+    localeProjection: [Locale!]
+  ): VariantProjection
+
+  """Query variant projections with filtering and pagination"""
+  variantProjections(
+    where: String
+    sort: [String!]
+    limit: Int
+    offset: Int
+
+    """
+    If true, queries staged projections. If false (default), queries current (published) projections.
+    """
+    staged: Boolean! = false
+
+    """Filters variant projections by product ID"""
+    productId: String
+
+    """
+    Filters localized fields (name, slug, description, attribute labels) to the specified locales
+    """
+    localeProjection: [Locale!]
+
+    """
+    The names of the attributes to include.
+
+    If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
+    """
+    includeNames: [String!]
+
+    """
+    The names of the attributes to exclude.
+
+    If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
+    """
+    excludeNames: [String!]
+  ): VariantProjectionQueryResult!
   cartDiscountVisualization(
     """Queries with specified ID"""
     id: String
@@ -5990,13 +6168,13 @@ type InheritedStore {
 
 type Initiator {
   isPlatformClient: Boolean
+  clientId: String
   externalUserId: String
   anonymousId: String
-  attributedTo: Attribution
-  clientId: String
   customerRef: Reference
   userRef: Reference
   associateRef: Reference
+  attributedTo: Attribution
 }
 
 type InterfaceInteractionsRaw {
@@ -6005,14 +6183,14 @@ type InterfaceInteractionsRaw {
   fields(
     """
     The names of the custom fields to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     includeNames: [String!]
 
     """
     The names of the custom fields to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     excludeNames: [String!]
@@ -6278,6 +6456,20 @@ input ItemStateDraftType {
 """Raw io.circe.Json value"""
 scalar Json
 
+"""
+A single JSON primitive: `String`, `Int`, `Float`, or `Boolean`.
+
+Declared as a custom scalar because GraphQL has no built-in union of
+scalar types. Rejects `null`, lists, and objects at every entry path —
+literals, variables, and outgoing values. The
+`string | number | boolean` narrowing and the `const`/`enum`/`default`
+cross-field rule still run downstream in `parameterOverrideSchema` (Zod)
+so REST and GraphQL clients see identical error messages for cross-field
+conflicts. Used by `ParameterOverride.const`, `.default`, and elements
+of `.enum`.
+"""
+scalar JsonPrimitive
+
 type KeyReference {
   typeId: String!
   key: String!
@@ -6517,14 +6709,14 @@ type LocalizableEnumAttributeDefinitionType implements AttributeDefinitionType {
   values(
     """
     The keys of the enum values to include.
-    
+
     If neither `includeKeys` nor `excludeKeys` are provided, then all enum values are returned.
     """
     includeKeys: [String!]
 
     """
     The keys of the enum values to exclude.
-    
+
     If neither `includeKeys` nor `excludeKeys` are provided, then all enum values are returned.
     """
     excludeKeys: [String!]
@@ -6597,6 +6789,14 @@ input LocalizedEnumValueInput {
   label: [LocalizedStringItemInputType!]!
 }
 
+"""
+One (locale, value) pair from a LocalizedString. Used for both input and
+output positions on resources that expose multi-locale text.
+
+Marked `@shareable` because sphere-backend also defines this exact type;
+Apollo Federation rejects composition otherwise. Both subgraphs return
+semantically identical (locale, value) pairs.
+"""
 type LocalizedString {
   locale: Locale!
   value: String!
@@ -6624,6 +6824,163 @@ input LockCart {
 The `Long` scalar type represents non-fractional signed whole numeric values. Long can represent values between -(2^63) and 2^63 - 1.
 """
 scalar Long
+
+type McpServer {
+  id: String!
+  version: Long!
+  key: String!
+
+  """
+  Localized name. Pass `locale` for a single-locale read, or
+  `acceptLanguage` to try each locale in order and return the first match.
+  Returns null when the resource has no name or no matching locale.
+  """
+  name(locale: Locale, acceptLanguage: [Locale!]): String
+
+  """All locale entries of `name` as (locale, value) pairs."""
+  nameAllLocales: [LocalizedString!]!
+
+  """Localized description. Same resolution semantics as `name`."""
+  description(locale: Locale, acceptLanguage: [Locale!]): String
+
+  """All locale entries of `description` as (locale, value) pairs."""
+  descriptionAllLocales: [LocalizedString!]!
+  authenticationMode: McpServerAuthenticationMode!
+  state: McpServerState!
+  createdAt: DateTime!
+  lastModifiedAt: DateTime!
+  versionModifiedAt: DateTime!
+  createdBy: Initiator
+  lastModifiedBy: Initiator
+  mcpServer: McpServerConfig!
+}
+
+enum McpServerAuthenticationMode {
+  Identity
+  BearerToken
+}
+
+type McpServerCatalogTool {
+  name: String!
+  description: String
+  operationType: McpToolOperationType!
+  groups: [String!]!
+}
+
+interface McpServerConfig {
+  type: McpServerType!
+  majorVersion: String!
+  url: String!
+  tools: [String!]!
+  toolCustomizations: [ToolCustomization!]!
+}
+
+input McpServerConfigDraft {
+  commerce: CommerceMcpServerConfigDraft
+}
+
+input McpServerDraft {
+  key: String!
+  name: [LocalizedStringItemInputType!]
+  description: [LocalizedStringItemInputType!]
+  authenticationMode: McpServerAuthenticationMode
+  state: McpServerState
+  mcpServer: McpServerConfigDraft!
+}
+
+"""
+Response field-filtering rules the gateway applies to `tools/call` results.
+`redact` replaces matched values with a placeholder; `drop` removes matched
+fields; `fieldPathsToKeep` exempts exact paths from both; `redactedWith`
+overrides the redaction placeholder.
+"""
+type McpServerJsonOutputFiltering {
+  redact: McpServerJsonOutputFilteringMatcher
+  drop: McpServerJsonOutputFilteringMatcher
+  fieldPathsToKeep: [String!]
+  redactedWith: String
+}
+
+input McpServerJsonOutputFilteringInput {
+  redact: McpServerJsonOutputFilteringMatcherInput
+  drop: McpServerJsonOutputFilteringMatcherInput
+  fieldPathsToKeep: [String!]
+  redactedWith: String
+}
+
+"""
+One match group for `McpServerJsonOutputFiltering`. Selects fields three ways,
+each with a fixed case-sensitivity rule:
+`fieldPaths` (exact dotted path, e.g. `customer.password`) and `fieldNames`
+(exact name at any depth, e.g. `password`) match **case-sensitively**;
+`fieldNameContains` (substring of a field name at any depth, e.g. `secret`)
+matches **case-insensitively** to widen the net for the fuzzy matcher.
+All optional.
+"""
+type McpServerJsonOutputFilteringMatcher {
+  fieldPaths: [String!]
+  fieldNames: [String!]
+  fieldNameContains: [String!]
+}
+
+input McpServerJsonOutputFilteringMatcherInput {
+  fieldPaths: [String!]
+  fieldNames: [String!]
+  fieldNameContains: [String!]
+}
+
+type McpServerQueryResult {
+  limit: Int!
+  offset: Int!
+  count: Int!
+  total: Long!
+  exists: Boolean!
+  results: [McpServer!]!
+}
+
+enum McpServerState {
+  Enabled
+  Disabled
+}
+
+"""
+Output formatting the gateway applies to every `tools/call` response. The
+single value names the conversion performed; absence leaves the content shape
+untouched. The enum value equals the persisted string.
+"""
+enum McpServerToolOutputFormatting {
+  JsonToTabular
+}
+
+enum McpServerType {
+  CommerceMCP
+}
+
+type McpServerTypeCatalogEntry {
+  type: McpServerType!
+  majorVersion: String!
+  tools: [McpServerCatalogTool!]!
+}
+
+input McpServerUpdateAction {
+  setTools: SetMcpServerTools
+  addTool: AddMcpServerTool
+  removeTool: RemoveMcpServerTool
+  setToolCustomizations: SetMcpServerToolCustomizations
+  addToolCustomization: AddMcpServerToolCustomization
+  removeToolCustomization: RemoveMcpServerToolCustomization
+  setName: SetMcpServerName
+  setDescription: SetMcpServerDescription
+  setState: SetMcpServerState
+  setAuthenticationMode: SetMcpServerAuthenticationMode
+  setJsonOutputFiltering: SetMcpServerJsonOutputFiltering
+  setToolOutputFormatting: SetMcpServerToolOutputFormatting
+}
+
+enum McpToolOperationType {
+  read
+  write
+}
 
 type Me implements MeQueryInterface & CartQueryInterface & ActiveCartInterface & OrderQueryInterface & ShoppingListQueryInterface {
   """
@@ -6916,6 +7273,20 @@ input MultiBuyLineItemsTargetInput {
 }
 
 type Mutation {
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
+  createMcpServer(draft: McpServerDraft!): McpServer
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
+  updateMcpServer(id: String, key: String, version: Long!, actions: [McpServerUpdateAction!]!): McpServer
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
+  deleteMcpServer(id: String, key: String, version: Long!): McpServer
   createCustomerGroup(draft: CustomerGroupDraft!): CustomerGroup
   updateCustomerGroup(
     version: Long!
@@ -7258,25 +7629,25 @@ type Mutation {
 
   """
   Retrieves the authenticated customer (a customer that matches the given email/password pair).
-  
+
   There may be carts and orders created before the sign in that should be assigned to the customer account. With the `anonymousCartId`, a single anonymous cart can be assigned. With the `anonymousId`, all orders and carts that have this `anonymousId` set will be assigned to the customer.
   If both `anonymousCartId` and `anonymousId` are given, the anonymous cart must have the `anonymousId`.
-  
+
   Additionally, there might also exist one or more active customer carts from an earlier session. On customer sign in there are several ways how to proceed with this cart and the cart referenced by the `anonymousCartId`.
-  
+
   * If the customer does not have a cart yet, the anonymous cart becomes the customer's cart.
   * If the customer already has one or more carts, the content of the anonymous cart will be copied to the customer's active cart that has been modified most recently.
-  
+
   In this case the `CartState` of the anonymous cart gets changed to `Merged` while the customer's cart remains the `Active` cart.
-  
+
   If a `LineItem` in the anonymous cart matches an existing line item, or a `CustomLineItem` matches an existing custom line item in the customer's cart, the maximum quantity of both line items is used as the new quantity.
-  
+
   `ItemShippingDetails` are copied from the item with the highest quantity.
-  
+
   If `itemShippingAddresses` are different in the two carts, the resulting cart contains the addresses of both the customer cart and the anonymous cart.
-  
+
   Note, that it is not possible to merge carts that differ in their currency (set during creation of the cart).
-  
+
   If a cart is is returned as part of the `CustomerSignInResult`, it has been recalculated (it will have up-to-date prices, taxes and discounts, and invalid line items have been removed).
   """
   customerSignIn(
@@ -7331,7 +7702,7 @@ type Mutation {
 
   """
   The following workflow can be used to reset the customer’s password:
-  
+
   1. Create a password reset token and send it embedded in a link to the customer.
   2. When the customer clicks on the link, you may optionally retrieve customer by password token.
   3. When the customer entered new password, use reset customer’s password to reset the password.
@@ -7409,14 +7780,14 @@ type Mutation {
 
   """
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
-  
+
   Retrieves the authenticated customer (a customer that matches the given email/password pair).
-  
+
   If used with an access token for Anonymous Sessions, all orders and carts belonging to the `anonymousId` will be assigned to the newly created customer.
-  
+
   * If the customer does not have a cart yet, the anonymous cart that was modified most recently becomes the customer's cart.
   * If the customer already has a cart, the most recently modified anonymous cart will be handled according to the `AnonymousCartSignInMode`.
-  
+
   If a cart is is returned as part of the `CustomerSignInResult`, it has been recalculated (it will have up-to-date prices, taxes and discounts, and invalid line items have been removed).
   """
   customerSignMeIn(
@@ -8373,6 +8744,16 @@ type Mutation {
     key: String
     version: Long!
   ): Variant
+
+  """
+  CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+  """
+  bulkUpdateVariants(
+    """
+    CLOSED BETA: This feature is subject to change and should not be used in production. https://docs.commercetools.com/api/contract#closed-beta
+    """
+    input: BulkUpdateVariantsInput!
+  ): BulkUpdateVariantsResponse!
 }
 
 """
@@ -9019,7 +9400,7 @@ type OrderLineItemRemoved implements MessagePayload & OrderMessagePayload {
   lineItemKey: String
   removedQuantity: Long!
   newQuantity: Long!
-  newState: Set!
+  newState: [ItemState!]!
   newTotalPrice: Money!
   newPrice: ProductPrice
   newShippingDetails: ItemShippingDetails
@@ -9235,6 +9616,56 @@ input OrderUpdateAction {
   transitionState: TransitionOrderState
   updateItemShippingAddress: UpdateOrderItemShippingAddress
   updateSyncInfo: UpdateOrderSyncInfo
+}
+
+"""
+Override applied to a single parameter of a tool's input schema. At least
+one of `description`, `const`, `default`, or `enum` MUST be present.
+`const` is mutually exclusive with both `default` and `enum`.
+"""
+type ParameterOverride {
+  name: String!
+  description: String
+
+  """
+  Pins the parameter to a fixed value. Mutually exclusive with `default` and `enum`.
+  """
+  const: JsonPrimitive
+
+  """
+  Default value applied when the caller omits the parameter. Mutually exclusive with `const`.
+  """
+  default: JsonPrimitive
+
+  """
+  Restricts accepted values to this set. Mutually exclusive with `const`.
+  """
+  enum: [JsonPrimitive!]
+}
+
+"""
+Draft for `ParameterOverride`. At least one of `description`, `const`,
+`default`, or `enum` MUST be present. `const` is mutually exclusive
+with both `default` and `enum`.
+"""
+input ParameterOverrideDraft {
+  name: String!
+  description: String
+
+  """
+  Pins the parameter to a fixed value. Mutually exclusive with `default` and `enum`.
+  """
+  const: JsonPrimitive
+
+  """
+  Default value applied when the caller omits the parameter. Mutually exclusive with `const`.
+  """
+  default: JsonPrimitive
+
+  """
+  Restricts accepted values to this set. Mutually exclusive with `const`.
+  """
+  enum: [JsonPrimitive!]
 }
 
 type Parcel {
@@ -10048,10 +10479,10 @@ input ProductAttributeInput {
 
   """
   The value should be passed in a form of escaped JSON.
-  
-  
+
+
   Examples for `value`:
-  
+
   * FieldType `String`: `"\"This is a string\""`
   * FieldType `DateTimeType`: `"\"2018-10-12T14:00:00.000Z\""`
   * FieldType `Number`: `"4"`
@@ -10178,9 +10609,9 @@ type ProductData {
 
     """
     The IDs of channels for which to check the stock of the `isOnStock`.
-    
+
     Variant is returned if at least one of the channels is matching the `isOnStock`
-    
+
     If the list is not provided then noChannel is checked for `isOnStock`
     """
     stockChannelIds: [String!]
@@ -10197,9 +10628,9 @@ type ProductData {
 
     """
     The IDs of channels for which to check the stock of the `isOnStock`.
-    
+
     Variant is returned if at least one of the channels is matching the `isOnStock`
-    
+
     If the list is not provided then noChannel is checked for `isOnStock`
     """
     stockChannelIds: [String!]
@@ -10219,7 +10650,7 @@ type ProductData {
 }
 
 type ProductDeleted implements MessagePayload {
-  removedImageUrls: Set!
+  removedImageUrls: [String!]!
   currentProjection: ProductProjectionMessagePayload
   type: String!
 }
@@ -10400,10 +10831,10 @@ input ProductLevelAttributeInput {
 
   """
   The value should be passed in a form of escaped JSON.
-  
-  
+
+
   Examples for `value`:
-  
+
   * FieldType `String`: `"\"This is a string\""`
   * FieldType `DateTimeType`: `"\"2018-10-12T14:00:00.000Z\""`
   * FieldType `Number`: `"4"`
@@ -10713,14 +11144,14 @@ type ProductProjection {
   attributesRaw(
     """
     The names of the attributes to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attributes to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     excludeNames: [String!]
@@ -10882,7 +11313,7 @@ type ProductRemovedFromCategory implements MessagePayload {
 }
 
 type ProductRevertedStagedChanges implements MessagePayload {
-  removedImageUrls: Set!
+  removedImageUrls: [String!]!
   type: String!
 }
 
@@ -11012,8 +11443,8 @@ BETA: This feature can be subject to change and should be used carefully in prod
 """
 type ProductSearchFacetResultStats implements ProductSearchFacetResult {
   name: String!
-  min: Json!
-  max: Json!
+  min: Json
+  max: Json
   mean: Json
   sum: Json
   count: Long!
@@ -11059,7 +11490,7 @@ BETA: This feature can be subject to change and should be used carefully in prod
 """
 type ProductSearchResult {
   id: String!
-  product: Product!
+  product(localesProjection: [String!], storeProjection: String): Product!
 }
 
 type ProductSearchVariant {
@@ -11081,14 +11512,14 @@ type ProductSearchVariant {
   attributesRaw(
     """
     The names of the attributes to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attributes to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     excludeNames: [String!]
@@ -11126,14 +11557,14 @@ type ProductSearchVariantAvailabilityWithChannels {
   channels(
     """
     The IDs of channels to include.
-    
+
     If neither `includeChannelIds` nor `excludeChannelIds` are provided, then all channels are returned.
     """
     includeChannelIds: [String!]
 
     """
     The IDs of channels to exclude.
-    
+
     If neither `includeChannelIds` nor `excludeChannelIds` are provided, then all channels are returned.
     """
     excludeChannelIds: [String!]
@@ -11673,14 +12104,14 @@ type ProductTypeDefinition implements Versioned & ReferenceExpandable {
   attributeDefinitions(
     """
     The names of the attribute definitions to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attribute definitions are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attribute definitions to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attribute definitions are returned.
     """
     excludeNames: [String!]
@@ -11819,14 +12250,14 @@ type ProductVariant {
   attributesRaw(
     """
     The names of the attributes to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attributes to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     excludeNames: [String!]
@@ -11867,14 +12298,14 @@ type ProductVariantAvailabilityWithChannels {
   channels(
     """
     The IDs of channels to include.
-    
+
     If neither `includeChannelIds` nor `excludeChannelIds` are provided, then all channels are returned.
     """
     includeChannelIds: [String!]
 
     """
     The IDs of channels to exclude.
-    
+
     If neither `includeChannelIds` nor `excludeChannelIds` are provided, then all channels are returned.
     """
     excludeChannelIds: [String!]
@@ -11884,7 +12315,7 @@ type ProductVariantAvailabilityWithChannels {
 }
 
 type ProductVariantDeleted implements MessagePayload {
-  removedImageUrls: Set!
+  removedImageUrls: [String!]!
   variant: ProductVariant
   staged: Boolean
   type: String!
@@ -12143,6 +12574,26 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
   """
   BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
   """
+  mcpServer(id: String, key: String): McpServer
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
+  mcpServers(sort: [String!], limit: Int, offset: Int): McpServerQueryResult!
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
+  mcpServerTypes: [McpServerTypeCatalogEntry!]!
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
+  mcpServerType(type: McpServerType!, majorVersion: String): McpServerTypeCatalogEntry
+
+  """
+  BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+  """
   productsSearch(query: SearchQueryInput, postFilter: SearchQueryInput, sort: [SearchSortingInput!], limit: Int, offset: Int, markMatchingVariants: Boolean, facets: [ProductSearchFacetExpressionInput!]): ProductPagedSearchResponse
 
   """
@@ -12157,7 +12608,7 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
 
   """
   This field can only be used with an access token created with the password flow or with an anonymous session.
-  
+
   It gives access to the data that is specific to the customer or the anonymous session linked to the access token.
   """
   me: Me!
@@ -12625,7 +13076,7 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
 
     """
     The IDs of channels to include.
-    
+
     If no channels is provided only the `noChannel` is returned.
     """
     includeChannelIds: [String!]
@@ -12652,6 +13103,8 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
     """
     localeProjection: [Locale!]
   ): VariantProjection
+
+  """Query variant projections with filtering and pagination"""
   variantProjections(
     where: String
     sort: [String!]
@@ -12673,14 +13126,14 @@ type Query implements CartQueryInterface & CustomerActiveCartInterface & OrderQu
 
     """
     The names of the attributes to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attributes to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     excludeNames: [String!]
@@ -13572,6 +14025,14 @@ input RemoveInventoryEntryQuantity {
   quantity: Long!
 }
 
+input RemoveMcpServerTool {
+  tool: String!
+}
+
+input RemoveMcpServerToolCustomization {
+  toolCustomization: RemoveToolCustomizationTarget!
+}
+
 input RemoveMyBusinessUnitAddress {
   addressId: String
   addressKey: String
@@ -13796,6 +14257,10 @@ input RemoveStoreProductSelection {
 
 input RemoveStoreSupplyChannel {
   supplyChannel: ResourceIdentifierInput!
+}
+
+input RemoveToolCustomizationTarget {
+  tool: String!
 }
 
 input RemoveTypeFieldDefinition {
@@ -14531,9 +14996,6 @@ type SelectionOfProductQueryResult {
   exists: Boolean!
   results: [SelectionOfProduct!]!
 }
-
-"""A set."""
-scalar Set
 
 input SetApprovalFlowCustomField {
   name: String!
@@ -15303,6 +15765,13 @@ input SetExtensionAdditionalContext {
 """
 BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
 """
+input SetExtensionDependencies {
+  dependencies: [ResourceIdentifierInput!]!
+}
+
+"""
+BETA: This feature can be subject to change and should be used carefully in production. https://docs.commercetools.com/api/contract#public-beta
+"""
 input SetExtensionExpansionPaths {
   expansionPaths: [String!]!
 }
@@ -15358,6 +15827,46 @@ input SetInventoryLimits {
 input SetLineItemRecurrenceInfo {
   lineItemId: String!
   recurrenceInfo: LineItemRecurrenceInfoInputDraft
+}
+
+input SetMcpServerAuthenticationMode {
+  authenticationMode: McpServerAuthenticationMode!
+}
+
+input SetMcpServerDescription {
+  description: [LocalizedStringItemInputType!]
+}
+
+"""
+Sets or clears `mcpServer.jsonOutputFiltering`. Omitting the value clears the
+field; the whole object is replaced atomically when a value is provided.
+"""
+input SetMcpServerJsonOutputFiltering {
+  jsonOutputFiltering: McpServerJsonOutputFilteringInput
+}
+
+input SetMcpServerName {
+  name: [LocalizedStringItemInputType!]
+}
+
+input SetMcpServerState {
+  state: McpServerState!
+}
+
+input SetMcpServerToolCustomizations {
+  toolCustomizations: [ToolCustomizationDraft!]!
+}
+
+"""
+Sets or clears `mcpServer.toolOutputFormatting`. Omitting the value clears the
+field.
+"""
+input SetMcpServerToolOutputFormatting {
+  toolOutputFormatting: McpServerToolOutputFormatting
+}
+
+input SetMcpServerTools {
+  tools: [String!]!
 }
 
 input SetMyBusinessUnitAddressCustomField {
@@ -17396,6 +17905,51 @@ input SetTypeDescription {
   description: [LocalizedStringItemInputType!]
 }
 
+input SetVariantAssetCustomField {
+  staged: Boolean = true
+  value: String
+  name: String!
+  assetKey: String
+  assetId: String
+}
+
+input SetVariantAssetCustomType {
+  staged: Boolean = true
+  typeId: String
+  typeKey: String
+  type: ResourceIdentifierInput
+  fields: [CustomFieldInput!]
+  assetKey: String
+  assetId: String
+}
+
+input SetVariantAssetDescription {
+  staged: Boolean = true
+  description: [LocalizedStringItemInputType!]
+  assetKey: String
+  assetId: String
+}
+
+input SetVariantAssetKey {
+  staged: Boolean = true
+  assetKey: String
+  assetId: String!
+}
+
+input SetVariantAssetSources {
+  staged: Boolean = true
+  sources: [AssetSourceInput!] = []
+  assetKey: String
+  assetId: String
+}
+
+input SetVariantAssetTags {
+  staged: Boolean = true
+  tags: [String!] = []
+  assetKey: String
+  assetId: String
+}
+
 input SetVariantAssets {
   assets: [AssetDraftInput!] = []
   staged: Boolean = true
@@ -19022,6 +19576,30 @@ type TimeType implements FieldType {
   name: String!
 }
 
+"""
+Customization applied to a single tool at `tools/list` and `tools/call`
+time. At least one of `description` or a non-empty `parameters` list MUST
+be present; a customization with neither has no effect and is rejected at
+write time. Parameter names within `parameters` MUST be unique.
+"""
+type ToolCustomization {
+  tool: String!
+  description: String
+  parameters: [ParameterOverride!]!
+}
+
+"""
+Draft for `ToolCustomization`. At least one of `description` or a
+non-empty `parameters` list MUST be present; parameter names within
+`parameters` MUST be unique. The `tool` field is validated against the
+server's `(type, majorVersion)` tool set at write time.
+"""
+input ToolCustomizationDraft {
+  tool: String!
+  description: String
+  parameters: [ParameterOverrideDraft!]
+}
+
 type TrackingData {
   trackingId: String
   carrier: String
@@ -19232,14 +19810,14 @@ type TypeDefinition implements Versioned & ReferenceExpandable {
   fieldDefinitions(
     """
     The names of the custom field definitions to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     includeNames: [String!]
 
     """
     The names of the custom field definitions to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all custom fields are returned.
     """
     excludeNames: [String!]
@@ -19445,6 +20023,11 @@ type VariantAttributeVariant {
   attributesRaw: [RawAttribute!]!
 }
 
+input VariantBulkAction {
+  publish: PublishVariant
+  unpublish: UnpublishVariant
+}
+
 type VariantCreated implements MessagePayload {
   id: String!
   productId: String!
@@ -19469,14 +20052,14 @@ type VariantData {
   attributesRaw(
     """
     The names of the attributes to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attributes to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     excludeNames: [String!]
@@ -19526,9 +20109,7 @@ type VariantProjection {
   variantId: Int!
   version: Long!
   createdAt: DateTime!
-  lastModifiedAt: DateTime!
   productRef: Reference!
-  product: Product
   key: String
   sku: String
   images: [Image!]!
@@ -19540,14 +20121,14 @@ type VariantProjection {
   attributes(
     """
     The names of the attributes to include.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     includeNames: [String!]
 
     """
     The names of the attributes to exclude.
-    
+
     If neither `includeNames` nor `excludeNames` are provided, then all attributes are returned.
     """
     excludeNames: [String!]
@@ -19641,6 +20222,8 @@ input VariantUpdateAction {
   removeAsset: RemoveVariantAsset
   addExternalImage: AddVariantExternalImage
   addAsset: AddVariantAsset
+  changeAssetName: ChangeVariantAssetName
+  changeAssetOrder: ChangeVariantAssetOrder
   removeImage: RemoveVariantImage
   setAssets: SetVariantAssets
   setAttribute: SetVariantAttribute
@@ -19648,6 +20231,17 @@ input VariantUpdateAction {
   setImages: SetVariantImages
   setKey: SetVariantKey
   setSku: SetVariantSku
+  setAssetCustomField: SetVariantAssetCustomField
+  setAssetCustomType: SetVariantAssetCustomType
+  setAssetDescription: SetVariantAssetDescription
+  setAssetKey: SetVariantAssetKey
+  setAssetSources: SetVariantAssetSources
+  setAssetTags: SetVariantAssetTags
+}
+
+enum VersionControl {
+  On
+  Off
 }
 
 """

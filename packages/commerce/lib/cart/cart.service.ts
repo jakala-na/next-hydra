@@ -8,6 +8,7 @@ import type {
   CartService,
   ChangeItemQuantityParams,
   RemoveItemFromCartParams,
+  SaveCheckoutContactParams,
 } from "./types";
 
 function getCustomerActiveCart(
@@ -59,6 +60,12 @@ function removeItemFromCart(
   return cartRepo.removeItemFromCart(params);
 }
 
+function saveCheckoutContact(
+  params: SaveCheckoutContactParams
+): Promise<ActionResult<Cart>> {
+  return cartRepo.saveCheckoutContact(params);
+}
+
 export const cartService: CartService = {
   getCustomerActiveCart,
   getCartById,
@@ -66,4 +73,5 @@ export const cartService: CartService = {
   addItemToCart,
   changeItemQuantity,
   removeItemFromCart,
+  saveCheckoutContact,
 };

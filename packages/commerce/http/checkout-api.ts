@@ -8,6 +8,8 @@ import {
 } from "effect/unstable/httpapi";
 import { CartId } from "../domain/cart";
 import {
+  CheckoutCartReference,
+  CheckoutContact,
   CheckoutLocale,
   type CheckoutScope,
   CheckoutState,
@@ -40,6 +42,15 @@ export class CheckoutApiBadRequest extends Schema.TaggedErrorClass<CheckoutApiBa
   { httpApiStatus: 400 }
 ) {}
 
+export class CheckoutApiConflict extends Schema.TaggedErrorClass<CheckoutApiConflict>()(
+  "CheckoutApiConflict",
+  {
+    code: Schema.Literal("checkout.versionConflict"),
+    message: Schema.String,
+  },
+  { httpApiStatus: 409 }
+) {}
+
 export class CheckoutRequestHeaders extends Schema.Class<CheckoutRequestHeaders>(
   "CheckoutRequestHeaders"
 )({
@@ -47,8 +58,16 @@ export class CheckoutRequestHeaders extends Schema.Class<CheckoutRequestHeaders>
   "x-context-anonymous-cart-id": Schema.optional(CartId),
 }) {}
 
+export class SaveCheckoutContactRequest extends Schema.Class<SaveCheckoutContactRequest>(
+  "SaveCheckoutContactRequest"
+)({
+  cart: CheckoutCartReference,
+  contact: CheckoutContact,
+}) {}
+
 const CheckoutApiErrors = [
   CheckoutApiBadRequest,
+  CheckoutApiConflict,
   CheckoutApiError,
   CheckoutApiNotFound,
 ] as const;
@@ -72,6 +91,14 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
   .add(
     HttpApiEndpoint.get("current", "/checkout/current", {
       headers: CheckoutRequestHeaders,
+      success: CheckoutState,
+      error: CheckoutApiErrors,
+    })
+  )
+  .add(
+    HttpApiEndpoint.post("saveContact", "/checkout/contact", {
+      headers: CheckoutRequestHeaders,
+      payload: SaveCheckoutContactRequest,
       success: CheckoutState,
       error: CheckoutApiErrors,
     })

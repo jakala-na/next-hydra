@@ -12,3 +12,4 @@ const handleCheckoutRequest = (
 ): Promise<Response> => handler(request);
 
 export const GET = handleCheckoutRequest;
+export const POST = handleCheckoutRequest;

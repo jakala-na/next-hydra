@@ -7,6 +7,7 @@ import {
 } from "@repo/commerce/domain/commerce-request-context";
 import {
   CheckoutApiBadRequest,
+  CheckoutApiConflict,
   CheckoutApiError,
   CheckoutApiNotFound,
   CheckoutHttpApi,
@@ -20,6 +21,7 @@ import {
   getAnonymousCartIdFromCookieValue,
 } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
 import {
+  type CheckoutSaveContactFailure,
   CheckoutSession,
   type CheckoutSession as CheckoutSessionService,
 } from "@repo/commerce/lib/checkout/checkout-session";
@@ -129,6 +131,30 @@ const toCheckoutContextNotFound = (error: CommerceRequestContextNotFound) =>
 
 const toCheckoutContextInternalError = () =>
   toCheckoutApiError("Failed to resolve checkout request context");
+
+const toCheckoutMutationHttpError = (error: CheckoutSaveContactFailure) => {
+  switch (error._tag) {
+    case "CheckoutUnavailable":
+      return toCheckoutNotFound(error.message);
+    case "CheckoutMutationSchemaFailure":
+    case "CheckoutMutationSourceUnavailable":
+      return new CheckoutApiBadRequest({
+        code: "checkout.badRequest",
+        message: error.message,
+      });
+    case "CheckoutVersionConflict":
+      return new CheckoutApiConflict({
+        code: "checkout.versionConflict",
+        message: error.message,
+      });
+    case "CheckoutMutationProviderFailure":
+    case "CheckoutMutationUnsupported":
+      return toCheckoutApiError("Failed to save checkout contact");
+    default:
+      error satisfies never;
+      return toCheckoutApiError("Failed to save checkout contact");
+  }
+};
 
 const resolveCheckoutScope = (headers: CheckoutRequestHeaders) => {
   const anonymousCartId = headers["x-context-anonymous-cart-id"];
@@ -261,26 +287,55 @@ const makeCheckoutHttpHandlers = () =>
     CheckoutHttpApi,
     "checkout",
     Effect.fn(function* (handlers) {
-      return handlers.handle("current", () =>
-        Effect.gen(function* () {
-          const scope = yield* getCurrentCheckoutScope;
-          return yield* CheckoutSession.getCurrent(scope);
-        }).pipe(
-          Effect.mapError((error) => {
-            switch (error._tag) {
-              case "CommerceRequestContextNotFound":
-                return toCheckoutContextNotFound(error);
-              case "CheckoutApiBadRequest":
-              case "CheckoutApiError":
-                return error;
-              case "CheckoutUnavailable":
-                return toCheckoutNotFound(error.message);
-              default:
-                return toCheckoutApiError(error.message);
-            }
-          })
+      return handlers
+        .handle("current", () =>
+          Effect.gen(function* () {
+            const scope = yield* getCurrentCheckoutScope;
+            return yield* CheckoutSession.getCurrent(scope);
+          }).pipe(
+            Effect.mapError((error) => {
+              switch (error._tag) {
+                case "CommerceRequestContextNotFound":
+                  return toCheckoutContextNotFound(error);
+                case "CheckoutApiBadRequest":
+                case "CheckoutApiError":
+                  return error;
+                case "CheckoutUnavailable":
+                  return toCheckoutNotFound(error.message);
+                default:
+                  return toCheckoutApiError(error.message);
+              }
+            })
+          )
         )
-      );
+        .handle("saveContact", ({ payload }) =>
+          Effect.gen(function* () {
+            const scope = yield* getCurrentCheckoutScope;
+            yield* CheckoutSession.saveContact({
+              scope,
+              cart: payload.cart,
+              contact: payload.contact,
+            }).pipe(Effect.mapError(toCheckoutMutationHttpError));
+
+            return yield* CheckoutSession.getCurrent(scope);
+          }).pipe(
+            Effect.mapError((error) => {
+              switch (error._tag) {
+                case "CommerceRequestContextNotFound":
+                  return toCheckoutContextNotFound(error);
+                case "CheckoutApiBadRequest":
+                case "CheckoutApiConflict":
+                case "CheckoutApiError":
+                case "CheckoutApiNotFound":
+                  return error;
+                case "CheckoutUnavailable":
+                  return toCheckoutNotFound(error.message);
+                default:
+                  return toCheckoutApiError(error.message);
+              }
+            })
+          )
+        );
     })
   );
 

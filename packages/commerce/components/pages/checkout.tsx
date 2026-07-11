@@ -16,6 +16,7 @@ import { CheckoutSession } from "../../lib/checkout/checkout-session";
 import { checkoutRuntimeLayerCommercetools } from "../../lib/checkout/commercetools";
 import { toCheckoutScope } from "../../lib/checkout/request-context";
 import { storeService } from "../../lib/store/store.service";
+import { CheckoutContactForm } from "./checkout-contact-form";
 
 const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
 
@@ -80,14 +81,22 @@ function CheckoutSteps({ state }: { readonly state: CheckoutState }) {
 
 function ActiveStep({ state }: { readonly state: CheckoutState }) {
   return (
-    <section className="min-h-80 rounded-md border border-border p-6">
+    <section className="min-h-80 rounded-md border border-border p-6 sm:col-span-3">
       <div className="mb-6 border-border border-b pb-4">
         <p className="text-muted-foreground text-sm">Active step</p>
         <h1 className="font-semibold text-2xl">
           {stepLabels[state.activeStep]}
         </h1>
       </div>
-      <CheckoutSteps state={state} />
+      {state.activeStep === "contact" ? (
+        <CheckoutContactForm
+          buyerContact={state.details.contact?.buyerContact}
+          cartId={state.cart.id}
+          cartVersion={state.cart.version}
+        />
+      ) : (
+        <CheckoutSteps state={state} />
+      )}
     </section>
   );
 }
@@ -96,7 +105,7 @@ function CartSidebar({ state }: { readonly state: CheckoutState }) {
   const locale = state.scope.locale;
 
   return (
-    <aside className="rounded-md border border-border p-6">
+    <aside className="rounded-md border border-border p-6 sm:col-span-2">
       <div className="mb-5 flex items-center justify-between gap-4">
         <h2 className="font-semibold text-lg">Cart</h2>
         <span className="text-muted-foreground text-sm">
@@ -156,7 +165,7 @@ export async function CheckoutPage({ locale }: { readonly locale: Locale }) {
   }
 
   return (
-    <main className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <main className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:grid-cols-5">
       <ActiveStep state={state} />
       <CartSidebar state={state} />
     </main>

@@ -8,6 +8,7 @@ import {
 } from "../../domain/cart";
 import {
   type CheckoutBuyerContext,
+  type CheckoutContactSource,
   type CheckoutDetails,
   type CheckoutPolicyViolation,
   type CheckoutScope,
@@ -49,9 +50,12 @@ const hasRequiredBuyingContext = (
 
 const isContactComplete = (
   details: CheckoutDetails,
-  buyerContext: CheckoutBuyerContext
+  buyerContext: CheckoutBuyerContext,
+  allowedContactSources: readonly CheckoutContactSource[]
 ) =>
   hasRequiredBuyerContact(details) &&
+  (details.contact === undefined ||
+    allowedContactSources.includes(details.contact.source)) &&
   hasRequiredBuyingContext(details, buyerContext);
 
 const isDeliveryDetailsComplete = (details: CheckoutDetails) => {
@@ -67,11 +71,12 @@ const isDeliveryDetailsComplete = (details: CheckoutDetails) => {
 
 const buildCheckoutSteps = (
   details: CheckoutDetails,
-  buyerContext: CheckoutBuyerContext
+  buyerContext: CheckoutBuyerContext,
+  allowedContactSources: readonly CheckoutContactSource[]
 ): readonly CheckoutStep[] => [
   {
     id: "contact",
-    status: isContactComplete(details, buyerContext)
+    status: isContactComplete(details, buyerContext, allowedContactSources)
       ? "complete"
       : "incomplete",
   },
@@ -154,6 +159,7 @@ export interface BuildCheckoutStateInput {
   readonly cart: CartForCheckout;
   readonly details: CheckoutDetails;
   readonly buyerContext: CheckoutBuyerContext;
+  readonly allowedContactSources?: readonly CheckoutContactSource[];
   readonly cartPolicyViolations: readonly PolicyViolation[];
   readonly checkoutPolicyViolations: readonly CheckoutPolicyViolation[];
 }
@@ -163,6 +169,7 @@ export const buildCheckoutState = Effect.fn("buildCheckoutState")(function* ({
   cart,
   details,
   buyerContext,
+  allowedContactSources = ["manual", "customerProfile"],
   cartPolicyViolations,
   checkoutPolicyViolations,
 }: BuildCheckoutStateInput): Effect.fn.Return<
@@ -170,7 +177,11 @@ export const buildCheckoutState = Effect.fn("buildCheckoutState")(function* ({
   CheckoutUnavailable
 > {
   yield* ensureNonEmptyCart(cart);
-  const steps = buildCheckoutSteps(details, buyerContext);
+  const steps = buildCheckoutSteps(
+    details,
+    buyerContext,
+    allowedContactSources
+  );
 
   return {
     scope,

@@ -1,5 +1,7 @@
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
+import { Option, Schema } from "effect";
 import type { FragmentOf } from "gql.tada";
+import { CheckoutContact, type CheckoutDetails } from "../../domain/checkout";
 import { graphql, readFragment } from "../../graphql";
 import { graphqlClient } from "../client/graphql-client";
 import {
@@ -9,15 +11,60 @@ import {
 import { productPriceFragment, reshapePrice } from "../product/mappers/price";
 import type { Cart, LineItem } from "../types";
 import { type ActionResult, domainError, Err, Ok } from "../utils/errors";
+import {
+  buildSaveCheckoutContactActions,
+  CHECKOUT_CONTACT_CUSTOM_FIELD_NAME,
+} from "./checkout-contact-actions";
 import type {
   AddToCartRepoParams,
   CartRepository,
   ChangeItemQuantityParams,
   CreateCartRepoParams,
   RemoveItemFromCartParams,
+  SaveCheckoutContactParams,
 } from "./types";
 
 const client = graphqlClient();
+
+type RawCustomField = {
+  readonly name: string;
+  readonly value: unknown;
+};
+
+const parseCustomJson = (value: unknown) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+};
+
+const decodeCheckoutContact = (value: unknown) =>
+  Option.getOrUndefined(
+    Schema.decodeUnknownOption(CheckoutContact)(parseCustomJson(value))
+  );
+
+const getCheckoutContactFromCustomFields = (
+  customFields: readonly RawCustomField[] | null | undefined
+) => {
+  const field = customFields?.find(
+    (customField) => customField.name === CHECKOUT_CONTACT_CUSTOM_FIELD_NAME
+  );
+
+  return field === undefined ? undefined : decodeCheckoutContact(field.value);
+};
+
+const getCheckoutDetails = (
+  customFields: readonly RawCustomField[] | null | undefined
+): CheckoutDetails => {
+  const contact = getCheckoutContactFromCustomFields(customFields);
+
+  return contact === undefined ? {} : { contact };
+};
 
 const CartFragment = graphql(
   `
@@ -25,8 +72,18 @@ const CartFragment = graphql(
     id
     version
     country
+    customerEmail
     store {
       key
+    }
+    custom {
+      type {
+        key
+      }
+      customFieldsRaw {
+        name
+        value
+      }
     }
     lineItems {
       id
@@ -107,6 +164,7 @@ const reshapeCart = (
   return {
     ...parsedData,
     lineItems,
+    checkoutDetails: getCheckoutDetails(parsedData.custom?.customFieldsRaw),
     totalPrice: {
       centAmount: parsedData.totalPrice.centAmount,
       currencyCode: parsedData.totalPrice.currencyCode as CurrencyCode,
@@ -220,6 +278,29 @@ const RemoveItemFromCartMutation = graphql(
   }`,
   [CartFragment]
 );
+
+const SaveCheckoutContactMutation = graphql(
+  `
+  mutation SaveCheckoutContact($id: String!, $version: Long!, $actions: [CartUpdateAction!]!, $locale: Locale!) {
+    updateCart(
+      id: $id
+      version: $version
+      actions: $actions
+    ) {
+      ...CartFields
+    }
+  }`,
+  [CartFragment]
+);
+
+const hasConcurrentModificationError = (error: unknown) =>
+  typeof error === "object" &&
+  error !== null &&
+  "extensions" in error &&
+  typeof error.extensions === "object" &&
+  error.extensions !== null &&
+  "code" in error.extensions &&
+  error.extensions.code === "ConcurrentModification";
 
 export const getCustomerActiveCart = async (
   customerId: string,
@@ -371,6 +452,61 @@ export const removeItemFromCart = async (
   return Ok(reshapeCart(result.data.updateCart, params.locale));
 };
 
+export const saveCheckoutContact = async (
+  params: SaveCheckoutContactParams
+): Promise<ActionResult<Cart>> => {
+  const actions = buildSaveCheckoutContactActions(params.cart, params.contact);
+
+  if (!actions.ok) {
+    return actions;
+  }
+
+  const result = await client.mutation(SaveCheckoutContactMutation, {
+    id: params.cart.id,
+    version: params.cart.version,
+    actions: actions.data,
+    locale: params.locale,
+  });
+
+  if (result.error?.graphQLErrors.some(hasConcurrentModificationError)) {
+    return Err(
+      domainError(
+        "CONFLICT",
+        "Checkout Cart changed before Contact could be saved"
+      )
+    );
+  }
+
+  if (result.error?.networkError) {
+    return Err(
+      domainError(
+        "NETWORK_ERROR",
+        `Failed to save checkout contact: ${result.error.message}`
+      )
+    );
+  }
+
+  if (result.error) {
+    return Err(
+      domainError(
+        "UNKNOWN",
+        `Failed to save checkout contact: ${result.error.message}`
+      )
+    );
+  }
+
+  if (!result.data?.updateCart) {
+    return Err(
+      domainError(
+        "UNKNOWN",
+        "Failed to save checkout contact: No data returned"
+      )
+    );
+  }
+
+  return Ok(reshapeCart(result.data.updateCart, params.locale));
+};
+
 export const cartRepo: CartRepository = {
   getCustomerActiveCart,
   getCartById,
@@ -378,4 +514,5 @@ export const cartRepo: CartRepository = {
   addItemToCart,
   changeItemQuantity,
   removeItemFromCart,
+  saveCheckoutContact,
 };

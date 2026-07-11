@@ -11,8 +11,11 @@ import {
 import {
   type CheckoutDetails,
   CheckoutLocale,
+  CheckoutMutationSchemaFailure,
+  CheckoutMutationSourceUnavailable,
   CheckoutState,
   CheckoutUnavailable,
+  CheckoutVersionConflict,
   StorefrontAnonymousCheckoutScope,
 } from "../../domain/checkout";
 import { CheckoutSession } from "./checkout-session";
@@ -78,22 +81,42 @@ const scope = new StorefrontAnonymousCheckoutScope({
   anonymousCartId: CartId.make("cart-1"),
 });
 
-const layerWith = ({
-  currentCart = cart(),
-  details = {},
-  cartPolicyViolations = [],
-}: {
-  readonly currentCart?: ReturnType<typeof cart>;
-  readonly details?: CheckoutDetails;
-  readonly cartPolicyViolations?: Parameters<
-    typeof CheckoutSession.layerMemoryFrom
-  >[0]["cartPolicyViolations"];
-} = {}) =>
-  CheckoutSession.layerMemoryFrom({
-    currentCart,
+const layerWith = (
+  input: {
+    readonly currentCart?: ReturnType<typeof cart> | undefined;
+    readonly details?: CheckoutDetails;
+    readonly cartPolicyViolations?: Parameters<
+      typeof CheckoutSession.layerMemoryFrom
+    >[0]["cartPolicyViolations"];
+    readonly manualContactAllowed?: boolean;
+  } = {}
+) => {
+  const {
+    details = {},
+    cartPolicyViolations = [],
+    manualContactAllowed = true,
+  } = input;
+  const currentCart = "currentCart" in input ? input.currentCart : cart();
+
+  return CheckoutSession.layerMemoryFrom({
+    ...(currentCart === undefined ? {} : { currentCart }),
     details,
     cartPolicyViolations,
+    allowedContactSources: manualContactAllowed
+      ? ["manual", "customerProfile"]
+      : ["customerProfile"],
   });
+};
+
+const manualContact = {
+  source: "manual",
+  buyerContact: {
+    email: "ada@example.com",
+    firstName: "Ada",
+    lastName: "Lovelace",
+    phoneNumber: "+15551234567",
+  },
+} as const;
 
 describe("CheckoutSession.getCurrent", () => {
   it.effect(
@@ -216,5 +239,117 @@ describe("CheckoutSession.getCurrent", () => {
           },
         ]);
       })
+  );
+});
+
+describe("CheckoutSession.saveContact", () => {
+  it.effect("saves Manual Contact and recomputes Contact as complete", () =>
+    Effect.gen(function* () {
+      yield* CheckoutSession.saveContact({
+        scope,
+        cart: { id: CartId.make("cart-1"), version: 7 },
+        contact: manualContact,
+      });
+
+      const state = yield* CheckoutSession.getCurrent(scope);
+
+      expect(state.details.contact).toEqual(manualContact);
+      expect(state.steps[0]).toMatchObject({
+        id: "contact",
+        status: "complete",
+      });
+      expect(state.activeStep).toBe("deliveryDetails");
+    }).pipe(Effect.provide(layerWith()))
+  );
+
+  it.effect("replaces Manual Contact idempotently on repeated saves", () =>
+    Effect.gen(function* () {
+      yield* CheckoutSession.saveContact({
+        scope,
+        cart: { id: CartId.make("cart-1"), version: 7 },
+        contact: manualContact,
+      });
+      const firstState = yield* CheckoutSession.getCurrent(scope);
+
+      yield* CheckoutSession.saveContact({
+        scope,
+        cart: {
+          id: firstState.cart.id,
+          version: firstState.cart.version,
+        },
+        contact: manualContact,
+      });
+      const secondState = yield* CheckoutSession.getCurrent(scope);
+
+      expect(secondState.details.contact).toEqual(manualContact);
+      expect(secondState.cart.lineItems).toHaveLength(1);
+      expect(secondState.cart.version).toBe(firstState.cart.version);
+    }).pipe(Effect.provide(layerWith()))
+  );
+
+  it.effect("rejects invalid Manual Contact details", () =>
+    Effect.gen(function* () {
+      const error = yield* CheckoutSession.saveContact({
+        scope,
+        cart: { id: CartId.make("cart-1"), version: 7 },
+        contact: {
+          ...manualContact,
+          buyerContact: {
+            ...manualContact.buyerContact,
+            email: " ",
+          },
+        },
+      }).pipe(Effect.flip);
+
+      expect(error).toBeInstanceOf(CheckoutMutationSchemaFailure);
+      expect(error.message).toContain("email");
+    }).pipe(Effect.provide(layerWith()))
+  );
+
+  it.effect(
+    "rejects Manual Contact when the current checkout disallows it",
+    () =>
+      Effect.gen(function* () {
+        const error = yield* CheckoutSession.saveContact({
+          scope,
+          cart: { id: CartId.make("cart-1"), version: 7 },
+          contact: manualContact,
+        }).pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(CheckoutMutationSourceUnavailable);
+        if (error._tag === "CheckoutMutationSourceUnavailable") {
+          expect(error.source).toBe("manual");
+        }
+      }).pipe(Effect.provide(layerWith({ manualContactAllowed: false })))
+  );
+
+  it.effect("reports a version conflict for stale Cart references", () =>
+    Effect.gen(function* () {
+      const error = yield* CheckoutSession.saveContact({
+        scope,
+        cart: { id: CartId.make("cart-1"), version: 6 },
+        contact: manualContact,
+      }).pipe(Effect.flip);
+
+      expect(error).toBeInstanceOf(CheckoutVersionConflict);
+      if (error._tag === "CheckoutVersionConflict") {
+        expect(error.cartId).toBe("cart-1");
+      }
+    }).pipe(Effect.provide(layerWith()))
+  );
+
+  it.effect("reports unavailable checkout when saving without a Cart", () =>
+    Effect.gen(function* () {
+      const error = yield* CheckoutSession.saveContact({
+        scope,
+        cart: { id: CartId.make("cart-1"), version: 7 },
+        contact: manualContact,
+      }).pipe(Effect.flip);
+
+      expect(error).toBeInstanceOf(CheckoutUnavailable);
+      if (error._tag === "CheckoutUnavailable") {
+        expect(error.reason).toBe("noCart");
+      }
+    }).pipe(Effect.provide(layerWith({ currentCart: undefined })))
   );
 });

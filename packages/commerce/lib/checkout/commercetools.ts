@@ -3,19 +3,30 @@ import { Effect, Layer } from "effect";
 import {
   type CheckoutBuyerContext,
   type CheckoutDetails,
+  CheckoutMutationProviderFailure,
   CheckoutMutationUnsupported,
   CheckoutProviderFailure,
   type CheckoutScope,
   CheckoutUnavailable,
+  CheckoutVersionConflict,
 } from "../../domain/checkout";
 import { cartService } from "../cart/cart.service";
 import { decodeCartForCheckout } from "../cart/cart-for-checkout";
+import { hasPersistedCheckoutContact } from "../cart/checkout-contact-actions";
 import { validateCartPolicies } from "../cart/utils/validate-cart";
 import { StoreContexts } from "../store/store-contexts";
 import type { Cart } from "../types";
 import type { ActionResult } from "../utils/errors";
 import { isOk } from "../utils/errors";
-import { CheckoutSession } from "./checkout-session";
+import {
+  type CheckoutSaveContactFailure,
+  CheckoutSession,
+  contactSourceUnavailable,
+  ensureCurrentCartReference,
+  normalizeManualContact,
+  type SaveCheckoutContactInput,
+} from "./checkout-session";
+import { allowedContactSourcesForCheckout } from "./contact-source-policy";
 import { buildCheckoutState } from "./state";
 
 const localeFromScope = (scope: CheckoutScope) => scope.locale as Locale;
@@ -117,7 +128,9 @@ const getBuyerContext = (scope: CheckoutScope): CheckoutBuyerContext => ({
   requiresBuyingContext: false,
 });
 
-const getCheckoutDetails = (_cart: Cart): CheckoutDetails => ({});
+const getCheckoutDetails = (
+  cart: Pick<Cart, "checkoutDetails">
+): CheckoutDetails => cart.checkoutDetails ?? {};
 
 const evaluateCartPolicies = (scope: CheckoutScope, cart: Cart) =>
   Effect.tryPromise({
@@ -137,12 +150,74 @@ const evaluateCartPolicies = (scope: CheckoutScope, cart: Cart) =>
       }),
   });
 
-const unsupportedMutation = (
-  operation: "saveContact" | "saveDeliveryDetails"
-) =>
+const unsupportedMutation = (operation: "saveDeliveryDetails") =>
   new CheckoutMutationUnsupported({
     message: `${operation} is implemented by a later Checkout Session slice`,
     operation,
+  });
+
+const saveCheckoutContact = (
+  input: SaveCheckoutContactInput
+): Effect.Effect<void, CheckoutSaveContactFailure> =>
+  Effect.gen(function* () {
+    const contact = yield* normalizeManualContact(input.contact);
+    const allowedContactSources = allowedContactSourcesForCheckout(input.scope);
+
+    if (!allowedContactSources.includes(contact.source)) {
+      return yield* Effect.fail(contactSourceUnavailable(contact.source));
+    }
+
+    const { cart, providerCart } = yield* getCurrentCart(input.scope).pipe(
+      Effect.mapError((error) =>
+        error._tag === "CheckoutUnavailable"
+          ? error
+          : new CheckoutMutationProviderFailure({
+              message: error.message,
+              operation: error.operation,
+            })
+      )
+    );
+    yield* ensureCurrentCartReference(cart, input.cart);
+
+    if (hasPersistedCheckoutContact(providerCart, contact)) {
+      return;
+    }
+
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        cartService.saveCheckoutContact({
+          cart: providerCart,
+          contact,
+          locale: localeFromScope(input.scope),
+        }),
+      catch: (cause) =>
+        new CheckoutMutationProviderFailure({
+          message: "Failed to save checkout contact",
+          operation: "checkout.contact.save",
+          cause,
+        }),
+    });
+
+    if (isOk(result)) {
+      return;
+    }
+
+    if (result.error.code === "CONFLICT") {
+      return yield* Effect.fail(
+        new CheckoutVersionConflict({
+          message: result.error.message,
+          cartId: cart.id,
+        })
+      );
+    }
+
+    return yield* Effect.fail(
+      new CheckoutMutationProviderFailure({
+        message: result.error.message,
+        operation: "checkout.contact.save",
+        cause: result.error,
+      })
+    );
   });
 
 export const layerCommercetoolsCheckoutSession = Layer.effect(
@@ -166,11 +241,12 @@ export const layerCommercetoolsCheckoutSession = Layer.effect(
             cart,
             details: getCheckoutDetails(providerCart),
             buyerContext: getBuyerContext(scope),
+            allowedContactSources: allowedContactSourcesForCheckout(scope),
             cartPolicyViolations,
             checkoutPolicyViolations: [],
           });
         }),
-      saveContact: () => Effect.fail(unsupportedMutation("saveContact")),
+      saveContact: saveCheckoutContact,
       saveDeliveryDetails: () =>
         Effect.fail(unsupportedMutation("saveDeliveryDetails")),
     });

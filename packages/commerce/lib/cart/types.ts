@@ -1,4 +1,5 @@
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
+import type { CheckoutContact } from "../../domain/checkout";
 import type { Cart } from "../types";
 import type { ActionResult } from "../utils/errors";
 import type { PolicyViolation } from "./policy/cart-policy.types";
@@ -35,6 +36,12 @@ export type RemoveItemFromCartParams = Omit<
   "quantity"
 >;
 
+export type SaveCheckoutContactParams = {
+  cart: Cart;
+  contact: CheckoutContact;
+  locale: Locale;
+};
+
 /**
  * Cart with policy validation issues
  */
@@ -58,6 +65,9 @@ export interface CartRepository {
   removeItemFromCart(
     params: RemoveItemFromCartParams
   ): Promise<ActionResult<Cart>>;
+  saveCheckoutContact(
+    params: SaveCheckoutContactParams
+  ): Promise<ActionResult<Cart>>;
 }
 
 export interface CartService {
@@ -73,5 +83,8 @@ export interface CartService {
   ): Promise<ActionResult<Cart>>;
   removeItemFromCart(
     params: RemoveItemFromCartParams
+  ): Promise<ActionResult<Cart>>;
+  saveCheckoutContact(
+    params: SaveCheckoutContactParams
   ): Promise<ActionResult<Cart>>;
 }

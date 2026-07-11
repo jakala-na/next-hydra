@@ -3,6 +3,7 @@ import type {
   ProductTypeKey,
 } from "@repo/commerce/lib/product/mappers/attributes.ts";
 import type { CurrencyCode } from "@repo/i18n/types";
+import type { CheckoutDetails } from "../domain/checkout";
 
 // Define price explicitly since it's coming from potentially different fragments.
 export type Price = {
@@ -176,13 +177,26 @@ export type Cart = {
   id: string;
   version: number;
   customerId?: string;
+  customerEmail?: string | null;
   anonymousId?: string;
   store?: {
     key: string | null;
   } | null;
+  custom?: {
+    type?: {
+      key: string;
+    } | null;
+    customFieldsRaw?:
+      | readonly {
+          name: string;
+          value: unknown;
+        }[]
+      | null;
+  } | null;
   lineItems: LineItem[];
   totalLineItemQuantity: number;
   totalPrice: Money;
+  checkoutDetails?: CheckoutDetails;
   taxedPrice?: {
     totalNet: Money;
     totalGross: Money;

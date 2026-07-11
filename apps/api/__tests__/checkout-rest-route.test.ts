@@ -6,6 +6,10 @@ import {
   Sku,
   VariantId,
 } from "@repo/commerce/domain/cart";
+import {
+  type CheckoutContact,
+  CheckoutMutationProviderFailure,
+} from "@repo/commerce/domain/checkout";
 import { CommerceCustomerId } from "@repo/commerce/domain/commerce-account";
 import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
 import {
@@ -29,7 +33,9 @@ import {
 } from "../lib/checkout/customer-jwt";
 
 const HTTP_OK = 200;
+const HTTP_BAD_REQUEST = 400;
 const HTTP_NOT_FOUND = 404;
+const HTTP_CONFLICT = 409;
 const HTTP_INTERNAL_SERVER_ERROR = 500;
 
 const money = {
@@ -106,6 +112,47 @@ const requestWithoutAnonymousCart = (headers?: Record<string, string>) =>
     },
   });
 
+const manualContact: CheckoutContact = {
+  source: "manual",
+  buyerContact: {
+    email: "ada@example.com",
+    firstName: "Ada",
+    lastName: "Lovelace",
+    phoneNumber: "+15551234567",
+  },
+};
+
+const saveContactPayload = ({
+  cartId = "cart-1",
+  version = 7,
+  contact = manualContact,
+}: {
+  readonly cartId?: string;
+  readonly version?: number;
+  readonly contact?: CheckoutContact;
+} = {}) => ({
+  cart: {
+    id: cartId,
+    version,
+  },
+  contact,
+});
+
+const saveContactRequest = (
+  payload: unknown = saveContactPayload(),
+  headers?: Record<string, string>
+) =>
+  new Request("http://api.test/checkout/contact", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-context-locale": "en-US",
+      "x-context-anonymous-cart-id": "cart-1",
+      ...headers,
+    },
+    body: JSON.stringify(payload),
+  });
+
 const anonymousCartCookieHeader = ({
   cartId = "cart-1",
   currency = "USD",
@@ -129,10 +176,29 @@ const anonymousCartCookieHeader = ({
   return `${ANONYMOUS_CART_COOKIE_NAME}=${encodeAnonymousCartCookie(cookie)}`;
 };
 
-const makeCheckoutLayer = (currentCart = cart()) =>
-  CheckoutSession.layerMemoryFrom({
-    currentCart,
+const makeCheckoutLayer = (
+  input: {
+    readonly currentCart?: ReturnType<typeof cart> | undefined;
+    readonly allowedContactSources?: Parameters<
+      typeof CheckoutSession.layerMemoryFrom
+    >[0]["allowedContactSources"];
+    readonly saveContactFailure?: Parameters<
+      typeof CheckoutSession.layerMemoryFrom
+    >[0]["saveContactFailure"];
+  } = {}
+) => {
+  const {
+    allowedContactSources = ["manual", "customerProfile"],
+    saveContactFailure,
+  } = input;
+  const currentCart = "currentCart" in input ? input.currentCart : cart();
+
+  return CheckoutSession.layerMemoryFrom({
+    ...(currentCart === undefined ? {} : { currentCart }),
+    allowedContactSources,
+    ...(saveContactFailure === undefined ? {} : { saveContactFailure }),
   });
+};
 
 const makeCommerceAccountsLayer = (
   customerId = CommerceCustomerId.make("customer-1")
@@ -248,6 +314,146 @@ test("GET /checkout/current reads current checkout state through CheckoutSession
         { id: "paymentOptions", status: "incomplete" },
         { id: "reviewOrder", status: "incomplete" },
       ],
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact saves Manual Contact and returns recomputed checkout state", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body).toMatchObject({
+      activeStep: "deliveryDetails",
+      details: {
+        contact: manualContact,
+      },
+    });
+    expect(body.steps[0]).toMatchObject({
+      id: "contact",
+      status: "complete",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact obtains Checkout Scope from request context, not payload cart id", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveContactRequest(saveContactPayload({ cartId: "cart-from-payload" })),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_CONFLICT);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiConflict",
+      code: "checkout.versionConflict",
+      message: "Checkout Cart changed before Contact could be saved",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact maps invalid Manual Contact input to bad request", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveContactRequest(
+        saveContactPayload({
+          contact: {
+            ...manualContact,
+            buyerContact: {
+              ...manualContact.buyerContact,
+              firstName: "",
+            },
+          },
+        })
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiBadRequest",
+      code: "checkout.badRequest",
+    });
+    expect(body.message).toContain("firstName");
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact maps disallowed Manual Contact source to bad request", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({ allowedContactSources: ["customerProfile"] })
+  );
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiBadRequest",
+      code: "checkout.badRequest",
+      message: "Manual Contact Source is unavailable for this checkout",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact maps provider failures to internal errors", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      saveContactFailure: new CheckoutMutationProviderFailure({
+        message: "Commercetools update failed",
+        operation: "checkout.contact.save",
+      }),
+    })
+  );
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiError",
+      code: "checkout.internal",
+      message: "Failed to save checkout contact",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact maps an unavailable Cart to checkout not found", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({ currentCart: undefined })
+  );
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiNotFound",
+      code: "checkout.notFound",
+      message: "Checkout requires an existing Cart",
     });
   } finally {
     await dispose();
@@ -544,7 +750,9 @@ test("GET /checkout/current maps Commerce customer lookup runtime failures to an
 
 test("GET /checkout/current maps an empty Cart to a checkout not-found response", async () => {
   const { dispose, handler } = await makeHandler(
-    makeCheckoutLayer(cart({ lineItems: [], totalLineItemQuantity: 0 }))
+    makeCheckoutLayer({
+      currentCart: cart({ lineItems: [], totalLineItemQuantity: 0 }),
+    })
   );
 
   try {

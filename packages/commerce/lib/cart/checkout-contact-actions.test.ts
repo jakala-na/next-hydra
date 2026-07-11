@@ -1,0 +1,149 @@
+import { describe, expect, it } from "vitest";
+import type { CheckoutContact } from "../../domain/checkout";
+import {
+  buildSaveCheckoutContactActions,
+  hasPersistedCheckoutContact,
+} from "./checkout-contact-actions";
+
+const contact = {
+  source: "manual",
+  buyerContact: {
+    email: "ada@example.com",
+    firstName: "Ada",
+    lastName: "Lovelace",
+  },
+} as const satisfies CheckoutContact;
+
+describe("buildSaveCheckoutContactActions", () => {
+  it("sets the checkout custom type for carts without custom fields", () => {
+    const result = buildSaveCheckoutContactActions(
+      {
+        custom: null,
+      },
+      contact
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.data[1]).toMatchObject({
+      setCustomType: {
+        typeKey: "hydra-cart-checkout",
+      },
+    });
+  });
+
+  it("sets only the checkout contact field when the checkout custom type is present", () => {
+    const result = buildSaveCheckoutContactActions(
+      {
+        custom: {
+          type: {
+            key: "hydra-cart-checkout",
+          },
+          customFieldsRaw: [],
+        },
+      },
+      contact
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.data[1]).toMatchObject({
+      setCustomField: {
+        name: "checkoutContact",
+      },
+    });
+  });
+
+  it("does not replace an unexpected existing cart custom type", () => {
+    const result = buildSaveCheckoutContactActions(
+      {
+        custom: {
+          type: {
+            key: "other-cart-fields",
+          },
+          customFieldsRaw: [],
+        },
+      },
+      contact
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+
+    expect(result.error).toMatchObject({
+      code: "UNKNOWN",
+      message: "Cart custom type cannot store checkout contact",
+      details: {
+        actualTypeKey: "other-cart-fields",
+        expectedTypeKey: "hydra-cart-checkout",
+      },
+    });
+  });
+
+  it("does not replace existing cart custom fields when the custom type key is unavailable", () => {
+    const result = buildSaveCheckoutContactActions(
+      {
+        custom: {
+          type: null,
+          customFieldsRaw: [
+            {
+              name: "externalIntegrationState",
+              value: "kept elsewhere",
+            },
+          ],
+        },
+      },
+      contact
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+
+    expect(result.error).toMatchObject({
+      code: "UNKNOWN",
+      message: "Cart custom type cannot store checkout contact",
+      details: {
+        actualTypeKey: "<unavailable>",
+        expectedTypeKey: "hydra-cart-checkout",
+      },
+    });
+  });
+});
+
+describe("hasPersistedCheckoutContact", () => {
+  it("requires matching checkout details and customer email", () => {
+    expect(
+      hasPersistedCheckoutContact(
+        {
+          customerEmail: "ada@example.com",
+          checkoutDetails: {
+            contact,
+          },
+        },
+        contact
+      )
+    ).toBe(true);
+
+    expect(
+      hasPersistedCheckoutContact(
+        {
+          customerEmail: null,
+          checkoutDetails: {
+            contact,
+          },
+        },
+        contact
+      )
+    ).toBe(false);
+  });
+});

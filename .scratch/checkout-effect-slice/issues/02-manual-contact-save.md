@@ -1,6 +1,6 @@
 # Manual Contact save
 
-Status: ready-for-agent
+Status: complete
 Type: AFK
 
 ## Parent
@@ -15,27 +15,33 @@ The mutation should be available through `CheckoutSession.saveContact`, then exp
 
 ## Acceptance criteria
 
-- [ ] `saveContact` supports Manual Contact Source.
-- [ ] Manual Contact save is implemented as `CheckoutSession.saveContact` outside the HTTP boundary.
-- [ ] Server action or in-process application adapters can call `CheckoutSession.saveContact` directly.
-- [ ] The HTTP API exposes current-checkout Contact save behavior through a thin adapter.
-- [ ] HTTP Contact save obtains Checkout Scope from resolved request context, not from trusted customer or cart identity headers.
-- [ ] Contact save input includes the current cart reference needed for optimistic concurrency.
-- [ ] Contact save resolves the current Cart from Checkout Scope and does not trust a submitted cart id as the authorization boundary.
-- [ ] Manual Contact input requires email address, first name, and last name.
-- [ ] Phone number is optional Buyer Contact.
-- [ ] Saving Manual Contact records Buyer Contact details on the Cart.
-- [ ] Repeated saves with the same Manual Contact details are idempotent replacement-style mutations.
-- [ ] Contact completion derives from the saved Buyer Contact details and current Contact Source Policy.
-- [ ] Manual Contact Source can be allowed or disallowed by current checkout rules.
-- [ ] A disallowed Manual save fails immediately with a structured Checkout Mutation Failure.
-- [ ] Invalid Manual Contact input fails with structured schema/decode errors.
-- [ ] Provider failures and version conflicts map to structured Checkout Mutation Failures.
-- [ ] The checkout UI can submit Manual Contact and rerender Checkout State after success.
-- [ ] After a successful Contact mutation, clients rerender or rerun Checkout State when they need recomputed state.
-- [ ] Tests cover successful Manual save, idempotent repeated save, invalid input, disallowed source, provider failure, and version conflict.
-- [ ] Adapter tests cover structured failure mapping for the Contact save path.
-- [ ] Relevant typecheck and test commands pass.
+- [x] `saveContact` supports Manual Contact Source.
+- [x] Manual Contact save is implemented as `CheckoutSession.saveContact` outside the HTTP boundary.
+- [x] Server action or in-process application adapters can call `CheckoutSession.saveContact` directly.
+- [x] The HTTP API exposes current-checkout Contact save behavior through a thin adapter.
+- [x] HTTP Contact save obtains Checkout Scope from resolved request context, not from trusted customer or cart identity headers.
+- [x] Contact save input includes the current cart reference needed for optimistic concurrency.
+- [x] Contact save resolves the current Cart from Checkout Scope and does not trust a submitted cart id as the authorization boundary.
+- [x] Manual Contact input requires email address, first name, and last name.
+- [x] Phone number is optional Buyer Contact.
+- [x] Saving Manual Contact records Buyer Contact details on the Cart.
+- [x] Repeated saves with the same Manual Contact details are idempotent replacement-style mutations.
+- [x] Contact completion derives from the saved Buyer Contact details and current Contact Source Policy.
+- [x] Manual Contact Source can be allowed or disallowed by current checkout rules.
+- [x] A disallowed Manual save fails immediately with a structured Checkout Mutation Failure.
+- [x] Invalid Manual Contact input fails with structured schema/decode errors.
+- [x] Provider failures and version conflicts map to structured Checkout Mutation Failures.
+- [x] The checkout UI can submit Manual Contact and rerender Checkout State after success.
+- [x] After a successful Contact mutation, clients rerender or rerun Checkout State when they need recomputed state.
+- [x] Tests cover successful Manual save, idempotent repeated save, invalid input, disallowed source, provider failure, and version conflict.
+- [x] Adapter tests cover structured failure mapping for the Contact save path.
+- [x] Relevant typecheck and test commands pass.
+
+## Implementation notes
+
+- Commercetools stores Manual Buyer Contact on the Cart as `customerEmail` plus escaped JSON in a `checkoutContact` string custom field on cart custom type `hydra-cart-checkout`.
+- The provider project must have `hydra-cart-checkout` with a string field named `checkoutContact`; provisioning that type is outside this buyer-path slice.
+- HTTP `POST /checkout/contact` returns recomputed `CheckoutState` after save.
 
 ## Blocked by
 
