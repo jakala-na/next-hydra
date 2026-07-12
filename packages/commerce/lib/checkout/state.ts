@@ -62,7 +62,7 @@ const isDeliveryDetailsComplete = (details: CheckoutDetails) => {
   const shippingAddress = details.deliveryDetails?.shippingAddress;
 
   return Boolean(
-    shippingAddress?.streetName.trim() &&
+    shippingAddress?.addressLine1.trim() &&
       shippingAddress.postalCode.trim() &&
       shippingAddress.city.trim() &&
       shippingAddress.country.trim()

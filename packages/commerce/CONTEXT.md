@@ -130,7 +130,21 @@ _Avoid_: Contact information
 
 **Shipping Address**:
 The delivery destination selected or entered during Checkout.
+Uses **Address Line 1** for the primary address text and optional **Address Line 2** for secondary address text.
 _Avoid_: Shipping information
+
+**Address Line 1**:
+The primary postal address line used by Checkout.
+_Avoid_: Street Name, Street Number
+
+**Address Line 2**:
+Optional secondary postal address text used by Checkout.
+_Avoid_: Additional Street Info
+
+**Country Code**:
+An ISO 3166-1 alpha-2 code identifying the Shipping Address country.
+Store or Checkout availability is evaluated separately from structural country-code validity.
+_Avoid_: Country name, arbitrary region string
 
 **Delivery Details Source**:
 The selected strategy for resolving Shipping Address, such as manual entry or address book.

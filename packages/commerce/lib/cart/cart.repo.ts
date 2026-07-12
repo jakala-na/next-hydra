@@ -1,7 +1,11 @@
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
 import { Option, Schema } from "effect";
 import type { FragmentOf } from "gql.tada";
-import { CheckoutContact, type CheckoutDetails } from "../../domain/checkout";
+import {
+  CheckoutContact,
+  type CheckoutDetails,
+  ShippingAddress,
+} from "../../domain/checkout";
 import { graphql, readFragment } from "../../graphql";
 import { graphqlClient } from "../client/graphql-client";
 import {
@@ -15,6 +19,7 @@ import {
   buildSaveCheckoutContactActions,
   CHECKOUT_CONTACT_CUSTOM_FIELD_NAME,
 } from "./checkout-contact-actions";
+import { buildSaveCheckoutDeliveryDetailsActions } from "./checkout-delivery-details-actions";
 import type {
   AddToCartRepoParams,
   CartRepository,
@@ -22,6 +27,7 @@ import type {
   CreateCartRepoParams,
   RemoveItemFromCartParams,
   SaveCheckoutContactParams,
+  SaveCheckoutDeliveryDetailsParams,
 } from "./types";
 
 const client = graphqlClient();
@@ -30,6 +36,31 @@ type RawCustomField = {
   readonly name: string;
   readonly value: unknown;
 };
+
+const CommerceShippingAddress = Schema.Struct({
+  streetName: Schema.NullOr(Schema.String),
+  postalCode: Schema.NullOr(Schema.String),
+  city: Schema.NullOr(Schema.String),
+  country: Schema.String,
+  additionalStreetInfo: Schema.NullOr(Schema.String),
+  region: Schema.NullOr(Schema.String),
+});
+
+const decodeShippingAddress = (value: unknown) =>
+  Schema.decodeUnknownOption(CommerceShippingAddress)(value).pipe(
+    Option.flatMap((address) =>
+      Schema.decodeUnknownOption(ShippingAddress)({
+        addressLine1: address.streetName,
+        postalCode: address.postalCode,
+        city: address.city,
+        country: address.country,
+        ...(address.additionalStreetInfo === null
+          ? {}
+          : { addressLine2: address.additionalStreetInfo }),
+        ...(address.region === null ? {} : { region: address.region }),
+      })
+    )
+  );
 
 const parseCustomJson = (value: unknown) => {
   if (typeof value !== "string") {
@@ -59,11 +90,22 @@ const getCheckoutContactFromCustomFields = (
 };
 
 const getCheckoutDetails = (
-  customFields: readonly RawCustomField[] | null | undefined
+  customFields: readonly RawCustomField[] | null | undefined,
+  shippingAddress: ShippingAddress | null
 ): CheckoutDetails => {
   const contact = getCheckoutContactFromCustomFields(customFields);
 
-  return contact === undefined ? {} : { contact };
+  return {
+    ...(contact === undefined ? {} : { contact }),
+    ...(shippingAddress === null
+      ? {}
+      : {
+          deliveryDetails: {
+            source: "manual" as const,
+            shippingAddress,
+          },
+        }),
+  };
 };
 
 const CartFragment = graphql(
@@ -73,6 +115,14 @@ const CartFragment = graphql(
     version
     country
     customerEmail
+    shippingAddress {
+      streetName
+      postalCode
+      city
+      country
+      additionalStreetInfo
+      region
+    }
     store {
       key
     }
@@ -131,6 +181,9 @@ const reshapeCart = (
   locale: Locale
 ): Cart => {
   const parsedData = readFragment(CartFragment, fragment);
+  const shippingAddress = Option.getOrNull(
+    decodeShippingAddress(parsedData.shippingAddress)
+  );
 
   const lineItems: LineItem[] = parsedData.lineItems.map((item) => ({
     id: item.id,
@@ -164,7 +217,11 @@ const reshapeCart = (
   return {
     ...parsedData,
     lineItems,
-    checkoutDetails: getCheckoutDetails(parsedData.custom?.customFieldsRaw),
+    checkoutDetails: getCheckoutDetails(
+      parsedData.custom?.customFieldsRaw,
+      shippingAddress
+    ),
+    shippingAddress,
     totalPrice: {
       centAmount: parsedData.totalPrice.centAmount,
       currencyCode: parsedData.totalPrice.currencyCode as CurrencyCode,
@@ -282,6 +339,20 @@ const RemoveItemFromCartMutation = graphql(
 const SaveCheckoutContactMutation = graphql(
   `
   mutation SaveCheckoutContact($id: String!, $version: Long!, $actions: [CartUpdateAction!]!, $locale: Locale!) {
+    updateCart(
+      id: $id
+      version: $version
+      actions: $actions
+    ) {
+      ...CartFields
+    }
+  }`,
+  [CartFragment]
+);
+
+const SaveCheckoutDeliveryDetailsMutation = graphql(
+  `
+  mutation SaveCheckoutDeliveryDetails($id: String!, $version: Long!, $actions: [CartUpdateAction!]!, $locale: Locale!) {
     updateCart(
       id: $id
       version: $version
@@ -507,6 +578,55 @@ export const saveCheckoutContact = async (
   return Ok(reshapeCart(result.data.updateCart, params.locale));
 };
 
+export const saveCheckoutDeliveryDetails = async (
+  params: SaveCheckoutDeliveryDetailsParams
+): Promise<ActionResult<Cart>> => {
+  const result = await client.mutation(SaveCheckoutDeliveryDetailsMutation, {
+    id: params.cart.id,
+    version: params.cart.version,
+    actions: buildSaveCheckoutDeliveryDetailsActions(params.deliveryDetails),
+    locale: params.locale,
+  });
+
+  if (result.error?.graphQLErrors.some(hasConcurrentModificationError)) {
+    return Err(
+      domainError(
+        "CONFLICT",
+        "Checkout Cart changed before Delivery Details could be saved"
+      )
+    );
+  }
+
+  if (result.error?.networkError) {
+    return Err(
+      domainError(
+        "NETWORK_ERROR",
+        `Failed to save checkout delivery details: ${result.error.message}`
+      )
+    );
+  }
+
+  if (result.error) {
+    return Err(
+      domainError(
+        "UNKNOWN",
+        `Failed to save checkout delivery details: ${result.error.message}`
+      )
+    );
+  }
+
+  if (!result.data?.updateCart) {
+    return Err(
+      domainError(
+        "UNKNOWN",
+        "Failed to save checkout delivery details: No data returned"
+      )
+    );
+  }
+
+  return Ok(reshapeCart(result.data.updateCart, params.locale));
+};
+
 export const cartRepo: CartRepository = {
   getCustomerActiveCart,
   getCartById,
@@ -515,4 +635,5 @@ export const cartRepo: CartRepository = {
   changeItemQuantity,
   removeItemFromCart,
   saveCheckoutContact,
+  saveCheckoutDeliveryDetails,
 };

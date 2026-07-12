@@ -8,7 +8,9 @@ import {
 } from "@repo/commerce/domain/cart";
 import {
   type CheckoutContact,
+  type CheckoutDeliveryDetails,
   CheckoutMutationProviderFailure,
+  CountryCode,
 } from "@repo/commerce/domain/checkout";
 import { CommerceCustomerId } from "@repo/commerce/domain/commerce-account";
 import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
@@ -153,6 +155,49 @@ const saveContactRequest = (
     body: JSON.stringify(payload),
   });
 
+const manualDeliveryDetails: CheckoutDeliveryDetails = {
+  source: "manual",
+  shippingAddress: {
+    addressLine1: "123 Analytical Engine Way",
+    addressLine2: "Suite 42",
+    postalCode: "SW1A 1AA",
+    city: "London",
+    country: CountryCode.make("GB"),
+    region: "Greater London",
+  },
+};
+
+const saveDeliveryDetailsPayload = ({
+  cartId = "cart-1",
+  version = 7,
+  deliveryDetails = manualDeliveryDetails,
+}: {
+  readonly cartId?: string;
+  readonly version?: number;
+  readonly deliveryDetails?: CheckoutDeliveryDetails;
+} = {}) => ({
+  cart: {
+    id: cartId,
+    version,
+  },
+  deliveryDetails,
+});
+
+const saveDeliveryDetailsRequest = (
+  payload: unknown = saveDeliveryDetailsPayload(),
+  headers?: Record<string, string>
+) =>
+  new Request("http://api.test/checkout/delivery-details", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-context-locale": "en-US",
+      "x-context-anonymous-cart-id": "cart-1",
+      ...headers,
+    },
+    body: JSON.stringify(payload),
+  });
+
 const anonymousCartCookieHeader = ({
   cartId = "cart-1",
   currency = "USD",
@@ -185,11 +230,15 @@ const makeCheckoutLayer = (
     readonly saveContactFailure?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
     >[0]["saveContactFailure"];
+    readonly saveDeliveryDetailsFailure?: Parameters<
+      typeof CheckoutSession.layerMemoryFrom
+    >[0]["saveDeliveryDetailsFailure"];
   } = {}
 ) => {
   const {
     allowedContactSources = ["manual", "customerProfile"],
     saveContactFailure,
+    saveDeliveryDetailsFailure,
   } = input;
   const currentCart = "currentCart" in input ? input.currentCart : cart();
 
@@ -197,6 +246,9 @@ const makeCheckoutLayer = (
     ...(currentCart === undefined ? {} : { currentCart }),
     allowedContactSources,
     ...(saveContactFailure === undefined ? {} : { saveContactFailure }),
+    ...(saveDeliveryDetailsFailure === undefined
+      ? {}
+      : { saveDeliveryDetailsFailure }),
   });
 };
 
@@ -454,6 +506,182 @@ test("POST /checkout/contact maps an unavailable Cart to checkout not found", as
       _tag: "CheckoutApiNotFound",
       code: "checkout.notFound",
       message: "Checkout requires an existing Cart",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details saves a Manual Shipping Address and returns recomputed checkout state", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.details.deliveryDetails).toEqual(manualDeliveryDetails);
+    expect(body.steps[1]).toMatchObject({
+      id: "deliveryDetails",
+      status: "complete",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details is idempotent for the same Manual Shipping Address", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const firstResponse = await handler(
+      saveDeliveryDetailsRequest(),
+      emptyContext()
+    );
+    const firstBody = await firstResponse.json();
+    const secondResponse = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({ version: firstBody.cart.version })
+      ),
+      emptyContext()
+    );
+    const secondBody = await secondResponse.json();
+
+    expect(firstResponse.status).toBe(HTTP_OK);
+    expect(secondResponse.status).toBe(HTTP_OK);
+    expect(secondBody.cart.version).toBe(firstBody.cart.version);
+    expect(secondBody.details.deliveryDetails).toEqual(manualDeliveryDetails);
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details obtains Checkout Scope from request context, not payload cart id", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({ cartId: "cart-from-payload" })
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_CONFLICT);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiConflict",
+      code: "checkout.versionConflict",
+      message: "Checkout Cart changed before Delivery Details could be saved",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details ignores caller-supplied customer id headers", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(undefined, {
+        "x-context-customer-id": "customer-spoof",
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.scope).toMatchObject({
+      channel: "storefrontAnonymous",
+      locale: "en-US",
+      anonymousCartId: "cart-1",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details maps invalid Manual Shipping Address input to bad request", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            ...manualDeliveryDetails,
+            shippingAddress: {
+              ...manualDeliveryDetails.shippingAddress,
+              city: "",
+            },
+          },
+        })
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiBadRequest",
+      code: "checkout.badRequest",
+    });
+    expect(body.message).toContain("city");
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details rejects invalid ISO country codes at the schema boundary", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest({
+        cart: { id: "cart-1", version: 7 },
+        deliveryDetails: {
+          ...manualDeliveryDetails,
+          shippingAddress: {
+            ...manualDeliveryDetails.shippingAddress,
+            country: "ZZ",
+          },
+        },
+      }),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details maps provider failures to internal errors", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      saveDeliveryDetailsFailure: new CheckoutMutationProviderFailure({
+        message: "Commercetools update failed",
+        operation: "checkout.deliveryDetails.save",
+      }),
+    })
+  );
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiError",
+      code: "checkout.internal",
+      message: "Failed to save checkout delivery details",
     });
   } finally {
     await dispose();

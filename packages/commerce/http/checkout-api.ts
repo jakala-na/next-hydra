@@ -10,6 +10,7 @@ import { CartId } from "../domain/cart";
 import {
   CheckoutCartReference,
   CheckoutContact,
+  CheckoutDeliveryDetails,
   CheckoutLocale,
   type CheckoutScope,
   CheckoutState,
@@ -65,6 +66,13 @@ export class SaveCheckoutContactRequest extends Schema.Class<SaveCheckoutContact
   contact: CheckoutContact,
 }) {}
 
+export class SaveCheckoutDeliveryDetailsRequest extends Schema.Class<SaveCheckoutDeliveryDetailsRequest>(
+  "SaveCheckoutDeliveryDetailsRequest"
+)({
+  cart: CheckoutCartReference,
+  deliveryDetails: CheckoutDeliveryDetails,
+}) {}
+
 const CheckoutApiErrors = [
   CheckoutApiBadRequest,
   CheckoutApiConflict,
@@ -99,6 +107,14 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
     HttpApiEndpoint.post("saveContact", "/checkout/contact", {
       headers: CheckoutRequestHeaders,
       payload: SaveCheckoutContactRequest,
+      success: CheckoutState,
+      error: CheckoutApiErrors,
+    })
+  )
+  .add(
+    HttpApiEndpoint.post("saveDeliveryDetails", "/checkout/delivery-details", {
+      headers: CheckoutRequestHeaders,
+      payload: SaveCheckoutDeliveryDetailsRequest,
       success: CheckoutState,
       error: CheckoutApiErrors,
     })

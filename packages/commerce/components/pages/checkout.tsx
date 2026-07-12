@@ -17,6 +17,7 @@ import { checkoutRuntimeLayerCommercetools } from "../../lib/checkout/commerceto
 import { toCheckoutScope } from "../../lib/checkout/request-context";
 import { storeService } from "../../lib/store/store.service";
 import { CheckoutContactForm } from "./checkout-contact-form";
+import { CheckoutDeliveryDetailsForm } from "./checkout-delivery-details-form";
 
 const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
 
@@ -80,6 +81,26 @@ function CheckoutSteps({ state }: { readonly state: CheckoutState }) {
 }
 
 function ActiveStep({ state }: { readonly state: CheckoutState }) {
+  let content = <CheckoutSteps state={state} />;
+
+  if (state.activeStep === "contact") {
+    content = (
+      <CheckoutContactForm
+        buyerContact={state.details.contact?.buyerContact}
+        cartId={state.cart.id}
+        cartVersion={state.cart.version}
+      />
+    );
+  } else if (state.activeStep === "deliveryDetails") {
+    content = (
+      <CheckoutDeliveryDetailsForm
+        cartId={state.cart.id}
+        cartVersion={state.cart.version}
+        shippingAddress={state.details.deliveryDetails?.shippingAddress}
+      />
+    );
+  }
+
   return (
     <section className="min-h-80 rounded-md border border-border p-6 sm:col-span-3">
       <div className="mb-6 border-border border-b pb-4">
@@ -88,15 +109,7 @@ function ActiveStep({ state }: { readonly state: CheckoutState }) {
           {stepLabels[state.activeStep]}
         </h1>
       </div>
-      {state.activeStep === "contact" ? (
-        <CheckoutContactForm
-          buyerContact={state.details.contact?.buyerContact}
-          cartId={state.cart.id}
-          cartVersion={state.cart.version}
-        />
-      ) : (
-        <CheckoutSteps state={state} />
-      )}
+      {content}
     </section>
   );
 }

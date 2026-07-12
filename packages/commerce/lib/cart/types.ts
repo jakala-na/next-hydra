@@ -1,5 +1,8 @@
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
-import type { CheckoutContact } from "../../domain/checkout";
+import type {
+  CheckoutContact,
+  CheckoutDeliveryDetails,
+} from "../../domain/checkout";
 import type { Cart } from "../types";
 import type { ActionResult } from "../utils/errors";
 import type { PolicyViolation } from "./policy/cart-policy.types";
@@ -42,6 +45,12 @@ export type SaveCheckoutContactParams = {
   locale: Locale;
 };
 
+export type SaveCheckoutDeliveryDetailsParams = {
+  cart: Cart;
+  deliveryDetails: CheckoutDeliveryDetails;
+  locale: Locale;
+};
+
 /**
  * Cart with policy validation issues
  */
@@ -68,6 +77,9 @@ export interface CartRepository {
   saveCheckoutContact(
     params: SaveCheckoutContactParams
   ): Promise<ActionResult<Cart>>;
+  saveCheckoutDeliveryDetails(
+    params: SaveCheckoutDeliveryDetailsParams
+  ): Promise<ActionResult<Cart>>;
 }
 
 export interface CartService {
@@ -86,5 +98,8 @@ export interface CartService {
   ): Promise<ActionResult<Cart>>;
   saveCheckoutContact(
     params: SaveCheckoutContactParams
+  ): Promise<ActionResult<Cart>>;
+  saveCheckoutDeliveryDetails(
+    params: SaveCheckoutDeliveryDetailsParams
   ): Promise<ActionResult<Cart>>;
 }

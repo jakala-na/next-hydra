@@ -1,4 +1,5 @@
-import { Schema } from "effect";
+import { ISO_COUNTRY_CODES } from "@repo/i18n/countries";
+import { Schema, SchemaTransformation } from "effect";
 import {
   CartForCheckout,
   CartId,
@@ -88,12 +89,22 @@ export const BuyingContext = Schema.Struct({
 });
 export type BuyingContext = typeof BuyingContext.Type;
 
+export const CountryCode = Schema.Literals(ISO_COUNTRY_CODES).pipe(
+  Schema.brand("CheckoutCountryCode")
+);
+export type CountryCode = typeof CountryCode.Type;
+
+export const CountryCodeFromString = Schema.Trim.pipe(
+  Schema.decodeTo(Schema.String, SchemaTransformation.toUpperCase()),
+  Schema.decodeTo(CountryCode)
+);
+
 export const ShippingAddress = Schema.Struct({
-  streetName: Schema.String,
+  addressLine1: Schema.String,
   postalCode: Schema.String,
   city: Schema.String,
-  country: Schema.String,
-  additionalStreetInfo: Schema.optional(Schema.String),
+  country: CountryCode,
+  addressLine2: Schema.optional(Schema.String),
   region: Schema.optional(Schema.String),
 });
 export type ShippingAddress = typeof ShippingAddress.Type;

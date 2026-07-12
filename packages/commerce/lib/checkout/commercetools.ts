@@ -4,7 +4,6 @@ import {
   type CheckoutBuyerContext,
   type CheckoutDetails,
   CheckoutMutationProviderFailure,
-  CheckoutMutationUnsupported,
   CheckoutProviderFailure,
   type CheckoutScope,
   CheckoutUnavailable,
@@ -13,6 +12,7 @@ import {
 import { cartService } from "../cart/cart.service";
 import { decodeCartForCheckout } from "../cart/cart-for-checkout";
 import { hasPersistedCheckoutContact } from "../cart/checkout-contact-actions";
+import { hasPersistedCheckoutDeliveryDetails } from "../cart/checkout-delivery-details-actions";
 import { validateCartPolicies } from "../cart/utils/validate-cart";
 import { StoreContexts } from "../store/store-contexts";
 import type { Cart } from "../types";
@@ -20,11 +20,14 @@ import type { ActionResult } from "../utils/errors";
 import { isOk } from "../utils/errors";
 import {
   type CheckoutSaveContactFailure,
+  type CheckoutSaveDeliveryDetailsFailure,
   CheckoutSession,
   contactSourceUnavailable,
   ensureCurrentCartReference,
   normalizeManualContact,
+  normalizeManualDeliveryDetails,
   type SaveCheckoutContactInput,
+  type SaveCheckoutDeliveryDetailsInput,
 } from "./checkout-session";
 import { allowedContactSourcesForCheckout } from "./contact-source-policy";
 import { buildCheckoutState } from "./state";
@@ -150,12 +153,6 @@ const evaluateCartPolicies = (scope: CheckoutScope, cart: Cart) =>
       }),
   });
 
-const unsupportedMutation = (operation: "saveDeliveryDetails") =>
-  new CheckoutMutationUnsupported({
-    message: `${operation} is implemented by a later Checkout Session slice`,
-    operation,
-  });
-
 const saveCheckoutContact = (
   input: SaveCheckoutContactInput
 ): Effect.Effect<void, CheckoutSaveContactFailure> =>
@@ -220,6 +217,66 @@ const saveCheckoutContact = (
     );
   });
 
+const saveCheckoutDeliveryDetails = (
+  input: SaveCheckoutDeliveryDetailsInput
+): Effect.Effect<void, CheckoutSaveDeliveryDetailsFailure> =>
+  Effect.gen(function* () {
+    const deliveryDetails = yield* normalizeManualDeliveryDetails(
+      input.deliveryDetails
+    );
+    const { cart, providerCart } = yield* getCurrentCart(input.scope).pipe(
+      Effect.mapError((error) =>
+        error._tag === "CheckoutUnavailable"
+          ? error
+          : new CheckoutMutationProviderFailure({
+              message: error.message,
+              operation: error.operation,
+            })
+      )
+    );
+    yield* ensureCurrentCartReference(cart, input.cart, "Delivery Details");
+
+    if (hasPersistedCheckoutDeliveryDetails(providerCart, deliveryDetails)) {
+      return;
+    }
+
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        cartService.saveCheckoutDeliveryDetails({
+          cart: providerCart,
+          deliveryDetails,
+          locale: localeFromScope(input.scope),
+        }),
+      catch: (cause) =>
+        new CheckoutMutationProviderFailure({
+          message: "Failed to save checkout delivery details",
+          operation: "checkout.deliveryDetails.save",
+          cause,
+        }),
+    });
+
+    if (isOk(result)) {
+      return;
+    }
+
+    if (result.error.code === "CONFLICT") {
+      return yield* Effect.fail(
+        new CheckoutVersionConflict({
+          message: result.error.message,
+          cartId: cart.id,
+        })
+      );
+    }
+
+    return yield* Effect.fail(
+      new CheckoutMutationProviderFailure({
+        message: result.error.message,
+        operation: "checkout.deliveryDetails.save",
+        cause: result.error,
+      })
+    );
+  });
+
 export const layerCommercetoolsCheckoutSession = Layer.effect(
   CheckoutSession,
   Effect.gen(function* () {
@@ -247,8 +304,7 @@ export const layerCommercetoolsCheckoutSession = Layer.effect(
           });
         }),
       saveContact: saveCheckoutContact,
-      saveDeliveryDetails: () =>
-        Effect.fail(unsupportedMutation("saveDeliveryDetails")),
+      saveDeliveryDetails: saveCheckoutDeliveryDetails,
     });
   })
 );

@@ -1,6 +1,6 @@
 # Manual Delivery Details save
 
-Status: ready-for-agent
+Status: complete
 Type: AFK
 
 ## Parent
@@ -15,25 +15,33 @@ The mutation should be available through `CheckoutSession.saveDeliveryDetails`, 
 
 ## Acceptance criteria
 
-- [ ] `saveDeliveryDetails` supports Manual Delivery Details Source.
-- [ ] Manual Delivery Details save is implemented as `CheckoutSession.saveDeliveryDetails` outside the HTTP boundary.
-- [ ] Server action or in-process application adapters can call `CheckoutSession.saveDeliveryDetails` directly.
-- [ ] The HTTP API exposes current-checkout Delivery Details save behavior through a thin adapter.
-- [ ] HTTP Delivery Details save obtains Checkout Scope from resolved request context, not from trusted customer or cart identity headers.
-- [ ] Delivery Details save input includes the current cart reference needed for optimistic concurrency.
-- [ ] Delivery Details save resolves the current Cart from Checkout Scope and does not trust a submitted cart id as the authorization boundary.
-- [ ] Manual Delivery Details input accepts a Shipping Address.
-- [ ] Delivery Details completion depends on the resolved Shipping Address.
-- [ ] Structurally valid Shipping Address details are saved to the Cart.
-- [ ] A structurally valid Shipping Address can be saved even if it later produces a Checkout Violation.
-- [ ] Repeated saves with the same Manual Shipping Address are idempotent replacement-style mutations.
-- [ ] Invalid Shipping Address input fails with structured schema/decode errors.
-- [ ] Provider failures and version conflicts map to structured Checkout Mutation Failures.
-- [ ] The checkout UI can submit Manual Delivery Details and rerender Checkout State after success.
-- [ ] After a successful Delivery Details mutation, clients rerender or rerun Checkout State when they need recomputed state.
-- [ ] Tests cover successful Manual save, idempotent repeated save, invalid input, provider failure, version conflict, and policy-violating-but-structurally-valid address save.
-- [ ] Adapter tests cover structured failure mapping for the Delivery Details save path.
-- [ ] Relevant typecheck and test commands pass.
+- [x] `saveDeliveryDetails` supports Manual Delivery Details Source.
+- [x] Manual Delivery Details save is implemented as `CheckoutSession.saveDeliveryDetails` outside the HTTP boundary.
+- [x] Server action or in-process application adapters can call `CheckoutSession.saveDeliveryDetails` directly.
+- [x] The HTTP API exposes current-checkout Delivery Details save behavior through a thin adapter.
+- [x] HTTP Delivery Details save obtains Checkout Scope from resolved request context, not from trusted customer or cart identity headers.
+- [x] Delivery Details save input includes the current cart reference needed for optimistic concurrency.
+- [x] Delivery Details save resolves the current Cart from Checkout Scope and does not trust a submitted cart id as the authorization boundary.
+- [x] Manual Delivery Details input accepts a Shipping Address.
+- [x] Delivery Details completion depends on the resolved Shipping Address.
+- [x] Structurally valid Shipping Address details are saved to the Cart.
+- [x] A structurally valid Shipping Address can be saved even if it later produces a Checkout Violation.
+- [x] Repeated saves with the same Manual Shipping Address are idempotent replacement-style mutations.
+- [x] Invalid Shipping Address input fails with structured schema/decode errors.
+- [x] Provider failures and version conflicts map to structured Checkout Mutation Failures.
+- [x] The checkout UI can submit Manual Delivery Details and rerender Checkout State after success.
+- [x] After a successful Delivery Details mutation, clients rerender or rerun Checkout State when they need recomputed state.
+- [x] Tests cover successful Manual save, idempotent repeated save, invalid input, provider failure, version conflict, and policy-violating-but-structurally-valid address save.
+- [x] Adapter tests cover structured failure mapping for the Delivery Details save path.
+- [x] Relevant typecheck and test commands pass.
+
+## Implementation notes
+
+- Commercetools stores the resolved Shipping Address in the Cart's standard `shippingAddress` field via a replacement-style `setShippingAddress` update action.
+- Checkout names the provider-neutral Shipping Address fields `addressLine1` and `addressLine2`; the Commercetools adapter maps them to `streetName` and `additionalStreetInfo` and does not use `streetNumber`.
+- Shipping Address country uses a branded ISO 3166-1 alpha-2 schema backed by the shared `@repo/i18n/countries` list; form input is trimmed and uppercased before membership validation, while HTTP input remains strict.
+- HTTP `POST /checkout/delivery-details` and the Next.js server action both call `CheckoutSession.saveDeliveryDetails`, then rerun or revalidate Checkout State.
+- Checkout reconstructs Manual Delivery Details from a structurally valid Cart Shipping Address; invalid or incomplete provider addresses leave Delivery Details incomplete.
 
 ## Blocked by
 

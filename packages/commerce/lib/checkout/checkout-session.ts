@@ -6,11 +6,11 @@ import {
   type CheckoutContact,
   type CheckoutContactSource,
   type CheckoutDeliveryDetails,
+  type CheckoutDeliveryDetailsSource,
   type CheckoutDetails,
   type CheckoutMutationFailure,
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
-  CheckoutMutationUnsupported,
   type CheckoutPolicyViolation,
   type CheckoutProviderFailure,
   type CheckoutScope,
@@ -41,9 +41,14 @@ export interface CheckoutSessionMemoryInput {
   readonly cartPolicyViolations?: readonly PolicyViolation[];
   readonly checkoutPolicyViolations?: readonly CheckoutPolicyViolation[];
   readonly saveContactFailure?: CheckoutSaveContactFailure;
+  readonly saveDeliveryDetailsFailure?: CheckoutSaveDeliveryDetailsFailure;
 }
 
 export type CheckoutSaveContactFailure =
+  | CheckoutMutationFailure
+  | CheckoutUnavailable;
+
+export type CheckoutSaveDeliveryDetailsFailure =
   | CheckoutMutationFailure
   | CheckoutUnavailable;
 
@@ -57,20 +62,23 @@ export const defaultAllowedContactSources = [
   "customerProfile",
 ] as const satisfies readonly CheckoutContactSource[];
 
-const unsupportedMutation = (
-  operation: "saveContact" | "saveDeliveryDetails"
-) =>
-  new CheckoutMutationUnsupported({
-    message: `${operation} is implemented by a later Checkout Session slice`,
-    operation,
-  });
-
 export const contactSourceUnavailable = (source: CheckoutContactSource) =>
   new CheckoutMutationSourceUnavailable({
     message:
       source === "manual"
         ? "Manual Contact Source is unavailable for this checkout"
         : `${source} Contact Source is unavailable for this checkout`,
+    source,
+  });
+
+export const deliveryDetailsSourceUnavailable = (
+  source: CheckoutDeliveryDetailsSource
+) =>
+  new CheckoutMutationSourceUnavailable({
+    message:
+      source === "manual"
+        ? "Manual Delivery Details Source is unavailable for this checkout"
+        : `${source} Delivery Details Source is unavailable for this checkout`,
     source,
   });
 
@@ -129,9 +137,75 @@ export const contactsEqual = (
   left.buyerContact.lastName === right.buyerContact.lastName &&
   left.buyerContact.phoneNumber === right.buyerContact.phoneNumber;
 
+const requiredShippingAddressFieldError = (
+  field: keyof CheckoutDeliveryDetails["shippingAddress"]
+) =>
+  new CheckoutMutationSchemaFailure({
+    message: `Manual Shipping Address ${field} is required`,
+  });
+
+export const normalizeManualDeliveryDetails = (
+  deliveryDetails: CheckoutDeliveryDetails
+): Effect.Effect<
+  CheckoutDeliveryDetails,
+  CheckoutMutationSchemaFailure | CheckoutMutationSourceUnavailable
+> => {
+  if (deliveryDetails.source !== "manual") {
+    return Effect.fail(
+      deliveryDetailsSourceUnavailable(deliveryDetails.source)
+    );
+  }
+
+  const addressLine1 = deliveryDetails.shippingAddress.addressLine1.trim();
+  const postalCode = deliveryDetails.shippingAddress.postalCode.trim();
+  const city = deliveryDetails.shippingAddress.city.trim();
+  const country = deliveryDetails.shippingAddress.country;
+  const addressLine2 = deliveryDetails.shippingAddress.addressLine2?.trim();
+  const region = deliveryDetails.shippingAddress.region?.trim();
+
+  if (addressLine1.length === 0) {
+    return Effect.fail(requiredShippingAddressFieldError("addressLine1"));
+  }
+
+  if (postalCode.length === 0) {
+    return Effect.fail(requiredShippingAddressFieldError("postalCode"));
+  }
+
+  if (city.length === 0) {
+    return Effect.fail(requiredShippingAddressFieldError("city"));
+  }
+
+  return Effect.succeed({
+    source: "manual",
+    shippingAddress: {
+      addressLine1,
+      postalCode,
+      city,
+      country,
+      ...(addressLine2 === undefined || addressLine2.length === 0
+        ? {}
+        : { addressLine2 }),
+      ...(region === undefined || region.length === 0 ? {} : { region }),
+    },
+  });
+};
+
+export const deliveryDetailsEqual = (
+  left: CheckoutDeliveryDetails | undefined,
+  right: CheckoutDeliveryDetails
+) =>
+  left?.source === right.source &&
+  left.shippingAddress.addressLine1 === right.shippingAddress.addressLine1 &&
+  left.shippingAddress.postalCode === right.shippingAddress.postalCode &&
+  left.shippingAddress.city === right.shippingAddress.city &&
+  left.shippingAddress.country === right.shippingAddress.country &&
+  left.shippingAddress.addressLine2 === right.shippingAddress.addressLine2 &&
+  left.shippingAddress.region === right.shippingAddress.region;
+
 export const ensureCurrentCartReference = (
   currentCart: CartForCheckout,
-  submittedCart: CheckoutCartReference
+  submittedCart: CheckoutCartReference,
+  detailName: "Contact" | "Delivery Details" = "Contact"
 ) => {
   if (
     currentCart.id !== submittedCart.id ||
@@ -139,7 +213,7 @@ export const ensureCurrentCartReference = (
   ) {
     return Effect.fail(
       new CheckoutVersionConflict({
-        message: "Checkout Cart changed before Contact could be saved",
+        message: `Checkout Cart changed before ${detailName} could be saved`,
         cartId: currentCart.id,
       })
     );
@@ -162,7 +236,7 @@ export class CheckoutSession extends Context.Service<
     ) => Effect.Effect<void, CheckoutSaveContactFailure>;
     readonly saveDeliveryDetails: (
       input: SaveCheckoutDeliveryDetailsInput
-    ) => Effect.Effect<void, CheckoutMutationUnsupported>;
+    ) => Effect.Effect<void, CheckoutSaveDeliveryDetailsFailure>;
   }
 >()("@repo/commerce/checkout/CheckoutSession") {
   static readonly getCurrent = Effect.fn("CheckoutSession.getCurrent")(
@@ -191,6 +265,7 @@ export class CheckoutSession extends Context.Service<
     cartPolicyViolations = [],
     checkoutPolicyViolations = [],
     saveContactFailure,
+    saveDeliveryDetailsFailure,
   }: CheckoutSessionMemoryInput) =>
     Layer.sync(CheckoutSession, () => {
       let activeCart = currentCart;
@@ -258,8 +333,48 @@ export class CheckoutSession extends Context.Service<
               version: cart.version + 1,
             };
           }),
-        saveDeliveryDetails: () =>
-          Effect.fail(unsupportedMutation("saveDeliveryDetails")),
+        saveDeliveryDetails: (input) =>
+          Effect.gen(function* () {
+            if (saveDeliveryDetailsFailure !== undefined) {
+              return yield* Effect.fail(saveDeliveryDetailsFailure);
+            }
+
+            if (activeCart === undefined) {
+              return yield* Effect.fail(
+                new CheckoutUnavailable({
+                  message: "Checkout requires an existing Cart",
+                  reason: "noCart",
+                })
+              );
+            }
+
+            const deliveryDetails = yield* normalizeManualDeliveryDetails(
+              input.deliveryDetails
+            );
+            const cart = yield* ensureCurrentCartReference(
+              activeCart,
+              input.cart,
+              "Delivery Details"
+            );
+
+            if (
+              deliveryDetailsEqual(
+                activeDetails.deliveryDetails,
+                deliveryDetails
+              )
+            ) {
+              return;
+            }
+
+            activeDetails = {
+              ...activeDetails,
+              deliveryDetails,
+            };
+            activeCart = {
+              ...cart,
+              version: cart.version + 1,
+            };
+          }),
       });
     });
 }

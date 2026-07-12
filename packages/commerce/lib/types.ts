@@ -3,7 +3,7 @@ import type {
   ProductTypeKey,
 } from "@repo/commerce/lib/product/mappers/attributes.ts";
 import type { CurrencyCode } from "@repo/i18n/types";
-import type { CheckoutDetails } from "../domain/checkout";
+import type { CheckoutDetails, ShippingAddress } from "../domain/checkout";
 
 // Define price explicitly since it's coming from potentially different fragments.
 export type Price = {
@@ -197,6 +197,7 @@ export type Cart = {
   totalLineItemQuantity: number;
   totalPrice: Money;
   checkoutDetails?: CheckoutDetails;
+  shippingAddress?: ShippingAddress | null;
   taxedPrice?: {
     totalNet: Money;
     totalGross: Money;
