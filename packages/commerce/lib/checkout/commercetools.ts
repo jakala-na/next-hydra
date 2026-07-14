@@ -18,6 +18,7 @@ import { StoreContexts } from "../store/store-contexts";
 import type { Cart } from "../types";
 import type { ActionResult } from "../utils/errors";
 import { isOk } from "../utils/errors";
+import { CheckoutPolicies } from "./checkout-policy";
 import {
   type CheckoutSaveContactFailure,
   type CheckoutSaveDeliveryDetailsFailure,
@@ -281,6 +282,7 @@ export const layerCommercetoolsCheckoutSession = Layer.effect(
   CheckoutSession,
   Effect.gen(function* () {
     const storeContexts = yield* StoreContexts;
+    const checkoutPolicies = yield* CheckoutPolicies;
 
     return CheckoutSession.of({
       getCurrent: (scope) =>
@@ -292,15 +294,22 @@ export const layerCommercetoolsCheckoutSession = Layer.effect(
             scope,
             providerCart
           );
+          const details = getCheckoutDetails(providerCart);
+          const buyerContext = getBuyerContext(scope);
+          const checkoutPolicyViolations = yield* checkoutPolicies.evaluate({
+            cart,
+            details,
+            buyerContext,
+          });
 
           return yield* buildCheckoutState({
             scope,
             cart,
-            details: getCheckoutDetails(providerCart),
-            buyerContext: getBuyerContext(scope),
+            details,
+            buyerContext,
             allowedContactSources: allowedContactSourcesForCheckout(scope),
             cartPolicyViolations,
-            checkoutPolicyViolations: [],
+            checkoutPolicyViolations,
           });
         }),
       saveContact: saveCheckoutContact,
@@ -311,5 +320,7 @@ export const layerCommercetoolsCheckoutSession = Layer.effect(
 
 export const checkoutRuntimeLayerCommercetools =
   layerCommercetoolsCheckoutSession.pipe(
-    Layer.provide(StoreContexts.layerCommercetools)
+    Layer.provide(
+      Layer.mergeAll(StoreContexts.layerCommercetools, CheckoutPolicies.layer)
+    )
   );

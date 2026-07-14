@@ -146,6 +146,10 @@ describe("buildCheckoutState", () => {
               policyName: "guest-max-limits",
               violationType: "MAX_GUEST_TOTAL_ITEMS_EXCEEDED",
               message: "Guest carts are limited to 50 total items.",
+              metadata: {
+                maxQuantity: 50,
+                excessQuantity: 1,
+              },
               affectedItems: [
                 {
                   productId: "product-1",
@@ -154,12 +158,22 @@ describe("buildCheckoutState", () => {
                 },
               ],
             },
+            {
+              policyName: "compatible-products",
+              violationType: "INCOMPATIBLE_CART_ITEMS",
+              message: "These Cart items cannot be purchased together.",
+            },
           ],
           checkoutPolicyViolations: [
             {
               code: "SHIPPING_ADDRESS_RESTRICTED",
-              message: "This address cannot receive one or more cart items.",
+              message: "The shipping address is restricted",
               targets: [{ type: "checkoutStep", step: "deliveryDetails" }],
+            },
+            {
+              code: "CHECKOUT_BLOCKED",
+              message: "Checkout is blocked",
+              targets: [],
             },
           ],
         });
@@ -169,6 +183,10 @@ describe("buildCheckoutState", () => {
             source: "cartPolicy",
             severity: "blocking",
             code: "MAX_GUEST_TOTAL_ITEMS_EXCEEDED",
+            parameters: {
+              maxQuantity: 50,
+              excessQuantity: 1,
+            },
             targets: [
               {
                 type: "cartItem",
@@ -179,12 +197,27 @@ describe("buildCheckoutState", () => {
             ],
           },
           {
+            source: "cartPolicy",
+            severity: "blocking",
+            code: "INCOMPATIBLE_CART_ITEMS",
+            targets: [{ type: "cart" }],
+          },
+          {
             source: "checkoutPolicy",
             severity: "blocking",
             code: "SHIPPING_ADDRESS_RESTRICTED",
             targets: [{ type: "checkoutStep", step: "deliveryDetails" }],
           },
+          {
+            source: "checkoutPolicy",
+            severity: "blocking",
+            code: "CHECKOUT_BLOCKED",
+            targets: [],
+          },
         ]);
+        for (const violation of state.violations) {
+          expect(violation).not.toHaveProperty("message");
+        }
       })
   );
 });

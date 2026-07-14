@@ -14,7 +14,20 @@ import {
   CheckoutLocale,
   type CheckoutScope,
   CheckoutState,
+  CheckoutViolation,
 } from "../domain/checkout";
+
+export const CheckoutApiViolation = Schema.Struct({
+  ...CheckoutViolation.fields,
+  message: Schema.String,
+});
+export type CheckoutApiViolation = typeof CheckoutApiViolation.Type;
+
+export const CheckoutApiState = Schema.Struct({
+  ...CheckoutState.fields,
+  violations: Schema.Array(CheckoutApiViolation),
+});
+export type CheckoutApiState = typeof CheckoutApiState.Type;
 
 export class CheckoutApiError extends Schema.TaggedErrorClass<CheckoutApiError>()(
   "CheckoutApiError",
@@ -85,6 +98,15 @@ export class CurrentCheckoutScope extends Context.Service<
   CheckoutScope
 >()("@repo/commerce/http/CurrentCheckoutScope") {}
 
+export class CheckoutSchemaErrorMiddleware extends HttpApiMiddleware.Service<
+  CheckoutSchemaErrorMiddleware,
+  {
+    readonly requires: never;
+  }
+>()("@repo/commerce/http/CheckoutSchemaErrorMiddleware", {
+  error: CheckoutApiBadRequest,
+}) {}
+
 export class CheckoutScopeMiddleware extends HttpApiMiddleware.Service<
   CheckoutScopeMiddleware,
   {
@@ -99,7 +121,7 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
   .add(
     HttpApiEndpoint.get("current", "/checkout/current", {
       headers: CheckoutRequestHeaders,
-      success: CheckoutState,
+      success: CheckoutApiState,
       error: CheckoutApiErrors,
     })
   )
@@ -107,7 +129,7 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
     HttpApiEndpoint.post("saveContact", "/checkout/contact", {
       headers: CheckoutRequestHeaders,
       payload: SaveCheckoutContactRequest,
-      success: CheckoutState,
+      success: CheckoutApiState,
       error: CheckoutApiErrors,
     })
   )
@@ -115,10 +137,11 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
     HttpApiEndpoint.post("saveDeliveryDetails", "/checkout/delivery-details", {
       headers: CheckoutRequestHeaders,
       payload: SaveCheckoutDeliveryDetailsRequest,
-      success: CheckoutState,
+      success: CheckoutApiState,
       error: CheckoutApiErrors,
     })
   )
+  .middleware(CheckoutSchemaErrorMiddleware)
   .middleware(CheckoutScopeMiddleware)
   .annotateMerge(
     OpenApi.annotations({

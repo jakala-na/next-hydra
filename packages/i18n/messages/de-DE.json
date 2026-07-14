@@ -191,6 +191,81 @@
           "description": "Wir senden Ihnen die nächsten Schritte per E-Mail, sobald Ihr Unternehmen genehmigt wurde."
         }
       }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Kontakt",
+        "deliveryDetails": "Lieferdetails",
+        "shippingOptions": "Versandoptionen",
+        "paymentOptions": "Zahlungsoptionen",
+        "reviewOrder": "Bestellung prüfen"
+      },
+      "status": {
+        "complete": "Vollständig",
+        "incomplete": "Unvollständig"
+      },
+      "activeStep": "Aktiver Schritt",
+      "attention": "Dieser Schritt erfordert Ihre Aufmerksamkeit",
+      "cart": {
+        "title": "Warenkorb",
+        "items": "{count, plural, one {# Artikel} other {# Artikel}}",
+        "quantity": "Menge {quantity}",
+        "violations": "Probleme beim Checkout",
+        "subtotal": "Zwischensumme"
+      },
+      "contact": {
+        "fields": {
+          "email": "E-Mail",
+          "firstName": "Vorname",
+          "lastName": "Nachname",
+          "phone": "Telefon"
+        },
+        "actions": {
+          "save": "Kontaktdaten speichern",
+          "saving": "Wird gespeichert..."
+        }
+      },
+      "deliveryDetails": {
+        "fields": {
+          "addressLine1": "Adresszeile 1",
+          "addressLine2": "Adresszeile 2",
+          "city": "Stadt",
+          "postalCode": "Postleitzahl",
+          "region": "Region",
+          "country": "Land"
+        },
+        "actions": {
+          "save": "Lieferdetails speichern",
+          "saving": "Wird gespeichert..."
+        }
+      },
+      "errors": {
+        "badRequest": "Die Checkout-Anfrage ist ungültig.",
+        "internal": "Der Checkout konnte nicht abgeschlossen werden. Versuchen Sie es erneut.",
+        "contact": {
+          "invalidInput": "Geben Sie E-Mail-Adresse, Vorname und Nachname ein.",
+          "sourceUnavailable": "Diese Kontaktquelle ist für diesen Checkout nicht verfügbar.",
+          "providerFailure": "Die Kontaktdaten konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "unsupported": "Diese Kontaktquelle wird noch nicht unterstützt."
+        },
+        "deliveryDetails": {
+          "invalidInput": "Geben Sie Adresszeile 1, Postleitzahl, Stadt und Land ein.",
+          "sourceUnavailable": "Diese Lieferquelle ist für diesen Checkout nicht verfügbar.",
+          "providerFailure": "Die Lieferdetails konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "unsupported": "Diese Lieferquelle wird noch nicht unterstützt."
+        },
+        "notFound": "Der Checkout wurde für diese Anfrage nicht gefunden.",
+        "versionConflict": "Der Checkout wurde vor dem Speichern geändert. Aktualisieren Sie die Seite und versuchen Sie es erneut."
+      },
+      "violations": {
+        "unknownCountry": "dieses Ziel",
+        "shippingCountryUnavailable": "Der Versand nach {country} ist nicht verfügbar.",
+        "guestItemLimit": "Gastwarenkörbe sind auf {maxQuantity} Artikel begrenzt. Entfernen Sie mindestens {excessQuantity, plural, one {# Artikel} other {# Artikel}}.",
+        "incompatibleCartItems": "Diese Artikel können nicht zusammen gekauft werden.",
+        "shippingAddressRestricted": "Ein oder mehrere Artikel können nicht an diese Adresse geliefert werden.",
+        "policyUnavailable": "Die Checkout-Verfügbarkeit konnte nicht geprüft werden.",
+        "generic": "Der Checkout kann erst fortgesetzt werden, wenn dieses Problem behoben ist."
+      }
     }
   }
 }

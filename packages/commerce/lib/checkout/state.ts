@@ -17,6 +17,7 @@ import {
   type CheckoutStepId,
   CheckoutUnavailable,
   type CheckoutViolation,
+  type CheckoutViolationParameters,
   type ViolationTarget,
 } from "../../domain/checkout";
 import type { PolicyViolation } from "../cart/policy/cart-policy.types";
@@ -123,13 +124,22 @@ const targetsFromCartPolicyViolation = (
 
 const normalizeCartPolicyViolation = (
   violation: PolicyViolation
-): CheckoutViolation => ({
-  source: "cartPolicy",
-  severity: "blocking",
-  code: violation.violationType,
-  message: violation.message,
-  targets: targetsFromCartPolicyViolation(violation),
-});
+): CheckoutViolation => {
+  const parameters = Object.fromEntries(
+    Object.entries(violation.metadata ?? {}).filter(
+      (entry): entry is [string, string | number] =>
+        typeof entry[1] === "string" || typeof entry[1] === "number"
+    )
+  ) satisfies CheckoutViolationParameters;
+
+  return {
+    source: "cartPolicy",
+    severity: "blocking",
+    code: violation.violationType,
+    ...(Object.keys(parameters).length === 0 ? {} : { parameters }),
+    targets: targetsFromCartPolicyViolation(violation),
+  };
+};
 
 const normalizeCheckoutPolicyViolation = (
   violation: CheckoutPolicyViolation
@@ -137,7 +147,9 @@ const normalizeCheckoutPolicyViolation = (
   source: "checkoutPolicy",
   severity: "blocking",
   code: violation.code,
-  message: violation.message,
+  ...(violation.parameters === undefined
+    ? {}
+    : { parameters: violation.parameters }),
   targets: violation.targets,
 });
 

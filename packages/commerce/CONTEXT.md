@@ -204,9 +204,15 @@ _Avoid_: Review checkout, order summary
 - A **Checkout Action Schema** can require the details needed for a specific action.
 - A **Checkout State** includes **Checkout Violations** as one global list.
 - A **Checkout Violation** preserves whether it came from a **Cart Policy** or **Checkout Policy**.
+- A **Checkout Violation** carries a stable code and schema-backed parameters, not a rendered public message.
+- A **Checkout Policy Violation** retains a diagnostic message for logging and observability; normalization into public **Checkout State** deliberately drops it.
+- Presentation adapters translate Checkout Violation codes and parameters using the resolved locale.
+- The public Checkout HTTP representation adds a localized fallback message to each **Checkout Violation** while retaining its stable code and parameters, so clients may map the code or render the supplied message.
 - First-slice **Checkout Violations** are blocking.
 - A **Checkout Mutation** can change the **Cart** details from which **Checkout State** is derived.
 - A **Checkout Mutation Failure** prevents the requested details from being saved.
+- Effect error messages are diagnostic; public adapters map known Checkout Mutation Failures to stable codes before localized UI rendering.
+- Checkout HTTP errors and violations expose both stable machine-readable codes and localized human messages; clients may branch and translate by code or render the supplied message directly.
 - Replacement-style **Checkout Mutations** are idempotent for the same requested details.
 - A **Checkout Version Conflict** prevents stale checkout details from overwriting newer Cart state.
 - A **Checkout Mutation Failure** occurs when the selected **Contact Source** cannot provide required **Buyer Contact** details.

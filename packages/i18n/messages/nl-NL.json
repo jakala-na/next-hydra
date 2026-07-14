@@ -191,6 +191,81 @@
           "description": "We sturen de volgende stappen per e-mail zodra uw bedrijf is goedgekeurd."
         }
       }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Contact",
+        "deliveryDetails": "Bezorggegevens",
+        "shippingOptions": "Verzendopties",
+        "paymentOptions": "Betaalopties",
+        "reviewOrder": "Bestelling controleren"
+      },
+      "status": {
+        "complete": "Voltooid",
+        "incomplete": "Onvolledig"
+      },
+      "activeStep": "Actieve stap",
+      "attention": "Deze stap vereist aandacht",
+      "cart": {
+        "title": "Winkelwagen",
+        "items": "{count, plural, one {# artikel} other {# artikelen}}",
+        "quantity": "Aantal {quantity}",
+        "violations": "Problemen bij het afrekenen",
+        "subtotal": "Subtotaal"
+      },
+      "contact": {
+        "fields": {
+          "email": "E-mail",
+          "firstName": "Voornaam",
+          "lastName": "Achternaam",
+          "phone": "Telefoon"
+        },
+        "actions": {
+          "save": "Contact opslaan",
+          "saving": "Opslaan..."
+        }
+      },
+      "deliveryDetails": {
+        "fields": {
+          "addressLine1": "Adresregel 1",
+          "addressLine2": "Adresregel 2",
+          "city": "Plaats",
+          "postalCode": "Postcode",
+          "region": "Regio",
+          "country": "Land"
+        },
+        "actions": {
+          "save": "Bezorggegevens opslaan",
+          "saving": "Opslaan..."
+        }
+      },
+      "errors": {
+        "badRequest": "Het checkoutverzoek is ongeldig.",
+        "internal": "De checkout kon niet worden voltooid. Probeer het opnieuw.",
+        "contact": {
+          "invalidInput": "Voer een e-mailadres, voornaam en achternaam in.",
+          "sourceUnavailable": "Deze contactbron is niet beschikbaar voor deze checkout.",
+          "providerFailure": "Het contact kon niet worden opgeslagen. Probeer het opnieuw.",
+          "unsupported": "Deze contactbron wordt nog niet ondersteund."
+        },
+        "deliveryDetails": {
+          "invalidInput": "Voer adresregel 1, postcode, plaats en land in.",
+          "sourceUnavailable": "Deze bezorgbron is niet beschikbaar voor deze checkout.",
+          "providerFailure": "De bezorggegevens konden niet worden opgeslagen. Probeer het opnieuw.",
+          "unsupported": "Deze bezorgbron wordt nog niet ondersteund."
+        },
+        "notFound": "De checkout is niet gevonden voor dit verzoek.",
+        "versionConflict": "De checkout is gewijzigd voordat de gegevens zijn opgeslagen. Vernieuw de pagina en probeer het opnieuw."
+      },
+      "violations": {
+        "unknownCountry": "deze bestemming",
+        "shippingCountryUnavailable": "Verzending naar {country} is niet beschikbaar.",
+        "guestItemLimit": "Gastwinkelwagens zijn beperkt tot {maxQuantity} artikelen. Verwijder minstens {excessQuantity, plural, one {# artikel} other {# artikelen}}.",
+        "incompatibleCartItems": "Deze artikelen kunnen niet samen worden gekocht.",
+        "shippingAddressRestricted": "Een of meer artikelen kunnen niet naar dit adres worden verzonden.",
+        "policyUnavailable": "De beschikbaarheid van de checkout kon niet worden gecontroleerd.",
+        "generic": "De checkout kan pas doorgaan als dit probleem is opgelost."
+      }
     }
   }
 }

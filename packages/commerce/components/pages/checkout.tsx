@@ -1,3 +1,4 @@
+import { getTranslations } from "@repo/i18n";
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
 import { notFound } from "next/navigation";
@@ -6,6 +7,7 @@ import {
   CheckoutLocale,
   type CheckoutState,
   type CheckoutStepId,
+  type CheckoutViolation,
 } from "../../domain/checkout";
 import {
   AnonymousCommercePrincipal,
@@ -15,19 +17,16 @@ import { getAnonymousCartId } from "../../lib/cart/utils/anonymous-cart-cookies"
 import { CheckoutSession } from "../../lib/checkout/checkout-session";
 import { checkoutRuntimeLayerCommercetools } from "../../lib/checkout/commercetools";
 import { toCheckoutScope } from "../../lib/checkout/request-context";
+import { checkoutViolationMessage } from "../../lib/checkout/violation-message";
 import { storeService } from "../../lib/store/store.service";
 import { CheckoutContactForm } from "./checkout-contact-form";
 import { CheckoutDeliveryDetailsForm } from "./checkout-delivery-details-form";
+import {
+  ActiveStepViolations,
+  CartSidebarViolations,
+} from "./checkout-violations";
 
 const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
-
-const stepLabels: Record<CheckoutStepId, string> = {
-  contact: "Contact",
-  deliveryDetails: "Delivery details",
-  shippingOptions: "Shipping options",
-  paymentOptions: "Payment options",
-  reviewOrder: "Review order",
-};
 
 const formatMoney = (
   money: CheckoutState["cart"]["totalPrice"],
@@ -62,7 +61,29 @@ const getState = async (locale: Locale) => {
   );
 };
 
-function CheckoutSteps({ state }: { readonly state: CheckoutState }) {
+interface CheckoutPageMessages {
+  readonly activeStep: string;
+  readonly attention: string;
+  readonly cartTitle: string;
+  readonly cartItems: (count: number) => string;
+  readonly cartQuantity: (quantity: number) => string;
+  readonly cartViolations: string;
+  readonly subtotal: string;
+  readonly stepLabels: Record<CheckoutStepId, string>;
+  readonly stepStatuses: Record<
+    CheckoutState["steps"][number]["status"],
+    string
+  >;
+  readonly violation: (violation: CheckoutViolation) => string;
+}
+
+function CheckoutSteps({
+  messages,
+  state,
+}: {
+  readonly messages: CheckoutPageMessages;
+  readonly state: CheckoutState;
+}) {
   return (
     <ol className="grid gap-3">
       {state.steps.map((step) => (
@@ -70,9 +91,11 @@ function CheckoutSteps({ state }: { readonly state: CheckoutState }) {
           className="flex items-center justify-between border-border border-b py-3 last:border-b-0"
           key={step.id}
         >
-          <span className="font-medium text-sm">{stepLabels[step.id]}</span>
+          <span className="font-medium text-sm">
+            {messages.stepLabels[step.id]}
+          </span>
           <span className="text-muted-foreground text-sm capitalize">
-            {step.status}
+            {messages.stepStatuses[step.status]}
           </span>
         </li>
       ))}
@@ -80,8 +103,14 @@ function CheckoutSteps({ state }: { readonly state: CheckoutState }) {
   );
 }
 
-function ActiveStep({ state }: { readonly state: CheckoutState }) {
-  let content = <CheckoutSteps state={state} />;
+function ActiveStep({
+  messages,
+  state,
+}: {
+  readonly messages: CheckoutPageMessages;
+  readonly state: CheckoutState;
+}) {
+  let content = <CheckoutSteps messages={messages} state={state} />;
 
   if (state.activeStep === "contact") {
     content = (
@@ -104,25 +133,36 @@ function ActiveStep({ state }: { readonly state: CheckoutState }) {
   return (
     <section className="min-h-80 rounded-md border border-border p-6 sm:col-span-3">
       <div className="mb-6 border-border border-b pb-4">
-        <p className="text-muted-foreground text-sm">Active step</p>
+        <p className="text-muted-foreground text-sm">{messages.activeStep}</p>
         <h1 className="font-semibold text-2xl">
-          {stepLabels[state.activeStep]}
+          {messages.stepLabels[state.activeStep]}
         </h1>
       </div>
+      <ActiveStepViolations
+        activeStep={state.activeStep}
+        messages={messages}
+        violations={state.violations}
+      />
       {content}
     </section>
   );
 }
 
-function CartSidebar({ state }: { readonly state: CheckoutState }) {
+function CartSidebar({
+  messages,
+  state,
+}: {
+  readonly messages: CheckoutPageMessages;
+  readonly state: CheckoutState;
+}) {
   const locale = state.scope.locale;
 
   return (
     <aside className="rounded-md border border-border p-6 sm:col-span-2">
       <div className="mb-5 flex items-center justify-between gap-4">
-        <h2 className="font-semibold text-lg">Cart</h2>
+        <h2 className="font-semibold text-lg">{messages.cartTitle}</h2>
         <span className="text-muted-foreground text-sm">
-          {state.cart.totalLineItemQuantity} items
+          {messages.cartItems(state.cart.totalLineItemQuantity)}
         </span>
       </div>
       <ul className="grid gap-4">
@@ -134,7 +174,7 @@ function CartSidebar({ state }: { readonly state: CheckoutState }) {
                   {lineItem.name ?? lineItem.productId}
                 </p>
                 <p className="text-muted-foreground text-sm">
-                  Qty {lineItem.quantity}
+                  {messages.cartQuantity(lineItem.quantity)}
                 </p>
               </div>
               <p className="whitespace-nowrap text-sm">
@@ -146,22 +186,12 @@ function CartSidebar({ state }: { readonly state: CheckoutState }) {
           </li>
         ))}
       </ul>
-      {state.violations.length > 0 ? (
-        <div className="mt-5 border-destructive border-t pt-4">
-          <h3 className="font-medium text-destructive text-sm">
-            Checkout violations
-          </h3>
-          <ul className="mt-3 grid gap-2">
-            {state.violations.map((violation) => (
-              <li className="text-destructive text-sm" key={violation.code}>
-                {violation.message}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <CartSidebarViolations
+        messages={messages}
+        violations={state.violations}
+      />
       <div className="mt-5 flex items-center justify-between border-border border-t pt-4">
-        <span className="font-medium text-sm">Subtotal</span>
+        <span className="font-medium text-sm">{messages.subtotal}</span>
         <span className="font-semibold text-sm">
           {formatMoney(state.cart.totalPrice, locale)}
         </span>
@@ -171,16 +201,43 @@ function CartSidebar({ state }: { readonly state: CheckoutState }) {
 }
 
 export async function CheckoutPage({ locale }: { readonly locale: Locale }) {
-  const state = await getState(locale);
+  const [state, t] = await Promise.all([
+    getState(locale),
+    getTranslations({ locale, namespace: "web.checkout" }),
+  ]);
 
   if (!state) {
     notFound();
   }
 
+  const checkoutLocale = CheckoutLocale.make(locale);
+  const messages: CheckoutPageMessages = {
+    activeStep: t("activeStep"),
+    attention: t("attention"),
+    cartTitle: t("cart.title"),
+    cartItems: (count) => t("cart.items", { count }),
+    cartQuantity: (quantity) => t("cart.quantity", { quantity }),
+    cartViolations: t("cart.violations"),
+    subtotal: t("cart.subtotal"),
+    stepLabels: {
+      contact: t("steps.contact"),
+      deliveryDetails: t("steps.deliveryDetails"),
+      shippingOptions: t("steps.shippingOptions"),
+      paymentOptions: t("steps.paymentOptions"),
+      reviewOrder: t("steps.reviewOrder"),
+    },
+    stepStatuses: {
+      complete: t("status.complete"),
+      incomplete: t("status.incomplete"),
+    },
+    violation: (violation) =>
+      checkoutViolationMessage(checkoutLocale, violation),
+  };
+
   return (
     <main className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:grid-cols-5">
-      <ActiveStep state={state} />
-      <CartSidebar state={state} />
+      <ActiveStep messages={messages} state={state} />
+      <CartSidebar messages={messages} state={state} />
     </main>
   );
 }

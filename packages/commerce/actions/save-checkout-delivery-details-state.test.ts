@@ -18,7 +18,6 @@ describe("checkoutDeliveryDetailsMutationFailureToActionState", () => {
     ).toEqual({
       status: "error",
       code: "checkout.deliveryDetails.invalidInput",
-      message: "Manual Shipping Address city is required",
     });
   });
 
@@ -34,7 +33,6 @@ describe("checkoutDeliveryDetailsMutationFailureToActionState", () => {
     ).toEqual({
       status: "error",
       code: "checkout.versionConflict",
-      message: "Checkout Cart changed before Delivery Details could be saved",
     });
   });
 
@@ -49,7 +47,6 @@ describe("checkoutDeliveryDetailsMutationFailureToActionState", () => {
     ).toEqual({
       status: "error",
       code: "checkout.deliveryDetails.providerFailure",
-      message: "Delivery details could not be saved. Try again.",
     });
   });
 });

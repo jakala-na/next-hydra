@@ -92,9 +92,9 @@ const layerWith = (
       typeof CheckoutSession.layerMemoryFrom
     >[0]["cartPolicyViolations"];
     readonly manualContactAllowed?: boolean;
-    readonly checkoutPolicyViolations?: Parameters<
+    readonly checkoutPolicies?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
-    >[0]["checkoutPolicyViolations"];
+    >[0]["checkoutPolicies"];
     readonly saveDeliveryDetailsFailure?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
     >[0]["saveDeliveryDetailsFailure"];
@@ -104,7 +104,7 @@ const layerWith = (
     details = {},
     cartPolicyViolations = [],
     manualContactAllowed = true,
-    checkoutPolicyViolations = [],
+    checkoutPolicies = [],
     saveDeliveryDetailsFailure,
   } = input;
   const currentCart = "currentCart" in input ? input.currentCart : cart();
@@ -113,7 +113,7 @@ const layerWith = (
     ...(currentCart === undefined ? {} : { currentCart }),
     details,
     cartPolicyViolations,
-    checkoutPolicyViolations,
+    checkoutPolicies,
     ...(saveDeliveryDetailsFailure === undefined
       ? {}
       : { saveDeliveryDetailsFailure }),
@@ -159,6 +159,24 @@ describe("CountryCode", () => {
       expect(country).toBe("GB");
       expect(canonicalCountry).toBe("GB");
       expect(Exit.isFailure(invalidExit)).toBe(true);
+    })
+  );
+});
+
+describe("CheckoutLocale", () => {
+  it.effect("accepts configured locales and rejects arbitrary strings", () =>
+    Effect.gen(function* () {
+      const locale = yield* Schema.decodeUnknownEffect(CheckoutLocale)("de-DE");
+      const unsupportedExit = yield* Schema.decodeUnknownEffect(CheckoutLocale)(
+        "en-CA"
+      ).pipe(Effect.exit);
+      const inheritedPropertyExit = yield* Schema.decodeUnknownEffect(
+        CheckoutLocale
+      )("toString").pipe(Effect.exit);
+
+      expect(locale).toBe("de-DE");
+      expect(Exit.isFailure(unsupportedExit)).toBe(true);
+      expect(Exit.isFailure(inheritedPropertyExit)).toBe(true);
     })
   );
 });
@@ -280,7 +298,6 @@ describe("CheckoutSession.getCurrent", () => {
           {
             source: "cartPolicy",
             severity: "blocking",
-            message: "Guest carts are limited to 50 total items.",
           },
         ]);
       })
@@ -552,11 +569,25 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
         Effect.provide(
           layerWith({
             details: detailsWithCompleteContact,
-            checkoutPolicyViolations: [
+            checkoutPolicies: [
               {
-                code: "shipping.region.unsupported",
-                message: "This Cart cannot ship to the selected region.",
-                targets: [{ type: "checkoutStep", step: "shippingOptions" }],
+                name: "shipping-region",
+                evaluate: ({ details }) =>
+                  details.deliveryDetails?.shippingAddress.region ===
+                  "Greater London"
+                    ? [
+                        {
+                          code: "shipping.region.unsupported",
+                          message: "Shipping to Greater London is unsupported",
+                          targets: [
+                            {
+                              type: "checkoutStep",
+                              step: "shippingOptions",
+                            },
+                          ],
+                        },
+                      ]
+                    : [],
               },
             ],
           })

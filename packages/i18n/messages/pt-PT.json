@@ -191,6 +191,81 @@
           "description": "Enviaremos os próximos passos por e-mail assim que a sua empresa for aprovada."
         }
       }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Contacto",
+        "deliveryDetails": "Detalhes de entrega",
+        "shippingOptions": "Opções de envio",
+        "paymentOptions": "Opções de pagamento",
+        "reviewOrder": "Rever encomenda"
+      },
+      "status": {
+        "complete": "Concluído",
+        "incomplete": "Incompleto"
+      },
+      "activeStep": "Passo ativo",
+      "attention": "Este passo requer atenção",
+      "cart": {
+        "title": "Carrinho",
+        "items": "{count, plural, one {# artigo} other {# artigos}}",
+        "quantity": "Qtd. {quantity}",
+        "violations": "Problemas no checkout",
+        "subtotal": "Subtotal"
+      },
+      "contact": {
+        "fields": {
+          "email": "E-mail",
+          "firstName": "Nome",
+          "lastName": "Apelido",
+          "phone": "Telefone"
+        },
+        "actions": {
+          "save": "Guardar contacto",
+          "saving": "A guardar..."
+        }
+      },
+      "deliveryDetails": {
+        "fields": {
+          "addressLine1": "Morada, linha 1",
+          "addressLine2": "Morada, linha 2",
+          "city": "Cidade",
+          "postalCode": "Código postal",
+          "region": "Região",
+          "country": "País"
+        },
+        "actions": {
+          "save": "Guardar detalhes de entrega",
+          "saving": "A guardar..."
+        }
+      },
+      "errors": {
+        "badRequest": "O pedido de checkout não é válido.",
+        "internal": "Não foi possível concluir o checkout. Tente novamente.",
+        "contact": {
+          "invalidInput": "Introduza um e-mail, nome e apelido.",
+          "sourceUnavailable": "Esta origem de contacto não está disponível para este checkout.",
+          "providerFailure": "Não foi possível guardar o contacto. Tente novamente.",
+          "unsupported": "Esta origem de contacto ainda não é suportada."
+        },
+        "deliveryDetails": {
+          "invalidInput": "Introduza a morada, o código postal, a cidade e o país.",
+          "sourceUnavailable": "Esta origem de entrega não está disponível para este checkout.",
+          "providerFailure": "Não foi possível guardar os detalhes de entrega. Tente novamente.",
+          "unsupported": "Esta origem de entrega ainda não é suportada."
+        },
+        "notFound": "O checkout não foi encontrado para este pedido.",
+        "versionConflict": "O checkout foi alterado antes de guardar. Atualize a página e tente novamente."
+      },
+      "violations": {
+        "unknownCountry": "este destino",
+        "shippingCountryUnavailable": "O envio para {country} não está disponível.",
+        "guestItemLimit": "Os carrinhos de convidado estão limitados a {maxQuantity} artigos. Remova pelo menos {excessQuantity, plural, one {# artigo} other {# artigos}}.",
+        "incompatibleCartItems": "Estes artigos não podem ser comprados em conjunto.",
+        "shippingAddressRestricted": "Um ou mais artigos não podem ser enviados para esta morada.",
+        "policyUnavailable": "Não foi possível verificar a disponibilidade do checkout.",
+        "generic": "O checkout não pode continuar até este problema ser resolvido."
+      }
     }
   }
 }

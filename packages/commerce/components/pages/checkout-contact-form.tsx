@@ -1,9 +1,11 @@
 "use client";
 
+import { useTranslations } from "@repo/i18n";
 import { useActionState } from "react";
 import { saveCheckoutContact } from "../../actions/save-checkout-contact";
 import { initialSaveCheckoutContactActionState } from "../../actions/save-checkout-contact-state";
 import type { BuyerContact } from "../../domain/checkout";
+import { checkoutActionErrorMessageKey } from "./checkout-action-error";
 
 export function CheckoutContactForm({
   buyerContact,
@@ -14,6 +16,7 @@ export function CheckoutContactForm({
   readonly cartId: string;
   readonly cartVersion: number;
 }) {
+  const t = useTranslations("web.checkout");
   const [actionState, formAction, isPending] = useActionState(
     saveCheckoutContact,
     initialSaveCheckoutContactActionState
@@ -29,12 +32,12 @@ export function CheckoutContactForm({
           className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive text-sm"
           role="alert"
         >
-          {actionState.message}
+          {t(checkoutActionErrorMessageKey[actionState.code])}
         </p>
       ) : null}
       <div className="grid gap-2">
         <label className="font-medium text-sm" htmlFor="checkout-email">
-          Email
+          {t("contact.fields.email")}
         </label>
         <input
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -48,7 +51,7 @@ export function CheckoutContactForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <label className="font-medium text-sm" htmlFor="checkout-first-name">
-            First name
+            {t("contact.fields.firstName")}
           </label>
           <input
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -61,7 +64,7 @@ export function CheckoutContactForm({
         </div>
         <div className="grid gap-2">
           <label className="font-medium text-sm" htmlFor="checkout-last-name">
-            Last name
+            {t("contact.fields.lastName")}
           </label>
           <input
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -75,7 +78,7 @@ export function CheckoutContactForm({
       </div>
       <div className="grid gap-2">
         <label className="font-medium text-sm" htmlFor="checkout-phone">
-          Phone
+          {t("contact.fields.phone")}
         </label>
         <input
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -91,7 +94,7 @@ export function CheckoutContactForm({
           disabled={isPending}
           type="submit"
         >
-          {isPending ? "Saving..." : "Save contact"}
+          {isPending ? t("contact.actions.saving") : t("contact.actions.save")}
         </button>
       </div>
     </form>

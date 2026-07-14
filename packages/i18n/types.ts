@@ -1,7 +1,6 @@
-import type { Locale as NextIntlLocale } from "next-intl";
-import type { regions } from "./config";
+import type { regions, SupportedLocale } from "./config";
 
-export type Locale = NextIntlLocale;
+export type Locale = SupportedLocale;
 export type LocaleLower = Lowercase<Locale>;
 export type LocaleLanguage = Locale extends `${infer L}-${string}` ? L : never;
 export type LocaleCountry = Locale extends `${string}-${infer C}` ? C : never;

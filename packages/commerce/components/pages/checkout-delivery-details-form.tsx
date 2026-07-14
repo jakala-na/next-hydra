@@ -1,9 +1,11 @@
 "use client";
 
+import { useTranslations } from "@repo/i18n";
 import { useActionState } from "react";
 import { saveCheckoutDeliveryDetails } from "../../actions/save-checkout-delivery-details";
 import { initialSaveCheckoutDeliveryDetailsActionState } from "../../actions/save-checkout-delivery-details-state";
 import type { ShippingAddress } from "../../domain/checkout";
+import { checkoutActionErrorMessageKey } from "./checkout-action-error";
 
 export function CheckoutDeliveryDetailsForm({
   cartId,
@@ -14,6 +16,7 @@ export function CheckoutDeliveryDetailsForm({
   readonly cartVersion: number;
   readonly shippingAddress?: ShippingAddress;
 }) {
+  const t = useTranslations("web.checkout");
   const [actionState, formAction, isPending] = useActionState(
     saveCheckoutDeliveryDetails,
     initialSaveCheckoutDeliveryDetailsActionState
@@ -29,7 +32,7 @@ export function CheckoutDeliveryDetailsForm({
           className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive text-sm"
           role="alert"
         >
-          {actionState.message}
+          {t(checkoutActionErrorMessageKey[actionState.code])}
         </p>
       ) : null}
       <div className="grid gap-2">
@@ -37,7 +40,7 @@ export function CheckoutDeliveryDetailsForm({
           className="font-medium text-sm"
           htmlFor="checkout-address-line-1"
         >
-          Address line 1
+          {t("deliveryDetails.fields.addressLine1")}
         </label>
         <input
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -53,7 +56,7 @@ export function CheckoutDeliveryDetailsForm({
           className="font-medium text-sm"
           htmlFor="checkout-address-line-2"
         >
-          Address line 2
+          {t("deliveryDetails.fields.addressLine2")}
         </label>
         <input
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -66,7 +69,7 @@ export function CheckoutDeliveryDetailsForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <label className="font-medium text-sm" htmlFor="checkout-city">
-            City
+            {t("deliveryDetails.fields.city")}
           </label>
           <input
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -79,7 +82,7 @@ export function CheckoutDeliveryDetailsForm({
         </div>
         <div className="grid gap-2">
           <label className="font-medium text-sm" htmlFor="checkout-postal-code">
-            Postal code
+            {t("deliveryDetails.fields.postalCode")}
           </label>
           <input
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -94,7 +97,7 @@ export function CheckoutDeliveryDetailsForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <label className="font-medium text-sm" htmlFor="checkout-region">
-            Region
+            {t("deliveryDetails.fields.region")}
           </label>
           <input
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -106,7 +109,7 @@ export function CheckoutDeliveryDetailsForm({
         </div>
         <div className="grid gap-2">
           <label className="font-medium text-sm" htmlFor="checkout-country">
-            Country
+            {t("deliveryDetails.fields.country")}
           </label>
           <input
             className="h-10 rounded-md border border-input bg-background px-3 text-sm uppercase"
@@ -125,7 +128,9 @@ export function CheckoutDeliveryDetailsForm({
           disabled={isPending}
           type="submit"
         >
-          {isPending ? "Saving..." : "Save delivery details"}
+          {isPending
+            ? t("deliveryDetails.actions.saving")
+            : t("deliveryDetails.actions.save")}
         </button>
       </div>
     </form>

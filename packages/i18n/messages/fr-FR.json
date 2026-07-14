@@ -191,6 +191,81 @@
           "description": "Nous vous enverrons la suite par e-mail dès que votre entreprise aura été approuvée."
         }
       }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Coordonnées",
+        "deliveryDetails": "Détails de livraison",
+        "shippingOptions": "Options de livraison",
+        "paymentOptions": "Options de paiement",
+        "reviewOrder": "Vérification de la commande"
+      },
+      "status": {
+        "complete": "Terminé",
+        "incomplete": "Incomplet"
+      },
+      "activeStep": "Étape active",
+      "attention": "Cette étape nécessite votre attention",
+      "cart": {
+        "title": "Panier",
+        "items": "{count, plural, one {# article} other {# articles}}",
+        "quantity": "Qté {quantity}",
+        "violations": "Problèmes de paiement",
+        "subtotal": "Sous-total"
+      },
+      "contact": {
+        "fields": {
+          "email": "E-mail",
+          "firstName": "Prénom",
+          "lastName": "Nom",
+          "phone": "Téléphone"
+        },
+        "actions": {
+          "save": "Enregistrer les coordonnées",
+          "saving": "Enregistrement..."
+        }
+      },
+      "deliveryDetails": {
+        "fields": {
+          "addressLine1": "Adresse ligne 1",
+          "addressLine2": "Adresse ligne 2",
+          "city": "Ville",
+          "postalCode": "Code postal",
+          "region": "Région",
+          "country": "Pays"
+        },
+        "actions": {
+          "save": "Enregistrer les détails de livraison",
+          "saving": "Enregistrement..."
+        }
+      },
+      "errors": {
+        "badRequest": "La requête de paiement n’est pas valide.",
+        "internal": "Le paiement n’a pas pu être effectué. Réessayez.",
+        "contact": {
+          "invalidInput": "Saisissez une adresse e-mail, un prénom et un nom.",
+          "sourceUnavailable": "Cette source de coordonnées n’est pas disponible pour ce paiement.",
+          "providerFailure": "Les coordonnées n’ont pas pu être enregistrées. Réessayez.",
+          "unsupported": "Cette source de coordonnées n’est pas encore prise en charge."
+        },
+        "deliveryDetails": {
+          "invalidInput": "Saisissez l’adresse ligne 1, le code postal, la ville et le pays.",
+          "sourceUnavailable": "Cette source de livraison n’est pas disponible pour ce paiement.",
+          "providerFailure": "Les détails de livraison n’ont pas pu être enregistrés. Réessayez.",
+          "unsupported": "Cette source de livraison n’est pas encore prise en charge."
+        },
+        "notFound": "Le paiement est introuvable pour cette requête.",
+        "versionConflict": "Le paiement a changé avant l’enregistrement. Actualisez la page et réessayez."
+      },
+      "violations": {
+        "unknownCountry": "cette destination",
+        "shippingCountryUnavailable": "La livraison vers {country} n’est pas disponible.",
+        "guestItemLimit": "Les paniers invités sont limités à {maxQuantity} articles. Retirez au moins {excessQuantity, plural, one {# article} other {# articles}}.",
+        "incompatibleCartItems": "Ces articles ne peuvent pas être achetés ensemble.",
+        "shippingAddressRestricted": "Cette adresse ne peut pas recevoir un ou plusieurs articles du panier.",
+        "policyUnavailable": "La disponibilité du paiement n’a pas pu être vérifiée.",
+        "generic": "Le paiement ne peut pas continuer tant que ce problème n’est pas résolu."
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 # Checkout Effect kernel and current-state tracer
 
-Status: ready-for-agent
+Status: complete
 Type: AFK
 
 ## Parent

@@ -11,7 +11,6 @@ import {
   type CheckoutMutationFailure,
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
-  type CheckoutPolicyViolation,
   type CheckoutProviderFailure,
   type CheckoutScope,
   type CheckoutState,
@@ -19,6 +18,7 @@ import {
   CheckoutVersionConflict,
 } from "../../domain/checkout";
 import type { PolicyViolation } from "../cart/policy/cart-policy.types";
+import { CheckoutPolicies, type CheckoutPolicy } from "./checkout-policy";
 import { buildCheckoutState } from "./state";
 
 export interface SaveCheckoutContactInput {
@@ -39,7 +39,7 @@ export interface CheckoutSessionMemoryInput {
   readonly buyerContext?: CheckoutBuyerContext;
   readonly allowedContactSources?: readonly CheckoutContactSource[];
   readonly cartPolicyViolations?: readonly PolicyViolation[];
-  readonly checkoutPolicyViolations?: readonly CheckoutPolicyViolation[];
+  readonly checkoutPolicies?: readonly CheckoutPolicy[];
   readonly saveContactFailure?: CheckoutSaveContactFailure;
   readonly saveDeliveryDetailsFailure?: CheckoutSaveDeliveryDetailsFailure;
 }
@@ -263,118 +263,129 @@ export class CheckoutSession extends Context.Service<
     buyerContext = guestBuyerContext,
     allowedContactSources = defaultAllowedContactSources,
     cartPolicyViolations = [],
-    checkoutPolicyViolations = [],
+    checkoutPolicies = [],
     saveContactFailure,
     saveDeliveryDetailsFailure,
   }: CheckoutSessionMemoryInput) =>
-    Layer.sync(CheckoutSession, () => {
-      let activeCart = currentCart;
-      let activeDetails = details;
+    Layer.effect(
+      CheckoutSession,
+      Effect.gen(function* () {
+        const policies = yield* CheckoutPolicies;
+        let activeCart = currentCart;
+        let activeDetails = details;
 
-      return CheckoutSession.of({
-        getCurrent: (scope) => {
-          if (activeCart === undefined) {
-            return Effect.fail(
-              new CheckoutUnavailable({
-                message: "Checkout requires an existing Cart",
-                reason: "noCart",
-              })
-            );
-          }
+        return CheckoutSession.of({
+          getCurrent: (scope) =>
+            Effect.gen(function* () {
+              if (activeCart === undefined) {
+                return yield* Effect.fail(
+                  new CheckoutUnavailable({
+                    message: "Checkout requires an existing Cart",
+                    reason: "noCart",
+                  })
+                );
+              }
 
-          return buildCheckoutState({
-            scope,
-            cart: activeCart,
-            details: activeDetails,
-            buyerContext,
-            allowedContactSources,
-            cartPolicyViolations,
-            checkoutPolicyViolations,
-          });
-        },
-        saveContact: (input) =>
-          Effect.gen(function* () {
-            if (saveContactFailure !== undefined) {
-              return yield* Effect.fail(saveContactFailure);
-            }
+              const checkoutPolicyViolations = yield* policies.evaluate({
+                cart: activeCart,
+                details: activeDetails,
+                buyerContext,
+              });
 
-            if (activeCart === undefined) {
-              return yield* Effect.fail(
-                new CheckoutUnavailable({
-                  message: "Checkout requires an existing Cart",
-                  reason: "noCart",
-                })
+              return yield* buildCheckoutState({
+                scope,
+                cart: activeCart,
+                details: activeDetails,
+                buyerContext,
+                allowedContactSources,
+                cartPolicyViolations,
+                checkoutPolicyViolations,
+              });
+            }),
+          saveContact: (input) =>
+            Effect.gen(function* () {
+              if (saveContactFailure !== undefined) {
+                return yield* Effect.fail(saveContactFailure);
+              }
+
+              if (activeCart === undefined) {
+                return yield* Effect.fail(
+                  new CheckoutUnavailable({
+                    message: "Checkout requires an existing Cart",
+                    reason: "noCart",
+                  })
+                );
+              }
+
+              const contact = yield* normalizeManualContact(input.contact);
+
+              if (!allowedContactSources.includes(contact.source)) {
+                return yield* Effect.fail(
+                  contactSourceUnavailable(contact.source)
+                );
+              }
+
+              const cart = yield* ensureCurrentCartReference(
+                activeCart,
+                input.cart
               );
-            }
 
-            const contact = yield* normalizeManualContact(input.contact);
+              if (contactsEqual(activeDetails.contact, contact)) {
+                return;
+              }
 
-            if (!allowedContactSources.includes(contact.source)) {
-              return yield* Effect.fail(
-                contactSourceUnavailable(contact.source)
+              activeDetails = {
+                ...activeDetails,
+                contact,
+              };
+              activeCart = {
+                ...cart,
+                version: cart.version + 1,
+              };
+            }),
+          saveDeliveryDetails: (input) =>
+            Effect.gen(function* () {
+              if (saveDeliveryDetailsFailure !== undefined) {
+                return yield* Effect.fail(saveDeliveryDetailsFailure);
+              }
+
+              if (activeCart === undefined) {
+                return yield* Effect.fail(
+                  new CheckoutUnavailable({
+                    message: "Checkout requires an existing Cart",
+                    reason: "noCart",
+                  })
+                );
+              }
+
+              const deliveryDetails = yield* normalizeManualDeliveryDetails(
+                input.deliveryDetails
               );
-            }
-
-            const cart = yield* ensureCurrentCartReference(
-              activeCart,
-              input.cart
-            );
-
-            if (contactsEqual(activeDetails.contact, contact)) {
-              return;
-            }
-
-            activeDetails = {
-              ...activeDetails,
-              contact,
-            };
-            activeCart = {
-              ...cart,
-              version: cart.version + 1,
-            };
-          }),
-        saveDeliveryDetails: (input) =>
-          Effect.gen(function* () {
-            if (saveDeliveryDetailsFailure !== undefined) {
-              return yield* Effect.fail(saveDeliveryDetailsFailure);
-            }
-
-            if (activeCart === undefined) {
-              return yield* Effect.fail(
-                new CheckoutUnavailable({
-                  message: "Checkout requires an existing Cart",
-                  reason: "noCart",
-                })
+              const cart = yield* ensureCurrentCartReference(
+                activeCart,
+                input.cart,
+                "Delivery Details"
               );
-            }
 
-            const deliveryDetails = yield* normalizeManualDeliveryDetails(
-              input.deliveryDetails
-            );
-            const cart = yield* ensureCurrentCartReference(
-              activeCart,
-              input.cart,
-              "Delivery Details"
-            );
+              if (
+                deliveryDetailsEqual(
+                  activeDetails.deliveryDetails,
+                  deliveryDetails
+                )
+              ) {
+                return;
+              }
 
-            if (
-              deliveryDetailsEqual(
-                activeDetails.deliveryDetails,
-                deliveryDetails
-              )
-            ) {
-              return;
-            }
-
-            activeDetails = {
-              ...activeDetails,
-              deliveryDetails,
-            };
-            activeCart = {
-              ...cart,
-              version: cart.version + 1,
-            };
-          }),
-      });
-    });
+              activeDetails = {
+                ...activeDetails,
+                deliveryDetails,
+              };
+              activeCart = {
+                ...cart,
+                version: cart.version + 1,
+              };
+            }),
+        });
+      })
+    ).pipe(Layer.provide(CheckoutPolicies.layerFrom(checkoutPolicies)));
 }

@@ -191,6 +191,81 @@
           "description": "Ti invieremo i prossimi passaggi via email non appena la tua azienda sarà approvata."
         }
       }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Contatto",
+        "deliveryDetails": "Dettagli di consegna",
+        "shippingOptions": "Opzioni di spedizione",
+        "paymentOptions": "Opzioni di pagamento",
+        "reviewOrder": "Rivedi ordine"
+      },
+      "status": {
+        "complete": "Completo",
+        "incomplete": "Incompleto"
+      },
+      "activeStep": "Passaggio attivo",
+      "attention": "Questo passaggio richiede attenzione",
+      "cart": {
+        "title": "Carrello",
+        "items": "{count, plural, one {# articolo} other {# articoli}}",
+        "quantity": "Qtà {quantity}",
+        "violations": "Problemi del checkout",
+        "subtotal": "Subtotale"
+      },
+      "contact": {
+        "fields": {
+          "email": "E-mail",
+          "firstName": "Nome",
+          "lastName": "Cognome",
+          "phone": "Telefono"
+        },
+        "actions": {
+          "save": "Salva contatto",
+          "saving": "Salvataggio..."
+        }
+      },
+      "deliveryDetails": {
+        "fields": {
+          "addressLine1": "Indirizzo, riga 1",
+          "addressLine2": "Indirizzo, riga 2",
+          "city": "Città",
+          "postalCode": "Codice postale",
+          "region": "Regione",
+          "country": "Paese"
+        },
+        "actions": {
+          "save": "Salva dettagli di consegna",
+          "saving": "Salvataggio..."
+        }
+      },
+      "errors": {
+        "badRequest": "La richiesta di checkout non è valida.",
+        "internal": "Impossibile completare il checkout. Riprova.",
+        "contact": {
+          "invalidInput": "Inserisci e-mail, nome e cognome.",
+          "sourceUnavailable": "Questa origine del contatto non è disponibile per questo checkout.",
+          "providerFailure": "Impossibile salvare il contatto. Riprova.",
+          "unsupported": "Questa origine del contatto non è ancora supportata."
+        },
+        "deliveryDetails": {
+          "invalidInput": "Inserisci indirizzo, codice postale, città e paese.",
+          "sourceUnavailable": "Questa origine di consegna non è disponibile per questo checkout.",
+          "providerFailure": "Impossibile salvare i dettagli di consegna. Riprova.",
+          "unsupported": "Questa origine di consegna non è ancora supportata."
+        },
+        "notFound": "Checkout non trovato per questa richiesta.",
+        "versionConflict": "Il checkout è cambiato prima del salvataggio. Aggiorna la pagina e riprova."
+      },
+      "violations": {
+        "unknownCountry": "questa destinazione",
+        "shippingCountryUnavailable": "La spedizione verso {country} non è disponibile.",
+        "guestItemLimit": "I carrelli degli ospiti sono limitati a {maxQuantity} articoli. Rimuovi almeno {excessQuantity, plural, one {# articolo} other {# articoli}}.",
+        "incompatibleCartItems": "Questi articoli non possono essere acquistati insieme.",
+        "shippingAddressRestricted": "Uno o più articoli non possono essere spediti a questo indirizzo.",
+        "policyUnavailable": "Impossibile verificare la disponibilità del checkout.",
+        "generic": "Il checkout non può continuare finché il problema non viene risolto."
+      }
     }
   }
 }

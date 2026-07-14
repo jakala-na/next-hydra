@@ -227,6 +227,9 @@ const makeCheckoutLayer = (
     readonly allowedContactSources?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
     >[0]["allowedContactSources"];
+    readonly cartPolicyViolations?: Parameters<
+      typeof CheckoutSession.layerMemoryFrom
+    >[0]["cartPolicyViolations"];
     readonly saveContactFailure?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
     >[0]["saveContactFailure"];
@@ -237,6 +240,7 @@ const makeCheckoutLayer = (
 ) => {
   const {
     allowedContactSources = ["manual", "customerProfile"],
+    cartPolicyViolations = [],
     saveContactFailure,
     saveDeliveryDetailsFailure,
   } = input;
@@ -245,6 +249,7 @@ const makeCheckoutLayer = (
   return CheckoutSession.layerMemoryFrom({
     ...(currentCart === undefined ? {} : { currentCart }),
     allowedContactSources,
+    cartPolicyViolations,
     ...(saveContactFailure === undefined ? {} : { saveContactFailure }),
     ...(saveDeliveryDetailsFailure === undefined
       ? {}
@@ -372,6 +377,64 @@ test("GET /checkout/current reads current checkout state through CheckoutSession
   }
 });
 
+test("GET /checkout/current adds localized fallback messages to public violations", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      cartPolicyViolations: [
+        {
+          policyName: "compatible-products",
+          violationType: "INCOMPATIBLE_CART_ITEMS",
+          message: "Internal diagnostic message that must not be exposed",
+        },
+      ],
+    })
+  );
+
+  try {
+    const response = await handler(
+      request({ "x-context-locale": "de-DE" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.violations).toEqual([
+      expect.objectContaining({
+        source: "cartPolicy",
+        code: "INCOMPATIBLE_CART_ITEMS",
+        message: "Diese Artikel können nicht zusammen gekauft werden.",
+      }),
+    ]);
+    expect(body.violations[0].message).not.toContain("Internal diagnostic");
+  } finally {
+    await dispose();
+  }
+});
+
+test.each([
+  "en-CA",
+  "toString",
+])("GET /checkout/current rejects unsupported locale %s with a typed bad request", async (locale) => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      request({ "x-context-locale": locale }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiBadRequest",
+      code: "checkout.badRequest",
+      message: "The checkout request is invalid.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
 test("POST /checkout/contact saves Manual Contact and returns recomputed checkout state", async () => {
   const { dispose, handler } = await makeHandler(makeCheckoutLayer());
 
@@ -409,7 +472,8 @@ test("POST /checkout/contact obtains Checkout Scope from request context, not pa
     expect(body).toMatchObject({
       _tag: "CheckoutApiConflict",
       code: "checkout.versionConflict",
-      message: "Checkout Cart changed before Contact could be saved",
+      message:
+        "Checkout changed before your details could be saved. Refresh and try again.",
     });
   } finally {
     await dispose();
@@ -440,8 +504,8 @@ test("POST /checkout/contact maps invalid Manual Contact input to bad request", 
     expect(body).toMatchObject({
       _tag: "CheckoutApiBadRequest",
       code: "checkout.badRequest",
+      message: "The checkout request is invalid.",
     });
-    expect(body.message).toContain("firstName");
   } finally {
     await dispose();
   }
@@ -460,7 +524,7 @@ test("POST /checkout/contact maps disallowed Manual Contact source to bad reques
     expect(body).toMatchObject({
       _tag: "CheckoutApiBadRequest",
       code: "checkout.badRequest",
-      message: "Manual Contact Source is unavailable for this checkout",
+      message: "The checkout request is invalid.",
     });
   } finally {
     await dispose();
@@ -485,7 +549,7 @@ test("POST /checkout/contact maps provider failures to internal errors", async (
     expect(body).toMatchObject({
       _tag: "CheckoutApiError",
       code: "checkout.internal",
-      message: "Failed to save checkout contact",
+      message: "Checkout could not be completed. Try again.",
     });
   } finally {
     await dispose();
@@ -505,7 +569,7 @@ test("POST /checkout/contact maps an unavailable Cart to checkout not found", as
     expect(body).toMatchObject({
       _tag: "CheckoutApiNotFound",
       code: "checkout.notFound",
-      message: "Checkout requires an existing Cart",
+      message: "Checkout was not found for the current request.",
     });
   } finally {
     await dispose();
@@ -575,7 +639,8 @@ test("POST /checkout/delivery-details obtains Checkout Scope from request contex
     expect(body).toMatchObject({
       _tag: "CheckoutApiConflict",
       code: "checkout.versionConflict",
-      message: "Checkout Cart changed before Delivery Details could be saved",
+      message:
+        "Checkout changed before your details could be saved. Refresh and try again.",
     });
   } finally {
     await dispose();
@@ -629,8 +694,8 @@ test("POST /checkout/delivery-details maps invalid Manual Shipping Address input
     expect(body).toMatchObject({
       _tag: "CheckoutApiBadRequest",
       code: "checkout.badRequest",
+      message: "The checkout request is invalid.",
     });
-    expect(body.message).toContain("city");
   } finally {
     await dispose();
   }
@@ -654,7 +719,14 @@ test("POST /checkout/delivery-details rejects invalid ISO country codes at the s
       emptyContext()
     );
 
+    const body = await response.json();
+
     expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiBadRequest",
+      code: "checkout.badRequest",
+      message: "The checkout request is invalid.",
+    });
   } finally {
     await dispose();
   }
@@ -681,7 +753,7 @@ test("POST /checkout/delivery-details maps provider failures to internal errors"
     expect(body).toMatchObject({
       _tag: "CheckoutApiError",
       code: "checkout.internal",
-      message: "Failed to save checkout delivery details",
+      message: "Checkout could not be completed. Try again.",
     });
   } finally {
     await dispose();
@@ -780,7 +852,6 @@ test("GET /checkout/current ignores anonymous cart cookies for a different store
     expect(body).toMatchObject({
       _tag: "CheckoutApiNotFound",
       code: "checkout.notFound",
-      message: "Checkout was not found for the current request context",
     });
   } finally {
     await dispose();
@@ -865,7 +936,6 @@ test("GET /checkout/current does not fall back to anonymous checkout for invalid
     expect(body).toMatchObject({
       _tag: "CheckoutApiNotFound",
       code: "checkout.notFound",
-      message: "Checkout was not found for the current request context",
     });
   } finally {
     await dispose();
@@ -891,7 +961,6 @@ test("GET /checkout/current treats machine bearer tokens as unsupported for chec
     expect(body).toMatchObject({
       _tag: "CheckoutApiNotFound",
       code: "checkout.notFound",
-      message: "Checkout was not found for the current request context",
     });
   } finally {
     await dispose();
@@ -917,7 +986,6 @@ test("GET /checkout/current maps missing customer account for valid bearer JWT t
     expect(body).toMatchObject({
       _tag: "CheckoutApiNotFound",
       code: "checkout.notFound",
-      message: "Checkout was not found for the current request context",
     });
   } finally {
     await dispose();
@@ -943,7 +1011,6 @@ test("GET /checkout/current maps JWT verifier runtime failures to an internal er
     expect(body).toMatchObject({
       _tag: "CheckoutApiError",
       code: "checkout.internal",
-      message: "Failed to resolve checkout request context",
     });
   } finally {
     await dispose();
@@ -969,7 +1036,6 @@ test("GET /checkout/current maps Commerce customer lookup runtime failures to an
     expect(body).toMatchObject({
       _tag: "CheckoutApiError",
       code: "checkout.internal",
-      message: "Failed to resolve checkout request context",
     });
   } finally {
     await dispose();
@@ -992,7 +1058,6 @@ test("GET /checkout/current maps an empty Cart to a checkout not-found response"
     expect(body).toMatchObject({
       _tag: "CheckoutApiNotFound",
       code: "checkout.notFound",
-      message: "Checkout requires an existing non-empty Cart",
     });
   } finally {
     await dispose();
@@ -1013,7 +1078,27 @@ test("GET /checkout/current maps missing checkout context to not found", async (
     expect(body).toMatchObject({
       _tag: "CheckoutApiNotFound",
       code: "checkout.notFound",
-      message: "Checkout was not found for the current request context",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current localizes the fallback error message from request context", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      requestWithoutAnonymousCart({ "x-context-locale": "de-DE" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiNotFound",
+      code: "checkout.notFound",
+      message: "Der Checkout wurde für diese Anfrage nicht gefunden.",
     });
   } finally {
     await dispose();

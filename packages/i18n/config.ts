@@ -1,3 +1,16 @@
+export const locales = [
+  "en-US",
+  "en-GB",
+  "es-ES",
+  "fr-FR",
+  "de-DE",
+  "it-IT",
+  "pt-PT",
+  "nl-NL",
+] as const;
+
+export type SupportedLocale = (typeof locales)[number];
+
 export const regions = [
   {
     displayCode: "US",
@@ -47,4 +60,9 @@ export const regions = [
     currency: "EUR",
     localeCode: "nl-NL",
   },
-] as const;
+] as const satisfies readonly {
+  readonly displayCode: string;
+  readonly displayName: string;
+  readonly currency: string;
+  readonly localeCode: SupportedLocale;
+}[];

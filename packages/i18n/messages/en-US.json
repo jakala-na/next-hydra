@@ -187,6 +187,81 @@
           "description": "We will email next steps once your company has been approved."
         }
       }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Contact",
+        "deliveryDetails": "Delivery details",
+        "shippingOptions": "Shipping options",
+        "paymentOptions": "Payment options",
+        "reviewOrder": "Review order"
+      },
+      "status": {
+        "complete": "Complete",
+        "incomplete": "Incomplete"
+      },
+      "activeStep": "Active step",
+      "attention": "This step needs attention",
+      "cart": {
+        "title": "Cart",
+        "items": "{count, plural, one {# item} other {# items}}",
+        "quantity": "Qty {quantity}",
+        "violations": "Checkout issues",
+        "subtotal": "Subtotal"
+      },
+      "contact": {
+        "fields": {
+          "email": "Email",
+          "firstName": "First name",
+          "lastName": "Last name",
+          "phone": "Phone"
+        },
+        "actions": {
+          "save": "Save contact",
+          "saving": "Saving..."
+        }
+      },
+      "deliveryDetails": {
+        "fields": {
+          "addressLine1": "Address line 1",
+          "addressLine2": "Address line 2",
+          "city": "City",
+          "postalCode": "Postal code",
+          "region": "Region",
+          "country": "Country"
+        },
+        "actions": {
+          "save": "Save delivery details",
+          "saving": "Saving..."
+        }
+      },
+      "errors": {
+        "badRequest": "The checkout request is invalid.",
+        "internal": "Checkout could not be completed. Try again.",
+        "contact": {
+          "invalidInput": "Enter an email, first name, and last name.",
+          "sourceUnavailable": "This contact source is unavailable for this checkout.",
+          "providerFailure": "Contact could not be saved. Try again.",
+          "unsupported": "This contact source is not supported yet."
+        },
+        "deliveryDetails": {
+          "invalidInput": "Enter address line 1, postal code, city, and country.",
+          "sourceUnavailable": "This delivery details source is unavailable for this checkout.",
+          "providerFailure": "Delivery details could not be saved. Try again.",
+          "unsupported": "This delivery details source is not supported yet."
+        },
+        "notFound": "Checkout was not found for the current request.",
+        "versionConflict": "Checkout changed before your details could be saved. Refresh and try again."
+      },
+      "violations": {
+        "unknownCountry": "this destination",
+        "shippingCountryUnavailable": "Shipping to {country} is unavailable.",
+        "guestItemLimit": "Guest carts are limited to {maxQuantity} items. Remove at least {excessQuantity, plural, one {# item} other {# items}}.",
+        "incompatibleCartItems": "These cart items cannot be purchased together.",
+        "shippingAddressRestricted": "This address cannot receive one or more cart items.",
+        "policyUnavailable": "Checkout availability could not be verified.",
+        "generic": "Checkout cannot continue until this issue is resolved."
+      }
     }
   }
 }

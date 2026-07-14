@@ -1,6 +1,6 @@
 # Global Checkout Violations and sidebar rendering
 
-Status: ready-for-agent
+Status: complete
 Type: AFK
 
 ## Parent
@@ -15,20 +15,32 @@ This slice proves the core checkout state model after Contact and Delivery Detai
 
 ## Acceptance criteria
 
-- [ ] Checkout State includes one global Checkout Violations list.
-- [ ] Cart Policy Violations are normalized into Checkout Violations.
-- [ ] Checkout Policy Violations are normalized into Checkout Violations.
-- [ ] Each Checkout Violation preserves its source as Cart Policy or Checkout Policy.
-- [ ] Each Checkout Violation can target a Checkout Step, a cart item, or the whole Cart.
-- [ ] Violations can be step-targeted, cart-targeted, or global.
-- [ ] All first-slice Checkout Violations are blocking.
-- [ ] Blocking violations are represented separately from binary Checkout Step status.
-- [ ] Checkout Policy can evaluate checkout details saved by Contact and Delivery Details.
-- [ ] Cart Policy remains a separate capability even when Checkout displays its violations.
-- [ ] The cart sidebar renders whole-cart and cart-item violations from the global list.
-- [ ] The active step can render step-targeted violations from the same global list when present.
-- [ ] Tests cover normalization, source preservation, whole-cart targets, cart-item targets, step targets, non-step-bound violations, and blocking behavior.
-- [ ] Relevant typecheck and test commands pass.
+- [x] Checkout State includes one global Checkout Violations list.
+- [x] Cart Policy Violations are normalized into Checkout Violations.
+- [x] Checkout Policy Violations are normalized into Checkout Violations.
+- [x] Each Checkout Violation preserves its source as Cart Policy or Checkout Policy.
+- [x] Each Checkout Violation can target a Checkout Step, a cart item, or the whole Cart.
+- [x] Violations can be step-targeted, cart-targeted, or global.
+- [x] All first-slice Checkout Violations are blocking.
+- [x] Blocking violations are represented separately from binary Checkout Step status.
+- [x] Checkout Policy can evaluate checkout details saved by Contact and Delivery Details.
+- [x] Cart Policy remains a separate capability even when Checkout displays its violations.
+- [x] The cart sidebar renders whole-cart and cart-item violations from the global list.
+- [x] The active step can render step-targeted violations from the same global list when present.
+- [x] Tests cover normalization, source preservation, whole-cart targets, cart-item targets, step targets, non-step-bound violations, and blocking behavior.
+- [x] Relevant typecheck and test commands pass.
+
+## Implementation notes
+
+- `CheckoutPolicies` evaluates configured Checkout Policies with the current Cart, saved Checkout Details, and buyer context before `buildCheckoutState` normalizes their violations.
+- The live Checkout Policy layer treats Réunion (`RE`) as unavailable for shipping and targets the resulting blocking violation to Shipping Options.
+- Checkout violations expose stable codes and schema-backed parameters; the localized presentation boundary renders all public messages from `web.checkout` translation strings.
+- Internal Checkout Policy Violations retain diagnostic messages for logs and context; normalization into public Checkout State deliberately drops those messages.
+- The public Checkout HTTP schema decorates normalized violations with localized fallback messages while preserving their codes and parameters; internal diagnostic messages are never exposed.
+- Checkout HTTP errors are a separate boundary contract and expose both stable codes and localized fallback messages.
+- Cart Policy evaluation remains a separate path and preserves `cartPolicy` as the normalized violation source.
+- The Cart sidebar renders untargeted, whole-Cart, and cart-item violations; the Active Checkout Step renders only violations targeted to that step.
+- Component render tests cover localized violation output and the sidebar-versus-active-step targeting boundary.
 
 ## Blocked by
 

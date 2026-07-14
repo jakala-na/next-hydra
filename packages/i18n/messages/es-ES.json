@@ -191,6 +191,81 @@
           "description": "Te enviaremos los siguientes pasos por correo cuando tu empresa haya sido aprobada."
         }
       }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Contacto",
+        "deliveryDetails": "Datos de entrega",
+        "shippingOptions": "Opciones de envío",
+        "paymentOptions": "Opciones de pago",
+        "reviewOrder": "Revisar pedido"
+      },
+      "status": {
+        "complete": "Completo",
+        "incomplete": "Incompleto"
+      },
+      "activeStep": "Paso activo",
+      "attention": "Este paso requiere atención",
+      "cart": {
+        "title": "Carrito",
+        "items": "{count, plural, one {# artículo} other {# artículos}}",
+        "quantity": "Cant. {quantity}",
+        "violations": "Problemas del proceso de compra",
+        "subtotal": "Subtotal"
+      },
+      "contact": {
+        "fields": {
+          "email": "Correo electrónico",
+          "firstName": "Nombre",
+          "lastName": "Apellidos",
+          "phone": "Teléfono"
+        },
+        "actions": {
+          "save": "Guardar contacto",
+          "saving": "Guardando..."
+        }
+      },
+      "deliveryDetails": {
+        "fields": {
+          "addressLine1": "Dirección, línea 1",
+          "addressLine2": "Dirección, línea 2",
+          "city": "Ciudad",
+          "postalCode": "Código postal",
+          "region": "Región",
+          "country": "País"
+        },
+        "actions": {
+          "save": "Guardar datos de entrega",
+          "saving": "Guardando..."
+        }
+      },
+      "errors": {
+        "badRequest": "La solicitud del proceso de compra no es válida.",
+        "internal": "No se pudo completar el proceso de compra. Inténtalo de nuevo.",
+        "contact": {
+          "invalidInput": "Introduce un correo electrónico, un nombre y unos apellidos.",
+          "sourceUnavailable": "Esta fuente de contacto no está disponible para este proceso de compra.",
+          "providerFailure": "No se pudo guardar el contacto. Inténtalo de nuevo.",
+          "unsupported": "Esta fuente de contacto aún no es compatible."
+        },
+        "deliveryDetails": {
+          "invalidInput": "Introduce la dirección, el código postal, la ciudad y el país.",
+          "sourceUnavailable": "Esta fuente de entrega no está disponible para este proceso de compra.",
+          "providerFailure": "No se pudieron guardar los datos de entrega. Inténtalo de nuevo.",
+          "unsupported": "Esta fuente de entrega aún no es compatible."
+        },
+        "notFound": "No se encontró el proceso de compra para esta solicitud.",
+        "versionConflict": "El proceso de compra cambió antes de guardar. Actualiza la página e inténtalo de nuevo."
+      },
+      "violations": {
+        "unknownCountry": "este destino",
+        "shippingCountryUnavailable": "El envío a {country} no está disponible.",
+        "guestItemLimit": "Los carritos de invitado están limitados a {maxQuantity} artículos. Elimina al menos {excessQuantity, plural, one {# artículo} other {# artículos}}.",
+        "incompatibleCartItems": "Estos artículos no se pueden comprar juntos.",
+        "shippingAddressRestricted": "Esta dirección no puede recibir uno o más artículos del carrito.",
+        "policyUnavailable": "No se pudo verificar la disponibilidad del proceso de compra.",
+        "generic": "No se puede continuar hasta que se resuelva este problema."
+      }
     }
   }
 }

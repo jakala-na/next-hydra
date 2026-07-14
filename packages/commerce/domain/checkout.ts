@@ -1,3 +1,4 @@
+import { locales } from "@repo/i18n/config";
 import { ISO_COUNTRY_CODES } from "@repo/i18n/countries";
 import { Schema, SchemaTransformation } from "effect";
 import {
@@ -11,7 +12,7 @@ import {
 } from "./cart";
 import { CommerceBusinessUnitId, CommerceCustomerId } from "./commerce-account";
 
-export const CheckoutLocale = Schema.NonEmptyString.pipe(
+export const CheckoutLocale = Schema.Literals(locales).pipe(
   Schema.brand("CheckoutLocale")
 );
 export type CheckoutLocale = typeof CheckoutLocale.Type;
@@ -153,11 +154,24 @@ export const CheckoutViolationSource = Schema.Literals([
 ]);
 export type CheckoutViolationSource = typeof CheckoutViolationSource.Type;
 
+export const CheckoutViolationParameter = Schema.Union([
+  Schema.String,
+  Schema.Number,
+]);
+export type CheckoutViolationParameter = typeof CheckoutViolationParameter.Type;
+
+export const CheckoutViolationParameters = Schema.Record(
+  Schema.String,
+  CheckoutViolationParameter
+);
+export type CheckoutViolationParameters =
+  typeof CheckoutViolationParameters.Type;
+
 export const CheckoutViolation = Schema.Struct({
   source: CheckoutViolationSource,
   severity: Schema.Literal("blocking"),
   code: Schema.String,
-  message: Schema.String,
+  parameters: Schema.optional(CheckoutViolationParameters),
   targets: Schema.Array(ViolationTarget),
 });
 export type CheckoutViolation = typeof CheckoutViolation.Type;
@@ -165,6 +179,7 @@ export type CheckoutViolation = typeof CheckoutViolation.Type;
 export const CheckoutPolicyViolation = Schema.Struct({
   code: Schema.String,
   message: Schema.String,
+  parameters: Schema.optional(CheckoutViolationParameters),
   targets: Schema.Array(ViolationTarget),
 });
 export type CheckoutPolicyViolation = typeof CheckoutPolicyViolation.Type;

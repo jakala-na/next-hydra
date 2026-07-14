@@ -20,7 +20,6 @@ describe("checkoutMutationFailureToActionState", () => {
     ).toEqual({
       status: "error",
       code: "checkout.contact.invalidInput",
-      message: "Manual Contact email is required",
     });
   });
 
@@ -35,7 +34,6 @@ describe("checkoutMutationFailureToActionState", () => {
     ).toEqual({
       status: "error",
       code: "checkout.contact.sourceUnavailable",
-      message: "Manual Contact Source is unavailable for this checkout",
     });
   });
 
@@ -50,7 +48,6 @@ describe("checkoutMutationFailureToActionState", () => {
     ).toEqual({
       status: "error",
       code: "checkout.versionConflict",
-      message: "Checkout Cart changed before Contact could be saved",
     });
   });
 
@@ -65,7 +62,6 @@ describe("checkoutMutationFailureToActionState", () => {
     ).toEqual({
       status: "error",
       code: "checkout.contact.providerFailure",
-      message: "Contact could not be saved. Try again.",
     });
   });
 
@@ -81,7 +77,6 @@ describe("checkoutMutationFailureToActionState", () => {
     ).toEqual({
       status: "error",
       code: "checkout.contact.unsupported",
-      message: "This contact source is not supported yet.",
     });
   });
 });
