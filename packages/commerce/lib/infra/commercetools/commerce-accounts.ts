@@ -8,6 +8,7 @@ import type {
   CustomerUpdateAction,
 } from "@commercetools/platform-sdk";
 import { Effect, Layer, Redacted, Schema } from "effect";
+import { AddressBookReference } from "../../../domain/address-book";
 import type { StoreKey } from "../../../domain/cart";
 import {
   CommerceAccount,
@@ -32,6 +33,7 @@ import {
   type RedactedString,
 } from "../../../services/commerce-accounts";
 import { apiRoot } from "../../client/api-root";
+import { toCommercetoolsAddressKey } from "./address-book-key";
 
 const NOT_FOUND_STATUS_CODE = 404;
 
@@ -419,6 +421,9 @@ const toBusinessUnitDraft = (
     contactEmail: Redacted.value(details.email),
     addresses: [
       {
+        key: toCommercetoolsAddressKey(
+          AddressBookReference.make(`registration-${registration.id}`)
+        ),
         streetName: Redacted.value(details.address.streetName),
         additionalStreetInfo: details.address.additionalStreetInfo
           ? Redacted.value(details.address.additionalStreetInfo)

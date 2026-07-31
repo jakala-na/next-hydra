@@ -1,11 +1,17 @@
 # Address Book Delivery Details source
 
-Status: ready-for-agent
+Status: wontfix
 Type: AFK
 
 ## Parent
 
 `.scratch/checkout-effect-slice/PRD.md`
+
+## Superseded
+
+This issue is superseded by [Business Unit Address Book and Checkout Use](../../business-unit-address-book/map.md), whose completed decisions cover the universal Business Unit Address Book capability, Shipping/Billing types and defaults, new-address persistence, partial-save recovery, the current saved reference, the public Address Book API, and the Checkout selection experience.
+
+Use [Address Book implementation slices and tracker reconciliation](../../business-unit-address-book/issues/06-implementation-ready-address-book-spec.md) as the canonical implementation sequence. The acceptance criteria below are retained only as historical context and must not be implemented as the active contract.
 
 ## What to build
 

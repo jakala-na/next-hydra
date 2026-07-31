@@ -220,6 +220,11 @@ describe("layerCommercetoolsCommerceAccounts", () => {
 
         expect(mocks.businessUnitCreate).toHaveBeenCalledWith({
           body: expect.objectContaining({
+            addresses: [
+              expect.objectContaining({
+                key: "address-book-cmVnaXN0cmF0aW9uLXJlZ2lzdHJhdGlvbi0x",
+              }),
+            ],
             stores: [{ typeId: "store", key: "de-fr-uk" }],
           }),
         });

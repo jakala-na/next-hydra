@@ -133,6 +133,10 @@ The delivery destination selected or entered during Checkout.
 Uses **Address Line 1** for the primary address text and optional **Address Line 2** for secondary address text.
 _Avoid_: Shipping information
 
+**Billing Address**:
+The address selected for billing during Payment Options.
+_Avoid_: Shipping Address, payment method
+
 **Address Line 1**:
 The primary postal address line used by Checkout.
 _Avoid_: Street Name, Street Number
@@ -150,9 +154,25 @@ _Avoid_: Country name, arbitrary region string
 The selected strategy for resolving Shipping Address, such as manual entry or address book.
 _Avoid_: Provider address object
 
+**Address Book**:
+The collection of saved company addresses owned by a Business Unit and available to authenticated buyers acting in that Buying Context.
+_Avoid_: Customer address book, Checkout address list
+
+**Address Book Entry**:
+A saved company address together with its Address Types and Default Address Flags.
+_Avoid_: Customer address, Checkout Shipping Address
+
 **Address Book Reference**:
-A reference to a saved address selected for Delivery Details.
+A reference to the saved Address Book Entry associated with current Delivery Details.
 _Avoid_: Copied address book record
+
+**Address Type**:
+The supported use of an Address Book Entry: Shipping, Billing, or both.
+_Avoid_: Address source, provider address list
+
+**Default Address Flag**:
+A marker that identifies an Address Book Entry as the Business Unit default for Shipping or Billing.
+_Avoid_: Address Type
 
 **Active Checkout Step**:
 The single Checkout Step currently open for buyer input.
@@ -204,6 +224,7 @@ _Avoid_: Review checkout, order summary
 - A first-slice **Checkout State** does not report structured incompletion reasons.
 - Blocking violations in **Checkout State** are global and do not have to belong to a **Checkout Step**.
 - A **Checkout State** does not own option lists that have not been saved to the **Cart**.
+- A **Checkout State** can return the current saved **Address Book Reference** as Checkout Detail without owning or returning Address Book options.
 - A **Checkout Read Schema** can represent ordinary incomplete **Checkout**.
 - A **Checkout Action Schema** can require the details needed for a specific action.
 - A **Checkout State** includes **Checkout Violations** as one global list.
@@ -222,6 +243,15 @@ _Avoid_: Review checkout, order summary
 - A **Checkout Mutation Failure** occurs when the selected **Contact Source** cannot provide required **Buyer Contact** details.
 - A **Checkout Mutation Failure** occurs when the selected **Contact Source** is not allowed for the current **Checkout**.
 - A **Checkout Mutation Failure** occurs when an **Address Book Reference** cannot resolve to a **Shipping Address**.
+- An **Address Book** belongs to exactly one **Business Unit**, not to a customer.
+- An **Address Book** contains **Address Book Entries** that can be saved for Shipping, Billing, or both.
+- An **Address Book Entry** can independently carry Default Shipping and Default Billing flags.
+- Default Shipping automatically includes the Shipping **Address Type**; Default Billing automatically includes the Billing **Address Type**.
+- Saving an **Address Book Entry** accepts the address, its **Address Types**, and its **Default Address Flags**.
+- An authenticated buyer can access an **Address Book** only while acting in its Business Unit **Buying Context**.
+- An authenticated buyer authorized for a Business Unit **Buying Context** can list, select, and add addresses in that Business Unit's **Address Book**.
+- The first Address Book capability does not define a separate address administrator role.
+- **Checkout** consumes the **Address Book** as an external capability and does not own its addresses.
 - A **Checkout Step Completion** is derived from current checkout details and is not stored independently.
 - First-slice **Checkout Step** status is binary: complete or incomplete.
 - The **Active Checkout Step** is the first incomplete **Checkout Step** in the step sequence.
@@ -251,8 +281,23 @@ _Avoid_: Review checkout, order summary
 - **Delivery Details** follows **Contact** when delivery details are incomplete.
 - **Manual** is the **Delivery Details Source** for buyer-entered **Shipping Address**.
 - **Address Book** is the **Delivery Details Source** for **Shipping Address** selected from saved addresses.
+- Checkout offers only **Address Book Entries** whose **Address Types** include Shipping as Delivery Details choices.
+- Saving a new address from **Delivery Details** can add it as Shipping and optionally make it Default Shipping.
+- Billing use and Default Billing are selected during **Payment Options**, not **Delivery Details**.
 - **Address Book** **Delivery Details Source** submits an **Address Book Reference** rather than a copied **Shipping Address**.
+- For **Delivery Details**, the buyer can select an existing **Address Book** address or enter a new **Shipping Address**.
+- A new **Shipping Address** remains Cart-only unless the buyer explicitly chooses to save it to the Business Unit **Address Book**.
+- A buyer-entered new **Shipping Address** uses the Manual **Delivery Details Source** even when the buyer saves it to the **Address Book**.
+- Retrying the Cart update by its saved **Address Book Reference** does not change that Manual source.
+- Existing Address Book selection and new-address save both preserve the current **Address Book Reference** with the Cart-backed Checkout Details.
+- Saving a new Cart-only **Shipping Address** clears any previous current **Address Book Reference**.
+- Saving a new **Shipping Address** to the Business Unit **Address Book** is never an implicit effect of saving **Delivery Details**.
+- Saving a new address to the **Address Book** and using it for **Delivery Details** first persists the Business Unit address and then saves the resolved **Shipping Address** to the Cart.
+- If the Business Unit address is saved but the Cart update fails, saving the **Delivery Details** step fails and returns the saved **Address Book Reference** for retry.
+- Retrying after that partial failure gets the canonical **Address Book Entry** by reference and retries only the Cart update.
+- Address Book save idempotency is reference-based and does not compare address fields: an existing reference returns its canonical entry without another write.
 - **Delivery Details** completion depends on the resolved **Shipping Address**, not on preserving an **Address Book Reference**.
+- A later change to or removal of an **Address Book Entry** does not silently change or invalidate the Cart's resolved **Shipping Address**.
 - Changing **Buying Context** requires a different **Cart**.
 - A structurally valid **Shipping Address** can be saved even when it produces a **Checkout Policy Violation**.
 - **Shipping Options** can be the **Active Checkout Step** and remain incomplete when blocking violations prevent selecting shipping.
