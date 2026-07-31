@@ -401,30 +401,6 @@ const toCustomerDraft = (
     lastName: Redacted.value(details.contactLastName),
     companyName: String(details.companyName),
     ...(details.vatId ? { vatId: Redacted.value(details.vatId) } : {}),
-    addresses: [
-      {
-        streetName: Redacted.value(details.address.streetName),
-        additionalStreetInfo: details.address.additionalStreetInfo
-          ? Redacted.value(details.address.additionalStreetInfo)
-          : undefined,
-        postalCode: Redacted.value(details.address.postalCode),
-        city: Redacted.value(details.address.city),
-        region: details.address.region
-          ? Redacted.value(details.address.region)
-          : undefined,
-        country: String(details.address.country),
-        firstName: Redacted.value(details.contactFirstName),
-        lastName: Redacted.value(details.contactLastName),
-        company: String(details.companyName),
-        phone: details.companyPhone
-          ? Redacted.value(details.companyPhone)
-          : undefined,
-      },
-    ],
-    defaultBillingAddress: 0,
-    defaultShippingAddress: 0,
-    billingAddresses: [0],
-    shippingAddresses: [0],
     isEmailVerified: true,
   };
 };
