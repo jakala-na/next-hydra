@@ -10,6 +10,18 @@ export const CommerceBusinessUnitId = Schema.NonEmptyString.pipe(
 );
 export type CommerceBusinessUnitId = typeof CommerceBusinessUnitId.Type;
 
+export const CommerceBusinessUnitKey = Schema.NonEmptyString.pipe(
+  Schema.brand("CommerceBusinessUnitKey")
+);
+export type CommerceBusinessUnitKey = typeof CommerceBusinessUnitKey.Type;
+
+export class CommerceBusinessUnitContext extends Schema.Class<CommerceBusinessUnitContext>(
+  "CommerceBusinessUnitContext"
+)({
+  businessUnitId: CommerceBusinessUnitId,
+  businessUnitKey: CommerceBusinessUnitKey,
+}) {}
+
 export class CommerceAccount extends Schema.Class<CommerceAccount>(
   "CommerceAccount"
 )({
@@ -26,6 +38,19 @@ export class CommerceCustomer extends Schema.Class<CommerceCustomer>(
   email: Schema.Redacted(Schema.String, { label: "email" }),
   firstName: Schema.Redacted(Schema.String, { label: "personName" }),
   lastName: Schema.Redacted(Schema.String, { label: "personName" }),
+}) {}
+
+export class CommerceCustomerProfile extends Schema.Class<CommerceCustomerProfile>(
+  "CommerceCustomerProfile"
+)({
+  customerId: CommerceCustomerId,
+  email: Schema.optional(Schema.Redacted(Schema.String, { label: "email" })),
+  firstName: Schema.optional(
+    Schema.Redacted(Schema.String, { label: "personName" })
+  ),
+  lastName: Schema.optional(
+    Schema.Redacted(Schema.String, { label: "personName" })
+  ),
 }) {}
 
 export const CommerceCompanyRole = Schema.Literals(["owner", "associate"]);

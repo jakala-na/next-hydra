@@ -1,3 +1,4 @@
+import { StoreKey } from "@repo/commerce/domain/cart";
 import { StorefrontAnonymousCheckoutScope } from "@repo/commerce/domain/checkout";
 import {
   AnonymousCommercePrincipal,
@@ -30,9 +31,12 @@ import {
   type CheckoutSession as CheckoutSessionService,
 } from "@repo/commerce/lib/checkout/checkout-session";
 import { toCheckoutScope } from "@repo/commerce/lib/checkout/request-context";
+import { getStoreKeyByLocale } from "@repo/commerce/lib/store/utils/mappings";
 import {
   type CommerceAccountError,
   CommerceAccounts,
+  type CommerceBusinessUnitContextAmbiguous,
+  type CommerceBusinessUnitContextNotFound,
   type CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
 import type { Locale } from "@repo/i18n/types";
@@ -243,11 +247,18 @@ const toCheckoutContextAuthError = (
 
 const toCheckoutContextAccountError = (
   locale: string,
-  error: CommerceCustomerIdNotFound | CommerceAccountError
+  error:
+    | CommerceCustomerIdNotFound
+    | CommerceBusinessUnitContextNotFound
+    | CommerceBusinessUnitContextAmbiguous
+    | CommerceAccountError
 ) => {
   switch (error._tag) {
     case "CommerceCustomerIdNotFound":
       return commerceRequestContextNotFound("noCustomerMapping");
+    case "CommerceBusinessUnitContextNotFound":
+    case "CommerceBusinessUnitContextAmbiguous":
+      return commerceRequestContextNotFound("noBuyingContext");
     case "CommerceAccountError":
       return toCheckoutContextInternalError(locale);
     default:
@@ -287,6 +298,17 @@ const resolveCustomerCheckoutScopeFromAuthorization = Effect.gen(function* () {
       ),
       Effect.mapError((error) => toCheckoutContextAccountError(locale, error))
     );
+  const storeKey = StoreKey.make(getStoreKeyByLocale(locale as Locale));
+  const businessUnitContext = yield* commerceAccounts
+    .getBusinessUnitContextForCustomerInStore(customerId, storeKey)
+    .pipe(
+      Effect.tapError((error) =>
+        error._tag === "CommerceAccountError"
+          ? logCheckoutDiagnosticFailure(error)
+          : Effect.void
+      ),
+      Effect.mapError((error) => toCheckoutContextAccountError(locale, error))
+    );
 
   return toCheckoutScope(
     new CommerceRequestContext({
@@ -294,6 +316,8 @@ const resolveCustomerCheckoutScopeFromAuthorization = Effect.gen(function* () {
       principal: new CustomerCommercePrincipal({
         authUserId,
         customerId,
+        businessUnitId: businessUnitContext.businessUnitId,
+        businessUnitKey: businessUnitContext.businessUnitKey,
       }),
     })
   );

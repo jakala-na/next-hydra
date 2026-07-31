@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
+import { StoreKey } from "@repo/commerce/domain/cart";
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import {
   StoreConflict,
@@ -67,6 +68,8 @@ const details = new CompanyRegistrationDetails({
   }),
 });
 
+const storeKey = StoreKey.make("default-store");
+
 const reviewer = new RegistrationReviewerActor({
   actorType: "registration_reviewer",
   authUserId: AuthUserId.make("auth-reviewer-1"),
@@ -115,11 +118,15 @@ describe("Registrations over versioned storage", () => {
     Effect.gen(function* () {
       const registrations = yield* Registrations;
 
-      const created = yield* registrations.createAwaitingApproval({ details });
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
       const loaded = yield* registrations.get(created.id);
 
       expect(loaded._tag).toBe("AwaitingApprovalRegistration");
       expect(loaded.id).toBe(created.id);
+      expect(loaded.storeKey).toBe(storeKey);
     }).pipe(Effect.provide(Registrations.layerMemory))
   );
 
@@ -154,7 +161,7 @@ describe("Registrations over versioned storage", () => {
         const registrations = yield* Registrations;
 
         const exit = yield* registrations
-          .createAwaitingApproval({ details })
+          .createAwaitingApproval({ details, storeKey })
           .pipe(Effect.exit);
 
         expect(Exit.isFailure(exit)).toBe(true);
@@ -200,7 +207,7 @@ describe("Registrations over versioned storage", () => {
         const registrations = yield* Registrations;
 
         const exit = yield* registrations
-          .createAwaitingApproval({ details })
+          .createAwaitingApproval({ details, storeKey })
           .pipe(Effect.exit);
 
         expectDomainPersistenceFailure(exit);
@@ -266,7 +273,10 @@ describe("Registrations over versioned storage", () => {
   it.effect("approves awaiting registrations", () =>
     Effect.gen(function* () {
       const registrations = yield* Registrations;
-      const created = yield* registrations.createAwaitingApproval({ details });
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
 
       const approved = yield* registrations.markApproved({
         registrationId: created.id,
@@ -284,7 +294,10 @@ describe("Registrations over versioned storage", () => {
   it.effect("moves accepted approval decisions into processing", () =>
     Effect.gen(function* () {
       const registrations = yield* Registrations;
-      const created = yield* registrations.createAwaitingApproval({ details });
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
 
       const processing = yield* registrations.markApprovalProcessing({
         registrationId: created.id,
@@ -302,7 +315,10 @@ describe("Registrations over versioned storage", () => {
   it.effect("finalizes processing approvals", () =>
     Effect.gen(function* () {
       const registrations = yield* Registrations;
-      const created = yield* registrations.createAwaitingApproval({ details });
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
       yield* registrations.markApprovalProcessing({
         registrationId: created.id,
         decision: "approved",
@@ -322,7 +338,10 @@ describe("Registrations over versioned storage", () => {
   it.effect("finds approved registrations by invitation id", () =>
     Effect.gen(function* () {
       const registrations = yield* Registrations;
-      const created = yield* registrations.createAwaitingApproval({ details });
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
       const invitationId = makeInvitationId(created.id);
 
       yield* registrations.markApproved({
@@ -342,7 +361,10 @@ describe("Registrations over versioned storage", () => {
   it.effect("rejects awaiting registrations", () =>
     Effect.gen(function* () {
       const registrations = yield* Registrations;
-      const created = yield* registrations.createAwaitingApproval({ details });
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
 
       const rejected = yield* registrations.markRejected({
         registrationId: created.id,
@@ -357,7 +379,10 @@ describe("Registrations over versioned storage", () => {
   it.effect("rejects incompatible lifecycle transitions", () =>
     Effect.gen(function* () {
       const registrations = yield* Registrations;
-      const created = yield* registrations.createAwaitingApproval({ details });
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
       yield* registrations.markApproved({
         registrationId: created.id,
         decision: makeDecision(),
@@ -408,7 +433,10 @@ describe("Registrations over versioned storage", () => {
 
     return Effect.gen(function* () {
       const registrations = yield* Registrations;
-      const created = yield* registrations.createAwaitingApproval({ details });
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
 
       const exit = yield* registrations
         .markApproved({
@@ -463,6 +491,7 @@ describe("Registrations over versioned storage", () => {
         const registrations = yield* Registrations;
         const created = yield* registrations.createAwaitingApproval({
           details,
+          storeKey,
         });
 
         const exit = yield* registrations

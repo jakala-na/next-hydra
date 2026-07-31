@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
+import { StoreKey } from "@repo/commerce/domain/cart";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
@@ -103,7 +104,10 @@ const acceptedIdentity = new AcceptedAuthIdentity({
 
 const createRegistration = Effect.gen(function* () {
   const registrations = yield* Registrations;
-  return yield* registrations.createAwaitingApproval({ details });
+  return yield* registrations.createAwaitingApproval({
+    details,
+    storeKey: StoreKey.make("default-store"),
+  });
 });
 
 describe("registration onboarding", () => {
@@ -211,6 +215,10 @@ describe("registration onboarding", () => {
     () => {
       const commerceFailureLayer = Layer.succeed(CommerceAccounts)({
         createFromRegistration: () =>
+          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+        getBusinessUnitContextForCustomerInStore: () =>
+          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+        getCustomerProfile: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         getCustomerIdByAuthUserId: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
@@ -348,6 +356,8 @@ describe("registration onboarding", () => {
     const commerceLayer = Layer.succeed(
       CommerceAccounts,
       CommerceAccounts.of({
+        getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
+        getCustomerProfile: () => Effect.die("not used"),
         createFromRegistration: (registration) =>
           Effect.succeed(
             new CommerceAccount({

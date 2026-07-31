@@ -5,7 +5,11 @@ import {
   StorefrontAnonymousCheckoutScope,
   StorefrontCustomerCheckoutScope,
 } from "../../domain/checkout";
-import { CommerceCustomerId } from "../../domain/commerce-account";
+import {
+  CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
+  CommerceCustomerId,
+} from "../../domain/commerce-account";
 import { allowedContactSourcesForCheckout } from "./contact-source-policy";
 
 describe("allowedContactSourcesForCheckout", () => {
@@ -28,6 +32,8 @@ describe("allowedContactSourcesForCheckout", () => {
           channel: "storefrontCustomer",
           locale: CheckoutLocale.make("en-US"),
           customerId: CommerceCustomerId.make("customer-1"),
+          businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+          businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
         })
       )
     ).toEqual(["customerProfile"]);

@@ -5,7 +5,11 @@ import {
   StorefrontAnonymousCheckoutScope,
   StorefrontCustomerCheckoutScope,
 } from "../../domain/checkout";
-import { CommerceCustomerId } from "../../domain/commerce-account";
+import {
+  CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
+  CommerceCustomerId,
+} from "../../domain/commerce-account";
 import {
   AnonymousCommercePrincipal,
   AuthUserId,
@@ -39,6 +43,8 @@ describe("toCheckoutScope", () => {
       principal: new CustomerCommercePrincipal({
         authUserId: AuthUserId.make("auth-user-1"),
         customerId: CommerceCustomerId.make("customer-1"),
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+        businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
       }),
     });
 
@@ -49,6 +55,8 @@ describe("toCheckoutScope", () => {
       channel: "storefrontCustomer",
       locale: "en-US",
       customerId: "customer-1",
+      businessUnitId: "business-unit-1",
+      businessUnitKey: "business-unit-key-1",
     });
   });
 });

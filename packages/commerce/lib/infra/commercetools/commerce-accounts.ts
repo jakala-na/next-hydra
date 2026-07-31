@@ -8,12 +8,16 @@ import type {
   CustomerUpdateAction,
 } from "@commercetools/platform-sdk";
 import { Effect, Layer, Redacted, Schema } from "effect";
+import type { StoreKey } from "../../../domain/cart";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
+  CommerceBusinessUnitContext,
   CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
   type CommerceCompanyRole,
   CommerceCustomerId,
+  CommerceCustomerProfile,
 } from "../../../domain/commerce-account";
 import type { AuthUserId } from "../../../domain/commerce-request-context";
 import {
@@ -21,7 +25,10 @@ import {
   CommerceAccountError,
   type CommerceAccountRegistrationInput,
   CommerceAccounts,
+  CommerceBusinessUnitContextAmbiguous,
+  CommerceBusinessUnitContextNotFound,
   CommerceCustomerIdNotFound,
+  CommerceCustomerProfileNotFound,
   type RedactedString,
 } from "../../../services/commerce-accounts";
 import { apiRoot } from "../../client/api-root";
@@ -132,6 +139,11 @@ const customerFirstName = (identity: AcceptedCommerceIdentity) =>
 const customerLastName = (identity: AcceptedCommerceIdentity) =>
   Redacted.value(identity.lastName);
 
+const registrationStore = (registration: CommerceAccountRegistrationInput) => ({
+  typeId: "store" as const,
+  key: String(registration.storeKey),
+});
+
 const getCustomerByKey = (key: string) =>
   Effect.tryPromise({
     try: async () => {
@@ -238,6 +250,129 @@ const getCustomerIdByAuthUserId = Effect.fn(
   return toCommerceCustomerId(customer);
 });
 
+const getCustomerProfile = Effect.fn(
+  "CommercetoolsCommerceAccounts.getCustomerProfile"
+)(function* (customerId: CommerceCustomerId) {
+  const customer = yield* Effect.tryPromise({
+    try: async () => {
+      const response = await apiRoot
+        .customers()
+        .withId({ ID: String(customerId) })
+        .get()
+        .execute();
+      return response.body;
+    },
+    catch: (cause) =>
+      new CommercetoolsRequestFailure({
+        message: "Failed to read Commercetools customer profile",
+        cause,
+      }),
+  }).pipe(
+    Effect.catch(
+      (
+        failure
+      ): Effect.Effect<
+        never,
+        CommerceAccountError | CommerceCustomerProfileNotFound
+      > =>
+        isNotFoundError(failure)
+          ? Effect.fail(
+              new CommerceCustomerProfileNotFound({
+                message: "Commerce customer profile does not exist",
+                customerId,
+              })
+            )
+          : Effect.fail(
+              accountError(
+                "Failed to read Commercetools customer profile",
+                commercetoolsFailureCause(failure)
+              )
+            )
+    )
+  );
+
+  return new CommerceCustomerProfile({
+    customerId,
+    email: Redacted.make(customer.email, { label: "email" }),
+    ...(customer.firstName === undefined
+      ? {}
+      : {
+          firstName: Redacted.make(customer.firstName, {
+            label: "personName",
+          }),
+        }),
+    ...(customer.lastName === undefined
+      ? {}
+      : {
+          lastName: Redacted.make(customer.lastName, {
+            label: "personName",
+          }),
+        }),
+  });
+});
+
+const businessUnitForCustomerPredicate = (customerId: CommerceCustomerId) =>
+  `associates(customer(id=${JSON.stringify(String(customerId))})) or inheritedAssociates(customer(id=${JSON.stringify(String(customerId))}))`;
+
+const getBusinessUnitContextForCustomerInStore = Effect.fn(
+  "CommercetoolsCommerceAccounts.getBusinessUnitContextForCustomerInStore"
+)(function* (customerId: CommerceCustomerId, storeKey: StoreKey) {
+  const businessUnits = yield* Effect.tryPromise({
+    try: async () => {
+      const response = await apiRoot
+        .inStoreKeyWithStoreKeyValue({ storeKey: String(storeKey) })
+        .businessUnits()
+        .get({
+          queryArgs: {
+            where: businessUnitForCustomerPredicate(customerId),
+            limit: 2,
+          },
+        })
+        .execute();
+
+      return response.body.results;
+    },
+    catch: (cause) =>
+      accountError(
+        "Failed to resolve Commercetools Business Unit context",
+        cause
+      ),
+  });
+
+  if (businessUnits.length === 0) {
+    return yield* new CommerceBusinessUnitContextNotFound({
+      message:
+        "Commerce Business Unit context does not exist for customer in Store",
+      customerId,
+      storeKey,
+    });
+  }
+
+  if (businessUnits.length > 1) {
+    return yield* new CommerceBusinessUnitContextAmbiguous({
+      message:
+        "Multiple Commerce Business Unit contexts exist for customer in Store",
+      customerId,
+      storeKey,
+    });
+  }
+
+  const businessUnit = businessUnits[0];
+  if (businessUnit === undefined) {
+    return yield* new CommerceBusinessUnitContextNotFound({
+      message:
+        "Commerce Business Unit context does not exist for customer in Store",
+      customerId,
+      storeKey,
+    });
+  }
+
+  return new CommerceBusinessUnitContext({
+    businessUnitId: CommerceBusinessUnitId.make(businessUnit.id),
+    businessUnitKey: CommerceBusinessUnitKey.make(businessUnit.key),
+  });
+});
+
 const getBusinessUnitById = (commerceBusinessUnitId: CommerceBusinessUnitId) =>
   Effect.tryPromise({
     try: async () => {
@@ -330,6 +465,7 @@ const toBusinessUnitDraft = (
     shippingAddresses: [0],
     defaultBillingAddress: 0,
     defaultShippingAddress: 0,
+    stores: [registrationStore(registration)],
   };
 };
 
@@ -392,6 +528,47 @@ const createBusinessUnit = (
     catch: (cause) =>
       accountError("Failed to create Commercetools business unit", cause),
   });
+
+const ensureBusinessUnitStore = (
+  businessUnit: BusinessUnit,
+  registration: CommerceAccountRegistrationInput
+) => {
+  const store = registrationStore(registration);
+
+  if (
+    businessUnit.stores?.length === 1 &&
+    businessUnit.stores[0]?.key === store.key
+  ) {
+    return Effect.succeed(businessUnit);
+  }
+
+  return Effect.tryPromise({
+    try: async () => {
+      const response = await apiRoot
+        .businessUnits()
+        .withId({ ID: businessUnit.id })
+        .post({
+          body: {
+            version: businessUnit.version,
+            actions: [
+              {
+                action: "setStores",
+                stores: [store],
+              },
+            ],
+          },
+        })
+        .execute();
+
+      return response.body;
+    },
+    catch: (cause) =>
+      accountError(
+        "Failed to associate Commercetools business unit with Store",
+        cause
+      ),
+  });
+};
 
 const toCommerceCustomerId = (customer: Customer) =>
   CommerceCustomerId.make(customer.id);
@@ -579,6 +756,8 @@ export const layerCommercetoolsCommerceAccounts = Layer.succeed(
   CommerceAccounts.of({
     hasCustomerWithEmail,
     getCustomerIdByAuthUserId,
+    getCustomerProfile,
+    getBusinessUnitContextForCustomerInStore,
     createFromRegistration: Effect.fn(
       "CommercetoolsCommerceAccounts.createFromRegistration"
     )(function* (registration) {
@@ -593,9 +772,10 @@ export const layerCommercetoolsCommerceAccounts = Layer.succeed(
       const customer =
         (yield* getCustomerByKey(cKey)) ??
         (yield* createCustomer(registration, cKey));
-      const businessUnit =
-        (yield* getBusinessUnitByKey(buKey)) ??
-        (yield* createBusinessUnit(registration, buKey));
+      const existingBusinessUnit = yield* getBusinessUnitByKey(buKey);
+      const businessUnit = existingBusinessUnit
+        ? yield* ensureBusinessUnitStore(existingBusinessUnit, registration)
+        : yield* createBusinessUnit(registration, buKey);
 
       return new CommerceAccount({
         registrationId: registration.id,

@@ -2,23 +2,27 @@
 
 import { useTranslations } from "@repo/i18n";
 import { useActionState } from "react";
-import { saveCheckoutDeliveryDetails } from "../../actions/save-checkout-delivery-details";
-import { initialSaveCheckoutDeliveryDetailsActionState } from "../../actions/save-checkout-delivery-details-state";
+import {
+  initialSaveCheckoutDeliveryDetailsActionState,
+  type SaveCheckoutDeliveryDetailsAction,
+} from "../../actions/save-checkout-delivery-details-state";
 import type { ShippingAddress } from "../../domain/checkout";
 import { checkoutActionErrorMessageKey } from "./checkout-action-error";
 
 export function CheckoutDeliveryDetailsForm({
   cartId,
   cartVersion,
+  saveAction,
   shippingAddress,
 }: {
   readonly cartId: string;
   readonly cartVersion: number;
+  readonly saveAction: SaveCheckoutDeliveryDetailsAction;
   readonly shippingAddress?: ShippingAddress;
 }) {
   const t = useTranslations("web.checkout");
   const [actionState, formAction, isPending] = useActionState(
-    saveCheckoutDeliveryDetails,
+    saveAction,
     initialSaveCheckoutDeliveryDetailsActionState
   );
 

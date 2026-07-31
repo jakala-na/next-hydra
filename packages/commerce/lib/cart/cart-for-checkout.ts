@@ -11,7 +11,10 @@ import {
   StoreKey,
   VariantId,
 } from "../../domain/cart";
-import { CommerceCustomerId } from "../../domain/commerce-account";
+import {
+  CommerceBusinessUnitId,
+  CommerceCustomerId,
+} from "../../domain/commerce-account";
 
 const CommerceCartLineItemForCheckout = Schema.Struct({
   id: LineItemId,
@@ -31,6 +34,7 @@ const CommerceCartForCheckout = Schema.Struct({
   id: CartId,
   version: Schema.Number,
   customerId: Schema.optional(CommerceCustomerId),
+  businessUnitId: Schema.optional(CommerceBusinessUnitId),
   anonymousId: Schema.optional(AnonymousId),
   store: Schema.optional(
     Schema.NullOr(
@@ -52,6 +56,9 @@ const toCartForCheckout = (
   id: cart.id,
   version: cart.version,
   ...(cart.customerId === undefined ? {} : { customerId: cart.customerId }),
+  ...(cart.businessUnitId === undefined
+    ? {}
+    : { businessUnitId: cart.businessUnitId }),
   ...(cart.anonymousId === undefined ? {} : { anonymousId: cart.anonymousId }),
   ...(cart.store?.key == null ? {} : { storeKey: cart.store.key }),
   lineItems: cart.lineItems.map((lineItem) => ({

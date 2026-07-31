@@ -218,7 +218,8 @@
         },
         "actions": {
           "save": "Save contact",
-          "saving": "Saving..."
+          "saving": "Saving...",
+          "useCustomerProfile": "Use customer profile"
         }
       },
       "deliveryDetails": {

@@ -48,7 +48,7 @@ Resolver shape:
 - [x] First-pass anonymous cart possession uses the existing `CartId` brand.
 - [x] The domain language remains possession-based so a future opaque or signed anonymous cart token can replace raw Cart ID without changing Checkout terms.
 - [x] When a request has both a validated customer JWT and anonymous cart possession, the customer JWT wins for Checkout Scope.
-- [x] Anonymous-to-customer cart merge is not part of this resolver slice.
+- [x] Anonymous-to-customer Cart transfer or merge is not supported; a customer JWT wins for Checkout Scope while the Store-only anonymous Cart remains untouched.
 - [x] Authenticated customer requests resolve customer identity from a verified bearer JWT, not from `x-context-customer-id`.
 - [x] Authenticated checkout HTTP requests use `Authorization: Bearer <jwt>` as the customer identity input.
 - [x] Checkout HTTP adapters validate bearer JWT issuer, audience, signature, expiry, and required scopes or claims.

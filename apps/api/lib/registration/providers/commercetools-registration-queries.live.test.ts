@@ -1,5 +1,6 @@
 // biome-ignore-all lint/suspicious/noMisplacedAssertion: Assertions run inside Effect programs executed by the test helper.
 
+import { StoreKey } from "@repo/commerce/domain/cart";
 import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
 import { RejectedDecision } from "@repo/registration/domain/approval";
 import {
@@ -84,6 +85,7 @@ const makeRegistration = (id: string, companyName: string, createdAt: Date) =>
     _tag: "AwaitingApprovalRegistration",
     status: "awaiting_approval",
     id: RegistrationId.make(id),
+    storeKey: StoreKey.make("default-store"),
     details: new CompanyRegistrationDetails({
       companyName: CompanyName.make(companyName),
       contactFirstName: Redacted.make(PersonName.make("Ada"), {
@@ -121,6 +123,7 @@ const makeRejectedRegistration = (
     _tag: "RejectedRegistration",
     status: "rejected",
     id: registration.id,
+    storeKey: registration.storeKey,
     details: registration.details,
     decision: new RejectedDecision({
       decision: "rejected",

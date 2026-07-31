@@ -8,11 +8,18 @@ import {
 } from "@repo/commerce/domain/cart";
 import {
   type CheckoutContact,
+  type CheckoutContactInput,
   type CheckoutDeliveryDetails,
   CheckoutMutationProviderFailure,
   CountryCode,
 } from "@repo/commerce/domain/checkout";
-import { CommerceCustomerId } from "@repo/commerce/domain/commerce-account";
+import {
+  CommerceBusinessUnitContext,
+  CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
+  CommerceCustomerId,
+  CommerceCustomerProfile,
+} from "@repo/commerce/domain/commerce-account";
 import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
 import {
   ANONYMOUS_CART_COOKIE_NAME,
@@ -23,10 +30,11 @@ import { CheckoutSession } from "@repo/commerce/lib/checkout/checkout-session";
 import {
   CommerceAccountError,
   CommerceAccounts,
+  CommerceBusinessUnitContextNotFound,
   CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Redacted } from "effect";
 import { expect, test } from "vitest";
 import {
   CheckoutCustomerJwtInvalid,
@@ -124,6 +132,13 @@ const manualContact: CheckoutContact = {
   },
 };
 
+const customerProfile = new CommerceCustomerProfile({
+  customerId: CommerceCustomerId.make("customer-1"),
+  email: Redacted.make("profile@example.com", { label: "email" }),
+  firstName: Redacted.make("Profile", { label: "personName" }),
+  lastName: Redacted.make("Buyer", { label: "personName" }),
+});
+
 const saveContactPayload = ({
   cartId = "cart-1",
   version = 7,
@@ -131,7 +146,7 @@ const saveContactPayload = ({
 }: {
   readonly cartId?: string;
   readonly version?: number;
-  readonly contact?: CheckoutContact;
+  readonly contact?: CheckoutContactInput;
 } = {}) => ({
   cart: {
     id: cartId,
@@ -236,6 +251,9 @@ const makeCheckoutLayer = (
     readonly saveDeliveryDetailsFailure?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
     >[0]["saveDeliveryDetailsFailure"];
+    readonly customerProfiles?: Parameters<
+      typeof CheckoutSession.layerMemoryFrom
+    >[0]["customerProfiles"];
   } = {}
 ) => {
   const {
@@ -243,6 +261,7 @@ const makeCheckoutLayer = (
     cartPolicyViolations = [],
     saveContactFailure,
     saveDeliveryDetailsFailure,
+    customerProfiles = [],
   } = input;
   const currentCart = "currentCart" in input ? input.currentCart : cart();
 
@@ -250,6 +269,7 @@ const makeCheckoutLayer = (
     ...(currentCart === undefined ? {} : { currentCart }),
     allowedContactSources,
     cartPolicyViolations,
+    customerProfiles,
     ...(saveContactFailure === undefined ? {} : { saveContactFailure }),
     ...(saveDeliveryDetailsFailure === undefined
       ? {}
@@ -265,6 +285,16 @@ const makeCommerceAccountsLayer = (
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
+      getBusinessUnitContextForCustomerInStore: () =>
+        Effect.succeed(
+          new CommerceBusinessUnitContext({
+            businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+            businessUnitKey: CommerceBusinessUnitKey.make(
+              "business-unit-key-1"
+            ),
+          })
+        ),
+      getCustomerProfile: () => Effect.succeed(customerProfile),
       getCustomerIdByAuthUserId: () => Effect.succeed(customerId),
       hasCustomerWithEmail: () => Effect.die("not used"),
       linkRegistrantIdentity: () => Effect.die("not used"),
@@ -279,6 +309,8 @@ const makeCommerceAccountsWithoutCustomerLayer = (
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
+      getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
+      getCustomerProfile: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () =>
         Effect.fail(
           new CommerceCustomerIdNotFound({
@@ -291,12 +323,38 @@ const makeCommerceAccountsWithoutCustomerLayer = (
     })
   );
 
+const makeCommerceAccountsWithoutBusinessUnitLayer = (
+  customerId = CommerceCustomerId.make("customer-1")
+) =>
+  Layer.succeed(
+    CommerceAccounts,
+    CommerceAccounts.of({
+      addAssociate: () => Effect.die("not used"),
+      createFromRegistration: () => Effect.die("not used"),
+      getBusinessUnitContextForCustomerInStore: (_, storeKey) =>
+        Effect.fail(
+          new CommerceBusinessUnitContextNotFound({
+            message:
+              "Commerce Business Unit context does not exist for customer in Store",
+            customerId,
+            storeKey,
+          })
+        ),
+      getCustomerProfile: () => Effect.die("not used"),
+      getCustomerIdByAuthUserId: () => Effect.succeed(customerId),
+      hasCustomerWithEmail: () => Effect.die("not used"),
+      linkRegistrantIdentity: () => Effect.die("not used"),
+    })
+  );
+
 const makeFailingCommerceAccountsLayer = () =>
   Layer.succeed(
     CommerceAccounts,
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
+      getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
+      getCustomerProfile: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () =>
         Effect.fail(
           new CommerceAccountError({
@@ -452,6 +510,74 @@ test("POST /checkout/contact saves Manual Contact and returns recomputed checkou
     expect(body.steps[0]).toMatchObject({
       id: "contact",
       status: "complete",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact resolves Customer Profile from verified bearer context and ignores spoofed customer headers", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      allowedContactSources: ["customerProfile"],
+      customerProfiles: [customerProfile],
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      saveContactRequest(
+        saveContactPayload({ contact: { source: "customerProfile" } }),
+        {
+          authorization: "Bearer valid-token",
+          "x-context-customer-id": "customer-spoof",
+        }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.scope).toMatchObject({
+      channel: "storefrontCustomer",
+      customerId: "customer-1",
+    });
+    expect(body.details.contact).toEqual({
+      source: "customerProfile",
+      buyerContact: {
+        email: "profile@example.com",
+        firstName: "Profile",
+        lastName: "Buyer",
+      },
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact cannot save Customer Profile from a spoofed customer header", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({ customerProfiles: [customerProfile] })
+  );
+
+  try {
+    const response = await handler(
+      saveContactRequest(
+        saveContactPayload({ contact: { source: "customerProfile" } }),
+        { "x-context-customer-id": "customer-1" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiBadRequest",
+      code: "checkout.badRequest",
+      message: "The checkout request is invalid.",
     });
   } finally {
     await dispose();
@@ -879,6 +1005,8 @@ test("GET /checkout/current resolves customer scope from bearer JWT before anony
         channel: "storefrontCustomer",
         locale: "en-US",
         customerId: "customer-1",
+        businessUnitId: "business-unit-1",
+        businessUnitKey: "business-unit-key-1",
       },
     });
   } finally {
@@ -971,6 +1099,31 @@ test("GET /checkout/current maps missing customer account for valid bearer JWT t
   const layer = Layer.mergeAll(
     makeCheckoutLayer(),
     makeCommerceAccountsWithoutCustomerLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiNotFound",
+      code: "checkout.notFound",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current maps missing Business Unit context for valid bearer JWT to not found", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsWithoutBusinessUnitLayer(),
     makeJwtVerifierLayer()
   );
   const { dispose, handler } = await makeHandler(layer);

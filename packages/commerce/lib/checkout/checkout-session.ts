@@ -1,14 +1,17 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Redacted } from "effect";
 import type { CartForCheckout } from "../../domain/cart";
 import {
+  type BuyerContact,
   type CheckoutBuyerContext,
   type CheckoutCartReference,
   type CheckoutContact,
+  type CheckoutContactInput,
   type CheckoutContactSource,
   type CheckoutDeliveryDetails,
   type CheckoutDeliveryDetailsSource,
   type CheckoutDetails,
   type CheckoutMutationFailure,
+  CheckoutMutationProviderFailure,
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   type CheckoutProviderFailure,
@@ -17,6 +20,11 @@ import {
   CheckoutUnavailable,
   CheckoutVersionConflict,
 } from "../../domain/checkout";
+import type { CommerceCustomerProfile } from "../../domain/commerce-account";
+import {
+  CommerceAccounts,
+  type CommerceCustomerProfileNotFound,
+} from "../../services/commerce-accounts";
 import type { PolicyViolation } from "../cart/policy/cart-policy.types";
 import { CheckoutPolicies, type CheckoutPolicy } from "./checkout-policy";
 import { buildCheckoutState } from "./state";
@@ -24,7 +32,7 @@ import { buildCheckoutState } from "./state";
 export interface SaveCheckoutContactInput {
   readonly scope: CheckoutScope;
   readonly cart: CheckoutCartReference;
-  readonly contact: CheckoutContact;
+  readonly contact: CheckoutContactInput;
 }
 
 export interface SaveCheckoutDeliveryDetailsInput {
@@ -40,6 +48,7 @@ export interface CheckoutSessionMemoryInput {
   readonly allowedContactSources?: readonly CheckoutContactSource[];
   readonly cartPolicyViolations?: readonly PolicyViolation[];
   readonly checkoutPolicies?: readonly CheckoutPolicy[];
+  readonly customerProfiles?: readonly CommerceCustomerProfile[];
   readonly saveContactFailure?: CheckoutSaveContactFailure;
   readonly saveDeliveryDetailsFailure?: CheckoutSaveDeliveryDetailsFailure;
 }
@@ -67,7 +76,7 @@ export const contactSourceUnavailable = (source: CheckoutContactSource) =>
     message:
       source === "manual"
         ? "Manual Contact Source is unavailable for this checkout"
-        : `${source} Contact Source is unavailable for this checkout`,
+        : "Customer Profile Contact Source is unavailable for this checkout",
     source,
   });
 
@@ -88,7 +97,7 @@ const requiredFieldError = (field: keyof CheckoutContact["buyerContact"]) =>
   });
 
 export const normalizeManualContact = (
-  contact: CheckoutContact
+  contact: CheckoutContactInput
 ): Effect.Effect<
   CheckoutContact,
   CheckoutMutationSchemaFailure | CheckoutMutationSourceUnavailable
@@ -126,6 +135,84 @@ export const normalizeManualContact = (
     },
   });
 };
+
+const customerProfileRequiredFieldError = (field: keyof BuyerContact) =>
+  new CheckoutMutationSchemaFailure({
+    message: `Customer Profile Contact ${field} is required`,
+  });
+
+type CommerceAccountsService = Context.Service.Shape<typeof CommerceAccounts>;
+
+const customerProfileNotFoundToMutationFailure = (
+  _error: CommerceCustomerProfileNotFound
+) => contactSourceUnavailable("customerProfile");
+
+const resolveCustomerProfileContact = Effect.fn(
+  "CheckoutSession.resolveCustomerProfileContact"
+)(function* (
+  scope: CheckoutScope,
+  commerceAccounts: CommerceAccountsService
+): Effect.fn.Return<
+  CheckoutContact,
+  | CheckoutMutationSchemaFailure
+  | CheckoutMutationSourceUnavailable
+  | CheckoutMutationProviderFailure
+> {
+  if (scope.channel !== "storefrontCustomer") {
+    return yield* contactSourceUnavailable("customerProfile");
+  }
+
+  const profile = yield* commerceAccounts
+    .getCustomerProfile(scope.customerId)
+    .pipe(
+      Effect.mapError((error) =>
+        error._tag === "CommerceCustomerProfileNotFound"
+          ? customerProfileNotFoundToMutationFailure(error)
+          : new CheckoutMutationProviderFailure({
+              message: error.message,
+              operation: "checkout.contact.customerProfile.resolve",
+              cause: error,
+            })
+      )
+    );
+  const email = profile.email ? Redacted.value(profile.email).trim() : "";
+  const firstName = profile.firstName
+    ? Redacted.value(profile.firstName).trim()
+    : "";
+  const lastName = profile.lastName
+    ? Redacted.value(profile.lastName).trim()
+    : "";
+
+  if (email.length === 0) {
+    return yield* customerProfileRequiredFieldError("email");
+  }
+
+  if (firstName.length === 0) {
+    return yield* customerProfileRequiredFieldError("firstName");
+  }
+
+  if (lastName.length === 0) {
+    return yield* customerProfileRequiredFieldError("lastName");
+  }
+
+  return {
+    source: "customerProfile",
+    buyerContact: {
+      email,
+      firstName,
+      lastName,
+    },
+  };
+});
+
+export const resolveCheckoutContact = (
+  scope: CheckoutScope,
+  contact: CheckoutContactInput,
+  commerceAccounts: CommerceAccountsService
+) =>
+  contact.source === "manual"
+    ? normalizeManualContact(contact)
+    : resolveCustomerProfileContact(scope, commerceAccounts);
 
 export const contactsEqual = (
   left: CheckoutContact | undefined,
@@ -264,6 +351,7 @@ export class CheckoutSession extends Context.Service<
     allowedContactSources = defaultAllowedContactSources,
     cartPolicyViolations = [],
     checkoutPolicies = [],
+    customerProfiles = [],
     saveContactFailure,
     saveDeliveryDetailsFailure,
   }: CheckoutSessionMemoryInput) =>
@@ -271,6 +359,7 @@ export class CheckoutSession extends Context.Service<
       CheckoutSession,
       Effect.gen(function* () {
         const policies = yield* CheckoutPolicies;
+        const commerceAccounts = yield* CommerceAccounts;
         let activeCart = currentCart;
         let activeDetails = details;
 
@@ -317,13 +406,17 @@ export class CheckoutSession extends Context.Service<
                 );
               }
 
-              const contact = yield* normalizeManualContact(input.contact);
-
-              if (!allowedContactSources.includes(contact.source)) {
+              if (!allowedContactSources.includes(input.contact.source)) {
                 return yield* Effect.fail(
-                  contactSourceUnavailable(contact.source)
+                  contactSourceUnavailable(input.contact.source)
                 );
               }
+
+              const contact = yield* resolveCheckoutContact(
+                input.scope,
+                input.contact,
+                commerceAccounts
+              );
 
               const cart = yield* ensureCurrentCartReference(
                 activeCart,
@@ -387,5 +480,8 @@ export class CheckoutSession extends Context.Service<
             }),
         });
       })
-    ).pipe(Layer.provide(CheckoutPolicies.layerFrom(checkoutPolicies)));
+    ).pipe(
+      Layer.provide(CheckoutPolicies.layerFrom(checkoutPolicies)),
+      Layer.provide(CommerceAccounts.layerMemoryFrom({ customerProfiles }))
+    );
 }

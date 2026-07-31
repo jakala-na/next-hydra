@@ -37,10 +37,12 @@ describe("decodeCartForCheckout", () => {
           ...cart(),
           cartState: "Active",
           store: { key: "default-store" },
+          businessUnitId: "business-unit-1",
         });
 
         expect(decoded).toMatchObject({
           id: "cart-1",
+          businessUnitId: "business-unit-1",
           storeKey: "default-store",
           lineItems: [
             {

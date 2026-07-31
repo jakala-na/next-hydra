@@ -1,7 +1,11 @@
 import { Schema } from "effect";
 import { CartId } from "./cart";
 import { CheckoutLocale } from "./checkout";
-import { CommerceCustomerId } from "./commerce-account";
+import {
+  CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
+  CommerceCustomerId,
+} from "./commerce-account";
 
 export const AuthUserId = Schema.NonEmptyString.pipe(
   Schema.brand("AuthUserId")
@@ -20,6 +24,8 @@ export class CustomerCommercePrincipal extends Schema.TaggedClass<CustomerCommer
   {
     authUserId: AuthUserId,
     customerId: CommerceCustomerId,
+    businessUnitId: CommerceBusinessUnitId,
+    businessUnitKey: CommerceBusinessUnitKey,
   }
 ) {}
 
@@ -40,6 +46,10 @@ export class CommerceRequestContextNotFound extends Schema.TaggedErrorClass<Comm
   "CommerceRequestContextNotFound",
   {
     message: Schema.String,
-    reason: Schema.Literals(["noPrincipal", "noCustomerMapping"]),
+    reason: Schema.Literals([
+      "noPrincipal",
+      "noCustomerMapping",
+      "noBuyingContext",
+    ]),
   }
 ) {}

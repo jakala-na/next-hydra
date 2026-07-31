@@ -1,3 +1,4 @@
+import type { StoreKey } from "@repo/commerce/domain/cart";
 import type { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import {
   type StoreConflict,
@@ -85,6 +86,7 @@ export type RegistrationTransitionError =
 
 export interface CreateAwaitingApprovalRegistrationInput {
   readonly details: CompanyRegistrationDetails;
+  readonly storeKey: StoreKey;
 }
 
 export interface MarkRegistrationApprovedInput {
@@ -187,6 +189,7 @@ export class Registrations extends Context.Service<
           _tag: "AwaitingApprovalRegistration",
           status: "awaiting_approval",
           id,
+          storeKey: input.storeKey,
           details: input.details,
           createdAt,
           updatedAt: createdAt,
@@ -294,6 +297,7 @@ export class Registrations extends Context.Service<
           _tag: "ApprovedRegistration",
           status: "approved",
           id: current.value.id,
+          storeKey: current.value.storeKey,
           details: current.value.details,
           decision: input.decision,
           commerceAccount: input.commerceAccount,
@@ -366,6 +370,7 @@ export class Registrations extends Context.Service<
           _tag: "ApprovalProcessingRegistration",
           status: "approval_processing",
           id: current.value.id,
+          storeKey: current.value.storeKey,
           details: current.value.details,
           requestedDecision: input.decision,
           createdAt: current.value.createdAt,
@@ -436,6 +441,7 @@ export class Registrations extends Context.Service<
           _tag: "RejectedRegistration",
           status: "rejected",
           id: current.value.id,
+          storeKey: current.value.storeKey,
           details: current.value.details,
           decision: input.decision,
           createdAt: current.value.createdAt,

@@ -222,7 +222,8 @@
         },
         "actions": {
           "save": "Salva contatto",
-          "saving": "Salvataggio..."
+          "saving": "Salvataggio...",
+          "useCustomerProfile": "Usa il profilo cliente"
         }
       },
       "deliveryDetails": {

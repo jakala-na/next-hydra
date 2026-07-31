@@ -1,3 +1,4 @@
+import { StoreKey } from "@repo/commerce/domain/cart";
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import {
   CommerceAccountError,
@@ -45,6 +46,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 
 const HTTP_OK = 200;
 const HTTP_CREATED = 201;
+const HTTP_BAD_REQUEST = 400;
 const HTTP_CONFLICT = 409;
 const HTTP_INTERNAL_SERVER_ERROR = 500;
 const HTTP_UNPROCESSABLE_ENTITY = 422;
@@ -102,6 +104,7 @@ const request = (
     method,
     headers: {
       ...(body === undefined ? {} : { "content-type": "application/json" }),
+      "x-context-locale": "en-US",
       ...headers,
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -115,6 +118,7 @@ const makeAwaitingRegistration = (
     _tag: "AwaitingApprovalRegistration",
     status: "awaiting_approval",
     id: RegistrationId.make(registrationId),
+    storeKey: StoreKey.make("default-store"),
     details: toCompanyRegistrationDetails(
       new CreateRegistrationRequest(payload)
     ),
@@ -132,6 +136,7 @@ const makeApprovedRegistration = (
     _tag: "ApprovedRegistration",
     status: "approved",
     id: awaiting.id,
+    storeKey: awaiting.storeKey,
     details: awaiting.details,
     decision: new ApprovedDecision({
       decision: "approved",
@@ -196,7 +201,7 @@ const makeApiLayer = (
   const registrationsLayer = Layer.succeed(
     Registrations,
     Registrations.of({
-      createAwaitingApproval: ({ details }) =>
+      createAwaitingApproval: ({ details, storeKey }) =>
         Effect.sync(() => {
           const registrationId = RegistrationId.make(crypto.randomUUID());
           const createdAt = new Date("2026-03-22T00:00:00.000Z");
@@ -204,6 +209,7 @@ const makeApiLayer = (
             _tag: "AwaitingApprovalRegistration",
             status: "awaiting_approval",
             id: registrationId,
+            storeKey,
             details,
             createdAt,
             updatedAt: createdAt,
@@ -238,6 +244,7 @@ const makeApiLayer = (
             _tag: "ApprovalProcessingRegistration",
             status: "approval_processing",
             id: current.id,
+            storeKey: current.storeKey,
             details: current.details,
             requestedDecision: decision,
             createdAt: current.createdAt,
@@ -282,6 +289,8 @@ const makeApiLayer = (
   const commerceAccountsLayer = Layer.succeed(
     CommerceAccounts,
     CommerceAccounts.of({
+      getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
+      getCustomerProfile: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
       linkRegistrantIdentity: () => Effect.die("not used"),
       addAssociate: () => Effect.die("not used"),
@@ -374,7 +383,9 @@ test("POST /registrations creates an Effect registration and starts the workflow
 
   try {
     const response = await handler(
-      request("POST", "/registrations", registrationPayload),
+      request("POST", "/registrations", registrationPayload, {
+        "x-context-locale": "en-GB",
+      }),
       emptyContext()
     );
     const body = await response.json();
@@ -383,11 +394,34 @@ test("POST /registrations creates an Effect registration and starts the workflow
     expect(body).toMatchObject({
       registrationId: expect.any(String),
       status: "awaiting_approval",
+      storeKey: "de-fr-uk",
     });
-    expect(api.registrations.has(body.registrationId)).toBe(true);
+    expect(api.registrations.get(body.registrationId)?.storeKey).toBe(
+      "de-fr-uk"
+    );
     expect(workflowApiMocks.start).toHaveBeenCalledWith(expect.any(Function), [
       { registrationId: body.registrationId },
     ]);
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations rejects unsupported storefront locales", async () => {
+  const api = makeApiLayer();
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", registrationPayload, {
+        "x-context-locale": "xx-XX",
+      }),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(api.registrations.size).toBe(0);
+    expect(workflowApiMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }

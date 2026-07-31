@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
+import { StoreKey } from "@repo/commerce/domain/cart";
 import { Effect, Exit, Redacted } from "effect";
 import { RegistrationReviewerActor } from "../domain/actors";
 import {
@@ -53,7 +54,10 @@ const details = new CompanyRegistrationDetails({
 
 const createRegistration = Effect.gen(function* () {
   const registrations = yield* Registrations;
-  return yield* registrations.createAwaitingApproval({ details });
+  return yield* registrations.createAwaitingApproval({
+    details,
+    storeKey: StoreKey.make("default-store"),
+  });
 });
 
 describe("acceptRegistrationReviewDecision", () => {

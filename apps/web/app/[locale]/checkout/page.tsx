@@ -1,7 +1,11 @@
 import { CheckoutPage } from "@repo/commerce/components/pages/checkout";
+import { layerCommercetoolsCommerceAccounts } from "@repo/commerce/lib/infra/commercetools/commerce-accounts";
 import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
+import { Effect } from "effect";
 import { notFound } from "next/navigation";
+import { resolveCheckoutScope } from "../../../lib/checkout-scope";
+import { saveCheckoutContact, saveCheckoutDeliveryDetails } from "./actions";
 
 type CheckoutRouteProps = {
   readonly params: Promise<{
@@ -16,5 +20,27 @@ export default async function Checkout({ params }: CheckoutRouteProps) {
   }
 
   setRequestLocale(locale);
-  return <CheckoutPage locale={locale} />;
+  const scope = await Effect.runPromise(
+    resolveCheckoutScope(locale).pipe(
+      Effect.catchTag("CommerceRequestContextNotFound", () =>
+        Effect.succeed(null)
+      ),
+      Effect.provide(layerCommercetoolsCommerceAccounts)
+    )
+  );
+
+  if (scope === null) {
+    notFound();
+  }
+
+  return (
+    <CheckoutPage
+      actions={{
+        saveContact: saveCheckoutContact,
+        saveDeliveryDetails: saveCheckoutDeliveryDetails,
+      }}
+      locale={locale}
+      scope={scope}
+    />
+  );
 }

@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { CommerceCustomerId } from "./commerce-account";
+import { CommerceBusinessUnitId, CommerceCustomerId } from "./commerce-account";
 
 export const CartId = Schema.NonEmptyString.pipe(Schema.brand("CartId"));
 export type CartId = typeof CartId.Type;
@@ -51,6 +51,7 @@ export const CartForCheckout = Schema.Struct({
   id: CartId,
   version: Schema.Number,
   customerId: Schema.optional(CommerceCustomerId),
+  businessUnitId: Schema.optional(CommerceBusinessUnitId),
   anonymousId: Schema.optional(AnonymousId),
   storeKey: Schema.optional(StoreKey),
   lineItems: Schema.Array(CartForCheckoutLineItem),

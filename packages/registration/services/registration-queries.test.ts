@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
+import { StoreKey } from "@repo/commerce/domain/cart";
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import { Effect, Redacted } from "effect";
 import { RegistrationReviewerActor } from "../domain/actors";
@@ -91,6 +92,7 @@ const makeAwaiting = ({
     _tag: "AwaitingApprovalRegistration",
     status: "awaiting_approval",
     id: RegistrationId.make(id),
+    storeKey: StoreKey.make("default-store"),
     details: makeDetails({ companyName, firstName, lastName, email }),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date(updatedAt),
@@ -101,6 +103,7 @@ const makeApproved = (registration: AwaitingApprovalRegistration) =>
     _tag: "ApprovedRegistration",
     status: "approved",
     id: registration.id,
+    storeKey: registration.storeKey,
     details: registration.details,
     decision: new ApprovedDecision({
       decision: "approved",
@@ -124,6 +127,7 @@ const makeRejected = (registration: AwaitingApprovalRegistration) =>
     _tag: "RejectedRegistration",
     status: "rejected",
     id: registration.id,
+    storeKey: registration.storeKey,
     details: registration.details,
     decision: new RejectedDecision({
       decision: "rejected",

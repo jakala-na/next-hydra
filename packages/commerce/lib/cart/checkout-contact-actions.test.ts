@@ -14,6 +14,15 @@ const contact = {
   },
 } as const satisfies CheckoutContact;
 
+const customerProfileContact = {
+  source: "customerProfile",
+  buyerContact: {
+    email: "profile@example.com",
+    firstName: "Profile",
+    lastName: "Buyer",
+  },
+} as const satisfies CheckoutContact;
+
 describe("buildSaveCheckoutContactActions", () => {
   it("sets the checkout custom type for carts without custom fields", () => {
     const result = buildSaveCheckoutContactActions(
@@ -58,6 +67,37 @@ describe("buildSaveCheckoutContactActions", () => {
         name: "checkoutContact",
       },
     });
+  });
+
+  it("stores resolved Customer Profile details as cart-owned contact details", () => {
+    const result = buildSaveCheckoutContactActions(
+      {
+        custom: null,
+      },
+      customerProfileContact
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.data[0]).toEqual({
+      setCustomerEmail: {
+        email: "profile@example.com",
+      },
+    });
+
+    const customTypeAction = result.data[1];
+    expect(customTypeAction).toHaveProperty("setCustomType");
+    if (!(customTypeAction && "setCustomType" in customTypeAction)) {
+      return;
+    }
+
+    const storedContact = JSON.parse(
+      JSON.parse(customTypeAction.setCustomType.fields[0].value)
+    );
+    expect(storedContact).toEqual(customerProfileContact);
   });
 
   it("does not replace an unexpected existing cart custom type", () => {

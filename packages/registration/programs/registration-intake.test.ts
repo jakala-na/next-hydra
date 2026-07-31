@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
+import { StoreKey } from "@repo/commerce/domain/cart";
 import {
   CommerceAccountError,
   type CommerceAccountRegistrationInput,
@@ -87,6 +88,7 @@ const makeAwaiting = (email: string) =>
     _tag: "AwaitingApprovalRegistration",
     status: "awaiting_approval",
     id: "registration-existing" as AwaitingApprovalRegistration["id"],
+    storeKey: StoreKey.make("default-store"),
     details: details({ email }),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -102,6 +104,8 @@ const commerceAccountsLayer = ({
   Layer.succeed(
     CommerceAccounts,
     CommerceAccounts.of({
+      getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
+      getCustomerProfile: () => Effect.die("not used"),
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: (
         _registration: CommerceAccountRegistrationInput
@@ -156,12 +160,14 @@ describe("submitRegistrationForReview", () => {
       Effect.gen(function* () {
         const registration = yield* submitRegistrationForReview({
           details: details(),
+          storeKey: StoreKey.make("de-fr-uk"),
         });
 
         expect(registration._tag).toBe("AwaitingApprovalRegistration");
         expect(registration.details.companyName).toBe(
           CompanyName.make("Hydra Supplies")
         );
+        expect(registration.storeKey).toBe("de-fr-uk");
       }).pipe(Effect.provide(layerWithRecords([])))
   );
 
@@ -171,6 +177,7 @@ describe("submitRegistrationForReview", () => {
       Effect.gen(function* () {
         const error = yield* submitRegistrationForReview({
           details: details({ email: " ADA@example.com " }),
+          storeKey: StoreKey.make("default-store"),
         }).pipe(Effect.flip);
         const registrations = yield* Registrations;
 
@@ -196,6 +203,7 @@ describe("submitRegistrationForReview", () => {
       Effect.gen(function* () {
         const error = yield* submitRegistrationForReview({
           details: details({ country: "US", vatId: "VAT-INVALID" }),
+          storeKey: StoreKey.make("default-store"),
         }).pipe(Effect.flip);
 
         expect(error).toBeInstanceOf(RegistrationIntakeValidationError);
@@ -226,6 +234,7 @@ describe("submitRegistrationForReview", () => {
     Effect.gen(function* () {
       const exit = yield* submitRegistrationForReview({
         details: details(),
+        storeKey: StoreKey.make("default-store"),
       }).pipe(Effect.exit);
 
       expect(Exit.isFailure(exit)).toBe(true);

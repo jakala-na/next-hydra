@@ -1,0 +1,372 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { StoreKey } from "../../domain/cart";
+import {
+  type CheckoutContact,
+  type CheckoutDeliveryDetails,
+  CheckoutLocale,
+  CountryCode,
+  StorefrontCustomerCheckoutScope,
+} from "../../domain/checkout";
+import {
+  CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
+  CommerceCustomerId,
+} from "../../domain/commerce-account";
+import type { Cart } from "../types";
+import { domainError } from "../utils/errors";
+import {
+  getActiveCartForAssociateScope,
+  saveCheckoutContact,
+  saveCheckoutDeliveryDetails,
+} from "./cart.repo";
+
+const mocks = vi.hoisted(() => {
+  const associateCartPostExecute = vi.fn();
+  const associateCartPost = vi.fn(() => ({
+    execute: associateCartPostExecute,
+  }));
+  const associateCartWithId = vi.fn(() => ({
+    post: associateCartPost,
+  }));
+  const associateCarts = vi.fn(() => ({
+    withId: associateCartWithId,
+  }));
+  const inBusinessUnit = vi.fn(() => ({
+    carts: associateCarts,
+  }));
+  const associateById = vi.fn(() => ({
+    inBusinessUnitKeyWithBusinessUnitKeyValue: inBusinessUnit,
+  }));
+  const asAssociate = vi.fn(() => ({
+    withAssociateIdValue: associateById,
+  }));
+
+  return {
+    asAssociate,
+    associateById,
+    associateCartPost,
+    associateCartPostExecute,
+    associateCartWithId,
+    associateCarts,
+    inBusinessUnit,
+    query: vi.fn(),
+  };
+});
+
+vi.mock("../client/graphql-client", () => ({
+  graphqlClient: () => ({
+    query: mocks.query,
+  }),
+}));
+
+vi.mock("../client/api-root", () => ({
+  apiRootWithoutConcurrentModificationRetry: {
+    asAssociate: mocks.asAssociate,
+  },
+}));
+
+vi.mock("../product/mappers/attributes", () => ({
+  reshapeProductAttributes: vi.fn(),
+}));
+
+vi.mock("../product/mappers/price", () => ({
+  productPriceFragment: {
+    kind: "Document",
+    definitions: [],
+  },
+  reshapePrice: vi.fn(),
+}));
+
+const activeCart = {
+  id: "cart-1",
+  version: 1,
+  country: null,
+  customerEmail: null,
+  shippingAddress: null,
+  store: {
+    key: "default-store",
+  },
+  businessUnit: {
+    id: "business-unit-1",
+  },
+  custom: null,
+  lineItems: [],
+  totalLineItemQuantity: 0,
+  totalPrice: {
+    currencyCode: "USD",
+    centAmount: 1000,
+  },
+  cartState: "Active",
+};
+
+const customerScope = new StorefrontCustomerCheckoutScope({
+  channel: "storefrontCustomer",
+  locale: CheckoutLocale.make("en-US"),
+  customerId: CommerceCustomerId.make("customer-1"),
+  businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+  businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+});
+
+const checkoutCart = {
+  id: "cart-1",
+  version: 7,
+  businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+  customerEmail: null,
+  custom: null,
+  lineItems: [],
+  totalLineItemQuantity: 0,
+  totalPrice: {
+    currencyCode: "USD",
+    centAmount: 1000,
+  },
+  cartState: "Active",
+} satisfies Cart;
+
+const contact = {
+  source: "customerProfile",
+  buyerContact: {
+    email: "ada@example.com",
+    firstName: "Ada",
+    lastName: "Lovelace",
+  },
+} as const satisfies CheckoutContact;
+
+const deliveryDetails = {
+  source: "manual",
+  shippingAddress: {
+    addressLine1: "123 Analytical Engine Way",
+    addressLine2: "Suite 2",
+    postalCode: "SW1A 1AA",
+    city: "London",
+    country: CountryCode.make("GB"),
+    region: "Greater London",
+  },
+} as const satisfies CheckoutDeliveryDetails;
+
+beforeEach(() => {
+  mocks.query.mockReset();
+  mocks.asAssociate.mockClear();
+  mocks.associateById.mockClear();
+  mocks.inBusinessUnit.mockClear();
+  mocks.associateCarts.mockClear();
+  mocks.associateCartWithId.mockClear();
+  mocks.associateCartPost.mockClear();
+  mocks.associateCartPostExecute.mockReset();
+});
+
+describe("getActiveCartForAssociateScope", () => {
+  it("selects the Store Cart through the Business Unit associate boundary", async () => {
+    mocks.query.mockResolvedValueOnce({
+      data: {
+        asAssociate: {
+          carts: {
+            results: [activeCart],
+          },
+        },
+      },
+    });
+
+    const result = await getActiveCartForAssociateScope({
+      associateId: CommerceCustomerId.make("customer-1"),
+      businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+      storeKey: StoreKey.make("default-store"),
+      locale: "en-US",
+    });
+
+    expect(mocks.query).toHaveBeenCalledWith(expect.anything(), {
+      associateId: "customer-1",
+      businessUnitKey: "business-unit-key-1",
+      where: 'cartState="Active" and store(key="default-store")',
+      locale: "en-US",
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        id: "cart-1",
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+      },
+    });
+  });
+
+  it("fails instead of choosing arbitrarily when multiple active scoped Carts exist", async () => {
+    mocks.query.mockResolvedValueOnce({
+      data: {
+        asAssociate: {
+          carts: {
+            results: [
+              activeCart,
+              {
+                ...activeCart,
+                id: "cart-2",
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const result = await getActiveCartForAssociateScope({
+      associateId: CommerceCustomerId.make("customer-1"),
+      businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+      storeKey: StoreKey.make("default-store"),
+      locale: "en-US",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: domainError(
+        "CONFLICT",
+        "Multiple active Carts are available for the Store and Business Unit"
+      ),
+    });
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves GraphQL failures instead of reporting that the Cart is missing", async () => {
+    const graphqlError = {
+      message: "Associate is not authorized",
+      graphQLErrors: [
+        {
+          extensions: {
+            code: "Forbidden",
+          },
+        },
+      ],
+    };
+    mocks.query.mockResolvedValueOnce({
+      error: graphqlError,
+    });
+
+    const result = await getActiveCartForAssociateScope({
+      associateId: CommerceCustomerId.make("customer-1"),
+      businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+      storeKey: StoreKey.make("default-store"),
+      locale: "en-US",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: domainError(
+        "UNKNOWN",
+        "Failed to get active Cart for Store and Business Unit: Associate is not authorized",
+        undefined,
+        graphqlError
+      ),
+    });
+  });
+});
+
+describe("B2B Checkout Cart updates", () => {
+  it("saves Contact through the associate and Business Unit boundary", async () => {
+    mocks.associateCartPostExecute.mockResolvedValueOnce({
+      body: {
+        id: "cart-1",
+      },
+    });
+
+    const result = await saveCheckoutContact({
+      cart: checkoutCart,
+      contact,
+      locale: "en-US",
+      scope: customerScope,
+    });
+
+    expect(mocks.associateById).toHaveBeenCalledWith({
+      associateId: "customer-1",
+    });
+    expect(mocks.inBusinessUnit).toHaveBeenCalledWith({
+      businessUnitKey: "business-unit-key-1",
+    });
+    expect(mocks.associateCartWithId).toHaveBeenCalledWith({
+      ID: "cart-1",
+    });
+    expect(mocks.associateCartPost).toHaveBeenCalledWith({
+      body: {
+        actions: [
+          {
+            action: "setCustomerEmail",
+            email: "ada@example.com",
+          },
+          {
+            action: "setCustomType",
+            fields: {
+              checkoutContact: JSON.stringify(contact),
+            },
+            type: {
+              key: "orderCustomFields",
+              typeId: "type",
+            },
+          },
+        ],
+        version: 7,
+      },
+    });
+    expect(result).toEqual({
+      ok: true,
+      data: undefined,
+    });
+  });
+
+  it("saves Delivery Details through the associate and Business Unit boundary", async () => {
+    mocks.associateCartPostExecute.mockResolvedValueOnce({
+      body: {
+        id: "cart-1",
+      },
+    });
+
+    const result = await saveCheckoutDeliveryDetails({
+      cart: checkoutCart,
+      deliveryDetails,
+      locale: "en-US",
+      scope: customerScope,
+    });
+
+    expect(mocks.associateCartPost).toHaveBeenCalledWith({
+      body: {
+        actions: [
+          {
+            action: "setShippingAddress",
+            address: {
+              additionalStreetInfo: "Suite 2",
+              city: "London",
+              country: "GB",
+              postalCode: "SW1A 1AA",
+              region: "Greater London",
+              streetName: "123 Analytical Engine Way",
+            },
+          },
+        ],
+        version: 7,
+      },
+    });
+    expect(result).toEqual({
+      ok: true,
+      data: undefined,
+    });
+  });
+
+  it("keeps associate Cart version conflicts in the error channel", async () => {
+    const conflict = Object.assign(new Error("Concurrent modification"), {
+      code: "ConcurrentModification",
+      statusCode: 409,
+    });
+    mocks.associateCartPostExecute.mockRejectedValueOnce(conflict);
+
+    const result = await saveCheckoutContact({
+      cart: checkoutCart,
+      contact,
+      locale: "en-US",
+      scope: customerScope,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: domainError(
+        "CONFLICT",
+        "Checkout Cart changed before Contact could be saved",
+        undefined,
+        conflict
+      ),
+    });
+  });
+});

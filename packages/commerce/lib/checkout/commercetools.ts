@@ -1,5 +1,5 @@
 import type { Locale } from "@repo/i18n/types";
-import { Effect, Layer } from "effect";
+import { type Context, Effect, Layer } from "effect";
 import {
   type CheckoutBuyerContext,
   type CheckoutDetails,
@@ -9,11 +9,13 @@ import {
   CheckoutUnavailable,
   CheckoutVersionConflict,
 } from "../../domain/checkout";
+import { CommerceAccounts } from "../../services/commerce-accounts";
 import { cartService } from "../cart/cart.service";
 import { decodeCartForCheckout } from "../cart/cart-for-checkout";
 import { hasPersistedCheckoutContact } from "../cart/checkout-contact-actions";
 import { hasPersistedCheckoutDeliveryDetails } from "../cart/checkout-delivery-details-actions";
 import { validateCartPolicies } from "../cart/utils/validate-cart";
+import { layerCommercetoolsCommerceAccounts } from "../infra/commercetools/commerce-accounts";
 import { StoreContexts } from "../store/store-contexts";
 import type { Cart } from "../types";
 import type { ActionResult } from "../utils/errors";
@@ -25,8 +27,8 @@ import {
   CheckoutSession,
   contactSourceUnavailable,
   ensureCurrentCartReference,
-  normalizeManualContact,
   normalizeManualDeliveryDetails,
+  resolveCheckoutContact,
   type SaveCheckoutContactInput,
   type SaveCheckoutDeliveryDetailsInput,
 } from "./checkout-session";
@@ -70,9 +72,14 @@ const getCartForScope = (
       }
     case "storefrontCustomer":
       return Effect.tryPromise({
-        try: () => cartService.getCustomerActiveCart(scope.customerId, locale),
+        try: () =>
+          cartService.getActiveCartForAssociateScope({
+            associateId: scope.customerId,
+            businessUnitKey: scope.businessUnitKey,
+            locale,
+          }),
         catch: (cause) =>
-          cartRequestFailure("checkout.cart.getCustomerActiveCart", cause),
+          cartRequestFailure("checkout.cart.getActiveForAssociateScope", cause),
       });
     default:
       scope satisfies never;
@@ -127,10 +134,29 @@ const getCurrentCart = (scope: CheckoutScope) =>
     );
   });
 
-const getBuyerContext = (scope: CheckoutScope): CheckoutBuyerContext => ({
-  buyerMode: scope.channel === "storefrontAnonymous" ? "guest" : "customer",
-  requiresBuyingContext: false,
-});
+const getBuyerContext = (
+  scope: CheckoutScope,
+  cart: Pick<Cart, "businessUnitId">
+): CheckoutBuyerContext => {
+  if (scope.channel === "storefrontAnonymous") {
+    return {
+      buyerMode: "guest",
+      requiresBuyingContext: false,
+    };
+  }
+
+  return {
+    buyerMode: "b2bCustomer",
+    requiresBuyingContext: true,
+    ...(cart.businessUnitId === undefined
+      ? {}
+      : {
+          buyingContext: {
+            businessUnitId: cart.businessUnitId,
+          },
+        }),
+  };
+};
 
 const getCheckoutDetails = (
   cart: Pick<Cart, "checkoutDetails">
@@ -155,15 +181,21 @@ const evaluateCartPolicies = (scope: CheckoutScope, cart: Cart) =>
   });
 
 const saveCheckoutContact = (
+  commerceAccounts: Context.Service.Shape<typeof CommerceAccounts>,
   input: SaveCheckoutContactInput
 ): Effect.Effect<void, CheckoutSaveContactFailure> =>
   Effect.gen(function* () {
-    const contact = yield* normalizeManualContact(input.contact);
     const allowedContactSources = allowedContactSourcesForCheckout(input.scope);
 
-    if (!allowedContactSources.includes(contact.source)) {
-      return yield* Effect.fail(contactSourceUnavailable(contact.source));
+    if (!allowedContactSources.includes(input.contact.source)) {
+      return yield* Effect.fail(contactSourceUnavailable(input.contact.source));
     }
+
+    const contact = yield* resolveCheckoutContact(
+      input.scope,
+      input.contact,
+      commerceAccounts
+    );
 
     const { cart, providerCart } = yield* getCurrentCart(input.scope).pipe(
       Effect.mapError((error) =>
@@ -187,6 +219,7 @@ const saveCheckoutContact = (
           cart: providerCart,
           contact,
           locale: localeFromScope(input.scope),
+          scope: input.scope,
         }),
       catch: (cause) =>
         new CheckoutMutationProviderFailure({
@@ -247,6 +280,7 @@ const saveCheckoutDeliveryDetails = (
           cart: providerCart,
           deliveryDetails,
           locale: localeFromScope(input.scope),
+          scope: input.scope,
         }),
       catch: (cause) =>
         new CheckoutMutationProviderFailure({
@@ -283,6 +317,7 @@ export const layerCommercetoolsCheckoutSession = Layer.effect(
   Effect.gen(function* () {
     const storeContexts = yield* StoreContexts;
     const checkoutPolicies = yield* CheckoutPolicies;
+    const commerceAccounts = yield* CommerceAccounts;
 
     return CheckoutSession.of({
       getCurrent: (scope) =>
@@ -295,7 +330,7 @@ export const layerCommercetoolsCheckoutSession = Layer.effect(
             providerCart
           );
           const details = getCheckoutDetails(providerCart);
-          const buyerContext = getBuyerContext(scope);
+          const buyerContext = getBuyerContext(scope, providerCart);
           const checkoutPolicyViolations = yield* checkoutPolicies.evaluate({
             cart,
             details,
@@ -312,7 +347,7 @@ export const layerCommercetoolsCheckoutSession = Layer.effect(
             checkoutPolicyViolations,
           });
         }),
-      saveContact: saveCheckoutContact,
+      saveContact: (input) => saveCheckoutContact(commerceAccounts, input),
       saveDeliveryDetails: saveCheckoutDeliveryDetails,
     });
   })
@@ -322,5 +357,6 @@ export const checkoutRuntimeLayerCommercetools =
   layerCommercetoolsCheckoutSession.pipe(
     Layer.provide(
       Layer.mergeAll(StoreContexts.layerCommercetools, CheckoutPolicies.layer)
-    )
+    ),
+    Layer.provideMerge(layerCommercetoolsCommerceAccounts)
   );

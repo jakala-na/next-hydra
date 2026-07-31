@@ -222,7 +222,8 @@
         },
         "actions": {
           "save": "Contact opslaan",
-          "saving": "Opslaan..."
+          "saving": "Opslaan...",
+          "useCustomerProfile": "Klantprofiel gebruiken"
         }
       },
       "deliveryDetails": {

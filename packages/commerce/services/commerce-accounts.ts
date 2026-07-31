@@ -1,11 +1,15 @@
 import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect";
+import { StoreKey } from "../domain/cart";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
+  CommerceBusinessUnitContext,
   CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
   type CommerceCompanyRole,
   CommerceCustomer,
   CommerceCustomerId,
+  CommerceCustomerProfile,
 } from "../domain/commerce-account";
 import { AuthUserId } from "../domain/commerce-request-context";
 
@@ -20,6 +24,7 @@ export type RedactedString = Redacted.Redacted<string>;
 export interface CommerceAccountRegistrationInput {
   readonly _tag: RegistrationLikeTag;
   readonly id: string;
+  readonly storeKey: StoreKey;
   readonly details: {
     readonly companyName: string;
     readonly companyPhone?: RedactedString | undefined;
@@ -61,6 +66,36 @@ export class CommerceCustomerIdNotFound extends Schema.TaggedErrorClass<Commerce
   }
 ) {}
 
+export class CommerceCustomerProfileNotFound extends Schema.TaggedErrorClass<CommerceCustomerProfileNotFound>()(
+  "CommerceCustomerProfileNotFound",
+  {
+    message: Schema.String,
+    customerId: CommerceCustomerId,
+  }
+) {}
+
+export class CommerceBusinessUnitContextNotFound extends Schema.TaggedErrorClass<CommerceBusinessUnitContextNotFound>()(
+  "CommerceBusinessUnitContextNotFound",
+  {
+    message: Schema.String,
+    customerId: CommerceCustomerId,
+    storeKey: StoreKey,
+  }
+) {}
+
+export class CommerceBusinessUnitContextAmbiguous extends Schema.TaggedErrorClass<CommerceBusinessUnitContextAmbiguous>()(
+  "CommerceBusinessUnitContextAmbiguous",
+  {
+    message: Schema.String,
+    customerId: CommerceCustomerId,
+    storeKey: StoreKey,
+  }
+) {}
+
+export interface CommerceAccountsMemoryInput {
+  readonly customerProfiles?: readonly CommerceCustomerProfile[];
+}
+
 export interface LinkRegistrantIdentityInput {
   readonly registration: {
     readonly id: string;
@@ -80,6 +115,7 @@ const normalizedEmail = (email: RedactedString) =>
 
 interface CommerceState {
   readonly accountsByRegistration: ReadonlyMap<string, CommerceAccount>;
+  readonly storeKeysByRegistration: ReadonlyMap<string, StoreKey>;
   readonly customersByAuthUserId: ReadonlyMap<string, CommerceCustomer>;
   readonly linkedRegistrantIdentities: ReadonlyMap<
     string,
@@ -93,6 +129,7 @@ interface CommerceState {
 
 const initialState: CommerceState = {
   accountsByRegistration: new Map(),
+  storeKeysByRegistration: new Map(),
   customersByAuthUserId: new Map(),
   linkedRegistrantIdentities: new Map(),
   associatesByBusinessUnit: new Map(),
@@ -118,6 +155,21 @@ export class CommerceAccounts extends Context.Service<
     ) => Effect.Effect<
       CommerceCustomerId,
       CommerceCustomerIdNotFound | CommerceAccountError
+    >;
+    readonly getCustomerProfile: (
+      customerId: CommerceCustomerId
+    ) => Effect.Effect<
+      CommerceCustomerProfile,
+      CommerceCustomerProfileNotFound | CommerceAccountError
+    >;
+    readonly getBusinessUnitContextForCustomerInStore: (
+      customerId: CommerceCustomerId,
+      storeKey: StoreKey
+    ) => Effect.Effect<
+      CommerceBusinessUnitContext,
+      | CommerceBusinessUnitContextNotFound
+      | CommerceBusinessUnitContextAmbiguous
+      | CommerceAccountError
     >;
   }
 >()("@repo/commerce/CommerceAccounts") {
@@ -156,6 +208,9 @@ export class CommerceAccounts extends Context.Service<
               registration.id,
               account
             ),
+            storeKeysByRegistration: new Map(
+              latest.storeKeysByRegistration
+            ).set(registration.id, registration.storeKey),
           }));
 
           return account;
@@ -294,13 +349,174 @@ export class CommerceAccounts extends Context.Service<
         })
       );
 
+      const getCustomerProfile = Effect.fn(
+        "CommerceAccounts.getCustomerProfile"
+      )((customerId: CommerceCustomerId) =>
+        Effect.gen(function* () {
+          const current = yield* Ref.get(state);
+          const customer = [...current.customersByAuthUserId.values()].find(
+            (candidate) => candidate.customerId === customerId
+          );
+
+          if (customer) {
+            return new CommerceCustomerProfile({
+              customerId: customer.customerId,
+              email: customer.email,
+              firstName: customer.firstName,
+              lastName: customer.lastName,
+            });
+          }
+
+          for (const [
+            registrationId,
+            identity,
+          ] of current.linkedRegistrantIdentities) {
+            const account = current.accountsByRegistration.get(registrationId);
+            if (account?.customerId === customerId) {
+              return new CommerceCustomerProfile({
+                customerId,
+                email: identity.email,
+                firstName: identity.firstName,
+                lastName: identity.lastName,
+              });
+            }
+          }
+
+          return yield* new CommerceCustomerProfileNotFound({
+            message: "Commerce customer profile does not exist",
+            customerId,
+          });
+        })
+      );
+
+      const getBusinessUnitContextForCustomerInStore = Effect.fn(
+        "CommerceAccounts.getBusinessUnitContextForCustomerInStore"
+      )((customerId: CommerceCustomerId, storeKey: StoreKey) =>
+        Effect.gen(function* () {
+          const current = yield* Ref.get(state);
+          const businessUnitIds = new Set<CommerceBusinessUnitId>();
+
+          for (const [
+            registrationId,
+            candidateAccount,
+          ] of current.accountsByRegistration) {
+            const linkedIdentity =
+              current.linkedRegistrantIdentities.get(registrationId);
+            if (
+              candidateAccount.customerId === customerId &&
+              linkedIdentity !== undefined &&
+              current.storeKeysByRegistration.get(registrationId) === storeKey
+            ) {
+              businessUnitIds.add(candidateAccount.businessUnitId);
+            }
+          }
+
+          for (const [
+            candidateBusinessUnitId,
+            associates,
+          ] of current.associatesByBusinessUnit) {
+            const registrationEntry = [
+              ...current.accountsByRegistration.entries(),
+            ].find(
+              ([, account]) =>
+                account.businessUnitId === candidateBusinessUnitId
+            );
+            if (
+              registrationEntry !== undefined &&
+              current.storeKeysByRegistration.get(registrationEntry[0]) ===
+                storeKey &&
+              associates.some(
+                (associate) => associate.customerId === customerId
+              )
+            ) {
+              businessUnitIds.add(candidateBusinessUnitId);
+            }
+          }
+
+          if (businessUnitIds.size === 0) {
+            return yield* new CommerceBusinessUnitContextNotFound({
+              message:
+                "Commerce Business Unit context does not exist for customer in Store",
+              customerId,
+              storeKey,
+            });
+          }
+
+          if (businessUnitIds.size > 1) {
+            return yield* new CommerceBusinessUnitContextAmbiguous({
+              message:
+                "Multiple Commerce Business Unit contexts exist for customer in Store",
+              customerId,
+              storeKey,
+            });
+          }
+
+          const businessUnitId = [...businessUnitIds][0];
+          if (businessUnitId === undefined) {
+            return yield* new CommerceBusinessUnitContextNotFound({
+              message:
+                "Commerce Business Unit context does not exist for customer in Store",
+              customerId,
+              storeKey,
+            });
+          }
+
+          const resolvedAccount = [
+            ...current.accountsByRegistration.values(),
+          ].find((candidate) => candidate.businessUnitId === businessUnitId);
+          if (resolvedAccount === undefined) {
+            return yield* new CommerceBusinessUnitContextNotFound({
+              message:
+                "Commerce Business Unit context does not exist for customer in Store",
+              customerId,
+              storeKey,
+            });
+          }
+
+          return new CommerceBusinessUnitContext({
+            businessUnitId,
+            businessUnitKey: CommerceBusinessUnitKey.make(
+              `registration-business-unit-${resolvedAccount.registrationId}`
+            ),
+          });
+        })
+      );
+
       return {
         createFromRegistration,
         linkRegistrantIdentity,
         addAssociate,
         hasCustomerWithEmail,
         getCustomerIdByAuthUserId,
+        getCustomerProfile,
+        getBusinessUnitContextForCustomerInStore,
       };
     })
   );
+
+  static readonly layerMemoryFrom = ({
+    customerProfiles = [],
+  }: CommerceAccountsMemoryInput = {}) => {
+    const profilesByCustomerId = new Map(
+      customerProfiles.map((profile) => [profile.customerId, profile])
+    );
+    const layerSeededProfiles = Layer.effect(
+      CommerceAccounts,
+      Effect.map(CommerceAccounts, (accounts) =>
+        CommerceAccounts.of({
+          ...accounts,
+          getCustomerProfile: (customerId) => {
+            const profile = profilesByCustomerId.get(customerId);
+            return profile
+              ? Effect.succeed(profile)
+              : accounts.getCustomerProfile(customerId);
+          },
+        })
+      )
+    );
+
+    return layerSeededProfiles.pipe(
+      Layer.provide(CommerceAccounts.layerMemory)
+    );
+  };
 }

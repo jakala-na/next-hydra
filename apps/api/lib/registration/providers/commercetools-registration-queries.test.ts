@@ -1,5 +1,6 @@
 // biome-ignore-all lint/suspicious/noMisplacedAssertion: Assertions run inside Effect programs executed by the test helper.
 
+import { StoreKey } from "@repo/commerce/domain/cart";
 import {
   AddressLine,
   City,
@@ -92,6 +93,7 @@ const makeAwaiting = (id: string, companyName = "Hydra Supplies") =>
     _tag: "AwaitingApprovalRegistration",
     status: "awaiting_approval",
     id: RegistrationId.make(id),
+    storeKey: StoreKey.make("default-store"),
     details: makeDetails(companyName),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),

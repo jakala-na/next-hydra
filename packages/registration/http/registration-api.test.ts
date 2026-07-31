@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
+import { StoreKey } from "@repo/commerce/domain/cart";
 import { Effect, Redacted, Schema } from "effect";
 import { RegistrationReviewerActor } from "../domain/actors";
 import {
@@ -104,6 +105,7 @@ describe("Registration REST contract mappers", () => {
       _tag: "AwaitingApprovalRegistration",
       status: "awaiting_approval",
       id: RegistrationId.make("registration-1"),
+      storeKey: StoreKey.make("default-store"),
       details,
       createdAt: new Date("2026-03-22T00:00:00.000Z"),
       updatedAt: new Date("2026-03-22T00:00:01.000Z"),
@@ -112,6 +114,7 @@ describe("Registration REST contract mappers", () => {
     expect(toRegistrationDetailResponse(registration)).toMatchObject({
       registrationId: "registration-1",
       status: "awaiting_approval",
+      storeKey: "default-store",
       companyName: "Hydra Supplies",
       email: "ada@example.com",
       createdAt: "2026-03-22T00:00:00.000Z",

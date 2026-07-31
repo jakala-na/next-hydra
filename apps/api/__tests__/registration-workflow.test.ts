@@ -1,3 +1,4 @@
+import { StoreKey } from "@repo/commerce/domain/cart";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
@@ -95,6 +96,7 @@ const makeAwaitingRegistration = (registrationId: string) =>
     _tag: "AwaitingApprovalRegistration",
     status: "awaiting_approval",
     id: RegistrationId.make(registrationId),
+    storeKey: StoreKey.make("default-store"),
     details,
     createdAt: new Date("2026-03-22T00:00:00.000Z"),
     updatedAt: new Date("2026-03-22T00:00:00.000Z"),
@@ -136,6 +138,7 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
           _tag: "ApprovalProcessingRegistration",
           status: "approval_processing",
           id: current.id,
+          storeKey: current.storeKey,
           details: current.details,
           requestedDecision: input.decision,
           createdAt: current.createdAt,
@@ -159,6 +162,7 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
           _tag: "ApprovedRegistration",
           status: "approved",
           id: current.id,
+          storeKey: current.storeKey,
           details: current.details,
           decision: input.decision,
           commerceAccount: input.commerceAccount,
@@ -184,6 +188,7 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
           _tag: "RejectedRegistration",
           status: "rejected",
           id: current.id,
+          storeKey: current.storeKey,
           details: current.details,
           decision: input.decision,
           createdAt: current.createdAt,
@@ -287,6 +292,8 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
   const commerceAccountsLayer = Layer.succeed(
     CommerceAccounts,
     CommerceAccounts.of({
+      getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
+      getCustomerProfile: () => Effect.die("not used"),
       createFromRegistration: (commerceRegistration) =>
         Effect.sync(() => {
           const existing = commerceAccounts.get(

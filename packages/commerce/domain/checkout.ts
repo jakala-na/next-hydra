@@ -10,7 +10,11 @@ import {
   StoreKey,
   VariantId,
 } from "./cart";
-import { CommerceBusinessUnitId, CommerceCustomerId } from "./commerce-account";
+import {
+  CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
+  CommerceCustomerId,
+} from "./commerce-account";
 
 export const CheckoutLocale = Schema.Literals(locales).pipe(
   Schema.brand("CheckoutLocale")
@@ -32,6 +36,8 @@ export class StorefrontCustomerCheckoutScope extends Schema.TaggedClass<Storefro
     channel: Schema.Literal("storefrontCustomer"),
     locale: CheckoutLocale,
     customerId: CommerceCustomerId,
+    businessUnitId: CommerceBusinessUnitId,
+    businessUnitKey: CommerceBusinessUnitKey,
   }
 ) {}
 
@@ -78,6 +84,17 @@ export const CheckoutContact = Schema.Struct({
   buyerContact: BuyerContact,
 });
 export type CheckoutContact = typeof CheckoutContact.Type;
+
+export const CheckoutContactInput = Schema.Union([
+  Schema.Struct({
+    source: Schema.Literal("manual"),
+    buyerContact: BuyerContact,
+  }),
+  Schema.Struct({
+    source: Schema.Literal("customerProfile"),
+  }),
+]);
+export type CheckoutContactInput = typeof CheckoutContactInput.Type;
 
 export const CheckoutCartReference = Schema.Struct({
   id: CartId,

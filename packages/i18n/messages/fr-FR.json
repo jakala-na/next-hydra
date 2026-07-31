@@ -222,7 +222,8 @@
         },
         "actions": {
           "save": "Enregistrer les coordonnées",
-          "saving": "Enregistrement..."
+          "saving": "Enregistrement...",
+          "useCustomerProfile": "Utiliser le profil client"
         }
       },
       "deliveryDetails": {

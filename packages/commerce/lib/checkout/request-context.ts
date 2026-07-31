@@ -27,6 +27,8 @@ export const toCheckoutScope = (
       channel: "storefrontCustomer",
       locale,
       customerId: principal.customerId,
+      businessUnitId: principal.businessUnitId,
+      businessUnitKey: principal.businessUnitKey,
     });
   }
 

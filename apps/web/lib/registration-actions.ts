@@ -2,6 +2,7 @@
 
 import { getLocale } from "@repo/i18n";
 import { redirect } from "@repo/i18n/navigation";
+import type { Locale } from "@repo/i18n/types";
 import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import {
   type RegistrationFormError,
@@ -75,7 +76,10 @@ const toValidationErrors = (
   };
 };
 
-const submitRegistrationProgram = (input: RegistrationFormValues) =>
+const submitRegistrationProgram = (
+  input: RegistrationFormValues,
+  locale: Locale
+) =>
   Effect.gen(function* () {
     const decoded = yield* Schema.decodeUnknownEffect(
       RegistrationFormInputSchema
@@ -83,6 +87,9 @@ const submitRegistrationProgram = (input: RegistrationFormValues) =>
 
     const client = yield* makeRegistrationRestClient();
     const registration = yield* client.registrations.create({
+      headers: {
+        "x-context-locale": locale,
+      },
       payload: toRegistrationInput(decoded),
     });
 
@@ -121,10 +128,12 @@ export async function submitRegistration(
   awaitingApprovalHref: string,
   input: RegistrationFormValues
 ): Promise<RegistrationFormResult> {
-  const result = await Effect.runPromise(submitRegistrationProgram(input));
+  const locale = await getLocale();
+  const result = await Effect.runPromise(
+    submitRegistrationProgram(input, locale)
+  );
 
   if (result.status === "submitted") {
-    const locale = await getLocale();
     redirect({ href: awaitingApprovalHref, locale });
   }
 

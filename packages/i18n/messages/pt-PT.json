@@ -222,7 +222,8 @@
         },
         "actions": {
           "save": "Guardar contacto",
-          "saving": "A guardar..."
+          "saving": "A guardar...",
+          "useCustomerProfile": "Usar perfil de cliente"
         }
       },
       "deliveryDetails": {

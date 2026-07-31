@@ -17,6 +17,11 @@ export type SaveCheckoutDeliveryDetailsActionState =
       readonly code: SaveCheckoutDeliveryDetailsActionErrorCode;
     };
 
+export type SaveCheckoutDeliveryDetailsAction = (
+  previousState: SaveCheckoutDeliveryDetailsActionState,
+  formData: FormData
+) => Promise<SaveCheckoutDeliveryDetailsActionState>;
+
 export const initialSaveCheckoutDeliveryDetailsActionState = {
   status: "idle",
 } as const satisfies SaveCheckoutDeliveryDetailsActionState;

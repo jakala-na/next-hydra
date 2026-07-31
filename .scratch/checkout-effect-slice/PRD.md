@@ -32,8 +32,8 @@ Checkout behavior should live outside the HTTP boundary. Server components, serv
 10. As an authenticated buyer, I want Checkout to allow manual Buyer Contact only when the store permits it, so that B2B rules can prevent unsupported overrides.
 11. As an authenticated buyer, I want Checkout to reject disallowed manual Contact saves immediately, so that invalid contact details are not written to the Cart.
 12. As an authenticated buyer, I want previously saved Contact details to be re-evaluated against current Contact Source Policy, so that old carts follow current checkout rules without migration.
-13. As a B2B buyer, I want Contact to require the current Buying Context when it is needed, so that Checkout knows which business context the purchase belongs to.
-14. As a B2B buyer, I want unresolved Buying Context after guest-to-login cart merge to make Contact incomplete, so that I can resolve missing buyer-context information before continuing.
+13. As a B2B buyer, I want authenticated Checkout Scope to require the current Buying Context, so that Checkout selects the Cart belonging to the correct Store and Business Unit.
+14. As a B2B buyer, I want authenticated Checkout to use the Cart for my current Store and Buying Context while leaving any anonymous Cart untouched, so that purchases do not cross ownership scopes.
 15. As a B2B buyer, I want Buyer Contact to remain separate from authenticated identity, so that changing order communication details does not change who I am or which Buying Context I use.
 16. As a buyer, I want Buyer Contact to require email address, first name, and last name, so that the order has usable communication details.
 17. As a buyer, I want phone number to be optional in Contact, so that checkout does not require extra information before there is a business need.
@@ -206,7 +206,7 @@ Checkout behavior should live outside the HTTP boundary. Server components, serv
 - Review Order and place-order implementation.
 - Order creation.
 - Invoice terms, store credit, coupons, split payment behavior, and other payment-specific rules.
-- Guest-to-login cart merge implementation.
+- Anonymous-to-B2B Cart transfer or merge; signing in leaves the Store-only anonymous Cart untouched.
 - Full address book management UI.
 - Customer profile management UI.
 - Buying Context selection UI beyond noting that Contact may require it.

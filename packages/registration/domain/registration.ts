@@ -1,3 +1,4 @@
+import { StoreKey } from "@repo/commerce/domain/cart";
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import { Schema } from "effect";
 import { ApprovedDecision, RejectedDecision } from "./approval";
@@ -80,6 +81,7 @@ export class AwaitingApprovalRegistration extends Schema.TaggedClass<AwaitingApp
   {
     status: Schema.Literal(RegistrationStatus.literals[0]),
     id: RegistrationId,
+    storeKey: StoreKey,
     details: CompanyRegistrationDetails,
     createdAt: Schema.Date,
     updatedAt: Schema.Date,
@@ -91,6 +93,7 @@ export class ApprovalProcessingRegistration extends Schema.TaggedClass<ApprovalP
   {
     status: Schema.Literal(RegistrationStatus.literals[1]),
     id: RegistrationId,
+    storeKey: StoreKey,
     details: CompanyRegistrationDetails,
     requestedDecision: Schema.Literals(["approved", "rejected"]),
     createdAt: Schema.Date,
@@ -103,6 +106,7 @@ export class ApprovedRegistration extends Schema.TaggedClass<ApprovedRegistratio
   {
     status: Schema.Literal(RegistrationStatus.literals[2]),
     id: RegistrationId,
+    storeKey: StoreKey,
     details: CompanyRegistrationDetails,
     decision: ApprovedDecision,
     commerceAccount: CommerceAccount,
@@ -117,6 +121,7 @@ export class RejectedRegistration extends Schema.TaggedClass<RejectedRegistratio
   {
     status: Schema.Literal(RegistrationStatus.literals[3]),
     id: RegistrationId,
+    storeKey: StoreKey,
     details: CompanyRegistrationDetails,
     decision: RejectedDecision,
     createdAt: Schema.Date,

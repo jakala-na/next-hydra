@@ -1,4 +1,6 @@
+import { StoreKey } from "@repo/commerce/domain/cart";
 import type { CommerceAccountError } from "@repo/commerce/services/commerce-accounts";
+import { locales } from "@repo/i18n/config";
 import { Redacted, Schema } from "effect";
 import {
   HttpApi,
@@ -138,11 +140,15 @@ export class CreateRegistrationRequest extends Schema.Class<CreateRegistrationRe
   address: RegistrationAddressInput,
 }) {}
 
+export const RegistrationLocale = Schema.Literals(locales);
+export type RegistrationLocale = typeof RegistrationLocale.Type;
+
 export class CreateRegistrationResponse extends Schema.Class<CreateRegistrationResponse>(
   "CreateRegistrationResponse"
 )({
   registrationId: RegistrationId,
   status: Schema.Literal("awaiting_approval"),
+  storeKey: StoreKey,
 }) {}
 
 export class RegistrationReviewerInput extends Schema.Class<RegistrationReviewerInput>(
@@ -177,6 +183,7 @@ export class RegistrationDetailResponse extends Schema.Class<RegistrationDetailR
 )({
   registrationId: RegistrationId,
   status: RegistrationStatus,
+  storeKey: StoreKey,
   companyName: Schema.String,
   companyPhone: Schema.String,
   vatId: Schema.String,
@@ -231,6 +238,9 @@ const RegistrationApiErrors = [
 export class RegistrationApiGroup extends HttpApiGroup.make("registrations")
   .add(
     HttpApiEndpoint.post("create", "/registrations", {
+      headers: {
+        "x-context-locale": RegistrationLocale,
+      },
       payload: CreateRegistrationRequest,
       success: CreateRegistrationResponse.pipe(HttpApiSchema.status("Created")),
       error: RegistrationApiErrors,
@@ -376,6 +386,7 @@ export const toRegistrationDetailResponse = (
   return new RegistrationDetailResponse({
     registrationId: registration.id,
     status: registration.status,
+    storeKey: registration.storeKey,
     companyName: String(details.companyName),
     companyPhone: details.companyPhone
       ? Redacted.value(details.companyPhone)

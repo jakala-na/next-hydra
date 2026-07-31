@@ -222,7 +222,8 @@
         },
         "actions": {
           "save": "Kontaktdaten speichern",
-          "saving": "Wird gespeichert..."
+          "saving": "Wird gespeichert...",
+          "useCustomerProfile": "Kundenprofil verwenden"
         }
       },
       "deliveryDetails": {

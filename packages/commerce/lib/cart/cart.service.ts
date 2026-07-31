@@ -1,4 +1,5 @@
 import type { Locale } from "@repo/i18n/types";
+import { StoreKey } from "../../domain/cart";
 import { storeService } from "../store/store.service";
 import type { Cart } from "../types";
 import type { ActionResult } from "../utils/errors";
@@ -7,16 +8,21 @@ import type {
   AddToCartParams,
   CartService,
   ChangeItemQuantityParams,
+  GetActiveCartForAssociateScopeServiceParams,
   RemoveItemFromCartParams,
   SaveCheckoutContactParams,
   SaveCheckoutDeliveryDetailsParams,
 } from "./types";
 
-function getCustomerActiveCart(
-  customerId: string,
-  locale: Locale
+async function getActiveCartForAssociateScope(
+  params: GetActiveCartForAssociateScopeServiceParams
 ): Promise<ActionResult<Cart>> {
-  return cartRepo.getCustomerActiveCart(customerId, locale);
+  const context = await storeService.getStoreContextByLocale(params.locale);
+
+  return cartRepo.getActiveCartForAssociateScope({
+    ...params,
+    storeKey: StoreKey.make(context.storeKey),
+  });
 }
 
 function getCartById(id: string, locale: Locale): Promise<ActionResult<Cart>> {
@@ -63,18 +69,18 @@ function removeItemFromCart(
 
 function saveCheckoutContact(
   params: SaveCheckoutContactParams
-): Promise<ActionResult<Cart>> {
+): Promise<ActionResult<void>> {
   return cartRepo.saveCheckoutContact(params);
 }
 
 function saveCheckoutDeliveryDetails(
   params: SaveCheckoutDeliveryDetailsParams
-): Promise<ActionResult<Cart>> {
+): Promise<ActionResult<void>> {
   return cartRepo.saveCheckoutDeliveryDetails(params);
 }
 
 export const cartService: CartService = {
-  getCustomerActiveCart,
+  getActiveCartForAssociateScope,
   getCartById,
   createCart,
   addItemToCart,

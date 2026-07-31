@@ -1,8 +1,14 @@
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
+import type { StoreKey } from "../../domain/cart";
 import type {
   CheckoutContact,
   CheckoutDeliveryDetails,
+  CheckoutScope,
 } from "../../domain/checkout";
+import type {
+  CommerceBusinessUnitKey,
+  CommerceCustomerId,
+} from "../../domain/commerce-account";
 import type { Cart } from "../types";
 import type { ActionResult } from "../utils/errors";
 import type { PolicyViolation } from "./policy/cart-policy.types";
@@ -26,6 +32,18 @@ export type CreateCartRepoParams = {
   storeId: string;
 };
 
+export type GetActiveCartForAssociateScopeParams = {
+  associateId: CommerceCustomerId;
+  businessUnitKey: CommerceBusinessUnitKey;
+  storeKey: StoreKey;
+  locale: Locale;
+};
+
+export type GetActiveCartForAssociateScopeServiceParams = Omit<
+  GetActiveCartForAssociateScopeParams,
+  "storeKey"
+>;
+
 export type ChangeItemQuantityParams = {
   id: string;
   version: number;
@@ -43,12 +61,14 @@ export type SaveCheckoutContactParams = {
   cart: Cart;
   contact: CheckoutContact;
   locale: Locale;
+  scope: CheckoutScope;
 };
 
 export type SaveCheckoutDeliveryDetailsParams = {
   cart: Cart;
   deliveryDetails: CheckoutDeliveryDetails;
   locale: Locale;
+  scope: CheckoutScope;
 };
 
 /**
@@ -61,9 +81,8 @@ export type CartWithIssues = {
 };
 
 export interface CartRepository {
-  getCustomerActiveCart(
-    customerId: string,
-    locale: Locale
+  getActiveCartForAssociateScope(
+    params: GetActiveCartForAssociateScopeParams
   ): Promise<ActionResult<Cart>>;
   getCartById(id: string, locale: Locale): Promise<ActionResult<Cart>>;
   createCart(params: CreateCartRepoParams): Promise<ActionResult<Cart>>;
@@ -76,16 +95,15 @@ export interface CartRepository {
   ): Promise<ActionResult<Cart>>;
   saveCheckoutContact(
     params: SaveCheckoutContactParams
-  ): Promise<ActionResult<Cart>>;
+  ): Promise<ActionResult<void>>;
   saveCheckoutDeliveryDetails(
     params: SaveCheckoutDeliveryDetailsParams
-  ): Promise<ActionResult<Cart>>;
+  ): Promise<ActionResult<void>>;
 }
 
 export interface CartService {
-  getCustomerActiveCart(
-    customerId: string,
-    locale: Locale
+  getActiveCartForAssociateScope(
+    params: GetActiveCartForAssociateScopeServiceParams
   ): Promise<ActionResult<Cart>>;
   getCartById(id: string, locale: Locale): Promise<ActionResult<Cart>>;
   createCart({ locale }: { locale: Locale }): Promise<ActionResult<Cart>>;
@@ -98,8 +116,8 @@ export interface CartService {
   ): Promise<ActionResult<Cart>>;
   saveCheckoutContact(
     params: SaveCheckoutContactParams
-  ): Promise<ActionResult<Cart>>;
+  ): Promise<ActionResult<void>>;
   saveCheckoutDeliveryDetails(
     params: SaveCheckoutDeliveryDetailsParams
-  ): Promise<ActionResult<Cart>>;
+  ): Promise<ActionResult<void>>;
 }

@@ -2,23 +2,18 @@ import { getTranslations } from "@repo/i18n";
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
 import { notFound } from "next/navigation";
-import { CartId } from "../../domain/cart";
+import type { SaveCheckoutContactAction } from "../../actions/save-checkout-contact-state";
+import type { SaveCheckoutDeliveryDetailsAction } from "../../actions/save-checkout-delivery-details-state";
 import {
   CheckoutLocale,
+  type CheckoutScope,
   type CheckoutState,
   type CheckoutStepId,
   type CheckoutViolation,
 } from "../../domain/checkout";
-import {
-  AnonymousCommercePrincipal,
-  CommerceRequestContext,
-} from "../../domain/commerce-request-context";
-import { getAnonymousCartId } from "../../lib/cart/utils/anonymous-cart-cookies";
 import { CheckoutSession } from "../../lib/checkout/checkout-session";
 import { checkoutRuntimeLayerCommercetools } from "../../lib/checkout/commercetools";
-import { toCheckoutScope } from "../../lib/checkout/request-context";
 import { checkoutViolationMessage } from "../../lib/checkout/violation-message";
-import { storeService } from "../../lib/store/store.service";
 import { CheckoutContactForm } from "./checkout-contact-form";
 import { CheckoutDeliveryDetailsForm } from "./checkout-delivery-details-form";
 import {
@@ -37,29 +32,18 @@ const formatMoney = (
     currency: money.currencyCode,
   }).format(money.centAmount / CENTS_PER_MAJOR_CURRENCY_UNIT);
 
-const getState = async (locale: Locale) => {
-  const storeContext = await storeService.getStoreContextByLocale(locale);
-  const anonymousCartId = await getAnonymousCartId(storeContext);
-
-  if (anonymousCartId === null || anonymousCartId.length === 0) {
-    return null;
-  }
-
-  const context = new CommerceRequestContext({
-    locale: CheckoutLocale.make(locale),
-    principal: new AnonymousCommercePrincipal({
-      anonymousCartId: CartId.make(anonymousCartId),
-    }),
-  });
-  const scope = toCheckoutScope(context);
-
-  return Effect.runPromise(
+const getState = (scope: CheckoutScope) =>
+  Effect.runPromise(
     CheckoutSession.getCurrent(scope).pipe(
       Effect.catchTag("CheckoutUnavailable", () => Effect.succeed(null)),
       Effect.provide(checkoutRuntimeLayerCommercetools)
     )
   );
-};
+
+export interface CheckoutPageActions {
+  readonly saveContact: SaveCheckoutContactAction;
+  readonly saveDeliveryDetails: SaveCheckoutDeliveryDetailsAction;
+}
 
 interface CheckoutPageMessages {
   readonly activeStep: string;
@@ -104,9 +88,11 @@ function CheckoutSteps({
 }
 
 function ActiveStep({
+  actions,
   messages,
   state,
 }: {
+  readonly actions: CheckoutPageActions;
   readonly messages: CheckoutPageMessages;
   readonly state: CheckoutState;
 }) {
@@ -118,6 +104,12 @@ function ActiveStep({
         buyerContact={state.details.contact?.buyerContact}
         cartId={state.cart.id}
         cartVersion={state.cart.version}
+        saveAction={actions.saveContact}
+        source={
+          state.scope.channel === "storefrontCustomer"
+            ? "customerProfile"
+            : "manual"
+        }
       />
     );
   } else if (state.activeStep === "deliveryDetails") {
@@ -125,6 +117,7 @@ function ActiveStep({
       <CheckoutDeliveryDetailsForm
         cartId={state.cart.id}
         cartVersion={state.cart.version}
+        saveAction={actions.saveDeliveryDetails}
         shippingAddress={state.details.deliveryDetails?.shippingAddress}
       />
     );
@@ -200,9 +193,17 @@ function CartSidebar({
   );
 }
 
-export async function CheckoutPage({ locale }: { readonly locale: Locale }) {
+export async function CheckoutPage({
+  actions,
+  locale,
+  scope,
+}: {
+  readonly actions: CheckoutPageActions;
+  readonly locale: Locale;
+  readonly scope: CheckoutScope;
+}) {
   const [state, t] = await Promise.all([
-    getState(locale),
+    getState(scope),
     getTranslations({ locale, namespace: "web.checkout" }),
   ]);
 
@@ -236,7 +237,7 @@ export async function CheckoutPage({ locale }: { readonly locale: Locale }) {
 
   return (
     <main className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:grid-cols-5">
-      <ActiveStep messages={messages} state={state} />
+      <ActiveStep actions={actions} messages={messages} state={state} />
       <CartSidebar messages={messages} state={state} />
     </main>
   );

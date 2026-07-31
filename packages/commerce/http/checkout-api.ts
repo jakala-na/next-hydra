@@ -9,7 +9,7 @@ import {
 import { CartId } from "../domain/cart";
 import {
   CheckoutCartReference,
-  CheckoutContact,
+  CheckoutContactInput,
   CheckoutDeliveryDetails,
   CheckoutLocale,
   type CheckoutScope,
@@ -76,7 +76,7 @@ export class SaveCheckoutContactRequest extends Schema.Class<SaveCheckoutContact
   "SaveCheckoutContactRequest"
 )({
   cart: CheckoutCartReference,
-  contact: CheckoutContact,
+  contact: CheckoutContactInput,
 }) {}
 
 export class SaveCheckoutDeliveryDetailsRequest extends Schema.Class<SaveCheckoutDeliveryDetailsRequest>(

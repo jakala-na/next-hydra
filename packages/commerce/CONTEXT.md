@@ -9,7 +9,7 @@ The buyer-facing process for completing the information and choices required bef
 _Avoid_: Checkout page, checkout wizard
 
 **Cart**:
-The current collection of products and cart-owned checkout details being prepared for purchase.
+The current collection of products and cart-owned checkout details being prepared for purchase in a Store and, for B2B Checkout, a Business Unit.
 _Avoid_: Checkout state
 
 **Cart Policy**:
@@ -186,6 +186,10 @@ _Avoid_: Review checkout, order summary
 
 - A **Checkout** has exactly one **Active Checkout Step**.
 - A **Checkout** requires an existing non-empty **Cart**.
+- A customer identity authorizes access to profile and associate capabilities; it does not own the **Cart**.
+- An anonymous **Cart** belongs to its Store and has no **Buying Context** Business Unit.
+- A B2B **Cart** belongs to its Store and **Buying Context** Business Unit, so cart reads and writes should use store-scoped and Business Unit-scoped provider operations rather than customer-owned cart semantics.
+- Anonymous and B2B Carts remain separate when the buyer signs in; Checkout does not transfer or merge the anonymous Cart into a Business Unit.
 - A **Checkout State** is a lean read model derived from the current **Cart**, buyer context, and **Checkout Details**.
 - `CheckoutSession.getCurrent` is the use-case program that gets current **Checkout State** for a **Checkout Scope**.
 - A **Checkout State Builder** receives an already-resolved **Checkout Scope**, **Cart For Checkout**, **Checkout Details**, buyer context, **Cart Policy Violations**, and **Checkout Policy Violations**.
@@ -332,14 +336,14 @@ _Avoid_: Review checkout, order summary
 > **Dev:** "Is email enough to complete Contact?"
 > **Domain expert:** "No — required **Buyer Contact** details are email address, first name, and last name; phone number is optional."
 
-> **Dev:** "After signing in and merging a guest cart, what happens if the buyer context cannot be determined?"
-> **Domain expert:** "**Contact** becomes the **Active Checkout Step** until the required buyer context is available."
+> **Dev:** "After signing in, what happens to the anonymous Cart?"
+> **Domain expert:** "It remains a Store-only anonymous **Cart**. Authenticated B2B **Checkout** resolves a separate Cart for the Store and **Buying Context** Business Unit."
 
-> **Dev:** "If Buyer Contact is complete after sign-in, but Buying Context is unresolved, is Contact complete?"
-> **Domain expert:** "No — authenticated B2B **Checkout** requires both **Buyer Contact** and **Buying Context** before **Contact** is complete."
+> **Dev:** "If Buyer Contact is available after sign-in, but Buying Context is unresolved, can authenticated Checkout start?"
+> **Domain expert:** "No — authenticated B2B **Checkout Scope** requires **Buying Context** so it can select the Cart for the Store and Business Unit."
 
-> **Dev:** "If Buying Context is unresolved after guest-to-login merge, do we add a separate buyer-context step?"
-> **Domain expert:** "No — resolving **Buying Context** is part of **Contact** when it is required for **Checkout**."
+> **Dev:** "What happens when the authenticated buyer's Buying Context cannot be resolved?"
+> **Domain expert:** "Authenticated B2B **Checkout Scope** cannot be constructed. Checkout does not fall back to or merge the anonymous Cart."
 
 > **Dev:** "Does saving Contact always mean submitting email, first name, and last name fields typed by the buyer?"
 > **Domain expert:** "No — saving **Contact** submits the **Contact Inputs** needed to resolve **Contact**; those inputs can be entered manually or derived from the customer profile."

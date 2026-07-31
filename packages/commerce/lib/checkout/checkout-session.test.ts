@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Exit, Schema } from "effect";
+import { Effect, Exit, Redacted, Schema } from "effect";
 import {
   AnonymousId,
   CartId,
@@ -20,7 +20,14 @@ import {
   CountryCode,
   CountryCodeFromString,
   StorefrontAnonymousCheckoutScope,
+  StorefrontCustomerCheckoutScope,
 } from "../../domain/checkout";
+import {
+  CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
+  CommerceCustomerId,
+  CommerceCustomerProfile,
+} from "../../domain/commerce-account";
 import { CheckoutSession } from "./checkout-session";
 
 const money = {
@@ -95,6 +102,15 @@ const layerWith = (
     readonly checkoutPolicies?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
     >[0]["checkoutPolicies"];
+    readonly buyerContext?: Parameters<
+      typeof CheckoutSession.layerMemoryFrom
+    >[0]["buyerContext"];
+    readonly customerProfiles?: Parameters<
+      typeof CheckoutSession.layerMemoryFrom
+    >[0]["customerProfiles"];
+    readonly allowedContactSources?: Parameters<
+      typeof CheckoutSession.layerMemoryFrom
+    >[0]["allowedContactSources"];
     readonly saveDeliveryDetailsFailure?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
     >[0]["saveDeliveryDetailsFailure"];
@@ -105,6 +121,9 @@ const layerWith = (
     cartPolicyViolations = [],
     manualContactAllowed = true,
     checkoutPolicies = [],
+    buyerContext,
+    customerProfiles = [],
+    allowedContactSources,
     saveDeliveryDetailsFailure,
   } = input;
   const currentCart = "currentCart" in input ? input.currentCart : cart();
@@ -114,12 +133,16 @@ const layerWith = (
     details,
     cartPolicyViolations,
     checkoutPolicies,
+    customerProfiles,
+    ...(buyerContext === undefined ? {} : { buyerContext }),
     ...(saveDeliveryDetailsFailure === undefined
       ? {}
       : { saveDeliveryDetailsFailure }),
-    allowedContactSources: manualContactAllowed
-      ? ["manual", "customerProfile"]
-      : ["customerProfile"],
+    allowedContactSources:
+      allowedContactSources ??
+      (manualContactAllowed
+        ? ["manual", "customerProfile"]
+        : ["customerProfile"]),
   });
 };
 
@@ -132,6 +155,22 @@ const manualContact = {
     phoneNumber: "+15551234567",
   },
 } as const;
+
+const customerId = CommerceCustomerId.make("customer-1");
+const businessUnitId = CommerceBusinessUnitId.make("business-unit-1");
+const customerScope = new StorefrontCustomerCheckoutScope({
+  channel: "storefrontCustomer",
+  locale: CheckoutLocale.make("en-US"),
+  customerId,
+  businessUnitId,
+  businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+});
+const completeCustomerProfile = new CommerceCustomerProfile({
+  customerId,
+  email: Redacted.make("ada@example.com", { label: "email" }),
+  firstName: Redacted.make("Ada", { label: "personName" }),
+  lastName: Redacted.make("Lovelace", { label: "personName" }),
+});
 
 const manualDeliveryDetails = {
   source: "manual",
@@ -322,6 +361,163 @@ describe("CheckoutSession.saveContact", () => {
       });
       expect(state.activeStep).toBe("deliveryDetails");
     }).pipe(Effect.provide(layerWith()))
+  );
+
+  it.effect(
+    "resolves Customer Profile Contact for the verified customer scope",
+    () =>
+      Effect.gen(function* () {
+        yield* CheckoutSession.saveContact({
+          scope: customerScope,
+          cart: { id: CartId.make("cart-1"), version: 7 },
+          contact: { source: "customerProfile" },
+        });
+
+        const state = yield* CheckoutSession.getCurrent(customerScope);
+
+        expect(state.details.contact).toEqual({
+          source: "customerProfile",
+          buyerContact: {
+            email: "ada@example.com",
+            firstName: "Ada",
+            lastName: "Lovelace",
+          },
+        });
+        expect(state.steps[0]).toMatchObject({
+          id: "contact",
+          status: "complete",
+        });
+      }).pipe(
+        Effect.provide(
+          layerWith({
+            buyerContext: {
+              buyerMode: "b2bCustomer",
+              requiresBuyingContext: true,
+              buyingContext: { businessUnitId },
+            },
+            customerProfiles: [completeCustomerProfile],
+            allowedContactSources: ["customerProfile"],
+          })
+        )
+      )
+  );
+
+  it.effect(
+    "rejects Customer Profile Contact when a required profile field is missing",
+    () =>
+      Effect.gen(function* () {
+        const error = yield* CheckoutSession.saveContact({
+          scope: customerScope,
+          cart: { id: CartId.make("cart-1"), version: 7 },
+          contact: { source: "customerProfile" },
+        }).pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(CheckoutMutationSchemaFailure);
+        expect(error.message).toContain("lastName");
+      }).pipe(
+        Effect.provide(
+          layerWith({
+            customerProfiles: [
+              new CommerceCustomerProfile({
+                customerId,
+                email: Redacted.make("ada@example.com", { label: "email" }),
+                firstName: Redacted.make("Ada", { label: "personName" }),
+              }),
+            ],
+            allowedContactSources: ["customerProfile"],
+          })
+        )
+      )
+  );
+
+  it.effect(
+    "rejects Customer Profile Contact without a verified customer scope",
+    () =>
+      Effect.gen(function* () {
+        const error = yield* CheckoutSession.saveContact({
+          scope,
+          cart: { id: CartId.make("cart-1"), version: 7 },
+          contact: { source: "customerProfile" },
+        }).pipe(Effect.flip);
+
+        expect(error).toMatchObject({
+          _tag: "CheckoutMutationSourceUnavailable",
+          source: "customerProfile",
+        });
+      }).pipe(
+        Effect.provide(
+          layerWith({
+            customerProfiles: [completeCustomerProfile],
+            allowedContactSources: ["customerProfile"],
+          })
+        )
+      )
+  );
+
+  it.effect(
+    "keeps Contact incomplete when B2B Buying Context is unresolved",
+    () =>
+      Effect.gen(function* () {
+        yield* CheckoutSession.saveContact({
+          scope: customerScope,
+          cart: { id: CartId.make("cart-1"), version: 7 },
+          contact: { source: "customerProfile" },
+        });
+
+        const state = yield* CheckoutSession.getCurrent(customerScope);
+
+        expect(state.details.contact?.source).toBe("customerProfile");
+        expect(state.steps[0]).toMatchObject({
+          id: "contact",
+          status: "incomplete",
+        });
+        expect(state.activeStep).toBe("contact");
+      }).pipe(
+        Effect.provide(
+          layerWith({
+            buyerContext: {
+              buyerMode: "b2bCustomer",
+              requiresBuyingContext: true,
+            },
+            customerProfiles: [completeCustomerProfile],
+            allowedContactSources: ["customerProfile"],
+          })
+        )
+      )
+  );
+
+  it.effect(
+    "re-evaluates saved Customer Profile Contact against current source policy",
+    () =>
+      Effect.gen(function* () {
+        const state = yield* CheckoutSession.getCurrent(customerScope);
+
+        expect(state.steps[0]).toMatchObject({
+          id: "contact",
+          status: "incomplete",
+        });
+      }).pipe(
+        Effect.provide(
+          layerWith({
+            details: {
+              contact: {
+                source: "customerProfile",
+                buyerContact: {
+                  email: "ada@example.com",
+                  firstName: "Ada",
+                  lastName: "Lovelace",
+                },
+              },
+            },
+            buyerContext: {
+              buyerMode: "b2bCustomer",
+              requiresBuyingContext: true,
+              buyingContext: { businessUnitId },
+            },
+            allowedContactSources: ["manual"],
+          })
+        )
+      )
   );
 
   it.effect("replaces Manual Contact idempotently on repeated saves", () =>

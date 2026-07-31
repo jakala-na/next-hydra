@@ -1,11 +1,16 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Redacted } from "effect";
+import { StoreKey } from "../domain/cart";
 import { AuthUserId } from "../domain/commerce-request-context";
-import { CommerceAccounts } from "./commerce-accounts";
+import {
+  CommerceAccounts,
+  CommerceBusinessUnitContextNotFound,
+} from "./commerce-accounts";
 
 const registration = {
   _tag: "ApprovedRegistration",
   id: "registration-1",
+  storeKey: StoreKey.make("default-store"),
   details: {
     companyName: "Hydra Supply",
     contactFirstName: Redacted.make("Ada", { label: "personName" }),
@@ -44,8 +49,36 @@ describe("CommerceAccounts", () => {
       const customerId = yield* accounts.getCustomerIdByAuthUserId(
         AuthUserId.make(acceptedIdentity.authUserId)
       );
+      const profile = yield* accounts.getCustomerProfile(customerId);
+      const businessUnitContext =
+        yield* accounts.getBusinessUnitContextForCustomerInStore(
+          customerId,
+          StoreKey.make("default-store")
+        );
+      const otherStoreError = yield* accounts
+        .getBusinessUnitContextForCustomerInStore(
+          customerId,
+          StoreKey.make("de-fr-uk")
+        )
+        .pipe(Effect.flip);
 
       expect(customerId).toBe(commerceAccount.customerId);
+      expect(profile.email && Redacted.value(profile.email)).toBe(
+        "ada@example.com"
+      );
+      expect(profile.firstName && Redacted.value(profile.firstName)).toBe(
+        "Ada"
+      );
+      expect(profile.lastName && Redacted.value(profile.lastName)).toBe(
+        "Lovelace"
+      );
+      expect(businessUnitContext).toMatchObject({
+        businessUnitId: commerceAccount.businessUnitId,
+        businessUnitKey: "registration-business-unit-registration-1",
+      });
+      expect(otherStoreError).toBeInstanceOf(
+        CommerceBusinessUnitContextNotFound
+      );
     }).pipe(Effect.provide(CommerceAccounts.layerMemory))
   );
 });

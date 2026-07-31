@@ -1,3 +1,4 @@
+import type { StoreKey } from "@repo/commerce/domain/cart";
 import {
   type CommerceAccountError,
   CommerceAccounts,
@@ -65,6 +66,7 @@ export class RegistrationIntakeValidationError extends Schema.TaggedErrorClass<R
 
 export interface SubmitRegistrationForReviewInput {
   readonly details: CompanyRegistrationDetails;
+  readonly storeKey: StoreKey;
 }
 
 const toNonEmptyValidationReasons = (
@@ -199,6 +201,7 @@ export const submitRegistrationForReview = Effect.fn(
   const registrations = yield* Registrations;
   return yield* registrations.createAwaitingApproval({
     details: input.details,
+    storeKey: input.storeKey,
   });
 });
 
