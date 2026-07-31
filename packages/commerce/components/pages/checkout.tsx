@@ -2,6 +2,7 @@ import { getTranslations } from "@repo/i18n";
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import type { SaveCheckoutContactAction } from "../../actions/save-checkout-contact-state";
 import type { SaveCheckoutDeliveryDetailsAction } from "../../actions/save-checkout-delivery-details-state";
 import {
@@ -69,20 +70,41 @@ function CheckoutSteps({
   readonly state: CheckoutState;
 }) {
   return (
-    <ol className="grid gap-3">
-      {state.steps.map((step) => (
-        <li
-          className="flex items-center justify-between border-border border-b py-3 last:border-b-0"
-          key={step.id}
-        >
-          <span className="font-medium text-sm">
-            {messages.stepLabels[step.id]}
-          </span>
-          <span className="text-muted-foreground text-sm capitalize">
-            {messages.stepStatuses[step.status]}
-          </span>
-        </li>
-      ))}
+    <ol className="grid gap-2 sm:col-span-5 sm:grid-cols-5">
+      {state.steps.map((step, index) => {
+        const isActive = step.id === state.activeStep;
+        const presentationState = isActive ? "active" : step.status;
+        const statusLabel = isActive
+          ? messages.activeStep
+          : messages.stepStatuses[step.status];
+
+        return (
+          <li
+            aria-current={isActive ? "step" : undefined}
+            className="rounded-md border border-border p-3 data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=complete]:bg-muted/50"
+            data-state={presentationState}
+            key={step.id}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden="true"
+                className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border font-medium text-xs data-[state=active]:border-primary data-[state=complete]:border-primary data-[state=active]:bg-primary data-[state=complete]:bg-primary data-[state=active]:text-primary-foreground data-[state=complete]:text-primary-foreground"
+                data-state={presentationState}
+              >
+                {index + 1}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium text-sm">
+                  {messages.stepLabels[step.id]}
+                </span>
+                <span className="block text-muted-foreground text-xs">
+                  {statusLabel}
+                </span>
+              </span>
+            </div>
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -96,7 +118,7 @@ function ActiveStep({
   readonly messages: CheckoutPageMessages;
   readonly state: CheckoutState;
 }) {
-  let content = <CheckoutSteps messages={messages} state={state} />;
+  let content: ReactNode = null;
 
   if (state.activeStep === "contact") {
     content = (
@@ -237,6 +259,7 @@ export async function CheckoutPage({
 
   return (
     <main className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:grid-cols-5">
+      <CheckoutSteps messages={messages} state={state} />
       <ActiveStep actions={actions} messages={messages} state={state} />
       <CartSidebar messages={messages} state={state} />
     </main>
