@@ -1,0 +1,23 @@
+{
+  "key": "orderCustomFields",
+  "name": {
+    "en-US": "Order Custom Fields"
+  },
+  "description": {
+    "en-US": "Custom fields persisted on a Cart and copied to its Order"
+  },
+  "resourceTypeIds": ["order"],
+  "fieldDefinitions": [
+    {
+      "name": "checkoutContact",
+      "label": {
+        "en-US": "Checkout contact"
+      },
+      "required": false,
+      "type": {
+        "name": "String"
+      },
+      "inputHint": "MultiLine"
+    }
+  ]
+}

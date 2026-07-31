@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "build": "turbo build",
+    "cli": "pnpm --filter cli cli",
     "dev": "turbo dev",
     "lint": "ultracite lint",
     "format": "ultracite format",

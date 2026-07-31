@@ -39,8 +39,8 @@ The mutation should be available through `CheckoutSession.saveContact`, then exp
 
 ## Implementation notes
 
-- Commercetools stores Manual Buyer Contact on the Cart as `customerEmail` plus escaped JSON in a `checkoutContact` string custom field on cart custom type `hydra-cart-checkout`.
-- The provider project must have `hydra-cart-checkout` with a string field named `checkoutContact`; provisioning that type is outside this buyer-path slice.
+- Commercetools stores Manual Buyer Contact on the Cart as `customerEmail` plus escaped JSON in a `checkoutContact` string custom field on the shared Cart and Order custom type `orderCustomFields`.
+- The `orderCustomFields` Type and its `checkoutContact` string field are provisioned by `packages/commerce/migrations/scripts/2026-07-28-130000-create-order-custom-fields-type.ts`.
 - HTTP `POST /checkout/contact` returns recomputed `CheckoutState` after save.
 
 ## Blocked by

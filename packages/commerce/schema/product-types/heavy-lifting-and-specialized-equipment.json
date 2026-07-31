@@ -1,0 +1,196 @@
+{
+  "key": "heavy-lifting-and-specialized-equipment",
+  "name": "Heavy Lifting and Specialized Equipment",
+  "description": "Equipment designed for heavy lifting and specialized tasks",
+  "attributes": [
+    {
+      "name": "capacity",
+      "label": {
+        "en-NZ": "Capacity",
+        "en-AU": "Capacity",
+        "en-US": "Capacity",
+        "pt-PT": "Capacidade",
+        "es-ES": "Capacidad",
+        "it-IT": "Capacità",
+        "de-DE": "Kapazität",
+        "fr-FR": "Capacité",
+        "nl-NL": "Capaciteit",
+        "en-GB": "Capacity"
+      },
+      "isRequired": false,
+      "type": {
+        "name": "number"
+      },
+      "attributeConstraint": "SameForAll",
+      "isSearchable": true,
+      "inputHint": "SingleLine",
+      "displayGroup": "Other",
+      "level": "Variant"
+    },
+    {
+      "name": "iso45001",
+      "label": {
+        "en-NZ": "ISO 45001 certified",
+        "en-AU": "ISO 45001 certified",
+        "en-US": "ISO 45001 certified",
+        "pt-PT": "Certificado ISO 45001",
+        "es-ES": "Certificado ISO 45001",
+        "it-IT": "Certificato ISO 45001",
+        "de-DE": "ISO 45001 zertifiziert",
+        "fr-FR": "Certifié ISO 45001",
+        "nl-NL": "ISO 45001 gecertificeerd",
+        "en-GB": "ISO 45001 certified"
+      },
+      "isRequired": false,
+      "type": {
+        "name": "boolean"
+      },
+      "attributeConstraint": "SameForAll",
+      "isSearchable": true,
+      "inputHint": "SingleLine",
+      "displayGroup": "Other",
+      "level": "Variant"
+    },
+    {
+      "name": "relatedProducts",
+      "label": {
+        "en-NZ": "Related products",
+        "en-AU": "Related products",
+        "en-US": "Related products",
+        "pt-PT": "Produtos relacionados",
+        "es-ES": "Productos relacionados",
+        "it-IT": "Prodotti correlati",
+        "de-DE": "Verwandte Produkte",
+        "fr-FR": "Produits associés",
+        "nl-NL": "Gerelateerde producten",
+        "en-GB": "Related products"
+      },
+      "isRequired": false,
+      "type": {
+        "name": "set",
+        "elementType": {
+          "name": "reference",
+          "referenceTypeId": "product"
+        }
+      },
+      "attributeConstraint": "SameForAll",
+      "isSearchable": true,
+      "inputHint": "SingleLine",
+      "displayGroup": "Other",
+      "level": "Variant"
+    },
+    {
+      "name": "mobility",
+      "label": {
+        "en-NZ": "Mobility",
+        "en-AU": "Mobility",
+        "en-US": "Mobility",
+        "pt-PT": "Mobilidade",
+        "es-ES": "Movilidad",
+        "it-IT": "Mobilità",
+        "de-DE": "Mobilität",
+        "fr-FR": "Mobilité",
+        "nl-NL": "Mobiliteit",
+        "en-GB": "Mobility"
+      },
+      "isRequired": false,
+      "type": {
+        "name": "enum",
+        "values": [
+          {
+            "key": "tracked",
+            "label": "Tracked"
+          },
+          {
+            "key": "wheeled",
+            "label": "Wheeled"
+          },
+          {
+            "key": "fixed",
+            "label": "Fixed"
+          },
+          {
+            "key": "marine",
+            "label": "Marine"
+          }
+        ]
+      },
+      "attributeConstraint": "SameForAll",
+      "isSearchable": true,
+      "inputHint": "SingleLine",
+      "displayGroup": "Other",
+      "level": "Variant"
+    },
+    {
+      "name": "color",
+      "label": {
+        "en-NZ": "Color",
+        "en-AU": "Color",
+        "en-US": "Color",
+        "pt-PT": "Cor",
+        "es-ES": "Color",
+        "it-IT": "Colore",
+        "de-DE": "Farbe",
+        "fr-FR": "Couleur",
+        "nl-NL": "Kleur",
+        "en-GB": "Color"
+      },
+      "isRequired": true,
+      "type": {
+        "name": "lenum",
+        "values": [
+          {
+            "key": "RED",
+            "label": {
+              "en-NZ": "Red",
+              "en-AU": "Red",
+              "en-US": "Red",
+              "pt-PT": "Vermelho",
+              "es-ES": "Rojo",
+              "it-IT": "Rosso",
+              "de-DE": "Rot",
+              "fr-FR": "Rouge",
+              "nl-NL": "Rood",
+              "en-GB": "Red"
+            }
+          },
+          {
+            "key": "BLUE",
+            "label": {
+              "en-NZ": "Blue",
+              "en-AU": "Blue",
+              "en-US": "Blue",
+              "pt-PT": "Azul",
+              "es-ES": "Azul",
+              "it-IT": "Blu",
+              "de-DE": "Blau",
+              "fr-FR": "Bleu",
+              "nl-NL": "Blauw",
+              "en-GB": "Blue"
+            }
+          },
+          {
+            "key": "GREEN",
+            "label": {
+              "en-NZ": "Green",
+              "en-AU": "Green",
+              "en-US": "Green",
+              "pt-PT": "Verde",
+              "es-ES": "Verde",
+              "it-IT": "Verde",
+              "de-DE": "Grün",
+              "fr-FR": "Vert",
+              "nl-NL": "Groen",
+              "en-GB": "Green"
+            }
+          }
+        ]
+      },
+      "attributeConstraint": "Unique",
+      "isSearchable": true,
+      "inputHint": "SingleLine",
+      "displayGroup": "Other",
+      "level": "Variant"
+    }
+  ]
+}

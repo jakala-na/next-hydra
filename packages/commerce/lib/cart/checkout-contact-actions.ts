@@ -1,9 +1,11 @@
 import type { CheckoutContact } from "../../domain/checkout";
+import type { OrderCustomFieldsSchema } from "../custom-fields/generated/types";
 import type { Cart } from "../types";
 import { type ActionResult, domainError, Err, Ok } from "../utils/errors";
 
-export const CHECKOUT_CART_CUSTOM_TYPE_KEY = "hydra-cart-checkout";
-export const CHECKOUT_CONTACT_CUSTOM_FIELD_NAME = "checkoutContact";
+export const ORDER_CUSTOM_TYPE_KEY = "orderCustomFields";
+export const CHECKOUT_CONTACT_CUSTOM_FIELD_NAME =
+  "checkoutContact" satisfies keyof OrderCustomFieldsSchema;
 
 type SaveCheckoutContactAction =
   | {
@@ -31,7 +33,7 @@ type SaveCheckoutContactAction =
 
 type CartCustomTypeConflictDetails = {
   readonly actualTypeKey: string;
-  readonly expectedTypeKey: typeof CHECKOUT_CART_CUSTOM_TYPE_KEY;
+  readonly expectedTypeKey: typeof ORDER_CUSTOM_TYPE_KEY;
 };
 
 const checkoutContactCustomFieldValue = (contact: CheckoutContact) =>
@@ -61,7 +63,7 @@ const cartCustomTypeConflict = (actualTypeKey: string | undefined) =>
       "Cart custom type cannot store checkout contact",
       {
         actualTypeKey: actualTypeKey ?? "<unavailable>",
-        expectedTypeKey: CHECKOUT_CART_CUSTOM_TYPE_KEY,
+        expectedTypeKey: ORDER_CUSTOM_TYPE_KEY,
       }
     )
   );
@@ -79,7 +81,7 @@ export const buildSaveCheckoutContactActions = (
   if (
     cart.custom !== null &&
     cart.custom !== undefined &&
-    customTypeKey !== CHECKOUT_CART_CUSTOM_TYPE_KEY
+    customTypeKey !== ORDER_CUSTOM_TYPE_KEY
   ) {
     return cartCustomTypeConflict(customTypeKey);
   }
@@ -90,13 +92,13 @@ export const buildSaveCheckoutContactActions = (
         email: contact.buyerContact.email,
       },
     },
-    customTypeKey === CHECKOUT_CART_CUSTOM_TYPE_KEY
+    customTypeKey === ORDER_CUSTOM_TYPE_KEY
       ? {
           setCustomField: field,
         }
       : {
           setCustomType: {
-            typeKey: CHECKOUT_CART_CUSTOM_TYPE_KEY,
+            typeKey: ORDER_CUSTOM_TYPE_KEY,
             fields: [field],
           },
         },

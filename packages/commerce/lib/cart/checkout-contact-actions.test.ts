@@ -30,7 +30,7 @@ describe("buildSaveCheckoutContactActions", () => {
 
     expect(result.data[1]).toMatchObject({
       setCustomType: {
-        typeKey: "hydra-cart-checkout",
+        typeKey: "orderCustomFields",
       },
     });
   });
@@ -40,7 +40,7 @@ describe("buildSaveCheckoutContactActions", () => {
       {
         custom: {
           type: {
-            key: "hydra-cart-checkout",
+            key: "orderCustomFields",
           },
           customFieldsRaw: [],
         },
@@ -83,7 +83,7 @@ describe("buildSaveCheckoutContactActions", () => {
       message: "Cart custom type cannot store checkout contact",
       details: {
         actualTypeKey: "other-cart-fields",
-        expectedTypeKey: "hydra-cart-checkout",
+        expectedTypeKey: "orderCustomFields",
       },
     });
   });
@@ -114,7 +114,7 @@ describe("buildSaveCheckoutContactActions", () => {
       message: "Cart custom type cannot store checkout contact",
       details: {
         actualTypeKey: "<unavailable>",
-        expectedTypeKey: "hydra-cart-checkout",
+        expectedTypeKey: "orderCustomFields",
       },
     });
   });
