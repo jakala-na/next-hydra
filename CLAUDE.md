@@ -22,7 +22,7 @@ details when the documentation isn't enough.
 
 ### Issue tracker
 
-Issues and PRDs are tracked as local markdown under `.scratch/`. See `docs/agents/issue-tracker.md`.
+Issues and specs are tracked as local markdown under `.scratch/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
