@@ -363,14 +363,12 @@ export function CheckoutDeliveryDetailsFormContent({
 export function CheckoutDeliveryDetailsForm({
   addressBookReference,
   cartId,
-  cartVersion,
   saveAction,
   shippingAddress,
   shippingAddressOptions,
 }: {
   readonly addressBookReference?: AddressBookReference;
   readonly cartId: string;
-  readonly cartVersion: number;
   readonly saveAction: SaveCheckoutDeliveryDetailsAction;
   readonly shippingAddress?: ShippingAddress;
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
@@ -424,7 +422,6 @@ export function CheckoutDeliveryDetailsForm({
   return (
     <form action={formAction} className="grid gap-4">
       <input name="cartId" type="hidden" value={cartId} />
-      <input name="cartVersion" type="hidden" value={cartVersion} />
       <CheckoutDeliveryDetailsFormContent
         errorMessage={errorMessage}
         isPending={isPending}

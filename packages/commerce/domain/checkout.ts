@@ -3,7 +3,6 @@ import { Schema } from "effect";
 import { Address } from "./address";
 import { AddressBookReference } from "./address-book";
 import {
-  CartForCheckout,
   CartId,
   LineItemId,
   ProductId,
@@ -11,6 +10,7 @@ import {
   StoreKey,
   VariantId,
 } from "./cart";
+import { CartSnapshot } from "./cart-snapshot";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -99,7 +99,6 @@ export type CheckoutContactInput = typeof CheckoutContactInput.Type;
 
 export const CheckoutCartReference = Schema.Struct({
   id: CartId,
-  version: Schema.Number,
 });
 export type CheckoutCartReference = typeof CheckoutCartReference.Type;
 
@@ -234,7 +233,7 @@ export type CheckoutPolicyViolation = typeof CheckoutPolicyViolation.Type;
 
 export const CheckoutState = Schema.Struct({
   scope: CheckoutScope,
-  cart: CartForCheckout,
+  cart: Schema.suspend(() => CartSnapshot),
   details: CheckoutDetails,
   steps: Schema.Array(CheckoutStep),
   activeStep: CheckoutStepId,

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Random, Redacted } from "effect";
+import { Context, Effect, Layer, Option, Random, Redacted } from "effect";
 import {
   type AddressBookEntry,
   type AddressBookGetError,
@@ -6,7 +6,10 @@ import {
   AddressBookReference,
   SaveAddressBookEntryInput,
 } from "../../domain/address-book";
-import type { CartForCheckout } from "../../domain/cart";
+import type {
+  CartSnapshot,
+  CurrentCartState,
+} from "../../domain/cart-snapshot";
 import {
   type BuyerContact,
   type CheckoutBuyerContext,
@@ -18,19 +21,19 @@ import {
   type CheckoutContactSource,
   type CheckoutDeliveryDetails,
   type CheckoutDeliveryDetailsInput,
-  type CheckoutDetails,
   CheckoutMutationAddressBookEntryUnavailable,
   type CheckoutMutationFailure,
   CheckoutMutationProviderFailure,
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
-  type CheckoutProviderFailure,
+  CheckoutProviderFailure,
   type CheckoutScope,
   type CheckoutState,
   CheckoutUnavailable,
   CheckoutVersionConflict,
+  StorefrontAnonymousCheckoutScope,
+  StorefrontCustomerCheckoutScope,
 } from "../../domain/checkout";
-import type { CommerceCustomerProfile } from "../../domain/commerce-account";
 import {
   type CommerceRequestContext,
   CustomerCommercePrincipal,
@@ -40,9 +43,13 @@ import {
   CommerceAccounts,
   type CommerceCustomerProfileNotFound,
 } from "../../services/commerce-accounts";
-import type { PolicyViolation } from "../cart/policy/cart-policy.types";
-import { CheckoutPolicies, type CheckoutPolicy } from "./checkout-policy";
-import { checkoutDeliveryDetailsEqual } from "./delivery-details-equality";
+import type {
+  CurrentCartReadFailure,
+  SaveCurrentCartDetailsFailure,
+} from "../../services/current-cart";
+import { CurrentCart } from "../../services/current-cart";
+import { CheckoutPolicies } from "./checkout-policy";
+import { allowedContactSourcesForCheckout } from "./contact-source-policy";
 import { buildCheckoutState } from "./state";
 
 export interface SaveCheckoutContactInput {
@@ -59,19 +66,7 @@ export interface SaveCheckoutDeliveryDetailsInput {
 
 export interface SaveCheckoutDeliveryDetailsResult {
   readonly addressBookReference?: AddressBookReference;
-}
-
-export interface CheckoutSessionMemoryInput {
-  readonly currentCart?: CartForCheckout;
-  readonly getCurrentFailure?: CheckoutProviderFailure;
-  readonly details?: CheckoutDetails;
-  readonly buyerContext?: CheckoutBuyerContext;
-  readonly allowedContactSources?: readonly CheckoutContactSource[];
-  readonly cartPolicyViolations?: readonly PolicyViolation[];
-  readonly checkoutPolicies?: readonly CheckoutPolicy[];
-  readonly customerProfiles?: readonly CommerceCustomerProfile[];
-  readonly saveContactFailure?: CheckoutSaveContactFailure;
-  readonly saveDeliveryDetailsFailure?: CheckoutSaveDeliveryDetailsFailure;
+  readonly state: CheckoutState;
 }
 
 export type CheckoutSaveContactFailure =
@@ -296,13 +291,15 @@ export interface ResolvedCheckoutDeliveryDetails {
 }
 
 const saveDeliveryDetailsResult = (
-  resolved: ResolvedCheckoutDeliveryDetails
+  resolved: ResolvedCheckoutDeliveryDetails,
+  state: CheckoutState
 ): SaveCheckoutDeliveryDetailsResult =>
   resolved.deliveryDetails.source === "addressBook"
     ? {
         addressBookReference: resolved.deliveryDetails.addressBookReference,
+        state,
       }
-    : {};
+    : { state };
 
 const addressBookSourceUnavailable = () =>
   new CheckoutMutationSourceUnavailable({
@@ -440,7 +437,7 @@ export const withSavedAddressBookReference = (
 };
 
 export const ensureCurrentCartIdentity = (
-  currentCart: CartForCheckout,
+  currentCart: CartSnapshot,
   submittedCart: CheckoutCartReference,
   detailName: "Contact" | "Delivery Details" = "Contact"
 ) => {
@@ -468,7 +465,7 @@ export class CheckoutSession extends Context.Service<
     >;
     readonly saveContact: (
       input: SaveCheckoutContactInput
-    ) => Effect.Effect<void, CheckoutSaveContactFailure>;
+    ) => Effect.Effect<CheckoutState, CheckoutSaveContactFailure>;
     readonly saveDeliveryDetails: (
       input: SaveCheckoutDeliveryDetailsInput
     ) => Effect.Effect<
@@ -495,163 +492,184 @@ export class CheckoutSession extends Context.Service<
     )
   );
 
-  static readonly layerMemoryFrom = ({
-    currentCart,
-    getCurrentFailure,
-    details = {},
-    buyerContext = guestBuyerContext,
-    allowedContactSources = defaultAllowedContactSources,
-    cartPolicyViolations = [],
-    checkoutPolicies = [],
-    customerProfiles = [],
-    saveContactFailure,
-    saveDeliveryDetailsFailure,
-  }: CheckoutSessionMemoryInput) =>
-    Layer.effect(
-      CheckoutSession,
-      Effect.gen(function* () {
-        const policies = yield* CheckoutPolicies;
-        const commerceAccounts = yield* CommerceAccounts;
-        const addressBook = yield* AddressBook;
-        let activeCart = currentCart;
-        let activeDetails = details;
+  static readonly layer = Layer.effect(
+    CheckoutSession,
+    Effect.gen(function* () {
+      const currentCart = yield* CurrentCart;
+      const policies = yield* CheckoutPolicies;
+      const commerceAccounts = yield* CommerceAccounts;
+      const addressBook = yield* AddressBook;
 
-        return CheckoutSession.of({
-          getCurrent: (scope) =>
-            Effect.gen(function* () {
-              if (getCurrentFailure !== undefined) {
-                return yield* Effect.fail(getCurrentFailure);
-              }
+      const buyerContextFor = (
+        scope: CheckoutScope,
+        cart: CartSnapshot
+      ): CheckoutBuyerContext =>
+        scope.channel === "storefrontAnonymous"
+          ? guestBuyerContext
+          : {
+              buyerMode: "b2bCustomer",
+              requiresBuyingContext: true,
+              ...(cart.buyingContext === undefined
+                ? {}
+                : { buyingContext: cart.buyingContext }),
+            };
 
-              if (activeCart === undefined) {
-                return yield* Effect.fail(
-                  new CheckoutUnavailable({
-                    message: "Checkout requires an existing Cart",
-                    reason: "noCart",
+      const buildState = Effect.fn("CheckoutSession.buildState")(
+        (scope: CheckoutScope, current: CurrentCartState) =>
+          Effect.gen(function* () {
+            const buyerContext = buyerContextFor(scope, current.cart);
+            const checkoutPolicyViolations = yield* policies.evaluate({
+              cart: current.cart,
+              details: current.cart.checkoutDetails,
+              buyerContext,
+            });
+            return yield* buildCheckoutState({
+              scope,
+              cart: current.cart,
+              details: current.cart.checkoutDetails,
+              buyerContext,
+              allowedContactSources: allowedContactSourcesForCheckout(scope),
+              cartPolicyViolations: current.violations,
+              checkoutPolicyViolations,
+            });
+          })
+      );
+
+      const readFailure = (error: CurrentCartReadFailure) =>
+        new CheckoutProviderFailure({
+          message: "Failed to resolve Checkout Cart",
+          operation: `checkout.currentCart.${error._tag}`,
+          cause: error,
+        });
+
+      const mutationFailure = (error: SaveCurrentCartDetailsFailure) => {
+        switch (error._tag) {
+          case "CurrentCartUnavailable":
+            return new CheckoutUnavailable({
+              message: "Checkout requires an existing Cart",
+              reason: error.reason,
+            });
+          case "CartWriteConflict":
+            return new CheckoutVersionConflict({
+              message: "Checkout Cart changed while it was being updated",
+              cartId: error.cartId,
+            });
+          default:
+            return new CheckoutMutationProviderFailure({
+              message: "Failed to update Checkout Cart",
+              operation: `checkout.currentCart.${error._tag}`,
+              cause: error,
+            });
+        }
+      };
+
+      const mutationReadFailure = (error: CheckoutProviderFailure) =>
+        new CheckoutMutationProviderFailure({
+          message: error.message,
+          operation: error.operation,
+          cause: error,
+        });
+
+      const requireCurrent = (scope: CheckoutScope) =>
+        currentCart.get().pipe(
+          Effect.mapError(readFailure),
+          Effect.flatMap(
+            Option.match({
+              onNone: () =>
+                new CheckoutUnavailable({
+                  message: "Checkout requires an existing Cart",
+                  reason: "noCart",
+                }),
+              onSome: Effect.succeed,
+            })
+          ),
+          Effect.flatMap((current) =>
+            buildState(scope, current).pipe(Effect.as(current))
+          )
+        );
+
+      return CheckoutSession.of({
+        getCurrent: (scope) =>
+          requireCurrent(scope).pipe(
+            Effect.flatMap((current) => buildState(scope, current))
+          ),
+        saveContact: (input) =>
+          Effect.gen(function* () {
+            const allowedContactSources = allowedContactSourcesForCheckout(
+              input.scope
+            );
+            if (!allowedContactSources.includes(input.contact.source)) {
+              return yield* contactSourceUnavailable(input.contact.source);
+            }
+            const contact = yield* resolveCheckoutContact(
+              input.scope,
+              input.contact,
+              commerceAccounts
+            );
+            const current = yield* requireCurrent(input.scope).pipe(
+              Effect.mapError((error) =>
+                error._tag === "CheckoutProviderFailure"
+                  ? mutationReadFailure(error)
+                  : error
+              )
+            );
+            yield* ensureCurrentCartIdentity(current.cart, input.cart);
+            const updated = yield* currentCart
+              .saveContact(contact)
+              .pipe(Effect.mapError(mutationFailure));
+            return yield* buildState(input.scope, updated);
+          }),
+        saveDeliveryDetails: (input) =>
+          Effect.gen(function* () {
+            const normalizedInput =
+              yield* normalizeCheckoutDeliveryDetailsInput(
+                input.deliveryDetails
+              );
+            const scope =
+              input.context.principal instanceof CustomerCommercePrincipal
+                ? new StorefrontCustomerCheckoutScope({
+                    channel: "storefrontCustomer",
+                    locale: input.context.locale,
+                    customerId: input.context.principal.customerId,
+                    businessUnitId: input.context.principal.businessUnitId,
+                    businessUnitKey: input.context.principal.businessUnitKey,
                   })
-                );
-              }
-
-              const checkoutPolicyViolations = yield* policies.evaluate({
-                cart: activeCart,
-                details: activeDetails,
-                buyerContext,
-              });
-
-              return yield* buildCheckoutState({
-                scope,
-                cart: activeCart,
-                details: activeDetails,
-                buyerContext,
-                allowedContactSources,
-                cartPolicyViolations,
-                checkoutPolicyViolations,
-              });
-            }),
-          saveContact: (input) =>
-            Effect.gen(function* () {
-              if (saveContactFailure !== undefined) {
-                return yield* Effect.fail(saveContactFailure);
-              }
-
-              if (activeCart === undefined) {
-                return yield* Effect.fail(
-                  new CheckoutUnavailable({
-                    message: "Checkout requires an existing Cart",
-                    reason: "noCart",
-                  })
-                );
-              }
-
-              if (!allowedContactSources.includes(input.contact.source)) {
-                return yield* Effect.fail(
-                  contactSourceUnavailable(input.contact.source)
-                );
-              }
-
-              const contact = yield* resolveCheckoutContact(
-                input.scope,
-                input.contact,
-                commerceAccounts
-              );
-
-              const cart = yield* ensureCurrentCartIdentity(
-                activeCart,
-                input.cart
-              );
-
-              if (contactsEqual(activeDetails.contact, contact)) {
-                return;
-              }
-
-              activeDetails = {
-                ...activeDetails,
-                contact,
-              };
-              activeCart = {
-                ...cart,
-                version: cart.version + 1,
-              };
-            }),
-          saveDeliveryDetails: (input) =>
-            Effect.gen(function* () {
-              if (activeCart === undefined) {
-                return yield* Effect.fail(
-                  new CheckoutUnavailable({
-                    message: "Checkout requires an existing Cart",
-                    reason: "noCart",
-                  })
-                );
-              }
-
-              const normalizedInput =
-                yield* normalizeCheckoutDeliveryDetailsInput(
-                  input.deliveryDetails
-                );
-              const cart = yield* ensureCurrentCartIdentity(
-                activeCart,
-                input.cart,
-                "Delivery Details"
-              );
-              const resolved = yield* resolveCheckoutDeliveryDetails(
-                input.context,
-                normalizedInput,
-                addressBook
-              );
-
-              if (saveDeliveryDetailsFailure !== undefined) {
-                return yield* Effect.fail(
+                : new StorefrontAnonymousCheckoutScope({
+                    channel: "storefrontAnonymous",
+                    locale: input.context.locale,
+                    anonymousCartId: input.context.principal.anonymousCartId,
+                  });
+            const current = yield* requireCurrent(scope).pipe(
+              Effect.mapError((error) =>
+                error._tag === "CheckoutProviderFailure"
+                  ? mutationReadFailure(error)
+                  : error
+              )
+            );
+            yield* ensureCurrentCartIdentity(
+              current.cart,
+              input.cart,
+              "Delivery Details"
+            );
+            const resolved = yield* resolveCheckoutDeliveryDetails(
+              input.context,
+              normalizedInput,
+              addressBook
+            );
+            const updated = yield* currentCart
+              .saveDeliveryDetails(resolved.deliveryDetails)
+              .pipe(
+                Effect.mapError((error) =>
                   withSavedAddressBookReference(
-                    saveDeliveryDetailsFailure,
+                    mutationFailure(error),
                     resolved.savedAddressBookReference
                   )
-                );
-              }
-
-              if (
-                checkoutDeliveryDetailsEqual(
-                  activeDetails.deliveryDetails,
-                  resolved.deliveryDetails
                 )
-              ) {
-                return saveDeliveryDetailsResult(resolved);
-              }
-
-              activeDetails = {
-                ...activeDetails,
-                deliveryDetails: resolved.deliveryDetails,
-              };
-              activeCart = {
-                ...cart,
-                version: cart.version + 1,
-              };
-
-              return saveDeliveryDetailsResult(resolved);
-            }),
-        });
-      })
-    ).pipe(
-      Layer.provide(CheckoutPolicies.layerFrom(checkoutPolicies)),
-      Layer.provide(CommerceAccounts.layerMemoryFrom({ customerProfiles }))
-    );
+              );
+            const state = yield* buildState(scope, updated);
+            return saveDeliveryDetailsResult(resolved, state);
+          }),
+      });
+    })
+  );
 }

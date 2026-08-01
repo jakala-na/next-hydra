@@ -7,13 +7,15 @@ import {
   normalizeAddressTypes,
 } from "@repo/commerce/domain/address-book";
 import {
-  AnonymousId,
   CartId,
   LineItemId,
   ProductId,
   Sku,
+  StoreKey,
   VariantId,
 } from "@repo/commerce/domain/cart";
+import { CartProviderFailure } from "@repo/commerce/domain/cart-errors";
+import type { CartSnapshot } from "@repo/commerce/domain/cart-snapshot";
 import {
   type CartOnlyCheckoutDeliveryDetailsInput,
   type CheckoutContact,
@@ -21,7 +23,6 @@ import {
   type CheckoutDeliveryDetails,
   type CheckoutDeliveryDetailsInput,
   CheckoutMutationProviderFailure,
-  CheckoutProviderFailure,
   CountryCode,
 } from "@repo/commerce/domain/checkout";
 import {
@@ -40,8 +41,10 @@ import {
   encodeAnonymousCartCookie,
   makeAnonymousCartCookie,
 } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
-import { CheckoutSession } from "@repo/commerce/lib/checkout/checkout-session";
+import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
 import { AddressBook } from "@repo/commerce/services/address-book";
+import { CartPolicies } from "@repo/commerce/services/cart-policies";
+import { Carts } from "@repo/commerce/services/carts";
 import {
   CommerceAccountError,
   CommerceAccounts,
@@ -49,7 +52,7 @@ import {
   CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
-import { Context, Effect, Layer, Redacted } from "effect";
+import { Context, Effect, Layer, Option, Redacted } from "effect";
 import { expect, test } from "vitest";
 import {
   CheckoutCustomerJwtInvalid,
@@ -69,28 +72,21 @@ const money = {
   currencyCode: "USD",
 } as const;
 
-type TestLineItem = {
-  id: LineItemId;
-  productId: ProductId;
-  name: string;
-  quantity: number;
-  totalPrice: typeof money;
-  variant: {
-    id: VariantId;
-    sku: Sku;
-  };
-};
+type TestLineItem = CartSnapshot["lineItems"][number];
 
 const defaultLineItems: TestLineItem[] = [
   {
     id: LineItemId.make("line-1"),
-    productId: ProductId.make("product-1"),
-    name: "Hydra Wrench",
     quantity: 1,
+    unitPrice: money,
     totalPrice: money,
     variant: {
       id: VariantId.make("1"),
+      productId: ProductId.make("product-1"),
+      name: "Hydra Wrench",
       sku: Sku.make("HYDRA-WRENCH"),
+      images: [],
+      attributes: {},
     },
   },
 ];
@@ -106,8 +102,8 @@ const cart = ({
 
   return {
     id: CartId.make("cart-1"),
-    version: 7,
-    anonymousId: AnonymousId.make("anon-1"),
+    status: "active" as const,
+    storeKey: StoreKey.make("default-store"),
     lineItems: resolvedLineItems,
     totalLineItemQuantity:
       totalLineItemQuantity ??
@@ -116,6 +112,7 @@ const cart = ({
         0
       ),
     totalPrice: money,
+    checkoutDetails: {},
   };
 };
 
@@ -166,16 +163,13 @@ const customerProfile = new CommerceCustomerProfile({
 
 const saveContactPayload = ({
   cartId = "cart-1",
-  version = 7,
   contact = manualContact,
 }: {
   readonly cartId?: string;
-  readonly version?: number;
   readonly contact?: CheckoutContactInput;
 } = {}) => ({
   cart: {
     id: cartId,
-    version,
   },
   contact,
 });
@@ -215,16 +209,13 @@ const cartOnlyDeliveryDetailsInput: CartOnlyCheckoutDeliveryDetailsInput = {
 
 const saveDeliveryDetailsPayload = ({
   cartId = "cart-1",
-  version = 7,
   deliveryDetails = cartOnlyDeliveryDetailsInput,
 }: {
   readonly cartId?: string;
-  readonly version?: number;
   readonly deliveryDetails?: CheckoutDeliveryDetailsInput;
 } = {}) => ({
   cart: {
     id: cartId,
-    version,
   },
   deliveryDetails,
 });
@@ -270,29 +261,19 @@ const anonymousCartCookieHeader = ({
 const makeCheckoutLayer = (
   input: {
     readonly currentCart?: ReturnType<typeof cart> | undefined;
-    readonly allowedContactSources?: Parameters<
-      typeof CheckoutSession.layerMemoryFrom
-    >[0]["allowedContactSources"];
-    readonly cartPolicyViolations?: Parameters<
-      typeof CheckoutSession.layerMemoryFrom
-    >[0]["cartPolicyViolations"];
-    readonly saveContactFailure?: Parameters<
-      typeof CheckoutSession.layerMemoryFrom
-    >[0]["saveContactFailure"];
-    readonly saveDeliveryDetailsFailure?: Parameters<
-      typeof CheckoutSession.layerMemoryFrom
-    >[0]["saveDeliveryDetailsFailure"];
-    readonly getCurrentFailure?: Parameters<
-      typeof CheckoutSession.layerMemoryFrom
-    >[0]["getCurrentFailure"];
-    readonly customerProfiles?: Parameters<
-      typeof CheckoutSession.layerMemoryFrom
-    >[0]["customerProfiles"];
+    readonly allowedContactSources?: readonly string[];
+    readonly cartPolicyViolations?: readonly {
+      readonly violationType: string;
+      readonly metadata?: Readonly<Record<string, unknown>>;
+    }[];
+    readonly saveContactFailure?: CheckoutMutationProviderFailure;
+    readonly saveDeliveryDetailsFailure?: CheckoutMutationProviderFailure;
+    readonly getCurrentFailure?: CheckoutProviderFailure;
+    readonly customerProfiles?: readonly CommerceCustomerProfile[];
     readonly addressBookLayer?: Layer.Layer<AddressBook>;
   } = {}
 ) => {
   const {
-    allowedContactSources = ["manual", "customerProfile"],
     cartPolicyViolations = [],
     saveContactFailure,
     saveDeliveryDetailsFailure,
@@ -304,19 +285,118 @@ const makeCheckoutLayer = (
 
   const addressBookLayer =
     suppliedAddressBookLayer ?? AddressBook.layerMemory();
-  const checkoutLayer = CheckoutSession.layerMemoryFrom({
-    ...(currentCart === undefined ? {} : { currentCart }),
-    allowedContactSources,
-    cartPolicyViolations,
-    customerProfiles,
-    ...(saveContactFailure === undefined ? {} : { saveContactFailure }),
-    ...(saveDeliveryDetailsFailure === undefined
-      ? {}
-      : { saveDeliveryDetailsFailure }),
-    ...(getCurrentFailure === undefined ? {} : { getCurrentFailure }),
-  }).pipe(Layer.provide(addressBookLayer));
+  const providerFailure = (
+    operation: "findById" | "saveContact" | "saveDeliveryDetails",
+    cause: unknown
+  ) => new CartProviderFailure({ operation, reason: "unavailable", cause });
+  let activeCart = currentCart;
+  const forAnonymous = (value: NonNullable<typeof activeCart>) => {
+    const { buyingContext: _buyingContext, ...anonymous } = value;
+    return anonymous;
+  };
+  const forBusinessUnit = (value: NonNullable<typeof activeCart>) => ({
+    ...value,
+    buyingContext: {
+      businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+    },
+  });
+  const cartsLayer = Layer.succeed(
+    Carts,
+    Carts.of({
+      findById: ({ id, store }) => {
+        if (getCurrentFailure !== undefined) {
+          return Effect.fail(providerFailure("findById", getCurrentFailure));
+        }
+        return Effect.succeed(
+          activeCart?.id === id && activeCart.storeKey === store.storeKey
+            ? Option.some(forAnonymous(activeCart))
+            : Option.none()
+        );
+      },
+      findActiveForBusinessUnit: ({ store }) => {
+        if (getCurrentFailure !== undefined) {
+          return Effect.fail(providerFailure("findById", getCurrentFailure));
+        }
+        return Effect.succeed(
+          activeCart?.storeKey === store.storeKey
+            ? [forBusinessUnit(activeCart)]
+            : []
+        );
+      },
+      createAnonymous: () => Effect.die("not used"),
+      createForBusinessUnit: () => Effect.die("not used"),
+      addItem: () => Effect.die("not used"),
+      setLineItemQuantity: () => Effect.die("not used"),
+      removeLineItem: () => Effect.die("not used"),
+      saveContact: ({ target, contact }) => {
+        if (saveContactFailure !== undefined) {
+          return Effect.fail(
+            providerFailure("saveContact", saveContactFailure)
+          );
+        }
+        if (activeCart === undefined) {
+          return Effect.die("Cart missing");
+        }
+        activeCart = {
+          ...activeCart,
+          checkoutDetails: { ...activeCart.checkoutDetails, contact },
+        };
+        return Effect.succeed(
+          target._tag === "AnonymousCartTarget"
+            ? forAnonymous(activeCart)
+            : forBusinessUnit(activeCart)
+        );
+      },
+      saveDeliveryDetails: ({ target, deliveryDetails }) => {
+        if (saveDeliveryDetailsFailure !== undefined) {
+          return Effect.fail(
+            providerFailure("saveDeliveryDetails", saveDeliveryDetailsFailure)
+          );
+        }
+        if (activeCart === undefined) {
+          return Effect.die("Cart missing");
+        }
+        activeCart = {
+          ...activeCart,
+          checkoutDetails: {
+            ...activeCart.checkoutDetails,
+            deliveryDetails,
+          },
+        };
+        return Effect.succeed(
+          target._tag === "AnonymousCartTarget"
+            ? forAnonymous(activeCart)
+            : forBusinessUnit(activeCart)
+        );
+      },
+    })
+  );
+  const cartPoliciesLayer = Layer.succeed(
+    CartPolicies,
+    CartPolicies.of({
+      evaluate: () =>
+        Effect.succeed(
+          cartPolicyViolations.map((violation) => ({
+            code: violation.violationType,
+            parameters: Object.fromEntries(
+              Object.entries(violation.metadata ?? {}).filter(
+                (entry): entry is [string, string | number] =>
+                  typeof entry[1] === "string" || typeof entry[1] === "number"
+              )
+            ),
+            targets: [{ type: "cart" as const }],
+          }))
+        ),
+    })
+  );
 
-  return Layer.merge(checkoutLayer, addressBookLayer);
+  return Layer.mergeAll(
+    cartsLayer,
+    cartPoliciesLayer,
+    CheckoutPolicies.layer,
+    CommerceAccounts.layerMemoryFrom({ customerProfiles }),
+    addressBookLayer
+  );
 };
 
 const makeAddressBookLayer = (
@@ -514,7 +594,6 @@ test("GET /checkout/current reads current checkout state through CheckoutSession
   try {
     const response = await handler(request(), emptyContext());
     const body = await response.json();
-
     expect(response.status).toBe(HTTP_OK);
     expect(body).toMatchObject({
       activeStep: "contact",
@@ -544,6 +623,10 @@ test("GET /checkout/current reads current checkout state through CheckoutSession
 test("GET /checkout/current adds localized fallback messages to public violations", async () => {
   const { dispose, handler } = await makeHandler(
     makeCheckoutLayer({
+      currentCart: {
+        ...cart(),
+        storeKey: StoreKey.make("de-fr-uk"),
+      },
       cartPolicyViolations: [
         {
           policyName: "compatible-products",
@@ -744,11 +827,18 @@ test("POST /checkout/contact maps invalid Manual Contact input to bad request", 
 
 test("POST /checkout/contact maps disallowed Manual Contact source to bad request", async () => {
   const { dispose, handler } = await makeHandler(
-    makeCheckoutLayer({ allowedContactSources: ["customerProfile"] })
+    Layer.mergeAll(
+      makeCheckoutLayer(),
+      makeCommerceAccountsLayer(),
+      makeJwtVerifierLayer()
+    )
   );
 
   try {
-    const response = await handler(saveContactRequest(), emptyContext());
+    const response = await handler(
+      saveContactRequest(undefined, { authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
@@ -838,16 +928,15 @@ test("POST /checkout/delivery-details is idempotent for the same Manual Shipping
     );
     const firstBody = await firstResponse.json();
     const secondResponse = await handler(
-      saveDeliveryDetailsRequest(
-        saveDeliveryDetailsPayload({ version: firstBody.cart.version })
-      ),
+      saveDeliveryDetailsRequest(),
       emptyContext()
     );
     const secondBody = await secondResponse.json();
 
     expect(firstResponse.status).toBe(HTTP_OK);
     expect(secondResponse.status).toBe(HTTP_OK);
-    expect(secondBody.cart.version).toBe(firstBody.cart.version);
+    expect(firstBody.cart).not.toHaveProperty("version");
+    expect(secondBody.cart).not.toHaveProperty("version");
     expect(secondBody.details.deliveryDetails).toEqual(manualDeliveryDetails);
   } finally {
     await dispose();
@@ -1123,14 +1212,10 @@ test("POST /checkout/delivery-details saves only for the verified Business Unit 
   }
 });
 
-test("POST /checkout/delivery-details retains a saved reference when the response read fails", async () => {
+test("POST /checkout/delivery-details returns saved state without a response reread", async () => {
   const layer = Layer.mergeAll(
     makeCheckoutLayer({
       addressBookLayer: makeAddressBookLayer(),
-      getCurrentFailure: new CheckoutProviderFailure({
-        message: "Commercetools read failed after the Cart update",
-        operation: "checkout.cart.getActiveForAssociateScope",
-      }),
     }),
     makeCommerceAccountsLayer(),
     makeJwtVerifierLayer()
@@ -1154,14 +1239,14 @@ test("POST /checkout/delivery-details retains a saved reference when the respons
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(response.status).toBe(HTTP_OK);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiError",
-      code: "checkout.deliveryDetails.providerFailure",
-      parameters: {
-        addressBookReference: expect.stringMatching(
-          ADDRESS_BOOK_REFERENCE_PATTERN
-        ),
+      details: {
+        deliveryDetails: {
+          addressBookReference: expect.stringMatching(
+            ADDRESS_BOOK_REFERENCE_PATTERN
+          ),
+        },
       },
     });
   } finally {
@@ -1298,7 +1383,7 @@ test("POST /checkout/delivery-details rejects invalid ISO country codes at the s
   try {
     const response = await handler(
       saveDeliveryDetailsRequest({
-        cart: { id: "cart-1", version: 7 },
+        cart: { id: "cart-1" },
         deliveryDetails: {
           ...cartOnlyDeliveryDetailsInput,
           shippingAddress: {
@@ -1398,7 +1483,11 @@ test("GET /checkout/current accepts anonymous cart possession from the cart cook
 });
 
 test("GET /checkout/current prefers anonymous cart cookie over anonymous cart header", async () => {
-  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      currentCart: { ...cart(), id: CartId.make("cart-from-cookie") },
+    })
+  );
 
   try {
     const response = await handler(

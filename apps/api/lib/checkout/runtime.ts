@@ -1,10 +1,18 @@
 import { layerWorkosAccessTokenVerifier } from "@repo/auth-workos/access-token";
-import { checkoutRuntimeLayerCommercetools } from "@repo/commerce/lib/checkout/commercetools";
+import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
+import { layerCommercetoolsAddressBook } from "@repo/commerce/lib/infra/commercetools/address-book";
+import { layerCommercetoolsCarts } from "@repo/commerce/lib/infra/commercetools/carts";
+import { layerCommercetoolsCommerceAccounts } from "@repo/commerce/lib/infra/commercetools/commerce-accounts";
+import { CartPolicies } from "@repo/commerce/services/cart-policies";
 import { Layer } from "effect";
 import { checkoutCustomerJwtVerifierLayerWorkos } from "./customer-jwt-workos";
 
 export const checkoutLayer = Layer.mergeAll(
-  checkoutRuntimeLayerCommercetools,
+  layerCommercetoolsAddressBook,
+  layerCommercetoolsCarts,
+  layerCommercetoolsCommerceAccounts,
+  CartPolicies.layer,
+  CheckoutPolicies.layer,
   checkoutCustomerJwtVerifierLayerWorkos.pipe(
     Layer.provide(layerWorkosAccessTokenVerifier())
   )

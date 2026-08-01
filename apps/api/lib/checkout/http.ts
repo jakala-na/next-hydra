@@ -18,6 +18,7 @@ import {
   CheckoutRequestHeaders,
   CheckoutSchemaErrorMiddleware,
   CheckoutScopeMiddleware,
+  CurrentCheckoutContext,
   CurrentCheckoutScope,
 } from "@repo/commerce/http/checkout-api";
 import { checkoutApiErrorMessage } from "@repo/commerce/http/checkout-api-messages";
@@ -29,16 +30,18 @@ import {
   getAnonymousCartIdFromCookieValue,
   makeAnonymousCartCookie,
 } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
+import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
 import {
   type CheckoutSaveContactFailure,
   type CheckoutSaveDeliveryDetailsFailure,
   CheckoutSession,
-  type CheckoutSession as CheckoutSessionService,
 } from "@repo/commerce/lib/checkout/checkout-session";
 import { toCheckoutScope } from "@repo/commerce/lib/checkout/request-context";
 import type { CurrentCartRequest } from "@repo/commerce/lib/current-cart/request";
 import { getStoreKeyByLocale } from "@repo/commerce/lib/store/utils/mappings";
 import { AddressBook } from "@repo/commerce/services/address-book";
+import { CartPolicies } from "@repo/commerce/services/cart-policies";
+import { Carts } from "@repo/commerce/services/carts";
 import {
   type CommerceAccountError,
   CommerceAccounts,
@@ -46,8 +49,9 @@ import {
   type CommerceBusinessUnitContextNotFound,
   type CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
+import { CurrentCart } from "@repo/commerce/services/current-cart";
 import type { Locale } from "@repo/i18n/types";
-import { Duration, Effect, Layer, Schema } from "effect";
+import { Duration, Effect, Layer, Result, Schema } from "effect";
 import {
   HttpEffect,
   HttpRouter,
@@ -64,7 +68,9 @@ import {
 
 type CheckoutRuntimeLayer = Layer.Layer<
   | AddressBook
-  | CheckoutSessionService
+  | CartPolicies
+  | Carts
+  | CheckoutPolicies
   | CommerceAccounts
   | CheckoutCustomerJwtVerifier,
   unknown,
@@ -298,16 +304,6 @@ const resolveCheckoutScope = (headers: CheckoutRequestHeaders) => {
   );
 };
 
-const failWhenAnonymousScopeHasNoCart = (
-  scope: Parameters<typeof CheckoutSession.getCurrent>[0]
-) => {
-  if (scope.channel === "storefrontAnonymous" && !scope.anonymousCartId) {
-    return Effect.fail(commerceRequestContextNotFound("noPrincipal"));
-  }
-
-  return Effect.succeed(scope);
-};
-
 const parseBearerToken = (authorization: string | undefined) => {
   if (authorization === undefined) {
     return Effect.succeed(null);
@@ -428,97 +424,89 @@ const currentCartAssociationFailure = (
   cause: unknown
 ) => new CurrentCartAssociationFailure({ operation, cause });
 
-export const resolveHttpCurrentCartRequest = Effect.gen(function* () {
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  const headers = yield* getCheckoutRequestHeadersFromRequest;
-  const locale = headers["x-context-locale"];
-  const cookieContext = getAnonymousCartCookieContextByLocale(locale);
-  const store = new CartStore({
-    locale,
-    storeKey: StoreKey.make(cookieContext.storeKey),
-    currency: cookieContext.currency,
-  });
-  const customerContext =
-    yield* resolveCustomerCheckoutContextFromAuthorization;
+const makeHttpCurrentCartRequest = (
+  headers: CheckoutRequestHeaders,
+  customerContext: CommerceRequestContext | null
+) =>
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const locale = headers["x-context-locale"];
+    const cookieContext = getAnonymousCartCookieContextByLocale(locale);
+    const store = new CartStore({
+      locale,
+      storeKey: StoreKey.make(cookieContext.storeKey),
+      currency: cookieContext.currency,
+    });
 
-  if (customerContext !== null) {
-    const principal = customerContext.principal;
-    if (!(principal instanceof CustomerCommercePrincipal)) {
-      return yield* commerceRequestContextNotFound("noPrincipal");
+    if (customerContext !== null) {
+      const principal = customerContext.principal;
+      if (!(principal instanceof CustomerCommercePrincipal)) {
+        return yield* commerceRequestContextNotFound("noPrincipal");
+      }
+      return {
+        _tag: "BusinessUnitCurrentCartRequest",
+        store,
+        customerId: principal.customerId,
+        businessUnitId: principal.businessUnitId,
+        businessUnitKey: principal.businessUnitKey,
+      } satisfies CurrentCartRequest;
     }
-    return {
-      _tag: "BusinessUnitCurrentCartRequest",
-      store,
-      customerId: principal.customerId,
-      businessUnitId: principal.businessUnitId,
-      businessUnitKey: principal.businessUnitKey,
-    } satisfies CurrentCartRequest;
-  }
 
-  const possessedCartId = headers["x-context-anonymous-cart-id"];
-  return {
-    _tag: "AnonymousCurrentCartRequest",
-    store,
-    ...(possessedCartId === undefined ? {} : { possessedCartId }),
-    establish: (cartId: CartId) =>
-      Effect.try({
-        try: () => {
-          const value = encodeAnonymousCartCookie(
-            makeAnonymousCartCookie({ cartId, context: cookieContext })
-          );
+    const possessedCartId = headers["x-context-anonymous-cart-id"];
+    return {
+      _tag: "AnonymousCurrentCartRequest",
+      store,
+      ...(possessedCartId === undefined ? {} : { possessedCartId }),
+      establish: (cartId: CartId) =>
+        Effect.try({
+          try: () => {
+            const value = encodeAnonymousCartCookie(
+              makeAnonymousCartCookie({ cartId, context: cookieContext })
+            );
+            HttpEffect.appendPreResponseHandlerUnsafe(
+              request,
+              (_request, response) =>
+                Effect.succeed(
+                  HttpServerResponse.setCookieUnsafe(
+                    response,
+                    ANONYMOUS_CART_COOKIE_NAME,
+                    value,
+                    httpCurrentCartCookieOptions
+                  )
+                )
+            );
+          },
+          catch: (cause) => currentCartAssociationFailure("establish", cause),
+        }),
+      clear: () =>
+        Effect.sync(() =>
           HttpEffect.appendPreResponseHandlerUnsafe(
             request,
             (_request, response) =>
               Effect.succeed(
-                HttpServerResponse.setCookieUnsafe(
+                HttpServerResponse.expireCookieUnsafe(
                   response,
                   ANONYMOUS_CART_COOKIE_NAME,
-                  value,
-                  httpCurrentCartCookieOptions
+                  { path: "/" }
                 )
               )
-          );
-        },
-        catch: (cause) => currentCartAssociationFailure("establish", cause),
-      }),
-    clear: () =>
-      Effect.sync(() =>
-        HttpEffect.appendPreResponseHandlerUnsafe(
-          request,
-          (_request, response) =>
-            Effect.succeed(
-              HttpServerResponse.expireCookieUnsafe(
-                response,
-                ANONYMOUS_CART_COOKIE_NAME,
-                { path: "/" }
-              )
-            )
-        )
-      ),
-  } satisfies CurrentCartRequest;
+          )
+        ),
+    } satisfies CurrentCartRequest;
+  });
+
+export const resolveHttpCurrentCartRequest = Effect.gen(function* () {
+  const headers = yield* getCheckoutRequestHeadersFromRequest;
+  const customerContext =
+    yield* resolveCustomerCheckoutContextFromAuthorization;
+  return yield* makeHttpCurrentCartRequest(headers, customerContext);
 });
 
 const getCurrentCheckoutContext = Effect.gen(function* () {
-  const customerContext =
-    yield* resolveCustomerCheckoutContextFromAuthorization;
-
-  if (customerContext) {
-    return customerContext;
-  }
-
-  const scope = yield* CurrentCheckoutScope.pipe(
-    Effect.flatMap(failWhenAnonymousScopeHasNoCart)
-  );
-
-  if (scope.channel !== "storefrontAnonymous" || !scope.anonymousCartId) {
-    return yield* commerceRequestContextNotFound("noPrincipal");
-  }
-
-  return new CommerceRequestContext({
-    locale: scope.locale,
-    principal: new AnonymousCommercePrincipal({
-      anonymousCartId: scope.anonymousCartId,
-    }),
+  const result = yield* CurrentCheckoutContext;
+  return yield* Result.match(result, {
+    onFailure: Effect.fail,
+    onSuccess: Effect.succeed,
   });
 });
 
@@ -526,17 +514,77 @@ const getCurrentCheckoutScope = Effect.gen(function* () {
   return toCheckoutScope(yield* getCurrentCheckoutContext);
 });
 
-const checkoutScopeMiddlewareLayer = Layer.succeed(
+const checkoutScopeMiddlewareLayer = Layer.effect(
   CheckoutScopeMiddleware,
-  (httpEffect) =>
-    Effect.gen(function* () {
-      const headers = yield* getCheckoutRequestHeadersFromRequest;
-      return yield* Effect.provideService(
-        httpEffect,
-        CurrentCheckoutScope,
-        resolveCheckoutScope(headers)
-      );
-    })
+  Effect.gen(function* () {
+    const carts = yield* Carts;
+    const cartPolicies = yield* CartPolicies;
+    const checkoutPolicies = yield* CheckoutPolicies;
+    const commerceAccounts = yield* CommerceAccounts;
+    const addressBook = yield* AddressBook;
+    const dependencies = Layer.mergeAll(
+      Layer.succeed(Carts, carts),
+      Layer.succeed(CartPolicies, cartPolicies),
+      Layer.succeed(CheckoutPolicies, checkoutPolicies),
+      Layer.succeed(CommerceAccounts, commerceAccounts),
+      Layer.succeed(AddressBook, addressBook)
+    );
+
+    return (httpEffect) =>
+      Effect.gen(function* () {
+        const headers = yield* getCheckoutRequestHeadersFromRequest;
+        const customerContextResult = yield* Effect.result(
+          resolveCustomerCheckoutContextFromAuthorization
+        );
+        const customerContext = Result.isSuccess(customerContextResult)
+          ? customerContextResult.success
+          : null;
+        const requestHeaders = Result.isFailure(customerContextResult)
+          ? new CheckoutRequestHeaders({
+              "x-context-locale": headers["x-context-locale"],
+            })
+          : headers;
+        const request = yield* makeHttpCurrentCartRequest(
+          requestHeaders,
+          customerContext
+        );
+        const currentCart = CurrentCart.layer(request).pipe(
+          Layer.provide(dependencies)
+        );
+        const checkoutSession = CheckoutSession.layer.pipe(
+          Layer.provide(Layer.merge(dependencies, currentCart))
+        );
+        const anonymousCartId = headers["x-context-anonymous-cart-id"];
+        const anonymousContext =
+          anonymousCartId === undefined
+            ? null
+            : new CommerceRequestContext({
+                locale: headers["x-context-locale"],
+                principal: new AnonymousCommercePrincipal({
+                  anonymousCartId,
+                }),
+              });
+        const context = customerContext ?? anonymousContext;
+        const resolvedContextResult =
+          context === null
+            ? Result.fail(commerceRequestContextNotFound("noPrincipal"))
+            : Result.succeed(context);
+        const contextResult = Result.isFailure(customerContextResult)
+          ? customerContextResult
+          : resolvedContextResult;
+        const scope =
+          context === null
+            ? resolveCheckoutScope(headers)
+            : toCheckoutScope(context);
+        const requestServices = Layer.mergeAll(
+          Layer.succeed(CurrentCheckoutContext, contextResult),
+          Layer.succeed(CurrentCheckoutScope, scope),
+          currentCart,
+          checkoutSession
+        );
+        return yield* httpEffect.pipe(Effect.provide(requestServices));
+      });
+  })
 );
 
 const checkoutSchemaErrorMiddlewareLayer =
@@ -638,7 +686,7 @@ const makeCheckoutHttpHandlers = () =>
           Effect.flatMap(CurrentCheckoutScope, (requestScope) =>
             Effect.gen(function* () {
               const scope = yield* getCurrentCheckoutScope;
-              yield* CheckoutSession.saveContact({
+              const state = yield* CheckoutSession.saveContact({
                 scope,
                 cart: payload.cart,
                 contact: payload.contact,
@@ -649,14 +697,7 @@ const makeCheckoutHttpHandlers = () =>
                 )
               );
 
-              return yield* CheckoutSession.getCurrent(scope).pipe(
-                Effect.tapError((error) =>
-                  error._tag === "CheckoutProviderFailure"
-                    ? logCheckoutDiagnosticFailure(error)
-                    : Effect.void
-                ),
-                Effect.map(toCheckoutApiState)
-              );
+              return toCheckoutApiState(state);
             }).pipe(
               Effect.mapError((error) => {
                 switch (error._tag) {
@@ -683,7 +724,6 @@ const makeCheckoutHttpHandlers = () =>
           Effect.flatMap(CurrentCheckoutScope, (requestScope) =>
             Effect.gen(function* () {
               const context = yield* getCurrentCheckoutContext;
-              const scope = toCheckoutScope(context);
               const mutationResult = yield* CheckoutSession.saveDeliveryDetails(
                 {
                   context,
@@ -697,23 +737,7 @@ const makeCheckoutHttpHandlers = () =>
                 )
               );
 
-              return yield* CheckoutSession.getCurrent(scope).pipe(
-                Effect.tapError((error) =>
-                  error._tag === "CheckoutProviderFailure"
-                    ? logCheckoutDiagnosticFailure(error)
-                    : Effect.void
-                ),
-                Effect.map(toCheckoutApiState),
-                Effect.mapError((error) =>
-                  error._tag === "CheckoutProviderFailure"
-                    ? toCheckoutApiError(
-                        requestScope.locale,
-                        "checkout.deliveryDetails.providerFailure",
-                        mutationResult.addressBookReference
-                      )
-                    : error
-                )
-              );
+              return toCheckoutApiState(mutationResult.state);
             }).pipe(
               Effect.mapError((error) => {
                 switch (error._tag) {

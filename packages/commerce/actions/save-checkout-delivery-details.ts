@@ -4,8 +4,8 @@ import { CartId } from "../domain/cart";
 import { CountryCodeFromString } from "../domain/checkout";
 import type { CommerceRequestContext } from "../domain/commerce-request-context";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
-import { checkoutRuntimeLayerCommercetools } from "../lib/checkout/commercetools";
 import { logUnexpectedCheckoutMutationFailure } from "./checkout-action-diagnostics";
+import type { RunCheckoutSession } from "./save-checkout-contact";
 import {
   checkoutDeliveryDetailsMutationFailureToActionState,
   checkoutDeliveryDetailsNotFoundState,
@@ -43,7 +43,6 @@ const DeliveryDetailsForm = Schema.Union([
 
 const SaveCheckoutDeliveryDetailsForm = Schema.Struct({
   cartId: CartId,
-  cartVersion: Schema.NumberFromString,
   deliveryDetails: DeliveryDetailsForm,
 });
 
@@ -103,7 +102,6 @@ const deliveryDetailsFromForm = (formData: FormData) => {
 const getFormInput = (formData: FormData) =>
   Schema.decodeUnknownEffect(SaveCheckoutDeliveryDetailsForm)({
     cartId: formString(formData, "cartId"),
-    cartVersion: formString(formData, "cartVersion"),
     deliveryDetails: deliveryDetailsFromForm(formData),
   });
 
@@ -115,14 +113,14 @@ const saveDeliveryDetails = (
     context,
     cart: {
       id: input.cartId,
-      version: input.cartVersion,
     },
     deliveryDetails: input.deliveryDetails,
-  }).pipe(Effect.provide(checkoutRuntimeLayerCommercetools));
+  });
 
 export async function saveCheckoutDeliveryDetailsForContext(
   context: CommerceRequestContext,
-  formData: FormData
+  formData: FormData,
+  run: RunCheckoutSession
 ): Promise<SaveCheckoutDeliveryDetailsActionState> {
   const inputResult = await Effect.runPromise(
     Effect.result(getFormInput(formData))
@@ -132,7 +130,7 @@ export async function saveCheckoutDeliveryDetailsForContext(
     return invalidCheckoutDeliveryDetailsFormState;
   }
 
-  const saveResult = await Effect.runPromise(
+  const saveResult = await run(
     saveDeliveryDetails(context, inputResult.success).pipe(
       Effect.tapError(logUnexpectedCheckoutMutationFailure),
       Effect.result

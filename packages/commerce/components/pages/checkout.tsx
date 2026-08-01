@@ -1,26 +1,15 @@
 import { getTranslations } from "@repo/i18n";
 import type { Locale } from "@repo/i18n/types";
-import { Effect } from "effect";
-import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import type { SaveCheckoutContactAction } from "../../actions/save-checkout-contact-state";
 import type { SaveCheckoutDeliveryDetailsAction } from "../../actions/save-checkout-delivery-details-state";
-import type { AddressBookEntry } from "../../domain/address-book";
 import {
   CheckoutLocale,
   type CheckoutState,
   type CheckoutStepId,
   type CheckoutViolation,
 } from "../../domain/checkout";
-import {
-  type CommerceRequestContext,
-  CustomerCommercePrincipal,
-} from "../../domain/commerce-request-context";
-import { CheckoutSession } from "../../lib/checkout/checkout-session";
-import { checkoutRuntimeLayerCommercetools } from "../../lib/checkout/commercetools";
-import { toCheckoutScope } from "../../lib/checkout/request-context";
 import { checkoutViolationMessage } from "../../lib/checkout/violation-message";
-import { AddressBook } from "../../services/address-book";
 import { CheckoutContactForm } from "./checkout-contact-form";
 import {
   CheckoutDeliveryDetailsForm,
@@ -41,40 +30,6 @@ const formatMoney = (
     style: "currency",
     currency: money.currencyCode,
   }).format(money.centAmount / CENTS_PER_MAJOR_CURRENCY_UNIT);
-
-const shippingAddressOption = (entry: AddressBookEntry) => ({
-  reference: entry.reference,
-  address: { ...entry.address },
-  defaultShipping: entry.defaultShipping,
-});
-
-const getCheckoutPageData = (context: CommerceRequestContext) =>
-  Effect.runPromise(
-    Effect.gen(function* () {
-      const state = yield* CheckoutSession.getCurrent(
-        toCheckoutScope(context)
-      ).pipe(
-        Effect.catchTag("CheckoutUnavailable", () => Effect.succeed(null))
-      );
-
-      if (
-        state === null ||
-        !(context.principal instanceof CustomerCommercePrincipal)
-      ) {
-        return { state, shippingAddressOptions: undefined };
-      }
-
-      const addressBook = yield* AddressBook;
-      const entries = yield* addressBook.list(context.principal);
-
-      return {
-        state,
-        shippingAddressOptions: entries
-          .filter((entry) => entry.types.includes("shipping"))
-          .map(shippingAddressOption),
-      };
-    }).pipe(Effect.provide(checkoutRuntimeLayerCommercetools))
-  );
 
 export interface CheckoutPageActions {
   readonly saveContact: SaveCheckoutContactAction;
@@ -162,7 +117,6 @@ function ActiveStep({
       <CheckoutContactForm
         buyerContact={state.details.contact?.buyerContact}
         cartId={state.cart.id}
-        cartVersion={state.cart.version}
         saveAction={actions.saveContact}
         source={
           state.scope.channel === "storefrontCustomer"
@@ -180,7 +134,6 @@ function ActiveStep({
             : undefined
         }
         cartId={state.cart.id}
-        cartVersion={state.cart.version}
         saveAction={actions.saveDeliveryDetails}
         shippingAddress={state.details.deliveryDetails?.shippingAddress}
         shippingAddressOptions={shippingAddressOptions}
@@ -229,7 +182,7 @@ function CartSidebar({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="font-medium text-sm">
-                  {lineItem.name ?? lineItem.productId}
+                  {lineItem.variant.name ?? lineItem.variant.productId}
                 </p>
                 <p className="text-muted-foreground text-sm">
                   {messages.cartQuantity(lineItem.quantity)}
@@ -260,21 +213,16 @@ function CartSidebar({
 
 export async function CheckoutPage({
   actions,
-  context,
   locale,
+  shippingAddressOptions,
+  state,
 }: {
   readonly actions: CheckoutPageActions;
-  readonly context: CommerceRequestContext;
   readonly locale: Locale;
+  readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
+  readonly state: CheckoutState;
 }) {
-  const [{ shippingAddressOptions, state }, t] = await Promise.all([
-    getCheckoutPageData(context),
-    getTranslations({ locale, namespace: "web.checkout" }),
-  ]);
-
-  if (!state) {
-    notFound();
-  }
+  const t = await getTranslations({ locale, namespace: "web.checkout" });
 
   const checkoutLocale = CheckoutLocale.make(locale);
   const messages: CheckoutPageMessages = {

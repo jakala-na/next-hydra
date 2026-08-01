@@ -1,11 +1,8 @@
 import { Effect } from "effect";
-import {
-  type CartForCheckout,
-  LineItemId,
-  ProductId,
-  Sku,
-  VariantId,
-} from "../../domain/cart";
+import type {
+  CartPolicyViolation,
+  CartSnapshot,
+} from "../../domain/cart-snapshot";
 import {
   type CheckoutBuyerContext,
   type CheckoutContactSource,
@@ -17,10 +14,7 @@ import {
   type CheckoutStepId,
   CheckoutUnavailable,
   type CheckoutViolation,
-  type CheckoutViolationParameters,
-  type ViolationTarget,
 } from "../../domain/checkout";
-import type { PolicyViolation } from "../cart/policy/cart-policy.types";
 
 export const CHECKOUT_STEP_SEQUENCE = [
   "contact",
@@ -102,44 +96,17 @@ const buildCheckoutSteps = (
 const activeStepFrom = (steps: readonly CheckoutStep[]): CheckoutStepId =>
   steps.find((step) => step.status === "incomplete")?.id ?? "reviewOrder";
 
-const targetsFromCartPolicyViolation = (
-  violation: PolicyViolation
-): readonly ViolationTarget[] => {
-  if (!violation.affectedItems?.length) {
-    return [{ type: "cart" }];
-  }
-
-  return violation.affectedItems.map((item) => ({
-    type: "cartItem",
-    ...(item.lineItemId === undefined
-      ? {}
-      : { lineItemId: LineItemId.make(item.lineItemId) }),
-    productId: ProductId.make(item.productId),
-    ...(item.variantId === undefined
-      ? {}
-      : { variantId: VariantId.make(String(item.variantId)) }),
-    ...(item.sku === undefined ? {} : { sku: Sku.make(item.sku) }),
-  }));
-};
-
 const normalizeCartPolicyViolation = (
-  violation: PolicyViolation
-): CheckoutViolation => {
-  const parameters = Object.fromEntries(
-    Object.entries(violation.metadata ?? {}).filter(
-      (entry): entry is [string, string | number] =>
-        typeof entry[1] === "string" || typeof entry[1] === "number"
-    )
-  ) satisfies CheckoutViolationParameters;
-
-  return {
-    source: "cartPolicy",
-    severity: "blocking",
-    code: violation.violationType,
-    ...(Object.keys(parameters).length === 0 ? {} : { parameters }),
-    targets: targetsFromCartPolicyViolation(violation),
-  };
-};
+  violation: CartPolicyViolation
+): CheckoutViolation => ({
+  source: "cartPolicy",
+  severity: "blocking",
+  code: violation.code,
+  ...(violation.parameters === undefined
+    ? {}
+    : { parameters: violation.parameters }),
+  targets: violation.targets,
+});
 
 const normalizeCheckoutPolicyViolation = (
   violation: CheckoutPolicyViolation
@@ -153,7 +120,7 @@ const normalizeCheckoutPolicyViolation = (
   targets: violation.targets,
 });
 
-const ensureNonEmptyCart = (cart: CartForCheckout) => {
+const ensureNonEmptyCart = (cart: CartSnapshot) => {
   if (cart.totalLineItemQuantity <= 0 || cart.lineItems.length === 0) {
     return Effect.fail(
       new CheckoutUnavailable({
@@ -168,11 +135,11 @@ const ensureNonEmptyCart = (cart: CartForCheckout) => {
 
 export interface BuildCheckoutStateInput {
   readonly scope: CheckoutScope;
-  readonly cart: CartForCheckout;
+  readonly cart: CartSnapshot;
   readonly details: CheckoutDetails;
   readonly buyerContext: CheckoutBuyerContext;
   readonly allowedContactSources?: readonly CheckoutContactSource[];
-  readonly cartPolicyViolations: readonly PolicyViolation[];
+  readonly cartPolicyViolations: readonly CartPolicyViolation[];
   readonly checkoutPolicyViolations: readonly CheckoutPolicyViolation[];
 }
 

@@ -15,13 +15,11 @@ import { checkoutActionErrorMessageKey } from "./checkout-action-error";
 export function CheckoutContactForm({
   buyerContact,
   cartId,
-  cartVersion,
   saveAction,
   source,
 }: {
   readonly buyerContact?: BuyerContact;
   readonly cartId: string;
-  readonly cartVersion: number;
   readonly saveAction: SaveCheckoutContactAction;
   readonly source: CheckoutContactSource;
 }) {
@@ -42,7 +40,6 @@ export function CheckoutContactForm({
   return (
     <form action={formAction} className="grid gap-4">
       <input name="cartId" type="hidden" value={cartId} />
-      <input name="cartVersion" type="hidden" value={cartVersion} />
       <input name="source" type="hidden" value={source} />
       {actionState.status === "error" ? (
         <p

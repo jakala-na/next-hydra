@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from "effect";
-import type { CartForCheckout } from "../../domain/cart";
+import type { CartSnapshot } from "../../domain/cart-snapshot";
 import {
   type CheckoutBuyerContext,
   type CheckoutDetails,
@@ -8,7 +8,7 @@ import {
 } from "../../domain/checkout";
 
 export interface EvaluateCheckoutPolicyInput {
-  readonly cart: CartForCheckout;
+  readonly cart: CartSnapshot;
   readonly details: CheckoutDetails;
   readonly buyerContext: CheckoutBuyerContext;
 }

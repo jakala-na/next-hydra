@@ -2,7 +2,6 @@ import { Effect, Result, Schema } from "effect";
 import { CartId, type CartId as CartIdType } from "../domain/cart";
 import type { CheckoutScope } from "../domain/checkout";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
-import { checkoutRuntimeLayerCommercetools } from "../lib/checkout/commercetools";
 import { logUnexpectedCheckoutMutationFailure } from "./checkout-action-diagnostics";
 import {
   checkoutContactNotFoundState,
@@ -14,7 +13,6 @@ import {
 
 const SaveCheckoutContactReferenceForm = {
   cartId: CartId,
-  cartVersion: Schema.NumberFromString,
 } as const;
 
 const SaveCheckoutContactForm = Schema.Union([
@@ -42,7 +40,6 @@ const formString = (formData: FormData, name: string) => {
 const getFormInput = (formData: FormData) =>
   Schema.decodeUnknownEffect(SaveCheckoutContactForm)({
     cartId: formString(formData, "cartId"),
-    cartVersion: formString(formData, "cartVersion"),
     source: formString(formData, "source"),
     email: formString(formData, "email"),
     firstName: formString(formData, "firstName"),
@@ -55,7 +52,6 @@ const saveContact = (scope: CheckoutScope, input: SaveCheckoutContactForm) =>
     scope,
     cart: {
       id: input.cartId as CartIdType,
-      version: input.cartVersion,
     },
     contact:
       input.source === "customerProfile"
@@ -71,11 +67,16 @@ const saveContact = (scope: CheckoutScope, input: SaveCheckoutContactForm) =>
                 : { phoneNumber: input.phoneNumber }),
             },
           },
-  }).pipe(Effect.provide(checkoutRuntimeLayerCommercetools));
+  });
+
+export type RunCheckoutSession = <A, E>(
+  program: Effect.Effect<A, E, CheckoutSession>
+) => Promise<A>;
 
 export async function saveCheckoutContactForScope(
   scope: CheckoutScope,
-  formData: FormData
+  formData: FormData,
+  run: RunCheckoutSession
 ): Promise<SaveCheckoutContactActionState> {
   const inputResult = await Effect.runPromise(
     Effect.result(getFormInput(formData))
@@ -85,7 +86,7 @@ export async function saveCheckoutContactForScope(
     return invalidCheckoutContactFormState;
   }
 
-  const saveResult = await Effect.runPromise(
+  const saveResult = await run(
     saveContact(scope, inputResult.success).pipe(
       Effect.tapError(logUnexpectedCheckoutMutationFailure),
       Effect.result

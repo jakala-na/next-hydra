@@ -101,7 +101,7 @@ export const CartPolicyViolation = Schema.Struct({
 export type CartPolicyViolation = typeof CartPolicyViolation.Type;
 
 export class CartStore extends Schema.Class<CartStore>("CartStore")({
-  locale: CheckoutLocale,
+  locale: Schema.suspend(() => CheckoutLocale),
   storeKey: StoreKey,
   currency: Schema.String,
 }) {
@@ -121,7 +121,7 @@ export const CartSnapshot = Schema.Struct({
   lineItems: Schema.Array(CartLineItem),
   totalLineItemQuantity: CartQuantity,
   totalPrice: CartMoney,
-  checkoutDetails: CheckoutDetails,
+  checkoutDetails: Schema.suspend(() => CheckoutDetails),
 });
 export type CartSnapshot = typeof CartSnapshot.Type;
 
