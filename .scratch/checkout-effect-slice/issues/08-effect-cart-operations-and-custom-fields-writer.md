@@ -1,6 +1,6 @@
 # Effect Cart operations and Commercetools custom-fields writer
 
-Status: needs-triage
+Status: wontfix
 Type: AFK
 
 ## Parent
@@ -59,3 +59,4 @@ The Commercetools Cart adapter owns request execution and conflict recovery. Aft
 ## Comments
 
 - 2026-08-01: Deferred from the Checkout Address Book work. The current slice keeps provider persistence in the Commercetools `CheckoutSession` layer; the Cart Effect rewrite should move the whole seam once rather than introduce a contact-only Cart abstraction.
+- 2026-08-01: Superseded by [Current Cart Service and Provider Layers](../../current-cart/map.md), the canonical Wayfinder map for the whole Cart seam. The new map replaces the provisional Cart Operations name with `CurrentCart` and `Carts` Effect Services and makes provider Layer composition part of the destination.

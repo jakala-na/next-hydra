@@ -12,6 +12,26 @@ _Avoid_: Checkout page, checkout wizard
 The current collection of products and cart-owned checkout details being prepared for purchase in a Store and, for B2B Checkout, a Business Unit.
 _Avoid_: Checkout state
 
+**Cart Snapshot**:
+An observation of a Cart's current semantic state, independent of provider resource revisions and storage representation.
+_Avoid_: Provider Cart, Cart version
+
+**Current Cart**:
+The Cart selected for the buyer's current Store and, for B2B activity, Business Unit Buying Context. Anonymous selection is based on possession of a Cart reference.
+_Avoid_: Cart Session, arbitrary Cart
+
+**Cart Identity**:
+The stable identity of a Cart, observable by callers for correlation and stale-form detection but never sufficient to select or authorize the Current Cart.
+_Avoid_: Cart authority, Cart version
+
+**Product Attribute**:
+A typed characteristic of a purchasable Product Variant. A provider may source it from Product- or Variant-level storage, but the domain value does not retain that origin.
+_Avoid_: Provider attribute payload, raw attribute, attribute origin
+
+**Product Variant**:
+The purchasable Product projection represented by a Cart Line Item, including its effective Product Attributes.
+_Avoid_: Provider Product and Variant hierarchy
+
 **Cart Policy**:
 A rule based only on Cart data that determines whether the Cart is purchasable as currently composed.
 _Avoid_: Checkout policy
@@ -80,9 +100,9 @@ _Avoid_: Full provider Cart, cart-like object
 An optional adapter capability for resolving Checkout Scope from cookies, headers, auth session, store context, or other request data when that behavior becomes pluggable.
 _Avoid_: Domain checkout rule
 
-**Checkout Version Conflict**:
-A Checkout Mutation Failure emitted only when a narrow Cart update still conflicts after its version-forward retry is exhausted.
-_Avoid_: Generic persistence error
+**Cart Write Conflict**:
+A Cart persistence failure emitted when conflict recovery is exhausted without exposing a provider revision.
+_Avoid_: Checkout version conflict, provider version
 
 **Checkout Cart Mismatch**:
 A Checkout Mutation Failure caused when the submitted Cart ID differs from the authoritative Cart resolved for the current Checkout context.
@@ -215,6 +235,7 @@ _Avoid_: Review checkout, order summary
 
 - A **Checkout** has exactly one **Active Checkout Step**.
 - A **Checkout** requires an existing non-empty **Cart**.
+- A **Current Cart** is selected from the buyer's current Store and, for B2B activity, Business Unit Buying Context rather than by treating an arbitrary Cart ID as authority.
 - A customer identity authorizes access to profile and associate capabilities; it does not own the **Cart**.
 - An anonymous **Cart** belongs to its Store and has no **Buying Context** Business Unit.
 - A B2B **Cart** belongs to its Store and **Buying Context** Business Unit, so cart reads and writes should use store-scoped and Business Unit-scoped provider operations rather than customer-owned cart semantics.
