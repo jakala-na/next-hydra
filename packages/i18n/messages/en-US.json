@@ -202,6 +202,9 @@
       },
       "activeStep": "Active step",
       "attention": "This step needs attention",
+      "errorBoundary": {
+        "tryAgain": "Try again"
+      },
       "cart": {
         "title": "Cart",
         "items": "{count, plural, one {# item} other {# items}}",
@@ -223,6 +226,13 @@
         }
       },
       "deliveryDetails": {
+        "addressBook": {
+          "chooseShippingAddress": "Choose a shipping address",
+          "defaultShipping": "Default shipping address",
+          "makeDefaultShipping": "Make default shipping address",
+          "saveShippingAddress": "Save this shipping address",
+          "useNewAddress": "Use a new address"
+        },
         "fields": {
           "addressLine1": "Address line 1",
           "addressLine2": "Address line 2",

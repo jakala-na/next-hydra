@@ -5,18 +5,27 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import type { SaveCheckoutContactAction } from "../../actions/save-checkout-contact-state";
 import type { SaveCheckoutDeliveryDetailsAction } from "../../actions/save-checkout-delivery-details-state";
+import type { AddressBookEntry } from "../../domain/address-book";
 import {
   CheckoutLocale,
-  type CheckoutScope,
   type CheckoutState,
   type CheckoutStepId,
   type CheckoutViolation,
 } from "../../domain/checkout";
+import {
+  type CommerceRequestContext,
+  CustomerCommercePrincipal,
+} from "../../domain/commerce-request-context";
 import { CheckoutSession } from "../../lib/checkout/checkout-session";
 import { checkoutRuntimeLayerCommercetools } from "../../lib/checkout/commercetools";
+import { toCheckoutScope } from "../../lib/checkout/request-context";
 import { checkoutViolationMessage } from "../../lib/checkout/violation-message";
+import { AddressBook } from "../../services/address-book";
 import { CheckoutContactForm } from "./checkout-contact-form";
-import { CheckoutDeliveryDetailsForm } from "./checkout-delivery-details-form";
+import {
+  CheckoutDeliveryDetailsForm,
+  type CheckoutShippingAddressOption,
+} from "./checkout-delivery-details-form";
 import {
   ActiveStepViolations,
   CartSidebarViolations,
@@ -33,12 +42,38 @@ const formatMoney = (
     currency: money.currencyCode,
   }).format(money.centAmount / CENTS_PER_MAJOR_CURRENCY_UNIT);
 
-const getState = (scope: CheckoutScope) =>
+const shippingAddressOption = (entry: AddressBookEntry) => ({
+  reference: entry.reference,
+  address: { ...entry.address },
+  defaultShipping: entry.defaultShipping,
+});
+
+const getCheckoutPageData = (context: CommerceRequestContext) =>
   Effect.runPromise(
-    CheckoutSession.getCurrent(scope).pipe(
-      Effect.catchTag("CheckoutUnavailable", () => Effect.succeed(null)),
-      Effect.provide(checkoutRuntimeLayerCommercetools)
-    )
+    Effect.gen(function* () {
+      const state = yield* CheckoutSession.getCurrent(
+        toCheckoutScope(context)
+      ).pipe(
+        Effect.catchTag("CheckoutUnavailable", () => Effect.succeed(null))
+      );
+
+      if (
+        state === null ||
+        !(context.principal instanceof CustomerCommercePrincipal)
+      ) {
+        return { state, shippingAddressOptions: undefined };
+      }
+
+      const addressBook = yield* AddressBook;
+      const entries = yield* addressBook.list(context.principal);
+
+      return {
+        state,
+        shippingAddressOptions: entries
+          .filter((entry) => entry.types.includes("shipping"))
+          .map(shippingAddressOption),
+      };
+    }).pipe(Effect.provide(checkoutRuntimeLayerCommercetools))
   );
 
 export interface CheckoutPageActions {
@@ -112,10 +147,12 @@ function CheckoutSteps({
 function ActiveStep({
   actions,
   messages,
+  shippingAddressOptions,
   state,
 }: {
   readonly actions: CheckoutPageActions;
   readonly messages: CheckoutPageMessages;
+  readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
   readonly state: CheckoutState;
 }) {
   let content: ReactNode = null;
@@ -137,10 +174,16 @@ function ActiveStep({
   } else if (state.activeStep === "deliveryDetails") {
     content = (
       <CheckoutDeliveryDetailsForm
+        addressBookReference={
+          state.details.deliveryDetails?.source === "addressBook"
+            ? state.details.deliveryDetails.addressBookReference
+            : undefined
+        }
         cartId={state.cart.id}
         cartVersion={state.cart.version}
         saveAction={actions.saveDeliveryDetails}
         shippingAddress={state.details.deliveryDetails?.shippingAddress}
+        shippingAddressOptions={shippingAddressOptions}
       />
     );
   }
@@ -217,15 +260,15 @@ function CartSidebar({
 
 export async function CheckoutPage({
   actions,
+  context,
   locale,
-  scope,
 }: {
   readonly actions: CheckoutPageActions;
+  readonly context: CommerceRequestContext;
   readonly locale: Locale;
-  readonly scope: CheckoutScope;
 }) {
-  const [state, t] = await Promise.all([
-    getState(scope),
+  const [{ shippingAddressOptions, state }, t] = await Promise.all([
+    getCheckoutPageData(context),
     getTranslations({ locale, namespace: "web.checkout" }),
   ]);
 
@@ -260,7 +303,12 @@ export async function CheckoutPage({
   return (
     <main className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:grid-cols-5">
       <CheckoutSteps messages={messages} state={state} />
-      <ActiveStep actions={actions} messages={messages} state={state} />
+      <ActiveStep
+        actions={actions}
+        messages={messages}
+        shippingAddressOptions={shippingAddressOptions}
+        state={state}
+      />
       <CartSidebar messages={messages} state={state} />
     </main>
   );

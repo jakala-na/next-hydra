@@ -206,6 +206,9 @@
       },
       "activeStep": "Actieve stap",
       "attention": "Deze stap vereist aandacht",
+      "errorBoundary": {
+        "tryAgain": "Opnieuw proberen"
+      },
       "cart": {
         "title": "Winkelwagen",
         "items": "{count, plural, one {# artikel} other {# artikelen}}",
@@ -227,6 +230,13 @@
         }
       },
       "deliveryDetails": {
+        "addressBook": {
+          "chooseShippingAddress": "Kies een bezorgadres",
+          "defaultShipping": "Standaard bezorgadres",
+          "makeDefaultShipping": "Instellen als standaard bezorgadres",
+          "saveShippingAddress": "Dit bezorgadres opslaan",
+          "useNewAddress": "Een nieuw adres gebruiken"
+        },
         "fields": {
           "addressLine1": "Adresregel 1",
           "addressLine2": "Adresregel 2",

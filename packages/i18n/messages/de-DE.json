@@ -206,6 +206,9 @@
       },
       "activeStep": "Aktiver Schritt",
       "attention": "Dieser Schritt erfordert Ihre Aufmerksamkeit",
+      "errorBoundary": {
+        "tryAgain": "Erneut versuchen"
+      },
       "cart": {
         "title": "Warenkorb",
         "items": "{count, plural, one {# Artikel} other {# Artikel}}",
@@ -227,6 +230,13 @@
         }
       },
       "deliveryDetails": {
+        "addressBook": {
+          "chooseShippingAddress": "Lieferadresse auswählen",
+          "defaultShipping": "Standard-Lieferadresse",
+          "makeDefaultShipping": "Als Standard-Lieferadresse festlegen",
+          "saveShippingAddress": "Diese Lieferadresse speichern",
+          "useNewAddress": "Neue Adresse verwenden"
+        },
         "fields": {
           "addressLine1": "Adresszeile 1",
           "addressLine2": "Adresszeile 2",

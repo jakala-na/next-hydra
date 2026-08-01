@@ -206,6 +206,9 @@
       },
       "activeStep": "Passaggio attivo",
       "attention": "Questo passaggio richiede attenzione",
+      "errorBoundary": {
+        "tryAgain": "Riprova"
+      },
       "cart": {
         "title": "Carrello",
         "items": "{count, plural, one {# articolo} other {# articoli}}",
@@ -227,6 +230,13 @@
         }
       },
       "deliveryDetails": {
+        "addressBook": {
+          "chooseShippingAddress": "Scegli un indirizzo di consegna",
+          "defaultShipping": "Indirizzo di consegna predefinito",
+          "makeDefaultShipping": "Imposta come indirizzo di consegna predefinito",
+          "saveShippingAddress": "Salva questo indirizzo di consegna",
+          "useNewAddress": "Usa un nuovo indirizzo"
+        },
         "fields": {
           "addressLine1": "Indirizzo, riga 1",
           "addressLine2": "Indirizzo, riga 2",

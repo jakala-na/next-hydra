@@ -206,6 +206,9 @@
       },
       "activeStep": "Étape active",
       "attention": "Cette étape nécessite votre attention",
+      "errorBoundary": {
+        "tryAgain": "Réessayer"
+      },
       "cart": {
         "title": "Panier",
         "items": "{count, plural, one {# article} other {# articles}}",
@@ -227,6 +230,13 @@
         }
       },
       "deliveryDetails": {
+        "addressBook": {
+          "chooseShippingAddress": "Choisir une adresse de livraison",
+          "defaultShipping": "Adresse de livraison par défaut",
+          "makeDefaultShipping": "Définir comme adresse de livraison par défaut",
+          "saveShippingAddress": "Enregistrer cette adresse de livraison",
+          "useNewAddress": "Utiliser une nouvelle adresse"
+        },
         "fields": {
           "addressLine1": "Adresse ligne 1",
           "addressLine2": "Adresse ligne 2",
