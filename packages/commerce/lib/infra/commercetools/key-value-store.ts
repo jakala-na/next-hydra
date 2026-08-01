@@ -5,13 +5,10 @@ import {
   VersionedKeyValueStore,
 } from "@repo/versioned-store";
 import { Effect, Layer, Option, Schema } from "effect";
-import {
-  apiRoot,
-  apiRootWithoutConcurrentModificationRetry,
-} from "../../client/api-root";
+import { apiRoot } from "../../client/api-root";
+import { isConcurrentModification } from "./versioned-write";
 
 const NOT_FOUND_STATUS_CODE = 404;
-const CONCURRENT_MODIFICATION_STATUS_CODE = 409;
 
 class CommercetoolsRequestFailure extends Schema.TaggedErrorClass<CommercetoolsRequestFailure>()(
   "CommercetoolsRequestFailure",
@@ -34,10 +31,6 @@ const CommercetoolsStatusCodeError = Schema.Struct({
   statusCode: Schema.Number,
 });
 
-const CommercetoolsCodeError = Schema.Struct({
-  code: Schema.String,
-});
-
 const ErrorMessage = Schema.Struct({
   message: Schema.String,
 });
@@ -53,23 +46,8 @@ const hasStatusCode = (error: unknown, statusCode: number) =>
     }
   );
 
-const hasCode = (error: unknown, code: string) =>
-  Option.match(
-    Schema.decodeUnknownOption(CommercetoolsCodeError)(
-      commercetoolsFailureCause(error)
-    ),
-    {
-      onNone: () => false,
-      onSome: (decoded) => decoded.code === code,
-    }
-  );
-
 const isNotFoundError = (error: unknown) =>
   hasStatusCode(error, NOT_FOUND_STATUS_CODE);
-
-const isConflictError = (error: unknown) =>
-  hasStatusCode(error, CONCURRENT_MODIFICATION_STATUS_CODE) ||
-  hasCode(error, "ConcurrentModification");
 
 const storeError = (
   key: string,
@@ -187,7 +165,7 @@ const writeCustomObject = (
 ) =>
   Effect.tryPromise({
     try: async () => {
-      await apiRootWithoutConcurrentModificationRetry
+      await apiRoot
         .customObjects()
         .post({
           body: {
@@ -265,7 +243,7 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
 
           yield* writeCustomObject(container, key, 0, encoded).pipe(
             Effect.mapError((error) =>
-              isConflictError(error)
+              isConcurrentModification(error)
                 ? storeConflict(key, "insert", commercetoolsFailureCause(error))
                 : storeError(key, "insert", commercetoolsFailureCause(error))
             )
@@ -285,7 +263,7 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
 
           yield* writeCustomObject(container, key, version, encoded).pipe(
             Effect.mapError((error) =>
-              isConflictError(error)
+              isConcurrentModification(error)
                 ? storeConflict(key, "update", commercetoolsFailureCause(error))
                 : storeError(key, "update", commercetoolsFailureCause(error))
             )

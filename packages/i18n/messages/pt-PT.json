@@ -241,7 +241,12 @@
         }
       },
       "errors": {
+        "addressBook": {
+          "accessDenied": "O livro de endereços não está disponível para este checkout.",
+          "providerFailure": "Não foi possível carregar as moradas guardadas. Tente novamente."
+        },
         "badRequest": "O pedido de checkout não é válido.",
+        "cartMismatch": "Este checkout já não está atualizado. Atualize a página e tente novamente.",
         "internal": "Não foi possível concluir o checkout. Tente novamente.",
         "contact": {
           "invalidInput": "Introduza um e-mail, nome e apelido.",
@@ -250,6 +255,7 @@
           "unsupported": "Esta origem de contacto ainda não é suportada."
         },
         "deliveryDetails": {
+          "addressBookEntryUnavailable": "Esta morada guardada já não está disponível.",
           "invalidInput": "Introduza a morada, o código postal, a cidade e o país.",
           "sourceUnavailable": "Esta origem de entrega não está disponível para este checkout.",
           "providerFailure": "Não foi possível guardar os detalhes de entrega. Tente novamente.",

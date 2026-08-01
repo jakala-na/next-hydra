@@ -288,11 +288,29 @@ export class CheckoutMutationSourceUnavailable extends Schema.TaggedErrorClass<C
   }
 ) {}
 
+export class CheckoutMutationAddressBookEntryUnavailable extends Schema.TaggedErrorClass<CheckoutMutationAddressBookEntryUnavailable>()(
+  "CheckoutMutationAddressBookEntryUnavailable",
+  {
+    message: Schema.String,
+    addressBookReference: AddressBookReference,
+  }
+) {}
+
+export class CheckoutCartMismatch extends Schema.TaggedErrorClass<CheckoutCartMismatch>()(
+  "CheckoutCartMismatch",
+  {
+    message: Schema.String,
+    submittedCartId: CartId,
+    currentCartId: CartId,
+  }
+) {}
+
 export class CheckoutVersionConflict extends Schema.TaggedErrorClass<CheckoutVersionConflict>()(
   "CheckoutVersionConflict",
   {
     message: Schema.String,
     cartId: CartId,
+    addressBookReference: Schema.optional(AddressBookReference),
   }
 ) {}
 
@@ -302,6 +320,7 @@ export class CheckoutMutationProviderFailure extends Schema.TaggedErrorClass<Che
     message: Schema.String,
     operation: Schema.String,
     cause: Schema.optional(Schema.Defect),
+    addressBookReference: Schema.optional(AddressBookReference),
   }
 ) {}
 
@@ -316,8 +335,15 @@ export class CheckoutMutationUnsupported extends Schema.TaggedErrorClass<Checkou
 export const CheckoutMutationFailure = Schema.Union([
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
+  CheckoutMutationAddressBookEntryUnavailable,
+  CheckoutCartMismatch,
   CheckoutVersionConflict,
   CheckoutMutationProviderFailure,
   CheckoutMutationUnsupported,
 ]);
 export type CheckoutMutationFailure = typeof CheckoutMutationFailure.Type;
+
+export type CheckoutContactMutationFailure = Exclude<
+  CheckoutMutationFailure,
+  CheckoutMutationAddressBookEntryUnavailable
+>;

@@ -6,12 +6,15 @@ export type CheckoutActionErrorCode =
   | SaveCheckoutDeliveryDetailsActionErrorCode;
 
 export const checkoutActionErrorMessageKey = {
+  "checkout.cartMismatch": "errors.cartMismatch",
   "checkout.contact.invalidInput": "errors.contact.invalidInput",
   "checkout.contact.sourceUnavailable": "errors.contact.sourceUnavailable",
   "checkout.contact.providerFailure": "errors.contact.providerFailure",
   "checkout.contact.unsupported": "errors.contact.unsupported",
   "checkout.deliveryDetails.invalidInput":
     "errors.deliveryDetails.invalidInput",
+  "checkout.deliveryDetails.addressBookEntryUnavailable":
+    "errors.deliveryDetails.addressBookEntryUnavailable",
   "checkout.deliveryDetails.sourceUnavailable":
     "errors.deliveryDetails.sourceUnavailable",
   "checkout.deliveryDetails.providerFailure":

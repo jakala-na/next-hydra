@@ -45,15 +45,15 @@ Validation gate: Cart mapper/action tests, Checkout State tests, `pnpm --filter 
 ### `feat(checkout): support Address Book delivery intents`
 
 - Accept the complete submitted Delivery Details input union at the mutation boundaries.
-- Keep submitted Cart ID/version as optimistic concurrency only; verified request context remains the authority for Cart and Address Book access.
+- Keep submitted Cart ID/version separate from authorization; verified request context remains the authority for Cart and Address Book access. Require Cart identity to match, but do not reject a narrow Checkout mutation only because its submitted version is stale.
 - Compose the Address Book Layer once in the shared Checkout runtime Layer.
 - Extend `CheckoutSession.saveDeliveryDetails` with the resolved orchestration from the map: Manual Cart-only, Manual with Address Book save preferences, and existing entry. Checkout generates the new Address Book Reference internally. After a partial save, the existing-entry input retries the Cart phase.
 - Require Shipping type for every entry used by Delivery Details.
 - Resolve new-and-save and a later existing-entry retry to source Address Book after the saved entry is loaded.
-- Carry the saved reference on Cart-phase failures without repeating Address Book save or comparing address fields.
+- Retry `ConcurrentModification` by resending the same narrow Cart action with the error's `currentVersion`, without rereading or analyzing Cart state. Carry the saved reference if the Cart retry is exhausted, without repeating Address Book save or comparing address fields.
 - Add authenticated `GET /address-book`, returning schema-backed entries and no Customer/Business Unit identifiers from request payloads.
 - Update `POST /checkout/delivery-details` to accept the intent union and `/checkout/current` to return the optional current reference without options.
-- Map missing/cross-unit/Billing-only entries, access denial, Address Book provider failures, Cart conflicts, and partial failures to stable codes, schema-backed parameters, localized fallback messages, and internal diagnostic causes.
+- Map missing/cross-unit/Billing-only entries, access denial, Address Book provider failures, Cart mismatches, exhausted version-forward retries, and partial failures to distinct stable codes, schema-backed parameters, localized fallback messages, and internal diagnostic causes. Preserve a newly saved reference even when the Cart write succeeds but the response-state read fails.
 - Prove spoofed identity headers cannot read or save another Business Unit's addresses.
 
 Validation gate: CheckoutSession tests, runtime Layer tests, Server Action state tests, HTTP route/security tests, `pnpm --filter @repo/commerce test`, `pnpm --filter api test`, and both package typechecks.

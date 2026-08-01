@@ -1,8 +1,11 @@
 import { Effect, Result, Schema } from "effect";
-import { CartId, type CartId as CartIdType } from "../domain/cart";
-import { type CheckoutScope, CountryCodeFromString } from "../domain/checkout";
+import { AddressBookReference } from "../domain/address-book";
+import { CartId } from "../domain/cart";
+import { CountryCodeFromString } from "../domain/checkout";
+import type { CommerceRequestContext } from "../domain/commerce-request-context";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import { checkoutRuntimeLayerCommercetools } from "../lib/checkout/commercetools";
+import { logUnexpectedCheckoutMutationFailure } from "./checkout-action-diagnostics";
 import {
   checkoutDeliveryDetailsMutationFailureToActionState,
   checkoutDeliveryDetailsNotFoundState,
@@ -11,15 +14,37 @@ import {
   saveCheckoutDeliveryDetailsActionSuccess,
 } from "./save-checkout-delivery-details-state";
 
-const SaveCheckoutDeliveryDetailsForm = Schema.Struct({
-  cartId: CartId,
-  cartVersion: Schema.NumberFromString,
+const ShippingAddressForm = Schema.Struct({
   addressLine1: Schema.String,
   postalCode: Schema.String,
   city: Schema.String,
   country: CountryCodeFromString,
   addressLine2: Schema.optional(Schema.String),
   region: Schema.optional(Schema.String),
+});
+
+const DeliveryDetailsForm = Schema.Union([
+  Schema.Struct({
+    type: Schema.Literal("manual"),
+    shippingAddress: ShippingAddressForm,
+    saveToAddressBook: Schema.Literal(false),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("manual"),
+    shippingAddress: ShippingAddressForm,
+    saveToAddressBook: Schema.Literal(true),
+    makeDefaultShipping: Schema.Boolean,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("addressBook"),
+    addressBookReference: AddressBookReference,
+  }),
+]);
+
+const SaveCheckoutDeliveryDetailsForm = Schema.Struct({
+  cartId: CartId,
+  cartVersion: Schema.NumberFromString,
+  deliveryDetails: DeliveryDetailsForm,
 });
 
 type SaveCheckoutDeliveryDetailsForm =
@@ -30,46 +55,73 @@ const formString = (formData: FormData, name: string) => {
   return typeof value === "string" ? value : undefined;
 };
 
+const formCheckbox = (formData: FormData, name: string): unknown => {
+  const value = formData.get(name);
+
+  if (value === null || value === "false") {
+    return false;
+  }
+
+  if (value === "on" || value === "true") {
+    return true;
+  }
+
+  return value;
+};
+
+const deliveryDetailsFromForm = (formData: FormData) => {
+  const addressBookReference = formString(formData, "addressBookReference");
+
+  if (addressBookReference !== undefined) {
+    return {
+      type: "addressBook",
+      addressBookReference,
+    };
+  }
+
+  const saveToAddressBook = formCheckbox(formData, "saveToAddressBook");
+
+  return {
+    type: "manual",
+    saveToAddressBook,
+    ...(saveToAddressBook === true
+      ? {
+          makeDefaultShipping: formCheckbox(formData, "makeDefaultShipping"),
+        }
+      : {}),
+    shippingAddress: {
+      addressLine1: formString(formData, "addressLine1"),
+      postalCode: formString(formData, "postalCode"),
+      city: formString(formData, "city"),
+      country: formString(formData, "country"),
+      addressLine2: formString(formData, "addressLine2") || undefined,
+      region: formString(formData, "region") || undefined,
+    },
+  };
+};
+
 const getFormInput = (formData: FormData) =>
   Schema.decodeUnknownEffect(SaveCheckoutDeliveryDetailsForm)({
     cartId: formString(formData, "cartId"),
     cartVersion: formString(formData, "cartVersion"),
-    addressLine1: formString(formData, "addressLine1"),
-    postalCode: formString(formData, "postalCode"),
-    city: formString(formData, "city"),
-    country: formString(formData, "country"),
-    addressLine2: formString(formData, "addressLine2") || undefined,
-    region: formString(formData, "region") || undefined,
+    deliveryDetails: deliveryDetailsFromForm(formData),
   });
 
 const saveDeliveryDetails = (
-  scope: CheckoutScope,
+  context: CommerceRequestContext,
   input: SaveCheckoutDeliveryDetailsForm
 ) =>
   CheckoutSession.saveDeliveryDetails({
-    scope,
+    context,
     cart: {
-      id: input.cartId as CartIdType,
+      id: input.cartId,
       version: input.cartVersion,
     },
-    deliveryDetails: {
-      type: "manual",
-      saveToAddressBook: false,
-      shippingAddress: {
-        addressLine1: input.addressLine1,
-        postalCode: input.postalCode,
-        city: input.city,
-        country: input.country,
-        ...(input.addressLine2 === undefined
-          ? {}
-          : { addressLine2: input.addressLine2 }),
-        ...(input.region === undefined ? {} : { region: input.region }),
-      },
-    },
+    deliveryDetails: input.deliveryDetails,
   }).pipe(Effect.provide(checkoutRuntimeLayerCommercetools));
 
-export async function saveCheckoutDeliveryDetailsForScope(
-  scope: CheckoutScope,
+export async function saveCheckoutDeliveryDetailsForContext(
+  context: CommerceRequestContext,
   formData: FormData
 ): Promise<SaveCheckoutDeliveryDetailsActionState> {
   const inputResult = await Effect.runPromise(
@@ -81,7 +133,10 @@ export async function saveCheckoutDeliveryDetailsForScope(
   }
 
   const saveResult = await Effect.runPromise(
-    Effect.result(saveDeliveryDetails(scope, inputResult.success))
+    saveDeliveryDetails(context, inputResult.success).pipe(
+      Effect.tapError(logUnexpectedCheckoutMutationFailure),
+      Effect.result
+    )
   );
 
   if (Result.isFailure(saveResult)) {

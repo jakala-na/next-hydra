@@ -241,7 +241,12 @@
         }
       },
       "errors": {
+        "addressBook": {
+          "accessDenied": "Het adresboek is niet beschikbaar voor deze checkout.",
+          "providerFailure": "Opgeslagen adressen konden niet worden geladen. Probeer het opnieuw."
+        },
         "badRequest": "Het checkoutverzoek is ongeldig.",
+        "cartMismatch": "Deze checkout is niet meer actueel. Vernieuw de pagina en probeer het opnieuw.",
         "internal": "De checkout kon niet worden voltooid. Probeer het opnieuw.",
         "contact": {
           "invalidInput": "Voer een e-mailadres, voornaam en achternaam in.",
@@ -250,6 +255,7 @@
           "unsupported": "Deze contactbron wordt nog niet ondersteund."
         },
         "deliveryDetails": {
+          "addressBookEntryUnavailable": "Dit opgeslagen adres is niet meer beschikbaar.",
           "invalidInput": "Voer adresregel 1, postcode, plaats en land in.",
           "sourceUnavailable": "Deze bezorgbron is niet beschikbaar voor deze checkout.",
           "providerFailure": "De bezorggegevens konden niet worden opgeslagen. Probeer het opnieuw.",

@@ -1,4 +1,12 @@
 import {
+  AddressBookAccessDenied,
+  AddressBookEntry,
+  AddressBookEntryNotFound,
+  AddressBookProviderFailure,
+  AddressBookReference,
+  normalizeAddressTypes,
+} from "@repo/commerce/domain/address-book";
+import {
   AnonymousId,
   CartId,
   LineItemId,
@@ -11,7 +19,9 @@ import {
   type CheckoutContact,
   type CheckoutContactInput,
   type CheckoutDeliveryDetails,
+  type CheckoutDeliveryDetailsInput,
   CheckoutMutationProviderFailure,
+  CheckoutProviderFailure,
   CountryCode,
 } from "@repo/commerce/domain/checkout";
 import {
@@ -21,13 +31,17 @@ import {
   CommerceCustomerId,
   CommerceCustomerProfile,
 } from "@repo/commerce/domain/commerce-account";
-import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
+import {
+  AuthUserId,
+  type CustomerCommercePrincipal,
+} from "@repo/commerce/domain/commerce-request-context";
 import {
   ANONYMOUS_CART_COOKIE_NAME,
   encodeAnonymousCartCookie,
   makeAnonymousCartCookie,
 } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
 import { CheckoutSession } from "@repo/commerce/lib/checkout/checkout-session";
+import { AddressBook } from "@repo/commerce/services/address-book";
 import {
   CommerceAccountError,
   CommerceAccounts,
@@ -48,6 +62,7 @@ const HTTP_BAD_REQUEST = 400;
 const HTTP_NOT_FOUND = 404;
 const HTTP_CONFLICT = 409;
 const HTTP_INTERNAL_SERVER_ERROR = 500;
+const ADDRESS_BOOK_REFERENCE_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 const money = {
   centAmount: 2500,
@@ -116,6 +131,15 @@ const request = (headers?: Record<string, string>) =>
 
 const requestWithoutAnonymousCart = (headers?: Record<string, string>) =>
   new Request("http://api.test/checkout/current", {
+    method: "GET",
+    headers: {
+      "x-context-locale": "en-US",
+      ...headers,
+    },
+  });
+
+const addressBookRequest = (headers?: Record<string, string>) =>
+  new Request("http://api.test/address-book", {
     method: "GET",
     headers: {
       "x-context-locale": "en-US",
@@ -196,7 +220,7 @@ const saveDeliveryDetailsPayload = ({
 }: {
   readonly cartId?: string;
   readonly version?: number;
-  readonly deliveryDetails?: CartOnlyCheckoutDeliveryDetailsInput;
+  readonly deliveryDetails?: CheckoutDeliveryDetailsInput;
 } = {}) => ({
   cart: {
     id: cartId,
@@ -258,9 +282,13 @@ const makeCheckoutLayer = (
     readonly saveDeliveryDetailsFailure?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
     >[0]["saveDeliveryDetailsFailure"];
+    readonly getCurrentFailure?: Parameters<
+      typeof CheckoutSession.layerMemoryFrom
+    >[0]["getCurrentFailure"];
     readonly customerProfiles?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
     >[0]["customerProfiles"];
+    readonly addressBookLayer?: Layer.Layer<AddressBook>;
   } = {}
 ) => {
   const {
@@ -268,11 +296,15 @@ const makeCheckoutLayer = (
     cartPolicyViolations = [],
     saveContactFailure,
     saveDeliveryDetailsFailure,
+    getCurrentFailure,
     customerProfiles = [],
+    addressBookLayer: suppliedAddressBookLayer,
   } = input;
   const currentCart = "currentCart" in input ? input.currentCart : cart();
 
-  return CheckoutSession.layerMemoryFrom({
+  const addressBookLayer =
+    suppliedAddressBookLayer ?? AddressBook.layerMemory();
+  const checkoutLayer = CheckoutSession.layerMemoryFrom({
     ...(currentCart === undefined ? {} : { currentCart }),
     allowedContactSources,
     cartPolicyViolations,
@@ -281,8 +313,75 @@ const makeCheckoutLayer = (
     ...(saveDeliveryDetailsFailure === undefined
       ? {}
       : { saveDeliveryDetailsFailure }),
-  });
+    ...(getCurrentFailure === undefined ? {} : { getCurrentFailure }),
+  }).pipe(Layer.provide(addressBookLayer));
+
+  return Layer.merge(checkoutLayer, addressBookLayer);
 };
+
+const makeAddressBookLayer = (
+  initialEntries: readonly AddressBookEntry[] = [],
+  onPrincipal?: (principal: CustomerCommercePrincipal) => void
+) => {
+  let entries = [...initialEntries];
+
+  return Layer.succeed(
+    AddressBook,
+    AddressBook.of({
+      list: (principal) =>
+        Effect.sync(() => {
+          onPrincipal?.(principal);
+          return entries;
+        }),
+      get: (principal, reference) =>
+        Effect.gen(function* () {
+          onPrincipal?.(principal);
+          const entry = entries.find(
+            (candidate) => candidate.reference === reference
+          );
+
+          if (!entry) {
+            return yield* new AddressBookEntryNotFound({
+              message: "Address Book entry does not exist",
+              reference,
+            });
+          }
+
+          return entry;
+        }),
+      save: (principal, input) =>
+        Effect.sync(() => {
+          onPrincipal?.(principal);
+          const existing = entries.find(
+            (candidate) => candidate.reference === input.reference
+          );
+
+          if (existing) {
+            return existing;
+          }
+
+          const entry = new AddressBookEntry({
+            ...input,
+            types: normalizeAddressTypes(input.types, input),
+          });
+          entries = [...entries, entry];
+          return entry;
+        }),
+    })
+  );
+};
+
+const makeFailingAddressBookListLayer = (
+  error: AddressBookAccessDenied | AddressBookProviderFailure
+) =>
+  Layer.succeed(
+    AddressBook,
+    AddressBook.of({
+      list: () => Effect.fail(error),
+      get: () => Effect.die("not used"),
+      save: () => Effect.die("not used"),
+    })
+  );
 
 const makeCommerceAccountsLayer = (
   customerId = CommerceCustomerId.make("customer-1")
@@ -604,9 +703,8 @@ test("POST /checkout/contact obtains Checkout Scope from request context, not pa
     expect(response.status).toBe(HTTP_CONFLICT);
     expect(body).toMatchObject({
       _tag: "CheckoutApiConflict",
-      code: "checkout.versionConflict",
-      message:
-        "Checkout changed before your details could be saved. Refresh and try again.",
+      code: "checkout.cartMismatch",
+      message: "This checkout is no longer current. Refresh and try again.",
     });
   } finally {
     await dispose();
@@ -756,6 +854,367 @@ test("POST /checkout/delivery-details is idempotent for the same Manual Shipping
   }
 });
 
+test("GET /address-book returns entries for the verified Business Unit principal", async () => {
+  const reference = AddressBookReference.make("london-office");
+  const entry = new AddressBookEntry({
+    reference,
+    address: manualDeliveryDetails.shippingAddress,
+    types: ["shipping"],
+    defaultShipping: true,
+    defaultBilling: false,
+  });
+  let listedCustomerId: CommerceCustomerId | undefined;
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      addressBookLayer: makeAddressBookLayer([entry], (principal) => {
+        listedCustomerId = principal.customerId;
+      }),
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      addressBookRequest({
+        authorization: "Bearer valid-token",
+        "x-context-customer-id": "customer-spoof",
+        "x-context-business-unit-id": "business-unit-spoof",
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body).toEqual([entry]);
+    expect(listedCustomerId).toBe("customer-1");
+    expect(JSON.stringify(body)).not.toContain("business-unit-1");
+    expect(JSON.stringify(body)).not.toContain("customer-1");
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /address-book requires an authenticated customer context", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(addressBookRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiNotFound",
+      code: "checkout.notFound",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test.each([
+  {
+    error: new AddressBookAccessDenied({
+      message: "Buyer cannot access the Address Book",
+      operation: "list",
+    }),
+    status: HTTP_BAD_REQUEST,
+    code: "checkout.addressBook.accessDenied",
+    message: "The address book is unavailable for this checkout.",
+  },
+  {
+    error: new AddressBookProviderFailure({
+      message: "Commercetools is unavailable",
+      operation: "list",
+    }),
+    status: HTTP_INTERNAL_SERVER_ERROR,
+    code: "checkout.addressBook.providerFailure",
+    message: "Saved addresses could not be loaded. Try again.",
+  },
+])("GET /address-book maps $error._tag to a stable localized response", async ({
+  error,
+  status,
+  code,
+  message,
+}) => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      addressBookLayer: makeFailingAddressBookListLayer(error),
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      addressBookRequest({ authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(status);
+    expect(body).toMatchObject({ code, message });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details copies an existing Address Book Entry to the Cart", async () => {
+  const reference = AddressBookReference.make("london-office");
+  const entry = new AddressBookEntry({
+    reference,
+    address: {
+      ...manualDeliveryDetails.shippingAddress,
+      addressLine1: "10 Canonical Way",
+    },
+    types: ["shipping"],
+    defaultShipping: false,
+    defaultBilling: false,
+  });
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      addressBookLayer: makeAddressBookLayer([entry]),
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            type: "addressBook",
+            addressBookReference: reference,
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.details.deliveryDetails).toEqual({
+      source: "addressBook",
+      addressBookReference: reference,
+      shippingAddress: entry.address,
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details returns a stable unavailable-entry error", async () => {
+  const reference = AddressBookReference.make("missing-office");
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({ addressBookLayer: makeAddressBookLayer() }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            type: "addressBook",
+            addressBookReference: reference,
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toEqual({
+      _tag: "CheckoutApiBadRequest",
+      code: "checkout.deliveryDetails.addressBookEntryUnavailable",
+      message: "This saved address is no longer available.",
+      parameters: { addressBookReference: reference },
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details saves a new address with an internally generated reference", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({ addressBookLayer: makeAddressBookLayer() }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            type: "manual",
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            saveToAddressBook: true,
+            makeDefaultShipping: true,
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.details.deliveryDetails).toMatchObject({
+      source: "addressBook",
+      shippingAddress: manualDeliveryDetails.shippingAddress,
+    });
+    expect(body.details.deliveryDetails.addressBookReference).toMatch(
+      ADDRESS_BOOK_REFERENCE_PATTERN
+    );
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details saves only for the verified Business Unit principal", async () => {
+  let savingPrincipal: CustomerCommercePrincipal | undefined;
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      addressBookLayer: makeAddressBookLayer([], (principal) => {
+        savingPrincipal = principal;
+      }),
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            type: "manual",
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            saveToAddressBook: true,
+            makeDefaultShipping: false,
+          },
+        }),
+        {
+          authorization: "Bearer valid-token",
+          "x-context-customer-id": "customer-spoof",
+          "x-context-business-unit-id": "business-unit-spoof",
+        }
+      ),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(savingPrincipal?.customerId).toBe("customer-1");
+    expect(savingPrincipal?.businessUnitId).toBe("business-unit-1");
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details retains a saved reference when the response read fails", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      addressBookLayer: makeAddressBookLayer(),
+      getCurrentFailure: new CheckoutProviderFailure({
+        message: "Commercetools read failed after the Cart update",
+        operation: "checkout.cart.getActiveForAssociateScope",
+      }),
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            type: "manual",
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            saveToAddressBook: true,
+            makeDefaultShipping: false,
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiError",
+      code: "checkout.deliveryDetails.providerFailure",
+      parameters: {
+        addressBookReference: expect.stringMatching(
+          ADDRESS_BOOK_REFERENCE_PATTERN
+        ),
+      },
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details returns the saved reference after a Cart-phase failure", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      addressBookLayer: makeAddressBookLayer(),
+      saveDeliveryDetailsFailure: new CheckoutMutationProviderFailure({
+        message: "Commercetools update failed",
+        operation: "checkout.deliveryDetails.save",
+      }),
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            type: "manual",
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            saveToAddressBook: true,
+            makeDefaultShipping: false,
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiError",
+      code: "checkout.deliveryDetails.providerFailure",
+      parameters: {
+        addressBookReference: expect.stringMatching(
+          ADDRESS_BOOK_REFERENCE_PATTERN
+        ),
+      },
+    });
+  } finally {
+    await dispose();
+  }
+});
+
 test("POST /checkout/delivery-details obtains Checkout Scope from request context, not payload cart id", async () => {
   const { dispose, handler } = await makeHandler(makeCheckoutLayer());
 
@@ -771,9 +1230,8 @@ test("POST /checkout/delivery-details obtains Checkout Scope from request contex
     expect(response.status).toBe(HTTP_CONFLICT);
     expect(body).toMatchObject({
       _tag: "CheckoutApiConflict",
-      code: "checkout.versionConflict",
-      message:
-        "Checkout changed before your details could be saved. Refresh and try again.",
+      code: "checkout.cartMismatch",
+      message: "This checkout is no longer current. Refresh and try again.",
     });
   } finally {
     await dispose();
@@ -826,8 +1284,8 @@ test("POST /checkout/delivery-details maps invalid Manual Shipping Address input
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(body).toMatchObject({
       _tag: "CheckoutApiBadRequest",
-      code: "checkout.badRequest",
-      message: "The checkout request is invalid.",
+      code: "checkout.deliveryDetails.invalidInput",
+      message: "Enter address line 1, postal code, city, and country.",
     });
   } finally {
     await dispose();
@@ -885,8 +1343,8 @@ test("POST /checkout/delivery-details maps provider failures to internal errors"
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
     expect(body).toMatchObject({
       _tag: "CheckoutApiError",
-      code: "checkout.internal",
-      message: "Checkout could not be completed. Try again.",
+      code: "checkout.deliveryDetails.providerFailure",
+      message: "Delivery details could not be saved. Try again.",
     });
   } finally {
     await dispose();

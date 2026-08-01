@@ -9,16 +9,25 @@ import {
   CheckoutUnavailable,
   CheckoutVersionConflict,
 } from "../../domain/checkout";
+import { AddressBook } from "../../services/address-book";
 import { CommerceAccounts } from "../../services/commerce-accounts";
 import { cartService } from "../cart/cart.service";
 import { decodeCartForCheckout } from "../cart/cart-for-checkout";
-import { hasPersistedCheckoutContact } from "../cart/checkout-contact-actions";
+import {
+  hasPersistedCheckoutContact,
+  ORDER_CUSTOM_TYPE_KEY,
+} from "../cart/checkout-contact-actions";
 import { hasPersistedCheckoutDeliveryDetails } from "../cart/checkout-delivery-details-actions";
 import { validateCartPolicies } from "../cart/utils/validate-cart";
+import { layerCommercetoolsAddressBook } from "../infra/commercetools/address-book";
 import { layerCommercetoolsCommerceAccounts } from "../infra/commercetools/commerce-accounts";
+import {
+  RetryVersionedWrite,
+  retryVersionedWrite,
+} from "../infra/commercetools/versioned-write";
 import { StoreContexts } from "../store/store-contexts";
 import type { Cart } from "../types";
-import type { ActionResult } from "../utils/errors";
+import type { ActionResult, DomainError } from "../utils/errors";
 import { isOk } from "../utils/errors";
 import { CheckoutPolicies } from "./checkout-policy";
 import {
@@ -26,13 +35,17 @@ import {
   type CheckoutSaveDeliveryDetailsFailure,
   CheckoutSession,
   contactSourceUnavailable,
-  ensureCurrentCartReference,
-  normalizeNewAddressDeliveryDetails,
+  ensureCurrentCartIdentity,
+  normalizeCheckoutDeliveryDetailsInput,
   resolveCheckoutContact,
+  resolveCheckoutDeliveryDetails,
   type SaveCheckoutContactInput,
   type SaveCheckoutDeliveryDetailsInput,
+  type SaveCheckoutDeliveryDetailsResult,
+  withSavedAddressBookReference,
 } from "./checkout-session";
 import { allowedContactSourcesForCheckout } from "./contact-source-policy";
+import { toCheckoutScope } from "./request-context";
 import { buildCheckoutState } from "./state";
 
 const localeFromScope = (scope: CheckoutScope) => scope.locale as Locale;
@@ -42,6 +55,13 @@ const cartRequestFailure = (operation: string, cause: unknown) =>
     message: "Failed to resolve Checkout Cart",
     operation,
     cause,
+  });
+
+const mutationFailureFromCartRequest = (error: CheckoutProviderFailure) =>
+  new CheckoutMutationProviderFailure({
+    message: error.message,
+    operation: error.operation,
+    ...(error.cause === undefined ? {} : { cause: error.cause }),
   });
 
 const getCartForScope = (
@@ -180,6 +200,12 @@ const evaluateCartPolicies = (scope: CheckoutScope, cart: Cart) =>
       }),
   });
 
+const isDomainError = (error: unknown): error is DomainError<object> =>
+  typeof error === "object" &&
+  error !== null &&
+  "type" in error &&
+  error.type === "DomainError";
+
 const saveCheckoutContact = (
   commerceAccounts: Context.Service.Shape<typeof CommerceAccounts>,
   input: SaveCheckoutContactInput
@@ -201,77 +227,117 @@ const saveCheckoutContact = (
       Effect.mapError((error) =>
         error._tag === "CheckoutUnavailable"
           ? error
-          : new CheckoutMutationProviderFailure({
-              message: error.message,
-              operation: error.operation,
-            })
+          : mutationFailureFromCartRequest(error)
       )
     );
-    yield* ensureCurrentCartReference(cart, input.cart);
+    yield* ensureCurrentCartIdentity(cart, input.cart);
 
     if (hasPersistedCheckoutContact(providerCart, contact)) {
       return;
     }
 
-    const result = yield* Effect.tryPromise({
-      try: () =>
-        cartService.saveCheckoutContact({
-          cart: providerCart,
-          contact,
-          locale: localeFromScope(input.scope),
-          scope: input.scope,
-        }),
-      catch: (cause) =>
-        new CheckoutMutationProviderFailure({
-          message: "Failed to save checkout contact",
-          operation: "checkout.contact.save",
-          cause,
-        }),
-    });
+    const write = yield* Effect.result(
+      retryVersionedWrite({
+        operation: "checkout.contact.save",
+        input: providerCart,
+        attempt: (current) =>
+          Effect.tryPromise({
+            try: () =>
+              cartService.saveCheckoutContact({
+                cart: current,
+                contact,
+                locale: localeFromScope(input.scope),
+                scope: input.scope,
+              }),
+            catch: (cause) =>
+              new CheckoutMutationProviderFailure({
+                message: "Failed to save checkout contact",
+                operation: "checkout.contact.save",
+                cause,
+              }),
+          }).pipe(
+            Effect.flatMap((result) =>
+              isOk(result) ? Effect.void : Effect.fail(result.error)
+            )
+          ),
+        resolveConflict: (conflict, current) =>
+          current.custom?.type?.key === ORDER_CUSTOM_TYPE_KEY
+            ? Effect.succeed(
+                new RetryVersionedWrite({
+                  ...current,
+                  version: conflict.currentVersion,
+                })
+              )
+            : getCurrentCart(input.scope).pipe(
+                Effect.mapError((error) =>
+                  error._tag === "CheckoutUnavailable"
+                    ? error
+                    : mutationFailureFromCartRequest(error)
+                ),
+                Effect.tap(({ cart: currentCart }) =>
+                  ensureCurrentCartIdentity(currentCart, input.cart)
+                ),
+                Effect.map(
+                  ({ providerCart: currentProviderCart }) =>
+                    new RetryVersionedWrite(currentProviderCart)
+                )
+              ),
+      })
+    );
 
-    if (isOk(result)) {
+    if (write._tag === "Success") {
       return;
     }
 
-    if (result.error.code === "CONFLICT") {
-      return yield* Effect.fail(
-        new CheckoutVersionConflict({
-          message: result.error.message,
-          cartId: cart.id,
-        })
-      );
+    if (isDomainError(write.failure)) {
+      return yield* write.failure.code === "CONFLICT"
+        ? new CheckoutVersionConflict({
+            message: write.failure.message,
+            cartId: cart.id,
+          })
+        : new CheckoutMutationProviderFailure({
+            message: write.failure.message,
+            operation: "checkout.contact.save",
+            cause: write.failure,
+          });
     }
 
-    return yield* Effect.fail(
-      new CheckoutMutationProviderFailure({
-        message: result.error.message,
-        operation: "checkout.contact.save",
-        cause: result.error,
-      })
-    );
+    return yield* Effect.fail(write.failure);
   });
 
 const saveCheckoutDeliveryDetails = (
+  addressBook: Context.Service.Shape<typeof AddressBook>,
   input: SaveCheckoutDeliveryDetailsInput
-): Effect.Effect<void, CheckoutSaveDeliveryDetailsFailure> =>
+): Effect.Effect<
+  SaveCheckoutDeliveryDetailsResult,
+  CheckoutSaveDeliveryDetailsFailure
+> =>
   Effect.gen(function* () {
-    const deliveryDetails = yield* normalizeNewAddressDeliveryDetails(
+    const normalizedInput = yield* normalizeCheckoutDeliveryDetailsInput(
       input.deliveryDetails
     );
-    const { cart, providerCart } = yield* getCurrentCart(input.scope).pipe(
+    const scope = toCheckoutScope(input.context);
+    const { cart, providerCart } = yield* getCurrentCart(scope).pipe(
       Effect.mapError((error) =>
         error._tag === "CheckoutUnavailable"
           ? error
-          : new CheckoutMutationProviderFailure({
-              message: error.message,
-              operation: error.operation,
-            })
+          : mutationFailureFromCartRequest(error)
       )
     );
-    yield* ensureCurrentCartReference(cart, input.cart, "Delivery Details");
+    yield* ensureCurrentCartIdentity(cart, input.cart, "Delivery Details");
+    const resolved = yield* resolveCheckoutDeliveryDetails(
+      input.context,
+      normalizedInput,
+      addressBook
+    );
+    const deliveryDetails = resolved.deliveryDetails;
+    const mutationResult =
+      deliveryDetails.source === "addressBook"
+        ? { addressBookReference: deliveryDetails.addressBookReference }
+        : {};
 
     if (hasPersistedCheckoutDeliveryDetails(providerCart, deliveryDetails)) {
-      return;
+      return mutationResult;
     }
 
     const result = yield* Effect.tryPromise({
@@ -279,8 +345,8 @@ const saveCheckoutDeliveryDetails = (
         cartService.saveCheckoutDeliveryDetails({
           cart: providerCart,
           deliveryDetails,
-          locale: localeFromScope(input.scope),
-          scope: input.scope,
+          locale: localeFromScope(scope),
+          scope,
         }),
       catch: (cause) =>
         new CheckoutMutationProviderFailure({
@@ -288,27 +354,37 @@ const saveCheckoutDeliveryDetails = (
           operation: "checkout.deliveryDetails.save",
           cause,
         }),
-    });
+    }).pipe(
+      Effect.mapError((error) =>
+        withSavedAddressBookReference(error, resolved.savedAddressBookReference)
+      )
+    );
 
     if (isOk(result)) {
-      return;
+      return mutationResult;
     }
 
     if (result.error.code === "CONFLICT") {
       return yield* Effect.fail(
-        new CheckoutVersionConflict({
-          message: result.error.message,
-          cartId: cart.id,
-        })
+        withSavedAddressBookReference(
+          new CheckoutVersionConflict({
+            message: result.error.message,
+            cartId: cart.id,
+          }),
+          resolved.savedAddressBookReference
+        )
       );
     }
 
     return yield* Effect.fail(
-      new CheckoutMutationProviderFailure({
-        message: result.error.message,
-        operation: "checkout.deliveryDetails.save",
-        cause: result.error,
-      })
+      withSavedAddressBookReference(
+        new CheckoutMutationProviderFailure({
+          message: result.error.message,
+          operation: "checkout.deliveryDetails.save",
+          cause: result.error,
+        }),
+        resolved.savedAddressBookReference
+      )
     );
   });
 
@@ -318,6 +394,7 @@ export const layerCommercetoolsCheckoutSession = Layer.effect(
     const storeContexts = yield* StoreContexts;
     const checkoutPolicies = yield* CheckoutPolicies;
     const commerceAccounts = yield* CommerceAccounts;
+    const addressBook = yield* AddressBook;
 
     return CheckoutSession.of({
       getCurrent: (scope) =>
@@ -348,7 +425,8 @@ export const layerCommercetoolsCheckoutSession = Layer.effect(
           });
         }),
       saveContact: (input) => saveCheckoutContact(commerceAccounts, input),
-      saveDeliveryDetails: saveCheckoutDeliveryDetails,
+      saveDeliveryDetails: (input) =>
+        saveCheckoutDeliveryDetails(addressBook, input),
     });
   })
 );
@@ -358,5 +436,6 @@ export const checkoutRuntimeLayerCommercetools =
     Layer.provide(
       Layer.mergeAll(StoreContexts.layerCommercetools, CheckoutPolicies.layer)
     ),
-    Layer.provideMerge(layerCommercetoolsCommerceAccounts)
+    Layer.provideMerge(layerCommercetoolsCommerceAccounts),
+    Layer.provideMerge(layerCommercetoolsAddressBook)
   );

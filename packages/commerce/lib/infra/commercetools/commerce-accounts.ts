@@ -34,16 +34,15 @@ import {
 } from "../../../services/commerce-accounts";
 import { apiRoot } from "../../client/api-root";
 import { toCommercetoolsAddressKey } from "./address-book-key";
+import {
+  CommercetoolsRequestFailure,
+  commercetoolsFailureCause,
+  commercetoolsRequest,
+  RetryVersionedWrite,
+  retryVersionedWrite,
+} from "./versioned-write";
 
 const NOT_FOUND_STATUS_CODE = 404;
-
-class CommercetoolsRequestFailure extends Schema.TaggedErrorClass<CommercetoolsRequestFailure>()(
-  "CommercetoolsRequestFailure",
-  {
-    message: Schema.String,
-    cause: Schema.Defect,
-  }
-) {}
 
 const CommercetoolsStatusCodeError = Schema.Struct({
   statusCode: Schema.Number,
@@ -114,9 +113,6 @@ const accountError = (reason: string, cause?: unknown) =>
     message: cause ? `${reason}: ${formatCause(cause)}` : reason,
     ...(cause ? { cause } : {}),
   });
-
-const commercetoolsFailureCause = (error: unknown) =>
-  error instanceof CommercetoolsRequestFailure ? error.cause : error;
 
 const customerKey = (registration: CommerceAccountRegistrationInput) =>
   `registration-customer-${registration.id}`;
@@ -513,42 +509,56 @@ const createBusinessUnit = (
 const ensureBusinessUnitStore = (
   businessUnit: BusinessUnit,
   registration: CommerceAccountRegistrationInput
-) => {
+): Effect.Effect<BusinessUnit, CommerceAccountError> => {
   const store = registrationStore(registration);
 
-  if (
-    businessUnit.stores?.length === 1 &&
-    businessUnit.stores[0]?.key === store.key
-  ) {
-    return Effect.succeed(businessUnit);
-  }
+  const attempt = (current: BusinessUnit) => {
+    if (current.stores?.length === 1 && current.stores[0]?.key === store.key) {
+      return Effect.succeed(current);
+    }
 
-  return Effect.tryPromise({
-    try: async () => {
-      const response = await apiRoot
-        .businessUnits()
-        .withId({ ID: businessUnit.id })
-        .post({
-          body: {
-            version: businessUnit.version,
-            actions: [
-              {
-                action: "setStores",
-                stores: [store],
-              },
-            ],
-          },
-        })
-        .execute();
+    return commercetoolsRequest(
+      "Failed to associate Commercetools business unit with Store",
+      async () => {
+        const response = await apiRoot
+          .businessUnits()
+          .withId({ ID: current.id })
+          .post({
+            body: {
+              version: current.version,
+              actions: [
+                {
+                  action: "setStores",
+                  stores: [store],
+                },
+              ],
+            },
+          })
+          .execute();
 
-      return response.body;
-    },
-    catch: (cause) =>
-      accountError(
-        "Failed to associate Commercetools business unit with Store",
-        cause
+        return response.body;
+      }
+    );
+  };
+
+  return retryVersionedWrite({
+    operation: "commerceAccount.businessUnit.ensureStore",
+    input: businessUnit,
+    attempt,
+    resolveConflict: () =>
+      getBusinessUnitById(CommerceBusinessUnitId.make(businessUnit.id)).pipe(
+        Effect.map((current) => new RetryVersionedWrite(current))
       ),
-  });
+  }).pipe(
+    Effect.mapError((failure) =>
+      failure instanceof CommerceAccountError
+        ? failure
+        : accountError(
+            "Failed to associate Commercetools business unit with Store",
+            commercetoolsFailureCause(failure)
+          )
+    )
+  );
 };
 
 const toCommerceCustomerId = (customer: Customer) =>
@@ -563,63 +573,67 @@ const syncCustomerIdentity = (
     readonly acceptedIdentity: AcceptedCommerceIdentity;
   }
 ) => {
-  const actions: CustomerUpdateAction[] = [];
-  const email = Redacted.value(input.acceptedIdentity.email);
-  const firstName = Redacted.value(input.acceptedIdentity.firstName);
-  const lastName = Redacted.value(input.acceptedIdentity.lastName);
+  const attempt = (current: Customer) => {
+    const actions: CustomerUpdateAction[] = [];
+    const email = Redacted.value(input.acceptedIdentity.email);
+    const firstName = Redacted.value(input.acceptedIdentity.firstName);
+    const lastName = Redacted.value(input.acceptedIdentity.lastName);
+    const externalId = authUserId(input.acceptedIdentity);
 
-  const externalId = authUserId(input.acceptedIdentity);
+    if (current.externalId !== externalId) {
+      actions.push({ action: "setExternalId", externalId });
+    }
+    if (current.email !== email) {
+      actions.push({ action: "changeEmail", email });
+    }
+    if (current.firstName !== firstName) {
+      actions.push({ action: "setFirstName", firstName });
+    }
+    if (current.lastName !== lastName) {
+      actions.push({ action: "setLastName", lastName });
+    }
 
-  if (customer.externalId !== externalId) {
-    actions.push({
-      action: "setExternalId",
-      externalId,
-    });
-  }
+    if (actions.length === 0) {
+      return Effect.succeed(current);
+    }
 
-  if (customer.email !== email) {
-    actions.push({
-      action: "changeEmail",
-      email,
-    });
-  }
+    return commercetoolsRequest(
+      "Failed to sync Commercetools customer identity",
+      async () => {
+        const response = await apiRoot
+          .customers()
+          .withId({ ID: current.id })
+          .post({
+            body: {
+              version: current.version,
+              actions,
+            },
+          })
+          .execute();
 
-  if (customer.firstName !== firstName) {
-    actions.push({
-      action: "setFirstName",
-      firstName,
-    });
-  }
+        return response.body;
+      }
+    );
+  };
 
-  if (customer.lastName !== lastName) {
-    actions.push({
-      action: "setLastName",
-      lastName,
-    });
-  }
-
-  if (actions.length === 0) {
-    return Effect.succeed(customer);
-  }
-
-  return Effect.tryPromise({
-    try: async () => {
-      const response = await apiRoot
-        .customers()
-        .withId({ ID: customer.id })
-        .post({
-          body: {
-            version: customer.version,
-            actions,
-          },
-        })
-        .execute();
-
-      return response.body;
-    },
-    catch: (cause) =>
-      accountError("Failed to sync Commercetools customer identity", cause),
-  });
+  return retryVersionedWrite({
+    operation: "commerceAccount.customer.syncIdentity",
+    input: customer,
+    attempt,
+    resolveConflict: () =>
+      getCustomerById(CommerceCustomerId.make(customer.id)).pipe(
+        Effect.map((current) => new RetryVersionedWrite(current))
+      ),
+  }).pipe(
+    Effect.mapError((failure) =>
+      failure instanceof CommerceAccountError
+        ? failure
+        : accountError(
+            "Failed to sync Commercetools customer identity",
+            commercetoolsFailureCause(failure)
+          )
+    )
+  );
 };
 
 const ensureAcceptedIdentityCustomer = (identity: AcceptedCommerceIdentity) =>
@@ -669,44 +683,71 @@ const ensureBusinessUnitAssociate = (input: {
   readonly customer: Customer;
   readonly role: CommerceCompanyRole;
 }) => {
-  if (hasAssociateRole(input.businessUnit, input.customer, input.role)) {
-    return Effect.succeed(input.businessUnit);
-  }
+  const attempt = (current: typeof input) => {
+    if (
+      hasAssociateRole(current.businessUnit, current.customer, current.role)
+    ) {
+      return Effect.succeed(current.businessUnit);
+    }
 
-  const existingAssociate = input.businessUnit.associates?.find(
-    (associate) => associate.customer.id === input.customer.id
-  );
-  const action: BusinessUnitUpdateAction = existingAssociate
-    ? {
-        action: "changeAssociate",
-        associate: associateDraft(input.customer, input.role),
+    const existingAssociate = current.businessUnit.associates?.find(
+      (associate) => associate.customer.id === current.customer.id
+    );
+    const action: BusinessUnitUpdateAction = existingAssociate
+      ? {
+          action: "changeAssociate",
+          associate: associateDraft(current.customer, current.role),
+        }
+      : {
+          action: "addAssociate",
+          associate: associateDraft(current.customer, current.role),
+        };
+
+    return commercetoolsRequest(
+      "Failed to add Commercetools business unit associate",
+      async () => {
+        const response = await apiRoot
+          .businessUnits()
+          .withId({ ID: current.businessUnit.id })
+          .post({
+            body: {
+              version: current.businessUnit.version,
+              actions: [action],
+            },
+          })
+          .execute();
+
+        return response.body;
       }
-    : {
-        action: "addAssociate",
-        associate: associateDraft(input.customer, input.role),
-      };
+    );
+  };
 
-  return Effect.tryPromise({
-    try: async () => {
-      const response = await apiRoot
-        .businessUnits()
-        .withId({ ID: input.businessUnit.id })
-        .post({
-          body: {
-            version: input.businessUnit.version,
-            actions: [action],
-          },
-        })
-        .execute();
-
-      return response.body;
-    },
-    catch: (cause) =>
-      accountError(
-        "Failed to add Commercetools business unit associate",
-        cause
+  return retryVersionedWrite({
+    operation: "commerceAccount.businessUnit.ensureAssociate",
+    input,
+    attempt,
+    resolveConflict: () =>
+      getBusinessUnitById(
+        CommerceBusinessUnitId.make(input.businessUnit.id)
+      ).pipe(
+        Effect.map(
+          (businessUnit) =>
+            new RetryVersionedWrite({
+              ...input,
+              businessUnit,
+            })
+        )
       ),
-  });
+  }).pipe(
+    Effect.mapError((failure) =>
+      failure instanceof CommerceAccountError
+        ? failure
+        : accountError(
+            "Failed to add Commercetools business unit associate",
+            commercetoolsFailureCause(failure)
+          )
+    )
+  );
 };
 
 const hasCustomerWithEmail = Effect.fn(

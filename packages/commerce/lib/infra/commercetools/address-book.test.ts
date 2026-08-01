@@ -28,7 +28,7 @@ import {
 } from "./address-book";
 
 vi.mock("../../client/api-root", () => ({
-  apiRootWithoutConcurrentModificationRetry: {},
+  apiRoot: {},
 }));
 
 const buyer = new CustomerCommercePrincipal({

@@ -237,7 +237,12 @@
         }
       },
       "errors": {
+        "addressBook": {
+          "accessDenied": "The address book is unavailable for this checkout.",
+          "providerFailure": "Saved addresses could not be loaded. Try again."
+        },
         "badRequest": "The checkout request is invalid.",
+        "cartMismatch": "This checkout is no longer current. Refresh and try again.",
         "internal": "Checkout could not be completed. Try again.",
         "contact": {
           "invalidInput": "Enter an email, first name, and last name.",
@@ -246,6 +251,7 @@
           "unsupported": "This contact source is not supported yet."
         },
         "deliveryDetails": {
+          "addressBookEntryUnavailable": "This saved address is no longer available.",
           "invalidInput": "Enter address line 1, postal code, city, and country.",
           "sourceUnavailable": "This delivery details source is unavailable for this checkout.",
           "providerFailure": "Delivery details could not be saved. Try again.",

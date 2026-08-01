@@ -1,6 +1,9 @@
+import type { AddressBookReference } from "../domain/address-book";
 import type { CheckoutMutationFailure } from "../domain/checkout";
 
 export type SaveCheckoutDeliveryDetailsActionErrorCode =
+  | "checkout.cartMismatch"
+  | "checkout.deliveryDetails.addressBookEntryUnavailable"
   | "checkout.deliveryDetails.invalidInput"
   | "checkout.deliveryDetails.sourceUnavailable"
   | "checkout.deliveryDetails.providerFailure"
@@ -15,6 +18,9 @@ export type SaveCheckoutDeliveryDetailsActionState =
   | {
       readonly status: "error";
       readonly code: SaveCheckoutDeliveryDetailsActionErrorCode;
+      readonly parameters?: {
+        readonly addressBookReference: AddressBookReference;
+      };
     };
 
 export type SaveCheckoutDeliveryDetailsAction = (
@@ -43,7 +49,17 @@ export const checkoutDeliveryDetailsNotFoundState = {
 export const checkoutDeliveryDetailsMutationFailureToActionState = (
   error: CheckoutMutationFailure
 ): SaveCheckoutDeliveryDetailsActionState => {
+  const parameters =
+    "addressBookReference" in error && error.addressBookReference !== undefined
+      ? { addressBookReference: error.addressBookReference }
+      : undefined;
+
   switch (error._tag) {
+    case "CheckoutCartMismatch":
+      return {
+        status: "error",
+        code: "checkout.cartMismatch",
+      };
     case "CheckoutMutationSchemaFailure":
       return {
         status: "error",
@@ -54,15 +70,25 @@ export const checkoutDeliveryDetailsMutationFailureToActionState = (
         status: "error",
         code: "checkout.deliveryDetails.sourceUnavailable",
       };
+    case "CheckoutMutationAddressBookEntryUnavailable":
+      return {
+        status: "error",
+        code: "checkout.deliveryDetails.addressBookEntryUnavailable",
+        parameters: {
+          addressBookReference: error.addressBookReference,
+        },
+      };
     case "CheckoutVersionConflict":
       return {
         status: "error",
         code: "checkout.versionConflict",
+        ...(parameters === undefined ? {} : { parameters }),
       };
     case "CheckoutMutationProviderFailure":
       return {
         status: "error",
         code: "checkout.deliveryDetails.providerFailure",
+        ...(parameters === undefined ? {} : { parameters }),
       };
     case "CheckoutMutationUnsupported":
       return {

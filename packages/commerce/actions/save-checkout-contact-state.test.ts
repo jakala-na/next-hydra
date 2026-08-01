@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CartId } from "../domain/cart";
 import {
+  CheckoutCartMismatch,
   CheckoutMutationProviderFailure,
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
@@ -48,6 +49,21 @@ describe("checkoutMutationFailureToActionState", () => {
     ).toEqual({
       status: "error",
       code: "checkout.versionConflict",
+    });
+  });
+
+  it("distinguishes a submitted Cart from the current Checkout Cart", () => {
+    expect(
+      checkoutMutationFailureToActionState(
+        new CheckoutCartMismatch({
+          message: "Contact belongs to a different Checkout Cart",
+          submittedCartId: CartId.make("cart-old"),
+          currentCartId: CartId.make("cart-current"),
+        })
+      )
+    ).toEqual({
+      status: "error",
+      code: "checkout.cartMismatch",
     });
   });
 

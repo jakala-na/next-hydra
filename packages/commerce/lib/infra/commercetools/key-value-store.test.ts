@@ -19,15 +19,10 @@ const mocks = vi.hoisted(() => {
     post: postMock,
     withContainerAndKey: withContainerAndKeyMock,
   }));
-  const lockCustomObjectsMock = vi.fn(() => ({
-    post: postMock,
-  }));
-
   return {
     customObjects: customObjectsMock,
     get: getMock,
     getExecute: getExecuteMock,
-    lockCustomObjects: lockCustomObjectsMock,
     post: postMock,
     postExecute: postExecuteMock,
     withContainerAndKey: withContainerAndKeyMock,
@@ -38,16 +33,12 @@ vi.mock("../../client/api-root", () => ({
   apiRoot: {
     customObjects: mocks.customObjects,
   },
-  apiRootWithoutConcurrentModificationRetry: {
-    customObjects: mocks.lockCustomObjects,
-  },
 }));
 
 const {
   customObjects,
   get,
   getExecute,
-  lockCustomObjects,
   post,
   postExecute,
   withContainerAndKey,
@@ -81,7 +72,6 @@ beforeEach(() => {
   post.mockClear();
   withContainerAndKey.mockClear();
   customObjects.mockClear();
-  lockCustomObjects.mockClear();
 });
 
 describe("layerCommercetoolsCustomObjectKeyValueStore", () => {
@@ -128,7 +118,7 @@ describe("layerCommercetoolsCustomObjectKeyValueStore", () => {
 
       yield* store.insert(key, StoredItem, item);
 
-      expect(lockCustomObjects).toHaveBeenCalled();
+      expect(customObjects).toHaveBeenCalled();
       expect(post).toHaveBeenCalledWith({
         body: {
           container,

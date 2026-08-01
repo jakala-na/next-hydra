@@ -293,6 +293,67 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
+  it.effect(
+    "reconciles a concurrent Business Unit Store update before retrying",
+    () =>
+      Effect.gen(function* () {
+        mocks.customerWithKeyGetExecute.mockResolvedValueOnce({
+          body: { id: "customer-1" },
+        });
+        mocks.businessUnitWithKeyGetExecute.mockResolvedValueOnce({
+          body: {
+            id: "business-unit-1",
+            version: 3,
+            stores: [{ typeId: "store", key: "default-store" }],
+          },
+        });
+        mocks.businessUnitPostExecute.mockRejectedValueOnce({
+          statusCode: 409,
+          body: {
+            errors: [
+              {
+                code: "ConcurrentModification",
+                currentVersion: 4,
+              },
+            ],
+          },
+        });
+        mocks.businessUnitGetExecute.mockResolvedValueOnce({
+          body: {
+            id: "business-unit-1",
+            version: 4,
+            stores: [{ typeId: "store", key: "de-fr-uk" }],
+          },
+        });
+
+        const commerceAccounts = yield* CommerceAccounts;
+        yield* commerceAccounts.createFromRegistration({
+          _tag: "AwaitingApprovalRegistration",
+          id: "registration-1",
+          storeKey: StoreKey.make("de-fr-uk"),
+          details: {
+            companyName: "Hydra Supply",
+            contactFirstName: Redacted.make("Ada", { label: "personName" }),
+            contactLastName: Redacted.make("Lovelace", {
+              label: "personName",
+            }),
+            email: Redacted.make("ada@example.com", { label: "email" }),
+            address: {
+              streetName: Redacted.make("Main Street", {
+                label: "addressLine",
+              }),
+              postalCode: Redacted.make("10001", { label: "postalCode" }),
+              city: Redacted.make("New York", { label: "city" }),
+              country: "US",
+            },
+          },
+        });
+
+        expect(mocks.businessUnitPost).toHaveBeenCalledTimes(1);
+        expect(mocks.businessUnitGet).toHaveBeenCalledTimes(1);
+      }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
   it.effect("reads the current customer profile by verified customer id", () =>
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
@@ -467,6 +528,137 @@ describe("layerCommercetoolsCommerceAccounts", () => {
           ],
         },
       });
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect(
+    "rebuilds Customer identity changes after a concurrent update",
+    () =>
+      Effect.gen(function* () {
+        mocks.customerGetExecute
+          .mockResolvedValueOnce({
+            body: {
+              id: "customer-1",
+              version: 7,
+              email: "ada@example.com",
+              firstName: "Ada",
+              lastName: "Lovelace",
+            },
+          })
+          .mockResolvedValueOnce({
+            body: {
+              id: "customer-1",
+              version: 8,
+              externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+              email: "ada@example.com",
+              firstName: "Ada",
+              lastName: "Lovelace",
+            },
+          });
+        mocks.customerPostExecute.mockRejectedValueOnce({
+          statusCode: 409,
+          body: {
+            errors: [
+              {
+                code: "ConcurrentModification",
+                currentVersion: 8,
+              },
+            ],
+          },
+        });
+        mocks.businessUnitGetExecute.mockResolvedValueOnce({
+          body: {
+            id: "business-unit-1",
+            version: 3,
+            associates: [
+              {
+                customer: { typeId: "customer", id: "customer-1" },
+                associateRoleAssignments: [
+                  {
+                    associateRole: {
+                      typeId: "associate-role",
+                      key: "owner",
+                    },
+                    inheritance: "Enabled",
+                  },
+                ],
+              },
+            ],
+          },
+        });
+
+        const commerceAccounts = yield* CommerceAccounts;
+        yield* commerceAccounts.linkRegistrantIdentity({
+          registration,
+          acceptedIdentity,
+        });
+
+        expect(mocks.customerPost).toHaveBeenCalledTimes(1);
+        expect(mocks.customerGet).toHaveBeenCalledTimes(2);
+        expect(mocks.businessUnitPost).not.toHaveBeenCalled();
+      }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect("reconciles a concurrently added Business Unit associate", () =>
+    Effect.gen(function* () {
+      mocks.customerGetExecute.mockResolvedValueOnce({
+        body: {
+          id: "customer-1",
+          version: 8,
+          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+          email: "ada@example.com",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+      });
+      mocks.businessUnitGetExecute
+        .mockResolvedValueOnce({
+          body: {
+            id: "business-unit-1",
+            version: 3,
+            associates: [],
+          },
+        })
+        .mockResolvedValueOnce({
+          body: {
+            id: "business-unit-1",
+            version: 4,
+            associates: [
+              {
+                customer: { typeId: "customer", id: "customer-1" },
+                associateRoleAssignments: [
+                  {
+                    associateRole: {
+                      typeId: "associate-role",
+                      key: "owner",
+                    },
+                    inheritance: "Enabled",
+                  },
+                ],
+              },
+            ],
+          },
+        });
+      mocks.businessUnitPostExecute.mockRejectedValueOnce({
+        statusCode: 409,
+        body: {
+          errors: [
+            {
+              code: "ConcurrentModification",
+              currentVersion: 4,
+            },
+          ],
+        },
+      });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      yield* commerceAccounts.linkRegistrantIdentity({
+        registration,
+        acceptedIdentity,
+      });
+
+      expect(mocks.businessUnitPost).toHaveBeenCalledTimes(1);
+      expect(mocks.businessUnitGet).toHaveBeenCalledTimes(2);
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 

@@ -241,7 +241,12 @@
         }
       },
       "errors": {
+        "addressBook": {
+          "accessDenied": "La rubrica non è disponibile per questo checkout.",
+          "providerFailure": "Impossibile caricare gli indirizzi salvati. Riprova."
+        },
         "badRequest": "La richiesta di checkout non è valida.",
+        "cartMismatch": "Questo checkout non è più aggiornato. Aggiorna la pagina e riprova.",
         "internal": "Impossibile completare il checkout. Riprova.",
         "contact": {
           "invalidInput": "Inserisci e-mail, nome e cognome.",
@@ -250,6 +255,7 @@
           "unsupported": "Questa origine del contatto non è ancora supportata."
         },
         "deliveryDetails": {
+          "addressBookEntryUnavailable": "Questo indirizzo salvato non è più disponibile.",
           "invalidInput": "Inserisci indirizzo, codice postale, città e paese.",
           "sourceUnavailable": "Questa origine di consegna non è disponibile per questo checkout.",
           "providerFailure": "Impossibile salvare i dettagli di consegna. Riprova.",

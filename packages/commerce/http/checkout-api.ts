@@ -6,11 +6,12 @@ import {
   HttpApiMiddleware,
   OpenApi,
 } from "effect/unstable/httpapi";
+import { AddressBookEntry, AddressBookReference } from "../domain/address-book";
 import { CartId } from "../domain/cart";
 import {
-  CartOnlyCheckoutDeliveryDetailsInput,
   CheckoutCartReference,
   CheckoutContactInput,
+  CheckoutDeliveryDetailsInput,
   CheckoutLocale,
   type CheckoutScope,
   CheckoutState,
@@ -29,11 +30,21 @@ export const CheckoutApiState = Schema.Struct({
 });
 export type CheckoutApiState = typeof CheckoutApiState.Type;
 
+export const CheckoutApiErrorParameters = Schema.Struct({
+  addressBookReference: Schema.optional(AddressBookReference),
+});
+export type CheckoutApiErrorParameters = typeof CheckoutApiErrorParameters.Type;
+
 export class CheckoutApiError extends Schema.TaggedErrorClass<CheckoutApiError>()(
   "CheckoutApiError",
   {
-    code: Schema.Literal("checkout.internal"),
+    code: Schema.Literals([
+      "checkout.addressBook.providerFailure",
+      "checkout.internal",
+      "checkout.deliveryDetails.providerFailure",
+    ]),
     message: Schema.String,
+    parameters: Schema.optional(CheckoutApiErrorParameters),
   },
   { httpApiStatus: 500 }
 ) {}
@@ -50,8 +61,15 @@ export class CheckoutApiNotFound extends Schema.TaggedErrorClass<CheckoutApiNotF
 export class CheckoutApiBadRequest extends Schema.TaggedErrorClass<CheckoutApiBadRequest>()(
   "CheckoutApiBadRequest",
   {
-    code: Schema.Literal("checkout.badRequest"),
+    code: Schema.Literals([
+      "checkout.addressBook.accessDenied",
+      "checkout.badRequest",
+      "checkout.deliveryDetails.invalidInput",
+      "checkout.deliveryDetails.sourceUnavailable",
+      "checkout.deliveryDetails.addressBookEntryUnavailable",
+    ]),
     message: Schema.String,
+    parameters: Schema.optional(CheckoutApiErrorParameters),
   },
   { httpApiStatus: 400 }
 ) {}
@@ -59,8 +77,12 @@ export class CheckoutApiBadRequest extends Schema.TaggedErrorClass<CheckoutApiBa
 export class CheckoutApiConflict extends Schema.TaggedErrorClass<CheckoutApiConflict>()(
   "CheckoutApiConflict",
   {
-    code: Schema.Literal("checkout.versionConflict"),
+    code: Schema.Literals([
+      "checkout.cartMismatch",
+      "checkout.versionConflict",
+    ]),
     message: Schema.String,
+    parameters: Schema.optional(CheckoutApiErrorParameters),
   },
   { httpApiStatus: 409 }
 ) {}
@@ -83,7 +105,7 @@ export class SaveCheckoutDeliveryDetailsRequest extends Schema.Class<SaveCheckou
   "SaveCheckoutDeliveryDetailsRequest"
 )({
   cart: CheckoutCartReference,
-  deliveryDetails: CartOnlyCheckoutDeliveryDetailsInput,
+  deliveryDetails: CheckoutDeliveryDetailsInput,
 }) {}
 
 const CheckoutApiErrors = [
@@ -119,6 +141,13 @@ export class CheckoutScopeMiddleware extends HttpApiMiddleware.Service<
 
 export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
   .add(
+    HttpApiEndpoint.get("addressBook", "/address-book", {
+      headers: CheckoutRequestHeaders,
+      success: Schema.Array(AddressBookEntry),
+      error: CheckoutApiErrors,
+    })
+  )
+  .add(
     HttpApiEndpoint.get("current", "/checkout/current", {
       headers: CheckoutRequestHeaders,
       success: CheckoutApiState,
@@ -146,7 +175,7 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
   .annotateMerge(
     OpenApi.annotations({
       title: "Checkout",
-      description: "Checkout state read endpoints",
+      description: "Checkout and Business Unit Address Book endpoints",
     })
   ) {}
 

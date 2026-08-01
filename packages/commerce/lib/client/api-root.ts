@@ -12,8 +12,6 @@ import {
   type HttpMiddlewareOptions,
 } from "@commercetools/ts-client";
 import { keys } from "@repo/commerce/keys";
-import { log } from "@repo/observability/log";
-import { createGraphqlConcurrentModificationMiddleware } from "./graphql-concurrent-modification-middleware";
 
 // --- Configuration from Environment Variables ---
 const projectKey = keys().COMMERCETOOLS_PROJECT_KEY;
@@ -21,6 +19,8 @@ const clientId = keys().COMMERCETOOLS_CLIENT_ID;
 const clientSecret = keys().COMMERCETOOLS_CLIENT_SECRET;
 const authHost = `https://auth.${keys().COMMERCETOOLS_REGION}.commercetools.com`;
 const apiHost = `https://api.${keys().COMMERCETOOLS_REGION}.commercetools.com`;
+const INTERNAL_SERVER_ERROR_STATUS_CODE = 500;
+const SERVICE_UNAVAILABLE_STATUS_CODE = 503;
 
 // Define the necessary OAuth 2.0 scopes for GraphQL queries.
 const scopes = keys().COMMERCETOOLS_SCOPE.split(" ");
@@ -47,7 +47,10 @@ const httpMiddlewareOptions: HttpMiddlewareOptions = {
     maxRetries: 3,
     retryDelay: 200,
     backoff: false,
-    retryCodes: [500, 503],
+    retryCodes: [
+      INTERNAL_SERVER_ERROR_STATUS_CODE,
+      SERVICE_UNAVAILABLE_STATUS_CODE,
+    ],
   },
 };
 
@@ -56,40 +59,10 @@ const ctpClient = new ClientBuilder()
   .withProjectKey(projectKey)
   .withClientCredentialsFlow(authMiddlewareOptions)
   .withHttpMiddleware(httpMiddlewareOptions)
-  .withConcurrentModificationMiddleware({
-    concurrentModificationHandlerFn: (version, request) => {
-      log.info(
-        `REST concurrent modification error, retry with version ${version}`
-      );
-
-      // biome-ignore lint/suspicious/noExplicitAny: request body can be various types
-      const body = request.body as Record<string, any>;
-      body.version = version;
-
-      return Promise.resolve(body);
-    },
-  })
-  .withMiddleware(createGraphqlConcurrentModificationMiddleware())
   // .withLoggerMiddleware() // TODO: Uncomment this when we have a logger
-  .build();
-
-const ctpClientWithoutConcurrentModificationRetry = new ClientBuilder()
-  .withProjectKey(projectKey)
-  .withClientCredentialsFlow(authMiddlewareOptions)
-  .withHttpMiddleware(httpMiddlewareOptions)
   .build();
 
 // --- Create the API Root ---
 export const apiRoot = createApiBuilderFromCtpClient(ctpClient).withProjectKey({
   projectKey,
 });
-
-// Temporary escape hatch for state-machine writes where a concurrent modification
-// is a meaningful conflict, not a retryable transport detail. Revisit the shared
-// apiRoot retry policy later and prefer explicit per-action retry composition.
-export const apiRootWithoutConcurrentModificationRetry =
-  createApiBuilderFromCtpClient(
-    ctpClientWithoutConcurrentModificationRetry
-  ).withProjectKey({
-    projectKey,
-  });

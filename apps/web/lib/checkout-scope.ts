@@ -2,10 +2,7 @@ import "server-only";
 
 import { withAuth } from "@repo/auth-workos/server";
 import { CartId, StoreKey } from "@repo/commerce/domain/cart";
-import {
-  CheckoutLocale,
-  type CheckoutScope,
-} from "@repo/commerce/domain/checkout";
+import { CheckoutLocale } from "@repo/commerce/domain/checkout";
 import {
   AnonymousCommercePrincipal,
   AuthUserId,
@@ -35,8 +32,8 @@ export class WebCheckoutContextResolutionFailure extends Schema.TaggedErrorClass
 const contextResolutionFailure = (message: string, cause: unknown) =>
   new WebCheckoutContextResolutionFailure({ message, cause });
 
-const resolveCustomerScope = Effect.fn(
-  "WebCheckoutContext.resolveCustomerScope"
+const resolveCustomerContext = Effect.fn(
+  "WebCheckoutContext.resolveCustomerContext"
 )(function* (locale: Locale, authUserId: string) {
   const verifiedAuthUserId = yield* Schema.decodeUnknownEffect(AuthUserId)(
     authUserId
@@ -82,21 +79,19 @@ const resolveCustomerScope = Effect.fn(
       })
     );
 
-  return toCheckoutScope(
-    new CommerceRequestContext({
-      locale: CheckoutLocale.make(locale),
-      principal: new CustomerCommercePrincipal({
-        authUserId: verifiedAuthUserId,
-        customerId,
-        businessUnitId: businessUnitContext.businessUnitId,
-        businessUnitKey: businessUnitContext.businessUnitKey,
-      }),
-    })
-  );
+  return new CommerceRequestContext({
+    locale: CheckoutLocale.make(locale),
+    principal: new CustomerCommercePrincipal({
+      authUserId: verifiedAuthUserId,
+      customerId,
+      businessUnitId: businessUnitContext.businessUnitId,
+      businessUnitKey: businessUnitContext.businessUnitKey,
+    }),
+  });
 });
 
-const resolveAnonymousScope = Effect.fn(
-  "WebCheckoutContext.resolveAnonymousScope"
+const resolveAnonymousContext = Effect.fn(
+  "WebCheckoutContext.resolveAnonymousContext"
 )(function* (locale: Locale) {
   const storeContext = yield* Effect.tryPromise({
     try: () => storeService.getStoreContextByLocale(locale),
@@ -116,22 +111,20 @@ const resolveAnonymousScope = Effect.fn(
     });
   }
 
-  return toCheckoutScope(
-    new CommerceRequestContext({
-      locale: CheckoutLocale.make(locale),
-      principal: new AnonymousCommercePrincipal({
-        anonymousCartId: CartId.make(anonymousCartId),
-      }),
-    })
-  );
+  return new CommerceRequestContext({
+    locale: CheckoutLocale.make(locale),
+    principal: new AnonymousCommercePrincipal({
+      anonymousCartId: CartId.make(anonymousCartId),
+    }),
+  });
 });
 
-export const resolveCheckoutScope = Effect.fn(
-  "WebCheckoutContext.resolveCheckoutScope"
+export const resolveCheckoutContext = Effect.fn(
+  "WebCheckoutContext.resolveCheckoutContext"
 )(function* (
   locale: Locale
 ): Effect.fn.Return<
-  CheckoutScope,
+  CommerceRequestContext,
   | CommerceAccountError
   | CommerceRequestContextNotFound
   | WebCheckoutContextResolutionFailure,
@@ -147,8 +140,14 @@ export const resolveCheckoutScope = Effect.fn(
   });
 
   if (session.user) {
-    return yield* resolveCustomerScope(locale, session.user.id);
+    return yield* resolveCustomerContext(locale, session.user.id);
   }
 
-  return yield* resolveAnonymousScope(locale);
+  return yield* resolveAnonymousContext(locale);
+});
+
+export const resolveCheckoutScope = Effect.fn(
+  "WebCheckoutContext.resolveCheckoutScope"
+)(function* (locale: Locale) {
+  return toCheckoutScope(yield* resolveCheckoutContext(locale));
 });

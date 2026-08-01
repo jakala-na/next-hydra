@@ -241,7 +241,12 @@
         }
       },
       "errors": {
+        "addressBook": {
+          "accessDenied": "La libreta de direcciones no está disponible para este proceso de compra.",
+          "providerFailure": "No se pudieron cargar las direcciones guardadas. Inténtalo de nuevo."
+        },
         "badRequest": "La solicitud del proceso de compra no es válida.",
+        "cartMismatch": "Este proceso de compra ya no está actualizado. Actualiza la página e inténtalo de nuevo.",
         "internal": "No se pudo completar el proceso de compra. Inténtalo de nuevo.",
         "contact": {
           "invalidInput": "Introduce un correo electrónico, un nombre y unos apellidos.",
@@ -250,6 +255,7 @@
           "unsupported": "Esta fuente de contacto aún no es compatible."
         },
         "deliveryDetails": {
+          "addressBookEntryUnavailable": "Esta dirección guardada ya no está disponible.",
           "invalidInput": "Introduce la dirección, el código postal, la ciudad y el país.",
           "sourceUnavailable": "Esta fuente de entrega no está disponible para este proceso de compra.",
           "providerFailure": "No se pudieron guardar los datos de entrega. Inténtalo de nuevo.",

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Exit, Redacted, Schema } from "effect";
+import { Effect, Exit, Layer, Redacted, Schema } from "effect";
+import {
+  AddressBookAccessDenied,
+  AddressBookProviderFailure,
+  AddressBookReference,
+  SaveAddressBookEntryInput,
+} from "../../domain/address-book";
 import {
   AnonymousId,
   CartId,
@@ -9,19 +15,19 @@ import {
   VariantId,
 } from "../../domain/cart";
 import {
+  CheckoutCartMismatch,
   CheckoutDeliveryDetailsInput,
   type CheckoutDetails,
   CheckoutLocale,
+  CheckoutMutationAddressBookEntryUnavailable,
   CheckoutMutationProviderFailure,
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutState,
   CheckoutUnavailable,
-  CheckoutVersionConflict,
   CountryCode,
   CountryCodeFromString,
   StorefrontAnonymousCheckoutScope,
-  StorefrontCustomerCheckoutScope,
 } from "../../domain/checkout";
 import {
   CommerceBusinessUnitId,
@@ -29,7 +35,15 @@ import {
   CommerceCustomerId,
   CommerceCustomerProfile,
 } from "../../domain/commerce-account";
+import {
+  AnonymousCommercePrincipal,
+  AuthUserId,
+  CommerceRequestContext,
+  CustomerCommercePrincipal,
+} from "../../domain/commerce-request-context";
+import { AddressBook } from "../../services/address-book";
 import { CheckoutSession } from "./checkout-session";
+import { toCheckoutScope } from "./request-context";
 
 const money = {
   centAmount: 2500,
@@ -86,11 +100,14 @@ const cart = ({
   };
 };
 
-const scope = new StorefrontAnonymousCheckoutScope({
-  channel: "storefrontAnonymous",
-  locale: CheckoutLocale.make("en-US"),
+const anonymousPrincipal = new AnonymousCommercePrincipal({
   anonymousCartId: CartId.make("cart-1"),
 });
+const anonymousContext = new CommerceRequestContext({
+  locale: CheckoutLocale.make("en-US"),
+  principal: anonymousPrincipal,
+});
+const scope = toCheckoutScope(anonymousContext);
 
 const layerWith = (
   input: {
@@ -115,6 +132,7 @@ const layerWith = (
     readonly saveDeliveryDetailsFailure?: Parameters<
       typeof CheckoutSession.layerMemoryFrom
     >[0]["saveDeliveryDetailsFailure"];
+    readonly addressBookLayer?: Layer.Layer<AddressBook>;
   } = {}
 ) => {
   const {
@@ -126,10 +144,13 @@ const layerWith = (
     customerProfiles = [],
     allowedContactSources,
     saveDeliveryDetailsFailure,
+    addressBookLayer: suppliedAddressBookLayer,
   } = input;
   const currentCart = "currentCart" in input ? input.currentCart : cart();
 
-  return CheckoutSession.layerMemoryFrom({
+  const addressBookLayer =
+    suppliedAddressBookLayer ?? AddressBook.layerMemory();
+  const checkoutLayer = CheckoutSession.layerMemoryFrom({
     ...(currentCart === undefined ? {} : { currentCart }),
     details,
     cartPolicyViolations,
@@ -144,7 +165,9 @@ const layerWith = (
       (manualContactAllowed
         ? ["manual", "customerProfile"]
         : ["customerProfile"]),
-  });
+  }).pipe(Layer.provide(addressBookLayer));
+
+  return Layer.merge(checkoutLayer, addressBookLayer);
 };
 
 const manualContact = {
@@ -159,13 +182,17 @@ const manualContact = {
 
 const customerId = CommerceCustomerId.make("customer-1");
 const businessUnitId = CommerceBusinessUnitId.make("business-unit-1");
-const customerScope = new StorefrontCustomerCheckoutScope({
-  channel: "storefrontCustomer",
-  locale: CheckoutLocale.make("en-US"),
+const customerPrincipal = new CustomerCommercePrincipal({
+  authUserId: AuthUserId.make("auth-user-1"),
   customerId,
   businessUnitId,
   businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
 });
+const customerContext = new CommerceRequestContext({
+  locale: CheckoutLocale.make("en-US"),
+  principal: customerPrincipal,
+});
+const customerScope = toCheckoutScope(customerContext);
 const completeCustomerProfile = new CommerceCustomerProfile({
   customerId,
   email: Redacted.make("ada@example.com", { label: "email" }),
@@ -192,6 +219,8 @@ const manualDeliveryDetails = {
   source: "manual",
   shippingAddress,
 } as const;
+
+const updatedCartVersion = cart().version + 1;
 
 describe("CheckoutDeliveryDetailsInput", () => {
   it.effect("decodes every user-selectable Delivery Details input", () =>
@@ -313,7 +342,7 @@ describe("CheckoutSession.getCurrent", () => {
             locale: CheckoutLocale.make("en-US"),
           })
         ).pipe(
-          Effect.provide(CheckoutSession.layerMemoryFrom({})),
+          Effect.provide(layerWith({ currentCart: undefined })),
           Effect.flip
         );
 
@@ -620,17 +649,32 @@ describe("CheckoutSession.saveContact", () => {
       }).pipe(Effect.provide(layerWith({ manualContactAllowed: false })))
   );
 
-  it.effect("reports a version conflict for stale Cart references", () =>
+  it.effect("saves Contact against the current Cart version", () =>
     Effect.gen(function* () {
-      const error = yield* CheckoutSession.saveContact({
+      yield* CheckoutSession.saveContact({
         scope,
         cart: { id: CartId.make("cart-1"), version: 6 },
         contact: manualContact,
+      });
+      const state = yield* CheckoutSession.getCurrent(scope);
+
+      expect(state.details.contact).toEqual(manualContact);
+      expect(state.cart.version).toBe(updatedCartVersion);
+    }).pipe(Effect.provide(layerWith()))
+  );
+
+  it.effect("rejects details submitted for a different Cart", () =>
+    Effect.gen(function* () {
+      const error = yield* CheckoutSession.saveContact({
+        scope,
+        cart: { id: CartId.make("cart-other"), version: 7 },
+        contact: manualContact,
       }).pipe(Effect.flip);
 
-      expect(error).toBeInstanceOf(CheckoutVersionConflict);
-      if (error._tag === "CheckoutVersionConflict") {
-        expect(error.cartId).toBe("cart-1");
+      expect(error).toBeInstanceOf(CheckoutCartMismatch);
+      if (error._tag === "CheckoutCartMismatch") {
+        expect(error.submittedCartId).toBe("cart-other");
+        expect(error.currentCartId).toBe("cart-1");
       }
     }).pipe(Effect.provide(layerWith()))
   );
@@ -661,7 +705,7 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
     () =>
       Effect.gen(function* () {
         yield* CheckoutSession.saveDeliveryDetails({
-          scope,
+          context: anonymousContext,
           cart: { id: CartId.make("cart-1"), version: 7 },
           deliveryDetails: cartOnlyDeliveryDetailsInput,
         });
@@ -684,14 +728,14 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
     () =>
       Effect.gen(function* () {
         yield* CheckoutSession.saveDeliveryDetails({
-          scope,
+          context: anonymousContext,
           cart: { id: CartId.make("cart-1"), version: 7 },
           deliveryDetails: cartOnlyDeliveryDetailsInput,
         });
         const firstState = yield* CheckoutSession.getCurrent(scope);
 
         yield* CheckoutSession.saveDeliveryDetails({
-          scope,
+          context: anonymousContext,
           cart: {
             id: firstState.cart.id,
             version: firstState.cart.version,
@@ -709,10 +753,306 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
       )
   );
 
+  it.effect(
+    "saves a new Shipping Address to the Business Unit Address Book before using it",
+    () =>
+      Effect.gen(function* () {
+        yield* CheckoutSession.saveDeliveryDetails({
+          context: customerContext,
+          cart: { id: CartId.make("cart-1"), version: 7 },
+          deliveryDetails: {
+            type: "manual",
+            shippingAddress,
+            saveToAddressBook: true,
+            makeDefaultShipping: true,
+          },
+        });
+
+        const state = yield* CheckoutSession.getCurrent(customerScope);
+        const entries = yield* AddressBook.pipe(
+          Effect.flatMap((addressBook) => addressBook.list(customerPrincipal))
+        );
+
+        expect(state.details.deliveryDetails).toMatchObject({
+          source: "addressBook",
+          shippingAddress,
+        });
+        expect(entries).toHaveLength(1);
+        expect(entries[0]).toMatchObject({
+          reference:
+            state.details.deliveryDetails?.source === "addressBook"
+              ? state.details.deliveryDetails.addressBookReference
+              : undefined,
+          address: shippingAddress,
+          types: ["shipping"],
+          defaultShipping: true,
+          defaultBilling: false,
+        });
+      }).pipe(
+        Effect.provide(layerWith({ details: detailsWithCompleteContact }))
+      )
+  );
+
+  it.effect(
+    "uses the canonical Shipping Address from an existing Address Book Entry",
+    () =>
+      Effect.gen(function* () {
+        const addressBook = yield* AddressBook;
+        const reference = AddressBookReference.make("london-office");
+        const canonicalAddress = {
+          ...shippingAddress,
+          addressLine1: "10 Canonical Way",
+        };
+        yield* addressBook.save(
+          customerPrincipal,
+          new SaveAddressBookEntryInput({
+            reference,
+            address: canonicalAddress,
+            types: ["shipping"],
+            defaultShipping: false,
+            defaultBilling: false,
+          })
+        );
+
+        yield* CheckoutSession.saveDeliveryDetails({
+          context: customerContext,
+          cart: { id: CartId.make("cart-1"), version: 7 },
+          deliveryDetails: {
+            type: "addressBook",
+            addressBookReference: reference,
+          },
+        });
+
+        const state = yield* CheckoutSession.getCurrent(customerScope);
+        expect(state.details.deliveryDetails).toEqual({
+          source: "addressBook",
+          addressBookReference: reference,
+          shippingAddress: canonicalAddress,
+        });
+      }).pipe(
+        Effect.provide(layerWith({ details: detailsWithCompleteContact }))
+      )
+  );
+
+  it.effect(
+    "rejects missing and Billing-only Address Book Entries before changing the Cart",
+    () =>
+      Effect.gen(function* () {
+        const addressBook = yield* AddressBook;
+        const billingReference = AddressBookReference.make("billing-office");
+        yield* addressBook.save(
+          customerPrincipal,
+          new SaveAddressBookEntryInput({
+            reference: billingReference,
+            address: shippingAddress,
+            types: ["billing"],
+            defaultShipping: false,
+            defaultBilling: true,
+          })
+        );
+
+        const references = [
+          AddressBookReference.make("missing-office"),
+          billingReference,
+        ];
+        const errors = yield* Effect.forEach(references, (reference) =>
+          CheckoutSession.saveDeliveryDetails({
+            context: customerContext,
+            cart: { id: CartId.make("cart-1"), version: 7 },
+            deliveryDetails: {
+              type: "addressBook",
+              addressBookReference: reference,
+            },
+          }).pipe(Effect.flip)
+        );
+        const state = yield* CheckoutSession.getCurrent(customerScope);
+
+        expect(
+          errors.every(
+            (error) =>
+              error instanceof CheckoutMutationAddressBookEntryUnavailable
+          )
+        ).toBe(true);
+        expect(state.cart.version).toBe(cart().version);
+        expect(state.details.deliveryDetails).toBeUndefined();
+      }).pipe(Effect.provide(layerWith()))
+  );
+
+  it.effect("rejects Address Book intents for anonymous Checkout", () =>
+    Effect.gen(function* () {
+      const errors = yield* Effect.forEach(
+        [
+          {
+            type: "manual" as const,
+            shippingAddress,
+            saveToAddressBook: true as const,
+            makeDefaultShipping: false,
+          },
+          {
+            type: "addressBook" as const,
+            addressBookReference: AddressBookReference.make("office"),
+          },
+        ],
+        (deliveryDetails) =>
+          CheckoutSession.saveDeliveryDetails({
+            context: anonymousContext,
+            cart: { id: CartId.make("cart-1"), version: 7 },
+            deliveryDetails,
+          }).pipe(Effect.flip)
+      );
+
+      expect(errors).toMatchObject([
+        {
+          _tag: "CheckoutMutationSourceUnavailable",
+          source: "addressBook",
+        },
+        {
+          _tag: "CheckoutMutationSourceUnavailable",
+          source: "addressBook",
+        },
+      ]);
+    }).pipe(Effect.provide(layerWith()))
+  );
+
+  it.effect(
+    "maps Address Book access denial to an unavailable Delivery Details source",
+    () => {
+      const deniedLayer = Layer.succeed(
+        AddressBook,
+        AddressBook.of({
+          list: () => Effect.die("not used"),
+          get: () =>
+            Effect.fail(
+              new AddressBookAccessDenied({
+                message: "Buyer cannot access the Address Book",
+                operation: "get",
+              })
+            ),
+          save: () => Effect.die("not used"),
+        })
+      );
+
+      return Effect.gen(function* () {
+        const error = yield* CheckoutSession.saveDeliveryDetails({
+          context: customerContext,
+          cart: { id: CartId.make("cart-1"), version: 7 },
+          deliveryDetails: {
+            type: "addressBook",
+            addressBookReference: AddressBookReference.make("office"),
+          },
+        }).pipe(Effect.flip);
+
+        expect(error).toMatchObject({
+          _tag: "CheckoutMutationSourceUnavailable",
+          source: "addressBook",
+        });
+      }).pipe(Effect.provide(layerWith({ addressBookLayer: deniedLayer })));
+    }
+  );
+
+  it.effect(
+    "maps Address Book provider failures with operation context",
+    () => {
+      const failingLayer = Layer.succeed(
+        AddressBook,
+        AddressBook.of({
+          list: () => Effect.die("not used"),
+          get: () => Effect.die("not used"),
+          save: () =>
+            Effect.fail(
+              new AddressBookProviderFailure({
+                message: "Business Unit update failed",
+                operation: "save",
+              })
+            ),
+        })
+      );
+
+      return Effect.gen(function* () {
+        const error = yield* CheckoutSession.saveDeliveryDetails({
+          context: customerContext,
+          cart: { id: CartId.make("cart-1"), version: 7 },
+          deliveryDetails: {
+            type: "manual",
+            shippingAddress,
+            saveToAddressBook: true,
+            makeDefaultShipping: false,
+          },
+        }).pipe(Effect.flip);
+
+        expect(error).toMatchObject({
+          _tag: "CheckoutMutationProviderFailure",
+          operation: "checkout.deliveryDetails.addressBook.save",
+        });
+      }).pipe(Effect.provide(layerWith({ addressBookLayer: failingLayer })));
+    }
+  );
+
+  it.effect("returns the saved reference when the Cart phase fails", () =>
+    Effect.gen(function* () {
+      const error = yield* CheckoutSession.saveDeliveryDetails({
+        context: customerContext,
+        cart: { id: CartId.make("cart-1"), version: 7 },
+        deliveryDetails: {
+          type: "manual",
+          shippingAddress,
+          saveToAddressBook: true,
+          makeDefaultShipping: false,
+        },
+      }).pipe(Effect.flip);
+      const entries = yield* AddressBook.pipe(
+        Effect.flatMap((addressBook) => addressBook.list(customerPrincipal))
+      );
+
+      expect(error).toMatchObject({
+        _tag: "CheckoutMutationProviderFailure",
+        addressBookReference: entries[0]?.reference,
+      });
+      expect(entries).toHaveLength(1);
+    }).pipe(
+      Effect.provide(
+        layerWith({
+          saveDeliveryDetailsFailure: new CheckoutMutationProviderFailure({
+            message: "Commercetools update failed",
+            operation: "checkout.deliveryDetails.save",
+          }),
+        })
+      )
+    )
+  );
+
+  it.effect(
+    "saves a Business Unit address against the current Cart version",
+    () =>
+      Effect.gen(function* () {
+        yield* CheckoutSession.saveDeliveryDetails({
+          context: customerContext,
+          cart: { id: CartId.make("cart-1"), version: 6 },
+          deliveryDetails: {
+            type: "manual",
+            shippingAddress,
+            saveToAddressBook: true,
+            makeDefaultShipping: false,
+          },
+        });
+        const state = yield* CheckoutSession.getCurrent(customerScope);
+        const entries = yield* AddressBook.pipe(
+          Effect.flatMap((addressBook) => addressBook.list(customerPrincipal))
+        );
+
+        expect(entries).toHaveLength(1);
+        expect(state.details.deliveryDetails).toMatchObject({
+          source: "addressBook",
+          shippingAddress,
+        });
+        expect(state.cart.version).toBe(updatedCartVersion);
+      }).pipe(Effect.provide(layerWith()))
+  );
+
   it.effect("rejects invalid Manual Shipping Address input", () =>
     Effect.gen(function* () {
       const error = yield* CheckoutSession.saveDeliveryDetails({
-        scope,
+        context: anonymousContext,
         cart: { id: CartId.make("cart-1"), version: 7 },
         deliveryDetails: {
           ...cartOnlyDeliveryDetailsInput,
@@ -731,7 +1071,7 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
   it.effect("reports provider failures as Checkout Mutation Failures", () =>
     Effect.gen(function* () {
       const error = yield* CheckoutSession.saveDeliveryDetails({
-        scope,
+        context: anonymousContext,
         cart: { id: CartId.make("cart-1"), version: 7 },
         deliveryDetails: cartOnlyDeliveryDetailsInput,
       }).pipe(Effect.flip);
@@ -749,16 +1089,17 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
     )
   );
 
-  it.effect("reports a version conflict for stale Cart references", () =>
+  it.effect("saves Delivery Details against the current Cart version", () =>
     Effect.gen(function* () {
-      const error = yield* CheckoutSession.saveDeliveryDetails({
-        scope,
+      yield* CheckoutSession.saveDeliveryDetails({
+        context: anonymousContext,
         cart: { id: CartId.make("cart-1"), version: 6 },
         deliveryDetails: cartOnlyDeliveryDetailsInput,
-      }).pipe(Effect.flip);
+      });
+      const state = yield* CheckoutSession.getCurrent(scope);
 
-      expect(error).toBeInstanceOf(CheckoutVersionConflict);
-      expect(error.message).toContain("Delivery Details");
+      expect(state.details.deliveryDetails).toEqual(manualDeliveryDetails);
+      expect(state.cart.version).toBe(updatedCartVersion);
     }).pipe(Effect.provide(layerWith()))
   );
 
@@ -767,7 +1108,7 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
     () =>
       Effect.gen(function* () {
         yield* CheckoutSession.saveDeliveryDetails({
-          scope,
+          context: anonymousContext,
           cart: { id: CartId.make("cart-1"), version: 7 },
           deliveryDetails: cartOnlyDeliveryDetailsInput,
         });

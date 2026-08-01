@@ -18,6 +18,7 @@ import type { Cart } from "../types";
 import { domainError } from "../utils/errors";
 import {
   getActiveCartForAssociateScope,
+  removeItemFromCart,
   saveCheckoutContact,
   saveCheckoutDeliveryDetails,
 } from "./cart.repo";
@@ -64,7 +65,7 @@ vi.mock("../client/graphql-client", () => ({
 }));
 
 vi.mock("../client/api-root", () => ({
-  apiRootWithoutConcurrentModificationRetry: {
+  apiRoot: {
     asAssociate: mocks.asAssociate,
   },
 }));
@@ -444,10 +445,164 @@ describe("B2B Checkout Cart updates", () => {
     expect(result).toEqual({ ok: true, data: undefined });
   });
 
-  it("keeps associate Cart version conflicts in the error channel", async () => {
+  it("retries an anonymous narrow Delivery action with the GraphQL provider version", async () => {
+    mocks.mutation
+      .mockResolvedValueOnce({
+        error: {
+          graphQLErrors: [
+            {
+              extensions: {
+                code: "ConcurrentModification",
+                currentVersion: 8,
+              },
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: { updateCart: { id: "cart-1" } },
+      });
+
+    const result = await saveCheckoutDeliveryDetails({
+      cart: checkoutCart,
+      deliveryDetails,
+      locale: "en-US",
+      scope: anonymousScope,
+    });
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    expect(mocks.mutation).toHaveBeenCalledTimes(2);
+    expect(mocks.mutation.mock.calls[1]?.[1]).toMatchObject({ version: 8 });
+  });
+
+  it("leaves anonymous setCustomType conflict resolution to Checkout orchestration", async () => {
+    mocks.mutation.mockResolvedValueOnce({
+      error: {
+        graphQLErrors: [
+          {
+            extensions: {
+              code: "ConcurrentModification",
+              currentVersion: 8,
+            },
+          },
+        ],
+      },
+    });
+
+    const result = await saveCheckoutContact({
+      cart: checkoutCart,
+      contact,
+      locale: "en-US",
+      scope: anonymousScope,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "CONFLICT" },
+    });
+    expect(mocks.mutation).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries anonymous line-item removal with the provider version", async () => {
+    const providerCurrentVersion = activeCart.version + 1;
+    mocks.mutation
+      .mockResolvedValueOnce({
+        error: {
+          graphQLErrors: [
+            {
+              extensions: {
+                code: "ConcurrentModification",
+                currentVersion: providerCurrentVersion,
+              },
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          updateCart: {
+            ...activeCart,
+            version: providerCurrentVersion,
+            lineItems: [],
+          },
+        },
+      });
+
+    const result = await removeItemFromCart({
+      id: activeCart.id,
+      version: activeCart.version,
+      lineItemId: "line-1",
+      locale: "en-US",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: { version: providerCurrentVersion, lineItems: [] },
+    });
+    expect(mocks.mutation).toHaveBeenCalledTimes(2);
+    expect(mocks.mutation.mock.calls[1]?.[1]).toMatchObject({
+      version: providerCurrentVersion,
+    });
+  });
+
+  it("retries the same narrow Delivery action with the provider current version", async () => {
+    const providerCurrentVersion = checkoutCart.version + 1;
     const conflict = Object.assign(new Error("Concurrent modification"), {
-      code: "ConcurrentModification",
       statusCode: 409,
+      body: {
+        errors: [
+          {
+            code: "ConcurrentModification",
+            currentVersion: providerCurrentVersion,
+          },
+        ],
+      },
+    });
+    mocks.associateCartPostExecute
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValueOnce({ body: { id: "cart-1" } });
+
+    const result = await saveCheckoutDeliveryDetails({
+      cart: checkoutCart,
+      deliveryDetails,
+      locale: "en-US",
+      scope: customerScope,
+    });
+    const expectedActions = [
+      {
+        action: "setShippingAddress",
+        address: {
+          additionalStreetInfo: "Suite 2",
+          city: "London",
+          country: "GB",
+          postalCode: "SW1A 1AA",
+          region: "Greater London",
+          streetName: "123 Analytical Engine Way",
+        },
+      },
+    ];
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    expect(mocks.associateCartPost).toHaveBeenCalledTimes(2);
+    expect(mocks.associateCartPost).toHaveBeenNthCalledWith(1, {
+      body: { actions: expectedActions, version: checkoutCart.version },
+    });
+    expect(mocks.associateCartPost).toHaveBeenNthCalledWith(2, {
+      body: { actions: expectedActions, version: providerCurrentVersion },
+    });
+  });
+
+  it("does not retry setCustomType after a Cart version conflict", async () => {
+    const conflict = Object.assign(new Error("Concurrent modification"), {
+      statusCode: 409,
+      body: {
+        errors: [
+          {
+            code: "ConcurrentModification",
+            currentVersion: checkoutCart.version + 1,
+          },
+        ],
+      },
     });
     mocks.associateCartPostExecute.mockRejectedValueOnce(conflict);
 
@@ -467,5 +622,53 @@ describe("B2B Checkout Cart updates", () => {
         conflict
       ),
     });
+    expect(mocks.associateCartPost).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an exhausted associate Cart version conflict in the error channel", async () => {
+    const providerCurrentVersion = checkoutCart.version + 1;
+    const initialConflict = Object.assign(
+      new Error("Concurrent modification"),
+      {
+        statusCode: 409,
+        body: {
+          errors: [
+            {
+              code: "ConcurrentModification",
+              currentVersion: providerCurrentVersion,
+            },
+          ],
+        },
+      }
+    );
+    const retryConflict = Object.assign(
+      new Error("Concurrent modification after retry"),
+      {
+        code: "ConcurrentModification",
+        statusCode: 409,
+        currentVersion: providerCurrentVersion + 1,
+      }
+    );
+    mocks.associateCartPostExecute
+      .mockRejectedValueOnce(initialConflict)
+      .mockRejectedValueOnce(retryConflict);
+
+    const result = await saveCheckoutDeliveryDetails({
+      cart: checkoutCart,
+      deliveryDetails,
+      locale: "en-US",
+      scope: customerScope,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: domainError(
+        "CONFLICT",
+        "Checkout Cart changed before Delivery Details could be saved",
+        undefined,
+        retryConflict
+      ),
+    });
+    expect(mocks.associateCartPost).toHaveBeenCalledTimes(2);
   });
 });

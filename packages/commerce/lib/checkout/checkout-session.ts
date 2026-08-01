@@ -1,15 +1,25 @@
-import { Context, Effect, Layer, Redacted } from "effect";
+import { Context, Effect, Layer, Random, Redacted } from "effect";
+import {
+  type AddressBookEntry,
+  type AddressBookGetError,
+  type AddressBookProviderFailure,
+  AddressBookReference,
+  SaveAddressBookEntryInput,
+} from "../../domain/address-book";
 import type { CartForCheckout } from "../../domain/cart";
 import {
   type BuyerContact,
-  type CartOnlyCheckoutDeliveryDetailsInput,
   type CheckoutBuyerContext,
+  CheckoutCartMismatch,
   type CheckoutCartReference,
   type CheckoutContact,
   type CheckoutContactInput,
+  type CheckoutContactMutationFailure,
   type CheckoutContactSource,
   type CheckoutDeliveryDetails,
+  type CheckoutDeliveryDetailsInput,
   type CheckoutDetails,
+  CheckoutMutationAddressBookEntryUnavailable,
   type CheckoutMutationFailure,
   CheckoutMutationProviderFailure,
   CheckoutMutationSchemaFailure,
@@ -21,6 +31,11 @@ import {
   CheckoutVersionConflict,
 } from "../../domain/checkout";
 import type { CommerceCustomerProfile } from "../../domain/commerce-account";
+import {
+  type CommerceRequestContext,
+  CustomerCommercePrincipal,
+} from "../../domain/commerce-request-context";
+import { AddressBook } from "../../services/address-book";
 import {
   CommerceAccounts,
   type CommerceCustomerProfileNotFound,
@@ -37,13 +52,18 @@ export interface SaveCheckoutContactInput {
 }
 
 export interface SaveCheckoutDeliveryDetailsInput {
-  readonly scope: CheckoutScope;
+  readonly context: CommerceRequestContext;
   readonly cart: CheckoutCartReference;
-  readonly deliveryDetails: CartOnlyCheckoutDeliveryDetailsInput;
+  readonly deliveryDetails: CheckoutDeliveryDetailsInput;
+}
+
+export interface SaveCheckoutDeliveryDetailsResult {
+  readonly addressBookReference?: AddressBookReference;
 }
 
 export interface CheckoutSessionMemoryInput {
   readonly currentCart?: CartForCheckout;
+  readonly getCurrentFailure?: CheckoutProviderFailure;
   readonly details?: CheckoutDetails;
   readonly buyerContext?: CheckoutBuyerContext;
   readonly allowedContactSources?: readonly CheckoutContactSource[];
@@ -55,7 +75,7 @@ export interface CheckoutSessionMemoryInput {
 }
 
 export type CheckoutSaveContactFailure =
-  | CheckoutMutationFailure
+  | CheckoutContactMutationFailure
   | CheckoutUnavailable;
 
 export type CheckoutSaveDeliveryDetailsFailure =
@@ -221,9 +241,9 @@ const requiredShippingAddressFieldError = (
     message: `Manual Shipping Address ${field} is required`,
   });
 
-export const normalizeNewAddressDeliveryDetails = (
-  deliveryDetails: CartOnlyCheckoutDeliveryDetailsInput
-): Effect.Effect<CheckoutDeliveryDetails, CheckoutMutationSchemaFailure> => {
+const normalizeShippingAddress = (
+  deliveryDetails: Extract<CheckoutDeliveryDetailsInput, { type: "manual" }>
+) => {
   const addressLine1 = deliveryDetails.shippingAddress.addressLine1.trim();
   const postalCode = deliveryDetails.shippingAddress.postalCode.trim();
   const city = deliveryDetails.shippingAddress.city.trim();
@@ -244,7 +264,7 @@ export const normalizeNewAddressDeliveryDetails = (
   }
 
   return Effect.succeed({
-    source: "manual",
+    ...deliveryDetails,
     shippingAddress: {
       addressLine1,
       postalCode,
@@ -258,19 +278,178 @@ export const normalizeNewAddressDeliveryDetails = (
   });
 };
 
-export const ensureCurrentCartReference = (
+export const normalizeCheckoutDeliveryDetailsInput = (
+  deliveryDetails: CheckoutDeliveryDetailsInput
+): Effect.Effect<
+  CheckoutDeliveryDetailsInput,
+  CheckoutMutationSchemaFailure
+> =>
+  deliveryDetails.type === "manual"
+    ? normalizeShippingAddress(deliveryDetails)
+    : Effect.succeed(deliveryDetails);
+
+type AddressBookService = Context.Service.Shape<typeof AddressBook>;
+
+export interface ResolvedCheckoutDeliveryDetails {
+  readonly deliveryDetails: CheckoutDeliveryDetails;
+  readonly savedAddressBookReference?: AddressBookReference;
+}
+
+const saveDeliveryDetailsResult = (
+  resolved: ResolvedCheckoutDeliveryDetails
+): SaveCheckoutDeliveryDetailsResult =>
+  resolved.deliveryDetails.source === "addressBook"
+    ? {
+        addressBookReference: resolved.deliveryDetails.addressBookReference,
+      }
+    : {};
+
+const addressBookSourceUnavailable = () =>
+  new CheckoutMutationSourceUnavailable({
+    message: "Address Book is unavailable for this checkout",
+    source: "addressBook",
+  });
+
+const addressBookEntryUnavailable = (
+  addressBookReference: AddressBookReference
+) =>
+  new CheckoutMutationAddressBookEntryUnavailable({
+    message: "Address Book entry is unavailable for Delivery Details",
+    addressBookReference,
+  });
+
+const addressBookProviderFailure = (error: AddressBookProviderFailure) =>
+  new CheckoutMutationProviderFailure({
+    message: error.message,
+    operation: `checkout.deliveryDetails.addressBook.${error.operation}`,
+    cause: error,
+  });
+
+const mapAddressBookGetError = (error: AddressBookGetError) => {
+  switch (error._tag) {
+    case "AddressBookEntryNotFound":
+      return addressBookEntryUnavailable(error.reference);
+    case "AddressBookAccessDenied":
+      return addressBookSourceUnavailable();
+    case "AddressBookProviderFailure":
+      return addressBookProviderFailure(error);
+    default:
+      error satisfies never;
+      return addressBookSourceUnavailable();
+  }
+};
+
+const shippingDeliveryDetailsFromEntry = (
+  entry: AddressBookEntry
+): Effect.Effect<
+  CheckoutDeliveryDetails,
+  CheckoutMutationAddressBookEntryUnavailable
+> =>
+  entry.types.includes("shipping")
+    ? Effect.succeed({
+        source: "addressBook",
+        addressBookReference: entry.reference,
+        shippingAddress: entry.address,
+      })
+    : Effect.fail(addressBookEntryUnavailable(entry.reference));
+
+const requireCustomerPrincipal = (context: CommerceRequestContext) =>
+  context.principal instanceof CustomerCommercePrincipal
+    ? Effect.succeed(context.principal)
+    : Effect.fail(addressBookSourceUnavailable());
+
+export const resolveCheckoutDeliveryDetails = Effect.fn(
+  "CheckoutSession.resolveCheckoutDeliveryDetails"
+)(function* (
+  context: CommerceRequestContext,
+  input: CheckoutDeliveryDetailsInput,
+  addressBook: AddressBookService
+): Effect.fn.Return<ResolvedCheckoutDeliveryDetails, CheckoutMutationFailure> {
+  if (input.type === "manual" && !input.saveToAddressBook) {
+    return {
+      deliveryDetails: {
+        source: "manual",
+        shippingAddress: input.shippingAddress,
+      },
+    };
+  }
+
+  const principal = yield* requireCustomerPrincipal(context);
+
+  if (input.type === "addressBook") {
+    const entry = yield* addressBook
+      .get(principal, input.addressBookReference)
+      .pipe(Effect.mapError(mapAddressBookGetError));
+
+    return {
+      deliveryDetails: yield* shippingDeliveryDetailsFromEntry(entry),
+    };
+  }
+
+  const reference = AddressBookReference.make(yield* Random.nextUUIDv4);
+  const entry = yield* addressBook
+    .save(
+      principal,
+      new SaveAddressBookEntryInput({
+        reference,
+        address: input.shippingAddress,
+        types: ["shipping"],
+        defaultShipping: input.makeDefaultShipping,
+        defaultBilling: false,
+      })
+    )
+    .pipe(
+      Effect.mapError((error) =>
+        error._tag === "AddressBookAccessDenied"
+          ? addressBookSourceUnavailable()
+          : addressBookProviderFailure(error)
+      )
+    );
+
+  return {
+    deliveryDetails: yield* shippingDeliveryDetailsFromEntry(entry),
+    savedAddressBookReference: entry.reference,
+  };
+});
+
+export const withSavedAddressBookReference = (
+  error: CheckoutSaveDeliveryDetailsFailure,
+  addressBookReference: AddressBookReference | undefined
+): CheckoutSaveDeliveryDetailsFailure => {
+  if (addressBookReference === undefined) {
+    return error;
+  }
+
+  switch (error._tag) {
+    case "CheckoutVersionConflict":
+      return new CheckoutVersionConflict({
+        message: error.message,
+        cartId: error.cartId,
+        addressBookReference,
+      });
+    case "CheckoutMutationProviderFailure":
+      return new CheckoutMutationProviderFailure({
+        message: error.message,
+        operation: error.operation,
+        ...(error.cause === undefined ? {} : { cause: error.cause }),
+        addressBookReference,
+      });
+    default:
+      return error;
+  }
+};
+
+export const ensureCurrentCartIdentity = (
   currentCart: CartForCheckout,
   submittedCart: CheckoutCartReference,
   detailName: "Contact" | "Delivery Details" = "Contact"
 ) => {
-  if (
-    currentCart.id !== submittedCart.id ||
-    currentCart.version !== submittedCart.version
-  ) {
+  if (currentCart.id !== submittedCart.id) {
     return Effect.fail(
-      new CheckoutVersionConflict({
-        message: `Checkout Cart changed before ${detailName} could be saved`,
-        cartId: currentCart.id,
+      new CheckoutCartMismatch({
+        message: `${detailName} belongs to a different Checkout Cart`,
+        submittedCartId: submittedCart.id,
+        currentCartId: currentCart.id,
       })
     );
   }
@@ -292,7 +471,10 @@ export class CheckoutSession extends Context.Service<
     ) => Effect.Effect<void, CheckoutSaveContactFailure>;
     readonly saveDeliveryDetails: (
       input: SaveCheckoutDeliveryDetailsInput
-    ) => Effect.Effect<void, CheckoutSaveDeliveryDetailsFailure>;
+    ) => Effect.Effect<
+      SaveCheckoutDeliveryDetailsResult,
+      CheckoutSaveDeliveryDetailsFailure
+    >;
   }
 >()("@repo/commerce/checkout/CheckoutSession") {
   static readonly getCurrent = Effect.fn("CheckoutSession.getCurrent")(
@@ -315,6 +497,7 @@ export class CheckoutSession extends Context.Service<
 
   static readonly layerMemoryFrom = ({
     currentCart,
+    getCurrentFailure,
     details = {},
     buyerContext = guestBuyerContext,
     allowedContactSources = defaultAllowedContactSources,
@@ -329,12 +512,17 @@ export class CheckoutSession extends Context.Service<
       Effect.gen(function* () {
         const policies = yield* CheckoutPolicies;
         const commerceAccounts = yield* CommerceAccounts;
+        const addressBook = yield* AddressBook;
         let activeCart = currentCart;
         let activeDetails = details;
 
         return CheckoutSession.of({
           getCurrent: (scope) =>
             Effect.gen(function* () {
+              if (getCurrentFailure !== undefined) {
+                return yield* Effect.fail(getCurrentFailure);
+              }
+
               if (activeCart === undefined) {
                 return yield* Effect.fail(
                   new CheckoutUnavailable({
@@ -387,7 +575,7 @@ export class CheckoutSession extends Context.Service<
                 commerceAccounts
               );
 
-              const cart = yield* ensureCurrentCartReference(
+              const cart = yield* ensureCurrentCartIdentity(
                 activeCart,
                 input.cart
               );
@@ -407,10 +595,6 @@ export class CheckoutSession extends Context.Service<
             }),
           saveDeliveryDetails: (input) =>
             Effect.gen(function* () {
-              if (saveDeliveryDetailsFailure !== undefined) {
-                return yield* Effect.fail(saveDeliveryDetailsFailure);
-              }
-
               if (activeCart === undefined) {
                 return yield* Effect.fail(
                   new CheckoutUnavailable({
@@ -420,32 +604,49 @@ export class CheckoutSession extends Context.Service<
                 );
               }
 
-              const deliveryDetails = yield* normalizeNewAddressDeliveryDetails(
-                input.deliveryDetails
-              );
-              const cart = yield* ensureCurrentCartReference(
+              const normalizedInput =
+                yield* normalizeCheckoutDeliveryDetailsInput(
+                  input.deliveryDetails
+                );
+              const cart = yield* ensureCurrentCartIdentity(
                 activeCart,
                 input.cart,
                 "Delivery Details"
               );
+              const resolved = yield* resolveCheckoutDeliveryDetails(
+                input.context,
+                normalizedInput,
+                addressBook
+              );
+
+              if (saveDeliveryDetailsFailure !== undefined) {
+                return yield* Effect.fail(
+                  withSavedAddressBookReference(
+                    saveDeliveryDetailsFailure,
+                    resolved.savedAddressBookReference
+                  )
+                );
+              }
 
               if (
                 checkoutDeliveryDetailsEqual(
                   activeDetails.deliveryDetails,
-                  deliveryDetails
+                  resolved.deliveryDetails
                 )
               ) {
-                return;
+                return saveDeliveryDetailsResult(resolved);
               }
 
               activeDetails = {
                 ...activeDetails,
-                deliveryDetails,
+                deliveryDetails: resolved.deliveryDetails,
               };
               activeCart = {
                 ...cart,
                 version: cart.version + 1,
               };
+
+              return saveDeliveryDetailsResult(resolved);
             }),
         });
       })

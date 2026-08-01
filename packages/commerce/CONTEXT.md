@@ -81,8 +81,12 @@ An optional adapter capability for resolving Checkout Scope from cookies, header
 _Avoid_: Domain checkout rule
 
 **Checkout Version Conflict**:
-A Checkout Mutation Failure caused by attempting to save against stale Cart state.
+A Checkout Mutation Failure emitted only when a narrow Cart update still conflicts after its version-forward retry is exhausted.
 _Avoid_: Generic persistence error
+
+**Checkout Cart Mismatch**:
+A Checkout Mutation Failure caused when the submitted Cart ID differs from the authoritative Cart resolved for the current Checkout context.
+_Avoid_: Version conflict, authorization check
 
 **Checkout Policy**:
 A rule that can block Checkout progress based on the Cart, buyer context, and checkout details.
@@ -224,7 +228,7 @@ _Avoid_: Review checkout, order summary
 - A **Current Checkout Scope** can be supplied by HTTP middleware for API handlers or constructed directly by Server Components when the caller already knows the current buyer/cart context.
 - A **Commerce Request Context** combines resolved locale with a **Commerce Principal** before a Checkout adapter derives **Checkout Scope**.
 - Anonymous **Commerce Principal** access is possession-based and grants access only to the possessed anonymous Cart flow.
-- HTTP adapters resolve or receive **Checkout Scope**, run one **Checkout Use-Case Program**, and map typed errors to transport responses.
+- HTTP adapters resolve verified **Commerce Request Context**, run one **Checkout Use-Case Program**, and map typed errors to transport responses. Programs that need only Cart authority accept the derived **Checkout Scope**; Delivery Details retains the verified context because Address Book access also requires its Customer principal and Business Unit Buying Context.
 - A first-slice **Checkout State** reports current **Checkout Details**, binary step status, active step, and **Checkout Violations**.
 - A first-slice **Checkout State** does not report structured incompletion reasons.
 - Blocking violations in **Checkout State** are global and do not have to belong to a **Checkout Step**.
@@ -244,7 +248,12 @@ _Avoid_: Review checkout, order summary
 - Effect error messages are diagnostic; public adapters map known Checkout Mutation Failures to stable codes before localized UI rendering.
 - Checkout HTTP errors and violations expose both stable machine-readable codes and localized human messages; clients may branch and translate by code or render the supplied message directly.
 - Replacement-style **Checkout Mutations** are idempotent for the same requested details.
-- A **Checkout Version Conflict** prevents stale checkout details from overwriting newer Cart state.
+- The Commercetools client retries transient HTTP failures, but it does not retry `ConcurrentModification` globally. Each versioned-write boundary chooses how to reconcile its own mutation.
+- Shared versioned-write infrastructure decodes the provider's current version and bounds conflict handling to one retry; it does not decide which action is safe to repeat.
+- A state-independent replacement-style **Checkout Mutation** resends the same narrow Cart action with the provider's current version after `ConcurrentModification`; it does not reload or compare Cart fields.
+- Saving Contact never blindly repeats `setCustomType`. If the Checkout Custom Type was absent, Checkout reloads the authoritative Cart, verifies its identity, and rebuilds the action as `setCustomType` or `setCustomField` from that current Cart.
+- A **Checkout Version Conflict** reports that the version-forward retry was exhausted.
+- A **Checkout Cart Mismatch** prevents details submitted for one Cart from being applied to a different authoritative Checkout Cart.
 - A **Checkout Mutation Failure** occurs when the selected **Contact Source** cannot provide required **Buyer Contact** details.
 - A **Checkout Mutation Failure** occurs when the selected **Contact Source** is not allowed for the current **Checkout**.
 - A **Checkout Mutation Failure** occurs when an **Address Book Reference** cannot resolve to a **Shipping Address**.
@@ -302,6 +311,7 @@ _Avoid_: Review checkout, order summary
 - Saving a new address to the **Address Book** and using it for **Delivery Details** first persists the Business Unit address and then saves the resolved **Shipping Address** to the Cart.
 - The Cart stores the complete resolved **Shipping Address**, not only its **Address Book Reference**, so Cart and Order consumers do not depend on a later Address Book lookup.
 - If the Business Unit address is saved but the Cart update fails, saving the **Delivery Details** step fails and returns the saved **Address Book Reference** for retry.
+- If the Cart update succeeds but the response-state read fails, the failure still returns the saved **Address Book Reference** so a transport caller does not repeat the Business Unit write.
 - Retrying after that partial failure uses the existing-Address-Book **Delivery Details Input**, gets the canonical **Address Book Entry** by reference, and retries only the Cart update; retry is not a separate input kind.
 - Address Book save idempotency is reference-based and does not compare address fields: an existing reference returns its canonical entry without another write.
 - **Delivery Details** completion depends on the resolved **Shipping Address**, not on preserving an **Address Book Reference**.

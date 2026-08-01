@@ -1,6 +1,6 @@
 import type { CartUpdateAction } from "@commercetools/platform-sdk";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
-import { Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import type { FragmentOf } from "gql.tada";
 import type { AddressBookReference } from "../../domain/address-book";
 import {
@@ -12,9 +12,19 @@ import {
 } from "../../domain/checkout";
 import { CommerceBusinessUnitId } from "../../domain/commerce-account";
 import { graphql, readFragment } from "../../graphql";
-import { apiRootWithoutConcurrentModificationRetry } from "../client/api-root";
+import { apiRoot } from "../client/api-root";
 import { graphqlClient } from "../client/graphql-client";
 import { fromCommercetoolsAddressKey } from "../infra/commercetools/address-book-key";
+import {
+  type CommercetoolsConcurrentModification,
+  commercetoolsFailureCause,
+  commercetoolsRequest,
+  isConcurrentModification,
+  PreserveVersionedWriteConflict,
+  RetryVersionedWrite,
+  retryVersionedWrite,
+  type VersionedWriteConflictResolution,
+} from "../infra/commercetools/versioned-write";
 import {
   type ProductTypeKey,
   reshapeProductAttributes,
@@ -40,7 +50,6 @@ import type {
 } from "./types";
 
 const client = graphqlClient();
-const CONCURRENT_MODIFICATION_STATUS_CODE = 409;
 
 type RawCustomField = {
   readonly name: string;
@@ -428,31 +437,63 @@ const SaveCheckoutDeliveryDetailsMutation = graphql(
   [CartFragment]
 );
 
-const errorProperty = (error: unknown, property: string) =>
-  typeof error === "object" && error !== null && property in error
-    ? (error as Record<string, unknown>)[property]
-    : undefined;
+const executeCartUpdateAsAssociate = ({
+  actions,
+  cartId,
+  scope,
+  version,
+}: {
+  readonly actions: CartUpdateAction[];
+  readonly cartId: string;
+  readonly scope: StorefrontCustomerCheckoutScope;
+  readonly version: number;
+}) =>
+  apiRoot
+    .asAssociate()
+    .withAssociateIdValue({
+      associateId: String(scope.customerId),
+    })
+    .inBusinessUnitKeyWithBusinessUnitKeyValue({
+      businessUnitKey: String(scope.businessUnitKey),
+    })
+    .carts()
+    .withId({ ID: cartId })
+    .post({
+      body: {
+        actions,
+        version,
+      },
+    })
+    .execute();
 
-const errorCode = (error: unknown) => {
-  const directCode = errorProperty(error, "code");
-  if (typeof directCode === "string") {
-    return directCode;
-  }
+const cartUpdateFailure = (
+  cause: unknown,
+  conflictMessage: string,
+  failureMessage: string
+) => {
+  const isConflict = isConcurrentModification(cause);
+  const providerCause = commercetoolsFailureCause(cause);
 
-  const extensions = errorProperty(error, "extensions");
-  const extensionCode = errorProperty(extensions, "code");
-  return typeof extensionCode === "string" ? extensionCode : undefined;
+  return Err(
+    domainError<object>(
+      isConflict ? "CONFLICT" : "UNKNOWN",
+      isConflict ? conflictMessage : failureMessage,
+      undefined,
+      providerCause
+    )
+  );
 };
 
-const hasConcurrentModificationError = (error: unknown) =>
-  errorCode(error) === "ConcurrentModification" ||
-  errorProperty(error, "statusCode") === CONCURRENT_MODIFICATION_STATUS_CODE;
+const canRetryCartUpdateWithCurrentVersion = (
+  actions: readonly CartUpdateAction[]
+) => actions.every((action) => action.action !== "setCustomType");
 
 const updateCartAsAssociate = async ({
   actions,
   cartId,
   conflictMessage,
   failureMessage,
+  retryConcurrentModification = true,
   scope,
   version,
 }: {
@@ -460,41 +501,92 @@ const updateCartAsAssociate = async ({
   readonly cartId: string;
   readonly conflictMessage: string;
   readonly failureMessage: string;
+  readonly retryConcurrentModification?: boolean;
   readonly scope: StorefrontCustomerCheckoutScope;
   readonly version: number;
 }): Promise<ActionResult<void>> => {
-  try {
-    await apiRootWithoutConcurrentModificationRetry
-      .asAssociate()
-      .withAssociateIdValue({
-        associateId: String(scope.customerId),
+  const input = { actions, cartId, scope, version };
+  const result = await Effect.runPromise(
+    Effect.result(
+      retryVersionedWrite({
+        operation: "cart.updateAsAssociate",
+        input,
+        attempt: (current) =>
+          commercetoolsRequest("Failed to update Cart as associate", () =>
+            executeCartUpdateAsAssociate(current)
+          ).pipe(Effect.asVoid),
+        resolveConflict: (conflict, current) =>
+          Effect.succeed(
+            retryConcurrentModification &&
+              canRetryCartUpdateWithCurrentVersion(current.actions)
+              ? new RetryVersionedWrite({
+                  ...current,
+                  version: conflict.currentVersion,
+                })
+              : new PreserveVersionedWriteConflict()
+          ),
       })
-      .inBusinessUnitKeyWithBusinessUnitKeyValue({
-        businessUnitKey: String(scope.businessUnitKey),
-      })
-      .carts()
-      .withId({ ID: cartId })
-      .post({
-        body: {
-          actions,
-          version,
-        },
-      })
-      .execute();
+    )
+  );
 
-    return Ok(undefined);
-  } catch (cause) {
-    if (hasConcurrentModificationError(cause)) {
-      return Err(
-        domainError<object>("CONFLICT", conflictMessage, undefined, cause)
-      );
-    }
-
-    return Err(
-      domainError<object>("UNKNOWN", failureMessage, undefined, cause)
-    );
-  }
+  return result._tag === "Success"
+    ? Ok(undefined)
+    : cartUpdateFailure(result.failure, conflictMessage, failureMessage);
 };
+
+interface GraphqlVersionedWriteResult {
+  readonly error?: unknown;
+}
+
+const executeVersionedGraphqlWrite = <
+  Input,
+  Result extends GraphqlVersionedWriteResult,
+>({
+  operation,
+  input,
+  execute,
+  resolveConflict,
+}: {
+  readonly operation: string;
+  readonly input: Input;
+  readonly execute: (input: Input) => PromiseLike<Result>;
+  readonly resolveConflict: (
+    conflict: CommercetoolsConcurrentModification,
+    input: Input
+  ) => Effect.Effect<VersionedWriteConflictResolution<Input>>;
+}) =>
+  Effect.runPromise(
+    Effect.result(
+      retryVersionedWrite({
+        operation,
+        input,
+        attempt: (current) =>
+          commercetoolsRequest(
+            `Failed to execute GraphQL mutation ${operation}`,
+            () => execute(current)
+          ).pipe(
+            Effect.flatMap((result) =>
+              result.error !== undefined &&
+              isConcurrentModification(result.error)
+                ? Effect.fail(result.error)
+                : Effect.succeed(result)
+            )
+          ),
+        resolveConflict,
+      })
+    )
+  );
+
+const retryWithProviderVersion = <Input extends { readonly version: number }>(
+  currentVersion: number,
+  input: Input
+) =>
+  Effect.succeed(
+    new RetryVersionedWrite({
+      ...input,
+      version: currentVersion,
+    })
+  );
 
 const activeCartForStorePredicate = (storeKey: string) =>
   `cartState="Active" and store(key=${JSON.stringify(storeKey)})`;
@@ -608,7 +700,23 @@ export const createCart = async ({
 export const addItemToCart = async (
   params: AddToCartRepoParams
 ): Promise<ActionResult<Cart>> => {
-  const result = await client.mutation(AddItemToCartMutation, params);
+  const write = await executeVersionedGraphqlWrite({
+    operation: "cart.addLineItem",
+    input: params,
+    execute: (input) => client.mutation(AddItemToCartMutation, input),
+    resolveConflict: (conflict, input) =>
+      retryWithProviderVersion(conflict.currentVersion, input),
+  });
+
+  if (write._tag === "Failure") {
+    return cartUpdateFailure(
+      write.failure,
+      "Cart changed before the item could be added",
+      "Failed to add item to cart"
+    );
+  }
+
+  const result = write.success;
 
   // TODO: Handle bad input errors, like invalid variantId or quantity probably in exchange/middlware layer.
   if (result.error?.networkError) {
@@ -632,7 +740,23 @@ export const addItemToCart = async (
 export const changeItemQuantity = async (
   params: ChangeItemQuantityParams
 ): Promise<ActionResult<Cart>> => {
-  const result = await client.mutation(ChangeItemsQuantityMutation, params);
+  const write = await executeVersionedGraphqlWrite({
+    operation: "cart.changeLineItemQuantity",
+    input: params,
+    execute: (input) => client.mutation(ChangeItemsQuantityMutation, input),
+    resolveConflict: (conflict, input) =>
+      retryWithProviderVersion(conflict.currentVersion, input),
+  });
+
+  if (write._tag === "Failure") {
+    return cartUpdateFailure(
+      write.failure,
+      "Cart changed before the item quantity could be updated",
+      "Failed to change item quantity"
+    );
+  }
+
+  const result = write.success;
 
   if (result.error?.networkError) {
     return Err(
@@ -655,7 +779,23 @@ export const changeItemQuantity = async (
 export const removeItemFromCart = async (
   params: RemoveItemFromCartParams
 ): Promise<ActionResult<Cart>> => {
-  const result = await client.mutation(RemoveItemFromCartMutation, params);
+  const write = await executeVersionedGraphqlWrite({
+    operation: "cart.removeLineItem",
+    input: params,
+    execute: (input) => client.mutation(RemoveItemFromCartMutation, input),
+    resolveConflict: (conflict, input) =>
+      retryWithProviderVersion(conflict.currentVersion, input),
+  });
+
+  if (write._tag === "Failure") {
+    return cartUpdateFailure(
+      write.failure,
+      "Cart changed before the item could be removed",
+      "Failed to remove item from cart"
+    );
+  }
+
+  const result = write.success;
 
   if (result.error?.networkError) {
     return Err(
@@ -717,26 +857,34 @@ export const saveCheckoutContact = async (
       cartId: params.cart.id,
       conflictMessage: "Checkout Cart changed before Contact could be saved",
       failureMessage: "Failed to save checkout contact",
+      retryConcurrentModification: false,
       scope: params.scope,
       version: params.cart.version,
     });
   }
 
-  const result = await client.mutation(SaveCheckoutContactMutation, {
+  const input = {
     id: params.cart.id,
     version: params.cart.version,
     actions: actions.data,
     locale: params.locale,
+  };
+  const write = await executeVersionedGraphqlWrite({
+    operation: "checkout.contact.save",
+    input,
+    execute: (current) => client.mutation(SaveCheckoutContactMutation, current),
+    resolveConflict: () => Effect.succeed(new PreserveVersionedWriteConflict()),
   });
 
-  if (result.error?.graphQLErrors.some(hasConcurrentModificationError)) {
-    return Err(
-      domainError(
-        "CONFLICT",
-        "Checkout Cart changed before Contact could be saved"
-      )
+  if (write._tag === "Failure") {
+    return cartUpdateFailure(
+      write.failure,
+      "Checkout Cart changed before Contact could be saved",
+      "Failed to save checkout contact"
     );
   }
+
+  const result = write.success;
 
   if (result.error?.networkError) {
     return Err(
@@ -794,21 +942,30 @@ export const saveCheckoutDeliveryDetails = async (
     });
   }
 
-  const result = await client.mutation(SaveCheckoutDeliveryDetailsMutation, {
+  const input = {
     id: params.cart.id,
     version: params.cart.version,
     actions,
     locale: params.locale,
+  };
+  const write = await executeVersionedGraphqlWrite({
+    operation: "checkout.deliveryDetails.save",
+    input,
+    execute: (current) =>
+      client.mutation(SaveCheckoutDeliveryDetailsMutation, current),
+    resolveConflict: (conflict, current) =>
+      retryWithProviderVersion(conflict.currentVersion, current),
   });
 
-  if (result.error?.graphQLErrors.some(hasConcurrentModificationError)) {
-    return Err(
-      domainError(
-        "CONFLICT",
-        "Checkout Cart changed before Delivery Details could be saved"
-      )
+  if (write._tag === "Failure") {
+    return cartUpdateFailure(
+      write.failure,
+      "Checkout Cart changed before Delivery Details could be saved",
+      "Failed to save checkout delivery details"
     );
   }
+
+  const result = write.success;
 
   if (result.error?.networkError) {
     return Err(

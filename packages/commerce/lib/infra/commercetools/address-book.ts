@@ -18,15 +18,15 @@ import {
 } from "../../../domain/address-book";
 import type { CustomerCommercePrincipal } from "../../../domain/commerce-request-context";
 import { AddressBook } from "../../../services/address-book";
-import { apiRootWithoutConcurrentModificationRetry } from "../../client/api-root";
+import { apiRoot as defaultApiRoot } from "../../client/api-root";
 import {
   fromCommercetoolsAddressKey,
   toCommercetoolsAddressKey,
 } from "./address-book-key";
+import { isConcurrentModification } from "./versioned-write";
 
 const ACCESS_DENIED_STATUS_CODE = 403;
 const NOT_FOUND_STATUS_CODE = 404;
-const CONCURRENT_MODIFICATION_STATUS_CODE = 409;
 const SERVER_ERROR_STATUS_CODE = 500;
 const MAX_SAVE_RETRIES = 1;
 
@@ -50,10 +50,6 @@ const isAccessDenied = (error: unknown) => {
     statusCode === NOT_FOUND_STATUS_CODE
   );
 };
-
-const isConcurrentModification = (error: unknown) =>
-  errorStatusCode(error) === CONCURRENT_MODIFICATION_STATUS_CODE ||
-  decodeCommercetoolsError(error)?.code === "ConcurrentModification";
 
 const isAmbiguousWriteFailure = (error: unknown) => {
   const statusCode = errorStatusCode(error);
@@ -414,6 +410,5 @@ export const layerCommercetoolsAddressBookFor = (
     })
   );
 
-export const layerCommercetoolsAddressBook = layerCommercetoolsAddressBookFor(
-  apiRootWithoutConcurrentModificationRetry
-);
+export const layerCommercetoolsAddressBook =
+  layerCommercetoolsAddressBookFor(defaultApiRoot);

@@ -1,6 +1,7 @@
-import type { CheckoutMutationFailure } from "../domain/checkout";
+import type { CheckoutContactMutationFailure } from "../domain/checkout";
 
 export type SaveCheckoutContactActionErrorCode =
+  | "checkout.cartMismatch"
   | "checkout.contact.invalidInput"
   | "checkout.contact.sourceUnavailable"
   | "checkout.contact.providerFailure"
@@ -41,9 +42,14 @@ export const checkoutContactNotFoundState = {
 } as const satisfies SaveCheckoutContactActionState;
 
 export const checkoutMutationFailureToActionState = (
-  error: CheckoutMutationFailure
+  error: CheckoutContactMutationFailure
 ): SaveCheckoutContactActionState => {
   switch (error._tag) {
+    case "CheckoutCartMismatch":
+      return {
+        status: "error",
+        code: "checkout.cartMismatch",
+      };
     case "CheckoutMutationSchemaFailure":
       return {
         status: "error",

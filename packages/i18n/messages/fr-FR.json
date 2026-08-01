@@ -241,7 +241,12 @@
         }
       },
       "errors": {
+        "addressBook": {
+          "accessDenied": "Le carnet d’adresses n’est pas disponible pour ce paiement.",
+          "providerFailure": "Les adresses enregistrées n’ont pas pu être chargées. Réessayez."
+        },
         "badRequest": "La requête de paiement n’est pas valide.",
+        "cartMismatch": "Ce paiement n’est plus à jour. Actualisez la page et réessayez.",
         "internal": "Le paiement n’a pas pu être effectué. Réessayez.",
         "contact": {
           "invalidInput": "Saisissez une adresse e-mail, un prénom et un nom.",
@@ -250,6 +255,7 @@
           "unsupported": "Cette source de coordonnées n’est pas encore prise en charge."
         },
         "deliveryDetails": {
+          "addressBookEntryUnavailable": "Cette adresse enregistrée n’est plus disponible.",
           "invalidInput": "Saisissez l’adresse ligne 1, le code postal, la ville et le pays.",
           "sourceUnavailable": "Cette source de livraison n’est pas disponible pour ce paiement.",
           "providerFailure": "Les détails de livraison n’ont pas pu être enregistrés. Réessayez.",

@@ -3,6 +3,7 @@ import { CartId, type CartId as CartIdType } from "../domain/cart";
 import type { CheckoutScope } from "../domain/checkout";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import { checkoutRuntimeLayerCommercetools } from "../lib/checkout/commercetools";
+import { logUnexpectedCheckoutMutationFailure } from "./checkout-action-diagnostics";
 import {
   checkoutContactNotFoundState,
   checkoutMutationFailureToActionState,
@@ -85,7 +86,10 @@ export async function saveCheckoutContactForScope(
   }
 
   const saveResult = await Effect.runPromise(
-    Effect.result(saveContact(scope, inputResult.success))
+    saveContact(scope, inputResult.success).pipe(
+      Effect.tapError(logUnexpectedCheckoutMutationFailure),
+      Effect.result
+    )
   );
 
   if (Result.isFailure(saveResult)) {
