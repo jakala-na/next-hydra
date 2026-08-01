@@ -6,8 +6,10 @@ import type {
 } from "@repo/commerce/contracts/actions/add-to-cart";
 import type { ChangeCartItemsQuantityAction } from "@repo/commerce/contracts/actions/change-cart-items-quantity";
 import type { RemoveCartItemAction } from "@repo/commerce/contracts/actions/remove-cart-item";
-import type { CartWithIssues } from "@repo/commerce/lib/cart/types";
-import type { Cart, LineItem } from "@repo/commerce/lib/types";
+import type {
+  CartLineItem,
+  CurrentCartState,
+} from "@repo/commerce/domain/cart-snapshot";
 import type { ActionResult } from "@repo/commerce/lib/utils/errors";
 import { useTranslations } from "@repo/i18n";
 import type { CurrencyCode } from "@repo/i18n/types";
@@ -32,9 +34,9 @@ type CartActions = {
 };
 
 type CartContextType = {
-  cartPromise: Promise<ActionResult<CartWithIssues>>;
-  cart: CartWithIssues | null;
-  setCart: (cart: CartWithIssues | null) => void;
+  cartPromise: Promise<ActionResult<CurrentCartState>>;
+  cart: CurrentCartState | null;
+  setCart: (cart: CurrentCartState | null) => void;
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -45,7 +47,7 @@ const CartContext = createContext<CartContextType | null>(null);
 
 type CartProviderProps = {
   children: ReactNode;
-  cartPromise: Promise<ActionResult<CartWithIssues>>;
+  cartPromise: Promise<ActionResult<CurrentCartState>>;
   actions: CartActions;
 };
 
@@ -60,7 +62,7 @@ export function CartProvider({
   cartPromise,
   actions,
 }: CartProviderProps) {
-  const [cart, setCart] = useState<CartWithIssues | null>(null);
+  const [cart, setCart] = useState<CurrentCartState | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   const openCart = useCallback(() => setIsOpen(true), []);
@@ -143,27 +145,29 @@ export function useCart() {
   }
 
   const {
-    cart: cartWithIssues,
+    cart: currentCart,
     setCart,
     isOpen,
     openCart,
     closeCart,
     actions,
   } = ctx;
-  const cart: Cart | null = cartWithIssues?.cart ?? null;
-  const currencyCode: CurrencyCode = cartWithIssues?.currency ?? "USD";
+  const cart = currentCart?.cart ?? null;
+  const currencyCode: CurrencyCode =
+    (cart?.totalPrice.currencyCode as CurrencyCode | undefined) ?? "USD";
+  const violations = currentCart?.violations ?? [];
 
   const items = useMemo(() => {
     const lineItems = cart?.lineItems ?? [];
-    return lineItems.map((li: LineItem) => {
-      const { id, name, quantity, price, variant } = li;
-      const image = variant?.images?.[0]?.url ?? "";
+    return lineItems.map((lineItem: CartLineItem) => {
+      const { id, quantity, unitPrice, variant } = lineItem;
+      const image = variant.images[0]?.url ?? "";
 
       return {
         id,
-        name: name || "",
+        name: variant.name ?? "",
         variant: "",
-        price: price.value.centAmount / CENTS_PER_UNIT,
+        price: unitPrice.centAmount / CENTS_PER_UNIT,
         quantity,
         image,
       };
@@ -234,6 +238,7 @@ export function useCart() {
     totalItems,
     totalPrice,
     currencyCode,
+    violations,
     addItem,
     removeItem,
     updateQuantity,

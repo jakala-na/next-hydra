@@ -1,10 +1,7 @@
 import { LivePreview } from "@repo/cms/components/live-preview";
 import { getNavigation } from "@repo/cms/lib/navigation";
-import { addToCart } from "@repo/commerce/actions/add-to-cart";
-import { changeCartItemsQuantity } from "@repo/commerce/actions/change-cart-items-quantity";
-import { removeCartItem } from "@repo/commerce/actions/remove-cart-item";
-import { getCartForContext } from "@repo/commerce/lib/cart/utils/get-cart";
-import { storeService } from "@repo/commerce/lib/store/store.service";
+import { domainError, Err, Ok } from "@repo/commerce/lib/utils/errors";
+import { CurrentCart } from "@repo/commerce/services/current-cart";
 import { CartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
 import { CartButtonClient } from "@repo/design-system/components/layout/cart-button";
 import { MobileMenu } from "@repo/design-system/components/layout/mobile-menu";
@@ -19,16 +16,52 @@ import {
 } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import type { Locale } from "@repo/i18n/types";
+import { Effect, Option } from "effect";
 import { ShoppingCart } from "lucide-react";
 import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AccountMenuClient } from "@/components/layout/account-menu-client";
 import { BusinessUnitSwitcher } from "@/components/layout/business-unit-switcher";
+import { runCurrentCartRead } from "@/lib/current-cart";
+import {
+  addToCart,
+  changeCartItemsQuantity,
+  removeCartItem,
+} from "./cart-actions";
 
 async function getCart(locale: Locale) {
-  const context = await storeService.getStoreContextByLocale(locale);
-  return getCartForContext(context);
+  try {
+    const result = await runCurrentCartRead(
+      locale,
+      Effect.result(
+        Effect.flatMap(CurrentCart, (currentCart) => currentCart.get())
+      )
+    );
+    if (result._tag === "Failure") {
+      return Err(
+        domainError<object>(
+          "UNKNOWN",
+          "Failed to read Current Cart",
+          undefined,
+          result.failure
+        )
+      );
+    }
+    return Option.match(result.success, {
+      onNone: () => Err(domainError("NOT_FOUND", "Current Cart not found")),
+      onSome: Ok,
+    });
+  } catch (cause) {
+    return Err(
+      domainError<object>(
+        "UNKNOWN",
+        "Failed to read Current Cart",
+        undefined,
+        cause
+      )
+    );
+  }
 }
 
 function CartButtonSkeleton() {

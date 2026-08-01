@@ -1,4 +1,4 @@
-import type { CartWithIssues } from "@repo/commerce/lib/cart/types";
+import type { CurrentCartState } from "@repo/commerce/domain/cart-snapshot";
 import type { ActionResult } from "@repo/commerce/lib/utils/errors";
 import type { SafeActionFn, ValidationErrors } from "next-safe-action";
 import { z } from "zod";
@@ -9,7 +9,7 @@ export const removeCartItemInputSchema = z.object({
 
 export type RemoveCartItemInput = z.infer<typeof removeCartItemInputSchema>;
 
-export type RemoveCartItemData = ActionResult<CartWithIssues>;
+export type RemoveCartItemData = ActionResult<CurrentCartState>;
 
 export type RemoveCartItemAction = SafeActionFn<
   string,
