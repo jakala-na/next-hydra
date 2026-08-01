@@ -20,6 +20,14 @@ _Avoid_: Provider Cart, Cart version
 The Cart selected for the buyer's current Store and, for B2B activity, Business Unit Buying Context. Anonymous selection is based on possession of a Cart reference.
 _Avoid_: Cart Session, arbitrary Cart
 
+**Carts**:
+The process-level Effect Service used by Current Cart for provider-neutral Cart discovery, creation, and persistence programs.
+_Avoid_: Cart repository, global Cart service
+
+**Commerce Cart Layer**:
+The Effect Layer that provides Carts for one commerce provider while keeping provider revisions, payloads, and retry mechanics private.
+_Avoid_: Adapter, repository implementation
+
 **Cart Identity**:
 The stable identity of a Cart, observable by callers for correlation and stale-form detection but never sufficient to select or authorize the Current Cart.
 _Avoid_: Cart authority, Cart version
@@ -91,14 +99,6 @@ _Avoid_: Mapper, decoder, implementation helper
 **Checkout State Builder**:
 The internal function that builds `CheckoutState` from already-resolved Checkout inputs.
 _Avoid_: Fetcher, Service, use-case program
-
-**Cart For Checkout**:
-The schema-backed Cart projection containing only Cart fields needed to evaluate Checkout.
-_Avoid_: Full provider Cart, cart-like object
-
-**Checkout Scope Resolver**:
-An optional adapter capability for resolving Checkout Scope from cookies, headers, auth session, store context, or other request data when that behavior becomes pluggable.
-_Avoid_: Domain checkout rule
 
 **Cart Write Conflict**:
 A Cart persistence failure emitted when conflict recovery is exhausted without exposing a provider revision.
@@ -242,10 +242,9 @@ _Avoid_: Review checkout, order summary
 - Anonymous and B2B Carts remain separate when the buyer signs in; Checkout does not transfer or merge the anonymous Cart into a Business Unit.
 - A **Checkout State** is a lean read model derived from the current **Cart**, buyer context, and **Checkout Details**.
 - `CheckoutSession.getCurrent` is the use-case program that gets current **Checkout State** for a **Checkout Scope**.
-- A **Checkout State Builder** receives an already-resolved **Checkout Scope**, **Cart For Checkout**, **Checkout Details**, buyer context, **Cart Policy Violations**, and **Checkout Policy Violations**.
+- A **Checkout State Builder** receives an already-resolved **Checkout Scope**, **Cart Snapshot**, **Checkout Details**, buyer context, **Cart Policy Violations**, and **Checkout Policy Violations**.
 - A **Checkout State Builder** validates that Checkout can start, computes binary **Checkout Step** status, computes the **Active Checkout Step**, normalizes violations, and returns **Checkout State**.
 - A **Checkout State Builder** does not fetch provider data or resolve request context.
-- A **Cart For Checkout** decoder maps provider Cart data into the Checkout Cart projection before **Checkout State** is built.
 - A **Current Checkout Scope** can be supplied by HTTP middleware for API handlers or constructed directly by Server Components when the caller already knows the current buyer/cart context.
 - A **Commerce Request Context** combines resolved locale with a **Commerce Principal** before a Checkout adapter derives **Checkout Scope**.
 - Anonymous **Commerce Principal** access is possession-based and grants access only to the possessed anonymous Cart flow.

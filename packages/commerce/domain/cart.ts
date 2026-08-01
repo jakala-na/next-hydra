@@ -1,13 +1,7 @@
 import { Schema } from "effect";
-import { CommerceBusinessUnitId, CommerceCustomerId } from "./commerce-account";
 
 export const CartId = Schema.NonEmptyString.pipe(Schema.brand("CartId"));
 export type CartId = typeof CartId.Type;
-
-export const AnonymousId = Schema.NonEmptyString.pipe(
-  Schema.brand("AnonymousId")
-);
-export type AnonymousId = typeof AnonymousId.Type;
 
 export const LineItemId = Schema.NonEmptyString.pipe(
   Schema.brand("LineItemId")
@@ -37,31 +31,3 @@ export const CartMoney = Schema.Struct({
   currencyCode: Schema.String,
 });
 export type CartMoney = typeof CartMoney.Type;
-
-export const CartForCheckoutLineItem = Schema.Struct({
-  id: LineItemId,
-  productId: ProductId,
-  name: Schema.optional(Schema.String),
-  quantity: Schema.Number,
-  totalPrice: Schema.NullOr(CartMoney),
-  variant: Schema.optional(
-    Schema.Struct({
-      id: VariantId,
-      sku: Schema.optional(Sku),
-    })
-  ),
-});
-export type CartForCheckoutLineItem = typeof CartForCheckoutLineItem.Type;
-
-export const CartForCheckout = Schema.Struct({
-  id: CartId,
-  version: Schema.Number,
-  customerId: Schema.optional(CommerceCustomerId),
-  businessUnitId: Schema.optional(CommerceBusinessUnitId),
-  anonymousId: Schema.optional(AnonymousId),
-  storeKey: Schema.optional(StoreKey),
-  lineItems: Schema.Array(CartForCheckoutLineItem),
-  totalLineItemQuantity: Schema.Number,
-  totalPrice: CartMoney,
-});
-export type CartForCheckout = typeof CartForCheckout.Type;

@@ -124,53 +124,10 @@ cartPolicyService.registerPolicy(new MaxQuantityPolicy(50));
 
 ## Integration with Server Actions
 
-```typescript
-'use server';
-
-import { cartPolicyService } from '@repo/commerce/lib/cart/policy';
-import { isOk, Err, Ok } from '@repo/commerce/lib/utils/errors';
-
-export const addToCart = inStoreAction
-  .metadata({ actionName: 'addToCart' })
-  .inputSchema(addToCartInputSchema)
-  .action(async ({ parsedInput, ctx }) => {
-    // ... get or create cart ...
-
-    // Add item to cart
-    const updatedCartResult = await cartService.addItemToCart({
-      id: cart.id,
-      version: cart.version,
-      variantId: Number.parseInt(variantId, 10),
-      quantity,
-      productId,
-      locale: ctx.locale,
-    });
-
-    if (!isOk(updatedCartResult)) {
-      return Err(domainError('UNKNOWN', 'Failed to add item to cart'));
-    }
-
-    const updatedCart = updatedCartResult.data;
-
-    // Validate cart policies
-    const policyResult = await cartPolicyService.validateCart({
-      cart: updatedCart,
-      locale: ctx.locale,
-      customerId: ctx.user?.id,
-      additional: {
-        // Fetch and include relevant context
-        contracts: await getCustomerContracts(ctx.user?.id),
-      },
-    });
-
-    // Return policy violations if any
-    if (!isOk(policyResult)) {
-      return Err(policyResult.error);
-    }
-
-    return Ok(updatedCart);
-  });
-```
+Storefront Server Actions call the request-provided `CurrentCart` Effect
+Service. `CurrentCart` invokes `CartPolicies` for every returned Cart state, so
+actions receive policy violations as successful `CurrentCartState.violations`
+data and do not evaluate policies separately.
 
 ## Advanced Usage
 
@@ -303,5 +260,4 @@ describe('ContractFulfillmentPolicy', () => {
   });
 });
 ```
-
 

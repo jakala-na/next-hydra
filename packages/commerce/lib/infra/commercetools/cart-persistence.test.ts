@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AddressBookReference } from "../../domain/address-book";
-import { CartId, StoreKey } from "../../domain/cart";
+import { AddressBookReference } from "../../../domain/address-book";
+import { CartId, StoreKey } from "../../../domain/cart";
 import {
   type CheckoutContact,
   type CheckoutDeliveryDetails,
@@ -8,21 +8,21 @@ import {
   CountryCode,
   StorefrontAnonymousCheckoutScope,
   StorefrontCustomerCheckoutScope,
-} from "../../domain/checkout";
+} from "../../../domain/checkout";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
   CommerceCustomerId,
-} from "../../domain/commerce-account";
-import type { Cart } from "../types";
-import { domainError } from "../utils/errors";
+} from "../../../domain/commerce-account";
+import type { Cart } from "../../types";
+import { domainError } from "../../utils/errors";
 import {
   createCartForAssociateScope,
   getActiveCartForAssociateScope,
   removeItemFromCart,
   saveCheckoutContact,
   saveCheckoutDeliveryDetails,
-} from "./cart.repo";
+} from "./cart-persistence";
 
 const mocks = vi.hoisted(() => {
   const associateCartPostExecute = vi.fn();
@@ -59,24 +59,24 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../client/graphql-client", () => ({
+vi.mock("../../client/graphql-client", () => ({
   graphqlClient: () => ({
     mutation: mocks.mutation,
     query: mocks.query,
   }),
 }));
 
-vi.mock("../client/api-root", () => ({
+vi.mock("../../client/api-root", () => ({
   apiRoot: {
     asAssociate: mocks.asAssociate,
   },
 }));
 
-vi.mock("../product/mappers/attributes", () => ({
+vi.mock("../../product/mappers/attributes", () => ({
   reshapeProductAttributes: vi.fn(),
 }));
 
-vi.mock("../product/mappers/price", () => ({
+vi.mock("../../product/mappers/price", () => ({
   productPriceFragment: {
     kind: "Document",
     definitions: [],

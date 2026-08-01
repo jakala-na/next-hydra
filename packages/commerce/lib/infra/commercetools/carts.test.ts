@@ -13,7 +13,7 @@ import {
 } from "./carts";
 
 vi.mock("server-only", () => ({}));
-vi.mock("../../cart/cart.repo", () => ({ cartRepo: {} }));
+vi.mock("./cart-persistence", () => ({}));
 vi.mock("../../store/store.service", () => ({ storeService: {} }));
 
 const store = new CartStore({

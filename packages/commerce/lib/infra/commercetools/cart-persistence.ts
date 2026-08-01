@@ -2,19 +2,45 @@ import type { CartUpdateAction } from "@commercetools/platform-sdk";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
 import { Effect, Option, Schema } from "effect";
 import type { FragmentOf } from "gql.tada";
-import type { AddressBookReference } from "../../domain/address-book";
+import type { AddressBookReference } from "../../../domain/address-book";
 import {
   CheckoutContact,
   type CheckoutDeliveryDetails,
   type CheckoutDetails,
   ShippingAddress,
   type StorefrontCustomerCheckoutScope,
-} from "../../domain/checkout";
-import { CommerceBusinessUnitId } from "../../domain/commerce-account";
-import { graphql, readFragment } from "../../graphql";
-import { apiRoot } from "../client/api-root";
-import { graphqlClient } from "../client/graphql-client";
-import { fromCommercetoolsAddressKey } from "../infra/commercetools/address-book-key";
+} from "../../../domain/checkout";
+import { CommerceBusinessUnitId } from "../../../domain/commerce-account";
+import { graphql, readFragment } from "../../../graphql";
+import {
+  buildSaveCheckoutContactActions,
+  CHECKOUT_CONTACT_CUSTOM_FIELD_NAME,
+  ORDER_CUSTOM_TYPE_KEY,
+} from "../../cart/checkout-contact-actions";
+import { buildSaveCheckoutDeliveryDetailsActions } from "../../cart/checkout-delivery-details-actions";
+import { apiRoot } from "../../client/api-root";
+import { graphqlClient } from "../../client/graphql-client";
+import {
+  type ProductTypeKey,
+  reshapeProductAttributes,
+} from "../../product/mappers/attributes";
+import {
+  productPriceFragment,
+  reshapePrice,
+} from "../../product/mappers/price";
+import type { Cart, LineItem } from "../../types";
+import { type ActionResult, domainError, Err, Ok } from "../../utils/errors";
+import { fromCommercetoolsAddressKey } from "./address-book-key";
+import type {
+  AddToCartRepoParams,
+  ChangeItemQuantityParams,
+  CreateBusinessUnitCartRepoParams,
+  CreateCartRepoParams,
+  GetActiveCartForAssociateScopeParams,
+  RemoveItemFromCartParams,
+  SaveCheckoutContactParams,
+  SaveCheckoutDeliveryDetailsParams,
+} from "./cart-persistence-types";
 import {
   type CommercetoolsConcurrentModification,
   commercetoolsFailureCause,
@@ -24,31 +50,7 @@ import {
   RetryVersionedWrite,
   retryVersionedWrite,
   type VersionedWriteConflictResolution,
-} from "../infra/commercetools/versioned-write";
-import {
-  type ProductTypeKey,
-  reshapeProductAttributes,
-} from "../product/mappers/attributes";
-import { productPriceFragment, reshapePrice } from "../product/mappers/price";
-import type { Cart, LineItem } from "../types";
-import { type ActionResult, domainError, Err, Ok } from "../utils/errors";
-import {
-  buildSaveCheckoutContactActions,
-  CHECKOUT_CONTACT_CUSTOM_FIELD_NAME,
-  ORDER_CUSTOM_TYPE_KEY,
-} from "./checkout-contact-actions";
-import { buildSaveCheckoutDeliveryDetailsActions } from "./checkout-delivery-details-actions";
-import type {
-  AddToCartRepoParams,
-  CartRepository,
-  ChangeItemQuantityParams,
-  CreateBusinessUnitCartRepoParams,
-  CreateCartRepoParams,
-  GetActiveCartForAssociateScopeParams,
-  RemoveItemFromCartParams,
-  SaveCheckoutContactParams,
-  SaveCheckoutDeliveryDetailsParams,
-} from "./types";
+} from "./versioned-write";
 
 const client = graphqlClient();
 
@@ -1051,17 +1053,4 @@ export const saveCheckoutDeliveryDetails = async (
   }
 
   return Ok(undefined);
-};
-
-export const cartRepo: CartRepository = {
-  findActiveCartsForAssociateScope,
-  getActiveCartForAssociateScope,
-  getCartById,
-  createCart,
-  createCartForAssociateScope,
-  addItemToCart,
-  changeItemQuantity,
-  removeItemFromCart,
-  saveCheckoutContact,
-  saveCheckoutDeliveryDetails,
 };

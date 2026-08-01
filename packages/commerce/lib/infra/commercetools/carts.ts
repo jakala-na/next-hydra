@@ -43,7 +43,20 @@ import {
   type SaveCartDeliveryDetails,
   type SetCartLineItemQuantity,
 } from "../../../services/carts";
-import { cartRepo } from "../../cart/cart.repo";
+import { storeService } from "../../store/store.service";
+import type { Cart } from "../../types";
+import type { ActionResult, DomainError } from "../../utils/errors";
+import {
+  addItemToCart,
+  changeItemQuantity,
+  createCartForAssociateScope,
+  createCart as createProviderCart,
+  findActiveCartsForAssociateScope,
+  getCartById,
+  removeItemFromCart,
+  saveCheckoutContact,
+  saveCheckoutDeliveryDetails,
+} from "./cart-persistence";
 import type {
   AddToCartRepoParams,
   ChangeItemQuantityParams,
@@ -53,10 +66,7 @@ import type {
   RemoveItemFromCartParams,
   SaveCheckoutContactParams,
   SaveCheckoutDeliveryDetailsParams,
-} from "../../cart/types";
-import { storeService } from "../../store/store.service";
-import type { Cart } from "../../types";
-import type { ActionResult, DomainError } from "../../utils/errors";
+} from "./cart-persistence-types";
 
 interface AddCommercetoolsCartItem extends AddCartItem {
   readonly cart: Cart;
@@ -351,9 +361,9 @@ const createCart = (
   });
 
 const productionPersistence: CommercetoolsCartsPersistence = {
-  findById: ({ id, store }) => cartRepo.getCartById(String(id), store.locale),
+  findById: ({ id, store }) => getCartById(String(id), store.locale),
   findActiveForBusinessUnit: (input) =>
-    cartRepo.findActiveCartsForAssociateScope({
+    findActiveCartsForAssociateScope({
       associateId: input.customerId,
       businessUnitKey: input.businessUnitKey,
       storeKey: input.store.storeKey,
@@ -361,14 +371,14 @@ const productionPersistence: CommercetoolsCartsPersistence = {
     } satisfies GetActiveCartForAssociateScopeParams),
   createAnonymous: async ({ store }) => {
     const context = await storeService.getStoreContextByLocale(store.locale);
-    return cartRepo.createCart({
+    return createProviderCart({
       locale: store.locale,
       currency: store.currency,
       storeId: context.storeId,
     } satisfies CreateCartRepoParams);
   },
   createForBusinessUnit: (input) =>
-    cartRepo.createCartForAssociateScope({
+    createCartForAssociateScope({
       associateId: input.customerId,
       businessUnitKey: input.businessUnitKey,
       customerId: input.customerId,
@@ -380,7 +390,7 @@ const productionPersistence: CommercetoolsCartsPersistence = {
     const context = await storeService.getStoreContextByLocale(
       input.target.store.locale
     );
-    return cartRepo.addItemToCart({
+    return addItemToCart({
       id: input.cart.id,
       version: input.cart.version,
       productId: String(input.productId),
@@ -391,7 +401,7 @@ const productionPersistence: CommercetoolsCartsPersistence = {
     } satisfies AddToCartRepoParams);
   },
   setLineItemQuantity: (input) =>
-    cartRepo.changeItemQuantity({
+    changeItemQuantity({
       id: input.cart.id,
       version: input.cart.version,
       lineItemId: String(input.lineItemId),
@@ -399,21 +409,21 @@ const productionPersistence: CommercetoolsCartsPersistence = {
       locale: input.target.store.locale,
     } satisfies ChangeItemQuantityParams),
   removeLineItem: (input) =>
-    cartRepo.removeItemFromCart({
+    removeItemFromCart({
       id: input.cart.id,
       version: input.cart.version,
       lineItemId: String(input.lineItemId),
       locale: input.target.store.locale,
     } satisfies RemoveItemFromCartParams),
   saveContact: (input) =>
-    cartRepo.saveCheckoutContact({
+    saveCheckoutContact({
       cart: input.cart,
       contact: input.contact,
       locale: input.target.store.locale,
       scope: targetScope(input.target),
     } satisfies SaveCheckoutContactParams),
   saveDeliveryDetails: (input) =>
-    cartRepo.saveCheckoutDeliveryDetails({
+    saveCheckoutDeliveryDetails({
       cart: input.cart,
       deliveryDetails: input.deliveryDetails,
       locale: input.target.store.locale,
