@@ -215,6 +215,7 @@ export type Cart = {
 export type LineItem = {
   id: string;
   productId: string;
+  productType?: ProductTypeKey;
   productKey?: string;
   name?: string | null;
   productSlug?: string;

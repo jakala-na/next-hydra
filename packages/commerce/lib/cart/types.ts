@@ -32,6 +32,15 @@ export type CreateCartRepoParams = {
   storeId: string;
 };
 
+export type CreateBusinessUnitCartRepoParams = {
+  associateId: CommerceCustomerId;
+  businessUnitKey: CommerceBusinessUnitKey;
+  customerId: CommerceCustomerId;
+  storeKey: StoreKey;
+  locale: Locale;
+  currency: CurrencyCode;
+};
+
 export type GetActiveCartForAssociateScopeParams = {
   associateId: CommerceCustomerId;
   businessUnitKey: CommerceBusinessUnitKey;
@@ -81,11 +90,17 @@ export type CartWithIssues = {
 };
 
 export interface CartRepository {
+  findActiveCartsForAssociateScope(
+    params: GetActiveCartForAssociateScopeParams
+  ): Promise<ActionResult<readonly Cart[]>>;
   getActiveCartForAssociateScope(
     params: GetActiveCartForAssociateScopeParams
   ): Promise<ActionResult<Cart>>;
   getCartById(id: string, locale: Locale): Promise<ActionResult<Cart>>;
   createCart(params: CreateCartRepoParams): Promise<ActionResult<Cart>>;
+  createCartForAssociateScope(
+    params: CreateBusinessUnitCartRepoParams
+  ): Promise<ActionResult<Cart>>;
   addItemToCart(params: AddToCartRepoParams): Promise<ActionResult<Cart>>;
   changeItemQuantity(
     params: ChangeItemQuantityParams

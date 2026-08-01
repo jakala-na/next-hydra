@@ -17,6 +17,7 @@ import {
 import type { Cart } from "../types";
 import { domainError } from "../utils/errors";
 import {
+  createCartForAssociateScope,
   getActiveCartForAssociateScope,
   removeItemFromCart,
   saveCheckoutContact,
@@ -32,6 +33,7 @@ const mocks = vi.hoisted(() => {
     post: associateCartPost,
   }));
   const associateCarts = vi.fn(() => ({
+    post: associateCartPost,
     withId: associateCartWithId,
   }));
   const inBusinessUnit = vi.fn(() => ({
@@ -170,6 +172,33 @@ beforeEach(() => {
   mocks.associateCartWithId.mockClear();
   mocks.associateCartPost.mockClear();
   mocks.associateCartPostExecute.mockReset();
+});
+
+describe("createCartForAssociateScope", () => {
+  it("creates the Cart through the Business Unit associate boundary", async () => {
+    mocks.associateCartPostExecute.mockResolvedValueOnce({
+      body: { id: "cart-1" },
+    });
+    mocks.query.mockResolvedValueOnce({ data: { cart: activeCart } });
+
+    const result = await createCartForAssociateScope({
+      associateId: CommerceCustomerId.make("customer-1"),
+      businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+      customerId: CommerceCustomerId.make("customer-1"),
+      storeKey: StoreKey.make("default-store"),
+      locale: "en-US",
+      currency: "USD",
+    });
+
+    expect(mocks.associateCartPost).toHaveBeenCalledWith({
+      body: {
+        currency: "USD",
+        customerId: "customer-1",
+        store: { key: "default-store", typeId: "store" },
+      },
+    });
+    expect(result).toMatchObject({ ok: true, data: { id: "cart-1" } });
+  });
 });
 
 describe("getActiveCartForAssociateScope", () => {

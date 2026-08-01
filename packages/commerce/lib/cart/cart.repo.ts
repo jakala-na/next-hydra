@@ -42,6 +42,7 @@ import type {
   AddToCartRepoParams,
   CartRepository,
   ChangeItemQuantityParams,
+  CreateBusinessUnitCartRepoParams,
   CreateCartRepoParams,
   GetActiveCartForAssociateScopeParams,
   RemoveItemFromCartParams,
@@ -243,6 +244,9 @@ const reshapeCart = (
     id: item.id,
     name: item.name,
     productId: item.productId,
+    ...(item.productType?.key === undefined
+      ? {}
+      : { productType: item.productType.key as ProductTypeKey }),
     quantity: item.quantity,
     price: reshapePrice(item.price),
     totalPrice: item.totalPrice
@@ -254,6 +258,7 @@ const reshapeCart = (
     variant: item.variant
       ? {
           id: item.variant.id,
+          ...(item.variant.sku === null ? {} : { sku: item.variant.sku }),
           images:
             item.variant.images.map((image) => ({
               url: image.url,
@@ -594,6 +599,32 @@ const activeCartForStorePredicate = (storeKey: string) =>
 export const getActiveCartForAssociateScope = async (
   params: GetActiveCartForAssociateScopeParams
 ): Promise<ActionResult<Cart>> => {
+  const result = await findActiveCartsForAssociateScope(params);
+
+  if (!result.ok) {
+    return result;
+  }
+
+  if (result.data.length === 0) {
+    return Err(domainError("NOT_FOUND", "Cart not found"));
+  }
+
+  if (result.data.length > 1) {
+    return Err(
+      domainError(
+        "CONFLICT",
+        "Multiple active Carts are available for the Store and Business Unit"
+      )
+    );
+  }
+
+  const cart = result.data[0];
+  return cart ? Ok(cart) : Err(domainError("NOT_FOUND", "Cart not found"));
+};
+
+export const findActiveCartsForAssociateScope = async (
+  params: GetActiveCartForAssociateScopeParams
+): Promise<ActionResult<readonly Cart[]>> => {
   const result = await client.query(
     GetActiveCartForBusinessUnitAsAssociateQuery,
     {
@@ -624,25 +655,11 @@ export const getActiveCartForAssociateScope = async (
     );
   }
 
-  const carts = result.data?.asAssociate.carts.results ?? [];
-
-  if (carts.length === 0) {
-    return Err(domainError("NOT_FOUND", "Cart not found"));
-  }
-
-  if (carts.length > 1) {
-    return Err(
-      domainError(
-        "CONFLICT",
-        "Multiple active Carts are available for the Store and Business Unit"
-      )
-    );
-  }
-
-  const cart = carts[0];
-  return cart
-    ? Ok(reshapeCart(cart, params.locale))
-    : Err(domainError("NOT_FOUND", "Cart not found"));
+  return Ok(
+    (result.data?.asAssociate.carts.results ?? []).map((cart) =>
+      reshapeCart(cart, params.locale)
+    )
+  );
 };
 
 export const getCartById = async (
@@ -695,6 +712,45 @@ export const createCart = async ({
   }
 
   return Ok(reshapeCart(result.data.createCart, locale));
+};
+
+export const createCartForAssociateScope = async (
+  params: CreateBusinessUnitCartRepoParams
+): Promise<ActionResult<Cart>> => {
+  const result = await Effect.runPromise(
+    Effect.result(
+      commercetoolsRequest("Failed to create Cart as associate", () =>
+        apiRoot
+          .asAssociate()
+          .withAssociateIdValue({ associateId: String(params.associateId) })
+          .inBusinessUnitKeyWithBusinessUnitKeyValue({
+            businessUnitKey: String(params.businessUnitKey),
+          })
+          .carts()
+          .post({
+            body: {
+              currency: params.currency,
+              customerId: String(params.customerId),
+              store: { key: String(params.storeKey), typeId: "store" },
+            },
+          })
+          .execute()
+      )
+    )
+  );
+
+  if (result._tag === "Failure") {
+    return Err(
+      domainError<object>(
+        "UNKNOWN",
+        "Failed to create Cart as associate",
+        undefined,
+        result.failure
+      )
+    );
+  }
+
+  return getCartById(result.success.body.id, params.locale);
 };
 
 export const addItemToCart = async (
@@ -998,9 +1054,11 @@ export const saveCheckoutDeliveryDetails = async (
 };
 
 export const cartRepo: CartRepository = {
+  findActiveCartsForAssociateScope,
   getActiveCartForAssociateScope,
   getCartById,
   createCart,
+  createCartForAssociateScope,
   addItemToCart,
   changeItemQuantity,
   removeItemFromCart,

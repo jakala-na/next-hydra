@@ -43,7 +43,7 @@ export class CartMerchandiseUnavailable extends Schema.TaggedErrorClass<CartMerc
 export class CartAccessDenied extends Schema.TaggedErrorClass<CartAccessDenied>()(
   "CartAccessDenied",
   {
-    cartId: CartId,
+    cartId: Schema.optional(CartId),
     operation: CartOperation,
   }
 ) {}
