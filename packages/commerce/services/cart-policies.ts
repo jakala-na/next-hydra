@@ -12,6 +12,57 @@ export interface CartPolicy {
   ) => Effect.Effect<readonly CartPolicyViolation[], CartPolicyFailure>;
 }
 
+const maximumGuestItems = 50;
+
+export const guestMaximumItemsPolicy: CartPolicy = {
+  name: "guest-max-limits",
+  evaluate: Effect.fn("CartPolicies.guestMaximumItems")((cart) => {
+    if (
+      cart.buyingContext !== undefined ||
+      cart.totalLineItemQuantity <= maximumGuestItems
+    ) {
+      return Effect.succeed([]);
+    }
+
+    let runningTotal = 0;
+    const violations: CartPolicyViolation[] = [];
+    for (const lineItem of cart.lineItems) {
+      const previousTotal = runningTotal;
+      runningTotal += lineItem.quantity;
+      if (runningTotal <= maximumGuestItems) {
+        continue;
+      }
+      const excessQuantity =
+        runningTotal -
+        maximumGuestItems -
+        Math.max(previousTotal - maximumGuestItems, 0);
+      if (excessQuantity <= 0) {
+        continue;
+      }
+      violations.push({
+        code: "MAX_GUEST_TOTAL_ITEMS_EXCEEDED",
+        parameters: {
+          maxQuantity: maximumGuestItems,
+          totalQuantity: cart.totalLineItemQuantity,
+          excessQuantity,
+        },
+        targets: [
+          {
+            type: "cartItem",
+            lineItemId: lineItem.id,
+            productId: lineItem.variant.productId,
+            variantId: lineItem.variant.id,
+            ...(lineItem.variant.sku === undefined
+              ? {}
+              : { sku: lineItem.variant.sku }),
+          },
+        ],
+      });
+    }
+    return Effect.succeed(violations);
+  }),
+};
+
 export class CartPolicies extends Context.Service<
   CartPolicies,
   {
@@ -33,4 +84,6 @@ export class CartPolicies extends Context.Service<
     );
 
   static readonly layerEmpty = CartPolicies.layerFrom([]);
+
+  static readonly layer = CartPolicies.layerFrom([guestMaximumItemsPolicy]);
 }

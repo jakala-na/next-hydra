@@ -99,7 +99,7 @@ export const getAnonymousCartIdFromCookieValue = (
   return cartCookie.cartId;
 };
 
-const CART_COOKIE_OPTIONS = {
+export const ANONYMOUS_CART_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
   sameSite: "lax" as const,
@@ -131,7 +131,7 @@ export async function setAnonymousCartId(
   cookieStore.set(
     ANONYMOUS_CART_COOKIE_NAME,
     encodeAnonymousCartCookie(makeAnonymousCartCookie({ cartId, context })),
-    CART_COOKIE_OPTIONS
+    ANONYMOUS_CART_COOKIE_OPTIONS
   );
 }
 

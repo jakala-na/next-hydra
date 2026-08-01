@@ -1,5 +1,7 @@
 import type { AddressBookReference } from "@repo/commerce/domain/address-book";
-import { StoreKey } from "@repo/commerce/domain/cart";
+import { type CartId, StoreKey } from "@repo/commerce/domain/cart";
+import { CurrentCartAssociationFailure } from "@repo/commerce/domain/cart-errors";
+import { CartStore } from "@repo/commerce/domain/cart-snapshot";
 import { StorefrontAnonymousCheckoutScope } from "@repo/commerce/domain/checkout";
 import {
   AnonymousCommercePrincipal,
@@ -22,8 +24,10 @@ import { checkoutApiErrorMessage } from "@repo/commerce/http/checkout-api-messag
 import { toCheckoutApiState } from "@repo/commerce/http/checkout-api-state";
 import {
   ANONYMOUS_CART_COOKIE_NAME,
+  encodeAnonymousCartCookie,
   getAnonymousCartCookieContextByLocale,
   getAnonymousCartIdFromCookieValue,
+  makeAnonymousCartCookie,
 } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
 import {
   type CheckoutSaveContactFailure,
@@ -32,6 +36,7 @@ import {
   type CheckoutSession as CheckoutSessionService,
 } from "@repo/commerce/lib/checkout/checkout-session";
 import { toCheckoutScope } from "@repo/commerce/lib/checkout/request-context";
+import type { CurrentCartRequest } from "@repo/commerce/lib/current-cart/request";
 import { getStoreKeyByLocale } from "@repo/commerce/lib/store/utils/mappings";
 import { AddressBook } from "@repo/commerce/services/address-book";
 import {
@@ -42,11 +47,13 @@ import {
   type CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
 import type { Locale } from "@repo/i18n/types";
-import { Effect, Layer, Schema } from "effect";
+import { Duration, Effect, Layer, Schema } from "effect";
 import {
+  HttpEffect,
   HttpRouter,
   HttpServer,
   HttpServerRequest,
+  HttpServerResponse,
 } from "effect/unstable/http";
 import { HttpApiBuilder, HttpApiMiddleware } from "effect/unstable/httpapi";
 import {
@@ -406,6 +413,90 @@ const resolveCustomerCheckoutContextFromAuthorization = Effect.gen(
     });
   }
 );
+
+const anonymousCartCookieMaxAgeDays = 90;
+const httpCurrentCartCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  path: "/",
+  maxAge: Duration.days(anonymousCartCookieMaxAgeDays),
+};
+
+const currentCartAssociationFailure = (
+  operation: "establish" | "clear",
+  cause: unknown
+) => new CurrentCartAssociationFailure({ operation, cause });
+
+export const resolveHttpCurrentCartRequest = Effect.gen(function* () {
+  const request = yield* HttpServerRequest.HttpServerRequest;
+  const headers = yield* getCheckoutRequestHeadersFromRequest;
+  const locale = headers["x-context-locale"];
+  const cookieContext = getAnonymousCartCookieContextByLocale(locale);
+  const store = new CartStore({
+    locale,
+    storeKey: StoreKey.make(cookieContext.storeKey),
+    currency: cookieContext.currency,
+  });
+  const customerContext =
+    yield* resolveCustomerCheckoutContextFromAuthorization;
+
+  if (customerContext !== null) {
+    const principal = customerContext.principal;
+    if (!(principal instanceof CustomerCommercePrincipal)) {
+      return yield* commerceRequestContextNotFound("noPrincipal");
+    }
+    return {
+      _tag: "BusinessUnitCurrentCartRequest",
+      store,
+      customerId: principal.customerId,
+      businessUnitId: principal.businessUnitId,
+      businessUnitKey: principal.businessUnitKey,
+    } satisfies CurrentCartRequest;
+  }
+
+  const possessedCartId = headers["x-context-anonymous-cart-id"];
+  return {
+    _tag: "AnonymousCurrentCartRequest",
+    store,
+    ...(possessedCartId === undefined ? {} : { possessedCartId }),
+    establish: (cartId: CartId) =>
+      Effect.try({
+        try: () => {
+          const value = encodeAnonymousCartCookie(
+            makeAnonymousCartCookie({ cartId, context: cookieContext })
+          );
+          HttpEffect.appendPreResponseHandlerUnsafe(
+            request,
+            (_request, response) =>
+              Effect.succeed(
+                HttpServerResponse.setCookieUnsafe(
+                  response,
+                  ANONYMOUS_CART_COOKIE_NAME,
+                  value,
+                  httpCurrentCartCookieOptions
+                )
+              )
+          );
+        },
+        catch: (cause) => currentCartAssociationFailure("establish", cause),
+      }),
+    clear: () =>
+      Effect.sync(() =>
+        HttpEffect.appendPreResponseHandlerUnsafe(
+          request,
+          (_request, response) =>
+            Effect.succeed(
+              HttpServerResponse.expireCookieUnsafe(
+                response,
+                ANONYMOUS_CART_COOKIE_NAME,
+                { path: "/" }
+              )
+            )
+        )
+      ),
+  } satisfies CurrentCartRequest;
+});
 
 const getCurrentCheckoutContext = Effect.gen(function* () {
   const customerContext =
