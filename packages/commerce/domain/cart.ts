@@ -26,8 +26,14 @@ export type Sku = typeof Sku.Type;
 export const VariantId = Schema.NonEmptyString.pipe(Schema.brand("VariantId"));
 export type VariantId = typeof VariantId.Type;
 
+export const PositiveCartQuantity = Schema.Int.check(Schema.isGreaterThan(0));
+export type PositiveCartQuantity = typeof PositiveCartQuantity.Type;
+
+export const CartQuantity = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
+export type CartQuantity = typeof CartQuantity.Type;
+
 export const CartMoney = Schema.Struct({
-  centAmount: Schema.Number,
+  centAmount: Schema.Int,
   currencyCode: Schema.String,
 });
 export type CartMoney = typeof CartMoney.Type;
