@@ -1,6 +1,7 @@
 import { locales } from "@repo/i18n/config";
 import { Schema } from "effect";
 import { Address } from "./address";
+import { AddressBookReference } from "./address-book";
 import {
   CartForCheckout,
   CartId,
@@ -112,6 +113,44 @@ export { CountryCode, CountryCodeFromString } from "./address";
 export const ShippingAddress = Address;
 export type ShippingAddress = typeof ShippingAddress.Type;
 
+export const CartOnlyCheckoutDeliveryDetailsInput = Schema.Struct({
+  type: Schema.Literal("manual"),
+  shippingAddress: ShippingAddress,
+  saveToAddressBook: Schema.Literal(false),
+});
+export type CartOnlyCheckoutDeliveryDetailsInput =
+  typeof CartOnlyCheckoutDeliveryDetailsInput.Type;
+
+export const SaveManualAddressCheckoutDeliveryDetailsInput = Schema.Struct({
+  type: Schema.Literal("manual"),
+  shippingAddress: ShippingAddress,
+  saveToAddressBook: Schema.Literal(true),
+  makeDefaultShipping: Schema.Boolean,
+});
+export type SaveManualAddressCheckoutDeliveryDetailsInput =
+  typeof SaveManualAddressCheckoutDeliveryDetailsInput.Type;
+
+export const ManualCheckoutDeliveryDetailsInput = Schema.Union([
+  CartOnlyCheckoutDeliveryDetailsInput,
+  SaveManualAddressCheckoutDeliveryDetailsInput,
+]);
+export type ManualCheckoutDeliveryDetailsInput =
+  typeof ManualCheckoutDeliveryDetailsInput.Type;
+
+export const AddressBookCheckoutDeliveryDetailsInput = Schema.Struct({
+  type: Schema.Literal("addressBook"),
+  addressBookReference: AddressBookReference,
+});
+export type AddressBookCheckoutDeliveryDetailsInput =
+  typeof AddressBookCheckoutDeliveryDetailsInput.Type;
+
+export const CheckoutDeliveryDetailsInput = Schema.Union([
+  ManualCheckoutDeliveryDetailsInput,
+  AddressBookCheckoutDeliveryDetailsInput,
+]);
+export type CheckoutDeliveryDetailsInput =
+  typeof CheckoutDeliveryDetailsInput.Type;
+
 export const CheckoutDeliveryDetailsSource = Schema.Literals([
   "manual",
   "addressBook",
@@ -119,10 +158,17 @@ export const CheckoutDeliveryDetailsSource = Schema.Literals([
 export type CheckoutDeliveryDetailsSource =
   typeof CheckoutDeliveryDetailsSource.Type;
 
-export const CheckoutDeliveryDetails = Schema.Struct({
-  source: CheckoutDeliveryDetailsSource,
-  shippingAddress: ShippingAddress,
-});
+export const CheckoutDeliveryDetails = Schema.Union([
+  Schema.Struct({
+    source: Schema.Literal("manual"),
+    shippingAddress: ShippingAddress,
+  }),
+  Schema.Struct({
+    source: Schema.Literal("addressBook"),
+    addressBookReference: AddressBookReference,
+    shippingAddress: ShippingAddress,
+  }),
+]);
 export type CheckoutDeliveryDetails = typeof CheckoutDeliveryDetails.Type;
 
 export const CheckoutDetails = Schema.Struct({

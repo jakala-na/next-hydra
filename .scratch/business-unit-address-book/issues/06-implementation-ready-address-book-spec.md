@@ -29,38 +29,27 @@ Use four dependency-ordered commits. Each commit must preserve a working, review
 
 Validation gate: Address Book service tests, Commercetools adapter tests, migration tests, `pnpm --filter @repo/commerce test`, and `pnpm --filter @repo/commerce typecheck`.
 
-### `feat(checkout): persist delivery source and address reference`
+### `feat(checkout): preserve saved shipping-address identity`
 
-- Extend the `orderCustomFields` Type with optional String field `checkoutDeliveryDetails` through a forward-only migration.
-- Store only schema-backed delivery metadata in that field: source and optional current Address Book Reference. The built-in Cart Shipping Address remains the canonical address and is not duplicated in custom metadata.
-- Update the checked-in schema snapshot and regenerate custom-field TypeScript helpers.
-- Read metadata and the built-in Shipping Address together into resolved `CheckoutDeliveryDetails`.
-- Write Shipping Address and delivery metadata in the same Cart update for anonymous and associate-scoped B2B paths.
-- Existing selection persists source Address Book plus reference; new-and-save persists source Manual plus reference; Cart-only Manual clears the reference.
-- Extend idempotency checks to include both the canonical Shipping Address and delivery metadata.
+- Keep the built-in Cart Shipping Address as the complete canonical address snapshot used by both Cart and Order consumers; do not store a reference in place of the address or duplicate it in custom metadata.
+- Preserve saved-address identity on the copied Shipping Address using its deterministic Address Book key.
+- Read a recognized Address Book key together with the full built-in Shipping Address into resolved `CheckoutDeliveryDetails`; an address without a recognized key is Manual.
+- Write the full Shipping Address and, for a saved entry, its key in one Cart update for anonymous and associate-scoped B2B paths.
+- Existing selection and new-and-save persist source Address Book plus reference; Cart-only Manual omits the key and clears the previous saved identity.
+- Extend idempotency checks to include both the complete Shipping Address and its derived source/reference.
 - Return the optional current reference through Checkout State while keeping Address Book option catalogs absent.
+- Define the complete submitted Delivery Details input union as Manual address input with save/default flags or an existing Address Book entry. Keep currently implemented mutation surfaces narrowed to Cart-only Manual input until orchestration supports the remaining inputs.
 
-Operational gate before dependent code is deployed:
-
-```bash
-pnpm cli commerce migrate plan
-pnpm cli commerce migrate
-pnpm cli commerce schema export
-pnpm cli commerce types generate
-```
-
-Use `pnpm cli --env-file /absolute/path/to/project.env ...` when targeting a non-default environment.
-
-Validation gate: migration/type-generation tests, Cart mapper/action tests, Checkout State tests, `pnpm --filter cli test`, `pnpm --filter cli typecheck`, `pnpm --filter @repo/commerce test`, and `pnpm --filter @repo/commerce typecheck`.
+Validation gate: Cart mapper/action tests, Checkout State tests, `pnpm --filter @repo/commerce test`, and `pnpm --filter @repo/commerce typecheck`.
 
 ### `feat(checkout): support Address Book delivery intents`
 
-- Add the submitted Delivery Details union for new address, existing Address Book entry, and saved-new-address retry.
+- Accept the complete submitted Delivery Details input union at the mutation boundaries.
 - Keep submitted Cart ID/version as optimistic concurrency only; verified request context remains the authority for Cart and Address Book access.
 - Compose the Address Book Layer once in the shared Checkout runtime Layer.
-- Extend `CheckoutSession.saveDeliveryDetails` with the resolved orchestration from the map: new Cart-only, new-and-save, existing entry, and Cart-only retry after partial save.
+- Extend `CheckoutSession.saveDeliveryDetails` with the resolved orchestration from the map: Manual Cart-only, Manual with Address Book save preferences, and existing entry. Checkout generates the new Address Book Reference internally. After a partial save, the existing-entry input retries the Cart phase.
 - Require Shipping type for every entry used by Delivery Details.
-- Preserve source Manual for new-and-save and its retry.
+- Resolve new-and-save and a later existing-entry retry to source Address Book after the saved entry is loaded.
 - Carry the saved reference on Cart-phase failures without repeating Address Book save or comparing address fields.
 - Add authenticated `GET /address-book`, returning schema-backed entries and no Customer/Business Unit identifiers from request payloads.
 - Update `POST /checkout/delivery-details` to accept the intent union and `/checkout/current` to return the optional current reference without options.
@@ -77,7 +66,7 @@ Validation gate: CheckoutSession tests, runtime Layer tests, Server Action state
 - Add `Save this shipping address` and nested `Make default shipping address` controls to the new-address form.
 - Keep Billing and Default Billing controls out of Delivery Details; those belong to Payment Options.
 - Treat an empty successful list as the new-address experience and let load failures surface through the normal Checkout boundary.
-- After a partial save, select the newly saved entry, preserve source Manual, show the localized Cart error, and retry only the Cart update.
+- After a partial save, select the newly saved entry, show the localized Cart error, and retry only the Cart update.
 - Add every label, status, and error to all supported locale files.
 - Add focused component-render coverage for address selection, defaults, new-address controls, localized errors, pending state, and retry state.
 

@@ -30,7 +30,7 @@ The first release has no Customer address book, standalone address-management UI
 - Address Book save is universal: it accepts an address, Shipping/Billing Address Types, and Default Shipping/Default Billing flags. Checkout selects only Shipping entries.
 - Only Business Unit addresses carrying an Address Book key are Address Book Entries. New registrations create compatible keyed addresses; legacy unkeyed addresses are not backfilled in this effort.
 - Setting Default Shipping automatically adds the Shipping type; setting Default Billing automatically adds the Billing type.
-- A new address remains Manual Delivery Details when explicitly saved to the Address Book; a reference used only to recover the Cart update does not change its source.
+- A new address explicitly saved to the Address Book resolves to source Address Book, and Checkout copies its complete canonical address and key to the Cart.
 - Delivery Details offers Save as Shipping and optional Default Shipping. Billing use and Default Billing belong to the later Payment Options experience.
 - Checkout Details can preserve and return the optional current Address Book Reference, but Address Book option catalogs remain outside Checkout State.
 
@@ -39,7 +39,7 @@ The first release has no Customer address book, standalone address-management UI
 - [Commercetools Business Unit address identity and idempotency](issues/01-commercetools-address-identity-and-idempotency.md) — Use a Business Unit-scoped opaque reference mapped to Commercetools `address.key`; retry a partial save-and-use failure by reference without comparing address fields or repeating the Business Unit write.
 - [Current Address Book and Checkout seams](issues/02-current-address-book-and-checkout-seams.md) — Add a separate Address Book capability and a submitted Delivery Details intent union while reusing trusted Buying Context, scoped Cart persistence, resolved Checkout Details, and thin localized adapters.
 - [Address Book domain and capability contract](issues/03-address-book-domain-and-capability-contract.md) — Use a universal `AddressBook` service over the verified Customer principal with schema-backed entries, address types/defaults, and concrete `list`, `get`, and reference-idempotent `save` operations.
-- [Checkout save-and-use orchestration](issues/04-checkout-save-and-use-orchestration.md) — Use explicit new, existing-entry, and saved-new-address-retry inputs; preserve Manual source for new addresses and carry the saved reference through Cart-phase failures so retry updates only the Cart.
+- [Checkout save-and-use orchestration](issues/04-checkout-save-and-use-orchestration.md) — Accept Manual address input with save/default flags or an existing Address Book Entry; generate new references inside Checkout, resolve saved addresses to source Address Book, and carry the saved reference through Cart-phase failures so ordinary existing-entry retry updates only the Cart.
 - [Checkout address selection experience](issues/05-checkout-address-selection-experience.md) — Load saved entries separately, prefer the current/default Shipping entry, offer explicit new-address persistence controls, preserve partial-save retry state, and expose only the current reference through Checkout State.
 - [Address Book implementation slices and tracker reconciliation](issues/06-implementation-ready-address-book-spec.md) — Implement in four dependency-ordered commits spanning the Address Book capability, Cart metadata, Checkout orchestration/API, and localized selection UI; retire the narrower legacy issue.
 

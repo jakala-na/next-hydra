@@ -8,9 +8,9 @@ import {
 } from "effect/unstable/httpapi";
 import { CartId } from "../domain/cart";
 import {
+  CartOnlyCheckoutDeliveryDetailsInput,
   CheckoutCartReference,
   CheckoutContactInput,
-  CheckoutDeliveryDetails,
   CheckoutLocale,
   type CheckoutScope,
   CheckoutState,
@@ -83,7 +83,7 @@ export class SaveCheckoutDeliveryDetailsRequest extends Schema.Class<SaveCheckou
   "SaveCheckoutDeliveryDetailsRequest"
 )({
   cart: CheckoutCartReference,
-  deliveryDetails: CheckoutDeliveryDetails,
+  deliveryDetails: CartOnlyCheckoutDeliveryDetailsInput,
 }) {}
 
 const CheckoutApiErrors = [

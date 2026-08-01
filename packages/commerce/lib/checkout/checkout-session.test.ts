@@ -9,6 +9,7 @@ import {
   VariantId,
 } from "../../domain/cart";
 import {
+  CheckoutDeliveryDetailsInput,
   type CheckoutDetails,
   CheckoutLocale,
   CheckoutMutationProviderFailure,
@@ -172,17 +173,55 @@ const completeCustomerProfile = new CommerceCustomerProfile({
   lastName: Redacted.make("Lovelace", { label: "personName" }),
 });
 
+const shippingAddress = {
+  addressLine1: "123 Analytical Engine Way",
+  addressLine2: "Suite 42",
+  postalCode: "SW1A 1AA",
+  city: "London",
+  country: CountryCode.make("GB"),
+  region: "Greater London",
+};
+
+const cartOnlyDeliveryDetailsInput = {
+  type: "manual",
+  saveToAddressBook: false,
+  shippingAddress,
+} as const;
+
 const manualDeliveryDetails = {
   source: "manual",
-  shippingAddress: {
-    addressLine1: "123 Analytical Engine Way",
-    addressLine2: "Suite 42",
-    postalCode: "SW1A 1AA",
-    city: "London",
-    country: CountryCode.make("GB"),
-    region: "Greater London",
-  },
+  shippingAddress,
 } as const;
+
+describe("CheckoutDeliveryDetailsInput", () => {
+  it.effect("decodes every user-selectable Delivery Details input", () =>
+    Effect.gen(function* () {
+      const inputs = [
+        cartOnlyDeliveryDetailsInput,
+        {
+          type: "manual",
+          shippingAddress,
+          saveToAddressBook: true,
+          makeDefaultShipping: true,
+        },
+        {
+          type: "addressBook",
+          addressBookReference: "london-office",
+        },
+      ];
+
+      const decoded = yield* Effect.forEach(inputs, (input) =>
+        Schema.decodeUnknownEffect(CheckoutDeliveryDetailsInput)(input)
+      );
+
+      expect(decoded.map((input) => input.type)).toEqual([
+        "manual",
+        "manual",
+        "addressBook",
+      ]);
+    })
+  );
+});
 
 describe("CountryCode", () => {
   it.effect("accepts ISO alpha-2 members and rejects lookalike codes", () =>
@@ -624,7 +663,7 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
         yield* CheckoutSession.saveDeliveryDetails({
           scope,
           cart: { id: CartId.make("cart-1"), version: 7 },
-          deliveryDetails: manualDeliveryDetails,
+          deliveryDetails: cartOnlyDeliveryDetailsInput,
         });
 
         const state = yield* CheckoutSession.getCurrent(scope);
@@ -647,7 +686,7 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
         yield* CheckoutSession.saveDeliveryDetails({
           scope,
           cart: { id: CartId.make("cart-1"), version: 7 },
-          deliveryDetails: manualDeliveryDetails,
+          deliveryDetails: cartOnlyDeliveryDetailsInput,
         });
         const firstState = yield* CheckoutSession.getCurrent(scope);
 
@@ -657,7 +696,7 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
             id: firstState.cart.id,
             version: firstState.cart.version,
           },
-          deliveryDetails: manualDeliveryDetails,
+          deliveryDetails: cartOnlyDeliveryDetailsInput,
         });
         const secondState = yield* CheckoutSession.getCurrent(scope);
 
@@ -676,9 +715,9 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
         scope,
         cart: { id: CartId.make("cart-1"), version: 7 },
         deliveryDetails: {
-          ...manualDeliveryDetails,
+          ...cartOnlyDeliveryDetailsInput,
           shippingAddress: {
-            ...manualDeliveryDetails.shippingAddress,
+            ...cartOnlyDeliveryDetailsInput.shippingAddress,
             postalCode: " ",
           },
         },
@@ -689,30 +728,12 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
     }).pipe(Effect.provide(layerWith()))
   );
 
-  it.effect("rejects unsupported Address Book Delivery Details", () =>
-    Effect.gen(function* () {
-      const error = yield* CheckoutSession.saveDeliveryDetails({
-        scope,
-        cart: { id: CartId.make("cart-1"), version: 7 },
-        deliveryDetails: {
-          ...manualDeliveryDetails,
-          source: "addressBook",
-        },
-      }).pipe(Effect.flip);
-
-      expect(error).toBeInstanceOf(CheckoutMutationSourceUnavailable);
-      if (error._tag === "CheckoutMutationSourceUnavailable") {
-        expect(error.source).toBe("addressBook");
-      }
-    }).pipe(Effect.provide(layerWith()))
-  );
-
   it.effect("reports provider failures as Checkout Mutation Failures", () =>
     Effect.gen(function* () {
       const error = yield* CheckoutSession.saveDeliveryDetails({
         scope,
         cart: { id: CartId.make("cart-1"), version: 7 },
-        deliveryDetails: manualDeliveryDetails,
+        deliveryDetails: cartOnlyDeliveryDetailsInput,
       }).pipe(Effect.flip);
 
       expect(error).toBeInstanceOf(CheckoutMutationProviderFailure);
@@ -733,7 +754,7 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
       const error = yield* CheckoutSession.saveDeliveryDetails({
         scope,
         cart: { id: CartId.make("cart-1"), version: 6 },
-        deliveryDetails: manualDeliveryDetails,
+        deliveryDetails: cartOnlyDeliveryDetailsInput,
       }).pipe(Effect.flip);
 
       expect(error).toBeInstanceOf(CheckoutVersionConflict);
@@ -748,7 +769,7 @@ describe("CheckoutSession.saveDeliveryDetails", () => {
         yield* CheckoutSession.saveDeliveryDetails({
           scope,
           cart: { id: CartId.make("cart-1"), version: 7 },
-          deliveryDetails: manualDeliveryDetails,
+          deliveryDetails: cartOnlyDeliveryDetailsInput,
         });
 
         const state = yield* CheckoutSession.getCurrent(scope);

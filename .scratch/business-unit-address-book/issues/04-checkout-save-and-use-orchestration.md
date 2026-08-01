@@ -19,24 +19,29 @@ Specify validation, Cart version conflicts, address-book failures, reference loo
 Use a schema-backed submitted Delivery Details intent union distinct from resolved, Cart-owned `CheckoutDeliveryDetails`:
 
 ```text
-NewAddress
-  address
-  optional saveToAddressBook { reference, types, defaultShipping, defaultBilling }
+ManualAddress
+  type: manual
+  shippingAddress
+  saveToAddressBook: false
 
-ExistingAddressBookEntry
-  reference
+ManualAddress
+  type: manual
+  shippingAddress
+  saveToAddressBook: true
+  makeDefaultShipping: boolean
 
-SavedNewAddressRetry
-  reference
+AddressBookEntry
+  type: addressBook
+  addressBookReference
 ```
 
 The submitted Cart ID/version remains separate optimistic-concurrency input and never authorizes Cart or Address Book access.
 
 ### New address
 
-Normalize and structurally validate the submitted address. Without `saveToAddressBook`, save it directly to the Cart as Manual Delivery Details.
+Normalize and structurally validate the submitted address. With `saveToAddressBook: false`, save it directly to the Cart as Manual Delivery Details.
 
-With `saveToAddressBook`, ensure its Address Types include Shipping because Checkout is using it for delivery; Default Shipping and Default Billing add their matching types. Call `AddressBook.save`, use the returned canonical entry, and then save its address to the Cart. The resolved Delivery Details source remains Manual because the buyer entered a new address; Address Book persistence is an explicit additional effect.
+With `saveToAddressBook: true`, Checkout generates the new opaque Address Book Reference internally. Save the address with Shipping type and the submitted Default Shipping preference, use the returned canonical entry, and then copy its complete canonical address and key to the Cart. The resolved Delivery Details source is Address Book because the saved entry now owns the identity used by the Cart snapshot. Callers never invent a reference for an entry that Checkout is creating.
 
 If Address Book save fails, fail the Delivery Details mutation and do not update the Cart.
 
@@ -48,7 +53,7 @@ Call `AddressBook.get` with the verified Customer principal and submitted refere
 
 If the Address Book save succeeds but the Cart write fails, preserve the Cart-phase failure code and include the saved Address Book Reference as structured retry context. This applies to version conflicts and provider failures after the Business Unit write.
 
-After Checkout refreshes its Cart version, the next submission uses `SavedNewAddressRetry`. It calls `AddressBook.get`, requires Shipping type, preserves source Manual, and retries only the Cart update. It never calls `AddressBook.save` or compares address fields.
+After Checkout refreshes its Cart version, the next submission uses the ordinary `AddressBookEntry` input with the saved reference. It calls `AddressBook.get`, requires Shipping type, resolves to source Address Book, and retries only the Cart update. It never calls `AddressBook.save` or compares address fields. Retry is not a distinct user intent because the first phase has already created an existing Address Book Entry.
 
 ### Cart persistence and state
 

@@ -37,23 +37,23 @@ The saved entry always includes Shipping. Billing use and Default Billing contro
 
 ### Current reference versus options
 
-Persist an optional current `addressBookReference` with Cart-backed Checkout Details:
+The built-in Cart Shipping Address always stores the complete resolved address value. Preserve saved-address identity on that copied value with its Address Book key, from which Checkout Details derives the optional current `addressBookReference`:
 
-- existing saved address: source Address Book plus reference;
-- new address explicitly saved: source Manual plus reference;
-- new Cart-only address: source Manual and no reference, clearing any previous reference.
+- existing saved address: full Cart snapshot, source Address Book, and reference;
+- new address explicitly saved: full Cart snapshot, source Address Book, and reference;
+- new Cart-only address: full Cart snapshot, source Manual, and no reference, clearing any previous saved identity.
 
-`GET /checkout/current` returns this single current reference as Checkout Detail. It still does not return address options. Delivery Details completion depends only on the resolved Cart Shipping Address, and later Address Book changes or deletion do not silently mutate or invalidate it.
+`GET /checkout/current` returns this single current reference as Checkout Detail. It still does not return address options. The Cart and later Order never need an Address Book lookup to render the delivery destination. Delivery Details completion depends only on the resolved Cart Shipping Address, and later Address Book changes or deletion do not silently mutate or invalidate it.
 
 ### Partial-save retry experience
 
-When the Business Unit address saves but the Cart update fails, return a stable localized Cart error plus the saved reference as structured retry state. Rerender with the newly saved entry selected, without asking the buyer to re-enter the address or reselect Save. Continue submits the saved-new-address retry intent, preserves source Manual, calls `AddressBook.get`, and retries only the Cart update.
+When the Business Unit address saves but the Cart update fails, return a stable localized Cart error plus the saved reference as structured retry state. Rerender with the newly saved entry selected, without asking the buyer to re-enter the address or reselect Save. Continue submits the ordinary existing-Address-Book input, calls `AddressBook.get`, and retries only the Cart update. Once the Cart copy succeeds, the persisted source is Address Book. Retry is not a separate input kind because the first phase has already turned the new address into an existing Address Book Entry.
 
 ### Adapters and localization
 
 - Next.js loads choices and runs mutations in-process through the shared runtime Layer.
 - `GET /address-book` resolves bearer identity and returns schema-backed Address Book entries.
-- `POST /checkout/delivery-details` accepts the new, existing-entry, and saved-new-address-retry intent union.
+- `POST /checkout/delivery-details` accepts Manual address input with save/default flags or an existing Address Book entry. Callers do not provide a reference when asking to save a new entry.
 - `/checkout/current` returns the optional current reference but no choices.
 - Customer and Business Unit identity always come from verified request context, never payload fields.
 - Every public label, warning, and error uses translation keys. HTTP failures expose stable codes, schema-backed parameters, and localized fallback messages; diagnostic causes remain internal for logging.

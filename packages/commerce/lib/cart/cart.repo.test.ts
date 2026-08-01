@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { StoreKey } from "../../domain/cart";
+import { AddressBookReference } from "../../domain/address-book";
+import { CartId, StoreKey } from "../../domain/cart";
 import {
   type CheckoutContact,
   type CheckoutDeliveryDetails,
   CheckoutLocale,
   CountryCode,
+  StorefrontAnonymousCheckoutScope,
   StorefrontCustomerCheckoutScope,
 } from "../../domain/checkout";
 import {
@@ -49,12 +51,14 @@ const mocks = vi.hoisted(() => {
     associateCartWithId,
     associateCarts,
     inBusinessUnit,
+    mutation: vi.fn(),
     query: vi.fn(),
   };
 });
 
 vi.mock("../client/graphql-client", () => ({
   graphqlClient: () => ({
+    mutation: mocks.mutation,
     query: mocks.query,
   }),
 }));
@@ -107,6 +111,12 @@ const customerScope = new StorefrontCustomerCheckoutScope({
   businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
 });
 
+const anonymousScope = new StorefrontAnonymousCheckoutScope({
+  channel: "storefrontAnonymous",
+  locale: CheckoutLocale.make("en-US"),
+  anonymousCartId: CartId.make("cart-1"),
+});
+
 const checkoutCart = {
   id: "cart-1",
   version: 7,
@@ -143,8 +153,15 @@ const deliveryDetails = {
   },
 } as const satisfies CheckoutDeliveryDetails;
 
+const savedDeliveryDetails = {
+  source: "addressBook",
+  addressBookReference: AddressBookReference.make("london-office"),
+  shippingAddress: deliveryDetails.shippingAddress,
+} as const satisfies CheckoutDeliveryDetails;
+
 beforeEach(() => {
   mocks.query.mockReset();
+  mocks.mutation.mockReset();
   mocks.asAssociate.mockClear();
   mocks.associateById.mockClear();
   mocks.inBusinessUnit.mockClear();
@@ -184,6 +201,54 @@ describe("getActiveCartForAssociateScope", () => {
       data: {
         id: "cart-1",
         businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+      },
+    });
+  });
+
+  it("resolves saved-address identity from the copied Shipping Address", async () => {
+    mocks.query.mockResolvedValueOnce({
+      data: {
+        asAssociate: {
+          carts: {
+            results: [
+              {
+                ...activeCart,
+                shippingAddress: {
+                  key: "address-book-bG9uZG9uLW9mZmljZQ",
+                  streetName: "123 Analytical Engine Way",
+                  additionalStreetInfo: "Suite 2",
+                  postalCode: "SW1A 1AA",
+                  city: "London",
+                  country: "GB",
+                  region: "Greater London",
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const result = await getActiveCartForAssociateScope({
+      associateId: CommerceCustomerId.make("customer-1"),
+      businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+      storeKey: StoreKey.make("default-store"),
+      locale: "en-US",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        checkoutDetails: {
+          deliveryDetails: {
+            source: "addressBook",
+            addressBookReference: "london-office",
+            shippingAddress: {
+              addressLine1: "123 Analytical Engine Way",
+              addressLine2: "Suite 2",
+            },
+          },
+        },
       },
     });
   });
@@ -307,7 +372,7 @@ describe("B2B Checkout Cart updates", () => {
     });
   });
 
-  it("saves Delivery Details through the associate and Business Unit boundary", async () => {
+  it("copies a saved Shipping Address through the associate and Business Unit boundary", async () => {
     mocks.associateCartPostExecute.mockResolvedValueOnce({
       body: {
         id: "cart-1",
@@ -316,7 +381,7 @@ describe("B2B Checkout Cart updates", () => {
 
     const result = await saveCheckoutDeliveryDetails({
       cart: checkoutCart,
-      deliveryDetails,
+      deliveryDetails: savedDeliveryDetails,
       locale: "en-US",
       scope: customerScope,
     });
@@ -330,6 +395,7 @@ describe("B2B Checkout Cart updates", () => {
               additionalStreetInfo: "Suite 2",
               city: "London",
               country: "GB",
+              key: "address-book-bG9uZG9uLW9mZmljZQ",
               postalCode: "SW1A 1AA",
               region: "Greater London",
               streetName: "123 Analytical Engine Way",
@@ -343,6 +409,39 @@ describe("B2B Checkout Cart updates", () => {
       ok: true,
       data: undefined,
     });
+  });
+
+  it("copies a Manual Shipping Address into an anonymous Cart", async () => {
+    mocks.mutation.mockResolvedValueOnce({
+      data: { updateCart: { id: "cart-1" } },
+    });
+    const result = await saveCheckoutDeliveryDetails({
+      cart: checkoutCart,
+      deliveryDetails,
+      locale: "en-US",
+      scope: anonymousScope,
+    });
+
+    expect(mocks.mutation).toHaveBeenCalledWith(expect.anything(), {
+      id: "cart-1",
+      version: 7,
+      locale: "en-US",
+      actions: [
+        {
+          setShippingAddress: {
+            address: {
+              additionalStreetInfo: "Suite 2",
+              city: "London",
+              country: "GB",
+              postalCode: "SW1A 1AA",
+              region: "Greater London",
+              streetName: "123 Analytical Engine Way",
+            },
+          },
+        },
+      ],
+    });
+    expect(result).toEqual({ ok: true, data: undefined });
   });
 
   it("keeps associate Cart version conflicts in the error channel", async () => {

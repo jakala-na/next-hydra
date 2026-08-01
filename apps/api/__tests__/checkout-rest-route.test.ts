@@ -7,6 +7,7 @@ import {
   VariantId,
 } from "@repo/commerce/domain/cart";
 import {
+  type CartOnlyCheckoutDeliveryDetailsInput,
   type CheckoutContact,
   type CheckoutContactInput,
   type CheckoutDeliveryDetails,
@@ -182,14 +183,20 @@ const manualDeliveryDetails: CheckoutDeliveryDetails = {
   },
 };
 
+const cartOnlyDeliveryDetailsInput: CartOnlyCheckoutDeliveryDetailsInput = {
+  type: "manual",
+  saveToAddressBook: false,
+  shippingAddress: manualDeliveryDetails.shippingAddress,
+};
+
 const saveDeliveryDetailsPayload = ({
   cartId = "cart-1",
   version = 7,
-  deliveryDetails = manualDeliveryDetails,
+  deliveryDetails = cartOnlyDeliveryDetailsInput,
 }: {
   readonly cartId?: string;
   readonly version?: number;
-  readonly deliveryDetails?: CheckoutDeliveryDetails;
+  readonly deliveryDetails?: CartOnlyCheckoutDeliveryDetailsInput;
 } = {}) => ({
   cart: {
     id: cartId,
@@ -804,9 +811,9 @@ test("POST /checkout/delivery-details maps invalid Manual Shipping Address input
       saveDeliveryDetailsRequest(
         saveDeliveryDetailsPayload({
           deliveryDetails: {
-            ...manualDeliveryDetails,
+            ...cartOnlyDeliveryDetailsInput,
             shippingAddress: {
-              ...manualDeliveryDetails.shippingAddress,
+              ...cartOnlyDeliveryDetailsInput.shippingAddress,
               city: "",
             },
           },
@@ -835,9 +842,9 @@ test("POST /checkout/delivery-details rejects invalid ISO country codes at the s
       saveDeliveryDetailsRequest({
         cart: { id: "cart-1", version: 7 },
         deliveryDetails: {
-          ...manualDeliveryDetails,
+          ...cartOnlyDeliveryDetailsInput,
           shippingAddress: {
-            ...manualDeliveryDetails.shippingAddress,
+            ...cartOnlyDeliveryDetailsInput.shippingAddress,
             country: "ZZ",
           },
         },

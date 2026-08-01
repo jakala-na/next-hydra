@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AddressBookReference } from "../../domain/address-book";
 import {
   type CheckoutDeliveryDetails,
   CountryCode,
@@ -8,21 +9,31 @@ import {
   hasPersistedCheckoutDeliveryDetails,
 } from "./checkout-delivery-details-actions";
 
-const deliveryDetails = {
+const shippingAddress = {
+  addressLine1: "123 Analytical Engine Way",
+  addressLine2: "Suite 42",
+  postalCode: "SW1A 1AA",
+  city: "London",
+  country: CountryCode.make("GB"),
+  region: "Greater London",
+};
+
+const manualDeliveryDetails = {
   source: "manual",
-  shippingAddress: {
-    addressLine1: "123 Analytical Engine Way",
-    addressLine2: "Suite 42",
-    postalCode: "SW1A 1AA",
-    city: "London",
-    country: CountryCode.make("GB"),
-    region: "Greater London",
-  },
+  shippingAddress,
+} as const satisfies CheckoutDeliveryDetails;
+
+const addressBookDeliveryDetails = {
+  source: "addressBook",
+  addressBookReference: AddressBookReference.make("london-office"),
+  shippingAddress,
 } as const satisfies CheckoutDeliveryDetails;
 
 describe("buildSaveCheckoutDeliveryDetailsActions", () => {
-  it("replaces the Cart Shipping Address", () => {
-    expect(buildSaveCheckoutDeliveryDetailsActions(deliveryDetails)).toEqual([
+  it("copies a Manual address into the Cart without saved identity", () => {
+    expect(
+      buildSaveCheckoutDeliveryDetailsActions(manualDeliveryDetails)
+    ).toEqual([
       {
         setShippingAddress: {
           address: {
@@ -37,26 +48,57 @@ describe("buildSaveCheckoutDeliveryDetailsActions", () => {
       },
     ]);
   });
+
+  it("copies a saved address and its Address Book key into the Cart", () => {
+    expect(
+      buildSaveCheckoutDeliveryDetailsActions(addressBookDeliveryDetails)
+    ).toEqual([
+      {
+        setShippingAddress: {
+          address: {
+            key: "address-book-bG9uZG9uLW9mZmljZQ",
+            streetName: "123 Analytical Engine Way",
+            additionalStreetInfo: "Suite 42",
+            postalCode: "SW1A 1AA",
+            city: "London",
+            country: "GB",
+            region: "Greater London",
+          },
+        },
+      },
+    ]);
+  });
 });
 
 describe("hasPersistedCheckoutDeliveryDetails", () => {
-  it("matches the complete persisted Shipping Address", () => {
+  it("requires matching address values and saved-address identity", () => {
     expect(
       hasPersistedCheckoutDeliveryDetails(
-        { shippingAddress: deliveryDetails.shippingAddress },
-        deliveryDetails
+        {
+          shippingAddress,
+          checkoutDetails: { deliveryDetails: addressBookDeliveryDetails },
+        },
+        addressBookDeliveryDetails
       )
     ).toBe(true);
 
     expect(
       hasPersistedCheckoutDeliveryDetails(
         {
-          shippingAddress: {
-            ...deliveryDetails.shippingAddress,
-            city: "Oxford",
-          },
+          shippingAddress: { ...shippingAddress, city: "Oxford" },
+          checkoutDetails: { deliveryDetails: addressBookDeliveryDetails },
         },
-        deliveryDetails
+        addressBookDeliveryDetails
+      )
+    ).toBe(false);
+
+    expect(
+      hasPersistedCheckoutDeliveryDetails(
+        {
+          shippingAddress,
+          checkoutDetails: { deliveryDetails: manualDeliveryDetails },
+        },
+        addressBookDeliveryDetails
       )
     ).toBe(false);
   });

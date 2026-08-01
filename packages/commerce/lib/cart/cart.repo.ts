@@ -2,8 +2,10 @@ import type { CartUpdateAction } from "@commercetools/platform-sdk";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
 import { Option, Schema } from "effect";
 import type { FragmentOf } from "gql.tada";
+import type { AddressBookReference } from "../../domain/address-book";
 import {
   CheckoutContact,
+  type CheckoutDeliveryDetails,
   type CheckoutDetails,
   ShippingAddress,
   type StorefrontCustomerCheckoutScope,
@@ -12,6 +14,7 @@ import { CommerceBusinessUnitId } from "../../domain/commerce-account";
 import { graphql, readFragment } from "../../graphql";
 import { apiRootWithoutConcurrentModificationRetry } from "../client/api-root";
 import { graphqlClient } from "../client/graphql-client";
+import { fromCommercetoolsAddressKey } from "../infra/commercetools/address-book-key";
 import {
   type ProductTypeKey,
   reshapeProductAttributes,
@@ -45,6 +48,7 @@ type RawCustomField = {
 };
 
 const CommerceShippingAddress = Schema.Struct({
+  key: Schema.NullOr(Schema.String),
   streetName: Schema.NullOr(Schema.String),
   postalCode: Schema.NullOr(Schema.String),
   city: Schema.NullOr(Schema.String),
@@ -53,7 +57,14 @@ const CommerceShippingAddress = Schema.Struct({
   region: Schema.NullOr(Schema.String),
 });
 
-const decodeShippingAddress = (value: unknown) =>
+type DecodedShippingAddress = {
+  readonly shippingAddress: ShippingAddress;
+  readonly addressBookReference?: AddressBookReference;
+};
+
+const decodeShippingAddress = (
+  value: unknown
+): Option.Option<DecodedShippingAddress> =>
   Schema.decodeUnknownOption(CommerceShippingAddress)(value).pipe(
     Option.flatMap((address) =>
       Schema.decodeUnknownOption(ShippingAddress)({
@@ -65,7 +76,21 @@ const decodeShippingAddress = (value: unknown) =>
           ? {}
           : { addressLine2: address.additionalStreetInfo }),
         ...(address.region === null ? {} : { region: address.region }),
-      })
+      }).pipe(
+        Option.map((shippingAddress) => {
+          const addressBookReference =
+            address.key === null
+              ? undefined
+              : fromCommercetoolsAddressKey(address.key);
+
+          return {
+            shippingAddress,
+            ...(addressBookReference === undefined
+              ? {}
+              : { addressBookReference }),
+          };
+        })
+      )
     )
   );
 
@@ -96,22 +121,30 @@ const getCheckoutContactFromCustomFields = (
   return field === undefined ? undefined : decodeCheckoutContact(field.value);
 };
 
+const getCheckoutDeliveryDetails = (
+  decodedShippingAddress: DecodedShippingAddress | null
+): CheckoutDeliveryDetails | undefined => {
+  if (decodedShippingAddress === null) {
+    return undefined;
+  }
+
+  const { addressBookReference, shippingAddress } = decodedShippingAddress;
+
+  return addressBookReference === undefined
+    ? { source: "manual", shippingAddress }
+    : { source: "addressBook", addressBookReference, shippingAddress };
+};
+
 const getCheckoutDetails = (
   customFields: readonly RawCustomField[] | null | undefined,
-  shippingAddress: ShippingAddress | null
+  decodedShippingAddress: DecodedShippingAddress | null
 ): CheckoutDetails => {
   const contact = getCheckoutContactFromCustomFields(customFields);
+  const deliveryDetails = getCheckoutDeliveryDetails(decodedShippingAddress);
 
   return {
     ...(contact === undefined ? {} : { contact }),
-    ...(shippingAddress === null
-      ? {}
-      : {
-          deliveryDetails: {
-            source: "manual" as const,
-            shippingAddress,
-          },
-        }),
+    ...(deliveryDetails === undefined ? {} : { deliveryDetails }),
   };
 };
 
@@ -123,6 +156,7 @@ const CartFragment = graphql(
     country
     customerEmail
     shippingAddress {
+      key
       streetName
       postalCode
       city
@@ -191,9 +225,10 @@ const reshapeCart = (
   locale: Locale
 ): Cart => {
   const parsedData = readFragment(CartFragment, fragment);
-  const shippingAddress = Option.getOrNull(
+  const decodedShippingAddress = Option.getOrNull(
     decodeShippingAddress(parsedData.shippingAddress)
   );
+  const shippingAddress = decodedShippingAddress?.shippingAddress ?? null;
 
   const lineItems: LineItem[] = parsedData.lineItems.map((item) => ({
     id: item.id,
@@ -236,7 +271,7 @@ const reshapeCart = (
     lineItems,
     checkoutDetails: getCheckoutDetails(
       parsedData.custom?.customFieldsRaw,
-      shippingAddress
+      decodedShippingAddress
     ),
     shippingAddress,
     totalPrice: {

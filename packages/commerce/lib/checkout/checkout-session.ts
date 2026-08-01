@@ -2,13 +2,13 @@ import { Context, Effect, Layer, Redacted } from "effect";
 import type { CartForCheckout } from "../../domain/cart";
 import {
   type BuyerContact,
+  type CartOnlyCheckoutDeliveryDetailsInput,
   type CheckoutBuyerContext,
   type CheckoutCartReference,
   type CheckoutContact,
   type CheckoutContactInput,
   type CheckoutContactSource,
   type CheckoutDeliveryDetails,
-  type CheckoutDeliveryDetailsSource,
   type CheckoutDetails,
   type CheckoutMutationFailure,
   CheckoutMutationProviderFailure,
@@ -27,6 +27,7 @@ import {
 } from "../../services/commerce-accounts";
 import type { PolicyViolation } from "../cart/policy/cart-policy.types";
 import { CheckoutPolicies, type CheckoutPolicy } from "./checkout-policy";
+import { checkoutDeliveryDetailsEqual } from "./delivery-details-equality";
 import { buildCheckoutState } from "./state";
 
 export interface SaveCheckoutContactInput {
@@ -38,7 +39,7 @@ export interface SaveCheckoutContactInput {
 export interface SaveCheckoutDeliveryDetailsInput {
   readonly scope: CheckoutScope;
   readonly cart: CheckoutCartReference;
-  readonly deliveryDetails: CheckoutDeliveryDetails;
+  readonly deliveryDetails: CartOnlyCheckoutDeliveryDetailsInput;
 }
 
 export interface CheckoutSessionMemoryInput {
@@ -77,17 +78,6 @@ export const contactSourceUnavailable = (source: CheckoutContactSource) =>
       source === "manual"
         ? "Manual Contact Source is unavailable for this checkout"
         : "Customer Profile Contact Source is unavailable for this checkout",
-    source,
-  });
-
-export const deliveryDetailsSourceUnavailable = (
-  source: CheckoutDeliveryDetailsSource
-) =>
-  new CheckoutMutationSourceUnavailable({
-    message:
-      source === "manual"
-        ? "Manual Delivery Details Source is unavailable for this checkout"
-        : `${source} Delivery Details Source is unavailable for this checkout`,
     source,
   });
 
@@ -231,18 +221,9 @@ const requiredShippingAddressFieldError = (
     message: `Manual Shipping Address ${field} is required`,
   });
 
-export const normalizeManualDeliveryDetails = (
-  deliveryDetails: CheckoutDeliveryDetails
-): Effect.Effect<
-  CheckoutDeliveryDetails,
-  CheckoutMutationSchemaFailure | CheckoutMutationSourceUnavailable
-> => {
-  if (deliveryDetails.source !== "manual") {
-    return Effect.fail(
-      deliveryDetailsSourceUnavailable(deliveryDetails.source)
-    );
-  }
-
+export const normalizeNewAddressDeliveryDetails = (
+  deliveryDetails: CartOnlyCheckoutDeliveryDetailsInput
+): Effect.Effect<CheckoutDeliveryDetails, CheckoutMutationSchemaFailure> => {
   const addressLine1 = deliveryDetails.shippingAddress.addressLine1.trim();
   const postalCode = deliveryDetails.shippingAddress.postalCode.trim();
   const city = deliveryDetails.shippingAddress.city.trim();
@@ -276,18 +257,6 @@ export const normalizeManualDeliveryDetails = (
     },
   });
 };
-
-export const deliveryDetailsEqual = (
-  left: CheckoutDeliveryDetails | undefined,
-  right: CheckoutDeliveryDetails
-) =>
-  left?.source === right.source &&
-  left.shippingAddress.addressLine1 === right.shippingAddress.addressLine1 &&
-  left.shippingAddress.postalCode === right.shippingAddress.postalCode &&
-  left.shippingAddress.city === right.shippingAddress.city &&
-  left.shippingAddress.country === right.shippingAddress.country &&
-  left.shippingAddress.addressLine2 === right.shippingAddress.addressLine2 &&
-  left.shippingAddress.region === right.shippingAddress.region;
 
 export const ensureCurrentCartReference = (
   currentCart: CartForCheckout,
@@ -451,7 +420,7 @@ export class CheckoutSession extends Context.Service<
                 );
               }
 
-              const deliveryDetails = yield* normalizeManualDeliveryDetails(
+              const deliveryDetails = yield* normalizeNewAddressDeliveryDetails(
                 input.deliveryDetails
               );
               const cart = yield* ensureCurrentCartReference(
@@ -461,7 +430,7 @@ export class CheckoutSession extends Context.Service<
               );
 
               if (
-                deliveryDetailsEqual(
+                checkoutDeliveryDetailsEqual(
                   activeDetails.deliveryDetails,
                   deliveryDetails
                 )

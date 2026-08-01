@@ -27,7 +27,7 @@ import {
   CheckoutSession,
   contactSourceUnavailable,
   ensureCurrentCartReference,
-  normalizeManualDeliveryDetails,
+  normalizeNewAddressDeliveryDetails,
   resolveCheckoutContact,
   type SaveCheckoutContactInput,
   type SaveCheckoutDeliveryDetailsInput,
@@ -255,7 +255,7 @@ const saveCheckoutDeliveryDetails = (
   input: SaveCheckoutDeliveryDetailsInput
 ): Effect.Effect<void, CheckoutSaveDeliveryDetailsFailure> =>
   Effect.gen(function* () {
-    const deliveryDetails = yield* normalizeManualDeliveryDetails(
+    const deliveryDetails = yield* normalizeNewAddressDeliveryDetails(
       input.deliveryDetails
     );
     const { cart, providerCart } = yield* getCurrentCart(input.scope).pipe(

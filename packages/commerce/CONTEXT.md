@@ -112,6 +112,10 @@ _Avoid_: Buyer identification, login step, account step
 A detail or choice submitted to resolve Contact for the current Checkout.
 _Avoid_: Provider payload, form field
 
+**Delivery Details Input**:
+The buyer-submitted choice used to establish the Shipping Address: a manually entered address with optional Address Book save preferences, or an existing Address Book Entry.
+_Avoid_: Resolved Delivery Details, provider address payload
+
 **Contact Source Policy**:
 A rule that determines whether a Contact Source is allowed for the current Checkout.
 _Avoid_: UI-only rule
@@ -164,6 +168,7 @@ _Avoid_: Customer address, Checkout Shipping Address
 
 **Address Book Reference**:
 A reference to the saved Address Book Entry associated with current Delivery Details.
+The Cart still owns a complete Shipping Address snapshot; the reference preserves saved-address identity rather than replacing that value.
 _Avoid_: Copied address book record
 
 **Address Type**:
@@ -280,21 +285,24 @@ _Avoid_: Review checkout, order summary
 - **Delivery Details** is complete when **Shipping Address** is present and structurally valid.
 - **Delivery Details** follows **Contact** when delivery details are incomplete.
 - **Manual** is the **Delivery Details Source** for buyer-entered **Shipping Address**.
-- **Address Book** is the **Delivery Details Source** for **Shipping Address** selected from saved addresses.
+- **Address Book** is the **Delivery Details Source** for **Shipping Address** resolved from a saved address, including an address saved during the current Delivery Details operation.
 - Checkout offers only **Address Book Entries** whose **Address Types** include Shipping as Delivery Details choices.
 - Saving a new address from **Delivery Details** can add it as Shipping and optionally make it Default Shipping.
 - Billing use and Default Billing are selected during **Payment Options**, not **Delivery Details**.
 - **Address Book** **Delivery Details Source** submits an **Address Book Reference** rather than a copied **Shipping Address**.
+- A **Delivery Details Input** is either a Manual **Shipping Address** with optional save and Default Shipping preferences, or an existing **Address Book Reference**.
 - For **Delivery Details**, the buyer can select an existing **Address Book** address or enter a new **Shipping Address**.
 - A new **Shipping Address** remains Cart-only unless the buyer explicitly chooses to save it to the Business Unit **Address Book**.
-- A buyer-entered new **Shipping Address** uses the Manual **Delivery Details Source** even when the buyer saves it to the **Address Book**.
-- Retrying the Cart update by its saved **Address Book Reference** does not change that Manual source.
-- Existing Address Book selection and new-address save both preserve the current **Address Book Reference** with the Cart-backed Checkout Details.
+- Saving a Manual **Shipping Address** to the **Address Book** assigns its new **Address Book Reference** internally; the buyer does not supply the identity of an entry that does not yet exist.
+- A buyer-entered new **Shipping Address** uses the Manual **Delivery Details Source** only when it remains Cart-only; after it is saved to the **Address Book**, its persisted source is Address Book.
+- Retrying the Cart update by its saved **Address Book Reference** preserves the Address Book source.
+- Existing Address Book selection and new-address save both preserve saved identity on the complete Cart Shipping Address snapshot and expose the current **Address Book Reference** through Checkout Details.
 - Saving a new Cart-only **Shipping Address** clears any previous current **Address Book Reference**.
 - Saving a new **Shipping Address** to the Business Unit **Address Book** is never an implicit effect of saving **Delivery Details**.
 - Saving a new address to the **Address Book** and using it for **Delivery Details** first persists the Business Unit address and then saves the resolved **Shipping Address** to the Cart.
+- The Cart stores the complete resolved **Shipping Address**, not only its **Address Book Reference**, so Cart and Order consumers do not depend on a later Address Book lookup.
 - If the Business Unit address is saved but the Cart update fails, saving the **Delivery Details** step fails and returns the saved **Address Book Reference** for retry.
-- Retrying after that partial failure gets the canonical **Address Book Entry** by reference and retries only the Cart update.
+- Retrying after that partial failure uses the existing-Address-Book **Delivery Details Input**, gets the canonical **Address Book Entry** by reference, and retries only the Cart update; retry is not a separate input kind.
 - Address Book save idempotency is reference-based and does not compare address fields: an existing reference returns its canonical entry without another write.
 - **Delivery Details** completion depends on the resolved **Shipping Address**, not on preserving an **Address Book Reference**.
 - A later change to or removal of an **Address Book Entry** does not silently change or invalidate the Cart's resolved **Shipping Address**.

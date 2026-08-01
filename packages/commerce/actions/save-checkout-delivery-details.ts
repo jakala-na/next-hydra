@@ -53,7 +53,8 @@ const saveDeliveryDetails = (
       version: input.cartVersion,
     },
     deliveryDetails: {
-      source: "manual",
+      type: "manual",
+      saveToAddressBook: false,
       shippingAddress: {
         addressLine1: input.addressLine1,
         postalCode: input.postalCode,

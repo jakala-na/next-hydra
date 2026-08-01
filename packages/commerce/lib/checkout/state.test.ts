@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { AddressBookReference } from "../../domain/address-book";
 import {
   AnonymousId,
   CartId,
@@ -12,6 +13,7 @@ import {
   type CheckoutBuyerContext,
   CheckoutLocale,
   CheckoutUnavailable,
+  CountryCode,
   StorefrontAnonymousCheckoutScope,
 } from "../../domain/checkout";
 import { buildCheckoutState } from "./state";
@@ -129,6 +131,38 @@ describe("buildCheckoutState", () => {
           ["reviewOrder", "incomplete"],
         ]);
         expect(state.activeStep).toBe("deliveryDetails");
+      })
+  );
+
+  it.effect(
+    "returns the current Address Book reference without option data",
+    () =>
+      Effect.gen(function* () {
+        const state = yield* buildCheckoutState({
+          scope,
+          cart: cart(),
+          details: {
+            deliveryDetails: {
+              source: "addressBook",
+              addressBookReference: AddressBookReference.make("london-office"),
+              shippingAddress: {
+                addressLine1: "123 Analytical Engine Way",
+                postalCode: "SW1A 1AA",
+                city: "London",
+                country: CountryCode.make("GB"),
+              },
+            },
+          },
+          buyerContext: guestBuyerContext,
+          cartPolicyViolations: [],
+          checkoutPolicyViolations: [],
+        });
+
+        expect(state.details.deliveryDetails).toMatchObject({
+          source: "addressBook",
+          addressBookReference: "london-office",
+        });
+        expect(state).not.toHaveProperty("addressBookEntries");
       })
   );
 
