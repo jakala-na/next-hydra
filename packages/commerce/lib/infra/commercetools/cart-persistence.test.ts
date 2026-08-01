@@ -504,7 +504,7 @@ describe("B2B Checkout Cart updates", () => {
     expect(mocks.mutation.mock.calls[1]?.[1]).toMatchObject({ version: 8 });
   });
 
-  it("leaves anonymous setCustomType conflict resolution to Checkout orchestration", async () => {
+  it("preserves an anonymous setCustomType conflict for Carts Layer recovery", async () => {
     mocks.mutation.mockResolvedValueOnce({
       error: {
         graphQLErrors: [
@@ -522,6 +522,7 @@ describe("B2B Checkout Cart updates", () => {
       cart: checkoutCart,
       contact,
       locale: "en-US",
+      retryConcurrentModification: true,
       scope: anonymousScope,
     });
 
@@ -530,6 +531,43 @@ describe("B2B Checkout Cart updates", () => {
       error: { code: "CONFLICT" },
     });
     expect(mocks.mutation).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries anonymous setCustomField Contact with the provider version", async () => {
+    mocks.mutation
+      .mockResolvedValueOnce({
+        error: {
+          graphQLErrors: [
+            {
+              extensions: {
+                code: "ConcurrentModification",
+                currentVersion: 8,
+              },
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: { updateCart: { id: "cart-1" } },
+      });
+
+    const result = await saveCheckoutContact({
+      cart: {
+        ...checkoutCart,
+        custom: {
+          type: { key: "orderCustomFields" },
+          customFieldsRaw: [],
+        },
+      },
+      contact,
+      locale: "en-US",
+      retryConcurrentModification: true,
+      scope: anonymousScope,
+    });
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    expect(mocks.mutation).toHaveBeenCalledTimes(2);
+    expect(mocks.mutation.mock.calls[1]?.[1]).toMatchObject({ version: 8 });
   });
 
   it("retries anonymous line-item removal with the provider version", async () => {

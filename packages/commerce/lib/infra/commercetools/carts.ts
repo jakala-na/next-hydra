@@ -43,6 +43,10 @@ import {
   type SaveCartDeliveryDetails,
   type SetCartLineItemQuantity,
 } from "../../../services/carts";
+import {
+  hasPersistedCheckoutContact,
+  ORDER_CUSTOM_TYPE_KEY,
+} from "../../cart/checkout-contact-actions";
 import { storeService } from "../../store/store.service";
 import type { Cart } from "../../types";
 import type { ActionResult, DomainError } from "../../utils/errors";
@@ -82,6 +86,7 @@ interface RemoveCommercetoolsCartLineItem extends RemoveCartLineItem {
 
 interface SaveCommercetoolsCartContact extends SaveCartContact {
   readonly cart: Cart;
+  readonly retryConcurrentModification: boolean;
 }
 
 interface SaveCommercetoolsCartDeliveryDetails extends SaveCartDeliveryDetails {
@@ -215,6 +220,17 @@ const findById = (
       persistence.findById(input)
     );
     if (result.ok) {
+      if (
+        result.data.cartState !== "Active" ||
+        result.data.store?.key !== input.store.storeKey ||
+        result.data.businessUnitId !== undefined ||
+        result.data.customerId !== undefined
+      ) {
+        return yield* new CartAccessDenied({
+          cartId: input.id,
+          operation: "findById",
+        });
+      }
       return Option.some(
         yield* decodeCommercetoolsCart(result.data, "findById")
       );
@@ -420,6 +436,7 @@ const productionPersistence: CommercetoolsCartsPersistence = {
       cart: input.cart,
       contact: input.contact,
       locale: input.target.store.locale,
+      retryConcurrentModification: input.retryConcurrentModification,
       scope: targetScope(input.target),
     } satisfies SaveCheckoutContactParams),
   saveDeliveryDetails: (input) =>
@@ -494,6 +511,15 @@ export const layerCommercetoolsCartsFrom = (
             input.target,
             "setLineItemQuantity"
           );
+          if (
+            !cart.lineItems.some((lineItem) => lineItem.id === input.lineItemId)
+          ) {
+            return yield* new CartLineItemNotFound({
+              cartId: input.target.id,
+              lineItemId: input.lineItemId,
+              operation: "setLineItemQuantity",
+            });
+          }
           const result = yield* runPersistence("setLineItemQuantity", () =>
             persistence.setLineItemQuantity({ ...input, cart })
           );
@@ -526,6 +552,15 @@ export const layerCommercetoolsCartsFrom = (
             input.target,
             "removeLineItem"
           );
+          if (
+            !cart.lineItems.some((lineItem) => lineItem.id === input.lineItemId)
+          ) {
+            return yield* new CartLineItemNotFound({
+              cartId: input.target.id,
+              lineItemId: input.lineItemId,
+              operation: "removeLineItem",
+            });
+          }
           const result = yield* runPersistence("removeLineItem", () =>
             persistence.removeLineItem({ ...input, cart })
           );
@@ -550,21 +585,59 @@ export const layerCommercetoolsCartsFrom = (
         }),
       saveContact: (input) =>
         Effect.gen(function* () {
-          const cart = yield* loadTargetCart(
+          let cart = yield* loadTargetCart(
             persistence,
             input.target,
             "saveContact"
           );
-          const result = yield* runPersistence("saveContact", () =>
-            persistence.saveContact({ ...input, cart })
-          );
+          if (hasPersistedCheckoutContact(cart, input.contact)) {
+            return yield* decodeCommercetoolsCart(cart, "saveContact");
+          }
+
+          const write = (retryConcurrentModification: boolean) =>
+            runPersistence("saveContact", () =>
+              persistence.saveContact({
+                ...input,
+                cart,
+                retryConcurrentModification,
+              })
+            );
+          let result = yield* write(true);
+
+          if (!result.ok && result.error.code === "CONFLICT") {
+            if (cart.custom?.type?.key === ORDER_CUSTOM_TYPE_KEY) {
+              return yield* new CartWriteConflict({
+                cartId: input.target.id,
+                operation: "saveContact",
+              });
+            }
+
+            cart = yield* loadTargetCart(
+              persistence,
+              input.target,
+              "saveContact"
+            );
+            if (hasPersistedCheckoutContact(cart, input.contact)) {
+              return yield* decodeCommercetoolsCart(cart, "saveContact");
+            }
+            result = yield* write(false);
+          }
+
           if (!result.ok) {
+            if (result.error.code === "BAD_INPUT") {
+              return yield* providerFailure(
+                "saveContact",
+                result.error,
+                "invalidData"
+              );
+            }
             return yield* mapRepeatableWriteFailure(
               "saveContact",
               input.target.id,
               result.error
             );
           }
+
           const refreshed = yield* loadTargetCart(
             persistence,
             input.target,

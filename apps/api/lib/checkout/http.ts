@@ -51,7 +51,7 @@ import {
 } from "@repo/commerce/services/commerce-accounts";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
 import type { Locale } from "@repo/i18n/types";
-import { Duration, Effect, Layer, Result, Schema } from "effect";
+import { Duration, Effect, Layer, Option, Ref, Result, Schema } from "effect";
 import {
   HttpEffect,
   HttpRouter,
@@ -79,6 +79,9 @@ type CheckoutRuntimeLayer = Layer.Layer<
 type CommerceRequestContextNotFoundReason = ConstructorParameters<
   typeof CommerceRequestContextNotFound
 >[0]["reason"];
+type CustomerCheckoutContext = CommerceRequestContext & {
+  readonly principal: CustomerCommercePrincipal;
+};
 
 export interface CheckoutHttpDependencies {
   readonly layer: CheckoutRuntimeLayer;
@@ -354,8 +357,10 @@ const toCheckoutContextAccountError = (
   }
 };
 
-const resolveCustomerCheckoutContextFromAuthorization = Effect.gen(
-  function* () {
+const resolveCustomerCheckoutContextFromAuthorization = (
+  headers: CheckoutRequestHeaders
+) =>
+  Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const token = yield* parseBearerToken(
       getHeader(request.headers, "authorization")
@@ -365,7 +370,6 @@ const resolveCustomerCheckoutContextFromAuthorization = Effect.gen(
       return null;
     }
 
-    const headers = yield* getCheckoutRequestHeadersFromRequest;
     const locale = headers["x-context-locale"];
     const authUserId = yield* CheckoutCustomerJwtVerifier.verify(token).pipe(
       Effect.tapError((error) =>
@@ -406,9 +410,8 @@ const resolveCustomerCheckoutContextFromAuthorization = Effect.gen(
         businessUnitId: businessUnitContext.businessUnitId,
         businessUnitKey: businessUnitContext.businessUnitKey,
       }),
-    });
-  }
-);
+    }) as CustomerCheckoutContext;
+  });
 
 const anonymousCartCookieMaxAgeDays = 90;
 const httpCurrentCartCookieOptions = {
@@ -424,9 +427,13 @@ const currentCartAssociationFailure = (
   cause: unknown
 ) => new CurrentCartAssociationFailure({ operation, cause });
 
+type HttpAnonymousCartAssociationChange =
+  | { readonly _tag: "Establish"; readonly value: string }
+  | { readonly _tag: "Clear" };
+
 const makeHttpCurrentCartRequest = (
   headers: CheckoutRequestHeaders,
-  customerContext: CommerceRequestContext | null
+  customerContext: CustomerCheckoutContext | null
 ) =>
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
@@ -440,9 +447,6 @@ const makeHttpCurrentCartRequest = (
 
     if (customerContext !== null) {
       const principal = customerContext.principal;
-      if (!(principal instanceof CustomerCommercePrincipal)) {
-        return yield* commerceRequestContextNotFound("noPrincipal");
-      }
       return {
         _tag: "BusinessUnitCurrentCartRequest",
         store,
@@ -452,6 +456,37 @@ const makeHttpCurrentCartRequest = (
       } satisfies CurrentCartRequest;
     }
 
+    const associationChange = yield* Ref.make(
+      Option.none<HttpAnonymousCartAssociationChange>()
+    );
+    HttpEffect.appendPreResponseHandlerUnsafe(
+      request,
+      (
+        _request: HttpServerRequest.HttpServerRequest,
+        response: HttpServerResponse.HttpServerResponse
+      ) =>
+        Ref.get(associationChange).pipe(
+          Effect.map(
+            Option.match({
+              onNone: () => response,
+              onSome: (change) =>
+                change._tag === "Establish"
+                  ? HttpServerResponse.setCookieUnsafe(
+                      response,
+                      ANONYMOUS_CART_COOKIE_NAME,
+                      change.value,
+                      httpCurrentCartCookieOptions
+                    )
+                  : HttpServerResponse.expireCookieUnsafe(
+                      response,
+                      ANONYMOUS_CART_COOKIE_NAME,
+                      { path: "/" }
+                    ),
+            })
+          )
+        )
+    );
+
     const possessedCartId = headers["x-context-anonymous-cart-id"];
     return {
       _tag: "AnonymousCurrentCartRequest",
@@ -459,46 +494,27 @@ const makeHttpCurrentCartRequest = (
       ...(possessedCartId === undefined ? {} : { possessedCartId }),
       establish: (cartId: CartId) =>
         Effect.try({
-          try: () => {
-            const value = encodeAnonymousCartCookie(
+          try: () =>
+            encodeAnonymousCartCookie(
               makeAnonymousCartCookie({ cartId, context: cookieContext })
-            );
-            HttpEffect.appendPreResponseHandlerUnsafe(
-              request,
-              (_request, response) =>
-                Effect.succeed(
-                  HttpServerResponse.setCookieUnsafe(
-                    response,
-                    ANONYMOUS_CART_COOKIE_NAME,
-                    value,
-                    httpCurrentCartCookieOptions
-                  )
-                )
-            );
-          },
+            ),
           catch: (cause) => currentCartAssociationFailure("establish", cause),
-        }),
-      clear: () =>
-        Effect.sync(() =>
-          HttpEffect.appendPreResponseHandlerUnsafe(
-            request,
-            (_request, response) =>
-              Effect.succeed(
-                HttpServerResponse.expireCookieUnsafe(
-                  response,
-                  ANONYMOUS_CART_COOKIE_NAME,
-                  { path: "/" }
-                )
-              )
+        }).pipe(
+          Effect.flatMap((value) =>
+            Ref.set(
+              associationChange,
+              Option.some({ _tag: "Establish", value })
+            )
           )
         ),
+      clear: () => Ref.set(associationChange, Option.some({ _tag: "Clear" })),
     } satisfies CurrentCartRequest;
   });
 
 export const resolveHttpCurrentCartRequest = Effect.gen(function* () {
   const headers = yield* getCheckoutRequestHeadersFromRequest;
   const customerContext =
-    yield* resolveCustomerCheckoutContextFromAuthorization;
+    yield* resolveCustomerCheckoutContextFromAuthorization(headers);
   return yield* makeHttpCurrentCartRequest(headers, customerContext);
 });
 
@@ -521,6 +537,7 @@ const checkoutScopeMiddlewareLayer = Layer.effect(
     const cartPolicies = yield* CartPolicies;
     const checkoutPolicies = yield* CheckoutPolicies;
     const commerceAccounts = yield* CommerceAccounts;
+    const checkoutCustomerJwtVerifier = yield* CheckoutCustomerJwtVerifier;
     const addressBook = yield* AddressBook;
     const dependencies = Layer.mergeAll(
       Layer.succeed(Carts, carts),
@@ -529,12 +546,18 @@ const checkoutScopeMiddlewareLayer = Layer.effect(
       Layer.succeed(CommerceAccounts, commerceAccounts),
       Layer.succeed(AddressBook, addressBook)
     );
+    const authenticationDependencies = Layer.merge(
+      Layer.succeed(CommerceAccounts, commerceAccounts),
+      Layer.succeed(CheckoutCustomerJwtVerifier, checkoutCustomerJwtVerifier)
+    );
 
     return (httpEffect) =>
       Effect.gen(function* () {
         const headers = yield* getCheckoutRequestHeadersFromRequest;
         const customerContextResult = yield* Effect.result(
-          resolveCustomerCheckoutContextFromAuthorization
+          resolveCustomerCheckoutContextFromAuthorization(headers).pipe(
+            Effect.provide(authenticationDependencies)
+          )
         );
         const customerContext = Result.isSuccess(customerContextResult)
           ? customerContextResult.success
@@ -570,7 +593,7 @@ const checkoutScopeMiddlewareLayer = Layer.effect(
             ? Result.fail(commerceRequestContextNotFound("noPrincipal"))
             : Result.succeed(context);
         const contextResult = Result.isFailure(customerContextResult)
-          ? customerContextResult
+          ? Result.fail(customerContextResult.failure)
           : resolvedContextResult;
         const scope =
           context === null
@@ -670,7 +693,6 @@ const makeCheckoutHttpHandlers = () =>
                       error,
                       requestScope.locale
                     );
-                  case "CheckoutApiBadRequest":
                   case "CheckoutApiError":
                     return error;
                   case "CheckoutUnavailable":
@@ -711,8 +733,6 @@ const makeCheckoutHttpHandlers = () =>
                   case "CheckoutApiError":
                   case "CheckoutApiNotFound":
                     return error;
-                  case "CheckoutUnavailable":
-                    return toCheckoutNotFound(requestScope.locale);
                   default:
                     return toCheckoutApiError(requestScope.locale);
                 }
@@ -751,8 +771,6 @@ const makeCheckoutHttpHandlers = () =>
                   case "CheckoutApiError":
                   case "CheckoutApiNotFound":
                     return error;
-                  case "CheckoutUnavailable":
-                    return toCheckoutNotFound(requestScope.locale);
                   default:
                     return toCheckoutApiError(requestScope.locale);
                 }

@@ -613,7 +613,7 @@ export const getActiveCartForAssociateScope = async (
 
   if (result.data.length > 1) {
     return Err(
-      domainError(
+      domainError<object>(
         "CONFLICT",
         "Multiple active Carts are available for the Store and Business Unit"
       )
@@ -639,7 +639,7 @@ export const findActiveCartsForAssociateScope = async (
 
   if (result.error?.networkError) {
     return Err(
-      domainError(
+      domainError<object>(
         "NETWORK_ERROR",
         `Failed to get active Cart for Store and Business Unit: ${result.error.message}`
       )
@@ -674,7 +674,7 @@ export const getCartById = async (
   });
   if (result.error?.networkError) {
     return Err(
-      domainError(
+      domainError<object>(
         "NETWORK_ERROR",
         `Failed to get cart by Id: ${result.error.message}`
       )
@@ -786,6 +786,17 @@ export const addItemToCart = async (
     );
   }
 
+  if (result.error) {
+    return Err(
+      domainError<object>(
+        "BAD_INPUT",
+        `Failed to add item to cart: ${result.error.message}`,
+        undefined,
+        result.error
+      )
+    );
+  }
+
   if (!result.data?.updateCart) {
     return Err(
       domainError("UNKNOWN", "Failed to add item to cart: No data returned")
@@ -825,6 +836,17 @@ export const changeItemQuantity = async (
     );
   }
 
+  if (result.error) {
+    return Err(
+      domainError<object>(
+        "BAD_INPUT",
+        `Failed to change item quantity: ${result.error.message}`,
+        undefined,
+        result.error
+      )
+    );
+  }
+
   if (!result.data?.updateCart) {
     return Err(
       domainError("UNKNOWN", "Failed to change item quantity: No data returned")
@@ -860,6 +882,17 @@ export const removeItemFromCart = async (
       domainError(
         "NETWORK_ERROR",
         `Failed to remove item from cart: ${result.error.message}`
+      )
+    );
+  }
+
+  if (result.error) {
+    return Err(
+      domainError<object>(
+        "BAD_INPUT",
+        `Failed to remove item from cart: ${result.error.message}`,
+        undefined,
+        result.error
       )
     );
   }
@@ -915,7 +948,7 @@ export const saveCheckoutContact = async (
       cartId: params.cart.id,
       conflictMessage: "Checkout Cart changed before Contact could be saved",
       failureMessage: "Failed to save checkout contact",
-      retryConcurrentModification: false,
+      retryConcurrentModification: params.retryConcurrentModification,
       scope: params.scope,
       version: params.cart.version,
     });
@@ -931,7 +964,11 @@ export const saveCheckoutContact = async (
     operation: "checkout.contact.save",
     input,
     execute: (current) => client.mutation(SaveCheckoutContactMutation, current),
-    resolveConflict: () => Effect.succeed(new PreserveVersionedWriteConflict()),
+    resolveConflict: (conflict, current) =>
+      params.retryConcurrentModification &&
+      params.cart.custom?.type?.key === ORDER_CUSTOM_TYPE_KEY
+        ? retryWithProviderVersion(conflict.currentVersion, current)
+        : Effect.succeed(new PreserveVersionedWriteConflict()),
   });
 
   if (write._tag === "Failure") {

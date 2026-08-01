@@ -584,15 +584,15 @@ export class CheckoutSession extends Context.Service<
             })
           ),
           Effect.flatMap((current) =>
-            buildState(scope, current).pipe(Effect.as(current))
+            buildState(scope, current).pipe(
+              Effect.map((state) => ({ current, state }))
+            )
           )
         );
 
       return CheckoutSession.of({
         getCurrent: (scope) =>
-          requireCurrent(scope).pipe(
-            Effect.flatMap((current) => buildState(scope, current))
-          ),
+          requireCurrent(scope).pipe(Effect.map(({ state }) => state)),
         saveContact: (input) =>
           Effect.gen(function* () {
             const allowedContactSources = allowedContactSourcesForCheckout(
@@ -606,7 +606,7 @@ export class CheckoutSession extends Context.Service<
               input.contact,
               commerceAccounts
             );
-            const current = yield* requireCurrent(input.scope).pipe(
+            const { current } = yield* requireCurrent(input.scope).pipe(
               Effect.mapError((error) =>
                 error._tag === "CheckoutProviderFailure"
                   ? mutationReadFailure(error)
@@ -639,7 +639,7 @@ export class CheckoutSession extends Context.Service<
                     locale: input.context.locale,
                     anonymousCartId: input.context.principal.anonymousCartId,
                   });
-            const current = yield* requireCurrent(scope).pipe(
+            const { current } = yield* requireCurrent(scope).pipe(
               Effect.mapError((error) =>
                 error._tag === "CheckoutProviderFailure"
                   ? mutationReadFailure(error)

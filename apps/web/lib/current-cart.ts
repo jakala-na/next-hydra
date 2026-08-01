@@ -58,8 +58,20 @@ interface CurrentCartAssociationBehavior {
 }
 
 const readAssociation: CurrentCartAssociationBehavior = {
-  establish: () => Effect.void,
-  clear: () => Effect.void,
+  establish: () =>
+    Effect.fail(
+      associationFailure(
+        "establish",
+        new Error("Read-only Current Cart boundary cannot set cookies")
+      )
+    ),
+  clear: () =>
+    Effect.fail(
+      associationFailure(
+        "clear",
+        new Error("Read-only Current Cart boundary cannot clear cookies")
+      )
+    ),
 };
 
 const writeAssociation: CurrentCartAssociationBehavior = {
@@ -282,19 +294,41 @@ type CheckoutProgramRunner = <A, E>(
   program: Effect.Effect<A, E, CheckoutSession | AddressBook>
 ) => Promise<A>;
 
+export type WebCurrentCartRequestResolutionFailure =
+  | CommerceAccountError
+  | CommerceRequestContextNotFound
+  | WebCheckoutContextResolutionFailure;
+
 const runCheckoutWithContext = async <A>(
   locale: Locale,
   association: CurrentCartAssociationBehavior,
   use: (
     context: CommerceRequestContext | null,
     run: CheckoutProgramRunner
-  ) => Promise<A>
+  ) => Promise<A>,
+  onResolutionFailure?: (
+    error: Exclude<
+      WebCurrentCartRequestResolutionFailure,
+      CommerceRequestContextNotFound
+    >
+  ) => Promise<A> | A
 ) => {
-  const { context, request } = await Effect.runPromise(
+  const resolved = await Effect.runPromise(
     resolveRequestDetails(locale, association).pipe(
-      Effect.provide(layerCommercetoolsCommerceAccounts)
+      Effect.provide(layerCommercetoolsCommerceAccounts),
+      Effect.result
     )
   );
+  if (resolved._tag === "Failure") {
+    if (resolved.failure._tag === "CommerceRequestContextNotFound") {
+      return use(null, () => Effect.runPromise(Effect.fail(resolved.failure)));
+    }
+    if (onResolutionFailure !== undefined) {
+      return onResolutionFailure(resolved.failure);
+    }
+    return Effect.runPromise(Effect.fail(resolved.failure));
+  }
+  const { context, request } = resolved.success;
   const run: CheckoutProgramRunner = (program) =>
     Effect.runPromise(program.pipe(Effect.provide(checkoutRuntime(request))));
   return use(context, run);
@@ -305,13 +339,25 @@ export const runCheckoutReadWithContext = <A>(
   use: (
     context: CommerceRequestContext | null,
     run: CheckoutProgramRunner
-  ) => Promise<A>
-) => runCheckoutWithContext(locale, readAssociation, use);
+  ) => Promise<A>,
+  onResolutionFailure?: (
+    error: Exclude<
+      WebCurrentCartRequestResolutionFailure,
+      CommerceRequestContextNotFound
+    >
+  ) => Promise<A> | A
+) => runCheckoutWithContext(locale, readAssociation, use, onResolutionFailure);
 
 export const runCheckoutWriteWithContext = <A>(
   locale: Locale,
   use: (
     context: CommerceRequestContext | null,
     run: CheckoutProgramRunner
-  ) => Promise<A>
-) => runCheckoutWithContext(locale, writeAssociation, use);
+  ) => Promise<A>,
+  onResolutionFailure?: (
+    error: Exclude<
+      WebCurrentCartRequestResolutionFailure,
+      CommerceRequestContextNotFound
+    >
+  ) => Promise<A> | A
+) => runCheckoutWithContext(locale, writeAssociation, use, onResolutionFailure);

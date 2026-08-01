@@ -59,7 +59,7 @@ export const hasPersistedCheckoutContact = (
 const cartCustomTypeConflict = (actualTypeKey: string | undefined) =>
   Err(
     domainError<CartCustomTypeConflictDetails>(
-      "UNKNOWN",
+      "BAD_INPUT",
       "Cart custom type cannot store checkout contact",
       {
         actualTypeKey: actualTypeKey ?? "<unavailable>",

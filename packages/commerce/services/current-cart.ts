@@ -339,12 +339,6 @@ export class CurrentCart extends Context.Service<
           saveContact: (contact) =>
             Effect.gen(function* () {
               const selected = yield* requireSelection();
-              if (
-                JSON.stringify(selected.cart.checkoutDetails.contact) ===
-                JSON.stringify(contact)
-              ) {
-                return yield* evaluate(selected.cart);
-              }
               const cart = yield* mapUnavailable(
                 carts.saveContact({ target: selected.target, contact })
               );

@@ -6,7 +6,7 @@ import { z } from "zod";
 export const addToCartInputSchema = z.object({
   productId: z.string(),
   variantId: z.string(),
-  quantity: z.number().min(1),
+  quantity: z.number().int().positive(),
 });
 
 export type AddToCartInput = z.infer<typeof addToCartInputSchema>;

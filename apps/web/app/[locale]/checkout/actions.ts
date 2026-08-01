@@ -30,13 +30,22 @@ export async function saveCheckoutContact(
   formData: FormData
 ): Promise<SaveCheckoutContactActionState> {
   const locale = await getLocale();
-  const state = await runCheckoutWriteWithContext(
-    locale,
-    async (context, run) =>
-      context === null
-        ? { status: "error" as const, code: "checkout.notFound" as const }
-        : saveCheckoutContactForScope(toCheckoutScope(context), formData, run)
-  );
+  const state =
+    await runCheckoutWriteWithContext<SaveCheckoutContactActionState>(
+      locale,
+      async (context, run) =>
+        context === null
+          ? { status: "error" as const, code: "checkout.notFound" as const }
+          : saveCheckoutContactForScope(
+              toCheckoutScope(context),
+              formData,
+              run
+            ),
+      async () => ({
+        status: "error" as const,
+        code: "checkout.contact.providerFailure" as const,
+      })
+    );
 
   if (shouldRevalidateContact(state)) {
     revalidatePath(`/${locale}/checkout`);
@@ -50,13 +59,18 @@ export async function saveCheckoutDeliveryDetails(
   formData: FormData
 ): Promise<SaveCheckoutDeliveryDetailsActionState> {
   const locale = await getLocale();
-  const state = await runCheckoutWriteWithContext(
-    locale,
-    async (context, run) =>
-      context === null
-        ? { status: "error" as const, code: "checkout.notFound" as const }
-        : saveCheckoutDeliveryDetailsForContext(context, formData, run)
-  );
+  const state =
+    await runCheckoutWriteWithContext<SaveCheckoutDeliveryDetailsActionState>(
+      locale,
+      async (context, run) =>
+        context === null
+          ? { status: "error" as const, code: "checkout.notFound" as const }
+          : saveCheckoutDeliveryDetailsForContext(context, formData, run),
+      async () => ({
+        status: "error" as const,
+        code: "checkout.deliveryDetails.providerFailure" as const,
+      })
+    );
 
   if (shouldRevalidateDeliveryDetails(state)) {
     revalidatePath(`/${locale}/checkout`);

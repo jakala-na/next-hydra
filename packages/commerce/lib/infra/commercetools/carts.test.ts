@@ -1,9 +1,19 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option } from "effect";
 import { vi } from "vitest";
-import { CartId, ProductId, StoreKey, VariantId } from "../../../domain/cart";
+import {
+  CartId,
+  LineItemId,
+  ProductId,
+  StoreKey,
+  VariantId,
+} from "../../../domain/cart";
 import { CartStore } from "../../../domain/cart-snapshot";
 import { CheckoutLocale } from "../../../domain/checkout";
+import {
+  CommerceBusinessUnitId,
+  CommerceCustomerId,
+} from "../../../domain/commerce-account";
 import { Carts } from "../../../services/carts";
 import type { Cart } from "../../types";
 import { domainError, Err, Ok } from "../../utils/errors";
@@ -25,6 +35,15 @@ const unitPriceCentAmount = 2500;
 const currentVersion = 7;
 const nextVersion = 8;
 const updatedQuantity = 2;
+const persistedContactRead = 3;
+const contact = {
+  source: "manual" as const,
+  buyerContact: {
+    email: "buyer@example.com",
+    firstName: "Ada",
+    lastName: "Lovelace",
+  },
+};
 
 const providerCart = ({
   id = "cart-1",
@@ -186,10 +205,281 @@ describe("layerCommercetoolsCarts", () => {
       Effect.provide(
         layerCommercetoolsCartsFrom(
           persistence({
-            findById: async () => Ok({ ...providerCart(), store: null }),
+            findById: async () =>
+              Ok({ ...providerCart(), totalLineItemQuantity: -1 }),
           })
         )
       )
     )
+  );
+
+  it.effect(
+    "rejects customer-owned Carts presented as anonymous possession",
+    () =>
+      Effect.gen(function* () {
+        const carts = yield* Carts;
+        const error = yield* carts
+          .findById({ id: CartId.make("cart-1"), store })
+          .pipe(Effect.flip);
+
+        expect(error._tag).toBe("CartAccessDenied");
+      }).pipe(
+        Effect.provide(
+          layerCommercetoolsCartsFrom(
+            persistence({
+              findById: async () =>
+                Ok({
+                  ...providerCart(),
+                  customerId: CommerceCustomerId.make("customer-1"),
+                }),
+            })
+          )
+        )
+      )
+  );
+
+  it.effect(
+    "rejects Business Unit Carts presented as anonymous possession",
+    () =>
+      Effect.gen(function* () {
+        const carts = yield* Carts;
+        const error = yield* carts
+          .findById({ id: CartId.make("cart-1"), store })
+          .pipe(Effect.flip);
+
+        expect(error._tag).toBe("CartAccessDenied");
+      }).pipe(
+        Effect.provide(
+          layerCommercetoolsCartsFrom(
+            persistence({
+              findById: async () =>
+                Ok({
+                  ...providerCart(),
+                  businessUnitId:
+                    CommerceBusinessUnitId.make("business-unit-1"),
+                }),
+            })
+          )
+        )
+      )
+  );
+
+  it.effect("repairs stale customer email when Contact already matches", () => {
+    let writes = 0;
+    let reads = 0;
+    const implementation = persistence({
+      findById: () => {
+        reads += 1;
+        return Promise.resolve(
+          Ok({
+            ...providerCart(),
+            checkoutDetails: { contact },
+            customerEmail:
+              reads === 1 ? "stale@example.com" : contact.buyerContact.email,
+          })
+        );
+      },
+      saveContact: () => {
+        writes += 1;
+        return Promise.resolve(Ok(undefined));
+      },
+    });
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const updated = yield* carts.saveContact({
+        target: {
+          _tag: "AnonymousCartTarget",
+          id: CartId.make("cart-1"),
+          store,
+        },
+        contact,
+      });
+
+      expect(writes).toBe(1);
+      expect(updated.checkoutDetails.contact).toEqual(contact);
+    }).pipe(Effect.provide(layerCommercetoolsCartsFrom(implementation)));
+  });
+
+  it.effect(
+    "reloads and rebuilds Contact after a setCustomType conflict",
+    () => {
+      let reads = 0;
+      const retryFlags: boolean[] = [];
+      const implementation = persistence({
+        findById: () => {
+          reads += 1;
+          return Promise.resolve(
+            Ok({
+              ...providerCart({
+                version: reads === 1 ? currentVersion : nextVersion,
+              }),
+              ...(reads === 1
+                ? {}
+                : {
+                    custom: {
+                      type: { key: "orderCustomFields" },
+                      fields: {},
+                    },
+                  }),
+              ...(reads < persistedContactRead
+                ? {}
+                : {
+                    checkoutDetails: { contact },
+                    customerEmail: contact.buyerContact.email,
+                  }),
+            })
+          );
+        },
+        saveContact: ({ retryConcurrentModification }) => {
+          retryFlags.push(retryConcurrentModification);
+          return Promise.resolve(
+            retryFlags.length === 1
+              ? Err(domainError("CONFLICT", "Concurrent modification"))
+              : Ok(undefined)
+          );
+        },
+      });
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const updated = yield* carts.saveContact({
+          target: {
+            _tag: "AnonymousCartTarget",
+            id: CartId.make("cart-1"),
+            store,
+          },
+          contact,
+        });
+
+        expect(retryFlags).toEqual([true, false]);
+        expect(updated.checkoutDetails.contact).toEqual(contact);
+      }).pipe(Effect.provide(layerCommercetoolsCartsFrom(implementation)));
+    }
+  );
+
+  it.effect(
+    "returns a provider-neutral conflict after Contact recovery is exhausted",
+    () =>
+      Effect.gen(function* () {
+        const carts = yield* Carts;
+        const error = yield* carts
+          .saveContact({
+            target: {
+              _tag: "AnonymousCartTarget",
+              id: CartId.make("cart-1"),
+              store,
+            },
+            contact,
+          })
+          .pipe(Effect.flip);
+
+        expect(error._tag).toBe("CartWriteConflict");
+      }).pipe(
+        Effect.provide(
+          layerCommercetoolsCartsFrom(
+            persistence({
+              saveContact: async () =>
+                Err(domainError("CONFLICT", "Concurrent modification")),
+            })
+          )
+        )
+      )
+  );
+
+  it.effect("maps provider bad input to unavailable merchandise", () =>
+    Effect.gen(function* () {
+      const carts = yield* Carts;
+      const error = yield* carts
+        .addItem({
+          target: {
+            _tag: "AnonymousCartTarget",
+            id: CartId.make("cart-1"),
+            store,
+          },
+          productId: ProductId.make("product-1"),
+          variantId: VariantId.make("3"),
+          quantity: 1,
+        })
+        .pipe(Effect.flip);
+
+      expect(error._tag).toBe("CartMerchandiseUnavailable");
+    }).pipe(
+      Effect.provide(
+        layerCommercetoolsCartsFrom(
+          persistence({
+            addItem: async () =>
+              Err(domainError("BAD_INPUT", "Variant is unavailable")),
+          })
+        )
+      )
+    )
+  );
+
+  it.effect(
+    "maps a line disappearing during quantity change to line not found",
+    () =>
+      Effect.gen(function* () {
+        const carts = yield* Carts;
+        const error = yield* carts
+          .setLineItemQuantity({
+            target: {
+              _tag: "AnonymousCartTarget",
+              id: CartId.make("cart-1"),
+              store,
+            },
+            lineItemId: LineItemId.make("line-1"),
+            quantity: updatedQuantity,
+          })
+          .pipe(Effect.flip);
+
+        expect(error._tag).toBe("CartLineItemNotFound");
+      }).pipe(
+        Effect.provide(
+          layerCommercetoolsCartsFrom(
+            persistence({
+              setLineItemQuantity: async () =>
+                Err(domainError("BAD_INPUT", "Line item no longer exists")),
+            })
+          )
+        )
+      )
+  );
+
+  it.effect(
+    "maps conflicting Contact custom type evidence to invalid data",
+    () =>
+      Effect.gen(function* () {
+        const carts = yield* Carts;
+        const error = yield* carts
+          .saveContact({
+            target: {
+              _tag: "AnonymousCartTarget",
+              id: CartId.make("cart-1"),
+              store,
+            },
+            contact,
+          })
+          .pipe(Effect.flip);
+
+        expect(error).toMatchObject({
+          _tag: "CartProviderFailure",
+          reason: "invalidData",
+        });
+      }).pipe(
+        Effect.provide(
+          layerCommercetoolsCartsFrom(
+            persistence({
+              saveContact: async () =>
+                Err(
+                  domainError(
+                    "BAD_INPUT",
+                    "Cart custom type cannot store checkout contact"
+                  )
+                ),
+            })
+          )
+        )
+      )
   );
 });

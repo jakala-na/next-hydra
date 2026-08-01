@@ -119,7 +119,7 @@ describe("buildSaveCheckoutContactActions", () => {
     }
 
     expect(result.error).toMatchObject({
-      code: "UNKNOWN",
+      code: "BAD_INPUT",
       message: "Cart custom type cannot store checkout contact",
       details: {
         actualTypeKey: "other-cart-fields",
@@ -150,7 +150,7 @@ describe("buildSaveCheckoutContactActions", () => {
     }
 
     expect(result.error).toMatchObject({
-      code: "UNKNOWN",
+      code: "BAD_INPUT",
       message: "Cart custom type cannot store checkout contact",
       details: {
         actualTypeKey: "<unavailable>",

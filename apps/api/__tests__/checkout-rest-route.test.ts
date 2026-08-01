@@ -15,7 +15,10 @@ import {
   VariantId,
 } from "@repo/commerce/domain/cart";
 import { CartProviderFailure } from "@repo/commerce/domain/cart-errors";
-import type { CartSnapshot } from "@repo/commerce/domain/cart-snapshot";
+import type {
+  CartPolicyViolation,
+  CartSnapshot,
+} from "@repo/commerce/domain/cart-snapshot";
 import {
   type CartOnlyCheckoutDeliveryDetailsInput,
   type CheckoutContact,
@@ -23,6 +26,7 @@ import {
   type CheckoutDeliveryDetails,
   type CheckoutDeliveryDetailsInput,
   CheckoutMutationProviderFailure,
+  type CheckoutProviderFailure,
   CountryCode,
 } from "@repo/commerce/domain/checkout";
 import {
@@ -97,7 +101,7 @@ const cart = ({
 }: {
   readonly lineItems?: TestLineItem[];
   readonly totalLineItemQuantity?: number;
-} = {}) => {
+} = {}): CartSnapshot => {
   const resolvedLineItems = lineItems ?? defaultLineItems;
 
   return {
@@ -262,10 +266,7 @@ const makeCheckoutLayer = (
   input: {
     readonly currentCart?: ReturnType<typeof cart> | undefined;
     readonly allowedContactSources?: readonly string[];
-    readonly cartPolicyViolations?: readonly {
-      readonly violationType: string;
-      readonly metadata?: Readonly<Record<string, unknown>>;
-    }[];
+    readonly cartPolicyViolations?: readonly CartPolicyViolation[];
     readonly saveContactFailure?: CheckoutMutationProviderFailure;
     readonly saveDeliveryDetailsFailure?: CheckoutMutationProviderFailure;
     readonly getCurrentFailure?: CheckoutProviderFailure;
@@ -374,19 +375,7 @@ const makeCheckoutLayer = (
   const cartPoliciesLayer = Layer.succeed(
     CartPolicies,
     CartPolicies.of({
-      evaluate: () =>
-        Effect.succeed(
-          cartPolicyViolations.map((violation) => ({
-            code: violation.violationType,
-            parameters: Object.fromEntries(
-              Object.entries(violation.metadata ?? {}).filter(
-                (entry): entry is [string, string | number] =>
-                  typeof entry[1] === "string" || typeof entry[1] === "number"
-              )
-            ),
-            targets: [{ type: "cart" as const }],
-          }))
-        ),
+      evaluate: () => Effect.succeed(cartPolicyViolations),
     })
   );
 
@@ -395,7 +384,8 @@ const makeCheckoutLayer = (
     cartPoliciesLayer,
     CheckoutPolicies.layer,
     CommerceAccounts.layerMemoryFrom({ customerProfiles }),
-    addressBookLayer
+    addressBookLayer,
+    makeJwtVerifierLayer()
   );
 };
 
@@ -629,9 +619,8 @@ test("GET /checkout/current adds localized fallback messages to public violation
       },
       cartPolicyViolations: [
         {
-          policyName: "compatible-products",
-          violationType: "INCOMPATIBLE_CART_ITEMS",
-          message: "Internal diagnostic message that must not be exposed",
+          code: "INCOMPATIBLE_CART_ITEMS",
+          targets: [{ type: "cart" }],
         },
       ],
     })
@@ -1477,6 +1466,26 @@ test("GET /checkout/current accepts anonymous cart possession from the cart cook
         anonymousCartId: "cart-1",
       },
     });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current expires a confirmed missing anonymous Cart association", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({ currentCart: undefined })
+  );
+
+  try {
+    const response = await handler(
+      requestWithoutAnonymousCart({ cookie: anonymousCartCookieHeader() }),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(response.headers.get("set-cookie")).toContain(
+      `${ANONYMOUS_CART_COOKIE_NAME}=;`
+    );
   } finally {
     await dispose();
   }

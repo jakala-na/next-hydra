@@ -49,7 +49,8 @@ async function getCart(locale: Locale) {
       );
     }
     return Option.match(result.success, {
-      onNone: () => Err(domainError("NOT_FOUND", "Current Cart not found")),
+      onNone: () =>
+        Err(domainError<object>("NOT_FOUND", "Current Cart not found")),
       onSome: Ok,
     });
   } catch (cause) {

@@ -326,7 +326,7 @@ describe("CurrentCart", () => {
   });
 
   it.effect(
-    "skips a Contact write when canonical state is already equal",
+    "delegates Contact persistence even when the semantic projection matches",
     () => {
       const contact = {
         source: "manual" as const,
@@ -352,12 +352,6 @@ describe("CurrentCart", () => {
             anonymousRequest({ possessedCartId: cart.id }),
             Carts.layerMemory({
               carts: [cart],
-              failures: {
-                saveContact: new CartProviderFailure({
-                  operation: "saveContact",
-                  reason: "unavailable",
-                }),
-              },
             })
           )
         )

@@ -63,6 +63,7 @@ export type SaveCheckoutContactParams = {
   cart: Cart;
   contact: CheckoutContact;
   locale: Locale;
+  retryConcurrentModification?: boolean;
   scope: CheckoutScope;
 };
 
