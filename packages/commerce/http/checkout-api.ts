@@ -1,4 +1,4 @@
-import { Context, type Result, Schema } from "effect";
+import { Schema } from "effect";
 import {
   HttpApi,
   HttpApiEndpoint,
@@ -13,16 +13,12 @@ import {
   CheckoutContactInput,
   CheckoutDeliveryDetailsInput,
   CheckoutLocale,
-  type CheckoutScope,
   CheckoutState,
   CheckoutViolation,
 } from "../domain/checkout";
-import type {
-  CommerceRequestContext,
-  CommerceRequestContextNotFound,
-} from "../domain/commerce-request-context";
+import { CommerceBusinessUnitId } from "../domain/commerce-account";
 import type { CheckoutSession } from "../lib/checkout/checkout-session";
-import type { CurrentCart } from "../services/current-cart";
+import type { AddressBook } from "../services/address-book";
 
 export const CheckoutApiViolation = Schema.Struct({
   ...CheckoutViolation.fields,
@@ -98,6 +94,7 @@ export class CheckoutRequestHeaders extends Schema.Class<CheckoutRequestHeaders>
 )({
   "x-context-locale": CheckoutLocale,
   "x-context-anonymous-cart-id": Schema.optional(CartId),
+  "x-context-business-unit-id": Schema.optional(CommerceBusinessUnitId),
 }) {}
 
 export class SaveCheckoutContactRequest extends Schema.Class<SaveCheckoutContactRequest>(
@@ -121,19 +118,6 @@ const CheckoutApiErrors = [
   CheckoutApiNotFound,
 ] as const;
 
-export class CurrentCheckoutScope extends Context.Service<
-  CurrentCheckoutScope,
-  CheckoutScope
->()("@repo/commerce/http/CurrentCheckoutScope") {}
-
-export class CurrentCheckoutContext extends Context.Service<
-  CurrentCheckoutContext,
-  Result.Result<
-    CommerceRequestContext,
-    CommerceRequestContextNotFound | CheckoutApiError
-  >
->()("@repo/commerce/http/CurrentCheckoutContext") {}
-
 export class CheckoutSchemaErrorMiddleware extends HttpApiMiddleware.Service<
   CheckoutSchemaErrorMiddleware,
   {
@@ -143,17 +127,13 @@ export class CheckoutSchemaErrorMiddleware extends HttpApiMiddleware.Service<
   error: CheckoutApiBadRequest,
 }) {}
 
-export class CheckoutScopeMiddleware extends HttpApiMiddleware.Service<
-  CheckoutScopeMiddleware,
+export class CheckoutSessionMiddleware extends HttpApiMiddleware.Service<
+  CheckoutSessionMiddleware,
   {
-    readonly provides:
-      | CurrentCheckoutContext
-      | CurrentCheckoutScope
-      | CurrentCart
-      | CheckoutSession;
+    readonly provides: AddressBook | CheckoutSession;
     readonly requires: never;
   }
->()("@repo/commerce/http/CheckoutScopeMiddleware", {
+>()("@repo/commerce/http/CheckoutSessionMiddleware", {
   error: Schema.Union([
     CheckoutApiBadRequest,
     CheckoutApiError,
@@ -193,7 +173,7 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
     })
   )
   .middleware(CheckoutSchemaErrorMiddleware)
-  .middleware(CheckoutScopeMiddleware)
+  .middleware(CheckoutSessionMiddleware)
   .annotateMerge(
     OpenApi.annotations({
       title: "Checkout",

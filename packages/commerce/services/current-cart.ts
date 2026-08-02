@@ -13,7 +13,7 @@ import {
   CartProviderFailure,
   type CartWriteConflict,
   type CartWriteOutcomeUnknown,
-  type CurrentCartAssociationFailure,
+  type CurrentCartOperationFailure,
   CurrentCartSelectionConflict,
   CurrentCartUnavailable,
 } from "../domain/cart-errors";
@@ -26,9 +26,14 @@ import type {
   CheckoutContact,
   CheckoutDeliveryDetails,
 } from "../domain/checkout";
-import type { CurrentCartRequest } from "../lib/current-cart/request";
+import {
+  AnonymousCommercePrincipal,
+  CustomerCommercePrincipal,
+} from "../domain/commerce-request-context";
+import type { CurrentCartCookie } from "../lib/current-cart/cookie";
 import { CartPolicies } from "./cart-policies";
 import { Carts } from "./carts";
+import { CommerceContext } from "./commerce-context";
 
 export interface AddCurrentCartItem {
   readonly productId: ProductId;
@@ -47,7 +52,6 @@ export interface RemoveCurrentCartLineItem {
 
 export type CurrentCartReadFailure =
   | CurrentCartSelectionConflict
-  | CurrentCartAssociationFailure
   | CartProviderFailure
   | CartPolicyFailure;
 
@@ -57,13 +61,12 @@ export type AddCurrentCartItemFailure =
   | CartMerchandiseUnavailable
   | CartWriteConflict
   | CartWriteOutcomeUnknown
-  | CurrentCartAssociationFailure
+  | CurrentCartOperationFailure
   | CartProviderFailure
   | CartPolicyFailure;
 
 export type SetCurrentCartLineItemQuantityFailure =
   | CurrentCartSelectionConflict
-  | CurrentCartAssociationFailure
   | CurrentCartUnavailable
   | CartLineItemNotFound
   | CartWriteConflict
@@ -75,7 +78,6 @@ export type RemoveCurrentCartLineItemFailure =
 
 export type SaveCurrentCartDetailsFailure =
   | CurrentCartSelectionConflict
-  | CurrentCartAssociationFailure
   | CurrentCartUnavailable
   | CartWriteConflict
   | CartProviderFailure
@@ -105,40 +107,86 @@ export class CurrentCart extends Context.Service<
     ) => Effect.Effect<CurrentCartState, SaveCurrentCartDetailsFailure>;
   }
 >()("@repo/commerce/CurrentCart") {
-  static readonly layer = (request: CurrentCartRequest) =>
+  static readonly get = Effect.fn("CurrentCart.get")(() =>
+    Effect.flatMap(CurrentCart, (currentCart) => currentCart.get())
+  );
+
+  static readonly addItem = Effect.fn("CurrentCart.addItem")(
+    (input: AddCurrentCartItem) =>
+      Effect.flatMap(CurrentCart, (currentCart) => currentCart.addItem(input))
+  );
+
+  static readonly setLineItemQuantity = Effect.fn(
+    "CurrentCart.setLineItemQuantity"
+  )((input: SetCurrentCartLineItemQuantity) =>
+    Effect.flatMap(CurrentCart, (currentCart) =>
+      currentCart.setLineItemQuantity(input)
+    )
+  );
+
+  static readonly removeLineItem = Effect.fn("CurrentCart.removeLineItem")(
+    (input: RemoveCurrentCartLineItem) =>
+      Effect.flatMap(CurrentCart, (currentCart) =>
+        currentCart.removeLineItem(input)
+      )
+  );
+
+  static readonly saveContact = Effect.fn("CurrentCart.saveContact")(
+    (contact: CheckoutContact) =>
+      Effect.flatMap(CurrentCart, (currentCart) =>
+        currentCart.saveContact(contact)
+      )
+  );
+
+  static readonly saveDeliveryDetails = Effect.fn(
+    "CurrentCart.saveDeliveryDetails"
+  )((details: CheckoutDeliveryDetails) =>
+    Effect.flatMap(CurrentCart, (currentCart) =>
+      currentCart.saveDeliveryDetails(details)
+    )
+  );
+
+  static readonly layer = (cookie: CurrentCartCookie) =>
     Layer.effect(
       CurrentCart,
       Effect.gen(function* () {
         const carts = yield* Carts;
         const policies = yield* CartPolicies;
-        type SelectedCart = {
+        const commerceContext = yield* CommerceContext;
+        const { principal, store } = commerceContext;
+        const isAnonymous = principal instanceof AnonymousCommercePrincipal;
+        if (!(isAnonymous || principal instanceof CustomerCommercePrincipal)) {
+          principal satisfies never;
+          return yield* Effect.die("Unsupported Commerce Principal");
+        }
+        type ResolvedCart = {
           readonly cart: CartSnapshot;
           readonly target: CartTarget;
         };
-        const selection = yield* Ref.make<
-          Option.Option<SelectedCart> | undefined
+        const resolvedCart = yield* Ref.make<
+          Option.Option<ResolvedCart> | undefined
         >(undefined);
 
         const targetFor = (cart: CartSnapshot): CartTarget =>
-          request._tag === "AnonymousCurrentCartRequest"
+          isAnonymous
             ? {
                 _tag: "AnonymousCartTarget",
                 id: cart.id,
-                store: request.store,
+                store,
               }
             : {
                 _tag: "BusinessUnitCartTarget",
                 id: cart.id,
-                store: request.store,
-                customerId: request.customerId,
-                businessUnitId: request.businessUnitId,
-                businessUnitKey: request.businessUnitKey,
+                store,
+                customerId: principal.customerId,
+                businessUnitId: principal.businessUnitId,
+                businessUnitKey: principal.businessUnitKey,
               };
 
-        const cacheSelection = (cart: CartSnapshot) => {
-          const selected = { cart, target: targetFor(cart) };
-          return Ref.set(selection, Option.some(selected)).pipe(
-            Effect.as(selected)
+        const setResolvedCart = (cart: CartSnapshot) => {
+          const resolved = { cart, target: targetFor(cart) };
+          return Ref.set(resolvedCart, Option.some(resolved)).pipe(
+            Effect.as(resolved)
           );
         };
 
@@ -151,24 +199,24 @@ export class CurrentCart extends Context.Service<
             cause: error,
           });
 
-        const resolveSelection = Effect.fn("CurrentCart.resolveSelection")(() =>
+        const resolveCart = Effect.fn("CurrentCart.resolveCart")(() =>
           Effect.gen(function* () {
-            const cached = yield* Ref.get(selection);
+            const cached = yield* Ref.get(resolvedCart);
             if (cached !== undefined) {
               return cached;
             }
 
-            if (request._tag === "AnonymousCurrentCartRequest") {
-              if (request.possessedCartId === undefined) {
-                const absent = Option.none<SelectedCart>();
-                yield* Ref.set(selection, absent);
+            if (isAnonymous) {
+              if (principal.anonymousCartId === undefined) {
+                const absent = Option.none<ResolvedCart>();
+                yield* Ref.set(resolvedCart, absent);
                 return absent;
               }
 
               const found = yield* carts
                 .findById({
-                  id: request.possessedCartId,
-                  store: request.store,
+                  id: principal.anonymousCartId,
+                  store,
                 })
                 .pipe(
                   Effect.catchTag("CartAccessDenied", (error) =>
@@ -176,32 +224,38 @@ export class CurrentCart extends Context.Service<
                   )
                 );
               if (Option.isNone(found)) {
-                yield* request.clear();
-                const absent = Option.none<SelectedCart>();
-                yield* Ref.set(selection, absent);
+                yield* cookie.clear();
+                const absent = Option.none<ResolvedCart>();
+                yield* Ref.set(resolvedCart, absent);
                 return absent;
               }
 
               const cart = found.value;
               if (
                 cart.status !== "active" ||
-                cart.storeKey !== request.store.storeKey
+                cart.storeKey !== store.storeKey
               ) {
-                yield* request.clear();
-                const absent = Option.none<SelectedCart>();
-                yield* Ref.set(selection, absent);
+                yield* cookie.clear();
+                const absent = Option.none<ResolvedCart>();
+                yield* Ref.set(resolvedCart, absent);
                 return absent;
               }
+              if (cart.buyingContext !== undefined) {
+                return yield* new CartProviderFailure({
+                  operation: "findById",
+                  reason: "unexpectedResponse",
+                });
+              }
 
-              return Option.some(yield* cacheSelection(cart));
+              return Option.some(yield* setResolvedCart(cart));
             }
 
             const candidates = yield* carts
               .findActiveForBusinessUnit({
-                store: request.store,
-                customerId: request.customerId,
-                businessUnitId: request.businessUnitId,
-                businessUnitKey: request.businessUnitKey,
+                store,
+                customerId: principal.customerId,
+                businessUnitId: principal.businessUnitId,
+                businessUnitKey: principal.businessUnitKey,
               })
               .pipe(
                 Effect.catchTag("CartAccessDenied", (error) =>
@@ -210,17 +264,17 @@ export class CurrentCart extends Context.Service<
               );
             if (candidates.length > 1) {
               return yield* new CurrentCartSelectionConflict({
-                businessUnitId: request.businessUnitId,
+                businessUnitId: principal.businessUnitId,
                 cartIds: candidates.map((candidate) => candidate.id),
               });
             }
             const cart = candidates[0];
             if (cart === undefined) {
-              const absent = Option.none<SelectedCart>();
-              yield* Ref.set(selection, absent);
+              const absent = Option.none<ResolvedCart>();
+              yield* Ref.set(resolvedCart, absent);
               return absent;
             }
-            return Option.some(yield* cacheSelection(cart));
+            return Option.some(yield* setResolvedCart(cart));
           })
         );
 
@@ -235,8 +289,10 @@ export class CurrentCart extends Context.Service<
               )
         );
 
-        const requireSelection = Effect.fn("CurrentCart.requireSelection")(() =>
-          resolveSelection().pipe(
+        const requireResolvedCart = Effect.fn(
+          "CurrentCart.requireResolvedCart"
+        )(() =>
+          resolveCart().pipe(
             Effect.flatMap(
               Option.match({
                 onNone: () => new CurrentCartUnavailable({ reason: "noCart" }),
@@ -246,21 +302,22 @@ export class CurrentCart extends Context.Service<
           )
         );
 
-        const createSelection = Effect.fn("CurrentCart.createSelection")(() =>
+        const createAndResolveCart = Effect.fn(
+          "CurrentCart.createAndResolveCart"
+        )(() =>
           Effect.gen(function* () {
-            const cart =
-              request._tag === "AnonymousCurrentCartRequest"
-                ? yield* carts.createAnonymous({ store: request.store })
-                : yield* carts.createForBusinessUnit({
-                    store: request.store,
-                    customerId: request.customerId,
-                    businessUnitId: request.businessUnitId,
-                    businessUnitKey: request.businessUnitKey,
-                  });
-            if (request._tag === "AnonymousCurrentCartRequest") {
-              yield* request.establish(cart.id);
+            const cart = isAnonymous
+              ? yield* carts.createAnonymous({ store })
+              : yield* carts.createForBusinessUnit({
+                  store,
+                  customerId: principal.customerId,
+                  businessUnitId: principal.businessUnitId,
+                  businessUnitKey: principal.businessUnitKey,
+                });
+            if (isAnonymous) {
+              yield* cookie.set(cart.id);
             }
-            return yield* cacheSelection(cart);
+            return yield* setResolvedCart(cart);
           }).pipe(
             Effect.catchTag(
               "CartAccessDenied",
@@ -270,10 +327,10 @@ export class CurrentCart extends Context.Service<
         );
 
         const replaceAndEvaluate = (
-          selected: SelectedCart,
+          resolved: ResolvedCart,
           cart: CartSnapshot
         ) =>
-          Ref.set(selection, Option.some({ ...selected, cart })).pipe(
+          Ref.set(resolvedCart, Option.some({ ...resolved, cart })).pipe(
             Effect.andThen(evaluate(cart))
           );
 
@@ -294,73 +351,70 @@ export class CurrentCart extends Context.Service<
 
         return CurrentCart.of({
           get: () =>
-            resolveSelection().pipe(
+            resolveCart().pipe(
               Effect.flatMap(
                 Option.match({
                   onNone: () => Effect.succeed(Option.none<CurrentCartState>()),
                   onSome: ({ cart }) =>
-                    request._tag === "AnonymousCurrentCartRequest" &&
-                    cart.buyingContext !== undefined
-                      ? Effect.succeed(Option.none<CurrentCartState>())
-                      : evaluate(cart).pipe(Effect.map(Option.some)),
+                    evaluate(cart).pipe(Effect.map(Option.some)),
                 })
               )
             ),
           addItem: (input) =>
             Effect.gen(function* () {
-              const existing = yield* resolveSelection();
-              const selected = Option.isSome(existing)
+              const existing = yield* resolveCart();
+              const resolved = Option.isSome(existing)
                 ? existing.value
-                : yield* createSelection();
+                : yield* createAndResolveCart();
               const cart = yield* mapUnavailable(
-                carts.addItem({ ...input, target: selected.target })
+                carts.addItem({ ...input, target: resolved.target })
               );
-              return yield* replaceAndEvaluate(selected, cart);
+              return yield* replaceAndEvaluate(resolved, cart);
             }),
           setLineItemQuantity: (input) =>
             Effect.gen(function* () {
-              const selected = yield* requireSelection();
+              const resolved = yield* requireResolvedCart();
               const cart = yield* mapUnavailable(
                 carts.setLineItemQuantity({
                   ...input,
-                  target: selected.target,
+                  target: resolved.target,
                 })
               );
-              return yield* replaceAndEvaluate(selected, cart);
+              return yield* replaceAndEvaluate(resolved, cart);
             }),
           removeLineItem: (input) =>
             Effect.gen(function* () {
-              const selected = yield* requireSelection();
+              const resolved = yield* requireResolvedCart();
               const cart = yield* mapUnavailable(
-                carts.removeLineItem({ ...input, target: selected.target })
+                carts.removeLineItem({ ...input, target: resolved.target })
               );
-              return yield* replaceAndEvaluate(selected, cart);
+              return yield* replaceAndEvaluate(resolved, cart);
             }),
           saveContact: (contact) =>
             Effect.gen(function* () {
-              const selected = yield* requireSelection();
+              const resolved = yield* requireResolvedCart();
               const cart = yield* mapUnavailable(
-                carts.saveContact({ target: selected.target, contact })
+                carts.saveContact({ target: resolved.target, contact })
               );
-              return yield* replaceAndEvaluate(selected, cart);
+              return yield* replaceAndEvaluate(resolved, cart);
             }),
           saveDeliveryDetails: (deliveryDetails) =>
             Effect.gen(function* () {
-              const selected = yield* requireSelection();
+              const resolved = yield* requireResolvedCart();
               if (
                 JSON.stringify(
-                  selected.cart.checkoutDetails.deliveryDetails
+                  resolved.cart.checkoutDetails.deliveryDetails
                 ) === JSON.stringify(deliveryDetails)
               ) {
-                return yield* evaluate(selected.cart);
+                return yield* evaluate(resolved.cart);
               }
               const cart = yield* mapUnavailable(
                 carts.saveDeliveryDetails({
-                  target: selected.target,
+                  target: resolved.target,
                   deliveryDetails,
                 })
               );
-              return yield* replaceAndEvaluate(selected, cart);
+              return yield* replaceAndEvaluate(resolved, cart);
             }),
         });
       })

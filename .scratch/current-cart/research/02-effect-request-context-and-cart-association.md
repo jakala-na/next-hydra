@@ -6,7 +6,7 @@ For Effect HTTP APIs, the request middleware should provide **`CurrentCart` itse
 
 `CurrentCartSession` should be a discriminated value with behavior:
 
-- anonymous: resolved Store context, optional valid possessed Cart ID, and `establish` / `clear` effects;
+- anonymous: resolved Store context and optional valid possessed Cart ID in `CommerceContext`, plus cookie `set` / `clear` effects;
 - authenticated B2B: resolved Store, Customer, and Business Unit Buying Context, with no anonymous-association commands.
 
 The concrete anonymous implementation belongs at the transport boundary. It decodes the existing `cart` cookie and headers when the middleware starts, but exposes only provider-neutral session facts and association commands to `CurrentCart`.
@@ -27,7 +27,7 @@ This follows the Effect service guidance: use `Context.Service` for the contract
 
 ## Why a request-local `Ref` and pre-response handler
 
-Use a fresh `Ref<Option<AnonymousCartCookieChange>>` for every request. `establish` and `clear` update that Ref; one pre-response handler reads its final value and immutably adds or expires the cookie on the outgoing `HttpServerResponse`.
+Use a fresh `Ref<Option<AnonymousCartCookieChange>>` for every request. `set` and `clear` update that Ref; one pre-response handler reads its final value and immutably adds or expires the cookie on the outgoing `HttpServerResponse`.
 
 `Ref` is the correct state primitive: it is an explicit, atomically updated mutable reference (`Ref.ts:42-47`), and `make`, `get`, and `set` are ordinary Effects (`Ref.ts:179-199`, `Ref.ts:228-231`). Last-write-wins is useful if orchestration replaces or clears an association during one request, and parallel child fibers still share the same explicit Ref.
 
@@ -66,7 +66,7 @@ This repository uses Effect 4.0.0-beta.67 (`pnpm-workspace.yaml:4-13`). The loca
 Next is a second transport implementation of the same internal `CurrentCartSession` contract:
 
 - At each Server Component or Server Action entry point, resolve auth, Store context, headers, and `cookies()` once, create the session value, then provide it while providing `CurrentCart.layer` to the program.
-- In a Server Action, anonymous `establish` and `clear` directly call the captured Next cookie store's `set` / `delete`; there is no `HttpServerResponse` or Effect pre-response hook to modify.
+- In a Server Action, anonymous `set` and `clear` directly call the captured Next cookie store's `set` / `delete`; there is no `HttpServerResponse` or Effect pre-response hook to modify.
 - Server Components should use the read path only. Do not attempt response-cookie writes during rendering; creation/mutation belongs in Server Actions. A read-only Next session implementation should fail with a typed boundary error if a write is accidentally invoked, rather than silently doing nothing.
 
 The existing cookie module proves both sides of this transport implementation: it reads through `cookies().get`, writes through `cookies().set`, and clears through `cookies().delete` (`packages/commerce/lib/cart/utils/anonymous-cart-cookies.ts:110-143`). The current `addToCart` Server Action is the sole production caller that creates a Cart and then writes the association (`packages/commerce/actions/add-to-cart.ts:15-42`). The new boundary moves that write behind the session Service while preserving the exact cookie codec and options: name `cart`, context-bound payload, HTTP-only, secure in production, SameSite `lax`, path `/`, and 90-day max age (`anonymous-cart-cookies.ts:11-21`, `anonymous-cart-cookies.ts:45-62`, `anonymous-cart-cookies.ts:102-108`).

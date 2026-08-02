@@ -13,9 +13,10 @@ import type { StoreKey } from "../../../domain/cart";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
-  CommerceBusinessUnitContext,
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
+  CommerceBusinessUnitLabel,
+  CommerceBusinessUnitMembership,
   type CommerceCompanyRole,
   CommerceCustomerId,
   CommerceCustomerProfile,
@@ -26,8 +27,6 @@ import {
   CommerceAccountError,
   type CommerceAccountRegistrationInput,
   CommerceAccounts,
-  CommerceBusinessUnitContextAmbiguous,
-  CommerceBusinessUnitContextNotFound,
   CommerceCustomerIdNotFound,
   CommerceCustomerProfileNotFound,
   type RedactedString,
@@ -312,63 +311,53 @@ const getCustomerProfile = Effect.fn(
 const businessUnitForCustomerPredicate = (customerId: CommerceCustomerId) =>
   `associates(customer(id=${JSON.stringify(String(customerId))})) or inheritedAssociates(customer(id=${JSON.stringify(String(customerId))}))`;
 
-const getBusinessUnitContextForCustomerInStore = Effect.fn(
-  "CommercetoolsCommerceAccounts.getBusinessUnitContextForCustomerInStore"
+const BUSINESS_UNIT_PAGE_SIZE = 500;
+
+const listBusinessUnitMembershipsForCustomerInStore = Effect.fn(
+  "CommercetoolsCommerceAccounts.listBusinessUnitMembershipsForCustomerInStore"
 )(function* (customerId: CommerceCustomerId, storeKey: StoreKey) {
   const businessUnits = yield* Effect.tryPromise({
     try: async () => {
-      const response = await apiRoot
-        .inStoreKeyWithStoreKeyValue({ storeKey: String(storeKey) })
-        .businessUnits()
-        .get({
-          queryArgs: {
-            where: businessUnitForCustomerPredicate(customerId),
-            limit: 2,
-          },
-        })
-        .execute();
+      const results: BusinessUnit[] = [];
+      let offset = 0;
 
-      return response.body.results;
+      while (true) {
+        const response = await apiRoot
+          .inStoreKeyWithStoreKeyValue({ storeKey: String(storeKey) })
+          .businessUnits()
+          .get({
+            queryArgs: {
+              where: businessUnitForCustomerPredicate(customerId),
+              limit: BUSINESS_UNIT_PAGE_SIZE,
+              offset,
+              sort: "id asc",
+            },
+          })
+          .execute();
+        const page = response.body.results;
+        results.push(...page);
+
+        if (page.length < BUSINESS_UNIT_PAGE_SIZE) {
+          return results;
+        }
+        offset += page.length;
+      }
     },
     catch: (cause) =>
       accountError(
-        "Failed to resolve Commercetools Business Unit context",
+        "Failed to list Commercetools Business Unit memberships",
         cause
       ),
   });
 
-  if (businessUnits.length === 0) {
-    return yield* new CommerceBusinessUnitContextNotFound({
-      message:
-        "Commerce Business Unit context does not exist for customer in Store",
-      customerId,
-      storeKey,
-    });
-  }
-
-  if (businessUnits.length > 1) {
-    return yield* new CommerceBusinessUnitContextAmbiguous({
-      message:
-        "Multiple Commerce Business Unit contexts exist for customer in Store",
-      customerId,
-      storeKey,
-    });
-  }
-
-  const businessUnit = businessUnits[0];
-  if (businessUnit === undefined) {
-    return yield* new CommerceBusinessUnitContextNotFound({
-      message:
-        "Commerce Business Unit context does not exist for customer in Store",
-      customerId,
-      storeKey,
-    });
-  }
-
-  return new CommerceBusinessUnitContext({
-    businessUnitId: CommerceBusinessUnitId.make(businessUnit.id),
-    businessUnitKey: CommerceBusinessUnitKey.make(businessUnit.key),
-  });
+  return businessUnits.map(
+    (businessUnit) =>
+      new CommerceBusinessUnitMembership({
+        businessUnitId: CommerceBusinessUnitId.make(businessUnit.id),
+        businessUnitKey: CommerceBusinessUnitKey.make(businessUnit.key),
+        businessUnitLabel: CommerceBusinessUnitLabel.make(businessUnit.name),
+      })
+  );
 });
 
 const getBusinessUnitById = (commerceBusinessUnitId: CommerceBusinessUnitId) =>
@@ -779,7 +768,7 @@ export const layerCommercetoolsCommerceAccounts = Layer.succeed(
     hasCustomerWithEmail,
     getCustomerIdByAuthUserId,
     getCustomerProfile,
-    getBusinessUnitContextForCustomerInStore,
+    listBusinessUnitMembershipsForCustomerInStore,
     createFromRegistration: Effect.fn(
       "CommercetoolsCommerceAccounts.createFromRegistration"
     )(function* (registration) {

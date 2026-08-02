@@ -18,6 +18,7 @@ import {
 } from "../../../domain/address-book";
 import type { CustomerCommercePrincipal } from "../../../domain/commerce-request-context";
 import { AddressBook } from "../../../services/address-book";
+import { CommerceContext } from "../../../services/commerce-context";
 import { apiRoot as defaultApiRoot } from "../../client/api-root";
 import {
   fromCommercetoolsAddressKey,
@@ -363,29 +364,32 @@ const saveAbsentEntry = (
 export const layerCommercetoolsAddressBookFor = (
   apiRoot: ByProjectKeyRequestBuilder
 ) =>
-  Layer.succeed(
+  Layer.effect(
     AddressBook,
-    AddressBook.of({
-      list: Effect.fn("CommercetoolsAddressBook.list")(function* (principal) {
-        const businessUnit = yield* readBusinessUnit(
-          apiRoot,
-          principal,
-          "list"
-        );
-        return yield* listEntries(businessUnit, "list");
-      }),
-      get: Effect.fn("CommercetoolsAddressBook.get")(
-        function* (principal, reference) {
+    Effect.gen(function* () {
+      const commerceContext = yield* CommerceContext;
+
+      return AddressBook.of({
+        list: Effect.fn("CommercetoolsAddressBook.list")(function* () {
+          const principal = yield* commerceContext.customerPrincipal();
+          const businessUnit = yield* readBusinessUnit(
+            apiRoot,
+            principal,
+            "list"
+          );
+          return yield* listEntries(businessUnit, "list");
+        }),
+        get: Effect.fn("CommercetoolsAddressBook.get")(function* (reference) {
+          const principal = yield* commerceContext.customerPrincipal();
           const businessUnit = yield* readBusinessUnit(
             apiRoot,
             principal,
             "get"
           );
           return yield* getEntry(businessUnit, reference, "get");
-        }
-      ),
-      save: Effect.fn("CommercetoolsAddressBook.save")(
-        function* (principal, input) {
+        }),
+        save: Effect.fn("CommercetoolsAddressBook.save")(function* (input) {
+          const principal = yield* commerceContext.customerPrincipal();
           const current = yield* readBusinessUnit(apiRoot, principal, "save");
           const existing = findAddress(current, input.reference);
 
@@ -405,8 +409,8 @@ export const layerCommercetoolsAddressBookFor = (
             input,
             MAX_SAVE_RETRIES
           );
-        }
-      ),
+        }),
+      });
     })
   );
 

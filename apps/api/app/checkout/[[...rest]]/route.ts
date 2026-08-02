@@ -1,10 +1,8 @@
 import type { NextRequest } from "next/server";
 import { makeCheckoutHttpHandler } from "@/lib/checkout/http";
-import { checkoutLayer } from "@/lib/checkout/runtime";
+import { checkoutHttpDependencies } from "@/lib/checkout/runtime";
 
-const { handler } = makeCheckoutHttpHandler({
-  layer: checkoutLayer,
-});
+const { handler } = makeCheckoutHttpHandler(checkoutHttpDependencies);
 
 const handleCheckoutRequest = (
   request: NextRequest,

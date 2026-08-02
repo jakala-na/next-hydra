@@ -14,7 +14,7 @@ Cover both the in-process Next.js path and public HTTP consumers while keeping t
 
 ### Loading and selection
 
-Authenticated B2B Checkout loads Address Book entries independently from Checkout State. The in-process Next.js path calls `AddressBook.list` directly with the verified Customer principal. Public consumers call authenticated `GET /address-book`; `GET /checkout/current` never returns the option catalog.
+Authenticated B2B Checkout loads Address Book entries independently from Checkout State. The in-process Next.js path calls request-scoped `AddressBook.list()`; its Layer obtains verified Customer and Business Unit identity from `CommerceContext`. Public consumers call authenticated `GET /address-book`; `GET /checkout/current` never returns the option catalog.
 
 Render saved Shipping entries as selectable address cards with `Use a new address` as the final choice. Selection precedence is:
 

@@ -1,11 +1,12 @@
 import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect";
-import { StoreKey } from "../domain/cart";
+import type { StoreKey } from "../domain/cart";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
-  CommerceBusinessUnitContext,
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
+  CommerceBusinessUnitLabel,
+  CommerceBusinessUnitMembership,
   type CommerceCompanyRole,
   CommerceCustomer,
   CommerceCustomerId,
@@ -74,26 +75,17 @@ export class CommerceCustomerProfileNotFound extends Schema.TaggedErrorClass<Com
   }
 ) {}
 
-export class CommerceBusinessUnitContextNotFound extends Schema.TaggedErrorClass<CommerceBusinessUnitContextNotFound>()(
-  "CommerceBusinessUnitContextNotFound",
-  {
-    message: Schema.String,
-    customerId: CommerceCustomerId,
-    storeKey: StoreKey,
-  }
-) {}
-
-export class CommerceBusinessUnitContextAmbiguous extends Schema.TaggedErrorClass<CommerceBusinessUnitContextAmbiguous>()(
-  "CommerceBusinessUnitContextAmbiguous",
-  {
-    message: Schema.String,
-    customerId: CommerceCustomerId,
-    storeKey: StoreKey,
-  }
-) {}
-
 export interface CommerceAccountsMemoryInput {
   readonly customerProfiles?: readonly CommerceCustomerProfile[];
+  readonly customers?: readonly {
+    readonly authUserId: AuthUserId;
+    readonly customerId: CommerceCustomerId;
+  }[];
+  readonly businessUnitMemberships?: readonly {
+    readonly customerId: CommerceCustomerId;
+    readonly storeKey: StoreKey;
+    readonly membership: CommerceBusinessUnitMembership;
+  }[];
 }
 
 export interface LinkRegistrantIdentityInput {
@@ -116,6 +108,10 @@ const normalizedEmail = (email: RedactedString) =>
 interface CommerceState {
   readonly accountsByRegistration: ReadonlyMap<string, CommerceAccount>;
   readonly storeKeysByRegistration: ReadonlyMap<string, StoreKey>;
+  readonly businessUnitLabels: ReadonlyMap<
+    CommerceBusinessUnitId,
+    CommerceBusinessUnitLabel
+  >;
   readonly customersByAuthUserId: ReadonlyMap<string, CommerceCustomer>;
   readonly linkedRegistrantIdentities: ReadonlyMap<
     string,
@@ -130,6 +126,7 @@ interface CommerceState {
 const initialState: CommerceState = {
   accountsByRegistration: new Map(),
   storeKeysByRegistration: new Map(),
+  businessUnitLabels: new Map(),
   customersByAuthUserId: new Map(),
   linkedRegistrantIdentities: new Map(),
   associatesByBusinessUnit: new Map(),
@@ -162,14 +159,12 @@ export class CommerceAccounts extends Context.Service<
       CommerceCustomerProfile,
       CommerceCustomerProfileNotFound | CommerceAccountError
     >;
-    readonly getBusinessUnitContextForCustomerInStore: (
+    readonly listBusinessUnitMembershipsForCustomerInStore: (
       customerId: CommerceCustomerId,
       storeKey: StoreKey
     ) => Effect.Effect<
-      CommerceBusinessUnitContext,
-      | CommerceBusinessUnitContextNotFound
-      | CommerceBusinessUnitContextAmbiguous
-      | CommerceAccountError
+      readonly CommerceBusinessUnitMembership[],
+      CommerceAccountError
     >;
   }
 >()("@repo/commerce/CommerceAccounts") {
@@ -211,6 +206,10 @@ export class CommerceAccounts extends Context.Service<
             storeKeysByRegistration: new Map(
               latest.storeKeysByRegistration
             ).set(registration.id, registration.storeKey),
+            businessUnitLabels: new Map(latest.businessUnitLabels).set(
+              account.businessUnitId,
+              CommerceBusinessUnitLabel.make(registration.details.companyName)
+            ),
           }));
 
           return account;
@@ -389,8 +388,8 @@ export class CommerceAccounts extends Context.Service<
         })
       );
 
-      const getBusinessUnitContextForCustomerInStore = Effect.fn(
-        "CommerceAccounts.getBusinessUnitContextForCustomerInStore"
+      const listBusinessUnitMembershipsForCustomerInStore = Effect.fn(
+        "CommerceAccounts.listBusinessUnitMembershipsForCustomerInStore"
       )((customerId: CommerceCustomerId, storeKey: StoreKey) =>
         Effect.gen(function* () {
           const current = yield* Ref.get(state);
@@ -433,51 +432,26 @@ export class CommerceAccounts extends Context.Service<
             }
           }
 
-          if (businessUnitIds.size === 0) {
-            return yield* new CommerceBusinessUnitContextNotFound({
-              message:
-                "Commerce Business Unit context does not exist for customer in Store",
-              customerId,
-              storeKey,
-            });
-          }
+          return [...businessUnitIds].flatMap((businessUnitId) => {
+            const account = [...current.accountsByRegistration.values()].find(
+              (candidate) => candidate.businessUnitId === businessUnitId
+            );
+            const businessUnitLabel =
+              current.businessUnitLabels.get(businessUnitId);
 
-          if (businessUnitIds.size > 1) {
-            return yield* new CommerceBusinessUnitContextAmbiguous({
-              message:
-                "Multiple Commerce Business Unit contexts exist for customer in Store",
-              customerId,
-              storeKey,
-            });
-          }
+            if (account === undefined || businessUnitLabel === undefined) {
+              return [];
+            }
 
-          const businessUnitId = [...businessUnitIds][0];
-          if (businessUnitId === undefined) {
-            return yield* new CommerceBusinessUnitContextNotFound({
-              message:
-                "Commerce Business Unit context does not exist for customer in Store",
-              customerId,
-              storeKey,
-            });
-          }
-
-          const resolvedAccount = [
-            ...current.accountsByRegistration.values(),
-          ].find((candidate) => candidate.businessUnitId === businessUnitId);
-          if (resolvedAccount === undefined) {
-            return yield* new CommerceBusinessUnitContextNotFound({
-              message:
-                "Commerce Business Unit context does not exist for customer in Store",
-              customerId,
-              storeKey,
-            });
-          }
-
-          return new CommerceBusinessUnitContext({
-            businessUnitId,
-            businessUnitKey: CommerceBusinessUnitKey.make(
-              `registration-business-unit-${resolvedAccount.registrationId}`
-            ),
+            return [
+              new CommerceBusinessUnitMembership({
+                businessUnitId,
+                businessUnitKey: CommerceBusinessUnitKey.make(
+                  `registration-business-unit-${account.registrationId}`
+                ),
+                businessUnitLabel,
+              }),
+            ];
           });
         })
       );
@@ -489,33 +463,61 @@ export class CommerceAccounts extends Context.Service<
         hasCustomerWithEmail,
         getCustomerIdByAuthUserId,
         getCustomerProfile,
-        getBusinessUnitContextForCustomerInStore,
+        listBusinessUnitMembershipsForCustomerInStore,
       };
     })
   );
 
   static readonly layerMemoryFrom = ({
     customerProfiles = [],
+    customers = [],
+    businessUnitMemberships = [],
   }: CommerceAccountsMemoryInput = {}) => {
     const profilesByCustomerId = new Map(
       customerProfiles.map((profile) => [profile.customerId, profile])
     );
-    const layerSeededProfiles = Layer.effect(
+    const layerSeededAccounts = Layer.effect(
       CommerceAccounts,
       Effect.map(CommerceAccounts, (accounts) =>
         CommerceAccounts.of({
           ...accounts,
+          getCustomerIdByAuthUserId: (authUserId) => {
+            const customer = customers.find(
+              (candidate) => candidate.authUserId === authUserId
+            );
+            return customer
+              ? Effect.succeed(customer.customerId)
+              : accounts.getCustomerIdByAuthUserId(authUserId);
+          },
           getCustomerProfile: (customerId) => {
             const profile = profilesByCustomerId.get(customerId);
             return profile
               ? Effect.succeed(profile)
               : accounts.getCustomerProfile(customerId);
           },
+          listBusinessUnitMembershipsForCustomerInStore: (
+            customerId,
+            storeKey
+          ) => {
+            const seeded = businessUnitMemberships
+              .filter(
+                (candidate) =>
+                  candidate.customerId === customerId &&
+                  candidate.storeKey === storeKey
+              )
+              .map(({ membership }) => membership);
+            return seeded.length > 0
+              ? Effect.succeed(seeded)
+              : accounts.listBusinessUnitMembershipsForCustomerInStore(
+                  customerId,
+                  storeKey
+                );
+          },
         })
       )
     );
 
-    return layerSeededProfiles.pipe(
+    return layerSeededAccounts.pipe(
       Layer.provide(CommerceAccounts.layerMemory)
     );
   };

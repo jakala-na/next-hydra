@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { CartId } from "./cart";
-import { CheckoutLocale } from "./checkout";
+import { CartStore } from "./cart-snapshot";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -12,10 +12,33 @@ export const AuthUserId = Schema.NonEmptyString.pipe(
 );
 export type AuthUserId = typeof AuthUserId.Type;
 
+export class AnonymousCommerceContextRequest extends Schema.TaggedClass<AnonymousCommerceContextRequest>()(
+  "AnonymousCommerceContextRequest",
+  {
+    store: CartStore,
+    anonymousCartId: Schema.optional(CartId),
+  }
+) {}
+
+export class CustomerCommerceContextRequest extends Schema.TaggedClass<CustomerCommerceContextRequest>()(
+  "CustomerCommerceContextRequest",
+  {
+    store: CartStore,
+    authUserId: AuthUserId,
+    businessUnitId: Schema.optional(CommerceBusinessUnitId),
+  }
+) {}
+
+export const CommerceContextRequest = Schema.Union([
+  AnonymousCommerceContextRequest,
+  CustomerCommerceContextRequest,
+]);
+export type CommerceContextRequest = typeof CommerceContextRequest.Type;
+
 export class AnonymousCommercePrincipal extends Schema.TaggedClass<AnonymousCommercePrincipal>()(
   "AnonymousCommercePrincipal",
   {
-    anonymousCartId: CartId,
+    anonymousCartId: Schema.optional(CartId),
   }
 ) {}
 
@@ -34,13 +57,6 @@ export const CommercePrincipal = Schema.Union([
   CustomerCommercePrincipal,
 ]);
 export type CommercePrincipal = typeof CommercePrincipal.Type;
-
-export class CommerceRequestContext extends Schema.Class<CommerceRequestContext>(
-  "CommerceRequestContext"
-)({
-  locale: CheckoutLocale,
-  principal: CommercePrincipal,
-}) {}
 
 export class CommerceRequestContextNotFound extends Schema.TaggedErrorClass<CommerceRequestContextNotFound>()(
   "CommerceRequestContextNotFound",

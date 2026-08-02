@@ -26,12 +26,12 @@ Default Shipping automatically adds the Shipping type, and Default Billing autom
 ### Concrete operations
 
 ```text
-list(principal) -> all Business Unit Address Book entries
-get(principal, reference) -> the current canonical entry in that Business Unit
-save(principal, input) -> the newly saved or already-existing canonical entry
+list() -> all entries in the current Business Unit Address Book
+get(reference) -> the current canonical entry in that Business Unit
+save(input) -> the newly saved or already-existing canonical entry
 ```
 
-The `principal` is the existing verified `CustomerCommercePrincipal`, which already identifies the acting Customer and Business Unit Buying Context. There is no new abstract Address Book Scope and no caller-submitted Customer or Business Unit identifier.
+The selected Address Book Layer obtains the existing verified `CustomerCommercePrincipal` from request-scoped `CommerceContext`; that principal already identifies the acting Customer and Business Unit Buying Context. There is no new abstract Address Book Scope and no caller-submitted Customer or Business Unit identifier.
 
 Checkout presents only entries whose Address Types include Shipping. When an existing reference is submitted, Checkout calls `get` and saves that canonical address to the Cart; it never trusts a copied address from the caller.
 
@@ -47,8 +47,9 @@ If `save` succeeds and the subsequent Cart update fails, the Checkout failure ca
 
 ### Typed capability failures
 
-- `AddressBookEntryNotFound`: the reference does not exist in the principal's Business Unit. A reference from another Business Unit has the same result; the capability does not perform a cross-unit lookup.
-- `AddressBookAccessDenied`: the verified principal cannot perform the requested Business Unit address operation, including missing associate permission.
+- `CommerceRequestContextNotFound(noPrincipal)`: the request has no authenticated Customer principal, so no Business Unit Address Book is current.
+- `AddressBookEntryNotFound`: the reference does not exist in the current Commerce Context's Business Unit. A reference from another Business Unit has the same result; the capability does not perform a cross-unit lookup.
+- `AddressBookAccessDenied`: the current verified principal cannot perform the requested Business Unit address operation, including missing associate permission.
 - `AddressBookProviderFailure`: the provider operation cannot complete after bounded concurrency or ambiguous-result recovery. It retains diagnostic cause information for logging.
 
 Schema decoding failures are handled at the domain or adapter input boundary before a capability method runs. Provider payloads, generated address IDs, resource versions, associate-scoped request construction, raw provider errors, and bounded provider recovery stay inside the concrete Layer.

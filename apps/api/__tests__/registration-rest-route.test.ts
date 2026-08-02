@@ -289,7 +289,8 @@ const makeApiLayer = (
   const commerceAccountsLayer = Layer.succeed(
     CommerceAccounts,
     CommerceAccounts.of({
-      getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
       getCustomerProfile: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
       linkRegistrantIdentity: () => Effect.die("not used"),

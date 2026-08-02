@@ -23,7 +23,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AccountMenuClient } from "@/components/layout/account-menu-client";
 import { BusinessUnitSwitcher } from "@/components/layout/business-unit-switcher";
-import { runCurrentCartRead } from "@/lib/current-cart";
+import { nextCurrentCartLayer } from "@/lib/current-cart";
 import {
   addToCart,
   changeCartItemsQuantity,
@@ -32,21 +32,19 @@ import {
 
 async function getCart(locale: Locale) {
   try {
-    const result = await runCurrentCartRead(
-      locale,
-      Effect.result(
-        Effect.flatMap(CurrentCart, (currentCart) => currentCart.get())
+    const result = await Effect.runPromise(
+      CurrentCart.get().pipe(
+        Effect.provide(nextCurrentCartLayer(locale)),
+        Effect.tapError((error) =>
+          Effect.logError("Failed to read Current Cart", error).pipe(
+            Effect.annotateLogs({ operation: "currentCart.get" })
+          )
+        ),
+        Effect.result
       )
     );
     if (result._tag === "Failure") {
-      return Err(
-        domainError<object>(
-          "UNKNOWN",
-          "Failed to read Current Cart",
-          undefined,
-          result.failure
-        )
-      );
+      return Err(domainError<object>("UNKNOWN", "Failed to read Current Cart"));
     }
     return Option.match(result.success, {
       onNone: () =>
@@ -54,14 +52,12 @@ async function getCart(locale: Locale) {
       onSome: Ok,
     });
   } catch (cause) {
-    return Err(
-      domainError<object>(
-        "UNKNOWN",
-        "Failed to read Current Cart",
-        undefined,
-        cause
+    await Effect.runPromise(
+      Effect.logError("Failed to read Current Cart", cause).pipe(
+        Effect.annotateLogs({ operation: "currentCart.get" })
       )
     );
+    return Err(domainError<object>("UNKNOWN", "Failed to read Current Cart"));
   }
 }
 
@@ -117,7 +113,7 @@ export default async function RootLayout({
           Search={<SearchAutocomplete />}
           BusinessUnitSwitcher={
             <Suspense fallback={<div className="skeleton h-8 w-16" />}>
-              <BusinessUnitSwitcher />
+              <BusinessUnitSwitcher locale={locale} />
             </Suspense>
           }
           MobileMenuSlot={

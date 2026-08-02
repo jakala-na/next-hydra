@@ -2,10 +2,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Redacted } from "effect";
 import { StoreKey } from "../domain/cart";
 import { AuthUserId } from "../domain/commerce-request-context";
-import {
-  CommerceAccounts,
-  CommerceBusinessUnitContextNotFound,
-} from "./commerce-accounts";
+import { CommerceAccounts } from "./commerce-accounts";
 
 const registration = {
   _tag: "ApprovedRegistration",
@@ -50,17 +47,16 @@ describe("CommerceAccounts", () => {
         AuthUserId.make(acceptedIdentity.authUserId)
       );
       const profile = yield* accounts.getCustomerProfile(customerId);
-      const businessUnitContext =
-        yield* accounts.getBusinessUnitContextForCustomerInStore(
+      const businessUnitMemberships =
+        yield* accounts.listBusinessUnitMembershipsForCustomerInStore(
           customerId,
           StoreKey.make("default-store")
         );
-      const otherStoreError = yield* accounts
-        .getBusinessUnitContextForCustomerInStore(
+      const otherStoreMemberships =
+        yield* accounts.listBusinessUnitMembershipsForCustomerInStore(
           customerId,
           StoreKey.make("de-fr-uk")
-        )
-        .pipe(Effect.flip);
+        );
 
       expect(customerId).toBe(commerceAccount.customerId);
       expect(profile.email && Redacted.value(profile.email)).toBe(
@@ -72,13 +68,14 @@ describe("CommerceAccounts", () => {
       expect(profile.lastName && Redacted.value(profile.lastName)).toBe(
         "Lovelace"
       );
-      expect(businessUnitContext).toMatchObject({
-        businessUnitId: commerceAccount.businessUnitId,
-        businessUnitKey: "registration-business-unit-registration-1",
-      });
-      expect(otherStoreError).toBeInstanceOf(
-        CommerceBusinessUnitContextNotFound
-      );
+      expect(businessUnitMemberships).toEqual([
+        expect.objectContaining({
+          businessUnitId: commerceAccount.businessUnitId,
+          businessUnitKey: "registration-business-unit-registration-1",
+          businessUnitLabel: "Hydra Supply",
+        }),
+      ]);
+      expect(otherStoreMemberships).toEqual([]);
     }).pipe(Effect.provide(CommerceAccounts.layerMemory))
   );
 });

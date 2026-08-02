@@ -4,24 +4,31 @@ import type {
   ByProjectKeyRequestBuilder,
 } from "@commercetools/platform-sdk";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 import { vi } from "vitest";
 import { CountryCode } from "../../../domain/address";
 import {
-  AddressBookAccessDenied,
   AddressBookEntryNotFound,
   AddressBookReference,
 } from "../../../domain/address-book";
+import { StoreKey } from "../../../domain/cart";
+import { CartStore } from "../../../domain/cart-snapshot";
+import { CheckoutLocale } from "../../../domain/checkout";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
+  CommerceBusinessUnitLabel,
+  CommerceBusinessUnitMembership,
   CommerceCustomerId,
 } from "../../../domain/commerce-account";
 import {
   AuthUserId,
+  CustomerCommerceContextRequest,
   CustomerCommercePrincipal,
 } from "../../../domain/commerce-request-context";
 import { AddressBook } from "../../../services/address-book";
+import { CommerceAccounts } from "../../../services/commerce-accounts";
+import { CommerceContext } from "../../../services/commerce-context";
 import {
   layerCommercetoolsAddressBookFor,
   toCommercetoolsAddressKey,
@@ -37,6 +44,44 @@ const buyer = new CustomerCommercePrincipal({
   businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
   businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
 });
+const store = new CartStore({
+  locale: CheckoutLocale.make("en-US"),
+  storeKey: StoreKey.make("default-store"),
+  currency: "USD",
+});
+
+const commerceContext = CommerceContext.layer(
+  new CustomerCommerceContextRequest({
+    store,
+    authUserId: buyer.authUserId,
+    businessUnitId: buyer.businessUnitId,
+  })
+).pipe(
+  Layer.provide(
+    CommerceAccounts.layerMemoryFrom({
+      customers: [
+        { authUserId: buyer.authUserId, customerId: buyer.customerId },
+      ],
+      businessUnitMemberships: [
+        {
+          customerId: buyer.customerId,
+          storeKey: store.storeKey,
+          membership: new CommerceBusinessUnitMembership({
+            businessUnitId: buyer.businessUnitId,
+            businessUnitKey: buyer.businessUnitKey,
+            businessUnitLabel:
+              CommerceBusinessUnitLabel.make("Business Unit One"),
+          }),
+        },
+      ],
+    })
+  )
+);
+
+const addressBookLayerFor = (apiRoot: ByProjectKeyRequestBuilder) =>
+  layerCommercetoolsAddressBookFor(apiRoot).pipe(
+    Layer.provide(commerceContext)
+  );
 
 const address = {
   addressLine1: "100 Main Street",
@@ -114,7 +159,7 @@ describe("layerCommercetoolsAddressBookFor", () => {
 
         return yield* Effect.gen(function* () {
           const addressBook = yield* AddressBook;
-          const entries = yield* addressBook.list(buyer);
+          const entries = yield* addressBook.list();
 
           expect(entries).toEqual([
             {
@@ -131,7 +176,7 @@ describe("layerCommercetoolsAddressBookFor", () => {
           expect(api.withKey).toHaveBeenCalledWith({
             key: "business-unit-key-1",
           });
-        }).pipe(Effect.provide(layerCommercetoolsAddressBookFor(api.apiRoot)));
+        }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
       })
   );
 
@@ -143,7 +188,7 @@ describe("layerCommercetoolsAddressBookFor", () => {
 
       return Effect.gen(function* () {
         const addressBook = yield* AddressBook;
-        const saved = yield* addressBook.save(buyer, {
+        const saved = yield* addressBook.save({
           reference,
           address: { ...address, addressLine1: "Different submission" },
           types: ["billing"],
@@ -154,7 +199,7 @@ describe("layerCommercetoolsAddressBookFor", () => {
         expect(saved.address.addressLine1).toBe("100 Main Street");
         expect(saved.types).toEqual(["shipping", "billing"]);
         expect(api.post).not.toHaveBeenCalled();
-      }).pipe(Effect.provide(layerCommercetoolsAddressBookFor(api.apiRoot)));
+      }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
     }
   );
 
@@ -175,7 +220,7 @@ describe("layerCommercetoolsAddressBookFor", () => {
 
       return Effect.gen(function* () {
         const addressBook = yield* AddressBook;
-        const saved = yield* addressBook.save(buyer, {
+        const saved = yield* addressBook.save({
           reference,
           address,
           types: ["billing"],
@@ -219,7 +264,7 @@ describe("layerCommercetoolsAddressBookFor", () => {
             ],
           },
         });
-      }).pipe(Effect.provide(layerCommercetoolsAddressBookFor(api.apiRoot)));
+      }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
     }
   );
 
@@ -231,10 +276,10 @@ describe("layerCommercetoolsAddressBookFor", () => {
 
     return Effect.gen(function* () {
       const addressBook = yield* AddressBook;
-      const error = yield* addressBook.get(buyer, reference).pipe(Effect.flip);
+      const error = yield* addressBook.get(reference).pipe(Effect.flip);
 
       expect(error).toBeInstanceOf(AddressBookEntryNotFound);
-    }).pipe(Effect.provide(layerCommercetoolsAddressBookFor(api.apiRoot)));
+    }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
   });
 
   it.effect(
@@ -262,12 +307,12 @@ describe("layerCommercetoolsAddressBookFor", () => {
       return Effect.gen(function* () {
         const addressBook = yield* AddressBook;
 
-        expect(yield* addressBook.list(buyer)).toHaveLength(1);
+        expect(yield* addressBook.list()).toHaveLength(1);
         const error = yield* addressBook
-          .get(buyer, untypedReference)
+          .get(untypedReference)
           .pipe(Effect.flip);
         expect(error).toBeInstanceOf(AddressBookEntryNotFound);
-      }).pipe(Effect.provide(layerCommercetoolsAddressBookFor(api.apiRoot)));
+      }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
     }
   );
 
@@ -280,11 +325,13 @@ describe("layerCommercetoolsAddressBookFor", () => {
 
     return Effect.gen(function* () {
       const addressBook = yield* AddressBook;
-      const error = yield* addressBook.list(buyer).pipe(Effect.flip);
+      const error = yield* addressBook.list().pipe(Effect.flip);
 
-      expect(error).toBeInstanceOf(AddressBookAccessDenied);
-      expect(error.operation).toBe("list");
-    }).pipe(Effect.provide(layerCommercetoolsAddressBookFor(api.apiRoot)));
+      expect(error).toMatchObject({
+        _tag: "AddressBookAccessDenied",
+        operation: "list",
+      });
+    }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
   });
 
   it.effect(
@@ -306,7 +353,7 @@ describe("layerCommercetoolsAddressBookFor", () => {
 
       return Effect.gen(function* () {
         const addressBook = yield* AddressBook;
-        const saved = yield* addressBook.save(buyer, {
+        const saved = yield* addressBook.save({
           reference,
           address,
           types: ["shipping", "billing"],
@@ -317,7 +364,7 @@ describe("layerCommercetoolsAddressBookFor", () => {
         expect(saved.reference).toBe(reference);
         expect(api.post).toHaveBeenCalledTimes(1);
         expect(api.get).toHaveBeenCalledTimes(2);
-      }).pipe(Effect.provide(layerCommercetoolsAddressBookFor(api.apiRoot)));
+      }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
     }
   );
 
@@ -344,7 +391,7 @@ describe("layerCommercetoolsAddressBookFor", () => {
 
       return Effect.gen(function* () {
         const addressBook = yield* AddressBook;
-        const saved = yield* addressBook.save(buyer, {
+        const saved = yield* addressBook.save({
           reference,
           address,
           types: ["shipping"],
@@ -355,7 +402,7 @@ describe("layerCommercetoolsAddressBookFor", () => {
         expect(saved.reference).toBe(reference);
         expect(api.post).toHaveBeenCalledTimes(2);
         expect(api.get).toHaveBeenCalledTimes(2);
-      }).pipe(Effect.provide(layerCommercetoolsAddressBookFor(api.apiRoot)));
+      }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
     }
   );
 });

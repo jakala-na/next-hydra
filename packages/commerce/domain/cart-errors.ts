@@ -85,13 +85,16 @@ export class CurrentCartSelectionConflict extends Schema.TaggedErrorClass<Curren
   }
 ) {}
 
-export class CurrentCartAssociationFailure extends Schema.TaggedErrorClass<CurrentCartAssociationFailure>()(
-  "CurrentCartAssociationFailure",
+export class CurrentCartOperationFailure extends Schema.TaggedErrorClass<CurrentCartOperationFailure>()(
+  "CurrentCartOperationFailure",
   {
-    operation: Schema.Literals(["establish", "clear"]),
+    operation: Schema.Literal("set"),
     cause: Schema.optional(Schema.Defect),
   }
 ) {}
+
+export const currentCartOperationFailure = (cause: unknown) =>
+  new CurrentCartOperationFailure({ operation: "set", cause });
 
 export class CurrentCartUnavailable extends Schema.TaggedErrorClass<CurrentCartUnavailable>()(
   "CurrentCartUnavailable",

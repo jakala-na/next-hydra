@@ -50,7 +50,7 @@ Every method returns an Effect with `R = never`. Concrete provider dependencies 
 
 ### Reads, candidates, and authority
 
-`findById` is the lower-level arbitrary Cart lookup required for an anonymous possessed Cart reference. `Carts` does not read cookies and does not decide that possession exists. `CurrentCart` supplies the reference taken from its trusted private request value, then verifies that the returned Cart is active and belongs to the request Store before treating it as current.
+`findById` is the lower-level arbitrary Cart lookup required for an anonymous possessed Cart reference. `Carts` does not read cookies and does not decide that possession exists. `CurrentCart` obtains the verified anonymous reference and Store from `CommerceContext`, then verifies that the returned Cart is active and belongs to that Store before treating it as current.
 
 `findActiveForBusinessUnit` accepts the verified Customer, Business Unit Buying Context, Store, and locale needed for provider-scoped lookup. It returns the active provider-neutral Cart candidates rather than applying the Current Cart cardinality rule. A provider may cap its query at two results because callers only need to distinguish zero, one, and more than one.
 
@@ -86,7 +86,7 @@ The exact retry rules, outcome-unknown behavior, action rebuilding, and no-op ha
 - Custom Type keys, Custom Field names, JSON encoding, shipping-address conversion, and update-action construction;
 - mapping provider results and failures into the schema-backed values defined for `Carts`.
 
-It does not depend on `CurrentCart`, its private request value, cookies, headers, `CartPolicies`, or `CheckoutSession`. Provider clients, configuration, and Store-reference lookup are captured by the Commercetools Layer or supplied through provider-infrastructure Layers; they never become requirements of `Carts` methods.
+It does not depend on `CurrentCart`, `CommerceContext`, the private cookie seam, cookies, headers, `CartPolicies`, or `CheckoutSession`. Provider clients, configuration, and Store-reference lookup are captured by the Commercetools Layer or supplied through provider-infrastructure Layers; they never become requirements of `Carts` methods.
 
 The application selects its provider through ordinary Layer composition:
 
@@ -101,7 +101,7 @@ A future provider supplies another `Layer<Carts, ..., ...>` at that same composi
 
 ### Test Layers and contract tests
 
-`Carts.layerMemory(seed)` creates a fresh in-memory Layer per test and implements the same named programs. It models:
+`Carts.layerMemory(seed)` creates a fresh in-memory Layer per test and implements the same named Service methods. It models:
 
 - arbitrary Cart lookup without treating lookup input as buyer authority;
 - zero, one, and multiple active Business Unit candidates;

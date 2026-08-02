@@ -12,34 +12,12 @@ import {
   type RemoveCartItemData,
   removeCartItemInputSchema,
 } from "@repo/commerce/contracts/actions/remove-cart-item";
-import { domainError, Err, Ok } from "@repo/commerce/lib/utils/errors";
+import { LineItemId, ProductId, VariantId } from "@repo/commerce/domain/cart";
 import { inStoreAction } from "@repo/commerce/lib/utils/safe-action";
-import type { CurrentCart } from "@repo/commerce/services/current-cart";
-import type { Locale } from "@repo/i18n/types";
+import { CurrentCart } from "@repo/commerce/services/current-cart";
 import { Effect } from "effect";
-import { runCurrentCartWrite } from "@/lib/current-cart";
-import {
-  addToCurrentCart,
-  removeCurrentCartLineItem,
-  setCurrentCartLineItemQuantity,
-} from "@/lib/current-cart-action-programs";
-
-const runMutation = async <A, E>(
-  locale: Locale,
-  mutation: Effect.Effect<A, E, CurrentCart>
-) => {
-  const result = await runCurrentCartWrite(locale, Effect.result(mutation));
-  return result._tag === "Success"
-    ? Ok(result.success)
-    : Err(
-        domainError<object>(
-          "UNKNOWN",
-          "Current Cart mutation failed",
-          undefined,
-          result.failure
-        )
-      );
-};
+import { nextCurrentCartLayer } from "@/lib/current-cart";
+import { toCurrentCartMutationData } from "@/lib/current-cart-action-result";
 
 export const addToCart = inStoreAction
   .metadata({ actionName: "addToCart" })
@@ -48,11 +26,24 @@ export const addToCart = inStoreAction
     async ({
       parsedInput: { productId, variantId, quantity },
       ctx,
-    }): Promise<AddToCartData> =>
-      runMutation(
-        ctx.locale,
-        addToCurrentCart({ productId, variantId, quantity })
-      )
+    }): Promise<AddToCartData> => {
+      const result = await Effect.runPromise(
+        CurrentCart.addItem({
+          productId: ProductId.make(productId),
+          variantId: VariantId.make(variantId),
+          quantity,
+        }).pipe(
+          Effect.provide(nextCurrentCartLayer(ctx.locale)),
+          Effect.tapError((error) =>
+            Effect.logError("Current Cart mutation failed", error).pipe(
+              Effect.annotateLogs({ operation: "currentCart.addItem" })
+            )
+          ),
+          Effect.result
+        )
+      );
+      return toCurrentCartMutationData(result);
+    }
   );
 
 export const changeCartItemsQuantity = inStoreAction
@@ -62,17 +53,48 @@ export const changeCartItemsQuantity = inStoreAction
     async ({
       parsedInput: { lineItemId, quantity },
       ctx,
-    }): Promise<ChangeCartItemsQuantityData> =>
-      runMutation(
-        ctx.locale,
-        setCurrentCartLineItemQuantity({ lineItemId, quantity })
-      )
+    }): Promise<ChangeCartItemsQuantityData> => {
+      const result = await Effect.runPromise(
+        CurrentCart.setLineItemQuantity({
+          lineItemId: LineItemId.make(lineItemId),
+          quantity,
+        }).pipe(
+          Effect.provide(nextCurrentCartLayer(ctx.locale)),
+          Effect.tapError((error) =>
+            Effect.logError("Current Cart mutation failed", error).pipe(
+              Effect.annotateLogs({
+                operation: "currentCart.setLineItemQuantity",
+              })
+            )
+          ),
+          Effect.result
+        )
+      );
+      return toCurrentCartMutationData(result);
+    }
   );
 
 export const removeCartItem = inStoreAction
   .metadata({ actionName: "removeCartItem" })
   .inputSchema(removeCartItemInputSchema)
   .action(
-    async ({ parsedInput: { lineItemId }, ctx }): Promise<RemoveCartItemData> =>
-      runMutation(ctx.locale, removeCurrentCartLineItem({ lineItemId }))
+    async ({
+      parsedInput: { lineItemId },
+      ctx,
+    }): Promise<RemoveCartItemData> => {
+      const result = await Effect.runPromise(
+        CurrentCart.removeLineItem({
+          lineItemId: LineItemId.make(lineItemId),
+        }).pipe(
+          Effect.provide(nextCurrentCartLayer(ctx.locale)),
+          Effect.tapError((error) =>
+            Effect.logError("Current Cart mutation failed", error).pipe(
+              Effect.annotateLogs({ operation: "currentCart.removeLineItem" })
+            )
+          ),
+          Effect.result
+        )
+      );
+      return toCurrentCartMutationData(result);
+    }
   );

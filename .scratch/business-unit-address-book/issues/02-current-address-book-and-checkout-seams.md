@@ -1,4 +1,4 @@
-# Current Address Book and Checkout seams
+# Commerce Context, Address Book, and Checkout seams
 
 Type: research
 Status: resolved
@@ -29,7 +29,7 @@ Reuse the existing trusted commerce path rather than creating another identity o
 - B2B Cart reads and writes remain associate- and Business Unit-scoped.
 - the existing Cart persistence path continues to own the resolved Shipping Address and Cart version checks.
 
-Introduce one separate Business Unit Address Book Effect capability. It owns provider-independent list, resolve, and idempotent add operations for shipping addresses. It receives already trusted Business Unit/customer context, while `CommerceAccounts` continues to own identity and Buying Context resolution. Its Commercetools Layer owns provider address projections, associate-scoped Business Unit operations, versions, permissions, and provider error translation.
+Introduce one separate Business Unit `AddressBook` Effect capability. It owns provider-independent list, resolve, and idempotent add operations. Its Commercetools Layer owns provider address projections, associate-scoped Business Unit operations, versions, permissions, and provider error translation. Provide one request-scoped `CommerceContext` after `CommerceAccounts` resolves identity and Buying Context; the `AddressBook` Layer depends on it so callers use `list`, `get`, and `save` without passing Customer or Business Unit identity. `CommerceContext` also owns current-customer profile lookup, so `CheckoutSession` no longer calls `CommerceAccounts` directly.
 
 Separate submitted intent from persisted Checkout Details. The Delivery Details action input becomes a schema-backed union representing:
 

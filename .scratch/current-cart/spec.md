@@ -1,6 +1,6 @@
 # Current Cart Service and Provider Layers
 
-Status: ready for implementation
+Status: implementation in progress
 
 ## Goal
 
@@ -9,7 +9,7 @@ Replace the global Promise-based Cart service/repository seam with two provider-
 - `CurrentCart`: the request-bound buyer capability used by Storefront and Checkout;
 - `Carts`: the process-level persistence capability supplied by a commerce-provider Layer.
 
-The implementation must preserve current Cart behavior while moving selection, creation, association, Cart Policy evaluation, provider decoding, Custom Type mechanics, and optimistic concurrency to their proper Effect boundaries. `layerCommercetoolsCarts` is the first production `Carts` Layer. A future provider replaces that Layer through application composition without changing `CurrentCart` or its callers.
+The implementation must preserve current Cart behavior while moving selection, creation, anonymous Cart cookie handling, Cart Policy evaluation, provider decoding, Custom Type mechanics, and optimistic concurrency to their proper Effect boundaries. `layerCommercetoolsCarts` is the first production `Carts` Layer. A future provider replaces that Layer through application composition without changing `CurrentCart` or its callers.
 
 ## Non-goals
 
@@ -40,17 +40,19 @@ application composition
   layerCommercetoolsCarts ─┐
   CartPolicies.layer       ├─ process-level commerce runtime
   CommerceAccounts Layer   │
-  AddressBook Layer        │
   CheckoutPolicies.layer  ─┘
+  AddressBook Layer recipe ─ provider choice
                │
 request boundary
-  auth + locale + Store + cookie/header + Buying Context
+  verified auth + Store + cookie/header + optional Business Unit selector
                │
-  private CurrentCartRequest + association behavior
+  CommerceContextRequest + CurrentCartCookie(set/clear)
                │
-       CurrentCart.layer
-          │           │
-  storefront programs CheckoutSession.layer
+  CommerceContext.layer resolves Customer + Business Unit membership
+               │
+  CurrentCart.layer + AddressBook Layer
+          │              │
+  storefront programs    CheckoutSession.layer
 ```
 
 Recommended module destinations:
@@ -58,10 +60,12 @@ Recommended module destinations:
 - `packages/commerce/domain/cart.ts`: provider-neutral Cart schemas and Cart failures;
 - `packages/commerce/services/carts.ts`: `Carts` Service and memory Layer;
 - `packages/commerce/services/current-cart.ts`: `CurrentCart` Service and live orchestration Layer;
+- `packages/commerce/services/commerce-context.ts`: request-scoped `CommerceContext` Service for verified principal and current-customer access;
+- `packages/commerce/services/address-book.ts`: context-aware, provider-neutral `AddressBook` Service with identity-free methods;
 - `packages/commerce/services/cart-policies.ts`: provider-neutral `CartPolicies` Service;
-- `packages/commerce/lib/current-cart/request.ts`: private request input used only to build `CurrentCart`;
+- `packages/commerce/lib/current-cart/cookie.ts`: private anonymous Cart cookie operations used only to build `CurrentCart`;
 - `packages/commerce/lib/infra/commercetools/carts.ts`: `layerCommercetoolsCarts` and provider-private mapping/write logic;
-- `apps/web/lib/current-cart.ts`: Next request resolution and read/write runners;
+- `apps/web/lib/current-cart.ts`: Next request resolution and request-specific Layers;
 - Effect HTTP middleware beside the existing Checkout HTTP boundary in `apps/api/lib/checkout/http.ts` unless extraction materially improves that file.
 
 These paths may be adjusted to match nearby modules, but the Service and Layer ownership must not change.
@@ -268,7 +272,7 @@ Inputs contain only buyer intent:
 - remove: line-item id;
 - Contact and Delivery Details: canonical values already resolved by `CheckoutSession`.
 
-`CurrentCart.layer` depends on `Carts`, `CartPolicies`, and the private request value. It pins one provider-neutral Current Cart target for the lifetime of the provided Service so an expected-identity check and subsequent mutation cannot drift to another candidate during the use-case. The pin never contains a provider revision. Successful mutations replace the Service's semantic snapshot for any later operation in the same program.
+`CurrentCart.layer` depends on `Carts`, `CartPolicies`, `CommerceContext`, and the private cookie seam. It pins one provider-neutral Current Cart target for the lifetime of the provided Service so an expected-identity check and subsequent mutation cannot drift to another candidate during the use-case. The pin never contains a provider revision. Successful mutations replace the Service's semantic snapshot for any later operation in the same program.
 
 `get` never creates. Only `addItem` may create an absent Cart. All returned snapshots are evaluated by `CartPolicies` before becoming `CurrentCartState`.
 
@@ -281,51 +285,47 @@ Repeat behavior:
 
 ### CurrentCart failures
 
-- `get`: `CurrentCartSelectionConflict | CurrentCartAssociationFailure | CartProviderFailure | CartPolicyFailure`, plus successful absence;
+- `get`: `CurrentCartSelectionConflict | CartProviderFailure | CartPolicyFailure`, plus successful absence;
 - required-Cart mutations map missing or inaccessible targets to `CurrentCartUnavailable` with `noCart | inaccessibleCart`;
 - missing line and unavailable merchandise remain distinct;
 - `CartWriteConflict` and `CartWriteOutcomeUnknown` remain distinct;
-- cookie/association persistence failure is `CurrentCartAssociationFailure`;
+- failure to persist a newly created anonymous Cart ID is `CurrentCartOperationFailure` with operation `set`;
 - Cart Policy execution failure is `CartPolicyFailure`; violations remain success data.
 
 `CheckoutCartMismatch` remains owned by `CheckoutSession`.
 
-## Private request value and lifecycle
+## Current Cart cookie and lifecycle
 
-The private request value is an implementation input to `CurrentCart.layer`, not an application-facing domain Service:
+`CurrentCartCookie` is the transport seam used by `CurrentCart` to persist anonymous Cart cookie changes. It is an implementation input to `CurrentCart.layer`, not an application-facing domain Service and not a second context or identity bag:
 
 ```ts
-type CurrentCartRequest =
-  | {
-      readonly _tag: "AnonymousCurrentCartRequest"
-      readonly store: CartStore
-      readonly possessedCartId?: CartId
-      readonly establish: (id: CartId) => Effect.Effect<void, CurrentCartAssociationFailure>
-      readonly clear: () => Effect.Effect<void, CurrentCartAssociationFailure>
-    }
-  | {
-      readonly _tag: "BusinessUnitCurrentCartRequest"
-      readonly store: CartStore
-      readonly customerId: CommerceCustomerId
-      readonly businessUnitId: CommerceBusinessUnitId
-      readonly businessUnitKey: CommerceBusinessUnitKey
-    }
+interface CurrentCartCookie {
+  readonly set: (
+    id: CartId
+  ) => Effect.Effect<void, CurrentCartOperationFailure>
+  readonly clear: () => Effect.Effect<void>
+}
 ```
+
+Store, anonymous Cart possession, Customer, and Business Unit identity come from the request-scoped `CommerceContext`. Authenticated boundaries provide no-op cookie operations because authenticated Current Cart never changes the anonymous cookie.
 
 Anonymous rules:
 
 - decode cookie name `cart` only when currency, locale, and Store key match;
-- no association means ordinary absence;
-- confirmed missing/inactive/wrong-Store possessed Cart may be cleared and treated as absent;
-- provider, access, network, and decoding failures do not clear or replace the association;
-- on add with no Current Cart, create, establish association, then add;
-- association remains established when create succeeds but add later fails;
+- no anonymous Cart ID means ordinary absence; the request still has an anonymous `CommerceContext`, so Checkout absence is not `noPrincipal`;
+- a confirmed missing, inactive, or wrong-Store anonymous Cart ID may be cleared and treated as absent;
+- provider, access, network, and decoding failures do not clear or replace the cookie;
+- on add with no Current Cart, create, set the anonymous Cart ID, then add;
+- the new Cart ID remains set when create succeeds but add later fails;
 - cookie remains HTTP-only, production-secure, SameSite `lax`, path `/`, max age 90 days.
 
 Authenticated B2B rules:
 
 - verified auth wins over anonymous possession;
-- resolve Customer and exactly one Store-specific Business Unit Buying Context;
+- the request boundary supplies verified Auth User ID, Store, and an optional Business Unit ID selector in `CommerceContextRequest`;
+- `CommerceContext` derives Customer ID, asks `CommerceAccounts` for Store-scoped Business Unit memberships, validates an explicit selector, or selects the sole membership when no selector is supplied;
+- each membership carries a provider-neutral Business Unit Label for presentation; the web switcher displays that label and stores only the selected Business Unit ID in the `business-unit-id` cookie;
+- Buying Context may be switched during Checkout; the cookie-setting Server Action triggers a server rerender that resolves the newly selected context's Current Cart and never reuses the previous Checkout State;
 - zero active candidates is absence, one is Current Cart, more than one is `CurrentCartSelectionConflict`;
 - add may create a Business Unit Cart on absence without touching the anonymous cookie;
 - missing/ambiguous commerce identity is typed context failure, not anonymous fallback;
@@ -337,23 +337,22 @@ Arbitrary submitted Cart ids never establish authority.
 
 ### Next Server Components and Server Actions
 
-The web application owns a process commerce runtime containing `Carts`, policies, Accounts, and Address Book Layers. A request runner resolves auth, locale, Store, Buying Context, and `cookies()` once, constructs the private request value, provides a fresh `CurrentCart.layer`, and runs the remaining requirements with the process runtime.
+The web application provides `nextCurrentCartLayer(locale)` around direct `CurrentCart` method calls and `nextCheckoutLayer(locale)` around direct `AddressBook` or `CheckoutSession` method calls. Those locale-based Layers keep request access private: they read verified auth, Store, and `cookies()` once, construct `CommerceContextRequest` plus `CurrentCartCookie`, provide `CommerceContext`, and build fresh request-bound Services around the concrete request Effect. `CommerceContext` owns Customer and Business Unit membership resolution. The selected Address Book Layer and `CheckoutSession.layer` both depend on it; their methods never accept scope or context.
 
-- Server Components use a read-only association implementation; accidental writes fail typed.
-- Server Actions use captured cookie-store `set` and `delete` effects.
+- Server Actions use the captured cookie store's `set`; stale-cookie `clear` is best-effort so Server Component reads do not fail when Next.js prohibits cookie mutation.
 - Request-specific Layers are never stored in the module-level runtime.
 
 ### Effect HTTP
 
-Request middleware provides `CurrentCart` and requires the process Services used to resolve verified context. It:
+`CheckoutSessionMiddleware` provides `AddressBook` and `CheckoutSession` and requires the process Services used to resolve verified context plus the application-selected Address Book Layer recipe. The request-bound `CurrentCart` is supplied privately to `CheckoutSession`. The middleware:
 
 1. reads `HttpServerRequest` headers and cookies;
 2. preserves valid bearer-auth precedence, then matching cookie, then supported `x-context-anonymous-cart-id` possession;
 3. allocates `Ref<Option<AnonymousCartCookieChange>>`;
 4. registers `HttpEffect.appendPreResponseHandler`;
-5. builds the private request value and provides `CurrentCart.layer` around the endpoint effect.
+5. builds `CommerceContextRequest` plus `CurrentCartCookie`, provides `CommerceContext.layer(request)`, and builds `CurrentCart`, the selected Address Book Layer, and `CheckoutSession.layer` around the endpoint effect.
 
-`establish` and `clear` only update the request-local Ref. The pre-response hook reads the final change and immutably sets or expires `cart` on `HttpServerResponse`. It applies to successful and mapped error responses.
+`set` and `clear` only update the request-local Ref. The pre-response hook reads the final change and immutably sets or expires `cart` on `HttpServerResponse`. It applies to successful and mapped error responses.
 
 Do not use `FiberRef`, `Context.Reference`, or Effect `Scope` as request context.
 
@@ -406,14 +405,16 @@ Only decoded optimistic-concurrency failures enter conflict recovery. Other prov
 
 `CartPolicies` is a separate `Context.Service`. `CurrentCart` invokes it for every returned Cart state. Remove direct `validateCartPolicies` calls from layouts, actions, and the Commercetools Checkout Layer.
 
-`CheckoutSession.layer` is provider-neutral and depends on:
+`CheckoutSession.layer` is provider-neutral and request-bound. It obtains verified request facts from `CommerceContext`, derives `CheckoutScope` once, and depends on:
 
 - `CurrentCart`;
+- `CommerceContext`;
+- `AddressBook`;
 - `CheckoutPolicies`;
-- `CommerceAccounts`;
-- `AddressBook`.
 
-It retains Contact source/profile resolution, Delivery Details normalization, Address Book resolution/save, Checkout Policy evaluation, step construction, and stale submitted Cart-identity comparison. It consumes Current Cart violations and calls named Current Cart mutations. Successful Contact and Delivery mutations build Checkout State from the mutation-returned state without a second Cart read.
+`CommerceContext` owns the verified principal and current-customer profile lookup through `CommerceAccounts`. The provider-selected `AddressBook` Layer depends on `CommerceContext` and exposes `list`, `get`, and `save` without accepting caller-supplied identity. `CheckoutSession` consumes `AddressBook` for Delivery Details resolution/save but does not expose or own Address Book catalog loading.
+
+CheckoutSession methods accept only operation-specific input; they never accept scope, context, request values, or Layers. The Service retains Contact source/profile resolution, Delivery Details normalization, Checkout Policy evaluation, step construction, and stale submitted Cart-identity comparison. It consumes Current Cart violations and calls named Current Cart mutations. Successful Contact and Delivery mutations build Checkout State from the mutation-returned state without a second Cart read.
 
 Delete `layerCommercetoolsCheckoutSession` and `checkoutRuntimeLayerCommercetools`.
 
@@ -485,9 +486,9 @@ pnpm --filter @repo/commerce typecheck
 Suggested commit: `feat(commerce): provide request-bound current cart`
 
 - implement `CurrentCart.layer` selection, creation, target pinning, state replacement, and Cart Policy evaluation;
-- implement private anonymous/B2B request values;
-- add shared context-resolution rules, Next read/write runners, and Effect HTTP association middleware;
-- test absence, invalid associations, authenticated precedence, zero/one/many B2B candidates, association-on-create, post-create add failure, and policy failures;
+- implement `CommerceContextRequest` resolution and the private `CurrentCartCookie` seam;
+- add shared context-resolution rules, a single Next request helper, and Effect HTTP cart-cookie handling;
+- test absence, invalid anonymous Cart cookies, authenticated precedence, zero/one/many B2B candidates, cookie set on create, post-create add failure, and policy failures;
 - leave production Cart callers on the old seam.
 
 Validation:
@@ -506,7 +507,7 @@ Suggested commit: `refactor(commerce): use current cart in storefront`
 
 - switch locale layout read and all three Cart Server Actions;
 - migrate action contracts and `CartProvider` to `CurrentCartState`;
-- add Storefront action tests for creation/cookie association, B2B selection, success state, typed failure shielding, and unknown add outcome;
+- add Storefront action tests for creation and cookie setting, B2B selection, success state, typed failure shielding, and unknown add outcome;
 - remove `getCartForContext`, action-owned cookie changes, direct repository calls, and direct policy evaluation used by Storefront.
 
 Validation:
@@ -523,9 +524,10 @@ pnpm --filter web typecheck
 
 Suggested commit: `refactor(checkout): use request-bound current cart`
 
-- make `CheckoutSession.layer` consume `CurrentCart`;
-- switch Checkout page and Server Actions to the shared request runner;
-- switch all HTTP handlers and Layer composition to middleware-provided `CurrentCart`;
+- provide `CommerceContext.layer(request)`, make the selected Address Book Layer depend on it, and make `CheckoutSession.layer` consume `CommerceContext`, `CurrentCart`, and `AddressBook`;
+- switch Checkout page and Server Actions to direct `CheckoutSession` methods provided by `nextCheckoutLayer(locale)`;
+- move FormData decoding and action-state mapping into the Next Server Action and delete floating `ForScope`/`ForContext` Effect programs;
+- switch Checkout HTTP handlers to `CheckoutSession`, switch the Address Book handler to `AddressBook`, and delete transport-only Checkout context/scope tags plus the shallow `CurrentAddressBook` wrapper;
 - remove provider revision from domain, forms, HTTP schemas, OpenAPI, fixtures, and tests;
 - preserve public error codes, Address Book partial-failure parameters, auth precedence, and revalidation;
 - replace post-mutation provider reads with mutation-returned state;
@@ -575,11 +577,11 @@ pnpm turbo build --filter=web --filter=api
 ## Acceptance criteria
 
 - [ ] Storefront and Checkout use only request-provided `CurrentCart` for buyer Cart behavior.
-- [ ] `CurrentCart` exposes exactly the six named programs in this specification.
-- [ ] `Carts` exposes exactly the named discovery, creation, and mutation programs required by `CurrentCart`.
+- [ ] `CurrentCart` exposes exactly the six named Service methods in this specification.
+- [ ] `Carts` exposes exactly the named discovery, creation, and mutation methods required by `CurrentCart`.
 - [ ] Provider choice occurs only in Layer composition.
 - [ ] Anonymous cookie behavior and authenticated B2B selection satisfy the lifecycle rules.
-- [ ] Only add creates a missing Cart, and association persists when the later add fails.
+- [ ] Only add creates a missing Cart, and the anonymous Cart ID remains set when the later add fails.
 - [ ] All successful mutations return fresh `CurrentCartState`.
 - [ ] Cart Policy violations are returned as `violations`; direct caller evaluation and legacy `issues` are gone.
 - [ ] Cart lines expose one purchasable `variant` with effective typed Attributes.
@@ -597,4 +599,4 @@ pnpm turbo build --filter=web --filter=api
 
 The former Checkout ticket `.scratch/checkout-effect-slice/issues/08-effect-cart-operations-and-custom-fields-writer.md` is `wontfix` and points to the Current Cart Wayfinder map. Its provisional Cart Operations and mandatory generic writer design is not an implementation path.
 
-This specification and `.scratch/current-cart/map.md` are the only canonical plan for this rewrite. Production implementation begins from Commit 1 above; it does not resume the superseded Checkout ticket.
+This specification and `.scratch/current-cart/map.md` remain the canonical implementation path for this rewrite. The authorized production implementation follows this path; it does not resume the superseded Checkout ticket.

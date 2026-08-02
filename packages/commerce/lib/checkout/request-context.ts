@@ -1,3 +1,4 @@
+import type { CartStore } from "../../domain/cart-snapshot";
 import {
   type CheckoutScope,
   StorefrontAnonymousCheckoutScope,
@@ -5,14 +6,20 @@ import {
 } from "../../domain/checkout";
 import {
   AnonymousCommercePrincipal,
-  type CommerceRequestContext,
+  type CommercePrincipal,
   CustomerCommercePrincipal,
 } from "../../domain/commerce-request-context";
 
+type CheckoutCommerceContext = {
+  readonly store: CartStore;
+  readonly principal: CommercePrincipal;
+};
+
 export const toCheckoutScope = (
-  context: CommerceRequestContext
+  context: CheckoutCommerceContext
 ): CheckoutScope => {
-  const { locale, principal } = context;
+  const { principal, store } = context;
+  const { locale } = store;
 
   if (principal instanceof AnonymousCommercePrincipal) {
     return new StorefrontAnonymousCheckoutScope({

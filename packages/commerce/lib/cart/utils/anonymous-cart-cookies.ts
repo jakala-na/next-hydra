@@ -1,6 +1,5 @@
 import type { Locale } from "@repo/i18n/types";
 import { Option, Schema } from "effect";
-import { cookies } from "next/headers";
 import { CartId, StoreKey } from "../../../domain/cart";
 import type { StoreContext } from "../../store/types";
 import {
@@ -106,39 +105,3 @@ export const ANONYMOUS_CART_COOKIE_OPTIONS = {
   path: "/",
   maxAge: 60 * 60 * 24 * CART_COOKIE_MAX_AGE_DAYS,
 };
-
-/**
- * Get the anonymous cart ID from cookies
- */
-export async function getAnonymousCartId(
-  context: AnonymousCartCookieContext
-): Promise<string | null> {
-  const cookieStore = await cookies();
-  return getAnonymousCartIdFromCookieValue(
-    cookieStore.get(ANONYMOUS_CART_COOKIE_NAME)?.value,
-    context
-  );
-}
-
-/**
- * Set the anonymous cart ID in cookies
- */
-export async function setAnonymousCartId(
-  cartId: string,
-  context: AnonymousCartCookieContext
-): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(
-    ANONYMOUS_CART_COOKIE_NAME,
-    encodeAnonymousCartCookie(makeAnonymousCartCookie({ cartId, context })),
-    ANONYMOUS_CART_COOKIE_OPTIONS
-  );
-}
-
-/**
- * Clear the anonymous cart ID from cookies
- */
-export async function clearAnonymousCartId(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(ANONYMOUS_CART_COOKIE_NAME);
-}

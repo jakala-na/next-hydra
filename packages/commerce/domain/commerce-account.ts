@@ -15,11 +15,17 @@ export const CommerceBusinessUnitKey = Schema.NonEmptyString.pipe(
 );
 export type CommerceBusinessUnitKey = typeof CommerceBusinessUnitKey.Type;
 
-export class CommerceBusinessUnitContext extends Schema.Class<CommerceBusinessUnitContext>(
-  "CommerceBusinessUnitContext"
+export const CommerceBusinessUnitLabel = Schema.NonEmptyString.pipe(
+  Schema.brand("CommerceBusinessUnitLabel")
+);
+export type CommerceBusinessUnitLabel = typeof CommerceBusinessUnitLabel.Type;
+
+export class CommerceBusinessUnitMembership extends Schema.Class<CommerceBusinessUnitMembership>(
+  "CommerceBusinessUnitMembership"
 )({
   businessUnitId: CommerceBusinessUnitId,
   businessUnitKey: CommerceBusinessUnitKey,
+  businessUnitLabel: CommerceBusinessUnitLabel,
 }) {}
 
 export class CommerceAccount extends Schema.Class<CommerceAccount>(

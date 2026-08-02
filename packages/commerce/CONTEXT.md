@@ -17,7 +17,7 @@ An observation of a Cart's current semantic state, independent of provider resou
 _Avoid_: Provider Cart, Cart version
 
 **Current Cart**:
-The Cart selected for the buyer's current Store and, for B2B activity, Business Unit Buying Context. Anonymous selection is based on possession of a Cart reference.
+The Cart resolved for the buyer's current Store and, for B2B activity, Business Unit Buying Context. The `cart` cookie identifies an anonymous Current Cart.
 _Avoid_: Cart Session, arbitrary Cart
 
 **Carts**:
@@ -73,12 +73,16 @@ A typed reason a Checkout Mutation could not save its requested details.
 _Avoid_: Exception, generic error
 
 **Commerce Principal**:
-The verified request identity used by commerce adapters before deriving checkout or cart access, such as anonymous cart possession or authenticated customer identity.
+The verified commerce identity resolved for a request: anonymous Cart possession or an authenticated Customer acting in a verified Business Unit.
 _Avoid_: HTTP headers, Checkout Scope, Registration Actor
 
-**Commerce Request Context**:
-The resolved adapter boundary context that combines request context such as locale with a verified Commerce Principal before commerce-specific scopes are derived.
-_Avoid_: Auth session, raw request, Checkout Scope
+**Commerce Context Request**:
+The trusted Store and buyer selectors decoded at a request boundary before provider-backed commerce identity is resolved. An authenticated request carries a verified Auth User ID and may carry a requested Business Unit ID; it never accepts a Customer ID as authority.
+_Avoid_: Resolved principal, raw headers, auth session
+
+**Commerce Context**:
+The current Store and verified Commerce Principal under which commerce activity occurs.
+_Avoid_: Commerce Request Context, auth session, raw request, Checkout Scope
 
 **Checkout Scope**:
 The value object that identifies which storefront Checkout context is being evaluated, such as anonymous checkout for a locale/cart or customer checkout for a locale/customer.
@@ -148,9 +152,33 @@ _Avoid_: UI-only rule
 The selected strategy for resolving Buyer Contact, such as manual entry or customer profile.
 _Avoid_: Guest, provider field name, field-level provenance
 
+**Store**:
+The commerce selling context in which a buyer browses, owns a Current Cart, and checks out.
+_Avoid_: Locale, sales channel
+
+**Store Key**:
+The stable domain identifier used to select a Store across request and commerce-provider boundaries.
+_Avoid_: Locale, provider Store payload
+
+**Business Unit**:
+A company or company division in which an authenticated Customer may act, directly or through an inherited company hierarchy.
+_Avoid_: Account, provider Business Unit payload
+
+**Business Unit ID**:
+The stable domain identifier used to select a Business Unit. A submitted Business Unit ID is a selector that must be verified against the authenticated Customer's memberships in the current Store.
+_Avoid_: Business Unit authority, Business Unit key
+
+**Business Unit Label**:
+The human-readable name used to present a Business Unit to a buyer. It is display text, not Business Unit identity or authority.
+_Avoid_: Business Unit key, provider name field
+
+**Business Unit Membership**:
+A provider-reported relationship showing that a Customer may act in a Business Unit within a Store, directly or through an inherited hierarchy.
+_Avoid_: Current Buying Context, selected Business Unit
+
 **Buying Context**:
-The business context a buyer is acting within for a Checkout.
-_Avoid_: Account, selected company
+The verified Business Unit in which an authenticated Customer is currently acting for commerce operations in a Store.
+_Avoid_: Account, unverified company selection
 
 **Buyer Contact**:
 The contact details used for communicating with the buyer during Checkout, whether entered by the buyer or derived from a known buyer.
@@ -185,6 +213,10 @@ _Avoid_: Provider address object
 **Address Book**:
 The collection of saved company addresses owned by a Business Unit and available to authenticated buyers acting in that Buying Context.
 _Avoid_: Customer address book, Checkout address list
+
+**Current Address Book**:
+The request-scoped Address Book selected from the verified customer and Business Unit Buying Context. Its operations do not accept caller-supplied Customer or Business Unit identity.
+_Avoid_: Checkout address list, submitted address owner
 
 **Address Book Entry**:
 A saved company address together with its Address Types and Default Address Flags.
@@ -241,14 +273,19 @@ _Avoid_: Review checkout, order summary
 - A B2B **Cart** belongs to its Store and **Buying Context** Business Unit, so cart reads and writes should use store-scoped and Business Unit-scoped provider operations rather than customer-owned cart semantics.
 - Anonymous and B2B Carts remain separate when the buyer signs in; Checkout does not transfer or merge the anonymous Cart into a Business Unit.
 - A **Checkout State** is a lean read model derived from the current **Cart**, buyer context, and **Checkout Details**.
-- `CheckoutSession.getCurrent` is the use-case program that gets current **Checkout State** for a **Checkout Scope**.
+- A request boundary decodes a **Commerce Context Request** from trusted Store resolution, verified authentication, anonymous possession, and an optional Business Unit ID selector.
+- `CommerceContext.layer(request)` resolves the verified **Commerce Context** once for the request. For authenticated requests it derives Customer ID from Auth User ID, obtains Store-scoped **Business Unit Memberships** through **Commerce Accounts**, and validates or uniquely infers the selected **Buying Context**.
+- **Commerce Accounts** reports provider-backed customer mappings, profiles, and Business Unit Memberships; it does not decide which Business Unit is current for a request.
+- A caller-provided Business Unit ID selects among verified memberships; it does not grant membership. Customer ID is resolved from verified authentication and is never accepted as request authority.
+- The provider-selected **Address Book** Layer depends on `CommerceContext`; its `list`, `get`, and `save` methods accept no Customer or Business Unit identity.
+- `CheckoutSession.layer` depends on `CommerceContext` and derives its **Checkout Scope** once for the request.
+- `CheckoutSession.getCurrent()` gets current **Checkout State** for that request-bound session; callers do not pass scope or context to session methods.
 - A **Checkout State Builder** receives an already-resolved **Checkout Scope**, **Cart Snapshot**, **Checkout Details**, buyer context, **Cart Policy Violations**, and **Checkout Policy Violations**.
 - A **Checkout State Builder** validates that Checkout can start, computes binary **Checkout Step** status, computes the **Active Checkout Step**, normalizes violations, and returns **Checkout State**.
 - A **Checkout State Builder** does not fetch provider data or resolve request context.
-- A **Current Checkout Scope** can be supplied by HTTP middleware for API handlers or constructed directly by Server Components when the caller already knows the current buyer/cart context.
-- A **Commerce Request Context** combines resolved locale with a **Commerce Principal** before a Checkout adapter derives **Checkout Scope**.
-- Anonymous **Commerce Principal** access is possession-based and grants access only to the possessed anonymous Cart flow.
-- HTTP adapters resolve verified **Commerce Request Context**, run one **Checkout Use-Case Program**, and map typed errors to transport responses. Programs that need only Cart authority accept the derived **Checkout Scope**; Delivery Details retains the verified context because Address Book access also requires its Customer principal and Business Unit Buying Context.
+- A **Commerce Context** combines the resolved Store with a verified **Commerce Principal** before Checkout derives **Checkout Scope**.
+- An anonymous **Commerce Principal** may exist without a Cart ID, representing an ordinary guest request with no Current Cart. Access to an existing anonymous Cart is possession-based and requires its request-bound Cart ID.
+- HTTP and Next request boundaries construct a **Commerce Context Request**, provide `CommerceContext`, then construct request-scoped `CurrentCart`, `AddressBook`, and `CheckoutSession` Layers. Callers invoke named Service methods and map typed errors to transport responses; no Contact, Address Book, or Delivery Details operation accepts context or scope.
 - A first-slice **Checkout State** reports current **Checkout Details**, binary step status, active step, and **Checkout Violations**.
 - A first-slice **Checkout State** does not report structured incompletion reasons.
 - Blocking violations in **Checkout State** are global and do not have to belong to a **Checkout Step**.
@@ -284,6 +321,7 @@ _Avoid_: Review checkout, order summary
 - Saving an **Address Book Entry** accepts the address, its **Address Types**, and its **Default Address Flags**.
 - An authenticated buyer can access an **Address Book** only while acting in its Business Unit **Buying Context**.
 - An authenticated buyer authorized for a Business Unit **Buying Context** can list, select, and add addresses in that Business Unit's **Address Book**.
+- **Current Address Book** owns request-scoped identity selection; the provider-neutral **Address Book** Service remains the process-level provider seam.
 - The first Address Book capability does not define a separate address administrator role.
 - **Checkout** consumes the **Address Book** as an external capability and does not own its addresses.
 - A **Checkout Step Completion** is derived from current checkout details and is not stored independently.
@@ -480,7 +518,7 @@ _Avoid_: Review checkout, order summary
 > **Domain expert:** "No — **Contact** also needs the **Buying Context** the buyer is acting within."
 
 > **Dev:** "Can the buyer switch Buying Context during Checkout?"
-> **Domain expert:** "No — changing **Buying Context** requires a different **Cart**, so Checkout is too late for that change."
+> **Domain expert:** "Yes — changing **Buying Context** changes the **Current Cart**, so Checkout must be rebuilt for the new context. Another active **Cart** yields its Checkout; no active **Cart** means Checkout is unavailable. Previously shown Checkout State must never be reused."
 
 ## Flagged Ambiguities
 
@@ -489,4 +527,4 @@ _Avoid_: Review checkout, order summary
 - "context step" was used near contact collection — resolved: the Checkout Step is **Contact** unless the discussion is specifically about choosing **Buying Context**.
 - "contact information" was used to include shipping address — resolved: **Contact** owns buyer contact details, while **Delivery Details** owns **Shipping Address**.
 - "cart policy" was used for address-dependent restrictions — resolved: rules that depend on checkout details such as **Shipping Address** are **Checkout Policies**, even when their violations are displayed beside cart items.
-- "account" and "company" were used near buyer selection — unresolved: the canonical business-context term is **Buying Context** until the concrete B2B model chooses whether that means Business Unit, Company Location, or another domain term.
+- "account" and "company" were used near buyer selection — resolved: **Business Unit** names a company or division, **Business Unit Membership** names a Customer's eligible relationship, and **Buying Context** names the verified Business Unit selected for the current Store request.

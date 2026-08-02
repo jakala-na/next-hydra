@@ -1,7 +1,6 @@
 import { Context, Effect, Layer, Option, Random, Redacted } from "effect";
 import {
   type AddressBookEntry,
-  type AddressBookGetError,
   type AddressBookProviderFailure,
   AddressBookReference,
   SaveAddressBookEntryInput,
@@ -31,18 +30,14 @@ import {
   type CheckoutState,
   CheckoutUnavailable,
   CheckoutVersionConflict,
-  StorefrontAnonymousCheckoutScope,
-  StorefrontCustomerCheckoutScope,
 } from "../../domain/checkout";
+import type { CommerceRequestContextNotFound } from "../../domain/commerce-request-context";
 import {
-  type CommerceRequestContext,
-  CustomerCommercePrincipal,
-} from "../../domain/commerce-request-context";
-import { AddressBook } from "../../services/address-book";
-import {
-  CommerceAccounts,
-  type CommerceCustomerProfileNotFound,
-} from "../../services/commerce-accounts";
+  AddressBook,
+  type AddressBookGetFailure,
+} from "../../services/address-book";
+import type { CommerceCustomerProfileNotFound } from "../../services/commerce-accounts";
+import { CommerceContext } from "../../services/commerce-context";
 import type {
   CurrentCartReadFailure,
   SaveCurrentCartDetailsFailure,
@@ -50,16 +45,15 @@ import type {
 import { CurrentCart } from "../../services/current-cart";
 import { CheckoutPolicies } from "./checkout-policy";
 import { allowedContactSourcesForCheckout } from "./contact-source-policy";
+import { toCheckoutScope } from "./request-context";
 import { buildCheckoutState } from "./state";
 
 export interface SaveCheckoutContactInput {
-  readonly scope: CheckoutScope;
   readonly cart: CheckoutCartReference;
   readonly contact: CheckoutContactInput;
 }
 
 export interface SaveCheckoutDeliveryDetailsInput {
-  readonly context: CommerceRequestContext;
   readonly cart: CheckoutCartReference;
   readonly deliveryDetails: CheckoutDeliveryDetailsInput;
 }
@@ -82,12 +76,7 @@ const guestBuyerContext: CheckoutBuyerContext = {
   requiresBuyingContext: false,
 };
 
-export const defaultAllowedContactSources = [
-  "manual",
-  "customerProfile",
-] as const satisfies readonly CheckoutContactSource[];
-
-export const contactSourceUnavailable = (source: CheckoutContactSource) =>
+const contactSourceUnavailable = (source: CheckoutContactSource) =>
   new CheckoutMutationSourceUnavailable({
     message:
       source === "manual"
@@ -101,7 +90,7 @@ const requiredFieldError = (field: keyof CheckoutContact["buyerContact"]) =>
     message: `Manual Contact ${field} is required`,
   });
 
-export const normalizeManualContact = (
+const normalizeManualContact = (
   contact: CheckoutContactInput
 ): Effect.Effect<
   CheckoutContact,
@@ -146,17 +135,17 @@ const customerProfileRequiredFieldError = (field: keyof BuyerContact) =>
     message: `Customer Profile Contact ${field} is required`,
   });
 
-type CommerceAccountsService = Context.Service.Shape<typeof CommerceAccounts>;
+type CommerceContextService = Context.Service.Shape<typeof CommerceContext>;
 
 const customerProfileNotFoundToMutationFailure = (
-  _error: CommerceCustomerProfileNotFound
+  _error: CommerceCustomerProfileNotFound | CommerceRequestContextNotFound
 ) => contactSourceUnavailable("customerProfile");
 
 const resolveCustomerProfileContact = Effect.fn(
   "CheckoutSession.resolveCustomerProfileContact"
 )(function* (
   scope: CheckoutScope,
-  commerceAccounts: CommerceAccountsService
+  commerceContext: CommerceContextService
 ): Effect.fn.Return<
   CheckoutContact,
   | CheckoutMutationSchemaFailure
@@ -167,19 +156,18 @@ const resolveCustomerProfileContact = Effect.fn(
     return yield* contactSourceUnavailable("customerProfile");
   }
 
-  const profile = yield* commerceAccounts
-    .getCustomerProfile(scope.customerId)
-    .pipe(
-      Effect.mapError((error) =>
-        error._tag === "CommerceCustomerProfileNotFound"
-          ? customerProfileNotFoundToMutationFailure(error)
-          : new CheckoutMutationProviderFailure({
-              message: error.message,
-              operation: "checkout.contact.customerProfile.resolve",
-              cause: error,
-            })
-      )
-    );
+  const profile = yield* commerceContext.customerProfile().pipe(
+    Effect.mapError((error) =>
+      error._tag === "CommerceCustomerProfileNotFound" ||
+      error._tag === "CommerceRequestContextNotFound"
+        ? customerProfileNotFoundToMutationFailure(error)
+        : new CheckoutMutationProviderFailure({
+            message: error.message,
+            operation: "checkout.contact.customerProfile.resolve",
+            cause: error,
+          })
+    )
+  );
   const email = profile.email ? Redacted.value(profile.email).trim() : "";
   const firstName = profile.firstName
     ? Redacted.value(profile.firstName).trim()
@@ -210,24 +198,14 @@ const resolveCustomerProfileContact = Effect.fn(
   };
 });
 
-export const resolveCheckoutContact = (
+const resolveCheckoutContact = (
   scope: CheckoutScope,
   contact: CheckoutContactInput,
-  commerceAccounts: CommerceAccountsService
+  commerceContext: CommerceContextService
 ) =>
   contact.source === "manual"
     ? normalizeManualContact(contact)
-    : resolveCustomerProfileContact(scope, commerceAccounts);
-
-export const contactsEqual = (
-  left: CheckoutContact | undefined,
-  right: CheckoutContact
-) =>
-  left?.source === right.source &&
-  left.buyerContact.email === right.buyerContact.email &&
-  left.buyerContact.firstName === right.buyerContact.firstName &&
-  left.buyerContact.lastName === right.buyerContact.lastName &&
-  left.buyerContact.phoneNumber === right.buyerContact.phoneNumber;
+    : resolveCustomerProfileContact(scope, commerceContext);
 
 const requiredShippingAddressFieldError = (
   field: keyof CheckoutDeliveryDetails["shippingAddress"]
@@ -273,7 +251,7 @@ const normalizeShippingAddress = (
   });
 };
 
-export const normalizeCheckoutDeliveryDetailsInput = (
+const normalizeCheckoutDeliveryDetailsInput = (
   deliveryDetails: CheckoutDeliveryDetailsInput
 ): Effect.Effect<
   CheckoutDeliveryDetailsInput,
@@ -285,7 +263,7 @@ export const normalizeCheckoutDeliveryDetailsInput = (
 
 type AddressBookService = Context.Service.Shape<typeof AddressBook>;
 
-export interface ResolvedCheckoutDeliveryDetails {
+interface ResolvedCheckoutDeliveryDetails {
   readonly deliveryDetails: CheckoutDeliveryDetails;
   readonly savedAddressBookReference?: AddressBookReference;
 }
@@ -322,11 +300,12 @@ const addressBookProviderFailure = (error: AddressBookProviderFailure) =>
     cause: error,
   });
 
-const mapAddressBookGetError = (error: AddressBookGetError) => {
+const mapAddressBookGetError = (error: AddressBookGetFailure) => {
   switch (error._tag) {
     case "AddressBookEntryNotFound":
       return addressBookEntryUnavailable(error.reference);
     case "AddressBookAccessDenied":
+    case "CommerceRequestContextNotFound":
       return addressBookSourceUnavailable();
     case "AddressBookProviderFailure":
       return addressBookProviderFailure(error);
@@ -350,15 +329,9 @@ const shippingDeliveryDetailsFromEntry = (
       })
     : Effect.fail(addressBookEntryUnavailable(entry.reference));
 
-const requireCustomerPrincipal = (context: CommerceRequestContext) =>
-  context.principal instanceof CustomerCommercePrincipal
-    ? Effect.succeed(context.principal)
-    : Effect.fail(addressBookSourceUnavailable());
-
-export const resolveCheckoutDeliveryDetails = Effect.fn(
+const resolveCheckoutDeliveryDetails = Effect.fn(
   "CheckoutSession.resolveCheckoutDeliveryDetails"
 )(function* (
-  context: CommerceRequestContext,
   input: CheckoutDeliveryDetailsInput,
   addressBook: AddressBookService
 ): Effect.fn.Return<ResolvedCheckoutDeliveryDetails, CheckoutMutationFailure> {
@@ -371,11 +344,9 @@ export const resolveCheckoutDeliveryDetails = Effect.fn(
     };
   }
 
-  const principal = yield* requireCustomerPrincipal(context);
-
   if (input.type === "addressBook") {
     const entry = yield* addressBook
-      .get(principal, input.addressBookReference)
+      .get(input.addressBookReference)
       .pipe(Effect.mapError(mapAddressBookGetError));
 
     return {
@@ -386,7 +357,6 @@ export const resolveCheckoutDeliveryDetails = Effect.fn(
   const reference = AddressBookReference.make(yield* Random.nextUUIDv4);
   const entry = yield* addressBook
     .save(
-      principal,
       new SaveAddressBookEntryInput({
         reference,
         address: input.shippingAddress,
@@ -397,7 +367,8 @@ export const resolveCheckoutDeliveryDetails = Effect.fn(
     )
     .pipe(
       Effect.mapError((error) =>
-        error._tag === "AddressBookAccessDenied"
+        error._tag === "AddressBookAccessDenied" ||
+        error._tag === "CommerceRequestContextNotFound"
           ? addressBookSourceUnavailable()
           : addressBookProviderFailure(error)
       )
@@ -409,7 +380,7 @@ export const resolveCheckoutDeliveryDetails = Effect.fn(
   };
 });
 
-export const withSavedAddressBookReference = (
+const withSavedAddressBookReference = (
   error: CheckoutSaveDeliveryDetailsFailure,
   addressBookReference: AddressBookReference | undefined
 ): CheckoutSaveDeliveryDetailsFailure => {
@@ -436,7 +407,7 @@ export const withSavedAddressBookReference = (
   }
 };
 
-export const ensureCurrentCartIdentity = (
+const ensureCurrentCartIdentity = (
   currentCart: CartSnapshot,
   submittedCart: CheckoutCartReference,
   detailName: "Contact" | "Delivery Details" = "Contact"
@@ -457,9 +428,7 @@ export const ensureCurrentCartIdentity = (
 export class CheckoutSession extends Context.Service<
   CheckoutSession,
   {
-    readonly getCurrent: (
-      scope: CheckoutScope
-    ) => Effect.Effect<
+    readonly getCurrent: () => Effect.Effect<
       CheckoutState,
       CheckoutUnavailable | CheckoutProviderFailure
     >;
@@ -474,9 +443,8 @@ export class CheckoutSession extends Context.Service<
     >;
   }
 >()("@repo/commerce/checkout/CheckoutSession") {
-  static readonly getCurrent = Effect.fn("CheckoutSession.getCurrent")(
-    (scope: CheckoutScope) =>
-      Effect.flatMap(CheckoutSession, (session) => session.getCurrent(scope))
+  static readonly getCurrent = Effect.fn("CheckoutSession.getCurrent")(() =>
+    Effect.flatMap(CheckoutSession, (session) => session.getCurrent())
   );
 
   static readonly saveContact = Effect.fn("CheckoutSession.saveContact")(
@@ -497,13 +465,11 @@ export class CheckoutSession extends Context.Service<
     Effect.gen(function* () {
       const currentCart = yield* CurrentCart;
       const policies = yield* CheckoutPolicies;
-      const commerceAccounts = yield* CommerceAccounts;
+      const commerceContext = yield* CommerceContext;
       const addressBook = yield* AddressBook;
+      const scope = toCheckoutScope(commerceContext);
 
-      const buyerContextFor = (
-        scope: CheckoutScope,
-        cart: CartSnapshot
-      ): CheckoutBuyerContext =>
+      const buyerContextFor = (cart: CartSnapshot): CheckoutBuyerContext =>
         scope.channel === "storefrontAnonymous"
           ? guestBuyerContext
           : {
@@ -515,9 +481,9 @@ export class CheckoutSession extends Context.Service<
             };
 
       const buildState = Effect.fn("CheckoutSession.buildState")(
-        (scope: CheckoutScope, current: CurrentCartState) =>
+        (current: CurrentCartState) =>
           Effect.gen(function* () {
-            const buyerContext = buyerContextFor(scope, current.cart);
+            const buyerContext = buyerContextFor(current.cart);
             const checkoutPolicyViolations = yield* policies.evaluate({
               cart: current.cart,
               details: current.cart.checkoutDetails,
@@ -570,7 +536,7 @@ export class CheckoutSession extends Context.Service<
           cause: error,
         });
 
-      const requireCurrent = (scope: CheckoutScope) =>
+      const requireCurrent = () =>
         currentCart.get().pipe(
           Effect.mapError(readFailure),
           Effect.flatMap(
@@ -584,29 +550,28 @@ export class CheckoutSession extends Context.Service<
             })
           ),
           Effect.flatMap((current) =>
-            buildState(scope, current).pipe(
+            buildState(current).pipe(
               Effect.map((state) => ({ current, state }))
             )
           )
         );
 
       return CheckoutSession.of({
-        getCurrent: (scope) =>
-          requireCurrent(scope).pipe(Effect.map(({ state }) => state)),
+        getCurrent: () =>
+          requireCurrent().pipe(Effect.map(({ state }) => state)),
         saveContact: (input) =>
           Effect.gen(function* () {
-            const allowedContactSources = allowedContactSourcesForCheckout(
-              input.scope
-            );
+            const allowedContactSources =
+              allowedContactSourcesForCheckout(scope);
             if (!allowedContactSources.includes(input.contact.source)) {
               return yield* contactSourceUnavailable(input.contact.source);
             }
             const contact = yield* resolveCheckoutContact(
-              input.scope,
+              scope,
               input.contact,
-              commerceAccounts
+              commerceContext
             );
-            const { current } = yield* requireCurrent(input.scope).pipe(
+            const { current } = yield* requireCurrent().pipe(
               Effect.mapError((error) =>
                 error._tag === "CheckoutProviderFailure"
                   ? mutationReadFailure(error)
@@ -617,7 +582,7 @@ export class CheckoutSession extends Context.Service<
             const updated = yield* currentCart
               .saveContact(contact)
               .pipe(Effect.mapError(mutationFailure));
-            return yield* buildState(input.scope, updated);
+            return yield* buildState(updated);
           }),
         saveDeliveryDetails: (input) =>
           Effect.gen(function* () {
@@ -625,21 +590,7 @@ export class CheckoutSession extends Context.Service<
               yield* normalizeCheckoutDeliveryDetailsInput(
                 input.deliveryDetails
               );
-            const scope =
-              input.context.principal instanceof CustomerCommercePrincipal
-                ? new StorefrontCustomerCheckoutScope({
-                    channel: "storefrontCustomer",
-                    locale: input.context.locale,
-                    customerId: input.context.principal.customerId,
-                    businessUnitId: input.context.principal.businessUnitId,
-                    businessUnitKey: input.context.principal.businessUnitKey,
-                  })
-                : new StorefrontAnonymousCheckoutScope({
-                    channel: "storefrontAnonymous",
-                    locale: input.context.locale,
-                    anonymousCartId: input.context.principal.anonymousCartId,
-                  });
-            const { current } = yield* requireCurrent(scope).pipe(
+            const { current } = yield* requireCurrent().pipe(
               Effect.mapError((error) =>
                 error._tag === "CheckoutProviderFailure"
                   ? mutationReadFailure(error)
@@ -652,7 +603,6 @@ export class CheckoutSession extends Context.Service<
               "Delivery Details"
             );
             const resolved = yield* resolveCheckoutDeliveryDetails(
-              input.context,
               normalizedInput,
               addressBook
             );
@@ -666,7 +616,7 @@ export class CheckoutSession extends Context.Service<
                   )
                 )
               );
-            const state = yield* buildState(scope, updated);
+            const state = yield* buildState(updated);
             return saveDeliveryDetailsResult(resolved, state);
           }),
       });

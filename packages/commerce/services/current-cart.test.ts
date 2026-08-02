@@ -7,11 +7,20 @@ import { CheckoutLocale } from "../domain/checkout";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
+  CommerceBusinessUnitLabel,
+  CommerceBusinessUnitMembership,
   CommerceCustomerId,
 } from "../domain/commerce-account";
-import type { CurrentCartRequest } from "../lib/current-cart/request";
+import {
+  AnonymousCommerceContextRequest,
+  AuthUserId,
+  CustomerCommerceContextRequest,
+} from "../domain/commerce-request-context";
+import type { CurrentCartCookie } from "../lib/current-cart/cookie";
 import { CartPolicies } from "./cart-policies";
 import { Carts } from "./carts";
+import { CommerceAccounts } from "./commerce-accounts";
+import { CommerceContext } from "./commerce-context";
 import { CurrentCart } from "./current-cart";
 
 const store = new CartStore({
@@ -30,77 +39,107 @@ const emptyCart = (id: string): CartSnapshot => ({
   checkoutDetails: {},
 });
 
+interface TestCurrentCartBoundary {
+  readonly contextRequest:
+    | AnonymousCommerceContextRequest
+    | CustomerCommerceContextRequest;
+  readonly currentCartCookie: CurrentCartCookie;
+  readonly businessUnitId?: CommerceBusinessUnitId;
+}
+
 const anonymousRequest = ({
-  possessedCartId,
-  established = [],
+  anonymousCartId,
+  setIds = [],
   cleared = [],
 }: {
-  readonly possessedCartId?: CartId;
-  readonly established?: CartId[];
+  readonly anonymousCartId?: CartId;
+  readonly setIds?: CartId[];
   readonly cleared?: boolean[];
-} = {}): CurrentCartRequest => ({
-  _tag: "AnonymousCurrentCartRequest",
-  store,
-  ...(possessedCartId === undefined ? {} : { possessedCartId }),
-  establish: (id) =>
-    Effect.sync(() => established.push(id)).pipe(Effect.asVoid),
-  clear: () => Effect.sync(() => cleared.push(true)).pipe(Effect.asVoid),
+} = {}): TestCurrentCartBoundary => ({
+  contextRequest: new AnonymousCommerceContextRequest({
+    store,
+    ...(anonymousCartId === undefined ? {} : { anonymousCartId }),
+  }),
+  currentCartCookie: {
+    set: (id) => Effect.sync(() => setIds.push(id)).pipe(Effect.asVoid),
+    clear: () => Effect.sync(() => cleared.push(true)).pipe(Effect.asVoid),
+  },
 });
 
-const businessUnitRequest = (): Extract<
-  CurrentCartRequest,
-  { readonly _tag: "BusinessUnitCurrentCartRequest" }
-> => ({
-  _tag: "BusinessUnitCurrentCartRequest",
-  store,
-  customerId: CommerceCustomerId.make("customer-1"),
-  businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+const customerId = CommerceCustomerId.make("customer-1");
+const authUserId = AuthUserId.make("auth-user-1");
+const businessUnitId = CommerceBusinessUnitId.make("business-unit-1");
+const businessUnitMembership = new CommerceBusinessUnitMembership({
+  businessUnitId,
   businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+  businessUnitLabel: CommerceBusinessUnitLabel.make("Business Unit One"),
+});
+
+const businessUnitRequest = (): TestCurrentCartBoundary => ({
+  contextRequest: new CustomerCommerceContextRequest({ store, authUserId }),
+  currentCartCookie: {
+    set: () => Effect.void,
+    clear: () => Effect.void,
+  },
+  businessUnitId,
 });
 
 const currentCartLayer = (
-  request: CurrentCartRequest,
+  request: TestCurrentCartBoundary,
   cartsLayer: Layer.Layer<Carts>,
   policiesLayer: Layer.Layer<CartPolicies> = CartPolicies.layerEmpty
-) =>
-  CurrentCart.layer(request).pipe(
-    Layer.provide(Layer.merge(cartsLayer, policiesLayer))
+) => {
+  const commerceAccounts = CommerceAccounts.layerMemoryFrom({
+    customers: [{ authUserId, customerId }],
+    businessUnitMemberships: [
+      {
+        customerId,
+        storeKey: store.storeKey,
+        membership: businessUnitMembership,
+      },
+    ],
+  });
+  const commerceContext = CommerceContext.layer(request.contextRequest).pipe(
+    Layer.provide(commerceAccounts)
   );
+
+  return CurrentCart.layer(request.currentCartCookie).pipe(
+    Layer.provide(Layer.mergeAll(cartsLayer, policiesLayer, commerceContext))
+  );
+};
 
 describe("CurrentCart", () => {
   it.effect("reads ordinary absence without creating a Cart", () => {
-    const established: CartId[] = [];
+    const setIds: CartId[] = [];
     return Effect.gen(function* () {
-      const currentCart = yield* CurrentCart;
-      const state = yield* currentCart.get();
+      const state = yield* CurrentCart.get();
 
       expect(Option.isNone(state)).toBe(true);
-      expect(established).toEqual([]);
+      expect(setIds).toEqual([]);
     }).pipe(
       Effect.provide(
-        currentCartLayer(anonymousRequest({ established }), Carts.layerMemory())
+        currentCartLayer(anonymousRequest({ setIds }), Carts.layerMemory())
       )
     );
   });
 
-  it.effect("creates and establishes an absent Cart only when adding", () => {
-    const established: CartId[] = [];
+  it.effect("creates and sets an absent Cart only when adding", () => {
+    const setIds: CartId[] = [];
     return Effect.gen(function* () {
-      const currentCart = yield* CurrentCart;
-      const state = yield* currentCart.addItem({
+      const state = yield* CurrentCart.addItem({
         productId: ProductId.make("product-1"),
         variantId: VariantId.make("variant-1"),
         quantity: 2,
       });
-      const reread = Option.getOrThrow(yield* currentCart.get());
+      const reread = Option.getOrThrow(yield* CurrentCart.get());
 
-      expect(established).toEqual([state.cart.id]);
+      expect(setIds).toEqual([state.cart.id]);
       expect(state.cart.totalLineItemQuantity).toBe(2);
       expect(reread.cart).toEqual(state.cart);
     }).pipe(
       Effect.provide(
         currentCartLayer(
-          anonymousRequest({ established }),
+          anonymousRequest({ setIds }),
           Carts.layerMemory({
             merchandise: [
               {
@@ -122,7 +161,7 @@ describe("CurrentCart", () => {
     );
   });
 
-  it.effect("clears a confirmed missing anonymous association", () => {
+  it.effect("clears a confirmed missing anonymous Cart cookie", () => {
     const cleared: boolean[] = [];
     return Effect.gen(function* () {
       const currentCart = yield* CurrentCart;
@@ -134,7 +173,7 @@ describe("CurrentCart", () => {
       Effect.provide(
         currentCartLayer(
           anonymousRequest({
-            possessedCartId: CartId.make("missing-cart"),
+            anonymousCartId: CartId.make("missing-cart"),
             cleared,
           }),
           Carts.layerMemory()
@@ -144,7 +183,7 @@ describe("CurrentCart", () => {
   });
 
   it.effect("does not expose or replace an inaccessible possessed Cart", () => {
-    const established: CartId[] = [];
+    const setIds: CartId[] = [];
     const cleared: boolean[] = [];
     const cart = {
       ...emptyCart("cart-1"),
@@ -154,7 +193,13 @@ describe("CurrentCart", () => {
     };
     return Effect.gen(function* () {
       const currentCart = yield* CurrentCart;
-      expect(Option.isNone(yield* currentCart.get())).toBe(true);
+      const readError = yield* currentCart.get().pipe(Effect.flip);
+
+      expect(readError).toMatchObject({
+        _tag: "CartProviderFailure",
+        operation: "findById",
+        reason: "unexpectedResponse",
+      });
 
       const error = yield* currentCart
         .addItem({
@@ -164,18 +209,19 @@ describe("CurrentCart", () => {
         })
         .pipe(Effect.flip);
 
-      expect(error._tag).toBe("CurrentCartUnavailable");
-      if (error._tag === "CurrentCartUnavailable") {
-        expect(error.reason).toBe("inaccessibleCart");
-      }
-      expect(established).toEqual([]);
+      expect(error).toMatchObject({
+        _tag: "CartProviderFailure",
+        operation: "findById",
+        reason: "unexpectedResponse",
+      });
+      expect(setIds).toEqual([]);
       expect(cleared).toEqual([]);
     }).pipe(
       Effect.provide(
         currentCartLayer(
           anonymousRequest({
-            possessedCartId: cart.id,
-            established,
+            anonymousCartId: cart.id,
+            setIds,
             cleared,
           }),
           Carts.layerMemory({ carts: [cart] })
@@ -199,7 +245,7 @@ describe("CurrentCart", () => {
     const request = businessUnitRequest();
     const cart = {
       ...emptyCart("cart-1"),
-      buyingContext: { businessUnitId: request.businessUnitId },
+      buyingContext: { businessUnitId },
     };
     return Effect.gen(function* () {
       const currentCart = yield* CurrentCart;
@@ -216,14 +262,7 @@ describe("CurrentCart", () => {
   it.effect(
     "fails selection when a Business Unit has multiple active Carts",
     () => {
-      const businessUnitId = CommerceBusinessUnitId.make("business-unit-1");
-      const request: CurrentCartRequest = {
-        _tag: "BusinessUnitCurrentCartRequest",
-        store,
-        customerId: CommerceCustomerId.make("customer-1"),
-        businessUnitId,
-        businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
-      };
+      const request = businessUnitRequest();
       const carts = ["cart-1", "cart-2"].map((id) => ({
         ...emptyCart(id),
         buyingContext: { businessUnitId },
@@ -251,7 +290,7 @@ describe("CurrentCart", () => {
     }).pipe(
       Effect.provide(
         currentCartLayer(
-          anonymousRequest({ possessedCartId: CartId.make("cart-1") }),
+          anonymousRequest({ anonymousCartId: CartId.make("cart-1") }),
           Carts.layerMemory({ carts: [emptyCart("cart-1")] }),
           CartPolicies.layerFrom([
             {
@@ -281,7 +320,7 @@ describe("CurrentCart", () => {
       }).pipe(
         Effect.provide(
           currentCartLayer(
-            anonymousRequest({ possessedCartId: CartId.make("cart-1") }),
+            anonymousRequest({ anonymousCartId: CartId.make("cart-1") }),
             Carts.layerMemory({ carts: [emptyCart("cart-1")] }),
             CartPolicies.layerFrom([
               {
@@ -294,8 +333,8 @@ describe("CurrentCart", () => {
       )
   );
 
-  it.effect("establishes a created Cart even when the later add fails", () => {
-    const established: CartId[] = [];
+  it.effect("sets a created Cart even when the later add fails", () => {
+    const setIds: CartId[] = [];
     return Effect.gen(function* () {
       const currentCart = yield* CurrentCart;
       const error = yield* currentCart
@@ -307,11 +346,11 @@ describe("CurrentCart", () => {
         .pipe(Effect.flip);
 
       expect(error._tag).toBe("CartProviderFailure");
-      expect(established).toHaveLength(1);
+      expect(setIds).toHaveLength(1);
     }).pipe(
       Effect.provide(
         currentCartLayer(
-          anonymousRequest({ established }),
+          anonymousRequest({ setIds }),
           Carts.layerMemory({
             failures: {
               addItem: new CartProviderFailure({
@@ -349,7 +388,7 @@ describe("CurrentCart", () => {
       }).pipe(
         Effect.provide(
           currentCartLayer(
-            anonymousRequest({ possessedCartId: cart.id }),
+            anonymousRequest({ anonymousCartId: cart.id }),
             Carts.layerMemory({
               carts: [cart],
             })

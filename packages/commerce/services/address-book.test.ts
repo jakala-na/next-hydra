@@ -1,21 +1,26 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 import { CountryCode } from "../domain/address";
-import {
-  AddressBookEntry,
-  AddressBookEntryNotFound,
-  AddressBookReference,
-} from "../domain/address-book";
+import { AddressBookEntry, AddressBookReference } from "../domain/address-book";
+import { StoreKey } from "../domain/cart";
+import { CartStore } from "../domain/cart-snapshot";
+import { CheckoutLocale } from "../domain/checkout";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
+  CommerceBusinessUnitLabel,
+  CommerceBusinessUnitMembership,
   CommerceCustomerId,
 } from "../domain/commerce-account";
 import {
+  AnonymousCommerceContextRequest,
   AuthUserId,
+  CustomerCommerceContextRequest,
   CustomerCommercePrincipal,
 } from "../domain/commerce-request-context";
 import { AddressBook } from "./address-book";
+import { CommerceAccounts } from "./commerce-accounts";
+import { CommerceContext } from "./commerce-context";
 
 const principal = (businessUnitId: string, businessUnitKey = businessUnitId) =>
   new CustomerCommercePrincipal({
@@ -35,6 +40,47 @@ const officeAddress = {
 };
 
 const OVERLONG_UNICODE_REFERENCE_LENGTH = 80;
+const store = new CartStore({
+  locale: CheckoutLocale.make("en-US"),
+  storeKey: StoreKey.make("default-store"),
+  currency: "USD",
+});
+
+const provideAddressBook = <A, E>(
+  program: Effect.Effect<A, E, AddressBook>,
+  buyer = principal("business-unit-1")
+) => {
+  const request = new CustomerCommerceContextRequest({
+    store,
+    authUserId: buyer.authUserId,
+    businessUnitId: buyer.businessUnitId,
+  });
+  const commerceContext = CommerceContext.layer(request).pipe(
+    Layer.provide(
+      CommerceAccounts.layerMemoryFrom({
+        customers: [
+          { authUserId: buyer.authUserId, customerId: buyer.customerId },
+        ],
+        businessUnitMemberships: [
+          {
+            customerId: buyer.customerId,
+            storeKey: store.storeKey,
+            membership: new CommerceBusinessUnitMembership({
+              businessUnitId: buyer.businessUnitId,
+              businessUnitKey: buyer.businessUnitKey,
+              businessUnitLabel:
+                CommerceBusinessUnitLabel.make("Business Unit One"),
+            }),
+          },
+        ],
+      })
+    )
+  );
+  const addressBook = AddressBook.layerMemory().pipe(
+    Layer.provide(commerceContext)
+  );
+  return program.pipe(Effect.provide(addressBook));
+};
 
 describe("AddressBook", () => {
   it("keeps references provider-neutral and entries internally consistent", () => {
@@ -70,9 +116,8 @@ describe("AddressBook", () => {
     () =>
       Effect.gen(function* () {
         const addressBook = yield* AddressBook;
-        const buyer = principal("business-unit-1");
 
-        const saved = yield* addressBook.save(buyer, {
+        const saved = yield* addressBook.save({
           reference: AddressBookReference.make("office"),
           address: officeAddress,
           types: ["billing"],
@@ -87,50 +132,43 @@ describe("AddressBook", () => {
           defaultShipping: true,
           defaultBilling: true,
         });
-        expect(yield* addressBook.list(buyer)).toEqual([saved]);
-      }).pipe(Effect.provide(AddressBook.layerMemory()))
+        expect(yield* addressBook.list()).toEqual([saved]);
+      }).pipe(provideAddressBook)
   );
 
-  it.effect("keeps entries isolated to their verified Business Unit", () =>
-    Effect.gen(function* () {
-      const addressBook = yield* AddressBook;
-      const acmeBuyer = principal("acme");
-      const otherBuyer = principal("other");
-      const reference = AddressBookReference.make("warehouse");
+  it.effect("reports no customer principal for an anonymous request", () => {
+    const request = new AnonymousCommerceContextRequest({ store });
+    const commerceContext = CommerceContext.layer(request).pipe(
+      Layer.provide(CommerceAccounts.layerMemoryFrom({}))
+    );
+    const addressBook = AddressBook.layerMemory().pipe(
+      Layer.provide(commerceContext)
+    );
 
-      yield* addressBook.save(acmeBuyer, {
-        reference,
-        address: officeAddress,
-        types: ["shipping"],
-        defaultShipping: false,
-        defaultBilling: false,
+    return Effect.gen(function* () {
+      const error = yield* Effect.flip(AddressBook.list());
+      expect(error).toMatchObject({
+        _tag: "CommerceRequestContextNotFound",
+        reason: "noPrincipal",
       });
-
-      expect(yield* addressBook.list(otherBuyer)).toEqual([]);
-
-      const error = yield* addressBook
-        .get(otherBuyer, reference)
-        .pipe(Effect.flip);
-      expect(error).toBeInstanceOf(AddressBookEntryNotFound);
-    }).pipe(Effect.provide(AddressBook.layerMemory()))
-  );
+    }).pipe(Effect.provide(addressBook));
+  });
 
   it.effect(
     "returns the first canonical entry when a reference is saved again",
     () =>
       Effect.gen(function* () {
         const addressBook = yield* AddressBook;
-        const buyer = principal("business-unit-1");
         const reference = AddressBookReference.make("office");
 
-        const first = yield* addressBook.save(buyer, {
+        const first = yield* addressBook.save({
           reference,
           address: officeAddress,
           types: ["shipping"],
           defaultShipping: false,
           defaultBilling: false,
         });
-        const repeated = yield* addressBook.save(buyer, {
+        const repeated = yield* addressBook.save({
           reference,
           address: {
             ...officeAddress,
@@ -142,23 +180,22 @@ describe("AddressBook", () => {
         });
 
         expect(repeated).toEqual(first);
-        expect(yield* addressBook.list(buyer)).toEqual([first]);
-      }).pipe(Effect.provide(AddressBook.layerMemory()))
+        expect(yield* addressBook.list()).toEqual([first]);
+      }).pipe(provideAddressBook)
   );
 
   it.effect("moves each default marker to the newest default entry", () =>
     Effect.gen(function* () {
       const addressBook = yield* AddressBook;
-      const buyer = principal("business-unit-1");
 
-      yield* addressBook.save(buyer, {
+      yield* addressBook.save({
         reference: AddressBookReference.make("first"),
         address: officeAddress,
         types: ["shipping", "billing"],
         defaultShipping: true,
         defaultBilling: true,
       });
-      yield* addressBook.save(buyer, {
+      yield* addressBook.save({
         reference: AddressBookReference.make("second"),
         address: {
           ...officeAddress,
@@ -169,7 +206,7 @@ describe("AddressBook", () => {
         defaultBilling: false,
       });
 
-      expect(yield* addressBook.list(buyer)).toEqual([
+      expect(yield* addressBook.list()).toEqual([
         expect.objectContaining({
           reference: "first",
           defaultShipping: false,
@@ -181,6 +218,6 @@ describe("AddressBook", () => {
           defaultBilling: false,
         }),
       ]);
-    }).pipe(Effect.provide(AddressBook.layerMemory()))
+    }).pipe(provideAddressBook)
   );
 });

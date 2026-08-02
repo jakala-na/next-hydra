@@ -47,7 +47,7 @@ If Address Book save fails, fail the Delivery Details mutation and do not update
 
 ### Existing Address Book entry
 
-Call `AddressBook.get` with the verified Customer principal and submitted reference. Require the returned entry's Address Types to include Shipping, then save its canonical address to the Cart with source Address Book. A missing, stale, cross-Business-Unit, Billing-only, or inaccessible entry fails before the Cart write.
+Call `AddressBook.get` with the submitted reference; its request Layer has already captured `CommerceContext` and therefore the verified Customer principal. Require the returned entry's Address Types to include Shipping, then save its canonical address to the Cart with source Address Book. A missing, stale, cross-Business-Unit, Billing-only, or inaccessible entry fails before the Cart write.
 
 ### Partial save retry
 

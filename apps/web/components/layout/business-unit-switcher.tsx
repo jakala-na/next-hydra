@@ -1,35 +1,88 @@
-"use client";
+import "server-only";
 
-import { useAuth } from "@repo/auth-workos/client";
+import { withAuth } from "@repo/auth-workos/server";
+import { StoreKey } from "@repo/commerce/domain/cart";
+import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
+import { layerCommercetoolsCommerceAccounts } from "@repo/commerce/lib/infra/commercetools/commerce-accounts";
+import { storeService } from "@repo/commerce/lib/store/store.service";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { BusinessUnitSwitcher as BusinessUnitSwitcherView } from "@repo/design-system/components/layout/business-unit-switcher";
+import type { Locale } from "@repo/i18n/types";
+import { Effect, Schema } from "effect";
+import { cookies } from "next/headers";
+import {
+  BUSINESS_UNIT_COOKIE_NAME,
+  getBusinessUnitIdFromCookieValue,
+} from "@/lib/business-unit-cookie";
+import { selectBusinessUnit } from "./business-unit-actions";
 
-const mockBusinessUnits = [
-  {
-    id: "1",
-    name: "Business Unit 1",
-    role: "Admin",
-  },
-  {
-    id: "2",
-    name: "Business Unit 2",
-    role: "User",
-  },
-] as const;
+interface BusinessUnitSwitcherProps {
+  readonly locale: Locale;
+}
 
-const currentBusinessUnit = mockBusinessUnits[0];
+export async function BusinessUnitSwitcher({
+  locale,
+}: BusinessUnitSwitcherProps) {
+  const result = await Effect.runPromise(
+    Effect.gen(function* () {
+      const session = yield* Effect.promise(() => withAuth());
+      if (!session.user) {
+        return null;
+      }
 
-export function BusinessUnitSwitcher() {
-  const { user } = useAuth();
+      const store = yield* Effect.promise(() =>
+        storeService.getStoreContextByLocale(locale)
+      );
+      const authUserId = yield* Schema.decodeUnknownEffect(AuthUserId)(
+        session.user.id
+      );
+      const accounts = yield* CommerceAccounts;
+      const customerId = yield* accounts.getCustomerIdByAuthUserId(authUserId);
+      const loadedMemberships =
+        yield* accounts.listBusinessUnitMembershipsForCustomerInStore(
+          customerId,
+          StoreKey.make(store.storeKey)
+        );
+      const cookieStore = yield* Effect.promise(() => cookies());
+      const selectedCookieBusinessUnitId = getBusinessUnitIdFromCookieValue(
+        cookieStore.get(BUSINESS_UNIT_COOKIE_NAME)?.value
+      );
 
-  if (!user) {
+      return {
+        memberships: loadedMemberships,
+        selectedBusinessUnitId: selectedCookieBusinessUnitId,
+      };
+    }).pipe(
+      Effect.provide(layerCommercetoolsCommerceAccounts),
+      Effect.catchCause((cause) =>
+        Effect.logError("Failed to load Business Unit switcher", cause).pipe(
+          Effect.as(null)
+        )
+      )
+    )
+  );
+
+  if (result === null) {
     return null;
+  }
+
+  const { memberships, selectedBusinessUnitId } = result;
+  const selectedMembership = memberships.find(
+    ({ businessUnitId }) => businessUnitId === selectedBusinessUnitId
+  );
+  let currentBusinessUnitId = selectedMembership?.businessUnitId;
+  if (selectedBusinessUnitId === undefined && memberships.length === 1) {
+    currentBusinessUnitId = memberships[0]?.businessUnitId;
   }
 
   return (
     <BusinessUnitSwitcherView
-      currentBusinessUnitId={currentBusinessUnit.id}
-      items={mockBusinessUnits}
-      onSwitchBusinessUnit={() => undefined}
+      currentBusinessUnitId={currentBusinessUnitId}
+      items={memberships.map(({ businessUnitId, businessUnitLabel }) => ({
+        id: businessUnitId,
+        label: businessUnitLabel,
+      }))}
+      onSwitchBusinessUnit={selectBusinessUnit}
     />
   );
 }

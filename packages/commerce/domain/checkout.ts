@@ -2,14 +2,7 @@ import { locales } from "@repo/i18n/config";
 import { Schema } from "effect";
 import { Address } from "./address";
 import { AddressBookReference } from "./address-book";
-import {
-  CartId,
-  LineItemId,
-  ProductId,
-  Sku,
-  StoreKey,
-  VariantId,
-} from "./cart";
+import { CartId, LineItemId, ProductId, Sku, VariantId } from "./cart";
 import { CartSnapshot } from "./cart-snapshot";
 import {
   CommerceBusinessUnitId,
@@ -240,13 +233,6 @@ export const CheckoutState = Schema.Struct({
   violations: Schema.Array(CheckoutViolation),
 });
 export type CheckoutState = typeof CheckoutState.Type;
-
-export const CheckoutStoreContext = Schema.Struct({
-  locale: CheckoutLocale,
-  storeKey: StoreKey,
-  currency: Schema.String,
-});
-export type CheckoutStoreContext = typeof CheckoutStoreContext.Type;
 
 export const CheckoutBuyerContext = Schema.Struct({
   buyerMode: Schema.Literals(["guest", "customer", "b2bCustomer"]),

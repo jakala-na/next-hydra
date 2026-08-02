@@ -9,21 +9,15 @@ import {
 } from "../../domain/cart";
 import { CartWriteConflict } from "../../domain/cart-errors";
 import { type CartSnapshot, CartStore } from "../../domain/cart-snapshot";
-import {
-  CheckoutLocale,
-  CountryCode,
-  StorefrontAnonymousCheckoutScope,
-} from "../../domain/checkout";
-import {
-  AnonymousCommercePrincipal,
-  CommerceRequestContext,
-} from "../../domain/commerce-request-context";
+import { CheckoutLocale, CountryCode } from "../../domain/checkout";
+import { AnonymousCommerceContextRequest } from "../../domain/commerce-request-context";
 import { AddressBook } from "../../services/address-book";
 import { CartPolicies } from "../../services/cart-policies";
 import { Carts } from "../../services/carts";
 import { CommerceAccounts } from "../../services/commerce-accounts";
+import { CommerceContext } from "../../services/commerce-context";
 import { CurrentCart } from "../../services/current-cart";
-import type { CurrentCartRequest } from "../current-cart/request";
+import type { CurrentCartCookie } from "../current-cart/cookie";
 import { CheckoutPolicies } from "./checkout-policy";
 import { CheckoutSession } from "./checkout-session";
 
@@ -57,22 +51,13 @@ const cart: CartSnapshot = {
   checkoutDetails: {},
 };
 
-const scope = new StorefrontAnonymousCheckoutScope({
-  channel: "storefrontAnonymous",
-  locale: store.locale,
+const context = new AnonymousCommerceContextRequest({
+  store,
   anonymousCartId: cart.id,
 });
 
-const context = new CommerceRequestContext({
-  locale: store.locale,
-  principal: new AnonymousCommercePrincipal({ anonymousCartId: cart.id }),
-});
-
-const request: CurrentCartRequest = {
-  _tag: "AnonymousCurrentCartRequest",
-  store,
-  possessedCartId: cart.id,
-  establish: () => Effect.void,
+const currentCartCookie: CurrentCartCookie = {
+  set: () => Effect.void,
   clear: () => Effect.void,
 };
 
@@ -80,18 +65,26 @@ const provideCheckout = <A, E>(
   program: Effect.Effect<A, E, CheckoutSession>,
   carts = Carts.layerMemory({ carts: [cart] })
 ) => {
+  const commerceAccounts = CommerceAccounts.layerMemoryFrom({});
   const dependencies = Layer.mergeAll(
     carts,
     CartPolicies.layerEmpty,
     CheckoutPolicies.layerEmpty,
-    CommerceAccounts.layerMemoryFrom({}),
-    AddressBook.layerMemory()
+    commerceAccounts
   );
-  const currentCart = CurrentCart.layer(request).pipe(
-    Layer.provide(dependencies)
+  const commerceContext = CommerceContext.layer(context).pipe(
+    Layer.provide(commerceAccounts)
+  );
+  const addressBook = AddressBook.layerMemory().pipe(
+    Layer.provide(commerceContext)
+  );
+  const currentCart = CurrentCart.layer(currentCartCookie).pipe(
+    Layer.provide(Layer.merge(dependencies, commerceContext))
   );
   const checkoutSession = CheckoutSession.layer.pipe(
-    Layer.provide(Layer.merge(dependencies, currentCart))
+    Layer.provide(
+      Layer.mergeAll(dependencies, commerceContext, currentCart, addressBook)
+    )
   );
   return program.pipe(Effect.provide(checkoutSession));
 };
@@ -100,8 +93,12 @@ describe("CheckoutSession", () => {
   it.effect("builds Checkout state from the request-bound Current Cart", () =>
     provideCheckout(
       Effect.gen(function* () {
-        const state = yield* CheckoutSession.getCurrent(scope);
+        const state = yield* CheckoutSession.getCurrent();
         expect(state.cart).toEqual(cart);
+        expect(state.scope).toMatchObject({
+          channel: "storefrontAnonymous",
+          anonymousCartId: cart.id,
+        });
         expect(state.activeStep).toBe("contact");
         expect("version" in state.cart).toBe(false);
       })
@@ -112,7 +109,6 @@ describe("CheckoutSession", () => {
     provideCheckout(
       Effect.gen(function* () {
         const state = yield* CheckoutSession.saveContact({
-          scope,
           cart: { id: cart.id },
           contact: {
             source: "manual",
@@ -140,7 +136,6 @@ describe("CheckoutSession", () => {
     provideCheckout(
       Effect.flip(
         CheckoutSession.saveContact({
-          scope,
           cart: { id: CartId.make("different-cart") },
           contact: {
             source: "manual",
@@ -163,7 +158,6 @@ describe("CheckoutSession", () => {
       provideCheckout(
         Effect.flip(
           CheckoutSession.saveContact({
-            scope,
             cart: { id: cart.id },
             contact: {
               source: "manual",
@@ -197,7 +191,6 @@ describe("CheckoutSession", () => {
       provideCheckout(
         Effect.gen(function* () {
           const result = yield* CheckoutSession.saveDeliveryDetails({
-            context,
             cart: { id: cart.id },
             deliveryDetails: {
               type: "manual",

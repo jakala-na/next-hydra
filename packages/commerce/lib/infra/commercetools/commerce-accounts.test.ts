@@ -11,7 +11,6 @@ import {
   type AcceptedCommerceIdentity,
   CommerceAccountError,
   CommerceAccounts,
-  CommerceBusinessUnitContextAmbiguous,
 } from "../../../services/commerce-accounts";
 import { layerCommercetoolsCommerceAccounts } from "./commerce-accounts";
 
@@ -384,7 +383,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
-  it.effect("resolves the only associated Business Unit inside the Store", () =>
+  it.effect("lists associated Business Units inside the Store", () =>
     Effect.gen(function* () {
       mocks.inStoreBusinessUnitsGetExecute.mockResolvedValueOnce({
         body: {
@@ -392,14 +391,15 @@ describe("layerCommercetoolsCommerceAccounts", () => {
             {
               id: "business-unit-1",
               key: "business-unit-key-1",
+              name: "Hydra Supply",
             },
           ],
         },
       });
 
       const commerceAccounts = yield* CommerceAccounts;
-      const context =
-        yield* commerceAccounts.getBusinessUnitContextForCustomerInStore(
+      const memberships =
+        yield* commerceAccounts.listBusinessUnitMembershipsForCustomerInStore(
           CommerceCustomerId.make("customer-1"),
           StoreKey.make("default-store")
         );
@@ -411,18 +411,23 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         queryArgs: {
           where:
             'associates(customer(id="customer-1")) or inheritedAssociates(customer(id="customer-1"))',
-          limit: 2,
+          limit: 500,
+          offset: 0,
+          sort: "id asc",
         },
       });
-      expect(context).toMatchObject({
-        businessUnitId: "business-unit-1",
-        businessUnitKey: "business-unit-key-1",
-      });
+      expect(memberships).toEqual([
+        expect.objectContaining({
+          businessUnitId: "business-unit-1",
+          businessUnitKey: "business-unit-key-1",
+          businessUnitLabel: "Hydra Supply",
+        }),
+      ]);
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
   it.effect(
-    "fails closed when more than one Business Unit matches the Store",
+    "returns every Business Unit membership instead of selecting one",
     () =>
       Effect.gen(function* () {
         mocks.inStoreBusinessUnitsGetExecute.mockResolvedValueOnce({
@@ -431,24 +436,27 @@ describe("layerCommercetoolsCommerceAccounts", () => {
               {
                 id: "business-unit-1",
                 key: "business-unit-key-1",
+                name: "Hydra Supply",
               },
               {
                 id: "business-unit-2",
                 key: "business-unit-key-2",
+                name: "Hydra Distribution",
               },
             ],
           },
         });
 
         const commerceAccounts = yield* CommerceAccounts;
-        const error = yield* commerceAccounts
-          .getBusinessUnitContextForCustomerInStore(
+        const memberships =
+          yield* commerceAccounts.listBusinessUnitMembershipsForCustomerInStore(
             CommerceCustomerId.make("customer-1"),
             StoreKey.make("default-store")
-          )
-          .pipe(Effect.flip);
+          );
 
-        expect(error).toBeInstanceOf(CommerceBusinessUnitContextAmbiguous);
+        expect(memberships.map(({ businessUnitId }) => businessUnitId)).toEqual(
+          ["business-unit-1", "business-unit-2"]
+        );
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 

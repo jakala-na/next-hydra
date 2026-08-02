@@ -292,7 +292,8 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
   const commerceAccountsLayer = Layer.succeed(
     CommerceAccounts,
     CommerceAccounts.of({
-      getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
       getCustomerProfile: () => Effect.die("not used"),
       createFromRegistration: (commerceRegistration) =>
         Effect.sync(() => {

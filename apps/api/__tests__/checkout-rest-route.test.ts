@@ -30,9 +30,10 @@ import {
   CountryCode,
 } from "@repo/commerce/domain/checkout";
 import {
-  CommerceBusinessUnitContext,
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
+  CommerceBusinessUnitLabel,
+  CommerceBusinessUnitMembership,
   CommerceCustomerId,
   CommerceCustomerProfile,
 } from "@repo/commerce/domain/commerce-account";
@@ -52,9 +53,9 @@ import { Carts } from "@repo/commerce/services/carts";
 import {
   CommerceAccountError,
   CommerceAccounts,
-  CommerceBusinessUnitContextNotFound,
   CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
+import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
 import { Context, Effect, Layer, Option, Redacted } from "effect";
 import { expect, test } from "vitest";
@@ -271,7 +272,6 @@ const makeCheckoutLayer = (
     readonly saveDeliveryDetailsFailure?: CheckoutMutationProviderFailure;
     readonly getCurrentFailure?: CheckoutProviderFailure;
     readonly customerProfiles?: readonly CommerceCustomerProfile[];
-    readonly addressBookLayer?: Layer.Layer<AddressBook>;
   } = {}
 ) => {
   const {
@@ -280,12 +280,8 @@ const makeCheckoutLayer = (
     saveDeliveryDetailsFailure,
     getCurrentFailure,
     customerProfiles = [],
-    addressBookLayer: suppliedAddressBookLayer,
   } = input;
   const currentCart = "currentCart" in input ? input.currentCart : cart();
-
-  const addressBookLayer =
-    suppliedAddressBookLayer ?? AddressBook.layerMemory();
   const providerFailure = (
     operation: "findById" | "saveContact" | "saveDeliveryDetails",
     cause: unknown
@@ -384,7 +380,6 @@ const makeCheckoutLayer = (
     cartPoliciesLayer,
     CheckoutPolicies.layer,
     CommerceAccounts.layerMemoryFrom({ customerProfiles }),
-    addressBookLayer,
     makeJwtVerifierLayer()
   );
 };
@@ -395,48 +390,61 @@ const makeAddressBookLayer = (
 ) => {
   let entries = [...initialEntries];
 
-  return Layer.succeed(
+  return Layer.effect(
     AddressBook,
-    AddressBook.of({
-      list: (principal) =>
-        Effect.sync(() => {
-          onPrincipal?.(principal);
-          return entries;
-        }),
-      get: (principal, reference) =>
-        Effect.gen(function* () {
-          onPrincipal?.(principal);
-          const entry = entries.find(
-            (candidate) => candidate.reference === reference
-          );
+    Effect.gen(function* () {
+      const commerceContext = yield* CommerceContext;
+      const withPrincipal = <A, E>(
+        effect: (principal: CustomerCommercePrincipal) => Effect.Effect<A, E>
+      ) => commerceContext.customerPrincipal().pipe(Effect.flatMap(effect));
 
-          if (!entry) {
-            return yield* new AddressBookEntryNotFound({
-              message: "Address Book entry does not exist",
-              reference,
-            });
-          }
+      return AddressBook.of({
+        list: () =>
+          withPrincipal((principal) =>
+            Effect.sync(() => {
+              onPrincipal?.(principal);
+              return entries;
+            })
+          ),
+        get: (reference) =>
+          withPrincipal((principal) =>
+            Effect.gen(function* () {
+              onPrincipal?.(principal);
+              const entry = entries.find(
+                (candidate) => candidate.reference === reference
+              );
 
-          return entry;
-        }),
-      save: (principal, input) =>
-        Effect.sync(() => {
-          onPrincipal?.(principal);
-          const existing = entries.find(
-            (candidate) => candidate.reference === input.reference
-          );
+              if (!entry) {
+                return yield* new AddressBookEntryNotFound({
+                  message: "Address Book entry does not exist",
+                  reference,
+                });
+              }
 
-          if (existing) {
-            return existing;
-          }
+              return entry;
+            })
+          ),
+        save: (input) =>
+          withPrincipal((principal) =>
+            Effect.sync(() => {
+              onPrincipal?.(principal);
+              const existing = entries.find(
+                (candidate) => candidate.reference === input.reference
+              );
 
-          const entry = new AddressBookEntry({
-            ...input,
-            types: normalizeAddressTypes(input.types, input),
-          });
-          entries = [...entries, entry];
-          return entry;
-        }),
+              if (existing) {
+                return existing;
+              }
+
+              const entry = new AddressBookEntry({
+                ...input,
+                types: normalizeAddressTypes(input.types, input),
+              });
+              entries = [...entries, entry];
+              return entry;
+            })
+          ),
+      });
     })
   );
 };
@@ -461,15 +469,17 @@ const makeCommerceAccountsLayer = (
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
-      getBusinessUnitContextForCustomerInStore: () =>
-        Effect.succeed(
-          new CommerceBusinessUnitContext({
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.succeed([
+          new CommerceBusinessUnitMembership({
             businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
             businessUnitKey: CommerceBusinessUnitKey.make(
               "business-unit-key-1"
             ),
-          })
-        ),
+            businessUnitLabel:
+              CommerceBusinessUnitLabel.make("Business Unit One"),
+          }),
+        ]),
       getCustomerProfile: () => Effect.succeed(customerProfile),
       getCustomerIdByAuthUserId: () => Effect.succeed(customerId),
       hasCustomerWithEmail: () => Effect.die("not used"),
@@ -485,7 +495,8 @@ const makeCommerceAccountsWithoutCustomerLayer = (
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
-      getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
       getCustomerProfile: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () =>
         Effect.fail(
@@ -507,15 +518,7 @@ const makeCommerceAccountsWithoutBusinessUnitLayer = (
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
-      getBusinessUnitContextForCustomerInStore: (_, storeKey) =>
-        Effect.fail(
-          new CommerceBusinessUnitContextNotFound({
-            message:
-              "Commerce Business Unit context does not exist for customer in Store",
-            customerId,
-            storeKey,
-          })
-        ),
+      listBusinessUnitMembershipsForCustomerInStore: () => Effect.succeed([]),
       getCustomerProfile: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () => Effect.succeed(customerId),
       hasCustomerWithEmail: () => Effect.die("not used"),
@@ -529,7 +532,8 @@ const makeFailingCommerceAccountsLayer = () =>
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
-      getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
       getCustomerProfile: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () =>
         Effect.fail(
@@ -570,10 +574,17 @@ const makeFailingJwtVerifierLayer = () =>
     })
   );
 
-const makeHandler = async (layer: Layer.Layer<any, any, never>) => {
+const makeHandler = async (
+  layer: Layer.Layer<any, any, never>,
+  addressBookLayer: Layer.Layer<
+    AddressBook,
+    never,
+    CommerceContext
+  > = AddressBook.layerMemory()
+) => {
   const { makeCheckoutHttpHandler } = await import("../lib/checkout/http");
 
-  return makeCheckoutHttpHandler({ layer });
+  return makeCheckoutHttpHandler({ addressBookLayer, layer });
 };
 
 const emptyContext = () => Context.empty() as Context.Context<unknown>;
@@ -942,23 +953,22 @@ test("GET /address-book returns entries for the verified Business Unit principal
     defaultBilling: false,
   });
   let listedCustomerId: CommerceCustomerId | undefined;
+  const addressBookLayer = makeAddressBookLayer([entry], (principal) => {
+    listedCustomerId = principal.customerId;
+  });
   const layer = Layer.mergeAll(
-    makeCheckoutLayer({
-      addressBookLayer: makeAddressBookLayer([entry], (principal) => {
-        listedCustomerId = principal.customerId;
-      }),
-    }),
+    makeCheckoutLayer(),
     makeCommerceAccountsLayer(),
     makeJwtVerifierLayer()
   );
-  const { dispose, handler } = await makeHandler(layer);
+  const { dispose, handler } = await makeHandler(layer, addressBookLayer);
 
   try {
     const response = await handler(
       addressBookRequest({
         authorization: "Bearer valid-token",
         "x-context-customer-id": "customer-spoof",
-        "x-context-business-unit-id": "business-unit-spoof",
+        "x-context-business-unit-id": "business-unit-1",
       }),
       emptyContext()
     );
@@ -1016,14 +1026,13 @@ test.each([
   code,
   message,
 }) => {
+  const addressBookLayer = makeFailingAddressBookListLayer(error);
   const layer = Layer.mergeAll(
-    makeCheckoutLayer({
-      addressBookLayer: makeFailingAddressBookListLayer(error),
-    }),
+    makeCheckoutLayer(),
     makeCommerceAccountsLayer(),
     makeJwtVerifierLayer()
   );
-  const { dispose, handler } = await makeHandler(layer);
+  const { dispose, handler } = await makeHandler(layer, addressBookLayer);
 
   try {
     const response = await handler(
@@ -1051,14 +1060,13 @@ test("POST /checkout/delivery-details copies an existing Address Book Entry to t
     defaultShipping: false,
     defaultBilling: false,
   });
+  const addressBookLayer = makeAddressBookLayer([entry]);
   const layer = Layer.mergeAll(
-    makeCheckoutLayer({
-      addressBookLayer: makeAddressBookLayer([entry]),
-    }),
+    makeCheckoutLayer(),
     makeCommerceAccountsLayer(),
     makeJwtVerifierLayer()
   );
-  const { dispose, handler } = await makeHandler(layer);
+  const { dispose, handler } = await makeHandler(layer, addressBookLayer);
 
   try {
     const response = await handler(
@@ -1089,11 +1097,11 @@ test("POST /checkout/delivery-details copies an existing Address Book Entry to t
 test("POST /checkout/delivery-details returns a stable unavailable-entry error", async () => {
   const reference = AddressBookReference.make("missing-office");
   const layer = Layer.mergeAll(
-    makeCheckoutLayer({ addressBookLayer: makeAddressBookLayer() }),
+    makeCheckoutLayer(),
     makeCommerceAccountsLayer(),
     makeJwtVerifierLayer()
   );
-  const { dispose, handler } = await makeHandler(layer);
+  const { dispose, handler } = await makeHandler(layer, makeAddressBookLayer());
 
   try {
     const response = await handler(
@@ -1124,11 +1132,11 @@ test("POST /checkout/delivery-details returns a stable unavailable-entry error",
 
 test("POST /checkout/delivery-details saves a new address with an internally generated reference", async () => {
   const layer = Layer.mergeAll(
-    makeCheckoutLayer({ addressBookLayer: makeAddressBookLayer() }),
+    makeCheckoutLayer(),
     makeCommerceAccountsLayer(),
     makeJwtVerifierLayer()
   );
-  const { dispose, handler } = await makeHandler(layer);
+  const { dispose, handler } = await makeHandler(layer, makeAddressBookLayer());
 
   try {
     const response = await handler(
@@ -1162,16 +1170,15 @@ test("POST /checkout/delivery-details saves a new address with an internally gen
 
 test("POST /checkout/delivery-details saves only for the verified Business Unit principal", async () => {
   let savingPrincipal: CustomerCommercePrincipal | undefined;
+  const addressBookLayer = makeAddressBookLayer([], (principal) => {
+    savingPrincipal = principal;
+  });
   const layer = Layer.mergeAll(
-    makeCheckoutLayer({
-      addressBookLayer: makeAddressBookLayer([], (principal) => {
-        savingPrincipal = principal;
-      }),
-    }),
+    makeCheckoutLayer(),
     makeCommerceAccountsLayer(),
     makeJwtVerifierLayer()
   );
-  const { dispose, handler } = await makeHandler(layer);
+  const { dispose, handler } = await makeHandler(layer, addressBookLayer);
 
   try {
     const response = await handler(
@@ -1187,7 +1194,7 @@ test("POST /checkout/delivery-details saves only for the verified Business Unit 
         {
           authorization: "Bearer valid-token",
           "x-context-customer-id": "customer-spoof",
-          "x-context-business-unit-id": "business-unit-spoof",
+          "x-context-business-unit-id": "business-unit-1",
         }
       ),
       emptyContext()
@@ -1203,13 +1210,11 @@ test("POST /checkout/delivery-details saves only for the verified Business Unit 
 
 test("POST /checkout/delivery-details returns saved state without a response reread", async () => {
   const layer = Layer.mergeAll(
-    makeCheckoutLayer({
-      addressBookLayer: makeAddressBookLayer(),
-    }),
+    makeCheckoutLayer(),
     makeCommerceAccountsLayer(),
     makeJwtVerifierLayer()
   );
-  const { dispose, handler } = await makeHandler(layer);
+  const { dispose, handler } = await makeHandler(layer, makeAddressBookLayer());
 
   try {
     const response = await handler(
@@ -1246,7 +1251,6 @@ test("POST /checkout/delivery-details returns saved state without a response rer
 test("POST /checkout/delivery-details returns the saved reference after a Cart-phase failure", async () => {
   const layer = Layer.mergeAll(
     makeCheckoutLayer({
-      addressBookLayer: makeAddressBookLayer(),
       saveDeliveryDetailsFailure: new CheckoutMutationProviderFailure({
         message: "Commercetools update failed",
         operation: "checkout.deliveryDetails.save",
@@ -1255,7 +1259,7 @@ test("POST /checkout/delivery-details returns the saved reference after a Cart-p
     makeCommerceAccountsLayer(),
     makeJwtVerifierLayer()
   );
-  const { dispose, handler } = await makeHandler(layer);
+  const { dispose, handler } = await makeHandler(layer, makeAddressBookLayer());
 
   try {
     const response = await handler(
@@ -1471,7 +1475,7 @@ test("GET /checkout/current accepts anonymous cart possession from the cart cook
   }
 });
 
-test("GET /checkout/current expires a confirmed missing anonymous Cart association", async () => {
+test("GET /checkout/current expires a confirmed missing anonymous Cart cookie", async () => {
   const { dispose, handler } = await makeHandler(
     makeCheckoutLayer({ currentCart: undefined })
   );
@@ -1602,6 +1606,34 @@ test("GET /checkout/current ignores on-behalf-of customer id headers when a vali
         locale: "en-US",
         customerId: "customer-1",
       },
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current rejects a Business Unit selector outside the verified memberships", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({
+        authorization: "Bearer valid-token",
+        "x-context-business-unit-id": "business-unit-spoof",
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CheckoutApiNotFound",
+      code: "checkout.notFound",
     });
   } finally {
     await dispose();

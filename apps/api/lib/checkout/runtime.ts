@@ -7,13 +7,15 @@ import { CartPolicies } from "@repo/commerce/services/cart-policies";
 import { Layer } from "effect";
 import { checkoutCustomerJwtVerifierLayerWorkos } from "./customer-jwt-workos";
 
-export const checkoutLayer = Layer.mergeAll(
-  layerCommercetoolsAddressBook,
-  layerCommercetoolsCarts,
-  layerCommercetoolsCommerceAccounts,
-  CartPolicies.layer,
-  CheckoutPolicies.layer,
-  checkoutCustomerJwtVerifierLayerWorkos.pipe(
-    Layer.provide(layerWorkosAccessTokenVerifier())
-  )
-);
+export const checkoutHttpDependencies = {
+  addressBookLayer: layerCommercetoolsAddressBook,
+  layer: Layer.mergeAll(
+    layerCommercetoolsCarts,
+    layerCommercetoolsCommerceAccounts,
+    CartPolicies.layer,
+    CheckoutPolicies.layer,
+    checkoutCustomerJwtVerifierLayerWorkos.pipe(
+      Layer.provide(layerWorkosAccessTokenVerifier())
+    )
+  ),
+};

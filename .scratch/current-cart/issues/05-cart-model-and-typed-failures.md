@@ -79,7 +79,7 @@ Provider-specific fields are promoted only when they represent a defined Cart pr
 
 ### Cart identity and stale submissions
 
-`CartSnapshot.id` is **Cart Identity**. It may be displayed, logged, used as the anonymous association value, and included in a Checkout form as an expected identity. It does not authorize a Cart and is never a selector accepted by `CurrentCart` programs.
+`CartSnapshot.id` is **Cart Identity**. It may be displayed, logged, stored in the anonymous `cart` cookie, and included in a Checkout form as an expected identity. It does not authorize a Cart and is never a selector accepted by `CurrentCart` programs.
 
 Checkout compares the submitted identity with the identity returned by the authoritative request-bound `CurrentCart`. A difference remains `CheckoutCartMismatch`. The submitted Checkout reference contains no version. The request-bound Service retains the selected Current Cart across that Checkout use-case program, so the later named mutation does not accept the submitted identity again.
 
@@ -116,11 +116,11 @@ Ticket [Commercetools concurrency and custom-field behavior](06-commercetools-co
 
 `CurrentCart` translates persistence failures into buyer/session semantics rather than blindly exposing every `Carts` failure:
 
-- `get` returns `Option.none` only for authoritative absence and may fail with `CurrentCartSelectionConflict`, `CurrentCartAssociationFailure`, `CartProviderFailure`, or `CartPolicyFailure`;
+- `get` returns `Option.none` only for authoritative absence and may fail with `CurrentCartSelectionConflict`, `CartProviderFailure`, or `CartPolicyFailure`;
 - a mutation that requires an existing Cart maps confirmed missing or inaccessible target state to `CurrentCartUnavailable` with `noCart` or `inaccessibleCart`;
 - missing line item and unavailable merchandise remain distinct operation-specific failures because callers can refresh or correct the action;
 - `CartWriteConflict` and `CartWriteOutcomeUnknown` remain distinct because retry advice differs;
-- anonymous association persistence is `CurrentCartAssociationFailure`, separate from provider Cart persistence;
+- failure to persist a newly created anonymous Cart ID is `CurrentCartOperationFailure` with operation `set`, separate from provider Cart persistence;
 - inability to evaluate the separate `CartPolicies` Service is `CartPolicyFailure`, while Cart Policy Violations remain successful `CurrentCartState.violations` data.
 
 `CheckoutCartMismatch` belongs to `CheckoutSession`, which owns stale-form comparison and Checkout error mapping. It is not a `Carts` failure and is not accepted by `CurrentCart` as authority.

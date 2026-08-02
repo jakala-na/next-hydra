@@ -17,7 +17,7 @@ Use four dependency-ordered commits. Each commit must preserve a working, review
 ### `feat(commerce): add Business Unit address book capability`
 
 - Add schema-backed `AddressBookReference`, `AddressType`, `AddressBookEntry`, save input, and typed capability errors.
-- Add the provider-independent `AddressBook` `Context.Service` with `list`, `get`, and reference-idempotent `save` operations over the verified `CustomerCommercePrincipal`.
+- Add request-scoped `CommerceContext`, then add the provider-independent `AddressBook` `Context.Service` with identity-free `list`, `get`, and reference-idempotent `save` operations. The selected Address Book Layer obtains the verified `CustomerCommercePrincipal` from `CommerceContext`; no parallel `CurrentAddressBook` Service exists.
 - Add fresh in-memory Layers for behavior tests.
 - Add the Commercetools Layer using associate-scoped Business Unit reads and writes.
 - Map Address Book-keyed Business Unit addresses, Shipping/Billing memberships, and Default Shipping/Default Billing markers into canonical entries.
