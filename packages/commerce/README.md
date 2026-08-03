@@ -66,6 +66,6 @@ pnpm --filter @repo/commerce test
 pnpm boundaries
 ```
 
-The boundary task enforces explicit exports, the core-to-provider dependency
-direction, allowed application composition roots, and generated-artifact
-purity.
+The boundary task runs Biome's provider-import restrictions, then validates
+explicit exports, package dependency direction, provider-owned paths, and
+generated-artifact purity.

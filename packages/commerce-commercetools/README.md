@@ -77,5 +77,6 @@ pnpm boundaries
 
 Provider tests are local by default. Registration live tests run only when
 `COMMERCETOOLS_LIVE_TESTS=1` and the required provider configuration is set.
-The repository boundary task restricts imports of this package to application
-environment, Layer-composition, and CLI tooling roots.
+The repository boundary task runs Biome to restrict imports of this package to
+application environment, Layer-composition, and CLI tooling roots, then checks
+which package manifests may declare the provider dependency.

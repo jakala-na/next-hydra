@@ -59,7 +59,21 @@
       "style": {
         "useNodejsImportProtocol": "warn",
         "noMagicNumbers": "warn",
-        "useConsistentTypeDefinitions": "off"
+        "useConsistentTypeDefinitions": "off",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": [
+                  "@repo/commerce-commercetools",
+                  "@repo/commerce-commercetools/**"
+                ],
+                "message": "Import the installed commerce provider only from an application composition or tooling root."
+              }
+            ]
+          }
+        }
       },
       "security": {
         "noDangerouslySetInnerHtml": "warn"
@@ -67,6 +81,206 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["apps/web/env.ts", "apps/cli/env.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@repo/commerce-commercetools",
+                      "@repo/commerce-commercetools/**",
+                      "!@repo/commerce-commercetools/keys"
+                    ],
+                    "message": "This environment root may import only the provider's keys module."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/env.ts"],
+      "plugins": ["./plugins/biome/no-manual-boundary-decoding.grit"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@repo/commerce-commercetools",
+                      "@repo/commerce-commercetools/**",
+                      "!@repo/commerce-commercetools/keys"
+                    ],
+                    "message": "The API environment root may import only the provider's keys module."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/lib/checkout/runtime.ts"],
+      "plugins": ["./plugins/biome/no-manual-boundary-decoding.grit"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@repo/commerce-commercetools",
+                      "@repo/commerce-commercetools/**",
+                      "!@repo/commerce-commercetools/address-book",
+                      "!@repo/commerce-commercetools/cart",
+                      "!@repo/commerce-commercetools/commerce-accounts"
+                    ],
+                    "message": "The Checkout runtime may import only the provider Layers it composes."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/api/lib/registration/runtime.ts"],
+      "plugins": ["./plugins/biome/no-manual-boundary-decoding.grit"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@repo/commerce-commercetools",
+                      "@repo/commerce-commercetools/**",
+                      "!@repo/commerce-commercetools/commerce-accounts",
+                      "!@repo/commerce-commercetools/registration",
+                      "!@repo/commerce-commercetools/versioned-store"
+                    ],
+                    "message": "The Registration runtime may import only the provider Layers it composes."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/cli/src/program.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@repo/commerce-commercetools",
+                      "@repo/commerce-commercetools/**",
+                      "!@repo/commerce-commercetools/cli"
+                    ],
+                    "message": "The CLI program may import only the provider's CLI module."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/lib/commerce-layers.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@repo/commerce-commercetools",
+                      "@repo/commerce-commercetools/**",
+                      "!@repo/commerce-commercetools/provider"
+                    ],
+                    "message": "The Web composition root may import only the provider's named Layer bundle."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/commerce/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@commercetools/platform-sdk",
+                      "@commercetools/platform-sdk/**",
+                      "@commercetools/ts-client",
+                      "@commercetools/ts-client/**",
+                      "@gql.tada/cli-utils",
+                      "@gql.tada/cli-utils/**",
+                      "@repo/commerce-commercetools",
+                      "@repo/commerce-commercetools/**",
+                      "@repo/versioned-store",
+                      "@repo/versioned-store/**",
+                      "@t3-oss/env-nextjs",
+                      "@t3-oss/env-nextjs/**",
+                      "@urql/core",
+                      "@urql/core/**",
+                      "chalk",
+                      "chalk/**",
+                      "commander",
+                      "commander/**",
+                      "dotenv",
+                      "dotenv/**",
+                      "gql.tada",
+                      "gql.tada/**",
+                      "ora",
+                      "ora/**",
+                      "urql",
+                      "urql/**",
+                      "wonka",
+                      "wonka/**"
+                    ],
+                    "message": "Core commerce may import only provider-neutral dependencies."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     {
       "includes": [
         "apps/api/**",

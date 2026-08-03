@@ -4,7 +4,6 @@ import {
   checkCommerceBoundaries,
   checkGeneratedProductAttributesSource,
   extractImportSpecifiers,
-  isForbiddenCoreImport,
 } from "./commerce-boundaries";
 
 const repoRoot = resolve(import.meta.dirname, "../../..");
@@ -37,12 +36,5 @@ describe("Commerce provider boundaries", () => {
     ).toContain(
       `product/generated/attributes.ts imports non-core module ${wonkaSubpath}`
     );
-  });
-
-  it("recognizes forbidden core dependency subpaths", () => {
-    expect(isForbiddenCoreImport("@urql/core/internal")).toBe(true);
-    expect(isForbiddenCoreImport("gql.tada/runtime")).toBe(true);
-    expect(isForbiddenCoreImport("wonka/lib/wonka")).toBe(true);
-    expect(isForbiddenCoreImport("@repo/commerce/product")).toBe(false);
   });
 });

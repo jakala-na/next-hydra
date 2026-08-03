@@ -67,30 +67,6 @@ const allowedProviderDependencies = new Set([
   "apps/web/package.json",
 ]);
 
-const allowedProviderImports = new Map<string, ReadonlySet<string>>([
-  ["apps/api/env.ts", new Set([`${providerPackage}/keys`])],
-  [
-    "apps/api/lib/checkout/runtime.ts",
-    new Set([
-      `${providerPackage}/address-book`,
-      `${providerPackage}/cart`,
-      `${providerPackage}/commerce-accounts`,
-    ]),
-  ],
-  [
-    "apps/api/lib/registration/runtime.ts",
-    new Set([
-      `${providerPackage}/commerce-accounts`,
-      `${providerPackage}/registration`,
-      `${providerPackage}/versioned-store`,
-    ]),
-  ],
-  ["apps/cli/env.ts", new Set([`${providerPackage}/keys`])],
-  ["apps/cli/src/program.ts", new Set([`${providerPackage}/cli`])],
-  ["apps/web/env.ts", new Set([`${providerPackage}/keys`])],
-  ["apps/web/lib/commerce-layers.ts", new Set([`${providerPackage}/provider`])],
-]);
-
 const posixPath = (path: string) => path.split(sep).join("/");
 
 const extension = (path: string) => {
@@ -119,6 +95,21 @@ const repositoryFiles = (repoRoot: string): readonly string[] =>
     .filter((path) => path.length > 0)
     .map((path) => resolve(repoRoot, path))
     .filter(existsSync);
+
+const runBiomeImportBoundaries = (repoRoot: string) => {
+  execFileSync(
+    "pnpm",
+    [
+      "exec",
+      "biome",
+      "lint",
+      "--only=style/noRestrictedImports",
+      "apps",
+      "packages",
+    ],
+    { cwd: repoRoot, stdio: "inherit" }
+  );
+};
 
 export const extractImportSpecifiers = (source: string): readonly string[] => {
   const specifiers = new Set<string>();
@@ -149,14 +140,6 @@ const dependencyNames = (manifest: PackageManifest) =>
       manifest.optionalDependencies,
       manifest.peerDependencies,
     ].flatMap((dependencies) => Object.keys(dependencies ?? {}))
-  );
-
-const isPackageOrSubpath = (specifier: string, packageName: string) =>
-  specifier === packageName || specifier.startsWith(`${packageName}/`);
-
-export const isForbiddenCoreImport = (specifier: string) =>
-  [...forbiddenCoreDependencies].some((dependency) =>
-    isPackageOrSubpath(specifier, dependency)
   );
 
 const packageSubpath = (specifier: string, packageName: string) =>
@@ -313,27 +296,6 @@ export const checkCommerceBoundaries = (
     }
   }
 
-  for (const file of commerceFiles.filter((path) =>
-    sourceExtensions.has(extension(path))
-  )) {
-    const corePath = posixPath(relative(commerceRoot, file));
-    for (const specifier of extractImportSpecifiers(
-      readFileSync(file, "utf8")
-    )) {
-      if (isForbiddenCoreImport(specifier)) {
-        violations.push(
-          `${corePath} imports forbidden dependency ${specifier}`
-        );
-      }
-      if (
-        specifier.startsWith("@commercetools/") ||
-        specifier.startsWith(`${providerPackage}/`)
-      ) {
-        violations.push(`${corePath} imports provider module ${specifier}`);
-      }
-    }
-  }
-
   for (const file of cmsSourceFiles) {
     const source = readFileSync(file, "utf8");
     if (providerCategoryVocabularyPattern.test(source)) {
@@ -367,26 +329,6 @@ export const checkCommerceBoundaries = (
     }
   }
 
-  for (const file of allSourceFiles) {
-    if (file.startsWith(`${providerRoot}${sep}`)) {
-      continue;
-    }
-    const repoPath = posixPath(relative(repoRoot, file));
-    for (const specifier of extractImportSpecifiers(
-      readFileSync(file, "utf8")
-    )) {
-      if (
-        specifier !== providerPackage &&
-        !specifier.startsWith(`${providerPackage}/`)
-      ) {
-        continue;
-      }
-      if (!allowedProviderImports.get(repoPath)?.has(specifier)) {
-        violations.push(`${repoPath} must not import ${specifier}`);
-      }
-    }
-  }
-
   violations.push(
     ...checkExplicitExports(commerceManifest, corePackage),
     ...checkExplicitExports(providerManifest, providerPackage),
@@ -415,6 +357,7 @@ if (
 ) {
   const commerceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const repoRoot = resolve(commerceRoot, "../..");
+  runBiomeImportBoundaries(repoRoot);
   const violations = checkCommerceBoundaries(repoRoot);
 
   if (violations.length > 0) {
