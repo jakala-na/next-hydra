@@ -1,7 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Redacted } from "effect";
 import { beforeEach, vi } from "vitest";
-import { StoreKey } from "../../../domain/cart";
 import {
   CommerceAccount,
   CommerceBusinessUnitId,
@@ -12,6 +11,7 @@ import {
   CommerceAccountError,
   CommerceAccounts,
 } from "../../../services/commerce-accounts";
+import { StoreKey } from "../../../store";
 import { layerCommercetoolsCommerceAccounts } from "./commerce-accounts";
 
 const mocks = vi.hoisted(() => {

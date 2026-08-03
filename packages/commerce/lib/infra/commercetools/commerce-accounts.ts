@@ -9,7 +9,6 @@ import type {
 } from "@commercetools/platform-sdk";
 import { Effect, Layer, Redacted, Schema } from "effect";
 import { AddressBookReference } from "../../../domain/address-book";
-import type { StoreKey } from "../../../domain/cart";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
@@ -31,6 +30,7 @@ import {
   CommerceCustomerProfileNotFound,
   type RedactedString,
 } from "../../../services/commerce-accounts";
+import type { StoreKey } from "../../../store";
 import { apiRoot } from "../../client/api-root";
 import { toCommercetoolsAddressKey } from "./address-book-key";
 import {

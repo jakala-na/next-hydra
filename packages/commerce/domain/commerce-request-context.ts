@@ -1,6 +1,6 @@
 import { Schema } from "effect";
+import { Store } from "../store";
 import { CartId } from "./cart";
-import { CartStore } from "./cart-snapshot";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -15,7 +15,7 @@ export type AuthUserId = typeof AuthUserId.Type;
 export class AnonymousCommerceContextRequest extends Schema.TaggedClass<AnonymousCommerceContextRequest>()(
   "AnonymousCommerceContextRequest",
   {
-    store: CartStore,
+    store: Store,
     anonymousCartId: Schema.optional(CartId),
   }
 ) {}
@@ -23,7 +23,7 @@ export class AnonymousCommerceContextRequest extends Schema.TaggedClass<Anonymou
 export class CustomerCommerceContextRequest extends Schema.TaggedClass<CustomerCommerceContextRequest>()(
   "CustomerCommerceContextRequest",
   {
-    store: CartStore,
+    store: Store,
     authUserId: AuthUserId,
     businessUnitId: Schema.optional(CommerceBusinessUnitId),
   }

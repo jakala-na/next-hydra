@@ -1,26 +1,18 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option } from "effect";
 import { CountryCode } from "../domain/address";
-import {
-  CartId,
-  LineItemId,
-  ProductId,
-  Sku,
-  StoreKey,
-  VariantId,
-} from "../domain/cart";
+import { CartId, LineItemId, ProductId, Sku, VariantId } from "../domain/cart";
 import { CartProviderFailure } from "../domain/cart-errors";
-import { CartStore } from "../domain/cart-snapshot";
-import { CheckoutLocale } from "../domain/checkout";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "../domain/commerce-account";
+import { CommerceLocale, Store, StoreKey } from "../store";
 import { Carts } from "./carts";
 
-const store = new CartStore({
-  locale: CheckoutLocale.make("en-US"),
+const store = new Store({
+  locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("us-store"),
   currency: "USD",
 });

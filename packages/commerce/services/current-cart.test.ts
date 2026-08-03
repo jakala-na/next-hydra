@@ -1,9 +1,8 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Option } from "effect";
-import { CartId, ProductId, Sku, StoreKey, VariantId } from "../domain/cart";
+import { CartId, ProductId, Sku, VariantId } from "../domain/cart";
 import { CartPolicyFailure, CartProviderFailure } from "../domain/cart-errors";
-import { type CartSnapshot, CartStore } from "../domain/cart-snapshot";
-import { CheckoutLocale } from "../domain/checkout";
+import type { CartSnapshot } from "../domain/cart-snapshot";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -17,14 +16,15 @@ import {
   CustomerCommerceContextRequest,
 } from "../domain/commerce-request-context";
 import type { CurrentCartCookie } from "../lib/current-cart/cookie";
+import { CommerceLocale, Store, StoreKey } from "../store";
 import { CartPolicies } from "./cart-policies";
 import { Carts } from "./carts";
 import { CommerceAccounts } from "./commerce-accounts";
 import { CommerceContext } from "./commerce-context";
 import { CurrentCart } from "./current-cart";
 
-const store = new CartStore({
-  locale: CheckoutLocale.make("en-US"),
+const store = new Store({
+  locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("us-store"),
   currency: "USD",
 });

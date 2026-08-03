@@ -4,7 +4,6 @@ import {
   LineItemId,
   ProductId,
   Sku,
-  StoreKey,
   VariantId,
 } from "../../../domain/cart";
 import {
@@ -43,6 +42,7 @@ import {
   type SaveCartDeliveryDetails,
   type SetCartLineItemQuantity,
 } from "../../../services/carts";
+import { StoreKey } from "../../../store";
 import {
   hasPersistedCheckoutContact,
   ORDER_CUSTOM_TYPE_KEY,

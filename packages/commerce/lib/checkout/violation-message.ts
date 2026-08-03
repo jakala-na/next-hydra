@@ -1,10 +1,7 @@
 import { createCheckoutTranslator } from "@repo/i18n/checkout-messages";
 import { Option, Schema } from "effect";
-import {
-  type CheckoutLocale,
-  type CheckoutViolation,
-  CountryCode,
-} from "../../domain/checkout";
+import { type CheckoutViolation, CountryCode } from "../../domain/checkout";
+import type { CommerceLocale } from "../../store";
 
 export const localizedCountryName = (
   country: string | number | undefined,
@@ -27,7 +24,7 @@ export const localizedCountryName = (
 };
 
 export const checkoutViolationMessage = (
-  locale: CheckoutLocale,
+  locale: CommerceLocale,
   violation: CheckoutViolation
 ) => {
   const t = createCheckoutTranslator(locale);

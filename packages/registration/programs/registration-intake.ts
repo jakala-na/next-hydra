@@ -1,8 +1,8 @@
-import type { StoreKey } from "@repo/commerce/domain/cart";
 import {
   type CommerceAccountError,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
+import type { StoreKey } from "@repo/commerce/store";
 import { Effect, Schema } from "effect";
 import { CountryCode } from "../domain/identity";
 import type {

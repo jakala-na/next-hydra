@@ -11,7 +11,6 @@ import {
   LineItemId,
   ProductId,
   Sku,
-  StoreKey,
   VariantId,
 } from "@repo/commerce/domain/cart";
 import { CartProviderFailure } from "@repo/commerce/domain/cart-errors";
@@ -56,6 +55,7 @@ import {
   CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
+import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
 import { Context, Effect, Layer, Option, Redacted } from "effect";
 import { expect, test } from "vitest";
@@ -253,11 +253,11 @@ const anonymousCartCookieHeader = ({
 } = {}) => {
   const cookie = makeAnonymousCartCookie({
     cartId,
-    context: {
+    store: new Store({
       currency,
-      locale,
-      storeKey,
-    },
+      locale: CommerceLocale.make(locale),
+      storeKey: StoreKey.make(storeKey),
+    }),
   });
 
   return `${ANONYMOUS_CART_COOKIE_NAME}=${encodeAnonymousCartCookie(cookie)}`;
@@ -1612,7 +1612,7 @@ test("GET /checkout/current ignores on-behalf-of customer id headers when a vali
   }
 });
 
-test("GET /checkout/current rejects a Business Unit selector outside the verified memberships", async () => {
+test("GET /checkout/current falls back when the Business Unit selector is outside the verified memberships", async () => {
   const layer = Layer.mergeAll(
     makeCheckoutLayer(),
     makeCommerceAccountsLayer(),
@@ -1630,10 +1630,14 @@ test("GET /checkout/current rejects a Business Unit selector outside the verifie
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(response.status).toBe(HTTP_OK);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
-      code: "checkout.notFound",
+      scope: {
+        channel: "storefrontCustomer",
+        customerId: "customer-1",
+        businessUnitId: "business-unit-1",
+        businessUnitKey: "business-unit-key-1",
+      },
     });
   } finally {
     await dispose();

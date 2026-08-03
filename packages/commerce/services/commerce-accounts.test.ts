@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Redacted } from "effect";
-import { StoreKey } from "../domain/cart";
 import { AuthUserId } from "../domain/commerce-request-context";
+import { StoreKey } from "../store";
 import { CommerceAccounts } from "./commerce-accounts";
 
 const registration = {

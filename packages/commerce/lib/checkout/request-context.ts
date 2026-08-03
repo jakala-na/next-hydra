@@ -1,4 +1,3 @@
-import type { CartStore } from "../../domain/cart-snapshot";
 import {
   type CheckoutScope,
   StorefrontAnonymousCheckoutScope,
@@ -9,9 +8,10 @@ import {
   type CommercePrincipal,
   CustomerCommercePrincipal,
 } from "../../domain/commerce-request-context";
+import type { Store } from "../../store";
 
 type CheckoutCommerceContext = {
-  readonly store: CartStore;
+  readonly store: Store;
   readonly principal: CommercePrincipal;
 };
 

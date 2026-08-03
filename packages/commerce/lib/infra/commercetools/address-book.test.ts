@@ -11,9 +11,6 @@ import {
   AddressBookEntryNotFound,
   AddressBookReference,
 } from "../../../domain/address-book";
-import { StoreKey } from "../../../domain/cart";
-import { CartStore } from "../../../domain/cart-snapshot";
-import { CheckoutLocale } from "../../../domain/checkout";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -29,6 +26,7 @@ import {
 import { AddressBook } from "../../../services/address-book";
 import { CommerceAccounts } from "../../../services/commerce-accounts";
 import { CommerceContext } from "../../../services/commerce-context";
+import { CommerceLocale, Store, StoreKey } from "../../../store";
 import {
   layerCommercetoolsAddressBookFor,
   toCommercetoolsAddressKey,
@@ -44,8 +42,8 @@ const buyer = new CustomerCommercePrincipal({
   businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
   businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
 });
-const store = new CartStore({
-  locale: CheckoutLocale.make("en-US"),
+const store = new Store({
+  locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("default-store"),
   currency: "USD",
 });

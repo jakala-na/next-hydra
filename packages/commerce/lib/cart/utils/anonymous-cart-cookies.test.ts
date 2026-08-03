@@ -1,23 +1,24 @@
 import { describe, expect, test } from "vitest";
+import { CurrencyCode } from "../../../domain/money";
+import { CommerceLocale, Store, StoreKey } from "../../../store";
 import {
   decodeAnonymousCartCookie,
   encodeAnonymousCartCookie,
-  getAnonymousCartCookieContextByLocale,
   getAnonymousCartIdFromCookieValue,
   makeAnonymousCartCookie,
 } from "./anonymous-cart-cookies";
 
-const context = {
-  currency: "USD",
-  locale: "en-US",
-  storeKey: "default-store",
-} as const;
+const store = new Store({
+  currency: CurrencyCode.make("USD"),
+  locale: CommerceLocale.make("en-US"),
+  storeKey: StoreKey.make("default-store"),
+});
 
 describe("anonymous cart cookies", () => {
   test("encodes a schema-backed cart cookie with store, locale, currency, and cart id", () => {
     const cookie = makeAnonymousCartCookie({
       cartId: "cart-1",
-      context,
+      store,
     });
 
     const encoded = encodeAnonymousCartCookie(cookie);
@@ -36,42 +37,34 @@ describe("anonymous cart cookies", () => {
     const encoded = encodeAnonymousCartCookie(
       makeAnonymousCartCookie({
         cartId: "cart-1",
-        context,
+        store,
       })
     );
 
-    expect(getAnonymousCartIdFromCookieValue(encoded, context)).toBe("cart-1");
+    expect(getAnonymousCartIdFromCookieValue(encoded, store)).toBe("cart-1");
     expect(
-      getAnonymousCartIdFromCookieValue(encoded, {
-        ...context,
-        currency: "EUR",
-      })
+      getAnonymousCartIdFromCookieValue(
+        encoded,
+        new Store({ ...store, currency: CurrencyCode.make("EUR") })
+      )
     ).toBeNull();
     expect(
-      getAnonymousCartIdFromCookieValue(encoded, {
-        ...context,
-        locale: "en-GB",
-      })
+      getAnonymousCartIdFromCookieValue(
+        encoded,
+        new Store({ ...store, locale: CommerceLocale.make("en-GB") })
+      )
     ).toBeNull();
     expect(
-      getAnonymousCartIdFromCookieValue(encoded, {
-        ...context,
-        storeKey: "de-fr-uk",
-      })
+      getAnonymousCartIdFromCookieValue(
+        encoded,
+        new Store({ ...store, storeKey: StoreKey.make("de-fr-uk") })
+      )
     ).toBeNull();
   });
 
   test("ignores malformed cart cookie values", () => {
-    expect(getAnonymousCartIdFromCookieValue("not-json", context)).toBeNull();
-    expect(getAnonymousCartIdFromCookieValue("", context)).toBeNull();
-    expect(getAnonymousCartIdFromCookieValue(undefined, context)).toBeNull();
-  });
-
-  test("derives the cart cookie context from locale using store mappings", () => {
-    expect(getAnonymousCartCookieContextByLocale("en-GB")).toEqual({
-      currency: "GBP",
-      locale: "en-GB",
-      storeKey: "de-fr-uk",
-    });
+    expect(getAnonymousCartIdFromCookieValue("not-json", store)).toBeNull();
+    expect(getAnonymousCartIdFromCookieValue("", store)).toBeNull();
+    expect(getAnonymousCartIdFromCookieValue(undefined, store)).toBeNull();
   });
 });

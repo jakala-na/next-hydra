@@ -1,10 +1,9 @@
 import "server-only";
 
 import { withAuth } from "@repo/auth-workos/server";
-import { StoreKey } from "@repo/commerce/domain/cart";
 import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
-import { storeService } from "@repo/commerce/lib/store/store.service";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import { CommerceLocale, resolveStore } from "@repo/commerce/store";
 import { BusinessUnitSwitcher as BusinessUnitSwitcherView } from "@repo/design-system/components/layout/business-unit-switcher";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Schema } from "effect";
@@ -54,9 +53,7 @@ export async function BusinessUnitSwitcher({
 
   const result = await Effect.runPromise(
     Effect.gen(function* () {
-      const store = yield* Effect.tryPromise(() =>
-        storeService.getStoreContextByLocale(locale)
-      );
+      const store = resolveStore({ locale: CommerceLocale.make(locale) });
       const authUserId = yield* Schema.decodeUnknownEffect(AuthUserId)(
         request.authUserId
       );
@@ -65,7 +62,7 @@ export async function BusinessUnitSwitcher({
       const loadedMemberships =
         yield* accounts.listBusinessUnitMembershipsForCustomerInStore(
           customerId,
-          StoreKey.make(store.storeKey)
+          store.storeKey
         );
       return {
         memberships: loadedMemberships,
@@ -86,13 +83,11 @@ export async function BusinessUnitSwitcher({
   }
 
   const { memberships, selectedBusinessUnitId } = result;
-  const selectedMembership = memberships.find(
-    ({ businessUnitId }) => businessUnitId === selectedBusinessUnitId
-  );
-  let currentBusinessUnitId = selectedMembership?.businessUnitId;
-  if (selectedBusinessUnitId === undefined && memberships.length === 1) {
-    currentBusinessUnitId = memberships[0]?.businessUnitId;
-  }
+  const selectedMembership =
+    memberships.find(
+      ({ businessUnitId }) => businessUnitId === selectedBusinessUnitId
+    ) ?? memberships[0];
+  const currentBusinessUnitId = selectedMembership?.businessUnitId;
 
   return (
     <BusinessUnitSwitcherView

@@ -1,11 +1,7 @@
-import type { Locale } from "@repo/i18n/types";
 import { Option, Schema } from "effect";
-import { CartId, StoreKey } from "../../../domain/cart";
-import type { StoreContext } from "../../store/types";
-import {
-  getDefaultCurrencyByLocale,
-  getStoreKeyByLocale,
-} from "../../store/utils/mappings";
+import { CartId } from "../../../domain/cart";
+import { CurrencyCode } from "../../../domain/money";
+import { CommerceLocale, type Store, StoreKey } from "../../../store";
 
 export const ANONYMOUS_CART_COOKIE_NAME = "cart";
 const CART_COOKIE_MAX_AGE_DAYS = 90;
@@ -14,15 +10,10 @@ export class AnonymousCartCookie extends Schema.Class<AnonymousCartCookie>(
   "AnonymousCartCookie"
 )({
   cartId: CartId,
-  currency: Schema.NonEmptyString,
-  locale: Schema.NonEmptyString,
+  currency: CurrencyCode,
+  locale: CommerceLocale,
   storeKey: StoreKey,
 }) {}
-
-export type AnonymousCartCookieContext = Pick<
-  StoreContext,
-  "currency" | "locale" | "storeKey"
->;
 
 const AnonymousCartCookieJson = Schema.fromJsonString(AnonymousCartCookie);
 const decodeCookieWireValue = (value: string) => {
@@ -33,26 +24,18 @@ const decodeCookieWireValue = (value: string) => {
   }
 };
 
-export const getAnonymousCartCookieContextByLocale = (
-  locale: Locale
-): AnonymousCartCookieContext => ({
-  currency: getDefaultCurrencyByLocale(locale),
-  locale,
-  storeKey: getStoreKeyByLocale(locale),
-});
-
 export const makeAnonymousCartCookie = ({
   cartId,
-  context,
+  store,
 }: {
   readonly cartId: string;
-  readonly context: AnonymousCartCookieContext;
+  readonly store: Store;
 }) =>
   new AnonymousCartCookie({
     cartId: CartId.make(cartId),
-    currency: context.currency,
-    locale: context.locale,
-    storeKey: StoreKey.make(context.storeKey),
+    currency: store.currency,
+    locale: store.locale,
+    storeKey: store.storeKey,
   });
 
 export const encodeAnonymousCartCookie = (
@@ -76,21 +59,21 @@ export const decodeAnonymousCartCookie = (
 
 const anonymousCartCookieMatchesContext = (
   cookie: AnonymousCartCookie,
-  context: AnonymousCartCookieContext
+  store: Store
 ) =>
-  cookie.currency === context.currency &&
-  cookie.locale === context.locale &&
-  cookie.storeKey === context.storeKey;
+  cookie.currency === store.currency &&
+  cookie.locale === store.locale &&
+  cookie.storeKey === store.storeKey;
 
 export const getAnonymousCartIdFromCookieValue = (
   value: string | undefined,
-  context: AnonymousCartCookieContext
+  store: Store
 ): string | null => {
   const cartCookie = decodeAnonymousCartCookie(value);
 
   if (
     cartCookie === null ||
-    !anonymousCartCookieMatchesContext(cartCookie, context)
+    !anonymousCartCookieMatchesContext(cartCookie, store)
   ) {
     return null;
   }

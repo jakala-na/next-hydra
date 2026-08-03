@@ -1,5 +1,5 @@
-import { StoreKey } from "@repo/commerce/domain/cart";
 import type { CommerceAccountError } from "@repo/commerce/services/commerce-accounts";
+import { StoreKey } from "@repo/commerce/store";
 import { locales } from "@repo/i18n/config";
 import { Redacted, Schema } from "effect";
 import {

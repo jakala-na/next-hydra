@@ -1,17 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import {
-  CartId,
-  LineItemId,
-  ProductId,
-  StoreKey,
-  VariantId,
-} from "../../domain/cart";
+import { CartId, LineItemId, ProductId, VariantId } from "../../domain/cart";
 import type { CartSnapshot } from "../../domain/cart-snapshot";
-import {
-  CheckoutLocale,
-  StorefrontAnonymousCheckoutScope,
-} from "../../domain/checkout";
+import { StorefrontAnonymousCheckoutScope } from "../../domain/checkout";
+import { CommerceLocale, StoreKey } from "../../store";
 import { buildCheckoutState } from "./state";
 
 const cart: CartSnapshot = {
@@ -40,7 +32,7 @@ const cart: CartSnapshot = {
 
 const scope = new StorefrontAnonymousCheckoutScope({
   channel: "storefrontAnonymous",
-  locale: CheckoutLocale.make("en-US"),
+  locale: CommerceLocale.make("en-US"),
   anonymousCartId: cart.id,
 });
 

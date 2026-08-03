@@ -1,9 +1,7 @@
 import "server-only";
 
-import { CartId, StoreKey } from "@repo/commerce/domain/cart";
+import { CartId } from "@repo/commerce/domain/cart";
 import { currentCartOperationFailure } from "@repo/commerce/domain/cart-errors";
-import { CartStore } from "@repo/commerce/domain/cart-snapshot";
-import { CheckoutLocale } from "@repo/commerce/domain/checkout";
 import {
   AnonymousCommerceContextRequest,
   AuthUserId,
@@ -18,10 +16,10 @@ import {
 import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
 import { CheckoutSession } from "@repo/commerce/lib/checkout/checkout-session";
 import type { CurrentCartCookie } from "@repo/commerce/lib/current-cart/cookie";
-import { storeService } from "@repo/commerce/lib/store/store.service";
 import { CartPolicies } from "@repo/commerce/services/cart-policies";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
+import { CommerceLocale, resolveStore } from "@repo/commerce/store";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer, Schema } from "effect";
 import { getBusinessUnitIdFromCookieValue } from "./business-unit-cookie";
@@ -34,15 +32,13 @@ import {
 class CurrentCartRequestFailure extends Schema.TaggedErrorClass<CurrentCartRequestFailure>()(
   "CurrentCartRequestFailure",
   {
-    operation: Schema.Literals(["resolveStore", "decodeAuthUserId"]),
+    operation: Schema.Literal("decodeAuthUserId"),
     cause: Schema.Defect,
   }
 ) {}
 
-const currentCartRequestFailure = (
-  operation: "resolveStore" | "decodeAuthUserId",
-  cause: unknown
-) => new CurrentCartRequestFailure({ operation, cause });
+const currentCartRequestFailure = (cause: unknown) =>
+  new CurrentCartRequestFailure({ operation: "decodeAuthUserId", cause });
 
 interface AnonymousCartCookieRequest {
   readonly value: string | undefined;
@@ -64,24 +60,14 @@ interface CurrentCartLayerInputs {
 
 const makeCurrentCartLayerInputs = (request: CurrentCartRequest) =>
   Effect.gen(function* () {
-    const storeContext = yield* Effect.tryPromise({
-      try: () => storeService.getStoreContextByLocale(request.locale),
-      catch: (cause) => currentCartRequestFailure("resolveStore", cause),
-    });
-    const store = new CartStore({
-      locale: CheckoutLocale.make(request.locale),
-      storeKey: StoreKey.make(storeContext.storeKey),
-      currency: storeContext.currency,
+    const store = resolveStore({
+      locale: CommerceLocale.make(request.locale),
     });
 
     if (request.authUserId !== undefined) {
       const authUserId = yield* Schema.decodeUnknownEffect(AuthUserId)(
         request.authUserId
-      ).pipe(
-        Effect.mapError((cause) =>
-          currentCartRequestFailure("decodeAuthUserId", cause)
-        )
-      );
+      ).pipe(Effect.mapError((cause) => currentCartRequestFailure(cause)));
       const businessUnitId = getBusinessUnitIdFromCookieValue(
         request.businessUnitIdCookie
       );
@@ -100,7 +86,7 @@ const makeCurrentCartLayerInputs = (request: CurrentCartRequest) =>
 
     const anonymousCartId = getAnonymousCartIdFromCookieValue(
       request.anonymousCartCookie.value,
-      storeContext
+      store
     );
     const currentCartCookie: CurrentCartCookie = {
       set: (cartId) =>
@@ -108,7 +94,7 @@ const makeCurrentCartLayerInputs = (request: CurrentCartRequest) =>
           try: () =>
             request.anonymousCartCookie.set(
               encodeAnonymousCartCookie(
-                makeAnonymousCartCookie({ cartId, context: storeContext })
+                makeAnonymousCartCookie({ cartId, store })
               )
             ),
           catch: currentCartOperationFailure,

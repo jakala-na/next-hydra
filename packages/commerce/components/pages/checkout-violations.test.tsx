@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { ProductId } from "../../domain/cart";
-import { CheckoutLocale, type CheckoutViolation } from "../../domain/checkout";
+import type { CheckoutViolation } from "../../domain/checkout";
 import { checkoutViolationMessage } from "../../lib/checkout/violation-message";
+import { CommerceLocale } from "../../store";
 import {
   ActiveStepViolations,
   CartSidebarViolations,
@@ -50,7 +51,7 @@ const violations = [
   },
 ] as const satisfies readonly CheckoutViolation[];
 
-const locale = CheckoutLocale.make("de-DE");
+const locale = CommerceLocale.make("de-DE");
 const messages = {
   attention: "Achtung",
   cartViolations: "Probleme mit dem Warenkorb",

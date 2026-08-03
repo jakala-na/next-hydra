@@ -1,8 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Redacted } from "effect";
-import { StoreKey } from "../domain/cart";
-import { CartStore } from "../domain/cart-snapshot";
-import { CheckoutLocale } from "../domain/checkout";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -17,12 +14,13 @@ import {
   CustomerCommerceContextRequest,
   CustomerCommercePrincipal,
 } from "../domain/commerce-request-context";
+import { CommerceLocale, Store, StoreKey } from "../store";
 import { CommerceAccounts } from "./commerce-accounts";
 import { CommerceContext } from "./commerce-context";
 
 const customerId = CommerceCustomerId.make("customer-1");
-const store = new CartStore({
-  locale: CheckoutLocale.make("en-US"),
+const store = new Store({
+  locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("default-store"),
   currency: "USD",
 });
@@ -133,45 +131,24 @@ describe("CommerceContext", () => {
     );
   });
 
-  it.effect(
-    "rejects a selected Business Unit outside the Store membership",
-    () =>
-      Effect.void.pipe(
-        Effect.provide(
-          CommerceContext.layer(
-            new CustomerCommerceContextRequest({
-              store,
-              authUserId,
-              businessUnitId: CommerceBusinessUnitId.make("business-unit-2"),
-            })
-          ).pipe(
-            Layer.provide(
-              CommerceAccounts.layerMemoryFrom({
-                customers: [{ authUserId, customerId }],
-                businessUnitMemberships: [
-                  {
-                    customerId,
-                    storeKey: store.storeKey,
-                    membership: businessUnit,
-                  },
-                ],
-              })
-            )
-          )
-        ),
-        Effect.flip,
-        Effect.tap((error) => {
-          expect(error).toMatchObject({
-            _tag: "CommerceRequestContextNotFound",
-            reason: "noBuyingContext",
-          });
-          return Effect.void;
-        })
-      )
+  it.effect("falls back when a selected Business Unit is not eligible", () =>
+    provideCommerceContext(
+      Effect.gen(function* () {
+        const customerPrincipal = yield* CommerceContext.customerPrincipal();
+        expect(customerPrincipal.businessUnitId).toBe(
+          businessUnit.businessUnitId
+        );
+      }),
+      new CustomerCommerceContextRequest({
+        store,
+        authUserId,
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-2"),
+      })
+    )
   );
 
   it.effect(
-    "requires a selection when multiple Business Units are eligible",
+    "selects the first eligible Business Unit when none is requested",
     () => {
       const second = new CommerceBusinessUnitMembership({
         businessUnitId: CommerceBusinessUnitId.make("business-unit-2"),
@@ -179,32 +156,38 @@ describe("CommerceContext", () => {
         businessUnitLabel: CommerceBusinessUnitLabel.make("Business Unit Two"),
       });
 
-      return Effect.void.pipe(
-        Effect.provide(
-          CommerceContext.layer(customerRequest).pipe(
-            Layer.provide(
-              CommerceAccounts.layerMemoryFrom({
-                customers: [{ authUserId, customerId }],
-                businessUnitMemberships: [businessUnit, second].map(
-                  (membership) => ({
-                    customerId,
-                    storeKey: store.storeKey,
-                    membership,
-                  })
-                ),
-              })
-            )
-          )
-        ),
-        Effect.flip,
-        Effect.tap((error) => {
-          expect(error).toMatchObject({
-            _tag: "CommerceRequestContextNotFound",
-            reason: "noBuyingContext",
-          });
-          return Effect.void;
-        })
+      return provideCommerceContext(
+        Effect.gen(function* () {
+          const customerPrincipal = yield* CommerceContext.customerPrincipal();
+          expect(customerPrincipal.businessUnitId).toBe(
+            businessUnit.businessUnitId
+          );
+        }),
+        customerRequest,
+        [businessUnit, second]
       );
     }
+  );
+
+  it.effect("requires at least one eligible Business Unit", () =>
+    Effect.void.pipe(
+      Effect.provide(
+        CommerceContext.layer(customerRequest).pipe(
+          Layer.provide(
+            CommerceAccounts.layerMemoryFrom({
+              customers: [{ authUserId, customerId }],
+            })
+          )
+        )
+      ),
+      Effect.flip,
+      Effect.tap((error) => {
+        expect(error).toMatchObject({
+          _tag: "CommerceRequestContextNotFound",
+          reason: "noBuyingContext",
+        });
+        return Effect.void;
+      })
+    )
   );
 });

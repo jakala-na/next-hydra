@@ -1,10 +1,10 @@
 import { describe, expect, it } from "@effect/vitest";
-import { StoreKey } from "@repo/commerce/domain/cart";
 import {
   CommerceAccountError,
   type CommerceAccountRegistrationInput,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
+import { StoreKey } from "@repo/commerce/store";
 import { Effect, Exit, Layer, Redacted } from "effect";
 import {
   AddressLine,

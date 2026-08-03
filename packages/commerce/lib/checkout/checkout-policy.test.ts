@@ -1,8 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { CartId, StoreKey } from "../../domain/cart";
+import { CartId } from "../../domain/cart";
 import type { CartSnapshot } from "../../domain/cart-snapshot";
 import { CountryCode } from "../../domain/checkout";
+import { StoreKey } from "../../store";
 import {
   CheckoutPolicies,
   makeShippingCountryAvailabilityPolicy,

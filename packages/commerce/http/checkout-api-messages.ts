@@ -1,7 +1,7 @@
 import { checkoutMessageCatalogs } from "@repo/i18n/checkout-messages";
 import type { SupportedLocale } from "@repo/i18n/config";
 import { Option, Schema } from "effect";
-import { CheckoutLocale } from "../domain/checkout";
+import { CommerceLocale } from "../store";
 
 export type CheckoutApiErrorCode =
   | "checkout.addressBook.accessDenied"
@@ -21,8 +21,8 @@ export const checkoutApiErrorMessage = (
   code: CheckoutApiErrorCode
 ) => {
   const decodedLocale = Option.getOrElse(
-    Schema.decodeUnknownOption(CheckoutLocale)(locale),
-    () => CheckoutLocale.make("en-US")
+    Schema.decodeUnknownOption(CommerceLocale)(locale),
+    () => CommerceLocale.make("en-US")
   );
   const messages =
     checkoutMessageCatalogs[decodedLocale as SupportedLocale].errors;

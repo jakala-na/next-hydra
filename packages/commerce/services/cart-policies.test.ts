@@ -1,14 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import {
-  CartId,
-  LineItemId,
-  ProductId,
-  StoreKey,
-  VariantId,
-} from "../domain/cart";
+import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
 import { CartPolicyFailure } from "../domain/cart-errors";
 import type { CartSnapshot } from "../domain/cart-snapshot";
+import { StoreKey } from "../store";
 import { CartPolicies } from "./cart-policies";
 
 const cart: CartSnapshot = {

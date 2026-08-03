@@ -1,9 +1,9 @@
-import { StoreKey } from "@repo/commerce/domain/cart";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
 } from "@repo/commerce/domain/commerce-account";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import { StoreKey } from "@repo/commerce/store";
 import {
   getRegistrationApprovalHookToken,
   getRegistrationInvitationHookToken,

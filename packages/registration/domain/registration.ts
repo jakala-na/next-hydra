@@ -1,5 +1,5 @@
-import { StoreKey } from "@repo/commerce/domain/cart";
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
+import { StoreKey } from "@repo/commerce/store";
 import { Schema } from "effect";
 import { ApprovedDecision, RejectedDecision } from "./approval";
 import {

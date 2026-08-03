@@ -1,5 +1,4 @@
 import { Context, Effect, Layer } from "effect";
-import type { CartStore } from "../domain/cart-snapshot";
 import type {
   CommerceBusinessUnitMembership,
   CommerceCustomerProfile,
@@ -13,6 +12,7 @@ import {
   type CustomerCommerceContextRequest,
   CustomerCommercePrincipal,
 } from "../domain/commerce-request-context";
+import type { Store } from "../store";
 import {
   type CommerceAccountError,
   CommerceAccounts,
@@ -37,19 +37,20 @@ const selectBusinessUnit = (
     | CustomerCommerceContextRequest["businessUnitId"]
     | undefined
 ) => {
-  if (requestedBusinessUnitId !== undefined) {
-    return memberships.find(
-      ({ businessUnitId }) => businessUnitId === requestedBusinessUnitId
-    );
-  }
+  const selectedMembership =
+    requestedBusinessUnitId === undefined
+      ? undefined
+      : memberships.find(
+          ({ businessUnitId }) => businessUnitId === requestedBusinessUnitId
+        );
 
-  return memberships.length === 1 ? memberships[0] : undefined;
+  return selectedMembership ?? memberships[0];
 };
 
 export class CommerceContext extends Context.Service<
   CommerceContext,
   {
-    readonly store: CartStore;
+    readonly store: Store;
     readonly principal: CommercePrincipal;
     readonly customerPrincipal: () => Effect.Effect<
       CustomerCommercePrincipal,

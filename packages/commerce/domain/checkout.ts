@@ -1,5 +1,5 @@
-import { locales } from "@repo/i18n/config";
 import { Schema } from "effect";
+import { CommerceLocale } from "../store";
 import { Address } from "./address";
 import { AddressBookReference } from "./address-book";
 import { CartId, LineItemId, ProductId, Sku, VariantId } from "./cart";
@@ -10,16 +10,11 @@ import {
   CommerceCustomerId,
 } from "./commerce-account";
 
-export const CheckoutLocale = Schema.Literals(locales).pipe(
-  Schema.brand("CheckoutLocale")
-);
-export type CheckoutLocale = typeof CheckoutLocale.Type;
-
 export class StorefrontAnonymousCheckoutScope extends Schema.TaggedClass<StorefrontAnonymousCheckoutScope>()(
   "StorefrontAnonymousCheckoutScope",
   {
     channel: Schema.Literal("storefrontAnonymous"),
-    locale: CheckoutLocale,
+    locale: CommerceLocale,
     anonymousCartId: Schema.optional(CartId),
   }
 ) {}
@@ -28,7 +23,7 @@ export class StorefrontCustomerCheckoutScope extends Schema.TaggedClass<Storefro
   "StorefrontCustomerCheckoutScope",
   {
     channel: Schema.Literal("storefrontCustomer"),
-    locale: CheckoutLocale,
+    locale: CommerceLocale,
     customerId: CommerceCustomerId,
     businessUnitId: CommerceBusinessUnitId,
     businessUnitKey: CommerceBusinessUnitKey,

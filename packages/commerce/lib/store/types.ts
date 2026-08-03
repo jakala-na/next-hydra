@@ -1,4 +1,5 @@
-import type { CurrencyCode, Locale } from "@repo/i18n/types";
+import type { Locale } from "@repo/i18n/types";
+import type { CurrencyCode } from "../../domain/money";
 import type { Store } from "../types";
 
 export interface StoreRepository {

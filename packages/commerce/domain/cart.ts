@@ -9,9 +9,6 @@ export const LineItemId = Schema.NonEmptyString.pipe(
 );
 export type LineItemId = typeof LineItemId.Type;
 
-export const StoreKey = Schema.NonEmptyString.pipe(Schema.brand("StoreKey"));
-export type StoreKey = typeof StoreKey.Type;
-
 export { ProductId, Sku, VariantId } from "../product/identity";
 
 export const PositiveCartQuantity = Schema.Int.check(Schema.isGreaterThan(0));

@@ -1,6 +1,5 @@
-import { StoreKey } from "@repo/commerce/domain/cart";
-import { getStoreKeyByLocale } from "@repo/commerce/lib/store/utils/mappings";
 import type { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import { CommerceLocale, resolveStore } from "@repo/commerce/store";
 import {
   CreateRegistrationResponse,
   ListRegistrationsResponse,
@@ -110,9 +109,9 @@ const makeRegistrationHttpHandlers = ({
             const details = toCompanyRegistrationDetails(payload);
             const registration = yield* submitRegistrationForReview({
               details,
-              storeKey: StoreKey.make(
-                getStoreKeyByLocale(headers["x-context-locale"])
-              ),
+              storeKey: resolveStore({
+                locale: CommerceLocale.make(headers["x-context-locale"]),
+              }).storeKey,
             }).pipe(Effect.withSpan("registration.api.create.submit"));
             yield* Effect.annotateCurrentSpan({
               "registration.id": String(registration.id),

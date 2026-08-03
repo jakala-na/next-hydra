@@ -1,9 +1,9 @@
-import { StoreKey } from "@repo/commerce/domain/cart";
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import {
   CommerceAccountError,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
+import { StoreKey } from "@repo/commerce/store";
 import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
 import { ApprovedDecision } from "@repo/registration/domain/approval";
 import {

@@ -3,13 +3,13 @@ import type { Locale } from "@repo/i18n/types";
 import type { ReactNode } from "react";
 import type { SaveCheckoutContactAction } from "../../actions/save-checkout-contact-state";
 import type { SaveCheckoutDeliveryDetailsAction } from "../../actions/save-checkout-delivery-details-state";
-import {
-  CheckoutLocale,
-  type CheckoutState,
-  type CheckoutStepId,
-  type CheckoutViolation,
+import type {
+  CheckoutState,
+  CheckoutStepId,
+  CheckoutViolation,
 } from "../../domain/checkout";
 import { checkoutViolationMessage } from "../../lib/checkout/violation-message";
+import { CommerceLocale } from "../../store";
 import { CheckoutContactForm } from "./checkout-contact-form";
 import {
   CheckoutDeliveryDetailsForm,
@@ -224,7 +224,7 @@ export async function CheckoutPage({
 }) {
   const t = await getTranslations({ locale, namespace: "web.checkout" });
 
-  const checkoutLocale = CheckoutLocale.make(locale);
+  const checkoutLocale = CommerceLocale.make(locale);
   const messages: CheckoutPageMessages = {
     activeStep: t("activeStep"),
     attention: t("attention"),

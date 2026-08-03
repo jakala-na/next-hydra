@@ -18,7 +18,6 @@ import {
 import type {
   CartProductVariant,
   CartSnapshot,
-  CartStore,
   CartTarget,
 } from "../domain/cart-snapshot";
 import type {
@@ -30,21 +29,22 @@ import type {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "../domain/commerce-account";
+import type { Store } from "../store";
 
 export interface FindCartById {
   readonly id: CartId;
-  readonly store: CartStore;
+  readonly store: Store;
 }
 
 export interface FindActiveCartsForBusinessUnit {
-  readonly store: CartStore;
+  readonly store: Store;
   readonly customerId: CommerceCustomerId;
   readonly businessUnitId: CommerceBusinessUnitId;
   readonly businessUnitKey: CommerceBusinessUnitKey;
 }
 
 export interface CreateAnonymousCart {
-  readonly store: CartStore;
+  readonly store: Store;
 }
 
 export interface CreateBusinessUnitCart
@@ -127,7 +127,7 @@ export interface CartsMemorySeed {
 
 const emptyCart = (
   id: CartId,
-  store: CartStore,
+  store: Store,
   businessUnitId?: CommerceBusinessUnitId
 ): CartSnapshot => ({
   id,

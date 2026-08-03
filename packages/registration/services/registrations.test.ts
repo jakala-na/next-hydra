@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
-import { StoreKey } from "@repo/commerce/domain/cart";
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
+import { StoreKey } from "@repo/commerce/store";
 import {
   StoreConflict,
   StoreError,

@@ -1,20 +1,13 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option } from "effect";
 import { vi } from "vitest";
-import {
-  CartId,
-  LineItemId,
-  ProductId,
-  StoreKey,
-  VariantId,
-} from "../../../domain/cart";
-import { CartStore } from "../../../domain/cart-snapshot";
-import { CheckoutLocale } from "../../../domain/checkout";
+import { CartId, LineItemId, ProductId, VariantId } from "../../../domain/cart";
 import {
   CommerceBusinessUnitId,
   CommerceCustomerId,
 } from "../../../domain/commerce-account";
 import { Carts } from "../../../services/carts";
+import { CommerceLocale, Store, StoreKey } from "../../../store";
 import type { Cart } from "../../types";
 import { domainError, Err, Ok } from "../../utils/errors";
 import {
@@ -26,8 +19,8 @@ vi.mock("server-only", () => ({}));
 vi.mock("./cart-persistence", () => ({}));
 vi.mock("../../store/store.service", () => ({ storeService: {} }));
 
-const store = new CartStore({
-  locale: CheckoutLocale.make("en-US"),
+const store = new Store({
+  locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("us-store"),
   currency: "USD",
 });

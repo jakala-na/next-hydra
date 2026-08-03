@@ -1,5 +1,4 @@
-import type { CurrencyCode, Locale } from "@repo/i18n/types";
-import type { StoreKey } from "../../../domain/cart";
+import type { Locale } from "@repo/i18n/types";
 import type {
   CheckoutContact,
   CheckoutDeliveryDetails,
@@ -9,6 +8,8 @@ import type {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "../../../domain/commerce-account";
+import type { CurrencyCode } from "../../../domain/money";
+import type { StoreKey } from "../../../store";
 import type { Cart } from "../../types";
 
 export type AddToCartParams = {

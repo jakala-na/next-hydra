@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { CartId, StoreKey } from "../../domain/cart";
-import { CartStore } from "../../domain/cart-snapshot";
+import { CartId } from "../../domain/cart";
 import {
-  CheckoutLocale,
   StorefrontAnonymousCheckoutScope,
   StorefrontCustomerCheckoutScope,
 } from "../../domain/checkout";
@@ -16,10 +14,11 @@ import {
   AuthUserId,
   CustomerCommercePrincipal,
 } from "../../domain/commerce-request-context";
+import { CommerceLocale, Store, StoreKey } from "../../store";
 import { toCheckoutScope } from "./request-context";
 
-const store = new CartStore({
-  locale: CheckoutLocale.make("en-US"),
+const store = new Store({
+  locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("default-store"),
   currency: "USD",
 });
@@ -55,7 +54,7 @@ describe("toCheckoutScope", () => {
     expect(scope).toEqual(
       new StorefrontAnonymousCheckoutScope({
         channel: "storefrontAnonymous",
-        locale: CheckoutLocale.make("en-US"),
+        locale: CommerceLocale.make("en-US"),
       })
     );
   });

@@ -1,6 +1,6 @@
-import type { CurrencyCode } from "@repo/i18n/types";
 import { Schema } from "effect";
 import { ProductImage as ProductImageSchema } from "../product/image";
+import { Store, StoreKey } from "../store";
 import {
   CartId,
   CartMoney,
@@ -9,10 +9,9 @@ import {
   PositiveCartQuantity,
   ProductId,
   Sku,
-  StoreKey,
   VariantId,
 } from "./cart";
-import { CheckoutDetails, CheckoutLocale } from "./checkout";
+import { CheckoutDetails } from "./checkout";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -97,14 +96,6 @@ export const CartPolicyViolation = Schema.Struct({
 });
 export type CartPolicyViolation = typeof CartPolicyViolation.Type;
 
-export class CartStore extends Schema.Class<CartStore>("CartStore")({
-  locale: Schema.suspend(() => CheckoutLocale),
-  storeKey: StoreKey,
-  currency: Schema.String,
-}) {
-  declare readonly currency: CurrencyCode;
-}
-
 export const CartBuyingContext = Schema.Struct({
   businessUnitId: CommerceBusinessUnitId,
 });
@@ -132,12 +123,12 @@ export const CartTarget = Schema.Union([
   Schema.Struct({
     _tag: Schema.Literal("AnonymousCartTarget"),
     id: CartId,
-    store: CartStore,
+    store: Store,
   }),
   Schema.Struct({
     _tag: Schema.Literal("BusinessUnitCartTarget"),
     id: CartId,
-    store: CartStore,
+    store: Store,
     customerId: CommerceCustomerId,
     businessUnitId: CommerceBusinessUnitId,
     businessUnitKey: CommerceBusinessUnitKey,

@@ -1,5 +1,5 @@
-import type { StoreKey } from "@repo/commerce/domain/cart";
 import type { CommerceAccount } from "@repo/commerce/domain/commerce-account";
+import type { StoreKey } from "@repo/commerce/store";
 import {
   type StoreConflict,
   type StoreError,

@@ -1,7 +1,6 @@
 import type { AddressBookReference } from "@repo/commerce/domain/address-book";
-import { CartId, StoreKey } from "@repo/commerce/domain/cart";
+import { CartId } from "@repo/commerce/domain/cart";
 import { currentCartOperationFailure } from "@repo/commerce/domain/cart-errors";
-import { CartStore } from "@repo/commerce/domain/cart-snapshot";
 import {
   AnonymousCommerceContextRequest,
   type AuthUserId,
@@ -24,7 +23,6 @@ import { toCheckoutApiState } from "@repo/commerce/http/checkout-api-state";
 import {
   ANONYMOUS_CART_COOKIE_NAME,
   encodeAnonymousCartCookie,
-  getAnonymousCartCookieContextByLocale,
   getAnonymousCartIdFromCookieValue,
   makeAnonymousCartCookie,
 } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
@@ -41,6 +39,7 @@ import { Carts } from "@repo/commerce/services/carts";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
+import { resolveStore } from "@repo/commerce/store";
 import { Duration, Effect, Layer, Option, Ref, Schema } from "effect";
 import {
   HttpEffect,
@@ -355,12 +354,7 @@ const makeHttpCurrentCartBoundary = (
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const locale = headers["x-context-locale"];
-    const cookieContext = getAnonymousCartCookieContextByLocale(locale);
-    const store = new CartStore({
-      locale,
-      storeKey: StoreKey.make(cookieContext.storeKey),
-      currency: cookieContext.currency,
-    });
+    const store = resolveStore({ locale });
 
     if (authUserId !== null) {
       return {
@@ -411,7 +405,7 @@ const makeHttpCurrentCartBoundary = (
 
     const cookieCartId = getAnonymousCartIdFromCookieValue(
       request.cookies[ANONYMOUS_CART_COOKIE_NAME],
-      cookieContext
+      store
     );
     const anonymousCartId =
       cookieCartId === null
@@ -423,7 +417,7 @@ const makeHttpCurrentCartBoundary = (
           Effect.try({
             try: () =>
               encodeAnonymousCartCookie(
-                makeAnonymousCartCookie({ cartId, context: cookieContext })
+                makeAnonymousCartCookie({ cartId, store })
               ),
             catch: currentCartOperationFailure,
           }).pipe(

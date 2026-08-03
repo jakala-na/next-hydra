@@ -1,6 +1,6 @@
 // biome-ignore-all lint/suspicious/noMisplacedAssertion: Assertions run inside Effect programs executed by the test helper.
 
-import { StoreKey } from "@repo/commerce/domain/cart";
+import { StoreKey } from "@repo/commerce/store";
 import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
 import { RejectedDecision } from "@repo/registration/domain/approval";
 import {

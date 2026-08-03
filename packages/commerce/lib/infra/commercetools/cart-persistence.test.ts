@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AddressBookReference } from "../../../domain/address-book";
-import { CartId, StoreKey } from "../../../domain/cart";
+import { CartId } from "../../../domain/cart";
 import {
   type CheckoutContact,
   type CheckoutDeliveryDetails,
-  CheckoutLocale,
   CountryCode,
   StorefrontAnonymousCheckoutScope,
   StorefrontCustomerCheckoutScope,
@@ -14,6 +13,7 @@ import {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "../../../domain/commerce-account";
+import { CommerceLocale, StoreKey } from "../../../store";
 import type { Cart } from "../../types";
 import { domainError } from "../../utils/errors";
 import {
@@ -108,7 +108,7 @@ const activeCart = {
 
 const customerScope = new StorefrontCustomerCheckoutScope({
   channel: "storefrontCustomer",
-  locale: CheckoutLocale.make("en-US"),
+  locale: CommerceLocale.make("en-US"),
   customerId: CommerceCustomerId.make("customer-1"),
   businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
   businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
@@ -116,7 +116,7 @@ const customerScope = new StorefrontCustomerCheckoutScope({
 
 const anonymousScope = new StorefrontAnonymousCheckoutScope({
   channel: "storefrontAnonymous",
-  locale: CheckoutLocale.make("en-US"),
+  locale: CommerceLocale.make("en-US"),
   anonymousCartId: CartId.make("cart-1"),
 });
 

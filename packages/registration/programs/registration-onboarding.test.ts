@@ -1,5 +1,4 @@
 import { describe, expect, it } from "@effect/vitest";
-import { StoreKey } from "@repo/commerce/domain/cart";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
@@ -9,6 +8,7 @@ import {
   CommerceAccountError,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
+import { StoreKey } from "@repo/commerce/store";
 import { Effect, Exit, Layer, Redacted } from "effect";
 import { RegistrationReviewerActor } from "../domain/actors";
 import {

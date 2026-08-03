@@ -1,15 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
-import {
-  CartId,
-  LineItemId,
-  ProductId,
-  StoreKey,
-  VariantId,
-} from "../../domain/cart";
+import { CartId, LineItemId, ProductId, VariantId } from "../../domain/cart";
 import { CartWriteConflict } from "../../domain/cart-errors";
-import { type CartSnapshot, CartStore } from "../../domain/cart-snapshot";
-import { CheckoutLocale, CountryCode } from "../../domain/checkout";
+import type { CartSnapshot } from "../../domain/cart-snapshot";
+import { CountryCode } from "../../domain/checkout";
 import { AnonymousCommerceContextRequest } from "../../domain/commerce-request-context";
 import { AddressBook } from "../../services/address-book";
 import { CartPolicies } from "../../services/cart-policies";
@@ -17,12 +11,13 @@ import { Carts } from "../../services/carts";
 import { CommerceAccounts } from "../../services/commerce-accounts";
 import { CommerceContext } from "../../services/commerce-context";
 import { CurrentCart } from "../../services/current-cart";
+import { CommerceLocale, Store, StoreKey } from "../../store";
 import type { CurrentCartCookie } from "../current-cart/cookie";
 import { CheckoutPolicies } from "./checkout-policy";
 import { CheckoutSession } from "./checkout-session";
 
-const store = new CartStore({
-  locale: CheckoutLocale.make("en-US"),
+const store = new Store({
+  locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("default-store"),
   currency: "USD",
 });

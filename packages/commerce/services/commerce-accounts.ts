@@ -1,5 +1,4 @@
 import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect";
-import type { StoreKey } from "../domain/cart";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
@@ -13,6 +12,7 @@ import {
   CommerceCustomerProfile,
 } from "../domain/commerce-account";
 import { AuthUserId } from "../domain/commerce-request-context";
+import type { StoreKey } from "../store";
 
 type RegistrationLikeTag =
   | "AwaitingApprovalRegistration"

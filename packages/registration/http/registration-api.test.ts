@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { StoreKey } from "@repo/commerce/domain/cart";
+import { StoreKey } from "@repo/commerce/store";
 import { Effect, Redacted, Schema } from "effect";
 import { RegistrationReviewerActor } from "../domain/actors";
 import {

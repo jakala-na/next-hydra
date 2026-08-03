@@ -12,13 +12,13 @@ import {
   CheckoutCartReference,
   CheckoutContactInput,
   CheckoutDeliveryDetailsInput,
-  CheckoutLocale,
   CheckoutState,
   CheckoutViolation,
 } from "../domain/checkout";
 import { CommerceBusinessUnitId } from "../domain/commerce-account";
 import type { CheckoutSession } from "../lib/checkout/checkout-session";
 import type { AddressBook } from "../services/address-book";
+import { CommerceLocale } from "../store";
 
 export const CheckoutApiViolation = Schema.Struct({
   ...CheckoutViolation.fields,
@@ -92,7 +92,7 @@ export class CheckoutApiConflict extends Schema.TaggedErrorClass<CheckoutApiConf
 export class CheckoutRequestHeaders extends Schema.Class<CheckoutRequestHeaders>(
   "CheckoutRequestHeaders"
 )({
-  "x-context-locale": CheckoutLocale,
+  "x-context-locale": CommerceLocale,
   "x-context-anonymous-cart-id": Schema.optional(CartId),
   "x-context-business-unit-id": Schema.optional(CommerceBusinessUnitId),
 }) {}

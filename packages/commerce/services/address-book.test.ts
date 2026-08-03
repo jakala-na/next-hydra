@@ -2,9 +2,6 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { CountryCode } from "../domain/address";
 import { AddressBookEntry, AddressBookReference } from "../domain/address-book";
-import { StoreKey } from "../domain/cart";
-import { CartStore } from "../domain/cart-snapshot";
-import { CheckoutLocale } from "../domain/checkout";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -18,6 +15,7 @@ import {
   CustomerCommerceContextRequest,
   CustomerCommercePrincipal,
 } from "../domain/commerce-request-context";
+import { CommerceLocale, Store, StoreKey } from "../store";
 import { AddressBook } from "./address-book";
 import { CommerceAccounts } from "./commerce-accounts";
 import { CommerceContext } from "./commerce-context";
@@ -40,8 +38,8 @@ const officeAddress = {
 };
 
 const OVERLONG_UNICODE_REFERENCE_LENGTH = 80;
-const store = new CartStore({
-  locale: CheckoutLocale.make("en-US"),
+const store = new Store({
+  locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("default-store"),
   currency: "USD",
 });

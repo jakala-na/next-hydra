@@ -1,4 +1,5 @@
-import type { CurrencyCode, Locale } from "@repo/i18n/types";
+import type { Locale } from "@repo/i18n/types";
+import type { CurrencyCode } from "../../domain/money";
 import type { FragmentOf } from "../../graphql";
 import { graphql } from "../../graphql";
 import { graphqlClient } from "../client/graphql-client";
