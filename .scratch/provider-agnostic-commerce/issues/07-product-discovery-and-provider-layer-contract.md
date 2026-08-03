@@ -21,9 +21,9 @@ Do not expose a generic provider query language or accept the current raw Commer
 - The first contract is a bounded collection read, not a browse/search API. It has no offset, cursor, total count, facets, or caller-selected ordering. A future PLP or search experience gets its own input and paged result instead of widening this method around Commercetools Product Projection Search.
 - One `ProductDiscoveryFailure` tagged error carries the failed operation and underlying cause. Do not create separate query, Store, channel, selection, mapping, or GraphQL error types at the Service boundary. Product absence remains `Option.none`; invalid boundary input is rejected by its Effect Schema before invoking the Service.
 - The Commercetools implementation lives in `@repo/commerce-commercetools/product` and publicly exports `productDiscoveryLayer`. GraphQL documents, Product Projection fragments, Store and Product Selection resolution, pricing and inventory channel mechanics, generated provider types, response inspection, decoding, and mapping remain private to that module.
-- Product Card and Product Detail are decoded directly into the schemas fixed in ticket 03 after applying the Product Assortment rules fixed in ticket 04. Product Card price and saleability are calculated from the same eligible Variants used to admit the Product; the current all-Variant aggregate bug is not preserved.
+- Product Card and Product Detail are decoded directly into the schemas fixed in ticket 03 after applying the Product Catalog rules fixed in ticket 04. Product Card price and saleability are calculated from the same eligible Variants used to admit the Product; the current all-Variant aggregate bug is not preserved.
 - A malformed exact Product Detail result fails the lookup so a data defect is not disguised as a 404. A malformed Product Card is logged with provider Product identity and omitted from the collection so one bad catalog entry does not remove an otherwise valid block. Request/query failures still fail the complete collection operation.
-- Core owns a co-located `ProductDiscovery.testLayer` for orchestration and boundary tests. Provider query, mapping, assortment, pricing, inventory, and malformed-projection tests remain in the Commercetools product module; no exported generic contract-test framework is added.
+- Core owns a co-located `ProductDiscovery.testLayer` for orchestration and boundary tests. Provider query, mapping, catalog, pricing, inventory, and malformed-projection tests remain in the Commercetools product module; no exported generic contract-test framework is added.
 
 ## Answer
 
@@ -76,12 +76,12 @@ The exact Effect Schema combinator used to express a positive integer should fol
 
 `listCards` supports the actual Product Collection call sites:
 
-- without `categoryId`, return an all-products collection within the current Product Assortment;
+- without `categoryId`, return an all-products collection within the current Product Catalog;
 - with `categoryId`, restrict to Products directly assigned to that Category; descendant-category expansion is not promised because the current behavior does not implement it;
 - with `excludeProductId`, omit that Product before returning the bounded result; and
 - return Products ordered by localized title ascending for the current Commerce Context locale.
 
-`limit` is the maximum number of returned valid cards, not a pagination contract or guarantee that the result is filled. Fewer results are valid when the assortment, category, exclusion, or malformed-entry omission leaves fewer eligible Products. The presentation layer keeps its current default of three; the Service does not own that UI default.
+`limit` is the maximum number of returned valid cards, not a pagination contract or guarantee that the result is filled. Fewer results are valid when the catalog, category, exclusion, or malformed-entry omission leaves fewer eligible Products. The presentation layer keeps its current default of three; the Service does not own that UI default.
 
 ### Failure and decoding behavior
 
@@ -99,7 +99,7 @@ This single error is the boundary for provider Store lookup, GraphQL/network fai
 Absence is not failure:
 
 - no localized slug match -> `Option.none`;
-- Product excluded from the Store assortment -> `Option.none` or omitted card;
+- Product excluded from the Store catalog -> `Option.none` or omitted card;
 - no Store-eligible Variant -> `Option.none` or omitted card;
 - empty category/all-products result -> `[]`.
 
@@ -119,7 +119,7 @@ private:
   queries.ts
   product-detail.ts
   product-card.ts
-  assortment.ts
+  catalog.ts
   price.ts
   availability.ts
   attributes.ts
@@ -190,7 +190,7 @@ Commercetools product-module tests cover:
 - exact slug, optional Category, excluded Product, limit, and title ordering query behavior;
 - Product Selection inclusion, exclusion, and no-assignment behavior;
 - Product Card aggregates derived only from eligible Variants;
-- Product Detail Default Variant selection after assortment filtering;
+- Product Detail Default Variant selection after catalog filtering;
 - regular, discounted, quote-only, and buyer-segment-selected prices;
 - inventory summed across the configured Store supply channels;
 - typed generated Product Attribute decoding;

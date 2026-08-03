@@ -72,9 +72,9 @@ _Avoid_: Descriptive Product Attribute, provider option type
 A catalog classification used to discover or contextualize Products.
 _Avoid_: Provider Category payload, CMS Category field
 
-**Product Assortment**:
+**Product Catalog**:
 The Products and Product Variants eligible for discovery and purchase in a Store.
-_Avoid_: Product Selection, sales channel, provider assortment payload
+_Avoid_: Product Selection, sales channel, provider catalog payload
 
 **Product Type**:
 A catalog schema that identifies which typed Product Attributes are available for a Product's Variants.
@@ -318,7 +318,7 @@ _Avoid_: Review checkout, order summary
 - A **Product Option** defines how a buyer distinguishes Product Variants; each Product Variant identifies its value for every Product Option.
 - A **Product Attribute** may describe a Variant without participating in Variant selection.
 - A **Product Detail** identifies its **Product Type**, and every included Product Variant's Attributes conform to that Product Type's schema.
-- Product Card and Product Detail contain only Products and Product Variants in the current Store's **Product Assortment**; Product Card price and availability are derived only from those eligible Variants.
+- Product Card and Product Detail contain only Products and Product Variants in the current Store's **Product Catalog**; Product Card price and availability are derived only from those eligible Variants.
 - A **Current Cart** is selected from the buyer's current Store and, for B2B activity, Business Unit Buying Context rather than by treating an arbitrary Cart ID as authority.
 - A customer identity authorizes access to profile and associate capabilities; it does not own the **Cart**.
 - An anonymous **Cart** belongs to its Store and has no **Buying Context** Business Unit.

@@ -337,7 +337,7 @@ The only temporary bridge allowed during migration is an explicit `@repo/commerc
 
 ## Acceptance criteria
 
-- Existing Cart, Checkout, Buying Context, Product assortment, localized ordering, price, availability, Registration, Versioned Store, and CLI behavior is preserved.
+- Existing Cart, Checkout, Buying Context, Product Catalog, localized ordering, price, availability, Registration, Versioned Store, and CLI behavior is preserved.
 - Core package tests and typechecking run without provider imports or configuration.
 - Provider tests exercise each Layer through its owning Service contract.
 - Web contains package-owned Cart and Checkout actions and Product/CMS Server Components through the exact Layer alias.

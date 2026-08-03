@@ -13,6 +13,7 @@
     "./cart": "./cart/index.ts",
     "./commerce-accounts": "./commerce-accounts/index.ts",
     "./address-book": "./address-book/index.ts",
+    "./product": "./product/index.ts",
     "./versioned-store": "./versioned-store/index.ts",
     "./keys": "./keys.ts",
     "./cli": "./cli/index.ts"
@@ -23,6 +24,7 @@
     "zod": "^3.25.28"
   },
   "devDependencies": {
+    "@effect/vitest": "catalog:",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "effect": "catalog:",

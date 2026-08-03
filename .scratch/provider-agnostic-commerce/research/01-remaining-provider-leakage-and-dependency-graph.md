@@ -4,7 +4,7 @@
 
 `CurrentCart`, `Carts`, `CommerceContext`, `CommerceAccounts`, `AddressBook`, and `CheckoutSession` now expose provider-agnostic domain values and Effect programs. That is a real Service seam, but it is not yet a provider-agnostic package: `@repo/commerce` still owns the Commercetools Layers, provider clients, GraphQL schema, provider configuration, provider persistence shapes, generators, migrations, and CLI.
 
-Product Catalog and Discovery is the largest remaining runtime seam that is both provider-shaped and shallow. The current two caller-facing operations are implemented by a Promise singleton that coordinates Store lookup, channel selection, Commercetools Product Projection Search, Product Selection filtering, provider fragment decoding, and UI DTO mapping. Product Catalog/Discovery is therefore the strongest next behavior slice, provided Store and assortment resolution are included rather than passed through as channel IDs.
+Product Catalog and Discovery is the largest remaining runtime seam that is both provider-shaped and shallow. The current two caller-facing operations are implemented by a Promise singleton that coordinates Store lookup, channel selection, Commercetools Product Projection Search, Product Selection filtering, provider fragment decoding, and UI DTO mapping. Product Catalog/Discovery is therefore the strongest next behavior slice, provided Store catalog resolution is included rather than passed through as channel IDs.
 
 The physical two-package split should remain last. Existing Commercetools code imports provider-neutral domain and Service modules, but also imports legacy provider shapes and helpers scattered through `lib/product`, `lib/store`, `lib/cart`, `lib/custom-fields`, and `lib/types.ts`. Moving directories first would either create a dependency cycle or cause `@repo/commerce` to retain provider dependencies under less obvious names.
 
@@ -78,7 +78,7 @@ The future core package should own schema-backed Product, purchasable Variant, e
 
 Important extraction constraint: the Commercetools Cart implementation also imports product attribute and price mappers from `lib/product`. Those shared provider decoders must move into the provider package or be separated into provider-private Cart and Catalog projections before `@repo/commerce` can drop GraphQL types.
 
-### 2. Store, market, and assortment resolution
+### 2. Store, market, and catalog resolution
 
 [`store.service.ts`](../../../packages/commerce/lib/store/store.service.ts) and [`store.repo.ts`](../../../packages/commerce/lib/store/store.repo.ts) currently mix universal Store selection with Commercetools mechanics. The public `StoreContext` exposes Store ID, first distribution channel key/ID, and all supply-channel IDs. Its callers include Product Discovery, `inStoreAction`, the Web Current Cart boundary, the Business Unit switcher, and the Commercetools Carts Layer.
 
@@ -153,7 +153,7 @@ The current Commerce README and application configuration docs describe `@repo/c
 
 ## Ranked extraction candidates
 
-1. **Product Catalog model plus Store/assortment semantics.** Resolve the core Product projections and provider-neutral Store inputs first. This removes the vocabulary leaks that would otherwise infect the Service contract.
+1. **Product Catalog model plus Store context semantics.** Resolve the core Product projections and provider-neutral Store inputs first. This removes the vocabulary leaks that would otherwise infect the Service contract.
 2. **Product Discovery Effect Service plus Commercetools Layer.** Replace the Promise singleton, raw filter input, Store repository choreography, fragments, Product Selection filtering, and DTO mappers as one behavior-preserving slice.
 3. **Provider infrastructure consolidation.** Move the SDK/GraphQL clients, environment configuration, existing Cart/Account/Address Book Layers, legacy provider Cart persistence shapes, custom-field action builders, and shared provider decoders behind a single provider-package dependency direction.
 4. **Provider tooling and schema assets.** Move GraphQL generation, product/custom-type schemas, type generation, migrations, and Commerce CLI commands after runtime dependencies no longer point back into their old locations.
@@ -170,4 +170,4 @@ React/Next integration ownership is intentionally not ranked as a provider extra
 - Untangle the Commercetools Cart Layer from `storeService`, product mappers, `lib/types.ts`, and external custom-field builders before or during provider infrastructure consolidation.
 - Move clients/configuration with the provider Layers that use them so no temporary provider client Service leaks into core.
 - Move schema/typegen/migration/CLI assets only after their runtime output ownership is known, especially Product Attributes that cross from provider decoding into core models.
-- Keep application composition roots operational throughout: each incremental commit must provide the same selected Layers and preserve current Store, assortment, pricing, inventory, Cart, Checkout, and Registration behavior.
+- Keep application composition roots operational throughout: each incremental commit must provide the same selected Layers and preserve current Store, Product Catalog, pricing, inventory, Cart, Checkout, and Registration behavior.
