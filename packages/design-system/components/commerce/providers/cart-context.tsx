@@ -3,9 +3,9 @@
 import type {
   AddToCartAction,
   AddToCartInput,
-} from "@repo/commerce/contracts/actions/add-to-cart";
-import type { ChangeCartItemsQuantityAction } from "@repo/commerce/contracts/actions/change-cart-items-quantity";
-import type { RemoveCartItemAction } from "@repo/commerce/contracts/actions/remove-cart-item";
+} from "@repo/commerce/cart/add-to-cart";
+import type { ChangeCartItemsQuantityAction } from "@repo/commerce/cart/change-cart-items-quantity";
+import type { RemoveCartItemAction } from "@repo/commerce/cart/remove-cart-item";
 import type {
   CartLineItem,
   CurrentCartState,

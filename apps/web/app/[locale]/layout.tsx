@@ -1,9 +1,6 @@
 import { LivePreview } from "@repo/cms/components/live-preview";
 import { getNavigation } from "@repo/cms/lib/navigation";
-import { commerceRequestLayer } from "@repo/commerce/commerce-context/request";
-import { domainError, Err, Ok } from "@repo/commerce/lib/utils/errors";
-import { CurrentCart } from "@repo/commerce/services/current-cart";
-import { CartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
+import { CommerceCartProvider } from "@repo/commerce/cart";
 import { CartButtonClient } from "@repo/design-system/components/layout/cart-button";
 import { MobileMenu } from "@repo/design-system/components/layout/mobile-menu";
 import { Navigation } from "@repo/design-system/components/layout/navigation";
@@ -16,52 +13,12 @@ import {
   setRequestLocale,
 } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
-import type { Locale } from "@repo/i18n/types";
-import { Effect, Option } from "effect";
 import { ShoppingCart } from "lucide-react";
 import { draftMode, headers } from "next/headers";
-import { notFound, unstable_rethrow } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AccountMenuClient } from "@/components/layout/account-menu-client";
 import { BusinessUnitSwitcher } from "@/components/layout/business-unit-switcher";
-import {
-  addToCart,
-  changeCartItemsQuantity,
-  removeCartItem,
-} from "./cart-actions";
-
-async function getCart(locale: Locale) {
-  try {
-    const layer = await commerceRequestLayer(locale);
-    const result = await Effect.runPromise(
-      CurrentCart.get().pipe(
-        Effect.provide(layer),
-        Effect.tapError((error) =>
-          Effect.logError("Failed to read Current Cart", error).pipe(
-            Effect.annotateLogs({ operation: "currentCart.get" })
-          )
-        ),
-        Effect.result
-      )
-    );
-    if (result._tag === "Failure") {
-      return Err(domainError<object>("UNKNOWN", "Failed to read Current Cart"));
-    }
-    return Option.match(result.success, {
-      onNone: () =>
-        Err(domainError<object>("NOT_FOUND", "Current Cart not found")),
-      onSome: Ok,
-    });
-  } catch (cause) {
-    unstable_rethrow(cause);
-    await Effect.runPromise(
-      Effect.logError("Failed to read Current Cart", cause).pipe(
-        Effect.annotateLogs({ operation: "currentCart.get" })
-      )
-    );
-    return Err(domainError<object>("UNKNOWN", "Failed to read Current Cart"));
-  }
-}
 
 function CartButtonSkeleton() {
   return (
@@ -90,19 +47,9 @@ export default async function RootLayout({
     ? ((await headers()).get("x-live-preview") ?? "")
     : "";
   const navigation = await getNavigation(locale, livePreviewHash);
-  // Start cart loading here and pass the promise down so leaf nodes can resolve it later.
-  const cartPromise = getCart(locale);
-
   return (
     <NextIntlClientProvider>
-      <CartProvider
-        cartPromise={cartPromise}
-        actions={{
-          addToCart,
-          changeCartItemsQuantity,
-          removeCartItem,
-        }}
-      >
+      <CommerceCartProvider locale={locale}>
         <SiteHeader
           MainNavigation={
             <Navigation navigationItems={navigation.navigationItems} />
@@ -133,7 +80,7 @@ export default async function RootLayout({
         />
         {children}
         <LivePreview isEnabled={isDraftModeEnabled} />
-      </CartProvider>
+      </CommerceCartProvider>
     </NextIntlClientProvider>
   );
 }

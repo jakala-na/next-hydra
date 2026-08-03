@@ -1,8 +1,8 @@
-import { CartId } from "@repo/commerce/domain/cart";
-import { CartWriteOutcomeUnknown } from "@repo/commerce/domain/cart-errors";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
-import { toCurrentCartMutationData } from "./current-cart-action-result";
+import { CartId } from "../domain/cart";
+import { CartWriteOutcomeUnknown } from "../domain/cart-errors";
+import { toCurrentCartMutationData } from "./action-result";
 
 describe("Current Cart storefront mutation results", () => {
   it("returns the Current Cart state from a successful mutation", async () => {
