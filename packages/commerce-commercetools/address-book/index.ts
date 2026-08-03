@@ -1,1 +1,1 @@
-export { layerCommercetoolsAddressBook as addressBookLayer } from "@repo/commerce/lib/infra/commercetools/address-book";
+export { addressBookLayer } from "./address-book";

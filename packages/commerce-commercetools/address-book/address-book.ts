@@ -4,7 +4,6 @@ import type {
   ByProjectKeyRequestBuilder,
   Address as CommercetoolsAddress,
 } from "@commercetools/platform-sdk";
-import { Effect, Layer, Option, Schema } from "effect";
 import {
   AddressBookAccessDenied,
   AddressBookEntry,
@@ -15,16 +14,18 @@ import {
   type AddressType,
   normalizeAddressTypes,
   type SaveAddressBookEntryInput,
-} from "../../../domain/address-book";
-import type { CustomerCommercePrincipal } from "../../../domain/commerce-request-context";
-import { AddressBook } from "../../../services/address-book";
-import { CommerceContext } from "../../../services/commerce-context";
-import { apiRoot as defaultApiRoot } from "../../client/api-root";
+} from "@repo/commerce/domain/address-book";
+import type { CustomerCommercePrincipal } from "@repo/commerce/domain/commerce-request-context";
+import { AddressBook } from "@repo/commerce/services/address-book";
+import { CommerceContext } from "@repo/commerce/services/commerce-context";
+import { Effect, Layer, Option, Schema } from "effect";
+import { commercetoolsClientsLayer } from "../client/layers";
+import { CommercetoolsRestClient } from "../client/rest-client";
+import { isConcurrentModification } from "../client/versioned-write";
 import {
   fromCommercetoolsAddressKey,
   toCommercetoolsAddressKey,
 } from "./address-book-key";
-import { isConcurrentModification } from "./versioned-write";
 
 const ACCESS_DENIED_STATUS_CODE = 403;
 const NOT_FOUND_STATUS_CODE = 404;
@@ -361,58 +362,58 @@ const saveAbsentEntry = (
     );
   });
 
-export const layerCommercetoolsAddressBookFor = (
-  apiRoot: ByProjectKeyRequestBuilder
-) =>
-  Layer.effect(
-    AddressBook,
-    Effect.gen(function* () {
-      const commerceContext = yield* CommerceContext;
+const addressBookImplementationLayer = Layer.effect(
+  AddressBook,
+  Effect.gen(function* () {
+    const commerceContext = yield* CommerceContext;
+    const { apiRoot } = yield* CommercetoolsRestClient;
 
-      return AddressBook.of({
-        list: Effect.fn("CommercetoolsAddressBook.list")(function* () {
-          const principal = yield* commerceContext.customerPrincipal();
-          const businessUnit = yield* readBusinessUnit(
-            apiRoot,
-            principal,
-            "list"
-          );
-          return yield* listEntries(businessUnit, "list");
-        }),
-        get: Effect.fn("CommercetoolsAddressBook.get")(function* (reference) {
-          const principal = yield* commerceContext.customerPrincipal();
-          const businessUnit = yield* readBusinessUnit(
-            apiRoot,
-            principal,
-            "get"
-          );
-          return yield* getEntry(businessUnit, reference, "get");
-        }),
-        save: Effect.fn("CommercetoolsAddressBook.save")(function* (input) {
-          const principal = yield* commerceContext.customerPrincipal();
-          const current = yield* readBusinessUnit(apiRoot, principal, "save");
-          const existing = findAddress(current, input.reference);
+    return AddressBook.of({
+      list: Effect.fn("CommercetoolsAddressBook.list")(function* () {
+        const principal = yield* commerceContext.customerPrincipal();
+        const businessUnit = yield* readBusinessUnit(
+          apiRoot,
+          principal,
+          "list"
+        );
+        return yield* listEntries(businessUnit, "list");
+      }),
+      get: Effect.fn("CommercetoolsAddressBook.get")(function* (reference) {
+        const principal = yield* commerceContext.customerPrincipal();
+        const businessUnit = yield* readBusinessUnit(apiRoot, principal, "get");
+        return yield* getEntry(businessUnit, reference, "get");
+      }),
+      save: Effect.fn("CommercetoolsAddressBook.save")(function* (input) {
+        const principal = yield* commerceContext.customerPrincipal();
+        const current = yield* readBusinessUnit(apiRoot, principal, "save");
+        const existing = findAddress(current, input.reference);
 
-          if (existing) {
-            return yield* toAddressBookEntry(
-              current,
-              existing,
-              input.reference,
-              "save"
-            );
-          }
-
-          return yield* saveAbsentEntry(
-            apiRoot,
-            principal,
+        if (existing) {
+          return yield* toAddressBookEntry(
             current,
-            input,
-            MAX_SAVE_RETRIES
+            existing,
+            input.reference,
+            "save"
           );
-        }),
-      });
-    })
+        }
+
+        return yield* saveAbsentEntry(
+          apiRoot,
+          principal,
+          current,
+          input,
+          MAX_SAVE_RETRIES
+        );
+      }),
+    });
+  })
+);
+
+export const addressBookLayerFrom = (apiRoot: ByProjectKeyRequestBuilder) =>
+  addressBookImplementationLayer.pipe(
+    Layer.provide(CommercetoolsRestClient.testLayer(apiRoot))
   );
 
-export const layerCommercetoolsAddressBook =
-  layerCommercetoolsAddressBookFor(defaultApiRoot);
+export const addressBookLayer = addressBookImplementationLayer.pipe(
+  Layer.provide(commercetoolsClientsLayer)
+);

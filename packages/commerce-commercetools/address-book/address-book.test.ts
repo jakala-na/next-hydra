@@ -6,35 +6,34 @@ import type {
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { vi } from "vitest";
-import { CountryCode } from "../../../domain/address";
+
+vi.mock("server-only", () => ({}));
+
+import { CountryCode } from "@repo/commerce/domain/address";
 import {
   AddressBookEntryNotFound,
   AddressBookReference,
-} from "../../../domain/address-book";
+} from "@repo/commerce/domain/address-book";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
   CommerceBusinessUnitLabel,
   CommerceBusinessUnitMembership,
   CommerceCustomerId,
-} from "../../../domain/commerce-account";
+} from "@repo/commerce/domain/commerce-account";
 import {
   AuthUserId,
   CustomerCommerceContextRequest,
   CustomerCommercePrincipal,
-} from "../../../domain/commerce-request-context";
-import { AddressBook } from "../../../services/address-book";
-import { CommerceAccounts } from "../../../services/commerce-accounts";
-import { CommerceContext } from "../../../services/commerce-context";
-import { CommerceLocale, Store, StoreKey } from "../../../store";
+} from "@repo/commerce/domain/commerce-request-context";
+import { AddressBook } from "@repo/commerce/services/address-book";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import { CommerceContext } from "@repo/commerce/services/commerce-context";
+import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
 import {
-  layerCommercetoolsAddressBookFor,
+  addressBookLayerFrom,
   toCommercetoolsAddressKey,
 } from "./address-book";
-
-vi.mock("../../client/api-root", () => ({
-  apiRoot: {},
-}));
 
 const buyer = new CustomerCommercePrincipal({
   authUserId: AuthUserId.make("auth-user-1"),
@@ -77,9 +76,7 @@ const commerceContext = CommerceContext.layer(
 );
 
 const addressBookLayerFor = (apiRoot: ByProjectKeyRequestBuilder) =>
-  layerCommercetoolsAddressBookFor(apiRoot).pipe(
-    Layer.provide(commerceContext)
-  );
+  addressBookLayerFrom(apiRoot).pipe(Layer.provide(commerceContext));
 
 const address = {
   addressLine1: "100 Main Street",
@@ -142,7 +139,7 @@ const apiRootForBusinessUnit = () => {
   };
 };
 
-describe("layerCommercetoolsAddressBookFor", () => {
+describe("addressBookLayer", () => {
   it.effect(
     "lists canonical entries through the verified associate scope",
     () =>

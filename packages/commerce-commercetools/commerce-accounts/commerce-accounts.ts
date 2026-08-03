@@ -21,7 +21,6 @@ import {
   CommerceCustomerProfile,
 } from "@repo/commerce/domain/commerce-account";
 import type { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
-import { toCommercetoolsAddressKey } from "@repo/commerce/lib/infra/commercetools/address-book-key";
 import {
   type AcceptedCommerceIdentity,
   CommerceAccountError,
@@ -33,6 +32,7 @@ import {
 } from "@repo/commerce/services/commerce-accounts";
 import type { StoreKey } from "@repo/commerce/store";
 import { Effect, Layer, Redacted, Schema } from "effect";
+import { toCommercetoolsAddressKey } from "../address-book/address-book-key";
 import { commercetoolsClientsLayer } from "../client/layers";
 import { CommercetoolsRestClient } from "../client/rest-client";
 import {

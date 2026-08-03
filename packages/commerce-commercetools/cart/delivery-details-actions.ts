@@ -1,6 +1,6 @@
 import type { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
 import { checkoutDeliveryDetailsEqual } from "@repo/commerce/lib/checkout/delivery-details-equality";
-import { toCommercetoolsAddressKey } from "@repo/commerce/lib/infra/commercetools/address-book-key";
+import { toCommercetoolsAddressKey } from "../address-book/address-book-key";
 import type { CommercetoolsCart } from "./provider-cart";
 
 type SaveCheckoutDeliveryDetailsAction = {

@@ -11,7 +11,6 @@ import {
   type StorefrontCustomerCheckoutScope,
 } from "@repo/commerce/domain/checkout";
 import { CommerceBusinessUnitId } from "@repo/commerce/domain/commerce-account";
-import { fromCommercetoolsAddressKey } from "@repo/commerce/lib/infra/commercetools/address-book-key";
 import {
   type ActionResult,
   domainError,
@@ -22,6 +21,7 @@ import type { CurrencyCode, Locale } from "@repo/i18n/types";
 import type { Client } from "@urql/core";
 import { Effect, Option, Schema } from "effect";
 import type { FragmentOf } from "gql.tada";
+import { fromCommercetoolsAddressKey } from "../address-book/address-book-key";
 import {
   type CommercetoolsConcurrentModification,
   commercetoolsFailureCause,

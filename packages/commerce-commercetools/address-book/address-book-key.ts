@@ -1,8 +1,8 @@
-import { Option, Schema } from "effect";
 import {
   AddressBookReference,
   type AddressBookReference as AddressBookReferenceValue,
-} from "../../../domain/address-book";
+} from "@repo/commerce/domain/address-book";
+import { Option, Schema } from "effect";
 
 const ADDRESS_KEY_PREFIX = "address-book-";
 
