@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "test": "vitest run",
     "typecheck": "tsgo --noEmit",
     "generate": "node --experimental-transform-types scripts/gql-sync.ts"
   },
@@ -13,9 +14,12 @@
     "@contentstack/json-rte-serializer": "^3.0.4",
     "@contentstack/live-preview-utils": "^3.2.3",
     "@gql.tada/cli-utils": "^1.6.3",
+    "@repo/commerce": "workspace:*",
+    "@repo/i18n": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
     "@urql/core": "^5.1.2",
     "dotenv": "^17.0.0",
+    "effect": "catalog:",
     "gql.tada": "^1.8.10",
     "html-react-parser": "^5.2.7",
     "lodash.memoize": "^4.1.2",
@@ -29,6 +33,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "next": "catalog:"
+    "next": "catalog:",
+    "vitest": "^3.1.4"
   }
 }

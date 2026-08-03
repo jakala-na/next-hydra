@@ -1,5 +1,7 @@
 import type { LivePreviewHelper } from "@repo/cms/lib/utils/live-preview-helper";
+import { CategoryId } from "@repo/commerce/product";
 import type { Locale } from "@repo/i18n";
+import { Schema } from "effect";
 
 export type Maybe<T> = T | null;
 
@@ -17,39 +19,8 @@ export type ComponentBaseProps = {
   livePreviewHelper?: LivePreviewHelper;
 };
 
-/** Custom Field - Commercetools Category */
-export type CommercetoolsCategoryField = {
-  data: Array<{
-    id: string;
-    version: number;
-    versionModifiedAt: string;
-    lastMessageSequenceNumber: number;
-    createdAt: string;
-    lastModifiedAt: string;
-    lastModifiedBy: {
-      isPlatformClient: boolean;
-      user: {
-        typeId: string;
-        id: string;
-      };
-    };
-    createdBy: {
-      isPlatformClient: boolean;
-      user: {
-        typeId: string;
-        id: string;
-      };
-    };
-    key: string;
-    name: Record<string, string>;
-    slug: Record<string, string>;
-    ancestors: unknown[];
-    orderHint: string;
-    assets: unknown[];
-    cs_metadata: {
-      multiConfigName: string;
-      isConfigDeleted: boolean;
-    };
-  }>;
-  type: string;
-};
+/** CMS custom field containing Commerce category references. */
+export const CommerceCategoryField = Schema.Struct({
+  data: Schema.Array(Schema.Struct({ id: CategoryId })),
+});
+export type CommerceCategoryField = typeof CommerceCategoryField.Type;

@@ -1,7 +1,7 @@
 import {
   generateMetadataHandler,
   ProductDetailPage,
-} from "@repo/commerce/components/pages/product-detail";
+} from "@repo/commerce/product/product-detail";
 import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import type { Metadata } from "next";

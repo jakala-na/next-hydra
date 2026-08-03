@@ -26,7 +26,8 @@ interface QuoteRequestDialogProps {
   onOpenChange: (open: boolean) => void;
   product: string;
   variant: string;
-  price: number;
+  price?: number;
+  currencyCode?: string;
 }
 
 const SUBMISSION_DELAY = 2000;
@@ -37,6 +38,7 @@ export function QuoteRequestDialog({
   product,
   variant,
   price,
+  currencyCode,
 }: QuoteRequestDialogProps) {
   const [submitted, setSubmitted] = useState(false);
 
@@ -65,6 +67,7 @@ export function QuoteRequestDialog({
           <div className="space-y-4 py-12 text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <svg
+                aria-hidden="true"
                 className="h-8 w-8 text-primary"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -89,13 +92,15 @@ export function QuoteRequestDialog({
             <div className="space-y-2 rounded-lg bg-muted p-4">
               <p className="font-semibold">{product}</p>
               <p className="text-muted-foreground text-sm">{variant}</p>
-              <p className="font-bold text-lg">
-                {new Intl.NumberFormat("en-US", {
-                  style: "currency",
-                  currency: "USD",
-                  minimumFractionDigits: 0,
-                }).format(price)}
-              </p>
+              {price !== undefined && currencyCode !== undefined && (
+                <p className="font-bold text-lg">
+                  {new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: currencyCode,
+                    minimumFractionDigits: 0,
+                  }).format(price)}
+                </p>
+              )}
             </div>
 
             {/* Contact Information */}

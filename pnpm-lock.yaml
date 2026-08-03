@@ -729,6 +729,12 @@ importers:
       '@gql.tada/cli-utils':
         specifier: ^1.6.3
         version: 1.7.2(@0no-co/graphqlsp@1.12.16(graphql@16.12.0)(typescript@5.9.3))(graphql@16.12.0)(typescript@5.9.3)
+      '@repo/commerce':
+        specifier: workspace:*
+        version: link:../commerce
+      '@repo/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
@@ -738,6 +744,9 @@ importers:
       dotenv:
         specifier: ^17.0.0
         version: 17.3.1
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-beta.67
       gql.tada:
         specifier: ^1.8.10
         version: 1.9.0(graphql@16.12.0)(typescript@5.9.3)
@@ -775,6 +784,9 @@ importers:
       next:
         specifier: 'catalog:'
         version: 16.1.6(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      vitest:
+        specifier: ^3.1.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@22.15.21)(jiti@2.6.1)(jsdom@26.1.0(bufferutil@4.0.9))(lightningcss@1.30.2)(msw@2.12.10(@types/node@22.15.21)(typescript@5.9.3))(terser@5.44.0)(yaml@2.9.0)
 
   packages/commerce:
     dependencies:
@@ -787,6 +799,9 @@ importers:
       '@gql.tada/cli-utils':
         specifier: ^1.6.3
         version: 1.7.2(@0no-co/graphqlsp@1.12.16(graphql@16.12.0)(typescript@5.9.3))(graphql@16.12.0)(typescript@5.9.3)
+      '@repo/design-system':
+        specifier: workspace:*
+        version: link:../design-system
       '@repo/i18n':
         specifier: workspace:*
         version: link:../i18n

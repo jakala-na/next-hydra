@@ -39,6 +39,17 @@ export {
   ProductOptionValue,
   ProductPrice,
 } from "./model";
+export type {
+  ProductCardPresentation,
+  ProductDetailPresentation,
+  ProductDetailVariantPresentation,
+} from "./presentation";
+export {
+  toProductCardPresentation,
+  toProductDetailMetadata,
+  toProductDetailPresentation,
+  toProductJsonLd,
+} from "./presentation";
 export {
   ListProductCardsInput,
   ProductDiscovery,

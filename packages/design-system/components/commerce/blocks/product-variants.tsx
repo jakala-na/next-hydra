@@ -13,7 +13,7 @@ import { useState } from "react";
 
 interface VariantItem extends BaseVariantItem {
   id: string;
-  price: number;
+  price?: number;
   salePrice?: number | undefined;
   imageUrl?: string;
   isInStock?: boolean;
@@ -24,10 +24,10 @@ type VariantSelectionPayload = {
   variantId: string;
   variantLabel: string;
   quantity: number;
-  price: number;
+  price?: number;
   originalPrice?: number;
   salePrice?: number | undefined;
-  totalPrice: number;
+  totalPrice?: number;
   isOnSale: boolean;
 };
 type ProductVariantProps = {
@@ -112,7 +112,9 @@ function ProductVariant({
   const currentSalePrice = selectedVariant.salePrice;
   const currencyCode = selectedVariant.currencyCode;
   const isOnSale =
-    currentSalePrice !== undefined && currentSalePrice < currentPrice;
+    currentPrice !== undefined &&
+    currentSalePrice !== undefined &&
+    currentSalePrice < currentPrice;
 
   // Get stock status from the selected variant
   const isInStock =
@@ -125,13 +127,17 @@ function ProductVariant({
   const handleAddToCart = () => {
     onAddToCart?.({
       isOnSale,
-      originalPrice: isOnSale ? currentPrice : undefined,
-      price: currentPrice,
       quantity,
-      salePrice: isOnSale ? currentSalePrice : undefined,
-      totalPrice: quantity * effectivePrice,
       variantId: selectedVariantId,
       variantLabel: selectedVariant?.label || "",
+      ...(currentPrice === undefined
+        ? {}
+        : {
+            originalPrice: isOnSale ? currentPrice : undefined,
+            price: currentPrice,
+            salePrice: isOnSale ? currentSalePrice : undefined,
+            totalPrice: quantity * (effectivePrice ?? currentPrice),
+          }),
     });
   };
 
@@ -199,16 +205,18 @@ function ProductVariant({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <PriceFormat_Sale
-                currencyCode={currencyCode}
-                originalPrice={currentPrice}
-                salePrice={isOnSale ? currentSalePrice : undefined}
-                showSavePercentage
-                className="items-baseline"
-                classNameOriginalPrice="text-lg text-muted-foreground line-through"
-                classNameSalePrice="text-3xl font-bold text-primary"
-                classNameSalePercentage="bg-secondary text-secondary-foreground text-xs px-2 py-0.5 rounded-md"
-              />
+              {currentPrice !== undefined && (
+                <PriceFormat_Sale
+                  currencyCode={currencyCode}
+                  originalPrice={currentPrice}
+                  salePrice={isOnSale ? currentSalePrice : undefined}
+                  showSavePercentage
+                  className="items-baseline"
+                  classNameOriginalPrice="text-lg text-muted-foreground line-through"
+                  classNameSalePrice="text-3xl font-bold text-primary"
+                  classNameSalePercentage="bg-secondary text-secondary-foreground text-xs px-2 py-0.5 rounded-md"
+                />
+              )}
 
               {shippingInfo && (
                 <p className="mt-1 inline-flex items-center text-muted-foreground text-sm">
@@ -276,7 +284,7 @@ function ProductVariant({
                 variant="outline"
                 className="w-full"
                 onClick={handleAddToCart}
-                disabled={!isInStock || isLoading}
+                disabled={!isInStock || isLoading || currentPrice === undefined}
               >
                 {isLoading ? t("loading") : t("addToCart")}
               </Button>
@@ -300,43 +308,45 @@ function ProductVariant({
                     {selectedVariant?.label}
                   </p>
                 </div>
-                <p className="font-medium text-primary">
-                  {isOnSale ? (
-                    <span>
-                      <span className="mr-2 line-through opacity-70">
-                        {format.number(currentPrice, "wholeMoneyWithCurrency", {
-                          currency: currencyCode,
-                        })}
+                {currentPrice !== undefined && (
+                  <p className="font-medium text-primary">
+                    {isOnSale ? (
+                      <span>
+                        <span className="mr-2 line-through opacity-70">
+                          {format.number(
+                            currentPrice,
+                            "wholeMoneyWithCurrency",
+                            { currency: currencyCode }
+                          )}
+                        </span>
+                        {format.number(
+                          currentSalePrice ?? currentPrice,
+                          "wholeMoneyWithCurrency",
+                          { currency: currencyCode }
+                        )}
                       </span>
-                      {format.number(
-                        currentSalePrice ?? currentPrice,
-                        "wholeMoneyWithCurrency",
-                        {
-                          currency: currencyCode,
-                        }
-                      )}
-                    </span>
-                  ) : (
-                    format.number(currentPrice, "wholeMoneyWithCurrency", {
-                      currency: currencyCode,
-                    })
+                    ) : (
+                      format.number(currentPrice, "wholeMoneyWithCurrency", {
+                        currency: currencyCode,
+                      })
+                    )}
+                  </p>
+                )}
+              </div>
+              {effectivePrice !== undefined && (
+                <p className="mt-2 text-muted-foreground text-xs">
+                  {quantity} {t("units", { count: quantity })} ×{" "}
+                  {format.number(effectivePrice, "wholeMoneyWithCurrency", {
+                    currency: currencyCode,
+                  })}{" "}
+                  ={" "}
+                  {format.number(
+                    quantity * effectivePrice,
+                    "wholeMoneyWithCurrency",
+                    { currency: currencyCode }
                   )}
                 </p>
-              </div>
-              <p className="mt-2 text-muted-foreground text-xs">
-                {quantity} {t("units", { count: quantity })} ×{" "}
-                {format.number(effectivePrice, "wholeMoneyWithCurrency", {
-                  currency: currencyCode,
-                })}{" "}
-                ={" "}
-                {format.number(
-                  quantity * effectivePrice,
-                  "wholeMoneyWithCurrency",
-                  {
-                    currency: currencyCode,
-                  }
-                )}
-              </p>
+              )}
               <p className="mt-1 text-muted-foreground text-xs">
                 {isInStock ? t("inStock") : t("outOfStock")}
                 {isInStock &&

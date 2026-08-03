@@ -3,11 +3,6 @@ import type { CurrencyCode } from "../../domain/money";
 import type { Store } from "../types";
 
 export interface StoreRepository {
-  // Return variantIds that are sellable in this store
-  getProductSelectionsForProducts(
-    storeKey: string,
-    productIds: string[]
-  ): Promise<Map<string, ProductSelectionRule[]>>;
   getStoreByKey(key: string, locale: Locale): Promise<Store>;
 }
 
@@ -16,16 +11,6 @@ export interface StoreService {
   getStoreByLocale(locale: Locale): Promise<Store>;
   getStoreContextByLocale(locale: Locale): Promise<StoreContext>;
 }
-
-// Group assignments by productId
-export type ProductSelectionRule = {
-  mode: "Individual" | "IndividualExclusion";
-  variantSelection: {
-    type: "includeOnly" | "includeAllExcept";
-    skus: string[];
-  } | null;
-  variantExclusion: { skus: string[] } | null;
-};
 
 export type StoreContext = {
   locale: Locale;
