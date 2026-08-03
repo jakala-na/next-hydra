@@ -1,18 +1,22 @@
+import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Redacted } from "effect";
 import { beforeEach, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
 import {
   CommerceAccount,
   CommerceBusinessUnitId,
   CommerceCustomerId,
-} from "../../../domain/commerce-account";
+} from "@repo/commerce/domain/commerce-account";
 import {
   type AcceptedCommerceIdentity,
   CommerceAccountError,
   CommerceAccounts,
-} from "../../../services/commerce-accounts";
-import { StoreKey } from "../../../store";
-import { layerCommercetoolsCommerceAccounts } from "./commerce-accounts";
+} from "@repo/commerce/services/commerce-accounts";
+import { StoreKey } from "@repo/commerce/store";
+import { commerceAccountsLayerFrom } from "./commerce-accounts";
 
 const mocks = vi.hoisted(() => {
   const businessUnitGetExecute = vi.fn();
@@ -102,13 +106,13 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../client/api-root", () => ({
-  apiRoot: {
-    businessUnits: mocks.businessUnits,
-    customers: mocks.customers,
-    inStoreKeyWithStoreKeyValue: mocks.inStore,
-  },
-}));
+const apiRoot = {
+  businessUnits: mocks.businessUnits,
+  customers: mocks.customers,
+  inStoreKeyWithStoreKeyValue: mocks.inStore,
+} as unknown as ByProjectKeyRequestBuilder;
+
+const layerCommercetoolsCommerceAccounts = commerceAccountsLayerFrom(apiRoot);
 
 const acceptedIdentity: AcceptedCommerceIdentity = {
   authUserId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
