@@ -40,7 +40,15 @@ import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
 import { resolveStore } from "@repo/commerce/store";
-import { Duration, Effect, Layer, Option, Ref, Schema } from "effect";
+import {
+  type Config,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Ref,
+  Schema,
+} from "effect";
 import {
   HttpEffect,
   HttpRouter,
@@ -61,12 +69,12 @@ type CheckoutRuntimeLayer = Layer.Layer<
   | CheckoutPolicies
   | CommerceAccounts
   | CheckoutCustomerJwtVerifier,
-  unknown,
+  Config.ConfigError,
   never
 >;
 type CheckoutAddressBookLayer = Layer.Layer<
   AddressBook,
-  never,
+  Config.ConfigError,
   CommerceContext
 >;
 type CommerceRequestContextNotFoundReason = ConstructorParameters<
@@ -505,6 +513,12 @@ const checkoutSessionMiddlewareLayer = (
           return yield* httpEffect.pipe(
             Effect.provide(requestServices),
             Effect.catchTags({
+              ConfigError: (error) =>
+                logCheckoutDiagnosticFailure(error).pipe(
+                  Effect.andThen(
+                    Effect.fail(toCheckoutContextInternalError(locale))
+                  )
+                ),
               CommerceRequestContextNotFound: (error) =>
                 Effect.fail(toCheckoutContextNotFound(error, locale)),
               CommerceAccountError: (error) =>
