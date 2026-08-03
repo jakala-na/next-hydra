@@ -1,28 +1,24 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AddressBookReference } from "../../../domain/address-book";
-import { CartId } from "../../../domain/cart";
+import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
+import { AddressBookReference } from "@repo/commerce/domain/address-book";
+import { CartId } from "@repo/commerce/domain/cart";
 import {
   type CheckoutContact,
   type CheckoutDeliveryDetails,
   CountryCode,
   StorefrontAnonymousCheckoutScope,
   StorefrontCustomerCheckoutScope,
-} from "../../../domain/checkout";
+} from "@repo/commerce/domain/checkout";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
   CommerceCustomerId,
-} from "../../../domain/commerce-account";
-import { CommerceLocale, StoreKey } from "../../../store";
-import type { Cart } from "../../types";
-import { domainError } from "../../utils/errors";
-import {
-  createCartForAssociateScope,
-  getActiveCartForAssociateScope,
-  removeItemFromCart,
-  saveCheckoutContact,
-  saveCheckoutDeliveryDetails,
-} from "./cart-persistence";
+} from "@repo/commerce/domain/commerce-account";
+import { domainError } from "@repo/commerce/lib/utils/errors";
+import { CommerceLocale, StoreKey } from "@repo/commerce/store";
+import type { Client } from "@urql/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeCartPersistence } from "./persistence";
+import type { CommercetoolsCart } from "./provider-cart";
 
 const mocks = vi.hoisted(() => {
   const associateCartPostExecute = vi.fn();
@@ -59,24 +55,11 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../client/graphql-client", () => ({
-  graphqlClient: () => ({
-    mutation: mocks.mutation,
-    query: mocks.query,
-  }),
-}));
-
-vi.mock("../../client/api-root", () => ({
-  apiRoot: {
-    asAssociate: mocks.asAssociate,
-  },
-}));
-
-vi.mock("../../product/mappers/attributes", () => ({
+vi.mock("./attributes", () => ({
   reshapeProductAttributes: vi.fn(),
 }));
 
-vi.mock("../../product/mappers/price", () => ({
+vi.mock("./price", () => ({
   productPriceFragment: {
     kind: "Document",
     definitions: [],
@@ -133,7 +116,63 @@ const checkoutCart = {
     centAmount: 1000,
   },
   cartState: "Active",
-} satisfies Cart;
+} satisfies CommercetoolsCart;
+
+const {
+  addItemToCart,
+  createCartForAssociateScope,
+  getActiveCartForAssociateScope,
+  removeItemFromCart,
+  saveCheckoutContact,
+  saveCheckoutDeliveryDetails,
+} = makeCartPersistence({
+  apiRoot: {
+    asAssociate: mocks.asAssociate,
+  } as unknown as ByProjectKeyRequestBuilder,
+  graphqlClient: {
+    mutation: mocks.mutation,
+    query: mocks.query,
+  } as unknown as Pick<Client, "query" | "mutation">,
+});
+
+describe("Anonymous Cart updates", () => {
+  it("resolves the Store distribution channel inside Cart persistence", async () => {
+    mocks.query.mockResolvedValueOnce({
+      data: {
+        store: {
+          distributionChannels: [{ key: "distribution-channel-1" }],
+        },
+      },
+    });
+    mocks.mutation.mockResolvedValueOnce({
+      data: { updateCart: activeCart },
+    });
+
+    const result = await addItemToCart({
+      id: "cart-1",
+      version: 1,
+      productId: "product-1",
+      variantId: 3,
+      quantity: 1,
+      locale: "en-US",
+      storeKey: StoreKey.make("default-store"),
+    });
+
+    expect(mocks.query).toHaveBeenCalledWith(expect.anything(), {
+      storeKey: "default-store",
+    });
+    expect(mocks.mutation).toHaveBeenCalledWith(expect.anything(), {
+      id: "cart-1",
+      version: 1,
+      productId: "product-1",
+      variantId: 3,
+      quantity: 1,
+      locale: "en-US",
+      distributionChannelKey: "distribution-channel-1",
+    });
+    expect(result).toMatchObject({ ok: true, data: { id: "cart-1" } });
+  });
+});
 
 const contact = {
   source: "customerProfile",

@@ -32,6 +32,7 @@ export const graphqlClientLayer = Layer.effect(
 
     return CommercetoolsGraphQLClient.of({
       query: client.query.bind(client),
+      mutation: client.mutation.bind(client),
     });
   })
 );

@@ -1,13 +1,13 @@
-import { describe, expect, it } from "vitest";
-import { AddressBookReference } from "../../domain/address-book";
+import { AddressBookReference } from "@repo/commerce/domain/address-book";
 import {
   type CheckoutDeliveryDetails,
   CountryCode,
-} from "../../domain/checkout";
+} from "@repo/commerce/domain/checkout";
+import { describe, expect, it } from "vitest";
 import {
   buildSaveCheckoutDeliveryDetailsActions,
   hasPersistedCheckoutDeliveryDetails,
-} from "./checkout-delivery-details-actions";
+} from "./delivery-details-actions";
 
 const shippingAddress = {
   addressLine1: "123 Analytical Engine Way",

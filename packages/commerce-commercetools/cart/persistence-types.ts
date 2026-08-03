@@ -1,16 +1,16 @@
-import type { Locale } from "@repo/i18n/types";
 import type {
   CheckoutContact,
   CheckoutDeliveryDetails,
   CheckoutScope,
-} from "../../../domain/checkout";
+} from "@repo/commerce/domain/checkout";
 import type {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
-} from "../../../domain/commerce-account";
-import type { CurrencyCode } from "../../../domain/money";
-import type { StoreKey } from "../../../store";
-import type { Cart } from "../../types";
+} from "@repo/commerce/domain/commerce-account";
+import type { CurrencyCode } from "@repo/commerce/domain/money";
+import type { StoreKey } from "@repo/commerce/store";
+import type { Locale } from "@repo/i18n/types";
+import type { CommercetoolsCart } from "./provider-cart";
 
 export type AddToCartParams = {
   id: string;
@@ -22,13 +22,13 @@ export type AddToCartParams = {
 };
 
 export type AddToCartRepoParams = AddToCartParams & {
-  distributionChannelKey: string;
+  storeKey: StoreKey;
 };
 
 export type CreateCartRepoParams = {
   locale: Locale;
   currency: CurrencyCode;
-  storeId: string;
+  storeKey: StoreKey;
 };
 
 export type CreateBusinessUnitCartRepoParams = {
@@ -61,7 +61,7 @@ export type RemoveItemFromCartParams = Omit<
 >;
 
 export type SaveCheckoutContactParams = {
-  cart: Cart;
+  cart: CommercetoolsCart;
   contact: CheckoutContact;
   locale: Locale;
   retryConcurrentModification?: boolean;
@@ -69,7 +69,7 @@ export type SaveCheckoutContactParams = {
 };
 
 export type SaveCheckoutDeliveryDetailsParams = {
-  cart: Cart;
+  cart: CommercetoolsCart;
   deliveryDetails: CheckoutDeliveryDetails;
   locale: Locale;
   scope: CheckoutScope;

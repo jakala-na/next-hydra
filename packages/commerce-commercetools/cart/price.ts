@@ -1,5 +1,5 @@
-import { type FragmentOf, graphql, readFragment } from "@repo/commerce/graphql";
 import type { CurrencyCode } from "@repo/i18n/types";
+import { type FragmentOf, graphql, readFragment } from "../graphql";
 
 export const productPriceSearchFragment = graphql(`
   fragment ProductPriceSearch on ProductPriceSearch {

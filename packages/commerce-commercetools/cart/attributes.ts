@@ -1,5 +1,9 @@
-import type { AttributeRaw } from "@repo/commerce/lib/types";
 import type { Locale } from "@repo/i18n/types";
+
+export type AttributeRaw = {
+  readonly name: string;
+  readonly value: unknown;
+};
 
 type LocalizedString = Record<string, string>;
 

@@ -1,7 +1,7 @@
-import type { CheckoutDeliveryDetails } from "../../domain/checkout";
-import { checkoutDeliveryDetailsEqual } from "../checkout/delivery-details-equality";
-import { toCommercetoolsAddressKey } from "../infra/commercetools/address-book-key";
-import type { Cart } from "../types";
+import type { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
+import { checkoutDeliveryDetailsEqual } from "@repo/commerce/lib/checkout/delivery-details-equality";
+import { toCommercetoolsAddressKey } from "@repo/commerce/lib/infra/commercetools/address-book-key";
+import type { CommercetoolsCart } from "./provider-cart";
 
 type SaveCheckoutDeliveryDetailsAction = {
   readonly setShippingAddress: {
@@ -18,7 +18,7 @@ type SaveCheckoutDeliveryDetailsAction = {
 };
 
 export const hasPersistedCheckoutDeliveryDetails = (
-  cart: Pick<Cart, "checkoutDetails" | "shippingAddress">,
+  cart: Pick<CommercetoolsCart, "checkoutDetails" | "shippingAddress">,
   deliveryDetails: CheckoutDeliveryDetails
 ) => {
   const persistedDeliveryDetails = cart.checkoutDetails?.deliveryDetails;

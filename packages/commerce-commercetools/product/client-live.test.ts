@@ -25,10 +25,14 @@ import { commercetoolsProductDiscoveryClientLayer } from "./client-live";
 import { productDiscoveryLayerWithClient } from "./product-discovery";
 
 const query = vi.fn();
+const mutation = vi.fn();
 const PRODUCT_SELECTION_PAGE_SIZE = 500;
 const PRODUCT_SELECTION_ASSIGNMENT_COUNT = PRODUCT_SELECTION_PAGE_SIZE + 1;
 
-const graphqlClientLayer = CommercetoolsGraphQLClient.testLayer(query);
+const graphqlClientLayer = CommercetoolsGraphQLClient.testLayer({
+  query,
+  mutation,
+});
 const productClientLayer = commercetoolsProductDiscoveryClientLayer.pipe(
   Layer.provide(graphqlClientLayer)
 );

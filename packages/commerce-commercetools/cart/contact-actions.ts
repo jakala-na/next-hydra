@@ -1,11 +1,14 @@
-import type { CheckoutContact } from "../../domain/checkout";
-import type { OrderCustomFieldsSchema } from "../custom-fields/generated/types";
-import type { Cart } from "../types";
-import { type ActionResult, domainError, Err, Ok } from "../utils/errors";
+import type { CheckoutContact } from "@repo/commerce/domain/checkout";
+import {
+  type ActionResult,
+  domainError,
+  Err,
+  Ok,
+} from "@repo/commerce/lib/utils/errors";
+import type { CommercetoolsCart } from "./provider-cart";
 
 export const ORDER_CUSTOM_TYPE_KEY = "orderCustomFields";
-export const CHECKOUT_CONTACT_CUSTOM_FIELD_NAME =
-  "checkoutContact" satisfies keyof OrderCustomFieldsSchema;
+export const CHECKOUT_CONTACT_CUSTOM_FIELD_NAME = "checkoutContact";
 
 type SaveCheckoutContactAction =
   | {
@@ -50,7 +53,7 @@ const contactsEqual = (
   left.buyerContact.phoneNumber === right.buyerContact.phoneNumber;
 
 export const hasPersistedCheckoutContact = (
-  cart: Pick<Cart, "checkoutDetails" | "customerEmail">,
+  cart: Pick<CommercetoolsCart, "checkoutDetails" | "customerEmail">,
   contact: CheckoutContact
 ) =>
   contactsEqual(cart.checkoutDetails?.contact, contact) &&
@@ -69,7 +72,7 @@ const cartCustomTypeConflict = (actualTypeKey: string | undefined) =>
   );
 
 export const buildSaveCheckoutContactActions = (
-  cart: Pick<Cart, "custom">,
+  cart: Pick<CommercetoolsCart, "custom">,
   contact: CheckoutContact
 ): ActionResult<SaveCheckoutContactAction[], CartCustomTypeConflictDetails> => {
   const field = {

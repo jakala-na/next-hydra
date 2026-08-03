@@ -1,9 +1,9 @@
+import type { CheckoutContact } from "@repo/commerce/domain/checkout";
 import { describe, expect, it } from "vitest";
-import type { CheckoutContact } from "../../domain/checkout";
 import {
   buildSaveCheckoutContactActions,
   hasPersistedCheckoutContact,
-} from "./checkout-contact-actions";
+} from "./contact-actions";
 
 const contact = {
   source: "manual",

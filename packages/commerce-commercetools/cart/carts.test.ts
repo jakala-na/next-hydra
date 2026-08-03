@@ -1,23 +1,23 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Option } from "effect";
-import { vi } from "vitest";
-import { CartId, LineItemId, ProductId, VariantId } from "../../../domain/cart";
+import {
+  CartId,
+  LineItemId,
+  ProductId,
+  VariantId,
+} from "@repo/commerce/domain/cart";
 import {
   CommerceBusinessUnitId,
   CommerceCustomerId,
-} from "../../../domain/commerce-account";
-import { Carts } from "../../../services/carts";
-import { CommerceLocale, Store, StoreKey } from "../../../store";
-import type { Cart } from "../../types";
-import { domainError, Err, Ok } from "../../utils/errors";
-import {
-  type CommercetoolsCartsPersistence,
-  layerCommercetoolsCartsFrom,
-} from "./carts";
+} from "@repo/commerce/domain/commerce-account";
+import { domainError, Err, Ok } from "@repo/commerce/lib/utils/errors";
+import { Carts } from "@repo/commerce/services/carts";
+import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
+import { Effect, Option } from "effect";
+import { vi } from "vitest";
+import { type CommercetoolsCartsPersistence, cartsLayerFrom } from "./carts";
+import type { CommercetoolsCart } from "./provider-cart";
 
 vi.mock("server-only", () => ({}));
-vi.mock("./cart-persistence", () => ({}));
-vi.mock("../../store/store.service", () => ({ storeService: {} }));
 
 const store = new Store({
   locale: CommerceLocale.make("en-US"),
@@ -46,7 +46,7 @@ const providerCart = ({
   readonly id?: string;
   readonly quantity?: number;
   readonly version?: number;
-} = {}): Cart => ({
+} = {}): CommercetoolsCart => ({
   id,
   version,
   store: { key: "us-store" },
@@ -102,7 +102,7 @@ const persistence = (
   ...overrides,
 });
 
-describe("layerCommercetoolsCarts", () => {
+describe("cartsLayer", () => {
   it.effect("projects provider Cart data without leaking its version", () =>
     Effect.gen(function* () {
       const carts = yield* Carts;
@@ -121,7 +121,7 @@ describe("layerCommercetoolsCarts", () => {
           color: { key: "yellow", label: "Yellow" },
         },
       });
-    }).pipe(Effect.provide(layerCommercetoolsCartsFrom(persistence())))
+    }).pipe(Effect.provide(cartsLayerFrom(persistence())))
   );
 
   it.effect(
@@ -159,7 +159,7 @@ describe("layerCommercetoolsCarts", () => {
         expect(writtenVersion).toBe(currentVersion);
         expect(updated.totalLineItemQuantity).toBe(updatedQuantity);
         expect(updated).not.toHaveProperty("version");
-      }).pipe(Effect.provide(layerCommercetoolsCartsFrom(implementation)));
+      }).pipe(Effect.provide(cartsLayerFrom(implementation)));
     }
   );
 
@@ -173,7 +173,7 @@ describe("layerCommercetoolsCarts", () => {
       expect(Option.isNone(missing)).toBe(true);
     }).pipe(
       Effect.provide(
-        layerCommercetoolsCartsFrom(
+        cartsLayerFrom(
           persistence({
             findById: async () =>
               Err(domainError("NOT_FOUND", "Cart not found")),
@@ -196,7 +196,7 @@ describe("layerCommercetoolsCarts", () => {
       }
     }).pipe(
       Effect.provide(
-        layerCommercetoolsCartsFrom(
+        cartsLayerFrom(
           persistence({
             findById: async () =>
               Ok({ ...providerCart(), totalLineItemQuantity: -1 }),
@@ -218,7 +218,7 @@ describe("layerCommercetoolsCarts", () => {
         expect(error._tag).toBe("CartAccessDenied");
       }).pipe(
         Effect.provide(
-          layerCommercetoolsCartsFrom(
+          cartsLayerFrom(
             persistence({
               findById: async () =>
                 Ok({
@@ -243,7 +243,7 @@ describe("layerCommercetoolsCarts", () => {
         expect(error._tag).toBe("CartAccessDenied");
       }).pipe(
         Effect.provide(
-          layerCommercetoolsCartsFrom(
+          cartsLayerFrom(
             persistence({
               findById: async () =>
                 Ok({
@@ -291,7 +291,7 @@ describe("layerCommercetoolsCarts", () => {
 
       expect(writes).toBe(1);
       expect(updated.checkoutDetails.contact).toEqual(contact);
-    }).pipe(Effect.provide(layerCommercetoolsCartsFrom(implementation)));
+    }).pipe(Effect.provide(cartsLayerFrom(implementation)));
   });
 
   it.effect(
@@ -347,7 +347,7 @@ describe("layerCommercetoolsCarts", () => {
 
         expect(retryFlags).toEqual([true, false]);
         expect(updated.checkoutDetails.contact).toEqual(contact);
-      }).pipe(Effect.provide(layerCommercetoolsCartsFrom(implementation)));
+      }).pipe(Effect.provide(cartsLayerFrom(implementation)));
     }
   );
 
@@ -370,7 +370,7 @@ describe("layerCommercetoolsCarts", () => {
         expect(error._tag).toBe("CartWriteConflict");
       }).pipe(
         Effect.provide(
-          layerCommercetoolsCartsFrom(
+          cartsLayerFrom(
             persistence({
               saveContact: async () =>
                 Err(domainError("CONFLICT", "Concurrent modification")),
@@ -399,7 +399,7 @@ describe("layerCommercetoolsCarts", () => {
       expect(error._tag).toBe("CartMerchandiseUnavailable");
     }).pipe(
       Effect.provide(
-        layerCommercetoolsCartsFrom(
+        cartsLayerFrom(
           persistence({
             addItem: async () =>
               Err(domainError("BAD_INPUT", "Variant is unavailable")),
@@ -429,7 +429,7 @@ describe("layerCommercetoolsCarts", () => {
         expect(error._tag).toBe("CartLineItemNotFound");
       }).pipe(
         Effect.provide(
-          layerCommercetoolsCartsFrom(
+          cartsLayerFrom(
             persistence({
               setLineItemQuantity: async () =>
                 Err(domainError("BAD_INPUT", "Line item no longer exists")),
@@ -461,7 +461,7 @@ describe("layerCommercetoolsCarts", () => {
         });
       }).pipe(
         Effect.provide(
-          layerCommercetoolsCartsFrom(
+          cartsLayerFrom(
             persistence({
               saveContact: async () =>
                 Err(

@@ -28,6 +28,7 @@ describe("Commercetools clients", () => {
 
         expect(typeof rest.apiRoot.graphql).toBe("function");
         expect(typeof graphql.query).toBe("function");
+        expect(typeof graphql.mutation).toBe("function");
       }).pipe(
         Effect.provide(
           commercetoolsClientsLayer.pipe(Layer.provide(configurationLayer))
