@@ -1,5 +1,6 @@
 import type { CurrencyCode } from "@repo/i18n/types";
 import { Schema } from "effect";
+import { ProductImage as ProductImageSchema } from "../product/image";
 import {
   CartId,
   CartMoney,
@@ -28,11 +29,7 @@ export const ProductTypeKey = Schema.Literals([
 ]);
 export type ProductTypeKey = typeof ProductTypeKey.Type;
 
-export const ProductImage = Schema.Struct({
-  url: Schema.String,
-  altText: Schema.String,
-});
-export type ProductImage = typeof ProductImage.Type;
+export { ProductImage } from "../product/image";
 
 export const ProductAttributeEnumValue = Schema.Struct({
   key: Schema.String,
@@ -65,7 +62,7 @@ export const CartProductVariant = Schema.Struct({
   productType: Schema.optional(ProductTypeKey),
   name: Schema.optional(Schema.String),
   sku: Schema.optional(Sku),
-  images: Schema.Array(ProductImage),
+  images: Schema.Array(ProductImageSchema),
   attributes: ProductAttributes,
 });
 export type CartProductVariant = typeof CartProductVariant.Type;
