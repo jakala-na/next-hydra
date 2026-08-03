@@ -6,6 +6,7 @@ import {
   encodeAnonymousCartCookie,
   makeAnonymousCartCookie,
 } from "../lib/cart/utils/anonymous-cart-cookies";
+import { CheckoutSession } from "../lib/checkout/checkout-session";
 import { CommerceContext } from "../services/commerce-context";
 import { CurrentCart } from "../services/current-cart";
 import {
@@ -13,12 +14,14 @@ import {
   StoreKey as CommerceStoreKey,
   resolveStore,
 } from "../store";
+import { selectBusinessUnit } from "./actions";
 import { commerceRequestLayer } from "./request";
 
 const requestBoundary = vi.hoisted(() => ({
   authUserId: "auth-user-1" as string | undefined,
   cookies: new Map<string, string>(),
   deleteCookie: vi.fn(),
+  refresh: vi.fn(),
   setCookie: vi.fn(),
 }));
 
@@ -33,9 +36,16 @@ vi.mock("next/headers", () => ({
     delete: requestBoundary.deleteCookie,
   }),
 }));
+vi.mock("next/cache", () => ({ refresh: requestBoundary.refresh }));
 vi.mock("@repo/commerce/layers", async () => {
   const [
     { AddressBook },
+    {
+      CartId: TestCartId,
+      LineItemId: TestLineItemId,
+      ProductId: TestProductId,
+      VariantId: TestVariantId,
+    },
     {
       CommerceBusinessUnitId,
       CommerceBusinessUnitKey,
@@ -51,6 +61,7 @@ vi.mock("@repo/commerce/layers", async () => {
     { StoreKey },
   ] = await Promise.all([
     import("../services/address-book"),
+    import("../domain/cart"),
     import("../domain/commerce-account"),
     import("../domain/commerce-request-context"),
     import("../product/product-discovery"),
@@ -67,10 +78,41 @@ vi.mock("@repo/commerce/layers", async () => {
       businessUnitKey: CommerceBusinessUnitKey.make(`${id}-key`),
       businessUnitLabel: CommerceBusinessUnitLabel.make(label),
     });
+  const cart = (id: string, businessUnitId: string) => ({
+    id: TestCartId.make(id),
+    status: "active" as const,
+    storeKey: StoreKey.make("default-store"),
+    buyingContext: {
+      businessUnitId: CommerceBusinessUnitId.make(businessUnitId),
+    },
+    lineItems: [
+      {
+        id: TestLineItemId.make(`line-${id}`),
+        variant: {
+          id: TestVariantId.make(`variant-${id}`),
+          productId: TestProductId.make(`product-${id}`),
+          name: `Product ${id}`,
+          images: [],
+          attributes: {},
+        },
+        quantity: 1,
+        unitPrice: { centAmount: 1000, currencyCode: "USD" },
+        totalPrice: { centAmount: 1000, currencyCode: "USD" },
+      },
+    ],
+    totalLineItemQuantity: 1,
+    totalPrice: { centAmount: 1000, currencyCode: "USD" },
+    checkoutDetails: {},
+  });
 
   return {
     addressBookLayer: AddressBook.layerMemory(),
-    cartsLayer: Carts.layerMemory(),
+    cartsLayer: Carts.layerMemory({
+      carts: [
+        cart("cart-business-unit-1", "business-unit-1"),
+        cart("cart-business-unit-2", "business-unit-2"),
+      ],
+    }),
     commerceAccountsLayer: CommerceAccounts.layerMemoryFrom({
       customers: [{ authUserId, customerId }],
       businessUnitMemberships: [
@@ -96,7 +138,8 @@ beforeEach(() => {
   requestBoundary.authUserId = "auth-user-1";
   requestBoundary.cookies.clear();
   requestBoundary.deleteCookie.mockClear();
-  requestBoundary.setCookie.mockClear();
+  requestBoundary.refresh.mockClear();
+  requestBoundary.setCookie.mockReset();
 });
 
 describe("commerceRequestLayer", () => {
@@ -125,6 +168,39 @@ describe("commerceRequestLayer", () => {
     expect(principal.businessUnitId).toBe("business-unit-2");
   });
 
+  it("refreshes Cart and Checkout from the selected Buying Context", async () => {
+    const loadCartAndCheckout = async () => {
+      const layer = await commerceRequestLayer("en-US");
+      return Effect.runPromise(
+        Effect.gen(function* () {
+          const cart = Option.getOrThrow(yield* CurrentCart.get());
+          const checkout = yield* CheckoutSession.getCurrent();
+          return {
+            cartId: cart.cart.id,
+            checkoutCartId: checkout.cart.id,
+          };
+        }).pipe(Effect.provide(layer))
+      );
+    };
+    const initial = await loadCartAndCheckout();
+    requestBoundary.setCookie.mockImplementation((name, value) => {
+      requestBoundary.cookies.set(name, value);
+    });
+
+    await selectBusinessUnit("business-unit-2");
+    const selected = await loadCartAndCheckout();
+
+    expect(initial).toEqual({
+      cartId: "cart-business-unit-1",
+      checkoutCartId: "cart-business-unit-1",
+    });
+    expect(selected).toEqual({
+      cartId: "cart-business-unit-2",
+      checkoutCartId: "cart-business-unit-2",
+    });
+    expect(requestBoundary.refresh).toHaveBeenCalledOnce();
+  });
+
   it("writes a newly created anonymous Cart to the canonical cookie", async () => {
     requestBoundary.authUserId = undefined;
     const layer = await commerceRequestLayer("en-US");
@@ -142,7 +218,7 @@ describe("commerceRequestLayer", () => {
       requestBoundary.setCookie.mock.calls[0] ?? [];
     expect(name).toBe("cart");
     expect(decodeAnonymousCartCookie(value)).toMatchObject({
-      cartId: "cart-1",
+      cartId: "cart-3",
       currency: "USD",
       locale: "en-US",
       storeKey: "default-store",

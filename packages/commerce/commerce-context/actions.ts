@@ -1,12 +1,13 @@
 "use server";
 
-import { CommerceBusinessUnitId } from "@repo/commerce/domain/commerce-account";
 import { Option, Schema } from "effect";
+import { refresh } from "next/cache";
 import { cookies } from "next/headers";
+import { CommerceBusinessUnitId } from "../domain/commerce-account";
 import {
   BUSINESS_UNIT_COOKIE_NAME,
   BUSINESS_UNIT_COOKIE_OPTIONS,
-} from "@/lib/business-unit-cookie";
+} from "./business-unit-cookie";
 
 export async function selectBusinessUnit(
   businessUnitId: string
@@ -24,4 +25,5 @@ export async function selectBusinessUnit(
     selectedBusinessUnitId,
     BUSINESS_UNIT_COOKIE_OPTIONS
   );
+  refresh();
 }

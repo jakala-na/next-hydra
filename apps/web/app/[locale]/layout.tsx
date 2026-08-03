@@ -1,6 +1,7 @@
 import { LivePreview } from "@repo/cms/components/live-preview";
 import { getNavigation } from "@repo/cms/lib/navigation";
 import { CommerceCartProvider } from "@repo/commerce/cart";
+import { BusinessUnitSwitcher } from "@repo/commerce/commerce-context";
 import { CartButtonClient } from "@repo/design-system/components/layout/cart-button";
 import { MobileMenu } from "@repo/design-system/components/layout/mobile-menu";
 import { Navigation } from "@repo/design-system/components/layout/navigation";
@@ -18,7 +19,6 @@ import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AccountMenuClient } from "@/components/layout/account-menu-client";
-import { BusinessUnitSwitcher } from "@/components/layout/business-unit-switcher";
 
 function CartButtonSkeleton() {
   return (
