@@ -1,4 +1,4 @@
-import { createCommerceCommand } from "@repo/commerce/cli";
+import { createCommerceCommand } from "@repo/commerce-commercetools/cli";
 import { Command } from "commander";
 import type { env } from "../env";
 

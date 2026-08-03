@@ -1,6 +1,6 @@
 import { keys as analytics } from "@repo/analytics/keys";
 import { keys as authWorkos } from "@repo/auth-workos/keys";
-import { keys as commerce } from "@repo/commerce/keys";
+import { keys as commerce } from "@repo/commerce-commercetools/keys";
 import { keys as email } from "@repo/email/keys";
 import { keys as core } from "@repo/next-config/keys";
 import { keys as observability } from "@repo/observability/keys";

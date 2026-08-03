@@ -16,4 +16,15 @@ if (env.ANALYZE === "true") {
   nextConfig = withAnalyzer(nextConfig);
 }
 
+nextConfig = {
+  ...nextConfig,
+  turbopack: {
+    ...nextConfig.turbopack,
+    resolveAlias: {
+      ...nextConfig.turbopack?.resolveAlias,
+      "@repo/commerce/layers": "./lib/commerce-layers.ts",
+    },
+  },
+};
+
 export default withCMS(withI18n(nextConfig));

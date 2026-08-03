@@ -1,17 +1,17 @@
 import { layerWorkosAccessTokenVerifier } from "@repo/auth-workos/access-token";
 import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
-import { layerCommercetoolsAddressBook } from "@repo/commerce/lib/infra/commercetools/address-book";
-import { layerCommercetoolsCarts } from "@repo/commerce/lib/infra/commercetools/carts";
-import { layerCommercetoolsCommerceAccounts } from "@repo/commerce/lib/infra/commercetools/commerce-accounts";
 import { CartPolicies } from "@repo/commerce/services/cart-policies";
+import { addressBookLayer } from "@repo/commerce-commercetools/address-book";
+import { cartsLayer } from "@repo/commerce-commercetools/cart";
+import { commerceAccountsLayer } from "@repo/commerce-commercetools/commerce-accounts";
 import { Layer } from "effect";
 import { checkoutCustomerJwtVerifierLayerWorkos } from "./customer-jwt-workos";
 
 export const checkoutHttpDependencies = {
-  addressBookLayer: layerCommercetoolsAddressBook,
+  addressBookLayer,
   layer: Layer.mergeAll(
-    layerCommercetoolsCarts,
-    layerCommercetoolsCommerceAccounts,
+    cartsLayer,
+    commerceAccountsLayer,
     CartPolicies.layer,
     CheckoutPolicies.layer,
     checkoutCustomerJwtVerifierLayerWorkos.pipe(

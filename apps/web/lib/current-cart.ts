@@ -18,9 +18,6 @@ import {
 import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
 import { CheckoutSession } from "@repo/commerce/lib/checkout/checkout-session";
 import type { CurrentCartCookie } from "@repo/commerce/lib/current-cart/cookie";
-import { layerCommercetoolsAddressBook } from "@repo/commerce/lib/infra/commercetools/address-book";
-import { layerCommercetoolsCarts } from "@repo/commerce/lib/infra/commercetools/carts";
-import { layerCommercetoolsCommerceAccounts } from "@repo/commerce/lib/infra/commercetools/commerce-accounts";
 import { storeService } from "@repo/commerce/lib/store/store.service";
 import { CartPolicies } from "@repo/commerce/services/cart-policies";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
@@ -28,6 +25,11 @@ import { CurrentCart } from "@repo/commerce/services/current-cart";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer, Schema } from "effect";
 import { getBusinessUnitIdFromCookieValue } from "./business-unit-cookie";
+import {
+  addressBookLayer,
+  cartsLayer,
+  commerceAccountsLayer,
+} from "./commerce-layers";
 
 class CurrentCartRequestFailure extends Schema.TaggedErrorClass<CurrentCartRequestFailure>()(
   "CurrentCartRequestFailure",
@@ -128,17 +130,14 @@ const makeCurrentCartLayerInputs = (request: CurrentCartRequest) =>
     } satisfies CurrentCartLayerInputs;
   }).pipe(Effect.withSpan("CurrentCart.layerInputs"));
 
-const currentCartDependencies = Layer.merge(
-  layerCommercetoolsCarts,
-  CartPolicies.layer
-);
+const currentCartDependencies = Layer.merge(cartsLayer, CartPolicies.layer);
 
 const makeCurrentCartLayers = ({
   commerceContextRequest,
   currentCartCookie,
 }: CurrentCartLayerInputs) => {
   const commerceContext = CommerceContext.layer(commerceContextRequest).pipe(
-    Layer.provide(layerCommercetoolsCommerceAccounts)
+    Layer.provide(commerceAccountsLayer)
   );
   const currentCart = CurrentCart.layer(currentCartCookie).pipe(
     Layer.provide(Layer.merge(currentCartDependencies, commerceContext))
@@ -156,9 +155,7 @@ export const currentCartLayer = (request: CurrentCartRequest) =>
 
 const checkoutLayerFor = (inputs: CurrentCartLayerInputs) => {
   const { commerceContext, currentCart } = makeCurrentCartLayers(inputs);
-  const addressBook = layerCommercetoolsAddressBook.pipe(
-    Layer.provide(commerceContext)
-  );
+  const addressBook = addressBookLayer.pipe(Layer.provide(commerceContext));
   return CheckoutSession.layer.pipe(
     Layer.provide(
       Layer.mergeAll(

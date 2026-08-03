@@ -3,7 +3,6 @@ import "server-only";
 import { withAuth } from "@repo/auth-workos/server";
 import { StoreKey } from "@repo/commerce/domain/cart";
 import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
-import { layerCommercetoolsCommerceAccounts } from "@repo/commerce/lib/infra/commercetools/commerce-accounts";
 import { storeService } from "@repo/commerce/lib/store/store.service";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { BusinessUnitSwitcher as BusinessUnitSwitcherView } from "@repo/design-system/components/layout/business-unit-switcher";
@@ -15,6 +14,7 @@ import {
   BUSINESS_UNIT_COOKIE_NAME,
   getBusinessUnitIdFromCookieValue,
 } from "@/lib/business-unit-cookie";
+import { commerceAccountsLayer } from "@/lib/commerce-layers";
 import { selectBusinessUnit } from "./business-unit-actions";
 
 interface BusinessUnitSwitcherProps {
@@ -72,7 +72,7 @@ export async function BusinessUnitSwitcher({
         selectedBusinessUnitId: request.selectedBusinessUnitId,
       };
     }).pipe(
-      Effect.provide(layerCommercetoolsCommerceAccounts),
+      Effect.provide(commerceAccountsLayer),
       Effect.catch((error) =>
         Effect.logError("Failed to load Business Unit switcher", error).pipe(
           Effect.as(null)

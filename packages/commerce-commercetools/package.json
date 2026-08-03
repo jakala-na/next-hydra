@@ -14,11 +14,13 @@
     "./commerce-accounts": "./commerce-accounts/index.ts",
     "./address-book": "./address-book/index.ts",
     "./versioned-store": "./versioned-store/index.ts",
-    "./keys": "./config/keys.ts",
+    "./keys": "./keys.ts",
     "./cli": "./cli/index.ts"
   },
   "dependencies": {
-    "@repo/commerce": "workspace:*"
+    "@repo/commerce": "workspace:*",
+    "@t3-oss/env-nextjs": "catalog:",
+    "zod": "^3.25.28"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

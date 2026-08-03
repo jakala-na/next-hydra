@@ -866,6 +866,12 @@ importers:
       '@repo/commerce':
         specifier: workspace:*
         version: link:../commerce
+      '@t3-oss/env-nextjs':
+        specifier: 'catalog:'
+        version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
+      zod:
+        specifier: ^3.25.28
+        version: 3.25.76
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*
