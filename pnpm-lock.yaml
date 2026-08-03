@@ -784,12 +784,6 @@ importers:
 
   packages/commerce:
     dependencies:
-      '@commercetools/platform-sdk':
-        specifier: ^8.16.0
-        version: 8.18.0
-      '@commercetools/ts-client':
-        specifier: ^4.2.1
-        version: 4.7.0
       '@repo/design-system':
         specifier: workspace:*
         version: link:../design-system
@@ -799,18 +793,6 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../observability
-      '@t3-oss/env-nextjs':
-        specifier: 'catalog:'
-        version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
-      '@urql/core':
-        specifier: ^5.1.2
-        version: 5.2.0(graphql@16.12.0)
-      gql.tada:
-        specifier: ^1.8.10
-        version: 1.9.0(graphql@16.12.0)(typescript@5.9.3)
-      lodash.memoize:
-        specifier: ^4.1.2
-        version: 4.1.2
       next-safe-action:
         specifier: ^8.1.8
         version: 8.1.8(next@16.1.6(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -820,12 +802,6 @@ importers:
       server-only:
         specifier: 'catalog:'
         version: 0.0.1
-      urql:
-        specifier: ^4.2.2
-        version: 4.2.2(@urql/core@5.2.0(graphql@16.12.0))(react@19.2.4)
-      wonka:
-        specifier: ^6.3.5
-        version: 6.3.5
       zod:
         specifier: ^3.25.28
         version: 3.25.76
@@ -836,9 +812,6 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
-      '@types/lodash.memoize':
-        specifier: ^4.1.9
-        version: 4.1.9
       '@types/node':
         specifier: 'catalog:'
         version: 22.15.21

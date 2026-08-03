@@ -9,26 +9,17 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@commercetools/platform-sdk": "^8.16.0",
-    "@commercetools/ts-client": "^4.2.1",
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/observability": "workspace:*",
-    "@t3-oss/env-nextjs": "catalog:",
-    "@urql/core": "^5.1.2",
-    "gql.tada": "^1.8.10",
-    "lodash.memoize": "^4.1.2",
     "next-safe-action": "^8.1.8",
     "react": "catalog:",
     "server-only": "catalog:",
-    "urql": "^4.2.2",
-    "wonka": "^6.3.5",
     "zod": "^3.25.28"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
     "@repo/typescript-config": "workspace:*",
-    "@types/lodash.memoize": "^4.1.9",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

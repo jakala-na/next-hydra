@@ -1,7 +1,3 @@
-import {
-  keys as coreKeys,
-  serverKeys as coreServerKeys,
-} from "@repo/commerce/keys";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { keys, serverKeys } from "./keys";
 
@@ -24,13 +20,12 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("Commercetools environment compatibility", () => {
-  it("matches the temporary core environment contract", () => {
+describe("Commercetools environment", () => {
+  it("loads the provider server environment", () => {
     stubValidEnvironment();
 
-    expect(serverKeys()).toEqual(coreServerKeys());
     const environment = keys();
-    expect(environment).toEqual(coreKeys());
+    expect(environment).toEqual(serverEnvironment);
     expect(environment).not.toHaveProperty(
       "NEXT_PUBLIC_COMMERCETOOLS_PROJECT_KEY"
     );
@@ -39,12 +34,11 @@ describe("Commercetools environment compatibility", () => {
 
   it.each(
     Object.keys(serverEnvironment)
-  )("keeps %s non-empty while the compatibility copy exists", (name) => {
+  )("requires %s to be non-empty", (name) => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     stubValidEnvironment();
     vi.stubEnv(name, "");
 
     expect(serverKeys).toThrow();
-    expect(coreServerKeys).toThrow();
   });
 });
