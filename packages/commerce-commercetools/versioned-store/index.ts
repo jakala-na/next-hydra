@@ -1,1 +1,1 @@
-export { layerCommercetoolsCustomObjectKeyValueStore as versionedKeyValueStoreLayer } from "@repo/commerce/lib/infra/commercetools/key-value-store";
+export { versionedKeyValueStoreLayer } from "./versioned-store";

@@ -808,9 +808,6 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../observability
-      '@repo/versioned-store':
-        specifier: workspace:*
-        version: link:../versioned-store
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
@@ -899,6 +896,9 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../observability
+      '@repo/versioned-store':
+        specifier: workspace:*
+        version: link:../versioned-store
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)

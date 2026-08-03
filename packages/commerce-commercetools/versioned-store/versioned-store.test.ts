@@ -1,3 +1,4 @@
+import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import { describe, expect, it } from "@effect/vitest";
 import {
   StoreConflict,
@@ -7,42 +8,17 @@ import {
 } from "@repo/versioned-store";
 import { Effect, Option, Schema } from "effect";
 import { beforeEach, vi } from "vitest";
-import { layerCommercetoolsCustomObjectKeyValueStore } from "./key-value-store";
 
-const mocks = vi.hoisted(() => {
-  const getExecuteMock = vi.fn();
-  const postExecuteMock = vi.fn();
-  const getMock = vi.fn(() => ({ execute: getExecuteMock }));
-  const postMock = vi.fn(() => ({ execute: postExecuteMock }));
-  const withContainerAndKeyMock = vi.fn(() => ({ get: getMock }));
-  const customObjectsMock = vi.fn(() => ({
-    post: postMock,
-    withContainerAndKey: withContainerAndKeyMock,
-  }));
-  return {
-    customObjects: customObjectsMock,
-    get: getMock,
-    getExecute: getExecuteMock,
-    post: postMock,
-    postExecute: postExecuteMock,
-    withContainerAndKey: withContainerAndKeyMock,
-  };
-});
+vi.mock("server-only", () => ({}));
 
-vi.mock("../../client/api-root", () => ({
-  apiRoot: {
-    customObjects: mocks.customObjects,
-  },
-}));
+import { versionedKeyValueStoreLayerFrom } from "./versioned-store";
 
-const {
-  customObjects,
-  get,
-  getExecute,
-  post,
-  postExecute,
-  withContainerAndKey,
-} = mocks;
+const getExecute = vi.fn();
+const postExecute = vi.fn();
+const get = vi.fn(() => ({ execute: getExecute }));
+const post = vi.fn(() => ({ execute: postExecute }));
+const withContainerAndKey = vi.fn(() => ({ get }));
+const customObjects = vi.fn(() => ({ post, withContainerAndKey }));
 
 class StoredItem extends Schema.Class<StoredItem>("StoredItem")({
   id: Schema.String,
@@ -55,7 +31,10 @@ const item = new StoredItem({
   id: key,
   createdAt: new Date(0),
 });
-const layer = layerCommercetoolsCustomObjectKeyValueStore({ container });
+const apiRoot = {
+  customObjects,
+} as unknown as ByProjectKeyRequestBuilder;
+const layer = versionedKeyValueStoreLayerFrom({ apiRoot, container });
 
 const concurrentModificationError = Object.assign(
   new Error("Concurrent modification"),
@@ -74,7 +53,7 @@ beforeEach(() => {
   customObjects.mockClear();
 });
 
-describe("layerCommercetoolsCustomObjectKeyValueStore", () => {
+describe("versionedKeyValueStoreLayer", () => {
   it.effect("returns none for missing custom objects", () =>
     Effect.gen(function* () {
       getExecute.mockRejectedValueOnce(

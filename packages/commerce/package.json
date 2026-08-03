@@ -16,7 +16,6 @@
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/observability": "workspace:*",
-    "@repo/versioned-store": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
     "@urql/core": "^5.1.2",
     "chalk": "^5.6.2",

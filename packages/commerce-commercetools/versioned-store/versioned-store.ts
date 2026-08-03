@@ -1,3 +1,4 @@
+import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import {
   StoreConflict,
   StoreError,
@@ -5,18 +6,15 @@ import {
   VersionedKeyValueStore,
 } from "@repo/versioned-store";
 import { Effect, Layer, Option, Schema } from "effect";
-import { apiRoot } from "../../client/api-root";
-import { isConcurrentModification } from "./versioned-write";
+import { commercetoolsClientsLayer } from "../client/layers";
+import { CommercetoolsRestClient } from "../client/rest-client";
+import {
+  commercetoolsFailureCause,
+  commercetoolsRequest,
+  isConcurrentModification,
+} from "../client/versioned-write";
 
 const NOT_FOUND_STATUS_CODE = 404;
-
-class CommercetoolsRequestFailure extends Schema.TaggedErrorClass<CommercetoolsRequestFailure>()(
-  "CommercetoolsRequestFailure",
-  {
-    message: Schema.String,
-    cause: Schema.Defect,
-  }
-) {}
 
 interface CommercetoolsCustomObject {
   readonly value: unknown;
@@ -77,9 +75,6 @@ const storeConflict = (
     operation,
   });
 
-const commercetoolsFailureCause = (error: unknown) =>
-  error instanceof CommercetoolsRequestFailure ? error.cause : error;
-
 const versionFromCustomObject = (version: number) =>
   StoreVersion.make(String(version));
 
@@ -130,9 +125,14 @@ const decodeJsonValue = <S extends Schema.Top>(
   );
 };
 
-const readCustomObject = (container: string, key: string) =>
-  Effect.tryPromise({
-    try: async () => {
+const readCustomObject = (
+  apiRoot: ByProjectKeyRequestBuilder,
+  container: string,
+  key: string
+) =>
+  commercetoolsRequest(
+    "Failed to read Commercetools custom object",
+    async () => {
       const response = await apiRoot
         .customObjects()
         .withContainerAndKey({ container, key })
@@ -140,13 +140,8 @@ const readCustomObject = (container: string, key: string) =>
         .execute();
 
       return response.body as CommercetoolsCustomObject;
-    },
-    catch: (cause) =>
-      new CommercetoolsRequestFailure({
-        message: "Failed to read Commercetools custom object",
-        cause,
-      }),
-  }).pipe(
+    }
+  ).pipe(
     Effect.map(Option.some),
     Effect.catch((failure) =>
       isNotFoundError(failure)
@@ -158,13 +153,15 @@ const readCustomObject = (container: string, key: string) =>
   );
 
 const writeCustomObject = (
+  apiRoot: ByProjectKeyRequestBuilder,
   container: string,
   key: string,
   version: number,
   value: unknown
 ) =>
-  Effect.tryPromise({
-    try: async () => {
+  commercetoolsRequest(
+    "Failed to write Commercetools custom object",
+    async () => {
       await apiRoot
         .customObjects()
         .post({
@@ -176,17 +173,16 @@ const writeCustomObject = (
           },
         })
         .execute();
-    },
-    catch: (cause) =>
-      new CommercetoolsRequestFailure({
-        message: "Failed to write Commercetools custom object",
-        cause,
-      }),
-  });
+    }
+  );
 
-const queryCustomObjects = (container: string) =>
-  Effect.tryPromise({
-    try: async () => {
+const queryCustomObjects = (
+  apiRoot: ByProjectKeyRequestBuilder,
+  container: string
+) =>
+  commercetoolsRequest(
+    "Failed to query Commercetools custom objects",
+    async () => {
       const response = await apiRoot
         .customObjects()
         .withContainer({ container })
@@ -199,23 +195,28 @@ const queryCustomObjects = (container: string) =>
         .execute();
 
       return response.body as CommercetoolsCustomObjectPagedQueryResponse;
-    },
-    catch: (error) => storeError(container, "read", error),
-  });
+    }
+  ).pipe(
+    Effect.mapError((error) =>
+      storeError(container, "read", commercetoolsFailureCause(error))
+    )
+  );
 
-export interface CommercetoolsCustomObjectKeyValueStoreOptions {
+export interface VersionedKeyValueStoreLayerOptions {
   readonly container: string;
 }
 
-export const layerCommercetoolsCustomObjectKeyValueStore = ({
+const versionedKeyValueStoreImplementationLayer = ({
   container,
-}: CommercetoolsCustomObjectKeyValueStoreOptions) =>
+}: VersionedKeyValueStoreLayerOptions) =>
   Layer.effect(
     VersionedKeyValueStore,
     Effect.gen(function* () {
+      const { apiRoot } = yield* CommercetoolsRestClient;
+
       const get = Effect.fn("CommercetoolsCustomObjectKeyValueStore.get")(
         <S extends Schema.Top>(key: string, schema: S) =>
-          readCustomObject(container, key).pipe(
+          readCustomObject(apiRoot, container, key).pipe(
             Effect.flatMap((customObject) =>
               Option.match(customObject, {
                 onNone: () => Effect.succeed(Option.none()),
@@ -241,7 +242,7 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
         ) {
           const encoded = yield* encodeJsonValue(key, "insert", schema, value);
 
-          yield* writeCustomObject(container, key, 0, encoded).pipe(
+          yield* writeCustomObject(apiRoot, container, key, 0, encoded).pipe(
             Effect.mapError((error) =>
               isConcurrentModification(error)
                 ? storeConflict(key, "insert", commercetoolsFailureCause(error))
@@ -261,7 +262,13 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
           const version = yield* versionToNumber(key, current.version);
           const encoded = yield* encodeJsonValue(key, "update", schema, next);
 
-          yield* writeCustomObject(container, key, version, encoded).pipe(
+          yield* writeCustomObject(
+            apiRoot,
+            container,
+            key,
+            version,
+            encoded
+          ).pipe(
             Effect.mapError((error) =>
               isConcurrentModification(error)
                 ? storeConflict(key, "update", commercetoolsFailureCause(error))
@@ -273,7 +280,7 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
 
       const values = Effect.fn("CommercetoolsCustomObjectKeyValueStore.values")(
         <S extends Schema.Top>(schema: S) =>
-          queryCustomObjects(container).pipe(
+          queryCustomObjects(apiRoot, container).pipe(
             Effect.flatMap((response) =>
               Effect.forEach(
                 response.results,
@@ -297,4 +304,21 @@ export const layerCommercetoolsCustomObjectKeyValueStore = ({
         values,
       });
     })
+  );
+
+export const versionedKeyValueStoreLayerFrom = ({
+  apiRoot,
+  container,
+}: VersionedKeyValueStoreLayerOptions & {
+  readonly apiRoot: ByProjectKeyRequestBuilder;
+}) =>
+  versionedKeyValueStoreImplementationLayer({ container }).pipe(
+    Layer.provide(CommercetoolsRestClient.testLayer(apiRoot))
+  );
+
+export const versionedKeyValueStoreLayer = (
+  options: VersionedKeyValueStoreLayerOptions
+) =>
+  versionedKeyValueStoreImplementationLayer(options).pipe(
+    Layer.provide(commercetoolsClientsLayer)
   );
