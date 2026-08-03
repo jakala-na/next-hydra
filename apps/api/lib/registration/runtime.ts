@@ -1,6 +1,7 @@
 import { identityUsersLayerWorkos } from "@repo/auth-workos/identity-users";
 import { invitationsLayerWorkos } from "@repo/auth-workos/invitations";
 import { commerceAccountsLayer } from "@repo/commerce-commercetools/commerce-accounts";
+import { registrationQueriesLayer } from "@repo/commerce-commercetools/registration";
 import { versionedKeyValueStoreLayer } from "@repo/commerce-commercetools/versioned-store";
 import { layerResendEmailProvider } from "@repo/email/resend-provider";
 import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
@@ -10,7 +11,6 @@ import { Registrations } from "@repo/registration/services/registrations";
 import { VatValidator } from "@repo/registration/services/vat-validator";
 import { Layer } from "effect";
 import { env } from "@/env";
-import { layerCommercetoolsRegistrationQueries } from "./providers/commercetools-registration-queries";
 
 export const REGISTRATION_CONTAINER =
   process.env.REGISTRATION_CONTAINER ?? "b2b-registration-by-id";
@@ -27,7 +27,7 @@ const registrationEmailsLayer = layerRegistrationEmails({
 export const registrationLayer = Registrations.layerStorage.pipe(
   Layer.provide(registrationStorageLayer),
   Layer.provideMerge(
-    layerCommercetoolsRegistrationQueries({
+    registrationQueriesLayer({
       container: REGISTRATION_CONTAINER,
     })
   ),

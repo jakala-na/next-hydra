@@ -1,4 +1,4 @@
-import { apiRoot } from "@repo/commerce/lib/client/api-root";
+import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import type { RedactedEmail } from "@repo/registration/domain/identity";
 import {
   type Registration,
@@ -21,6 +21,12 @@ import {
 } from "@repo/registration/services/registration-queries";
 import { decodeJsonString } from "@repo/versioned-store";
 import { Effect, Layer, Option, Redacted, Schema } from "effect";
+import { commercetoolsClientsLayer } from "../client/layers";
+import { CommercetoolsRestClient } from "../client/rest-client";
+import {
+  commercetoolsFailureCause,
+  commercetoolsRequest,
+} from "../client/versioned-write";
 
 interface CommercetoolsCustomObject {
   readonly id: string;
@@ -200,12 +206,14 @@ const decodeRegistrationValue = (value: unknown) => {
 };
 
 const queryCustomObjects = ({
+  apiRoot,
   container,
   cursor,
   sort,
   status,
   limit,
 }: {
+  readonly apiRoot: ByProjectKeyRequestBuilder;
   readonly container: string;
   readonly cursor?: RegistrationQueryCursor | undefined;
   readonly sort: {
@@ -215,8 +223,9 @@ const queryCustomObjects = ({
   readonly status?: RegistrationStatusType | undefined;
   readonly limit: number;
 }) =>
-  Effect.tryPromise({
-    try: async () => {
+  commercetoolsRequest(
+    "Failed to query Commercetools registration Custom Objects",
+    async () => {
       const where = wherePredicate({ cursor, status });
       const response = await apiRoot
         .customObjects()
@@ -233,16 +242,20 @@ const queryCustomObjects = ({
         .execute();
 
       return response.body as CommercetoolsCustomObjectPagedQueryResponse;
-    },
-    catch: (cause) =>
-      new RegistrationQueryFailure({
+    }
+  ).pipe(
+    Effect.mapError((failure) => {
+      const cause = commercetoolsFailureCause(failure);
+
+      return new RegistrationQueryFailure({
         message: `Failed to list registrations: ${
           cause instanceof Error ? cause.message : String(cause)
         }`,
         operation: "list",
         cause,
-      }),
-  });
+      });
+    })
+  );
 
 const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
   Effect.gen(function* () {
@@ -291,14 +304,16 @@ const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
     } satisfies RegistrationQueryRecord;
   });
 
-export interface CommercetoolsRegistrationQueriesOptions {
+export interface RegistrationQueriesLayerOptions {
   readonly container: string;
-  readonly batchSize?: number;
 }
 
-export const layerCommercetoolsRegistrationQueries = ({
+const makeRegistrationQueries = ({
+  apiRoot,
   container,
-}: CommercetoolsRegistrationQueriesOptions) => {
+}: RegistrationQueriesLayerOptions & {
+  readonly apiRoot: ByProjectKeyRequestBuilder;
+}) => {
   const list = Effect.fn("CommercetoolsRegistrationQueries.list")(function* (
     input: ListRegistrationsInput
   ) {
@@ -309,6 +324,7 @@ export const layerCommercetoolsRegistrationQueries = ({
 
     if (!search) {
       const response = yield* queryCustomObjects({
+        apiRoot,
         container,
         cursor,
         sort,
@@ -338,6 +354,7 @@ export const layerCommercetoolsRegistrationQueries = ({
 
     while (matched.length <= limit && hasMoreProviderRecords) {
       const response = yield* queryCustomObjects({
+        apiRoot,
         container,
         cursor: providerCursor,
         sort,
@@ -408,11 +425,37 @@ export const layerCommercetoolsRegistrationQueries = ({
     return false;
   });
 
-  return Layer.succeed(
+  return RegistrationQueries.of({
+    hasPendingEmail,
+    list,
+  });
+};
+
+const registrationQueriesImplementationLayer = (
+  options: RegistrationQueriesLayerOptions
+) =>
+  Layer.effect(
     RegistrationQueries,
-    RegistrationQueries.of({
-      hasPendingEmail,
-      list,
+    Effect.gen(function* () {
+      const { apiRoot } = yield* CommercetoolsRestClient;
+
+      return makeRegistrationQueries({ apiRoot, ...options });
     })
   );
-};
+
+export const registrationQueriesLayerFrom = ({
+  apiRoot,
+  container,
+}: RegistrationQueriesLayerOptions & {
+  readonly apiRoot: ByProjectKeyRequestBuilder;
+}) =>
+  registrationQueriesImplementationLayer({ container }).pipe(
+    Layer.provide(CommercetoolsRestClient.testLayer(apiRoot))
+  );
+
+export const registrationQueriesLayer = (
+  options: RegistrationQueriesLayerOptions
+) =>
+  registrationQueriesImplementationLayer(options).pipe(
+    Layer.provide(commercetoolsClientsLayer)
+  );

@@ -21,7 +21,6 @@
     "@repo/observability": "workspace:*",
     "@repo/registration": "workspace:*",
     "@repo/testing": "workspace:*",
-    "@repo/versioned-store": "workspace:*",
     "@sentry/nextjs": "^10.22.0",
     "@t3-oss/env-nextjs": "catalog:",
     "@workos-inc/node": "^8.12.1",

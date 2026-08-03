@@ -33,15 +33,6 @@ const itEffect = (
 ) => it(name, () => Effect.runPromise(effect()));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@repo/commerce/keys", () => ({
-  keys: () => ({
-    COMMERCETOOLS_CLIENT_ID: process.env.COMMERCETOOLS_CLIENT_ID,
-    COMMERCETOOLS_CLIENT_SECRET: process.env.COMMERCETOOLS_CLIENT_SECRET,
-    COMMERCETOOLS_PROJECT_KEY: process.env.COMMERCETOOLS_PROJECT_KEY,
-    COMMERCETOOLS_REGION: process.env.COMMERCETOOLS_REGION,
-    COMMERCETOOLS_SCOPE: process.env.COMMERCETOOLS_SCOPE,
-  }),
-}));
 
 const requiredEnv = [
   "COMMERCETOOLS_PROJECT_KEY",
@@ -129,10 +120,24 @@ const makeRejectedRegistration = (
   });
 };
 
+const getLiveApiRoot = async () => {
+  const [{ commercetoolsRestClientLayer }, { CommercetoolsRestClient }] =
+    await Promise.all([
+      import("../client/layers"),
+      import("../client/rest-client"),
+    ]);
+
+  return Effect.runPromise(
+    Effect.map(CommercetoolsRestClient, ({ apiRoot }) => apiRoot).pipe(
+      Effect.provide(commercetoolsRestClientLayer)
+    )
+  );
+};
+
 const seedLiveRegistrations = async () => {
-  const { apiRoot } = await import("@repo/commerce/lib/client/api-root");
+  const apiRoot = await getLiveApiRoot();
   const { encodeRegistrationStorageValue } = await import(
-    "./commercetools-registration-queries"
+    "./registration-queries"
   );
   const registrations = [
     makeRegistration(
@@ -180,7 +185,7 @@ const seedLiveRegistrations = async () => {
 };
 
 const deleteLiveRegistrations = async () => {
-  const { apiRoot } = await import("@repo/commerce/lib/client/api-root");
+  const apiRoot = await getLiveApiRoot();
 
   for (const key of seededKeys) {
     try {
@@ -248,7 +253,7 @@ const expectOrdered = (
   }
 };
 
-describeLive("layerCommercetoolsRegistrationQueries live", () => {
+describeLive("registrationQueriesLayer live", () => {
   beforeAll(seedLiveRegistrations);
   afterAll(deleteLiveRegistrations);
 
@@ -256,11 +261,10 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
     "pages registrations through Commercetools without the admin UI",
     () =>
       Effect.gen(function* () {
-        const { layerCommercetoolsRegistrationQueries } = yield* Effect.promise(
-          () => import("./commercetools-registration-queries")
+        const { registrationQueriesLayer } = yield* Effect.promise(
+          () => import("./registration-queries")
         );
-        const layer = layerCommercetoolsRegistrationQueries({
-          batchSize: 2,
+        const layer = registrationQueriesLayer({
           container: liveContainer,
         });
 
@@ -293,11 +297,10 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
 
   itEffect("sorts live registrations by last modified ascending", () =>
     Effect.gen(function* () {
-      const { layerCommercetoolsRegistrationQueries } = yield* Effect.promise(
-        () => import("./commercetools-registration-queries")
+      const { registrationQueriesLayer } = yield* Effect.promise(
+        () => import("./registration-queries")
       );
-      const layer = layerCommercetoolsRegistrationQueries({
-        batchSize: 2,
+      const layer = registrationQueriesLayer({
         container: liveContainer,
       });
 
@@ -325,11 +328,10 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
 
   itEffect("sorts live registrations by created time", () =>
     Effect.gen(function* () {
-      const { layerCommercetoolsRegistrationQueries } = yield* Effect.promise(
-        () => import("./commercetools-registration-queries")
+      const { registrationQueriesLayer } = yield* Effect.promise(
+        () => import("./registration-queries")
       );
-      const layer = layerCommercetoolsRegistrationQueries({
-        batchSize: 2,
+      const layer = registrationQueriesLayer({
         container: liveContainer,
       });
 
@@ -357,11 +359,10 @@ describeLive("layerCommercetoolsRegistrationQueries live", () => {
 
   itEffect("combines status filtering with cursor pagination", () =>
     Effect.gen(function* () {
-      const { layerCommercetoolsRegistrationQueries } = yield* Effect.promise(
-        () => import("./commercetools-registration-queries")
+      const { registrationQueriesLayer } = yield* Effect.promise(
+        () => import("./registration-queries")
       );
-      const layer = layerCommercetoolsRegistrationQueries({
-        batchSize: 2,
+      const layer = registrationQueriesLayer({
         container: liveContainer,
       });
 

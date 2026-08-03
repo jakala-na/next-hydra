@@ -1,5 +1,6 @@
 // biome-ignore-all lint/suspicious/noMisplacedAssertion: Assertions run inside Effect programs executed by the test helper.
 
+import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import { StoreKey } from "@repo/commerce/store";
 import {
   AddressLine,
@@ -28,43 +29,24 @@ import { Effect, Redacted } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   encodeRegistrationStorageValue,
-  layerCommercetoolsRegistrationQueries,
-} from "./commercetools-registration-queries";
+  registrationQueriesLayerFrom,
+} from "./registration-queries";
 
 const itEffect = (
   name: string,
   effect: () => Effect.Effect<unknown, unknown, never>
 ) => it(name, () => Effect.runPromise(effect()));
 
-const mocks = vi.hoisted(() => {
-  const executeMock = vi.fn();
-  const getMock = vi.fn(() => ({ execute: executeMock }));
-  const withContainerMock = vi.fn(() => ({ get: getMock }));
-  const customObjectsMock = vi.fn(() => ({
-    withContainer: withContainerMock,
-  }));
+vi.mock("server-only", () => ({}));
 
-  return {
-    customObjects: customObjectsMock,
-    execute: executeMock,
-    get: getMock,
-    withContainer: withContainerMock,
-  };
-});
-
-vi.mock("@repo/commerce/lib/client/api-root", () => ({
-  apiRoot: {
-    customObjects: mocks.customObjects,
-  },
-}));
-
-const { customObjects, execute, get, withContainer } = mocks;
+const execute = vi.fn();
+const get = vi.fn(() => ({ execute }));
+const withContainer = vi.fn(() => ({ get }));
+const customObjects = vi.fn(() => ({ withContainer }));
+const apiRoot = { customObjects } as unknown as ByProjectKeyRequestBuilder;
 
 const container = "b2b-registration-by-id";
-const layer = layerCommercetoolsRegistrationQueries({
-  batchSize: 2,
-  container,
-});
+const layer = registrationQueriesLayerFrom({ apiRoot, container });
 
 const makeDetails = (companyName: string) =>
   new CompanyRegistrationDetails({
@@ -129,7 +111,7 @@ beforeEach(() => {
   execute.mockReset();
 });
 
-describe("layerCommercetoolsRegistrationQueries", () => {
+describe("registrationQueriesLayer", () => {
   itEffect("queries custom objects by lastModifiedAt and id cursor order", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
