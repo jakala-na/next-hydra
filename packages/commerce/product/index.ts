@@ -39,3 +39,10 @@ export {
   ProductOptionValue,
   ProductPrice,
 } from "./model";
+export {
+  ListProductCardsInput,
+  ProductDiscovery,
+  ProductDiscoveryFailure,
+  ProductDiscoveryOperation,
+  type ProductDiscoveryTestHandlers,
+} from "./product-discovery";

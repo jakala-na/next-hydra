@@ -32,16 +32,11 @@ Do not expose a generic provider query language or accept the current raw Commer
 The core contract is deliberately smaller than the current `productService` plus `productRepo` surface:
 
 ```ts
-export const ProductCollectionLimit = Schema.Int.pipe(
-  Schema.check(Schema.isGreaterThan(0)),
-  Schema.brand("ProductCollectionLimit")
-)
-
 export class ListProductCardsInput extends Schema.Class<ListProductCardsInput>(
   "ListProductCardsInput"
 )({
   categoryId: Schema.optional(CategoryId),
-  limit: ProductCollectionLimit,
+  limit: Schema.Int.check(Schema.isGreaterThan(0)),
   excludeProductId: Schema.optional(ProductId),
 }) {}
 
@@ -75,7 +70,7 @@ export class ProductDiscovery extends Context.Service<
 }
 ```
 
-The exact Effect Schema combinator used to express a positive integer should follow the installed v4 API during implementation; the contract is a branded positive integer with no Commercetools maximum encoded into it.
+The exact Effect Schema combinator used to express a positive integer should follow the installed v4 API during implementation. The limit remains an ordinary number after decoding: its positivity is a boundary constraint, not a separate domain identity. No Commercetools maximum is encoded into it.
 
 `findBySlug` is the only current Product Detail lookup. The route boundary decodes its string parameter to `ProductSlug`; Product Discovery obtains locale and all buying context from its Layer. The method name and `Option` make absence explicit without a second `ProductNotFound` error.
 
