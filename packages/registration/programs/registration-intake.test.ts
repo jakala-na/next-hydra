@@ -104,7 +104,6 @@ const commerceAccountsLayer = ({
   Layer.succeed(
     CommerceAccounts,
     CommerceAccounts.of({
-      getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
       getCustomerProfile: () => Effect.die("not used"),
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: (
@@ -113,6 +112,8 @@ const commerceAccountsLayer = ({
       getCustomerIdByAuthUserId: () => Effect.die("not used"),
       hasCustomerWithEmail: () =>
         failure ? Effect.fail(failure) : Effect.succeed(hasCustomerWithEmail),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
       linkRegistrantIdentity: () => Effect.die("not used"),
     })
   );

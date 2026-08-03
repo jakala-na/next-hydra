@@ -10,6 +10,7 @@ import { BusinessUnitSwitcher as BusinessUnitSwitcherView } from "@repo/design-s
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Schema } from "effect";
 import { cookies } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
 import {
   BUSINESS_UNIT_COOKIE_NAME,
   getBusinessUnitIdFromCookieValue,
@@ -23,18 +24,41 @@ interface BusinessUnitSwitcherProps {
 export async function BusinessUnitSwitcher({
   locale,
 }: BusinessUnitSwitcherProps) {
+  let request:
+    | {
+        readonly authUserId: string;
+        readonly selectedBusinessUnitId: ReturnType<
+          typeof getBusinessUnitIdFromCookieValue
+        >;
+      }
+    | undefined;
+
+  try {
+    const [session, cookieStore] = await Promise.all([withAuth(), cookies()]);
+    if (!session.user) {
+      return null;
+    }
+    request = {
+      authUserId: session.user.id,
+      selectedBusinessUnitId: getBusinessUnitIdFromCookieValue(
+        cookieStore.get(BUSINESS_UNIT_COOKIE_NAME)?.value
+      ),
+    };
+  } catch (error) {
+    unstable_rethrow(error);
+    await Effect.runPromise(
+      Effect.logError("Failed to read Business Unit request", error)
+    );
+    return null;
+  }
+
   const result = await Effect.runPromise(
     Effect.gen(function* () {
-      const session = yield* Effect.promise(() => withAuth());
-      if (!session.user) {
-        return null;
-      }
-
-      const store = yield* Effect.promise(() =>
+      const store = yield* Effect.tryPromise(() =>
         storeService.getStoreContextByLocale(locale)
       );
       const authUserId = yield* Schema.decodeUnknownEffect(AuthUserId)(
-        session.user.id
+        request.authUserId
       );
       const accounts = yield* CommerceAccounts;
       const customerId = yield* accounts.getCustomerIdByAuthUserId(authUserId);
@@ -43,19 +67,14 @@ export async function BusinessUnitSwitcher({
           customerId,
           StoreKey.make(store.storeKey)
         );
-      const cookieStore = yield* Effect.promise(() => cookies());
-      const selectedCookieBusinessUnitId = getBusinessUnitIdFromCookieValue(
-        cookieStore.get(BUSINESS_UNIT_COOKIE_NAME)?.value
-      );
-
       return {
         memberships: loadedMemberships,
-        selectedBusinessUnitId: selectedCookieBusinessUnitId,
+        selectedBusinessUnitId: request.selectedBusinessUnitId,
       };
     }).pipe(
       Effect.provide(layerCommercetoolsCommerceAccounts),
-      Effect.catchCause((cause) =>
-        Effect.logError("Failed to load Business Unit switcher", cause).pipe(
+      Effect.catch((error) =>
+        Effect.logError("Failed to load Business Unit switcher", error).pipe(
           Effect.as(null)
         )
       )

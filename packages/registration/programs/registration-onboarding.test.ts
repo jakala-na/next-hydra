@@ -216,8 +216,6 @@ describe("registration onboarding", () => {
       const commerceFailureLayer = Layer.succeed(CommerceAccounts)({
         createFromRegistration: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
-        getBusinessUnitContextForCustomerInStore: () =>
-          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         getCustomerProfile: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         getCustomerIdByAuthUserId: () =>
@@ -225,6 +223,8 @@ describe("registration onboarding", () => {
         linkRegistrantIdentity: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         hasCustomerWithEmail: () =>
+          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+        listBusinessUnitMembershipsForCustomerInStore: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
         addAssociate: () =>
           Effect.fail(new CommerceAccountError({ message: "commerce down" })),
@@ -356,7 +356,6 @@ describe("registration onboarding", () => {
     const commerceLayer = Layer.succeed(
       CommerceAccounts,
       CommerceAccounts.of({
-        getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
         getCustomerProfile: () => Effect.die("not used"),
         createFromRegistration: (registration) =>
           Effect.succeed(
@@ -371,6 +370,8 @@ describe("registration onboarding", () => {
             })
           ),
         getCustomerIdByAuthUserId: () => Effect.die("not used"),
+        listBusinessUnitMembershipsForCustomerInStore: () =>
+          Effect.die("not used"),
         linkRegistrantIdentity: (input) =>
           Effect.sync(() => {
             linkedIdentities.push(input.acceptedIdentity);

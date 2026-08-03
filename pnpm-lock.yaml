@@ -108,6 +108,9 @@ importers:
       '@repo/commerce':
         specifier: workspace:*
         version: link:../../packages/commerce
+      '@repo/commerce-commercetools':
+        specifier: workspace:*
+        version: link:../../packages/commerce-commercetools
       '@repo/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
@@ -193,6 +196,9 @@ importers:
       '@repo/commerce':
         specifier: workspace:*
         version: link:../../packages/commerce
+      '@repo/commerce-commercetools':
+        specifier: workspace:*
+        version: link:../../packages/commerce-commercetools
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
@@ -449,6 +455,9 @@ importers:
       '@repo/commerce':
         specifier: workspace:*
         version: link:../../packages/commerce
+      '@repo/commerce-commercetools':
+        specifier: workspace:*
+        version: link:../../packages/commerce-commercetools
       '@repo/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
@@ -851,6 +860,28 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.2.4(react@19.2.4)
+
+  packages/commerce-commercetools:
+    dependencies:
+      '@repo/commerce':
+        specifier: workspace:*
+        version: link:../commerce
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.15.21
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-beta.67
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@22.15.21)(jiti@2.6.1)(jsdom@26.1.0(bufferutil@4.0.9))(lightningcss@1.30.2)(msw@2.12.10(@types/node@22.15.21)(typescript@5.9.3))(terser@5.44.0)(yaml@2.9.0)
 
   packages/create-next-hydra:
     dependencies:

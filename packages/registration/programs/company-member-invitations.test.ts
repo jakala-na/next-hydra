@@ -34,11 +34,11 @@ const commerceAccount = new CommerceAccount({
 
 const commerceAccountsLayer = Layer.succeed(CommerceAccounts, {
   createFromRegistration: () => Effect.succeed(commerceAccount),
-  getBusinessUnitContextForCustomerInStore: () => Effect.die("not used"),
   getCustomerProfile: () => Effect.die("not used"),
   linkRegistrantIdentity: () => Effect.succeed(commerceAccount),
   getCustomerIdByAuthUserId: () => Effect.die("not used"),
   hasCustomerWithEmail: () => Effect.succeed(false),
+  listBusinessUnitMembershipsForCustomerInStore: () => Effect.die("not used"),
   addAssociate: (input) =>
     Effect.sync(() => {
       const alreadyAccepted = acceptedMemberships.some(

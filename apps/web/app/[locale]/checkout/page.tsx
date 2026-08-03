@@ -5,7 +5,8 @@ import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import { Effect } from "effect";
 import { notFound } from "next/navigation";
-import { nextCheckoutLayer } from "../../../lib/current-cart";
+import { checkoutLayer } from "../../../lib/current-cart";
+import { readCurrentCartRequest } from "../../../lib/current-cart-request";
 import { saveCheckoutContact, saveCheckoutDeliveryDetails } from "./actions";
 
 type CheckoutRouteProps = {
@@ -21,6 +22,7 @@ export default async function Checkout({ params }: CheckoutRouteProps) {
   }
 
   setRequestLocale(locale);
+  const request = await readCurrentCartRequest(locale);
   const pageData = await Effect.runPromise(
     Effect.gen(function* () {
       const state = yield* CheckoutSession.getCurrent().pipe(
@@ -48,7 +50,7 @@ export default async function Checkout({ params }: CheckoutRouteProps) {
         })),
       };
     }).pipe(
-      Effect.provide(nextCheckoutLayer(locale)),
+      Effect.provide(checkoutLayer(request)),
       Effect.catchTag("CommerceRequestContextNotFound", () =>
         Effect.succeed(null)
       )

@@ -1,0 +1,33 @@
+{
+  "name": "@repo/commerce-commercetools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsgo --noEmit"
+  },
+  "exports": {
+    "./provider": "./provider.ts",
+    "./cart": "./cart/index.ts",
+    "./commerce-accounts": "./commerce-accounts/index.ts",
+    "./address-book": "./address-book/index.ts",
+    "./versioned-store": "./versioned-store/index.ts",
+    "./keys": "./config/keys.ts",
+    "./cli": "./cli/index.ts"
+  },
+  "dependencies": {
+    "@repo/commerce": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "effect": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

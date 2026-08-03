@@ -36,9 +36,49 @@ _Avoid_: Cart authority, Cart version
 A typed characteristic of a purchasable Product Variant. A provider may source it from Product- or Variant-level storage, but the domain value does not retain that origin.
 _Avoid_: Provider attribute payload, raw attribute, attribute origin
 
+**Product**:
+A catalog item that groups shared merchandising information with one or more purchasable Product Variants. A Product is discovered and presented but is not itself purchased.
+_Avoid_: Provider Product Projection, purchasable Product
+
+**Product Card**:
+The compact Product projection used in catalog collections and discovery.
+_Avoid_: Product Summary, Product Card DTO, Product Card component props
+
+**Product Detail**:
+The complete Product projection used to present and select a purchasable Product Variant.
+_Avoid_: Product Details DTO, Product page, Provider Product Projection
+
 **Product Variant**:
 The purchasable Product projection represented by a Cart Line Item, including its effective Product Attributes.
 _Avoid_: Provider Product and Variant hierarchy
+
+**Default Product Variant**:
+The Product Variant initially selected when Product Detail is presented. It must be one of the Product Detail's purchasable Product Variants.
+_Avoid_: Master Variant, first array element
+
+**Product Price**:
+The price selected for a Product Variant in the current Commerce Context, including an optional discount applied to that selected price.
+_Avoid_: Price candidates, Customer Group price list, provider price payload
+
+**Product Availability**:
+Whether a Product Variant can currently be purchased in the Commerce Context, together with an available quantity when the provider can report one.
+_Avoid_: Supply Channel inventory, stock-record payload, quantity-derived saleability
+
+**Product Option**:
+A named selection dimension whose values distinguish purchasable Product Variants, such as Model or Color.
+_Avoid_: Descriptive Product Attribute, provider option type
+
+**Product Category**:
+A catalog classification used to discover or contextualize Products.
+_Avoid_: Provider Category payload, CMS Category field
+
+**Product Assortment**:
+The Products and Product Variants eligible for discovery and purchase in a Store.
+_Avoid_: Product Selection, sales channel, provider assortment payload
+
+**Product Type**:
+A catalog schema that identifies which typed Product Attributes are available for a Product's Variants.
+_Avoid_: Untyped attribute bag, provider Product Type payload
 
 **Cart Policy**:
 A rule based only on Cart data that determines whether the Cart is purchasable as currently composed.
@@ -267,6 +307,18 @@ _Avoid_: Review checkout, order summary
 
 - A **Checkout** has exactly one **Active Checkout Step**.
 - A **Checkout** requires an existing non-empty **Cart**.
+- A **Product** groups one or more **Product Variants**, and only a Product Variant is purchasable.
+- **Product Card** and **Product Detail** are commerce projections of a Product, not provider payloads or presentation component props.
+- A **Product Detail** contains at least one purchasable **Product Variant** and identifies exactly one of them as its **Default Product Variant**.
+- A **Product Price** is resolved for the current Store and buyer before it enters Product Card or Product Detail; provider channel and customer-group identities are not part of the Product Price.
+- **Product Availability** is resolved for the current Store and buyer; available quantity alone does not universally determine whether a Product Variant can be purchased.
+- Product discovery occurs in the current **Commerce Context**; callers select Products and Categories without supplying Store, locale, currency, or buyer identity to each operation.
+- The **Store** in Commerce Context includes the selected commerce locale and currency used consistently by Product discovery, Cart, and Checkout; it does not contain provider Store mechanics.
+- A request boundary resolves the **Store** from a configured eligible Store selection or the locale's configured default before constructing **Commerce Context**; a submitted Store Key is a selector, not provider Store data or authority.
+- A **Product Option** defines how a buyer distinguishes Product Variants; each Product Variant identifies its value for every Product Option.
+- A **Product Attribute** may describe a Variant without participating in Variant selection.
+- A **Product Detail** identifies its **Product Type**, and every included Product Variant's Attributes conform to that Product Type's schema.
+- Product Card and Product Detail contain only Products and Product Variants in the current Store's **Product Assortment**; Product Card price and availability are derived only from those eligible Variants.
 - A **Current Cart** is selected from the buyer's current Store and, for B2B activity, Business Unit Buying Context rather than by treating an arbitrary Cart ID as authority.
 - A customer identity authorizes access to profile and associate capabilities; it does not own the **Cart**.
 - An anonymous **Cart** belongs to its Store and has no **Buying Context** Business Unit.
@@ -274,9 +326,9 @@ _Avoid_: Review checkout, order summary
 - Anonymous and B2B Carts remain separate when the buyer signs in; Checkout does not transfer or merge the anonymous Cart into a Business Unit.
 - A **Checkout State** is a lean read model derived from the current **Cart**, buyer context, and **Checkout Details**.
 - A request boundary decodes a **Commerce Context Request** from trusted Store resolution, verified authentication, anonymous possession, and an optional Business Unit ID selector.
-- `CommerceContext.layer(request)` resolves the verified **Commerce Context** once for the request. For authenticated requests it derives Customer ID from Auth User ID, obtains Store-scoped **Business Unit Memberships** through **Commerce Accounts**, and validates or uniquely infers the selected **Buying Context**.
+- `CommerceContext.layer(request)` resolves the verified **Commerce Context** once for the request. For authenticated requests it derives Customer ID from Auth User ID, obtains Store-scoped **Business Unit Memberships** through **Commerce Accounts**, and uses the requested verified Business Unit or the first verified membership as the **Buying Context**.
 - **Commerce Accounts** reports provider-backed customer mappings, profiles, and Business Unit Memberships; it does not decide which Business Unit is current for a request.
-- A caller-provided Business Unit ID selects among verified memberships; it does not grant membership. Customer ID is resolved from verified authentication and is never accepted as request authority.
+- A caller-provided Business Unit ID selects among verified memberships; it does not grant membership. A missing, stale, or invalid selector falls back to the first verified membership, and resolution fails only when the Customer has no eligible membership in the Store. Customer ID is resolved from verified authentication and is never accepted as request authority.
 - The provider-selected **Address Book** Layer depends on `CommerceContext`; its `list`, `get`, and `save` methods accept no Customer or Business Unit identity.
 - `CheckoutSession.layer` depends on `CommerceContext` and derives its **Checkout Scope** once for the request.
 - `CheckoutSession.getCurrent()` gets current **Checkout State** for that request-bound session; callers do not pass scope or context to session methods.

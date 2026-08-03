@@ -15,6 +15,7 @@
     "@repo/auth-workos": "workspace:*",
     "@repo/cms": "workspace:*",
     "@repo/commerce": "workspace:*",
+    "@repo/commerce-commercetools": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/email": "workspace:*",
     "@repo/feature-flags": "workspace:*",

@@ -19,11 +19,12 @@ import type { Locale } from "@repo/i18n/types";
 import { Effect, Option } from "effect";
 import { ShoppingCart } from "lucide-react";
 import { draftMode, headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import { AccountMenuClient } from "@/components/layout/account-menu-client";
 import { BusinessUnitSwitcher } from "@/components/layout/business-unit-switcher";
-import { nextCurrentCartLayer } from "@/lib/current-cart";
+import { currentCartLayer } from "@/lib/current-cart";
+import { readCurrentCartRequest } from "@/lib/current-cart-request";
 import {
   addToCart,
   changeCartItemsQuantity,
@@ -32,9 +33,10 @@ import {
 
 async function getCart(locale: Locale) {
   try {
+    const request = await readCurrentCartRequest(locale);
     const result = await Effect.runPromise(
       CurrentCart.get().pipe(
-        Effect.provide(nextCurrentCartLayer(locale)),
+        Effect.provide(currentCartLayer(request)),
         Effect.tapError((error) =>
           Effect.logError("Failed to read Current Cart", error).pipe(
             Effect.annotateLogs({ operation: "currentCart.get" })
@@ -52,6 +54,7 @@ async function getCart(locale: Locale) {
       onSome: Ok,
     });
   } catch (cause) {
+    unstable_rethrow(cause);
     await Effect.runPromise(
       Effect.logError("Failed to read Current Cart", cause).pipe(
         Effect.annotateLogs({ operation: "currentCart.get" })

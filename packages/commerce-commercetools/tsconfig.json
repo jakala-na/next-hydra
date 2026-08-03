@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Effect-TS/language-service/refs/heads/main/schema.json",
+  "extends": "@repo/typescript-config/effect.json",
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "paths": {
+      "@repo/commerce-commercetools/*": ["./*"],
+      "@repo/commerce/*": ["../commerce/*"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

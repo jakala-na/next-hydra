@@ -1,6 +1,5 @@
 import "server-only";
 
-import { withAuth } from "@repo/auth-workos/server";
 import { CartId, StoreKey } from "@repo/commerce/domain/cart";
 import { currentCartOperationFailure } from "@repo/commerce/domain/cart-errors";
 import { CartStore } from "@repo/commerce/domain/cart-snapshot";
@@ -12,8 +11,6 @@ import {
   CustomerCommerceContextRequest,
 } from "@repo/commerce/domain/commerce-request-context";
 import {
-  ANONYMOUS_CART_COOKIE_NAME,
-  ANONYMOUS_CART_COOKIE_OPTIONS,
   encodeAnonymousCartCookie,
   getAnonymousCartIdFromCookieValue,
   makeAnonymousCartCookie,
@@ -30,64 +27,61 @@ import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer, Schema } from "effect";
-import { cookies } from "next/headers";
-import {
-  BUSINESS_UNIT_COOKIE_NAME,
-  getBusinessUnitIdFromCookieValue,
-} from "./business-unit-cookie";
+import { getBusinessUnitIdFromCookieValue } from "./business-unit-cookie";
 
-export class NextCommerceBoundaryFailure extends Schema.TaggedErrorClass<NextCommerceBoundaryFailure>()(
-  "NextCommerceBoundaryFailure",
+class CurrentCartRequestFailure extends Schema.TaggedErrorClass<CurrentCartRequestFailure>()(
+  "CurrentCartRequestFailure",
   {
-    message: Schema.String,
+    operation: Schema.Literals(["resolveStore", "decodeAuthUserId"]),
     cause: Schema.Defect,
   }
 ) {}
 
-const nextCommerceBoundaryFailure = (message: string, cause: unknown) =>
-  new NextCommerceBoundaryFailure({ message, cause });
+const currentCartRequestFailure = (
+  operation: "resolveStore" | "decodeAuthUserId",
+  cause: unknown
+) => new CurrentCartRequestFailure({ operation, cause });
 
-interface NextCommerceBoundary {
+interface AnonymousCartCookieRequest {
+  readonly value: string | undefined;
+  readonly set: (value: string) => void;
+  readonly clear: () => void;
+}
+
+export interface CurrentCartRequest {
+  readonly locale: Locale;
+  readonly authUserId: string | undefined;
+  readonly businessUnitIdCookie: string | undefined;
+  readonly anonymousCartCookie: AnonymousCartCookieRequest;
+}
+
+interface CurrentCartLayerInputs {
   readonly currentCartCookie: CurrentCartCookie;
   readonly commerceContextRequest: CommerceContextRequest;
 }
 
-const makeNextCommerceBoundary = (locale: Locale) =>
+const makeCurrentCartLayerInputs = (request: CurrentCartRequest) =>
   Effect.gen(function* () {
     const storeContext = yield* Effect.tryPromise({
-      try: () => storeService.getStoreContextByLocale(locale),
-      catch: (cause) =>
-        nextCommerceBoundaryFailure("Failed to resolve Store context", cause),
+      try: () => storeService.getStoreContextByLocale(request.locale),
+      catch: (cause) => currentCartRequestFailure("resolveStore", cause),
     });
     const store = new CartStore({
-      locale: CheckoutLocale.make(locale),
+      locale: CheckoutLocale.make(request.locale),
       storeKey: StoreKey.make(storeContext.storeKey),
       currency: storeContext.currency,
     });
-    const session = yield* Effect.tryPromise({
-      try: () => withAuth(),
-      catch: (cause) =>
-        nextCommerceBoundaryFailure(
-          "Failed to resolve authenticated session",
-          cause
-        ),
-    });
-    const cookieStore = yield* Effect.tryPromise({
-      try: cookies,
-      catch: (cause) =>
-        nextCommerceBoundaryFailure("Failed to access Next.js cookies", cause),
-    });
 
-    if (session.user) {
+    if (request.authUserId !== undefined) {
       const authUserId = yield* Schema.decodeUnknownEffect(AuthUserId)(
-        session.user.id
+        request.authUserId
       ).pipe(
         Effect.mapError((cause) =>
-          nextCommerceBoundaryFailure("Authenticated user id is invalid", cause)
+          currentCartRequestFailure("decodeAuthUserId", cause)
         )
       );
       const businessUnitId = getBusinessUnitIdFromCookieValue(
-        cookieStore.get(BUSINESS_UNIT_COOKIE_NAME)?.value
+        request.businessUnitIdCookie
       );
       return {
         currentCartCookie: {
@@ -99,28 +93,26 @@ const makeNextCommerceBoundary = (locale: Locale) =>
           authUserId,
           ...(businessUnitId === undefined ? {} : { businessUnitId }),
         }),
-      } satisfies NextCommerceBoundary;
+      } satisfies CurrentCartLayerInputs;
     }
 
     const anonymousCartId = getAnonymousCartIdFromCookieValue(
-      cookieStore.get(ANONYMOUS_CART_COOKIE_NAME)?.value,
+      request.anonymousCartCookie.value,
       storeContext
     );
     const currentCartCookie: CurrentCartCookie = {
       set: (cartId) =>
         Effect.try({
           try: () =>
-            cookieStore.set(
-              ANONYMOUS_CART_COOKIE_NAME,
+            request.anonymousCartCookie.set(
               encodeAnonymousCartCookie(
                 makeAnonymousCartCookie({ cartId, context: storeContext })
-              ),
-              ANONYMOUS_CART_COOKIE_OPTIONS
+              )
             ),
           catch: currentCartOperationFailure,
         }).pipe(Effect.asVoid),
       clear: () =>
-        Effect.sync(() => cookieStore.delete(ANONYMOUS_CART_COOKIE_NAME)).pipe(
+        Effect.sync(() => request.anonymousCartCookie.clear()).pipe(
           Effect.catchDefect(() => Effect.void),
           Effect.asVoid
         ),
@@ -133,18 +125,18 @@ const makeNextCommerceBoundary = (locale: Locale) =>
           ? {}
           : { anonymousCartId: CartId.make(anonymousCartId) }),
       }),
-    } satisfies NextCommerceBoundary;
-  }).pipe(Effect.withSpan("NextCommerceBoundary.make"));
+    } satisfies CurrentCartLayerInputs;
+  }).pipe(Effect.withSpan("CurrentCart.layerInputs"));
 
 const currentCartDependencies = Layer.merge(
   layerCommercetoolsCarts,
   CartPolicies.layer
 );
 
-const makeNextCommerceLayers = ({
+const makeCurrentCartLayers = ({
   commerceContextRequest,
   currentCartCookie,
-}: NextCommerceBoundary) => {
+}: CurrentCartLayerInputs) => {
   const commerceContext = CommerceContext.layer(commerceContextRequest).pipe(
     Layer.provide(layerCommercetoolsCommerceAccounts)
   );
@@ -155,18 +147,15 @@ const makeNextCommerceLayers = ({
   return { commerceContext, currentCart } as const;
 };
 
-const nextCurrentCartLayerForBoundary = (boundary: NextCommerceBoundary) =>
-  makeNextCommerceLayers(boundary).currentCart;
-
-export const nextCurrentCartLayer = (locale: Locale) =>
+export const currentCartLayer = (request: CurrentCartRequest) =>
   Layer.unwrap(
-    makeNextCommerceBoundary(locale).pipe(
-      Effect.map(nextCurrentCartLayerForBoundary)
+    makeCurrentCartLayerInputs(request).pipe(
+      Effect.map((inputs) => makeCurrentCartLayers(inputs).currentCart)
     )
   );
 
-const nextCheckoutLayerForBoundary = (boundary: NextCommerceBoundary) => {
-  const { commerceContext, currentCart } = makeNextCommerceLayers(boundary);
+const checkoutLayerFor = (inputs: CurrentCartLayerInputs) => {
+  const { commerceContext, currentCart } = makeCurrentCartLayers(inputs);
   const addressBook = layerCommercetoolsAddressBook.pipe(
     Layer.provide(commerceContext)
   );
@@ -183,9 +172,7 @@ const nextCheckoutLayerForBoundary = (boundary: NextCommerceBoundary) => {
   );
 };
 
-export const nextCheckoutLayer = (locale: Locale) =>
+export const checkoutLayer = (request: CurrentCartRequest) =>
   Layer.unwrap(
-    makeNextCommerceBoundary(locale).pipe(
-      Effect.map(nextCheckoutLayerForBoundary)
-    )
+    makeCurrentCartLayerInputs(request).pipe(Effect.map(checkoutLayerFor))
   );

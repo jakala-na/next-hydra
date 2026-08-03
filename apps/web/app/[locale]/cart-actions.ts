@@ -16,8 +16,9 @@ import { LineItemId, ProductId, VariantId } from "@repo/commerce/domain/cart";
 import { inStoreAction } from "@repo/commerce/lib/utils/safe-action";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
 import { Effect } from "effect";
-import { nextCurrentCartLayer } from "@/lib/current-cart";
+import { currentCartLayer } from "@/lib/current-cart";
 import { toCurrentCartMutationData } from "@/lib/current-cart-action-result";
+import { readCurrentCartRequest } from "@/lib/current-cart-request";
 
 export const addToCart = inStoreAction
   .metadata({ actionName: "addToCart" })
@@ -27,13 +28,14 @@ export const addToCart = inStoreAction
       parsedInput: { productId, variantId, quantity },
       ctx,
     }): Promise<AddToCartData> => {
+      const request = await readCurrentCartRequest(ctx.locale);
       const result = await Effect.runPromise(
         CurrentCart.addItem({
           productId: ProductId.make(productId),
           variantId: VariantId.make(variantId),
           quantity,
         }).pipe(
-          Effect.provide(nextCurrentCartLayer(ctx.locale)),
+          Effect.provide(currentCartLayer(request)),
           Effect.tapError((error) =>
             Effect.logError("Current Cart mutation failed", error).pipe(
               Effect.annotateLogs({ operation: "currentCart.addItem" })
@@ -54,12 +56,13 @@ export const changeCartItemsQuantity = inStoreAction
       parsedInput: { lineItemId, quantity },
       ctx,
     }): Promise<ChangeCartItemsQuantityData> => {
+      const request = await readCurrentCartRequest(ctx.locale);
       const result = await Effect.runPromise(
         CurrentCart.setLineItemQuantity({
           lineItemId: LineItemId.make(lineItemId),
           quantity,
         }).pipe(
-          Effect.provide(nextCurrentCartLayer(ctx.locale)),
+          Effect.provide(currentCartLayer(request)),
           Effect.tapError((error) =>
             Effect.logError("Current Cart mutation failed", error).pipe(
               Effect.annotateLogs({
@@ -82,11 +85,12 @@ export const removeCartItem = inStoreAction
       parsedInput: { lineItemId },
       ctx,
     }): Promise<RemoveCartItemData> => {
+      const request = await readCurrentCartRequest(ctx.locale);
       const result = await Effect.runPromise(
         CurrentCart.removeLineItem({
           lineItemId: LineItemId.make(lineItemId),
         }).pipe(
-          Effect.provide(nextCurrentCartLayer(ctx.locale)),
+          Effect.provide(currentCartLayer(request)),
           Effect.tapError((error) =>
             Effect.logError("Current Cart mutation failed", error).pipe(
               Effect.annotateLogs({ operation: "currentCart.removeLineItem" })
