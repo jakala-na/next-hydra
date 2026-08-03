@@ -4,7 +4,8 @@ Migrations are timestamped TypeScript files in `scripts/`. The CLI loads them
 in filename order and records successful applications as Custom Objects in the
 `schema-migrations` container.
 
-The CLI composes `serverKeys()` from `packages/commerce/keys.ts` and loads
+The CLI composes `serverKeys()` from
+`packages/commerce-commercetools/keys.ts` and loads
 environment values from `apps/cli/.env`. Pass the CLI's global `--env-file`
 option before the command when targeting another Commercetools project.
 

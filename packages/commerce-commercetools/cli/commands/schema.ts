@@ -141,7 +141,7 @@ export const createSchemaCommand = (
     .description("Export Product Types and Custom Types")
     .option(
       "--output <path>",
-      "Output directory (defaults to packages/commerce/schema)"
+      "Output directory (defaults to packages/commerce-commercetools/schema)"
     )
     .action(async (options: { readonly output?: string }) => {
       const spinner = ora("Exporting Commercetools schema").start();

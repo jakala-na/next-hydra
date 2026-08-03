@@ -6,7 +6,7 @@ environment fragments in `env.ts`, and adds the commands exported by those
 packages.
 
 The Commercetools migration, schema export, and type-generation commands are
-implemented by `packages/commerce/cli`.
+implemented by `packages/commerce-commercetools/cli`.
 
 Copy `.env.example` to `.env` and provide the environment required by the
 composed package schemas. Environment validation is lazy: help and commands
@@ -28,7 +28,8 @@ pnpm cli commerce migrate
 # Export Product Types and Custom Types
 pnpm cli commerce schema export
 
-# Generate TypeScript from packages/commerce/schema
+# Generate provider-private Custom Field helpers and the provider-neutral
+# Product Attribute artifact from packages/commerce-commercetools/schema
 pnpm cli commerce types generate
 ```
 
@@ -36,8 +37,8 @@ Package composition:
 
 - `apps/cli/env.ts` extends environment fragments exported by command packages.
 - `apps/cli/src/program.ts` adds the `Command` objects declared by packages.
-- `packages/commerce/keys.ts` owns the Commercetools environment schema.
-- `packages/commerce/cli` owns the Commercetools commands and implementation.
+- `packages/commerce-commercetools/keys.ts` owns the Commercetools environment schema.
+- `packages/commerce-commercetools/cli` owns the Commercetools commands and implementation.
 
 To add commands from another package:
 

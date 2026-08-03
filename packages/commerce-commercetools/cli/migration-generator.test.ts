@@ -17,9 +17,12 @@ describe("migration generator", () => {
       );
 
       expect(fileName).toBe("2026-07-28-130000-add-checkout-field.ts");
-      expect(await readFile(join(directory, fileName), "utf8")).toContain(
-        'description: "Add checkout state"'
+      const migration = await readFile(join(directory, fileName), "utf8");
+      expect(migration).toContain('description: "Add checkout state"');
+      expect(migration).toContain(
+        'import type { MigrationDefinition } from "../types";'
       );
+      expect(migration).not.toContain("@repo/commerce/migrations");
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

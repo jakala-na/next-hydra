@@ -13,10 +13,10 @@ const PRODUCT_TYPE_SCHEMA_DIRECTORY = fileURLToPath(
   new URL("../../schema/product-types", import.meta.url)
 );
 const CUSTOM_FIELD_OUTPUT_DIRECTORY = fileURLToPath(
-  new URL("../../lib/custom-fields/generated", import.meta.url)
+  new URL("../../custom-fields/generated", import.meta.url)
 );
-const PRODUCT_ATTRIBUTE_OUTPUT_DIRECTORY = fileURLToPath(
-  new URL("../../lib/product/generated", import.meta.url)
+const CORE_PRODUCT_ATTRIBUTE_OUTPUT_DIRECTORY = fileURLToPath(
+  new URL("../../../commerce/product/generated", import.meta.url)
 );
 
 export const createTypesCommand = (): Command => {
@@ -38,7 +38,7 @@ export const createTypesCommand = (): Command => {
           ),
           generateProductTypes(
             PRODUCT_TYPE_SCHEMA_DIRECTORY,
-            PRODUCT_ATTRIBUTE_OUTPUT_DIRECTORY
+            CORE_PRODUCT_ATTRIBUTE_OUTPUT_DIRECTORY
           ),
         ]);
 

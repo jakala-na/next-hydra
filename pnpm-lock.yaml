@@ -190,9 +190,6 @@ importers:
 
   apps/cli:
     dependencies:
-      '@repo/commerce':
-        specifier: workspace:*
-        version: link:../../packages/commerce
       '@repo/commerce-commercetools':
         specifier: workspace:*
         version: link:../../packages/commerce-commercetools
@@ -793,9 +790,6 @@ importers:
       '@commercetools/ts-client':
         specifier: ^4.2.1
         version: 4.7.0
-      '@gql.tada/cli-utils':
-        specifier: ^1.6.3
-        version: 1.7.2(@0no-co/graphqlsp@1.12.16(graphql@16.12.0)(typescript@5.9.3))(graphql@16.12.0)(typescript@5.9.3)
       '@repo/design-system':
         specifier: workspace:*
         version: link:../design-system
@@ -811,15 +805,6 @@ importers:
       '@urql/core':
         specifier: ^5.1.2
         version: 5.2.0(graphql@16.12.0)
-      chalk:
-        specifier: ^5.6.2
-        version: 5.6.2
-      commander:
-        specifier: ^14.0.2
-        version: 14.0.2
-      dotenv:
-        specifier: ^17.0.0
-        version: 17.3.1
       gql.tada:
         specifier: ^1.8.10
         version: 1.9.0(graphql@16.12.0)(typescript@5.9.3)
@@ -829,9 +814,6 @@ importers:
       next-safe-action:
         specifier: ^8.1.8
         version: 8.1.8(next@16.1.6(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      ora:
-        specifier: ^8.2.0
-        version: 8.2.0
       react:
         specifier: 'catalog:'
         version: 19.2.4
@@ -884,6 +866,9 @@ importers:
       '@commercetools/ts-client':
         specifier: ^4.2.1
         version: 4.7.0
+      '@gql.tada/cli-utils':
+        specifier: ^1.6.3
+        version: 1.7.2(@0no-co/graphqlsp@1.12.16(graphql@16.12.0)(typescript@5.9.3))(graphql@16.12.0)(typescript@5.9.3)
       '@repo/commerce':
         specifier: workspace:*
         version: link:../commerce
@@ -905,9 +890,21 @@ importers:
       '@urql/core':
         specifier: ^5.1.2
         version: 5.2.0(graphql@16.12.0)
+      chalk:
+        specifier: ^5.6.2
+        version: 5.6.2
+      commander:
+        specifier: ^14.0.2
+        version: 14.0.2
+      dotenv:
+        specifier: ^17.0.0
+        version: 17.3.1
       gql.tada:
         specifier: ^1.8.10
         version: 1.9.0(graphql@16.12.0)(typescript@5.9.3)
+      ora:
+        specifier: ^8.2.0
+        version: 8.2.0
       server-only:
         specifier: 'catalog:'
         version: 0.0.1

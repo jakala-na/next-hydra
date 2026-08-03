@@ -28,12 +28,16 @@ type CustomTypeSchema = {
   readonly fieldDefinitions?: readonly CustomTypeFieldDefinition[];
 };
 
-type ProductTypeAttribute = {
+type ProductTypeAttributeType = {
+  readonly elementType?: ProductTypeAttributeType;
   readonly name: string;
-  readonly type: {
-    readonly name: string;
-    readonly elementType?: ProductTypeAttribute["type"];
-  };
+  readonly referenceTypeId?: string;
+};
+
+type ProductTypeAttribute = {
+  readonly isRequired?: boolean;
+  readonly name: string;
+  readonly type: ProductTypeAttributeType;
 };
 
 type ProductTypeSchema = {
@@ -356,45 +360,260 @@ ${helpers}
   ]);
 };
 
-const productAttributeKind = (
-  attributeType: ProductTypeAttribute["type"]
-): "text" | "ltext" | "number" | "boolean" | "enum" | "lenum" => {
+type ProductAttributeDependency =
+  | "Money"
+  | "ProductAttributeDate"
+  | "ProductAttributeDateTime"
+  | "ProductAttributeEnumValue"
+  | "ProductAttributeTime"
+  | "ProductId";
+
+const TYPESCRIPT_IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+const propertyName = (name: string): string =>
+  TYPESCRIPT_IDENTIFIER.test(name) ? name : JSON.stringify(name);
+
+const productTypeKeyName = (schemaKey: string): string => {
+  const typeName = toPascalCase(schemaKey);
+  return `${typeName}${typeName.endsWith("Product") ? "TypeKey" : "ProductTypeKey"}`;
+};
+
+const productVariantName = (schemaKey: string): string =>
+  `${toPascalCase(schemaKey)}Variant`;
+
+const productAttributeSchema = (
+  attributeType: ProductTypeAttributeType,
+  dependencies: Set<ProductAttributeDependency>
+): string => {
   switch (attributeType.name) {
+    case "text":
     case "ltext":
-      return "ltext";
+      return "Schema.String";
     case "number":
-      return "number";
+      return "Schema.Number";
     case "boolean":
-      return "boolean";
+      return "Schema.Boolean";
     case "enum":
-      return "enum";
     case "lenum":
-      return "lenum";
-    case "set":
-      return productAttributeKind(
-        attributeType.elementType ?? { name: "text" }
-      );
+      dependencies.add("ProductAttributeEnumValue");
+      return "ProductAttributeEnumValue";
+    case "money":
+      dependencies.add("Money");
+      return "Money";
+    case "date":
+      dependencies.add("ProductAttributeDate");
+      return "ProductAttributeDate";
+    case "time":
+      dependencies.add("ProductAttributeTime");
+      return "ProductAttributeTime";
+    case "datetime":
+      dependencies.add("ProductAttributeDateTime");
+      return "ProductAttributeDateTime";
+    case "reference":
+      if (attributeType.referenceTypeId !== "product") {
+        throw new Error(
+          `Unsupported Product Attribute reference type: ${attributeType.referenceTypeId ?? "unknown"}`
+        );
+      }
+      dependencies.add("ProductId");
+      return "ProductId";
+    case "set": {
+      if (attributeType.elementType === undefined) {
+        throw new Error("Product Attribute set has no element type");
+      }
+      return `Schema.Array(${productAttributeSchema(
+        attributeType.elementType,
+        dependencies
+      )})`;
+    }
     default:
-      return "text";
+      throw new Error(
+        `Unsupported Product Attribute type: ${attributeType.name}`
+      );
   }
 };
 
-const generateProductType = (schema: ProductTypeSchema): string => {
+const generateProductAttributesSchema = (
+  schema: ProductTypeSchema,
+  dependencies: Set<ProductAttributeDependency>
+): string => {
+  const typeName = toPascalCase(schema.key);
   const attributes = schema.attributes ?? [];
-  if (attributes.length === 0) {
-    return `export type ${toPascalCase(schema.key)}AttributesSchema = Record<string, never>;`;
+  const declaration =
+    attributes.length === 0
+      ? "Schema.Record(\n  Schema.String,\n  Schema.Never\n)"
+      : [
+          "Schema.Struct({",
+          ...attributes.map((attribute) => {
+            const attributeSchema = productAttributeSchema(
+              attribute.type,
+              dependencies
+            );
+            return `  ${propertyName(attribute.name)}: ${
+              attribute.isRequired === true
+                ? attributeSchema
+                : `Schema.optional(${attributeSchema})`
+            },`;
+          }),
+          "})",
+        ].join("\n");
+
+  return `export const ${typeName}Attributes = ${declaration};
+export type ${typeName}Attributes = typeof ${typeName}Attributes.Type;`;
+};
+
+const generateProductTypesSource = (
+  schemas: readonly ProductTypeSchema[]
+): string => {
+  if (schemas.length === 0) {
+    throw new Error("At least one Product Type schema is required");
   }
 
-  return [
-    `export type ${toPascalCase(schema.key)}AttributesSchema = {`,
-    ...attributes.map(
-      (attribute) =>
-        `  ${attribute.name}: ProductAttribute<"${productAttributeKind(
-          attribute.type
-        )}">${attribute.type.name === "set" ? "[]" : ""};`
-    ),
-    "};",
-  ].join("\n");
+  const dependencies = new Set<ProductAttributeDependency>();
+  const attributeSchemas = schemas.map((schema) =>
+    generateProductAttributesSchema(schema, dependencies)
+  );
+  const attributeDependencies = [
+    "ProductAttributeDate",
+    "ProductAttributeDateTime",
+    "ProductAttributeEnumValue",
+    "ProductAttributeTime",
+  ].filter((dependency) =>
+    dependencies.has(dependency as ProductAttributeDependency)
+  );
+  const attributeImport =
+    attributeDependencies.length === 0
+      ? ""
+      : `import { ${attributeDependencies.join(", ")} } from "../attributes";\n`;
+  const moneyImport = dependencies.has("Money")
+    ? 'import { Money } from "../../domain/money";\n'
+    : "";
+  const productIdImport = dependencies.has("ProductId")
+    ? 'import { ProductId } from "../identity";\n'
+    : "";
+  const productTypeKeys = schemas
+    .map((schema) => {
+      const typeKeyName = productTypeKeyName(schema.key);
+      return `const ${typeKeyName} = Schema.Literal(${JSON.stringify(
+        schema.key
+      )}).pipe(
+  Schema.brand("ProductTypeKey")
+);
+type ${typeKeyName} = typeof ${typeKeyName}.Type;`;
+    })
+    .join("\n\n");
+  const productTypeKeyMembers = schemas
+    .map((schema) => `  ${productTypeKeyName(schema.key)},`)
+    .join("\n");
+  const schemaMap = schemas
+    .map(
+      (schema) =>
+        `  ${JSON.stringify(schema.key)}: ${toPascalCase(schema.key)}Attributes,`
+    )
+    .join("\n");
+  const typeMap = schemas
+    .map(
+      (schema) =>
+        `  readonly ${JSON.stringify(schema.key)}: ${toPascalCase(schema.key)}Attributes;`
+    )
+    .join("\n");
+  const conditionalAttributes = schemas
+    .map(
+      (schema, index) =>
+        `${index === 0 ? "" : "  : "}TKey extends ${productTypeKeyName(
+          schema.key
+        )}\n  ? ${toPascalCase(schema.key)}Attributes`
+    )
+    .join("\n");
+  const variants = schemas
+    .map((schema) => {
+      const typeName = toPascalCase(schema.key);
+      return `const ${productVariantName(schema.key)} = makeProductVariantSchema(
+  ${typeName}Attributes
+);`;
+    })
+    .join("\n");
+  const variantMembers = schemas
+    .map((schema) => `  ${productVariantName(schema.key)},`)
+    .join("\n");
+  const detailMembers = schemas
+    .map(
+      (schema) => `  makeProductDetailSchema(
+    ${productTypeKeyName(schema.key)},
+    ${productVariantName(schema.key)}
+  ),`
+    )
+    .join("\n");
+
+  return `// This file is generated. Do not edit it manually.
+// Run \`pnpm cli commerce types generate\` to regenerate.
+
+import { Schema } from "effect";
+${moneyImport}${attributeImport}${productIdImport}import {
+  hasCompleteProductOptionSelection,
+  hasDefaultProductVariant,
+  hasUniqueProductVariantIds,
+  makeProductDetailSchema,
+  makeProductVariantSchema,
+} from "../model";
+
+${productTypeKeys}
+
+export const ProductTypeKey = Schema.Union([
+${productTypeKeyMembers}
+]);
+export type ProductTypeKey = typeof ProductTypeKey.Type;
+
+${attributeSchemas.join("\n\n")}
+
+export const ProductAttributesSchemaByProductType = {
+${schemaMap}
+} as const;
+
+export type ProductAttributesByProductType = {
+${typeMap}
+};
+
+export type ProductAttributes<
+  TKey extends ProductTypeKey = ProductTypeKey,
+> = ${conditionalAttributes}
+  : never;
+
+${variants}
+
+export const ProductVariant = Schema.Union([
+${variantMembers}
+]);
+
+const ProductDetailSchema = Schema.Union([
+${detailMembers}
+]);
+
+export const ProductDetail = ProductDetailSchema.check(
+  Schema.makeFilter(hasDefaultProductVariant, {
+    expected: "defaultVariantId to identify a Product Variant",
+  }),
+  Schema.makeFilter(hasUniqueProductVariantIds, {
+    expected: "unique Product Variant IDs",
+  }),
+  Schema.makeFilter(hasCompleteProductOptionSelection, {
+    expected:
+      "every Product Variant to select one defined value for every Product Option",
+  })
+);
+
+type ProductDetailForKey<Detail, TKey extends ProductTypeKey> = Detail extends {
+  readonly productType: TKey;
+}
+  ? Detail
+  : never;
+
+export type ProductDetail<TKey extends ProductTypeKey = ProductTypeKey> =
+  ProductDetailForKey<typeof ProductDetail.Type, TKey>;
+
+export type ProductVariant<TKey extends ProductTypeKey = ProductTypeKey> =
+  ProductDetail<TKey>["variants"][number];
+`;
 };
 
 export const generateProductTypes = async (
@@ -406,12 +625,7 @@ export const generateProductTypes = async (
 
   await writeFile(
     join(outputDirectory, "attributes.ts"),
-    `// This file is auto-generated. Do not edit manually.
-// Run \`pnpm cli commerce types generate\` to regenerate.
-
-import type { ProductAttribute } from "../types";
-${schemas.length === 0 ? "" : `\n${schemas.map(generateProductType).join("\n\n")}`}
-`,
+    generateProductTypesSource(schemas),
     "utf8"
   );
 };

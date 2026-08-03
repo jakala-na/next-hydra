@@ -61,14 +61,32 @@ describe("schema type generation", () => {
         attributes: [
           {
             name: "capacity",
+            isRequired: true,
             type: { name: "number" },
           },
           {
             name: "certifications",
+            isRequired: false,
             type: {
               name: "set",
               elementType: { name: "text" },
             },
+          },
+          {
+            name: "relatedProducts",
+            isRequired: true,
+            type: {
+              name: "set",
+              elementType: {
+                name: "reference",
+                referenceTypeId: "product",
+              },
+            },
+          },
+          {
+            name: "availableOn",
+            isRequired: true,
+            type: { name: "date" },
           },
         ],
       }),
@@ -81,7 +99,22 @@ describe("schema type generation", () => {
       join(outputDirectory, "attributes.ts"),
       "utf8"
     );
-    expect(attributes).toContain('capacity: ProductAttribute<"number">;');
-    expect(attributes).toContain('certifications: ProductAttribute<"text">[];');
+    expect(attributes).toContain(
+      'const EquipmentProductTypeKey = Schema.Literal("equipment").pipe('
+    );
+    expect(attributes).toContain("capacity: Schema.Number");
+    expect(attributes).toContain(
+      "certifications: Schema.optional(Schema.Array(Schema.String))"
+    );
+    expect(attributes).toContain("relatedProducts: Schema.Array(ProductId)");
+    expect(attributes).toContain("availableOn: ProductAttributeDate");
+    expect(attributes).toContain(
+      "export const ProductAttributesSchemaByProductType = {"
+    );
+    expect(attributes).toContain(
+      "export const ProductDetail = ProductDetailSchema.check("
+    );
+    expect(attributes).not.toContain("@commercetools");
+    expect(attributes).not.toContain("ProductAttribute<");
   });
 });

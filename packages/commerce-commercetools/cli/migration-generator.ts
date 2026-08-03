@@ -27,8 +27,8 @@ const migrationTitle = (name: string): string =>
 const migrationTemplate = (
   name: string,
   description: string
-): string => `import type { MigrationDefinition } from "@repo/commerce/migrations/types";
-import { migrationClient } from "../migration-client";
+): string => `import { migrationClient } from "../migration-client";
+import type { MigrationDefinition } from "../types";
 
 export const migration: MigrationDefinition = {
   name: ${JSON.stringify(migrationTitle(name))},

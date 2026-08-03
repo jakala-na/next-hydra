@@ -1,3 +1,5 @@
+/* biome-ignore-all lint/suspicious/noConsole: Schema synchronization reports progress. */
+
 import {
   generateOutput,
   generateSchema,

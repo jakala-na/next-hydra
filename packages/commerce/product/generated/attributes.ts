@@ -1,4 +1,5 @@
 // This file is generated. Do not edit it manually.
+// Run `pnpm cli commerce types generate` to regenerate.
 
 import { Schema } from "effect";
 import { ProductAttributeEnumValue } from "../attributes";
@@ -16,17 +17,15 @@ const GenericProductTypeKey = Schema.Literal("generic-product").pipe(
 );
 type GenericProductTypeKey = typeof GenericProductTypeKey.Type;
 
-const HeavyEarthmovingAndConstructionEquipmentProductTypeKey = Schema.Literal(
-  "heavy-earthmoving-and-construction-equipment"
-).pipe(Schema.brand("ProductTypeKey"));
-type HeavyEarthmovingAndConstructionEquipmentProductTypeKey =
-  typeof HeavyEarthmovingAndConstructionEquipmentProductTypeKey.Type;
+const HeavyEarthmovingAndConstructionEquipmentProductTypeKey = Schema.Literal("heavy-earthmoving-and-construction-equipment").pipe(
+  Schema.brand("ProductTypeKey")
+);
+type HeavyEarthmovingAndConstructionEquipmentProductTypeKey = typeof HeavyEarthmovingAndConstructionEquipmentProductTypeKey.Type;
 
-const HeavyLiftingAndSpecializedEquipmentProductTypeKey = Schema.Literal(
-  "heavy-lifting-and-specialized-equipment"
-).pipe(Schema.brand("ProductTypeKey"));
-type HeavyLiftingAndSpecializedEquipmentProductTypeKey =
-  typeof HeavyLiftingAndSpecializedEquipmentProductTypeKey.Type;
+const HeavyLiftingAndSpecializedEquipmentProductTypeKey = Schema.Literal("heavy-lifting-and-specialized-equipment").pipe(
+  Schema.brand("ProductTypeKey")
+);
+type HeavyLiftingAndSpecializedEquipmentProductTypeKey = typeof HeavyLiftingAndSpecializedEquipmentProductTypeKey.Type;
 
 export const ProductTypeKey = Schema.Union([
   GenericProductTypeKey,
@@ -41,17 +40,14 @@ export const GenericProductAttributes = Schema.Record(
 );
 export type GenericProductAttributes = typeof GenericProductAttributes.Type;
 
-export const HeavyEarthmovingAndConstructionEquipmentAttributes = Schema.Struct(
-  {
-    capacity: Schema.optional(Schema.Number),
-    iso45001: Schema.optional(Schema.Boolean),
-    relatedProducts: Schema.optional(Schema.Array(ProductId)),
-    mobility: Schema.optional(ProductAttributeEnumValue),
-    model: Schema.Number,
-  }
-);
-export type HeavyEarthmovingAndConstructionEquipmentAttributes =
-  typeof HeavyEarthmovingAndConstructionEquipmentAttributes.Type;
+export const HeavyEarthmovingAndConstructionEquipmentAttributes = Schema.Struct({
+  capacity: Schema.optional(Schema.Number),
+  iso45001: Schema.optional(Schema.Boolean),
+  relatedProducts: Schema.optional(Schema.Array(ProductId)),
+  mobility: Schema.optional(ProductAttributeEnumValue),
+  model: Schema.Number,
+});
+export type HeavyEarthmovingAndConstructionEquipmentAttributes = typeof HeavyEarthmovingAndConstructionEquipmentAttributes.Type;
 
 export const HeavyLiftingAndSpecializedEquipmentAttributes = Schema.Struct({
   capacity: Schema.optional(Schema.Number),
@@ -60,23 +56,18 @@ export const HeavyLiftingAndSpecializedEquipmentAttributes = Schema.Struct({
   mobility: Schema.optional(ProductAttributeEnumValue),
   color: ProductAttributeEnumValue,
 });
-export type HeavyLiftingAndSpecializedEquipmentAttributes =
-  typeof HeavyLiftingAndSpecializedEquipmentAttributes.Type;
+export type HeavyLiftingAndSpecializedEquipmentAttributes = typeof HeavyLiftingAndSpecializedEquipmentAttributes.Type;
 
 export const ProductAttributesSchemaByProductType = {
   "generic-product": GenericProductAttributes,
-  "heavy-earthmoving-and-construction-equipment":
-    HeavyEarthmovingAndConstructionEquipmentAttributes,
-  "heavy-lifting-and-specialized-equipment":
-    HeavyLiftingAndSpecializedEquipmentAttributes,
+  "heavy-earthmoving-and-construction-equipment": HeavyEarthmovingAndConstructionEquipmentAttributes,
+  "heavy-lifting-and-specialized-equipment": HeavyLiftingAndSpecializedEquipmentAttributes,
 } as const;
 
 export type ProductAttributesByProductType = {
   readonly "generic-product": GenericProductAttributes;
-  readonly "heavy-earthmoving-and-construction-equipment":
-    HeavyEarthmovingAndConstructionEquipmentAttributes;
-  readonly "heavy-lifting-and-specialized-equipment":
-    HeavyLiftingAndSpecializedEquipmentAttributes;
+  readonly "heavy-earthmoving-and-construction-equipment": HeavyEarthmovingAndConstructionEquipmentAttributes;
+  readonly "heavy-lifting-and-specialized-equipment": HeavyLiftingAndSpecializedEquipmentAttributes;
 };
 
 export type ProductAttributes<
@@ -84,18 +75,17 @@ export type ProductAttributes<
 > = TKey extends GenericProductTypeKey
   ? GenericProductAttributes
   : TKey extends HeavyEarthmovingAndConstructionEquipmentProductTypeKey
-    ? HeavyEarthmovingAndConstructionEquipmentAttributes
-    : TKey extends HeavyLiftingAndSpecializedEquipmentProductTypeKey
-      ? HeavyLiftingAndSpecializedEquipmentAttributes
-      : never;
+  ? HeavyEarthmovingAndConstructionEquipmentAttributes
+  : TKey extends HeavyLiftingAndSpecializedEquipmentProductTypeKey
+  ? HeavyLiftingAndSpecializedEquipmentAttributes
+  : never;
 
 const GenericProductVariant = makeProductVariantSchema(
   GenericProductAttributes
 );
-const HeavyEarthmovingAndConstructionEquipmentVariant =
-  makeProductVariantSchema(
-    HeavyEarthmovingAndConstructionEquipmentAttributes
-  );
+const HeavyEarthmovingAndConstructionEquipmentVariant = makeProductVariantSchema(
+  HeavyEarthmovingAndConstructionEquipmentAttributes
+);
 const HeavyLiftingAndSpecializedEquipmentVariant = makeProductVariantSchema(
   HeavyLiftingAndSpecializedEquipmentAttributes
 );
@@ -107,7 +97,10 @@ export const ProductVariant = Schema.Union([
 ]);
 
 const ProductDetailSchema = Schema.Union([
-  makeProductDetailSchema(GenericProductTypeKey, GenericProductVariant),
+  makeProductDetailSchema(
+    GenericProductTypeKey,
+    GenericProductVariant
+  ),
   makeProductDetailSchema(
     HeavyEarthmovingAndConstructionEquipmentProductTypeKey,
     HeavyEarthmovingAndConstructionEquipmentVariant
