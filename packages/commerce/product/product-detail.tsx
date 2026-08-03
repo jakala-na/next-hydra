@@ -3,6 +3,7 @@ import type { Locale } from "@repo/i18n/types";
 import { Effect, Option, Schema } from "effect";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { commerceRequestLayer } from "../commerce-context/request";
 import { ProductSlug } from "./identity";
 import {
   toProductDetailMetadata,
@@ -10,7 +11,6 @@ import {
   toProductJsonLd,
 } from "./presentation";
 import { ProductDiscovery } from "./product-discovery";
-import { productDiscoveryRequestLayer } from "./request";
 
 interface ProductDetailBoundaryProps {
   readonly slug: string;
@@ -22,7 +22,7 @@ const loadProductDetail = async ({
   slug,
 }: ProductDetailBoundaryProps) => {
   const productSlug = Schema.decodeUnknownSync(ProductSlug)(slug);
-  const layer = await productDiscoveryRequestLayer(locale);
+  const layer = await commerceRequestLayer(locale);
   const product = await Effect.runPromise(
     Effect.flatMap(ProductDiscovery, (discovery) =>
       discovery.findBySlug(productSlug)

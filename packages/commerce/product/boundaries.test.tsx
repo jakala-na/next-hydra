@@ -28,8 +28,8 @@ vi.mock(
   "@repo/design-system/components/commerce/blocks/product-detail",
   () => ({ ProductDetail: () => null })
 );
-vi.mock("./request", () => ({
-  productDiscoveryRequestLayer: requestLayer,
+vi.mock("../commerce-context/request", () => ({
+  commerceRequestLayer: requestLayer,
 }));
 
 const detail = Schema.decodeUnknownSync(ProductDetail)({

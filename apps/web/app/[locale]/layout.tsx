@@ -1,5 +1,6 @@
 import { LivePreview } from "@repo/cms/components/live-preview";
 import { getNavigation } from "@repo/cms/lib/navigation";
+import { commerceRequestLayer } from "@repo/commerce/commerce-context/request";
 import { domainError, Err, Ok } from "@repo/commerce/lib/utils/errors";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
 import { CartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
@@ -23,8 +24,6 @@ import { notFound, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import { AccountMenuClient } from "@/components/layout/account-menu-client";
 import { BusinessUnitSwitcher } from "@/components/layout/business-unit-switcher";
-import { currentCartLayer } from "@/lib/current-cart";
-import { readCurrentCartRequest } from "@/lib/current-cart-request";
 import {
   addToCart,
   changeCartItemsQuantity,
@@ -33,10 +32,10 @@ import {
 
 async function getCart(locale: Locale) {
   try {
-    const request = await readCurrentCartRequest(locale);
+    const layer = await commerceRequestLayer(locale);
     const result = await Effect.runPromise(
       CurrentCart.get().pipe(
-        Effect.provide(currentCartLayer(request)),
+        Effect.provide(layer),
         Effect.tapError((error) =>
           Effect.logError("Failed to read Current Cart", error).pipe(
             Effect.annotateLogs({ operation: "currentCart.get" })

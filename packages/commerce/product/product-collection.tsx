@@ -2,10 +2,10 @@ import { ProductCollection as ProductCollectionView } from "@repo/design-system/
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Schema } from "effect";
 import type { ReactNode } from "react";
+import { commerceRequestLayer } from "../commerce-context/request";
 import type { CategoryId, ProductId } from "./identity";
 import { toProductCardPresentation } from "./presentation";
 import { ListProductCardsInput, ProductDiscovery } from "./product-discovery";
-import { productDiscoveryRequestLayer } from "./request";
 
 interface ProductCollectionProps {
   readonly title: string;
@@ -29,7 +29,7 @@ export async function ProductCollection({
     limit,
     ...(excludeProductId === undefined ? {} : { excludeProductId }),
   });
-  const layer = await productDiscoveryRequestLayer(locale);
+  const layer = await commerceRequestLayer(locale);
   const products = await Effect.runPromise(
     Effect.flatMap(ProductDiscovery, (discovery) =>
       discovery.listCards(input)

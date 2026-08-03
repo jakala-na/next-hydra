@@ -15,6 +15,7 @@ import {
   type SaveCheckoutDeliveryDetailsActionState,
   saveCheckoutDeliveryDetailsActionSuccess,
 } from "@repo/commerce/actions/save-checkout-delivery-details-state";
+import { commerceRequestLayer } from "@repo/commerce/commerce-context/request";
 import { AddressBookReference } from "@repo/commerce/domain/address-book";
 import { CartId } from "@repo/commerce/domain/cart";
 import { CountryCodeFromString } from "@repo/commerce/domain/checkout";
@@ -22,8 +23,6 @@ import { CheckoutSession } from "@repo/commerce/lib/checkout/checkout-session";
 import { getLocale } from "@repo/i18n";
 import { Effect, Option, Schema } from "effect";
 import { revalidatePath } from "next/cache";
-import { checkoutLayer } from "../../../lib/current-cart";
-import { readCurrentCartRequest } from "../../../lib/current-cart-request";
 
 const SaveCheckoutContactForm = Schema.Union([
   Schema.Struct({
@@ -173,7 +172,7 @@ export async function saveCheckoutContact(
   }
 
   const locale = await getLocale();
-  const request = await readCurrentCartRequest(locale);
+  const layer = await commerceRequestLayer(locale);
   const state = await Effect.runPromise(
     CheckoutSession.saveContact({
       cart: { id: input.cartId },
@@ -200,12 +199,12 @@ export async function saveCheckoutContact(
             : checkoutMutationFailureToActionState(error),
         onSuccess: () => saveCheckoutContactActionSuccess,
       }),
-      Effect.provide(checkoutLayer(request)),
+      Effect.provide(layer),
       Effect.catchTags({
         CommerceRequestContextNotFound: () =>
           Effect.succeed(checkoutContactNotFoundState),
         CommerceAccountError: () => Effect.succeed(contactProviderFailureState),
-        CurrentCartRequestFailure: () =>
+        CommerceRequestFailure: () =>
           Effect.succeed(contactProviderFailureState),
       })
     )
@@ -230,7 +229,7 @@ export async function saveCheckoutDeliveryDetails(
   }
 
   const locale = await getLocale();
-  const request = await readCurrentCartRequest(locale);
+  const layer = await commerceRequestLayer(locale);
   const state = await Effect.runPromise(
     CheckoutSession.saveDeliveryDetails({
       cart: { id: input.cartId },
@@ -244,13 +243,13 @@ export async function saveCheckoutDeliveryDetails(
             : checkoutDeliveryDetailsMutationFailureToActionState(error),
         onSuccess: () => saveCheckoutDeliveryDetailsActionSuccess,
       }),
-      Effect.provide(checkoutLayer(request)),
+      Effect.provide(layer),
       Effect.catchTags({
         CommerceRequestContextNotFound: () =>
           Effect.succeed(checkoutDeliveryDetailsNotFoundState),
         CommerceAccountError: () =>
           Effect.succeed(deliveryDetailsProviderFailureState),
-        CurrentCartRequestFailure: () =>
+        CommerceRequestFailure: () =>
           Effect.succeed(deliveryDetailsProviderFailureState),
       })
     )
