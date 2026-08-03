@@ -1,24 +1,21 @@
 import { getTranslations } from "@repo/i18n";
 import type { Locale } from "@repo/i18n/types";
 import type { ReactNode } from "react";
-import type { SaveCheckoutContactAction } from "../../actions/save-checkout-contact-state";
-import type { SaveCheckoutDeliveryDetailsAction } from "../../actions/save-checkout-delivery-details-state";
 import type {
   CheckoutState,
   CheckoutStepId,
   CheckoutViolation,
-} from "../../domain/checkout";
-import { checkoutViolationMessage } from "../../lib/checkout/violation-message";
-import { CommerceLocale } from "../../store";
-import { CheckoutContactForm } from "./checkout-contact-form";
+} from "../domain/checkout";
+import { checkoutViolationMessage } from "../lib/checkout/violation-message";
+import { CommerceLocale } from "../store";
+import { CheckoutContactForm } from "./contact-form";
 import {
   CheckoutDeliveryDetailsForm,
   type CheckoutShippingAddressOption,
-} from "./checkout-delivery-details-form";
-import {
-  ActiveStepViolations,
-  CartSidebarViolations,
-} from "./checkout-violations";
+} from "./delivery-details-form";
+import type { SaveCheckoutContactAction } from "./save-contact-state";
+import type { SaveCheckoutDeliveryDetailsAction } from "./save-delivery-details-state";
+import { ActiveStepViolations, CartSidebarViolations } from "./violations";
 
 const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
 
@@ -31,7 +28,7 @@ const formatMoney = (
     currency: money.currencyCode,
   }).format(money.centAmount / CENTS_PER_MAJOR_CURRENCY_UNIT);
 
-export interface CheckoutPageActions {
+interface CheckoutActions {
   readonly saveContact: SaveCheckoutContactAction;
   readonly saveDeliveryDetails: SaveCheckoutDeliveryDetailsAction;
 }
@@ -105,7 +102,7 @@ function ActiveStep({
   shippingAddressOptions,
   state,
 }: {
-  readonly actions: CheckoutPageActions;
+  readonly actions: CheckoutActions;
   readonly messages: CheckoutPageMessages;
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
   readonly state: CheckoutState;
@@ -211,13 +208,13 @@ function CartSidebar({
   );
 }
 
-export async function CheckoutPage({
+export async function CheckoutView({
   actions,
   locale,
   shippingAddressOptions,
   state,
 }: {
-  readonly actions: CheckoutPageActions;
+  readonly actions: CheckoutActions;
   readonly locale: Locale;
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
   readonly state: CheckoutState;

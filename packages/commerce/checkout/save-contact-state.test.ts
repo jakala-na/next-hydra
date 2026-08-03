@@ -8,7 +8,7 @@ import {
   CheckoutMutationUnsupported,
   CheckoutVersionConflict,
 } from "../domain/checkout";
-import { checkoutMutationFailureToActionState } from "./save-checkout-contact-state";
+import { checkoutMutationFailureToActionState } from "./save-contact-state";
 
 describe("checkoutMutationFailureToActionState", () => {
   it("keeps validation failures visible to the checkout form", () => {

@@ -1,15 +1,15 @@
 import { createCheckoutTranslator } from "@repo/i18n/checkout-messages";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CountryCode } from "../../domain/address";
-import { AddressBookReference } from "../../domain/address-book";
+import { CountryCode } from "../domain/address";
+import { AddressBookReference } from "../domain/address-book";
 import {
   CheckoutDeliveryDetailsFormContent,
   type CheckoutDeliveryDetailsMessages,
   type CheckoutShippingAddressOption,
   deliveryAddressSelectionAfterAction,
   preferredDeliveryAddressSelection,
-} from "./checkout-delivery-details-form";
+} from "./delivery-details-form";
 
 const officeReference = AddressBookReference.make("office");
 const warehouseReference = AddressBookReference.make("warehouse");

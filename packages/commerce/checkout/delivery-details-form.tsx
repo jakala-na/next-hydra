@@ -2,14 +2,14 @@
 
 import { useTranslations } from "@repo/i18n";
 import { useActionState, useEffect, useState } from "react";
+import type { AddressBookReference } from "../domain/address-book";
+import type { ShippingAddress } from "../domain/checkout";
+import { checkoutActionErrorMessageKey } from "./action-error";
 import {
   initialSaveCheckoutDeliveryDetailsActionState,
   type SaveCheckoutDeliveryDetailsAction,
   type SaveCheckoutDeliveryDetailsActionState,
-} from "../../actions/save-checkout-delivery-details-state";
-import type { AddressBookReference } from "../../domain/address-book";
-import type { ShippingAddress } from "../../domain/checkout";
-import { checkoutActionErrorMessageKey } from "./checkout-action-error";
+} from "./save-delivery-details-state";
 
 export interface CheckoutShippingAddressOption {
   readonly reference: AddressBookReference;

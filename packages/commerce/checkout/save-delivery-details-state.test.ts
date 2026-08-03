@@ -8,7 +8,7 @@ import {
   CheckoutMutationSchemaFailure,
   CheckoutVersionConflict,
 } from "../domain/checkout";
-import { checkoutDeliveryDetailsMutationFailureToActionState } from "./save-checkout-delivery-details-state";
+import { checkoutDeliveryDetailsMutationFailureToActionState } from "./save-delivery-details-state";
 
 describe("checkoutDeliveryDetailsMutationFailureToActionState", () => {
   it("keeps validation failures visible to the checkout form", () => {

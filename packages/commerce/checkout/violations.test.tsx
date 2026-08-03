@@ -1,13 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ProductId } from "../../domain/cart";
-import type { CheckoutViolation } from "../../domain/checkout";
-import { checkoutViolationMessage } from "../../lib/checkout/violation-message";
-import { CommerceLocale } from "../../store";
-import {
-  ActiveStepViolations,
-  CartSidebarViolations,
-} from "./checkout-violations";
+import { ProductId } from "../domain/cart";
+import type { CheckoutViolation } from "../domain/checkout";
+import { checkoutViolationMessage } from "../lib/checkout/violation-message";
+import { CommerceLocale } from "../store";
+import { ActiveStepViolations, CartSidebarViolations } from "./violations";
 
 const violations = [
   {

@@ -1,8 +1,8 @@
-import type { CheckoutStepId, CheckoutViolation } from "../../domain/checkout";
+import type { CheckoutStepId, CheckoutViolation } from "../domain/checkout";
 import {
   isVisibleForCheckoutStep,
   isVisibleInCartSidebar,
-} from "../../lib/checkout/violation-visibility";
+} from "../lib/checkout/violation-visibility";
 
 interface CheckoutViolationMessages {
   readonly attention: string;

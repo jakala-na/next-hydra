@@ -1,28 +1,28 @@
 "use server";
 
-import { logUnexpectedCheckoutMutationFailure } from "@repo/commerce/actions/checkout-action-diagnostics";
+import { getLocale } from "@repo/i18n";
+import { Effect, Option, Schema } from "effect";
+import { revalidatePath } from "next/cache";
+import { commerceRequestLayer } from "../commerce-context/request";
+import { AddressBookReference } from "../domain/address-book";
+import { CartId } from "../domain/cart";
+import { CountryCodeFromString } from "../domain/checkout";
+import { CheckoutSession } from "../lib/checkout/checkout-session";
+import { logUnexpectedCheckoutMutationFailure } from "./action-diagnostics";
 import {
   checkoutContactNotFoundState,
   checkoutMutationFailureToActionState,
   invalidCheckoutContactFormState,
   type SaveCheckoutContactActionState,
   saveCheckoutContactActionSuccess,
-} from "@repo/commerce/actions/save-checkout-contact-state";
+} from "./save-contact-state";
 import {
   checkoutDeliveryDetailsMutationFailureToActionState,
   checkoutDeliveryDetailsNotFoundState,
   invalidCheckoutDeliveryDetailsFormState,
   type SaveCheckoutDeliveryDetailsActionState,
   saveCheckoutDeliveryDetailsActionSuccess,
-} from "@repo/commerce/actions/save-checkout-delivery-details-state";
-import { commerceRequestLayer } from "@repo/commerce/commerce-context/request";
-import { AddressBookReference } from "@repo/commerce/domain/address-book";
-import { CartId } from "@repo/commerce/domain/cart";
-import { CountryCodeFromString } from "@repo/commerce/domain/checkout";
-import { CheckoutSession } from "@repo/commerce/lib/checkout/checkout-session";
-import { getLocale } from "@repo/i18n";
-import { Effect, Option, Schema } from "effect";
-import { revalidatePath } from "next/cache";
+} from "./save-delivery-details-state";
 
 const SaveCheckoutContactForm = Schema.Union([
   Schema.Struct({

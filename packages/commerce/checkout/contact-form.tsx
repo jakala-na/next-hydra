@@ -2,15 +2,12 @@
 
 import { useTranslations } from "@repo/i18n";
 import { useActionState } from "react";
+import type { BuyerContact, CheckoutContactSource } from "../domain/checkout";
+import { checkoutActionErrorMessageKey } from "./action-error";
 import {
   initialSaveCheckoutContactActionState,
   type SaveCheckoutContactAction,
-} from "../../actions/save-checkout-contact-state";
-import type {
-  BuyerContact,
-  CheckoutContactSource,
-} from "../../domain/checkout";
-import { checkoutActionErrorMessageKey } from "./checkout-action-error";
+} from "./save-contact-state";
 
 export function CheckoutContactForm({
   buyerContact,

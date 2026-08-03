@@ -1,5 +1,5 @@
-import type { SaveCheckoutContactActionErrorCode } from "../../actions/save-checkout-contact-state";
-import type { SaveCheckoutDeliveryDetailsActionErrorCode } from "../../actions/save-checkout-delivery-details-state";
+import type { SaveCheckoutContactActionErrorCode } from "./save-contact-state";
+import type { SaveCheckoutDeliveryDetailsActionErrorCode } from "./save-delivery-details-state";
 
 export type CheckoutActionErrorCode =
   | SaveCheckoutContactActionErrorCode
