@@ -20,6 +20,7 @@
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },
+    "boundaries": {},
     "analyze": {
       "dependsOn": ["^analyze"]
     },

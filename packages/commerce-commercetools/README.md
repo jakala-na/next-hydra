@@ -25,6 +25,11 @@ Application T3 Env roots extend `@repo/commerce-commercetools/keys` for eager
 startup validation. Provider Layers use `CommercetoolsConfig.layer` to validate
 the same contract when their Effect graph is constructed.
 
+Web and API import their application environment from `next.config.ts`, so the
+T3 Env contract is evaluated during `next dev` and `next build` rather than on
+the first commerce request. The CLI validates the same contract after loading
+its command environment.
+
 ## Supported exports
 
 - `provider` selects the named Web capability Layers.
@@ -67,7 +72,10 @@ pnpm --filter @repo/commerce-commercetools generate
 ```bash
 pnpm --filter @repo/commerce-commercetools typecheck
 pnpm --filter @repo/commerce-commercetools test
+pnpm boundaries
 ```
 
 Provider tests are local by default. Registration live tests run only when
 `COMMERCETOOLS_LIVE_TESTS=1` and the required provider configuration is set.
+The repository boundary task restricts imports of this package to application
+environment, Layer-composition, and CLI tooling roots.

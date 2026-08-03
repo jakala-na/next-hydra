@@ -1,0 +1,14 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "boundaries": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/**/*.{cjs,cts,js,jsx,mjs,mts,ts,tsx}",
+        "$TURBO_ROOT$/apps/*/package.json",
+        "$TURBO_ROOT$/packages/**/*.{cjs,cts,js,jsx,mjs,mts,ts,tsx}",
+        "$TURBO_ROOT$/packages/*/package.json"
+      ]
+    }
+  }
+}

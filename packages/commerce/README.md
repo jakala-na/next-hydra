@@ -1,140 +1,71 @@
 # @repo/commerce
 
-A commerce package for integrating with Commercetools GraphQL API, built following the same patterns as the CMS package.
+Provider-neutral commerce domain models, Effect Services, orchestration, and
+Next.js integration modules.
 
-## Features
+This package defines what the application can do with commerce. It does not
+contain provider clients, credentials, queries, resource versions, migrations,
+or schema tooling. The installed provider implements these Services in a
+separate package.
 
-- **Product Management**: Fetch products and product details
-- **Cart Operations**: Add to cart, update quantities, remove items
-- **Checkout Integration**: Basic checkout session creation
-- **TypeScript Support**: Full type safety with gql.tada integration
-- **Server Actions**: Ready-to-use Next.js server actions
-- **React Components**: Pre-built product card component
+## Ownership
 
-## Setup
+`@repo/commerce` owns:
 
-1. Copy the environment variables from `.env.example` to your app's `.env.local`:
+- Product, Cart, Checkout, account, address, Money, and Store domain schemas;
+- provider-neutral Effect Services such as `ProductDiscovery`, `Carts`,
+  `CommerceAccounts`, and `AddressBook`;
+- orchestration Services such as `CommerceContext` and `CurrentCart`;
+- Cart and Checkout policies;
+- provider-neutral HTTP contracts; and
+- package-owned Next.js Server Components and Server Actions for Product,
+  Cart, Checkout, and Buying Context flows.
+
+Provider implementations own transport, authentication, provider projections,
+configuration, optimistic concurrency, and operational tooling. The installed
+Commercetools implementation is documented in
+[`@repo/commerce-commercetools`](../commerce-commercetools/README.md).
+
+## Public modules
+
+The package uses explicit exports. Supported entry points include:
+
+- `@repo/commerce/product`, `cart`, `checkout`, and `commerce-context` for
+  application integrations;
+- `@repo/commerce/store` and `domain/*` for provider-neutral schemas;
+- `@repo/commerce/services/*` for Effect Service contracts; and
+- `@repo/commerce/http/*` for provider-neutral HTTP schemas and projections.
+
+Internal files that are not listed in `package.json` exports are not supported
+package APIs.
+
+## Provider composition
+
+Package-owned Next.js boundaries import the stable
+`@repo/commerce/layers` binding. The Web application maps that exact specifier
+to its selected provider Layers at build time. Core commerce therefore remains
+independently type-checkable and never imports the provider or authentication
+implementation.
+
+API applications compose the provider's capability Layers at their own runtime
+roots. Ordinary routes, pages, actions, components, and domain programs consume
+the Services defined here rather than provider modules.
+
+## Product Attribute generation
+
+The selected provider may generate the committed Product Attribute Effect
+Schemas at `product/generated/attributes.ts`. That artifact is part of the core
+domain and may import only Effect and modules inside this package. Boundary
+tests reject provider imports and raw provider field-kind vocabulary.
+
+## Validation
 
 ```bash
-# Commercetools Configuration
-COMMERCETOOLS_PROJECT_KEY=your-project-key
-COMMERCETOOLS_CLIENT_ID=your-client-id
-COMMERCETOOLS_CLIENT_SECRET=your-client-secret
-COMMERCETOOLS_SCOPE=manage_project:your-project-key
-COMMERCETOOLS_REGION=us-central1
+pnpm --filter @repo/commerce typecheck
+pnpm --filter @repo/commerce test
+pnpm boundaries
 ```
 
-2. Install the package in your app:
-
-```json
-{
-  "dependencies": {
-    "@repo/commerce": "workspace:*"
-  }
-}
-```
-
-## Usage
-
-### Products
-
-```typescript
-import { getProducts, getProductByKey } from '@repo/commerce';
-
-// Get all products
-const { products, total } = await getProducts(20, 0);
-
-// Get product by key
-const product = await getProductByKey('my-product-key');
-```
-
-### Cart Operations
-
-```typescript
-import { addToCart, updateLineItemQuantity, removeFromCart } from '@repo/commerce';
-
-// Add to cart
-const cart = await addToCart({
-  productId: 'product-id',
-  variantId: 1,
-  quantity: 2,
-  cartId: 'existing-cart-id' // optional
-});
-
-// Update quantity
-const updatedCart = await updateLineItemQuantity('cart-id', 'line-item-id', 3);
-
-// Remove from cart
-const cartAfterRemoval = await removeFromCart('cart-id', 'line-item-id');
-```
-
-### Server Actions
-
-```typescript
-// app/lib/actions/cart.ts
-import { addToCartAction } from '@repo/commerce';
-
-export async function handleAddToCart(productId: string, variantId: number) {
-  const result = await addToCartAction(productId, variantId, 1);
-  if (result.success) {
-    // Handle success
-  } else {
-    // Handle error
-  }
-}
-```
-
-### Components
-
-```tsx
-import { ProductCard } from '@repo/commerce';
-
-function ProductGrid({ products }) {
-  const handleAddToCart = async (productId: string, variantId: number, quantity: number) => {
-    // Your add to cart logic
-  };
-
-  return (
-    <div className="grid grid-cols-4 gap-4">
-      {products.map(product => (
-        <ProductCard
-          key={product.id}
-          product={product}
-          onAddToCart={handleAddToCart}
-        />
-      ))}
-    </div>
-  );
-}
-```
-
-## Architecture
-
-This package follows the same structure as the CMS package:
-
-- `client.ts` - GraphQL client with OAuth authentication
-- `types.ts` - TypeScript type definitions
-- `lib/` - Core functionality organized by domain
-  - `products/` - Product-related operations
-  - `cart/` - Cart management
-  - `checkout/` - Checkout operations
-- `components/` - React components
-- `graphql.ts` - GraphQL utilities (simplified for demo)
-
-## Development
-
-The package uses a simplified GraphQL setup for demonstration. In a production environment, you should:
-
-1. Generate proper TypeScript types from your Commercetools schema
-2. Use gql.tada with full introspection support
-3. Implement proper error handling and retry logic
-4. Add comprehensive testing
-
-## Demo
-
-Visit `/commerce` in the web app to see the commerce functionality in action, including:
-
-- Product listing with images and prices
-- Add to cart functionality
-- Cart management
-- Basic checkout flow
+The boundary task enforces explicit exports, the core-to-provider dependency
+direction, allowed application composition roots, and generated-artifact
+purity.

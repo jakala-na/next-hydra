@@ -11,7 +11,7 @@
     "test": "turbo test",
     "analyze": "turbo analyze",
     "translate": "turbo translate",
-    "boundaries": "turbo boundaries",
+    "boundaries": "turbo run boundaries",
     "bump-deps": "npx npm-check-updates --deep -u -x react-day-picker",
     "bump-ui": "npx shadcn@latest add --all --overwrite -c packages/design-system",
     "changeset": "pnpm dlx @changesets/cli",
