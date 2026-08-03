@@ -13,16 +13,8 @@ const serverEnvironment = {
   COMMERCETOOLS_REGION: "region",
 } as const;
 
-const publicEnvironment = {
-  NEXT_PUBLIC_COMMERCETOOLS_PROJECT_KEY: "public-project-key",
-  NEXT_PUBLIC_COMMERCETOOLS_REGION: "public-region",
-} as const;
-
 const stubValidEnvironment = () => {
-  for (const [name, value] of Object.entries({
-    ...serverEnvironment,
-    ...publicEnvironment,
-  })) {
+  for (const [name, value] of Object.entries(serverEnvironment)) {
     vi.stubEnv(name, value);
   }
 };
@@ -37,7 +29,12 @@ describe("Commercetools environment compatibility", () => {
     stubValidEnvironment();
 
     expect(serverKeys()).toEqual(coreServerKeys());
-    expect(keys()).toEqual(coreKeys());
+    const environment = keys();
+    expect(environment).toEqual(coreKeys());
+    expect(environment).not.toHaveProperty(
+      "NEXT_PUBLIC_COMMERCETOOLS_PROJECT_KEY"
+    );
+    expect(environment).not.toHaveProperty("NEXT_PUBLIC_COMMERCETOOLS_REGION");
   });
 
   it.each(

@@ -19,17 +19,4 @@ export const serverKeys = () =>
     },
   });
 
-export const keys = () =>
-  createEnv({
-    extends: [serverKeys()],
-    client: {
-      NEXT_PUBLIC_COMMERCETOOLS_PROJECT_KEY: z.string(),
-      NEXT_PUBLIC_COMMERCETOOLS_REGION: z.string(),
-    },
-    runtimeEnv: {
-      NEXT_PUBLIC_COMMERCETOOLS_PROJECT_KEY:
-        process.env.NEXT_PUBLIC_COMMERCETOOLS_PROJECT_KEY,
-      NEXT_PUBLIC_COMMERCETOOLS_REGION:
-        process.env.NEXT_PUBLIC_COMMERCETOOLS_REGION,
-    },
-  });
+export const keys = serverKeys;

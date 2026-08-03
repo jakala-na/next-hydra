@@ -22,10 +22,6 @@ COMMERCETOOLS_CLIENT_ID=your-client-id
 COMMERCETOOLS_CLIENT_SECRET=your-client-secret
 COMMERCETOOLS_SCOPE=manage_project:your-project-key
 COMMERCETOOLS_REGION=us-central1
-
-# Public Configuration
-NEXT_PUBLIC_COMMERCETOOLS_PROJECT_KEY=your-project-key
-NEXT_PUBLIC_COMMERCETOOLS_REGION=us-central1
 ```
 
 2. Install the package in your app:
