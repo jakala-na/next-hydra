@@ -136,6 +136,6 @@ const productDiscoveryImplementationLayer = Layer.effect(
   })
 );
 
-export const productDiscoveryLayerWithClient = (
-  clientLayer: Layer.Layer<CommercetoolsProductDiscoveryClient>
+export const productDiscoveryLayerWithClient = <E, R>(
+  clientLayer: Layer.Layer<CommercetoolsProductDiscoveryClient, E, R>
 ) => productDiscoveryImplementationLayer.pipe(Layer.provide(clientLayer));

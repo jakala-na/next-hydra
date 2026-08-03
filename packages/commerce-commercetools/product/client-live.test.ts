@@ -19,18 +19,19 @@ import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CommerceLocale, resolveStore } from "@repo/commerce/store";
 import { Effect, Layer } from "effect";
 import { beforeEach, vi } from "vitest";
-
-const { query } = vi.hoisted(() => ({ query: vi.fn() }));
-const PRODUCT_SELECTION_PAGE_SIZE = 500;
-const PRODUCT_SELECTION_ASSIGNMENT_COUNT = PRODUCT_SELECTION_PAGE_SIZE + 1;
-
-vi.mock("@repo/commerce/lib/client/graphql-client", () => ({
-  graphqlClient: () => ({ query }),
-}));
-
+import { CommercetoolsGraphQLClient } from "../client/graphql-client";
 import { CommercetoolsProductDiscoveryClient } from "./client";
 import { commercetoolsProductDiscoveryClientLayer } from "./client-live";
 import { productDiscoveryLayerWithClient } from "./product-discovery";
+
+const query = vi.fn();
+const PRODUCT_SELECTION_PAGE_SIZE = 500;
+const PRODUCT_SELECTION_ASSIGNMENT_COUNT = PRODUCT_SELECTION_PAGE_SIZE + 1;
+
+const graphqlClientLayer = CommercetoolsGraphQLClient.testLayer(query);
+const productClientLayer = commercetoolsProductDiscoveryClientLayer.pipe(
+  Layer.provide(graphqlClientLayer)
+);
 
 const store = resolveStore({ locale: CommerceLocale.make("en-US") });
 
@@ -58,9 +59,9 @@ const run = <A, E>(
 ) =>
   program.pipe(
     Effect.provide(
-      productDiscoveryLayerWithClient(
-        commercetoolsProductDiscoveryClientLayer
-      ).pipe(Layer.provide(contextLayer(authenticated)))
+      productDiscoveryLayerWithClient(productClientLayer).pipe(
+        Layer.provide(contextLayer(authenticated))
+      )
     )
   );
 
@@ -240,7 +241,7 @@ describe("Commercetools Product Discovery GraphQL client", () => {
           CommercetoolsProductDiscoveryClient,
           (client) =>
             client.getProductSelectionRules(store.storeKey, ["product-1"])
-        ).pipe(Effect.provide(commercetoolsProductDiscoveryClientLayer));
+        ).pipe(Effect.provide(productClientLayer));
 
         expect(rules.get("product-1")).toHaveLength(
           PRODUCT_SELECTION_ASSIGNMENT_COUNT
@@ -280,7 +281,7 @@ describe("Commercetools Product Discovery GraphQL client", () => {
             client
               .getProductSelectionRules(store.storeKey, ["product-1"])
               .pipe(Effect.flip)
-        ).pipe(Effect.provide(commercetoolsProductDiscoveryClientLayer));
+        ).pipe(Effect.provide(productClientLayer));
 
         expect(failure).toMatchObject({
           _tag: "CommercetoolsProductRequestFailure",

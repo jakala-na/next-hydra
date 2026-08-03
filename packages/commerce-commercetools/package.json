@@ -15,12 +15,22 @@
     "./address-book": "./address-book/index.ts",
     "./product": "./product/index.ts",
     "./versioned-store": "./versioned-store/index.ts",
+    "./config": "./config/index.ts",
     "./keys": "./keys.ts",
     "./cli": "./cli/index.ts"
   },
   "dependencies": {
+    "@commercetools/platform-sdk": "^8.16.0",
+    "@commercetools/ts-client": "^4.2.1",
     "@repo/commerce": "workspace:*",
+    "@repo/i18n": "workspace:*",
+    "@repo/observability": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
+    "@urql/core": "^5.1.2",
+    "gql.tada": "^1.8.10",
+    "server-only": "catalog:",
+    "urql": "^4.2.2",
+    "wonka": "^6.3.5",
     "zod": "^3.25.28"
   },
   "devDependencies": {

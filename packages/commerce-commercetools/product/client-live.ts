@@ -1,11 +1,11 @@
+import { Effect, Layer } from "effect";
+import { CommercetoolsGraphQLClient } from "../client/graphql-client";
 import {
   type FragmentOf,
   graphql,
   type ResultOf,
   readFragment,
-} from "@repo/commerce/graphql";
-import { graphqlClient } from "@repo/commerce/lib/client/graphql-client";
-import { Effect, Layer } from "effect";
+} from "../graphql";
 import {
   CommercetoolsProductDiscoveryClient,
   type CommercetoolsProductProjection,
@@ -269,10 +269,10 @@ const productQueryVariables = (
 const escapePredicateValue = (value: string) =>
   value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 
-export const commercetoolsProductDiscoveryClientLayer = Layer.sync(
+export const commercetoolsProductDiscoveryClientLayer = Layer.effect(
   CommercetoolsProductDiscoveryClient,
-  () => {
-    const client = graphqlClient();
+  Effect.gen(function* () {
+    const client = yield* CommercetoolsGraphQLClient;
 
     return CommercetoolsProductDiscoveryClient.of({
       resolveProductContext: Effect.fn(
@@ -459,5 +459,5 @@ export const commercetoolsProductDiscoveryClientLayer = Layer.sync(
         })
       ),
     });
-  }
+  })
 );

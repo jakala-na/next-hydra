@@ -3,6 +3,18 @@
   "extends": "@repo/typescript-config/effect.json",
   "compilerOptions": {
     "noUnusedLocals": true,
+    "plugins": [
+      {
+        "name": "gql.tada/ts-plugin",
+        "schema": "./gql/schema.graphql",
+        "tadaOutputLocation": "./gql/graphql-env.d.ts",
+        "tadaTurboLocation": "./gql/graphql-cache.d.ts"
+      },
+      {
+        "name": "@effect/language-service",
+        "includeSuggestionsInTsc": false
+      }
+    ],
     "paths": {
       "@repo/commerce-commercetools/*": ["./*"],
       "@repo/commerce/*": ["../commerce/*"]

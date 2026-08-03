@@ -884,12 +884,39 @@ importers:
 
   packages/commerce-commercetools:
     dependencies:
+      '@commercetools/platform-sdk':
+        specifier: ^8.16.0
+        version: 8.18.0
+      '@commercetools/ts-client':
+        specifier: ^4.2.1
+        version: 4.7.0
       '@repo/commerce':
         specifier: workspace:*
         version: link:../commerce
+      '@repo/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@repo/observability':
+        specifier: workspace:*
+        version: link:../observability
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
+      '@urql/core':
+        specifier: ^5.1.2
+        version: 5.2.0(graphql@16.12.0)
+      gql.tada:
+        specifier: ^1.8.10
+        version: 1.9.0(graphql@16.12.0)(typescript@5.9.3)
+      server-only:
+        specifier: 'catalog:'
+        version: 0.0.1
+      urql:
+        specifier: ^4.2.2
+        version: 4.2.2(@urql/core@5.2.0(graphql@16.12.0))(react@19.2.4)
+      wonka:
+        specifier: ^6.3.5
+        version: 6.3.5
       zod:
         specifier: ^3.25.28
         version: 3.25.76

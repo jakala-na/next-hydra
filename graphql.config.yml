@@ -5,3 +5,6 @@ projects:
   commerce:
     schema: './packages/commerce/gql/schema.graphql'
     documents: ['./packages/commerce/**/*.{graphql,js,ts,jsx,tsx}']
+  commerce-commercetools:
+    schema: './packages/commerce-commercetools/gql/schema.graphql'
+    documents: ['./packages/commerce-commercetools/**/*.{graphql,js,ts,jsx,tsx}']
