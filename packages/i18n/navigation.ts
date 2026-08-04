@@ -15,5 +15,7 @@ const {
 // Re-export redirect with type annotation to help TypeScript detect unreachable code
 // See: https://github.com/amannn/next-intl/issues/823
 export const redirect: typeof _redirect = _redirect;
-export const useRouter: typeof useNextRouter = _useRouter;
-export { Link, usePathname, getPathname };
+// next-intl spreads the Next.js router at runtime, but its published return
+// type predates the bfcacheId field added in Next.js 16.3.
+export const useRouter = _useRouter as typeof useNextRouter;
+export { getPathname, Link, usePathname };

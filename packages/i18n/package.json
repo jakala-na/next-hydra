@@ -3,12 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "translate": "npx -y languine@latest translate",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "translate": "npx -y languine@latest translate",
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "next-intl": "^4.5.5"
+    "next-intl": "^4.13.5"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
