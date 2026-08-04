@@ -45,14 +45,12 @@
         "noNestedComponentDefinitions": "warn",
         "useParseIntRadix": "warn"
       },
-      "nursery": {
-        "noShadow": "warn"
-      },
       "suspicious": {
         "noConsole": "warn",
         "noArrayIndexKey": "warn",
         "noGlobalIsNan": "warn",
         "noEmptyBlockStatements": "warn",
+        "noShadow": "warn",
         "noUselessEscapeInString": "off",
         "noUnknownAtRules": "warn"
       },
