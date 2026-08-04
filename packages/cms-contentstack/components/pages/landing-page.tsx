@@ -1,4 +1,3 @@
-import { transformLocale } from "@repo/cms/lib/utils/transform-locale";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
 import { hasLocale, setRequestLocale } from "@repo/i18n";
@@ -8,6 +7,7 @@ import { notFound } from "next/navigation";
 import { graphqlClient } from "../../client";
 import { graphql } from "../../graphql";
 import { entryLivePreview } from "../../lib/utils/live-preview-helper";
+import { transformLocale } from "../../lib/utils/transform-locale";
 import ComponentRenderer from "../component-renderer";
 
 const getPageCached = async (

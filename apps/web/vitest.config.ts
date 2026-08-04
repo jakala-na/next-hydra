@@ -6,9 +6,16 @@ export default mergeConfig(
   baseConfig,
   defineConfig({
     resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "."),
-      },
+      alias: [
+        {
+          find: "@repo/cms",
+          replacement: path.resolve(
+            import.meta.dirname,
+            "node_modules/@repo/cms"
+          ),
+        },
+        { find: "@", replacement: import.meta.dirname },
+      ],
     },
   })
 );

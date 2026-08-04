@@ -1,9 +1,9 @@
-import { type FragmentOf, graphql, readFragment } from "@repo/cms/graphql";
-import { getNodesFromConnection } from "@repo/cms/lib/utils/connection";
-import { renderRichText } from "@repo/cms/lib/utils/rich-text-utils";
-import type { ComponentBaseProps } from "@repo/cms/types";
 import { HeroSection as HeroSectionComponent } from "@repo/design-system/components/cms/blocks/hero-section";
 import type { Locale } from "@repo/i18n";
+import { type FragmentOf, graphql, readFragment } from "../../graphql";
+import { getNodesFromConnection } from "../../lib/utils/connection";
+import { renderRichText } from "../../lib/utils/rich-text-utils";
+import type { ComponentBaseProps } from "../../types";
 import getLinkProps from "../link";
 
 export const HeroSectionFragment = graphql(`

@@ -6,6 +6,8 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
+      "@repo/cms": ["./node_modules/@repo/cms"],
+      "@repo/cms/*": ["./node_modules/@repo/cms/*"],
       "@repo/*": ["../../packages/*"]
     }
   },

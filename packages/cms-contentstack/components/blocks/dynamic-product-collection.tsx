@@ -1,10 +1,10 @@
-import { type FragmentOf, graphql, readFragment } from "@repo/cms/graphql";
-import { decodeCommerceCategoryId } from "@repo/cms/lib/commerce-category";
-import { renderRichText } from "@repo/cms/lib/utils/rich-text-utils";
-import type { ComponentBaseProps } from "@repo/cms/types";
 import { ProductCollection as CommerceProductCollection } from "@repo/commerce/product/product-collection";
 import type { Locale } from "@repo/i18n";
 import { Option } from "effect";
+import { type FragmentOf, graphql, readFragment } from "../../graphql";
+import { decodeCommerceCategoryId } from "../../lib/commerce-category";
+import { renderRichText } from "../../lib/utils/rich-text-utils";
+import type { ComponentBaseProps } from "../../types";
 
 export const dynamicProductCollectionFragment = graphql(`
     fragment DynamicProductCollection on DynamicProductCollection {

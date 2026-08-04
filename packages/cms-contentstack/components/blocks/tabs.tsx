@@ -1,4 +1,4 @@
-import { type FragmentOf, graphql, readFragment } from "@repo/cms/graphql";
+import { type FragmentOf, graphql, readFragment } from "../../graphql";
 
 export const TabsFragment = graphql(`
     fragment Tabs on Tabs {

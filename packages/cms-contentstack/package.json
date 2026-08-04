@@ -1,8 +1,19 @@
 {
-  "name": "@repo/cms",
+  "name": "@repo/cms-contentstack",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./components/live-preview": "./components/live-preview.tsx",
+    "./components/pages/landing-page": "./components/pages/landing-page.tsx",
+    "./keys": "./keys.ts",
+    "./lib/navigation": "./lib/navigation/index.tsx",
+    "./next-config": "./next-config.ts",
+    "./proxy": "./proxy.ts",
+    "./routes/disable-draft": "./routes/disable-draft.ts",
+    "./routes/draft": "./routes/draft.ts",
+    "./typescript-config.json": "./typescript-config.json"
+  },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "test": "vitest run",
@@ -15,6 +26,7 @@
     "@contentstack/live-preview-utils": "^3.2.3",
     "@gql.tada/cli-utils": "^1.6.3",
     "@repo/commerce": "workspace:*",
+    "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
     "@urql/core": "^5.1.2",

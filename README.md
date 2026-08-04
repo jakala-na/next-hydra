@@ -27,7 +27,8 @@ Most commerce accelerators are either provider-owned or agency-owned, closed-sou
 
 Business domains are packages that model core product capabilities and workflows.
 
-- `@repo/cms`: Contentstack GraphQL client, content block rendering, draft mode routes, and live preview wiring.
+- `@repo/cms`: the stable CMS dependency name selected by the consuming app.
+- `@repo/cms-contentstack`: Contentstack GraphQL client, content block rendering, draft mode routes, and live preview wiring.
 - `@repo/commerce`: Commercetools GraphQL integration, product/store/cart services, and server actions for cart operations.
 - `@repo/auth-workos`: WorkOS auth routes, provider, middleware proxy, and server helpers.
 - `@repo/auth-clerk`: Clerk auth adapter package (available for swap-in/experiments).

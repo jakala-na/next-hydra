@@ -444,8 +444,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/auth-workos
       '@repo/cms':
-        specifier: workspace:*
-        version: link:../../packages/cms
+        specifier: workspace:@repo/cms-contentstack@*
+        version: link:../../packages/cms-contentstack
       '@repo/commerce':
         specifier: workspace:*
         version: link:../../packages/commerce
@@ -709,7 +709,7 @@ importers:
         specifier: ^3.1.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@22.15.21)(jiti@2.6.1)(jsdom@26.1.0(bufferutil@4.0.9))(lightningcss@1.30.2)(msw@2.12.10(@types/node@22.15.21)(typescript@5.9.3))(terser@5.44.0)(yaml@2.9.0)
 
-  packages/cms:
+  packages/cms-contentstack:
     dependencies:
       '@contentstack/delivery-sdk':
         specifier: ^4.7.1
@@ -726,6 +726,9 @@ importers:
       '@repo/commerce':
         specifier: workspace:*
         version: link:../commerce
+      '@repo/design-system':
+        specifier: workspace:*
+        version: link:../design-system
       '@repo/i18n':
         specifier: workspace:*
         version: link:../i18n

@@ -1,10 +1,14 @@
 type Query {
   assets(uid: String!, locale: String = "en-us", fallback_locale: Boolean = false): SysAsset
   all_assets(where: SysAssetWhere, locale: String = "en-us", order_by: [SysAssetOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllSysAsset
-  landing_page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): LandingPage
-  all_landing_page(where: LandingPageWhere, locale: String! = "en-us", order_by: [LandingPageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllLandingPage
-  navigation(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = false): Navigation
-  all_navigation(where: NavigationWhere, locale: String! = "en-us", order_by: [NavigationOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllNavigation
+  landing_page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): LandingPage
+  all_landing_page(where: LandingPageWhere, locale: String! = "en-us", order_by: [LandingPageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): AllLandingPage
+  navigation(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): Navigation
+  all_navigation(where: NavigationWhere, locale: String! = "en-us", order_by: [NavigationOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): AllNavigation
+  all_sys_taxonomies(locale: String, all_locales: Boolean = false, where: SysTaxonomiesWhere, order_by: [SysTaxonomyOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25): AllSysTaxonomyType
+  sys_taxonomy(uid: String!, locale: String): SysTaxonomyType
+  all_sys_taxonomy_terms(taxonomy_uid: String!, locale: String, all_locales: Boolean = false, where: SysTaxonomyTermsWhere, order_by: [SysTaxonomyTermOrderBy] = [order_ASC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = null): AllSysTaxonomyTerm
+  sys_taxonomy_term(taxonomy_uid: String!, uid: String!, locale: String, fallback_locale: Boolean = null): SysTaxonomyTerm
 }
 
 type SysAsset {
@@ -24,6 +28,8 @@ type SysAsset {
   metadata: JSON
   unique_identifier: String
   parent_uid: String
+  visual_markups: [SysVisualMarkups!]
+  user_defined_fields: SysUserDefinedFields
   system: SysAssetSystemField
 }
 
@@ -75,7 +81,7 @@ input SysAssetTransformUrl {
   dpr: String
 
   """
-  The bg-color parameter lets you set a backgroud color for the given image. This is useful when applying padding or for replacing the transparent pixels of an image
+  The bg-color parameter lets you set a background color for the given image. This is useful when applying padding or for replacing the transparent pixels of an image
   """
   bg_color: String
 
@@ -212,6 +218,26 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://
 """
 scalar JSON
 
+type SysVisualMarkups {
+  id: String!
+  type: String!
+  title: String
+  description: String
+  url: String
+  coordinates: SysVisualMarkupsCoordinates
+}
+
+type SysVisualMarkupsCoordinates {
+  x: Float
+  y: Float
+  width: Int
+  height: Int
+}
+
+type SysUserDefinedFields {
+  json: JSON
+}
+
 type SysAssetSystemField {
   branch: String
   created_at: DateTime
@@ -328,6 +354,10 @@ input SysAssetWhere {
   parent_uid_in: [String]
   parent_uid_nin: [String]
   parent_uid_exists: Boolean
+  visual_markups: SysVisualMarkupsWhere
+  visual_markups_exists: Boolean
+  user_defined_fields: JSON
+  user_defined_fields_exists: Boolean
   AND: [SysAssetWhere]
   OR: [SysAssetWhere]
 }
@@ -347,6 +377,63 @@ input SysAssetDimensionWhere {
   height_in: [Int]
   height_nin: [Int]
   height_exists: Boolean
+  height_lt: Int
+  height_lte: Int
+  height_gt: Int
+  height_gte: Int
+}
+
+input SysVisualMarkupsWhere {
+  id: String
+  id_ne: String
+  id_in: [String]
+  id_nin: [String]
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  type: String
+  type_ne: String
+  type_in: [String]
+  type_nin: [String]
+  coordinates: SysVisualMarkupsCoordinatesWhere
+}
+
+input SysVisualMarkupsCoordinatesWhere {
+  x: Float
+  x_ne: Float
+  x_in: [Float]
+  x_nin: [Float]
+  x_lt: Float
+  x_lte: Float
+  x_gt: Float
+  x_gte: Float
+  y: Float
+  y_ne: Float
+  y_in: [Float]
+  y_nin: [Float]
+  y_lt: Float
+  y_lte: Float
+  y_gt: Float
+  y_gte: Float
+  width: Int
+  width_ne: Int
+  width_in: [Int]
+  width_nin: [Int]
+  width_lt: Int
+  width_lte: Int
+  width_gt: Int
+  width_gte: Int
+  height: Int
+  height_ne: Int
+  height_in: [Int]
+  height_nin: [Int]
   height_lt: Int
   height_lte: Int
   height_gt: Int
@@ -382,6 +469,7 @@ type HeroSection {
   imageConnection: SysAssetConnection
   image_alt: String
   cta: [HeroSectionCta]
+  _metadata: SysModularBlockMetadata
 }
 
 type HeroSectionDescription {
@@ -426,6 +514,10 @@ type HeroSectionCtaInternalContentEdge {
 
 union HeroSectionCtaInternalContentNode = LandingPage
 
+type SysModularBlockMetadata {
+  uid: String
+}
+
 type LandingPageComponentsDynamicProductCollection {
   dynamic_product_collection: DynamicProductCollection
 }
@@ -434,6 +526,7 @@ type DynamicProductCollection {
   heading: String
   description: DynamicProductCollectionDescription
   product_category: JSON
+  _metadata: SysModularBlockMetadata
 }
 
 type DynamicProductCollectionDescription {
@@ -807,4 +900,141 @@ enum NavigationOrderBy {
   created_at_DESC
   updated_at_ASC
   updated_at_DESC
+}
+
+type AllSysTaxonomyType {
+  total: Int
+  items: [SysTaxonomyType]
+}
+
+type SysTaxonomyType {
+  uid: String
+  name: String
+  description: String
+  terms_count: Int
+  system: SysTaxonomySystemField
+}
+
+type SysTaxonomySystemField {
+  uid: String
+  content_type_uid: String
+  locale: String
+  branch: String
+  created_at: DateTime
+  updated_at: DateTime
+  created_by: String
+  updated_by: String
+  publish_details: SystemPublishDetails
+}
+
+input SysTaxonomiesWhere {
+  uid: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  name: String
+  name_in: [String]
+  name_nin: [String]
+  name_exists: Boolean
+  description: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  publish_details: SysTaxonomyPublishDetailsWhere
+  AND: [SysTaxonomiesWhere!]
+  OR: [SysTaxonomiesWhere!]
+}
+
+input SysTaxonomyPublishDetailsWhere {
+  time: DateTime
+  user: String
+  environment: String
+  locale: String
+}
+
+enum SysTaxonomyOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+  name_ASC
+  name_DESC
+}
+
+type AllSysTaxonomyTerm {
+  total: Int
+  items: [SysTaxonomyTerm]
+}
+
+type SysTaxonomyTerm {
+  uid: String
+  name: String
+  taxonomy_uid: String
+  depth: Int
+  order: Int
+  ancestors: [SysTaxonomyTermAncestor]
+  system: SysTaxonomySystemField
+}
+
+type SysTaxonomyTermAncestor {
+  uid: String
+  name: String
+  type: String
+}
+
+input SysTaxonomyTermsWhere {
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  name: String
+  name_ne: String
+  name_in: [String]
+  name_nin: [String]
+  name_exists: Boolean
+  taxonomy_uid: String
+  taxonomy_uid_in: [String]
+  taxonomy_uid_nin: [String]
+  taxonomy_uid_exists: Boolean
+  term_above: SysTaxonomyTermAboveWhere
+  term_below: SysTaxonomyTermBelowWhere
+  term_eq_above: SysTaxonomyTermEqAboveWhere
+  term_eq_below: SysTaxonomyTermEqBelowWhere
+  publish_details: SysTaxonomyPublishDetailsWhere
+  AND: [SysTaxonomyTermsWhere!]
+  OR: [SysTaxonomyTermsWhere!]
+}
+
+input SysTaxonomyTermAboveWhere {
+  uid: String!
+  levels: Int
+}
+
+input SysTaxonomyTermBelowWhere {
+  uid: String!
+  levels: Int
+}
+
+input SysTaxonomyTermEqAboveWhere {
+  uid: String!
+  levels: Int
+}
+
+input SysTaxonomyTermEqBelowWhere {
+  uid: String!
+  levels: Int
+}
+
+enum SysTaxonomyTermOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+  name_ASC
+  name_DESC
+  order_ASC
+  order_DESC
+  depth_ASC
+  depth_DESC
 }

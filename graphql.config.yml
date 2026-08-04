@@ -1,7 +1,7 @@
 projects:
   cms:
-    schema: './packages/cms/gql/schema.graphql'
-    documents: ['./packages/cms/**/*.{graphql,js,ts,jsx,tsx}']
+    schema: './packages/cms-contentstack/gql/schema.graphql'
+    documents: ['./packages/cms-contentstack/**/*.{graphql,js,ts,jsx,tsx}']
   commerce:
     schema: './packages/commerce/gql/schema.graphql'
     documents: ['./packages/commerce/**/*.{graphql,js,ts,jsx,tsx}']

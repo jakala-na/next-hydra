@@ -1,4 +1,3 @@
-import getLinkProps from "@repo/cms/components/link";
 import type {
   NavigationItem,
   NavigationItemIcon,
@@ -6,6 +5,7 @@ import type {
 import type { Locale } from "@repo/i18n";
 import { cacheLife, cacheTag } from "next/cache";
 import { graphqlClient } from "../../client";
+import getLinkProps from "../../components/link";
 import { TAGS } from "../../constants";
 import { graphql } from "../../graphql";
 import { transformLocale } from "../utils/transform-locale";
