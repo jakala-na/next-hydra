@@ -7,10 +7,9 @@ import type {
 import type { ChangeCartItemsQuantityAction } from "@repo/commerce/cart/change-cart-items-quantity";
 import type { RemoveCartItemAction } from "@repo/commerce/cart/remove-cart-item";
 import type {
-  CartLineItem,
-  CurrentCartState,
+  CartLineItemEncoded,
+  CurrentCartStateEncoded,
 } from "@repo/commerce/domain/cart-snapshot";
-import type { ActionResult } from "@repo/commerce/lib/utils/errors";
 import { useTranslations } from "@repo/i18n";
 import type { CurrencyCode } from "@repo/i18n/types";
 import {
@@ -34,9 +33,9 @@ type CartActions = {
 };
 
 type CartContextType = {
-  cartPromise: Promise<ActionResult<CurrentCartState>>;
-  cart: CurrentCartState | null;
-  setCart: (cart: CurrentCartState | null) => void;
+  cartPromise: Promise<CurrentCartStateEncoded | null>;
+  cart: CurrentCartStateEncoded | null;
+  setCart: (cart: CurrentCartStateEncoded | null) => void;
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -47,7 +46,7 @@ const CartContext = createContext<CartContextType | null>(null);
 
 type CartProviderProps = {
   children: ReactNode;
-  cartPromise: Promise<ActionResult<CurrentCartState>>;
+  cartPromise: Promise<CurrentCartStateEncoded | null>;
   actions: CartActions;
 };
 
@@ -62,7 +61,7 @@ export function CartProvider({
   cartPromise,
   actions,
 }: CartProviderProps) {
-  const [cart, setCart] = useState<CurrentCartState | null>(null);
+  const [cart, setCart] = useState<CurrentCartStateEncoded | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   const openCart = useCallback(() => setIsOpen(true), []);
@@ -70,13 +69,13 @@ export function CartProvider({
 
   const value = useMemo(
     () => ({
-      cartPromise,
+      actions,
       cart,
-      setCart,
+      cartPromise,
+      closeCart,
       isOpen,
       openCart,
-      closeCart,
-      actions,
+      setCart,
     }),
     [cartPromise, cart, isOpen, openCart, closeCart, actions]
   );
@@ -99,8 +98,7 @@ export function useCartData() {
   const { cartPromise, cart, setCart } = ctx;
 
   // Resolve promise - this causes suspension!
-  const result = use(cartPromise);
-  const resolvedCart = result?.ok ? (result.data ?? null) : null;
+  const resolvedCart = use(cartPromise);
 
   // Sync resolved cart to shared state on first resolve
   useEffect(() => {
@@ -125,9 +123,9 @@ export function useCartState() {
   }
 
   return {
+    closeCart: ctx.closeCart,
     isOpen: ctx.isOpen,
     openCart: ctx.openCart,
-    closeCart: ctx.closeCart,
   };
 }
 
@@ -159,17 +157,17 @@ export function useCart() {
 
   const items = useMemo(() => {
     const lineItems = cart?.lineItems ?? [];
-    return lineItems.map((lineItem: CartLineItem) => {
+    return lineItems.map((lineItem: CartLineItemEncoded) => {
       const { id, quantity, unitPrice, variant } = lineItem;
       const image = variant.images[0]?.url ?? "";
 
       return {
         id,
+        image,
         name: variant.name ?? "",
-        variant: "",
         price: unitPrice.centAmount / CENTS_PER_UNIT,
         quantity,
-        image,
+        variant: "",
       };
     });
   }, [cart]);
@@ -193,13 +191,13 @@ export function useCart() {
   const addItem = useCallback(
     async (input: AddToCartInput) => {
       const result = await actions.addToCart(input);
-      if (result?.data?.ok && result.data.data) {
-        setCart(result.data.data);
-        openCart();
-        toast.success(t("toast.addedToCart"));
-      } else {
+      if ("error" in result) {
         toast.error(t("toast.failedToAdd"));
+        return;
       }
+      setCart(result.success);
+      openCart();
+      toast.success(t("toast.addedToCart"));
     },
     [actions, setCart, openCart, t]
   );
@@ -207,12 +205,12 @@ export function useCart() {
   const removeItem = useCallback(
     async (id: string) => {
       const result = await actions.removeCartItem({ lineItemId: id });
-      if (result?.data?.ok && result.data.data) {
-        setCart(result.data.data);
-        toast.success(t("toast.removedFromCart"));
-      } else {
+      if ("error" in result) {
         toast.error(t("toast.failedToRemove"));
+        return;
       }
+      setCart(result.success);
+      toast.success(t("toast.removedFromCart"));
     },
     [actions, setCart, t]
   );
@@ -223,28 +221,28 @@ export function useCart() {
         lineItemId: id,
         quantity,
       });
-      if (result?.data?.ok && result.data.data) {
-        setCart(result.data.data);
-        toast.success(t("toast.updatedQuantity"));
-      } else {
+      if ("error" in result) {
         toast.error(t("toast.failedToUpdate"));
+        return;
       }
+      setCart(result.success);
+      toast.success(t("toast.updatedQuantity"));
     },
     [actions, setCart, t]
   );
 
   return {
+    addItem,
+    closeCart,
+    currencyCode,
+    isOpen,
     items,
+    openCart,
+    removeItem,
     totalItems,
     totalPrice,
-    currencyCode,
-    violations,
-    addItem,
-    removeItem,
     updateQuantity,
-    isOpen,
-    openCart,
-    closeCart,
+    violations,
   };
 }
 
@@ -266,16 +264,16 @@ export function useCartActions() {
   const addItem = useCallback(
     async (input: AddToCartInput) => {
       const result = await actions.addToCart(input);
-      if (result?.data?.ok && result.data.data) {
-        setCart(result.data.data);
-        openCart();
-        toast.success(t("toast.addedToCart"));
-      } else {
+      if ("error" in result) {
         toast.error(t("toast.failedToAdd"));
+        return;
       }
+      setCart(result.success);
+      openCart();
+      toast.success(t("toast.addedToCart"));
     },
     [actions, setCart, openCart, t]
   );
 
-  return { isOpen, openCart, closeCart, addItem };
+  return { addItem, closeCart, isOpen, openCart };
 }

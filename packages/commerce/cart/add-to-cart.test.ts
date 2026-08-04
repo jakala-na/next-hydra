@@ -1,14 +1,15 @@
+import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
-import { addToCartInputSchema } from "./add-to-cart";
+import { AddToCartInputSchema } from "./add-to-cart";
 
-describe("addToCartInputSchema", () => {
+describe("AddToCartInputSchema", () => {
   it("rejects non-positive quantities", () => {
-    const result = addToCartInputSchema.safeParse({
+    const result = Schema.decodeUnknownOption(AddToCartInputSchema)({
       productId: "product-1",
-      variantId: "variant-1",
       quantity: 0,
+      variantId: "variant-1",
     });
 
-    expect(result.success).toBe(false);
+    expect(result._tag).toBe("None");
   });
 });

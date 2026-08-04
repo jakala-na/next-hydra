@@ -1,22 +1,15 @@
-import type { SafeActionFn, ValidationErrors } from "next-safe-action";
-import { z } from "zod";
-import type { CurrentCartState } from "../domain/cart-snapshot";
-import type { ActionResult } from "../lib/utils/errors";
+import { Schema } from "effect";
+import { PositiveCartQuantity, ProductId, VariantId } from "../domain/cart";
+import type { AddToCartActionResult } from "./action-result";
 
-export const addToCartInputSchema = z.object({
-  productId: z.string(),
-  variantId: z.string(),
-  quantity: z.number().int().positive(),
+export const AddToCartInputSchema = Schema.Struct({
+  productId: ProductId,
+  quantity: PositiveCartQuantity,
+  variantId: VariantId,
 });
 
-export type AddToCartInput = z.infer<typeof addToCartInputSchema>;
+export type AddToCartInput = typeof AddToCartInputSchema.Encoded;
 
-export type AddToCartData = ActionResult<CurrentCartState>;
+export type AddToCartData = AddToCartActionResult;
 
-export type AddToCartAction = SafeActionFn<
-  string,
-  typeof addToCartInputSchema,
-  [],
-  ValidationErrors<typeof addToCartInputSchema>,
-  AddToCartData
->;
+export type AddToCartAction = (input: AddToCartInput) => Promise<AddToCartData>;

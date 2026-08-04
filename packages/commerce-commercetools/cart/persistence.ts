@@ -11,12 +11,6 @@ import {
   type StorefrontCustomerCheckoutScope,
 } from "@repo/commerce/domain/checkout";
 import { CommerceBusinessUnitId } from "@repo/commerce/domain/commerce-account";
-import {
-  type ActionResult,
-  domainError,
-  Err,
-  Ok,
-} from "@repo/commerce/lib/utils/errors";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
 import type { Client } from "@urql/core";
 import { Effect, Option, Schema } from "effect";
@@ -26,6 +20,9 @@ import {
   type CommercetoolsConcurrentModification,
   commercetoolsFailureCause,
   commercetoolsRequest,
+  hasCommercetoolsErrorCode,
+  isCommercetoolsAccessDenied,
+  isCommercetoolsClientFailure,
   isConcurrentModification,
   PreserveVersionedWriteConflict,
   RetryVersionedWrite,
@@ -40,6 +37,14 @@ import {
   ORDER_CUSTOM_TYPE_KEY,
 } from "./contact-actions";
 import { buildSaveCheckoutDeliveryDetailsActions } from "./delivery-details-actions";
+import {
+  CommercetoolsCartAccessDenied,
+  CommercetoolsCartMerchandiseUnavailable,
+  CommercetoolsCartNotFound,
+  CommercetoolsCartVersionConflict,
+  CommercetoolsCartWriteOutcomeUnknown,
+  CommercetoolsUnavailable,
+} from "./persistence-errors";
 import type {
   AddToCartRepoParams,
   ChangeItemQuantityParams,
@@ -59,13 +64,13 @@ type RawCustomField = {
 };
 
 const CommerceShippingAddress = Schema.Struct({
-  key: Schema.NullOr(Schema.String),
-  streetName: Schema.NullOr(Schema.String),
-  postalCode: Schema.NullOr(Schema.String),
+  additionalStreetInfo: Schema.NullOr(Schema.String),
   city: Schema.NullOr(Schema.String),
   country: Schema.String,
-  additionalStreetInfo: Schema.NullOr(Schema.String),
+  key: Schema.NullOr(Schema.String),
+  postalCode: Schema.NullOr(Schema.String),
   region: Schema.NullOr(Schema.String),
+  streetName: Schema.NullOr(Schema.String),
 });
 
 type DecodedShippingAddress = {
@@ -80,9 +85,9 @@ const decodeShippingAddress = (
     Option.flatMap((address) =>
       Schema.decodeUnknownOption(ShippingAddress)({
         addressLine1: address.streetName,
-        postalCode: address.postalCode,
         city: address.city,
         country: address.country,
+        postalCode: address.postalCode,
         ...(address.additionalStreetInfo === null
           ? {}
           : { addressLine2: address.additionalStreetInfo }),
@@ -113,7 +118,7 @@ const parseCustomJson = (value: unknown) => {
   try {
     return JSON.parse(value);
   } catch {
-    return undefined;
+    // Invalid custom JSON is handled as absent checkout data.
   }
 };
 
@@ -136,14 +141,14 @@ const getCheckoutDeliveryDetails = (
   decodedShippingAddress: DecodedShippingAddress | null
 ): CheckoutDeliveryDetails | undefined => {
   if (decodedShippingAddress === null) {
-    return undefined;
+    return;
   }
 
   const { addressBookReference, shippingAddress } = decodedShippingAddress;
 
   return addressBookReference === undefined
-    ? { source: "manual", shippingAddress }
-    : { source: "addressBook", addressBookReference, shippingAddress };
+    ? { shippingAddress, source: "manual" }
+    : { addressBookReference, shippingAddress, source: "addressBook" };
 };
 
 const getCheckoutDetails = (
@@ -249,8 +254,8 @@ const reshapeCart = (
       ...(item.productType?.key === undefined
         ? {}
         : { productType: item.productType.key as ProductTypeKey }),
-      quantity: item.quantity,
       price: reshapePrice(item.price),
+      quantity: item.quantity,
       totalPrice: item.totalPrice
         ? {
             centAmount: item.totalPrice.centAmount,
@@ -261,16 +266,16 @@ const reshapeCart = (
         ? {
             id: item.variant.id,
             ...(item.variant.sku === null ? {} : { sku: item.variant.sku }),
-            images:
-              item.variant.images.map((image) => ({
-                url: image.url,
-                altText: image.label ?? "",
-              })) || [],
             attributes: reshapeProductAttributes(
               item.productType?.key as ProductTypeKey,
               item.variant.attributesRaw || [],
               locale
             ),
+            images:
+              item.variant.images.map((image) => ({
+                altText: image.label ?? "",
+                url: image.url,
+              })) || [],
           }
         : null,
     })
@@ -285,17 +290,17 @@ const reshapeCart = (
             parsedData.businessUnit.id
           ),
         }),
-    lineItems,
     checkoutDetails: getCheckoutDetails(
       parsedData.custom?.customFieldsRaw,
       decodedShippingAddress
     ),
+    lineItems,
     shippingAddress,
+    totalLineItemQuantity: parsedData.totalLineItemQuantity ?? 0,
     totalPrice: {
       centAmount: parsedData.totalPrice.centAmount,
       currencyCode: parsedData.totalPrice.currencyCode as CurrencyCode,
     },
-    totalLineItemQuantity: parsedData.totalLineItemQuantity ?? 0,
   };
 };
 
@@ -491,72 +496,127 @@ export const makeCartPersistence = ({
       })
       .execute();
 
-  const cartUpdateFailure = (
-    cause: unknown,
-    conflictMessage: string,
-    failureMessage: string
-  ) => {
-    const isConflict = isConcurrentModification(cause);
+  const providerContractDefect = (message: string, cause?: unknown) =>
+    new Error(message, cause === undefined ? undefined : { cause });
+
+  const cartWriteFailure = (
+    cause: unknown
+  ): Effect.Effect<
+    never,
+    | CommercetoolsCartAccessDenied
+    | CommercetoolsCartVersionConflict
+    | CommercetoolsCartWriteOutcomeUnknown
+  > => {
     const providerCause = commercetoolsFailureCause(cause);
 
-    return Err(
-      domainError<object>(
-        isConflict ? "CONFLICT" : "UNKNOWN",
-        isConflict ? conflictMessage : failureMessage,
-        undefined,
-        providerCause
-      )
+    if (isConcurrentModification(cause)) {
+      return Effect.fail(
+        new CommercetoolsCartVersionConflict({ cause: providerCause })
+      );
+    }
+
+    if (isCommercetoolsAccessDenied(providerCause)) {
+      return Effect.fail(
+        new CommercetoolsCartAccessDenied({ cause: providerCause })
+      );
+    }
+
+    if (isCommercetoolsClientFailure(providerCause)) {
+      return Effect.die(providerCause);
+    }
+
+    return Effect.fail(
+      new CommercetoolsCartWriteOutcomeUnknown({ cause: providerCause })
     );
   };
+
+  const cartCreateFailure = (
+    cause: unknown
+  ): Effect.Effect<
+    never,
+    CommercetoolsCartAccessDenied | CommercetoolsCartWriteOutcomeUnknown
+  > => {
+    const providerCause = commercetoolsFailureCause(cause);
+
+    if (isCommercetoolsAccessDenied(providerCause)) {
+      return Effect.fail(
+        new CommercetoolsCartAccessDenied({ cause: providerCause })
+      );
+    }
+
+    if (isCommercetoolsClientFailure(providerCause)) {
+      return Effect.die(providerCause);
+    }
+
+    return Effect.fail(
+      new CommercetoolsCartWriteOutcomeUnknown({ cause: providerCause })
+    );
+  };
+
+  const cartMutationFailure = (error: {
+    readonly networkError?: unknown;
+  }): Effect.Effect<
+    never,
+    CommercetoolsCartAccessDenied | CommercetoolsCartWriteOutcomeUnknown
+  > => {
+    if (error.networkError !== undefined) {
+      return Effect.fail(
+        new CommercetoolsCartWriteOutcomeUnknown({ cause: error })
+      );
+    }
+
+    if (isCommercetoolsAccessDenied(error)) {
+      return Effect.fail(new CommercetoolsCartAccessDenied({ cause: error }));
+    }
+
+    return Effect.die(error);
+  };
+
+  const missingCartMutationData = (operation: string) =>
+    Effect.fail(
+      new CommercetoolsCartWriteOutcomeUnknown({
+        cause: providerContractDefect(
+          `Commercetools returned no Cart after ${operation}`
+        ),
+      })
+    );
 
   const canRetryCartUpdateWithCurrentVersion = (
     actions: readonly CartUpdateAction[]
   ) => actions.every((action) => action.action !== "setCustomType");
 
-  const updateCartAsAssociate = async ({
+  const updateCartAsAssociate = ({
     actions,
     cartId,
-    conflictMessage,
-    failureMessage,
     retryConcurrentModification = true,
     scope,
     version,
   }: {
     readonly actions: CartUpdateAction[];
     readonly cartId: string;
-    readonly conflictMessage: string;
-    readonly failureMessage: string;
     readonly retryConcurrentModification?: boolean;
     readonly scope: StorefrontCustomerCheckoutScope;
     readonly version: number;
-  }): Promise<ActionResult<void>> => {
+  }) => {
     const input = { actions, cartId, scope, version };
-    const result = await Effect.runPromise(
-      Effect.result(
-        retryVersionedWrite({
-          operation: "cart.updateAsAssociate",
-          input,
-          attempt: (current) =>
-            commercetoolsRequest("Failed to update Cart as associate", () =>
-              executeCartUpdateAsAssociate(current)
-            ).pipe(Effect.asVoid),
-          resolveConflict: (conflict, current) =>
-            Effect.succeed(
-              retryConcurrentModification &&
-                canRetryCartUpdateWithCurrentVersion(current.actions)
-                ? new RetryVersionedWrite({
-                    ...current,
-                    version: conflict.currentVersion,
-                  })
-                : new PreserveVersionedWriteConflict()
-            ),
-        })
-      )
-    );
-
-    return result._tag === "Success"
-      ? Ok(undefined)
-      : cartUpdateFailure(result.failure, conflictMessage, failureMessage);
+    return retryVersionedWrite({
+      attempt: (current) =>
+        commercetoolsRequest("Failed to update Cart as associate", () =>
+          executeCartUpdateAsAssociate(current)
+        ).pipe(Effect.asVoid),
+      input,
+      operation: "cart.updateAsAssociate",
+      resolveConflict: (conflict, current) =>
+        Effect.succeed(
+          retryConcurrentModification &&
+            canRetryCartUpdateWithCurrentVersion(current.actions)
+            ? new RetryVersionedWrite({
+                ...current,
+                version: conflict.currentVersion,
+              })
+            : new PreserveVersionedWriteConflict()
+        ),
+    }).pipe(Effect.catch(cartWriteFailure));
   };
 
   interface GraphqlVersionedWriteResult {
@@ -580,27 +640,36 @@ export const makeCartPersistence = ({
       input: Input
     ) => Effect.Effect<VersionedWriteConflictResolution<Input>>;
   }) =>
-    Effect.runPromise(
-      Effect.result(
-        retryVersionedWrite({
-          operation,
-          input,
-          attempt: (current) =>
-            commercetoolsRequest(
-              `Failed to execute GraphQL mutation ${operation}`,
-              () => execute(current)
-            ).pipe(
-              Effect.flatMap((result) =>
-                result.error !== undefined &&
-                isConcurrentModification(result.error)
-                  ? Effect.fail(result.error)
-                  : Effect.succeed(result)
-              )
-            ),
-          resolveConflict,
-        })
-      )
-    );
+    retryVersionedWrite({
+      attempt: (current) =>
+        commercetoolsRequest(
+          `Failed to execute GraphQL mutation ${operation}`,
+          () => execute(current)
+        ).pipe(
+          Effect.flatMap((result) =>
+            result.error !== undefined && isConcurrentModification(result.error)
+              ? Effect.fail(result.error)
+              : Effect.succeed(result)
+          )
+        ),
+      input,
+      operation,
+      resolveConflict,
+    });
+
+  const graphqlRead = <A>(
+    request: () => PromiseLike<A>
+  ): Effect.Effect<A, CommercetoolsUnavailable> =>
+    Effect.tryPromise({
+      catch: (cause) => new CommercetoolsUnavailable({ cause }),
+      try: () => Promise.resolve(request()),
+    });
+
+  const graphqlCreate = <A>(request: () => PromiseLike<A>) =>
+    Effect.tryPromise({
+      catch: (cause) => new CommercetoolsCartWriteOutcomeUnknown({ cause }),
+      try: () => Promise.resolve(request()),
+    });
 
   const retryWithProviderVersion = <Input extends { readonly version: number }>(
     currentVersion: number,
@@ -616,130 +685,97 @@ export const makeCartPersistence = ({
   const activeCartForStorePredicate = (storeKey: string) =>
     `cartState="Active" and store(key=${JSON.stringify(storeKey)})`;
 
-  const getActiveCartForAssociateScope = async (
+  const findActiveCartsForAssociateScope = (
     params: GetActiveCartForAssociateScopeParams
-  ): Promise<ActionResult<CommercetoolsCart>> => {
-    const result = await findActiveCartsForAssociateScope(params);
-
-    if (!result.ok) {
-      return result;
-    }
-
-    if (result.data.length === 0) {
-      return Err(domainError("NOT_FOUND", "Cart not found"));
-    }
-
-    if (result.data.length > 1) {
-      return Err(
-        domainError<object>(
-          "CONFLICT",
-          "Multiple active Carts are available for the Store and Business Unit"
-        )
+  ) =>
+    Effect.gen(function* () {
+      const result = yield* graphqlRead(() =>
+        client.query(GetActiveCartForBusinessUnitAsAssociateQuery, {
+          associateId: params.associateId,
+          businessUnitKey: params.businessUnitKey,
+          locale: params.locale,
+          where: activeCartForStorePredicate(params.storeKey),
+        })
       );
-    }
 
-    const cart = result.data[0];
-    return cart ? Ok(cart) : Err(domainError("NOT_FOUND", "Cart not found"));
-  };
-
-  const findActiveCartsForAssociateScope = async (
-    params: GetActiveCartForAssociateScopeParams
-  ): Promise<ActionResult<readonly CommercetoolsCart[]>> => {
-    const result = await client.query(
-      GetActiveCartForBusinessUnitAsAssociateQuery,
-      {
-        associateId: params.associateId,
-        businessUnitKey: params.businessUnitKey,
-        where: activeCartForStorePredicate(params.storeKey),
-        locale: params.locale,
+      if (result.error?.networkError) {
+        return yield* new CommercetoolsUnavailable({ cause: result.error });
       }
-    );
 
-    if (result.error?.networkError) {
-      return Err(
-        domainError<object>(
-          "NETWORK_ERROR",
-          `Failed to get active Cart for Store and Business Unit: ${result.error.message}`
-        )
-      );
-    }
+      if (result.error) {
+        return yield* isCommercetoolsAccessDenied(result.error)
+          ? new CommercetoolsCartAccessDenied({ cause: result.error })
+          : Effect.die(result.error);
+      }
 
-    if (result.error) {
-      return Err(
-        domainError<object>(
-          "UNKNOWN",
-          `Failed to get active Cart for Store and Business Unit: ${result.error.message}`,
-          undefined,
-          result.error
-        )
-      );
-    }
+      if (result.data === undefined) {
+        return yield* Effect.die(
+          providerContractDefect(
+            "Commercetools returned no data while finding active Carts"
+          )
+        );
+      }
 
-    return Ok(
-      (result.data?.asAssociate.carts.results ?? []).map((cart) =>
+      return result.data.asAssociate.carts.results.map((cart) =>
         reshapeCart(cart, params.locale)
-      )
-    );
-  };
-
-  const getCartById = async (
-    id: string,
-    locale: Locale
-  ): Promise<ActionResult<CommercetoolsCart>> => {
-    const result = await client.query(GetCartByIdQuery, {
-      id,
-      locale,
-    });
-    if (result.error?.networkError) {
-      return Err(
-        domainError<object>(
-          "NETWORK_ERROR",
-          `Failed to get cart by Id: ${result.error.message}`
-        )
       );
-    }
-    if (!result.data?.cart) {
-      return Err(domainError("NOT_FOUND", "Cart not found"));
-    }
-
-    return Ok(reshapeCart(result.data.cart, locale));
-  };
-
-  const createCart = async ({
-    locale,
-    currency,
-    storeKey,
-  }: CreateCartRepoParams): Promise<ActionResult<CommercetoolsCart>> => {
-    const result = await client.mutation(CreateCartMutation, {
-      currency,
-      storeKey,
-      locale,
     });
 
-    if (result.error?.networkError) {
-      return Err(
-        domainError(
-          "NETWORK_ERROR",
-          `Failed to create cart: ${result.error.message}`
-        )
+  const getCartById = (id: string, locale: Locale) =>
+    Effect.gen(function* () {
+      const result = yield* graphqlRead(() =>
+        client.query(GetCartByIdQuery, { id, locale })
       );
-    }
 
-    if (!result.data?.createCart) {
-      return Err(
-        domainError("UNKNOWN", "Failed to create cart: No data returned")
+      if (result.error?.networkError) {
+        return yield* new CommercetoolsUnavailable({ cause: result.error });
+      }
+
+      if (result.error) {
+        return yield* isCommercetoolsAccessDenied(result.error)
+          ? new CommercetoolsCartAccessDenied({ cause: result.error })
+          : Effect.die(result.error);
+      }
+
+      if (result.data === undefined) {
+        return yield* Effect.die(
+          providerContractDefect(
+            "Commercetools returned no data while finding a Cart"
+          )
+        );
+      }
+
+      if (result.data.cart === null) {
+        return yield* new CommercetoolsCartNotFound({ cartId: id });
+      }
+
+      return reshapeCart(result.data.cart, locale);
+    });
+
+  const createCart = ({ locale, currency, storeKey }: CreateCartRepoParams) =>
+    Effect.gen(function* () {
+      const result = yield* graphqlCreate(() =>
+        client.mutation(CreateCartMutation, { currency, locale, storeKey })
       );
-    }
 
-    return Ok(reshapeCart(result.data.createCart, locale));
-  };
+      if (result.error) {
+        return yield* cartMutationFailure(result.error);
+      }
 
-  const createCartForAssociateScope = async (
+      if (!result.data?.createCart) {
+        return yield* missingCartMutationData("creating a Cart");
+      }
+
+      return reshapeCart(result.data.createCart, locale);
+    });
+
+  const createCartForAssociateScope = (
     params: CreateBusinessUnitCartRepoParams
-  ): Promise<ActionResult<CommercetoolsCart>> => {
-    const result = await Effect.runPromise(
-      Effect.result(
-        commercetoolsRequest("Failed to create Cart as associate", () =>
+  ) =>
+    Effect.gen(function* () {
+      const response = yield* commercetoolsRequest(
+        "Failed to create Cart as associate",
+        () =>
           apiRoot
             .asAssociate()
             .withAssociateIdValue({ associateId: String(params.associateId) })
@@ -755,378 +791,228 @@ export const makeCartPersistence = ({
               },
             })
             .execute()
-        )
-      )
-    );
+      ).pipe(Effect.catch(cartCreateFailure));
 
-    if (result._tag === "Failure") {
-      return Err(
-        domainError<object>(
-          "UNKNOWN",
-          "Failed to create Cart as associate",
-          undefined,
-          result.failure
+      return yield* getCartById(response.body.id, params.locale).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(new CommercetoolsCartWriteOutcomeUnknown({ cause }))
         )
       );
-    }
-
-    return getCartById(result.success.body.id, params.locale);
-  };
-
-  const addItemToCart = async (
-    params: AddToCartRepoParams
-  ): Promise<ActionResult<CommercetoolsCart>> => {
-    const store = await client.query(CartDistributionChannelQuery, {
-      storeKey: params.storeKey,
-    });
-    if (store.data?.store === null || store.data?.store === undefined) {
-      throw new Error("Failed to resolve the Cart Store", {
-        cause: store.error,
-      });
-    }
-    const distributionChannelKey =
-      store.data.store.distributionChannels[0]?.key ?? "";
-    const { storeKey: _storeKey, ...cartInput } = params;
-    const write = await executeVersionedGraphqlWrite({
-      operation: "cart.addLineItem",
-      input: { ...cartInput, distributionChannelKey },
-      execute: (input) => client.mutation(AddItemToCartMutation, input),
-      resolveConflict: (conflict, input) =>
-        retryWithProviderVersion(conflict.currentVersion, input),
     });
 
-    if (write._tag === "Failure") {
-      return cartUpdateFailure(
-        write.failure,
-        "Cart changed before the item could be added",
-        "Failed to add item to cart"
-      );
-    }
-
-    const result = write.success;
-
-    // TODO: Handle bad input errors, like invalid variantId or quantity probably in exchange/middlware layer.
-    if (result.error?.networkError) {
-      return Err(
-        domainError(
-          "NETWORK_ERROR",
-          `Failed to add item to cart: ${result.error.message}`
-        )
-      );
-    }
-
-    if (result.error) {
-      return Err(
-        domainError<object>(
-          "BAD_INPUT",
-          `Failed to add item to cart: ${result.error.message}`,
-          undefined,
-          result.error
-        )
-      );
-    }
-
-    if (!result.data?.updateCart) {
-      return Err(
-        domainError("UNKNOWN", "Failed to add item to cart: No data returned")
-      );
-    }
-
-    return Ok(reshapeCart(result.data.updateCart, params.locale));
-  };
-
-  const changeItemQuantity = async (
-    params: ChangeItemQuantityParams
-  ): Promise<ActionResult<CommercetoolsCart>> => {
-    const write = await executeVersionedGraphqlWrite({
-      operation: "cart.changeLineItemQuantity",
-      input: params,
-      execute: (input) => client.mutation(ChangeItemsQuantityMutation, input),
-      resolveConflict: (conflict, input) =>
-        retryWithProviderVersion(conflict.currentVersion, input),
-    });
-
-    if (write._tag === "Failure") {
-      return cartUpdateFailure(
-        write.failure,
-        "Cart changed before the item quantity could be updated",
-        "Failed to change item quantity"
-      );
-    }
-
-    const result = write.success;
-
-    if (result.error?.networkError) {
-      return Err(
-        domainError(
-          "NETWORK_ERROR",
-          `Failed to change item quantity: ${result.error.message}`
-        )
-      );
-    }
-
-    if (result.error) {
-      return Err(
-        domainError<object>(
-          "BAD_INPUT",
-          `Failed to change item quantity: ${result.error.message}`,
-          undefined,
-          result.error
-        )
-      );
-    }
-
-    if (!result.data?.updateCart) {
-      return Err(
-        domainError(
-          "UNKNOWN",
-          "Failed to change item quantity: No data returned"
-        )
-      );
-    }
-
-    return Ok(reshapeCart(result.data.updateCart, params.locale));
-  };
-
-  const removeItemFromCart = async (
-    params: RemoveItemFromCartParams
-  ): Promise<ActionResult<CommercetoolsCart>> => {
-    const write = await executeVersionedGraphqlWrite({
-      operation: "cart.removeLineItem",
-      input: params,
-      execute: (input) => client.mutation(RemoveItemFromCartMutation, input),
-      resolveConflict: (conflict, input) =>
-        retryWithProviderVersion(conflict.currentVersion, input),
-    });
-
-    if (write._tag === "Failure") {
-      return cartUpdateFailure(
-        write.failure,
-        "Cart changed before the item could be removed",
-        "Failed to remove item from cart"
-      );
-    }
-
-    const result = write.success;
-
-    if (result.error?.networkError) {
-      return Err(
-        domainError(
-          "NETWORK_ERROR",
-          `Failed to remove item from cart: ${result.error.message}`
-        )
-      );
-    }
-
-    if (result.error) {
-      return Err(
-        domainError<object>(
-          "BAD_INPUT",
-          `Failed to remove item from cart: ${result.error.message}`,
-          undefined,
-          result.error
-        )
-      );
-    }
-
-    if (!result.data?.updateCart) {
-      return Err(
-        domainError(
-          "UNKNOWN",
-          "Failed to remove item from cart: No data returned"
-        )
-      );
-    }
-
-    return Ok(reshapeCart(result.data.updateCart, params.locale));
-  };
-
-  const saveCheckoutContact = async (
-    params: SaveCheckoutContactParams
-  ): Promise<ActionResult<void>> => {
-    const actions = buildSaveCheckoutContactActions(
-      params.cart,
-      params.contact
-    );
-
-    if (!actions.ok) {
-      return actions;
-    }
-
-    if (params.scope.channel === "storefrontCustomer") {
-      const contactValue = JSON.stringify(params.contact);
-      const restActions: CartUpdateAction[] = [
-        {
-          action: "setCustomerEmail",
-          email: params.contact.buyerContact.email,
-        },
-        params.cart.custom?.type?.key === ORDER_CUSTOM_TYPE_KEY
-          ? {
-              action: "setCustomField",
-              name: CHECKOUT_CONTACT_CUSTOM_FIELD_NAME,
-              value: contactValue,
-            }
-          : {
-              action: "setCustomType",
-              type: {
-                key: ORDER_CUSTOM_TYPE_KEY,
-                typeId: "type",
-              },
-              fields: {
-                [CHECKOUT_CONTACT_CUSTOM_FIELD_NAME]: contactValue,
-              },
-            },
-      ];
-
-      return updateCartAsAssociate({
-        actions: restActions,
-        cartId: params.cart.id,
-        conflictMessage: "Checkout Cart changed before Contact could be saved",
-        failureMessage: "Failed to save checkout contact",
-        retryConcurrentModification: params.retryConcurrentModification,
-        scope: params.scope,
-        version: params.cart.version,
-      });
-    }
-
-    const input = {
-      id: params.cart.id,
-      version: params.cart.version,
-      actions: actions.data,
-      locale: params.locale,
-    };
-    const write = await executeVersionedGraphqlWrite({
-      operation: "checkout.contact.save",
-      input,
-      execute: (current) =>
-        client.mutation(SaveCheckoutContactMutation, current),
-      resolveConflict: (conflict, current) =>
-        params.retryConcurrentModification &&
-        params.cart.custom?.type?.key === ORDER_CUSTOM_TYPE_KEY
-          ? retryWithProviderVersion(conflict.currentVersion, current)
-          : Effect.succeed(new PreserveVersionedWriteConflict()),
-    });
-
-    if (write._tag === "Failure") {
-      return cartUpdateFailure(
-        write.failure,
-        "Checkout Cart changed before Contact could be saved",
-        "Failed to save checkout contact"
-      );
-    }
-
-    const result = write.success;
-
-    if (result.error?.networkError) {
-      return Err(
-        domainError(
-          "NETWORK_ERROR",
-          `Failed to save checkout contact: ${result.error.message}`
-        )
-      );
-    }
-
-    if (result.error) {
-      return Err(
-        domainError(
-          "UNKNOWN",
-          `Failed to save checkout contact: ${result.error.message}`
-        )
-      );
-    }
-
-    if (!result.data?.updateCart) {
-      return Err(
-        domainError(
-          "UNKNOWN",
-          "Failed to save checkout contact: No data returned"
-        )
-      );
-    }
-
-    return Ok(undefined);
-  };
-
-  const saveCheckoutDeliveryDetails = async (
-    params: SaveCheckoutDeliveryDetailsParams
-  ): Promise<ActionResult<void>> => {
-    const actions = buildSaveCheckoutDeliveryDetailsActions(
-      params.deliveryDetails
-    );
-
-    if (params.scope.channel === "storefrontCustomer") {
-      const restActions: CartUpdateAction[] = actions.map(
-        ({ setShippingAddress }) => ({
-          action: "setShippingAddress",
-          address: setShippingAddress.address,
+  const addItemToCart = (params: AddToCartRepoParams) =>
+    Effect.gen(function* () {
+      const store = yield* graphqlRead(() =>
+        client.query(CartDistributionChannelQuery, {
+          storeKey: params.storeKey,
         })
       );
+      if (store.error?.networkError) {
+        return yield* new CommercetoolsUnavailable({ cause: store.error });
+      }
+      if (store.error) {
+        return yield* Effect.die(store.error);
+      }
 
-      return updateCartAsAssociate({
-        actions: restActions,
-        cartId: params.cart.id,
-        conflictMessage:
-          "Checkout Cart changed before Delivery Details could be saved",
-        failureMessage: "Failed to save checkout delivery details",
-        scope: params.scope,
-        version: params.cart.version,
-      });
-    }
+      const distributionChannelKey =
+        store.data?.store?.distributionChannels[0]?.key;
+      if (distributionChannelKey === undefined) {
+        return yield* Effect.die(
+          providerContractDefect(
+            `Commercetools Store ${String(params.storeKey)} has no distribution channel`
+          )
+        );
+      }
+      const { storeKey: _storeKey, ...cartInput } = params;
+      const result = yield* executeVersionedGraphqlWrite({
+        execute: (input) => client.mutation(AddItemToCartMutation, input),
+        input: { ...cartInput, distributionChannelKey },
+        operation: "cart.addLineItem",
+        resolveConflict: (conflict, input) =>
+          retryWithProviderVersion(conflict.currentVersion, input),
+      }).pipe(Effect.catch(cartWriteFailure));
 
-    const input = {
-      id: params.cart.id,
-      version: params.cart.version,
-      actions,
-      locale: params.locale,
-    };
-    const write = await executeVersionedGraphqlWrite({
-      operation: "checkout.deliveryDetails.save",
-      input,
-      execute: (current) =>
-        client.mutation(SaveCheckoutDeliveryDetailsMutation, current),
-      resolveConflict: (conflict, current) =>
-        retryWithProviderVersion(conflict.currentVersion, current),
+      if (result.error) {
+        if (
+          hasCommercetoolsErrorCode(
+            result.error,
+            "InvalidInput",
+            "MatchingPriceNotFound"
+          )
+        ) {
+          return yield* new CommercetoolsCartMerchandiseUnavailable({
+            cause: result.error,
+          });
+        }
+        return yield* cartMutationFailure(result.error);
+      }
+
+      if (!result.data?.updateCart) {
+        return yield* missingCartMutationData("adding a Cart line item");
+      }
+
+      return reshapeCart(result.data.updateCart, params.locale);
     });
 
-    if (write._tag === "Failure") {
-      return cartUpdateFailure(
-        write.failure,
-        "Checkout Cart changed before Delivery Details could be saved",
-        "Failed to save checkout delivery details"
+  const changeItemQuantity = (params: ChangeItemQuantityParams) =>
+    Effect.gen(function* () {
+      const result = yield* executeVersionedGraphqlWrite({
+        execute: (input) => client.mutation(ChangeItemsQuantityMutation, input),
+        input: params,
+        operation: "cart.changeLineItemQuantity",
+        resolveConflict: (conflict, input) =>
+          retryWithProviderVersion(conflict.currentVersion, input),
+      }).pipe(Effect.catch(cartWriteFailure));
+
+      if (result.error) {
+        return yield* cartMutationFailure(result.error);
+      }
+
+      if (!result.data?.updateCart) {
+        return yield* missingCartMutationData(
+          "changing a Cart line-item quantity"
+        );
+      }
+
+      return reshapeCart(result.data.updateCart, params.locale);
+    });
+
+  const removeItemFromCart = (params: RemoveItemFromCartParams) =>
+    Effect.gen(function* () {
+      const result = yield* executeVersionedGraphqlWrite({
+        execute: (input) => client.mutation(RemoveItemFromCartMutation, input),
+        input: params,
+        operation: "cart.removeLineItem",
+        resolveConflict: (conflict, input) =>
+          retryWithProviderVersion(conflict.currentVersion, input),
+      }).pipe(Effect.catch(cartWriteFailure));
+
+      if (result.error) {
+        return yield* cartMutationFailure(result.error);
+      }
+
+      if (!result.data?.updateCart) {
+        return yield* missingCartMutationData("removing a Cart line item");
+      }
+
+      return reshapeCart(result.data.updateCart, params.locale);
+    });
+
+  const saveCheckoutContact = (params: SaveCheckoutContactParams) =>
+    Effect.gen(function* () {
+      const actions = yield* buildSaveCheckoutContactActions(
+        params.cart,
+        params.contact
       );
-    }
 
-    const result = write.success;
+      if (params.scope.channel === "storefrontCustomer") {
+        const contactValue = JSON.stringify(params.contact);
+        const restActions: CartUpdateAction[] = [
+          {
+            action: "setCustomerEmail",
+            email: params.contact.buyerContact.email,
+          },
+          params.cart.custom?.type?.key === ORDER_CUSTOM_TYPE_KEY
+            ? {
+                action: "setCustomField",
+                name: CHECKOUT_CONTACT_CUSTOM_FIELD_NAME,
+                value: contactValue,
+              }
+            : {
+                action: "setCustomType",
+                fields: {
+                  [CHECKOUT_CONTACT_CUSTOM_FIELD_NAME]: contactValue,
+                },
+                type: {
+                  key: ORDER_CUSTOM_TYPE_KEY,
+                  typeId: "type",
+                },
+              },
+        ];
 
-    if (result.error?.networkError) {
-      return Err(
-        domainError(
-          "NETWORK_ERROR",
-          `Failed to save checkout delivery details: ${result.error.message}`
-        )
+        return yield* updateCartAsAssociate({
+          actions: restActions,
+          cartId: params.cart.id,
+          retryConcurrentModification: params.retryConcurrentModification,
+          scope: params.scope,
+          version: params.cart.version,
+        });
+      }
+
+      const input = {
+        actions,
+        id: params.cart.id,
+        locale: params.locale,
+        version: params.cart.version,
+      };
+      const result = yield* executeVersionedGraphqlWrite({
+        execute: (current) =>
+          client.mutation(SaveCheckoutContactMutation, current),
+        input,
+        operation: "checkout.contact.save",
+        resolveConflict: (conflict, current) =>
+          params.retryConcurrentModification &&
+          params.cart.custom?.type?.key === ORDER_CUSTOM_TYPE_KEY
+            ? retryWithProviderVersion(conflict.currentVersion, current)
+            : Effect.succeed(new PreserveVersionedWriteConflict()),
+      }).pipe(Effect.catch(cartWriteFailure));
+
+      if (result.error) {
+        return yield* cartMutationFailure(result.error);
+      }
+
+      if (!result.data?.updateCart) {
+        return yield* missingCartMutationData("saving Cart Contact");
+      }
+    });
+
+  const saveCheckoutDeliveryDetails = (
+    params: SaveCheckoutDeliveryDetailsParams
+  ) =>
+    Effect.gen(function* () {
+      const actions = buildSaveCheckoutDeliveryDetailsActions(
+        params.deliveryDetails
       );
-    }
 
-    if (result.error) {
-      return Err(
-        domainError(
-          "UNKNOWN",
-          `Failed to save checkout delivery details: ${result.error.message}`
-        )
-      );
-    }
+      if (params.scope.channel === "storefrontCustomer") {
+        const restActions: CartUpdateAction[] = actions.map(
+          ({ setShippingAddress }) => ({
+            action: "setShippingAddress",
+            address: setShippingAddress.address,
+          })
+        );
 
-    if (!result.data?.updateCart) {
-      return Err(
-        domainError(
-          "UNKNOWN",
-          "Failed to save checkout delivery details: No data returned"
-        )
-      );
-    }
+        return yield* updateCartAsAssociate({
+          actions: restActions,
+          cartId: params.cart.id,
+          scope: params.scope,
+          version: params.cart.version,
+        });
+      }
 
-    return Ok(undefined);
-  };
+      const input = {
+        actions,
+        id: params.cart.id,
+        locale: params.locale,
+        version: params.cart.version,
+      };
+      const result = yield* executeVersionedGraphqlWrite({
+        execute: (current) =>
+          client.mutation(SaveCheckoutDeliveryDetailsMutation, current),
+        input,
+        operation: "checkout.deliveryDetails.save",
+        resolveConflict: (conflict, current) =>
+          retryWithProviderVersion(conflict.currentVersion, current),
+      }).pipe(Effect.catch(cartWriteFailure));
+
+      if (result.error) {
+        return yield* cartMutationFailure(result.error);
+      }
+
+      if (!result.data?.updateCart) {
+        return yield* missingCartMutationData("saving Cart Delivery Details");
+      }
+    });
 
   return {
     addItemToCart,
@@ -1134,7 +1020,6 @@ export const makeCartPersistence = ({
     createCart,
     createCartForAssociateScope,
     findActiveCartsForAssociateScope,
-    getActiveCartForAssociateScope,
     getCartById,
     removeItemFromCart,
     saveCheckoutContact,

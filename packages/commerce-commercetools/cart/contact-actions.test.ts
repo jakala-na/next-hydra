@@ -1,4 +1,5 @@
 import type { CheckoutContact } from "@repo/commerce/domain/checkout";
+import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   buildSaveCheckoutContactActions,
@@ -6,38 +7,35 @@ import {
 } from "./contact-actions";
 
 const contact = {
-  source: "manual",
   buyerContact: {
     email: "ada@example.com",
     firstName: "Ada",
     lastName: "Lovelace",
   },
+  source: "manual",
 } as const satisfies CheckoutContact;
 
 const customerProfileContact = {
-  source: "customerProfile",
   buyerContact: {
     email: "profile@example.com",
     firstName: "Profile",
     lastName: "Buyer",
   },
+  source: "customerProfile",
 } as const satisfies CheckoutContact;
 
 describe("buildSaveCheckoutContactActions", () => {
   it("sets the checkout custom type for carts without custom fields", () => {
-    const result = buildSaveCheckoutContactActions(
-      {
-        custom: null,
-      },
-      contact
+    const actions = Effect.runSync(
+      buildSaveCheckoutContactActions(
+        {
+          custom: null,
+        },
+        contact
+      )
     );
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-
-    expect(result.data[1]).toMatchObject({
+    expect(actions[1]).toMatchObject({
       setCustomType: {
         typeKey: "orderCustomFields",
       },
@@ -45,24 +43,21 @@ describe("buildSaveCheckoutContactActions", () => {
   });
 
   it("sets only the checkout contact field when the checkout custom type is present", () => {
-    const result = buildSaveCheckoutContactActions(
-      {
-        custom: {
-          type: {
-            key: "orderCustomFields",
+    const actions = Effect.runSync(
+      buildSaveCheckoutContactActions(
+        {
+          custom: {
+            customFieldsRaw: [],
+            type: {
+              key: "orderCustomFields",
+            },
           },
-          customFieldsRaw: [],
         },
-      },
-      contact
+        contact
+      )
     );
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-
-    expect(result.data[1]).toMatchObject({
+    expect(actions[1]).toMatchObject({
       setCustomField: {
         name: "checkoutContact",
       },
@@ -70,25 +65,22 @@ describe("buildSaveCheckoutContactActions", () => {
   });
 
   it("stores resolved Customer Profile details as cart-owned contact details", () => {
-    const result = buildSaveCheckoutContactActions(
-      {
-        custom: null,
-      },
-      customerProfileContact
+    const actions = Effect.runSync(
+      buildSaveCheckoutContactActions(
+        {
+          custom: null,
+        },
+        customerProfileContact
+      )
     );
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      return;
-    }
-
-    expect(result.data[0]).toEqual({
+    expect(actions[0]).toEqual({
       setCustomerEmail: {
         email: "profile@example.com",
       },
     });
 
-    const customTypeAction = result.data[1];
+    const [, customTypeAction] = actions;
     expect(customTypeAction).toHaveProperty("setCustomType");
     if (!(customTypeAction && "setCustomType" in customTypeAction)) {
       return;
@@ -101,61 +93,63 @@ describe("buildSaveCheckoutContactActions", () => {
   });
 
   it("does not replace an unexpected existing cart custom type", () => {
-    const result = buildSaveCheckoutContactActions(
-      {
-        custom: {
-          type: {
-            key: "other-cart-fields",
+    const result = Effect.runSync(
+      Effect.result(
+        buildSaveCheckoutContactActions(
+          {
+            custom: {
+              customFieldsRaw: [],
+              type: {
+                key: "other-cart-fields",
+              },
+            },
           },
-          customFieldsRaw: [],
-        },
-      },
-      contact
+          contact
+        )
+      )
     );
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
+    expect(result._tag).toBe("Failure");
+    if (result._tag === "Success") {
       return;
     }
 
-    expect(result.error).toMatchObject({
-      code: "BAD_INPUT",
-      message: "Cart custom type cannot store checkout contact",
-      details: {
-        actualTypeKey: "other-cart-fields",
-        expectedTypeKey: "orderCustomFields",
-      },
+    expect(result.failure).toMatchObject({
+      _tag: "CommercetoolsCartCustomTypeConflict",
+      actualTypeKey: "other-cart-fields",
+      expectedTypeKey: "orderCustomFields",
     });
   });
 
   it("does not replace existing cart custom fields when the custom type key is unavailable", () => {
-    const result = buildSaveCheckoutContactActions(
-      {
-        custom: {
-          type: null,
-          customFieldsRaw: [
-            {
-              name: "externalIntegrationState",
-              value: "kept elsewhere",
+    const result = Effect.runSync(
+      Effect.result(
+        buildSaveCheckoutContactActions(
+          {
+            custom: {
+              customFieldsRaw: [
+                {
+                  name: "externalIntegrationState",
+                  value: "kept elsewhere",
+                },
+              ],
+              type: null,
             },
-          ],
-        },
-      },
-      contact
+          },
+          contact
+        )
+      )
     );
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
+    expect(result._tag).toBe("Failure");
+    if (result._tag === "Success") {
       return;
     }
 
-    expect(result.error).toMatchObject({
-      code: "BAD_INPUT",
-      message: "Cart custom type cannot store checkout contact",
-      details: {
-        actualTypeKey: "<unavailable>",
-        expectedTypeKey: "orderCustomFields",
-      },
+    expect(result.failure).toMatchObject({
+      _tag: "CommercetoolsCartCustomTypeConflict",
+      actualTypeKey: "<unavailable>",
+      expectedTypeKey: "orderCustomFields",
     });
   });
 });
@@ -165,10 +159,10 @@ describe("hasPersistedCheckoutContact", () => {
     expect(
       hasPersistedCheckoutContact(
         {
-          customerEmail: "ada@example.com",
           checkoutDetails: {
             contact,
           },
+          customerEmail: "ada@example.com",
         },
         contact
       )
@@ -177,10 +171,10 @@ describe("hasPersistedCheckoutContact", () => {
     expect(
       hasPersistedCheckoutContact(
         {
-          customerEmail: null,
           checkoutDetails: {
             contact,
           },
+          customerEmail: null,
         },
         contact
       )

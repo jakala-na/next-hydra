@@ -56,33 +56,34 @@ export const ProductAttributes = Schema.Record(
 export type ProductAttributes = typeof ProductAttributes.Type;
 
 export const CartProductVariant = Schema.Struct({
+  attributes: ProductAttributes,
   id: VariantId,
+  images: Schema.Array(ProductImageSchema),
+  name: Schema.optional(Schema.String),
   productId: ProductId,
   productType: Schema.optional(ProductTypeKey),
-  name: Schema.optional(Schema.String),
   sku: Schema.optional(Sku),
-  images: Schema.Array(ProductImageSchema),
-  attributes: ProductAttributes,
 });
 export type CartProductVariant = typeof CartProductVariant.Type;
 
 export const CartLineItem = Schema.Struct({
   id: LineItemId,
-  variant: CartProductVariant,
   quantity: PositiveCartQuantity,
-  unitPrice: CartMoney,
   totalPrice: Schema.optional(CartMoney),
+  unitPrice: CartMoney,
+  variant: CartProductVariant,
 });
 export type CartLineItem = typeof CartLineItem.Type;
+export type CartLineItemEncoded = typeof CartLineItem.Encoded;
 
 export const CartPolicyTarget = Schema.Union([
   Schema.Struct({ type: Schema.Literal("cart") }),
   Schema.Struct({
-    type: Schema.Literal("cartItem"),
     lineItemId: Schema.optional(LineItemId),
     productId: ProductId,
-    variantId: Schema.optional(VariantId),
     sku: Schema.optional(Sku),
+    type: Schema.Literal("cartItem"),
+    variantId: Schema.optional(VariantId),
   }),
 ]);
 export type CartPolicyTarget = typeof CartPolicyTarget.Type;
@@ -102,14 +103,14 @@ export const CartBuyingContext = Schema.Struct({
 export type CartBuyingContext = typeof CartBuyingContext.Type;
 
 export const CartSnapshot = Schema.Struct({
+  buyingContext: Schema.optional(CartBuyingContext),
+  checkoutDetails: Schema.suspend(() => CheckoutDetails),
   id: CartId,
+  lineItems: Schema.Array(CartLineItem),
   status: CartStatus,
   storeKey: StoreKey,
-  buyingContext: Schema.optional(CartBuyingContext),
-  lineItems: Schema.Array(CartLineItem),
   totalLineItemQuantity: CartQuantity,
   totalPrice: CartMoney,
-  checkoutDetails: Schema.suspend(() => CheckoutDetails),
 });
 export type CartSnapshot = typeof CartSnapshot.Type;
 
@@ -118,6 +119,7 @@ export const CurrentCartState = Schema.Struct({
   violations: Schema.Array(CartPolicyViolation),
 });
 export type CurrentCartState = typeof CurrentCartState.Type;
+export type CurrentCartStateEncoded = typeof CurrentCartState.Encoded;
 
 export const CartTarget = Schema.Union([
   Schema.Struct({
@@ -127,11 +129,11 @@ export const CartTarget = Schema.Union([
   }),
   Schema.Struct({
     _tag: Schema.Literal("BusinessUnitCartTarget"),
-    id: CartId,
-    store: Store,
-    customerId: CommerceCustomerId,
     businessUnitId: CommerceBusinessUnitId,
     businessUnitKey: CommerceBusinessUnitKey,
+    customerId: CommerceCustomerId,
+    id: CartId,
+    store: Store,
   }),
 ]);
 export type CartTarget = typeof CartTarget.Type;

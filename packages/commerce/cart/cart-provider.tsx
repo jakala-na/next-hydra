@@ -6,31 +6,25 @@ import { Effect, Option } from "effect";
 import { unstable_rethrow } from "next/navigation";
 import type { ReactNode } from "react";
 import { commerceRequestLayer } from "../commerce-context/request";
-import { domainError, Err, Ok } from "../lib/utils/errors";
 import { CurrentCart } from "../services/current-cart";
 import { addToCart, changeCartItemsQuantity, removeCartItem } from "./actions";
 
 const loadCurrentCart = async (locale: Locale) => {
   try {
     const layer = await commerceRequestLayer(locale);
-    const result = await Effect.runPromise(
+    const cart = await Effect.runPromise(
       CurrentCart.get().pipe(
         Effect.provide(layer),
         Effect.tapError((error) =>
           Effect.logError("Failed to read Current Cart", error).pipe(
             Effect.annotateLogs({ operation: "currentCart.get" })
           )
-        ),
-        Effect.result
+        )
       )
     );
-    if (result._tag === "Failure") {
-      return Err(domainError<object>("UNKNOWN", "Failed to read Current Cart"));
-    }
-    return Option.match(result.success, {
-      onNone: () =>
-        Err(domainError<object>("NOT_FOUND", "Current Cart not found")),
-      onSome: Ok,
+    return Option.match(cart, {
+      onNone: () => null,
+      onSome: (state) => state,
     });
   } catch (cause) {
     unstable_rethrow(cause);
@@ -39,7 +33,7 @@ const loadCurrentCart = async (locale: Locale) => {
         Effect.annotateLogs({ operation: "currentCart.get" })
       )
     );
-    return Err(domainError<object>("UNKNOWN", "Failed to read Current Cart"));
+    return null;
   }
 };
 

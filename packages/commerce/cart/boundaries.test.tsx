@@ -1,5 +1,6 @@
-import { Effect, Layer, Option, Schema } from "effect";
+import { type Context, Effect, Layer, Option, Schema } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CartProviderFailure } from "../domain/cart-errors";
 import { CurrentCartState } from "../domain/cart-snapshot";
 import { CurrentCart } from "../services/current-cart";
 import { addToCart, changeCartItemsQuantity, removeCartItem } from "./actions";
@@ -24,25 +25,28 @@ vi.mock("../commerce-context/request", () => ({
 
 const cartState = Schema.decodeUnknownSync(CurrentCartState)({
   cart: {
+    checkoutDetails: {},
     id: "cart-1",
+    lineItems: [],
     status: "active",
     storeKey: "default-store",
-    lineItems: [],
     totalLineItemQuantity: 0,
     totalPrice: { centAmount: 0, currencyCode: "USD" },
-    checkoutDetails: {},
   },
   violations: [],
 });
 
-const currentCartLayer = () =>
+type CurrentCartService = Context.Service.Shape<typeof CurrentCart>;
+
+const currentCartLayer = (overrides: Partial<CurrentCartService> = {}) =>
   Layer.succeed(CurrentCart, {
-    get: () => Effect.succeed(Option.some(cartState)),
     addItem: () => Effect.succeed(cartState),
-    setLineItemQuantity: () => Effect.succeed(cartState),
+    get: () => Effect.succeed(Option.some(cartState)),
     removeLineItem: () => Effect.succeed(cartState),
     saveContact: () => Effect.die("not used"),
     saveDeliveryDetails: () => Effect.die("not used"),
+    setLineItemQuantity: () => Effect.succeed(cartState),
+    ...overrides,
   });
 
 beforeEach(() => {
@@ -55,8 +59,8 @@ describe("Cart boundaries", () => {
   it("runs each Cart mutation with fresh request state", async () => {
     const added = await addToCart({
       productId: "product-1",
-      variantId: "variant-1",
       quantity: 1,
+      variantId: "variant-1",
     });
     const changed = await changeCartItemsQuantity({
       lineItemId: "line-item-1",
@@ -65,15 +69,75 @@ describe("Cart boundaries", () => {
     const removed = await removeCartItem({ lineItemId: "line-item-1" });
 
     expect(requestLayer).toHaveBeenCalledTimes(CART_MUTATION_COUNT);
-    expect(added.data).toEqual({ ok: true, data: cartState });
-    expect(changed.data).toEqual({ ok: true, data: cartState });
-    expect(removed.data).toEqual({ ok: true, data: cartState });
+    expect(added).toEqual({ success: cartState });
+    expect(changed).toEqual({ success: cartState });
+    expect(removed).toEqual({ success: cartState });
+  });
+
+  it("returns invalid action input as a typed failure", async () => {
+    await expect(
+      addToCart({
+        productId: "product-1",
+        quantity: 0,
+        variantId: "variant-1",
+      })
+    ).resolves.toEqual({
+      error: {
+        _tag: "CartActionInvalidInput",
+        operation: "addItem",
+      },
+    });
+  });
+
+  it("removes internal causes from action failures", async () => {
+    requestLayer.mockResolvedValueOnce(
+      currentCartLayer({
+        addItem: () =>
+          Effect.fail(
+            new CartProviderFailure({
+              cause: new Error("provider credentials leaked"),
+              operation: "addItem",
+              reason: "unavailable",
+            })
+          ),
+      })
+    );
+
+    await expect(
+      addToCart({
+        productId: "product-1",
+        quantity: 1,
+        variantId: "variant-1",
+      })
+    ).resolves.toEqual({
+      error: {
+        _tag: "CartProviderFailure",
+        operation: "addItem",
+        reason: "unavailable",
+      },
+    });
+  });
+
+  it("lets defects reject the Server Action", async () => {
+    requestLayer.mockResolvedValueOnce(
+      currentCartLayer({
+        addItem: () => Effect.die(new Error("unexpected cart defect")),
+      })
+    );
+
+    await expect(
+      addToCart({
+        productId: "product-1",
+        quantity: 1,
+        variantId: "variant-1",
+      })
+    ).rejects.toThrow("unexpected cart defect");
   });
 
   it("loads Current Cart and supplies the package actions to CartProvider", async () => {
     const element = CommerceCartProvider({
-      locale: "en-US",
       children: <main>Storefront</main>,
+      locale: "en-US",
     });
 
     expect(element.props.actions).toEqual({
@@ -81,10 +145,7 @@ describe("Cart boundaries", () => {
       changeCartItemsQuantity,
       removeCartItem,
     });
-    await expect(element.props.cartPromise).resolves.toEqual({
-      ok: true,
-      data: cartState,
-    });
+    await expect(element.props.cartPromise).resolves.toEqual(cartState);
     expect(requestLayer).toHaveBeenCalledOnce();
   });
 });

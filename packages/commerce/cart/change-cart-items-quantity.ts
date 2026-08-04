@@ -1,23 +1,17 @@
-import type { SafeActionFn, ValidationErrors } from "next-safe-action";
-import { z } from "zod";
-import type { CurrentCartState } from "../domain/cart-snapshot";
-import type { ActionResult } from "../lib/utils/errors";
+import { Schema } from "effect";
+import { LineItemId, PositiveCartQuantity } from "../domain/cart";
+import type { SetCartLineItemQuantityActionResult } from "./action-result";
 
-export const changeCartItemsQuantityInputSchema = z.object({
-  lineItemId: z.string(),
-  quantity: z.number().int().positive(),
+export const ChangeCartItemsQuantityInputSchema = Schema.Struct({
+  lineItemId: LineItemId,
+  quantity: PositiveCartQuantity,
 });
 
-export type ChangeCartItemsQuantityInput = z.infer<
-  typeof changeCartItemsQuantityInputSchema
->;
+export type ChangeCartItemsQuantityInput =
+  typeof ChangeCartItemsQuantityInputSchema.Encoded;
 
-export type ChangeCartItemsQuantityData = ActionResult<CurrentCartState>;
+export type ChangeCartItemsQuantityData = SetCartLineItemQuantityActionResult;
 
-export type ChangeCartItemsQuantityAction = SafeActionFn<
-  string,
-  typeof changeCartItemsQuantityInputSchema,
-  [],
-  ValidationErrors<typeof changeCartItemsQuantityInputSchema>,
-  ChangeCartItemsQuantityData
->;
+export type ChangeCartItemsQuantityAction = (
+  input: ChangeCartItemsQuantityInput
+) => Promise<ChangeCartItemsQuantityData>;

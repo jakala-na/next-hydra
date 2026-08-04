@@ -1,119 +1,133 @@
 "use server";
 
 import { getLocale } from "@repo/i18n";
-import { log } from "@repo/observability/log";
-import { Effect } from "effect";
-import {
-  createSafeActionClient,
-  DEFAULT_SERVER_ERROR_MESSAGE,
-} from "next-safe-action";
-import { z } from "zod";
+import { Effect, Schema } from "effect";
 import { commerceRequestLayer } from "../commerce-context/request";
-import { LineItemId, ProductId, VariantId } from "../domain/cart";
+import { CartProviderFailure } from "../domain/cart-errors";
+import type { CommerceAccountError } from "../services/commerce-accounts";
+import type { CommerceRequestFailure } from "../services/commerce-identity";
 import { CurrentCart } from "../services/current-cart";
-import { toCurrentCartMutationData } from "./action-result";
-import { type AddToCartData, addToCartInputSchema } from "./add-to-cart";
+import {
+  AddToCartActionResult,
+  CartActionInvalidInput,
+  type CartActionOperation,
+  encodeActionResult,
+  RemoveCartLineItemActionResult,
+  SetCartLineItemQuantityActionResult,
+} from "./action-result";
+import {
+  type AddToCartData,
+  type AddToCartInput,
+  AddToCartInputSchema,
+} from "./add-to-cart";
 import {
   type ChangeCartItemsQuantityData,
-  changeCartItemsQuantityInputSchema,
+  type ChangeCartItemsQuantityInput,
+  ChangeCartItemsQuantityInputSchema,
 } from "./change-cart-items-quantity";
 import {
   type RemoveCartItemData,
-  removeCartItemInputSchema,
+  type RemoveCartItemInput,
+  RemoveCartItemInputSchema,
 } from "./remove-cart-item";
 
-const cartAction = createSafeActionClient({
-  handleServerError: (error) => {
-    log.error(`Action server error occurred: ${error.message}`, {
-      details: error,
-    });
-    return DEFAULT_SERVER_ERROR_MESSAGE;
-  },
-  defineMetadataSchema: () =>
-    z.object({
-      actionName: z.string(),
-    }),
+const invalidInput = (operation: CartActionOperation) =>
+  new CartActionInvalidInput({ operation });
+
+const cartRequestFailureCases = (operation: CartActionOperation) => ({
+  CommerceAccountError: (cause: CommerceAccountError) =>
+    Effect.fail(
+      new CartProviderFailure({
+        cause,
+        operation,
+        reason: "unavailable",
+      })
+    ),
+  CommerceRequestFailure: (cause: CommerceRequestFailure) =>
+    Effect.fail(
+      new CartProviderFailure({
+        cause,
+        operation,
+        reason: "invalidData",
+      })
+    ),
 });
 
-export const addToCart = cartAction
-  .metadata({ actionName: "addToCart" })
-  .inputSchema(addToCartInputSchema)
-  .action(
-    async ({
-      parsedInput: { productId, variantId, quantity },
-    }): Promise<AddToCartData> => {
-      const locale = await getLocale();
-      const layer = await commerceRequestLayer(locale);
-      const result = await Effect.runPromise(
-        CurrentCart.addItem({
-          productId: ProductId.make(productId),
-          variantId: VariantId.make(variantId),
-          quantity,
-        }).pipe(
-          Effect.provide(layer),
-          Effect.tapError((error) =>
-            Effect.logError("Current Cart mutation failed", error).pipe(
-              Effect.annotateLogs({ operation: "currentCart.addItem" })
-            )
-          ),
-          Effect.result
-        )
-      );
-      return toCurrentCartMutationData(result);
-    }
+export async function addToCart(input: AddToCartInput): Promise<AddToCartData> {
+  const locale = await getLocale();
+  const layer = await commerceRequestLayer(locale);
+
+  const mutation = Schema.decodeUnknownEffect(AddToCartInputSchema)(input).pipe(
+    Effect.mapError(() => invalidInput("addItem")),
+    Effect.flatMap(CurrentCart.addItem),
+    Effect.tapError((error) =>
+      Effect.logError("Current Cart mutation failed", error).pipe(
+        Effect.annotateLogs({ operation: "currentCart.addItem" })
+      )
+    ),
+    Effect.provide(layer)
   );
 
-export const changeCartItemsQuantity = cartAction
-  .metadata({ actionName: "changeCartItemsQuantity" })
-  .inputSchema(changeCartItemsQuantityInputSchema)
-  .action(
-    async ({
-      parsedInput: { lineItemId, quantity },
-    }): Promise<ChangeCartItemsQuantityData> => {
-      const locale = await getLocale();
-      const layer = await commerceRequestLayer(locale);
-      const result = await Effect.runPromise(
-        CurrentCart.setLineItemQuantity({
-          lineItemId: LineItemId.make(lineItemId),
-          quantity,
-        }).pipe(
-          Effect.provide(layer),
-          Effect.tapError((error) =>
-            Effect.logError("Current Cart mutation failed", error).pipe(
-              Effect.annotateLogs({
-                operation: "currentCart.setLineItemQuantity",
-              })
-            )
-          ),
-          Effect.result
-        )
-      );
-      return toCurrentCartMutationData(result);
-    }
+  return Effect.runPromise(
+    Effect.catchTags(mutation, cartRequestFailureCases("addItem")).pipe(
+      encodeActionResult(AddToCartActionResult)
+    )
+  );
+}
+
+export async function changeCartItemsQuantity(
+  input: ChangeCartItemsQuantityInput
+): Promise<ChangeCartItemsQuantityData> {
+  const locale = await getLocale();
+  const layer = await commerceRequestLayer(locale);
+
+  const mutation = Schema.decodeUnknownEffect(
+    ChangeCartItemsQuantityInputSchema
+  )(input).pipe(
+    Effect.mapError(() => invalidInput("setLineItemQuantity")),
+    Effect.flatMap(CurrentCart.setLineItemQuantity),
+    Effect.tapError((error) =>
+      Effect.logError("Current Cart mutation failed", error).pipe(
+        Effect.annotateLogs({
+          operation: "currentCart.setLineItemQuantity",
+        })
+      )
+    ),
+    Effect.provide(layer)
   );
 
-export const removeCartItem = cartAction
-  .metadata({ actionName: "removeCartItem" })
-  .inputSchema(removeCartItemInputSchema)
-  .action(
-    async ({ parsedInput: { lineItemId } }): Promise<RemoveCartItemData> => {
-      const locale = await getLocale();
-      const layer = await commerceRequestLayer(locale);
-      const result = await Effect.runPromise(
-        CurrentCart.removeLineItem({
-          lineItemId: LineItemId.make(lineItemId),
-        }).pipe(
-          Effect.provide(layer),
-          Effect.tapError((error) =>
-            Effect.logError("Current Cart mutation failed", error).pipe(
-              Effect.annotateLogs({
-                operation: "currentCart.removeLineItem",
-              })
-            )
-          ),
-          Effect.result
-        )
-      );
-      return toCurrentCartMutationData(result);
-    }
+  return Effect.runPromise(
+    Effect.catchTags(
+      mutation,
+      cartRequestFailureCases("setLineItemQuantity")
+    ).pipe(encodeActionResult(SetCartLineItemQuantityActionResult))
   );
+}
+
+export async function removeCartItem(
+  input: RemoveCartItemInput
+): Promise<RemoveCartItemData> {
+  const locale = await getLocale();
+  const layer = await commerceRequestLayer(locale);
+
+  const mutation = Schema.decodeUnknownEffect(RemoveCartItemInputSchema)(
+    input
+  ).pipe(
+    Effect.mapError(() => invalidInput("removeLineItem")),
+    Effect.flatMap(CurrentCart.removeLineItem),
+    Effect.tapError((error) =>
+      Effect.logError("Current Cart mutation failed", error).pipe(
+        Effect.annotateLogs({
+          operation: "currentCart.removeLineItem",
+        })
+      )
+    ),
+    Effect.provide(layer)
+  );
+
+  return Effect.runPromise(
+    Effect.catchTags(mutation, cartRequestFailureCases("removeLineItem")).pipe(
+      encodeActionResult(RemoveCartLineItemActionResult)
+    )
+  );
+}

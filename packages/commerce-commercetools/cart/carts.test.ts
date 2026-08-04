@@ -9,20 +9,26 @@ import {
   CommerceBusinessUnitId,
   CommerceCustomerId,
 } from "@repo/commerce/domain/commerce-account";
-import { domainError, Err, Ok } from "@repo/commerce/lib/utils/errors";
 import { Carts } from "@repo/commerce/services/carts";
 import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
 import { Effect, Option } from "effect";
 import { vi } from "vitest";
 import { type CommercetoolsCartsPersistence, cartsLayerFrom } from "./carts";
+import {
+  CommercetoolsCartCustomTypeConflict,
+  CommercetoolsCartMerchandiseUnavailable,
+  CommercetoolsCartNotFound,
+  CommercetoolsCartVersionConflict,
+  CommercetoolsCartWriteOutcomeUnknown,
+} from "./persistence-errors";
 import type { CommercetoolsCart } from "./provider-cart";
 
 vi.mock("server-only", () => ({}));
 
 const store = new Store({
+  currency: "USD",
   locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("us-store"),
-  currency: "USD",
 });
 const unitPriceCentAmount = 2500;
 const currentVersion = 7;
@@ -30,12 +36,12 @@ const nextVersion = 8;
 const updatedQuantity = 2;
 const persistedContactRead = 3;
 const contact = {
-  source: "manual" as const,
   buyerContact: {
     email: "buyer@example.com",
     firstName: "Ada",
     lastName: "Lovelace",
   },
+  source: "manual" as const,
 };
 
 const providerCart = ({
@@ -47,58 +53,58 @@ const providerCart = ({
   readonly quantity?: number;
   readonly version?: number;
 } = {}): CommercetoolsCart => ({
+  cartState: "Active",
+  checkoutDetails: {},
   id,
-  version,
-  store: { key: "us-store" },
   lineItems: [
     {
       id: "line-1",
+      name: "Hydra Crane",
+      price: {
+        discounted: null,
+        value: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
+      },
       productId: "product-1",
       productType: "heavy-lifting-and-specialized-equipment",
-      name: "Hydra Crane",
       quantity,
-      price: {
-        value: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
-        discounted: null,
-      },
       totalPrice: {
         centAmount: unitPriceCentAmount * quantity,
         currencyCode: "USD",
       },
       variant: {
-        id: 3,
-        sku: "SKU-3",
-        images: [{ url: "https://example.com/crane.jpg", altText: "Crane" }],
         attributes: {
           capacity: 20,
+          color: { key: "yellow", label: "Yellow" },
           iso45001: true,
           mobility: { key: "mobile", label: "Mobile" },
-          color: { key: "yellow", label: "Yellow" },
         },
+        id: 3,
+        images: [{ altText: "Crane", url: "https://example.com/crane.jpg" }],
+        sku: "SKU-3",
       },
     },
   ],
+  store: { key: "us-store" },
   totalLineItemQuantity: quantity,
   totalPrice: {
     centAmount: unitPriceCentAmount * quantity,
     currencyCode: "USD",
   },
-  checkoutDetails: {},
-  cartState: "Active",
+  version,
 });
 
 const persistence = (
   overrides: Partial<CommercetoolsCartsPersistence> = {}
 ): CommercetoolsCartsPersistence => ({
-  findById: async () => Ok(providerCart()),
-  findActiveForBusinessUnit: async () => Ok([]),
-  createAnonymous: async () => Ok(providerCart()),
-  createForBusinessUnit: async () => Ok(providerCart()),
-  addItem: async () => Ok(providerCart()),
-  setLineItemQuantity: async () => Ok(providerCart()),
-  removeLineItem: async () => Ok(providerCart()),
-  saveContact: async () => Ok(undefined),
-  saveDeliveryDetails: async () => Ok(undefined),
+  addItem: () => Effect.succeed(providerCart()),
+  createAnonymous: () => Effect.succeed(providerCart()),
+  createForBusinessUnit: () => Effect.succeed(providerCart()),
+  findActiveForBusinessUnit: () => Effect.succeed([]),
+  findById: () => Effect.succeed(providerCart()),
+  removeLineItem: () => Effect.succeed(providerCart()),
+  saveContact: () => Effect.void,
+  saveDeliveryDetails: () => Effect.void,
+  setLineItemQuantity: () => Effect.succeed(providerCart()),
   ...overrides,
 });
 
@@ -111,15 +117,15 @@ describe("cartsLayer", () => {
 
       expect(cart).not.toHaveProperty("version");
       expect(cart.lineItems[0]?.variant).toMatchObject({
-        id: "3",
-        productId: "product-1",
-        productType: "heavy-lifting-and-specialized-equipment",
-        name: "Hydra Crane",
-        sku: "SKU-3",
         attributes: {
           capacity: 20,
           color: { key: "yellow", label: "Yellow" },
         },
+        id: "3",
+        name: "Hydra Crane",
+        productId: "product-1",
+        productType: "heavy-lifting-and-specialized-equipment",
+        sku: "SKU-3",
       });
     }).pipe(Effect.provide(cartsLayerFrom(persistence())))
   );
@@ -129,31 +135,30 @@ describe("cartsLayer", () => {
     () => {
       let writtenVersion: number | undefined;
       const implementation = persistence({
-        findById: async () => Ok(providerCart({ version: currentVersion })),
         addItem: ({ cart }) => {
           writtenVersion = cart.version;
-          return Promise.resolve(
-            Ok(
-              providerCart({
-                quantity: updatedQuantity,
-                version: nextVersion,
-              })
-            )
+          return Effect.succeed(
+            providerCart({
+              quantity: updatedQuantity,
+              version: nextVersion,
+            })
           );
         },
+        findById: () =>
+          Effect.succeed(providerCart({ version: currentVersion })),
       });
 
       return Effect.gen(function* () {
         const carts = yield* Carts;
         const updated = yield* carts.addItem({
+          productId: ProductId.make("product-1"),
+          quantity: 1,
           target: {
             _tag: "AnonymousCartTarget",
             id: CartId.make("cart-1"),
             store,
           },
-          productId: ProductId.make("product-1"),
           variantId: VariantId.make("3"),
-          quantity: 1,
         });
 
         expect(writtenVersion).toBe(currentVersion);
@@ -175,8 +180,8 @@ describe("cartsLayer", () => {
       Effect.provide(
         cartsLayerFrom(
           persistence({
-            findById: async () =>
-              Err(domainError("NOT_FOUND", "Cart not found")),
+            findById: () =>
+              Effect.fail(new CommercetoolsCartNotFound({ cartId: "missing" })),
           })
         )
       )
@@ -198,8 +203,11 @@ describe("cartsLayer", () => {
       Effect.provide(
         cartsLayerFrom(
           persistence({
-            findById: async () =>
-              Ok({ ...providerCart(), totalLineItemQuantity: -1 }),
+            findById: () =>
+              Effect.succeed({
+                ...providerCart(),
+                totalLineItemQuantity: -1,
+              }),
           })
         )
       )
@@ -220,8 +228,8 @@ describe("cartsLayer", () => {
         Effect.provide(
           cartsLayerFrom(
             persistence({
-              findById: async () =>
-                Ok({
+              findById: () =>
+                Effect.succeed({
                   ...providerCart(),
                   customerId: CommerceCustomerId.make("customer-1"),
                 }),
@@ -245,8 +253,8 @@ describe("cartsLayer", () => {
         Effect.provide(
           cartsLayerFrom(
             persistence({
-              findById: async () =>
-                Ok({
+              findById: () =>
+                Effect.succeed({
                   ...providerCart(),
                   businessUnitId:
                     CommerceBusinessUnitId.make("business-unit-1"),
@@ -263,30 +271,28 @@ describe("cartsLayer", () => {
     const implementation = persistence({
       findById: () => {
         reads += 1;
-        return Promise.resolve(
-          Ok({
-            ...providerCart(),
-            checkoutDetails: { contact },
-            customerEmail:
-              reads === 1 ? "stale@example.com" : contact.buyerContact.email,
-          })
-        );
+        return Effect.succeed({
+          ...providerCart(),
+          checkoutDetails: { contact },
+          customerEmail:
+            reads === 1 ? "stale@example.com" : contact.buyerContact.email,
+        });
       },
       saveContact: () => {
         writes += 1;
-        return Promise.resolve(Ok(undefined));
+        return Effect.void;
       },
     });
 
     return Effect.gen(function* () {
       const carts = yield* Carts;
       const updated = yield* carts.saveContact({
+        contact,
         target: {
           _tag: "AnonymousCartTarget",
           id: CartId.make("cart-1"),
           store,
         },
-        contact,
       });
 
       expect(writes).toBe(1);
@@ -302,47 +308,47 @@ describe("cartsLayer", () => {
       const implementation = persistence({
         findById: () => {
           reads += 1;
-          return Promise.resolve(
-            Ok({
-              ...providerCart({
-                version: reads === 1 ? currentVersion : nextVersion,
-              }),
-              ...(reads === 1
-                ? {}
-                : {
-                    custom: {
-                      type: { key: "orderCustomFields" },
-                      fields: {},
-                    },
-                  }),
-              ...(reads < persistedContactRead
-                ? {}
-                : {
-                    checkoutDetails: { contact },
-                    customerEmail: contact.buyerContact.email,
-                  }),
-            })
-          );
+          return Effect.succeed({
+            ...providerCart({
+              version: reads === 1 ? currentVersion : nextVersion,
+            }),
+            ...(reads === 1
+              ? {}
+              : {
+                  custom: {
+                    fields: {},
+                    type: { key: "orderCustomFields" },
+                  },
+                }),
+            ...(reads < persistedContactRead
+              ? {}
+              : {
+                  checkoutDetails: { contact },
+                  customerEmail: contact.buyerContact.email,
+                }),
+          });
         },
         saveContact: ({ retryConcurrentModification }) => {
           retryFlags.push(retryConcurrentModification);
-          return Promise.resolve(
-            retryFlags.length === 1
-              ? Err(domainError("CONFLICT", "Concurrent modification"))
-              : Ok(undefined)
-          );
+          return retryFlags.length === 1
+            ? Effect.fail(
+                new CommercetoolsCartVersionConflict({
+                  cause: new Error("Concurrent modification"),
+                })
+              )
+            : Effect.void;
         },
       });
 
       return Effect.gen(function* () {
         const carts = yield* Carts;
         const updated = yield* carts.saveContact({
+          contact,
           target: {
             _tag: "AnonymousCartTarget",
             id: CartId.make("cart-1"),
             store,
           },
-          contact,
         });
 
         expect(retryFlags).toEqual([true, false]);
@@ -358,12 +364,12 @@ describe("cartsLayer", () => {
         const carts = yield* Carts;
         const error = yield* carts
           .saveContact({
+            contact,
             target: {
               _tag: "AnonymousCartTarget",
               id: CartId.make("cart-1"),
               store,
             },
-            contact,
           })
           .pipe(Effect.flip);
 
@@ -372,27 +378,31 @@ describe("cartsLayer", () => {
         Effect.provide(
           cartsLayerFrom(
             persistence({
-              saveContact: async () =>
-                Err(domainError("CONFLICT", "Concurrent modification")),
+              saveContact: () =>
+                Effect.fail(
+                  new CommercetoolsCartVersionConflict({
+                    cause: new Error("Concurrent modification"),
+                  })
+                ),
             })
           )
         )
       )
   );
 
-  it.effect("maps provider bad input to unavailable merchandise", () =>
+  it.effect("maps provider-confirmed unavailable merchandise", () =>
     Effect.gen(function* () {
       const carts = yield* Carts;
       const error = yield* carts
         .addItem({
+          productId: ProductId.make("product-1"),
+          quantity: 1,
           target: {
             _tag: "AnonymousCartTarget",
             id: CartId.make("cart-1"),
             store,
           },
-          productId: ProductId.make("product-1"),
           variantId: VariantId.make("3"),
-          quantity: 1,
         })
         .pipe(Effect.flip);
 
@@ -401,42 +411,76 @@ describe("cartsLayer", () => {
       Effect.provide(
         cartsLayerFrom(
           persistence({
-            addItem: async () =>
-              Err(domainError("BAD_INPUT", "Variant is unavailable")),
+            addItem: () =>
+              Effect.fail(
+                new CommercetoolsCartMerchandiseUnavailable({
+                  cause: new Error("Variant is unavailable"),
+                })
+              ),
           })
         )
       )
     )
   );
 
-  it.effect(
-    "maps a line disappearing during quantity change to line not found",
-    () =>
-      Effect.gen(function* () {
-        const carts = yield* Carts;
-        const error = yield* carts
-          .setLineItemQuantity({
-            target: {
-              _tag: "AnonymousCartTarget",
-              id: CartId.make("cart-1"),
-              store,
-            },
-            lineItemId: LineItemId.make("line-1"),
-            quantity: updatedQuantity,
-          })
-          .pipe(Effect.flip);
+  it.effect("rejects a missing line before changing its quantity", () =>
+    Effect.gen(function* () {
+      const carts = yield* Carts;
+      const error = yield* carts
+        .setLineItemQuantity({
+          lineItemId: LineItemId.make("line-1"),
+          quantity: updatedQuantity,
+          target: {
+            _tag: "AnonymousCartTarget",
+            id: CartId.make("cart-1"),
+            store,
+          },
+        })
+        .pipe(Effect.flip);
 
-        expect(error._tag).toBe("CartLineItemNotFound");
-      }).pipe(
-        Effect.provide(
-          cartsLayerFrom(
-            persistence({
-              setLineItemQuantity: async () =>
-                Err(domainError("BAD_INPUT", "Line item no longer exists")),
-            })
-          )
+      expect(error._tag).toBe("CartLineItemNotFound");
+    }).pipe(
+      Effect.provide(
+        cartsLayerFrom(
+          persistence({
+            findById: () =>
+              Effect.succeed({ ...providerCart(), lineItems: [] }),
+          })
         )
       )
+    )
+  );
+
+  it.effect("preserves an unknown quantity-write outcome", () =>
+    Effect.gen(function* () {
+      const carts = yield* Carts;
+      const error = yield* carts
+        .setLineItemQuantity({
+          lineItemId: LineItemId.make("line-1"),
+          quantity: updatedQuantity,
+          target: {
+            _tag: "AnonymousCartTarget",
+            id: CartId.make("cart-1"),
+            store,
+          },
+        })
+        .pipe(Effect.flip);
+
+      expect(error._tag).toBe("CartWriteOutcomeUnknown");
+    }).pipe(
+      Effect.provide(
+        cartsLayerFrom(
+          persistence({
+            setLineItemQuantity: () =>
+              Effect.fail(
+                new CommercetoolsCartWriteOutcomeUnknown({
+                  cause: new Error("Connection closed after dispatch"),
+                })
+              ),
+          })
+        )
+      )
+    )
   );
 
   it.effect(
@@ -446,12 +490,12 @@ describe("cartsLayer", () => {
         const carts = yield* Carts;
         const error = yield* carts
           .saveContact({
+            contact,
             target: {
               _tag: "AnonymousCartTarget",
               id: CartId.make("cart-1"),
               store,
             },
-            contact,
           })
           .pipe(Effect.flip);
 
@@ -463,12 +507,12 @@ describe("cartsLayer", () => {
         Effect.provide(
           cartsLayerFrom(
             persistence({
-              saveContact: async () =>
-                Err(
-                  domainError(
-                    "BAD_INPUT",
-                    "Cart custom type cannot store checkout contact"
-                  )
+              saveContact: () =>
+                Effect.fail(
+                  new CommercetoolsCartCustomTypeConflict({
+                    actualTypeKey: "otherCustomFields",
+                    expectedTypeKey: "orderCustomFields",
+                  })
                 ),
             })
           )

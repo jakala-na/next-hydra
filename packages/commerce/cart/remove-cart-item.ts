@@ -1,20 +1,15 @@
-import type { SafeActionFn, ValidationErrors } from "next-safe-action";
-import { z } from "zod";
-import type { CurrentCartState } from "../domain/cart-snapshot";
-import type { ActionResult } from "../lib/utils/errors";
+import { Schema } from "effect";
+import { LineItemId } from "../domain/cart";
+import type { RemoveCartLineItemActionResult } from "./action-result";
 
-export const removeCartItemInputSchema = z.object({
-  lineItemId: z.string(),
+export const RemoveCartItemInputSchema = Schema.Struct({
+  lineItemId: LineItemId,
 });
 
-export type RemoveCartItemInput = z.infer<typeof removeCartItemInputSchema>;
+export type RemoveCartItemInput = typeof RemoveCartItemInputSchema.Encoded;
 
-export type RemoveCartItemData = ActionResult<CurrentCartState>;
+export type RemoveCartItemData = RemoveCartLineItemActionResult;
 
-export type RemoveCartItemAction = SafeActionFn<
-  string,
-  typeof removeCartItemInputSchema,
-  [],
-  ValidationErrors<typeof removeCartItemInputSchema>,
-  RemoveCartItemData
->;
+export type RemoveCartItemAction = (
+  input: RemoveCartItemInput
+) => Promise<RemoveCartItemData>;

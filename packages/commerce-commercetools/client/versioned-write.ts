@@ -1,6 +1,10 @@
 import { Effect, Option, Schema } from "effect";
 
 const HTTP_CONCURRENT_MODIFICATION_STATUS_CODE = 409;
+const HTTP_CLIENT_ERROR_MIN_STATUS_CODE = 400;
+const HTTP_CLIENT_ERROR_MAX_STATUS_CODE = 500;
+const HTTP_FORBIDDEN_STATUS_CODE = 403;
+const HTTP_UNAUTHORIZED_STATUS_CODE = 401;
 
 const CommercetoolsErrorDetail = Schema.Struct({
   code: Schema.optional(Schema.String),
@@ -20,13 +24,13 @@ const CommercetoolsErrorBody = Schema.Struct({
 });
 
 const CommercetoolsErrorEnvelope = Schema.Struct({
-  statusCode: Schema.optional(Schema.Number),
+  body: Schema.optional(Schema.Unknown),
+  cause: Schema.optional(Schema.Unknown),
   code: Schema.optional(Schema.String),
   currentVersion: Schema.optional(Schema.Number),
   extensions: Schema.optional(CommercetoolsErrorDetail),
-  body: Schema.optional(Schema.Unknown),
   graphQLErrors: Schema.optional(Schema.Array(CommercetoolsErrorDetail)),
-  cause: Schema.optional(Schema.Unknown),
+  statusCode: Schema.optional(Schema.Number),
 });
 
 type CommercetoolsErrorEnvelope = typeof CommercetoolsErrorEnvelope.Type;
@@ -35,16 +39,16 @@ type CommercetoolsErrorDetail = typeof CommercetoolsErrorDetail.Type;
 export class CommercetoolsRequestFailure extends Schema.TaggedErrorClass<CommercetoolsRequestFailure>()(
   "CommercetoolsRequestFailure",
   {
-    message: Schema.String,
     cause: Schema.Defect,
+    message: Schema.String,
   }
 ) {}
 
 export class CommercetoolsConcurrentModification extends Schema.TaggedErrorClass<CommercetoolsConcurrentModification>()(
   "CommercetoolsConcurrentModification",
   {
-    currentVersion: Schema.Number,
     cause: Schema.Defect,
+    currentVersion: Schema.Number,
   }
 ) {}
 
@@ -85,6 +89,39 @@ const errorDetails = (
       error.extensions === undefined ? [] : [error.extensions]
     ) ?? []),
   ];
+};
+
+export const hasCommercetoolsErrorCode = (
+  error: unknown,
+  ...codes: readonly string[]
+) => {
+  const envelope = decodeEnvelope(error);
+  return (
+    envelope !== undefined &&
+    errorDetails(envelope).some(
+      (detail) => detail.code !== undefined && codes.includes(detail.code)
+    )
+  );
+};
+
+export const isCommercetoolsAccessDenied = (error: unknown) => {
+  const envelope = decodeEnvelope(error);
+  return (
+    envelope !== undefined &&
+    (envelope.statusCode === HTTP_UNAUTHORIZED_STATUS_CODE ||
+      envelope.statusCode === HTTP_FORBIDDEN_STATUS_CODE ||
+      hasCommercetoolsErrorCode(error, "Forbidden", "Unauthorized"))
+  );
+};
+
+export const isCommercetoolsClientFailure = (error: unknown) => {
+  const envelope = decodeEnvelope(error);
+  return (
+    envelope !== undefined &&
+    envelope.statusCode !== undefined &&
+    envelope.statusCode >= HTTP_CLIENT_ERROR_MIN_STATUS_CODE &&
+    envelope.statusCode < HTTP_CLIENT_ERROR_MAX_STATUS_CODE
+  );
 };
 
 const decodedConcurrentModification = (
@@ -132,8 +169,8 @@ export const decodeConcurrentModification = (error: unknown) => {
     ? Option.none<CommercetoolsConcurrentModification>()
     : Option.some(
         new CommercetoolsConcurrentModification({
-          currentVersion: decoded.currentVersion,
           cause: decoded.cause,
+          currentVersion: decoded.currentVersion,
         })
       );
 };
@@ -143,8 +180,8 @@ export const commercetoolsRequest = <Value>(
   request: () => PromiseLike<Value>
 ): Effect.Effect<Value, CommercetoolsRequestFailure> =>
   Effect.tryPromise({
+    catch: (cause) => new CommercetoolsRequestFailure({ cause, message }),
     try: request,
-    catch: (cause) => new CommercetoolsRequestFailure({ message, cause }),
   });
 
 export class RetryVersionedWrite<Input> {
@@ -172,11 +209,11 @@ export interface RetryVersionedWriteOptions<
   ResolutionError,
   ResolutionRequirements,
 > {
-  readonly operation: string;
-  readonly input: Input;
   readonly attempt: (
     input: Input
   ) => Effect.Effect<Value, AttemptError, AttemptRequirements>;
+  readonly input: Input;
+  readonly operation: string;
   readonly resolveConflict: (
     conflict: CommercetoolsConcurrentModification,
     input: Input

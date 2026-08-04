@@ -37,8 +37,8 @@ import { CommerceContext } from "./commerce-context";
 
 export interface AddCurrentCartItem {
   readonly productId: ProductId;
-  readonly variantId: VariantId;
   readonly quantity: PositiveCartQuantity;
+  readonly variantId: VariantId;
 }
 
 export interface SetCurrentCartLineItemQuantity {
@@ -70,6 +70,7 @@ export type SetCurrentCartLineItemQuantityFailure =
   | CurrentCartUnavailable
   | CartLineItemNotFound
   | CartWriteConflict
+  | CartWriteOutcomeUnknown
   | CartProviderFailure
   | CartPolicyFailure;
 
@@ -80,6 +81,7 @@ export type SaveCurrentCartDetailsFailure =
   | CurrentCartSelectionConflict
   | CurrentCartUnavailable
   | CartWriteConflict
+  | CartWriteOutcomeUnknown
   | CartProviderFailure
   | CartPolicyFailure;
 
@@ -156,8 +158,7 @@ export class CurrentCart extends Context.Service<
         const { principal, store } = commerceContext;
         const isAnonymous = principal instanceof AnonymousCommercePrincipal;
         if (!(isAnonymous || principal instanceof CustomerCommercePrincipal)) {
-          principal satisfies never;
-          return yield* Effect.die("Unsupported Commerce Principal");
+          return yield* Effect.die(principal satisfies never);
         }
         type ResolvedCart = {
           readonly cart: CartSnapshot;
@@ -176,11 +177,11 @@ export class CurrentCart extends Context.Service<
               }
             : {
                 _tag: "BusinessUnitCartTarget",
-                id: cart.id,
-                store,
-                customerId: principal.customerId,
                 businessUnitId: principal.businessUnitId,
                 businessUnitKey: principal.businessUnitKey,
+                customerId: principal.customerId,
+                id: cart.id,
+                store,
               };
 
         const setResolvedCart = (cart: CartSnapshot) => {
@@ -194,9 +195,9 @@ export class CurrentCart extends Context.Service<
           readonly operation: CartOperation;
         }) =>
           new CartProviderFailure({
+            cause: error,
             operation: error.operation,
             reason: "unexpectedResponse",
-            cause: error,
           });
 
         const resolveCart = Effect.fn("CurrentCart.resolveCart")(() =>
@@ -252,10 +253,10 @@ export class CurrentCart extends Context.Service<
 
             const candidates = yield* carts
               .findActiveForBusinessUnit({
-                store,
-                customerId: principal.customerId,
                 businessUnitId: principal.businessUnitId,
                 businessUnitKey: principal.businessUnitKey,
+                customerId: principal.customerId,
+                store,
               })
               .pipe(
                 Effect.catchTag("CartAccessDenied", (error) =>
@@ -268,7 +269,7 @@ export class CurrentCart extends Context.Service<
                 cartIds: candidates.map((candidate) => candidate.id),
               });
             }
-            const cart = candidates[0];
+            const [cart] = candidates;
             if (cart === undefined) {
               const absent = Option.none<ResolvedCart>();
               yield* Ref.set(resolvedCart, absent);
@@ -309,10 +310,10 @@ export class CurrentCart extends Context.Service<
             const cart = isAnonymous
               ? yield* carts.createAnonymous({ store })
               : yield* carts.createForBusinessUnit({
-                  store,
-                  customerId: principal.customerId,
                   businessUnitId: principal.businessUnitId,
                   businessUnitKey: principal.businessUnitKey,
+                  customerId: principal.customerId,
+                  store,
                 });
             if (isAnonymous) {
               yield* cookie.set(cart.id);
@@ -342,24 +343,14 @@ export class CurrentCart extends Context.Service<
         ) =>
           effect.pipe(
             Effect.catchTags({
-              CartNotFound: () =>
-                new CurrentCartUnavailable({ reason: "noCart" }),
               CartAccessDenied: () =>
                 new CurrentCartUnavailable({ reason: "inaccessibleCart" }),
+              CartNotFound: () =>
+                new CurrentCartUnavailable({ reason: "noCart" }),
             })
           );
 
         return CurrentCart.of({
-          get: () =>
-            resolveCart().pipe(
-              Effect.flatMap(
-                Option.match({
-                  onNone: () => Effect.succeed(Option.none<CurrentCartState>()),
-                  onSome: ({ cart }) =>
-                    evaluate(cart).pipe(Effect.map(Option.some)),
-                })
-              )
-            ),
           addItem: (input) =>
             Effect.gen(function* () {
               const existing = yield* resolveCart();
@@ -371,17 +362,16 @@ export class CurrentCart extends Context.Service<
               );
               return yield* replaceAndEvaluate(resolved, cart);
             }),
-          setLineItemQuantity: (input) =>
-            Effect.gen(function* () {
-              const resolved = yield* requireResolvedCart();
-              const cart = yield* mapUnavailable(
-                carts.setLineItemQuantity({
-                  ...input,
-                  target: resolved.target,
+          get: () =>
+            resolveCart().pipe(
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.succeed(Option.none<CurrentCartState>()),
+                  onSome: ({ cart }) =>
+                    evaluate(cart).pipe(Effect.map(Option.some)),
                 })
-              );
-              return yield* replaceAndEvaluate(resolved, cart);
-            }),
+              )
+            ),
           removeLineItem: (input) =>
             Effect.gen(function* () {
               const resolved = yield* requireResolvedCart();
@@ -394,7 +384,7 @@ export class CurrentCart extends Context.Service<
             Effect.gen(function* () {
               const resolved = yield* requireResolvedCart();
               const cart = yield* mapUnavailable(
-                carts.saveContact({ target: resolved.target, contact })
+                carts.saveContact({ contact, target: resolved.target })
               );
               return yield* replaceAndEvaluate(resolved, cart);
             }),
@@ -410,8 +400,19 @@ export class CurrentCart extends Context.Service<
               }
               const cart = yield* mapUnavailable(
                 carts.saveDeliveryDetails({
-                  target: resolved.target,
                   deliveryDetails,
+                  target: resolved.target,
+                })
+              );
+              return yield* replaceAndEvaluate(resolved, cart);
+            }),
+          setLineItemQuantity: (input) =>
+            Effect.gen(function* () {
+              const resolved = yield* requireResolvedCart();
+              const cart = yield* mapUnavailable(
+                carts.setLineItemQuantity({
+                  ...input,
+                  target: resolved.target,
                 })
               );
               return yield* replaceAndEvaluate(resolved, cart);

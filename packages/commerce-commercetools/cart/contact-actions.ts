@@ -1,10 +1,6 @@
 import type { CheckoutContact } from "@repo/commerce/domain/checkout";
-import {
-  type ActionResult,
-  domainError,
-  Err,
-  Ok,
-} from "@repo/commerce/lib/utils/errors";
+import { Effect } from "effect";
+import { CommercetoolsCartCustomTypeConflict } from "./persistence-errors";
 import type { CommercetoolsCart } from "./provider-cart";
 
 export const ORDER_CUSTOM_TYPE_KEY = "orderCustomFields";
@@ -34,11 +30,6 @@ type SaveCheckoutContactAction =
       };
     };
 
-type CartCustomTypeConflictDetails = {
-  readonly actualTypeKey: string;
-  readonly expectedTypeKey: typeof ORDER_CUSTOM_TYPE_KEY;
-};
-
 const checkoutContactCustomFieldValue = (contact: CheckoutContact) =>
   JSON.stringify(JSON.stringify(contact));
 
@@ -60,21 +51,18 @@ export const hasPersistedCheckoutContact = (
   cart.customerEmail === contact.buyerContact.email;
 
 const cartCustomTypeConflict = (actualTypeKey: string | undefined) =>
-  Err(
-    domainError<CartCustomTypeConflictDetails>(
-      "BAD_INPUT",
-      "Cart custom type cannot store checkout contact",
-      {
-        actualTypeKey: actualTypeKey ?? "<unavailable>",
-        expectedTypeKey: ORDER_CUSTOM_TYPE_KEY,
-      }
-    )
-  );
+  new CommercetoolsCartCustomTypeConflict({
+    actualTypeKey: actualTypeKey ?? "<unavailable>",
+    expectedTypeKey: ORDER_CUSTOM_TYPE_KEY,
+  });
 
 export const buildSaveCheckoutContactActions = (
   cart: Pick<CommercetoolsCart, "custom">,
   contact: CheckoutContact
-): ActionResult<SaveCheckoutContactAction[], CartCustomTypeConflictDetails> => {
+): Effect.Effect<
+  SaveCheckoutContactAction[],
+  CommercetoolsCartCustomTypeConflict
+> => {
   const field = {
     name: CHECKOUT_CONTACT_CUSTOM_FIELD_NAME,
     value: checkoutContactCustomFieldValue(contact),
@@ -86,10 +74,10 @@ export const buildSaveCheckoutContactActions = (
     cart.custom !== undefined &&
     customTypeKey !== ORDER_CUSTOM_TYPE_KEY
   ) {
-    return cartCustomTypeConflict(customTypeKey);
+    return Effect.fail(cartCustomTypeConflict(customTypeKey));
   }
 
-  return Ok([
+  return Effect.succeed([
     {
       setCustomerEmail: {
         email: contact.buyerContact.email,
@@ -101,8 +89,8 @@ export const buildSaveCheckoutContactActions = (
         }
       : {
           setCustomType: {
-            typeKey: ORDER_CUSTOM_TYPE_KEY,
             fields: [field],
+            typeKey: ORDER_CUSTOM_TYPE_KEY,
           },
         },
   ]);

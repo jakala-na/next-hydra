@@ -37,10 +37,10 @@ export interface FindCartById {
 }
 
 export interface FindActiveCartsForBusinessUnit {
-  readonly store: Store;
-  readonly customerId: CommerceCustomerId;
   readonly businessUnitId: CommerceBusinessUnitId;
   readonly businessUnitKey: CommerceBusinessUnitKey;
+  readonly customerId: CommerceCustomerId;
+  readonly store: Store;
 }
 
 export interface CreateAnonymousCart {
@@ -51,31 +51,31 @@ export interface CreateBusinessUnitCart
   extends FindActiveCartsForBusinessUnit {}
 
 export interface AddCartItem {
-  readonly target: CartTarget;
   readonly productId: ProductId;
-  readonly variantId: VariantId;
   readonly quantity: PositiveCartQuantity;
+  readonly target: CartTarget;
+  readonly variantId: VariantId;
 }
 
 export interface SetCartLineItemQuantity {
-  readonly target: CartTarget;
   readonly lineItemId: LineItemId;
   readonly quantity: PositiveCartQuantity;
+  readonly target: CartTarget;
 }
 
 export interface RemoveCartLineItem {
-  readonly target: CartTarget;
   readonly lineItemId: LineItemId;
+  readonly target: CartTarget;
 }
 
 export interface SaveCartContact {
-  readonly target: CartTarget;
   readonly contact: CheckoutContact;
+  readonly target: CartTarget;
 }
 
 export interface SaveCartDeliveryDetails {
-  readonly target: CartTarget;
   readonly deliveryDetails: CheckoutDeliveryDetails;
+  readonly target: CartTarget;
 }
 
 export type FindCartFailure = CartAccessDenied | CartProviderFailure;
@@ -96,22 +96,23 @@ export type SetCartLineItemQuantityFailure =
   | CartLineItemNotFound
   | CartAccessDenied
   | CartWriteConflict
+  | CartWriteOutcomeUnknown
   | CartProviderFailure;
 export type RemoveCartLineItemFailure = SetCartLineItemQuantityFailure;
 export type SaveCartDetailsFailure =
   | CartNotFound
   | CartAccessDenied
   | CartWriteConflict
+  | CartWriteOutcomeUnknown
   | CartProviderFailure;
 
 export interface CartsMemoryMerchandise {
-  readonly variant: CartProductVariant;
   readonly unitPrice: CartSnapshot["totalPrice"];
+  readonly variant: CartProductVariant;
 }
 
 export interface CartsMemorySeed {
   readonly carts?: readonly CartSnapshot[];
-  readonly merchandise?: readonly CartsMemoryMerchandise[];
   readonly failures?: {
     readonly findById?: FindCartFailure;
     readonly findActiveForBusinessUnit?: FindCartsFailure;
@@ -123,6 +124,7 @@ export interface CartsMemorySeed {
     readonly saveContact?: SaveCartDetailsFailure;
     readonly saveDeliveryDetails?: SaveCartDetailsFailure;
   };
+  readonly merchandise?: readonly CartsMemoryMerchandise[];
 }
 
 const emptyCart = (
@@ -136,13 +138,13 @@ const emptyCart = (
   ...(businessUnitId === undefined
     ? {}
     : { buyingContext: { businessUnitId } }),
+  checkoutDetails: {},
   lineItems: [],
   totalLineItemQuantity: 0,
   totalPrice: {
     centAmount: 0,
     currencyCode: store.currency,
   },
-  checkoutDetails: {},
 });
 
 export class Carts extends Context.Service<
@@ -205,7 +207,8 @@ export class Carts extends Context.Service<
           ({ store }: CreateAnonymousCart) =>
             Effect.gen(function* () {
               yield* failIfConfigured(seed.failures?.createAnonymous);
-              const cart = emptyCart(CartId.make(`cart-${nextId++}`), store);
+              const cart = emptyCart(CartId.make(`cart-${nextId}`), store);
+              nextId += 1;
               yield* Ref.update(state, (carts) =>
                 new Map(carts).set(cart.id, cart)
               );
@@ -233,10 +236,11 @@ export class Carts extends Context.Service<
             Effect.gen(function* () {
               yield* failIfConfigured(seed.failures?.createForBusinessUnit);
               const cart = emptyCart(
-                CartId.make(`cart-${nextId++}`),
+                CartId.make(`cart-${nextId}`),
                 input.store,
                 input.businessUnitId
               );
+              nextId += 1;
               yield* Ref.update(state, (carts) =>
                 new Map(carts).set(cart.id, cart)
               );
@@ -330,13 +334,13 @@ export class Carts extends Context.Service<
               id:
                 existing?.id ??
                 LineItemId.make(`line-${cart.lineItems.length + 1}`),
-              variant: merchandise.variant,
               quantity,
-              unitPrice: merchandise.unitPrice,
               totalPrice: {
                 centAmount: merchandise.unitPrice.centAmount * quantity,
                 currencyCode: merchandise.unitPrice.currencyCode,
               },
+              unitPrice: merchandise.unitPrice,
+              variant: merchandise.variant,
             };
             const lineItems = existing
               ? cart.lineItems.map((lineItem) =>
@@ -455,15 +459,15 @@ export class Carts extends Context.Service<
         );
 
         return Carts.of({
-          findById,
-          findActiveForBusinessUnit,
+          addItem,
           createAnonymous,
           createForBusinessUnit,
-          addItem,
-          setLineItemQuantity,
+          findActiveForBusinessUnit,
+          findById,
           removeLineItem,
           saveContact,
           saveDeliveryDetails,
+          setLineItemQuantity,
         });
       })
     );
