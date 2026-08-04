@@ -11,6 +11,7 @@ export const graphql = initGraphQLTada<{
     Locale: Locale;
     Country: string;
     Json: JSON;
+    KeyReferenceInput: string;
   };
 }>();
 

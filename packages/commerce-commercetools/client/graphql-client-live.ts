@@ -26,7 +26,11 @@ export const graphqlClientLayer = Layer.effect(
             }
           },
         }),
-        makeCommercetoolsGraphqlExchange(restClient.apiRoot),
+        makeCommercetoolsGraphqlExchange(restClient.apiRoot, {
+          onError: (failure) => {
+            log.error("Commercetools GraphQL request failed", failure);
+          },
+        }),
       ],
     });
 

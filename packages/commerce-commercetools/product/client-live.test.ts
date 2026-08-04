@@ -254,6 +254,10 @@ describe("Commercetools Product Discovery GraphQL client", () => {
           0,
           PRODUCT_SELECTION_PAGE_SIZE,
         ]);
+        expect(query.mock.calls.map((call) => call[1]?.storeKey)).toEqual([
+          "default-store",
+          "default-store",
+        ]);
       })
   );
 

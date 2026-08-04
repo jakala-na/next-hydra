@@ -409,7 +409,7 @@ export const commercetoolsProductDiscoveryClientLayer = Layer.effect(
           do {
             const response = failOnGraphqlError(
               await client.query(productSelectionAssignmentsQuery, {
-                storeKey: { key: storeKey },
+                storeKey,
                 where: `product(id in (${quotedIds}))`,
                 limit: PRODUCT_SELECTION_ASSIGNMENTS_PAGE_LIMIT,
                 offset,
