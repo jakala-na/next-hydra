@@ -8,7 +8,9 @@
       "dependsOn": ["^build", "typecheck", "test"],
       "outputs": [
         ".next/**",
-        "!.next/cache/**",
+        "!**/node_modules/**",
+        "!**/.next/dev/**",
+        "!**/.next/cache/**",
         "**/generated/**",
         "storybook-static/**",
         ".react-email/**"
