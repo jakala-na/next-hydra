@@ -1,0 +1,41 @@
+_meta:
+  version: '1.0'
+  entity_type: menu_link_content
+  uuid: d53f6b84-47d8-4f88-b01b-fb40e8f46f9e
+  bundle: menu_link_content
+  default_langcode: en
+  depends:
+    86f0e2fb-8e92-4698-b85e-27cd4154ca9e: node
+default:
+  enabled:
+    -
+      value: true
+  title:
+    -
+      value: Resources
+  description:
+    -
+      value: 'Equipment selection, operation, and maintenance guidance.'
+  menu_name:
+    -
+      value: main
+  link:
+    -
+      title: null
+      options: {  }
+      target_uuid: 86f0e2fb-8e92-4698-b85e-27cd4154ca9e
+  external:
+    -
+      value: false
+  rediscover:
+    -
+      value: false
+  weight:
+    -
+      value: 1
+  expanded:
+    -
+      value: true
+  revision_translation_affected:
+    -
+      value: true

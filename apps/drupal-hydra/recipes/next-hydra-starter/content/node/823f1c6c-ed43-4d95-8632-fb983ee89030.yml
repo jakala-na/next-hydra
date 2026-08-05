@@ -1,0 +1,45 @@
+_meta:
+  version: '1.0'
+  entity_type: node
+  uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
+  bundle: article
+  default_langcode: en
+  depends:
+    dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b: media
+default:
+  revision_uid:
+    -
+      target_id: 1
+  status:
+    -
+      value: true
+  uid:
+    -
+      target_id: 1
+  title:
+    -
+      value: 'Understanding operating weight and ground pressure'
+  promote:
+    -
+      value: false
+  sticky:
+    -
+      value: false
+  revision_translation_affected:
+    -
+      value: true
+  path:
+    -
+      alias: /resources/operating-weight-and-ground-pressure
+      langcode: en
+  body:
+    -
+      value: '<p>Machine weight tells only part of the story. Ground pressure explains how that weight is distributed across the working surface.</p><h2>Use the configured operating weight</h2><p>Include the operator, fuel, standard bucket, coupler, and any guarding or counterweight options. Shipping weight is not a working-site specification.</p><h2>Look beyond the headline number</h2><p>Track width, shoe design, and undercarriage length influence flotation and stability. Compare machines in the configuration that will actually be delivered.</p><h2>Validate the site</h2><p>Soft ground, buried services, suspended slabs, and finished surfaces may impose limits well below the machine rating. Confirm allowable loading with the responsible site engineer.</p>'
+      format: basic_html
+      summary: ''
+  field_image:
+    -
+      entity: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
+  field_summary:
+    -
+      value: 'Use operating weight and ground pressure together to evaluate stability, access, and surface impact.'

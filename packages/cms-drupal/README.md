@@ -3,7 +3,7 @@
 Drupal GraphQL implementation for the Next Hydra CMS interface.
 
 This package owns Drupal-specific OAuth, GraphQL transport, schema generation,
-preview routing, landing-page blocks, native menu navigation, and image
+preview routing, page and block rendering, native menu navigation, and image
 configuration. Applications select it through the stable `@repo/cms` dependency
 name:
 
@@ -15,10 +15,9 @@ name:
 }
 ```
 
-The landing-page adapter currently maps Drupal hero and dynamic product
-collection Paragraphs to the existing Hydra design-system and commerce
-components. Unsupported Paragraph types are ignored until their Hydra renderers
-are implemented.
+The connector maps Drupal route entity and Paragraph `__typename` values through
+page and component registries. Unsupported types are ignored until their Hydra
+renderers are implemented.
 
 ## Drupal content model
 
@@ -26,9 +25,11 @@ The generated schema now exposes the Drupal-native Hydra structure:
 
 - `NodeLandingPage` with ordered `components`, display-title fields, and route
   alias.
+- `NodeArticle` with summary, image, processed Basic HTML body, and route alias.
 - `ParagraphHero` for tagline, heading, description, image, and actions.
 - `ParagraphDynamicProductCollection` with an optional external commerce
   category ID. Omitting it requests products without a category filter.
+- `ParagraphFeaturedArticle` with an ordered set of referenced Articles.
 - `menu(name: MAIN)` for native Drupal navigation.
 
 Drupal configuration for this model lives in
@@ -60,13 +61,16 @@ consuming web application. Keep those values out of version control.
 Published pages use one cached Drupal `route(path:)` query with the `hours`
 Cache Components profile. The returned entity's `__typename` selects its Hydra
 page template, and the page template's component renderer maps its Paragraphs.
-A successful page is tagged with its Drupal entity cache tag, such as `node:1`,
-so editing one page invalidates only that page. Missing or unsupported routes
+A successful page is tagged with its Drupal entity cache tag, such as `node:1`.
+Page components can contribute additional dependencies: Featured Articles adds
+the `node:{id}` tag of every referenced Article. Editing an Article therefore
+invalidates its own cached route and any cached landing page that renders it,
+without evicting every landing page or Article. Missing or unsupported routes
 use a zero-expiry cache life, so they remain dynamic instead of becoming a
 persistent 404 cache entry. Published main-menu queries use the `days` profile
 and the `menu` tag. Preview reads bypass shared caches.
 
-Drupal's Next module revalidates landing pages after entity changes by calling
+Drupal's Next module revalidates content after entity changes by calling
 `/api/revalidate` with the entity tags and its configured shared secret. The
 route uses eager expiration, so the first request after a publish waits for
 fresh Drupal content and subsequent requests use the refreshed cache entry.

@@ -165,30 +165,27 @@ type Link {
 }
 
 """A list of possible entities that can be returned by URL."""
-union RouteEntityUnion = NodeLandingPage
+union RouteEntityUnion = NodeArticle | NodeLandingPage
 
-"""Routeable pages composed from Hydra CMS blocks."""
-type NodeLandingPage implements NodeInterface {
+"""Editorial equipment guides rendered by the Next Hydra frontend."""
+type NodeArticle implements NodeInterface {
   """The entity ID."""
   id: ID!
 
   """The Universally Unique IDentifier (UUID)."""
   uuid: ID!
 
+  """Body"""
+  body: TextSummary!
+
   """The time that the node was last edited."""
   changed: DateTime!
-
-  """Ordered Hydra content blocks."""
-  components: [ParagraphUnion!]
 
   """The date and time that the content was created."""
   created: DateTime!
 
-  """Optional public heading; the node title remains the editorial name."""
-  displayTitle: String
-
-  """Keep the display title available to metadata while hiding it visually."""
-  hideDisplayTitle: Boolean
+  """Image"""
+  image: MediaUnion!
 
   """Language"""
   langcode: Language!
@@ -204,6 +201,9 @@ type NodeLandingPage implements NodeInterface {
 
   """Sticky at top of lists"""
   sticky: Boolean!
+
+  """Short teaser shown in article collections and page headers."""
+  summary: String!
 
   """Title"""
   title: String!
@@ -273,91 +273,29 @@ scalar UtcOffset
 """RFC 3339 compliant time string."""
 scalar Time
 
-"""Entity type paragraph."""
-union ParagraphUnion = ParagraphDynamicProductCollection | ParagraphHero
+"""A processed text format with summary defined by the CMS."""
+type TextSummary {
+  """The raw text value."""
+  value: String
 
-"""Renders products selected by an external commerce category ID."""
-type ParagraphDynamicProductCollection implements ParagraphInterface {
-  """The entity ID."""
-  id: ID!
+  """The processed text value."""
+  processed: Html
 
-  """The Universally Unique IDentifier (UUID)."""
-  uuid: ID!
+  """The text format used to process the text value."""
+  format: String
 
-  """The time that the Paragraph was created."""
-  created: DateTime!
-
-  """Description"""
-  description: String
-
-  """Heading"""
-  heading: String
-
-  """The paragraphs entity language code."""
-  langcode: Language!
-
-  """
-  Optional external category ID resolved by the active commerce provider. Leave
-  empty to show products without a category filter.
-  """
-  productCategory: String
-
-  """Published"""
-  status: Boolean!
-}
-
-"""Entity type paragraph."""
-interface ParagraphInterface {
-  """The entity ID."""
-  id: ID!
-
-  """The Universally Unique IDentifier (UUID)."""
-  uuid: ID!
-
-  """The time that the Paragraph was created."""
-  created: DateTime!
-
-  """The paragraphs entity language code."""
-  langcode: Language!
-
-  """Published"""
-  status: Boolean!
+  """The processed text summary."""
+  summary: Html
 }
 
 """
-Hydra hero with tagline, heading, description, image, and up to two actions.
+An HTML string
+
+Content of this type is deemed safe by the server for raw output given the
+origin and the context of its usage. The HTML can still contain scripts or style
+tags where the creating user had permission to input these.
 """
-type ParagraphHero implements ParagraphInterface {
-  """The entity ID."""
-  id: ID!
-
-  """The Universally Unique IDentifier (UUID)."""
-  uuid: ID!
-
-  """Actions"""
-  actions: [Link!]
-
-  """The time that the Paragraph was created."""
-  created: DateTime!
-
-  """Description"""
-  description: String!
-
-  """Heading"""
-  heading: String!
-
-  """Image"""
-  image: MediaUnion!
-
-  """The paragraphs entity language code."""
-  langcode: Language!
-
-  """Published"""
-  status: Boolean!
-
-  """Optional short label above the hero heading."""
-  tagline: String
-}
+scalar Html
 
 """Entity type media."""
 union MediaUnion = MediaImage
@@ -443,6 +381,164 @@ type Image {
   mime: String
 }
 
+"""Routeable pages composed from Hydra CMS blocks."""
+type NodeLandingPage implements NodeInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The time that the node was last edited."""
+  changed: DateTime!
+
+  """Ordered Hydra content blocks."""
+  components: [ParagraphUnion!]
+
+  """The date and time that the content was created."""
+  created: DateTime!
+
+  """Optional public heading; the node title remains the editorial name."""
+  displayTitle: String
+
+  """Keep the display title available to metadata while hiding it visually."""
+  hideDisplayTitle: Boolean
+
+  """Language"""
+  langcode: Language!
+
+  """URL alias"""
+  path: String
+
+  """Promoted to front page"""
+  promote: Boolean!
+
+  """Published"""
+  status: Boolean!
+
+  """Sticky at top of lists"""
+  sticky: Boolean!
+
+  """Title"""
+  title: String!
+}
+
+"""Entity type paragraph."""
+union ParagraphUnion = ParagraphDynamicProductCollection | ParagraphFeaturedArticle | ParagraphHero
+
+"""Renders products selected by an external commerce category ID."""
+type ParagraphDynamicProductCollection implements ParagraphInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The time that the Paragraph was created."""
+  created: DateTime!
+
+  """Description"""
+  description: String
+
+  """Heading"""
+  heading: String
+
+  """The paragraphs entity language code."""
+  langcode: Language!
+
+  """
+  Optional external category ID resolved by the active commerce provider. Leave
+  empty to show products without a category filter.
+  """
+  productCategory: String
+
+  """Published"""
+  status: Boolean!
+}
+
+"""Entity type paragraph."""
+interface ParagraphInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The time that the Paragraph was created."""
+  created: DateTime!
+
+  """The paragraphs entity language code."""
+  langcode: Language!
+
+  """Published"""
+  status: Boolean!
+}
+
+"""A curated collection of article teasers."""
+type ParagraphFeaturedArticle implements ParagraphInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """Select up to three articles to feature."""
+  articles: [NodeUnion!]!
+
+  """The time that the Paragraph was created."""
+  created: DateTime!
+
+  """Description"""
+  description: String
+
+  """Heading"""
+  heading: String!
+
+  """The paragraphs entity language code."""
+  langcode: Language!
+
+  """Published"""
+  status: Boolean!
+}
+
+"""Entity type node."""
+union NodeUnion = NodeArticle | NodeLandingPage
+
+"""
+Hydra hero with tagline, heading, description, image, and up to two actions.
+"""
+type ParagraphHero implements ParagraphInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """Actions"""
+  actions: [Link!]
+
+  """The time that the Paragraph was created."""
+  created: DateTime!
+
+  """Description"""
+  description: String!
+
+  """Heading"""
+  heading: String!
+
+  """Image"""
+  image: MediaUnion!
+
+  """The paragraphs entity language code."""
+  langcode: Language!
+
+  """Published"""
+  status: Boolean!
+
+  """Optional short label above the hero heading."""
+  tagline: String
+}
+
 """Route outside of this website."""
 type RouteExternal implements Route {
   """URL of this route."""
@@ -460,9 +556,6 @@ type SchemaInformation {
   """The schema version."""
   version: String
 }
-
-"""Entity type node."""
-union NodeUnion = NodeLandingPage
 
 """The schema's entry-point for mutations."""
 type Mutation {
@@ -497,15 +590,6 @@ type File {
   description: String
 }
 
-"""
-An HTML string
-
-Content of this type is deemed safe by the server for raw output given the
-origin and the context of its usage. The HTML can still contain scripts or style
-tags where the creating user had permission to input these.
-"""
-scalar Html
-
 """Generic input for key-value pairs."""
 input KeyValueInput {
   key: String!
@@ -537,21 +621,6 @@ type Text {
 
   """The text format used to process the text value."""
   format: String
-}
-
-"""A processed text format with summary defined by the CMS."""
-type TextSummary {
-  """The raw text value."""
-  value: String
-
-  """The processed text value."""
-  processed: Html
-
-  """The text format used to process the text value."""
-  format: String
-
-  """The processed text summary."""
-  summary: Html
 }
 
 """

@@ -1,0 +1,35 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.node.article.body
+    - field.field.node.article.field_image
+    - field.field.node.article.field_summary
+    - node.type.article
+  module:
+    - graphql_compose_preview
+    - text
+    - user
+id: node.article.default
+targetEntityType: node
+bundle: article
+mode: default
+content:
+  preview_token:
+    type: preview_token_iframe
+    label: hidden
+    settings:
+      iframe_url: 'http://localhost:3001/api/draft?uuid=[node:preview:uuid]&token=[node:preview:token]'
+      class: ''
+      width: '100%'
+      height: '800'
+      allow: 'fullscreen autoplay'
+      transparency: true
+    third_party_settings: {  }
+    weight: -1
+    region: content
+hidden:
+  body: true
+  field_image: true
+  field_summary: true
+  links: true

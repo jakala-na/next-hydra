@@ -8,12 +8,19 @@ entity_config:
       enabled: true
       menu_route_enabled: true
   node:
+    article:
+      enabled: true
+      query_load_enabled: false
+      routes_enabled: true
     landing_page:
       enabled: true
       query_load_enabled: false
       routes_enabled: true
   paragraph:
     dynamic_product_collection:
+      enabled: true
+      query_load_enabled: false
+    featured_articles:
       enabled: true
       query_load_enabled: false
     hero:
@@ -25,6 +32,13 @@ field_config:
       field_media_image:
         enabled: true
   node:
+    article:
+      body:
+        enabled: true
+      field_image:
+        enabled: true
+      field_summary:
+        enabled: true
     landing_page:
       field_components:
         enabled: true
@@ -39,6 +53,13 @@ field_config:
       field_heading:
         enabled: true
       field_product_category:
+        enabled: true
+    featured_articles:
+      field_articles:
+        enabled: true
+      field_description:
+        enabled: true
+      field_heading:
         enabled: true
     hero:
       field_actions:

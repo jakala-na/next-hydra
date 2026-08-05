@@ -6,6 +6,9 @@ _meta:
   default_langcode: en
   depends:
     dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b: media
+    d128b08b-22c0-4603-8d90-4595df7e6853: node
+    b883487a-71fa-424a-9881-1b6ac99cd98d: node
+    823f1c6c-ed43-4d95-8632-fb983ee89030: node
 default:
   revision_uid:
     -
@@ -106,3 +109,34 @@ default:
           field_description:
             -
               value: 'Products supplied by the active Hydra commerce provider.'
+    -
+      entity:
+        _meta:
+          version: '1.0'
+          entity_type: paragraph
+          uuid: 241525bb-4516-4b95-80c3-0ee28309b602
+          bundle: featured_articles
+          default_langcode: en
+        default:
+          status:
+            -
+              value: true
+          created:
+            -
+              value: 1754697600
+          behavior_settings:
+            -
+              value: {  }
+          field_heading:
+            -
+              value: 'Equipment guides'
+          field_description:
+            -
+              value: 'Practical guidance for selecting, operating, and maintaining heavy equipment.'
+          field_articles:
+            -
+              entity: d128b08b-22c0-4603-8d90-4595df7e6853
+            -
+              entity: b883487a-71fa-424a-9881-1b6ac99cd98d
+            -
+              entity: 823f1c6c-ed43-4d95-8632-fb983ee89030

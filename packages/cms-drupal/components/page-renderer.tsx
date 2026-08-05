@@ -1,9 +1,19 @@
 import type { Locale } from "@repo/i18n";
 import type { ComponentProps } from "react";
+import { ArticlePage } from "./pages/article";
 import { LandingPage } from "./pages/landing-page";
 
 export const pageMap = {
-  NodeLandingPage: LandingPage,
+  NodeArticle: {
+    Component: ArticlePage,
+    fragment: ArticlePage.fragment,
+    getCacheTags: ArticlePage.getCacheTags,
+  },
+  NodeLandingPage: {
+    Component: LandingPage,
+    fragment: LandingPage.fragment,
+    getCacheTags: LandingPage.getCacheTags,
+  },
 } as const;
 
 type BaseData = {
@@ -12,7 +22,7 @@ type BaseData = {
 
 type PageMap = typeof pageMap;
 type PageKey = keyof PageMap;
-type PageData = ComponentProps<PageMap[PageKey]>["data"];
+type PageData = ComponentProps<PageMap[PageKey]["Component"]>["data"];
 
 export type DataWithTypename =
   | (PageData & BaseData)
@@ -34,10 +44,10 @@ export default function PageRenderer({ data, locale }: PageRendererProps) {
     return null;
   }
 
-  const PageTemplate = pageMap[data.__typename];
+  const { Component } = pageMap[data.__typename];
 
   return (
-    <PageTemplate
+    <Component
       // biome-ignore lint/suspicious/noExplicitAny: the typename guard selects the matching page fragment
       data={data as any}
       locale={locale}
@@ -45,4 +55,14 @@ export default function PageRenderer({ data, locale }: PageRendererProps) {
   );
 }
 
-PageRenderer.fragments = [LandingPage.fragment];
+PageRenderer.fragments = Object.values(pageMap).map(({ fragment }) => fragment);
+
+PageRenderer.getCacheTags = (data: DataWithTypename): string[] => {
+  if (!(data && isPageKey(data.__typename))) {
+    return [];
+  }
+
+  const definition = pageMap[data.__typename];
+  // biome-ignore lint/suspicious/noExplicitAny: the typename guard selects the matching page fragment.
+  return definition.getCacheTags(data as any);
+};

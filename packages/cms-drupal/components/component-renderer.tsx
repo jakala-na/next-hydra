@@ -1,11 +1,25 @@
 import type { Locale } from "@repo/i18n";
 import type { ComponentProps } from "react";
 import { DynamicProductCollection } from "./blocks/dynamic-product-collection";
+import { FeaturedArticles } from "./blocks/featured-articles";
 import { HeroSection } from "./blocks/hero-section";
 
 export const componentMap = {
-  ParagraphDynamicProductCollection: DynamicProductCollection,
-  ParagraphHero: HeroSection,
+  ParagraphDynamicProductCollection: {
+    Component: DynamicProductCollection,
+    fragment: DynamicProductCollection.fragment,
+    getCacheTags: () => [],
+  },
+  ParagraphFeaturedArticle: {
+    Component: FeaturedArticles,
+    fragment: FeaturedArticles.fragment,
+    getCacheTags: FeaturedArticles.getCacheTags,
+  },
+  ParagraphHero: {
+    Component: HeroSection,
+    fragment: HeroSection.fragment,
+    getCacheTags: () => [],
+  },
 } as const;
 
 type BaseData = {
@@ -15,7 +29,9 @@ type BaseData = {
 
 type ComponentMap = typeof componentMap;
 type ComponentKey = keyof ComponentMap;
-type ComponentData = ComponentProps<ComponentMap[ComponentKey]>["data"];
+type ComponentData = ComponentProps<
+  ComponentMap[ComponentKey]["Component"]
+>["data"];
 
 export type DataWithTypename =
   | (ComponentData & BaseData)
@@ -66,7 +82,7 @@ export default function ComponentRenderer({
     return null;
   }
 
-  const Component = componentMap[data.__typename];
+  const { Component } = componentMap[data.__typename];
 
   return (
     <Component
@@ -77,7 +93,26 @@ export default function ComponentRenderer({
   );
 }
 
-ComponentRenderer.fragments = [
-  DynamicProductCollection.fragment,
-  HeroSection.fragment,
-];
+ComponentRenderer.fragments = Object.values(componentMap).map(
+  ({ fragment }) => fragment
+);
+
+ComponentRenderer.getCacheTags = (
+  data: DataWithTypename | DataWithTypename[]
+): string[] => {
+  if (data === null || data === undefined) {
+    return [];
+  }
+
+  if (Array.isArray(data)) {
+    return data.flatMap((item) => ComponentRenderer.getCacheTags(item));
+  }
+
+  if (!isComponentKey(data.__typename)) {
+    return [];
+  }
+
+  const definition = componentMap[data.__typename];
+  // biome-ignore lint/suspicious/noExplicitAny: the typename guard selects the matching component fragment.
+  return definition.getCacheTags(data as any);
+};

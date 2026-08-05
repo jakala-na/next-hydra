@@ -1,0 +1,45 @@
+_meta:
+  version: '1.0'
+  entity_type: menu_link_content
+  uuid: e2a1c674-690a-4fc3-a828-acc50a5fa2b6
+  bundle: menu_link_content
+  default_langcode: en
+  depends:
+    d53f6b84-47d8-4f88-b01b-fb40e8f46f9e: menu_link_content
+    823f1c6c-ed43-4d95-8632-fb983ee89030: node
+default:
+  enabled:
+    -
+      value: true
+  title:
+    -
+      value: 'Understanding operating weight and ground pressure'
+  description:
+    -
+      value: 'Evaluate stability and surface impact correctly.'
+  menu_name:
+    -
+      value: main
+  link:
+    -
+      title: null
+      options: {  }
+      target_uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
+  external:
+    -
+      value: false
+  rediscover:
+    -
+      value: false
+  weight:
+    -
+      value: 3
+  expanded:
+    -
+      value: false
+  parent:
+    -
+      value: 'menu_link_content:d53f6b84-47d8-4f88-b01b-fb40e8f46f9e'
+  revision_translation_affected:
+    -
+      value: true

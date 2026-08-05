@@ -5,6 +5,7 @@ dependencies:
     - field.storage.node.field_components
     - node.type.landing_page
     - paragraphs.paragraphs_type.dynamic_product_collection
+    - paragraphs.paragraphs_type.featured_articles
     - paragraphs.paragraphs_type.hero
   module:
     - entity_reference_revisions
@@ -24,10 +25,14 @@ settings:
     target_bundles:
       hero: hero
       dynamic_product_collection: dynamic_product_collection
+      featured_articles: featured_articles
     negate: 0
     target_bundles_drag_drop:
       dynamic_product_collection:
         weight: 1
+        enabled: true
+      featured_articles:
+        weight: 2
         enabled: true
       hero:
         weight: 0

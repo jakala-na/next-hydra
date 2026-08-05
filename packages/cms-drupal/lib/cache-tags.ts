@@ -1,9 +1,9 @@
 const DRUPAL_NODE_ID_PATTERN = /^\d+$/;
 
-export function getLandingPageCacheTag(page: { id: string }): string {
-  if (!DRUPAL_NODE_ID_PATTERN.test(page.id)) {
-    throw new Error(`Expected a numeric Drupal node ID, received ${page.id}`);
+export function getNodeCacheTag(node: { id: string }): string {
+  if (!DRUPAL_NODE_ID_PATTERN.test(node.id)) {
+    throw new Error(`Expected a numeric Drupal node ID, received ${node.id}`);
   }
 
-  return `node:${page.id}`;
+  return `node:${node.id}`;
 }

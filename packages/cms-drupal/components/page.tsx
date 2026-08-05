@@ -6,7 +6,6 @@ import { draftMode } from "next/headers";
 import { notFound } from "next/navigation";
 import { graphqlClient } from "../client";
 import { graphql } from "../graphql";
-import { getLandingPageCacheTag } from "../lib/cache-tags";
 import type {
   DrupalGraphqlPreviewContext,
   DrupalPreviewContext,
@@ -25,6 +24,7 @@ const routeQuery = graphql(
             ... on NodeInterface {
               id
             }
+            ...DrupalArticlePage
             ...DrupalLandingPage
           }
         }
@@ -42,6 +42,7 @@ const pagePreviewQuery = graphql(
         ... on NodeInterface {
           id
         }
+        ...DrupalArticlePage
         ...DrupalLandingPage
       }
     }
@@ -90,7 +91,7 @@ async function getCachedRouteEntity(path: string) {
   }
 
   cacheLife("hours");
-  cacheTag(getLandingPageCacheTag(entity));
+  cacheTag(...PageRenderer.getCacheTags(entity));
   return entity;
 }
 

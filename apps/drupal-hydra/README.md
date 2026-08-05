@@ -22,11 +22,15 @@ prints `CMS_REVALIDATION_SECRET`; copy that value into `apps/web/.env.local`.
 - `hero` Paragraphs provide a tagline, heading, description, image, and actions.
 - `dynamic_product_collection` Paragraphs provide an optional external commerce
   category ID. An empty category returns products without a category filter.
+- `article` nodes provide routeable editorial content with a summary, image,
+  Basic HTML body, and stable path alias.
+- `featured_articles` Paragraphs select ordered Articles for landing-page cards.
 - Drupal's native `main` menu is the frontend navigation source.
 
-The recipe includes a `/homepage` demo landing page with both supported blocks,
-a Hydra hero image, and a native Home menu link. It configures GraphQL Compose to
-expose only this content contract.
+The recipe includes a `/homepage` demo landing page, a `/resources` landing
+page, three equipment guides, and a nested Resources navigation group. The same
+Articles are featured on both landing pages to demonstrate dependency-aware
+cache revalidation.
 
 ## Local development
 
@@ -49,9 +53,12 @@ URL, for example:
 GRAPHQL_COMPOSE_PREVIEW_URL="https://frontend.example/api/draft?uuid=[node:preview:uuid]&token=[node:preview:token]"
 ```
 
-Published landing pages and the main menu use Next.js Cache Components. When a
-landing page changes, Drupal's Next module sends its entity and list cache tags
-to `/api/revalidate`. The local revalidation URL uses
+Published Drupal routes and the main menu use Next.js Cache Components. A page
+is tagged with its own Drupal entity tag, and Featured Articles blocks add the
+tag for each referenced Article. When Drupal content changes, the Next module
+sends its entity and list cache tags to `/api/revalidate`; an Article update
+therefore refreshes its own route and only the landing pages that feature it.
+The local revalidation URL uses
 `host.docker.internal:3001` because the request originates inside DDEV; preview
 URLs use `localhost:3001` because the browser opens them on the host.
 

@@ -1,6 +1,7 @@
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
 import { type FragmentOf, graphql, readFragment } from "../../graphql";
+import { getNodeCacheTag } from "../../lib/cache-tags";
 import ComponentRenderer from "../component-renderer";
 
 export const landingPageFragment = graphql(
@@ -18,6 +19,7 @@ export const landingPageFragment = graphql(
         }
         ...DrupalHeroSection
         ...DrupalDynamicProductCollection
+        ...DrupalFeaturedArticles
       }
     }
   `,
@@ -45,3 +47,10 @@ export function LandingPage({ data, locale }: LandingPageProps) {
 }
 
 LandingPage.fragment = landingPageFragment;
+LandingPage.getCacheTags = (data: LandingPageProps["data"]) => {
+  const page = readFragment(landingPageFragment, data);
+  return [
+    getNodeCacheTag(page),
+    ...ComponentRenderer.getCacheTags(page.components),
+  ];
+};

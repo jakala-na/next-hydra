@@ -2,14 +2,14 @@
 
 This recipe provisions the Drupal content contract used by `@repo/cms-drupal`:
 
-- one routeable `landing_page` node type;
-- `hero` and `dynamic_product_collection` Paragraph bundles;
+- routeable `landing_page` and `article` node types;
+- `hero`, `dynamic_product_collection`, and `featured_articles` Paragraph bundles;
 - Image Media for hero assets;
 - GraphQL Compose routes, native menus, and revision preview;
 - a Next.js for Drupal site that renders landing pages in the View-tab iframe;
-- cache-tag revalidation for landing-page changes;
+- cache-tag revalidation for pages and their referenced article dependencies;
 - viewer and previewer roles for OAuth clients; and
-- a `/homepage` demo page with a native main-menu link.
+- demo homepage, resource center, articles, and nested native navigation.
 
 Next.js for Drupal sends saved View-tab revisions through its short-lived signed
 Draft Mode URL. The connector validates that URL with Drupal and loads the
@@ -38,6 +38,12 @@ drush recipe ../recipes/next-hydra-starter -v
 The demo product collection deliberately has no category ID, so the active
 Hydra commerce provider returns an unfiltered product collection.
 
+The homepage and `/resources` page both reference the same three demo Articles.
+Their Featured Articles blocks add every referenced `node:{id}` tag to the
+cached landing page. Editing one Article therefore refreshes its Article route
+and each cached landing page that embeds it, without invalidating unrelated
+pages.
+
 ## Updating the content model
 
 Create fields and bundles through Drupal or Drush, export their configuration,
@@ -55,3 +61,8 @@ php core/scripts/drupal content:export node <node-id> \
   --with-dependencies \
   --dir=../recipes/next-hydra-starter/content
 ```
+
+Core's exporter does not currently emit portable embedded values for
+`entity_reference_revisions` fields. Keep Paragraphs embedded under the parent
+node's `field_components` values, as the demo landing pages do, rather than
+committing exported numeric Paragraph IDs.

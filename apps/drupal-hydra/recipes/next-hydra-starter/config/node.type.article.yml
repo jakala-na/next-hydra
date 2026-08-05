@@ -1,0 +1,10 @@
+langcode: en
+status: true
+dependencies: {  }
+name: Article
+type: article
+description: 'Editorial equipment guides rendered by the Next Hydra frontend.'
+help: null
+new_revision: true
+preview_mode: 1
+display_submitted: false

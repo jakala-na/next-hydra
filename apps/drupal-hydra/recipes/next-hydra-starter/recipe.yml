@@ -1,5 +1,5 @@
 name: 'Next Hydra starter'
-description: 'A minimal Drupal backend for Next Hydra with landing pages, Hydra blocks, native navigation, GraphQL, and preview.'
+description: 'A minimal Drupal backend for Next Hydra with landing pages, articles, Hydra blocks, native navigation, GraphQL, and preview.'
 type: 'Site'
 
 recipes:
@@ -11,6 +11,7 @@ recipes:
 install:
   - field_ui
   - file
+  - filter
   - help
   - image
   - link
@@ -22,6 +23,7 @@ install:
   - node
   - path
   - toolbar
+  - text
   - views
   - views_ui
   - gin
@@ -37,14 +39,19 @@ install:
 config:
   strict:
     - field.storage.node.field_components
+    - field.storage.node.body
     - field.storage.node.field_display_title
     - field.storage.node.field_hide_display_title
+    - field.storage.node.field_image
+    - field.storage.node.field_summary
     - field.storage.paragraph.field_actions
+    - field.storage.paragraph.field_articles
     - field.storage.paragraph.field_description
     - field.storage.paragraph.field_heading
     - field.storage.paragraph.field_image
     - field.storage.paragraph.field_product_category
     - field.storage.paragraph.field_tagline
+    - filter.format.basic_html
   import:
     gin:
       - block.block.gin_breadcrumbs
@@ -80,13 +87,20 @@ config:
       grantPermissions:
         - 'access content overview'
         - 'access media overview'
+        - 'create article content'
         - 'create landing_page content'
         - 'create media'
+        - 'delete any article content'
         - 'delete any landing_page content'
+        - 'delete article revisions'
         - 'delete landing_page revisions'
+        - 'edit any article content'
         - 'edit any landing_page content'
+        - 'revert article revisions'
         - 'revert landing_page revisions'
         - 'update any media'
+        - 'use text format basic_html'
+        - 'view article revisions'
         - 'view landing_page revisions'
     user.role.viewer:
       grantPermissions:
