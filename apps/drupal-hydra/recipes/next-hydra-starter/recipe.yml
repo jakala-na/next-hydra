@@ -18,6 +18,7 @@ install:
   - media_library
   - menu_link_content
   - menu_ui
+  - next
   - node
   - path
   - toolbar
@@ -28,7 +29,6 @@ install:
   - paragraphs
   - simple_oauth
   - view_unpublished
-  - decoupled_preview_iframe
   - graphql_compose
   - graphql_compose_menus
   - graphql_compose_routes

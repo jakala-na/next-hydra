@@ -11,6 +11,7 @@ label: Previewer
 weight: -6
 is_admin: false
 permissions:
+  - 'execute graphql_compose_server arbitrary graphql requests'
   - 'view all revisions'
   - 'view any unpublished content'
   - 'view graphql_compose_preview entity'

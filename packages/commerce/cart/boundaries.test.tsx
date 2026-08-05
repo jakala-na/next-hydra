@@ -6,7 +6,8 @@ import { CurrentCart } from "../services/current-cart";
 import { addToCart, changeCartItemsQuantity, removeCartItem } from "./actions";
 import { CommerceCartProvider } from "./cart-provider";
 
-const { getLocale, requestLayer } = vi.hoisted(() => ({
+const { connection, getLocale, requestLayer } = vi.hoisted(() => ({
+  connection: vi.fn(async () => undefined),
   getLocale: vi.fn(async () => "en-US" as const),
   requestLayer: vi.fn(),
 }));
@@ -22,6 +23,7 @@ vi.mock(
 vi.mock("../commerce-context/request", () => ({
   commerceRequestLayer: requestLayer,
 }));
+vi.mock("next/server", () => ({ connection }));
 
 const cartState = Schema.decodeUnknownSync(CurrentCartState)({
   cart: {
@@ -50,6 +52,7 @@ const currentCartLayer = (overrides: Partial<CurrentCartService> = {}) =>
   });
 
 beforeEach(() => {
+  connection.mockClear();
   getLocale.mockClear();
   requestLayer.mockReset();
   requestLayer.mockImplementation(async () => currentCartLayer());
@@ -146,6 +149,7 @@ describe("Cart boundaries", () => {
       removeCartItem,
     });
     await expect(element.props.cartPromise).resolves.toEqual(cartState);
+    expect(connection).toHaveBeenCalledOnce();
     expect(requestLayer).toHaveBeenCalledOnce();
   });
 });

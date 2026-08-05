@@ -8,6 +8,7 @@ dependencies:
     - node.type.landing_page
   module:
     - entity_reference_revisions
+    - graphql_compose_preview
     - user
 id: node.landing_page.default
 targetEntityType: node
@@ -36,6 +37,18 @@ content:
     third_party_settings: {  }
     weight: 100
     region: content
+  preview_token:
+    type: preview_token_iframe
+    label: hidden
+    settings:
+      iframe_url: 'http://localhost:3001/api/draft?uuid=[node:preview:uuid]&token=[node:preview:token]'
+      class: ''
+      width: '100%'
+      height: '800'
+      allow: 'fullscreen autoplay'
+      transparency: true
+    third_party_settings: {  }
+    weight: -1
+    region: content
 hidden:
   field_hide_display_title: true
-  preview_token: true

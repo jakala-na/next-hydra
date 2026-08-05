@@ -6,6 +6,7 @@
   "exports": {
     "./client": "./client.ts",
     "./components/live-preview": "./components/live-preview.tsx",
+    "./components/page": "./components/page.tsx",
     "./components/pages/landing-page": "./components/pages/landing-page.tsx",
     "./graphql": "./graphql.ts",
     "./keys": "./keys.ts",

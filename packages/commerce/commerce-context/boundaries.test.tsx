@@ -22,6 +22,7 @@ import {
 import { BusinessUnitSwitcher } from "./business-unit-switcher";
 
 const boundary = vi.hoisted(() => ({
+  connection: vi.fn(async () => undefined),
   refresh: vi.fn(),
   requestLayer: vi.fn(),
   setCookie: vi.fn(),
@@ -38,11 +39,12 @@ vi.mock("next/cache", () => ({ refresh: boundary.refresh }));
 vi.mock("next/headers", () => ({
   cookies: async () => ({ set: boundary.setCookie }),
 }));
+vi.mock("next/server", () => ({ connection: boundary.connection }));
 
 const store = new Store({
+  currency: "USD",
   locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("default-store"),
-  currency: "USD",
 });
 const customerId = CommerceCustomerId.make("customer-1");
 const memberships = [
@@ -59,9 +61,9 @@ const memberships = [
 ] as const;
 const principal = new CustomerCommercePrincipal({
   authUserId: AuthUserId.make("auth-user-1"),
-  customerId,
   businessUnitId: memberships[1].businessUnitId,
   businessUnitKey: memberships[1].businessUnitKey,
+  customerId,
 });
 
 const buyingContextLayer = () =>
@@ -69,22 +71,23 @@ const buyingContextLayer = () =>
     Layer.succeed(
       CommerceContext,
       CommerceContext.of({
-        store,
-        principal,
         customerPrincipal: () => Effect.succeed(principal),
         customerProfile: () => Effect.die("not used"),
+        principal,
+        store,
       })
     ),
     CommerceAccounts.layerMemoryFrom({
       businessUnitMemberships: memberships.map((membership) => ({
         customerId,
-        storeKey: store.storeKey,
         membership,
+        storeKey: store.storeKey,
       })),
     })
   );
 
 beforeEach(() => {
+  boundary.connection.mockClear();
   boundary.refresh.mockClear();
   boundary.requestLayer.mockReset();
   boundary.requestLayer.mockImplementation(async () => buyingContextLayer());
@@ -96,6 +99,7 @@ describe("Buying Context boundaries", () => {
     const switcher = await BusinessUnitSwitcher({ locale: "en-US" });
 
     expect(boundary.requestLayer).toHaveBeenCalledOnce();
+    expect(boundary.connection).toHaveBeenCalledOnce();
     expect(switcher?.props).toMatchObject({
       currentBusinessUnitId: "business-unit-2",
       items: [

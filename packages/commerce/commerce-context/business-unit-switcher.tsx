@@ -4,6 +4,7 @@ import { BusinessUnitSwitcher as BusinessUnitSwitcherView } from "@repo/design-s
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
 import { unstable_rethrow } from "next/navigation";
+import { connection } from "next/server";
 import { CommerceAccounts } from "../services/commerce-accounts";
 import { CommerceContext } from "../services/commerce-context";
 import { selectBusinessUnit } from "./actions";
@@ -16,6 +17,8 @@ interface BusinessUnitSwitcherProps {
 export async function BusinessUnitSwitcher({
   locale,
 }: BusinessUnitSwitcherProps) {
+  await connection();
+
   try {
     const layer = await commerceRequestLayer(locale);
     const result = await Effect.runPromise(

@@ -10,6 +10,7 @@ import {
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer } from "effect";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { CartId } from "../domain/cart";
 import { currentCartOperationFailure } from "../domain/cart-errors";
 import {
@@ -40,6 +41,8 @@ export const commerceRequestLayer = async (
   locale: Locale,
   selectedStoreKey?: StoreKey
 ) => {
+  await connection();
+
   const [cookieStore, identity] = await Promise.all([
     cookies(),
     commerceIdentityLayer(),
@@ -56,8 +59,14 @@ export const commerceRequestLayer = async (
     store
   );
   const currentCartCookie: CurrentCartCookie = {
+    clear: () =>
+      Effect.sync(() => cookieStore.delete(ANONYMOUS_CART_COOKIE_NAME)).pipe(
+        Effect.catchDefect(() => Effect.void),
+        Effect.asVoid
+      ),
     set: (cartId) =>
       Effect.try({
+        catch: currentCartOperationFailure,
         try: () =>
           cookieStore.set(
             ANONYMOUS_CART_COOKIE_NAME,
@@ -66,13 +75,7 @@ export const commerceRequestLayer = async (
             ),
             ANONYMOUS_CART_COOKIE_OPTIONS
           ),
-        catch: currentCartOperationFailure,
       }).pipe(Effect.asVoid),
-    clear: () =>
-      Effect.sync(() => cookieStore.delete(ANONYMOUS_CART_COOKIE_NAME)).pipe(
-        Effect.catchDefect(() => Effect.void),
-        Effect.asVoid
-      ),
   };
   const commerceContext = Layer.unwrap(
     Effect.map(CommerceIdentity, ({ authUserId }) =>
@@ -85,8 +88,8 @@ export const commerceRequestLayer = async (
                 : { anonymousCartId: CartId.make(anonymousCartId) }),
             })
           : new CustomerCommerceContextRequest({
-              store,
               authUserId,
+              store,
               ...(businessUnitId === undefined ? {} : { businessUnitId }),
             })
       )

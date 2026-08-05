@@ -1,6 +1,7 @@
 import { ProductCollection as CommerceProductCollection } from "@repo/commerce/product/product-collection";
 import type { Locale } from "@repo/i18n";
 import { Option } from "effect";
+import { Suspense } from "react";
 import { type FragmentOf, graphql, readFragment } from "../../graphql";
 import { decodeCommerceCategoryId } from "../../lib/commerce-category";
 import { renderRichText } from "../../lib/utils/rich-text-utils";
@@ -22,25 +23,27 @@ export function DynamicProductCollection(
     locale: Locale;
   } & ComponentBaseProps
 ) {
-  const locale = props.locale;
-  const data = readFragment(dynamicProductCollectionFragment, props.data);
-  const title = data.heading || "";
-  const description = data.description;
-  const categoryId = decodeCommerceCategoryId(data.product_category);
+  const { data: fragment, locale } = props;
+  const data = readFragment(dynamicProductCollectionFragment, fragment);
+  const { description, heading, product_category: productCategory } = data;
+  const title = heading || "";
+  const categoryId = decodeCommerceCategoryId(productCategory);
 
   if (Option.isNone(categoryId)) {
     return null;
   }
 
   return (
-    <CommerceProductCollection
-      title={title}
-      categoryId={categoryId.value}
-      description={
-        description?.json ? renderRichText(description?.json) : undefined
-      }
-      locale={locale}
-    />
+    <Suspense fallback={null}>
+      <CommerceProductCollection
+        title={title}
+        categoryId={categoryId.value}
+        description={
+          description?.json ? renderRichText(description?.json) : undefined
+        }
+        locale={locale}
+      />
+    </Suspense>
   );
 }
 

@@ -20,6 +20,8 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AccountMenuClient } from "@/components/layout/account-menu-client";
 
+export const instant = false;
+
 function CartButtonSkeleton() {
   return (
     <div className="relative">

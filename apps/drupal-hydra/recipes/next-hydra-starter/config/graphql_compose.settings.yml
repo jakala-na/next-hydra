@@ -53,7 +53,7 @@ field_config:
         enabled: true
 settings:
   exclude_unpublished: true
-  expose_entity_ids: false
+  expose_entity_ids: true
   field_required_override: false
   schema_description: 'Next Hydra CMS'
   schema_version: '1'

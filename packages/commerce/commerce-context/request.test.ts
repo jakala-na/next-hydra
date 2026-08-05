@@ -19,6 +19,7 @@ import { commerceRequestLayer } from "./request";
 
 const requestBoundary = vi.hoisted(() => ({
   authUserId: "auth-user-1" as string | undefined,
+  connection: vi.fn(async () => undefined),
   cookies: new Map<string, string>(),
   deleteCookie: vi.fn(),
   refresh: vi.fn(),
@@ -28,14 +29,15 @@ const requestBoundary = vi.hoisted(() => ({
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({
   cookies: async () => ({
+    delete: requestBoundary.deleteCookie,
     get: (name: string) => {
       const value = requestBoundary.cookies.get(name);
       return value === undefined ? undefined : { value };
     },
     set: requestBoundary.setCookie,
-    delete: requestBoundary.deleteCookie,
   }),
 }));
+vi.mock("next/server", () => ({ connection: requestBoundary.connection }));
 vi.mock("next/cache", () => ({ refresh: requestBoundary.refresh }));
 vi.mock("@repo/commerce/layers", async () => {
   const [
@@ -79,30 +81,30 @@ vi.mock("@repo/commerce/layers", async () => {
       businessUnitLabel: CommerceBusinessUnitLabel.make(label),
     });
   const cart = (id: string, businessUnitId: string) => ({
-    id: TestCartId.make(id),
-    status: "active" as const,
-    storeKey: StoreKey.make("default-store"),
     buyingContext: {
       businessUnitId: CommerceBusinessUnitId.make(businessUnitId),
     },
+    checkoutDetails: {},
+    id: TestCartId.make(id),
     lineItems: [
       {
         id: TestLineItemId.make(`line-${id}`),
-        variant: {
-          id: TestVariantId.make(`variant-${id}`),
-          productId: TestProductId.make(`product-${id}`),
-          name: `Product ${id}`,
-          images: [],
-          attributes: {},
-        },
         quantity: 1,
-        unitPrice: { centAmount: 1000, currencyCode: "USD" },
         totalPrice: { centAmount: 1000, currencyCode: "USD" },
+        unitPrice: { centAmount: 1000, currencyCode: "USD" },
+        variant: {
+          attributes: {},
+          id: TestVariantId.make(`variant-${id}`),
+          images: [],
+          name: `Product ${id}`,
+          productId: TestProductId.make(`product-${id}`),
+        },
       },
     ],
+    status: "active" as const,
+    storeKey: StoreKey.make("default-store"),
     totalLineItemQuantity: 1,
     totalPrice: { centAmount: 1000, currencyCode: "USD" },
-    checkoutDetails: {},
   });
 
   return {
@@ -114,19 +116,19 @@ vi.mock("@repo/commerce/layers", async () => {
       ],
     }),
     commerceAccountsLayer: CommerceAccounts.layerMemoryFrom({
-      customers: [{ authUserId, customerId }],
       businessUnitMemberships: [
         {
           customerId,
-          storeKey: StoreKey.make("default-store"),
           membership: membership("business-unit-1", "Business Unit One"),
+          storeKey: StoreKey.make("default-store"),
         },
         {
           customerId,
-          storeKey: StoreKey.make("default-store"),
           membership: membership("business-unit-2", "Business Unit Two"),
+          storeKey: StoreKey.make("default-store"),
         },
       ],
+      customers: [{ authUserId, customerId }],
     }),
     commerceIdentityLayer: async () =>
       CommerceIdentity.layer(requestBoundary.authUserId),
@@ -136,6 +138,7 @@ vi.mock("@repo/commerce/layers", async () => {
 
 beforeEach(() => {
   requestBoundary.authUserId = "auth-user-1";
+  requestBoundary.connection.mockClear();
   requestBoundary.cookies.clear();
   requestBoundary.deleteCookie.mockClear();
   requestBoundary.refresh.mockClear();
@@ -143,6 +146,12 @@ beforeEach(() => {
 });
 
 describe("commerceRequestLayer", () => {
+  it("waits for a request before constructing request-scoped services", async () => {
+    await commerceRequestLayer("en-US");
+
+    expect(requestBoundary.connection).toHaveBeenCalledOnce();
+  });
+
   it("accepts an explicitly selected Store key", async () => {
     requestBoundary.authUserId = undefined;
 
@@ -208,8 +217,8 @@ describe("commerceRequestLayer", () => {
     await Effect.runPromise(
       CurrentCart.addItem({
         productId: ProductId.make("product-1"),
-        variantId: VariantId.make("variant-1"),
         quantity: PositiveCartQuantity.make(1),
+        variantId: VariantId.make("variant-1"),
       }).pipe(Effect.exit, Effect.provide(layer))
     );
 
@@ -225,9 +234,9 @@ describe("commerceRequestLayer", () => {
     });
     expect(options).toMatchObject({
       httpOnly: true,
-      sameSite: "lax",
-      path: "/",
       maxAge: 7_776_000,
+      path: "/",
+      sameSite: "lax",
     });
   });
 

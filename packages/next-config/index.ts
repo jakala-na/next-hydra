@@ -5,10 +5,7 @@ import type { NextConfig } from "next";
 const otelRegex = /@opentelemetry\/instrumentation/;
 
 export const config: NextConfig = {
-  cacheComponents: false, // Waiting for https://github.com/amannn/next-intl/issues/1493 support and other ecosystem updates.
-  experimental: {
-    useCache: true,
-  },
+  cacheComponents: true,
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [

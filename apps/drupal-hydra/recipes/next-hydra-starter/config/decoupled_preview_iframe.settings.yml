@@ -1,8 +1,0 @@
-redirect_anonymous: true
-redirect_url: 'http://localhost:3001'
-preview_url: 'http://localhost:3001'
-preview_types:
-  node:
-    landing_page: landing_page
-route_sync: DECOUPLED_PREVIEW_IFRAME_ROUTE_SYNC
-draft_provider: graphql_compose_preview

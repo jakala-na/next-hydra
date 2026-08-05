@@ -7,4 +7,5 @@ id: viewer
 label: Viewer
 weight: -7
 is_admin: false
-permissions: {  }
+permissions:
+  - 'execute graphql_compose_server arbitrary graphql requests'

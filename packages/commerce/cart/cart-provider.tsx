@@ -4,12 +4,15 @@ import { CartProvider } from "@repo/design-system/components/commerce/providers/
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Option } from "effect";
 import { unstable_rethrow } from "next/navigation";
+import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { commerceRequestLayer } from "../commerce-context/request";
 import { CurrentCart } from "../services/current-cart";
 import { addToCart, changeCartItemsQuantity, removeCartItem } from "./actions";
 
 const loadCurrentCart = async (locale: Locale) => {
+  await connection();
+
   try {
     const layer = await commerceRequestLayer(locale);
     const cart = await Effect.runPromise(

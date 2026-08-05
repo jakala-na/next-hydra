@@ -44,8 +44,11 @@ enum MenuAvailable {
 
 """Entity type menu."""
 type Menu implements MenuInterface {
-  """The Universally Unique IDentifier (UUID)."""
+  """The entity ID."""
   id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
 
   """The menu items."""
   items: [MenuItem!]!
@@ -56,8 +59,11 @@ type Menu implements MenuInterface {
 
 """Entity type menu."""
 interface MenuInterface {
-  """The Universally Unique IDentifier (UUID)."""
+  """The entity ID."""
   id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
 
   """The menu items."""
   items: [MenuItem!]!
@@ -163,8 +169,11 @@ union RouteEntityUnion = NodeLandingPage
 
 """Routeable pages composed from Hydra CMS blocks."""
 type NodeLandingPage implements NodeInterface {
-  """The Universally Unique IDentifier (UUID)."""
+  """The entity ID."""
   id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
 
   """The time that the node was last edited."""
   changed: DateTime!
@@ -202,8 +211,11 @@ type NodeLandingPage implements NodeInterface {
 
 """Entity type node."""
 interface NodeInterface {
-  """The Universally Unique IDentifier (UUID)."""
+  """The entity ID."""
   id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
 
   """The time that the node was last edited."""
   changed: DateTime!
@@ -266,8 +278,11 @@ union ParagraphUnion = ParagraphDynamicProductCollection | ParagraphHero
 
 """Renders products selected by an external commerce category ID."""
 type ParagraphDynamicProductCollection implements ParagraphInterface {
-  """The Universally Unique IDentifier (UUID)."""
+  """The entity ID."""
   id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
 
   """The time that the Paragraph was created."""
   created: DateTime!
@@ -293,8 +308,11 @@ type ParagraphDynamicProductCollection implements ParagraphInterface {
 
 """Entity type paragraph."""
 interface ParagraphInterface {
-  """The Universally Unique IDentifier (UUID)."""
+  """The entity ID."""
   id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
 
   """The time that the Paragraph was created."""
   created: DateTime!
@@ -310,8 +328,11 @@ interface ParagraphInterface {
 Hydra hero with tagline, heading, description, image, and up to two actions.
 """
 type ParagraphHero implements ParagraphInterface {
-  """The Universally Unique IDentifier (UUID)."""
+  """The entity ID."""
   id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
 
   """Actions"""
   actions: [Link!]
@@ -343,8 +364,11 @@ union MediaUnion = MediaImage
 
 """A locally hosted image file."""
 type MediaImage implements MediaInterface {
-  """The Universally Unique IDentifier (UUID)."""
+  """The entity ID."""
   id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
 
   """The time the media item was last edited."""
   changed: DateTime!
@@ -370,8 +394,11 @@ type MediaImage implements MediaInterface {
 
 """Entity type media."""
 interface MediaInterface {
-  """The Universally Unique IDentifier (UUID)."""
+  """The entity ID."""
   id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
 
   """The time the media item was last edited."""
   changed: DateTime!

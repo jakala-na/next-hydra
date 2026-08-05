@@ -1,5 +1,6 @@
 import type { NavigationItem } from "@repo/design-system/components/layout/navigation";
 import type { Locale } from "@repo/i18n";
+import { cacheLife, cacheTag } from "next/cache";
 import { draftMode } from "next/headers";
 import { graphqlClient } from "../../client";
 import { graphql } from "../../graphql";
@@ -23,11 +24,9 @@ const mainMenuQuery = graphql(`
   }
 `);
 
-export async function getNavigation(
-  _locale: Locale,
-  _livePreviewHash?: string
+async function loadNavigation(
+  preview: boolean
 ): Promise<{ navigationItems: NavigationItem[] }> {
-  const { isEnabled: preview } = await draftMode();
   const response = await graphqlClient(preview).query(mainMenuQuery, {});
 
   if (response.error) {
@@ -54,4 +53,20 @@ export async function getNavigation(
     })) ?? [];
 
   return { navigationItems };
+}
+
+async function getCachedNavigation() {
+  "use cache";
+  cacheLife("days");
+  cacheTag("menu");
+
+  return await loadNavigation(false);
+}
+
+export async function getNavigation(
+  _locale: Locale,
+  _livePreviewHash?: string
+): Promise<{ navigationItems: NavigationItem[] }> {
+  const { isEnabled: preview } = await draftMode();
+  return preview ? loadNavigation(true) : getCachedNavigation();
 }

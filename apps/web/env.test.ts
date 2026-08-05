@@ -51,6 +51,30 @@ describe("Web CMS environment", () => {
 
     expect(env.CMS_HOMEPAGE_SLUG).toBe("/");
   });
+
+  it("reads a CMS revalidation secret", async () => {
+    stubRequiredCommerceEnvironment();
+    vi.stubEnv(
+      "CMS_REVALIDATION_SECRET",
+      "a-secure-cms-revalidation-secret-value"
+    );
+
+    const { env } = await loadEnvironment();
+
+    expect(env.CMS_REVALIDATION_SECRET).toBe(
+      "a-secure-cms-revalidation-secret-value"
+    );
+  });
+
+  it("rejects a short CMS revalidation secret", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    stubRequiredCommerceEnvironment();
+    vi.stubEnv("CMS_REVALIDATION_SECRET", "too-short");
+
+    await expect(loadEnvironment()).rejects.toThrow(
+      "Invalid environment variables"
+    );
+  });
 });
 
 describe("Web commerce environment", () => {

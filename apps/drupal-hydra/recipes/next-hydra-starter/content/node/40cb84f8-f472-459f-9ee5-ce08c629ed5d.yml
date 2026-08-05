@@ -35,6 +35,7 @@ default:
     -
       alias: /homepage
       langcode: en
+      pathauto: 0
   field_display_title:
     -
       value: 'Next Hydra'

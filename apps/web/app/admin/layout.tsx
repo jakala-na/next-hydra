@@ -4,6 +4,8 @@ import {
   requireAdminPermission,
 } from "@/lib/admin-auth";
 
+export const instant = false;
+
 export default async function AdminLayout({
   children,
 }: {

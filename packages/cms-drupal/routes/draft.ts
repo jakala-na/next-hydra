@@ -1,38 +1,61 @@
-import { cookies, draftMode } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
+import {
+  isNextDrupalPreviewRequest,
+  NextDrupalPreviewValidationError,
+  validateNextDrupalPreview,
+} from "../lib/next-preview";
+import {
+  DrupalPreviewValidationError,
+  validateDrupalPreview,
+} from "../lib/preview";
+import type { DrupalPreviewContext } from "../lib/preview-context";
+import { enableDrupalPreview } from "../lib/preview-session";
 
-function isSafePathname(pathname: string): boolean {
-  return pathname.startsWith("/") && !pathname.startsWith("//");
-}
+const BAD_GATEWAY_STATUS = 502;
+const UNAUTHORIZED_STATUS = 401;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const id = request.nextUrl.searchParams.get("uuid");
   const token = request.nextUrl.searchParams.get("token");
-  const pathname = request.nextUrl.searchParams.get("originalPathname");
 
-  if (!(token && pathname && isSafePathname(pathname))) {
+  const hasGraphqlPreview = Boolean(id && token);
+  const hasNextPreview = isNextDrupalPreviewRequest(
+    request.nextUrl.searchParams
+  );
+
+  if (!(hasGraphqlPreview || hasNextPreview)) {
     return NextResponse.json(
-      { error: "A Drupal preview token and local pathname are required" },
+      { error: "A valid Drupal preview request is required" },
       { status: 400 }
     );
   }
 
-  (await draftMode()).enable();
-
-  if (process.env.NODE_ENV === "development") {
-    const cookieStore = await cookies();
-    const draftCookie = cookieStore.get("__prerender_bypass");
-    cookieStore.set({
-      httpOnly: true,
-      name: "__prerender_bypass",
-      path: "/",
-      sameSite: "none",
-      secure: true,
-      value: draftCookie?.value ?? "",
-    });
+  let preview: DrupalPreviewContext | undefined;
+  try {
+    preview =
+      id && token
+        ? await validateDrupalPreview(id, token)
+        : await validateNextDrupalPreview(request.nextUrl.searchParams);
+  } catch (error) {
+    if (
+      error instanceof DrupalPreviewValidationError ||
+      error instanceof NextDrupalPreviewValidationError
+    ) {
+      return NextResponse.json(
+        { error: "Drupal preview validation failed" },
+        { status: BAD_GATEWAY_STATUS }
+      );
+    }
+    throw error;
   }
 
-  const destination = new URL(pathname, request.url);
-  destination.searchParams.set("redirected", "true");
-  destination.searchParams.set("token", token);
-  return NextResponse.redirect(destination);
+  if (!preview) {
+    return NextResponse.json(
+      { error: "Invalid or expired Drupal preview" },
+      { status: UNAUTHORIZED_STATUS }
+    );
+  }
+
+  await enableDrupalPreview(preview);
+  return NextResponse.redirect(new URL(preview.path, request.url));
 }

@@ -1,6 +1,7 @@
 import { ProductCollection } from "@repo/commerce/product/product-collection";
 import type { Locale } from "@repo/i18n";
 import { Option } from "effect";
+import { Suspense } from "react";
 import { type FragmentOf, graphql, readFragment } from "../../graphql";
 import { decodeCommerceCategoryId } from "../../lib/commerce-category";
 
@@ -26,12 +27,14 @@ export function DynamicProductCollection(props: DynamicProductCollectionProps) {
   }
 
   return (
-    <ProductCollection
-      categoryId={categoryId.value}
-      description={data.productDescription ?? undefined}
-      locale={props.locale}
-      title={data.productHeading ?? ""}
-    />
+    <Suspense fallback={null}>
+      <ProductCollection
+        categoryId={categoryId.value}
+        description={data.productDescription ?? undefined}
+        locale={props.locale}
+        title={data.productHeading ?? ""}
+      />
+    </Suspense>
   );
 }
 

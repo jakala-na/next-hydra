@@ -5,11 +5,11 @@
   "type": "drupal-recipe",
   "keywords": ["drupal", "graphql", "headless", "next-hydra", "recipe"],
   "require": {
-    "drupal/decoupled_preview_iframe": "^1.0",
     "drupal/gin": "^5.0",
     "drupal/gin_toolbar": "^3.0",
     "drupal/graphql_compose": "^2.4",
     "drupal/graphql_compose_preview": "^1.1",
+    "drupal/next": "^2.1",
     "drupal/paragraphs": "^1.19",
     "drupal/simple_oauth": "^6.1",
     "drupal/view_unpublished": "^1.3"
