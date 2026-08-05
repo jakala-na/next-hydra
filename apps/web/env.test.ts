@@ -12,11 +12,11 @@ vi.mock("@repo/rate-limit/keys", () => ({ keys: () => ({}) }));
 vi.mock("@repo/security/keys", () => ({ keys: () => ({}) }));
 
 const requiredCommerceEnvironment = {
-  COMMERCETOOLS_PROJECT_KEY: "project-key",
   COMMERCETOOLS_CLIENT_ID: "client-id",
   COMMERCETOOLS_CLIENT_SECRET: "client-secret",
-  COMMERCETOOLS_SCOPE: "scope",
+  COMMERCETOOLS_PROJECT_KEY: "project-key",
   COMMERCETOOLS_REGION: "region",
+  COMMERCETOOLS_SCOPE: "scope",
 } as const;
 
 const stubRequiredCommerceEnvironment = () => {
@@ -33,6 +33,26 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+describe("Web CMS environment", () => {
+  it("reads the configured homepage slug", async () => {
+    stubRequiredCommerceEnvironment();
+    vi.stubEnv("CMS_HOMEPAGE_SLUG", "homepage");
+
+    const { env } = await loadEnvironment();
+
+    expect(env.CMS_HOMEPAGE_SLUG).toBe("homepage");
+  });
+
+  it("preserves root CMS lookup by default", async () => {
+    stubRequiredCommerceEnvironment();
+    vi.stubEnv("CMS_HOMEPAGE_SLUG", undefined);
+
+    const { env } = await loadEnvironment();
+
+    expect(env.CMS_HOMEPAGE_SLUG).toBe("/");
+  });
+});
+
 describe("Web commerce environment", () => {
   it("loads all five server-only Commercetools values", async () => {
     stubRequiredCommerceEnvironment();
@@ -46,15 +66,16 @@ describe("Web commerce environment", () => {
     expect(env.COMMERCETOOLS_REGION).toBe("region");
   });
 
-  it.each(
-    Object.keys(requiredCommerceEnvironment)
-  )("fails while loading the Web environment when %s is empty", async (name) => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    stubRequiredCommerceEnvironment();
-    vi.stubEnv(name, "");
+  it.each(Object.keys(requiredCommerceEnvironment))(
+    "fails while loading the Web environment when %s is empty",
+    async (name) => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      stubRequiredCommerceEnvironment();
+      vi.stubEnv(name, "");
 
-    await expect(loadEnvironment()).rejects.toThrow(
-      "Invalid environment variables"
-    );
-  });
+      await expect(loadEnvironment()).rejects.toThrow(
+        "Invalid environment variables"
+      );
+    }
+  );
 });

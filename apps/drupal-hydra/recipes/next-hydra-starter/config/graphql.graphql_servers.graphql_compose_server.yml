@@ -1,0 +1,17 @@
+langcode: en
+status: true
+dependencies: {  }
+name: graphql_compose_server
+label: 'Next Hydra GraphQL server'
+endpoint: /graphql
+debug_flag: 0
+schema: graphql_compose
+caching: true
+batching: true
+disable_introspection: false
+query_depth: null
+query_complexity: null
+schema_configuration:
+  graphql_compose:
+    enabled: true
+persisted_queries_settings: {  }

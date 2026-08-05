@@ -8,6 +8,7 @@
   "files": {
     "includes": [
       "!**/packages/cms-contentstack/gql/*",
+      "!**/packages/cms-drupal/gql/*",
       "!**/packages/commerce/gql/*",
       "!**/packages/commerce-commercetools/gql/*",
       "!**/apps/email/.react-email/",

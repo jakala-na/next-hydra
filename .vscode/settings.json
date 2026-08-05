@@ -40,5 +40,6 @@
   "[graphql]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
-  "typescript.native-preview.tsdk": "/Users/asgorobets/Sites/next-hydra/node_modules/@typescript/native-preview"
+  "typescript.native-preview.tsdk": "/Users/asgorobets/Sites/next-hydra/node_modules/@typescript/native-preview",
+  "js/ts.tsdk.path": "node_modules/typescript/lib"
 }

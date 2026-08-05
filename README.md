@@ -29,6 +29,7 @@ Business domains are packages that model core product capabilities and workflows
 
 - `@repo/cms`: the stable CMS dependency name selected by the consuming app.
 - `@repo/cms-contentstack`: Contentstack GraphQL client, content block rendering, draft mode routes, and live preview wiring.
+- `@repo/cms-drupal`: Drupal OAuth, authenticated GraphQL transport, schema generation, and draft preview integration scaffold.
 - `@repo/commerce`: Commercetools GraphQL integration, product/store/cart services, and server actions for cart operations.
 - `@repo/auth-workos`: WorkOS auth routes, provider, middleware proxy, and server helpers.
 - `@repo/auth-clerk`: Clerk auth adapter package (available for swap-in/experiments).
@@ -55,6 +56,8 @@ Shared platform capabilities are reusable concerns that support multiple domains
 - `apps/email`: local preview/build workflow for email templates.
 - `apps/storybook`: design system and UI component playground.
 - `apps/docs`: Fumadocs-powered documentation app.
+- `apps/drupal-hydra`: Drupal 11 backend with Hydra landing-page, Paragraph,
+  native-menu, preview, and GraphQL Compose configuration.
 
 ## Provider Strategy (Current vs Next)
 
@@ -63,7 +66,7 @@ The README calls this out explicitly because swappability is a core product prom
 | Domain | Shipped in repo today | Also present | Worth prioritizing next |
 |---|---|---|---|
 | Commerce | Commercetools | - | Shopify, Medusa, BigCommerce/Saleor adapters |
-| CMS | Contentstack | - | Contentful, Sanity, Hygraph adapters |
+| CMS | Contentstack or Drupal through the `@repo/cms` alias | Hydra-owned Drupal recipe and demo content | Contentful, Sanity, Hygraph adapters |
 | Auth | WorkOS (wired in `apps/web`) | Clerk package adapter | Better Auth, Auth0/Okta adapters |
 | Email | Resend | - | Postmark/SES adapters |
 | Analytics/Observability | PostHog, GA, Vercel Analytics, Sentry, Logtail | - | Segment and OpenTelemetry-first adapter path |
@@ -81,8 +84,9 @@ apps/
   email       React Email preview/build app
   storybook   Design system development surface
   docs        Product/documentation app
+  drupal-hydra Drupal 11 CMS backend
 packages/
-  cms, commerce, auth-*, analytics, observability, feature-flags,
+  cms-*, commerce, auth-*, analytics, observability, feature-flags,
   security, rate-limit, i18n, seo, email, design-system, testing
 ```
 

@@ -10,7 +10,10 @@ import { keys as security } from "@repo/security/keys";
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+const MINIMUM_REGISTRATION_APPROVAL_SECRET_LENGTH = 16;
+
 export const env = createEnv({
+  client: {},
   extends: [
     authWorkos(),
     cms(),
@@ -22,11 +25,15 @@ export const env = createEnv({
     security(),
     rateLimit(),
   ],
-  server: {
-    REGISTRATION_APPROVAL_SECRET: z.string().min(16).optional(),
-  },
-  client: {},
   runtimeEnv: {
+    CMS_HOMEPAGE_SLUG: process.env.CMS_HOMEPAGE_SLUG,
     REGISTRATION_APPROVAL_SECRET: process.env.REGISTRATION_APPROVAL_SECRET,
+  },
+  server: {
+    CMS_HOMEPAGE_SLUG: z.string().trim().min(1).default("/"),
+    REGISTRATION_APPROVAL_SECRET: z
+      .string()
+      .min(MINIMUM_REGISTRATION_APPROVAL_SECRET_LENGTH)
+      .optional(),
   },
 });

@@ -36,7 +36,7 @@ export function HeroSection({
       <div className="container px-4 py-24 md:px-6 lg:px-8 lg:py-32">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div className="space-y-8">
-            {tagline && (
+            {tagline ? (
               <div className="inline-block">
                 <span
                   className="rounded-full bg-primary/10 px-4 py-2 font-medium text-primary text-sm"
@@ -45,7 +45,7 @@ export function HeroSection({
                   {tagline}
                 </span>
               </div>
-            )}
+            ) : null}
 
             <h1
               className="text-balance font-bold text-5xl tracking-tight lg:text-7xl"
@@ -54,16 +54,16 @@ export function HeroSection({
               {title}
             </h1>
 
-            {description && (
+            {description ? (
               <div
                 className="max-w-xl text-muted-foreground text-xl leading-relaxed"
                 {...livePreviewProps?.description}
               >
                 {description}
               </div>
-            )}
+            ) : null}
 
-            {ctaLinks && ctaLinks.length > 0 && (
+            {ctaLinks.length > 0 ? (
               <div
                 className="flex flex-col gap-4 sm:flex-row"
                 {...livePreviewProps?.cta}
@@ -91,7 +91,7 @@ export function HeroSection({
                   );
                 })}
               </div>
-            )}
+            ) : null}
             {/** TODO: Add statistics from CMS */}
             <div className="grid grid-cols-3 gap-8 border-t pt-8">
               <div>
@@ -111,7 +111,7 @@ export function HeroSection({
             </div>
           </div>
 
-          {image && (
+          {image ? (
             <div
               className="relative h-[600px] overflow-hidden rounded-lg bg-muted"
               {...livePreviewProps?.image}
@@ -121,10 +121,11 @@ export function HeroSection({
                 alt={image.altText}
                 fill
                 preload
+                sizes="(min-width: 1024px) 50vw, 100vw"
                 className="object-cover"
               />
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </section>

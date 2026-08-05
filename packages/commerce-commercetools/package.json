@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "generate": "node --experimental-transform-types scripts/gql-sync.ts",
+    "generate": "node scripts/gql-sync.ts",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsgo --noEmit"
   },

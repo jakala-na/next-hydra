@@ -184,6 +184,29 @@ describe("Commercetools Product Discovery GraphQL client", () => {
       })
   );
 
+  it.effect("omits the category filter when no category is selected", () =>
+    Effect.gen(function* () {
+      query.mockResolvedValueOnce(storeResponse).mockResolvedValueOnce({
+        data: { productProjectionSearch: { results: [] } },
+      });
+
+      yield* run(
+        Effect.flatMap(ProductDiscovery, (service) =>
+          service.listCards(
+            new ListProductCardsInput({
+              limit: 3,
+            })
+          )
+        )
+      );
+
+      expect(query.mock.calls[1]?.[1]).toMatchObject({
+        filters: [],
+        limit: 3,
+      });
+    })
+  );
+
   it.effect("maps a GraphQL response error to ProductDiscoveryFailure", () =>
     Effect.gen(function* () {
       const graphqlFailure = new Error("GraphQL unavailable");

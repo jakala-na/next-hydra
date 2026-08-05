@@ -1,0 +1,96 @@
+name: 'Next Hydra starter'
+description: 'A minimal Drupal backend for Next Hydra with landing pages, Hydra blocks, native navigation, GraphQL, and preview.'
+type: 'Site'
+
+recipes:
+  - core/recipes/administrator_role
+  - core/recipes/content_editor_role
+  - core/recipes/core_recommended_maintenance
+  - core/recipes/image_media_type
+
+install:
+  - field_ui
+  - file
+  - help
+  - image
+  - link
+  - media
+  - media_library
+  - menu_link_content
+  - menu_ui
+  - node
+  - path
+  - toolbar
+  - views
+  - views_ui
+  - gin
+  - gin_toolbar
+  - paragraphs
+  - simple_oauth
+  - view_unpublished
+  - decoupled_preview_iframe
+  - graphql_compose
+  - graphql_compose_menus
+  - graphql_compose_routes
+  - graphql_compose_preview
+
+config:
+  strict:
+    - field.storage.node.field_components
+    - field.storage.node.field_display_title
+    - field.storage.node.field_hide_display_title
+    - field.storage.paragraph.field_actions
+    - field.storage.paragraph.field_description
+    - field.storage.paragraph.field_heading
+    - field.storage.paragraph.field_image
+    - field.storage.paragraph.field_product_category
+    - field.storage.paragraph.field_tagline
+  import:
+    gin:
+      - block.block.gin_breadcrumbs
+      - block.block.gin_content
+      - block.block.gin_help
+      - block.block.gin_local_actions
+      - block.block.gin_messages
+      - block.block.gin_page_title
+      - block.block.gin_primary_local_tasks
+  actions:
+    system.site:
+      simpleConfigUpdate:
+        page.front: /homepage
+    node.settings:
+      simpleConfigUpdate:
+        use_admin_theme: true
+    system.theme:
+      simpleConfigUpdate:
+        admin: gin
+        default: gin
+    simple_oauth.settings:
+      simpleConfigUpdate:
+        access_token_expiration: 2592000
+        authorization_code_expiration: 2592000
+        refresh_token_expiration: 2592000
+        token_cron_batch_size: 0
+        public_key: ../keys/public.key
+        private_key: ../keys/private.key
+        remember_clients: true
+        use_implicit: false
+        disable_openid_connect: false
+    user.role.content_editor:
+      grantPermissions:
+        - 'access content overview'
+        - 'access media overview'
+        - 'create landing_page content'
+        - 'create media'
+        - 'delete any landing_page content'
+        - 'delete landing_page revisions'
+        - 'edit any landing_page content'
+        - 'revert landing_page revisions'
+        - 'update any media'
+        - 'view landing_page revisions'
+    user.role.viewer:
+      grantPermissions:
+        - 'execute graphql_compose_server arbitrary graphql requests'
+    user.role.previewer:
+      grantPermissions:
+        - 'execute graphql_compose_server arbitrary graphql requests'

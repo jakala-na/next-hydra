@@ -1,0 +1,9 @@
+langcode: en
+status: true
+dependencies: {  }
+id: dynamic_product_collection
+label: 'Dynamic product collection'
+icon_uuid: null
+icon_default: null
+description: 'Renders products selected by an external commerce category ID.'
+behavior_plugins: {  }

@@ -258,7 +258,10 @@ export const checkCommerceBoundaries = (
 ): readonly string[] => {
   const commerceRoot = resolve(repoRoot, "packages/commerce");
   const providerRoot = resolve(repoRoot, "packages/commerce-commercetools");
-  const cmsRoot = resolve(repoRoot, "packages/cms-contentstack");
+  const cmsRoots = [
+    resolve(repoRoot, "packages/cms-contentstack"),
+    resolve(repoRoot, "packages/cms-drupal"),
+  ];
   const commerceManifest = readJson(resolve(commerceRoot, "package.json"));
   const providerManifest = readJson(resolve(providerRoot, "package.json"));
   const allRepositoryFiles = repositoryFiles(repoRoot);
@@ -267,7 +270,7 @@ export const checkCommerceBoundaries = (
   );
   const cmsSourceFiles = allRepositoryFiles.filter(
     (file) =>
-      file.startsWith(`${cmsRoot}${sep}`) &&
+      cmsRoots.some((cmsRoot) => file.startsWith(`${cmsRoot}${sep}`)) &&
       sourceExtensions.has(extension(file))
   );
   const allSourceFiles = allRepositoryFiles.filter((path) =>

@@ -1,0 +1,66 @@
+entity_config:
+  media:
+    image:
+      enabled: true
+      query_load_enabled: false
+  menu:
+    main:
+      enabled: true
+      menu_route_enabled: true
+  node:
+    landing_page:
+      enabled: true
+      query_load_enabled: false
+      routes_enabled: true
+  paragraph:
+    dynamic_product_collection:
+      enabled: true
+      query_load_enabled: false
+    hero:
+      enabled: true
+      query_load_enabled: false
+field_config:
+  media:
+    image:
+      field_media_image:
+        enabled: true
+  node:
+    landing_page:
+      field_components:
+        enabled: true
+      field_display_title:
+        enabled: true
+      field_hide_display_title:
+        enabled: true
+  paragraph:
+    dynamic_product_collection:
+      field_description:
+        enabled: true
+      field_heading:
+        enabled: true
+      field_product_category:
+        enabled: true
+    hero:
+      field_actions:
+        enabled: true
+      field_description:
+        enabled: true
+      field_heading:
+        enabled: true
+      field_image:
+        enabled: true
+      field_tagline:
+        enabled: true
+settings:
+  exclude_unpublished: true
+  expose_entity_ids: false
+  field_required_override: false
+  schema_description: 'Next Hydra CMS'
+  schema_version: '1'
+  simple_queries: true
+  simple_unions: true
+  site_front: false
+  site_name: false
+  site_slogan: false
+  inflector_langcode: en
+  inflector_singularize: true

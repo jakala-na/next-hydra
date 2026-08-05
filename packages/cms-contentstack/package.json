@@ -18,7 +18,7 @@
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "test": "vitest run",
     "typecheck": "tsgo --noEmit",
-    "generate": "node --experimental-transform-types scripts/gql-sync.ts"
+    "generate": "node scripts/gql-sync.ts"
   },
   "dependencies": {
     "@contentstack/delivery-sdk": "^4.7.1",

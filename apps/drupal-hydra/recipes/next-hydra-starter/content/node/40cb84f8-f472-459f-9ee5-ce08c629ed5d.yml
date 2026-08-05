@@ -1,0 +1,107 @@
+_meta:
+  version: '1.0'
+  entity_type: node
+  uuid: 40cb84f8-f472-459f-9ee5-ce08c629ed5d
+  bundle: landing_page
+  default_langcode: en
+  depends:
+    dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b: media
+default:
+  revision_uid:
+    -
+      target_id: 1
+  status:
+    -
+      value: true
+  uid:
+    -
+      target_id: 1
+  title:
+    -
+      value: Homepage
+  created:
+    -
+      value: 1754352000
+  promote:
+    -
+      value: false
+  sticky:
+    -
+      value: false
+  revision_translation_affected:
+    -
+      value: true
+  path:
+    -
+      alias: /homepage
+      langcode: en
+  field_display_title:
+    -
+      value: 'Next Hydra'
+  field_hide_display_title:
+    -
+      value: true
+  field_components:
+    -
+      entity:
+        _meta:
+          version: '1.0'
+          entity_type: paragraph
+          uuid: 83be421a-2dc2-44c8-85de-4e735ecb3717
+          bundle: hero
+          default_langcode: en
+        default:
+          status:
+            -
+              value: true
+          created:
+            -
+              value: 1754352000
+          behavior_settings:
+            -
+              value: {  }
+          field_tagline:
+            -
+              value: 'Composable commerce starter'
+          field_heading:
+            -
+              value: 'Build enterprise commerce without rebuilding the foundation'
+          field_description:
+            -
+              value: 'Next Hydra combines a swappable CMS, commerce provider, and production-ready Next.js application behind stable package contracts.'
+          field_image:
+            -
+              entity: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
+          field_actions:
+            -
+              uri: 'internal:/products'
+              title: 'Explore products'
+              options: {  }
+            -
+              uri: 'https://github.com/next-hydra'
+              title: 'View the project'
+              options: {  }
+    -
+      entity:
+        _meta:
+          version: '1.0'
+          entity_type: paragraph
+          uuid: aabf450d-66d3-44aa-a40a-943f9ecfd47d
+          bundle: dynamic_product_collection
+          default_langcode: en
+        default:
+          status:
+            -
+              value: true
+          created:
+            -
+              value: 1754352000
+          behavior_settings:
+            -
+              value: {  }
+          field_heading:
+            -
+              value: 'Featured products'
+          field_description:
+            -
+              value: 'Products supplied by the active Hydra commerce provider.'

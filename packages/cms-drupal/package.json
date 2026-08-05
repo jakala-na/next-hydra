@@ -1,0 +1,47 @@
+{
+  "name": "@repo/cms-drupal",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./client.ts",
+    "./components/live-preview": "./components/live-preview.tsx",
+    "./components/pages/landing-page": "./components/pages/landing-page.tsx",
+    "./graphql": "./graphql.ts",
+    "./keys": "./keys.ts",
+    "./lib/navigation": "./lib/navigation/index.ts",
+    "./next-config": "./next-config.ts",
+    "./proxy": "./proxy.ts",
+    "./routes/disable-draft": "./routes/disable-draft.ts",
+    "./routes/draft": "./routes/draft.ts",
+    "./typescript-config.json": "./typescript-config.json"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "generate": "node --use-system-ca scripts/gql-sync.ts",
+    "test": "vitest run",
+    "typecheck": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@repo/commerce": "workspace:*",
+    "@repo/design-system": "workspace:*",
+    "@repo/i18n": "workspace:*",
+    "@t3-oss/env-nextjs": "catalog:",
+    "@urql/core": "^5.1.2",
+    "effect": "catalog:",
+    "gql.tada": "^1.8.10",
+    "next": "catalog:",
+    "react": "catalog:",
+    "server-only": "catalog:",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@gql.tada/cli-utils": "^1.6.3",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "dotenv": "^17.0.0",
+    "vitest": "^3.1.4"
+  }
+}
