@@ -1,0 +1,56 @@
+name: Hero
+machineName: hero
+status: true
+required:
+  - title
+props:
+  properties:
+    title:
+      title: Title
+      type: string
+      examples:
+        - Build composable experiences without the integration tax
+    tagline:
+      title: Tagline
+      type: string
+      examples:
+        - Next Hydra
+    description:
+      title: Description
+      type: string
+      examples:
+        - Connect content and commerce while keeping every provider replaceable.
+    image:
+      title: Image
+      type: object
+      examples:
+        - src: https://drupal-hydra.ddev.site/sites/default/files/hero.jpg
+          alt: A modular storefront experience
+          width: 1600
+          height: 1200
+      $ref: json-schema-definitions://canvas.module/image
+    primaryCtaLabel:
+      title: Primary CTA label
+      type: string
+      examples:
+        - Get started
+    primaryCtaUrl:
+      title: Primary CTA URL
+      type: string
+      format: uri-reference
+      examples:
+        - /get-started
+    secondaryCtaLabel:
+      title: Secondary CTA label
+      type: string
+      examples:
+        - Learn more
+    secondaryCtaUrl:
+      title: Secondary CTA URL
+      type: string
+      format: uri-reference
+      examples:
+        - /about
+slots:
+  content:
+    title: Content

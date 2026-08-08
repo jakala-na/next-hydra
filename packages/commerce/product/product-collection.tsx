@@ -8,12 +8,12 @@ import { toProductCardPresentation } from "./presentation";
 import { ListProductCardsInput, ProductDiscovery } from "./product-discovery";
 
 interface ProductCollectionProps {
-  readonly title: string;
-  readonly description?: ReactNode;
   readonly categoryId?: CategoryId;
+  readonly description?: ReactNode;
+  readonly excludeProductId?: ProductId;
   readonly limit?: number;
   readonly locale: Locale;
-  readonly excludeProductId?: ProductId;
+  readonly title: string;
 }
 
 export async function ProductCollection({
@@ -42,6 +42,17 @@ export async function ProductCollection({
 
   return (
     <ProductCollectionView
+      architecture={{
+        component: "server",
+        description:
+          "Uses connection() and the buyer-specific Commerce request Layer, so it executes at request time behind Suspense.",
+        layer: "orchestration",
+        layerLabel: "Commerce orchestration",
+        name: "DynamicProductCatalog",
+        rendering: "streamed",
+        source: "commerce",
+        sourceLabel: "Commerce provider",
+      }}
       title={title}
       description={description}
       products={products.map(toProductCardPresentation)}

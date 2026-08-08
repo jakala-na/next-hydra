@@ -1,4 +1,6 @@
 import { ProductCollection as CommerceProductCollection } from "@repo/commerce/product/product-collection";
+import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ProductCatalogSkeleton } from "@repo/design-system/components/commerce/blocks/product-collection";
 import type { Locale } from "@repo/i18n";
 import { Option } from "effect";
 import { Suspense } from "react";
@@ -34,16 +36,43 @@ export function DynamicProductCollection(
   }
 
   return (
-    <Suspense fallback={null}>
-      <CommerceProductCollection
-        title={title}
-        categoryId={categoryId.value}
-        description={
-          description?.json ? renderRichText(description?.json) : undefined
+    <ArchitectureBoundary
+      cacheProfile="inherits CMS route cache"
+      component="server"
+      description="Maps a Contentstack modular block into the stable Commerce catalog contract."
+      layer="block"
+      layerLabel="CMS block adapter"
+      name="ProductCatalogBlock"
+      rendering="cached"
+      source="cms"
+      sourceLabel="Contentstack CMS"
+    >
+      <Suspense
+        fallback={
+          <ArchitectureBoundary
+            component="server"
+            description="The cached CMS shell is visible while buyer-aware Commerce data streams."
+            layer="orchestration"
+            layerLabel="Suspense stream fallback"
+            name="DynamicProductCatalog (pending)"
+            rendering="streamed"
+            source="commerce"
+            sourceLabel="Commerce provider"
+          >
+            <ProductCatalogSkeleton title={title} />
+          </ArchitectureBoundary>
         }
-        locale={locale}
-      />
-    </Suspense>
+      >
+        <CommerceProductCollection
+          title={title}
+          categoryId={categoryId.value}
+          description={
+            description?.json ? renderRichText(description?.json) : undefined
+          }
+          locale={locale}
+        />
+      </Suspense>
+    </ArchitectureBoundary>
   );
 }
 

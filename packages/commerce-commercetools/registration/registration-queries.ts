@@ -71,6 +71,8 @@ const cursorPredicate = (cursor: RegistrationQueryCursor) => {
 const statusPredicate = (status: RegistrationStatusType) =>
   `value(status = "${escapePredicateString(status)}")`;
 
+const compatibleRegistrationPredicate = "value(storeKey is defined)";
+
 const wherePredicate = ({
   cursor,
   status,
@@ -78,7 +80,7 @@ const wherePredicate = ({
   readonly cursor?: RegistrationQueryCursor | undefined;
   readonly status?: RegistrationStatusType | undefined;
 }) => {
-  const predicates: string[] = [];
+  const predicates: string[] = [compatibleRegistrationPredicate];
 
   if (status) {
     predicates.push(statusPredicate(status));

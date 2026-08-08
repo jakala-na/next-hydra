@@ -1,25 +1,41 @@
 "use client";
 
 import { signOutAction } from "@repo/auth-workos/actions";
-import { useAuth } from "@repo/auth-workos/client";
-import { AccountMenu } from "@repo/design-system/components/layout/account-menu";
+import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import {
+  AccountMenu,
+  type AccountMenuUser,
+} from "@repo/design-system/components/layout/account-menu";
 import { useTranslations } from "@repo/i18n";
 
-export function AccountMenuClient() {
-  const { user, loading } = useAuth();
+type AccountMenuClientProps = {
+  readonly user: AccountMenuUser | null;
+};
+
+export function AccountMenuClient({ user }: AccountMenuClientProps) {
   const t = useTranslations("web.header");
 
   return (
-    <AccountMenu
-      labels={{
-        user: t("user"),
-        signIn: t("signIn"),
-        signOut: t("signOut"),
-        signUp: t("signUp"),
-      }}
-      loading={loading}
-      signOutAction={signOutAction}
-      user={user}
-    />
+    <ArchitectureBoundary
+      component="client"
+      description="Hydrates the account menu interactions after the server resolves the WorkOS session."
+      layer="interactive"
+      layerLabel="Interactive account controls"
+      name="AccountMenu"
+      rendering="streamed"
+      source="app"
+      sourceLabel="Next.js application"
+    >
+      <AccountMenu
+        labels={{
+          signIn: t("signIn"),
+          signOut: t("signOut"),
+          signUp: t("signUp"),
+          user: t("user"),
+        }}
+        signOutAction={signOutAction}
+        user={user}
+      />
+    </ArchitectureBoundary>
   );
 }

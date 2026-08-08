@@ -1,3 +1,4 @@
+import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import { ProductDetail as ProductDetailView } from "@repo/design-system/components/commerce/blocks/product-detail";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Option, Schema } from "effect";
@@ -13,8 +14,8 @@ import {
 import { ProductDiscovery } from "./product-discovery";
 
 interface ProductDetailBoundaryProps {
-  readonly slug: string;
   readonly locale: Locale;
+  readonly slug: string;
 }
 
 const loadProductDetail = async ({
@@ -47,13 +48,22 @@ export async function ProductDetailPage(props: ProductDetailBoundaryProps) {
   const productJsonLd = toProductJsonLd(product);
 
   return (
-    <>
+    <ArchitectureBoundary
+      component="server"
+      description="Uses the request Commerce Context to resolve customer-group pricing, Store availability, and eligible variants."
+      layer="orchestration"
+      layerLabel="Personalized Commerce orchestration"
+      name="DynamicProductDetail"
+      rendering="streamed"
+      source="commerce"
+      sourceLabel="Commerce provider"
+    >
       <script
         type="application/ld+json"
         // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires a script body.
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
       />
       <ProductDetailView {...toProductDetailPresentation(product)} />
-    </>
+    </ArchitectureBoundary>
   );
 }

@@ -18,7 +18,10 @@ import { ShoppingCart } from "lucide-react";
 import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { AccountMenuClient } from "@/components/layout/account-menu-client";
+import {
+  AccountMenu,
+  AccountMenuSkeleton,
+} from "@/components/layout/account-menu";
 
 export const instant = false;
 
@@ -57,13 +60,21 @@ export default async function RootLayout({
             <Navigation navigationItems={navigation.navigationItems} />
           }
           RegionSelectorSlot={
-            <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+            <Suspense
+              fallback={
+                <div className="h-8 w-16 animate-pulse rounded bg-accent-foreground/15" />
+              }
+            >
               <RegionSelector />
             </Suspense>
           }
           Search={<SearchAutocomplete />}
           BusinessUnitSwitcher={
-            <Suspense fallback={<div className="skeleton h-8 w-16" />}>
+            <Suspense
+              fallback={
+                <div className="h-8 w-16 animate-pulse rounded bg-accent-foreground/15" />
+              }
+            >
               <BusinessUnitSwitcher locale={locale} />
             </Suspense>
           }
@@ -78,7 +89,11 @@ export default async function RootLayout({
               <CartButtonClient />
             </Suspense>
           }
-          AccountSlot={<AccountMenuClient />}
+          AccountSlot={
+            <Suspense fallback={<AccountMenuSkeleton />}>
+              <AccountMenu />
+            </Suspense>
+          }
         />
         {children}
         <LivePreview isEnabled={isDraftModeEnabled} />

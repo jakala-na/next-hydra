@@ -39,8 +39,12 @@ const itEffect = (
 
 vi.mock("server-only", () => ({}));
 
+interface CustomObjectsGetRequest {
+  readonly queryArgs?: { readonly where?: string };
+}
+
 const execute = vi.fn();
-const get = vi.fn(() => ({ execute }));
+const get = vi.fn((_request?: CustomObjectsGetRequest) => ({ execute }));
 const withContainer = vi.fn(() => ({ get }));
 const customObjects = vi.fn(() => ({ withContainer }));
 const apiRoot = { customObjects } as unknown as ByProjectKeyRequestBuilder;
@@ -144,6 +148,7 @@ describe("registrationQueriesLayer", () => {
           limit: 2,
           offset: 0,
           sort: ["lastModifiedAt desc", "id desc"],
+          where: "value(storeKey is defined)",
           withTotal: false,
         },
       });
@@ -206,7 +211,7 @@ describe("registrationQueriesLayer", () => {
           offset: 0,
           sort: ["lastModifiedAt desc", "id desc"],
           where:
-            '(lastModifiedAt < "2026-01-03T00:00:00.000Z" or (lastModifiedAt = "2026-01-03T00:00:00.000Z" and id < "custom-object-3"))',
+            'value(storeKey is defined) and (lastModifiedAt < "2026-01-03T00:00:00.000Z" or (lastModifiedAt = "2026-01-03T00:00:00.000Z" and id < "custom-object-3"))',
           withTotal: false,
         },
       });
@@ -248,7 +253,8 @@ describe("registrationQueriesLayer", () => {
           limit: 2,
           offset: 0,
           sort: ["lastModifiedAt desc", "id desc"],
-          where: 'value(status = "awaiting_approval")',
+          where:
+            'value(storeKey is defined) and value(status = "awaiting_approval")',
           withTotal: false,
         },
       });
@@ -309,7 +315,7 @@ describe("registrationQueriesLayer", () => {
           offset: 0,
           sort: ["lastModifiedAt desc", "id desc"],
           where:
-            'value(status = "awaiting_approval") and (lastModifiedAt < "2026-01-03T00:00:00.000Z" or (lastModifiedAt = "2026-01-03T00:00:00.000Z" and id < "custom-object-3"))',
+            'value(storeKey is defined) and value(status = "awaiting_approval") and (lastModifiedAt < "2026-01-03T00:00:00.000Z" or (lastModifiedAt = "2026-01-03T00:00:00.000Z" and id < "custom-object-3"))',
           withTotal: false,
         },
       });
@@ -347,6 +353,68 @@ describe("registrationQueriesLayer", () => {
         "registration-1",
       ]);
     }).pipe(Effect.provide(layer))
+  );
+
+  itEffect(
+    "eligibility lookup excludes registrations without a Store Key",
+    () =>
+      Effect.gen(function* () {
+        const legacyRegistration = makeAwaiting("legacy-registration");
+        const encodedLegacyValue =
+          yield* encodeRegistrationStorageValue(legacyRegistration);
+        if (
+          typeof encodedLegacyValue !== "object" ||
+          encodedLegacyValue === null ||
+          Array.isArray(encodedLegacyValue)
+        ) {
+          throw new Error("Expected an encoded Registration object");
+        }
+        const { storeKey: _storeKey, ...legacyValue } =
+          encodedLegacyValue as Record<string, unknown>;
+        const compatibleRegistration = makeAwaiting("compatible-registration");
+        const compatibleCustomObject = yield* customObject(
+          "compatible-custom-object",
+          "2026-01-02T00:00:00.000Z",
+          compatibleRegistration
+        );
+
+        get.mockImplementationOnce((request) => ({
+          execute: vi.fn().mockResolvedValue({
+            body: {
+              results:
+                request?.queryArgs?.where ===
+                'value(storeKey is defined) and value(status = "awaiting_approval")'
+                  ? [compatibleCustomObject]
+                  : [
+                      {
+                        createdAt: legacyRegistration.createdAt.toISOString(),
+                        id: "legacy-custom-object",
+                        lastModifiedAt: "2026-01-03T00:00:00.000Z",
+                        value: legacyValue,
+                      },
+                      compatibleCustomObject,
+                    ],
+            },
+          }),
+        }));
+        const queries = yield* RegistrationQueries;
+
+        const hasPendingEmail = yield* queries.hasPendingEmail(
+          Redacted.make(Email.make("ada@example.com"), { label: "email" })
+        );
+
+        expect(hasPendingEmail).toBe(true);
+        expect(get).toHaveBeenCalledWith({
+          queryArgs: {
+            limit: 101,
+            offset: 0,
+            sort: ["lastModifiedAt desc", "id desc"],
+            where:
+              'value(storeKey is defined) and value(status = "awaiting_approval")',
+            withTotal: false,
+          },
+        });
+      }).pipe(Effect.provide(layer))
   );
 
   itEffect(
@@ -410,7 +478,7 @@ describe("registrationQueriesLayer", () => {
             offset: 0,
             sort: ["lastModifiedAt asc", "id asc"],
             where:
-              '(lastModifiedAt > "2026-01-01T00:00:00.000Z" or (lastModifiedAt = "2026-01-01T00:00:00.000Z" and id > "custom-object-1"))',
+              'value(storeKey is defined) and (lastModifiedAt > "2026-01-01T00:00:00.000Z" or (lastModifiedAt = "2026-01-01T00:00:00.000Z" and id > "custom-object-1"))',
             withTotal: false,
           },
         });
@@ -476,7 +544,7 @@ describe("registrationQueriesLayer", () => {
           offset: 0,
           sort: ["createdAt asc", "id asc"],
           where:
-            '(createdAt > "2026-01-01T00:00:00.000Z" or (createdAt = "2026-01-01T00:00:00.000Z" and id > "custom-object-a"))',
+            'value(storeKey is defined) and (createdAt > "2026-01-01T00:00:00.000Z" or (createdAt = "2026-01-01T00:00:00.000Z" and id > "custom-object-a"))',
           withTotal: false,
         },
       });

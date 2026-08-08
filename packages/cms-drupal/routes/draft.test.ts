@@ -33,7 +33,7 @@ const TEMPORARY_REDIRECT_STATUS = 307;
 const UNAUTHORIZED_STATUS = 401;
 
 function request(query = ""): NextRequest {
-  return new NextRequest(`http://localhost:3001/api/draft${query}`);
+  return new NextRequest(`http://localhost:3001/api/drupal-preview${query}`);
 }
 
 describe("Drupal draft route", () => {

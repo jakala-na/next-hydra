@@ -8,7 +8,9 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "next": "catalog:"
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "dependencies": {
     "@next/bundle-analyzer": "catalog:",

@@ -34,8 +34,21 @@ export function BusinessUnitSwitcher({
     (unit) => unit.id === currentBusinessUnitId
   );
 
-  if (items.length === 0 || (items.length === 1 && currentBusinessUnit)) {
+  if (items.length === 0) {
     return null;
+  }
+
+  if (items.length === 1 && currentBusinessUnit) {
+    return (
+      <div
+        className="flex h-8 max-w-[200px] items-center gap-2 rounded-md border bg-background px-2.5 font-medium text-sm shadow-xs"
+        title={`Operating as ${currentBusinessUnit.label}`}
+      >
+        <Building2 className="h-4 w-4 shrink-0" />
+        <span className="sr-only">Operating as </span>
+        <span className="truncate">{currentBusinessUnit.label}</span>
+      </div>
+    );
   }
 
   return (

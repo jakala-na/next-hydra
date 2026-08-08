@@ -45,12 +45,12 @@ Drupal's View tab. Its configured site and draft URLs default to
 `/admin/config/services/next` in another environment.
 
 GraphQL Compose Preview separately renders unsaved form previews through
-`http://localhost:3001/api/draft`. Set Drupal's
+`http://localhost:3001/api/drupal-preview`. Set Drupal's
 `GRAPHQL_COMPOSE_PREVIEW_URL` environment variable to override that formatter
 URL, for example:
 
 ```dotenv
-GRAPHQL_COMPOSE_PREVIEW_URL="https://frontend.example/api/draft?uuid=[node:preview:uuid]&token=[node:preview:token]"
+GRAPHQL_COMPOSE_PREVIEW_URL="https://frontend.example/api/drupal-preview?uuid=[node:preview:uuid]&token=[node:preview:token]"
 ```
 
 Published Drupal routes and the main menu use Next.js Cache Components. A page

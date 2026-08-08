@@ -6,6 +6,7 @@ export function keys() {
     client: {},
     emptyStringAsUndefined: true,
     runtimeEnv: {
+      CANVAS_SITE_URL: process.env.CANVAS_SITE_URL,
       DRUPAL_AUTH_URI: process.env.DRUPAL_AUTH_URI,
       DRUPAL_BASE_URL: process.env.DRUPAL_BASE_URL,
       DRUPAL_GRAPHQL_URI: process.env.DRUPAL_GRAPHQL_URI,
@@ -16,6 +17,7 @@ export function keys() {
       DRUPAL_VIEWER_CLIENT_SECRET: process.env.DRUPAL_VIEWER_CLIENT_SECRET,
     },
     server: {
+      CANVAS_SITE_URL: z.string().url().optional(),
       DRUPAL_AUTH_URI: z.string().url().optional(),
       DRUPAL_BASE_URL: z.string().url(),
       DRUPAL_GRAPHQL_URI: z.string().url().optional(),

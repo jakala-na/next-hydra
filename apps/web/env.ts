@@ -14,7 +14,11 @@ const MINIMUM_REGISTRATION_APPROVAL_SECRET_LENGTH = 16;
 const MINIMUM_CMS_REVALIDATION_SECRET_LENGTH = 32;
 
 export const env = createEnv({
-  client: {},
+  client: {
+    NEXT_PUBLIC_ARCHITECTURE_OVERLAYS: z
+      .enum(["true", "false"])
+      .default("false"),
+  },
   extends: [
     authWorkos(),
     cms(),
@@ -29,6 +33,8 @@ export const env = createEnv({
   runtimeEnv: {
     CMS_HOMEPAGE_SLUG: process.env.CMS_HOMEPAGE_SLUG,
     CMS_REVALIDATION_SECRET: process.env.CMS_REVALIDATION_SECRET,
+    NEXT_PUBLIC_ARCHITECTURE_OVERLAYS:
+      process.env.NEXT_PUBLIC_ARCHITECTURE_OVERLAYS,
     REGISTRATION_APPROVAL_SECRET: process.env.REGISTRATION_APPROVAL_SECRET,
   },
   server: {

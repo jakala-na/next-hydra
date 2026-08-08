@@ -15,7 +15,7 @@ Next.js for Drupal sends saved View-tab revisions through its short-lived signed
 Draft Mode URL. The connector validates that URL with Drupal and loads the
 requested revision through GraphQL. GraphQL Compose Preview separately sends
 unsaved form previews with their UUID and token; the connector validates that
-pair through the GraphQL `preview` query. Both flows use `/api/draft` before
+pair through the GraphQL `preview` query. Both flows use `/api/drupal-preview` before
 redirecting the iframe to the page's canonical path.
 
 Update the Next Hydra site under `/admin/config/services/next` when the frontend

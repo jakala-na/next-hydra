@@ -82,7 +82,7 @@ short-lived signed URL is validated against Drupal's `/next/draft-url` endpoint,
 then translated to the matching GraphQL `current`, `latest`, or exact revision.
 
 GraphQL Compose Preview handles unsaved form previews. Its iframe opens
-`http://localhost:3001/api/draft` with the preview UUID and token; set
+`http://localhost:3001/api/drupal-preview` with the preview UUID and token; set
 `GRAPHQL_COMPOSE_PREVIEW_URL` in Drupal to override that URL while preserving
 the `[node:preview:uuid]` and `[node:preview:token]` placeholders.
 
@@ -90,6 +90,10 @@ The draft route validates the UUID and token through Drupal's GraphQL `preview`
 query before enabling Next.js Draft Mode. It stores the validated preview in an
 HTTP-only cookie, redirects to the node's canonical path, and loads the exact
 temporary preview entity instead of the latest saved revision.
+
+Drupal Canvas owns `/api/draft`, `/api/draft/renew`, `/api/disable-draft`, and
+`/api/canvas/components`. `CANVAS_SITE_URL` can override the Drupal origin for
+Canvas; when omitted it defaults to `DRUPAL_BASE_URL`.
 
 ## GraphQL schema
 

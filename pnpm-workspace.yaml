@@ -11,16 +11,13 @@ catalog:
   '@types/react-dom': 19.2.3
   effect: 4.0.0-beta.67
   next: 16.3.0
-  react: 19.2.4
-  react-dom: 19.2.4
+  react: 19.2.8
+  react-dom: 19.2.8
   server-only: ^0.0.1
   typescript: 5.9.3
-onlyBuiltDependencies:
-  - '@parcel/watcher'
-  - '@sentry/cli'
-  - '@swc/core'
-  - esbuild
-  - sharp
+overrides:
+  react: 19.2.8
+  react-dom: 19.2.8
 ignoredBuiltDependencies:
   - '@clerk/shared'
   - '@nestjs/core'
@@ -30,3 +27,12 @@ ignoredBuiltDependencies:
   - core-js-pure
   - msgpackr-extract
   - msw
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@sentry/cli'
+  - '@swc/core'
+  - esbuild
+  - sharp
+  - unrs-resolver
+patchedDependencies:
+  '@drupal-canvas/headless-next': patches/@drupal-canvas__headless-next.patch

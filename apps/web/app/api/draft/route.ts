@@ -1,1 +1,1 @@
-export { GET } from "@repo/cms/routes/draft";
+export { enableCanvasDraft as GET } from "@repo/cms/routes/canvas";

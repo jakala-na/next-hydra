@@ -13,17 +13,22 @@
     "./lib/navigation": "./lib/navigation/index.ts",
     "./next-config": "./next-config.ts",
     "./proxy": "./proxy.ts",
+    "./routes/canvas": "./routes/canvas.ts",
     "./routes/disable-draft": "./routes/disable-draft.ts",
     "./routes/draft": "./routes/draft.ts",
     "./typescript-config.json": "./typescript-config.json"
   },
   "scripts": {
+    "canvas:push": "canvas push --no-pages --no-content-templates --no-regions",
+    "canvas:validate": "canvas validate",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "generate": "node --use-system-ca scripts/gql-sync.ts",
     "test": "vitest run",
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
+    "@drupal-canvas/headless": "^0.3.0",
+    "@drupal-canvas/headless-next": "^0.1.1",
     "@repo/commerce": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
@@ -33,10 +38,12 @@
     "gql.tada": "^1.8.10",
     "next": "catalog:",
     "react": "catalog:",
+    "react-dom": "catalog:",
     "server-only": "catalog:",
     "zod": "^3.25.28"
   },
   "devDependencies": {
+    "@drupal-canvas/cli": "^0.22.0",
     "@gql.tada/cli-utils": "^1.6.3",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",

@@ -1,9 +1,13 @@
+import { fetchPage, isPageRedirect } from "@drupal-canvas/headless-next";
+import { CanvasComponentTree } from "@drupal-canvas/headless-next/CanvasComponentTree";
+import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import type { Locale } from "@repo/i18n";
 import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
+import type { Route } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { draftMode } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { graphqlClient } from "../client";
 import { graphql } from "../graphql";
 import type {
@@ -51,6 +55,8 @@ const pagePreviewQuery = graphql(
 );
 
 const LEADING_SLASHES = /^\/+/;
+const MOVED_PERMANENTLY_STATUS = 301;
+const PERMANENT_REDIRECT_STATUS = 308;
 
 export function normalizeDrupalPath(path: string): string {
   if (path === "/") {
@@ -134,6 +140,37 @@ export async function Page(props: { url: string; locale: Locale }) {
   const { isEnabled: preview } = await draftMode();
   const previewContext = preview ? await getDrupalPreviewContext() : undefined;
   const normalizedPath = normalizeDrupalPath(url);
+  const canvasPage = await fetchPage(normalizedPath);
+
+  if (canvasPage && isPageRedirect(canvasPage)) {
+    const destination = canvasPage.redirect.url as Route;
+    if (
+      canvasPage.redirect.statusCode === MOVED_PERMANENTLY_STATUS ||
+      canvasPage.redirect.statusCode === PERMANENT_REDIRECT_STATUS
+    ) {
+      permanentRedirect(destination);
+    }
+    redirect(destination);
+  }
+
+  if (canvasPage?.route.managedByCanvas) {
+    return (
+      <ArchitectureBoundary
+        cacheProfile={preview ? "Canvas draft session" : undefined}
+        component="client"
+        description="Drupal Canvas resolves and renders the stored component tree through the generated registry."
+        layer="route"
+        layerLabel="Canvas component tree"
+        name="DrupalCanvasPageRoute"
+        rendering={preview ? "dynamic" : "static"}
+        source="cms"
+        sourceLabel="Drupal Canvas"
+      >
+        <CanvasComponentTree tree={canvasPage.content} />
+      </ArchitectureBoundary>
+    );
+  }
+
   const entity = preview
     ? await getPageForContext(normalizedPath, previewContext)
     : await getCachedRouteEntity(normalizedPath);
@@ -142,5 +179,20 @@ export async function Page(props: { url: string; locale: Locale }) {
     notFound();
   }
 
-  return <PageRenderer data={entity} locale={locale} />;
+  return (
+    <ArchitectureBoundary
+      cacheProfile={preview ? "preview cache bypass" : "hours"}
+      cacheTags={preview ? [] : PageRenderer.getCacheTags(entity)}
+      component="server"
+      description="One route(path:) query resolves the Drupal entity and selects its page template by __typename."
+      layer="route"
+      layerLabel="CMS route and page registry"
+      name="DrupalPageRoute"
+      rendering={preview ? "dynamic" : "cached"}
+      source="cms"
+      sourceLabel="Drupal CMS"
+    >
+      <PageRenderer data={entity} locale={locale} />
+    </ArchitectureBoundary>
+  );
 }

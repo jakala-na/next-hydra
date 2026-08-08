@@ -24,7 +24,7 @@ import type { RegistrationMarketPolicy } from "@repo/registration/services/regis
 import { RegistrationQueries } from "@repo/registration/services/registration-queries";
 import { Registrations } from "@repo/registration/services/registrations";
 import type { VatValidator } from "@repo/registration/services/vat-validator";
-import { Effect, Layer } from "effect";
+import { Cause, Effect, Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/unstable/http";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 import type { RegistrationWorkflowDecision } from "../registration-workflow-contract";
@@ -132,6 +132,16 @@ const makeRegistrationHttpHandlers = ({
               storeKey: registration.storeKey,
             });
           }).pipe(
+            Effect.tapCause((cause) =>
+              cause.reasons.some(
+                (reason) =>
+                  Cause.isDieReason(reason) ||
+                  (Cause.isFailReason(reason) &&
+                    reason.error._tag === "RegistrationPersistenceFailure")
+              )
+                ? Effect.logError("Failed to create registration", cause)
+                : Effect.void
+            ),
             Effect.annotateLogs({
               operation: "registration.api.create",
               service: "registration-api",
@@ -140,6 +150,7 @@ const makeRegistrationHttpHandlers = ({
               "registration.operation": "create",
             }),
             Effect.withSpan("registration.api.create"),
+            Effect.withLogSpan("registration.api.create"),
             Effect.mapError(toRegistrationHttpError)
           )
         )

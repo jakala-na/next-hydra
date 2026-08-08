@@ -61,6 +61,7 @@ const CommercetoolsErrorInfo = Schema.Struct({
           Schema.Struct({
             code: Schema.optional(Schema.String),
             message: Schema.optional(Schema.String),
+            detailedErrorMessage: Schema.optional(Schema.String),
           })
         )
       ),
@@ -78,16 +79,14 @@ const isNotFoundError = (error: unknown) =>
   );
 
 const formatCause = (cause: unknown) => {
-  if (cause instanceof Error) {
-    return cause.message;
-  }
-
   const decoded = Schema.decodeUnknownOption(CommercetoolsErrorInfo)(cause);
   if (decoded._tag === "Some") {
     const error = decoded.value;
     const errors =
       error.body?.errors?.map((detail) =>
-        [detail.code, detail.message].filter(Boolean).join(": ")
+        [detail.code, detail.message, detail.detailedErrorMessage]
+          .filter(Boolean)
+          .join(": ")
       ) ?? [];
     const parts = [
       error.statusCode ? `status ${String(error.statusCode)}` : undefined,
@@ -100,6 +99,10 @@ const formatCause = (cause: unknown) => {
     if (parts.length > 0) {
       return parts.join("; ");
     }
+  }
+
+  if (cause instanceof Error) {
+    return cause.message;
   }
 
   try {
@@ -121,7 +124,13 @@ const customerKey = (registration: CommerceAccountRegistrationInput) =>
 const businessUnitKey = (registration: CommerceAccountRegistrationInput) =>
   `registration-business-unit-${registration.id}`;
 
-const associateRoleKey = (role: CommerceCompanyRole) => role;
+const COMMERCETOOLS_ASSOCIATE_ROLE_KEYS = {
+  associate: ["buyer"],
+  owner: ["admin", "buyer"],
+} as const satisfies Record<CommerceCompanyRole, readonly string[]>;
+
+const associateRoleKeys = (role: CommerceCompanyRole) =>
+  COMMERCETOOLS_ASSOCIATE_ROLE_KEYS[role];
 
 const customerKeyFromAcceptedIdentity = (identity: AcceptedCommerceIdentity) =>
   `auth-customer-${authUserId(identity)}`;
@@ -436,6 +445,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
       shippingAddresses: [0],
       defaultBillingAddress: 0,
       defaultShippingAddress: 0,
+      storeMode: "Explicit",
       stores: [registrationStore(registration)],
     };
   };
@@ -649,29 +659,31 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     role: CommerceCompanyRole
   ): AssociateDraft => ({
     customer: { typeId: "customer", id: customer.id },
-    associateRoleAssignments: [
-      {
-        associateRole: {
-          typeId: "associate-role",
-          key: associateRoleKey(role),
-        },
-        inheritance: "Enabled",
+    associateRoleAssignments: associateRoleKeys(role).map((key) => ({
+      associateRole: {
+        typeId: "associate-role",
+        key,
       },
-    ],
+      inheritance: "Enabled",
+    })),
   });
 
-  const hasAssociateRole = (
+  const hasAssociateRoles = (
     businessUnit: BusinessUnit,
     customer: Customer,
     role: CommerceCompanyRole
   ) => {
-    const roleKey = associateRoleKey(role);
-    return businessUnit.associates?.some(
-      (associate) =>
-        associate.customer.id === customer.id &&
-        associate.associateRoleAssignments.some(
-          (assignment) => assignment.associateRole.key === roleKey
-        )
+    const associate = businessUnit.associates?.find(
+      (candidate) => candidate.customer.id === customer.id
+    );
+    if (!associate) {
+      return false;
+    }
+
+    return associateRoleKeys(role).every((roleKey) =>
+      associate.associateRoleAssignments.some(
+        (assignment) => assignment.associateRole.key === roleKey
+      )
     );
   };
 
@@ -682,7 +694,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
   }) => {
     const attempt = (current: typeof input) => {
       if (
-        hasAssociateRole(current.businessUnit, current.customer, current.role)
+        hasAssociateRoles(current.businessUnit, current.customer, current.role)
       ) {
         return Effect.succeed(current.businessUnit);
       }

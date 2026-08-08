@@ -1,0 +1,13 @@
+name: Text
+machineName: text
+status: true
+required:
+  - text
+props:
+  properties:
+    text:
+      title: Text
+      type: string
+      examples:
+        - Connect content and commerce while keeping every provider replaceable.
+slots: []

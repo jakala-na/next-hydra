@@ -228,9 +228,82 @@ describe("layerCommercetoolsCommerceAccounts", () => {
                 key: "address-book-cmVnaXN0cmF0aW9uLXJlZ2lzdHJhdGlvbi0x",
               }),
             ],
+            storeMode: "Explicit",
             stores: [{ typeId: "store", key: "de-fr-uk" }],
           }),
         });
+      }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect(
+    "preserves structured Commercetools details from SDK Error instances",
+    () =>
+      Effect.gen(function* () {
+        mocks.customerWithKeyGetExecute.mockRejectedValueOnce({
+          statusCode: 404,
+        });
+        mocks.customerCreateExecute.mockResolvedValueOnce({
+          body: {
+            customer: {
+              id: "customer-1",
+            },
+          },
+        });
+        mocks.businessUnitWithKeyGetExecute.mockRejectedValueOnce({
+          statusCode: 404,
+        });
+        mocks.businessUnitCreateExecute.mockRejectedValueOnce(
+          Object.assign(
+            new Error("Request body does not contain valid JSON."),
+            {
+              statusCode: 400,
+              code: "BadRequest",
+              body: {
+                message: "Request body does not contain valid JSON.",
+                errors: [
+                  {
+                    code: "InvalidJsonInput",
+                    message: "Request body does not contain valid JSON.",
+                    detailedErrorMessage:
+                      "The 'stores' field does not conform to the expected shape.",
+                  },
+                ],
+              },
+            }
+          )
+        );
+
+        const commerceAccounts = yield* CommerceAccounts;
+        const error = yield* commerceAccounts
+          .createFromRegistration({
+            _tag: "AwaitingApprovalRegistration",
+            id: "registration-1",
+            storeKey: StoreKey.make("de-fr-uk"),
+            details: {
+              companyName: "Hydra Supply",
+              contactFirstName: Redacted.make("Ada", { label: "personName" }),
+              contactLastName: Redacted.make("Lovelace", {
+                label: "personName",
+              }),
+              email: Redacted.make("ada@example.com", { label: "email" }),
+              address: {
+                streetName: Redacted.make("Main Street", {
+                  label: "addressLine",
+                }),
+                postalCode: Redacted.make("10001", { label: "postalCode" }),
+                city: Redacted.make("New York", { label: "city" }),
+                country: "US",
+              },
+            },
+          })
+          .pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(CommerceAccountError);
+        expect(error.message).toContain("status 400");
+        expect(error.message).toContain("InvalidJsonInput");
+        expect(error.message).toContain(
+          "The 'stores' field does not conform to the expected shape."
+        );
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
@@ -464,7 +537,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
-  it.effect("sets the WorkOS user id as the customer external id", () =>
+  it.effect("maps the owner role to Commercetools admin and buyer roles", () =>
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
         body: {
@@ -530,7 +603,14 @@ describe("layerCommercetoolsCommerceAccounts", () => {
                   {
                     associateRole: {
                       typeId: "associate-role",
-                      key: "owner",
+                      key: "admin",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      typeId: "associate-role",
+                      key: "buyer",
                     },
                     inheritance: "Enabled",
                   },
@@ -589,7 +669,14 @@ describe("layerCommercetoolsCommerceAccounts", () => {
                   {
                     associateRole: {
                       typeId: "associate-role",
-                      key: "owner",
+                      key: "admin",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      typeId: "associate-role",
+                      key: "buyer",
                     },
                     inheritance: "Enabled",
                   },
@@ -642,7 +729,14 @@ describe("layerCommercetoolsCommerceAccounts", () => {
                   {
                     associateRole: {
                       typeId: "associate-role",
-                      key: "owner",
+                      key: "admin",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      typeId: "associate-role",
+                      key: "buyer",
                     },
                     inheritance: "Enabled",
                   },
@@ -674,6 +768,85 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
+  it.effect("adds the buyer role to an existing admin owner", () =>
+    Effect.gen(function* () {
+      mocks.customerGetExecute.mockResolvedValueOnce({
+        body: {
+          id: "customer-1",
+          version: 8,
+          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+          email: "ada@example.com",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+      });
+      mocks.businessUnitGetExecute.mockResolvedValueOnce({
+        body: {
+          id: "business-unit-1",
+          version: 3,
+          status: "Active",
+          associates: [
+            {
+              customer: { typeId: "customer", id: "customer-1" },
+              associateRoleAssignments: [
+                {
+                  associateRole: {
+                    typeId: "associate-role",
+                    key: "admin",
+                  },
+                  inheritance: "Enabled",
+                },
+              ],
+            },
+          ],
+        },
+      });
+      mocks.businessUnitPostExecute.mockResolvedValueOnce({
+        body: {
+          id: "business-unit-1",
+          version: 4,
+          status: "Active",
+        },
+      });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      yield* commerceAccounts.linkRegistrantIdentity({
+        registration,
+        acceptedIdentity,
+      });
+
+      expect(mocks.businessUnitPost).toHaveBeenCalledWith({
+        body: {
+          version: 3,
+          actions: [
+            {
+              action: "changeAssociate",
+              associate: {
+                customer: { typeId: "customer", id: "customer-1" },
+                associateRoleAssignments: [
+                  {
+                    associateRole: {
+                      typeId: "associate-role",
+                      key: "admin",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      typeId: "associate-role",
+                      key: "buyer",
+                    },
+                    inheritance: "Enabled",
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      });
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
   it.effect(
     "does not update the business unit when the owner associate already exists",
     () =>
@@ -700,7 +873,14 @@ describe("layerCommercetoolsCommerceAccounts", () => {
                   {
                     associateRole: {
                       typeId: "associate-role",
-                      key: "owner",
+                      key: "admin",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      typeId: "associate-role",
+                      key: "buyer",
                     },
                     inheritance: "Enabled",
                   },
@@ -750,7 +930,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
             errors: [
               {
                 code: "ReferencedResourceNotFound",
-                message: "Referenced resource with key owner was not found.",
+                message: "Referenced resource with key admin was not found.",
               },
             ],
           },

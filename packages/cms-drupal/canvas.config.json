@@ -1,0 +1,10 @@
+{
+  "componentDir": "canvas-components",
+  "aliasBaseDir": "../..",
+  "globalCssPath": "../design-system/styles/globals.css",
+  "sync": {
+    "pages": false,
+    "contentTemplates": false,
+    "regions": false
+  }
+}

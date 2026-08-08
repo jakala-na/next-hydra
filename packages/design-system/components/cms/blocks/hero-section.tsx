@@ -1,4 +1,4 @@
-import type { LivePreviewProps } from "@repo/design-system/lib/types";
+import type { LivePreviewProps } from "../../../lib/types";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
@@ -71,22 +71,28 @@ export function HeroSection({
                 {ctaLinks.map((cta, index) => {
                   if (index === 0) {
                     return (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: index is ok for server rendered components
-                      <Button size="lg" className="text-base" key={index}>
-                        {cta.label}
-                        <ArrowRight className="ml-2 h-5 w-5" />
+                      <Button
+                        asChild
+                        size="lg"
+                        className="text-base"
+                        key={`${cta.label}:${cta.url}`}
+                      >
+                        <a href={cta.url}>
+                          {cta.label}
+                          <ArrowRight className="ml-2 h-5 w-5" />
+                        </a>
                       </Button>
                     );
                   }
                   return (
                     <Button
+                      asChild
                       size="lg"
                       variant="outline"
                       className="bg-transparent text-base"
-                      // biome-ignore lint/suspicious/noArrayIndexKey: index is ok for server rendered components
-                      key={index}
+                      key={`${cta.label}:${cta.url}`}
                     >
-                      {cta.label}
+                      <a href={cta.url}>{cta.label}</a>
                     </Button>
                   );
                 })}

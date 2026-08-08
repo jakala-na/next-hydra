@@ -1,3 +1,4 @@
+import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
 import { hasLocale, setRequestLocale } from "@repo/i18n";
@@ -102,18 +103,28 @@ export async function LandingPage(props: { url: string; locale: Locale }) {
   const livePreviewHelper = entryLivePreview(pageData, !!livePreviewHash);
 
   return (
-    <>
-      {pageData.display_title && (
+    <ArchitectureBoundary
+      cacheProfile="default use cache"
+      component="server"
+      description="A cached Contentstack query resolves the landing page and modular block registry."
+      layer="route"
+      layerLabel="CMS route and page registry"
+      name="ContentstackPageRoute"
+      rendering="cached"
+      source="cms"
+      sourceLabel="Contentstack CMS"
+    >
+      {pageData.display_title ? (
         <h1 className={cn(pageData.hide_display_title && "hidden")}>
           {pageData.display_title}
         </h1>
-      )}
+      ) : null}
       <ComponentRenderer
         data={pageData.components}
         livePreviewHelper={livePreviewHelper?.getNestedHelper("components")}
         dataType="modularBlocks"
         locale={locale}
       />
-    </>
+    </ArchitectureBoundary>
   );
 }

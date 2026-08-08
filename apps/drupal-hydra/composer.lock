@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4803c41b88a224ffc856b100e1473d6b",
+    "content-hash": "a87c7a01d712b62773414269d1a3c6fc",
     "packages": [
         {
             "name": "asm89/stack-cors",
@@ -1117,6 +1117,275 @@
             "time": "2024-02-05T11:56:58+00:00"
         },
         {
+            "name": "drunomics/service-utils",
+            "version": "11.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/drunomics/service-utils.git",
+                "reference": "4f9c6bf049e82e6c30dc09e17df3918ec7e58bc8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/drunomics/service-utils/zipball/4f9c6bf049e82e6c30dc09e17df3918ec7e58bc8",
+                "reference": "4f9c6bf049e82e6c30dc09e17df3918ec7e58bc8",
+                "shasum": ""
+            },
+            "require-dev": {
+                "drupal/coder": "^8.3",
+                "drupal/core": "^11",
+                "drupal/pathauto": "^1.11",
+                "phpspec/prophecy-phpunit": "^2.0",
+                "phpunit/phpunit": "^10.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "drunomics\\ServiceUtils\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-2.0+"
+            ],
+            "authors": [
+                {
+                    "name": "drunomics GmbH",
+                    "email": "hello@drunomics.com"
+                }
+            ],
+            "description": "Provides setter injection traits in order to ease dependency injection of services.",
+            "homepage": "https://github.com/drunomics/service-utils",
+            "keywords": [
+                "dependency-injection",
+                "drupal"
+            ],
+            "support": {
+                "issues": "https://github.com/drunomics/service-utils/issues",
+                "source": "https://github.com/drunomics/service-utils/tree/11.0.0"
+            },
+            "time": "2025-10-28T14:01:51+00:00"
+        },
+        {
+            "name": "drupal/canvas",
+            "version": "1.10.0",
+            "source": {
+                "type": "git",
+                "url": "https://git.drupalcode.org/project/canvas.git",
+                "reference": "1.10.0"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://ftp.drupal.org/files/projects/canvas-1.10.0.zip",
+                "reference": "1.10.0",
+                "shasum": "9c8333da0a74d61e7025b6b7c09d111075451a3b"
+            },
+            "require": {
+                "drupal/core": "^11.3",
+                "justinrainbow/json-schema": "^6.8.0"
+            },
+            "require-dev": {
+                "devizzent/cebe-php-openapi": "^1.1.4",
+                "drupal/ai": "^1.2.1",
+                "drupal/ai_agents": "^1.2",
+                "drupal/ai_agents_test": "^1.0@alpha",
+                "drupal/canvas_ai": "*",
+                "drupal/coder": "^8",
+                "drupal/consumers": "*",
+                "drupal/custom_elements": "^3.4",
+                "drupal/jsonapi_menu_items": "^1.2.8",
+                "drupal/metatag": "^2.1",
+                "drupal/pathauto": "^1.13",
+                "drupal/search_api": "^1",
+                "drupal/simple_oauth": "^6.1.0",
+                "drupal/tmgmt": "^1.18",
+                "drush/drush": "^13",
+                "jangregor/phpstan-prophecy": "2.3.0",
+                "league/openapi-psr7-validator": "^0.22.0",
+                "mglaman/phpstan-drupal": "2.0.15",
+                "phpat/phpat": "0.12.4",
+                "phpstan/phpstan": "2.2.3",
+                "phpstan/phpstan-strict-rules": "2.0.11",
+                "shipmonk/dead-code-detector": "1.2.0"
+            },
+            "type": "drupal-module",
+            "extra": {
+                "drupal": {
+                    "version": "1.10.0",
+                    "datestamp": "1786114019",
+                    "security-coverage": {
+                        "status": "covered",
+                        "message": "Covered by Drupal's security advisory policy"
+                    }
+                }
+            },
+            "notification-url": "https://packages.drupal.org/8/downloads",
+            "scripts": {
+                "composer-root": [
+                    "d=.; i=0; while [ $i -lt 10 ]; do if [ -f \"$d/composer.json\" ] && cat \"$d/composer.json\" | grep -q '\"type\"' && cat \"$d/composer.json\" | grep -q '\"project\"'; then readlink -f \"$d\"; break; fi; d=\"../$d\"; i=$((i+1)); done"
+                ],
+                "install-dev-deps": [
+                    "PACKAGES=$(cat composer.json | jq -r '.[\"require-dev\"] // {} | to_entries[] | \"\\(.key):\\(.value)\"' | tr '\\n' ' ') && ROOT=$(composer run composer-root) && CORE_VERSION=$(grep \"const VERSION\" \"${ROOT}/core/lib/Drupal.php\" 2>/dev/null | sed \"s/.*'\\(.*\\)'.*/\\1/\" || echo \"0.0.0\") && COMPOSER_ROOT_VERSION=${CORE_VERSION:-0.0.0} composer --working-dir=${ROOT} require ${PACKAGES} --dev -W"
+                ],
+                "phpcs": [
+                    "mkdir -p test-results && mkdir -p .cache/phpcs && composer --working-dir=$(composer run composer-root) exec phpcs -- --standard=$(pwd)/phpcs.xml --report-width=auto --colors -s --report-junit=$(pwd)/test-results/phpcs.xml --report-full --report-summary $(pwd)"
+                ],
+                "phpcbf": [
+                    " mkdir -p .cache/phpc && composer --working-dir=$(composer run composer-root) exec phpcbf -- --standard=$(pwd)/phpcs.xml --colors $(pwd)"
+                ],
+                "phpstan": [
+                    "composer --working-dir=$(composer run composer-root) exec phpstan -- --configuration=$(pwd)/phpstan.neon --autoload-file=$(pwd)/phpstan_rules/autoload.php analyze $(pwd)"
+                ],
+                "phpstan-regenerate-ignores-for-non-min-core-version-features": [
+                    "rm $(pwd)/phpstan-ignores-non-min-core-version.neon && touch $(pwd)/phpstan-ignores-non-min-core-version.neon && composer --working-dir=$(composer run composer-root) exec phpstan -- --configuration=$(pwd)/phpstan.neon --autoload-file=$(pwd)/phpstan_rules/autoload.php --generate-baseline=$(pwd)/phpstan-ignores-non-min-core-version.neon --allow-empty-baseline analyze $(pwd)"
+                ],
+                "phpunit": [
+                    "./tests/scripts/phpunit.sh"
+                ],
+                "lint:phpcs": [
+                    "@phpcs"
+                ],
+                "lint:phpstan": [
+                    "@phpstan"
+                ],
+                "lint": [
+                    "@lint:phpstan",
+                    "@lint:phpcs"
+                ],
+                "fix:phpcbf": [
+                    "@phpcbf"
+                ],
+                "fix": [
+                    "@fix:phpcbf"
+                ]
+            },
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "akhil babu",
+                    "homepage": "https://www.drupal.org/user/3632866"
+                },
+                {
+                    "name": "amangrover90",
+                    "homepage": "https://www.drupal.org/user/3602433"
+                },
+                {
+                    "name": "attilatilman",
+                    "homepage": "https://www.drupal.org/user/3528404"
+                },
+                {
+                    "name": "balintbrews",
+                    "homepage": "https://www.drupal.org/user/613760"
+                },
+                {
+                    "name": "bnjmnm",
+                    "homepage": "https://www.drupal.org/user/2369194"
+                },
+                {
+                    "name": "chandu7929",
+                    "homepage": "https://www.drupal.org/user/2907229"
+                },
+                {
+                    "name": "effulgentsia",
+                    "homepage": "https://www.drupal.org/user/78040"
+                },
+                {
+                    "name": "f.mazeikis",
+                    "homepage": "https://www.drupal.org/user/3513671"
+                },
+                {
+                    "name": "hooroomoo",
+                    "homepage": "https://www.drupal.org/user/3688872"
+                },
+                {
+                    "name": "isholgueras",
+                    "homepage": "https://www.drupal.org/user/733162"
+                },
+                {
+                    "name": "jessebaker",
+                    "homepage": "https://www.drupal.org/user/3546546"
+                },
+                {
+                    "name": "jptaranto",
+                    "homepage": "https://www.drupal.org/user/135234"
+                },
+                {
+                    "name": "justafish",
+                    "homepage": "https://www.drupal.org/user/161058"
+                },
+                {
+                    "name": "kunal.sachdev",
+                    "homepage": "https://www.drupal.org/user/3685163"
+                },
+                {
+                    "name": "larowlan",
+                    "homepage": "https://www.drupal.org/user/395439"
+                },
+                {
+                    "name": "lauriii",
+                    "homepage": "https://www.drupal.org/user/1078742"
+                },
+                {
+                    "name": "longwave",
+                    "homepage": "https://www.drupal.org/user/246492"
+                },
+                {
+                    "name": "marcus_johansson",
+                    "homepage": "https://www.drupal.org/user/385947"
+                },
+                {
+                    "name": "mglaman",
+                    "homepage": "https://www.drupal.org/user/2416470"
+                },
+                {
+                    "name": "narendrar",
+                    "homepage": "https://www.drupal.org/user/1730192"
+                },
+                {
+                    "name": "penyaskito",
+                    "homepage": "https://www.drupal.org/user/959536"
+                },
+                {
+                    "name": "phenaproxima",
+                    "homepage": "https://www.drupal.org/user/205645"
+                },
+                {
+                    "name": "ravi.maniyar.123",
+                    "homepage": "https://www.drupal.org/user/3867193"
+                },
+                {
+                    "name": "tedbow",
+                    "homepage": "https://www.drupal.org/user/240860"
+                },
+                {
+                    "name": "thoward216",
+                    "homepage": "https://www.drupal.org/user/3576535"
+                },
+                {
+                    "name": "tim.plunkett",
+                    "homepage": "https://www.drupal.org/user/241634"
+                },
+                {
+                    "name": "utkarsh_33",
+                    "homepage": "https://www.drupal.org/user/3727088"
+                },
+                {
+                    "name": "wim leers",
+                    "homepage": "https://www.drupal.org/user/99777"
+                },
+                {
+                    "name": "wotnak",
+                    "homepage": "https://www.drupal.org/user/3558113"
+                }
+            ],
+            "description": "Canvas",
+            "homepage": "https://www.drupal.org/project/canvas",
+            "support": {
+                "source": "https://git.drupalcode.org/project/canvas"
+            }
+        },
+        {
             "name": "drupal/consumers",
             "version": "1.24.0",
             "source": {
@@ -1667,6 +1936,72 @@
             "support": {
                 "source": "https://git.drupalcode.org/project/ctools",
                 "issues": "https://www.drupal.org/project/issues/ctools"
+            }
+        },
+        {
+            "name": "drupal/custom_elements",
+            "version": "3.4.1",
+            "source": {
+                "type": "git",
+                "url": "https://git.drupalcode.org/project/custom_elements.git",
+                "reference": "3.4.1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://ftp.drupal.org/files/projects/custom_elements-3.4.1.zip",
+                "reference": "3.4.1",
+                "shasum": "c462a5045f54e484a90f3eae9d5edfae2c348d83"
+            },
+            "require": {
+                "drunomics/service-utils": "*",
+                "drupal/core": "^10 || ^11"
+            },
+            "require-dev": {
+                "drupal/canvas": "1.x-dev",
+                "drupal/canvas_extjs": "1.x-dev",
+                "drupal/crop": "^2.4",
+                "drupal/entity_reference_revisions": "^1.12",
+                "drupal/lupus_ce_renderer": "^2.5.0",
+                "drupal/paragraphs": "^1.18",
+                "drupal/tablefield": "^3.0"
+            },
+            "type": "drupal-module",
+            "extra": {
+                "drupal": {
+                    "version": "3.4.1",
+                    "datestamp": "1777495514",
+                    "security-coverage": {
+                        "status": "covered",
+                        "message": "Covered by Drupal's security advisory policy"
+                    }
+                },
+                "branch-alias": {
+                    "dev-8.x-1.x": "1.0.x-dev"
+                }
+            },
+            "notification-url": "https://packages.drupal.org/8/downloads",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "drunomics GmbH",
+                    "homepage": "https://www.drupal.org/user/16747",
+                    "email": "hello@drunomics.com"
+                },
+                {
+                    "name": "roderik",
+                    "homepage": "https://www.drupal.org/user/8841"
+                },
+                {
+                    "name": "useernamee",
+                    "homepage": "https://www.drupal.org/user/3542704"
+                }
+            ],
+            "description": "Render fields as custom elements.",
+            "homepage": "https://www.drupal.org/project/custom_elements",
+            "support": {
+                "source": "https://git.drupalcode.org/project/custom_elements"
             }
         },
         {
