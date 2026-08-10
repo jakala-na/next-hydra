@@ -85,6 +85,140 @@ default:
               uri: 'https://github.com/next-hydra'
               title: 'View the project'
               options: {  }
+        translations:
+          en-gb:
+            field_tagline:
+              -
+                value: 'Composable commerce starter'
+            field_heading:
+              -
+                value: 'Build enterprise commerce without rebuilding the foundation'
+            field_description:
+              -
+                value: 'Next Hydra combines a swappable CMS, commerce provider, and production-ready Next.js application behind stable package contracts.'
+            field_actions:
+              -
+                uri: 'internal:/products'
+                title: 'Explore products'
+                options: {  }
+              -
+                uri: 'https://github.com/next-hydra'
+                title: 'View the project'
+                options: {  }
+          es:
+            field_tagline:
+              -
+                value: 'Kit de inicio de comercio componible'
+            field_heading:
+              -
+                value: 'Crea comercio empresarial sin reconstruir los cimientos'
+            field_description:
+              -
+                value: 'Next Hydra combina un CMS intercambiable, un proveedor de comercio y una aplicación Next.js lista para producción mediante contratos de paquete estables.'
+            field_actions:
+              -
+                uri: 'internal:/products'
+                title: 'Explorar productos'
+                options: {  }
+              -
+                uri: 'https://github.com/next-hydra'
+                title: 'Ver el proyecto'
+                options: {  }
+          fr:
+            field_tagline:
+              -
+                value: 'Kit de démarrage pour le commerce composable'
+            field_heading:
+              -
+                value: 'Créez une plateforme de commerce d’entreprise sans reconstruire les fondations'
+            field_description:
+              -
+                value: 'Next Hydra réunit un CMS interchangeable, un fournisseur de commerce et une application Next.js prête pour la production derrière des contrats de paquet stables.'
+            field_actions:
+              -
+                uri: 'internal:/products'
+                title: 'Découvrir les produits'
+                options: {  }
+              -
+                uri: 'https://github.com/next-hydra'
+                title: 'Voir le projet'
+                options: {  }
+          de:
+            field_tagline:
+              -
+                value: 'Starter für Composable Commerce'
+            field_heading:
+              -
+                value: 'Unternehmens-Commerce aufbauen, ohne das Fundament neu zu entwickeln'
+            field_description:
+              -
+                value: 'Next Hydra kombiniert ein austauschbares CMS, einen Commerce-Anbieter und eine produktionsbereite Next.js-Anwendung hinter stabilen Paketverträgen.'
+            field_actions:
+              -
+                uri: 'internal:/products'
+                title: 'Produkte entdecken'
+                options: {  }
+              -
+                uri: 'https://github.com/next-hydra'
+                title: 'Projekt ansehen'
+                options: {  }
+          it:
+            field_tagline:
+              -
+                value: 'Starter per il commercio componibile'
+            field_heading:
+              -
+                value: 'Crea commercio enterprise senza ricostruire le fondamenta'
+            field_description:
+              -
+                value: 'Next Hydra combina un CMS intercambiabile, un provider di commercio e un’applicazione Next.js pronta per la produzione dietro contratti di pacchetto stabili.'
+            field_actions:
+              -
+                uri: 'internal:/products'
+                title: 'Esplora i prodotti'
+                options: {  }
+              -
+                uri: 'https://github.com/next-hydra'
+                title: 'Vedi il progetto'
+                options: {  }
+          pt-pt:
+            field_tagline:
+              -
+                value: 'Base de comércio componível'
+            field_heading:
+              -
+                value: 'Crie comércio empresarial sem reconstruir os alicerces'
+            field_description:
+              -
+                value: 'O Next Hydra combina um CMS substituível, um fornecedor de comércio e uma aplicação Next.js pronta para produção através de contratos de pacotes estáveis.'
+            field_actions:
+              -
+                uri: 'internal:/products'
+                title: 'Explorar produtos'
+                options: {  }
+              -
+                uri: 'https://github.com/next-hydra'
+                title: 'Ver o projeto'
+                options: {  }
+          nl:
+            field_tagline:
+              -
+                value: 'Starter voor composable commerce'
+            field_heading:
+              -
+                value: 'Bouw enterprise-commerce zonder de fundering opnieuw op te bouwen'
+            field_description:
+              -
+                value: 'Next Hydra combineert een verwisselbaar CMS, een commerceprovider en een productieklare Next.js-applicatie achter stabiele pakketcontracten.'
+            field_actions:
+              -
+                uri: 'internal:/products'
+                title: 'Producten bekijken'
+                options: {  }
+              -
+                uri: 'https://github.com/next-hydra'
+                title: 'Project bekijken'
+                options: {  }
     -
       entity:
         _meta:
@@ -109,6 +243,56 @@ default:
           field_description:
             -
               value: 'Products supplied by the active Hydra commerce provider.'
+        translations:
+          en-gb:
+            field_heading:
+              -
+                value: 'Featured products'
+            field_description:
+              -
+                value: 'Products supplied by the active Hydra commerce provider.'
+          es:
+            field_heading:
+              -
+                value: 'Productos destacados'
+            field_description:
+              -
+                value: 'Productos suministrados por el proveedor de comercio Hydra activo.'
+          fr:
+            field_heading:
+              -
+                value: 'Produits à la une'
+            field_description:
+              -
+                value: 'Produits fournis par le fournisseur de commerce Hydra actif.'
+          de:
+            field_heading:
+              -
+                value: 'Ausgewählte Produkte'
+            field_description:
+              -
+                value: 'Produkte des aktiven Hydra-Commerce-Anbieters.'
+          it:
+            field_heading:
+              -
+                value: 'Prodotti in evidenza'
+            field_description:
+              -
+                value: 'Prodotti forniti dal provider di commercio Hydra attivo.'
+          pt-pt:
+            field_heading:
+              -
+                value: 'Produtos em destaque'
+            field_description:
+              -
+                value: 'Produtos fornecidos pelo fornecedor de comércio Hydra ativo.'
+          nl:
+            field_heading:
+              -
+                value: 'Uitgelichte producten'
+            field_description:
+              -
+                value: 'Producten geleverd door de actieve Hydra-commerceprovider.'
     -
       entity:
         _meta:
@@ -140,3 +324,117 @@ default:
               entity: b883487a-71fa-424a-9881-1b6ac99cd98d
             -
               entity: 823f1c6c-ed43-4d95-8632-fb983ee89030
+        translations:
+          en-gb:
+            field_heading:
+              -
+                value: 'Equipment guides'
+            field_description:
+              -
+                value: 'Practical guidance for selecting, operating, and maintaining heavy equipment.'
+          es:
+            field_heading:
+              -
+                value: 'Guías de equipamiento'
+            field_description:
+              -
+                value: 'Orientación práctica para seleccionar, operar y mantener maquinaria pesada.'
+          fr:
+            field_heading:
+              -
+                value: 'Guides sur les équipements'
+            field_description:
+              -
+                value: 'Des conseils pratiques pour choisir, utiliser et entretenir des équipements lourds.'
+          de:
+            field_heading:
+              -
+                value: 'Geräteratgeber'
+            field_description:
+              -
+                value: 'Praxisnahe Hilfe zur Auswahl, Bedienung und Wartung schwerer Maschinen.'
+          it:
+            field_heading:
+              -
+                value: 'Guide alle attrezzature'
+            field_description:
+              -
+                value: 'Indicazioni pratiche per scegliere, utilizzare e mantenere le attrezzature pesanti.'
+          pt-pt:
+            field_heading:
+              -
+                value: 'Guias de equipamento'
+            field_description:
+              -
+                value: 'Orientação prática para selecionar, operar e manter equipamento pesado.'
+          nl:
+            field_heading:
+              -
+                value: 'Materieelgidsen'
+            field_description:
+              -
+                value: 'Praktische begeleiding voor het kiezen, bedienen en onderhouden van zwaar materieel.'
+translations:
+  en-gb:
+    title:
+      -
+        value: Homepage
+    path:
+      -
+        alias: /homepage
+        langcode: en-gb
+        pathauto: 0
+  es:
+    title:
+      -
+        value: 'Página de inicio'
+    path:
+      -
+        alias: /homepage
+        langcode: es
+        pathauto: 0
+  fr:
+    title:
+      -
+        value: Accueil
+    path:
+      -
+        alias: /homepage
+        langcode: fr
+        pathauto: 0
+  de:
+    title:
+      -
+        value: Startseite
+    path:
+      -
+        alias: /homepage
+        langcode: de
+        pathauto: 0
+  it:
+    title:
+      -
+        value: 'Pagina iniziale'
+    path:
+      -
+        alias: /homepage
+        langcode: it
+        pathauto: 0
+  pt-pt:
+    title:
+      -
+        value: 'Página inicial'
+    path:
+      -
+        alias: /homepage
+        langcode: pt-pt
+        pathauto: 0
+  nl:
+    title:
+      -
+        value: Startpagina
+    path:
+      -
+        alias: /homepage
+        langcode: nl
+        pathauto: 0

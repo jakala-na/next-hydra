@@ -14,8 +14,10 @@ const UNAUTHORIZED_STATUS = 401;
 describe("Drupal OAuth token provider", () => {
   it("selects credentials by access mode and caches valid tokens", async () => {
     const requestBodies: string[] = [];
+    const requestCacheModes: (RequestCache | undefined)[] = [];
     const fetchImplementation: typeof fetch = (_input, init) => {
       requestBodies.push(String(init?.body));
+      requestCacheModes.push(init?.cache);
       return Promise.resolve(
         Response.json({
           access_token: `token-${requestBodies.length}`,
@@ -35,6 +37,7 @@ describe("Drupal OAuth token provider", () => {
     await expect(token("previewer")).resolves.toBe("Bearer token-2");
 
     expect(requestBodies).toHaveLength(2);
+    expect(requestCacheModes).toEqual(["no-store", "no-store"]);
     expect(new URLSearchParams(requestBodies[0]).get("client_id")).toBe(
       "viewer-id"
     );

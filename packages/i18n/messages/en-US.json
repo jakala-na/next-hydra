@@ -27,6 +27,9 @@
       "products": "Products",
       "categoryFallback": "Category"
     },
+    "article": {
+      "readGuide": "Read guide"
+    },
     "cart": {
       "title": "Shopping Cart ({count})",
       "empty": {

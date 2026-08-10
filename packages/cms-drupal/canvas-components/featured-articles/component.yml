@@ -1,0 +1,20 @@
+name: Featured Articles
+machineName: featured-articles
+status: true
+required:
+  - title
+props:
+  properties:
+    title:
+      title: Title
+      type: string
+      examples:
+        - Equipment guides
+    description:
+      title: Description
+      type: string
+      examples:
+        - Practical guidance for selecting, operating, and maintaining heavy equipment.
+slots:
+  articles:
+    title: Articles

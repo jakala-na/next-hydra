@@ -1,6 +1,9 @@
-import { ProductCollection as CommerceProductCollection } from "@repo/commerce/product/product-collection";
+import { ProductCollectionGrid } from "@repo/commerce/product/product-collection";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
-import { ProductCatalogSkeleton } from "@repo/design-system/components/commerce/blocks/product-collection";
+import {
+  ProductCatalogSkeleton,
+  ProductCollectionLayout,
+} from "@repo/design-system/components/commerce/blocks/product-collection";
 import type { Locale } from "@repo/i18n";
 import { Option } from "effect";
 import { Suspense } from "react";
@@ -47,31 +50,34 @@ export function DynamicProductCollection(
       source="cms"
       sourceLabel="Contentstack CMS"
     >
-      <Suspense
-        fallback={
-          <ArchitectureBoundary
-            component="server"
-            description="The cached CMS shell is visible while buyer-aware Commerce data streams."
-            layer="orchestration"
-            layerLabel="Suspense stream fallback"
-            name="DynamicProductCatalog (pending)"
-            rendering="streamed"
-            source="commerce"
-            sourceLabel="Commerce provider"
-          >
-            <ProductCatalogSkeleton title={title} />
-          </ArchitectureBoundary>
+      <ProductCollectionLayout
+        description={
+          description?.json ? renderRichText(description.json) : undefined
         }
+        title={title}
       >
-        <CommerceProductCollection
-          title={title}
-          categoryId={categoryId.value}
-          description={
-            description?.json ? renderRichText(description?.json) : undefined
+        <Suspense
+          fallback={
+            <ArchitectureBoundary
+              component="server"
+              description="The cached CMS shell is visible while buyer-aware Commerce data streams."
+              layer="orchestration"
+              layerLabel="Suspense stream fallback"
+              name="DynamicProductCatalog (pending)"
+              rendering="streamed"
+              source="commerce"
+              sourceLabel="Commerce provider"
+            >
+              <ProductCatalogSkeleton />
+            </ArchitectureBoundary>
           }
-          locale={locale}
-        />
-      </Suspense>
+        >
+          <ProductCollectionGrid
+            categoryId={categoryId.value}
+            locale={locale}
+          />
+        </Suspense>
+      </ProductCollectionLayout>
     </ArchitectureBoundary>
   );
 }

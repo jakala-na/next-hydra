@@ -1,5 +1,8 @@
-import { fetchPage, isPageRedirect } from "@drupal-canvas/headless-next";
-import { CanvasComponentTree } from "@drupal-canvas/headless-next/CanvasComponentTree";
+import { fetchPage as fetchPublishedCanvasPage } from "@drupal-canvas/headless/server";
+import {
+  fetchPage as fetchDraftAwareCanvasPage,
+  isPageRedirect,
+} from "@drupal-canvas/headless-next";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import type { Locale } from "@repo/i18n";
 import { hasLocale, setRequestLocale } from "@repo/i18n";
@@ -10,17 +13,21 @@ import { draftMode } from "next/headers";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { graphqlClient } from "../client";
 import { graphql } from "../graphql";
+import { keys } from "../keys";
+import { getCanvasCachePolicy } from "../lib/canvas-cacheability";
+import { toDrupalLangcode, toDrupalPath } from "../lib/locale";
 import type {
   DrupalGraphqlPreviewContext,
   DrupalPreviewContext,
 } from "../lib/preview-context";
 import { getDrupalPreviewContext } from "../lib/preview-session";
+import { CanvasComponentTree } from "./canvas-component-tree";
 import PageRenderer, { isPageKey } from "./page-renderer";
 
 const routeQuery = graphql(
   `
-    query DrupalRoute($path: String!, $revision: ID) {
-      route(path: $path, revision: $revision) {
+    query DrupalRoute($path: String!, $revision: ID, $langcode: String) {
+      route(path: $path, revision: $revision, langcode: $langcode) {
         __typename
         ... on RouteInternal {
           entity {
@@ -40,8 +47,8 @@ const routeQuery = graphql(
 
 const pagePreviewQuery = graphql(
   `
-    query DrupalPagePreview($id: ID!, $token: String!) {
-      preview(id: $id, token: $token) {
+    query DrupalPagePreview($id: ID!, $token: String!, $langcode: String) {
+      preview(id: $id, token: $token, langcode: $langcode) {
         __typename
         ... on NodeInterface {
           id
@@ -67,10 +74,12 @@ export function normalizeDrupalPath(path: string): string {
 
 async function getRouteEntity(
   path: string,
+  locale: Locale,
   revision: string | null = null,
   preview = false
 ) {
   const response = await graphqlClient(preview).query(routeQuery, {
+    langcode: toDrupalLangcode(locale),
     path: normalizeDrupalPath(path),
     revision,
   });
@@ -87,10 +96,10 @@ async function getRouteEntity(
     : undefined;
 }
 
-async function getCachedRouteEntity(path: string) {
+async function getCachedRouteEntity(path: string, locale: Locale) {
   "use cache";
 
-  const entity = await getRouteEntity(path);
+  const entity = await getRouteEntity(path, locale);
   if (!(entity && isPageKey(entity.__typename))) {
     cacheLife({ expire: 0, revalidate: 0, stale: 0 });
     return;
@@ -101,9 +110,39 @@ async function getCachedRouteEntity(path: string) {
   return entity;
 }
 
-async function getPagePreview(context: DrupalGraphqlPreviewContext) {
+async function getCachedCanvasPage(path: string) {
+  "use cache";
+
+  const config = keys();
+  const page = await fetchPublishedCanvasPage(path, {
+    baseUrl: config.CANVAS_SITE_URL ?? config.DRUPAL_BASE_URL,
+  });
+
+  if (!(page && !isPageRedirect(page))) {
+    cacheLife({ expire: 0, revalidate: 0, stale: 0 });
+    return page;
+  }
+
+  const policy = getCanvasCachePolicy(page.cacheability);
+  if (!policy) {
+    cacheLife({ expire: 0, revalidate: 0, stale: 0 });
+    return page;
+  }
+
+  cacheLife(policy.life);
+  if (policy.tags.length > 0) {
+    cacheTag(...policy.tags);
+  }
+  return page;
+}
+
+async function getPagePreview(
+  context: DrupalGraphqlPreviewContext,
+  locale: Locale
+) {
   const response = await graphqlClient(true).query(pagePreviewQuery, {
     id: context.id,
+    langcode: toDrupalLangcode(locale),
     token: context.token,
   });
 
@@ -119,15 +158,16 @@ async function getPagePreview(context: DrupalGraphqlPreviewContext) {
 
 function getPageForContext(
   path: string,
-  context: DrupalPreviewContext | undefined
+  context: DrupalPreviewContext | undefined,
+  locale: Locale
 ) {
-  if (context?.path !== path) {
-    return getRouteEntity(path);
+  if (context?.path !== toDrupalPath(path, locale)) {
+    return getRouteEntity(path, locale);
   }
 
   return context.kind === "graphql"
-    ? getPagePreview(context)
-    : getRouteEntity(path, context.revision, true);
+    ? getPagePreview(context, locale)
+    : getRouteEntity(path, locale, context.revision, true);
 }
 
 export async function Page(props: { url: string; locale: Locale }) {
@@ -140,7 +180,10 @@ export async function Page(props: { url: string; locale: Locale }) {
   const { isEnabled: preview } = await draftMode();
   const previewContext = preview ? await getDrupalPreviewContext() : undefined;
   const normalizedPath = normalizeDrupalPath(url);
-  const canvasPage = await fetchPage(normalizedPath);
+  const drupalPath = toDrupalPath(normalizedPath, locale);
+  const canvasPage = preview
+    ? await fetchDraftAwareCanvasPage(drupalPath)
+    : await getCachedCanvasPage(drupalPath);
 
   if (canvasPage && isPageRedirect(canvasPage)) {
     const destination = canvasPage.redirect.url as Route;
@@ -156,9 +199,11 @@ export async function Page(props: { url: string; locale: Locale }) {
   if (canvasPage?.route.managedByCanvas) {
     return (
       <ArchitectureBoundary
-        cacheProfile={preview ? "Canvas draft session" : undefined}
-        component="client"
-        description="Drupal Canvas resolves and renders the stored component tree through the generated registry."
+        cacheProfile={
+          preview ? "Canvas draft session" : "Drupal cacheability metadata"
+        }
+        component="server"
+        description="Drupal Canvas resolves the stored component tree on the server while registry entries opt into client boundaries as needed."
         layer="route"
         layerLabel="Canvas component tree"
         name="DrupalCanvasPageRoute"
@@ -172,8 +217,8 @@ export async function Page(props: { url: string; locale: Locale }) {
   }
 
   const entity = preview
-    ? await getPageForContext(normalizedPath, previewContext)
-    : await getCachedRouteEntity(normalizedPath);
+    ? await getPageForContext(normalizedPath, previewContext, locale)
+    : await getCachedRouteEntity(normalizedPath, locale);
 
   if (!(entity && isPageKey(entity.__typename))) {
     notFound();

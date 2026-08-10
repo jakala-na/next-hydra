@@ -16,7 +16,9 @@
   ],
   "require": {
     "composer/installers": "^2.3",
+    "cweagans/composer-patches": "~2.0",
     "drupal/canvas": "^1.10",
+    "drupal/canvas_translate": "^1.0@alpha",
     "drupal/core-composer-scaffold": "^11.4",
     "drupal/core-project-message": "^11.4",
     "drupal/core-recipe-unpack": "^11.4",
@@ -43,6 +45,7 @@
   "config": {
     "allow-plugins": {
       "composer/installers": true,
+      "cweagans/composer-patches": true,
       "dealerdirect/phpcodesniffer-composer-installer": true,
       "drupal/core-composer-scaffold": true,
       "drupal/core-project-message": true,
@@ -56,6 +59,14 @@
     "sort-packages": true
   },
   "extra": {
+    "patches": {
+      "drupal/canvas": [
+        {
+          "description": "Add multilingual headless previews, translated default content, and cacheability metadata",
+          "url": "patches/drupal-canvas-1.10-next-hydra-compatibility.patch"
+        }
+      ]
+    },
     "drupal-scaffold": {
       "locations": {
         "web-root": "web/"

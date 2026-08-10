@@ -6,10 +6,15 @@ This recipe provisions the Drupal content contract used by `@repo/cms-drupal`:
 - `hero`, `dynamic_product_collection`, and `featured_articles` Paragraph bundles;
 - Image Media for hero assets;
 - GraphQL Compose routes, native menus, and revision preview;
+- regional languages and content translation for Drupal and Canvas;
+- Canvas Translate for Canvas pages, content templates, and page regions;
+- preinstalled Hero, Product Collection, Featured Articles, Article Card, and
+  Text external Canvas component definitions;
 - a Next.js for Drupal site that renders landing pages in the View-tab iframe;
 - cache-tag revalidation for pages and their referenced article dependencies;
 - viewer and previewer roles for OAuth clients; and
-- demo homepage, resource center, articles, and nested native navigation.
+- translated regular and Canvas demo homepages, a resource center, articles,
+  and nested native navigation.
 
 Next.js for Drupal sends saved View-tab revisions through its short-lived signed
 Draft Mode URL. The connector validates that URL with Drupal and loads the
@@ -21,7 +26,46 @@ redirecting the iframe to the page's canonical path.
 Update the Next Hydra site under `/admin/config/services/next` when the frontend
 does not run at `http://localhost:3001`. Set `GRAPHQL_COMPOSE_PREVIEW_URL` for
 the unsaved-preview formatter, preserving its `[node:preview:uuid]` and
-`[node:preview:token]` placeholders.
+`[node:preview:token]` placeholders and the `langcode=[node:langcode]` query
+parameter.
+
+## Languages and translations
+
+The recipe uses Drupal's standard catalogue IDs (`en`, `en-gb`, `es`, `fr`,
+`de`, `it`, `pt-pt`, and `nl`) while retaining the frontend's regional URL
+prefixes (`/en-GB`, `/es-ES`, `/fr-FR`, and so on). Landing pages, Articles,
+Paragraph text, menu links, Image Media, and Canvas pages are
+translation-enabled. Structural references such as the product category ID and
+hero image remain shared across translations.
+
+Canvas Translate adds a translation workspace at
+`/canvas/app/canvas_translate`. It translates Canvas page component values as
+content translations and stores translated content-template and page-region
+values as language-specific configuration overrides. The module is currently
+an alpha dependency, so review its release status before a production upgrade.
+Administrators can access the workspace; grant its restricted
+`translate canvas content` permission deliberately when creating a dedicated
+translator role.
+
+Canvas page translations share component-tree structure while retaining
+independently translatable component inputs. Structural edits such as adding,
+removing, or reordering a component therefore remain symmetrical across
+languages without overwriting translated component copy.
+
+The recipe preinstalls the external Canvas component definitions used by its
+default Canvas homepage. Importing those configuration entities generates the
+corresponding `canvas.component.js.*` records before recipe content is imported,
+so a clean install does not require an initial component push. Run the package's
+`canvas:push` command after changing local component metadata to update Drupal.
+
+The Canvas demo homepage mirrors the regular homepage's Hero, Product
+Collection, and Featured Articles blocks. Featured Articles composes Article
+Card children through its `articles` slot, and each card selects an Article
+content entity.
+
+The frontend sends the requested Drupal langcode explicitly for GraphQL routes,
+menus, and previews. Canvas requests use Drupal's localized path. A translation
+therefore cannot reuse another locale's cached route or menu result.
 
 The recipe leaves the revalidation secret empty. `ddev install` generates one,
 stores it on the Drupal site, and prints the matching
@@ -38,11 +82,12 @@ drush recipe ../recipes/next-hydra-starter -v
 The demo product collection deliberately has no category ID, so the active
 Hydra commerce provider returns an unfiltered product collection.
 
-The homepage and `/resources` page both reference the same three demo Articles.
-Their Featured Articles blocks add every referenced `node:{id}` tag to the
-cached landing page. Editing one Article therefore refreshes its Article route
-and each cached landing page that embeds it, without invalidating unrelated
-pages.
+The regular homepage, Canvas homepage, and `/resources` page reference the same
+three demo Articles. Their Featured Articles blocks expose every referenced
+`node:{id}` dependency through Drupal cacheability. Editing one Article
+therefore refreshes its Article route and each cached page that embeds it,
+without invalidating unrelated pages. Canvas page changes likewise invalidate
+the matching `canvas_page:{id}` frontend cache entry.
 
 ## Updating the content model
 

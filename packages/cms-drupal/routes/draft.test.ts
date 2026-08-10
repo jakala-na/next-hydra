@@ -27,6 +27,7 @@ import { GET } from "./draft";
 
 const id = "40cb84f8-f472-459f-9ee5-ce08c629ed5d";
 const token = "preview-token";
+const langcode = "fr";
 const BAD_GATEWAY_STATUS = 502;
 const BAD_REQUEST_STATUS = 400;
 const TEMPORARY_REDIRECT_STATUS = 307;
@@ -62,6 +63,15 @@ describe("Drupal draft route", () => {
     expect(mocks.enableDrupalPreview).not.toHaveBeenCalled();
   });
 
+  it("rejects unsupported Drupal preview languages", async () => {
+    const response = await GET(
+      request(`?uuid=${id}&token=${token}&langcode=unsupported`)
+    );
+
+    expect(response.status).toBe(BAD_REQUEST_STATUS);
+    expect(mocks.validateDrupalPreview).not.toHaveBeenCalled();
+  });
+
   it("reports Drupal validation failures without enabling Draft Mode", async () => {
     mocks.validateDrupalPreview.mockRejectedValue(
       new DrupalPreviewValidationError(new Error("GraphQL failed"))
@@ -74,15 +84,22 @@ describe("Drupal draft route", () => {
   });
 
   it("enables the validated session and redirects to its canonical path", async () => {
-    const context = { id, kind: "graphql", path: "/homepage", token };
+    const context = { id, kind: "graphql", path: "/fr-FR/homepage", token };
     mocks.validateDrupalPreview.mockResolvedValue(context);
 
-    const response = await GET(request(`?uuid=${id}&token=${token}`));
+    const response = await GET(
+      request(`?uuid=${id}&token=${token}&langcode=${langcode}`)
+    );
 
+    expect(mocks.validateDrupalPreview).toHaveBeenCalledWith(
+      id,
+      token,
+      langcode
+    );
     expect(mocks.enableDrupalPreview).toHaveBeenCalledWith(context);
     expect(response.status).toBe(TEMPORARY_REDIRECT_STATUS);
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3001/homepage"
+      "http://localhost:3001/fr-FR/homepage"
     );
   });
 

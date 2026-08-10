@@ -31,6 +31,9 @@
       "products": "Products",
       "categoryFallback": "Category"
     },
+    "article": {
+      "readGuide": "Read guide"
+    },
     "cart": {
       "addedToCartAlert": "Added {quantity} {variantLabel} to cart at {price} each.\nStock Status: {stockStatus}",
       "stockIn": "In Stock",

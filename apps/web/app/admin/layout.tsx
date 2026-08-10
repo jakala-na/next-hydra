@@ -1,4 +1,6 @@
+import "../[locale]/styles.css";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { DocumentShell } from "@/components/layout/document-shell";
 import {
   ADMIN_REGISTRATION_READ_PERMISSION,
   requireAdminPermission,
@@ -13,5 +15,9 @@ export default async function AdminLayout({
 }) {
   await requireAdminPermission(ADMIN_REGISTRATION_READ_PERMISSION);
 
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <DocumentShell lang="en-US">
+      <AdminShell>{children}</AdminShell>
+    </DocumentShell>
+  );
 }

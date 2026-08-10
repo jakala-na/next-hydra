@@ -35,4 +35,5 @@ onlyBuiltDependencies:
   - sharp
   - unrs-resolver
 patchedDependencies:
+  '@drupal-canvas/headless': patches/@drupal-canvas__headless.patch
   '@drupal-canvas/headless-next': patches/@drupal-canvas__headless-next.patch

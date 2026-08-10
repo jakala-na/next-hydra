@@ -1,5 +1,5 @@
 import { ArticleCollection } from "@repo/design-system/components/cms/blocks/article-collection";
-import type { Locale } from "@repo/i18n";
+import { getTranslations, type Locale } from "@repo/i18n";
 import { type FragmentOf, graphql, readFragment } from "../../graphql";
 import { getNodeCacheTag } from "../../lib/cache-tags";
 import { articleTeaserFragment, toArticleTeaser } from "../pages/article";
@@ -27,8 +27,12 @@ type FeaturedArticlesProps = {
   locale: Locale;
 };
 
-export function FeaturedArticles({ data, locale }: FeaturedArticlesProps) {
+export async function FeaturedArticles({
+  data,
+  locale,
+}: FeaturedArticlesProps) {
   const block = readFragment(featuredArticlesFragment, data);
+  const t = await getTranslations({ locale, namespace: "web.article" });
   const articles = block.articles.flatMap((article) => {
     if (article.__typename !== "NodeArticle") {
       return [];
@@ -42,6 +46,7 @@ export function FeaturedArticles({ data, locale }: FeaturedArticlesProps) {
     <ArticleCollection
       articles={articles}
       description={block.description ?? undefined}
+      readMoreLabel={t("readGuide")}
       title={block.heading}
     />
   );

@@ -1,0 +1,22 @@
+name: Article Card
+machineName: article-card
+status: true
+required: []
+props:
+  properties:
+    article:
+      title: Article
+      type: object
+      $ref: json-schema-definitions://canvas.module/content-entity-reference
+      x-allowed-entity-type-id: node
+      x-allowed-bundle: article
+slots: []
+dataDependencies:
+  entityFields:
+    article:
+      - ℹ︎␜entity:node:article␝nid␞␟value
+      - ℹ︎␜entity:node:article␝title␞␟value
+      - ℹ︎␜entity:node:article␝field_summary␞␟value
+      - ℹ︎␜entity:node:article␝path␞␟alias
+      - ℹ︎␜entity:node:article␝created␞␟value
+      - ℹ︎␜entity:node:article␝field_image␞␟entity␜␜entity:media:image␝field_media_image␞␟{alt↠alt,height↠height,src↠src,width↠width}

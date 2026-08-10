@@ -4,10 +4,11 @@ import { cacheLife, cacheTag } from "next/cache";
 import { draftMode } from "next/headers";
 import { graphqlClient } from "../../client";
 import { graphql } from "../../graphql";
+import { toDrupalLangcode } from "../locale";
 
 const mainMenuQuery = graphql(`
-  query DrupalMainMenu {
-    menu(name: MAIN) {
+  query DrupalMainMenu($langcode: String) {
+    menu(name: MAIN, langcode: $langcode) {
       items {
         id
         title
@@ -25,9 +26,12 @@ const mainMenuQuery = graphql(`
 `);
 
 async function loadNavigation(
+  locale: Locale,
   preview: boolean
 ): Promise<{ navigationItems: NavigationItem[] }> {
-  const response = await graphqlClient(preview).query(mainMenuQuery, {});
+  const response = await graphqlClient(preview).query(mainMenuQuery, {
+    langcode: toDrupalLangcode(locale),
+  });
 
   if (response.error) {
     throw new Error("Failed to load the Drupal main menu", {
@@ -55,18 +59,17 @@ async function loadNavigation(
   return { navigationItems };
 }
 
-async function getCachedNavigation() {
+async function getCachedNavigation(locale: Locale) {
   "use cache";
   cacheLife("days");
   cacheTag("menu");
 
-  return await loadNavigation(false);
+  return await loadNavigation(locale, false);
 }
 
 export async function getNavigation(
-  _locale: Locale,
-  _livePreviewHash?: string
+  locale: Locale
 ): Promise<{ navigationItems: NavigationItem[] }> {
   const { isEnabled: preview } = await draftMode();
-  return preview ? loadNavigation(true) : getCachedNavigation();
+  return preview ? loadNavigation(locale, true) : getCachedNavigation(locale);
 }

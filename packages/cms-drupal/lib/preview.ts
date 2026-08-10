@@ -2,16 +2,21 @@ import "server-only";
 
 import { graphqlClient } from "../client";
 import { graphql } from "../graphql";
+import type { DrupalLangcode } from "./locale";
 import {
   type DrupalGraphqlPreviewContext,
   isSafeDrupalPreviewPath,
 } from "./preview-context";
 
 const previewHandshakeQuery = graphql(`
-  query DrupalPreviewHandshake($id: ID!, $token: String!) {
-    preview(id: $id, token: $token) {
+  query DrupalPreviewHandshake($id: ID!, $token: String!, $langcode: String) {
+    preview(id: $id, token: $token, langcode: $langcode) {
       __typename
       ... on NodeLandingPage {
+        uuid
+        path
+      }
+      ... on NodeArticle {
         uuid
         path
       }
@@ -28,10 +33,12 @@ export class DrupalPreviewValidationError extends Error {
 
 export async function validateDrupalPreview(
   id: string,
-  token: string
+  token: string,
+  langcode: DrupalLangcode
 ): Promise<DrupalGraphqlPreviewContext | undefined> {
   const response = await graphqlClient(true).query(previewHandshakeQuery, {
     id,
+    langcode,
     token,
   });
 
@@ -41,7 +48,8 @@ export async function validateDrupalPreview(
 
   const preview = response.data?.preview;
   if (
-    preview?.__typename !== "NodeLandingPage" ||
+    (preview?.__typename !== "NodeLandingPage" &&
+      preview?.__typename !== "NodeArticle") ||
     !preview.path ||
     !isSafeDrupalPreviewPath(preview.path)
   ) {

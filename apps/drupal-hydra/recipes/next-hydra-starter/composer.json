@@ -5,6 +5,8 @@
   "type": "drupal-recipe",
   "keywords": ["drupal", "graphql", "headless", "next-hydra", "recipe"],
   "require": {
+    "drupal/canvas": "^1.10",
+    "drupal/canvas_translate": "^1.0@alpha",
     "drupal/gin": "^5.0",
     "drupal/gin_toolbar": "^3.0",
     "drupal/graphql_compose": "^2.4",

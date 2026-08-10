@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { type DrupalLangcode, isDrupalLangcode } from "../lib/locale";
 import {
   isNextDrupalPreviewRequest,
   NextDrupalPreviewValidationError,
@@ -17,6 +18,7 @@ const UNAUTHORIZED_STATUS = 401;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const id = request.nextUrl.searchParams.get("uuid");
   const token = request.nextUrl.searchParams.get("token");
+  const requestedLangcode = request.nextUrl.searchParams.get("langcode");
 
   const hasGraphqlPreview = Boolean(id && token);
   const hasNextPreview = isNextDrupalPreviewRequest(
@@ -30,11 +32,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  let langcode: DrupalLangcode = "en";
+  if (requestedLangcode) {
+    if (!isDrupalLangcode(requestedLangcode)) {
+      return NextResponse.json(
+        { error: "Unsupported Drupal preview language" },
+        { status: 400 }
+      );
+    }
+    langcode = requestedLangcode;
+  }
+
   let preview: DrupalPreviewContext | undefined;
   try {
     preview =
       id && token
-        ? await validateDrupalPreview(id, token)
+        ? await validateDrupalPreview(id, token, langcode)
         : await validateNextDrupalPreview(request.nextUrl.searchParams);
   } catch (error) {
     if (

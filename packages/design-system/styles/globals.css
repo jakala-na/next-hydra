@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @source "../**/*.{ts,tsx}";
 
 @plugin "@tailwindcss/typography";
@@ -121,53 +122,6 @@
   --radius-xl: calc(var(--radius) + 4px);
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
-  --animate-caret-blink: caret-blink 1.25s ease-out infinite;
-  --animate-in: enter var(--tw-duration, 150ms) var(--tw-ease, ease);
-  --animate-out: exit var(--tw-duration, 150ms) var(--tw-ease, ease);
-
-  @keyframes enter {
-    from {
-      opacity: var(--tw-enter-opacity, 1);
-      transform: translate3d(
-          var(--tw-enter-translate-x, 0),
-          var(--tw-enter-translate-y, 0),
-          0
-        )
-        scale3d(
-          var(--tw-enter-scale, 1),
-          var(--tw-enter-scale, 1),
-          var(--tw-enter-scale, 1)
-        );
-    }
-  }
-
-  @keyframes exit {
-    to {
-      opacity: var(--tw-exit-opacity, 1);
-      transform: translate3d(
-          var(--tw-exit-translate-x, 0),
-          var(--tw-exit-translate-y, 0),
-          0
-        )
-        scale3d(
-          var(--tw-exit-scale, 1),
-          var(--tw-exit-scale, 1),
-          var(--tw-exit-scale, 1)
-        );
-    }
-  }
-
-  @keyframes caret-blink {
-    0%,
-    70%,
-    100% {
-      opacity: 1;
-    }
-    20%,
-    50% {
-      opacity: 0;
-    }
-  }
 
   @keyframes accordion-down {
     from {
@@ -186,102 +140,6 @@
       height: 0;
     }
   }
-}
-
-@utility fade-in {
-  --tw-enter-opacity: 0;
-}
-
-@utility fade-in-* {
-  --tw-enter-opacity: calc(--value(number) / 100);
-}
-
-@utility fade-out {
-  --tw-exit-opacity: 0;
-}
-
-@utility fade-out-* {
-  --tw-exit-opacity: calc(--value(number) / 100);
-}
-
-@utility zoom-in {
-  --tw-enter-scale: 0;
-}
-
-@utility zoom-in-* {
-  --tw-enter-scale: calc(--value(number) / 100);
-}
-
-@utility zoom-out {
-  --tw-exit-scale: 0;
-}
-
-@utility zoom-out-* {
-  --tw-exit-scale: calc(--value(number) / 100);
-}
-
-@utility slide-in-from-top {
-  --tw-enter-translate-y: -100%;
-}
-
-@utility slide-in-from-top-* {
-  --tw-enter-translate-y: calc(--value(integer) * var(--spacing) * -1);
-}
-
-@utility slide-in-from-bottom {
-  --tw-enter-translate-y: 100%;
-}
-
-@utility slide-in-from-bottom-* {
-  --tw-enter-translate-y: calc(--value(integer) * var(--spacing));
-}
-
-@utility slide-in-from-left {
-  --tw-enter-translate-x: -100%;
-}
-
-@utility slide-in-from-left-* {
-  --tw-enter-translate-x: calc(--value(integer) * var(--spacing) * -1);
-}
-
-@utility slide-in-from-right {
-  --tw-enter-translate-x: 100%;
-}
-
-@utility slide-in-from-right-* {
-  --tw-enter-translate-x: calc(--value(integer) * var(--spacing));
-}
-
-@utility slide-out-to-top {
-  --tw-exit-translate-y: -100%;
-}
-
-@utility slide-out-to-top-* {
-  --tw-exit-translate-y: calc(--value(integer) * var(--spacing) * -1);
-}
-
-@utility slide-out-to-bottom {
-  --tw-exit-translate-y: 100%;
-}
-
-@utility slide-out-to-bottom-* {
-  --tw-exit-translate-y: calc(--value(integer) * var(--spacing));
-}
-
-@utility slide-out-to-left {
-  --tw-exit-translate-x: -100%;
-}
-
-@utility slide-out-to-left-* {
-  --tw-exit-translate-x: calc(--value(integer) * var(--spacing) * -1);
-}
-
-@utility slide-out-to-right {
-  --tw-exit-translate-x: 100%;
-}
-
-@utility slide-out-to-right-* {
-  --tw-exit-translate-x: calc(--value(integer) * var(--spacing));
 }
 
 /* This layer is added by shadcn/ui */

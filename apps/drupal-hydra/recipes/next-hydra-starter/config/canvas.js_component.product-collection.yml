@@ -1,0 +1,38 @@
+uuid: d4b1da11-d731-47e2-a3cb-c4563dcfa0f6
+langcode: en
+status: true
+dependencies: {  }
+machineName: product-collection
+name: 'Product Collection'
+type: external
+required:
+  - title
+props:
+  title:
+    type: string
+    title: Title
+    examples:
+      - 'Featured products'
+  description:
+    type: string
+    title: Description
+    examples:
+      - 'Explore a selection of products chosen for this collection.'
+  categoryId:
+    type: string
+    title: 'Category ID'
+  limit:
+    type: integer
+    enum:
+      - 3
+      - 6
+      - 9
+    'meta:enum':
+      3: '3 products'
+      6: '6 products'
+      9: '9 products'
+    title: Limit
+    examples:
+      - 3
+slots: {  }
+dataDependencies: {  }

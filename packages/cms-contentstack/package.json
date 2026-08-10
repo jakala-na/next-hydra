@@ -8,6 +8,7 @@
     "./components/page": "./components/page.tsx",
     "./components/pages/landing-page": "./components/pages/landing-page.tsx",
     "./keys": "./keys.ts",
+    "./layout": "./layout.tsx",
     "./lib/navigation": "./lib/navigation/index.tsx",
     "./next-config": "./next-config.ts",
     "./proxy": "./proxy.ts",

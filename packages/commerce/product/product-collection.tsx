@@ -1,4 +1,7 @@
-import { ProductCollection as ProductCollectionView } from "@repo/design-system/components/commerce/blocks/product-collection";
+import {
+  ProductCollection as ProductCollectionView,
+  ProductGrid,
+} from "@repo/design-system/components/commerce/blocks/product-collection";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Schema } from "effect";
 import type { ReactNode } from "react";
@@ -16,14 +19,29 @@ interface ProductCollectionProps {
   readonly title: string;
 }
 
-export async function ProductCollection({
+type ProductCollectionGridProps = Omit<
+  ProductCollectionProps,
+  "description" | "title"
+>;
+
+const productCollectionArchitecture = {
+  component: "server",
+  description:
+    "Uses connection() and the buyer-specific Commerce request Layer, so it executes at request time behind Suspense.",
+  layer: "orchestration",
+  layerLabel: "Commerce orchestration",
+  name: "DynamicProductCatalog",
+  rendering: "streamed",
+  source: "commerce",
+  sourceLabel: "Commerce provider",
+} as const;
+
+async function getProductCards({
   categoryId,
-  description,
   excludeProductId,
   limit = 3,
   locale,
-  title,
-}: ProductCollectionProps) {
+}: ProductCollectionGridProps) {
   const input = Schema.decodeUnknownSync(ListProductCardsInput)({
     ...(categoryId === undefined ? {} : { categoryId }),
     limit,
@@ -36,26 +54,41 @@ export async function ProductCollection({
     ).pipe(Effect.provide(layer))
   );
 
+  return products.map(toProductCardPresentation);
+}
+
+export async function ProductCollectionGrid(props: ProductCollectionGridProps) {
+  const products = await getProductCards(props);
+
+  if (products.length === 0) {
+    return null;
+  }
+
+  return (
+    <ProductGrid
+      architecture={productCollectionArchitecture}
+      products={products}
+    />
+  );
+}
+
+export async function ProductCollection({
+  description,
+  title,
+  ...gridProps
+}: ProductCollectionProps) {
+  const products = await getProductCards(gridProps);
+
   if (products.length === 0) {
     return null;
   }
 
   return (
     <ProductCollectionView
-      architecture={{
-        component: "server",
-        description:
-          "Uses connection() and the buyer-specific Commerce request Layer, so it executes at request time behind Suspense.",
-        layer: "orchestration",
-        layerLabel: "Commerce orchestration",
-        name: "DynamicProductCatalog",
-        rendering: "streamed",
-        source: "commerce",
-        sourceLabel: "Commerce provider",
-      }}
+      architecture={productCollectionArchitecture}
       title={title}
       description={description}
-      products={products.map(toProductCardPresentation)}
+      products={products}
     />
   );
 }

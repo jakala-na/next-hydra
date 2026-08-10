@@ -13,6 +13,7 @@ import { DrupalPreviewValidationError, validateDrupalPreview } from "./preview";
 
 const id = "40cb84f8-f472-459f-9ee5-ce08c629ed5d";
 const token = "preview-token";
+const langcode = "fr";
 
 describe("Drupal preview validation", () => {
   beforeEach(() => {
@@ -26,20 +27,35 @@ describe("Drupal preview validation", () => {
       },
     });
 
-    await expect(validateDrupalPreview(id, token)).resolves.toEqual({
+    await expect(validateDrupalPreview(id, token, langcode)).resolves.toEqual({
       id,
       kind: "graphql",
       path: "/homepage",
       token,
     });
+    expect(mocks.query).toHaveBeenCalledWith(expect.anything(), {
+      id,
+      langcode,
+      token,
+    });
   });
 
-  it("rejects invalid entity types and unsafe paths", async () => {
-    mocks.query.mockResolvedValueOnce({
+  it("returns the canonical path for a valid article preview", async () => {
+    mocks.query.mockResolvedValue({
       data: {
         preview: { __typename: "NodeArticle", path: "/article", uuid: id },
       },
     });
+
+    await expect(validateDrupalPreview(id, token, langcode)).resolves.toEqual({
+      id,
+      kind: "graphql",
+      path: "/article",
+      token,
+    });
+  });
+
+  it("rejects unsafe paths", async () => {
     mocks.query.mockResolvedValueOnce({
       data: {
         preview: {
@@ -50,15 +66,16 @@ describe("Drupal preview validation", () => {
       },
     });
 
-    await expect(validateDrupalPreview(id, token)).resolves.toBeUndefined();
-    await expect(validateDrupalPreview(id, token)).resolves.toBeUndefined();
+    await expect(
+      validateDrupalPreview(id, token, langcode)
+    ).resolves.toBeUndefined();
   });
 
   it("wraps GraphQL failures without exposing preview credentials", async () => {
     const graphqlError = new Error("GraphQL failed");
     mocks.query.mockResolvedValue({ error: graphqlError });
 
-    await expect(validateDrupalPreview(id, token)).rejects.toEqual(
+    await expect(validateDrupalPreview(id, token, langcode)).rejects.toEqual(
       new DrupalPreviewValidationError(graphqlError)
     );
   });

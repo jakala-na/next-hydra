@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductDetail } from "./generated/attributes";
 import { CategoryId, ProductId, type ProductSlug } from "./identity";
 import { ProductCard } from "./model";
-import { ProductCollection } from "./product-collection";
+import { ProductCollection, ProductCollectionGrid } from "./product-collection";
 import { generateMetadataHandler, ProductDetailPage } from "./product-detail";
 import {
   type ListProductCardsInput,
@@ -22,7 +22,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ notFound }));
 vi.mock(
   "@repo/design-system/components/commerce/blocks/product-collection",
-  () => ({ ProductCollection: () => null })
+  () => ({ ProductCollection: () => null, ProductGrid: () => null })
 );
 vi.mock(
   "@repo/design-system/components/commerce/blocks/product-detail",
@@ -33,23 +33,23 @@ vi.mock("../commerce-context/request", () => ({
 }));
 
 const detail = Schema.decodeUnknownSync(ProductDetail)({
-  id: "product-1",
-  slug: "crawler-crane",
-  productType: "generic-product",
-  title: "Crawler crane",
-  description: "Heavy lifting equipment",
   categories: [],
+  defaultVariantId: "variant-1",
+  description: "Heavy lifting equipment",
+  id: "product-1",
   options: [],
+  productType: "generic-product",
+  slug: "crawler-crane",
+  title: "Crawler crane",
   variants: [
     {
+      attributes: {},
+      availability: { availableForSale: true },
       id: "variant-1",
       images: [],
-      attributes: {},
       optionValues: {},
-      availability: { availableForSale: true },
     },
   ],
-  defaultVariantId: "variant-1",
 });
 
 beforeEach(() => {
@@ -70,11 +70,11 @@ describe("Product boundaries", () => {
     );
 
     const result = await ProductCollection({
-      title: "Featured",
       categoryId: CategoryId.make("category-1"),
       excludeProductId: ProductId.make("product-2"),
       limit: 3,
       locale: "en-US",
+      title: "Featured",
     });
 
     expect(result).toBeNull();
@@ -85,6 +85,36 @@ describe("Product boundaries", () => {
     });
   });
 
+  it("projects provider data into a grid without CMS presentation props", async () => {
+    requestLayer.mockResolvedValue(
+      ProductDiscovery.testLayer({
+        listCards: () =>
+          Effect.succeed([
+            Schema.decodeUnknownSync(ProductCard)({
+              availableForSale: true,
+              id: "product-1",
+              slug: "crawler-crane",
+              title: "Crawler crane",
+            }),
+          ]),
+      })
+    );
+
+    const result = await ProductCollectionGrid({
+      categoryId: CategoryId.make("category-1"),
+      limit: 3,
+      locale: "en-US",
+    });
+
+    expect(result).toMatchObject({
+      props: {
+        products: [{ title: "Crawler crane" }],
+      },
+    });
+    expect(result?.props).not.toHaveProperty("title");
+    expect(result?.props).not.toHaveProperty("description");
+  });
+
   it("turns Product absence into notFound at the package boundary", async () => {
     requestLayer.mockResolvedValue(
       ProductDiscovery.testLayer({
@@ -93,15 +123,15 @@ describe("Product boundaries", () => {
     );
 
     await expect(
-      generateMetadataHandler({ slug: "missing", locale: "en-US" })
+      generateMetadataHandler({ locale: "en-US", slug: "missing" })
     ).rejects.toThrow("notFound");
     expect(notFound).toHaveBeenCalledOnce();
   });
 
   it("preserves Product Discovery failures instead of reporting absence", async () => {
     const failure = new ProductDiscoveryFailure({
-      operation: "findBySlug",
       message: "Product detail query failed",
+      operation: "findBySlug",
     });
     requestLayer.mockResolvedValue(
       ProductDiscovery.testLayer({
@@ -110,7 +140,7 @@ describe("Product boundaries", () => {
     );
 
     await expect(
-      generateMetadataHandler({ slug: "crawler-crane", locale: "en-US" })
+      generateMetadataHandler({ locale: "en-US", slug: "crawler-crane" })
     ).rejects.toThrow("Product detail query failed");
     expect(notFound).not.toHaveBeenCalled();
   });
@@ -118,10 +148,10 @@ describe("Product boundaries", () => {
   it("uses a fresh request Layer for buyer-specific Product results", async () => {
     const cardFor = (id: string, title: string) =>
       Schema.decodeUnknownSync(ProductCard)({
+        availableForSale: true,
         id,
         slug: "crawler-crane",
         title,
-        availableForSale: true,
       });
     requestLayer
       .mockResolvedValueOnce(
@@ -136,14 +166,14 @@ describe("Product boundaries", () => {
       );
 
     const first = await ProductCollection({
-      title: "Featured",
       limit: 3,
       locale: "en-US",
+      title: "Featured",
     });
     const second = await ProductCollection({
-      title: "Featured",
       limit: 3,
       locale: "en-US",
+      title: "Featured",
     });
 
     expect(requestLayer).toHaveBeenCalledTimes(2);
@@ -167,18 +197,18 @@ describe("Product boundaries", () => {
     );
 
     const metadata = await generateMetadataHandler({
-      slug: "crawler-crane",
       locale: "en-US",
+      slug: "crawler-crane",
     });
     const page = await ProductDetailPage({
-      slug: "crawler-crane",
       locale: "en-US",
+      slug: "crawler-crane",
     });
 
     expect(receivedSlug).toBe("crawler-crane");
     expect(metadata).toMatchObject({
-      title: "Crawler crane",
       description: "Heavy lifting equipment",
+      title: "Crawler crane",
     });
     expect(page).not.toBeNull();
   });

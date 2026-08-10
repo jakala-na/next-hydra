@@ -9,12 +9,19 @@ recipes:
   - core/recipes/image_media_type
 
 install:
+  - canvas
+  - canvas_headless
+  - canvas_translate
+  - config_translation
+  - content_translation
   - field_ui
   - file
   - filter
   - help
   - image
+  - language
   - link
+  - locale
   - media
   - media_library
   - menu_link_content
@@ -62,8 +69,267 @@ config:
       - block.block.gin_page_title
       - block.block.gin_primary_local_tasks
   actions:
+    language.entity.en:
+      createIfNotExists:
+        langcode: en
+        status: true
+        dependencies: {  }
+        id: en
+        label: 'English (United States)'
+        direction: ltr
+        weight: 0
+        locked: false
+    language.entity.und:
+      createIfNotExists:
+        langcode: en
+        status: true
+        dependencies: {  }
+        id: und
+        label: 'Not specified'
+        direction: ltr
+        weight: 8
+        locked: true
+    language.entity.zxx:
+      createIfNotExists:
+        langcode: en
+        status: true
+        dependencies: {  }
+        id: zxx
+        label: 'Not applicable'
+        direction: ltr
+        weight: 9
+        locked: true
+    language.entity.en-gb:
+      createIfNotExists:
+        langcode: en
+        status: true
+        dependencies: {  }
+        id: en-gb
+        label: 'English, British'
+        direction: ltr
+        weight: 1
+        locked: false
+    language.entity.es:
+      createIfNotExists:
+        langcode: en
+        status: true
+        dependencies: {  }
+        id: es
+        label: Spanish
+        direction: ltr
+        weight: 2
+        locked: false
+    language.entity.fr:
+      createIfNotExists:
+        langcode: en
+        status: true
+        dependencies: {  }
+        id: fr
+        label: French
+        direction: ltr
+        weight: 3
+        locked: false
+    language.entity.de:
+      createIfNotExists:
+        langcode: en
+        status: true
+        dependencies: {  }
+        id: de
+        label: German
+        direction: ltr
+        weight: 4
+        locked: false
+    language.entity.it:
+      createIfNotExists:
+        langcode: en
+        status: true
+        dependencies: {  }
+        id: it
+        label: Italian
+        direction: ltr
+        weight: 5
+        locked: false
+    language.entity.pt-pt:
+      createIfNotExists:
+        langcode: en
+        status: true
+        dependencies: {  }
+        id: pt-pt
+        label: 'Portuguese, Portugal'
+        direction: ltr
+        weight: 6
+        locked: false
+    language.entity.nl:
+      createIfNotExists:
+        langcode: en
+        status: true
+        dependencies: {  }
+        id: nl
+        label: Dutch
+        direction: ltr
+        weight: 7
+        locked: false
+    language.negotiation:
+      simpleConfigUpdate:
+        url.prefixes:
+          en: ''
+          en-gb: en-GB
+          es: es-ES
+          fr: fr-FR
+          de: de-DE
+          it: it-IT
+          pt-pt: pt-PT
+          nl: nl-NL
+        url.domains:
+          en: ''
+          en-gb: ''
+          es: ''
+          fr: ''
+          de: ''
+          it: ''
+          pt-pt: ''
+          nl: ''
+    locale.settings:
+      simpleConfigUpdate:
+        translation.import_enabled: true
+        translation.update_interval_days: 7
+    # A saved disabled -> enabled transition ensures Content Translation installs
+    # its metadata fields through the config-entity API.
+    language.content_settings.node.article:
+      createIfNotExists:
+        target_entity_type_id: node
+        target_bundle: article
+      setProperties:
+        default_langcode: site_default
+        language_alterable: true
+      setThirdPartySettings:
+        - module: content_translation
+          key: enabled
+          value: false
+      setThirdPartySetting:
+        module: content_translation
+        key: enabled
+        value: true
+    language.content_settings.node.landing_page:
+      createIfNotExists:
+        target_entity_type_id: node
+        target_bundle: landing_page
+      setProperties:
+        default_langcode: site_default
+        language_alterable: true
+      setThirdPartySettings:
+        - module: content_translation
+          key: enabled
+          value: false
+      setThirdPartySetting:
+        module: content_translation
+        key: enabled
+        value: true
+    language.content_settings.paragraph.hero:
+      createIfNotExists:
+        target_entity_type_id: paragraph
+        target_bundle: hero
+      setProperties:
+        default_langcode: site_default
+        language_alterable: true
+      setThirdPartySetting:
+        module: content_translation
+        key: enabled
+        value: false
+      setThirdPartySettings:
+        - module: content_translation
+          key: enabled
+          value: true
+        - module: content_translation
+          key: bundle_settings
+          value:
+            untranslatable_fields_hide: '1'
+    language.content_settings.paragraph.dynamic_product_collection:
+      createIfNotExists:
+        target_entity_type_id: paragraph
+        target_bundle: dynamic_product_collection
+      setProperties:
+        default_langcode: site_default
+        language_alterable: true
+      setThirdPartySetting:
+        module: content_translation
+        key: enabled
+        value: false
+      setThirdPartySettings:
+        - module: content_translation
+          key: enabled
+          value: true
+        - module: content_translation
+          key: bundle_settings
+          value:
+            untranslatable_fields_hide: '1'
+    language.content_settings.paragraph.featured_articles:
+      createIfNotExists:
+        target_entity_type_id: paragraph
+        target_bundle: featured_articles
+      setProperties:
+        default_langcode: site_default
+        language_alterable: true
+      setThirdPartySetting:
+        module: content_translation
+        key: enabled
+        value: false
+      setThirdPartySettings:
+        - module: content_translation
+          key: enabled
+          value: true
+        - module: content_translation
+          key: bundle_settings
+          value:
+            untranslatable_fields_hide: '1'
+    language.content_settings.menu_link_content.menu_link_content:
+      createIfNotExists:
+        target_entity_type_id: menu_link_content
+        target_bundle: menu_link_content
+      setProperties:
+        default_langcode: site_default
+        language_alterable: true
+      setThirdPartySettings:
+        - module: content_translation
+          key: enabled
+          value: false
+      setThirdPartySetting:
+        module: content_translation
+        key: enabled
+        value: true
+    language.content_settings.media.image:
+      createIfNotExists:
+        target_entity_type_id: media
+        target_bundle: image
+      setProperties:
+        default_langcode: site_default
+        language_alterable: true
+      setThirdPartySettings:
+        - module: content_translation
+          key: enabled
+          value: false
+      setThirdPartySetting:
+        module: content_translation
+        key: enabled
+        value: true
+    language.content_settings.canvas_page.canvas_page:
+      createIfNotExists:
+        target_entity_type_id: canvas_page
+        target_bundle: canvas_page
+      setProperties:
+        default_langcode: site_default
+        language_alterable: true
+      setThirdPartySettings:
+        - module: content_translation
+          key: enabled
+          value: false
+      setThirdPartySetting:
+        module: content_translation
+        key: enabled
+        value: true
     system.site:
       simpleConfigUpdate:
+        default_langcode: en
         page.front: /homepage
     node.settings:
       simpleConfigUpdate:
@@ -88,6 +354,7 @@ config:
         - 'access content overview'
         - 'access media overview'
         - 'create article content'
+        - 'create content translations'
         - 'create landing_page content'
         - 'create media'
         - 'delete any article content'
@@ -98,7 +365,9 @@ config:
         - 'edit any landing_page content'
         - 'revert article revisions'
         - 'revert landing_page revisions'
+        - 'translate editable entities'
         - 'update any media'
+        - 'update content translations'
         - 'use text format basic_html'
         - 'view article revisions'
         - 'view landing_page revisions'

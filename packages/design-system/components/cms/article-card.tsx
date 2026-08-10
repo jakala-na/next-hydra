@@ -3,6 +3,7 @@ import {
   CardContent,
   CardFooter,
 } from "@repo/design-system/components/ui/card";
+import { cn } from "@repo/design-system/lib/utils";
 import { ArrowRight } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
@@ -24,9 +25,19 @@ export type ArticleTeaser = {
   title: string;
 };
 
-export function ArticleCard({ article }: { article: ArticleTeaser }) {
+type ArticleCardProps = {
+  article: ArticleTeaser;
+  className?: string;
+  readMoreLabel?: string;
+};
+
+export function ArticleCard({
+  article,
+  className,
+  readMoreLabel = "Read guide",
+}: ArticleCardProps) {
   return (
-    <article className="h-full">
+    <article className={cn("h-full", className)}>
       <Card className="group h-full overflow-hidden py-0 transition-all duration-300 hover:shadow-lg">
         {article.image ? (
           <div className="relative aspect-[16/10] overflow-hidden bg-muted">
@@ -55,7 +66,7 @@ export function ArticleCard({ article }: { article: ArticleTeaser }) {
             className="inline-flex items-center gap-2 font-medium text-primary"
             href={article.href as Route}
           >
-            Read guide
+            {readMoreLabel}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
         </CardFooter>

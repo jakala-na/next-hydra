@@ -83,6 +83,7 @@ export function createDrupalTokenProvider({
         client_secret: credential.clientSecret,
         grant_type: "client_credentials",
       }),
+      cache: "no-store",
       headers: {
         "content-type": "application/x-www-form-urlencoded",
       },

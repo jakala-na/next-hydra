@@ -1,5 +1,5 @@
-import { LivePreview } from "@repo/cms/components/live-preview";
-import { getNavigation } from "@repo/cms/lib/navigation";
+import "./styles.css";
+import { CmsLayoutIntegration, getNavigation } from "@repo/cms/layout";
 import { CommerceCartProvider } from "@repo/commerce/cart";
 import { BusinessUnitSwitcher } from "@repo/commerce/commerce-context";
 import { CartButtonClient } from "@repo/design-system/components/layout/cart-button";
@@ -15,13 +15,13 @@ import {
 } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import { ShoppingCart } from "lucide-react";
-import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import {
   AccountMenu,
   AccountMenuSkeleton,
 } from "@/components/layout/account-menu";
+import { DocumentShell } from "@/components/layout/document-shell";
 
 export const instant = false;
 
@@ -47,57 +47,55 @@ export default async function RootLayout({
     notFound();
   }
   setRequestLocale(locale);
-  const { isEnabled: isDraftModeEnabled } = await draftMode();
-  const livePreviewHash = isDraftModeEnabled
-    ? ((await headers()).get("x-live-preview") ?? "")
-    : "";
-  const navigation = await getNavigation(locale, livePreviewHash);
+  const navigation = await getNavigation(locale);
   return (
-    <NextIntlClientProvider>
-      <CommerceCartProvider locale={locale}>
-        <SiteHeader
-          MainNavigation={
-            <Navigation navigationItems={navigation.navigationItems} />
-          }
-          RegionSelectorSlot={
-            <Suspense
-              fallback={
-                <div className="h-8 w-16 animate-pulse rounded bg-accent-foreground/15" />
-              }
-            >
-              <RegionSelector />
-            </Suspense>
-          }
-          Search={<SearchAutocomplete />}
-          BusinessUnitSwitcher={
-            <Suspense
-              fallback={
-                <div className="h-8 w-16 animate-pulse rounded bg-accent-foreground/15" />
-              }
-            >
-              <BusinessUnitSwitcher locale={locale} />
-            </Suspense>
-          }
-          MobileMenuSlot={
-            <MobileMenu
-              key="menu-slot"
-              navigationItems={navigation.navigationItems}
-            />
-          }
-          CartSlot={
-            <Suspense fallback={<CartButtonSkeleton />}>
-              <CartButtonClient />
-            </Suspense>
-          }
-          AccountSlot={
-            <Suspense fallback={<AccountMenuSkeleton />}>
-              <AccountMenu />
-            </Suspense>
-          }
-        />
-        {children}
-        <LivePreview isEnabled={isDraftModeEnabled} />
-      </CommerceCartProvider>
-    </NextIntlClientProvider>
+    <DocumentShell lang={locale}>
+      <NextIntlClientProvider>
+        <CommerceCartProvider locale={locale}>
+          <SiteHeader
+            MainNavigation={
+              <Navigation navigationItems={navigation.navigationItems} />
+            }
+            RegionSelectorSlot={
+              <Suspense
+                fallback={
+                  <div className="h-8 w-16 animate-pulse rounded bg-accent-foreground/15" />
+                }
+              >
+                <RegionSelector />
+              </Suspense>
+            }
+            Search={<SearchAutocomplete />}
+            BusinessUnitSwitcher={
+              <Suspense
+                fallback={
+                  <div className="h-8 w-16 animate-pulse rounded bg-accent-foreground/15" />
+                }
+              >
+                <BusinessUnitSwitcher locale={locale} />
+              </Suspense>
+            }
+            MobileMenuSlot={
+              <MobileMenu
+                key="menu-slot"
+                navigationItems={navigation.navigationItems}
+              />
+            }
+            CartSlot={
+              <Suspense fallback={<CartButtonSkeleton />}>
+                <CartButtonClient />
+              </Suspense>
+            }
+            AccountSlot={
+              <Suspense fallback={<AccountMenuSkeleton />}>
+                <AccountMenu />
+              </Suspense>
+            }
+          />
+          {children}
+          <CmsLayoutIntegration />
+        </CommerceCartProvider>
+      </NextIntlClientProvider>
+    </DocumentShell>
   );
 }

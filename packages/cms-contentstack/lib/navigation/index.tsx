@@ -4,6 +4,7 @@ import type {
 } from "@repo/design-system/components/layout/navigation";
 import type { Locale } from "@repo/i18n";
 import { cacheLife, cacheTag } from "next/cache";
+import { draftMode, headers } from "next/headers";
 import { graphqlClient } from "../../client";
 import getLinkProps from "../../components/link";
 import { TAGS } from "../../constants";
@@ -54,14 +55,10 @@ export const getMenuQuery = graphql(`
   }
 `);
 
-export async function getNavigation(
+async function loadNavigation(
   locale: Locale,
   livePreviewHash?: string
 ): Promise<{ navigationItems: NavigationItem[] }> {
-  "use cache";
-  cacheTag(TAGS.menu);
-  cacheLife("days");
-
   const res = await graphqlClient(livePreviewHash).query(getMenuQuery, {
     locale: transformLocale(locale),
   });
@@ -73,23 +70,44 @@ export async function getNavigation(
     mainNavigation?.map((item) => {
       const link = getLinkProps(item);
       return {
-        title: link.label,
-        href: link.url,
         children:
           item?.children?.map((child) => {
             const childLink = getLinkProps(child);
             return {
-              title: childLink.label,
-              href: childLink.url,
               description: child?.description ?? "",
+              href: childLink.url,
               // Assume the icon is a valid Lucide icon name.
               icon: child?.icon
                 ? (child.icon as NavigationItemIcon)
                 : undefined,
+              title: childLink.label,
             };
           }) ?? [],
+        href: link.url,
+        title: link.label,
       };
     }) ?? [];
 
   return { navigationItems };
+}
+
+async function getCachedNavigation(locale: Locale) {
+  "use cache";
+  cacheTag(TAGS.menu);
+  cacheLife("days");
+
+  return await loadNavigation(locale);
+}
+
+export async function getNavigation(
+  locale: Locale
+): Promise<{ navigationItems: NavigationItem[] }> {
+  const { isEnabled: preview } = await draftMode();
+
+  if (!preview) {
+    return getCachedNavigation(locale);
+  }
+
+  const livePreviewHash = (await headers()).get("x-live-preview") ?? "";
+  return loadNavigation(locale, livePreviewHash);
 }

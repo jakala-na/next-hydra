@@ -1,0 +1,25 @@
+diff --git a/dist/page-B_JBP4LE.d.ts b/dist/page-B_JBP4LE.d.ts
+--- a/dist/page-B_JBP4LE.d.ts
++++ b/dist/page-B_JBP4LE.d.ts
+@@ -156,11 +156,21 @@ interface DrupalRoute {
+   managedByCanvas: boolean;
+   entity: DrupalRouteEntity | null;
+ }
++/** Drupal cacheability bubbled while resolving and rendering the page. */
++interface PageCacheability {
++  /** Cache tags for the route, component tree, and traversed dependencies. */
++  tags: string[];
++  /** Cache contexts that varied the Drupal response. */
++  contexts: string[];
++  /** Drupal cache max age in seconds; -1 means permanent. */
++  maxAge: number;
++}
+ /**
+  * Drupal's resolved-and-rendered answer for a request URI.
+  */
+ interface Page {
+   content: CanvasComponentTreeElement | null;
++  cacheability: PageCacheability;
+   head: PageHead;
+   route: DrupalRoute;
+ }

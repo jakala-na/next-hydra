@@ -30,7 +30,7 @@ The generated schema now exposes the Drupal-native Hydra structure:
 - `ParagraphDynamicProductCollection` with an optional external commerce
   category ID. Omitting it requests products without a category filter.
 - `ParagraphFeaturedArticle` with an ordered set of referenced Articles.
-- `menu(name: MAIN)` for native Drupal navigation.
+- `menu(name: MAIN, langcode:)` for translated native Drupal navigation.
 
 Drupal configuration for this model lives in
 `apps/drupal-hydra/recipes/next-hydra-starter/config`.
@@ -58,9 +58,10 @@ consuming web application. Keep those values out of version control.
 
 ## Cache revalidation
 
-Published pages use one cached Drupal `route(path:)` query with the `hours`
-Cache Components profile. The returned entity's `__typename` selects its Hydra
-page template, and the page template's component renderer maps its Paragraphs.
+Published non-Canvas pages use one cached Drupal `route(path:)` query with the
+`hours` Cache Components profile. The returned entity's `__typename` selects
+its Hydra page template, and the page template's component renderer maps its
+Paragraphs.
 A successful page is tagged with its Drupal entity cache tag, such as `node:1`.
 Page components can contribute additional dependencies: Featured Articles adds
 the `node:{id}` tag of every referenced Article. Editing an Article therefore
@@ -69,6 +70,17 @@ without evicting every landing page or Article. Missing or unsupported routes
 use a zero-expiry cache life, so they remain dynamic instead of becoming a
 persistent 404 cache entry. Published main-menu queries use the `days` profile
 and the `menu` tag. Preview reads bypass shared caches.
+
+Published Canvas responses include Drupal's complete `cacheability` metadata:
+`tags`, `contexts`, and `maxAge`. The connector caches the anonymous response
+under its localized path, applies the returned max age, and attaches every
+returned dependency tag to the Next.js cache entry. Missing metadata, a zero
+max age, or malformed metadata keeps the response uncached. If Drupal returns
+more tags than Next.js accepts, the connector falls back to max-age-only
+caching instead of truncating the dependency list. Tag overflow does not alter
+Drupal's bubbled max age, including permanent responses. Canvas draft sessions
+continue to use the authenticated draft-aware fetch outside the published
+cache.
 
 Drupal's Next module revalidates content after entity changes by calling
 `/api/revalidate` with the entity tags and its configured shared secret. The
@@ -84,7 +96,20 @@ then translated to the matching GraphQL `current`, `latest`, or exact revision.
 GraphQL Compose Preview handles unsaved form previews. Its iframe opens
 `http://localhost:3001/api/drupal-preview` with the preview UUID and token; set
 `GRAPHQL_COMPOSE_PREVIEW_URL` in Drupal to override that URL while preserving
-the `[node:preview:uuid]` and `[node:preview:token]` placeholders.
+the `[node:preview:uuid]` and `[node:preview:token]` placeholders and the
+`langcode=[node:langcode]` query parameter.
+
+## Languages
+
+The connector maps frontend market locales to Drupal's standard catalogue IDs:
+`en-US` to `en`, `en-GB` to `en-gb`, and the remaining locales to `es`, `fr`,
+`de`, `it`, `pt-pt`, and `nl`. Route, menu, and preview GraphQL operations
+receive that langcode explicitly. Canvas page loading retains the equivalent
+regional language-prefixed Drupal path.
+
+Locale is an input to the cached route and menu functions, so Next.js stores
+separate entries per locale while Drupal entity and menu tags still invalidate
+all affected variants. Preview reads remain uncached.
 
 The draft route validates the UUID and token through Drupal's GraphQL `preview`
 query before enabling Next.js Draft Mode. It stores the validated preview in an

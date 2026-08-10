@@ -1,0 +1,34 @@
+name: Product Collection
+machineName: product-collection
+status: true
+required:
+  - title
+props:
+  properties:
+    title:
+      title: Title
+      type: string
+      examples:
+        - Featured products
+    description:
+      title: Description
+      type: string
+      examples:
+        - Explore a selection of products chosen for this collection.
+    categoryId:
+      title: Category ID
+      type: string
+    limit:
+      title: Limit
+      type: integer
+      enum:
+        - 3
+        - 6
+        - 9
+      meta:enum:
+        3: 3 products
+        6: 6 products
+        9: 9 products
+      examples:
+        - 3
+slots: []

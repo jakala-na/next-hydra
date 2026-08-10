@@ -4,6 +4,12 @@ type Query {
   menu(
     """Internal menu name. Eg MAIN"""
     name: MenuAvailable!
+
+    """
+    Optionally set the response language. Eg en, ja, fr. Setting this langcode
+    will change the current language of the entire response.
+    """
+    langcode: String
   ): Menu
 
   """Schema information."""
@@ -33,6 +39,12 @@ type Query {
     Optionally set the revision of the entity. Eg current, latest, or an ID.
     """
     revision: ID
+
+    """
+    Optionally set the response language. Eg en, ja, fr. Setting this langcode
+    will change the current language of the entire response.
+    """
+    langcode: String
   ): RouteUnion
 }
 
@@ -207,6 +219,9 @@ type NodeArticle implements NodeInterface {
 
   """Title"""
   title: String!
+
+  """Available translations for content."""
+  translations: [Translation!]!
 }
 
 """Entity type node."""
@@ -328,6 +343,9 @@ type MediaImage implements MediaInterface {
 
   """Published"""
   status: Boolean!
+
+  """Available translations for content."""
+  translations: [Translation!]!
 }
 
 """Entity type media."""
@@ -381,6 +399,18 @@ type Image {
   mime: String
 }
 
+"""Available translations for content."""
+type Translation {
+  """The title of the translation."""
+  title: String
+
+  """The language of the translation."""
+  langcode: Language!
+
+  """The path to the translated content."""
+  path: String
+}
+
 """Routeable pages composed from Hydra CMS blocks."""
 type NodeLandingPage implements NodeInterface {
   """The entity ID."""
@@ -421,6 +451,9 @@ type NodeLandingPage implements NodeInterface {
 
   """Title"""
   title: String!
+
+  """Available translations for content."""
+  translations: [Translation!]!
 }
 
 """Entity type paragraph."""
@@ -555,6 +588,9 @@ type SchemaInformation {
 
   """The schema version."""
   version: String
+
+  """List of languages available."""
+  languages: [Language!]!
 }
 
 """The schema's entry-point for mutations."""
