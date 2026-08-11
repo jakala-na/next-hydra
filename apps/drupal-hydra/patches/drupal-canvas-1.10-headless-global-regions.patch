@@ -1,0 +1,458 @@
+diff --git a/modules/canvas_headless/README.md b/modules/canvas_headless/README.md
+--- a/modules/canvas_headless/README.md
++++ b/modules/canvas_headless/README.md
+@@ -139,6 +139,33 @@ Errors use RFC 9457 Problem Details and the `application/problem+json` media typ
+
+ `detail` is included when an additional explanation is available.
+
++## Canvas global regions endpoint
++
++`GET /canvas/regions-api` returns every enabled Canvas PageRegion for the active
++theme in one request. Drupal's configured URL language negotiation selects
++translated component inputs, so language-prefixed requests retain their prefix.
++Anonymous responses contain saved content; a bearer token with the Canvas
++preview scope receives valid PageRegion auto-saves when present.
++
++The response maps theme region machine names to structured render trees or
++`null`. Its `cacheability` object contains the complete Drupal cache tags,
++contexts, and maximum age for the returned region trees:
++
++```json
++{
++  "regions": {
++    "pre_header": { "element": "js-text", "props": { "text": "Notice" } },
++    "post_header": null
++  },
++  "cacheability": {
++    "tags": ["config:canvas.page_region.example.pre_header"],
++    "contexts": ["languages:language_interface", "oauth2_scopes", "theme"],
++    "maxAge": -1
++  },
++  "theme": "example"
++}
++```
++
+ ## Known limitations
+
+ - The rendered-content endpoint serves the default revision: an unpublished entity previews fully, but a published entity's forward
+diff --git a/modules/canvas_headless/src/Controller/CanvasContentController.php b/modules/canvas_headless/src/Controller/CanvasContentController.php
+--- a/modules/canvas_headless/src/Controller/CanvasContentController.php
++++ b/modules/canvas_headless/src/Controller/CanvasContentController.php
+@@ -8,6 +8,7 @@ use Drupal\canvas_headless\CanvasContentEntityRenderer;
+ use Drupal\canvas_headless\CanvasContentEntityRenderer;
+ use Drupal\canvas_headless\CanvasContentHeadBuilder;
+ use Drupal\canvas_headless\PreviewTokenInspector;
++use Drupal\canvas_headless\RenderConverter\CustomElementRootNormalizer;
+ use Drupal\canvas_headless\RenderConverter\JsComponentCanvasRenderConverter;
+ use Drupal\canvas_headless\Routing\CanvasContentRouteEnhancer;
+ use Drupal\canvas_headless\StackMiddleware\CanvasContentApiRequest;
+@@ -108,20 +109,7 @@ public function get(
+       $cacheability = $head_result['cacheability'];
+     }
+
+-    // @todo Remove additional Custom Elements JSON normalization when json-render support is added.
+-    if (\is_array($content) && $content === ['element' => 'drupal-markup']) {
+-      $content = NULL;
+-    }
+-    elseif (\is_array($content) && array_is_list($content)) {
+-      $content = match (\count($content)) {
+-        0 => NULL,
+-        1 => $content[0],
+-        default => [
+-          'element' => 'renderless-container',
+-          'slots' => ['default' => $content],
+-        ],
+-      };
+-    }
++    $content = CustomElementRootNormalizer::normalize($content);
+
+     $response = new CacheableJsonResponse([
+       'content' => $content,
+diff --git a/modules/canvas_headless/src/RenderConverter/CustomElementRootNormalizer.php b/modules/canvas_headless/src/RenderConverter/CustomElementRootNormalizer.php
+new file mode 100644
+--- /dev/null
++++ b/modules/canvas_headless/src/RenderConverter/CustomElementRootNormalizer.php
+@@ -0,0 +1,35 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Drupal\canvas_headless\RenderConverter;
++
++/**
++ * Normalizes Custom Elements JSON into a single Canvas render tree root.
++ *
++ * @internal
++ */
++final class CustomElementRootNormalizer {
++
++  /**
++   * Converts Custom Elements' root-list representation to one tree root.
++   */
++  public static function normalize(mixed $content): mixed {
++    // @todo Remove additional Custom Elements JSON normalization when json-render support is added.
++    if (\is_array($content) && $content === ['element' => 'drupal-markup']) {
++      return NULL;
++    }
++    if (!\is_array($content) || !array_is_list($content)) {
++      return $content;
++    }
++    return match (\count($content)) {
++      0 => NULL,
++      1 => $content[0],
++      default => [
++        'element' => 'renderless-container',
++        'slots' => ['default' => $content],
++      ],
++    };
++  }
++
++}
+diff --git a/src/EventSubscriber/CanvasRouteOptionsEventSubscriber.php b/src/EventSubscriber/CanvasRouteOptionsEventSubscriber.php
+--- a/src/EventSubscriber/CanvasRouteOptionsEventSubscriber.php
++++ b/src/EventSubscriber/CanvasRouteOptionsEventSubscriber.php
+@@ -36,9 +36,11 @@ final class CanvasRouteOptionsEventSubscriber implements EventSubscriberInterfac
+   public function redirectCanvasToDefaultLanguage(RequestEvent $event): void {
+     $request = $event->getRequest();
+     $path = $request->getPathInfo();
+-    // Only act on /canvas paths, but not canvas API paths - those handle
+-    // language negotiation themselves and must not be redirected.
+-    if (!preg_match('#^/[^/]+/canvas(/|$)#', $path) || str_contains($path, '/canvas/api/')) {
++    // Only act on Canvas UI paths. Delivery API routes handle language
++    // negotiation themselves and must not be redirected.
++    $is_delivery_api = str_contains($path, '/canvas/api/')
++      || str_ends_with($path, '/canvas/regions-api');
++    if (!preg_match('#^/[^/]+/canvas(/|$)#', $path) || $is_delivery_api) {
+       return;
+     }
+
+diff --git a/src/PathProcessor/CanvasPathProcessor.php b/src/PathProcessor/CanvasPathProcessor.php
+--- a/src/PathProcessor/CanvasPathProcessor.php
++++ b/src/PathProcessor/CanvasPathProcessor.php
+@@ -23,11 +23,14 @@ class CanvasPathProcessor implements InboundPathProcessorInterface {
+    * {@inheritdoc}
+    */
+   public function processInbound($path, Request $request): string {
+-    // Only rewrite if not /canvas/api and starts with /canvas/.
++    // Only rewrite Canvas UI paths. Delivery API routes must reach Drupal's
++    // router unchanged.
+     // For this to work, our routes require that no route normalization happens
+     // when the redirect module is enabled.
+     // @see \Drupal\canvas\EventSubscriber\CanvasRouteOptionsEventSubscriber::preventRouteNormalization.
+-    if (str_starts_with($path, '/canvas/') && !str_starts_with($path, '/canvas/api')) {
++    $is_delivery_api = str_starts_with($path, '/canvas/api')
++      || $path === '/canvas/regions-api';
++    if (str_starts_with($path, '/canvas/') && !$is_delivery_api) {
+       // Page extension paths must reach their own route so per-extension
+       // access checking applies. Strip any extension-internal subpath
+       // (/canvas/app/foo/some/page → /canvas/app/foo): Drupal's router cannot
+diff --git a/tests/src/Kernel/CanvasLanguageRoutesTest.php b/tests/src/Kernel/CanvasLanguageRoutesTest.php
+--- a/tests/src/Kernel/CanvasLanguageRoutesTest.php
++++ b/tests/src/Kernel/CanvasLanguageRoutesTest.php
+@@ -6,5 +6,6 @@ namespace Drupal\Tests\canvas\Kernel;
+
+ use Drupal\canvas\Entity\Page;
++use Drupal\Core\Http\Exception\CacheableNotFoundHttpException;
+ use Drupal\language\Entity\ConfigurableLanguage;
+ use Drupal\Tests\canvas\Kernel\Traits\RequestTrait;
+ use Drupal\Tests\user\Traits\UserCreationTrait;
+@@ -101,6 +102,18 @@ final class CanvasLanguageRoutesTest extends CanvasKernelTestBase {
+       $response->getStatusCode(),
+       'A language-prefixed /canvas/api URL must NOT trigger a 302 redirect.',
+     );
++
++    // Delivery API routes outside /canvas/api retain the negotiated language.
++    // This route is provided by canvas_headless, which is not enabled in this
++    // kernel test, so reaching routing unchanged produces a 404 rather than a
++    // Canvas UI redirect.
++    try {
++      $this->request(Request::create('/es/canvas/regions-api'));
++      self::fail('The regions delivery API route is intentionally absent in this test.');
++    }
++    catch (CacheableNotFoundHttpException $e) {
++      self::assertStringContainsString('/canvas/regions-api', $e->getMessage());
++    }
+   }
+
+   /**
+diff --git a/modules/canvas_headless/canvas_headless.routing.yml b/modules/canvas_headless/canvas_headless.routing.yml
+--- a/modules/canvas_headless/canvas_headless.routing.yml
++++ b/modules/canvas_headless/canvas_headless.routing.yml
+@@ -8,4 +8,14 @@ canvas_headless.content:
+   requirements:
+     _access: 'TRUE'
+
++# Independently fetchable active-theme regions let a headless application own
++# its document shell while Canvas owns the component trees placed in it.
++canvas_headless.global_regions:
++  path: '/canvas/regions-api'
++  defaults:
++    _controller: 'Drupal\canvas_headless\Controller\CanvasGlobalRegionsController::get'
++  methods: [GET]
++  requirements:
++    _access: 'TRUE'
++
+ # Session renewal. Same-origin JSON endpoint for the Canvas editor's
+diff --git a/modules/canvas_headless/canvas_headless.services.yml b/modules/canvas_headless/canvas_headless.services.yml
+--- a/modules/canvas_headless/canvas_headless.services.yml
++++ b/modules/canvas_headless/canvas_headless.services.yml
+@@ -23,4 +23,5 @@ services:
+       - { name: access_policy }
+   Drupal\canvas_headless\ExternalComponentSync: {}
+   Drupal\canvas_headless\Controller\ExternalComponentSyncController: {}
++  Drupal\canvas_headless\Controller\CanvasGlobalRegionsController: {}
+   Drupal\canvas_headless\RenderConverter\JsComponentCanvasRenderConverter:
+diff --git a/modules/canvas_headless/src/Controller/CanvasGlobalRegionsController.php b/modules/canvas_headless/src/Controller/CanvasGlobalRegionsController.php
+new file mode 100644
+--- /dev/null
++++ b/modules/canvas_headless/src/Controller/CanvasGlobalRegionsController.php
+@@ -0,0 +1,108 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Drupal\canvas_headless\Controller;
++
++use Drupal\canvas\AutoSave\AutoSaveManager;
++use Drupal\canvas\Entity\PageRegion;
++use Drupal\canvas_headless\PreviewTokenInspector;
++use Drupal\canvas_headless\RenderConverter\CustomElementRootNormalizer;
++use Drupal\canvas_headless\RenderConverter\JsComponentCanvasRenderConverter;
++use Drupal\Core\Cache\CacheableJsonResponse;
++use Drupal\Core\Entity\EntityTypeManagerInterface;
++use Drupal\Core\Render\BubbleableMetadata;
++use Drupal\Core\Session\AccountProxyInterface;
++use Drupal\Core\Theme\ThemeManagerInterface;
++use Drupal\custom_elements\CustomElementNormalizer;
++use Symfony\Component\DependencyInjection\Attribute\Autowire;
++
++/**
++ * Builds active-theme Canvas page regions for a headless frontend.
++ */
++final class CanvasGlobalRegionsController {
++
++  public function __construct(
++    private readonly EntityTypeManagerInterface $entityTypeManager,
++    private readonly ThemeManagerInterface $themeManager,
++    private readonly AutoSaveManager $autoSaveManager,
++    #[Autowire(service: 'custom_elements.canvas_render_converter')]
++    private readonly JsComponentCanvasRenderConverter $canvasRenderConverter,
++    #[Autowire(service: 'custom_elements.normalizer')]
++    private readonly CustomElementNormalizer $customElementNormalizer,
++    private readonly AccountProxyInterface $currentUser,
++  ) {}
++
++  /**
++   * Returns all enabled regions from the active theme.
++   */
++  public function get(): CacheableJsonResponse {
++    $theme = $this->themeManager->getActiveTheme()->getName();
++    $storage = $this->entityTypeManager->getStorage(PageRegion::ENTITY_TYPE_ID);
++    $cacheability = (new BubbleableMetadata())
++      ->addCacheTags($storage->getEntityType()->getListCacheTags())
++      ->addCacheTags(['config:canvas.page_region_list'])
++      ->addCacheContexts([
++        'languages:language_interface',
++        'oauth2_scopes',
++        'theme',
++      ]);
++
++    $regions = [];
++    $is_preview = PreviewTokenInspector::hasPreviewScope($this->currentUser->getAccount());
++    $page_regions = $storage->loadByProperties([
++      'status' => TRUE,
++      'theme' => $theme,
++    ]);
++    uasort(
++      $page_regions,
++      static fn (PageRegion $a, PageRegion $b): int => $a->id() <=> $b->id(),
++    );
++    foreach ($page_regions as $page_region) {
++      \assert($page_region instanceof PageRegion);
++      $cacheability->addCacheableDependency($page_region);
++      if ($is_preview) {
++        $auto_save = $this->autoSaveManager->getAutoSaveEntity($page_region);
++        $cacheability->addCacheableDependency($auto_save);
++        if (!$auto_save->isEmpty()) {
++          \assert($auto_save->entity instanceof PageRegion);
++          if ($auto_save->entity->getTypedData()->validate()->count() === 0) {
++            $page_region = $auto_save->entity;
++          }
++        }
++      }
++
++      $build = $page_region
++        ->getComponentTree()
++        ->toRenderable($page_region, $is_preview);
++      $cacheability->addCacheableDependency(
++        BubbleableMetadata::createFromRenderArray($build),
++      );
++      $custom_element = $this->canvasRenderConverter->convertRenderArray($build);
++      $cacheability->addCacheableDependency($custom_element);
++      $content = $this->customElementNormalizer->normalize(
++        $custom_element,
++        context: [
++          'explicit' => TRUE,
++          'cache_metadata' => $cacheability,
++        ],
++      );
++      $region = $page_region->get('region');
++      \assert(\is_string($region));
++      $regions[$region] = CustomElementRootNormalizer::normalize($content);
++    }
++
++    $response = new CacheableJsonResponse([
++      'regions' => $regions,
++      'cacheability' => [
++        'tags' => array_values($cacheability->getCacheTags()),
++        'contexts' => array_values($cacheability->getCacheContexts()),
++        'maxAge' => $cacheability->getCacheMaxAge(),
++      ],
++      'theme' => $theme,
++    ]);
++    $response->addCacheableDependency($cacheability);
++    return $response;
++  }
++
++}
+diff --git a/modules/canvas_headless/tests/src/Kernel/CanvasContentControllerTest.php b/modules/canvas_headless/tests/src/Kernel/CanvasContentControllerTest.php
+--- a/modules/canvas_headless/tests/src/Kernel/CanvasContentControllerTest.php
++++ b/modules/canvas_headless/tests/src/Kernel/CanvasContentControllerTest.php
+@@ -9,3 +9,4 @@ use Drupal\canvas\Entity\ContentTemplate;
+ use Drupal\canvas\Entity\JavaScriptComponent;
+ use Drupal\canvas\Entity\Page;
++use Drupal\canvas\Entity\PageRegion;
+ use Drupal\canvas_headless\Grant\PreviewAssertionGrant;
+@@ -17,6 +18,7 @@ use Drupal\Core\Session\AccountProxyInterface;
+ use Drupal\Core\Session\AccountProxyInterface;
+ use Drupal\Core\Session\AnonymousUserSession;
+ use Drupal\Core\Session\PermissionCheckerInterface;
++use Drupal\Core\Theme\ThemeManagerInterface;
+ use Drupal\language\Entity\ConfigurableLanguage;
+ use Drupal\node\Entity\Node;
+ use Drupal\node\Entity\NodeType;
+@@ -236,7 +237,81 @@ final class CanvasContentControllerTest extends CanvasKernelTestBase {
+     self::assertSame(200, $empty_response->getStatusCode());
+     self::assertNull($empty_data['content']);
+     self::assertTrue($empty_data['route']['managedByCanvas']);
++  }
++
++  /**
++   * Tests fetching global regions together and their scoped auto-saves.
++   */
++  public function testCanvasGlobalRegionsResponse(): void {
++    $region = $this->createGlobalRegion('Stored region heading');
++    $second_region = $this->createGlobalRegion(
++      'Stored second region heading',
++      'highlighted',
++      $this->container->get('uuid')->generate(),
++    );
++
++    $this->setCurrentAccount(new AnonymousUserSession());
++    $response = $this->renderGlobalRegions();
++    $data = self::responseData($response);
++    self::assertSame($region->get('theme'), $data['theme']);
++    self::assertSame('Stored region heading', $data['regions']['header']['props']['heading']);
++    self::assertSame('Stored second region heading', $data['regions']['highlighted']['props']['heading']);
++    self::assertContains('config:canvas.page_region.' . $region->id(), $data['cacheability']['tags']);
++    self::assertContains('config:canvas.page_region.' . $second_region->id(), $data['cacheability']['tags']);
++    self::assertContains('languages:language_interface', $data['cacheability']['contexts']);
++    self::assertContains('oauth2_scopes', $data['cacheability']['contexts']);
++    self::assertContains('theme', $data['cacheability']['contexts']);
++    self::assertNotContains(AutoSaveManager::CACHE_TAG, $data['cacheability']['tags']);
++    self::assertEqualsCanonicalizing(
++      array_diff(
++        $response->getCacheableMetadata()->getCacheTags(),
++        ['http_response'],
++      ),
++      $data['cacheability']['tags'],
++    );
++    self::assertEqualsCanonicalizing(
++      $response->getCacheableMetadata()->getCacheContexts(),
++      $data['cacheability']['contexts'],
++    );
++    self::assertSame(
++      $response->getCacheableMetadata()->getCacheMaxAge(),
++      $data['cacheability']['maxAge'],
++    );
++
++    $draft = clone $region;
++    $draft->setComponentTree([[
++      'uuid' => self::COMPONENT_UUID,
++      'component_id' => self::COMPONENT_ID,
++      'component_version' => Component::load(self::COMPONENT_ID)?->getActiveVersion(),
++      'inputs' => ['heading' => 'Draft region heading'],
++    ],
++    ]);
++    $this->container->get(AutoSaveManager::class)->saveEntity($draft);
++
++    $this->setCurrentAccount($this->createTokenAccount(with_preview_scope: FALSE));
++    $data = self::responseData($this->renderGlobalRegions());
++    self::assertSame('Stored region heading', $data['regions']['header']['props']['heading']);
++
++    $this->setCurrentAccount($this->createTokenAccount(with_preview_scope: TRUE));
++    $data = self::responseData($this->renderGlobalRegions());
++    self::assertSame('Draft region heading', $data['regions']['header']['props']['heading']);
++    self::assertContains(AutoSaveManager::CACHE_TAG, $data['cacheability']['tags']);
+   }
+
+   /**
++   * Tests that absent and disabled regions are safe empty placements.
++   */
++  public function testCanvasGlobalRegionsCanBeEmpty(): void {
++    $this->setCurrentAccount(new AnonymousUserSession());
++    $missing = self::responseData($this->renderGlobalRegions());
++    self::assertSame([], $missing['regions']);
++    self::assertContains('config:canvas.page_region_list', $missing['cacheability']['tags']);
++
++    $region = $this->createGlobalRegion('Disabled region heading');
++    $region->disable()->save();
++    $disabled = self::responseData($this->renderGlobalRegions());
++    self::assertArrayNotHasKey('header', $disabled['regions']);
++  }
++
++  /**
+    * Tests SDC, block, and local JavaScript component rendering.
+@@ -672,3 +747,28 @@ final class CanvasContentControllerTest extends CanvasKernelTestBase {
+     $page->save();
+     return $page;
++  }
++
++  /**
++   * Creates an enabled header PageRegion for the active theme.
++   */
++  private function createGlobalRegion(
++    string $heading,
++    string $region_name = 'header',
++    string $component_uuid = self::COMPONENT_UUID,
++  ): PageRegion {
++    $theme = $this->container->get(ThemeManagerInterface::class)->getActiveTheme()->getName();
++    $region = PageRegion::create([
++      'theme' => $theme,
++      'region' => $region_name,
++      'component_tree' => [[
++        'uuid' => $component_uuid,
++        'component_id' => self::COMPONENT_ID,
++        'component_version' => Component::load(self::COMPONENT_ID)?->getActiveVersion(),
++        'inputs' => ['heading' => $heading],
++      ],
++      ],
++    ]);
++    self::assertEntityIsValid($region);
++    $region->enable()->save();
++    return $region;
+   }
+@@ -722,4 +819,13 @@ final class CanvasContentControllerTest extends CanvasKernelTestBase {
+   }
+
+   /**
++   * Renders all global regions through the public kernel boundary.
++   */
++  private function renderGlobalRegions(): CacheableJsonResponse {
++    $response = $this->request(Request::create('/canvas/regions-api'));
++    self::assertInstanceOf(CacheableJsonResponse::class, $response);
++    return $response;
++  }
++
++  /**
+    * Renders a routed entity through the public kernel boundary.

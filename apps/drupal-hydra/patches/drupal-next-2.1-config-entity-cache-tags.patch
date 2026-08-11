@@ -1,0 +1,130 @@
+diff --git a/src/Plugin/Next/Revalidator/CacheTag.php b/src/Plugin/Next/Revalidator/CacheTag.php
+--- a/src/Plugin/Next/Revalidator/CacheTag.php
++++ b/src/Plugin/Next/Revalidator/CacheTag.php
+@@ -2,7 +2,6 @@
+
+ namespace Drupal\next\Plugin\Next\Revalidator;
+
+-use Drupal\Core\Entity\FieldableEntityInterface;
+ use Drupal\Core\Form\FormStateInterface;
+ use Drupal\Core\Utility\Error;
+ use Drupal\next\Event\EntityActionEvent;
+@@ -165,10 +164,6 @@ class CacheTag extends ConfigurableRevalidatorBase implements RevalidatorInterfa
+     $entity = $event->getEntity();
+     $sites = $event->getSites();
+
+-    if (!($entity instanceof FieldableEntityInterface)) {
+-      return FALSE;
+-    }
+-
+     $cache_tags = [];
+
+     // Add individual entity cache tags if enabled.
+diff --git a/config/schema/next.schema.yml b/config/schema/next.schema.yml
+--- a/config/schema/next.schema.yml
++++ b/config/schema/next.schema.yml
+@@ -76,6 +76,19 @@ next.revalidator.configuration.path:
+       type: string
+       label: 'Additional paths'
+
++next.revalidator.configuration.cache_tag:
++  type: mapping
++  mapping:
++    entity_tag:
++      type: boolean
++      label: 'Revalidate entity cache tag'
++    entity_list_tag:
++      type: boolean
++      label: 'Revalidate entity list cache tags'
++    additional_tags:
++      type: string
++      label: 'Additional cache tags'
++
+ next.settings:
+   type: config_object
+   label: 'Next settings'
+diff --git a/tests/src/Kernel/Plugin/CacheTagRevalidatorTest.php b/tests/src/Kernel/Plugin/CacheTagRevalidatorTest.php
+new file mode 100644
+--- /dev/null
++++ b/tests/src/Kernel/Plugin/CacheTagRevalidatorTest.php
+@@ -0,0 +1,80 @@
++<?php
++
++namespace Drupal\Tests\next\Kernel\Plugin;
++
++use Drupal\KernelTests\KernelTestBase;
++use Drupal\next\Entity\NextEntityTypeConfig;
++use Drupal\next\Entity\NextSite;
++use Drupal\user\Entity\Role;
++use GuzzleHttp\ClientInterface;
++use GuzzleHttp\Psr7\Response as GuzzleResponse;
++use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
++use Prophecy\PhpUnit\ProphecyTrait;
++use Symfony\Component\HttpFoundation\Request;
++use Symfony\Component\HttpFoundation\Response;
++
++/**
++ * Tests the cache tag revalidator plugin.
++ *
++ * @coversDefaultClass \Drupal\next\Plugin\Next\Revalidator\CacheTag
++ *
++ * @group next
++ */
++#[RunTestsInSeparateProcesses]
++class CacheTagRevalidatorTest extends KernelTestBase {
++
++  use ProphecyTrait;
++
++  /**
++   * {@inheritdoc}
++   */
++  protected static $modules = [
++    'next',
++    'path',
++    'path_alias',
++    'system',
++    'user',
++  ];
++
++  /**
++   * Tests that config entity cache tags are revalidated after a save.
++   *
++   * @covers ::revalidate
++   */
++  public function testConfigEntityRevalidate(): void {
++    $client = $this->prophesize(ClientInterface::class);
++    $this->container->set('http_client', $client->reveal());
++
++    NextSite::create([
++      'id' => 'frontend',
++      'revalidate_url' => 'https://frontend.example/api/revalidate',
++    ])->save();
++    NextEntityTypeConfig::create([
++      'id' => 'user_role.user_role',
++      'site_resolver' => 'site_selector',
++      'configuration' => [
++        'sites' => ['frontend' => 'frontend'],
++      ],
++      'revalidator' => 'cache_tag',
++      'revalidator_configuration' => [
++        'entity_tag' => TRUE,
++        'entity_list_tag' => FALSE,
++      ],
++    ])->save();
++
++    $client->request(
++      'GET',
++      'https://frontend.example/api/revalidate?tags=config%3Auser.role.editor',
++    )->shouldBeCalledOnce()->willReturn(new GuzzleResponse());
++
++    Role::create([
++      'id' => 'editor',
++      'label' => 'Editor',
++    ])->save();
++    $this->container->get('kernel')->terminate(
++      Request::create('/'),
++      new Response(),
++    );
++  }
++
++}

@@ -51,6 +51,9 @@ patchedDependencies:
   '@drupal-canvas/headless-next':
     hash: d6849e0fb6fa695d3e7eb4550235f980143e7cd375ea2cb8ac03d40f73430a5b
     path: patches/@drupal-canvas__headless-next.patch
+  '@drupal-canvas/headless-react':
+    hash: 1f745ffd76bf9710a7f76832d2308ba9ac23fdc7d904797c7be0eb1c2c5030f5
+    path: patches/@drupal-canvas__headless-react.patch
 
 importers:
 
@@ -816,7 +819,7 @@ importers:
         version: 0.1.1(patch_hash=d6849e0fb6fa695d3e7eb4550235f980143e7cd375ea2cb8ac03d40f73430a5b)(next@16.3.0(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
       '@drupal-canvas/headless-react':
         specifier: ^0.2.1
-        version: 0.2.1(react@19.2.8)
+        version: 0.2.1(patch_hash=1f745ffd76bf9710a7f76832d2308ba9ac23fdc7d904797c7be0eb1c2c5030f5)(react@19.2.8)
       '@repo/commerce':
         specifier: workspace:*
         version: link:../commerce
@@ -13668,11 +13671,11 @@ snapshots:
   '@drupal-canvas/headless-next@0.1.1(patch_hash=d6849e0fb6fa695d3e7eb4550235f980143e7cd375ea2cb8ac03d40f73430a5b)(next@16.3.0(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@drupal-canvas/headless': 0.3.0(patch_hash=ca334356d8e8819e6b8360dec9b9be70f8002793c1d607dc224cb1f487953ccb)
-      '@drupal-canvas/headless-react': 0.2.1(react@19.2.8)
+      '@drupal-canvas/headless-react': 0.2.1(patch_hash=1f745ffd76bf9710a7f76832d2308ba9ac23fdc7d904797c7be0eb1c2c5030f5)(react@19.2.8)
       next: 16.3.0(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
 
-  '@drupal-canvas/headless-react@0.2.1(react@19.2.8)':
+  '@drupal-canvas/headless-react@0.2.1(patch_hash=1f745ffd76bf9710a7f76832d2308ba9ac23fdc7d904797c7be0eb1c2c5030f5)(react@19.2.8)':
     dependencies:
       '@drupal-canvas/headless': 0.3.0(patch_hash=ca334356d8e8819e6b8360dec9b9be70f8002793c1d607dc224cb1f487953ccb)
       react: 19.2.8

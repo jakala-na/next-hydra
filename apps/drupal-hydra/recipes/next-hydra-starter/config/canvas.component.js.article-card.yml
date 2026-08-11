@@ -1,0 +1,35 @@
+uuid: b970083c-96b2-41ef-bdba-4094ac75a176
+langcode: en
+status: true
+dependencies:
+  config:
+    - canvas.js_component.article-card
+    - node.type.article
+  module:
+    - node
+active_version: 21dff81d481431ca
+versioned_properties:
+  active:
+    settings:
+      prop_field_definitions:
+        article:
+          required: false
+          field_type: entity_reference
+          field_storage_settings:
+            target_type: node
+          field_instance_settings:
+            handler: default
+            handler_settings:
+              target_bundles:
+                - article
+          field_widget: entity_reference_autocomplete
+          default_value: null
+          expression: ℹ︎entity_reference␟entity
+          derived_schema_metadata: {  }
+    fallback_metadata:
+      slot_definitions: {  }
+label: 'Article Card'
+id: js.article-card
+provider: null
+source: js
+source_local_id: article-card

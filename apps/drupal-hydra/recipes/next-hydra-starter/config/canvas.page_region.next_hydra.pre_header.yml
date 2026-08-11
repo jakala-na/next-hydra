@@ -1,0 +1,9 @@
+langcode: en
+status: true
+dependencies:
+  theme:
+    - next_hydra
+id: next_hydra.pre_header
+theme: next_hydra
+region: pre_header
+component_tree: []

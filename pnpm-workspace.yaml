@@ -37,3 +37,4 @@ onlyBuiltDependencies:
 patchedDependencies:
   '@drupal-canvas/headless': patches/@drupal-canvas__headless.patch
   '@drupal-canvas/headless-next': patches/@drupal-canvas__headless-next.patch
+  '@drupal-canvas/headless-react': patches/@drupal-canvas__headless-react.patch

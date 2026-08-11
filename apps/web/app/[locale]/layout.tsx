@@ -1,5 +1,9 @@
 import "./styles.css";
-import { CmsLayoutIntegration, getNavigation } from "@repo/cms/layout";
+import {
+  CmsGlobalRegion,
+  CmsLayoutIntegration,
+  getNavigation,
+} from "@repo/cms/layout";
 import { CommerceCartProvider } from "@repo/commerce/cart";
 import { BusinessUnitSwitcher } from "@repo/commerce/commerce-context";
 import { CartButtonClient } from "@repo/design-system/components/layout/cart-button";
@@ -7,6 +11,7 @@ import { MobileMenu } from "@repo/design-system/components/layout/mobile-menu";
 import { Navigation } from "@repo/design-system/components/layout/navigation";
 import { RegionSelector } from "@repo/design-system/components/layout/region-selector";
 import { SearchAutocomplete } from "@repo/design-system/components/layout/search-autocomplete";
+import { SiteFooter } from "@repo/design-system/components/layout/site-footer";
 import { SiteHeader } from "@repo/design-system/components/layout/site-header";
 import {
   hasLocale,
@@ -52,6 +57,7 @@ export default async function RootLayout({
     <DocumentShell lang={locale}>
       <NextIntlClientProvider>
         <CommerceCartProvider locale={locale}>
+          <CmsGlobalRegion locale={locale} name="pre-header" />
           <SiteHeader
             MainNavigation={
               <Navigation navigationItems={navigation.navigationItems} />
@@ -92,7 +98,11 @@ export default async function RootLayout({
               </Suspense>
             }
           />
+          <CmsGlobalRegion locale={locale} name="post-header" />
           {children}
+          <CmsGlobalRegion locale={locale} name="pre-footer" />
+          <SiteFooter />
+          <CmsGlobalRegion locale={locale} name="post-footer" />
           <CmsLayoutIntegration />
         </CommerceCartProvider>
       </NextIntlClientProvider>

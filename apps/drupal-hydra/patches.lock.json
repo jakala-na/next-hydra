@@ -1,5 +1,5 @@
 {
-  "_hash": "512cb180fba684ee937e07e72fa1f806c265fc92a19b74a0c50773c699386706",
+  "_hash": "3f299548d15454fd3d484feafa98f2e588c739017fa96af9e6b3c28a8c5d59c1",
   "patches": {
     "drupal/canvas": [
       {
@@ -7,6 +7,28 @@
         "description": "Add multilingual headless previews, translated default content, and cacheability metadata",
         "url": "patches/drupal-canvas-1.10-next-hydra-compatibility.patch",
         "sha256": "dad199f83132d4e6985e43356d4354654968185fcc28a762734205459ddb32e8",
+        "depth": 1,
+        "extra": {
+          "provenance": "root"
+        }
+      },
+      {
+        "package": "drupal/canvas",
+        "description": "Expose active-theme Canvas regions to headless frontends",
+        "url": "patches/drupal-canvas-1.10-headless-global-regions.patch",
+        "sha256": "7eaff1273b0f299d0363992a854fcc3da57d9cde68386d7b90580cd5a7c1af13",
+        "depth": 1,
+        "extra": {
+          "provenance": "root"
+        }
+      }
+    ],
+    "drupal/next": [
+      {
+        "package": "drupal/next",
+        "description": "Allow cache-tag revalidation for config entities",
+        "url": "patches/drupal-next-2.1-config-entity-cache-tags.patch",
+        "sha256": "d028c23ff1a7a0bda737c3d693847a035f4c27e16eb407950f201f9681480ab9",
         "depth": 1,
         "extra": {
           "provenance": "root"

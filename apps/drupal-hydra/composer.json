@@ -64,6 +64,16 @@
         {
           "description": "Add multilingual headless previews, translated default content, and cacheability metadata",
           "url": "patches/drupal-canvas-1.10-next-hydra-compatibility.patch"
+        },
+        {
+          "description": "Expose active-theme Canvas regions to headless frontends",
+          "url": "patches/drupal-canvas-1.10-headless-global-regions.patch"
+        }
+      ],
+      "drupal/next": [
+        {
+          "description": "Allow cache-tag revalidation for config entities",
+          "url": "patches/drupal-next-2.1-config-entity-cache-tags.patch"
         }
       ]
     },

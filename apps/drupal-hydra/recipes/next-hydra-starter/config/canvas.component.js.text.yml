@@ -1,0 +1,30 @@
+uuid: e65dd59c-0834-40f9-aa33-0aac34b6a3ba
+langcode: en
+status: true
+dependencies:
+  config:
+    - canvas.js_component.text
+active_version: 9a9978112194b13f
+versioned_properties:
+  active:
+    settings:
+      prop_field_definitions:
+        text:
+          required: true
+          field_type: string
+          field_storage_settings: {  }
+          field_instance_settings: {  }
+          field_widget: string_textfield
+          default_value:
+            -
+              value: 'Connect content and commerce while keeping every provider replaceable.'
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {  }
+    fallback_metadata:
+      slot_definitions: {  }
+label: Text
+id: js.text
+provider: null
+source: js
+source_local_id: text

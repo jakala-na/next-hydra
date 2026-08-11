@@ -1,0 +1,15 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - canvas
+id: page_region.page_region
+site_resolver: site_selector
+configuration:
+  sites:
+    next_hydra: next_hydra
+draft_enabled: false
+revalidator: cache_tag
+revalidator_configuration:
+  entity_tag: true
+  entity_list_tag: true

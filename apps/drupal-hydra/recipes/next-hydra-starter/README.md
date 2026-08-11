@@ -47,16 +47,26 @@ Administrators can access the workspace; grant its restricted
 `translate canvas content` permission deliberately when creating a dedicated
 translator role.
 
+The recipe also enables the headless theme's `pre_header`, `post_header`,
+`pre_footer`, and `post_footer` Canvas PageRegions. Each region contains a
+small text component after installation so the complete global-region delivery
+path can be verified at `/canvas/regions-api`; replace these markers with the
+site's authored global content.
+
 Canvas page translations share component-tree structure while retaining
 independently translatable component inputs. Structural edits such as adding,
 removing, or reordering a component therefore remain symmetrical across
 languages without overwriting translated component copy.
 
 The recipe preinstalls the external Canvas component definitions used by its
-default Canvas homepage. Importing those configuration entities generates the
-corresponding `canvas.component.js.*` records before recipe content is imported,
-so a clean install does not require an initial component push. Run the package's
+default Canvas homepage and their corresponding derived
+`canvas.component.js.*` records. Recipe config synchronization suppresses
+Canvas component discovery, so both layers are included explicitly and a clean
+install does not require an initial component push. Run the package's
 `canvas:push` command after changing local component metadata to update Drupal.
+The Canvas parametrized-width image style is included explicitly so components
+with image entity-reference props can calculate their dependencies during the
+same clean recipe installation.
 
 The Canvas demo homepage mirrors the regular homepage's Hero, Product
 Collection, and Featured Articles blocks. Featured Articles composes Article

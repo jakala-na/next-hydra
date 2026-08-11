@@ -27,6 +27,7 @@ install:
   - menu_link_content
   - menu_ui
   - next
+  - next_hydra
   - node
   - path
   - toolbar
@@ -189,6 +190,38 @@ config:
           it: ''
           pt-pt: ''
           nl: ''
+    canvas.page_region.next_hydra.pre_header:
+      setProperties:
+        component_tree:
+          - uuid: 37a586d3-d6bf-4a2e-9be6-bf3105aa6e71
+            component_id: js.text
+            component_version: 9a9978112194b13f
+            inputs: '{"text":"Global pre-header region"}'
+            label: 'Global pre-header region'
+    canvas.page_region.next_hydra.post_header:
+      setProperties:
+        component_tree:
+          - uuid: 86010f15-13da-47ab-9095-316034f5bc8a
+            component_id: js.text
+            component_version: 9a9978112194b13f
+            inputs: '{"text":"Global post-header region"}'
+            label: 'Global post-header region'
+    canvas.page_region.next_hydra.pre_footer:
+      setProperties:
+        component_tree:
+          - uuid: 2fe3bee3-55a4-43af-9ad6-c88dc8e8478d
+            component_id: js.text
+            component_version: 9a9978112194b13f
+            inputs: '{"text":"Global pre-footer region"}'
+            label: 'Global pre-footer region'
+    canvas.page_region.next_hydra.post_footer:
+      setProperties:
+        component_tree:
+          - uuid: b2212bb7-d140-4542-8a12-70cd475981fd
+            component_id: js.text
+            component_version: 9a9978112194b13f
+            inputs: '{"text":"Global post-footer region"}'
+            label: 'Global post-footer region'
     locale.settings:
       simpleConfigUpdate:
         translation.import_enabled: true
@@ -337,7 +370,7 @@ config:
     system.theme:
       simpleConfigUpdate:
         admin: gin
-        default: gin
+        default: next_hydra
     simple_oauth.settings:
       simpleConfigUpdate:
         access_token_expiration: 2592000

@@ -3,6 +3,7 @@ import { CanvasComponentTree as ReactCanvasComponentTree } from "@drupal-canvas/
 import canvasComponents from "../.canvas/components";
 
 type CanvasComponentTreeProps = {
+  regionId?: string;
   tree: CanvasComponentTreeElement | null;
 };
 
@@ -10,6 +11,15 @@ type CanvasComponentTreeProps = {
  * Resolves the generated Canvas registry in the Server Component graph.
  * Individual registry entries can still opt into a client boundary.
  */
-export function CanvasComponentTree({ tree }: CanvasComponentTreeProps) {
-  return <ReactCanvasComponentTree components={canvasComponents} tree={tree} />;
+export function CanvasComponentTree({
+  regionId,
+  tree,
+}: CanvasComponentTreeProps) {
+  return (
+    <ReactCanvasComponentTree
+      components={canvasComponents}
+      regionId={regionId}
+      tree={tree}
+    />
+  );
 }

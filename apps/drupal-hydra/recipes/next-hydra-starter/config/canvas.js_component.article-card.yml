@@ -21,8 +21,6 @@ props:
   article:
     type: object
     $ref: 'json-schema-definitions://canvas.module/content-entity-reference'
-    x-allowed-entity-type-id: node
-    x-allowed-bundle: article
     title: Article
 slots: {  }
 dataDependencies:
