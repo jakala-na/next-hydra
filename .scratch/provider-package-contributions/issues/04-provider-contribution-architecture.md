@@ -21,8 +21,7 @@ Compare the smallest viable generated-shim design with the smallest viable dispa
 
 ## Comments
 
-- Human-checkpoint prototype: [Provider composition mechanics](../../../packages/create-next-hydra/prototypes/provider-composition/README.md).
-- Run `pnpm prototype:composition` from the repository root. The prototype writes only to its ignored `PROTOTYPE-WIPE-ME/` directory and exposes a `z` key to wipe that output.
+- A throwaway human-checkpoint prototype informed this decision and was deliberately discarded after the generated-route approach was selected. The retained findings are summarized below; the prototype is not part of the implementation or repository tooling.
 - It calls the documented `shadcn/registry` API with a resolved universal `registry:item`, while the prototype wrapper separately validates Provider/Add-on compatibility, route claims, root-specific package changes, and package-manager failure recovery.
 - The two route mechanics expose the same public provider route set differently: generated shims materialize the selected Provider's exact App Router entries; the dispatcher keeps one application-owned catch-all entry and changes the provider-owned route table behind it.
 - The human checkpoint selected generated routes. A shared catch-all dispatcher is too likely to conflict with another application or integration that needs the same broad route space.
