@@ -13,6 +13,7 @@ import { formatCompositionPlan } from "./composition/format.js";
 import {
   installPreparedComposition,
   prepareComposition,
+  validatePackageRequirementTargets,
 } from "./composition/install.js";
 import { planComposition, selectionFromPreset } from "./composition/planner.js";
 import type {
@@ -20,7 +21,6 @@ import type {
   WorkspaceSelection,
 } from "./composition/types.js";
 import {
-  applyGeneratedRoutes,
   applyPackageRequirements,
   applyPnpmPatches,
   removeWorkspaceTargets,
@@ -271,13 +271,15 @@ export async function scaffoldProject(
   }
   sourceCatalog = await addCatalogReferences(
     sourceCatalog,
-    explicitSelectionReferences(options)
+    explicitSelectionReferences(options),
+    process.cwd()
   );
   const selection = await requestedSelection(options, sourceCatalog);
-  sourceCatalog = await addCatalogReferences(sourceCatalog, [
-    ...Object.values(selection.providers),
-    ...selection.addOns,
-  ]);
+  sourceCatalog = await addCatalogReferences(
+    sourceCatalog,
+    [...Object.values(selection.providers), ...selection.addOns],
+    process.cwd()
+  );
   planComposition(sourceCatalog, selection);
 
   const { targetPath, targetName } = await resolveAndValidateTarget(
@@ -291,7 +293,6 @@ export async function scaffoldProject(
     "install selected source",
     "update package aliases",
     "update pnpm patches",
-    "generate routes",
     "remove maintainer-only files",
     "install dependencies",
     "initialize Git",
@@ -332,6 +333,12 @@ export async function scaffoldProject(
           targetCatalog,
           targetPlan
         );
+        await validatePackageRequirementTargets(
+          targetPath,
+          targetPlan,
+          targetPrepared,
+          targetPlan.variableTargets
+        );
         return {
           catalog: targetCatalog,
           plan: targetPlan,
@@ -360,10 +367,6 @@ export async function scaffoldProject(
     await runStep("update pnpm patches", () =>
       applyPnpmPatches(targetPath, plan)
     );
-    await runStep("generate routes", () =>
-      applyGeneratedRoutes(targetPath, plan)
-    );
-
     spin.start("Removing maintainer-only files");
     const { packageName } = await runStep(
       "remove maintainer-only files",

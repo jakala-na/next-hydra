@@ -6,9 +6,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   addCatalogReferences,
+  fetchRegistryItemGraph,
   loadSourceRegistryCatalog,
 } from "../src/composition/catalog.js";
 import { prepareComposition } from "../src/composition/install.js";
+import { isManagedApplicationSource } from "../src/composition/paths.js";
 import {
   planComposition,
   selectionFromPreset,
@@ -19,10 +21,26 @@ const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const MINIMUM_CONTENTSTACK_FILES = 30;
 const MINIMUM_DRUPAL_FILES = 70;
 const MINIMUM_SIDECAR_FILES = 120;
-const DRUPAL_CMS_ROUTE_COUNT = 7;
+const CONTENTSTACK_MANAGED_FILE_COUNT = 7;
+const DRUPAL_MANAGED_FILE_COUNT = 11;
 const DRUPAL_PNPM_PATCH_COUNT = 3;
 
 describe("Next Hydra source registry", () => {
+  it("distinguishes registry-owned application files from ordinary registry-named source folders", () => {
+    expect(
+      isManagedApplicationSource(
+        "packages/cms-drupal/registry/apps/web/app/api/draft/route.ts",
+        "~/apps/web/app/api/draft/route.ts"
+      )
+    ).toBe(true);
+    expect(
+      isManagedApplicationSource(
+        "packages/example/src/registry/lookup.ts",
+        "~/packages/example/src/registry/lookup.ts"
+      )
+    ).toBe(false);
+  });
+
   it("loads the real included registry and complete CMS artifacts", async () => {
     const catalog = await loadSourceRegistryCatalog(repoRoot);
 
@@ -83,35 +101,27 @@ describe("Next Hydra source registry", () => {
       providers: { ...base, cms: "contentstack" },
     });
 
-    expect(drupal.installUnits.map(({ cwd, item }) => ({ cwd, item }))).toEqual(
-      [
-        { cwd: "packages/auth-workos", item: "auth-workos" },
-        { cwd: "packages/cms-drupal", item: "cms-drupal" },
-        { cwd: "apps/drupal-hydra", item: "drupal-hydra" },
-        {
-          cwd: "packages/commerce-commercetools",
-          item: "commerce-commercetools",
-        },
-      ]
-    );
-    expect(
-      contentstack.installUnits.map(({ cwd, item }) => ({ cwd, item }))
-    ).toEqual([
-      { cwd: "packages/auth-workos", item: "auth-workos" },
-      { cwd: "packages/cms-contentstack", item: "cms-contentstack" },
-      {
-        cwd: "packages/commerce-commercetools",
-        item: "commerce-commercetools",
-      },
+    expect(drupal.registryItems).toEqual([
+      "auth-workos",
+      "cms-drupal",
+      "commerce-commercetools",
+      "drupal-hydra",
     ]);
-    expect(
-      drupal.routes.filter((route) => route.module.startsWith("@repo/cms"))
-    ).toHaveLength(DRUPAL_CMS_ROUTE_COUNT);
-    expect(
-      contentstack.routes.filter((route) =>
-        route.module.startsWith("@repo/cms")
-      )
-    ).toHaveLength(2);
+    expect(contentstack.registryItems).toEqual([
+      "auth-workos",
+      "cms-contentstack",
+      "commerce-commercetools",
+    ]);
+    expect(drupal.managedTargets).toHaveLength(DRUPAL_MANAGED_FILE_COUNT);
+    expect(contentstack.managedTargets).toHaveLength(
+      CONTENTSTACK_MANAGED_FILE_COUNT
+    );
+    expect(drupal.managedTargets).toContain(
+      "apps/web/app/api/canvas/components/route.ts"
+    );
+    expect(contentstack.managedTargets).not.toContain(
+      "apps/web/app/api/canvas/components/route.ts"
+    );
     expect(drupal.assets).toEqual([
       {
         source:
@@ -144,6 +154,25 @@ describe("Next Hydra source registry", () => {
     );
     try {
       const artifactPath = path.join(temporaryDirectory, "external-dam.json");
+      const backendPath = path.join(
+        temporaryDirectory,
+        "external-backend.json"
+      );
+      await writeFile(
+        backendPath,
+        `${JSON.stringify({
+          files: [
+            {
+              content: "export const backend = true;\n",
+              path: "backend.ts",
+              target: "~/apps/drupal-hydra/external-backend.ts",
+              type: "registry:file",
+            },
+          ],
+          name: "external-backend",
+          type: "registry:item",
+        })}\n`
+      );
       await writeFile(
         artifactPath,
         `${JSON.stringify(
@@ -164,11 +193,11 @@ describe("Next Hydra source registry", () => {
                   requires: ["next-hydra/cms/drupal"],
                 },
                 id: "example/add-on/external-dam",
-                installUnits: [{ cwd: ".", item: "external-dam" }],
                 kind: "add-on",
               },
             },
             name: "external-dam",
+            registryDependencies: [backendPath],
             type: "registry:item",
           },
           null,
@@ -191,13 +220,61 @@ describe("Next Hydra source registry", () => {
       const prepared = await prepareComposition(catalog, plan);
 
       expect(plan.selection.addOns).toEqual([artifactPath]);
+      expect(plan.registryItems).toContain("external-backend");
       expect(
-        prepared.units.find((unit) => unit.item === "external-dam")?.artifact
-          .files?.[0]?.content
+        prepared.artifacts.find((item) => item.name === "external-dam")
+          ?.files?.[0]?.content
       ).toBe("export const externalDam = true;\n");
+      expect(prepared.itemByReference.get(backendPath)).toBe(
+        "external-backend"
+      );
+      expect(prepared.registryConfig).toBe(catalog.registryConfig);
     } finally {
       await rm(temporaryDirectory, { force: true, recursive: true });
     }
+  });
+
+  it("fetches a pinned registry address instead of reusing its unpinned item", async () => {
+    const catalog = await loadSourceRegistryCatalog(repoRoot);
+    const unpinnedReference = "jakala-na/next-hydra/cms-drupal";
+    const reference = "jakala-na/next-hydra/cms-drupal#pinned-sha";
+    const helperReference =
+      "jakala-na/next-hydra/pinned-drupal-helper#pinned-sha";
+    const current = catalog.items.get("cms-drupal");
+    if (!current) {
+      throw new Error("Missing Drupal registry fixture.");
+    }
+    const pinned = {
+      ...current,
+      description: "Pinned Drupal artifact",
+      registryDependencies: [helperReference],
+    };
+    const helper = {
+      files: [],
+      name: "pinned-drupal-helper",
+      type: "registry:item" as const,
+    };
+    const requests: string[][] = [];
+
+    const graph = await fetchRegistryItemGraph({
+      config: catalog.registryConfig,
+      cwd: repoRoot,
+      fetchItems: (items) => {
+        requests.push(items);
+        return Promise.resolve([
+          items[0] === helperReference ? helper : pinned,
+        ]);
+      },
+      itemByReference: catalog.itemByReference,
+      items: catalog.items.values(),
+      references: [unpinnedReference, reference],
+      repository: "jakala-na/next-hydra",
+    });
+
+    expect(requests).toEqual([[reference], [helperReference]]);
+    expect(graph.items.get("cms-drupal")).toEqual(pinned);
+    expect(graph.items.get(helper.name)).toEqual(helper);
+    expect(graph.itemByReference.get(reference)).toBe("cms-drupal");
   });
 
   it("publishes a complete registry-item schema for Selection Definitions", async () => {

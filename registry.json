@@ -18,7 +18,6 @@
         "nextHydra": {
           "id": "next-hydra/preset/standard",
           "kind": "preset",
-          "installUnits": [],
           "selections": {
             "providers": {
               "auth": "workos",

@@ -1,41 +1,62 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { confirm, isCancel } from "@clack/prompts";
-import { getRegistriesConfig, getRegistryItems } from "shadcn/registry";
+import {
+  addRegistryItems,
+  getRegistriesConfig,
+  resolveRegistryItems,
+} from "shadcn/registry";
 import type { RegistryItem } from "shadcn/schema";
 
-import { pathExists, readJsonFile } from "../fs-utils.js";
-import { info, printNextSteps, success } from "../logger.js";
+import { pathExists } from "../fs-utils.js";
+import { runCommand } from "../git.js";
+import { info, success } from "../logger.js";
+import { fetchRegistryItemGraph } from "./catalog.js";
 import { CompositionValidationError } from "./errors.js";
-import { installPreparedComposition } from "./install.js";
-import { normalizeWorkspaceRoot, resolveRegistryTarget } from "./paths.js";
+import { withPreparedRegistryArtifacts } from "./install.js";
+import {
+  mergePackageRequirements,
+  parsePackageJson,
+  readPackageJson,
+} from "./packages.js";
+import { resolveRegistryTarget } from "./paths.js";
 import {
   formatZodError,
   NEXT_HYDRA_SELECTION_SCHEMA_URL,
   selectionDefinitionSchema,
 } from "./schema.js";
-import type {
-  PackageRequirement,
-  PreparedComposition,
-  SelectionDefinition,
+import {
+  type PackageRequirement,
+  PROVIDER_ALIASES,
+  type SelectionDefinition,
 } from "./types.js";
 import { applyPackageEntries } from "./workspace.js";
 
 export type AddOptions = {
   cwd?: string;
-  roots?: string[];
+  overwrite?: boolean;
   yes?: boolean;
 };
 
+type ConfirmPrompt = (
+  options: Parameters<typeof confirm>[0]
+) => ReturnType<typeof confirm>;
+
+export type AddDependencies = {
+  confirm?: ConfirmPrompt;
+  install?: (cwd: string) => Promise<void>;
+};
+
+type ChangeStatus = "create" | "identical" | "changed";
+
 type FileChange = {
+  kind: "registry file";
+  status: ChangeStatus;
   target: string;
-  status: "create" | "identical" | "changed";
-  item: RegistryItem;
-  fileIndex: number;
 };
 
 type PackageChange = PackageRequirement & {
-  status: "create" | "identical" | "changed";
+  status: ChangeStatus;
   actual?: string;
 };
 
@@ -43,6 +64,34 @@ type ParsedDependency = {
   name: string;
   specifier?: string;
 };
+
+const PACKAGE_ALIAS_PROTOCOL = /^(?:workspace|npm):/;
+const EXACT_COPY_FILE_TYPES = new Set(["registry:file", "registry:item"]);
+
+const KNOWN_PROVIDERS = new Map<
+  string,
+  { dependency: string; packageName: string }
+>([
+  [
+    "next-hydra/auth/workos",
+    { dependency: "@repo/auth", packageName: "@repo/auth-workos" },
+  ],
+  [
+    "next-hydra/cms/contentstack",
+    { dependency: "@repo/cms", packageName: "@repo/cms-contentstack" },
+  ],
+  [
+    "next-hydra/cms/drupal",
+    { dependency: "@repo/cms", packageName: "@repo/cms-drupal" },
+  ],
+  [
+    "next-hydra/commerce/commercetools",
+    {
+      dependency: "@repo/commerce-provider",
+      packageName: "@repo/commerce-commercetools",
+    },
+  ],
+]);
 
 function parseDependency(request: string): ParsedDependency {
   const packageEnd = request.startsWith("@")
@@ -60,11 +109,21 @@ function parseDependency(request: string): ParsedDependency {
 function packageStatus(
   actual: string | undefined,
   expected: string
-): PackageChange["status"] {
+): ChangeStatus {
   if (actual === undefined) {
     return "create";
   }
   return actual === expected ? "identical" : "changed";
+}
+
+function dependencyStatus(
+  actual: string | undefined,
+  requested: ParsedDependency
+): ChangeStatus {
+  if (requested.specifier) {
+    return packageStatus(actual, requested.specifier);
+  }
+  return actual === undefined ? "create" : "identical";
 }
 
 function parseSelection(item: RegistryItem): SelectionDefinition | undefined {
@@ -87,71 +146,99 @@ function parseSelection(item: RegistryItem): SelectionDefinition | undefined {
   return result.data;
 }
 
+async function changeStatus(
+  absoluteTarget: string,
+  expected: string
+): Promise<ChangeStatus> {
+  if (!(await pathExists(absoluteTarget))) {
+    return "create";
+  }
+  const normalize = (content: string) =>
+    content.replaceAll("\r\n", "\n").trim();
+  return normalize(await readFile(absoluteTarget, "utf8")) ===
+    normalize(expected)
+    ? "identical"
+    : "changed";
+}
+
+function requireExactCopyFile(type: string, owner: string): void {
+  if (!EXACT_COPY_FILE_TYPES.has(type)) {
+    throw new CompositionValidationError(
+      "Customer add supports only exact-copy registry files in v1.",
+      [
+        `${owner} uses ${type}; use registry:file or registry:item with an explicit target so the reviewed content is exactly what ShadCN writes`,
+      ]
+    );
+  }
+}
+
 async function inspectFiles(
   workspaceRoot: string,
-  artifacts: RegistryItem[],
-  units: Array<{ item: string; cwd: string }>
+  tree: NonNullable<Awaited<ReturnType<typeof resolveRegistryItems>>>
 ): Promise<FileChange[]> {
-  const byName = new Map(
-    artifacts.map((artifact) => [artifact.name, artifact])
-  );
-  const tasks = units.flatMap((unit) => {
-    const item = byName.get(unit.item);
-    if (!item) {
-      throw new CompositionValidationError("Missing Add-on Install Unit.", [
-        `${unit.item} was not returned by the requested registry dependency graph`,
-      ]);
-    }
-    return (item.files ?? []).map(async (file, fileIndex) => {
+  const registryFiles = await Promise.all(
+    (tree.files ?? []).map(async (file) => {
+      requireExactCopyFile(file.type, file.path);
       if (!(file.target && file.content !== undefined)) {
         throw new CompositionValidationError(
-          "Next Hydra Add-ons require explicit file targets and resolved content.",
-          [`${item.name}:${file.path} cannot be inspected before installation`]
+          "Next Hydra Add-ons require explicit workspace-root file targets.",
+          [`${file.path} must include content and a target beginning with ~/`]
         );
       }
-      const target = resolveRegistryTarget(unit.cwd, file.target);
-      const absoluteTarget = path.join(workspaceRoot, target);
-      if (!(await pathExists(absoluteTarget))) {
-        return {
-          fileIndex,
-          item,
-          status: "create",
-          target,
-        } satisfies FileChange;
-      }
-      const current = await readFile(absoluteTarget, "utf8");
+      const target = resolveRegistryTarget(file.target);
       return {
-        fileIndex,
-        item,
-        status: current === file.content ? "identical" : "changed",
+        kind: "registry file" as const,
+        status: await changeStatus(
+          path.join(workspaceRoot, target),
+          file.content
+        ),
         target,
-      } satisfies FileChange;
-    });
-  });
-  const changes = await Promise.all(tasks);
-
-  const claimedTargets = new Set<string>();
-  for (const change of changes) {
-    if (claimedTargets.has(change.target)) {
+      };
+    })
+  );
+  const claimed = new Map<string, FileChange["kind"]>();
+  for (const change of registryFiles) {
+    const existing = claimed.get(change.target);
+    if (existing) {
       throw new CompositionValidationError(
-        "The requested registry items target the same customer file more than once.",
-        [change.target]
+        "The requested Add-on targets the same customer file more than once.",
+        [`${change.target} is both a ${existing} and a ${change.kind}`]
       );
     }
-    claimedTargets.add(change.target);
+    claimed.set(change.target, change.kind);
   }
-  return changes.sort((left, right) => left.target.localeCompare(right.target));
+  return registryFiles.sort((left, right) =>
+    left.target.localeCompare(right.target)
+  );
 }
 
 function inspectPackages(
   workspaceRoot: string,
-  requirements: PackageRequirement[]
+  requirements: PackageRequirement[],
+  tree: NonNullable<Awaited<ReturnType<typeof resolveRegistryItems>>>
 ): Promise<PackageChange[]> {
+  const prospectiveManifests = new Map<string, string>();
+  for (const file of tree.files ?? []) {
+    if (!(file.target && file.content !== undefined)) {
+      continue;
+    }
+    const target = resolveRegistryTarget(file.target);
+    if (target.endsWith("/package.json") || target === "package.json") {
+      prospectiveManifests.set(target, file.content);
+    }
+  }
+
   return Promise.all(
     requirements.map(async (requirement) => {
-      const manifest = await readJsonFile<
-        Partial<Record<PackageRequirement["section"], Record<string, string>>>
-      >(path.join(workspaceRoot, requirement.cwd, "package.json"));
+      const relativeManifest = path.posix.join(requirement.cwd, "package.json");
+      const prospective = prospectiveManifests.get(relativeManifest);
+      const manifest =
+        prospective === undefined
+          ? await readPackageJson(
+              path.join(workspaceRoot, relativeManifest),
+              relativeManifest
+            )
+          : parsePackageJson(prospective, relativeManifest);
       const actual = manifest[requirement.section]?.[requirement.name];
       return {
         ...requirement,
@@ -162,64 +249,255 @@ function inspectPackages(
   );
 }
 
-function inspectRegistryPackages(
+async function inspectRootDependencies(
   workspaceRoot: string,
-  artifacts: RegistryItem[],
-  units: Array<{ item: string; cwd: string }>
+  tree: NonNullable<Awaited<ReturnType<typeof resolveRegistryItems>>>
 ): Promise<PackageChange[]> {
-  const byName = new Map(
-    artifacts.map((artifact) => [artifact.name, artifact])
+  const manifest = await readPackageJson(
+    path.join(workspaceRoot, "package.json"),
+    "package.json"
   );
-  const requests = units.flatMap((unit) => {
-    const artifact = byName.get(unit.item);
-    if (!artifact) {
-      return [];
-    }
-    return [
-      ...(artifact.dependencies ?? []).map((request) => ({
-        ...parseDependency(request),
-        cwd: unit.cwd,
-        section: "dependencies" as const,
-      })),
-      ...(artifact.devDependencies ?? []).map((request) => ({
-        ...parseDependency(request),
-        cwd: unit.cwd,
-        section: "devDependencies" as const,
-      })),
-    ];
-  });
+  const requests = [
+    ...(tree.dependencies ?? []).map((request) => ({
+      ...parseDependency(request),
+      section: "dependencies" as const,
+    })),
+    ...(tree.devDependencies ?? []).map((request) => ({
+      ...parseDependency(request),
+      section: "devDependencies" as const,
+    })),
+  ];
 
-  return Promise.all(
-    requests.map(async (request) => {
-      const manifest = await readJsonFile<
-        Partial<Record<PackageRequirement["section"], Record<string, string>>>
-      >(path.join(workspaceRoot, request.cwd, "package.json"));
-      const actual = manifest[request.section]?.[request.name];
-      const specifier = request.specifier ?? actual ?? "registry default";
-      let status: PackageChange["status"] =
-        actual === undefined ? "create" : "identical";
-      if (request.specifier) {
-        status = packageStatus(actual, request.specifier);
-      }
-      return {
-        ...request,
-        actual,
-        specifier,
-        status,
-      };
-    })
+  return requests.map((request) => {
+    const actual = manifest[request.section]?.[request.name];
+    const specifier = request.specifier ?? actual ?? "registry default";
+    return {
+      actual,
+      cwd: ".",
+      name: request.name,
+      section: request.section,
+      specifier,
+      status: dependencyStatus(actual, request),
+    };
+  });
+}
+
+function usesProviderAlias(
+  actual: string | undefined,
+  packageName: string
+): boolean {
+  if (!actual) {
+    return false;
+  }
+  return (
+    actual === packageName ||
+    actual.startsWith(`workspace:${packageName}@`) ||
+    actual.startsWith(`npm:${packageName}@`)
   );
+}
+
+function aliasedPackageName(specifier: string): string | undefined {
+  const request = specifier.replace(PACKAGE_ALIAS_PROTOCOL, "");
+  const packageEnd = request.startsWith("@")
+    ? request.indexOf("@", request.indexOf("/") + 1)
+    : request.indexOf("@");
+  return packageEnd < 1 ? request || undefined : request.slice(0, packageEnd);
+}
+
+function providerExpectation(
+  selectionId: string,
+  selectionsById: Map<string, SelectionDefinition>
+): { dependency: string; packageName: string } | undefined {
+  const known = KNOWN_PROVIDERS.get(selectionId);
+  if (known) {
+    return known;
+  }
+  const selection = selectionsById.get(selectionId);
+  if (selection?.kind !== "provider" || !selection.slot) {
+    return;
+  }
+  const dependency = PROVIDER_ALIASES[selection.slot];
+  const requirement = selection.packages.find(
+    (candidate) =>
+      candidate.cwd === "apps/web" &&
+      candidate.section === "dependencies" &&
+      candidate.name === dependency
+  );
+  const packageName = requirement
+    ? aliasedPackageName(requirement.specifier)
+    : undefined;
+  return packageName ? { dependency, packageName } : undefined;
+}
+
+async function validateKnownProviderCompatibility(
+  workspaceRoot: string,
+  selections: SelectionDefinition[]
+): Promise<string[]> {
+  if (selections.length === 0) {
+    return [];
+  }
+  const manifest = await readPackageJson(
+    path.join(workspaceRoot, "apps/web/package.json"),
+    "apps/web/package.json"
+  );
+  const issues: string[] = [];
+  const assumptions: string[] = [];
+  const selectionsById = new Map(selections.map((item) => [item.id, item]));
+
+  for (const selection of selections) {
+    if (selection.kind !== "provider") {
+      continue;
+    }
+    const provider = providerExpectation(selection.id, selectionsById);
+    if (!provider) {
+      issues.push(
+        `${selection.id} is a Provider in the requested graph but does not declare its apps/web stable alias`
+      );
+      continue;
+    }
+    const actual = manifest.dependencies?.[provider.dependency];
+    if (!usesProviderAlias(actual, provider.packageName)) {
+      issues.push(
+        `${selection.id} is a Provider in the requested graph, but the current provider alias ${provider.dependency} is ${actual ?? "missing"}`
+      );
+    }
+  }
+
+  for (const selection of selections) {
+    for (const required of selection.compatibility.requires) {
+      const provider = providerExpectation(required, selectionsById);
+      const requiredSelection = selectionsById.get(required);
+      if (
+        provider &&
+        !usesProviderAlias(
+          manifest.dependencies?.[provider.dependency],
+          provider.packageName
+        )
+      ) {
+        issues.push(`${selection.id} requires ${required}`);
+      } else if (!(provider || requiredSelection?.kind === "add-on")) {
+        assumptions.push(
+          `${selection.id} requires ${required}; this customer workspace has no authoritative selection record, so Next Hydra cannot verify it`
+        );
+      }
+    }
+    for (const conflict of selection.compatibility.conflicts) {
+      const provider = providerExpectation(conflict, selectionsById);
+      const conflictingSelection = selectionsById.get(conflict);
+      if (
+        (provider &&
+          usesProviderAlias(
+            manifest.dependencies?.[provider.dependency],
+            provider.packageName
+          )) ||
+        conflictingSelection?.kind === "add-on"
+      ) {
+        issues.push(`${selection.id} conflicts with ${conflict}`);
+      } else if (!provider) {
+        assumptions.push(
+          `${selection.id} conflicts with ${conflict}; this customer workspace has no authoritative selection record, so Next Hydra cannot verify its absence`
+        );
+      }
+    }
+  }
+  if (issues.length > 0) {
+    throw new CompositionValidationError(
+      "The Add-on is incompatible with the current provider aliases.",
+      issues
+    );
+  }
+  return [...new Set(assumptions)].sort((left, right) =>
+    left.localeCompare(right)
+  );
+}
+
+function validateRegistryTargetClaims(items: Iterable<RegistryItem>): void {
+  const claims = new Map<string, string>();
+  const issues: string[] = [];
+  for (const item of items) {
+    for (const file of item.files ?? []) {
+      requireExactCopyFile(file.type, `${item.name}:${file.path}`);
+      if (!(file.target && file.content !== undefined)) {
+        throw new CompositionValidationError(
+          "Next Hydra Add-ons require explicit workspace-root file targets.",
+          [
+            `${item.name}:${file.path} must include content and a target beginning with ~/`,
+          ]
+        );
+      }
+      const target = resolveRegistryTarget(file.target);
+      const owner = `${item.name}:${file.path}`;
+      const existing = claims.get(target);
+      if (existing && existing !== owner) {
+        issues.push(`${target} is claimed by both ${existing} and ${owner}`);
+      } else {
+        claims.set(target, owner);
+      }
+    }
+  }
+  if (issues.length > 0) {
+    throw new CompositionValidationError(
+      "The registry dependency graph targets the same customer file more than once.",
+      issues
+    );
+  }
+}
+
+function describeShadcnEffects(
+  tree: NonNullable<Awaited<ReturnType<typeof resolveRegistryItems>>>,
+  items: Iterable<RegistryItem>
+): string[] {
+  const hasValues = (value: unknown): boolean => {
+    if (Array.isArray(value)) {
+      return value.some(hasValues);
+    }
+    if (value && typeof value === "object") {
+      return Object.values(value).some(hasValues);
+    }
+    return (
+      value !== undefined && value !== null && value !== false && value !== ""
+    );
+  };
+  const effects: string[] = [];
+  const envKeys = Object.keys(tree.envVars ?? {}).sort();
+  if (envKeys.length > 0) {
+    effects.push(
+      `environment placeholders may be merged by ShadCN: ${envKeys.join(", ")}`
+    );
+  }
+  if (hasValues(tree.tailwind)) {
+    effects.push("Tailwind configuration will be merged by ShadCN");
+  }
+  if (hasValues(tree.cssVars)) {
+    effects.push("CSS variables will be merged by ShadCN");
+  }
+  if (hasValues(tree.css)) {
+    effects.push("CSS declarations will be merged by ShadCN");
+  }
+  if ((tree.fonts?.length ?? 0) > 0) {
+    effects.push(
+      `${tree.fonts?.length ?? 0} font definition(s) will be applied by ShadCN`
+    );
+  }
+  if ([...items].some((item) => "config" in item && item.config)) {
+    effects.push("ShadCN project configuration will be updated");
+  }
+
+  return [...new Set(effects)];
 }
 
 async function confirmChanges(
   fileChanges: FileChange[],
   packageChanges: PackageChange[],
-  yes: boolean
+  options: Pick<AddOptions, "overwrite" | "yes">,
+  prompt: ConfirmPrompt
 ): Promise<void> {
+  const overwrite = options.overwrite ?? false;
+  const yes = options.yes === true;
   const conflicts = [
     ...fileChanges
       .filter((change) => change.status === "changed")
-      .map((change) => ({ kind: "file", label: change.target })),
+      .map((change) => ({ kind: change.kind, label: change.target })),
     ...packageChanges
       .filter((change) => change.status === "changed")
       .map((change) => ({
@@ -228,33 +506,35 @@ async function confirmChanges(
       })),
   ];
 
-  if (yes && conflicts.length > 0) {
+  if (yes && !overwrite && conflicts.length > 0) {
     throw new CompositionValidationError(
       "Additive installation found customer-owned conflicts.",
       conflicts.map(
         (conflict) =>
-          `${conflict.label} must be reviewed interactively; --yes never authorizes changed ${conflict.kind}s`
+          `${conflict.label} requires --overwrite; --yes only skips confirmation prompts for non-conflicting changes`
       )
     );
   }
 
-  for (const conflict of conflicts) {
-    // Conflicts are deliberately confirmed one at a time so one answer cannot
-    // authorize overwriting another customer-owned target.
-    // biome-ignore lint/performance/noAwaitInLoops: sequential confirmation is the safety contract
-    const approved = await confirm({
-      initialValue: false,
-      message: `Replace changed ${conflict.kind} ${conflict.label}?`,
-    });
-    if (isCancel(approved) || !approved) {
-      throw new Error(
-        "Installation cancelled. No files or package entries were changed."
-      );
+  if (!overwrite) {
+    for (const conflict of conflicts) {
+      // Without a global overwrite authorization, each customer-owned change
+      // receives its own explicit confirmation.
+      // biome-ignore lint/performance/noAwaitInLoops: sequential confirmation is the safety contract
+      const approved = await prompt({
+        initialValue: false,
+        message: `Replace changed ${conflict.kind} ${conflict.label}?`,
+      });
+      if (isCancel(approved) || !approved) {
+        throw new Error(
+          "Installation cancelled. No files or package entries were changed."
+        );
+      }
     }
   }
 
   if (!yes) {
-    const approved = await confirm({
+    const approved = await prompt({
       initialValue: true,
       message: "Apply the listed Add-on changes?",
     });
@@ -264,102 +544,10 @@ async function confirmChanges(
   }
 }
 
-function installUnits(
-  selection: SelectionDefinition | undefined,
-  primary: RegistryItem,
-  artifacts: RegistryItem[],
-  rootOverrides: Map<string, string>
-): Array<{ item: string; cwd: string }> {
-  let declared: Array<{ item: string; cwd: string }>;
-  if (!selection) {
-    declared = artifacts.map((artifact) => ({
-      cwd: ".",
-      item: artifact.name,
-    }));
-  } else if (selection.installUnits.length > 0) {
-    declared = selection.installUnits;
-  } else {
-    declared = [{ cwd: ".", item: primary.name }];
-  }
-  const itemNames = new Set(declared.map((unit) => unit.item));
-  const unknownOverrides = [...rootOverrides.keys()].filter(
-    (item) => !itemNames.has(item)
-  );
-  if (unknownOverrides.length > 0) {
-    throw new CompositionValidationError(
-      "Install Unit root overrides name unknown registry items.",
-      unknownOverrides
-    );
-  }
-  return declared.map((unit) => ({
-    ...unit,
-    cwd: rootOverrides.get(unit.item) ?? unit.cwd,
-  }));
-}
-
-function parseRootOverrides(values: string[]): Map<string, string> {
-  const overrides = new Map<string, string>();
-  for (const value of values) {
-    const separator = value.indexOf("=");
-    if (separator < 1 || separator === value.length - 1) {
-      throw new CompositionValidationError(
-        "Invalid Install Unit root override.",
-        [`${value} must use <registry-item>=<workspace-path>`]
-      );
-    }
-    const item = value.slice(0, separator).trim();
-    const root = normalizeWorkspaceRoot(value.slice(separator + 1));
-    if (overrides.has(item)) {
-      throw new CompositionValidationError(
-        "An Install Unit root was overridden more than once.",
-        [item]
-      );
-    }
-    overrides.set(item, root);
-  }
-  return overrides;
-}
-
-function preparedFromChanges(
-  artifacts: RegistryItem[],
-  units: Array<{ item: string; cwd: string }>,
-  changes: FileChange[]
-): PreparedComposition {
-  const byName = new Map(
-    artifacts.map((artifact) => [artifact.name, artifact])
-  );
-  const installable = new Map(
-    changes
-      .filter((change) => change.status !== "identical")
-      .map((change) => [`${change.item.name}\0${change.fileIndex}`, change])
-  );
-
-  return {
-    assets: [],
-    units: units.map((unit, index) => {
-      const artifact = byName.get(unit.item);
-      if (!artifact) {
-        throw new Error(`Missing resolved artifact ${unit.item}.`);
-      }
-      return {
-        ...unit,
-        artifact: {
-          ...artifact,
-          files: (artifact.files ?? []).filter((_file, fileIndex) =>
-            installable.has(`${artifact.name}\0${fileIndex}`)
-          ),
-          name: `${artifact.name}-${index}`,
-        },
-        selectionId: artifact.name,
-        targets: [],
-      };
-    }),
-  };
-}
-
 export async function addRegistryItem(
   reference: string,
-  options: AddOptions = {}
+  options: AddOptions = {},
+  dependencies: AddDependencies = {}
 ): Promise<void> {
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const localReference = path.resolve(cwd, reference);
@@ -367,113 +555,163 @@ export async function addRegistryItem(
     !path.isAbsolute(reference) && (await pathExists(localReference))
       ? localReference
       : reference;
-  const artifacts = await getRegistryItems([resolvedReference], {
-    config: await getRegistriesConfig(cwd),
+  const config = await getRegistriesConfig(cwd);
+  const graph = await fetchRegistryItemGraph({
+    config,
+    cwd,
+    references: [resolvedReference],
   });
-  const [primary] = artifacts;
+  const primaryName = graph.itemByReference.get(resolvedReference);
+  const primary = primaryName ? graph.items.get(primaryName) : undefined;
   if (!primary) {
     throw new Error(`The registry returned no item for ${reference}.`);
   }
 
   const selection = parseSelection(primary);
-  if (selection?.kind === "preset") {
-    throw new Error(
-      "Presets compose a new workspace. Use `create-next-hydra <directory> --preset ...` instead of `add`."
-    );
+  const graphSelections = [...graph.items.values()]
+    .map(parseSelection)
+    .filter((value): value is SelectionDefinition => Boolean(value));
+  if (selection) {
+    if (selection.kind === "preset") {
+      throw new Error(
+        "Presets compose a new workspace. Use `create-next-hydra <directory> --preset ...` instead of `add`."
+      );
+    }
+    if (selection.kind === "provider") {
+      throw new Error(
+        "Providers must be selected while scaffolding or with `create-next-hydra use`; `add` does not switch a customer workspace provider."
+      );
+    }
   }
-  if (selection?.kind === "provider") {
-    throw new Error(
-      "Providers must be selected while scaffolding or with `create-next-hydra use`; `add` does not switch a customer workspace provider."
-    );
-  }
-  if (
-    selection &&
-    (selection.routes.length > 0 || selection.assets.length > 0)
-  ) {
+
+  const nestedPresets = graphSelections.filter(
+    (candidate) => candidate.kind === "preset"
+  );
+  if (nestedPresets.length > 0) {
     throw new CompositionValidationError(
-      "This Add-on needs composition changes that customer `add` does not apply in v1.",
-      [
-        ...(selection.routes.length > 0
-          ? [
-              "generated routes require a maintainer composition or new scaffold",
-            ]
-          : []),
-        ...(selection.assets.length > 0
-          ? [
-              "separate binary assets require a maintainer composition or new scaffold",
-            ]
-          : []),
-      ]
+      "Presets cannot be installed into a Customer Workspace.",
+      nestedPresets.map(
+        (candidate) =>
+          `${candidate.id} appears in the requested registry dependency graph`
+      )
     );
   }
 
-  const units = installUnits(
-    selection,
-    primary,
-    artifacts,
-    parseRootOverrides(options.roots ?? [])
+  const assetSelections = graphSelections.filter(
+    (candidate) => candidate.assets.length > 0
   );
-  const fileChanges = await inspectFiles(cwd, artifacts, units);
-  const packageChanges = await inspectPackages(
-    cwd,
-    selection ? selection.packages : []
-  );
-  const registryPackageChanges = await inspectRegistryPackages(
-    cwd,
-    artifacts,
-    units
-  );
-  const disclosedPackageChanges = [
-    ...packageChanges,
-    ...registryPackageChanges,
-  ];
-  const requiredSelections = selection ? selection.compatibility.requires : [];
-  const conflictingSelections = selection
-    ? selection.compatibility.conflicts
-    : [];
-
-  info(
-    [
-      `Registry item: ${primary.name}`,
-      ...(requiredSelections.length
-        ? [`Assumes selections: ${requiredSelections.join(", ")}`]
-        : []),
-      ...(conflictingSelections.length
-        ? [`Conflicts with selections: ${conflictingSelections.join(", ")}`]
-        : []),
-      "Install Units:",
-      ...units.map((unit) => `  ${unit.item} in ${unit.cwd}`),
-      "Files:",
-      ...fileChanges.map((change) => `  ${change.status}: ${change.target}`),
-      "Package entries:",
-      ...disclosedPackageChanges.map(
-        (change) =>
-          `  ${change.status}: ${change.cwd} ${change.name} = ${change.specifier}`
-      ),
-    ].join("\n")
-  );
-
-  await confirmChanges(
-    fileChanges,
-    disclosedPackageChanges,
-    options.yes ?? false
-  );
-  await installPreparedComposition(
-    cwd,
-    preparedFromChanges(artifacts, units, fileChanges)
-  );
-  await applyPackageEntries(
-    cwd,
-    packageChanges
-      .filter((change) => change.status !== "identical")
-      .map(
-        ({ status: _status, actual: _actual, ...requirement }) => requirement
+  if (assetSelections.length > 0) {
+    throw new CompositionValidationError(
+      "Customer Add-ons cannot install separate binary assets in v1.",
+      assetSelections.map(
+        (candidate) =>
+          `${candidate.id} must put text files in its registry item; binary asset transport requires a future extension`
       )
-  );
-
-  const docs = [...new Set(artifacts.map((item) => item.docs).filter(Boolean))];
-  if (docs.length > 0) {
-    printNextSteps(docs.join("\n\n"), "Setup");
+    );
   }
+  const patchSelections = graphSelections.filter(
+    (candidate) => candidate.pnpmPatches.length > 0
+  );
+  if (patchSelections.length > 0) {
+    throw new CompositionValidationError(
+      "Customer Add-ons cannot change pnpm patches in v1.",
+      patchSelections.map(
+        (candidate) =>
+          `${candidate.id} must avoid pnpmPatches or be selected during a new scaffold`
+      )
+    );
+  }
+
+  const compatibilityAssumptions = await validateKnownProviderCompatibility(
+    cwd,
+    graphSelections
+  );
+  validateRegistryTargetClaims(graph.items.values());
+  await withPreparedRegistryArtifacts({
+    artifacts: [...graph.items.values()],
+    entryItems: [primary.name],
+    itemByReference: graph.itemByReference,
+    run: async (entries) => {
+      const tree = await resolveRegistryItems(entries, { config });
+      if (!tree) {
+        throw new Error(
+          `The registry dependency graph for ${reference} is empty.`
+        );
+      }
+
+      const fileChanges = await inspectFiles(cwd, tree);
+      const packageChanges = await inspectPackages(
+        cwd,
+        mergePackageRequirements(graphSelections),
+        tree
+      );
+      const rootDependencyChanges = await inspectRootDependencies(cwd, tree);
+      const disclosedPackageChanges = [
+        ...packageChanges,
+        ...rootDependencyChanges,
+      ];
+      const shadcnEffects = describeShadcnEffects(tree, graph.items.values());
+
+      info(
+        [
+          `Registry item: ${primary.name}`,
+          "Files:",
+          ...fileChanges.map(
+            (change) => `  ${change.status}: ${change.target} (${change.kind})`
+          ),
+          "Package entries:",
+          ...disclosedPackageChanges.map(
+            (change) =>
+              `  ${change.status}: ${change.cwd} ${change.name} = ${change.specifier}`
+          ),
+          ...(compatibilityAssumptions.length > 0
+            ? [
+                "Compatibility assumptions:",
+                ...compatibilityAssumptions.map(
+                  (assumption) => `  ${assumption}`
+                ),
+              ]
+            : []),
+          ...(shadcnEffects.length > 0
+            ? [
+                "Additional ShadCN effects:",
+                ...shadcnEffects.map((effect) => `  ${effect}`),
+              ]
+            : []),
+        ].join("\n")
+      );
+
+      await confirmChanges(
+        fileChanges,
+        disclosedPackageChanges,
+        options,
+        dependencies.confirm ?? confirm
+      );
+      await addRegistryItems(entries, {
+        config,
+        cwd,
+        overwrite:
+          options.overwrite === true ||
+          fileChanges.some(
+            (change) =>
+              change.kind === "registry file" && change.status === "changed"
+          ),
+        silent: true,
+      });
+      const changedPackageEntries = packageChanges
+        .filter((change) => change.status !== "identical")
+        .map(
+          ({ status: _status, actual: _actual, ...requirement }) => requirement
+        );
+      await applyPackageEntries(cwd, changedPackageEntries);
+      if (changedPackageEntries.length > 0) {
+        if (dependencies.install) {
+          await dependencies.install(cwd);
+        } else {
+          await runCommand("pnpm", ["install"], { cwd });
+        }
+      }
+    },
+  });
   success(`Added ${primary.name}.`);
 }

@@ -1,3 +1,4 @@
+import path from "node:path";
 import { z } from "zod";
 
 import { PROVIDER_SLOTS } from "./types.js";
@@ -15,12 +16,10 @@ const workspaceRelativePathSchema = z
     "must not escape the workspace"
   );
 
-const installUnitSchema = z
-  .object({
-    cwd: workspaceRelativePathSchema,
-    item: z.string().min(1),
-  })
-  .strict();
+const workspaceFilePathSchema = workspaceRelativePathSchema.refine(
+  (value) => ![".", "./"].includes(path.posix.normalize(value)),
+  "must name a file or directory below the workspace root"
+);
 
 const packageRequirementSchema = z
   .object({
@@ -38,29 +37,7 @@ const packageRequirementSchema = z
 const pnpmPatchSchema = z
   .object({
     dependency: z.string().min(1),
-    path: workspaceRelativePathSchema,
-  })
-  .strict();
-
-const routeSchema = z
-  .object({
-    app: workspaceRelativePathSchema,
-    export: z.string().min(1),
-    method: z.enum([
-      "GET",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "HEAD",
-      "OPTIONS",
-    ]),
-    module: z.string().min(1),
-    path: z
-      .string()
-      .startsWith("/")
-      .refine((value) => !value.includes("?"), "must not contain a query")
-      .refine((value) => !value.includes("#"), "must not contain a fragment"),
+    path: workspaceFilePathSchema,
   })
   .strict();
 
@@ -85,8 +62,8 @@ export const selectionDefinitionSchema = z
       .array(
         z
           .object({
-            source: workspaceRelativePathSchema,
-            target: workspaceRelativePathSchema,
+            source: workspaceFilePathSchema,
+            target: workspaceFilePathSchema,
           })
           .strict()
       )
@@ -99,11 +76,9 @@ export const selectionDefinitionSchema = z
       .strict()
       .default({ conflicts: [], requires: [] }),
     id: z.string().min(1),
-    installUnits: z.array(installUnitSchema),
     kind: z.enum(["provider", "add-on", "preset"]),
     packages: z.array(packageRequirementSchema).default([]),
     pnpmPatches: z.array(pnpmPatchSchema).default([]),
-    routes: z.array(routeSchema).default([]),
     selections: presetSelectionsSchema.optional(),
     slot: z.enum(PROVIDER_SLOTS).optional(),
   })

@@ -39,9 +39,13 @@ async function createSourceRepository(): Promise<string> {
       .split("\n")
       .filter(Boolean)
       .map(async (relativePath) => {
+        const sourcePath = path.join(repoRoot, relativePath);
+        if (!(await pathExists(sourcePath))) {
+          return;
+        }
         const target = path.join(source, relativePath);
         await mkdir(path.dirname(target), { recursive: true });
-        await copyFile(path.join(repoRoot, relativePath), target);
+        await copyFile(sourcePath, target);
       })
   );
   const rootRegistryPath = path.join(source, "registry.json");
@@ -71,11 +75,10 @@ async function createSourceRepository(): Promise<string> {
           {
             $schema:
               "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
-            dependencies: ["nanoid@^5.1.6"],
             files: [
               {
                 path: "frontend.ts",
-                target: "~/integrations/dam.ts",
+                target: "~/packages/cms-drupal/integrations/dam.ts",
                 type: "registry:file",
               },
             ],
@@ -89,17 +92,22 @@ async function createSourceRepository(): Promise<string> {
                   ],
                 },
                 id: "fixture/add-on/drupal-commerce-dam",
-                installUnits: [
+                kind: "add-on",
+                packages: [
                   {
                     cwd: "packages/cms-drupal",
-                    item: "drupal-commerce-dam",
+                    name: "nanoid",
+                    section: "dependencies",
+                    specifier: "^5.1.6",
                   },
-                  { cwd: "apps/drupal-hydra", item: "drupal-dam-module" },
                 ],
-                kind: "add-on",
               },
             },
             name: "drupal-commerce-dam",
+            registryDependencies: [
+              "jakala-na/next-hydra/cms-drupal",
+              "jakala-na/next-hydra/drupal-dam-module",
+            ],
             type: "registry:item",
           },
           {
@@ -107,7 +115,7 @@ async function createSourceRepository(): Promise<string> {
               {
                 path: "next_hydra_dam.info.yml",
                 target:
-                  "~/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
+                  "~/apps/drupal-hydra/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
                 type: "registry:file",
               },
             ],
@@ -276,6 +284,19 @@ describe("scaffold composition", () => {
       ).toBe(false);
       expect(
         await pathExists(
+          path.join(contentstackTarget, "packages/cms-contentstack/registry")
+        )
+      ).toBe(false);
+      expect(
+        await pathExists(
+          path.join(
+            contentstackTarget,
+            "packages/cms-contentstack/registry.json"
+          )
+        )
+      ).toBe(false);
+      expect(
+        await pathExists(
           path.join(contentstackTarget, "packages/create-next-hydra")
         )
       ).toBe(false);
@@ -339,6 +360,16 @@ describe("scaffold composition", () => {
           path.join(drupalTarget, "apps/web/app/api/canvas/components/route.ts")
         )
       ).toBe(true);
+      expect(
+        await pathExists(
+          path.join(drupalTarget, "packages/cms-drupal/registry")
+        )
+      ).toBe(false);
+      expect(
+        await pathExists(
+          path.join(drupalTarget, "packages/cms-drupal/registry.json")
+        )
+      ).toBe(false);
 
       const asset =
         "apps/drupal-hydra/recipes/next-hydra-starter/content/file/next-hydra-hero.webp";
@@ -372,7 +403,7 @@ describe("scaffold composition", () => {
   );
 
   it(
-    "materializes a compatible multi-root Add-on and rejects it for another CMS before writes",
+    "materializes a compatible cross-workspace Add-on and rejects it for another CMS before writes",
     async () => {
       const target = path.join(testRoot, "add-on-project");
       await scaffoldProject(
@@ -397,6 +428,17 @@ describe("scaffold composition", () => {
           )
         )
       ).toBe(true);
+      expect(
+        await pathExists(
+          path.join(target, "apps/web/app/api/canvas/components/route.ts")
+        )
+      ).toBe(true);
+      expect(
+        await pathExists(path.join(target, "packages/cms-drupal/registry"))
+      ).toBe(false);
+      expect(
+        await pathExists(path.join(target, "packages/cms-drupal/registry.json"))
+      ).toBe(false);
       const drupalPackage = JSON.parse(
         await readFile(
           path.join(target, "packages/cms-drupal/package.json"),
@@ -434,6 +476,22 @@ describe("scaffold composition", () => {
         true
       );
       expect(await pathExists(path.join(target, "pnpm-lock.yaml"))).toBe(true);
+      expect(
+        await readFile(
+          path.join(target, "apps/web/app/api/draft/route.ts"),
+          "utf8"
+        )
+      ).toContain('export { GET } from "@repo/cms/routes/draft";');
+      expect(
+        await pathExists(
+          path.join(target, "apps/web/app/api/canvas/components/route.ts")
+        )
+      ).toBe(false);
+      expect(
+        await pathExists(
+          path.join(target, "packages/cms-contentstack/registry")
+        )
+      ).toBe(false);
     },
     E2E_TIMEOUT
   );

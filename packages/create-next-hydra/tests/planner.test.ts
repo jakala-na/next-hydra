@@ -12,7 +12,7 @@ import type {
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const MATERIALIZATION_CONFLICT = /Materialization targets conflict/;
-const ROUTE_CONFLICT = /Route claims conflict/;
+const STABLE_PROVIDER_ALIASES = /stable Provider aliases/;
 
 function withSelection(
   catalog: SourceRegistryCatalog,
@@ -60,12 +60,10 @@ function addOn(overrides: Partial<CatalogSelection> = {}): CatalogSelection {
       requires: ["next-hydra/cms/drupal", "next-hydra/commerce/commercetools"],
     },
     id: "next-hydra/add-on/drupal-commerce-dam",
-    installUnits: [{ cwd: ".", item: "drupal-commerce-dam" }],
     itemName: "drupal-commerce-dam",
     kind: "add-on",
     packages: [],
     pnpmPatches: [],
-    routes: [],
     ...overrides,
   };
 }
@@ -92,7 +90,6 @@ describe("composition planner failures", () => {
   it("rejects unknown metadata keys", () => {
     const result = selectionDefinitionSchema.safeParse({
       id: "next-hydra/cms/example",
-      installUnits: [],
       kind: "provider",
       misspelledRoutes: [],
       slot: "cms",
@@ -108,6 +105,52 @@ describe("composition planner failures", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("rejects asset targets that name the workspace root", () => {
+    for (const target of [".", "./", "././"]) {
+      const result = selectionDefinitionSchema.safeParse({
+        assets: [{ source: "asset.bin", target }],
+        id: "next-hydra/cms/unsafe",
+        kind: "provider",
+        slot: "cms",
+      });
+
+      expect(result.success).toBe(false);
+    }
+  });
+
+  it("requires every Provider to supply the stable aliases used by its slot", async () => {
+    const provider: CatalogSelection = {
+      assets: [],
+      compatibility: { conflicts: [], requires: [] },
+      id: "vendor/cms/private",
+      itemName: "private-cms",
+      kind: "provider",
+      packages: [],
+      pnpmPatches: [],
+      slot: "cms",
+    };
+    const catalog = withSelection(
+      await loadSourceRegistryCatalog(repoRoot),
+      provider,
+      {
+        files: [],
+        name: provider.itemName,
+        type: "registry:item",
+      }
+    );
+
+    expect(() =>
+      planComposition(catalog, {
+        addOns: [],
+        providers: {
+          auth: "workos",
+          cms: provider.id,
+          commerce: "commercetools",
+        },
+      })
+    ).toThrow(STABLE_PROVIDER_ALIASES);
   });
 
   it("materializes a compatible cross-provider Add-on", async () => {
@@ -127,19 +170,12 @@ describe("composition planner failures", () => {
     });
 
     expect(plan.selection.addOns).toEqual(["drupal-commerce-dam"]);
-    expect(plan.installUnits.map((unit) => unit.item)).toEqual([
+    expect(plan.registryItems).toEqual([
       "auth-workos",
       "cms-drupal",
-      "drupal-hydra",
       "commerce-commercetools",
       "drupal-commerce-dam",
-    ]);
-    expect(
-      plan.installUnits.find((unit) => unit.item === "drupal-commerce-dam")
-        ?.targets
-    ).toEqual([
-      "apps/drupal-hydra/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
-      "packages/cms-drupal/integrations/dam.ts",
+      "drupal-hydra",
     ]);
   });
 
@@ -179,7 +215,6 @@ describe("composition planner failures", () => {
         requires: ["next-hydra/cms/drupal"],
       },
       id: "next-hydra/add-on/dam-core",
-      installUnits: [{ cwd: "packages/cms-drupal", item: "dam-core" }],
       itemName: "dam-core",
     });
     let catalog = withSelection(
@@ -191,7 +226,7 @@ describe("composition planner failures", () => {
       files: [
         {
           path: "core.ts",
-          target: "~/integrations/dam-core.ts",
+          target: "~/packages/cms-drupal/integrations/dam-core.ts",
           type: "registry:file",
         },
       ],
@@ -223,40 +258,8 @@ describe("composition planner failures", () => {
       "next-hydra/add-on/dam-core",
       "next-hydra/add-on/drupal-commerce-dam",
     ]);
-    expect(plan.installUnits.map((unit) => unit.item)).toContain("dam-core");
-    expect(plan.installUnits.map((unit) => unit.item)).toContain(
-      "drupal-commerce-dam"
-    );
-  });
-
-  it("rejects duplicate normalized route method claims", async () => {
-    const collision = addOn({
-      routes: [
-        {
-          app: "apps/web",
-          export: "GET",
-          method: "GET",
-          module: "@repo/add-on/draft",
-          path: "/api/draft/",
-        },
-      ],
-    });
-    const catalog = withSelection(
-      await loadSourceRegistryCatalog(repoRoot),
-      collision,
-      addOnItem
-    );
-
-    expect(() =>
-      planComposition(catalog, {
-        addOns: [collision.id],
-        providers: {
-          auth: "workos",
-          cms: "drupal",
-          commerce: "commercetools",
-        },
-      })
-    ).toThrow(ROUTE_CONFLICT);
+    expect(plan.registryItems).toContain("dam-core");
+    expect(plan.registryItems).toContain("drupal-commerce-dam");
   });
 
   it("rejects two selected contributions that write the same target", async () => {

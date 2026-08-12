@@ -7,12 +7,12 @@ Upstream inspected: [`shadcn-ui/ui@dcf56edd57d106825193b5432fdc99c8d3d6b8fa`](ht
 
 ShadCN supports the proposed **data shape and dependency transport**, but not the Next Hydra meaning of a Preset.
 
-A fileless `registry:item` can list Provider and Add-on items in `registryDependencies`, and raw `shadcn add` will recursively resolve and install them. However, ShadCN does not understand `meta.nextHydra`, Provider Slots, compatibility, package aliases, Install Units, or generated routes. Next Hydra must fetch the individual items, validate their metadata, and only then ask ShadCN to install the standard registry payload.
+A fileless `registry:item` can list Provider and Add-on items in `registryDependencies`, and raw `shadcn add` will recursively resolve and install them. However, ShadCN does not understand `meta.nextHydra`, Provider Slots, compatibility, package aliases, package-specific dependencies, or which inactive Provider files a maintainer switch should remove. Next Hydra must fetch the individual items, validate their metadata, and only then ask ShadCN to install the standard registry payload.
 
 Therefore:
 
 - Keep `registryDependencies` as the portable list of Provider and Add-on selections.
-- Support Presets through `create-next-hydra --preset` and `create-next-hydra add`, not raw `shadcn add`.
+- Support Presets through `create-next-hydra --preset`, not customer `create-next-hydra add` or raw `shadcn add`.
 - State clearly in Preset documentation that raw `shadcn add` bypasses Next Hydra validation and produces only the ShadCN-owned portion of the installation.
 
 ## 1. A dependency-only item is valid
@@ -33,7 +33,6 @@ This is valid ShadCN data:
   ],
   "meta": {
     "nextHydra": {
-      "schemaVersion": 1,
       "kind": "preset",
       "id": "@next-hydra/preset-b2b-drupal"
     }
@@ -84,9 +83,9 @@ The flow must be:
 
 1. Fetch the Preset as an individual item.
 2. Recursively fetch every `registryDependency` as an individual item, retaining each `meta.nextHydra`.
-3. Validate the complete selection: required slots, one Provider per v1 slot, Provider/Add-on compatibility, package alias claims, Install Units, and route collisions.
+3. Validate the complete selection: required slots, one Provider per v1 slot, Provider/Add-on compatibility, package alias claims, safe final targets, and target collisions.
 4. Show the plan or obtain any required confirmation.
-5. Call `addRegistryItems()` for the validated items and perform Next Hydra's alias, Install Unit, and generated-route work.
+5. Prepare the exact validated items, call `addRegistryItems()` once at the workspace root, and perform Next Hydra's package-specific alias, asset, and patch work.
 6. Leave the failed workspace in place if any later operation fails.
 
 Raw `shadcn add <preset>` skips steps 2–4 as Next Hydra understands them. It resolves and materializes the dependency graph as ordinary registry content. Therefore the registry format is reusable as-is, but the Preset command is necessarily a Next Hydra feature.

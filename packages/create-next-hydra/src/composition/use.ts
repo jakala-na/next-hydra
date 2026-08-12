@@ -5,14 +5,19 @@ import { info, printNextSteps, success } from "../logger.js";
 import { addCatalogReferences, loadSourceRegistryCatalog } from "./catalog.js";
 import { CompositionValidationError } from "./errors.js";
 import { formatCompositionPlan } from "./format.js";
+import {
+  installPreparedComposition,
+  prepareComposition,
+  validatePackageRequirementTargets,
+} from "./install.js";
 import { planComposition, selectionFromPreset } from "./planner.js";
 import type { ProviderSlot, WorkspaceSelection } from "./types.js";
 import {
-  applyGeneratedRoutes,
   applyPackageRequirements,
   applyPnpmPatches,
   checkWorkspaceComposition,
   readWorkspaceSelection,
+  removeWorkspaceTargets,
   writeWorkspaceSelection,
 } from "./workspace.js";
 
@@ -126,11 +131,22 @@ export async function useComposition(
     ...selection.addOns,
   ]);
   const plan = planComposition(catalog, selection);
+  const prepared = await prepareComposition(catalog, plan);
+  await validatePackageRequirementTargets(
+    cwd,
+    plan,
+    prepared,
+    plan.catalogManagedTargets
+  );
 
   info(formatCompositionPlan(plan));
 
   if (options.check) {
-    const drift = await checkWorkspaceComposition(cwd, plan);
+    const drift = await checkWorkspaceComposition(
+      cwd,
+      plan,
+      prepared.managedFiles
+    );
     if (drift.length > 0) {
       throw new CompositionValidationError(
         "The maintainer workspace differs from next-hydra.json.",
@@ -144,9 +160,10 @@ export async function useComposition(
   const completed: string[] = [];
   const pending = [
     "write next-hydra.json",
+    "remove managed application files",
+    "install selected source",
     "update package aliases",
     "update pnpm patches",
-    "generate routes",
     "install dependencies",
   ];
 
@@ -163,11 +180,16 @@ export async function useComposition(
   await runStep("write next-hydra.json", () =>
     writeWorkspaceSelection(cwd, plan.selection)
   );
+  await runStep("remove managed application files", () =>
+    removeWorkspaceTargets(cwd, plan.catalogManagedTargets)
+  );
+  await runStep("install selected source", () =>
+    installPreparedComposition(cwd, prepared)
+  );
   await runStep("update package aliases", () =>
     applyPackageRequirements(cwd, plan)
   );
   await runStep("update pnpm patches", () => applyPnpmPatches(cwd, plan));
-  await runStep("generate routes", () => applyGeneratedRoutes(cwd, plan));
   await runStep("install dependencies", async () => {
     if (dependencies.install) {
       await dependencies.install(cwd, options.verbose ?? false);

@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rmdir, writeFile } from "node:fs/promises";
+import { readdir, readFile, rmdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseDocument } from "yaml";
 
@@ -9,19 +9,13 @@ import {
   writeJsonFile,
 } from "../fs-utils.js";
 import { CompositionValidationError } from "./errors.js";
-import { generateRoutes } from "./routes.js";
+import { readPackageJson } from "./packages.js";
 import { formatZodError, workspaceSelectionSchema } from "./schema.js";
 import type {
   CompositionPlan,
-  DependencySection,
+  PreparedComposition,
   WorkspaceSelection,
 } from "./types.js";
-
-type PackageJson = Partial<
-  Record<DependencySection, Record<string, string>>
-> & {
-  [key: string]: unknown;
-};
 
 export const WORKSPACE_SELECTION_FILE = "next-hydra.json";
 
@@ -88,7 +82,7 @@ export async function applyPackageRequirements(
       if (!(await pathExists(manifestPath))) {
         return;
       }
-      const packageJson = await readJsonFile<PackageJson>(manifestPath);
+      const packageJson = await readPackageJson(manifestPath, manifest);
       for (const requirement of entries) {
         const section = packageJson[requirement.section];
         if (!section) {
@@ -124,7 +118,7 @@ export async function applyPackageEntries(
   await Promise.all(
     [...byManifest].map(async ([manifest, manifestRequirements]) => {
       const manifestPath = path.join(workspaceRoot, manifest);
-      const packageJson = await readJsonFile<PackageJson>(manifestPath);
+      const packageJson = await readPackageJson(manifestPath, manifest);
       for (const requirement of manifestRequirements) {
         const section = packageJson[requirement.section] ?? {};
         section[requirement.name] = requirement.specifier;
@@ -234,24 +228,10 @@ export async function removeWorkspaceTargets(
   }
 }
 
-export async function applyGeneratedRoutes(
-  workspaceRoot: string,
-  plan: CompositionPlan
-): Promise<void> {
-  await removeWorkspaceTargets(workspaceRoot, plan.generatedRouteTargets);
-
-  await Promise.all(
-    generateRoutes(plan.routes).map(async (route) => {
-      const target = path.join(workspaceRoot, route.target);
-      await mkdir(path.dirname(target), { recursive: true });
-      await writeFile(target, route.content, "utf8");
-    })
-  );
-}
-
 export async function checkWorkspaceComposition(
   workspaceRoot: string,
-  plan: CompositionPlan
+  plan: CompositionPlan,
+  managedFiles: PreparedComposition["managedFiles"]
 ): Promise<string[]> {
   const drift: string[] = [];
 
@@ -273,7 +253,7 @@ export async function checkWorkspaceComposition(
       if (!(await pathExists(manifestPath))) {
         return;
       }
-      const packageJson = await readJsonFile<PackageJson>(manifestPath);
+      const packageJson = await readPackageJson(manifestPath, manifest);
       const actual = packageJson[requirement.section]?.[requirement.name];
       return actual === undefined
         ? undefined
@@ -289,8 +269,9 @@ export async function checkWorkspaceComposition(
   const selectedPackageDrift = await Promise.all(
     plan.packageRequirements.map(async (requirement) => {
       const manifest = path.posix.join(requirement.cwd, "package.json");
-      const packageJson = await readJsonFile<PackageJson>(
-        path.join(workspaceRoot, manifest)
+      const packageJson = await readPackageJson(
+        path.join(workspaceRoot, manifest),
+        manifest
       );
       const actual = packageJson[requirement.section]?.[requirement.name];
       return actual === requirement.specifier
@@ -323,29 +304,29 @@ export async function checkWorkspaceComposition(
     }
   }
 
-  const expectedRoutes = new Map(
-    generateRoutes(plan.routes).map((route) => [route.target, route.content])
+  const expectedManagedFiles = new Map(
+    managedFiles.map((file) => [file.target, file.content])
   );
-  const routeDrift = await Promise.all(
-    plan.generatedRouteTargets.map(async (target) => {
+  const managedFileDrift = await Promise.all(
+    plan.catalogManagedTargets.map(async (target) => {
       const filePath = path.join(workspaceRoot, target);
-      const expected = expectedRoutes.get(target);
+      const expected = expectedManagedFiles.get(target);
       if (!expected) {
         return (await pathExists(filePath))
-          ? `${target}: route should not exist for this composition`
+          ? `${target}: managed file should not exist for this composition`
           : undefined;
       }
       if (!(await pathExists(filePath))) {
-        return `${target}: generated route is missing`;
+        return `${target}: managed file is missing`;
       }
       const actual = await readFile(filePath, "utf8");
       return actual === expected
         ? undefined
-        : `${target}: generated route differs from the composition plan`;
+        : `${target}: managed file differs from the composition plan`;
     })
   );
   drift.push(
-    ...routeDrift.filter((issue): issue is string => issue !== undefined)
+    ...managedFileDrift.filter((issue): issue is string => issue !== undefined)
   );
 
   return drift.sort((left, right) => left.localeCompare(right));

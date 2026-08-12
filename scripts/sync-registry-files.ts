@@ -4,6 +4,7 @@ import path from "node:path";
 
 const workspaceRoot = path.resolve(import.meta.dirname, "..");
 const checkOnly = process.argv.includes("--check");
+const managedSourceDirectory = "registry";
 const manifests = [
   {
     item: "auth-workos",
@@ -104,9 +105,13 @@ for (const definition of manifests) {
 
   item.files = sourceFiles(definition.sourceRoot).map((repoPath) => {
     const relativePath = path.posix.relative(definition.sourceRoot, repoPath);
+    const managedPrefix = `${managedSourceDirectory}/`;
+    const target = relativePath.startsWith(managedPrefix)
+      ? relativePath.slice(managedPrefix.length)
+      : repoPath;
     return {
       path: relativePath,
-      target: `~/${relativePath}`,
+      target: `~/${target}`,
       type: "registry:file",
     };
   });

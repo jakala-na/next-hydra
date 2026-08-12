@@ -1,13 +1,18 @@
+import { execFile } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
-
+import { NEXT_HYDRA_SELECTION_SCHEMA_URL } from "../src/composition/schema.js";
 import { useComposition } from "../src/composition/use.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
+const run = promisify(execFile);
 const temporaryDirectories: string[] = [];
-const GENERATED_ROUTE_DRIFT = /generated route differs/;
+const MANAGED_FILE_DRIFT = /managed file differs/;
+const PACKAGE_JSON_TARGETS = /package\.json targets/;
+const INVALID_DEPENDENCY_SECTION = /dependencies: Expected object/;
 
 async function maintainerFixture(): Promise<string> {
   const fixture = await mkdtemp(path.join(tmpdir(), "next-hydra-use-"));
@@ -24,19 +29,40 @@ async function maintainerFixture(): Promise<string> {
     path.join(repoRoot, "pnpm-workspace.yaml"),
     path.join(fixture, "pnpm-workspace.yaml")
   );
-  await Promise.all(
+  const sourceRoots = [
+    "packages/auth-workos",
+    "packages/cms-contentstack",
+    "packages/cms-drupal",
+    "packages/commerce-commercetools",
+    "apps/drupal-hydra",
+    "patches",
+  ];
+  const { stdout } = await run(
+    "git",
     [
-      "packages/auth-workos/registry.json",
-      "packages/cms-contentstack/registry.json",
-      "packages/cms-drupal/registry.json",
-      "packages/commerce-commercetools/registry.json",
-      "apps/drupal-hydra/registry.json",
-    ].map(async (relative) => {
-      await mkdir(path.dirname(path.join(fixture, relative)), {
-        recursive: true,
-      });
-      await cp(path.join(repoRoot, relative), path.join(fixture, relative));
-    })
+      "ls-files",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "--",
+      ...sourceRoots,
+    ],
+    { cwd: repoRoot }
+  );
+  await Promise.all(
+    stdout
+      .split("\n")
+      .filter(Boolean)
+      .map(async (relative) => {
+        await mkdir(path.dirname(path.join(fixture, relative)), {
+          recursive: true,
+        });
+        await cp(path.join(repoRoot, relative), path.join(fixture, relative));
+      })
+  );
+  await cp(
+    path.join(repoRoot, "package.json"),
+    path.join(fixture, "package.json")
   );
   await Promise.all(
     ["apps/api", "apps/cli", "apps/web", "packages/feature-flags"].map(
@@ -134,7 +160,74 @@ describe("maintainer use", () => {
       "customer edit\n"
     );
     await expect(useComposition({ check: true, cwd })).rejects.toThrow(
-      GENERATED_ROUTE_DRIFT
+      MANAGED_FILE_DRIFT
     );
+  });
+
+  it("rejects missing package manifests before changing the workspace", async () => {
+    const cwd = await maintainerFixture();
+    const selectionBefore = await readFile(
+      path.join(cwd, "next-hydra.json"),
+      "utf8"
+    );
+    const webManifest = path.join(cwd, "apps/web/package.json");
+    const webManifestBefore = await readFile(webManifest, "utf8");
+    const addOnPath = path.join(cwd, "missing-package-addon.json");
+    await writeFile(
+      addOnPath,
+      `${JSON.stringify({
+        $schema: NEXT_HYDRA_SELECTION_SCHEMA_URL,
+        meta: {
+          nextHydra: {
+            id: "vendor/add-on/missing-package",
+            kind: "add-on",
+            packages: [
+              {
+                cwd: "packages/does-not-exist",
+                name: "example-client",
+                section: "dependencies",
+                specifier: "^1.0.0",
+              },
+            ],
+          },
+        },
+        name: "missing-package-addon",
+        type: "registry:item",
+      })}\n`
+    );
+
+    await expect(
+      useComposition(
+        { addOns: [addOnPath], cwd },
+        { install: async () => undefined }
+      )
+    ).rejects.toThrow(PACKAGE_JSON_TARGETS);
+
+    expect(await readFile(path.join(cwd, "next-hydra.json"), "utf8")).toBe(
+      selectionBefore
+    );
+    expect(await readFile(webManifest, "utf8")).toBe(webManifestBefore);
+  });
+
+  it("rejects malformed package.json dependency sections before changing the workspace", async () => {
+    const cwd = await maintainerFixture();
+    const selectionPath = path.join(cwd, "next-hydra.json");
+    const selectionBefore = await readFile(selectionPath, "utf8");
+    const webManifest = path.join(cwd, "apps/web/package.json");
+    await writeFile(
+      webManifest,
+      '{"name":"web","dependencies":"not-an-object"}\n'
+    );
+    const webManifestBefore = await readFile(webManifest, "utf8");
+
+    await expect(
+      useComposition(
+        { cms: "contentstack", cwd },
+        { install: async () => undefined }
+      )
+    ).rejects.toThrow(INVALID_DEPENDENCY_SECTION);
+
+    expect(await readFile(selectionPath, "utf8")).toBe(selectionBefore);
+    expect(await readFile(webManifest, "utf8")).toBe(webManifestBefore);
   });
 });

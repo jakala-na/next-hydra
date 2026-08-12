@@ -7,8 +7,8 @@ export function formatCompositionPlan(plan: CompositionPlan): string {
       ([slot, provider]) => `  ${slot}: ${provider}`
     ),
     `Add-ons: ${plan.selection.addOns.length > 0 ? plan.selection.addOns.join(", ") : "none"}`,
-    "Install units:",
-    ...plan.installUnits.map((unit) => `  ${unit.item} in ${unit.cwd}`),
+    "Registry items:",
+    ...plan.registryItems.map((item) => `  ${item}`),
     "Package entries:",
     ...plan.packageRequirements.map(
       (requirement) =>
@@ -18,11 +18,8 @@ export function formatCompositionPlan(plan: CompositionPlan): string {
     ...plan.pnpmPatches.map(
       (patch) => `  ${patch.dependency} -> ${patch.path}`
     ),
-    "Generated routes:",
-    ...plan.routes.map(
-      (route) =>
-        `  ${route.method} ${route.path} -> ${route.module}#${route.export}`
-    ),
+    "Managed application files:",
+    ...plan.managedTargets.map((target) => `  ${target}`),
   ];
 
   return lines.join("\n");

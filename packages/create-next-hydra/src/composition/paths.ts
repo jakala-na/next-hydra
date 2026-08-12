@@ -1,9 +1,9 @@
 import path from "node:path";
 
 import { CompositionValidationError } from "./errors.js";
-import type { RouteClaim } from "./types.js";
 
 const LEADING_CURRENT_DIRECTORY = /^\.\//;
+const REGISTRY_SOURCE_DIRECTORY = "registry";
 
 function normalizeRelativePath(value: string, label: string): string {
   if (value.includes("\\")) {
@@ -27,41 +27,39 @@ function normalizeRelativePath(value: string, label: string): string {
   return normalized.replace(LEADING_CURRENT_DIRECTORY, "");
 }
 
-export function normalizeWorkspaceRoot(value: string): string {
-  const trimmed = value.trim();
-  return trimmed === "."
-    ? "."
-    : normalizeRelativePath(trimmed, "Install Unit root");
-}
-
-export function resolveRegistryTarget(cwd: string, target: string): string {
-  const relativeTarget = target.startsWith("~/") ? target.slice(2) : target;
-  const combined = cwd === "." ? relativeTarget : `${cwd}/${relativeTarget}`;
-  return normalizeRelativePath(combined, "registry target");
-}
-
-export function normalizeRoutePath(routePath: string): string {
-  const normalizedPath = path.posix.normalize(routePath);
-  const normalized =
-    normalizedPath.length > 1 && normalizedPath.endsWith("/")
-      ? normalizedPath.slice(0, -1)
-      : normalizedPath;
-  if (
-    !normalized.startsWith("/") ||
-    normalized === "/" ||
-    normalized.includes("\\") ||
-    normalized.split("/").some((segment) => segment === "..")
-  ) {
-    throw new CompositionValidationError("Unsafe route path.", [
-      `route path must name a non-root application path: ${routePath}`,
-    ]);
+export function resolveRegistryTarget(target: string): string {
+  if (!target.startsWith("~/")) {
+    throw new CompositionValidationError(
+      "Registry files require workspace-root targets.",
+      [`files[].target must start with ~/: ${target}`]
+    );
   }
-
-  return normalized;
+  const relativeTarget = target.startsWith("~/") ? target.slice(2) : target;
+  return normalizeRelativePath(relativeTarget, "registry target");
 }
 
-export function routeTarget(claim: RouteClaim): string {
-  const app = normalizeRelativePath(claim.app, "route app");
-  const route = normalizeRoutePath(claim.path).slice(1);
-  return `${app}/app/${route}/route.ts`;
+export function resolveWorkspacePath(value: string, label: string): string {
+  return normalizeRelativePath(value, label);
+}
+
+export function isManagedApplicationSource(
+  sourcePath: string,
+  target: string | undefined
+): boolean {
+  if (!target?.startsWith("~/")) {
+    return false;
+  }
+  const normalized = path.posix
+    .normalize(sourcePath)
+    .replace(LEADING_CURRENT_DIRECTORY, "");
+  const marker = `/${REGISTRY_SOURCE_DIRECTORY}/`;
+  const sourceWithLeadingSlash = `/${normalized}`;
+  const markerIndex = sourceWithLeadingSlash.lastIndexOf(marker);
+  if (markerIndex < 0) {
+    return false;
+  }
+  return (
+    sourceWithLeadingSlash.slice(markerIndex + marker.length) ===
+    target.slice(2)
+  );
 }

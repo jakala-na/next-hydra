@@ -32,6 +32,7 @@
     "schema"
   ],
   "scripts": {
+    "prebuild": "node scripts/clean-dist.js",
     "build": "tsc -p tsconfig.json",
     "pack": "npm pack",
     "prepublishOnly": "pnpm run build",

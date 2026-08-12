@@ -13,7 +13,7 @@ Research snapshot: 2026-08-11. Current `shadcn/ui` `main` was inspected at commi
 - dry-run, diff, and view provide useful pre-write visibility;
 - ShadCN records no installed-item ownership receipt and provides no general registry-item removal command.
 
-For Next Hydra customer projects, provider contributions should therefore prefer new, provider-owned target files and treat any changed existing target as a customer-owned conflict. Automatic overwrite is appropriate only inside an explicitly disposable/generated developer workspace.
+For Next Hydra customer projects, provider contributions should therefore prefer new, provider-owned target files and treat any changed existing target as a disclosed customer-owned conflict. Interactive installation asks before replacement; an explicit `--overwrite` authorizes the same whole-file replacement that ShadCN exposes.
 
 ## How the final target is chosen
 
@@ -64,9 +64,9 @@ Consequently, ShadCN cannot prove that a file is unchanged since installation, d
 For additive customer installs:
 
 1. Prefer contributions that create new provider-owned route, adapter, and configuration files.
-2. Preflight with the selected roots/items and surface create/identical/conflict results before applying.
+2. Preflight the complete requested item graph and surface create/identical/conflict results before applying.
 3. Treat identical targets as idempotent success.
-4. Treat changed existing targets as customer-owned conflicts: skip by default and require an explicit per-file decision; do not turn provider selection into global `overwrite: true`.
+4. Treat changed existing targets as customer-owned conflicts: require an explicit per-file decision by default, while exposing ShadCN-compatible `--overwrite` for users who intentionally authorize every disclosed replacement.
 5. Do not implement provider removal by deleting the files currently named by its registry item. There is no provenance proving those files are still disposable.
 
 For a maintainer's explicitly disposable generated workspace, rebuilding the generated root or using overwrite can be reasonable because disposability comes from the workspace contract—not from ShadCN ownership metadata.

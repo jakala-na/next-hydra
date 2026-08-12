@@ -126,22 +126,15 @@ export async function runCli(argv = process.argv): Promise<void> {
     .command("add")
     .description("Add a registry item to a customer-owned workspace")
     .argument("<item-or-url>", "Registry item, URL, or local item JSON")
-    .option(
-      "--root <item=path>",
-      "Override an Install Unit root (repeatable)",
-      (value: string, previous: string[] | undefined) => [
-        ...(previous ?? []),
-        value,
-      ]
-    )
-    .option("-y, --yes", "Apply non-conflicting changes without prompting")
+    .option("-y, --yes", "Skip confirmation prompts")
+    .option("-o, --overwrite", "Overwrite changed files and package entries")
     .action(
       async (
         reference: string,
-        rawOptions: { root?: string[]; yes?: boolean }
+        rawOptions: { overwrite?: boolean; yes?: boolean }
       ) => {
         await addRegistryItem(reference, {
-          roots: rawOptions.root,
+          overwrite: rawOptions.overwrite,
           yes: rawOptions.yes,
         });
       }

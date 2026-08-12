@@ -33,10 +33,22 @@
       "minLength": 1,
       "pattern": "^(?!/)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))(?!.*\\\\).+$"
     },
+    "workspaceFilePath": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/workspacePath"
+        },
+        {
+          "not": {
+            "pattern": "^\\.(?:/+\\.)*/*$"
+          }
+        }
+      ]
+    },
     "nextHydra": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "kind", "installUnits"],
+      "required": ["id", "kind"],
       "properties": {
         "id": {
           "type": "string",
@@ -47,23 +59,6 @@
         },
         "slot": {
           "enum": ["auth", "cms", "commerce"]
-        },
-        "installUnits": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["item", "cwd"],
-            "properties": {
-              "item": {
-                "type": "string",
-                "minLength": 1
-              },
-              "cwd": {
-                "$ref": "#/$defs/workspacePath"
-              }
-            }
-          }
         },
         "compatibility": {
           "type": "object",
@@ -127,7 +122,7 @@
                 "minLength": 1
               },
               "path": {
-                "$ref": "#/$defs/workspacePath"
+                "$ref": "#/$defs/workspaceFilePath"
               }
             }
           }
@@ -140,46 +135,10 @@
             "required": ["source", "target"],
             "properties": {
               "source": {
-                "$ref": "#/$defs/workspacePath"
+                "$ref": "#/$defs/workspaceFilePath"
               },
               "target": {
-                "$ref": "#/$defs/workspacePath"
-              }
-            }
-          }
-        },
-        "routes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["app", "path", "method", "module", "export"],
-            "properties": {
-              "app": {
-                "$ref": "#/$defs/workspacePath"
-              },
-              "path": {
-                "type": "string",
-                "pattern": "^/(?!$)(?!.*[?#\\\\])(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$)).+$"
-              },
-              "method": {
-                "enum": [
-                  "GET",
-                  "POST",
-                  "PUT",
-                  "PATCH",
-                  "DELETE",
-                  "HEAD",
-                  "OPTIONS"
-                ]
-              },
-              "module": {
-                "type": "string",
-                "minLength": 1
-              },
-              "export": {
-                "type": "string",
-                "minLength": 1
+                "$ref": "#/$defs/workspaceFilePath"
               }
             }
           }
