@@ -57,7 +57,7 @@ The Provider- or Add-on-owned metadata that identifies a selection, declares its
 _Avoid_: Registry catalog entry, Composition Plan
 
 **Selection Definition Schema**:
-The current JSON Schema for a ShadCN registry item containing `meta.nextHydra`. It validates the ordinary registry-item shape together with Next Hydra selection metadata; ordinary Install Units without that metadata use ShadCN's schema directly. V1 follows one stable schema URL rather than exposing numbered schema generations.
+The current JSON Schema for a complete ShadCN registry item containing `meta.nextHydra`. A companion Source Registry schema applies it to Selection Definitions inside colocated registry files while ordinary Install Units without that metadata continue to use ShadCN's schema directly. V1 follows one stable schema URL rather than exposing numbered schema generations.
 _Avoid_: Install Unit schema, Customer Workspace version, Provider package version
 
 **Install Unit**:
@@ -75,6 +75,10 @@ _Avoid_: Generated template tree, Customer Workspace receipt, registry server
 **Registry Artifact**:
 The resolved installable ShadCN representation of an Install Unit. ShadCN may produce it in memory from a local or public GitHub Source Registry, or a hosted registry may serve equivalent generated JSON. It is not a second checked-in source tree and official v1 does not require persistent generated artifacts.
 _Avoid_: Canonical source, required build folder, Customer Workspace receipt
+
+**Binary Asset**:
+A byte-for-byte file contribution declared separately when ShadCN's text-based source loader cannot safely represent the file. V1 uses this only while composing from the official or locally included Source Registry; separately fetched external Selections cannot contribute Binary Assets.
+_Avoid_: General file-copy operation, executable hook
 
 **Composition Plan**:
 The deterministic, validated expansion of a Baseline, selected Providers, and Add-ons into declarative materialization work. It contains no Provider-supplied executable hooks.

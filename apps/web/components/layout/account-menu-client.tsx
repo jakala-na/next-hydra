@@ -1,6 +1,6 @@
 "use client";
 
-import { signOutAction } from "@repo/auth-workos/actions";
+import { signOutAction } from "@repo/auth/actions";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import {
   AccountMenu,

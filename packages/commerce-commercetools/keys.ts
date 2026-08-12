@@ -1,1 +1,1 @@
-export { keys, serverKeys } from "./config/keys.ts";
+export { keys, serverKeys } from "./config/keys";

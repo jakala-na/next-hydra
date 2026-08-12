@@ -111,14 +111,14 @@ importers:
       '@repo/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
-      '@repo/auth-workos':
-        specifier: workspace:*
+      '@repo/auth':
+        specifier: workspace:@repo/auth-workos@*
         version: link:../../packages/auth-workos
       '@repo/commerce':
         specifier: workspace:*
         version: link:../../packages/commerce
-      '@repo/commerce-commercetools':
-        specifier: workspace:*
+      '@repo/commerce-provider':
+        specifier: workspace:@repo/commerce-commercetools@*
         version: link:../../packages/commerce-commercetools
       '@repo/design-system':
         specifier: workspace:*
@@ -144,9 +144,6 @@ importers:
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
         version: 0.13.10(arktype@2.1.20)(typescript@5.9.3)(zod@3.25.76)
-      '@workos-inc/node':
-        specifier: ^8.12.1
-        version: 8.12.1
       effect:
         specifier: 'catalog:'
         version: 4.0.0-beta.67
@@ -199,8 +196,8 @@ importers:
 
   apps/cli:
     dependencies:
-      '@repo/commerce-commercetools':
-        specifier: workspace:*
+      '@repo/commerce-provider':
+        specifier: workspace:@repo/commerce-commercetools@*
         version: link:../../packages/commerce-commercetools
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
@@ -299,7 +296,7 @@ importers:
         version: 8.5.23
       shadcn:
         specifier: ^4.0.2
-        version: 4.0.2(@types/node@22.15.21)(typescript@5.9.3)
+        version: 4.16.2(typescript@5.9.3)
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
@@ -452,8 +449,8 @@ importers:
       '@radix-ui/react-icons':
         specifier: ^1.3.2
         version: 1.3.2(react@19.2.8)
-      '@repo/auth-workos':
-        specifier: workspace:*
+      '@repo/auth':
+        specifier: workspace:@repo/auth-workos@*
         version: link:../../packages/auth-workos
       '@repo/cms':
         specifier: workspace:@repo/cms-drupal@*
@@ -461,8 +458,8 @@ importers:
       '@repo/commerce':
         specifier: workspace:*
         version: link:../../packages/commerce
-      '@repo/commerce-commercetools':
-        specifier: workspace:*
+      '@repo/commerce-provider':
+        specifier: workspace:@repo/commerce-commercetools@*
         version: link:../../packages/commerce-commercetools
       '@repo/design-system':
         specifier: workspace:*
@@ -677,6 +674,9 @@ importers:
       '@repo/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@repo/observability':
+        specifier: workspace:*
+        version: link:../observability
       '@repo/registration':
         specifier: workspace:*
         version: link:../registration
@@ -704,6 +704,9 @@ importers:
       server-only:
         specifier: 'catalog:'
         version: 0.0.1
+      workflow:
+        specifier: 4.8.0
+        version: 4.8.0(@nestjs/common@11.1.16(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.16(@nestjs/common@11.1.16(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(@opentelemetry/api@1.9.1)(@swc/cli@0.8.0(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(next@16.3.0(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(typescript@5.9.3)(ws@8.21.2(bufferutil@4.0.9))
       zod:
         specifier: ^3.25.28
         version: 3.25.76
@@ -1009,6 +1012,15 @@ importers:
       commander:
         specifier: ^14.0.0
         version: 14.0.2
+      shadcn:
+        specifier: ^4.16.2
+        version: 4.16.2(typescript@5.9.3)
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
+      zod:
+        specifier: ^3.25.28
+        version: 3.25.76
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*
@@ -1019,6 +1031,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: ^3.1.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@22.15.21)(jiti@2.7.0)(jsdom@26.1.0(bufferutil@4.0.9))(lightningcss@1.32.0)(msw@2.12.10(@types/node@22.15.21)(typescript@5.9.3))(terser@5.44.0)(yaml@2.9.0)
 
   packages/design-system:
     dependencies:
@@ -1261,8 +1276,8 @@ importers:
       '@repo/analytics':
         specifier: workspace:*
         version: link:../analytics
-      '@repo/auth-workos':
-        specifier: workspace:*
+      '@repo/auth':
+        specifier: workspace:@repo/auth-workos@*
         version: link:../auth-workos
       '@repo/design-system':
         specifier: workspace:*
@@ -1632,10 +1647,6 @@ packages:
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
-
-  '@antfu/ni@25.0.0':
-    resolution: {integrity: sha512-9q/yCljni37pkMr4sPrI3G4jqdIk074+iukc5aFJl7kmDCCsiJrbZ6zKxnES1Gwg+i9RcDZwvktl23puGslmvA==}
-    hasBin: true
 
   '@arcjet/analyze-wasm@1.0.0-beta.7':
     resolution: {integrity: sha512-3Ua3A4Jga6gGzz9LwUYjYtPwzOya+41dWE2DvjuDOAgK50D0JzZ3uTLzRtFnpbGgbiw9ZNM8/uvJF5Aq641wmA==}
@@ -6909,10 +6920,6 @@ packages:
     resolution: {integrity: sha512-0qWUglt9JEqLFr3w1I1pbrChn1grhaiAR2ocX1PP/flRmxgtwTzPFFFnfIlD6aMOLQZgSuCRlidD70lvx8yhzg==}
     engines: {node: '>=14'}
 
-  ansis@4.2.0:
-    resolution: {integrity: sha512-HqZ5rWlFjGiV0tDm3UxxgNRqsOTniqoKZu0pIAfh7TZQMGuZK+hH0drySty0si0QXj1ieop4+SkSfPZBPPkHig==}
-    engines: {node: '>=14'}
-
   any-promise@1.3.0:
     resolution: {integrity: sha512-7UvmKalWRt1wgjL1RrGxoSJW/0QZFIegpeGvZG9kjp8vrRu55XTHbwnqq2GpXm9uLbcuhxm3IqX9OB4MZR1b2A==}
 
@@ -7693,10 +7700,6 @@ packages:
   damerau-levenshtein@1.0.8:
     resolution: {integrity: sha512-sdQSFB7+llfUcQHUQO3+B8ERRj0Oa4w9POWMI/puGtuf7gFywGmkaLCElnudfTiKZV+NvHqL0ifzdrI8Ro7ESA==}
 
-  data-uri-to-buffer@4.0.1:
-    resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
-    engines: {node: '>= 12'}
-
   data-uri-to-buffer@6.0.2:
     resolution: {integrity: sha512-7hvf7/GW8e86rW0ptuwS3OcBGDjIi6SZva7hCyWC0yYry2cOPmLIjXAUHI6DK2HsnwJd9ifmt57i8eV2n4YNpw==}
     engines: {node: '>= 14'}
@@ -8439,10 +8442,6 @@ packages:
       picomatch:
         optional: true
 
-  fetch-blob@3.2.0:
-    resolution: {integrity: sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ==}
-    engines: {node: ^12.20 || >= 14.13}
-
   fflate@0.4.8:
     resolution: {integrity: sha512-FJqqoDBR00Mdj9ppamLa/Y7vxm+PRmNWA67N846RvsoYVMKB4q3y/de5PA7gUmRMYK/8CMz2GDZQmCRN1wBcWA==}
 
@@ -8575,10 +8574,6 @@ packages:
   format@0.2.2:
     resolution: {integrity: sha512-wzsgA6WOq+09wrU1tsJ09udeR/YZRaeArL9e1wPbFg3GG2yDnC2ldKpxs4xunpFF9DgqCqOIra3bc1HWrJ37Ww==}
     engines: {node: '>=0.4.x'}
-
-  formdata-polyfill@4.0.10:
-    resolution: {integrity: sha512-buewHzMvYL29jdeQTVILecSaZKnt/RJWjoZCF5OW60Z67/GmSLBkOFM7qh1PI3zFNtJbaZL5eQu1vLfazOwj4g==}
-    engines: {node: '>=12.20.0'}
 
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
@@ -8723,9 +8718,6 @@ packages:
 
   fuzzysort@3.1.0:
     resolution: {integrity: sha512-sR9BNCjBg6LNgwvxlBd0sBABvQitkLzoVY9MYYROQVX/FvfJ4Mai9LsGhDgd8qYdds0bY77VzYd5iuB+v5rwQQ==}
-
-  fzf@0.5.2:
-    resolution: {integrity: sha512-Tt4kuxLXFKHy8KT40zwsUPUkg1CrsgY25FxA2U/j/0WgEDCk3ddc/zLTCCcbSHX9FcKtLuVaDGtGE/STWC+j3Q==}
 
   geist@1.5.1:
     resolution: {integrity: sha512-mAHZxIsL2o3ZITFaBVFBnwyDOw+zNLYum6A6nIjpzCGIO8QtC3V76XF2RnZTyLx1wlDTmMDy8jg3Ib52MIjGvQ==}
@@ -10384,11 +10376,6 @@ packages:
   node-addon-api@7.1.1:
     resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
 
-  node-domexception@1.0.0:
-    resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
-    engines: {node: '>=10.5.0'}
-    deprecated: Use your platform's native DOMException instead
-
   node-exports-info@1.6.2:
     resolution: {integrity: sha512-kXs9Go0cah0qHVV2v389IXQLdLCeE1xfFtjOAF+iobu0OIoG1pje8At2vMHyaPMiPMnG/LWP50twML21eMcAag==}
     engines: {node: '>= 0.4'}
@@ -10404,10 +10391,6 @@ packages:
     peerDependenciesMeta:
       encoding:
         optional: true
-
-  node-fetch@3.3.2:
-    resolution: {integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   node-gyp-build-optional-packages@5.1.1:
     resolution: {integrity: sha512-+P72GAjVAbTxjjwUmwjVrqrdZROD4nf8KgpBoDxqXXTiYZZt/ud60dE5yvCSr9lRO8e8yv6kgJIC0K0PfZFVQw==}
@@ -10630,9 +10613,6 @@ packages:
 
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
-
-  package-manager-detector@1.6.0:
-    resolution: {integrity: sha512-61A5ThoTiDG/C8s8UMZwSorAGwMJ0ERVGj2OjoW5pAalsNOg15+iQiPzrLJ4jhZ1HJzmC2PIHT2oEiH3R5fzNA==}
 
   param-case@2.1.1:
     resolution: {integrity: sha512-eQE845L6ot89sk2N8liD8HAuH4ca6Vvr7VWAWwt7+kvvG5aBcPmmphQ68JsEG2qa9n1TykS2DLeMt363AAH8/w==}
@@ -11459,8 +11439,9 @@ packages:
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
-  shadcn@4.0.2:
-    resolution: {integrity: sha512-U6BxywcVt5Vy+iLdjoyWTPcuz2RQNad09tjJsW8hyKtxlx7VAvzHIvoNxvXN+gxWt/HX8kt/cVNk8AXcmPUaNQ==}
+  shadcn@4.16.2:
+    resolution: {integrity: sha512-M1AvZKFWcCzWRDoyApIqJMSLIpY8Ev4uBGuiPLSFmiTbixXhPmzotSTvLzFmBrfoIxG9aIg2dZOETblEaXGUnQ==}
+    engines: {node: '>=20.18.1'}
     hasBin: true
 
   sharp@0.34.4:
@@ -12552,10 +12533,6 @@ packages:
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
 
-  web-streams-polyfill@3.3.3:
-    resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
-    engines: {node: '>= 8'}
-
   web-vitals@4.2.4:
     resolution: {integrity: sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw==}
 
@@ -12872,13 +12849,6 @@ snapshots:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
-
-  '@antfu/ni@25.0.0':
-    dependencies:
-      ansis: 4.2.0
-      fzf: 0.5.2
-      package-manager-detector: 1.6.0
-      tinyexec: 1.0.2
 
   '@arcjet/analyze-wasm@1.0.0-beta.7': {}
 
@@ -14526,7 +14496,8 @@ snapshots:
   '@img/sharp-win32-x64@0.35.3':
     optional: true
 
-  '@inquirer/ansi@1.0.2': {}
+  '@inquirer/ansi@1.0.2':
+    optional: true
 
   '@inquirer/confirm@5.1.21(@types/node@22.15.21)':
     dependencies:
@@ -14534,6 +14505,7 @@ snapshots:
       '@inquirer/type': 3.0.10(@types/node@22.15.21)
     optionalDependencies:
       '@types/node': 22.15.21
+    optional: true
 
   '@inquirer/confirm@5.1.21(@types/node@25.1.0)':
     dependencies:
@@ -14555,6 +14527,7 @@ snapshots:
       yoctocolors-cjs: 2.1.3
     optionalDependencies:
       '@types/node': 22.15.21
+    optional: true
 
   '@inquirer/core@10.3.2(@types/node@25.1.0)':
     dependencies:
@@ -14570,11 +14543,13 @@ snapshots:
       '@types/node': 25.1.0
     optional: true
 
-  '@inquirer/figures@1.0.15': {}
+  '@inquirer/figures@1.0.15':
+    optional: true
 
   '@inquirer/type@3.0.10(@types/node@22.15.21)':
     optionalDependencies:
       '@types/node': 22.15.21
+    optional: true
 
   '@inquirer/type@3.0.10(@types/node@25.1.0)':
     optionalDependencies:
@@ -14775,6 +14750,7 @@ snapshots:
       is-node-process: 1.2.0
       outvariant: 1.4.3
       strict-event-emitter: 0.5.1
+    optional: true
 
   '@napi-rs/nice-android-arm-eabi@1.1.1':
     optional: true
@@ -15022,14 +14998,17 @@ snapshots:
     dependencies:
       '@oclif/core': 4.11.4
 
-  '@open-draft/deferred-promise@2.2.0': {}
+  '@open-draft/deferred-promise@2.2.0':
+    optional: true
 
   '@open-draft/logger@0.3.0':
     dependencies:
       is-node-process: 1.2.0
       outvariant: 1.4.3
+    optional: true
 
-  '@open-draft/until@2.1.0': {}
+  '@open-draft/until@2.1.0':
+    optional: true
 
   '@opentelemetry/api-logs@0.214.0':
     dependencies:
@@ -17791,7 +17770,8 @@ snapshots:
       '@types/node': 22.15.21
       '@types/send': 0.17.6
 
-  '@types/statuses@2.0.6': {}
+  '@types/statuses@2.0.6':
+    optional: true
 
   '@types/through@0.0.33':
     dependencies:
@@ -17983,7 +17963,7 @@ snapshots:
     dependencies:
       async-listen: 3.0.0
       open: 8.4.0
-      xdg-app-paths: 5.1.0
+      xdg-app-paths: 5.5.1
       zod: 4.1.11
 
   '@vercel/cli-config@0.2.2':
@@ -18719,8 +18699,6 @@ snapshots:
 
   ansis@3.17.0: {}
 
-  ansis@4.2.0: {}
-
   any-promise@1.3.0: {}
 
   anymatch@3.1.3:
@@ -19256,7 +19234,8 @@ snapshots:
 
   cli-width@3.0.0: {}
 
-  cli-width@4.1.0: {}
+  cli-width@4.1.0:
+    optional: true
 
   client-only@0.0.1: {}
 
@@ -19491,8 +19470,6 @@ snapshots:
   d3-timer@3.0.1: {}
 
   damerau-levenshtein@1.0.8: {}
-
-  data-uri-to-buffer@4.0.1: {}
 
   data-uri-to-buffer@6.0.2: {}
 
@@ -20527,11 +20504,6 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.5
 
-  fetch-blob@3.2.0:
-    dependencies:
-      node-domexception: 1.0.0
-      web-streams-polyfill: 3.3.3
-
   fflate@0.4.8: {}
 
   fflate@0.8.3: {}
@@ -20659,10 +20631,6 @@ snapshots:
       mime-types: 2.1.35
 
   format@0.2.2: {}
-
-  formdata-polyfill@4.0.10:
-    dependencies:
-      fetch-blob: 3.2.0
 
   forwarded@0.2.0: {}
 
@@ -20809,8 +20777,6 @@ snapshots:
   functions-have-names@1.2.3: {}
 
   fuzzysort@3.1.0: {}
-
-  fzf@0.5.2: {}
 
   geist@1.5.1(next@16.3.0(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)):
     dependencies:
@@ -21112,7 +21078,8 @@ snapshots:
       no-case: 2.3.2
       upper-case: 1.1.3
 
-  headers-polyfill@4.0.3: {}
+  headers-polyfill@4.0.3:
+    optional: true
 
   hermes-estree@0.25.1: {}
 
@@ -21490,7 +21457,8 @@ snapshots:
 
   is-negative-zero@2.0.3: {}
 
-  is-node-process@1.2.0: {}
+  is-node-process@1.2.0:
+    optional: true
 
   is-number-object@1.1.1:
     dependencies:
@@ -22604,7 +22572,7 @@ snapshots:
       '@mswjs/interceptors': 0.41.3
       '@open-draft/deferred-promise': 2.2.0
       '@types/statuses': 2.0.6
-      cookie: 1.0.2
+      cookie: 1.1.1
       graphql: 16.12.0
       headers-polyfill: 4.0.3
       is-node-process: 1.2.0
@@ -22622,6 +22590,7 @@ snapshots:
       typescript: 5.9.3
     transitivePeerDependencies:
       - '@types/node'
+    optional: true
 
   msw@2.12.10(@types/node@25.1.0)(typescript@5.9.3):
     dependencies:
@@ -22629,7 +22598,7 @@ snapshots:
       '@mswjs/interceptors': 0.41.3
       '@open-draft/deferred-promise': 2.2.0
       '@types/statuses': 2.0.6
-      cookie: 1.0.2
+      cookie: 1.1.1
       graphql: 16.12.0
       headers-polyfill: 4.0.3
       is-node-process: 1.2.0
@@ -22655,7 +22624,8 @@ snapshots:
 
   mute-stream@0.0.8: {}
 
-  mute-stream@2.0.0: {}
+  mute-stream@2.0.0:
+    optional: true
 
   mz@2.7.0:
     dependencies:
@@ -22825,8 +22795,6 @@ snapshots:
 
   node-addon-api@7.1.1: {}
 
-  node-domexception@1.0.0: {}
-
   node-exports-info@1.6.2:
     dependencies:
       array.prototype.flatmap: 1.3.3
@@ -22839,12 +22807,6 @@ snapshots:
   node-fetch@2.7.0:
     dependencies:
       whatwg-url: 5.0.0
-
-  node-fetch@3.3.2:
-    dependencies:
-      data-uri-to-buffer: 4.0.1
-      fetch-blob: 3.2.0
-      formdata-polyfill: 4.0.10
 
   node-gyp-build-optional-packages@5.1.1:
     dependencies:
@@ -23071,7 +23033,8 @@ snapshots:
 
   os-tmpdir@1.0.2: {}
 
-  outvariant@1.4.3: {}
+  outvariant@1.4.3:
+    optional: true
 
   overlap-area@1.1.0:
     dependencies:
@@ -23125,8 +23088,6 @@ snapshots:
       netmask: 2.0.2
 
   package-json-from-dist@1.0.1: {}
-
-  package-manager-detector@1.6.0: {}
 
   param-case@2.1.1:
     dependencies:
@@ -23991,7 +23952,8 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  rettime@0.10.1: {}
+  rettime@0.10.1:
+    optional: true
 
   reusify@1.1.0: {}
 
@@ -24241,9 +24203,8 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
-  shadcn@4.0.2(@types/node@22.15.21)(typescript@5.9.3):
+  shadcn@4.16.2(typescript@5.9.3):
     dependencies:
-      '@antfu/ni': 25.0.0
       '@babel/core': 7.28.5
       '@babel/parser': 7.29.0
       '@babel/plugin-transform-typescript': 7.28.6(@babel/core@7.28.5)
@@ -24261,10 +24222,7 @@ snapshots:
       fast-glob: 3.3.3
       fs-extra: 11.3.3
       fuzzysort: 3.1.0
-      https-proxy-agent: 7.0.6
       kleur: 4.1.5
-      msw: 2.12.10(@types/node@22.15.21)(typescript@5.9.3)
-      node-fetch: 3.3.2
       open: 11.0.0
       ora: 8.2.0
       postcss: 8.5.23
@@ -24275,12 +24233,12 @@ snapshots:
       tailwind-merge: 3.4.0
       ts-morph: 26.0.0
       tsconfig-paths: 4.2.0
+      undici: 7.28.0
       validate-npm-package-name: 7.0.2
       zod: 3.25.76
       zod-to-json-schema: 3.25.1(zod@3.25.76)
     transitivePeerDependencies:
       - '@cfworker/json-schema'
-      - '@types/node'
       - babel-plugin-macros
       - supports-color
       - typescript
@@ -24609,7 +24567,8 @@ snapshots:
       - bare-abort-controller
       - react-native-b4a
 
-  strict-event-emitter@0.5.1: {}
+  strict-event-emitter@0.5.1:
+    optional: true
 
   string-argv@0.3.2: {}
 
@@ -24817,7 +24776,8 @@ snapshots:
   symbol-tree@3.2.4:
     optional: true
 
-  tagged-tag@1.0.0: {}
+  tagged-tag@1.0.0:
+    optional: true
 
   tailwind-merge@3.2.0: {}
 
@@ -24975,7 +24935,8 @@ snapshots:
   tldts-core@6.1.86:
     optional: true
 
-  tldts-core@7.0.23: {}
+  tldts-core@7.0.23:
+    optional: true
 
   tldts@6.1.86:
     dependencies:
@@ -24985,6 +24946,7 @@ snapshots:
   tldts@7.0.23:
     dependencies:
       tldts-core: 7.0.23
+    optional: true
 
   tmp@0.0.33:
     dependencies:
@@ -25016,6 +24978,7 @@ snapshots:
   tough-cookie@6.0.0:
     dependencies:
       tldts: 7.0.23
+    optional: true
 
   tr46@0.0.3: {}
 
@@ -25120,6 +25083,7 @@ snapshots:
   type-fest@5.4.4:
     dependencies:
       tagged-tag: 1.0.0
+    optional: true
 
   type-is@2.0.1:
     dependencies:
@@ -25310,7 +25274,8 @@ snapshots:
       picomatch: 4.0.5
       webpack-virtual-modules: 0.6.2
 
-  until-async@3.0.2: {}
+  until-async@3.0.2:
+    optional: true
 
   untyped@2.0.0:
     dependencies:
@@ -25683,8 +25648,6 @@ snapshots:
     dependencies:
       defaults: 1.0.4
 
-  web-streams-polyfill@3.3.3: {}
-
   web-vitals@4.2.4: {}
 
   webcrypto-core@1.8.1:
@@ -26015,7 +25978,8 @@ snapshots:
 
   yocto-queue@1.2.2: {}
 
-  yoctocolors-cjs@2.1.3: {}
+  yoctocolors-cjs@2.1.3:
+    optional: true
 
   yoctocolors@2.1.1: {}
 

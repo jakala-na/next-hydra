@@ -12,8 +12,15 @@ const mocks = vi.hoisted(() => ({
   warn: vi.fn(),
 }));
 
-vi.mock("@repo/auth-workos/admin", () => ({
+vi.mock("@repo/auth/admin", () => ({
   getWorkosUser: mocks.getWorkosUser,
+}));
+
+vi.mock("@repo/auth/keys", () => ({
+  keys: () => ({
+    WORKOS_API_KEY: "sk_test_123",
+  }),
+  webhookKeys: () => ({ WORKOS_WEBHOOK_SECRET: "workos-test-secret" }),
 }));
 
 vi.mock("workflow/api", () => ({
@@ -23,13 +30,6 @@ vi.mock("workflow/api", () => ({
 vi.mock("@repo/observability/log", () => ({
   log: {
     warn: mocks.warn,
-  },
-}));
-
-vi.mock("../env", () => ({
-  env: {
-    WORKOS_API_KEY: "sk_test_123",
-    WORKOS_WEBHOOK_SECRET: "workos-test-secret",
   },
 }));
 
@@ -48,12 +48,12 @@ const createWebhookRequest = (payload: unknown, signature?: string) => {
   const rawBody = JSON.stringify(payload);
 
   return new Request("http://localhost/api/webhooks/workos", {
-    method: "POST",
+    body: rawBody,
     headers: {
       "content-type": "application/json",
       "workos-signature": signature ?? signPayload(rawBody),
     },
-    body: rawBody,
+    method: "POST",
   });
 };
 
@@ -68,14 +68,14 @@ test("unsupported webhook events are ignored", async () => {
   const { POST } = await loadRoute();
   const response = await POST(
     createWebhookRequest({
+      data: { id: "ignored" },
       event: "user.created",
       id: "evt_123",
-      data: { id: "ignored" },
     })
   );
 
   expect(response.status).toBe(HTTP_OK);
-  expect(await response.json()).toEqual({ ok: true, ignored: true });
+  expect(await response.json()).toEqual({ ignored: true, ok: true });
   expect(mocks.getWorkosUser).not.toHaveBeenCalled();
   expect(mocks.resumeHook).not.toHaveBeenCalled();
 });
@@ -85,9 +85,9 @@ test("invalid webhook signatures are rejected", async () => {
   const response = await POST(
     createWebhookRequest(
       {
+        data: { id: "inv_123" },
         event: "invitation.revoked",
         id: "evt_123",
-        data: { id: "inv_123" },
       },
       "t=1, v1=invalid"
     )
@@ -102,9 +102,9 @@ test("revoked invitation events resume the registration invitation hook", async 
   mocks.resumeHook.mockResolvedValue(undefined);
   const response = await POST(
     createWebhookRequest({
+      data: { id: "inv_123" },
       event: "invitation.revoked",
       id: "evt_123",
-      data: { id: "inv_123" },
     })
   );
 
@@ -120,9 +120,9 @@ test("accepted invitation events require an accepted user id", async () => {
   const { POST } = await loadRoute();
   const response = await POST(
     createWebhookRequest({
+      data: { acceptedUserId: null, id: "inv_123" },
       event: "invitation.accepted",
       id: "evt_123",
-      data: { id: "inv_123", acceptedUserId: null },
     })
   );
 
@@ -134,18 +134,18 @@ test("accepted invitation events require an accepted user id", async () => {
 
 test("accepted invitation events resume the registration invitation hook", async () => {
   mocks.getWorkosUser.mockResolvedValue({
-    id: "user_123",
     email: "ada@example.com",
     firstName: "Ada",
+    id: "user_123",
     lastName: "Lovelace",
   });
   mocks.resumeHook.mockResolvedValue(undefined);
   const { POST } = await loadRoute();
   const response = await POST(
     createWebhookRequest({
+      data: { accepted_user_id: "user_123", id: "inv_123" },
       event: "invitation.accepted",
       id: "evt_123",
-      data: { id: "inv_123", accepted_user_id: "user_123" },
     })
   );
 
@@ -155,13 +155,13 @@ test("accepted invitation events resume the registration invitation hook", async
   expect(mocks.resumeHook).toHaveBeenCalledWith(
     getRegistrationInvitationHookToken("inv_123"),
     {
-      event: "accepted",
       acceptedIdentity: {
         authUserId: "user_123",
         email: "ada@example.com",
         firstName: "Ada",
         lastName: "Lovelace",
       },
+      event: "accepted",
     }
   );
 });

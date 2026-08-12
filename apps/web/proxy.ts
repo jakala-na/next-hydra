@@ -1,4 +1,4 @@
-import { authProxy } from "@repo/auth-workos/proxy";
+import { authProxy } from "@repo/auth/proxy";
 import { cmsProxy } from "@repo/cms/proxy";
 import { i18nProxy } from "@repo/i18n/proxy";
 

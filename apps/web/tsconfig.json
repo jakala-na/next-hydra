@@ -6,8 +6,12 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
+      "@repo/auth": ["./node_modules/@repo/auth"],
+      "@repo/auth/*": ["./node_modules/@repo/auth/*"],
       "@repo/cms": ["./node_modules/@repo/cms"],
       "@repo/cms/*": ["./node_modules/@repo/cms/*"],
+      "@repo/commerce-provider": ["./node_modules/@repo/commerce-provider"],
+      "@repo/commerce-provider/*": ["./node_modules/@repo/commerce-provider/*"],
       "@repo/*": ["../../packages/*"]
     }
   },

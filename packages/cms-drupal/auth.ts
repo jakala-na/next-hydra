@@ -1,4 +1,4 @@
-import { type DrupalKeys, getDrupalAuthUri, keys } from "./keys.ts";
+import { type DrupalKeys, getDrupalAuthUri, keys } from "./keys";
 
 export type DrupalAccessMode = "previewer" | "viewer";
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getSignInUrl, withAuth } from "@repo/auth-workos/server";
+import { getSignInUrl, withAuth } from "@repo/auth/server";
 import type { Route } from "next";
 import { notFound, redirect } from "next/navigation";
 

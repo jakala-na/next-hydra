@@ -1,0 +1,185 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "auth-workos",
+      "type": "registry:item",
+      "title": "Next Hydra WorkOS Auth provider",
+      "description": "Installs the WorkOS AuthKit provider package.",
+      "docs": "Configure the WorkOS environment variables described by packages/auth-workos before starting the applications.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/auth/workos",
+          "kind": "provider",
+          "slot": "auth",
+          "installUnits": [
+            {
+              "item": "auth-workos",
+              "cwd": "packages/auth-workos"
+            }
+          ],
+          "packages": [
+            {
+              "cwd": "apps/api",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-workos@*"
+            },
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-workos@*"
+            },
+            {
+              "cwd": "packages/feature-flags",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-workos@*"
+            }
+          ],
+          "routes": [
+            {
+              "app": "apps/web",
+              "path": "/api/auth/callback",
+              "method": "GET",
+              "module": "@repo/auth/route-handlers/callback",
+              "export": "GET"
+            },
+            {
+              "app": "apps/web",
+              "path": "/api/auth/signin",
+              "method": "GET",
+              "module": "@repo/auth/route-handlers/signin",
+              "export": "GET"
+            },
+            {
+              "app": "apps/web",
+              "path": "/api/auth/signout",
+              "method": "GET",
+              "module": "@repo/auth/route-handlers/signout",
+              "export": "GET"
+            },
+            {
+              "app": "apps/web",
+              "path": "/api/auth/signup",
+              "method": "GET",
+              "module": "@repo/auth/route-handlers/signup",
+              "export": "GET"
+            },
+            {
+              "app": "apps/api",
+              "path": "/api/webhooks/workos",
+              "method": "POST",
+              "module": "@repo/auth/route-handlers/webhook",
+              "export": "POST"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "access-token.test.ts",
+          "target": "~/access-token.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "access-token.ts",
+          "target": "~/access-token.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "actions.ts",
+          "target": "~/actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "admin.ts",
+          "target": "~/admin.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client.ts",
+          "target": "~/client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "identity-users.test.ts",
+          "target": "~/identity-users.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "identity-users.ts",
+          "target": "~/identity-users.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.test.ts",
+          "target": "~/invitations.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.ts",
+          "target": "~/invitations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "keys.ts",
+          "target": "~/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "provider.tsx",
+          "target": "~/provider.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "proxy.ts",
+          "target": "~/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/callback.ts",
+          "target": "~/route-handlers/callback.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/signin.ts",
+          "target": "~/route-handlers/signin.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/signout.ts",
+          "target": "~/route-handlers/signout.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/signup.ts",
+          "target": "~/route-handlers/signup.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/webhook.ts",
+          "target": "~/route-handlers/webhook.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "server.ts",
+          "target": "~/server.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/tsconfig.json",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

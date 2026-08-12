@@ -7,7 +7,7 @@ const { connection, withAuth } = vi.hoisted(() => ({
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ connection }));
-vi.mock("@repo/auth-workos/server", () => ({ withAuth }));
+vi.mock("@repo/auth/server", () => ({ withAuth }));
 vi.mock("./account-menu-client", () => ({
   AccountMenuClient: () => null,
 }));

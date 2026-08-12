@@ -4,7 +4,7 @@ import {
   WorkosAccessTokenVerificationFailure,
   WorkosAccessTokenVerifier,
   WorkosAuthUserId,
-} from "@repo/auth-workos/access-token";
+} from "@repo/auth/access-token";
 import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import {

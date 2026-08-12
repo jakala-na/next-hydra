@@ -1,0 +1,528 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "commerce-commercetools",
+      "type": "registry:item",
+      "title": "Next Hydra Commercetools provider",
+      "description": "Installs the Commercetools implementation package.",
+      "docs": "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/commerce/commercetools",
+          "kind": "provider",
+          "slot": "commerce",
+          "installUnits": [
+            {
+              "item": "commerce-commercetools",
+              "cwd": "packages/commerce-commercetools"
+            }
+          ],
+          "packages": [
+            {
+              "cwd": "apps/api",
+              "section": "dependencies",
+              "name": "@repo/commerce-provider",
+              "specifier": "workspace:@repo/commerce-commercetools@*"
+            },
+            {
+              "cwd": "apps/cli",
+              "section": "dependencies",
+              "name": "@repo/commerce-provider",
+              "specifier": "workspace:@repo/commerce-commercetools@*"
+            },
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "name": "@repo/commerce-provider",
+              "specifier": "workspace:@repo/commerce-commercetools@*"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": ".env.example",
+          "target": "~/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "address-book/address-book-key.ts",
+          "target": "~/address-book/address-book-key.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "address-book/address-book.test.ts",
+          "target": "~/address-book/address-book.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "address-book/address-book.ts",
+          "target": "~/address-book/address-book.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "address-book/index.ts",
+          "target": "~/address-book/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/attributes.ts",
+          "target": "~/cart/attributes.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/carts.test.ts",
+          "target": "~/cart/carts.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/carts.ts",
+          "target": "~/cart/carts.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/contact-actions.test.ts",
+          "target": "~/cart/contact-actions.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/contact-actions.ts",
+          "target": "~/cart/contact-actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/delivery-details-actions.test.ts",
+          "target": "~/cart/delivery-details-actions.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/delivery-details-actions.ts",
+          "target": "~/cart/delivery-details-actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/index.ts",
+          "target": "~/cart/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/persistence-errors.ts",
+          "target": "~/cart/persistence-errors.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/persistence-types.ts",
+          "target": "~/cart/persistence-types.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/persistence.test.ts",
+          "target": "~/cart/persistence.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/persistence.ts",
+          "target": "~/cart/persistence.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/price.ts",
+          "target": "~/cart/price.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/provider-cart.ts",
+          "target": "~/cart/provider-cart.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/client.ts",
+          "target": "~/cli/client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/commands/migrate.ts",
+          "target": "~/cli/commands/migrate.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/commands/schema.test.ts",
+          "target": "~/cli/commands/schema.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/commands/schema.ts",
+          "target": "~/cli/commands/schema.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/commands/types.ts",
+          "target": "~/cli/commands/types.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/environment.ts",
+          "target": "~/cli/environment.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/index.ts",
+          "target": "~/cli/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migration-generator.test.ts",
+          "target": "~/cli/migration-generator.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migration-generator.ts",
+          "target": "~/cli/migration-generator.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations.ts",
+          "target": "~/cli/migrations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/typegen.test.ts",
+          "target": "~/cli/typegen.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/typegen.ts",
+          "target": "~/cli/typegen.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client/clients-live.test.ts",
+          "target": "~/client/clients-live.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client/graphql-client-live.ts",
+          "target": "~/client/graphql-client-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client/graphql-client.ts",
+          "target": "~/client/graphql-client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client/graphql-exchange.test.ts",
+          "target": "~/client/graphql-exchange.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client/graphql-exchange.ts",
+          "target": "~/client/graphql-exchange.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client/layers.ts",
+          "target": "~/client/layers.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client/rest-client-live.ts",
+          "target": "~/client/rest-client-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client/rest-client.ts",
+          "target": "~/client/rest-client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client/versioned-write.test.ts",
+          "target": "~/client/versioned-write.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client/versioned-write.ts",
+          "target": "~/client/versioned-write.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "commerce-accounts/commerce-accounts.test.ts",
+          "target": "~/commerce-accounts/commerce-accounts.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "commerce-accounts/commerce-accounts.ts",
+          "target": "~/commerce-accounts/commerce-accounts.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "commerce-accounts/index.ts",
+          "target": "~/commerce-accounts/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "config/config.test.ts",
+          "target": "~/config/config.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "config/config.ts",
+          "target": "~/config/config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "config/index.ts",
+          "target": "~/config/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "config/keys.test.ts",
+          "target": "~/config/keys.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "config/keys.ts",
+          "target": "~/config/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "custom-fields/generated/enum-values.ts",
+          "target": "~/custom-fields/generated/enum-values.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "custom-fields/generated/field-kinds.ts",
+          "target": "~/custom-fields/generated/field-kinds.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "custom-fields/generated/schemas.ts",
+          "target": "~/custom-fields/generated/schemas.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "custom-fields/generated/types.ts",
+          "target": "~/custom-fields/generated/types.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "custom-fields/index.ts",
+          "target": "~/custom-fields/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "custom-fields/resolve.ts",
+          "target": "~/custom-fields/resolve.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "custom-fields/types.ts",
+          "target": "~/custom-fields/types.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "custom-fields/utils.ts",
+          "target": "~/custom-fields/utils.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "gql/graphql-cache.d.ts",
+          "target": "~/gql/graphql-cache.d.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "gql/graphql-env.d.ts",
+          "target": "~/gql/graphql-env.d.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "gql/schema.graphql",
+          "target": "~/gql/schema.graphql",
+          "type": "registry:file"
+        },
+        {
+          "path": "graphql.test.ts",
+          "target": "~/graphql.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "graphql.ts",
+          "target": "~/graphql.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "keys.ts",
+          "target": "~/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/create-order-custom-fields-type.test.ts",
+          "target": "~/migrations/create-order-custom-fields-type.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/ensure-address-book-associate-role-permissions.test.ts",
+          "target": "~/migrations/ensure-address-book-associate-role-permissions.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/migration-client.ts",
+          "target": "~/migrations/migration-client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/README.md",
+          "target": "~/migrations/README.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/scripts/2026-07-28-130000-create-order-custom-fields-type.ts",
+          "target": "~/migrations/scripts/2026-07-28-130000-create-order-custom-fields-type.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/scripts/2026-07-31-120000-ensure-address-book-associate-role-permissions.ts",
+          "target": "~/migrations/scripts/2026-07-31-120000-ensure-address-book-associate-role-permissions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/types.ts",
+          "target": "~/migrations/types.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/catalog.ts",
+          "target": "~/product/catalog.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/client-live.test.ts",
+          "target": "~/product/client-live.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/client-live.ts",
+          "target": "~/product/client-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/client.ts",
+          "target": "~/product/client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/index.ts",
+          "target": "~/product/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/mapping.ts",
+          "target": "~/product/mapping.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/product-discovery.test.ts",
+          "target": "~/product/product-discovery.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/product-discovery.ts",
+          "target": "~/product/product-discovery.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "provider.ts",
+          "target": "~/provider.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "README.md",
+          "target": "~/README.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "registration/index.ts",
+          "target": "~/registration/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registration/registration-queries.live.test.ts",
+          "target": "~/registration/registration-queries.live.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registration/registration-queries.test.ts",
+          "target": "~/registration/registration-queries.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registration/registration-queries.ts",
+          "target": "~/registration/registration-queries.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "schema/product-types/.gitkeep",
+          "target": "~/schema/product-types/.gitkeep",
+          "type": "registry:file"
+        },
+        {
+          "path": "schema/product-types/generic-product.json",
+          "target": "~/schema/product-types/generic-product.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "schema/product-types/heavy-earthmoving-and-construction-equipment.json",
+          "target": "~/schema/product-types/heavy-earthmoving-and-construction-equipment.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "schema/product-types/heavy-lifting-and-specialized-equipment.json",
+          "target": "~/schema/product-types/heavy-lifting-and-specialized-equipment.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "schema/types/orderCustomFields.json",
+          "target": "~/schema/types/orderCustomFields.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/gql-sync.ts",
+          "target": "~/scripts/gql-sync.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "versioned-store/index.ts",
+          "target": "~/versioned-store/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "versioned-store/versioned-store.test.ts",
+          "target": "~/versioned-store/versioned-store.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "versioned-store/versioned-store.ts",
+          "target": "~/versioned-store/versioned-store.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

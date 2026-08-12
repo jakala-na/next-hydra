@@ -30,7 +30,9 @@ Business domains are packages that model core product capabilities and workflows
 - `@repo/cms`: the stable CMS dependency name selected by the consuming app.
 - `@repo/cms-contentstack`: Contentstack GraphQL client, content block rendering, draft mode routes, and live preview wiring.
 - `@repo/cms-drupal`: Drupal OAuth, authenticated GraphQL transport, schema generation, and draft preview integration scaffold.
-- `@repo/commerce`: Commercetools GraphQL integration, product/store/cart services, and server actions for cart operations.
+- `@repo/commerce`: provider-neutral commerce domain models and service contracts.
+- `@repo/commerce-provider`: the selected Commerce implementation used by applications.
+- `@repo/auth`: the selected Auth implementation used by applications.
 - `@repo/auth-workos`: WorkOS auth routes, provider, middleware proxy, and server helpers.
 - `@repo/auth-clerk`: Clerk auth adapter package (available for swap-in/experiments).
 

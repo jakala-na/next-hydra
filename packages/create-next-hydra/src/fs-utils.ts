@@ -42,7 +42,7 @@ export async function ensureParentDirectory(targetPath: string): Promise<void> {
 }
 
 export async function removePath(targetPath: string): Promise<void> {
-  await rm(targetPath, { recursive: true, force: true });
+  await rm(targetPath, { force: true, recursive: true });
 }
 
 export async function readJsonFile<T>(filePath: string): Promise<T> {

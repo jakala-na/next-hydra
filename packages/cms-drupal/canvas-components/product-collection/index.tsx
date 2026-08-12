@@ -1,4 +1,3 @@
-import { decodeCommerceCategoryId } from "@repo/cms-drupal/lib/commerce-category";
 import { ProductCollectionGrid } from "@repo/commerce/product/product-collection";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import {
@@ -8,6 +7,8 @@ import {
 import { getLocale } from "@repo/i18n";
 import { Option } from "effect";
 import { Suspense } from "react";
+
+import { decodeCommerceCategoryId } from "../../lib/commerce-category";
 
 type CanvasProductCollectionProps = {
   categoryId?: string;

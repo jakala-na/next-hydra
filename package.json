@@ -16,6 +16,8 @@
     "format": "ultracite fix",
     "lint": "ultracite check",
     "prepare": "husky && effect-language-service patch && effect-tsgo patch",
+    "registry:check": "node scripts/sync-registry-files.ts --check",
+    "registry:sync": "node scripts/sync-registry-files.ts",
     "release:create-next-hydra": "node scripts/release-create-next-hydra.mjs --version",
     "release:create-next-hydra:dry-run": "node scripts/release-create-next-hydra.mjs --dry-run",
     "test": "turbo test",

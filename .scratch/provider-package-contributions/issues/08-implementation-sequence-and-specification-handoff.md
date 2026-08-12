@@ -94,6 +94,21 @@ Do not promote the prototype's `.mjs` implementation into production, its catch-
 
 The registry schema, CMS definitions, planner, `use`, scaffold composition, failure behavior, and end-to-end tests ship together. Intermediate commits may be independently reviewed and unit-tested, but the CMS selection flags are not released from a branch that cannot produce and verify complete Drupal and Contentstack Customer Workspaces.
 
+## Implementation evidence
+
+Implemented in `packages/create-next-hydra` and the colocated root, Provider-package, and sidecar source registries. The delivered CLI includes all four slices: complete CMS scaffolding, Auth and Commerce aliases, compatibility-aware Add-ons and portable Presets, and additive customer `add` behavior. The test suite exercises both CMS choices, the Reference Composition drift check, a realistic two-root Drupal and Commercetools Add-on, incompatible preflight before destination writes, local external selections, binary asset integrity, customer file conflicts, and preserved failed scaffolds.
+
+Validation commands:
+
+```bash
+pnpm --filter create-next-hydra typecheck
+pnpm --filter create-next-hydra test
+pnpm --filter create-next-hydra build
+node packages/create-next-hydra/dist/cli.js use --check
+pnpm --filter create-next-hydra test:e2e
+pnpm registry:check
+```
+
 ## Answer
 
 Implement Provider and Add-on Composition as four runnable end-to-end slices rather than as horizontal schema, registry, planner, and CLI phases. Internal modules and small commits may be delivered in dependency order, but each slice finishes with CLI-observable behavior against a real workspace.

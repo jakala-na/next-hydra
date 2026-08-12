@@ -6,9 +6,23 @@ export default mergeConfig(
   baseConfig,
   defineConfig({
     resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "."),
-      },
+      alias: [
+        {
+          find: "@repo/auth",
+          replacement: path.resolve(
+            import.meta.dirname,
+            "node_modules/@repo/auth"
+          ),
+        },
+        {
+          find: "@repo/commerce-provider",
+          replacement: path.resolve(
+            import.meta.dirname,
+            "node_modules/@repo/commerce-provider"
+          ),
+        },
+        { find: "@", replacement: path.resolve(import.meta.dirname, ".") },
+      ],
     },
   })
 );

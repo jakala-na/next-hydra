@@ -1,4 +1,5 @@
-import { cancel, isCancel, text } from "@clack/prompts";
+import { cancel, isCancel, select, text } from "@clack/prompts";
+import type { ProviderSlot } from "./composition/types.js";
 
 export class UserCancelledError extends Error {
   constructor() {
@@ -15,8 +16,6 @@ export async function promptForTargetDirectory(): Promise<string> {
       if (!value?.trim()) {
         return "Please enter a folder name.";
       }
-
-      return undefined;
     },
   });
 
@@ -26,4 +25,38 @@ export async function promptForTargetDirectory(): Promise<string> {
   }
 
   return result.trim();
+}
+
+const PROVIDER_CHOICES: Record<
+  ProviderSlot,
+  Array<{ label: string; value: string; hint?: string }>
+> = {
+  auth: [{ label: "WorkOS", value: "workos" }],
+  cms: [
+    {
+      hint: "includes the Drupal sidecar application",
+      label: "Drupal",
+      value: "drupal",
+    },
+    { label: "Contentstack", value: "contentstack" },
+  ],
+  commerce: [{ label: "Commercetools", value: "commercetools" }],
+};
+
+export async function promptForProvider(
+  slot: ProviderSlot,
+  initialValue?: string
+): Promise<string> {
+  const result = await select({
+    initialValue,
+    message: `Choose the ${slot} provider`,
+    options: PROVIDER_CHOICES[slot],
+  });
+
+  if (isCancel(result)) {
+    cancel("Cancelled.");
+    throw new UserCancelledError();
+  }
+
+  return result;
 }

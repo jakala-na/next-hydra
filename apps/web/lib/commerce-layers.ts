@@ -1,6 +1,6 @@
 import "server-only";
 
-import { withAuth } from "@repo/auth-workos/server";
+import { withAuth } from "@repo/auth/server";
 import { CommerceIdentity } from "@repo/commerce/services/commerce-identity";
 
 export {
@@ -8,7 +8,7 @@ export {
   cartsLayer,
   commerceAccountsLayer,
   productDiscoveryLayer,
-} from "@repo/commerce-commercetools/provider";
+} from "@repo/commerce-provider/provider";
 
 export const commerceIdentityLayer = async () => {
   const session = await withAuth();

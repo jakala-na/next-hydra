@@ -6,6 +6,11 @@ export type CreateOptions = {
   ref?: string;
   repoUrl: string;
   verbose: boolean;
+  auth?: string;
+  cms?: string;
+  commerce?: string;
+  addOns?: string[];
+  preset?: string;
 };
 
 export type ResolvedCreateOptions = CreateOptions & {

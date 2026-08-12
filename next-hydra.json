@@ -1,0 +1,8 @@
+{
+  "providers": {
+    "auth": "workos",
+    "cms": "drupal",
+    "commerce": "commercetools"
+  },
+  "addOns": []
+}

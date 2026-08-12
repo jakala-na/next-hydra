@@ -2,7 +2,7 @@ import {
   type WorkosAccessTokenInvalid,
   type WorkosAccessTokenVerificationFailure,
   WorkosAccessTokenVerifier,
-} from "@repo/auth-workos/access-token";
+} from "@repo/auth/access-token";
 import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
 import { Effect, Layer } from "effect";
 import {
@@ -24,11 +24,13 @@ const toCheckoutCustomerJwtError = (
         message: error.message,
         ...(error.cause === undefined ? {} : { cause: error.cause }),
       });
-    default:
-      error satisfies never;
+    default: {
+      const exhaustiveError: never = error;
       return new CheckoutCustomerJwtVerificationFailure({
+        cause: exhaustiveError,
         message: "Failed to verify checkout customer JWT",
       });
+    }
   }
 };
 

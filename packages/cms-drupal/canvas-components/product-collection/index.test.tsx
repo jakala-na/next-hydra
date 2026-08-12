@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.stubGlobal("React", { createElement });
 
-vi.mock("@repo/cms-drupal/lib/commerce-category", () => ({
+vi.mock("../../lib/commerce-category", () => ({
   decodeCommerceCategoryId: () => ({
     _tag: "Some",
     value: "category-1",

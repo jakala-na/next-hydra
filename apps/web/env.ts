@@ -1,6 +1,6 @@
-import { keys as authWorkos } from "@repo/auth-workos/keys";
+import { keys as authWorkos } from "@repo/auth/keys";
 import { keys as cms } from "@repo/cms/keys";
-import { keys as commerce } from "@repo/commerce-commercetools/keys";
+import { keys as commerce } from "@repo/commerce-provider/keys";
 import { keys as email } from "@repo/email/keys";
 import { keys as flags } from "@repo/feature-flags/keys";
 import { keys as core } from "@repo/next-config/keys";

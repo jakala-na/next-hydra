@@ -3,17 +3,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@repo/analytics/keys", () => ({ keys: () => ({}) }));
-vi.mock("@repo/auth-workos/keys", () => ({ keys: () => ({}) }));
+vi.mock("@repo/auth/keys", () => ({
+  keys: () => ({}),
+  webhookKeys: () => ({}),
+}));
 vi.mock("@repo/email/keys", () => ({ keys: () => ({}) }));
 vi.mock("@repo/next-config/keys", () => ({ keys: () => ({}) }));
 vi.mock("@repo/observability/keys", () => ({ keys: () => ({}) }));
 
 const requiredCommerceEnvironment = {
-  COMMERCETOOLS_PROJECT_KEY: "project-key",
   COMMERCETOOLS_CLIENT_ID: "client-id",
   COMMERCETOOLS_CLIENT_SECRET: "client-secret",
-  COMMERCETOOLS_SCOPE: "scope",
+  COMMERCETOOLS_PROJECT_KEY: "project-key",
   COMMERCETOOLS_REGION: "region",
+  COMMERCETOOLS_SCOPE: "scope",
 } as const;
 
 const applicationEnvironment = {
@@ -52,15 +55,16 @@ describe("API commerce environment", () => {
     expect(env.COMMERCETOOLS_REGION).toBe("region");
   });
 
-  it.each(
-    Object.keys(requiredCommerceEnvironment)
-  )("fails while loading the API environment when %s is empty", async (name) => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    stubValidEnvironment();
-    vi.stubEnv(name, "");
+  it.each(Object.keys(requiredCommerceEnvironment))(
+    "fails while loading the API environment when %s is empty",
+    async (name) => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      stubValidEnvironment();
+      vi.stubEnv(name, "");
 
-    await expect(loadEnvironment()).rejects.toThrow(
-      "Invalid environment variables"
-    );
-  });
+      await expect(loadEnvironment()).rejects.toThrow(
+        "Invalid environment variables"
+      );
+    }
+  );
 });

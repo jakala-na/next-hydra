@@ -10,7 +10,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@repo/commerce-commercetools": "workspace:*",
+    "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
     "@t3-oss/env-nextjs": "catalog:",
     "commander": "^14.0.2",
     "dotenv": "^17.0.0",

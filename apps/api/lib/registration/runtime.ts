@@ -1,8 +1,8 @@
-import { identityUsersLayerWorkos } from "@repo/auth-workos/identity-users";
-import { invitationsLayerWorkos } from "@repo/auth-workos/invitations";
-import { commerceAccountsLayer } from "@repo/commerce-commercetools/commerce-accounts";
-import { registrationQueriesLayer } from "@repo/commerce-commercetools/registration";
-import { versionedKeyValueStoreLayer } from "@repo/commerce-commercetools/versioned-store";
+import { identityUsersLayerWorkos } from "@repo/auth/identity-users";
+import { invitationsLayerWorkos } from "@repo/auth/invitations";
+import { commerceAccountsLayer } from "@repo/commerce-provider/commerce-accounts";
+import { registrationQueriesLayer } from "@repo/commerce-provider/registration";
+import { versionedKeyValueStoreLayer } from "@repo/commerce-provider/versioned-store";
 import { layerResendEmailProvider } from "@repo/email/resend-provider";
 import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import { layerRegistrationEmails } from "@repo/registration";

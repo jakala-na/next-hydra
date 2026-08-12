@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@repo/auth-workos/keys", () => ({ keys: () => ({}) }));
+vi.mock("@repo/auth/keys", () => ({ keys: () => ({}) }));
 vi.mock("@repo/cms/keys", () => ({ keys: () => ({}) }));
 vi.mock("@repo/email/keys", () => ({ keys: () => ({}) }));
 vi.mock("@repo/feature-flags/keys", () => ({ keys: () => ({}) }));

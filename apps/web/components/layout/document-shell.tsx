@@ -1,4 +1,4 @@
-import { AuthProvider } from "@repo/auth-workos/provider";
+import { AuthProvider } from "@repo/auth/provider";
 import { DesignSystemProvider } from "@repo/design-system";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import { ArchitectureToolbar } from "@repo/design-system/components/architecture/architecture-toolbar";

@@ -8,10 +8,24 @@ export default mergeConfig(
     resolve: {
       alias: [
         {
+          find: "@repo/auth",
+          replacement: path.resolve(
+            import.meta.dirname,
+            "node_modules/@repo/auth"
+          ),
+        },
+        {
           find: "@repo/cms",
           replacement: path.resolve(
             import.meta.dirname,
             "node_modules/@repo/cms"
+          ),
+        },
+        {
+          find: "@repo/commerce-provider",
+          replacement: path.resolve(
+            import.meta.dirname,
+            "node_modules/@repo/commerce-provider"
           ),
         },
         { find: "@", replacement: import.meta.dirname },
