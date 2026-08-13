@@ -18,9 +18,6 @@ import {
 import { NEXT_HYDRA_SELECTION_SCHEMA_URL } from "../src/composition/schema.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
-const MINIMUM_CONTENTSTACK_FILES = 30;
-const MINIMUM_DRUPAL_FILES = 70;
-const MINIMUM_SIDECAR_FILES = 120;
 const CONTENTSTACK_MANAGED_FILE_COUNT = 7;
 const DRUPAL_MANAGED_FILE_COUNT = 11;
 const DRUPAL_PNPM_PATCH_COUNT = 3;
@@ -41,7 +38,7 @@ describe("Next Hydra source registry", () => {
     ).toBe(false);
   });
 
-  it("loads the real included registry and complete CMS artifacts", async () => {
+  it("loads the official registry artifacts and required package targets", async () => {
     const catalog = await loadSourceRegistryCatalog(repoRoot);
 
     expect([...catalog.items.keys()].sort()).toEqual([
@@ -49,7 +46,7 @@ describe("Next Hydra source registry", () => {
       "cms-contentstack",
       "cms-drupal",
       "commerce-commercetools",
-      "drupal-hydra",
+      "drupal",
       "next-hydra-standard",
     ]);
 
@@ -57,18 +54,29 @@ describe("Next Hydra source registry", () => {
     const contentstack = await loadRegistryItem("cms-contentstack", {
       cwd: repoRoot,
     });
-    const sidecar = await loadRegistryItem("drupal-hydra", { cwd: repoRoot });
+    const backendApp = await loadRegistryItem("drupal", { cwd: repoRoot });
 
-    expect(drupal.files?.length).toBeGreaterThan(MINIMUM_DRUPAL_FILES);
-    expect(contentstack.files?.length).toBeGreaterThan(
-      MINIMUM_CONTENTSTACK_FILES
+    expect(drupal.docs).toContain("From apps/drupal, run ddev install");
+    expect(drupal.files?.map((file) => file.target)).toContain(
+      "~/packages/cms-drupal/package.json"
     );
-    expect(sidecar.files?.length).toBeGreaterThan(MINIMUM_SIDECAR_FILES);
+    expect(contentstack.files?.map((file) => file.target)).toContain(
+      "~/packages/cms-contentstack/package.json"
+    );
+    const backendTargets = new Set(
+      backendApp.files?.map((file) => file.target)
+    );
+    expect(backendTargets).toContain("~/apps/drupal/composer.json");
+    expect(backendTargets).toContain(
+      "~/apps/drupal/recipes/next-hydra-starter/recipe.yml"
+    );
+    expect(backendTargets).not.toContain("~/apps/drupal/web/index.php");
+    expect(backendTargets).not.toContain("~/apps/drupal/web/.htaccess");
     expect(
       [
         ...(drupal.files ?? []),
         ...(contentstack.files ?? []),
-        ...(sidecar.files ?? []),
+        ...(backendApp.files ?? []),
       ].every((file) => Boolean(file.target && file.content !== undefined))
     ).toBe(true);
   });
@@ -105,7 +113,7 @@ describe("Next Hydra source registry", () => {
       "auth-workos",
       "cms-drupal",
       "commerce-commercetools",
-      "drupal-hydra",
+      "drupal",
     ]);
     expect(contentstack.registryItems).toEqual([
       "auth-workos",
@@ -125,9 +133,9 @@ describe("Next Hydra source registry", () => {
     expect(drupal.assets).toEqual([
       {
         source:
-          "apps/drupal-hydra/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
+          "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
         target:
-          "apps/drupal-hydra/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
+          "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
       },
       {
         source: "patches/@drupal-canvas__headless-next.patch",
@@ -165,7 +173,7 @@ describe("Next Hydra source registry", () => {
             {
               content: "export const backend = true;\n",
               path: "backend.ts",
-              target: "~/apps/drupal-hydra/external-backend.ts",
+              target: "~/apps/drupal/external-backend.ts",
               type: "registry:file",
             },
           ],

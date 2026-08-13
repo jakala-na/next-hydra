@@ -1,5 +1,5 @@
 {
-  "name": "next-hydra/drupal-hydra",
+  "name": "next-hydra/drupal",
   "description": "Drupal backend for the Next Hydra composable commerce starter",
   "type": "project",
   "license": "GPL-2.0-or-later",

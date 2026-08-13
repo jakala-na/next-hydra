@@ -34,7 +34,7 @@ async function maintainerFixture(): Promise<string> {
     "packages/cms-contentstack",
     "packages/cms-drupal",
     "packages/commerce-commercetools",
-    "apps/drupal-hydra",
+    "apps/drupal",
     "patches",
   ];
   const { stdout } = await run(

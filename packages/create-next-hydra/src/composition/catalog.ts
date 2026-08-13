@@ -42,7 +42,7 @@ const OFFICIAL_ITEM_NAMES = [
   "cms-contentstack",
   "cms-drupal",
   "commerce-commercetools",
-  "drupal-hydra",
+  "drupal",
   "next-hydra-standard",
 ] as const;
 

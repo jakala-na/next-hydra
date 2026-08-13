@@ -8,7 +8,7 @@ Blocked by: 01, 02
 
 What are the canonical selectable units and compatibility semantics for a composed Next Hydra workspace?
 
-Decide how a CMS or Commerce provider describes a required bundle of packages, sidecar applications, provider-native modules or extensions, routes, configuration, and tooling. Decide how optional add-ons declare requirements and incompatibilities against selected providers and other add-ons, including cross-provider add-ons such as a Drupal module for Commercetools. Establish whether compatibility belongs to the add-on, the provider bundles, a central catalog, or a combination of those sources.
+Decide how a CMS or Commerce provider describes a required bundle of packages, Backend Apps, provider-native modules or extensions, routes, configuration, and tooling. Decide how optional add-ons declare requirements and incompatibilities against selected providers and other add-ons, including cross-provider add-ons such as a Drupal module for Commercetools. Establish whether compatibility belongs to the add-on, the provider bundles, a central catalog, or a combination of those sources.
 
 ## Comments
 

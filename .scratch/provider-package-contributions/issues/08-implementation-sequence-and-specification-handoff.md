@@ -13,7 +13,7 @@ Decide the smallest independently verifiable phases for the Selection Definition
 ## Comments
 
 - Agreed implementation shape: use runnable end-to-end slices rather than treating schema, planning, artifact building, and scaffold materialization as separate architectural phases. Those internals may be delivered as small commits inside a slice, but every slice ends with CLI-observable behavior and an end-to-end acceptance test.
-- Agreed slice one, CMS composition end to end: the CLI switches the Maintainer Workspace and scaffolds a new workspace with either Drupal or Contentstack while Auth and Commerce remain fixed Baseline choices. This slice includes the strict Selection Definition schema, real CMS definitions, deterministic Composition Plan resolution, exact Provider-owned route files, the `@repo/cms` alias, a standard ShadCN source registry with package-colocated manifests, clone trimming and materialization, dependency installation, failure reporting, and no-write checks. Drupal proves a registry dependency that targets both `packages/cms-drupal` and `apps/drupal-hydra`; Contentstack proves the simpler single-package shape. The checkpoint scaffolds both CMS variants into empty directories, verifies that inactive CMS source and registry authoring material are absent, installs dependencies, and typechecks the resulting web applications.
+- Agreed slice one, CMS composition end to end: the CLI switches the Maintainer Workspace and scaffolds a new workspace with either Drupal or Contentstack while Auth and Commerce remain fixed Baseline choices. This slice includes the strict Selection Definition schema, real CMS definitions, deterministic Composition Plan resolution, exact Provider-owned route files, the `@repo/cms` alias, a standard ShadCN source registry with package-colocated manifests, clone trimming and materialization, dependency installation, failure reporting, and no-write checks. Drupal proves a registry dependency that targets both `packages/cms-drupal` and `apps/drupal`; Contentstack proves the simpler single-package shape. The checkpoint scaffolds both CMS variants into empty directories, verifies that inactive CMS source and registry authoring material are absent, installs dependencies, and typechecks the resulting web applications.
 - Agreed scaffold completeness test: after cloning the Maintainer Workspace, scaffolding removes every variable CMS contribution, including the selected one, before reinstalling the selected source-registry items through ShadCN. The resulting Drupal or Contentstack workspace must therefore be reconstructible from the Baseline plus its selected items; canonical source left in the clone cannot mask a missing registry file declaration.
 - Agreed trim inventory: the scaffold derives variable Provider and Add-on removal paths from the union of resolved targets declared by all source-registry items instead of maintaining a second handwritten list of integration files. The existing explicit scaffold cleanup list remains responsible only for maintainer-only material such as `.git`, documentation applications, the generator package, Workspace Selection, and registry-authoring files. Trimming operates only on the fresh requested scaffold target, never as a Customer Workspace removal mechanism.
 - Agreed command boundary: `create-next-hydra use --cms <selection>` changes the active composition only in a Maintainer Workspace, while `create-next-hydra <directory> --cms <selection>` scaffolds a new Customer Workspace into a missing or empty directory. The commands share Composition Plan resolution but have different materialization policies. The later `add` command remains separate because it operates additively on customer-owned code.
@@ -31,7 +31,7 @@ Slice one is one end-to-end CMS delivery. The steps below are implementation ord
 
 ### 1. Define the source registry and selection state
 
-- Add a standard root `registry.json` whose `include` entries point to `registry.json` files beside `packages/cms-drupal/package.json`, `packages/cms-contentstack/package.json`, and `apps/drupal-hydra/package.json`.
+- Add a standard root `registry.json` whose `include` entries point to `registry.json` files beside `packages/cms-drupal/package.json`, `packages/cms-contentstack/package.json`, and `apps/drupal/package.json`.
 - Put the Drupal and Contentstack Selection Definitions in their primary package registry entries. Drupal references the Drupal application through standard `registryDependencies`; both items declare final workspace-root targets.
 - Add the current Next Hydra JSON Schema for `meta.nextHydra` and use the same shape for runtime validation after ShadCN validates the surrounding registry item.
 - Add root `next-hydra.json` with the Reference Composition's CMS selection.
@@ -53,7 +53,7 @@ Checkpoint: unit tests snapshot or compare the complete Drupal and Contentstack 
 - Add the `use` subcommand without changing the existing default scaffold command.
 - Require root `next-hydra.json`; absence means this is not a Maintainer Workspace.
 - `use --cms <selection>` resolves and prints the plan, then updates the Workspace Selection, the `apps/web` `@repo/cms` alias, the selected registry-backed route files, and the lockfile through `pnpm install`.
-- Remove or replace only application targets declared by files under contribution-local `registry/` source directories; all canonical Provider, Add-on, sidecar, and registry source remains present.
+- Remove or replace only application targets declared by files under contribution-local `registry/` source directories; all canonical Provider, Add-on, Backend App, and registry source remains present.
 - `use --check` resolves the checked-in selection, compares expected aliases and managed application files with the workspace, performs no writes or install, and exits nonzero on drift.
 - A write or install failure stops further work, reports completed and pending operations, and leaves the workspace diff intact.
 
@@ -68,7 +68,7 @@ Checkpoint: integration tests run `Drupal -> Contentstack -> Drupal` in a tempor
 - Initialize Git and attempt the initial commit only after the composed workspace is complete.
 - Remove the current automatic deletion of a newly created target after clone failure. Every failure reports the target, failed step, completed work, and work not attempted and leaves the target exactly as it stands.
 
-Checkpoint: end-to-end tests scaffold both CMS selections from the real local repository, not a hand-built substitute template. Each test verifies the selected package and sidecar presence, inactive CMS absence, alias, exact routes, lack of registry and Workspace Selection files, successful dependency installation, and web typecheck. A forced failure verifies that the partial target remains inspectable.
+Checkpoint: end-to-end tests scaffold both CMS selections from the real local repository, not a hand-built substitute template. Each test verifies the selected package and Backend App presence, inactive CMS absence, alias, exact routes, lack of registry and Workspace Selection files, successful dependency installation, and web typecheck. A forced failure verifies that the partial target remains inspectable.
 
 ### 5. Required slice-one commands
 
@@ -96,7 +96,7 @@ The registry schema, CMS definitions, planner, `use`, scaffold composition, fail
 
 ## Implementation evidence
 
-Implemented in `packages/create-next-hydra` and the colocated root, Provider-package, and sidecar source registries. The delivered CLI includes all four slices: complete CMS scaffolding, Auth and Commerce aliases, compatibility-aware Add-ons and portable Presets, and additive customer `add` behavior. The test suite exercises both CMS choices, the Reference Composition drift check, a realistic two-root Drupal and Commercetools Add-on, incompatible preflight before destination writes, local external selections, binary asset integrity, customer file conflicts, and preserved failed scaffolds.
+Implemented in `packages/create-next-hydra` and the colocated root, Provider-package, and Backend App source registries. The delivered CLI includes all four slices: complete CMS scaffolding, Auth and Commerce aliases, compatibility-aware Add-ons and portable Presets, and additive customer `add` behavior. The test suite exercises both CMS choices, the Reference Composition drift check, a realistic two-root Drupal and Commercetools Add-on, incompatible preflight before destination writes, local external selections, binary asset integrity, customer file conflicts, and preserved failed scaffolds.
 
 Validation commands:
 

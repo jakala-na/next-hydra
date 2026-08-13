@@ -1,4 +1,4 @@
-# Drupal Hydra
+# Drupal
 
 Drupal 11 backend for the Next Hydra Drupal CMS connector. The backend owns a
 small content contract that matches the blocks implemented by `@repo/cms-drupal`.
@@ -11,12 +11,15 @@ With a Docker provider running:
 ddev install
 ```
 
-The command installs Drupal with the minimal profile, applies the local
-`recipes/next-hydra-starter` recipe, generates OAuth scopes and consumers, and
-prints the viewer and previewer credentials required by the connector. It also
-prints `CMS_REVALIDATION_SECRET`; copy that value into `apps/web/.env.local`.
+The repository tracks the locked Composer project, custom patches and scripts,
+the custom theme, and the `recipes/next-hydra-starter` recipe. The command uses
+Composer to download Drupal core and contributed packages and generate Drupal's
+standard web scaffold, then installs Drupal with the minimal profile and applies
+the recipe. Finally, it generates OAuth scopes and consumers and prints the
+viewer and previewer credentials required by the connector. It also prints
+`CMS_REVALIDATION_SECRET`; copy that value into `apps/web/.env.local`.
 
-## Hydra content model
+## Drupal content model
 
 - `landing_page` nodes are routeable pages composed from ordered Paragraphs.
 - `hero` Paragraphs provide a tagline, heading, description, image, and actions.

@@ -14,6 +14,46 @@ import type {
   SourceRegistryCatalog,
 } from "./types.js";
 
+const SHADCN_ENVIRONMENT_HEADING = "Added the following variables to";
+
+type AddRegistryItemsOptions = Omit<
+  NonNullable<Parameters<typeof addRegistryItems>[1]>,
+  "silent"
+>;
+
+async function suppressShadcnEnvironmentHeading<T>(
+  operation: () => Promise<T>
+): Promise<T> {
+  const originalWrite = process.stderr.write;
+  process.stderr.write = ((...args: unknown[]) => {
+    const [chunk] = args;
+    // ShadCN 4.16.2 emits this Ora heading even when `silent` is enabled.
+    if (String(chunk).includes(SHADCN_ENVIRONMENT_HEADING)) {
+      const callback = args.find(
+        (argument): argument is () => void => typeof argument === "function"
+      );
+      callback?.();
+      return true;
+    }
+    return Reflect.apply(originalWrite, process.stderr, args) as boolean;
+  }) as typeof process.stderr.write;
+
+  try {
+    return await operation();
+  } finally {
+    process.stderr.write = originalWrite;
+  }
+}
+
+export function addRegistryItemsQuietly(
+  items: string[],
+  options: AddRegistryItemsOptions
+): Promise<void> {
+  return suppressShadcnEnvironmentHeading(() =>
+    addRegistryItems(items, { ...options, silent: true })
+  );
+}
+
 function resolveArtifact(catalog: SourceRegistryCatalog, item: string) {
   const resolved = catalog.items.get(item);
   if (
@@ -213,11 +253,10 @@ export async function installPreparedComposition(
     entryItems: prepared.entryItems,
     itemByReference: prepared.itemByReference,
     run: (entries) =>
-      addRegistryItems(entries, {
+      addRegistryItemsQuietly(entries, {
         config: prepared.registryConfig,
         cwd: workspaceRoot,
         overwrite: true,
-        silent: true,
       }),
   });
 }

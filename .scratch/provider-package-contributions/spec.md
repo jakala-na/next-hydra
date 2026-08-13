@@ -6,7 +6,7 @@ This is the canonical implementation contract for Provider and Add-on compositio
 
 ## Scope
 
-Next Hydra composes a mandatory Baseline with exactly one Auth, CMS, and Commerce Provider in v1, plus compatible optional Add-ons. A Provider or Add-on may contribute workspace packages, sidecar applications, provider-native source, application routes, dependencies, safe environment placeholders, and terminal setup instructions.
+Next Hydra composes a mandatory Baseline with exactly one Auth, CMS, and Commerce Provider in v1, plus compatible optional Add-ons. A Provider or Add-on may contribute workspace packages, Backend Apps, provider-native source, application routes, dependencies, safe environment placeholders, and terminal setup instructions.
 
 Runtime switching, automated external-service setup, Composer changes, Drupal module enablement, real-secret collection, and automatic upgrades of customer-modified workspaces are outside v1.
 
@@ -35,7 +35,7 @@ ShadCN remains the registry transport and materialization engine. Next Hydra own
 
 ## Maintainer Workspace
 
-The ordinary repository checkout is the Maintainer Workspace. `next-hydra.json` records its current Workspace Selection, while all canonical Provider, Add-on, sidecar, and registry source remains available for development.
+The ordinary repository checkout is the Maintainer Workspace. `next-hydra.json` records its current Workspace Selection, while all canonical Provider, Add-on, Backend App, and registry source remains available for development.
 
 `create-next-hydra use` validates and shows the complete plan, replaces only known Managed Application Files, updates the Workspace Selection and package requirements, and runs `pnpm install`. `use --check` performs the same resolution without writes and fails on drift. A failed operation is not rolled back; the CLI reports completed and pending work and leaves the Git diff for inspection or repair.
 
@@ -56,8 +56,8 @@ Customer `add` rejects typed binary assets and pnpm patches because it cannot tr
 ## Acceptance
 
 - Drupal and Contentstack can each be selected, scaffolded, and recomposed through the same Provider Slot and `@repo/cms` alias.
-- Drupal reconstructs its package, six application routes, sidecar application, typed assets, and patches from the selected source-registry graph.
-- A compatible Drupal and Commercetools Add-on materializes frontend and Drupal-module targets; the same request fails before writes with Contentstack selected.
+- Drupal reconstructs its package, six application routes, Backend App, typed assets, and patches from the selected source-registry graph.
+- An example compatible Drupal and Commercetools Add-on fixture materializes frontend and Drupal-module targets; the same fixture request fails before writes with Contentstack selected.
 - Customer `add` covers missing, identical, changed, overwrite, cancellation, no-deletion, transitive dependency, and duplicate-target scenarios, and rejects transformed file types or malformed package.json targets before writes.
 - `pnpm registry:check`, unit tests, typecheck, build, and `create-next-hydra use --check` pass before release.
 

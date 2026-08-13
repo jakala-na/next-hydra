@@ -58,7 +58,7 @@ Shared platform capabilities are reusable concerns that support multiple domains
 - `apps/email`: local preview/build workflow for email templates.
 - `apps/storybook`: design system and UI component playground.
 - `apps/docs`: Fumadocs-powered documentation app.
-- `apps/drupal-hydra`: Drupal 11 backend with Hydra landing-page, Paragraph,
+- `apps/drupal`: Drupal 11 backend with landing-page, Paragraph,
   native-menu, preview, and GraphQL Compose configuration.
 
 ## Provider Strategy (Current vs Next)
@@ -86,7 +86,7 @@ apps/
   email       React Email preview/build app
   storybook   Design system development surface
   docs        Product/documentation app
-  drupal-hydra Drupal 11 CMS backend
+  drupal      Drupal 11 CMS backend
 packages/
   cms-*, commerce, auth-*, analytics, observability, feature-flags,
   security, rate-limit, i18n, seo, email, design-system, testing

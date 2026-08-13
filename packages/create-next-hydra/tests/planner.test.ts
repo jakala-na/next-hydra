@@ -78,7 +78,7 @@ const addOnItem = {
     {
       path: "module.info.yml",
       target:
-        "~/apps/drupal-hydra/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
+        "~/apps/drupal/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
       type: "registry:file",
     },
   ],
@@ -174,8 +174,8 @@ describe("composition planner failures", () => {
       "auth-workos",
       "cms-drupal",
       "commerce-commercetools",
+      "drupal",
       "drupal-commerce-dam",
-      "drupal-hydra",
     ]);
   });
 

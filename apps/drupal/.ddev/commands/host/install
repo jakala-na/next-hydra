@@ -13,7 +13,7 @@ ddev composer install
 ## Install Drupal
 ddev drush site:install minimal --verbose -y
 
-## Apply the Hydra content model and demo content
+## Apply the starter recipe
 ddev drush recipe ../recipes/next-hydra-starter -v
 ddev drush cr
 

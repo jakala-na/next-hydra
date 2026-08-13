@@ -7,7 +7,7 @@ Status: resolved
 
 Produce an implementation-ready specification for provider and add-on composition in Next Hydra. Maintainers must be able to select and switch CMS and Commerce providers in developer workspaces without manually juggling provider-specific application files, while `create-next-hydra` governs and provisions the selected workspace composition when scaffolding a project.
 
-A provider selection may contribute a bundle of packages, sidecar applications, provider-native modules or extensions, routes, configuration, and tooling. Optional add-ons may contribute additional workspace units and are available only when their declared CMS, Commerce, and cross-add-on compatibility requirements are satisfied.
+A Provider selection may contribute a bundle of packages, Backend Apps, provider-native modules or extensions, routes, configuration, and tooling. Optional Add-ons may contribute additional workspace units and are available only when their declared CMS, Commerce, and cross-Add-on compatibility requirements are satisfied.
 
 The specification is for build-time and development-time composition. Runtime provider switching and a provider-management experience for storefront users are not part of the destination.
 

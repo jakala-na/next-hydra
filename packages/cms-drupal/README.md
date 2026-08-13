@@ -33,7 +33,7 @@ The generated schema now exposes the Drupal-native Hydra structure:
 - `menu(name: MAIN, langcode:)` for translated native Drupal navigation.
 
 Drupal configuration for this model lives in
-`apps/drupal-hydra/recipes/next-hydra-starter/config`.
+`apps/drupal/recipes/next-hydra-starter/config`.
 
 ## Environment
 

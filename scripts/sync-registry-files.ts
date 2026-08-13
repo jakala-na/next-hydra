@@ -27,9 +27,9 @@ const manifests = [
     sourceRoot: "packages/commerce-commercetools",
   },
   {
-    item: "drupal-hydra",
-    manifest: "apps/drupal-hydra/registry.json",
-    sourceRoot: "apps/drupal-hydra",
+    item: "drupal",
+    manifest: "apps/drupal/registry.json",
+    sourceRoot: "apps/drupal",
   },
 ];
 

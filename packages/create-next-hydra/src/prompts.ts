@@ -34,7 +34,7 @@ const PROVIDER_CHOICES: Record<
   auth: [{ label: "WorkOS", value: "workos" }],
   cms: [
     {
-      hint: "includes the Drupal sidecar application",
+      hint: "includes the Drupal backend app",
       label: "Drupal",
       value: "drupal",
     },

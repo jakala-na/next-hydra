@@ -15,7 +15,7 @@ Can a Drupal-specific Add-on use `registryDependencies` to bring the complete Dr
 
 Keep the Drupal Provider whole for now. The exact dependency chain exposed an implementation gap in baseline `f99ee01f`; the corrected implementation addresses it with explicit workspace-root targets and one ShadCN dependency-graph installation.
 
-`registryDependencies` is still the right relationship to declare. It can connect the Add-on to the Provider and the Provider to its sidecar. However, ShadCN's two public APIs each lose something Next Hydra needs:
+`registryDependencies` is still the right relationship to declare. It can connect the Add-on to the Provider and the Provider to its Backend App. However, ShadCN's two public APIs each lose something Next Hydra needs:
 
 - `getRegistryItems()` preserves individual items but fetches only the references passed to it.
 - `resolveRegistryItems()` and raw ShadCN `add` follow `registryDependencies`, but flatten all files into one artifact and one installation root.
@@ -31,10 +31,10 @@ The experiment used the real Drupal registry artifacts and one one-file DAM Add-
 ```text
 dam-addon (1 file)
   registryDependencies -> cms-drupal (81 files)
-    registryDependencies -> drupal-hydra (126 files)
+    registryDependencies -> drupal (126 files)
 ```
 
-At baseline, the production `cms-drupal` item did not declare the `drupal-hydra` edge, so the experiment added that edge to a temporary copy of the real artifact. The follow-up implementation now declares it in the source registry.
+At baseline, the production `cms-drupal` item did not declare the `drupal` edge, so the experiment added that edge to a temporary copy of the real artifact. The follow-up implementation now declares it in the source registry.
 
 The Drupal Provider's six application routes are explicit ShadCN registry files. Four separate Binary Assets remain Next Hydra metadata and cannot be materialized by `registryDependencies` alone.
 
@@ -46,10 +46,10 @@ The installed and tested dependency is ShadCN 4.16.2.
 | --- | --- |
 | `getRegistryItems([damAddon])` | Returned only `dam-addon`, with one file |
 | `resolveRegistryItems([damAddon])` | Followed both dependency edges and returned one anonymous, flattened artifact with 208 files |
-| Raw `addRegistryItems([damAddon])` at the workspace root | Wrote the Add-on, CMS package, and sidecar files at that one root |
+| Raw `addRegistryItems([damAddon])` at the workspace root | Wrote the Add-on, CMS package, and Backend App files at that one root |
 | A small public-API graph walk using `getRegistryItems()` | Returned the three intact items with 1, 81, and 126 files |
 
-With the package-relative targets used by the original experiment, raw ShadCN produced `auth.ts`, `composer.json`, and `integrations/dam.ts` as workspace-root files. It did not produce `packages/cms-drupal/auth.ts` or `apps/drupal-hydra/composer.json`. This result demonstrated that those targets were wrong; complete root-relative targets subsequently removed any need for an Install Unit dispatcher.
+With the package-relative targets used by the original experiment, raw ShadCN produced `auth.ts`, `composer.json`, and `integrations/dam.ts` as workspace-root files. It did not produce `packages/cms-drupal/auth.ts` or `apps/drupal/composer.json`. This result demonstrated that those targets were wrong; complete root-relative targets subsequently removed any need for an Install Unit dispatcher.
 
 ## Baseline `create-next-hydra add` result
 
@@ -58,7 +58,7 @@ The same real dependency chain was installed through the baseline `addRegistryIt
 | Scenario | Expected from whole-Provider dependency | Current result |
 | --- | --- | --- |
 | Delete `packages/cms-drupal/auth.ts` | Recreate it | Not recreated |
-| Delete `apps/drupal-hydra/composer.json` | Recreate it | Not recreated |
+| Delete `apps/drupal/composer.json` | Recreate it | Not recreated |
 | Delete the Canvas components route | Recreate it | Not recreated |
 | Modify `packages/cms-drupal/auth.ts` | Report a changed prerequisite and require review | Change not inspected; Add-on succeeds |
 
@@ -71,7 +71,7 @@ The intended whole-Provider preflight expands to:
 | Contribution | Targets |
 | --- | ---: |
 | `packages/cms-drupal` registry files, including routes | 81 |
-| `apps/drupal-hydra` registry files | 126 |
+| `apps/drupal` registry files | 126 |
 | Binary Assets | 4 |
 | Total Provider targets | 211 |
 
@@ -138,7 +138,7 @@ The Add-on still needs `compatibility.requires: ["next-hydra/cms/drupal"]`. The 
 
 The corrected working tree keeps Drupal whole and makes the declared graph executable:
 
-1. `cms-drupal` declares `drupal-hydra` as a `registryDependency`.
+1. `cms-drupal` declares `drupal` as a `registryDependency`.
 2. Every registry file declares its final workspace-root target.
 3. Customer `add` resolves the graph for preflight and delegates one root installation to ShadCN.
 4. Required Providers are checked through their stable package aliases before any write.
@@ -146,6 +146,6 @@ The corrected working tree keeps Drupal whole and makes the declared graph execu
 6. `--yes` alone refuses changed customer files and dependencies; `--yes --overwrite` applies every disclosed replacement non-interactively.
 7. Separate binary assets and pnpm patches remain unsupported in customer `add` v1 because external registry artifacts do not carry those typed contributions.
 
-The focused scaffold E2E proves that a Drupal-and-Commercetools Add-on brings the complete Drupal package and sidecar graph, writes both final roots, applies its package-specific dependency, and rejects Contentstack before creating the destination.
+The focused scaffold E2E proves that a Drupal-and-Commercetools Add-on fixture brings the complete Drupal package and Backend App graph, writes both final roots, applies its package-specific dependency, and rejects Contentstack before creating the destination.
 
 Do not split Drupal yet. Revisit a coarse split only after the real whole-Provider flow exists and repeated Add-on installs show that its restoration proposals are unmanageable.

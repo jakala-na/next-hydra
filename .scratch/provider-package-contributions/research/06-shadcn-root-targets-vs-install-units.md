@@ -10,7 +10,7 @@ The simpler ShadCN-native model is:
 
 - Keep each source `registry.json` next to the code it describes.
 - Keep `files[].path` relative to that source registry.
-- Make `files[].target` complete from the consumer workspace root, for example `~/packages/cms-drupal/auth.ts` or `~/apps/drupal-hydra/composer.json`.
+- Make `files[].target` complete from the consumer workspace root, for example `~/packages/cms-drupal/auth.ts` or `~/apps/drupal/composer.json`.
 - Ask ShadCN to add the selected top-level item once from the consumer workspace root and let ShadCN follow `registryDependencies`.
 
 In ShadCN terminology these are **project-root-relative targets**, not operating-system absolute paths. A literal path such as `/Users/alice/project/apps/web/...` is neither portable nor the registry convention. `~/apps/web/...` means “under the invocation project's root.” [ShadCN's registry item specification](https://ui.shadcn.com/docs/registry/registry-item-json#target) documents this explicitly.
@@ -37,11 +37,11 @@ three complete targets unchanged:
 
 ```text
 ~/packages/cms-drupal/auth.ts
-~/apps/drupal-hydra/composer.json
+~/apps/drupal/composer.json
 ~/packages/cms-drupal/integrations/dam.ts
 ```
 
-Therefore an item whose dependency files target `~/packages/cms-drupal/...` and `~/apps/drupal-hydra/...` can be installed once from the workspace root without losing either location.
+Therefore an item whose dependency files target `~/packages/cms-drupal/...` and `~/apps/drupal/...` can be installed once from the workspace root without losing either location.
 
 ## Source authoring stays colocated
 

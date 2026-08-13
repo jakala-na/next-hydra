@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { pathExists } from "../../src/fs-utils.js";
 import { scaffoldProject } from "../../src/scaffold.js";
@@ -115,7 +115,7 @@ async function createSourceRepository(): Promise<string> {
               {
                 path: "next_hydra_dam.info.yml",
                 target:
-                  "~/apps/drupal-hydra/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
+                  "~/apps/drupal/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
                 type: "registry:file",
               },
             ],
@@ -230,6 +230,32 @@ afterAll(async () => {
 
 describe("scaffold composition", () => {
   it(
+    "suppresses ShadCN environment headings",
+    async () => {
+      const target = path.join(testRoot, "quiet-shadcn-project");
+      const output: string[] = [];
+      const stderrWriteSpy = vi
+        .spyOn(process.stderr, "write")
+        .mockImplementation(((chunk: string | Uint8Array) => {
+          output.push(String(chunk));
+          return true;
+        }) as typeof process.stderr.write);
+
+      try {
+        await scaffoldProject(options(target, "contentstack"), {
+          install: fakeRootInstall,
+        });
+      } finally {
+        stderrWriteSpy.mockRestore();
+      }
+
+      expect(output.join("")).not.toContain("Added the following variables to");
+      await rm(target, { force: true, recursive: true });
+    },
+    E2E_TIMEOUT
+  );
+
+  it(
     "reconstructs both CMS variants from the Baseline and selected registry items",
     async () => {
       const contentstackTarget = path.join(testRoot, "contentstack-project");
@@ -258,7 +284,7 @@ describe("scaffold composition", () => {
         )
       ).toBe(false);
       expect(
-        await pathExists(path.join(contentstackTarget, "apps/drupal-hydra"))
+        await pathExists(path.join(contentstackTarget, "apps/drupal"))
       ).toBe(false);
       expect(
         await pathExists(
@@ -346,10 +372,19 @@ describe("scaffold composition", () => {
         await pathExists(path.join(drupalTarget, "packages/cms-contentstack"))
       ).toBe(false);
       expect(
-        await pathExists(
-          path.join(drupalTarget, "apps/drupal-hydra/composer.json")
-        )
+        await pathExists(path.join(drupalTarget, "apps/drupal/composer.json"))
       ).toBe(true);
+      expect(
+        await pathExists(path.join(drupalTarget, "apps/drupal/LICENSE.txt"))
+      ).toBe(true);
+      expect(
+        await pathExists(path.join(drupalTarget, "apps/drupal/web/index.php"))
+      ).toBe(false);
+      expect(
+        await pathExists(
+          path.join(drupalTarget, "apps/drupal/.lando.local.yml")
+        )
+      ).toBe(false);
       expect(
         await pathExists(
           path.join(drupalTarget, "patches/@drupal-canvas__headless.patch")
@@ -372,7 +407,7 @@ describe("scaffold composition", () => {
       ).toBe(false);
 
       const asset =
-        "apps/drupal-hydra/recipes/next-hydra-starter/content/file/next-hydra-hero.webp";
+        "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp";
       const hash = (content: Uint8Array) =>
         createHash("sha256").update(content).digest("hex");
       expect(hash(await readFile(path.join(drupalTarget, asset)))).toBe(
@@ -424,7 +459,7 @@ describe("scaffold composition", () => {
         await pathExists(
           path.join(
             target,
-            "apps/drupal-hydra/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml"
+            "apps/drupal/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml"
           )
         )
       ).toBe(true);

@@ -35,6 +35,6 @@
     "packages/cms-contentstack/registry.json",
     "packages/cms-drupal/registry.json",
     "packages/commerce-commercetools/registry.json",
-    "apps/drupal-hydra/registry.json"
+    "apps/drupal/registry.json"
   ]
 }

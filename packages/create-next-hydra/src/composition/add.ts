@@ -1,11 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { confirm, isCancel } from "@clack/prompts";
-import {
-  addRegistryItems,
-  getRegistriesConfig,
-  resolveRegistryItems,
-} from "shadcn/registry";
+import { getRegistriesConfig, resolveRegistryItems } from "shadcn/registry";
 import type { RegistryItem } from "shadcn/schema";
 
 import { pathExists } from "../fs-utils.js";
@@ -13,7 +9,10 @@ import { runCommand } from "../git.js";
 import { info, success } from "../logger.js";
 import { fetchRegistryItemGraph } from "./catalog.js";
 import { CompositionValidationError } from "./errors.js";
-import { withPreparedRegistryArtifacts } from "./install.js";
+import {
+  addRegistryItemsQuietly,
+  withPreparedRegistryArtifacts,
+} from "./install.js";
 import {
   mergePackageRequirements,
   parsePackageJson,
@@ -687,7 +686,7 @@ export async function addRegistryItem(
         options,
         dependencies.confirm ?? confirm
       );
-      await addRegistryItems(entries, {
+      await addRegistryItemsQuietly(entries, {
         config,
         cwd,
         overwrite:
@@ -696,7 +695,6 @@ export async function addRegistryItem(
             (change) =>
               change.kind === "registry file" && change.status === "changed"
           ),
-        silent: true,
       });
       const changedPackageEntries = packageChanges
         .filter((change) => change.status !== "identical")

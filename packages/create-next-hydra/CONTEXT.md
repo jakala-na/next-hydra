@@ -40,6 +40,10 @@ _Avoid_: Permanent exactly-one invariant
 A selectable implementation that fills one Provider Slot and may depend on other registry items.
 _Avoid_: Provider package, registry item
 
+**Backend App**:
+A Provider- or Add-on-contributed application that runs as a separate backend service while remaining part of the composed workspace.
+_Avoid_: Sidecar, backend application
+
 **Provider Alias**:
 The stable workspace package name through which Baseline code imports the Provider selected for one Provider Slot. Each slot defines its own current package interface; a Provider may satisfy part of that interface with an explicit no-op when the capability is validly unnecessary. V1 does not assign independent version numbers to these interfaces.
 _Avoid_: Concrete Provider package, generated binding module, universal Provider interface
