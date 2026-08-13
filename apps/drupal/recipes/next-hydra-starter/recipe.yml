@@ -63,6 +63,8 @@ config:
     - field.storage.paragraph.field_tagline
     - filter.format.basic_html
   import:
+    canvas_headless:
+      - simple_oauth.oauth2_scope.canvas_headless
     gin:
       - block.block.gin_breadcrumbs
       - block.block.gin_content
