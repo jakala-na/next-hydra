@@ -1,26 +1,11 @@
 "use client";
 
 import { HeroSection } from "@repo/design-system/components/cms/blocks/hero-section";
-import { Children, type ReactNode } from "react";
+import { Children } from "react";
 
-type CanvasImage = {
-  alt: string;
-  height?: number;
-  src: string;
-  width?: number;
-};
+import type { CanvasComponentProps } from "../../generated/canvas-component-props";
 
-type CanvasHeroProps = {
-  content?: ReactNode;
-  description?: string;
-  image?: CanvasImage;
-  primaryCtaLabel?: string;
-  primaryCtaUrl?: string;
-  secondaryCtaLabel?: string;
-  secondaryCtaUrl?: string;
-  tagline?: string;
-  title: string;
-};
+type CanvasHeroProps = CanvasComponentProps<"hero">;
 
 function resolveDrupalMediaUrl(source: string): string {
   try {
@@ -59,7 +44,7 @@ export default function CanvasHero({
       image={
         image
           ? {
-              altText: image.alt,
+              altText: image.alt ?? "",
               height: image.height,
               url: resolveDrupalMediaUrl(image.src),
               width: image.width,

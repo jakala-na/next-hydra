@@ -1,11 +1,9 @@
 import { ArticleCollectionLayout } from "@repo/design-system/components/cms/blocks/article-collection";
-import type { ReactNode } from "react";
 
-type CanvasFeaturedArticlesProps = {
-  articles?: ReactNode;
+import type { CanvasComponentProps } from "../../generated/canvas-component-props";
+
+type CanvasFeaturedArticlesProps = CanvasComponentProps<"featured-articles"> & {
   className?: string;
-  description?: string;
-  title: string;
 };
 
 export default function CanvasFeaturedArticles({

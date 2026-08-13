@@ -36,15 +36,15 @@ describe("Canvas Article Card", () => {
       toCanvasArticleTeaser(
         {
           created: 1_786_032_000,
-          field_image: {
-            field_media_image: {
+          fieldImage: {
+            fieldMediaImage: {
               alt: "An excavator",
               height: 800,
               src: "/sites/default/files/excavator.webp",
               width: 1200,
             },
           },
-          field_summary: "How to select equipment for the work.",
+          fieldSummary: "How to select equipment for the work.",
           id: 42,
           label: "Choosing an excavator",
           path: "/resources/choosing-an-excavator",
@@ -69,7 +69,7 @@ describe("Canvas Article Card", () => {
     expect(
       toCanvasArticleTeaser(
         {
-          field_summary: "Summary",
+          fieldSummary: "Summary",
           id: 7,
           label: "Article",
           path: "",
@@ -93,7 +93,7 @@ describe("Canvas Article Card", () => {
   it("renders the shared article card after an article is selected", async () => {
     const result = (await CanvasArticleCard({
       article: {
-        field_summary: "Summary",
+        fieldSummary: "Summary",
         id: 7,
         label: "Article",
         path: "/article",

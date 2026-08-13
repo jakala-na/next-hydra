@@ -11,31 +11,18 @@ import { cn } from "@repo/design-system/lib/utils";
 import { getLocale, getTranslations, type Locale } from "@repo/i18n";
 import { getPathname } from "@repo/i18n/navigation";
 
+import type { CanvasComponentProps } from "../../generated/canvas-component-props";
+
 const DIGITS_ONLY = /^\d+$/;
 const MILLISECONDS_PER_SECOND = 1000;
 
-type CanvasArticleImage = {
-  alt?: string;
-  height?: number;
-  src?: string;
-  width?: number;
-};
-
-type CanvasArticleReference = {
-  created?: number | string;
-  field_image?: {
-    field_media_image?: CanvasArticleImage;
-  };
-  field_summary?: string;
-  id?: number | string;
-  label?: string;
-  path?: string;
-};
-
-type CanvasArticleCardProps = {
-  article?: CanvasArticleReference | null;
+type CanvasArticleCardProps = CanvasComponentProps<"article-card"> & {
   className?: string;
 };
+
+type CanvasArticleReference = NonNullable<
+  CanvasComponentProps<"article-card">["article"]
+>;
 
 export function CanvasArticleCardPlaceholder({
   className,
@@ -73,8 +60,11 @@ function resolveDrupalMediaUrl(source: string): string {
   }
 }
 
-function formatPublishedAt(value: number | string | undefined, locale: Locale) {
-  if (value === undefined) {
+function formatPublishedAt(
+  value: CanvasArticleReference["created"],
+  locale: Locale
+) {
+  if (value === null || value === undefined) {
     return;
   }
 
@@ -94,25 +84,27 @@ export function toCanvasArticleTeaser(
   locale: Locale
 ): ArticleTeaser | undefined {
   const title = article?.label?.trim();
-  const summary = article?.field_summary?.trim();
+  const summary = article?.fieldSummary?.trim();
   if (!(article && title && summary)) {
     return;
   }
 
   const path =
     article.path?.trim() ||
-    (article.id === undefined ? undefined : `/node/${article.id}`);
+    (article.id === null || article.id === undefined
+      ? undefined
+      : `/node/${article.id}`);
   if (!path) {
     return;
   }
 
-  const sourceImage = article.field_image?.field_media_image;
+  const sourceImage = article.fieldImage?.fieldMediaImage;
   const image = sourceImage?.src
     ? {
         altText: sourceImage.alt ?? "",
-        height: sourceImage.height,
+        height: sourceImage.height ?? undefined,
         url: resolveDrupalMediaUrl(sourceImage.src),
-        width: sourceImage.width,
+        width: sourceImage.width ?? undefined,
       }
     : undefined;
 

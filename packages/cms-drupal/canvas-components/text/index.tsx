@@ -1,5 +1,7 @@
 "use client";
 
-export default function CanvasText({ text }: { text: string }) {
+import type { CanvasComponentProps } from "../../generated/canvas-component-props";
+
+export default function CanvasText({ text }: CanvasComponentProps<"text">) {
   return <p>{text}</p>;
 }

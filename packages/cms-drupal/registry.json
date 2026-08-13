@@ -8,7 +8,9 @@
       "title": "Next Hydra Drupal CMS provider",
       "description": "Installs the Drupal CMS provider package and its Drupal backend app.",
       "docs": "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
-      "registryDependencies": ["jakala-na/next-hydra/drupal"],
+      "registryDependencies": [
+        "jakala-na/next-hydra/drupal"
+      ],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/cms/drupal",
@@ -97,6 +99,11 @@
         {
           "path": "canvas-components/article-card/index.tsx",
           "target": "~/packages/cms-drupal/canvas-components/article-card/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/article-card/mocks.json",
+          "target": "~/packages/cms-drupal/canvas-components/article-card/mocks.json",
           "type": "registry:file"
         },
         {
@@ -262,6 +269,11 @@
         {
           "path": "components/pages/landing-page.tsx",
           "target": "~/packages/cms-drupal/components/pages/landing-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "generated/canvas-component-props.ts",
+          "target": "~/packages/cms-drupal/generated/canvas-component-props.ts",
           "type": "registry:file"
         },
         {
@@ -467,6 +479,16 @@
         {
           "path": "scripts/generate-canvas-component-registry.mjs",
           "target": "~/packages/cms-drupal/scripts/generate-canvas-component-registry.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/generate-canvas-component-types.mjs",
+          "target": "~/packages/cms-drupal/scripts/generate-canvas-component-types.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/generate-canvas-component-types.test.mjs",
+          "target": "~/packages/cms-drupal/scripts/generate-canvas-component-types.test.mjs",
           "type": "registry:file"
         },
         {

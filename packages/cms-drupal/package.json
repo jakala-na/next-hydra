@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./canvas-component-props": "./generated/canvas-component-props.ts",
     "./client": "./client.ts",
     "./components/live-preview": "./components/live-preview.tsx",
     "./components/global-region": "./components/global-region.tsx",
@@ -26,6 +27,8 @@
     "canvas:css": "node scripts/build-canvas-css.mjs",
     "canvas:push": "pnpm run canvas:css && canvas push --no-pages --no-content-templates --no-regions",
     "canvas:registry": "node scripts/generate-canvas-component-registry.mjs",
+    "canvas:typegen": "node scripts/generate-canvas-component-types.mjs",
+    "canvas:typegen:check": "node scripts/generate-canvas-component-types.mjs --check",
     "canvas:validate": "pnpm run canvas:css && canvas validate",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "generate": "node --use-system-ca scripts/gql-sync.ts",

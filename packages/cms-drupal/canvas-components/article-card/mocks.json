@@ -1,0 +1,26 @@
+{
+  "mocks": [
+    {
+      "name": "Selected article",
+      "props": {
+        "article": {
+          "_Type": "article",
+          "created": 1767225600,
+          "fieldImage": {
+            "_Type": "image",
+            "fieldMediaImage": {
+              "alt": "Heavy equipment at a work site",
+              "height": 900,
+              "src": "https://drupal-hydra.ddev.site/sites/default/files/article-equipment.jpg",
+              "width": 1600
+            }
+          },
+          "fieldSummary": "Practical guidance for selecting the right equipment for the work.",
+          "id": 1,
+          "label": "How to choose the right equipment",
+          "path": "/articles/how-to-choose-the-right-equipment"
+        }
+      }
+    }
+  ]
+}

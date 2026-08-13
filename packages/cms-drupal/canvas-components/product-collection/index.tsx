@@ -8,14 +8,10 @@ import { getLocale } from "@repo/i18n";
 import { Option } from "effect";
 import { Suspense } from "react";
 
+import type { CanvasComponentProps } from "../../generated/canvas-component-props";
 import { decodeCommerceCategoryId } from "../../lib/commerce-category";
 
-type CanvasProductCollectionProps = {
-  categoryId?: string;
-  description?: string;
-  limit?: 3 | 6 | 9;
-  title: string;
-};
+type CanvasProductCollectionProps = CanvasComponentProps<"product-collection">;
 
 type ProductCollectionContentProps = Pick<
   Parameters<typeof ProductCollectionGrid>[0],
