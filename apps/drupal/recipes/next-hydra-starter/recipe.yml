@@ -12,6 +12,7 @@ install:
   - canvas
   - canvas_headless
   - canvas_translate
+  - ckeditor5
   - config_translation
   - content_translation
   - field_ui
@@ -46,6 +47,7 @@ install:
 
 config:
   strict:
+    - editor.editor.basic_html
     - field.storage.node.field_components
     - field.storage.node.body
     - field.storage.node.field_display_title

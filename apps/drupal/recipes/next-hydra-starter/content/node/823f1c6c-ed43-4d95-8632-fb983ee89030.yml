@@ -5,7 +5,7 @@ _meta:
   bundle: article
   default_langcode: en
   depends:
-    dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b: media
+    43b667b9-c3c0-4938-a896-1e19b59244da: media
 default:
   revision_uid:
     -
@@ -39,7 +39,7 @@ default:
       summary: ''
   field_image:
     -
-      entity: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
+      entity: 43b667b9-c3c0-4938-a896-1e19b59244da
   field_summary:
     -
       value: 'Use operating weight and ground pressure together to evaluate stability, access, and surface impact.'

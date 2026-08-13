@@ -5,7 +5,7 @@ _meta:
   bundle: article
   default_langcode: en
   depends:
-    dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b: media
+    0dd07a58-07fa-4c54-addc-1ef23420b75d: media
 default:
   revision_uid:
     -
@@ -39,7 +39,7 @@ default:
       summary: ''
   field_image:
     -
-      entity: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
+      entity: 0dd07a58-07fa-4c54-addc-1ef23420b75d
   field_summary:
     -
       value: 'Turn daily inspections and service intervals into a repeatable routine that reduces avoidable downtime.'

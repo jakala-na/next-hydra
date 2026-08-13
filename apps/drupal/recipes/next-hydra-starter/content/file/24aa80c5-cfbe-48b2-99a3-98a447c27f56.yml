@@ -1,0 +1,27 @@
+_meta:
+  version: '1.0'
+  entity_type: file
+  uuid: 24aa80c5-cfbe-48b2-99a3-98a447c27f56
+  default_langcode: en
+default:
+  uid:
+    -
+      target_id: 1
+  filename:
+    -
+      value: article-preventive-maintenance.jpg
+  uri:
+    -
+      value: 'public://next-hydra/article-preventive-maintenance.jpg'
+  filemime:
+    -
+      value: image/jpeg
+  filesize:
+    -
+      value: 260905
+  status:
+    -
+      value: true
+  created:
+    -
+      value: 1754352000

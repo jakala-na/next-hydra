@@ -5,6 +5,7 @@ This recipe provisions the Drupal content contract used by `@repo/cms-drupal`:
 - routeable `landing_page` and `article` node types;
 - `hero`, `dynamic_product_collection`, and `featured_articles` Paragraph bundles;
 - Image Media for hero assets;
+- CKEditor 5 with Drupal's Basic HTML toolbar for Article bodies;
 - GraphQL Compose routes, native menus, and revision preview;
 - regional languages and content translation for Drupal and Canvas;
 - Canvas Translate for Canvas pages, content templates, and page regions;

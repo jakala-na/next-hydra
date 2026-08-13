@@ -38,6 +38,18 @@
             {
               "source": "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
               "target": "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp"
+            },
+            {
+              "source": "apps/drupal/recipes/next-hydra-starter/content/file/article-excavator-selection.jpg",
+              "target": "apps/drupal/recipes/next-hydra-starter/content/file/article-excavator-selection.jpg"
+            },
+            {
+              "source": "apps/drupal/recipes/next-hydra-starter/content/file/article-ground-pressure.jpg",
+              "target": "apps/drupal/recipes/next-hydra-starter/content/file/article-ground-pressure.jpg"
+            },
+            {
+              "source": "apps/drupal/recipes/next-hydra-starter/content/file/article-preventive-maintenance.jpg",
+              "target": "apps/drupal/recipes/next-hydra-starter/content/file/article-preventive-maintenance.jpg"
             }
           ],
           "pnpmPatches": [

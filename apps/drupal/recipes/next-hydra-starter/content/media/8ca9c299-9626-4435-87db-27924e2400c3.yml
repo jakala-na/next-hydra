@@ -1,0 +1,31 @@
+_meta:
+  version: '1.0'
+  entity_type: media
+  uuid: 8ca9c299-9626-4435-87db-27924e2400c3
+  bundle: image
+  default_langcode: en
+  depends:
+    3f30269c-bd99-43e8-bcd3-60912acf00ac: file
+default:
+  status:
+    -
+      value: true
+  uid:
+    -
+      target_id: 1
+  name:
+    -
+      value: 'Excavator selection article'
+  created:
+    -
+      value: 1754352000
+  revision_translation_affected:
+    -
+      value: true
+  field_media_image:
+    -
+      entity: 3f30269c-bd99-43e8-bcd3-60912acf00ac
+      alt: 'Two compact excavators working at an urban construction site'
+      title: ''
+      width: 1600
+      height: 1000

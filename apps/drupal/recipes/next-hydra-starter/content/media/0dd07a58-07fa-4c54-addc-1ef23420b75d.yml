@@ -1,0 +1,31 @@
+_meta:
+  version: '1.0'
+  entity_type: media
+  uuid: 0dd07a58-07fa-4c54-addc-1ef23420b75d
+  bundle: image
+  default_langcode: en
+  depends:
+    24aa80c5-cfbe-48b2-99a3-98a447c27f56: file
+default:
+  status:
+    -
+      value: true
+  uid:
+    -
+      target_id: 1
+  name:
+    -
+      value: 'Preventive maintenance article'
+  created:
+    -
+      value: 1754352000
+  revision_translation_affected:
+    -
+      value: true
+  field_media_image:
+    -
+      entity: 24aa80c5-cfbe-48b2-99a3-98a447c27f56
+      alt: 'Technician inspecting industrial equipment with a checklist'
+      title: ''
+      width: 1600
+      height: 1000

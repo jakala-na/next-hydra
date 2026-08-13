@@ -193,6 +193,11 @@
           "type": "registry:file"
         },
         {
+          "path": "recipes/next-hydra-starter/config/editor.editor.basic_html.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/editor.editor.basic_html.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "recipes/next-hydra-starter/config/field.field.node.article.body.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.node.article.body.yml",
           "type": "registry:file"
@@ -428,8 +433,38 @@
           "type": "registry:file"
         },
         {
+          "path": "recipes/next-hydra-starter/content/file/187f65b5-5811-4554-9378-a8f9f8f1c493.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/content/file/187f65b5-5811-4554-9378-a8f9f8f1c493.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/content/file/24aa80c5-cfbe-48b2-99a3-98a447c27f56.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/content/file/24aa80c5-cfbe-48b2-99a3-98a447c27f56.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/content/file/3f30269c-bd99-43e8-bcd3-60912acf00ac.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/content/file/3f30269c-bd99-43e8-bcd3-60912acf00ac.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "recipes/next-hydra-starter/content/file/d1508587-433e-4c73-8249-1becea181c99.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/content/file/d1508587-433e-4c73-8249-1becea181c99.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/content/media/0dd07a58-07fa-4c54-addc-1ef23420b75d.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/content/media/0dd07a58-07fa-4c54-addc-1ef23420b75d.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/content/media/43b667b9-c3c0-4938-a896-1e19b59244da.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/content/media/43b667b9-c3c0-4938-a896-1e19b59244da.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/content/media/8ca9c299-9626-4435-87db-27924e2400c3.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/content/media/8ca9c299-9626-4435-87db-27924e2400c3.yml",
           "type": "registry:file"
         },
         {

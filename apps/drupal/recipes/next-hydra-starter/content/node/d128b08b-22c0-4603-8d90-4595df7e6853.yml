@@ -5,7 +5,7 @@ _meta:
   bundle: article
   default_langcode: en
   depends:
-    dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b: media
+    8ca9c299-9626-4435-87db-27924e2400c3: media
 default:
   revision_uid:
     -
@@ -39,7 +39,7 @@ default:
       summary: ''
   field_image:
     -
-      entity: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
+      entity: 8ca9c299-9626-4435-87db-27924e2400c3
   field_summary:
     -
       value: 'Match operating weight, reach, and site constraints to the work instead of selecting equipment by bucket size alone.'
