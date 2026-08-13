@@ -1,0 +1,12 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "canvas:registry": {
+      "outputs": [".canvas/components.ts"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck", "canvas:registry"]
+    }
+  }
+}

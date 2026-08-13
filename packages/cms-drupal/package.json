@@ -25,6 +25,7 @@
     "canvas:build": "pnpm run canvas:css && canvas build",
     "canvas:css": "node scripts/build-canvas-css.mjs",
     "canvas:push": "pnpm run canvas:css && canvas push --no-pages --no-content-templates --no-regions",
+    "canvas:registry": "node scripts/generate-canvas-component-registry.mjs",
     "canvas:validate": "pnpm run canvas:css && canvas validate",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "generate": "node --use-system-ca scripts/gql-sync.ts",
