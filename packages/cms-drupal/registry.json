@@ -103,6 +103,11 @@
           "type": "registry:file"
         },
         {
+          "path": "canvas-components/featured-articles/mocks.json",
+          "target": "~/packages/cms-drupal/canvas-components/featured-articles/mocks.json",
+          "type": "registry:file"
+        },
+        {
           "path": "canvas-components/hero/component.yml",
           "target": "~/packages/cms-drupal/canvas-components/hero/component.yml",
           "type": "registry:file"

@@ -1,0 +1,28 @@
+{
+  "mocks": [
+    {
+      "name": "Unselected article cards",
+      "props": {
+        "title": "Featured articles",
+        "description": "Select an article for each card to preview the final collection."
+      },
+      "slots": {
+        "articles": ["article-one", "article-two", "article-three"]
+      },
+      "elements": {
+        "article-one": {
+          "type": "article-card",
+          "props": {}
+        },
+        "article-two": {
+          "type": "article-card",
+          "props": {}
+        },
+        "article-three": {
+          "type": "article-card",
+          "props": {}
+        }
+      }
+    }
+  ]
+}

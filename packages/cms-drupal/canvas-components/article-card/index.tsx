@@ -2,6 +2,12 @@ import {
   ArticleCard,
   type ArticleTeaser,
 } from "@repo/design-system/components/cms/article-card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+} from "@repo/design-system/components/ui/card";
+import { cn } from "@repo/design-system/lib/utils";
 import { getLocale, getTranslations, type Locale } from "@repo/i18n";
 import { getPathname } from "@repo/i18n/navigation";
 
@@ -27,9 +33,36 @@ type CanvasArticleReference = {
 };
 
 type CanvasArticleCardProps = {
-  article?: CanvasArticleReference;
+  article?: CanvasArticleReference | null;
   className?: string;
 };
+
+export function CanvasArticleCardPlaceholder({
+  className,
+}: Pick<CanvasArticleCardProps, "className">) {
+  return (
+    <article className={cn("h-full", className)}>
+      <Card className="h-full overflow-hidden border-dashed py-0 shadow-none">
+        <div className="flex aspect-[16/10] items-center justify-center bg-muted">
+          <p className="font-medium text-muted-foreground text-sm">
+            Article card
+          </p>
+        </div>
+        <CardContent className="flex flex-1 flex-col justify-center space-y-3 p-6">
+          <h3 className="text-balance font-bold text-2xl">Select an article</h3>
+          <p className="text-muted-foreground leading-relaxed">
+            Choose an article in the component settings to preview its content.
+          </p>
+        </CardContent>
+        <CardFooter className="p-6 pt-0">
+          <span className="font-medium text-muted-foreground">
+            Article link
+          </span>
+        </CardFooter>
+      </Card>
+    </article>
+  );
+}
 
 function resolveDrupalMediaUrl(source: string): string {
   try {
@@ -57,7 +90,7 @@ function formatPublishedAt(value: number | string | undefined, locale: Locale) {
 }
 
 export function toCanvasArticleTeaser(
-  article: CanvasArticleReference | undefined,
+  article: CanvasArticleReference | null | undefined,
   locale: Locale
 ): ArticleTeaser | undefined {
   const title = article?.label?.trim();
@@ -97,10 +130,14 @@ export default async function CanvasArticleCard({
   article,
   className,
 }: CanvasArticleCardProps) {
+  if (!article) {
+    return <CanvasArticleCardPlaceholder className={className} />;
+  }
+
   const locale = await getLocale();
   const teaser = toCanvasArticleTeaser(article, locale);
   if (!teaser) {
-    return null;
+    return <CanvasArticleCardPlaceholder className={className} />;
   }
 
   const t = await getTranslations({ locale, namespace: "web.article" });

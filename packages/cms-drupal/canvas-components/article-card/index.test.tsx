@@ -1,7 +1,19 @@
+import { createElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.stubGlobal("React", { createElement });
 
 vi.mock("@repo/design-system/components/cms/article-card", () => ({
   ArticleCard: () => null,
+}));
+
+vi.mock("@repo/i18n", () => ({
+  getLocale: () => Promise.resolve("en-US"),
+  getTranslations: () =>
+    Promise.resolve((key: string) =>
+      key === "readGuide" ? "Read guide" : key
+    ),
 }));
 
 vi.mock("@repo/i18n/navigation", () => ({
@@ -9,7 +21,8 @@ vi.mock("@repo/i18n/navigation", () => ({
     `/${locale}${href}`,
 }));
 
-import { toCanvasArticleTeaser } from ".";
+import { ArticleCard } from "@repo/design-system/components/cms/article-card";
+import CanvasArticleCard, { toCanvasArticleTeaser } from ".";
 
 describe("Canvas Article Card", () => {
   afterEach(() => {
@@ -64,5 +77,38 @@ describe("Canvas Article Card", () => {
         "en-US"
       )?.href
     ).toBe("/en-US/node/7");
+  });
+
+  it("renders a full card placeholder until an article is selected", async () => {
+    const html = renderToStaticMarkup(
+      await CanvasArticleCard({ className: "editor-card" })
+    );
+
+    expect(html).toContain("Article card");
+    expect(html).toContain("Select an article");
+    expect(html).toContain("aspect-[16/10]");
+    expect(html).toContain("editor-card");
+  });
+
+  it("renders the shared article card after an article is selected", async () => {
+    const result = (await CanvasArticleCard({
+      article: {
+        field_summary: "Summary",
+        id: 7,
+        label: "Article",
+        path: "/article",
+      },
+    })) as ReactElement;
+
+    expect(result.type).toBe(ArticleCard);
+    expect(result.props).toMatchObject({
+      article: {
+        href: "/en-US/article",
+        id: "7",
+        summary: "Summary",
+        title: "Article",
+      },
+      readMoreLabel: "Read guide",
+    });
   });
 });
