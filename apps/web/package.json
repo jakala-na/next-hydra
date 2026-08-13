@@ -15,7 +15,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-icons": "^1.3.2",
     "@repo/auth": "workspace:@repo/auth-workos@*",
-    "@repo/cms": "workspace:@repo/cms-drupal@*",
+    "@repo/cms": "workspace:@repo/cms-contentstack@*",
     "@repo/commerce": "workspace:*",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
     "@repo/design-system": "workspace:*",
