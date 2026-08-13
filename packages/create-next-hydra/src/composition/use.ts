@@ -78,7 +78,11 @@ function requestedSelection(
     addOns = [...presetAddOns, ...options.addOns];
   }
 
-  return { addOns: [...new Set(addOns)], providers };
+  return {
+    ...current,
+    addOns: [...new Set(addOns)],
+    providers,
+  };
 }
 
 function operationFailure(

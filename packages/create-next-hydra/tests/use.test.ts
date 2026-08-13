@@ -17,6 +17,15 @@ const temporaryDirectories: string[] = [];
 const MANAGED_FILE_DRIFT = /managed file differs/;
 const PACKAGE_JSON_TARGETS = /package\.json targets/;
 const INVALID_DEPENDENCY_SECTION = /dependencies: Expected object/;
+const DRUPAL_SELECTION = `{
+  "providers": {
+    "auth": "workos",
+    "cms": "drupal",
+    "commerce": "commercetools"
+  },
+  "addOns": []
+}
+`;
 
 async function maintainerFixture(): Promise<string> {
   const fixture = await mkdtemp(path.join(tmpdir(), "next-hydra-use-"));
@@ -25,10 +34,7 @@ async function maintainerFixture(): Promise<string> {
     path.join(repoRoot, "registry.json"),
     path.join(fixture, "registry.json")
   );
-  await cp(
-    path.join(repoRoot, "next-hydra.json"),
-    path.join(fixture, "next-hydra.json")
-  );
+  await writeFile(path.join(fixture, "next-hydra.json"), DRUPAL_SELECTION);
   await cp(
     path.join(repoRoot, "pnpm-workspace.yaml"),
     path.join(fixture, "pnpm-workspace.yaml")
@@ -94,6 +100,7 @@ afterEach(async () => {
 describe("maintainer use", () => {
   it("switches Drupal to Contentstack and back, then detects drift", async () => {
     const cwd = await maintainerFixture();
+    const selectionPath = path.join(cwd, "next-hydra.json");
     const contentstackRegistryPath = path.join(
       cwd,
       "packages/cms-contentstack/registry.json"
@@ -128,6 +135,9 @@ describe("maintainer use", () => {
         await readFile(path.join(cwd, "apps/web/package.json"), "utf8")
       ).dependencies["contentstack-only"]
     ).toBe("^1.0.0");
+    expect(await readFile(selectionPath, "utf8")).toBe(
+      DRUPAL_SELECTION.replace('"cms": "drupal"', '"cms": "contentstack"')
+    );
     expect(
       await readFile(path.join(cwd, "apps/web/app/api/draft/route.ts"), "utf8")
     ).toContain('export { GET } from "@repo/cms/routes/draft";');
@@ -148,6 +158,7 @@ describe("maintainer use", () => {
         await readFile(path.join(cwd, "apps/web/package.json"), "utf8")
       ).dependencies["contentstack-only"]
     ).toBeUndefined();
+    expect(await readFile(selectionPath, "utf8")).toBe(DRUPAL_SELECTION);
     expect(
       await readFile(
         path.join(cwd, "apps/web/app/api/canvas/components/route.ts"),

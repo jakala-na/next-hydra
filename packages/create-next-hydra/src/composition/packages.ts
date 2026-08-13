@@ -32,7 +32,9 @@ function decodePackageJson(value: unknown, label: string): PackageJson {
       formatZodError(result.error)
     );
   }
-  return result.data;
+  // Zod reconstructs objects in schema order, so return the validated input
+  // to preserve the manifest's existing key positions.
+  return value as PackageJson;
 }
 
 export function parsePackageJson(source: string, label: string): PackageJson {

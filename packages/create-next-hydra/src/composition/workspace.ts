@@ -29,16 +29,23 @@ export async function readWorkspaceSelection(
     );
   }
 
-  const result = workspaceSelectionSchema.safeParse(
-    await readJsonFile<unknown>(filePath)
-  );
+  const value = await readJsonFile<unknown>(filePath);
+  const result = workspaceSelectionSchema.safeParse(value);
   if (!result.success) {
     throw new CompositionValidationError(
       `${WORKSPACE_SELECTION_FILE} is invalid.`,
       formatZodError(result.error)
     );
   }
-  return result.data;
+  // Preserve existing top-level and nested key positions, appending only
+  // schema-defaulted keys that were absent from the file.
+  const selection = value as Record<string, unknown>;
+  for (const [key, defaultedValue] of Object.entries(result.data)) {
+    if (!Object.hasOwn(selection, key)) {
+      selection[key] = defaultedValue;
+    }
+  }
+  return value as WorkspaceSelection;
 }
 
 export function writeWorkspaceSelection(
@@ -83,19 +90,18 @@ export async function applyPackageRequirements(
         return;
       }
       const packageJson = await readPackageJson(manifestPath, manifest);
+      let changed = false;
       for (const requirement of entries) {
         const section = packageJson[requirement.section];
-        if (!section) {
+        if (!(section && Object.hasOwn(section, requirement.name))) {
           continue;
         }
         delete section[requirement.name];
-        packageJson[requirement.section] = Object.fromEntries(
-          Object.entries(section).sort(([left], [right]) =>
-            left.localeCompare(right)
-          )
-        );
+        changed = true;
       }
-      await writeJsonFile(manifestPath, packageJson);
+      if (changed) {
+        await writeJsonFile(manifestPath, packageJson);
+      }
     })
   );
 
@@ -119,16 +125,22 @@ export async function applyPackageEntries(
     [...byManifest].map(async ([manifest, manifestRequirements]) => {
       const manifestPath = path.join(workspaceRoot, manifest);
       const packageJson = await readPackageJson(manifestPath, manifest);
+      let changed = false;
       for (const requirement of manifestRequirements) {
         const section = packageJson[requirement.section] ?? {};
+        if (
+          Object.hasOwn(section, requirement.name) &&
+          section[requirement.name] === requirement.specifier
+        ) {
+          continue;
+        }
         section[requirement.name] = requirement.specifier;
-        packageJson[requirement.section] = Object.fromEntries(
-          Object.entries(section).sort(([left], [right]) =>
-            left.localeCompare(right)
-          )
-        );
+        packageJson[requirement.section] = section;
+        changed = true;
       }
-      await writeJsonFile(manifestPath, packageJson);
+      if (changed) {
+        await writeJsonFile(manifestPath, packageJson);
+      }
     })
   );
 }

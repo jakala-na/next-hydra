@@ -450,6 +450,7 @@ export function planComposition(
     pnpmPatches,
     registryItems,
     selection: {
+      ...selection,
       addOns: uniqueSorted([...selection.addOns, ...requiredAddOnIds]),
       providers: { ...selection.providers },
     },
