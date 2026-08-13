@@ -1,7 +1,10 @@
 import { Command } from "commander";
 
 import { addRegistryItem } from "./composition/add.js";
-import { useComposition } from "./composition/use.js";
+import {
+  type UseCompositionOptions,
+  useComposition,
+} from "./composition/use.js";
 import { CLI_NAME, DEFAULT_REPO_URL } from "./constants.js";
 import { promptForTargetDirectory } from "./prompts.js";
 import { scaffoldProject } from "./scaffold.js";
@@ -19,6 +22,14 @@ type CliActionOptions = {
   commerce?: string;
   addOn?: string[];
   preset?: string;
+};
+
+type CliDependencies = {
+  useComposition?: typeof useComposition;
+};
+
+type UseCliActionOptions = Omit<UseCompositionOptions, "addOns" | "cwd"> & {
+  addOn?: string[];
 };
 
 function buildCreateOptions(
@@ -41,8 +52,11 @@ function buildCreateOptions(
   };
 }
 
-export async function runCli(argv = process.argv): Promise<void> {
-  const program = new Command();
+export async function runCli(
+  argv = process.argv,
+  dependencies: CliDependencies = {}
+): Promise<void> {
+  const program = new Command().enablePositionalOptions();
 
   program
     .name(CLI_NAME)
@@ -104,23 +118,15 @@ export async function runCli(argv = process.argv): Promise<void> {
     )
     .option("--preset <selection>", "Use a portable Next Hydra Preset")
     .option("--check", "Check for composition drift without writing")
+    .option("--dry-run", "Preview and validate changes without writing")
+    .option("-y, --yes", "Apply changes without confirmation")
     .option("--verbose", "Print package-manager output")
-    .action(
-      async (rawOptions: {
-        auth?: string;
-        cms?: string;
-        commerce?: string;
-        addOn?: string[];
-        preset?: string;
-        check?: boolean;
-        verbose?: boolean;
-      }) => {
-        await useComposition({
-          ...rawOptions,
-          addOns: rawOptions.addOn,
-        });
-      }
-    );
+    .action(async (rawOptions: UseCliActionOptions) => {
+      await (dependencies.useComposition ?? useComposition)({
+        ...rawOptions,
+        addOns: rawOptions.addOn,
+      });
+    });
 
   program
     .command("add")

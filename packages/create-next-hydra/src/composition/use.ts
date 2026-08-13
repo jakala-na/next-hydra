@@ -1,10 +1,16 @@
 import path from "node:path";
+import { confirm, isCancel } from "@clack/prompts";
 
 import { runCommand } from "../git.js";
 import { info, printInstructions, success } from "../logger.js";
 import { addCatalogReferences, loadSourceRegistryCatalog } from "./catalog.js";
 import { CompositionValidationError } from "./errors.js";
-import { formatCompositionPlan } from "./format.js";
+import {
+  formatCompositionPlan,
+  formatCompositionPreview,
+  formatCompositionResult,
+  hasCompositionChanges,
+} from "./format.js";
 import {
   installPreparedComposition,
   prepareComposition,
@@ -29,10 +35,17 @@ export type UseCompositionOptions = {
   addOns?: string[];
   preset?: string;
   check?: boolean;
+  dryRun?: boolean;
+  yes?: boolean;
   verbose?: boolean;
 };
 
+type ConfirmPrompt = (
+  options: Parameters<typeof confirm>[0]
+) => ReturnType<typeof confirm>;
+
 type UseDependencies = {
+  confirm?: ConfirmPrompt;
   install?: (cwd: string, verbose: boolean) => Promise<void>;
 };
 
@@ -107,6 +120,10 @@ export async function useComposition(
     );
   }
 
+  if (options.check && options.dryRun) {
+    throw new Error("`use --check` cannot be combined with `--dry-run`.");
+  }
+
   if (options.preset && (options.auth || options.cms || options.commerce)) {
     throw new Error("`use --preset` cannot be combined with provider flags.");
   }
@@ -139,9 +156,11 @@ export async function useComposition(
     plan.catalogManagedTargets
   );
 
-  info(formatCompositionPlan(plan));
-
   if (options.check) {
+    info("Checking the maintainer workspace against next-hydra.json.");
+    if (options.verbose) {
+      info(`Composition plan:\n${formatCompositionPlan(plan)}`);
+    }
     const drift = await checkWorkspaceComposition(
       cwd,
       plan,
@@ -155,6 +174,31 @@ export async function useComposition(
     }
     success("The maintainer workspace matches next-hydra.json.");
     return;
+  }
+
+  info(formatCompositionPreview(current, plan.selection));
+  if (options.verbose) {
+    info(`Composition plan:\n${formatCompositionPlan(plan)}`);
+  }
+
+  if (!hasCompositionChanges(current, plan.selection)) {
+    success(formatCompositionResult(current, plan.selection));
+    return;
+  }
+
+  if (options.dryRun) {
+    success("Dry run complete. No changes were made.");
+    return;
+  }
+
+  if (!options.yes) {
+    const approved = await (dependencies.confirm ?? confirm)({
+      initialValue: false,
+      message: "Apply these composition changes?",
+    });
+    if (isCancel(approved) || !approved) {
+      throw new Error("Composition cancelled. No changes were made.");
+    }
   }
 
   const completed: string[] = [];
@@ -212,5 +256,5 @@ export async function useComposition(
       },
     ]);
   }
-  success("Maintainer workspace composition updated.");
+  success(formatCompositionResult(current, plan.selection));
 }

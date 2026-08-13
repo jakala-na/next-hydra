@@ -4,6 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  formatCompositionPreview,
+  formatCompositionResult,
+} from "../src/composition/format.js";
 import { NEXT_HYDRA_SELECTION_SCHEMA_URL } from "../src/composition/schema.js";
 import { useComposition } from "../src/composition/use.js";
 
@@ -113,7 +117,7 @@ describe("maintainer use", () => {
       return Promise.resolve();
     };
 
-    await useComposition({ cms: "contentstack", cwd }, { install });
+    await useComposition({ cms: "contentstack", cwd, yes: true }, { install });
     expect(
       JSON.parse(
         await readFile(path.join(cwd, "apps/web/package.json"), "utf8")
@@ -138,7 +142,7 @@ describe("maintainer use", () => {
     ).not.toContain("patchedDependencies");
     await useComposition({ check: true, cwd });
 
-    await useComposition({ cms: "drupal", cwd }, { install });
+    await useComposition({ cms: "drupal", cwd, yes: true }, { install });
     expect(
       JSON.parse(
         await readFile(path.join(cwd, "apps/web/package.json"), "utf8")
@@ -162,6 +166,110 @@ describe("maintainer use", () => {
     await expect(useComposition({ check: true, cwd })).rejects.toThrow(
       MANAGED_FILE_DRIFT
     );
+  });
+
+  it("shows current and proposed selections without exposing the internal plan", () => {
+    const current = {
+      addOns: [],
+      providers: {
+        auth: "workos",
+        cms: "drupal",
+        commerce: "commercetools",
+      },
+    };
+    const proposed = {
+      ...current,
+      providers: { ...current.providers, cms: "contentstack" },
+    };
+
+    expect(formatCompositionPreview(current, proposed)).toBe(
+      [
+        "Maintainer workspace composition",
+        "",
+        "Current -> Proposed",
+        "Providers:",
+        "  auth: workos (unchanged)",
+        "  cms: drupal -> contentstack",
+        "  commerce: commercetools (unchanged)",
+        "Add-ons: none (unchanged)",
+        "",
+        "Planned actions:",
+        "  replace managed application files",
+        "  install selected source",
+        "  update package aliases",
+        "  update pnpm patches",
+        "  run pnpm install",
+      ].join("\n")
+    );
+    expect(formatCompositionResult(current, proposed)).toBe(
+      "Maintainer workspace composition updated: cms: drupal -> contentstack."
+    );
+    expect(formatCompositionPreview(current, current)).not.toContain(
+      "Planned actions"
+    );
+  });
+
+  it("does not change the workspace during a dry run", async () => {
+    const cwd = await maintainerFixture();
+    const selectionPath = path.join(cwd, "next-hydra.json");
+    const selectionBefore = await readFile(selectionPath, "utf8");
+    let installed = false;
+
+    await useComposition(
+      { cms: "contentstack", cwd, dryRun: true },
+      {
+        install: () => {
+          installed = true;
+          return Promise.resolve();
+        },
+      }
+    );
+
+    expect(await readFile(selectionPath, "utf8")).toBe(selectionBefore);
+    expect(installed).toBe(false);
+  });
+
+  it("requires confirmation before changing the workspace", async () => {
+    const cwd = await maintainerFixture();
+    const selectionPath = path.join(cwd, "next-hydra.json");
+    const selectionBefore = await readFile(selectionPath, "utf8");
+    let installed = false;
+
+    await expect(
+      useComposition(
+        { cms: "contentstack", cwd },
+        {
+          confirm: () => Promise.resolve(false),
+          install: () => {
+            installed = true;
+            return Promise.resolve();
+          },
+        }
+      )
+    ).rejects.toThrow("No changes were made");
+
+    expect(await readFile(selectionPath, "utf8")).toBe(selectionBefore);
+    expect(installed).toBe(false);
+  });
+
+  it("does not recompose an unchanged selection", async () => {
+    const cwd = await maintainerFixture();
+    const selectionPath = path.join(cwd, "next-hydra.json");
+    const selectionBefore = await readFile(selectionPath, "utf8");
+    let installed = false;
+
+    await useComposition(
+      { cwd, yes: true },
+      {
+        install: () => {
+          installed = true;
+          return Promise.resolve();
+        },
+      }
+    );
+
+    expect(await readFile(selectionPath, "utf8")).toBe(selectionBefore);
+    expect(installed).toBe(false);
   });
 
   it("rejects missing package manifests before changing the workspace", async () => {
@@ -198,7 +306,7 @@ describe("maintainer use", () => {
 
     await expect(
       useComposition(
-        { addOns: [addOnPath], cwd },
+        { addOns: [addOnPath], cwd, yes: true },
         { install: async () => undefined }
       )
     ).rejects.toThrow(PACKAGE_JSON_TARGETS);
@@ -222,7 +330,7 @@ describe("maintainer use", () => {
 
     await expect(
       useComposition(
-        { cms: "contentstack", cwd },
+        { cms: "contentstack", cwd, yes: true },
         { install: async () => undefined }
       )
     ).rejects.toThrow(INVALID_DEPENDENCY_SECTION);
