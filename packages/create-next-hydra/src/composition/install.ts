@@ -249,7 +249,10 @@ export async function installPreparedComposition(
   );
 
   await withPreparedRegistryArtifacts({
-    artifacts: prepared.artifacts,
+    artifacts: prepared.artifacts.map((artifact) => ({
+      ...artifact,
+      docs: undefined,
+    })),
     entryItems: prepared.entryItems,
     itemByReference: prepared.itemByReference,
     run: (entries) =>

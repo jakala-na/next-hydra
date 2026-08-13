@@ -1,4 +1,9 @@
-import { log, note, outro, spinner } from "@clack/prompts";
+import { log, outro, spinner } from "@clack/prompts";
+
+import {
+  type InstructionSection,
+  renderInstructions,
+} from "./instruction-renderer.js";
 
 export function info(message: string): void {
   log.info(message);
@@ -12,8 +17,15 @@ export function success(message: string): void {
   log.success(message);
 }
 
-export function printNextSteps(message: string, title = "Next steps"): void {
-  note(message, title);
+export function printInstructions(
+  sections: readonly InstructionSection[]
+): void {
+  process.stdout.write(
+    renderInstructions(sections, {
+      columns: process.stdout.columns,
+      isTTY: process.stdout.isTTY === true,
+    })
+  );
 }
 
 export function finish(message: string): void {

@@ -438,11 +438,13 @@ export function planComposition(
     catalogPackageRequirements: catalogPackageRequirements(catalog),
     catalogPnpmPatches: catalogPnpmPatches(catalog),
     entryItems,
-    instructions: uniqueSorted(
-      selections
-        .map((selected) => catalog.items.get(selected.itemName)?.docs)
-        .filter((value): value is string => Boolean(value))
-    ),
+    instructions: [
+      ...new Set(
+        selections
+          .map((selected) => catalog.items.get(selected.itemName)?.docs)
+          .filter((value): value is string => Boolean(value))
+      ),
+    ],
     managedTargets,
     packageRequirements: mergePackageRequirements(selections),
     pnpmPatches,

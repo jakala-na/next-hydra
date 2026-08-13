@@ -23,8 +23,14 @@ const E2E_TIMEOUT = 240_000;
 const INCOMPATIBLE_DRUPAL_ADD_ON = /requires next-hydra\/cms\/drupal/;
 const PARTIAL_PROJECT_PRESERVED =
   /partial project has been left exactly as it stands/;
+const WORKOS_SETUP_INSTRUCTION_PREFIX =
+  "Configure the WorkOS environment variables described by packages/auth-workos";
 let testRoot: string;
 let sourceRepository: string;
+
+function occurrenceCount(source: string, value: string): number {
+  return source.split(value).length - 1;
+}
 
 async function createSourceRepository(): Promise<string> {
   const source = path.join(testRoot, "source");
@@ -230,26 +236,49 @@ afterAll(async () => {
 
 describe("scaffold composition", () => {
   it(
-    "suppresses ShadCN environment headings",
+    "prints Provider instructions only in the final setup section",
     async () => {
       const target = path.join(testRoot, "quiet-shadcn-project");
-      const output: string[] = [];
+      const stderrOutput: string[] = [];
+      const stdoutOutput: string[] = [];
+      const consoleOutput: string[] = [];
+      const consoleLogSpy = vi
+        .spyOn(console, "log")
+        .mockImplementation((...values: unknown[]) => {
+          consoleOutput.push(values.map(String).join(" "));
+        });
       const stderrWriteSpy = vi
         .spyOn(process.stderr, "write")
         .mockImplementation(((chunk: string | Uint8Array) => {
-          output.push(String(chunk));
+          stderrOutput.push(String(chunk));
           return true;
         }) as typeof process.stderr.write);
+      const stdoutWriteSpy = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation(((chunk: string | Uint8Array) => {
+          stdoutOutput.push(String(chunk));
+          return true;
+        }) as typeof process.stdout.write);
 
       try {
         await scaffoldProject(options(target, "contentstack"), {
           install: fakeRootInstall,
         });
       } finally {
+        consoleLogSpy.mockRestore();
         stderrWriteSpy.mockRestore();
+        stdoutWriteSpy.mockRestore();
       }
 
-      expect(output.join("")).not.toContain("Added the following variables to");
+      expect(stderrOutput.join("")).not.toContain(
+        "Added the following variables to"
+      );
+      expect(
+        occurrenceCount(
+          `${consoleOutput.join("\n")}\n${stdoutOutput.join("")}`,
+          WORKOS_SETUP_INSTRUCTION_PREFIX
+        )
+      ).toBe(1);
       await rm(target, { force: true, recursive: true });
     },
     E2E_TIMEOUT

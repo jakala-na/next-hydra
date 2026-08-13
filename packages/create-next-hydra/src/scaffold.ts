@@ -42,7 +42,7 @@ import {
   createSpinner,
   finish,
   info,
-  printNextSteps,
+  printInstructions,
   success,
   warn,
 } from "./logger.js";
@@ -423,16 +423,33 @@ export async function scaffoldProject(
       }
     }
 
-    if (plan.instructions.length > 0) {
-      printNextSteps(plan.instructions.join("\n\n"), "Provider setup");
-    }
     const displayTarget = toDisplayPath(targetPath);
-    printNextSteps(
-      [
-        `cd ${quotePathForShell(displayTarget)}`,
-        `${DEFAULT_PACKAGE_MANAGER} dev`,
-      ].join("\n")
-    );
+    printInstructions([
+      ...(plan.instructions.length > 0
+        ? [
+            {
+              entries: plan.instructions.map((text) => ({
+                kind: "text" as const,
+                text,
+              })),
+              title: "Provider setup",
+            },
+          ]
+        : []),
+      {
+        entries: [
+          {
+            command: `cd ${quotePathForShell(displayTarget)}`,
+            kind: "command",
+          },
+          {
+            command: `${DEFAULT_PACKAGE_MANAGER} dev`,
+            kind: "command",
+          },
+        ],
+        title: "Next steps",
+      },
+    ]);
     success(`Created project in ${displayTarget}`);
     finish("Scaffold complete.");
 

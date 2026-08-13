@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { runCommand } from "../git.js";
-import { info, printNextSteps, success } from "../logger.js";
+import { info, printInstructions, success } from "../logger.js";
 import { addCatalogReferences, loadSourceRegistryCatalog } from "./catalog.js";
 import { CompositionValidationError } from "./errors.js";
 import { formatCompositionPlan } from "./format.js";
@@ -202,7 +202,15 @@ export async function useComposition(
   });
 
   if (plan.instructions.length > 0) {
-    printNextSteps(plan.instructions.join("\n\n"), "Provider setup");
+    printInstructions([
+      {
+        entries: plan.instructions.map((text) => ({
+          kind: "text",
+          text,
+        })),
+        title: "Provider setup",
+      },
+    ]);
   }
   success("Maintainer workspace composition updated.");
 }

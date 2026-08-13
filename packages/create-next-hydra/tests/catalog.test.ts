@@ -152,6 +152,11 @@ describe("Next Hydra source registry", () => {
     ]);
     expect(drupal.pnpmPatches).toHaveLength(DRUPAL_PNPM_PATCH_COUNT);
     expect(contentstack.pnpmPatches).toEqual([]);
+    expect(drupal.instructions).toEqual([
+      "Configure the WorkOS environment variables described by packages/auth-workos before starting the applications.",
+      "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
+      "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
+    ]);
     expect(planComposition(catalog, drupal.selection)).toEqual(drupal);
     expect(contentstack.variableTargets).toEqual(drupal.variableTargets);
   });
