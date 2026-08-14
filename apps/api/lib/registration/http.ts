@@ -280,9 +280,7 @@ const makeRegistrationHttpHandlers = ({
 const makeRegistrationHttpApiLayer = (
   dependencies: RegistrationHttpDependencies
 ) =>
-  HttpApiBuilder.layer(RegistrationHttpApi, {
-    openapiPath: "/openapi.json",
-  }).pipe(
+  HttpApiBuilder.layer(RegistrationHttpApi).pipe(
     Layer.provide(makeRegistrationHttpHandlers(dependencies)),
     Layer.provideMerge(dependencies.layer),
     Layer.provide(HttpServer.layerServices)

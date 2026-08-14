@@ -578,9 +578,7 @@ const makeCheckoutHttpHandlers = () =>
   );
 
 const makeCheckoutHttpApiLayer = (dependencies: CheckoutHttpDependencies) =>
-  HttpApiBuilder.layer(CheckoutHttpApi, {
-    openapiPath: "/openapi.json",
-  }).pipe(
+  HttpApiBuilder.layer(CheckoutHttpApi).pipe(
     Layer.provide(makeCheckoutHttpHandlers()),
     Layer.provide(checkoutSchemaErrorMiddlewareLayer),
     Layer.provide(checkoutSessionMiddlewareLayer(dependencies.commerceApp)),
