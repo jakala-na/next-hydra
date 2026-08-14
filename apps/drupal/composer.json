@@ -29,6 +29,7 @@
     "drupal/gin_toolbar": "^3.0",
     "drupal/graphql_compose": "^2.4",
     "drupal/graphql_compose_preview": "^1.1",
+    "drupal/mysql57": "^1.0",
     "drupal/next": "^2.1",
     "drupal/paragraphs": "^1.19",
     "drupal/simple_oauth": "^6.1",

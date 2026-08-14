@@ -30,30 +30,37 @@ remote_drush() {
   acli remote:drush "$target_alias" -- "$@"
 }
 
+remote_ssh() {
+  acli remote:ssh "$target_alias" -- "$@"
+}
+
+echo "Checking whether Drupal is already installed..."
 bootstrap_status="$(
-  remote_drush status --field=bootstrap --format=string 2>/dev/null || true
+  remote_drush status --field=bootstrap --format=string
 )"
 if [[ "$bootstrap_status" == "Successful" ]]; then
   echo "Refusing to replace an installed Drupal database." >&2
   exit 65
 fi
 
-table_count="$(
-  remote_drush sql:query \
-    'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();' \
-    --extra=--skip-column-names | tail -n 1 | tr -d '[:space:]'
-)"
-if [[ ! "$table_count" =~ ^[0-9]+$ || "$table_count" != "0" ]]; then
-  echo "Refusing to install because the database was not proven empty." >&2
-  exit 65
-fi
+echo "Initializing persistent Acquia settings..."
+remote_ssh php scripts/initialize_acquia_secrets.php
 
+echo "Installing Drupal..."
 remote_drush site:install minimal --verbose --yes
+
+echo "Applying the Next Hydra starter recipe..."
 remote_drush recipe ../recipes/next-hydra-starter --verbose
 remote_drush cache:rebuild
+
+echo "Creating OAuth scopes and consumers..."
 remote_drush php:script ../scripts/scopes
 remote_drush php:script ../scripts/consumers
+
+echo "Configuring frontend revalidation..."
 remote_drush php:script ../scripts/revalidation
+
+echo "Rebuilding node access and caches..."
 remote_drush php:eval 'node_access_rebuild();'
 remote_drush cache:rebuild
 

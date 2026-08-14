@@ -76,11 +76,12 @@ For a hosted environment, replace the local URLs with the Drupal-enabled Vercel 
 
 1. Create the Acquia application and target environment.
 2. Create or select the Drupal database for that environment.
-3. Set the environment PHP version to 8.3.
-4. Configure the target environment to deploy branches.
-5. Create an automation user with SSH access to the application.
-6. Add the automation user's RSA public key to Acquia.
-7. Create an Acquia Cloud API key and secret for the automation user.
+3. Use MySQL 8.0 when it is available. The project includes Acquia's supported MySQL 5.7 compatibility driver for legacy environments.
+4. Set the environment PHP version to 8.3.
+5. Configure the target environment to deploy branches.
+6. Create an automation user with SSH access to the application.
+7. Add the automation user's RSA public key to Acquia.
+8. Create an Acquia Cloud API key and secret for the automation user.
 
 ### 2. Configure GitHub
 
@@ -109,6 +110,15 @@ Push a Drupal-affecting change to `main`. The `Deploy Drupal to Acquia` GitHub A
 
 To force a deployment, open **Actions → Deploy Drupal to Acquia → Run workflow** in GitHub.
 
+To deploy from the repository root with your local SSH key:
+
+```bash
+acli auth:login
+ssh-add /path/to/acquia-automation-key
+ACQUIA_ENVIRONMENT_ALIAS=myapp.dev \
+  pnpm exec turbo run deploy:acquia --filter=@repo/drupal
+```
+
 Build and inspect an artifact locally without pushing it:
 
 ```bash
@@ -120,17 +130,15 @@ acli push:artifact myapp.dev \
 
 ### 4. Install a fresh Acquia environment
 
-Deploy the Drupal artifact before running the bootstrap script. Then authenticate locally and load the automation user's SSH key:
+Deploy the Drupal artifact before running the bootstrap script. Then run:
 
 ```bash
-acli auth:login
-ssh-add /path/to/acquia-automation-key
 bash apps/drupal/scripts/bootstrap_acquia.sh myapp.prod
 ```
 
-Pass the exact target alias. The script asks for confirmation and stops if Drupal is already installed or the target database is not empty.
+Pass the exact target alias. The script asks for confirmation and stops if Drupal is already installed.
 
-The script installs Drupal, applies the recipe, creates the OAuth consumers, configures revalidation, rebuilds permissions, and clears caches. It writes the generated frontend credentials to `next-hydra-bootstrap.env` in the environment's persistent private files directory.
+The script initializes the environment's persistent `secrets.settings.php`, installs Drupal, applies the recipe, creates the OAuth consumers, configures revalidation, rebuilds permissions, and clears caches. It writes the generated frontend credentials to `next-hydra-bootstrap.env` in the environment's persistent private files directory.
 
 Retrieve that file through an Acquia SSH session and add its values to the Drupal-enabled Vercel project. Also configure:
 

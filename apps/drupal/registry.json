@@ -53,6 +53,11 @@
           "type": "registry:file"
         },
         {
+          "path": "drush/sites/nexthydrademo.site.yml",
+          "target": "~/apps/drupal/drush/sites/nexthydrademo.site.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "LICENSE.txt",
           "target": "~/apps/drupal/LICENSE.txt",
           "type": "registry:file"
@@ -575,6 +580,11 @@
         {
           "path": "scripts/deploy_to_acquia.sh",
           "target": "~/apps/drupal/scripts/deploy_to_acquia.sh",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/initialize_acquia_secrets.php",
+          "target": "~/apps/drupal/scripts/initialize_acquia_secrets.php",
           "type": "registry:file"
         },
         {
