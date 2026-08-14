@@ -22,4 +22,10 @@ describe("resolveCmsPagePath", () => {
   it("accepts a scalar CMS path from a runtime route match", () => {
     expect(resolveCmsPagePath("about/team", "homepage")).toBe("about/team");
   });
+
+  it("maps Next.js dynamic route placeholders to the configured homepage", () => {
+    expect(resolveCmsPagePath("%%drp:url:f08091a98bfdc8%%", "homepage")).toBe(
+      "/homepage"
+    );
+  });
 });
