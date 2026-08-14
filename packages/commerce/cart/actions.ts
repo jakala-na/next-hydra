@@ -1,11 +1,10 @@
 "use server";
 
-import { getLocale } from "@repo/i18n";
+import { NextCommerce } from "@repo/commerce/runtime";
 import { Effect, Schema } from "effect";
-import { commerceRequestLayer } from "../commerce-context/request";
 import { CartProviderFailure } from "../domain/cart-errors";
+import type { CommerceRequestFailure } from "../runtime/commerce-request";
 import type { CommerceAccountError } from "../services/commerce-accounts";
-import type { CommerceRequestFailure } from "../services/commerce-identity";
 import { CurrentCart } from "../services/current-cart";
 import {
   AddToCartActionResult,
@@ -15,18 +14,12 @@ import {
   RemoveCartLineItemActionResult,
   SetCartLineItemQuantityActionResult,
 } from "./action-result";
+import { type AddToCartInput, AddToCartInputSchema } from "./add-to-cart";
 import {
-  type AddToCartData,
-  type AddToCartInput,
-  AddToCartInputSchema,
-} from "./add-to-cart";
-import {
-  type ChangeCartItemsQuantityData,
   type ChangeCartItemsQuantityInput,
   ChangeCartItemsQuantityInputSchema,
 } from "./change-cart-items-quantity";
 import {
-  type RemoveCartItemData,
   type RemoveCartItemInput,
   RemoveCartItemInputSchema,
 } from "./remove-cart-item";
@@ -53,37 +46,31 @@ const cartRequestFailureCases = (operation: CartActionOperation) => ({
     ),
 });
 
-export async function addToCart(input: AddToCartInput): Promise<AddToCartData> {
-  const locale = await getLocale();
-  const layer = await commerceRequestLayer(locale);
-
-  const mutation = Schema.decodeUnknownEffect(AddToCartInputSchema)(input).pipe(
-    Effect.mapError(() => invalidInput("addItem")),
-    Effect.flatMap(CurrentCart.addItem),
-    Effect.tapError((error) =>
-      Effect.logError("Current Cart mutation failed", error).pipe(
-        Effect.annotateLogs({ operation: "currentCart.addItem" })
+const addToCartProgram = Effect.fn("CartAction.addToCart")(
+  (input: AddToCartInput) =>
+    Schema.decodeUnknownEffect(AddToCartInputSchema)(input).pipe(
+      Effect.mapError(() => invalidInput("addItem")),
+      Effect.flatMap(CurrentCart.addItem),
+      Effect.tapError((error) =>
+        Effect.logError("Current Cart mutation failed", error).pipe(
+          Effect.annotateLogs({ operation: "currentCart.addItem" })
+        )
       )
-    ),
-    Effect.provide(layer)
-  );
-
-  return Effect.runPromise(
-    Effect.catchTags(mutation, cartRequestFailureCases("addItem")).pipe(
-      encodeActionResult(AddToCartActionResult)
     )
-  );
-}
+);
 
-export async function changeCartItemsQuantity(
-  input: ChangeCartItemsQuantityInput
-): Promise<ChangeCartItemsQuantityData> {
-  const locale = await getLocale();
-  const layer = await commerceRequestLayer(locale);
+export const addToCart = NextCommerce.build(addToCartProgram, {
+  transform: (effect) =>
+    effect.pipe(
+      Effect.catchTags(cartRequestFailureCases("addItem")),
+      encodeActionResult(AddToCartActionResult)
+    ),
+});
 
-  const mutation = Schema.decodeUnknownEffect(
-    ChangeCartItemsQuantityInputSchema
-  )(input).pipe(
+const changeCartItemsQuantityProgram = Effect.fn(
+  "CartAction.changeCartItemsQuantity"
+)((input: ChangeCartItemsQuantityInput) =>
+  Schema.decodeUnknownEffect(ChangeCartItemsQuantityInputSchema)(input).pipe(
     Effect.mapError(() => invalidInput("setLineItemQuantity")),
     Effect.flatMap(CurrentCart.setLineItemQuantity),
     Effect.tapError((error) =>
@@ -92,42 +79,40 @@ export async function changeCartItemsQuantity(
           operation: "currentCart.setLineItemQuantity",
         })
       )
-    ),
-    Effect.provide(layer)
-  );
-
-  return Effect.runPromise(
-    Effect.catchTags(
-      mutation,
-      cartRequestFailureCases("setLineItemQuantity")
-    ).pipe(encodeActionResult(SetCartLineItemQuantityActionResult))
-  );
-}
-
-export async function removeCartItem(
-  input: RemoveCartItemInput
-): Promise<RemoveCartItemData> {
-  const locale = await getLocale();
-  const layer = await commerceRequestLayer(locale);
-
-  const mutation = Schema.decodeUnknownEffect(RemoveCartItemInputSchema)(
-    input
-  ).pipe(
-    Effect.mapError(() => invalidInput("removeLineItem")),
-    Effect.flatMap(CurrentCart.removeLineItem),
-    Effect.tapError((error) =>
-      Effect.logError("Current Cart mutation failed", error).pipe(
-        Effect.annotateLogs({
-          operation: "currentCart.removeLineItem",
-        })
-      )
-    ),
-    Effect.provide(layer)
-  );
-
-  return Effect.runPromise(
-    Effect.catchTags(mutation, cartRequestFailureCases("removeLineItem")).pipe(
-      encodeActionResult(RemoveCartLineItemActionResult)
     )
-  );
-}
+  )
+);
+
+export const changeCartItemsQuantity = NextCommerce.build(
+  changeCartItemsQuantityProgram,
+  {
+    transform: (effect) =>
+      effect.pipe(
+        Effect.catchTags(cartRequestFailureCases("setLineItemQuantity")),
+        encodeActionResult(SetCartLineItemQuantityActionResult)
+      ),
+  }
+);
+
+const removeCartItemProgram = Effect.fn("CartAction.removeCartItem")(
+  (input: RemoveCartItemInput) =>
+    Schema.decodeUnknownEffect(RemoveCartItemInputSchema)(input).pipe(
+      Effect.mapError(() => invalidInput("removeLineItem")),
+      Effect.flatMap(CurrentCart.removeLineItem),
+      Effect.tapError((error) =>
+        Effect.logError("Current Cart mutation failed", error).pipe(
+          Effect.annotateLogs({
+            operation: "currentCart.removeLineItem",
+          })
+        )
+      )
+    )
+);
+
+export const removeCartItem = NextCommerce.build(removeCartItemProgram, {
+  transform: (effect) =>
+    effect.pipe(
+      Effect.catchTags(cartRequestFailureCases("removeLineItem")),
+      encodeActionResult(RemoveCartLineItemActionResult)
+    ),
+});

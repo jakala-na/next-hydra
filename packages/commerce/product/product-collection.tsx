@@ -1,3 +1,4 @@
+import { NextCommerce } from "@repo/commerce/runtime";
 import {
   ProductCollection as ProductCollectionView,
   ProductGrid,
@@ -5,7 +6,6 @@ import {
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Schema } from "effect";
 import type { ReactNode } from "react";
-import { commerceRequestLayer } from "../commerce-context/request";
 import type { CategoryId, ProductId } from "./identity";
 import { toProductCardPresentation } from "./presentation";
 import { ListProductCardsInput, ProductDiscovery } from "./product-discovery";
@@ -47,11 +47,10 @@ async function getProductCards({
     limit,
     ...(excludeProductId === undefined ? {} : { excludeProductId }),
   });
-  const layer = await commerceRequestLayer(locale);
-  const products = await Effect.runPromise(
+  const products = await NextCommerce.runPromise(
     Effect.flatMap(ProductDiscovery, (discovery) =>
       discovery.listCards(input)
-    ).pipe(Effect.provide(layer))
+    ).pipe(NextCommerce.provide(locale))
   );
 
   return products.map(toProductCardPresentation);

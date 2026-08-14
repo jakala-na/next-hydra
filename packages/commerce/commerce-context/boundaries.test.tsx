@@ -23,8 +23,9 @@ import { BusinessUnitSwitcher } from "./business-unit-switcher";
 
 const boundary = vi.hoisted(() => ({
   connection: vi.fn(async () => undefined),
+  provide: vi.fn(),
   refresh: vi.fn(),
-  requestLayer: vi.fn(),
+  runPromise: vi.fn(),
   setCookie: vi.fn(),
 }));
 
@@ -32,8 +33,11 @@ vi.mock("server-only", () => ({}));
 vi.mock("@repo/design-system/components/layout/business-unit-switcher", () => ({
   BusinessUnitSwitcher: () => null,
 }));
-vi.mock("./request", () => ({
-  commerceRequestLayer: boundary.requestLayer,
+vi.mock("@repo/commerce/runtime", () => ({
+  NextCommerce: {
+    provide: boundary.provide,
+    runPromise: boundary.runPromise,
+  },
 }));
 vi.mock("next/cache", () => ({ refresh: boundary.refresh }));
 vi.mock("next/headers", () => ({
@@ -88,9 +92,21 @@ const buyingContextLayer = () =>
 
 beforeEach(() => {
   boundary.connection.mockClear();
+  boundary.provide.mockReset();
+  boundary.provide.mockImplementation(
+    (_locale) =>
+      (
+        program: Effect.Effect<
+          unknown,
+          unknown,
+          CommerceAccounts | CommerceContext
+        >
+      ) =>
+        program.pipe(Effect.provide(buyingContextLayer()))
+  );
   boundary.refresh.mockClear();
-  boundary.requestLayer.mockReset();
-  boundary.requestLayer.mockImplementation(async () => buyingContextLayer());
+  boundary.runPromise.mockReset();
+  boundary.runPromise.mockImplementation(Effect.runPromise);
   boundary.setCookie.mockClear();
 });
 
@@ -98,7 +114,7 @@ describe("Buying Context boundaries", () => {
   it("presents verified Business Unit labels from the resolved Commerce Context", async () => {
     const switcher = await BusinessUnitSwitcher({ locale: "en-US" });
 
-    expect(boundary.requestLayer).toHaveBeenCalledOnce();
+    expect(boundary.provide).toHaveBeenCalledOnce();
     expect(boundary.connection).toHaveBeenCalledOnce();
     expect(switcher?.props).toMatchObject({
       currentBusinessUnitId: "business-unit-2",

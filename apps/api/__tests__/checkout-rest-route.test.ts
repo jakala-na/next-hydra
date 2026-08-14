@@ -46,6 +46,8 @@ import {
   makeAnonymousCartCookie,
 } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
 import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
+import { ProductDiscovery } from "@repo/commerce/product";
+import { makeCommerceApp } from "@repo/commerce/runtime/make-commerce-app";
 import { AddressBook } from "@repo/commerce/services/address-book";
 import { CartPolicies } from "@repo/commerce/services/cart-policies";
 import { Carts } from "@repo/commerce/services/carts";
@@ -83,15 +85,15 @@ const defaultLineItems: TestLineItem[] = [
   {
     id: LineItemId.make("line-1"),
     quantity: 1,
-    unitPrice: money,
     totalPrice: money,
+    unitPrice: money,
     variant: {
-      id: VariantId.make("1"),
-      productId: ProductId.make("product-1"),
-      name: "Hydra Wrench",
-      sku: Sku.make("HYDRA-WRENCH"),
-      images: [],
       attributes: {},
+      id: VariantId.make("1"),
+      images: [],
+      name: "Hydra Wrench",
+      productId: ProductId.make("product-1"),
+      sku: Sku.make("HYDRA-WRENCH"),
     },
   },
 ];
@@ -106,10 +108,11 @@ const cart = ({
   const resolvedLineItems = lineItems ?? defaultLineItems;
 
   return {
+    checkoutDetails: {},
     id: CartId.make("cart-1"),
+    lineItems: resolvedLineItems,
     status: "active" as const,
     storeKey: StoreKey.make("default-store"),
-    lineItems: resolvedLineItems,
     totalLineItemQuantity:
       totalLineItemQuantity ??
       resolvedLineItems.reduce(
@@ -117,46 +120,45 @@ const cart = ({
         0
       ),
     totalPrice: money,
-    checkoutDetails: {},
   };
 };
 
 const request = (headers?: Record<string, string>) =>
   new Request("http://api.test/checkout/current", {
-    method: "GET",
     headers: {
-      "x-context-locale": "en-US",
       "x-context-anonymous-cart-id": "cart-1",
+      "x-context-locale": "en-US",
       ...headers,
     },
+    method: "GET",
   });
 
 const requestWithoutAnonymousCart = (headers?: Record<string, string>) =>
   new Request("http://api.test/checkout/current", {
-    method: "GET",
     headers: {
       "x-context-locale": "en-US",
       ...headers,
     },
+    method: "GET",
   });
 
 const addressBookRequest = (headers?: Record<string, string>) =>
   new Request("http://api.test/address-book", {
-    method: "GET",
     headers: {
       "x-context-locale": "en-US",
       ...headers,
     },
+    method: "GET",
   });
 
 const manualContact: CheckoutContact = {
-  source: "manual",
   buyerContact: {
     email: "ada@example.com",
     firstName: "Ada",
     lastName: "Lovelace",
     phoneNumber: "+15551234567",
   },
+  source: "manual",
 };
 
 const customerProfile = new CommerceCustomerProfile({
@@ -184,32 +186,32 @@ const saveContactRequest = (
   headers?: Record<string, string>
 ) =>
   new Request("http://api.test/checkout/contact", {
-    method: "POST",
+    body: JSON.stringify(payload),
     headers: {
       "content-type": "application/json",
-      "x-context-locale": "en-US",
       "x-context-anonymous-cart-id": "cart-1",
+      "x-context-locale": "en-US",
       ...headers,
     },
-    body: JSON.stringify(payload),
+    method: "POST",
   });
 
 const manualDeliveryDetails: CheckoutDeliveryDetails = {
-  source: "manual",
   shippingAddress: {
     addressLine1: "123 Analytical Engine Way",
     addressLine2: "Suite 42",
-    postalCode: "SW1A 1AA",
     city: "London",
     country: CountryCode.make("GB"),
+    postalCode: "SW1A 1AA",
     region: "Greater London",
   },
+  source: "manual",
 };
 
 const cartOnlyDeliveryDetailsInput: CartOnlyCheckoutDeliveryDetailsInput = {
-  type: "manual",
   saveToAddressBook: false,
   shippingAddress: manualDeliveryDetails.shippingAddress,
+  type: "manual",
 };
 
 const saveDeliveryDetailsPayload = ({
@@ -230,14 +232,14 @@ const saveDeliveryDetailsRequest = (
   headers?: Record<string, string>
 ) =>
   new Request("http://api.test/checkout/delivery-details", {
-    method: "POST",
+    body: JSON.stringify(payload),
     headers: {
       "content-type": "application/json",
-      "x-context-locale": "en-US",
       "x-context-anonymous-cart-id": "cart-1",
+      "x-context-locale": "en-US",
       ...headers,
     },
-    body: JSON.stringify(payload),
+    method: "POST",
   });
 
 const anonymousCartCookieHeader = ({
@@ -285,7 +287,7 @@ const makeCheckoutLayer = (
   const providerFailure = (
     operation: "findById" | "saveContact" | "saveDeliveryDetails",
     cause: unknown
-  ) => new CartProviderFailure({ operation, reason: "unavailable", cause });
+  ) => new CartProviderFailure({ cause, operation, reason: "unavailable" });
   let activeCart = currentCart;
   const forAnonymous = (value: NonNullable<typeof activeCart>) => {
     const { buyingContext: _buyingContext, ...anonymous } = value;
@@ -300,16 +302,9 @@ const makeCheckoutLayer = (
   const cartsLayer = Layer.succeed(
     Carts,
     Carts.of({
-      findById: ({ id, store }) => {
-        if (getCurrentFailure !== undefined) {
-          return Effect.fail(providerFailure("findById", getCurrentFailure));
-        }
-        return Effect.succeed(
-          activeCart?.id === id && activeCart.storeKey === store.storeKey
-            ? Option.some(forAnonymous(activeCart))
-            : Option.none()
-        );
-      },
+      addItem: () => Effect.die("not used"),
+      createAnonymous: () => Effect.die("not used"),
+      createForBusinessUnit: () => Effect.die("not used"),
       findActiveForBusinessUnit: ({ store }) => {
         if (getCurrentFailure !== undefined) {
           return Effect.fail(providerFailure("findById", getCurrentFailure));
@@ -320,10 +315,16 @@ const makeCheckoutLayer = (
             : []
         );
       },
-      createAnonymous: () => Effect.die("not used"),
-      createForBusinessUnit: () => Effect.die("not used"),
-      addItem: () => Effect.die("not used"),
-      setLineItemQuantity: () => Effect.die("not used"),
+      findById: ({ id, store }) => {
+        if (getCurrentFailure !== undefined) {
+          return Effect.fail(providerFailure("findById", getCurrentFailure));
+        }
+        return Effect.succeed(
+          activeCart?.id === id && activeCart.storeKey === store.storeKey
+            ? Option.some(forAnonymous(activeCart))
+            : Option.none()
+        );
+      },
       removeLineItem: () => Effect.die("not used"),
       saveContact: ({ target, contact }) => {
         if (saveContactFailure !== undefined) {
@@ -366,6 +367,7 @@ const makeCheckoutLayer = (
             : forBusinessUnit(activeCart)
         );
       },
+      setLineItemQuantity: () => Effect.die("not used"),
     })
   );
   const cartPoliciesLayer = Layer.succeed(
@@ -399,13 +401,6 @@ const makeAddressBookLayer = (
       ) => commerceContext.customerPrincipal().pipe(Effect.flatMap(effect));
 
       return AddressBook.of({
-        list: () =>
-          withPrincipal((principal) =>
-            Effect.sync(() => {
-              onPrincipal?.(principal);
-              return entries;
-            })
-          ),
         get: (reference) =>
           withPrincipal((principal) =>
             Effect.gen(function* () {
@@ -422,6 +417,13 @@ const makeAddressBookLayer = (
               }
 
               return entry;
+            })
+          ),
+        list: () =>
+          withPrincipal((principal) =>
+            Effect.sync(() => {
+              onPrincipal?.(principal);
+              return entries;
             })
           ),
         save: (input) =>
@@ -455,8 +457,8 @@ const makeFailingAddressBookListLayer = (
   Layer.succeed(
     AddressBook,
     AddressBook.of({
-      list: () => Effect.fail(error),
       get: () => Effect.die("not used"),
+      list: () => Effect.fail(error),
       save: () => Effect.die("not used"),
     })
   );
@@ -469,6 +471,10 @@ const makeCommerceAccountsLayer = (
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
+      getCustomerIdByAuthUserId: () => Effect.succeed(customerId),
+      getCustomerProfile: () => Effect.succeed(customerProfile),
+      hasCustomerWithEmail: () => Effect.die("not used"),
+      linkRegistrantIdentity: () => Effect.die("not used"),
       listBusinessUnitMembershipsForCustomerInStore: () =>
         Effect.succeed([
           new CommerceBusinessUnitMembership({
@@ -480,10 +486,6 @@ const makeCommerceAccountsLayer = (
               CommerceBusinessUnitLabel.make("Business Unit One"),
           }),
         ]),
-      getCustomerProfile: () => Effect.succeed(customerProfile),
-      getCustomerIdByAuthUserId: () => Effect.succeed(customerId),
-      hasCustomerWithEmail: () => Effect.die("not used"),
-      linkRegistrantIdentity: () => Effect.die("not used"),
     })
   );
 
@@ -495,18 +497,18 @@ const makeCommerceAccountsWithoutCustomerLayer = (
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
-      listBusinessUnitMembershipsForCustomerInStore: () =>
-        Effect.die("not used"),
-      getCustomerProfile: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () =>
         Effect.fail(
           new CommerceCustomerIdNotFound({
-            message: "Commerce customer id does not exist for auth user",
             authUserId,
+            message: "Commerce customer id does not exist for auth user",
           })
         ),
+      getCustomerProfile: () => Effect.die("not used"),
       hasCustomerWithEmail: () => Effect.die("not used"),
       linkRegistrantIdentity: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
     })
   );
 
@@ -518,11 +520,11 @@ const makeCommerceAccountsWithoutBusinessUnitLayer = (
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
-      listBusinessUnitMembershipsForCustomerInStore: () => Effect.succeed([]),
-      getCustomerProfile: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () => Effect.succeed(customerId),
+      getCustomerProfile: () => Effect.die("not used"),
       hasCustomerWithEmail: () => Effect.die("not used"),
       linkRegistrantIdentity: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () => Effect.succeed([]),
     })
   );
 
@@ -532,17 +534,17 @@ const makeFailingCommerceAccountsLayer = () =>
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
-      listBusinessUnitMembershipsForCustomerInStore: () =>
-        Effect.die("not used"),
-      getCustomerProfile: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () =>
         Effect.fail(
           new CommerceAccountError({
             message: "Commerce account lookup failed",
           })
         ),
+      getCustomerProfile: () => Effect.die("not used"),
       hasCustomerWithEmail: () => Effect.die("not used"),
       linkRegistrantIdentity: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
     })
   );
 
@@ -584,7 +586,28 @@ const makeHandler = async (
 ) => {
   const { makeCheckoutHttpHandler } = await import("../lib/checkout/http");
 
-  return makeCheckoutHttpHandler({ addressBookLayer, layer });
+  const commerceApp = makeCommerceApp({
+    addressBookLayer,
+    cartPoliciesLayer: Layer.effect(CartPolicies, CartPolicies).pipe(
+      Layer.provide(layer)
+    ),
+    cartsLayer: Layer.effect(Carts, Carts).pipe(Layer.provide(layer)),
+    checkoutPoliciesLayer: Layer.effect(
+      CheckoutPolicies,
+      CheckoutPolicies
+    ).pipe(Layer.provide(layer)),
+    commerceAccountsLayer: Layer.effect(
+      CommerceAccounts,
+      CommerceAccounts
+    ).pipe(Layer.provide(layer)),
+    productDiscoveryLayer: ProductDiscovery.testLayer(),
+  });
+  const authenticationLayer = Layer.effect(
+    CheckoutCustomerJwtVerifier,
+    CheckoutCustomerJwtVerifier
+  ).pipe(Layer.provide(layer));
+
+  return makeCheckoutHttpHandler({ authenticationLayer, commerceApp });
 };
 
 const emptyContext = () => Context.empty() as Context.Context<unknown>;
@@ -598,16 +621,16 @@ test("GET /checkout/current reads current checkout state through CheckoutSession
     expect(response.status).toBe(HTTP_OK);
     expect(body).toMatchObject({
       activeStep: "contact",
-      scope: {
-        channel: "storefrontAnonymous",
-        locale: "en-US",
-        anonymousCartId: "cart-1",
-      },
       cart: {
         id: "cart-1",
         lineItems: [{ id: "line-1" }],
       },
       details: {},
+      scope: {
+        anonymousCartId: "cart-1",
+        channel: "storefrontAnonymous",
+        locale: "en-US",
+      },
       steps: [
         { id: "contact", status: "incomplete" },
         { id: "deliveryDetails", status: "incomplete" },
@@ -624,16 +647,16 @@ test("GET /checkout/current reads current checkout state through CheckoutSession
 test("GET /checkout/current adds localized fallback messages to public violations", async () => {
   const { dispose, handler } = await makeHandler(
     makeCheckoutLayer({
-      currentCart: {
-        ...cart(),
-        storeKey: StoreKey.make("de-fr-uk"),
-      },
       cartPolicyViolations: [
         {
           code: "INCOMPATIBLE_CART_ITEMS",
           targets: [{ type: "cart" }],
         },
       ],
+      currentCart: {
+        ...cart(),
+        storeKey: StoreKey.make("de-fr-uk"),
+      },
     })
   );
 
@@ -647,9 +670,9 @@ test("GET /checkout/current adds localized fallback messages to public violation
     expect(response.status).toBe(HTTP_OK);
     expect(body.violations).toEqual([
       expect.objectContaining({
-        source: "cartPolicy",
         code: "INCOMPATIBLE_CART_ITEMS",
         message: "Diese Artikel können nicht zusammen gekauft werden.",
+        source: "cartPolicy",
       }),
     ]);
     expect(body.violations[0].message).not.toContain("Internal diagnostic");
@@ -658,29 +681,29 @@ test("GET /checkout/current adds localized fallback messages to public violation
   }
 });
 
-test.each([
-  "en-CA",
-  "toString",
-])("GET /checkout/current rejects unsupported locale %s with a typed bad request", async (locale) => {
-  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+test.each(["en-CA", "toString"])(
+  "GET /checkout/current rejects unsupported locale %s with a typed bad request",
+  async (locale) => {
+    const { dispose, handler } = await makeHandler(makeCheckoutLayer());
 
-  try {
-    const response = await handler(
-      request({ "x-context-locale": locale }),
-      emptyContext()
-    );
-    const body = await response.json();
+    try {
+      const response = await handler(
+        request({ "x-context-locale": locale }),
+        emptyContext()
+      );
+      const body = await response.json();
 
-    expect(response.status).toBe(HTTP_BAD_REQUEST);
-    expect(body).toMatchObject({
-      _tag: "CheckoutApiBadRequest",
-      code: "checkout.badRequest",
-      message: "The checkout request is invalid.",
-    });
-  } finally {
-    await dispose();
+      expect(response.status).toBe(HTTP_BAD_REQUEST);
+      expect(body).toMatchObject({
+        _tag: "CheckoutApiBadRequest",
+        code: "checkout.badRequest",
+        message: "The checkout request is invalid.",
+      });
+    } finally {
+      await dispose();
+    }
   }
-});
+);
 
 test("POST /checkout/contact saves Manual Contact and returns recomputed checkout state", async () => {
   const { dispose, handler } = await makeHandler(makeCheckoutLayer());
@@ -735,12 +758,12 @@ test("POST /checkout/contact resolves Customer Profile from verified bearer cont
       customerId: "customer-1",
     });
     expect(body.details.contact).toEqual({
-      source: "customerProfile",
       buyerContact: {
         email: "profile@example.com",
         firstName: "Profile",
         lastName: "Buyer",
       },
+      source: "customerProfile",
     });
   } finally {
     await dispose();
@@ -946,11 +969,11 @@ test("POST /checkout/delivery-details is idempotent for the same Manual Shipping
 test("GET /address-book returns entries for the verified Business Unit principal", async () => {
   const reference = AddressBookReference.make("london-office");
   const entry = new AddressBookEntry({
-    reference,
     address: manualDeliveryDetails.shippingAddress,
-    types: ["shipping"],
-    defaultShipping: true,
     defaultBilling: false,
+    defaultShipping: true,
+    reference,
+    types: ["shipping"],
   });
   let listedCustomerId: CommerceCustomerId | undefined;
   const addressBookLayer = makeAddressBookLayer([entry], (principal) => {
@@ -967,8 +990,8 @@ test("GET /address-book returns entries for the verified Business Unit principal
     const response = await handler(
       addressBookRequest({
         authorization: "Bearer valid-token",
-        "x-context-customer-id": "customer-spoof",
         "x-context-business-unit-id": "business-unit-1",
+        "x-context-customer-id": "customer-spoof",
       }),
       emptyContext()
     );
@@ -1003,62 +1026,60 @@ test("GET /address-book requires an authenticated customer context", async () =>
 
 test.each([
   {
+    code: "checkout.addressBook.accessDenied",
     error: new AddressBookAccessDenied({
       message: "Buyer cannot access the Address Book",
       operation: "list",
     }),
-    status: HTTP_BAD_REQUEST,
-    code: "checkout.addressBook.accessDenied",
     message: "The address book is unavailable for this checkout.",
+    status: HTTP_BAD_REQUEST,
   },
   {
+    code: "checkout.addressBook.providerFailure",
     error: new AddressBookProviderFailure({
       message: "Commercetools is unavailable",
       operation: "list",
     }),
-    status: HTTP_INTERNAL_SERVER_ERROR,
-    code: "checkout.addressBook.providerFailure",
     message: "Saved addresses could not be loaded. Try again.",
+    status: HTTP_INTERNAL_SERVER_ERROR,
   },
-])("GET /address-book maps $error._tag to a stable localized response", async ({
-  error,
-  status,
-  code,
-  message,
-}) => {
-  const addressBookLayer = makeFailingAddressBookListLayer(error);
-  const layer = Layer.mergeAll(
-    makeCheckoutLayer(),
-    makeCommerceAccountsLayer(),
-    makeJwtVerifierLayer()
-  );
-  const { dispose, handler } = await makeHandler(layer, addressBookLayer);
-
-  try {
-    const response = await handler(
-      addressBookRequest({ authorization: "Bearer valid-token" }),
-      emptyContext()
+])(
+  "GET /address-book maps $error._tag to a stable localized response",
+  async ({ error, status, code, message }) => {
+    const addressBookLayer = makeFailingAddressBookListLayer(error);
+    const layer = Layer.mergeAll(
+      makeCheckoutLayer(),
+      makeCommerceAccountsLayer(),
+      makeJwtVerifierLayer()
     );
-    const body = await response.json();
+    const { dispose, handler } = await makeHandler(layer, addressBookLayer);
 
-    expect(response.status).toBe(status);
-    expect(body).toMatchObject({ code, message });
-  } finally {
-    await dispose();
+    try {
+      const response = await handler(
+        addressBookRequest({ authorization: "Bearer valid-token" }),
+        emptyContext()
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(status);
+      expect(body).toMatchObject({ code, message });
+    } finally {
+      await dispose();
+    }
   }
-});
+);
 
 test("POST /checkout/delivery-details copies an existing Address Book Entry to the Cart", async () => {
   const reference = AddressBookReference.make("london-office");
   const entry = new AddressBookEntry({
-    reference,
     address: {
       ...manualDeliveryDetails.shippingAddress,
       addressLine1: "10 Canonical Way",
     },
-    types: ["shipping"],
-    defaultShipping: false,
     defaultBilling: false,
+    defaultShipping: false,
+    reference,
+    types: ["shipping"],
   });
   const addressBookLayer = makeAddressBookLayer([entry]);
   const layer = Layer.mergeAll(
@@ -1073,8 +1094,8 @@ test("POST /checkout/delivery-details copies an existing Address Book Entry to t
       saveDeliveryDetailsRequest(
         saveDeliveryDetailsPayload({
           deliveryDetails: {
-            type: "addressBook",
             addressBookReference: reference,
+            type: "addressBook",
           },
         }),
         { authorization: "Bearer valid-token" }
@@ -1085,9 +1106,9 @@ test("POST /checkout/delivery-details copies an existing Address Book Entry to t
 
     expect(response.status).toBe(HTTP_OK);
     expect(body.details.deliveryDetails).toEqual({
-      source: "addressBook",
       addressBookReference: reference,
       shippingAddress: entry.address,
+      source: "addressBook",
     });
   } finally {
     await dispose();
@@ -1108,8 +1129,8 @@ test("POST /checkout/delivery-details returns a stable unavailable-entry error",
       saveDeliveryDetailsRequest(
         saveDeliveryDetailsPayload({
           deliveryDetails: {
-            type: "addressBook",
             addressBookReference: reference,
+            type: "addressBook",
           },
         }),
         { authorization: "Bearer valid-token" }
@@ -1143,10 +1164,10 @@ test("POST /checkout/delivery-details saves a new address with an internally gen
       saveDeliveryDetailsRequest(
         saveDeliveryDetailsPayload({
           deliveryDetails: {
-            type: "manual",
-            shippingAddress: manualDeliveryDetails.shippingAddress,
-            saveToAddressBook: true,
             makeDefaultShipping: true,
+            saveToAddressBook: true,
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            type: "manual",
           },
         }),
         { authorization: "Bearer valid-token" }
@@ -1157,8 +1178,8 @@ test("POST /checkout/delivery-details saves a new address with an internally gen
 
     expect(response.status).toBe(HTTP_OK);
     expect(body.details.deliveryDetails).toMatchObject({
-      source: "addressBook",
       shippingAddress: manualDeliveryDetails.shippingAddress,
+      source: "addressBook",
     });
     expect(body.details.deliveryDetails.addressBookReference).toMatch(
       ADDRESS_BOOK_REFERENCE_PATTERN
@@ -1185,16 +1206,16 @@ test("POST /checkout/delivery-details saves only for the verified Business Unit 
       saveDeliveryDetailsRequest(
         saveDeliveryDetailsPayload({
           deliveryDetails: {
-            type: "manual",
-            shippingAddress: manualDeliveryDetails.shippingAddress,
-            saveToAddressBook: true,
             makeDefaultShipping: false,
+            saveToAddressBook: true,
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            type: "manual",
           },
         }),
         {
           authorization: "Bearer valid-token",
-          "x-context-customer-id": "customer-spoof",
           "x-context-business-unit-id": "business-unit-1",
+          "x-context-customer-id": "customer-spoof",
         }
       ),
       emptyContext()
@@ -1221,10 +1242,10 @@ test("POST /checkout/delivery-details returns saved state without a response rer
       saveDeliveryDetailsRequest(
         saveDeliveryDetailsPayload({
           deliveryDetails: {
-            type: "manual",
-            shippingAddress: manualDeliveryDetails.shippingAddress,
-            saveToAddressBook: true,
             makeDefaultShipping: false,
+            saveToAddressBook: true,
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            type: "manual",
           },
         }),
         { authorization: "Bearer valid-token" }
@@ -1266,10 +1287,10 @@ test("POST /checkout/delivery-details returns the saved reference after a Cart-p
       saveDeliveryDetailsRequest(
         saveDeliveryDetailsPayload({
           deliveryDetails: {
-            type: "manual",
-            shippingAddress: manualDeliveryDetails.shippingAddress,
-            saveToAddressBook: true,
             makeDefaultShipping: false,
+            saveToAddressBook: true,
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            type: "manual",
           },
         }),
         { authorization: "Bearer valid-token" }
@@ -1330,9 +1351,9 @@ test("POST /checkout/delivery-details ignores caller-supplied customer id header
 
     expect(response.status).toBe(HTTP_OK);
     expect(body.scope).toMatchObject({
+      anonymousCartId: "cart-1",
       channel: "storefrontAnonymous",
       locale: "en-US",
-      anonymousCartId: "cart-1",
     });
   } finally {
     await dispose();
@@ -1442,9 +1463,9 @@ test("GET /checkout/current ignores caller-supplied customer id headers", async 
     expect(response.status).toBe(HTTP_OK);
     expect(body).toMatchObject({
       scope: {
+        anonymousCartId: "cart-1",
         channel: "storefrontAnonymous",
         locale: "en-US",
-        anonymousCartId: "cart-1",
       },
     });
   } finally {
@@ -1465,9 +1486,9 @@ test("GET /checkout/current accepts anonymous cart possession from the cart cook
     expect(response.status).toBe(HTTP_OK);
     expect(body).toMatchObject({
       scope: {
+        anonymousCartId: "cart-1",
         channel: "storefrontAnonymous",
         locale: "en-US",
-        anonymousCartId: "cart-1",
       },
     });
   } finally {
@@ -1515,9 +1536,9 @@ test("GET /checkout/current prefers anonymous cart cookie over anonymous cart he
     expect(response.status).toBe(HTTP_OK);
     expect(body).toMatchObject({
       scope: {
+        anonymousCartId: "cart-from-cookie",
         channel: "storefrontAnonymous",
         locale: "en-US",
-        anonymousCartId: "cart-from-cookie",
       },
     });
   } finally {
@@ -1569,11 +1590,11 @@ test("GET /checkout/current resolves customer scope from bearer JWT before anony
     expect(response.status).toBe(HTTP_OK);
     expect(body).toMatchObject({
       scope: {
-        channel: "storefrontCustomer",
-        locale: "en-US",
-        customerId: "customer-1",
         businessUnitId: "business-unit-1",
         businessUnitKey: "business-unit-key-1",
+        channel: "storefrontCustomer",
+        customerId: "customer-1",
+        locale: "en-US",
       },
     });
   } finally {
@@ -1603,8 +1624,8 @@ test("GET /checkout/current ignores on-behalf-of customer id headers when a vali
     expect(body).toMatchObject({
       scope: {
         channel: "storefrontCustomer",
-        locale: "en-US",
         customerId: "customer-1",
+        locale: "en-US",
       },
     });
   } finally {
@@ -1633,10 +1654,10 @@ test("GET /checkout/current falls back when the Business Unit selector is outsid
     expect(response.status).toBe(HTTP_OK);
     expect(body).toMatchObject({
       scope: {
-        channel: "storefrontCustomer",
-        customerId: "customer-1",
         businessUnitId: "business-unit-1",
         businessUnitKey: "business-unit-key-1",
+        channel: "storefrontCustomer",
+        customerId: "customer-1",
       },
     });
   } finally {

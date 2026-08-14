@@ -22,7 +22,7 @@ nextConfig = {
     ...nextConfig.turbopack,
     resolveAlias: {
       ...nextConfig.turbopack?.resolveAlias,
-      "@repo/commerce/layers": "./lib/commerce-layers.ts",
+      "@repo/commerce/runtime": "./lib/commerce-runtime.ts",
     },
   },
 };

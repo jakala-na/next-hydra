@@ -1,9 +1,9 @@
 "use server";
 
+import { NextCommerce } from "@repo/commerce/runtime";
 import { getLocale } from "@repo/i18n";
 import { Effect, Option, Schema } from "effect";
 import { revalidatePath } from "next/cache";
-import { commerceRequestLayer } from "../commerce-context/request";
 import { AddressBookReference } from "../domain/address-book";
 import { CartId } from "../domain/cart";
 import { CountryCodeFromString } from "../domain/checkout";
@@ -27,11 +27,11 @@ import {
 const SaveCheckoutContactForm = Schema.Union([
   Schema.Struct({
     cartId: CartId,
-    source: Schema.Literal("manual"),
     email: Schema.String,
     firstName: Schema.String,
     lastName: Schema.String,
     phoneNumber: Schema.optional(Schema.String),
+    source: Schema.Literal("manual"),
   }),
   Schema.Struct({
     cartId: CartId,
@@ -41,28 +41,28 @@ const SaveCheckoutContactForm = Schema.Union([
 
 const ShippingAddressForm = Schema.Struct({
   addressLine1: Schema.String,
-  postalCode: Schema.String,
+  addressLine2: Schema.optional(Schema.String),
   city: Schema.String,
   country: CountryCodeFromString,
-  addressLine2: Schema.optional(Schema.String),
+  postalCode: Schema.String,
   region: Schema.optional(Schema.String),
 });
 
 const DeliveryDetailsForm = Schema.Union([
   Schema.Struct({
-    type: Schema.Literal("manual"),
-    shippingAddress: ShippingAddressForm,
     saveToAddressBook: Schema.Literal(false),
-  }),
-  Schema.Struct({
-    type: Schema.Literal("manual"),
     shippingAddress: ShippingAddressForm,
-    saveToAddressBook: Schema.Literal(true),
-    makeDefaultShipping: Schema.Boolean,
+    type: Schema.Literal("manual"),
   }),
   Schema.Struct({
-    type: Schema.Literal("addressBook"),
+    makeDefaultShipping: Schema.Boolean,
+    saveToAddressBook: Schema.Literal(true),
+    shippingAddress: ShippingAddressForm,
+    type: Schema.Literal("manual"),
+  }),
+  Schema.Struct({
     addressBookReference: AddressBookReference,
+    type: Schema.Literal("addressBook"),
   }),
 ]);
 
@@ -93,11 +93,11 @@ const formCheckbox = (formData: FormData, name: string): unknown => {
 const decodeCheckoutContactForm = (formData: FormData) =>
   Schema.decodeUnknownOption(SaveCheckoutContactForm)({
     cartId: formString(formData, "cartId"),
-    source: formString(formData, "source"),
     email: formString(formData, "email"),
     firstName: formString(formData, "firstName"),
     lastName: formString(formData, "lastName"),
     phoneNumber: formString(formData, "phoneNumber") || undefined,
+    source: formString(formData, "source"),
   });
 
 const decodeCheckoutDeliveryDetailsForm = (formData: FormData) => {
@@ -106,8 +106,8 @@ const decodeCheckoutDeliveryDetailsForm = (formData: FormData) => {
   const deliveryDetails =
     addressBookReference === undefined
       ? {
-          type: "manual",
           saveToAddressBook,
+          type: "manual",
           ...(saveToAddressBook === true
             ? {
                 makeDefaultShipping: formCheckbox(
@@ -118,16 +118,16 @@ const decodeCheckoutDeliveryDetailsForm = (formData: FormData) => {
             : {}),
           shippingAddress: {
             addressLine1: formString(formData, "addressLine1"),
-            postalCode: formString(formData, "postalCode"),
+            addressLine2: formString(formData, "addressLine2") || undefined,
             city: formString(formData, "city"),
             country: formString(formData, "country"),
-            addressLine2: formString(formData, "addressLine2") || undefined,
+            postalCode: formString(formData, "postalCode"),
             region: formString(formData, "region") || undefined,
           },
         }
       : {
-          type: "addressBook",
           addressBookReference,
+          type: "addressBook",
         };
 
   return Schema.decodeUnknownOption(SaveCheckoutDeliveryDetailsForm)({
@@ -153,13 +153,13 @@ const shouldRevalidateDeliveryDetails = (
         state.parameters?.addressBookReference !== undefined)));
 
 const contactProviderFailureState = {
-  status: "error",
   code: "checkout.contact.providerFailure",
+  status: "error",
 } as const satisfies SaveCheckoutContactActionState;
 
 const deliveryDetailsProviderFailureState = {
-  status: "error",
   code: "checkout.deliveryDetails.providerFailure",
+  status: "error",
 } as const satisfies SaveCheckoutDeliveryDetailsActionState;
 
 export async function saveCheckoutContact(
@@ -172,15 +172,13 @@ export async function saveCheckoutContact(
   }
 
   const locale = await getLocale();
-  const layer = await commerceRequestLayer(locale);
-  const state = await Effect.runPromise(
+  const state = await NextCommerce.runPromise(
     CheckoutSession.saveContact({
       cart: { id: input.cartId },
       contact:
         input.source === "customerProfile"
           ? { source: "customerProfile" }
           : {
-              source: "manual",
               buyerContact: {
                 email: input.email,
                 firstName: input.firstName,
@@ -189,25 +187,30 @@ export async function saveCheckoutContact(
                   ? {}
                   : { phoneNumber: input.phoneNumber }),
               },
+              source: "manual",
             },
-    }).pipe(
-      Effect.tapError(logUnexpectedCheckoutMutationFailure),
-      Effect.match({
-        onFailure: (error) =>
-          error._tag === "CheckoutUnavailable"
-            ? checkoutContactNotFoundState
-            : checkoutMutationFailureToActionState(error),
-        onSuccess: () => saveCheckoutContactActionSuccess,
-      }),
-      Effect.provide(layer),
-      Effect.catchTags({
-        CommerceRequestContextNotFound: () =>
-          Effect.succeed(checkoutContactNotFoundState),
-        CommerceAccountError: () => Effect.succeed(contactProviderFailureState),
-        CommerceRequestFailure: () =>
-          Effect.succeed(contactProviderFailureState),
-      })
-    )
+    })
+      .pipe(
+        Effect.tapError(logUnexpectedCheckoutMutationFailure),
+        Effect.match({
+          onFailure: (error) =>
+            error._tag === "CheckoutUnavailable"
+              ? checkoutContactNotFoundState
+              : checkoutMutationFailureToActionState(error),
+          onSuccess: () => saveCheckoutContactActionSuccess,
+        }),
+        NextCommerce.provide(locale)
+      )
+      .pipe(
+        Effect.catchTags({
+          CommerceAccountError: () =>
+            Effect.succeed(contactProviderFailureState),
+          CommerceRequestContextNotFound: () =>
+            Effect.succeed(checkoutContactNotFoundState),
+          CommerceRequestFailure: () =>
+            Effect.succeed(contactProviderFailureState),
+        })
+      )
   );
 
   if (shouldRevalidateContact(state)) {
@@ -229,30 +232,32 @@ export async function saveCheckoutDeliveryDetails(
   }
 
   const locale = await getLocale();
-  const layer = await commerceRequestLayer(locale);
-  const state = await Effect.runPromise(
+  const state = await NextCommerce.runPromise(
     CheckoutSession.saveDeliveryDetails({
       cart: { id: input.cartId },
       deliveryDetails: input.deliveryDetails,
-    }).pipe(
-      Effect.tapError(logUnexpectedCheckoutMutationFailure),
-      Effect.match({
-        onFailure: (error) =>
-          error._tag === "CheckoutUnavailable"
-            ? checkoutDeliveryDetailsNotFoundState
-            : checkoutDeliveryDetailsMutationFailureToActionState(error),
-        onSuccess: () => saveCheckoutDeliveryDetailsActionSuccess,
-      }),
-      Effect.provide(layer),
-      Effect.catchTags({
-        CommerceRequestContextNotFound: () =>
-          Effect.succeed(checkoutDeliveryDetailsNotFoundState),
-        CommerceAccountError: () =>
-          Effect.succeed(deliveryDetailsProviderFailureState),
-        CommerceRequestFailure: () =>
-          Effect.succeed(deliveryDetailsProviderFailureState),
-      })
-    )
+    })
+      .pipe(
+        Effect.tapError(logUnexpectedCheckoutMutationFailure),
+        Effect.match({
+          onFailure: (error) =>
+            error._tag === "CheckoutUnavailable"
+              ? checkoutDeliveryDetailsNotFoundState
+              : checkoutDeliveryDetailsMutationFailureToActionState(error),
+          onSuccess: () => saveCheckoutDeliveryDetailsActionSuccess,
+        }),
+        NextCommerce.provide(locale)
+      )
+      .pipe(
+        Effect.catchTags({
+          CommerceAccountError: () =>
+            Effect.succeed(deliveryDetailsProviderFailureState),
+          CommerceRequestContextNotFound: () =>
+            Effect.succeed(checkoutDeliveryDetailsNotFoundState),
+          CommerceRequestFailure: () =>
+            Effect.succeed(deliveryDetailsProviderFailureState),
+        })
+      )
   );
 
   if (shouldRevalidateDeliveryDetails(state)) {

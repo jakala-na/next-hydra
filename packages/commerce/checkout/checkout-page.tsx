@@ -1,23 +1,22 @@
 import "server-only";
 
+import { NextCommerce } from "@repo/commerce/runtime";
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
 import { notFound } from "next/navigation";
-import { commerceRequestLayer } from "../commerce-context/request";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import { AddressBook } from "../services/address-book";
 import { saveCheckoutContact, saveCheckoutDeliveryDetails } from "./actions";
 import { CheckoutView } from "./checkout-view";
 
 export async function CheckoutPage({ locale }: { readonly locale: Locale }) {
-  const layer = await commerceRequestLayer(locale);
-  const pageData = await Effect.runPromise(
+  const pageData = await NextCommerce.runPromise(
     Effect.gen(function* () {
       const state = yield* CheckoutSession.getCurrent().pipe(
         Effect.catchTag("CheckoutUnavailable", () => Effect.succeed(null))
       );
       if (state === null) {
-        return { state, shippingAddressOptions: undefined };
+        return { shippingAddressOptions: undefined, state };
       }
       const entries =
         state.scope.channel === "storefrontCustomer"
@@ -30,15 +29,15 @@ export async function CheckoutPage({ locale }: { readonly locale: Locale }) {
             )
           : undefined;
       return {
-        state,
         shippingAddressOptions: entries?.map((entry) => ({
-          reference: entry.reference,
           address: { ...entry.address },
           defaultShipping: entry.defaultShipping,
+          reference: entry.reference,
         })),
+        state,
       };
     }).pipe(
-      Effect.provide(layer),
+      NextCommerce.provide(locale),
       Effect.catchTag("CommerceRequestContextNotFound", () =>
         Effect.succeed(null)
       )

@@ -4,7 +4,6 @@ import { currentCartOperationFailure } from "@repo/commerce/domain/cart-errors";
 import {
   AnonymousCommerceContextRequest,
   type AuthUserId,
-  type CommerceContextRequest,
   CommerceRequestContextNotFound,
   CustomerCommerceContextRequest,
 } from "@repo/commerce/domain/commerce-request-context";
@@ -26,19 +25,18 @@ import {
   getAnonymousCartIdFromCookieValue,
   makeAnonymousCartCookie,
 } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
-import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
 import {
   type CheckoutSaveContactFailure,
   type CheckoutSaveDeliveryDetailsFailure,
   CheckoutSession,
 } from "@repo/commerce/lib/checkout/checkout-session";
-import type { CurrentCartCookie } from "@repo/commerce/lib/current-cart/cookie";
+import type { CommerceRequestInput } from "@repo/commerce/runtime/commerce-request";
+import type {
+  CommerceApplication,
+  CommerceRequestProvisionError,
+  CommerceStableServices,
+} from "@repo/commerce/runtime/make-commerce-app";
 import { AddressBook } from "@repo/commerce/services/address-book";
-import { CartPolicies } from "@repo/commerce/services/cart-policies";
-import { Carts } from "@repo/commerce/services/carts";
-import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
-import { CommerceContext } from "@repo/commerce/services/commerce-context";
-import { CurrentCart } from "@repo/commerce/services/current-cart";
 import { resolveStore } from "@repo/commerce/store";
 import {
   type Config,
@@ -63,26 +61,20 @@ import {
   CheckoutCustomerJwtVerifier,
 } from "./customer-jwt";
 
-type CheckoutRuntimeLayer = Layer.Layer<
-  | CartPolicies
-  | Carts
-  | CheckoutPolicies
-  | CommerceAccounts
-  | CheckoutCustomerJwtVerifier,
+type CheckoutCommerceApp = CommerceApplication<
   Config.ConfigError,
-  never
+  Config.ConfigError | CommerceRequestProvisionError
 >;
-type CheckoutAddressBookLayer = Layer.Layer<
-  AddressBook,
-  Config.ConfigError,
-  CommerceContext
+type CheckoutAuthenticationLayer = Layer.Layer<
+  CheckoutCustomerJwtVerifier,
+  Config.ConfigError
 >;
 type CommerceRequestContextNotFoundReason = ConstructorParameters<
   typeof CommerceRequestContextNotFound
 >[0]["reason"];
 export interface CheckoutHttpDependencies {
-  readonly layer: CheckoutRuntimeLayer;
-  readonly addressBookLayer: CheckoutAddressBookLayer;
+  readonly authenticationLayer: CheckoutAuthenticationLayer;
+  readonly commerceApp: CheckoutCommerceApp;
 }
 
 const getHeader = (
@@ -99,6 +91,8 @@ interface CheckoutDiagnosticFailure {
   readonly message: string;
   readonly operation?: string;
 }
+
+const exhaustive = (_value: never): undefined => undefined;
 
 const logCheckoutDiagnosticFailure = (error: CheckoutDiagnosticFailure) =>
   Effect.logError(error.message, error).pipe(
@@ -224,7 +218,7 @@ const toCheckoutContactHttpError = (
     case "CheckoutMutationUnsupported":
       return toCheckoutApiError(locale);
     default:
-      error satisfies never;
+      exhaustive(error);
       return toCheckoutApiError(locale);
   }
 };
@@ -269,7 +263,7 @@ const toCheckoutDeliveryDetailsHttpError = (
     case "CheckoutMutationUnsupported":
       return toCheckoutApiError(locale);
     default:
-      error satisfies never;
+      exhaustive(error);
       return toCheckoutApiError(locale);
   }
 };
@@ -309,7 +303,7 @@ const toCheckoutContextAuthError = (
     case "CheckoutCustomerJwtVerificationFailure":
       return toCheckoutContextInternalError(locale);
     default:
-      error satisfies never;
+      exhaustive(error);
       return toCheckoutContextInternalError(locale);
   }
 };
@@ -340,22 +334,17 @@ const getAuthUserIdFromAuthorization = (headers: CheckoutRequestHeaders) =>
 const anonymousCartCookieMaxAgeDays = 90;
 const httpCurrentCartCookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  path: "/",
   maxAge: Duration.days(anonymousCartCookieMaxAgeDays),
+  path: "/",
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
 };
 
 type CartCookieChange =
   | { readonly _tag: "Set"; readonly value: string }
   | { readonly _tag: "Clear" };
 
-interface HttpCurrentCartBoundary {
-  readonly currentCartCookie: CurrentCartCookie;
-  readonly commerceContextRequest: CommerceContextRequest;
-}
-
-const makeHttpCurrentCartBoundary = (
+const makeHttpCommerceRequest = (
   headers: CheckoutRequestHeaders,
   authUserId: AuthUserId | null
 ) =>
@@ -366,20 +355,20 @@ const makeHttpCurrentCartBoundary = (
 
     if (authUserId !== null) {
       return {
-        currentCartCookie: {
-          set: () => Effect.void,
-          clear: () => Effect.void,
-        },
-        commerceContextRequest: new CustomerCommerceContextRequest({
-          store,
+        context: new CustomerCommerceContextRequest({
           authUserId,
+          store,
           ...(headers["x-context-business-unit-id"] === undefined
             ? {}
             : {
                 businessUnitId: headers["x-context-business-unit-id"],
               }),
         }),
-      } satisfies HttpCurrentCartBoundary;
+        currentCartCookie: {
+          clear: () => Effect.void,
+          set: () => Effect.void,
+        },
+      } satisfies CommerceRequestInput;
     }
 
     const cartCookieChange = yield* Ref.make(Option.none<CartCookieChange>());
@@ -420,51 +409,34 @@ const makeHttpCurrentCartBoundary = (
         ? headers["x-context-anonymous-cart-id"]
         : CartId.make(cookieCartId);
     return {
+      context: new AnonymousCommerceContextRequest({
+        store,
+        ...(anonymousCartId === undefined ? {} : { anonymousCartId }),
+      }),
       currentCartCookie: {
+        clear: () => Ref.set(cartCookieChange, Option.some({ _tag: "Clear" })),
         set: (cartId: CartId) =>
           Effect.try({
+            catch: currentCartOperationFailure,
             try: () =>
               encodeAnonymousCartCookie(
                 makeAnonymousCartCookie({ cartId, store })
               ),
-            catch: currentCartOperationFailure,
           }).pipe(
             Effect.flatMap((value) =>
               Ref.set(cartCookieChange, Option.some({ _tag: "Set", value }))
             )
           ),
-        clear: () => Ref.set(cartCookieChange, Option.some({ _tag: "Clear" })),
       },
-      commerceContextRequest: new AnonymousCommerceContextRequest({
-        store,
-        ...(anonymousCartId === undefined ? {} : { anonymousCartId }),
-      }),
-    } satisfies HttpCurrentCartBoundary;
+    } satisfies CommerceRequestInput;
   });
 
-const checkoutSessionMiddlewareLayer = (
-  addressBookLayer: CheckoutAddressBookLayer
-) =>
+const checkoutSessionMiddlewareLayer = (commerceApp: CheckoutCommerceApp) =>
   Layer.effect(
     CheckoutSessionMiddleware,
     Effect.gen(function* () {
-      const carts = yield* Carts;
-      const cartPolicies = yield* CartPolicies;
-      const checkoutPolicies = yield* CheckoutPolicies;
-      const commerceAccounts = yield* CommerceAccounts;
       const checkoutCustomerJwtVerifier = yield* CheckoutCustomerJwtVerifier;
-      const currentCartDependencies = Layer.merge(
-        Layer.succeed(Carts, carts),
-        Layer.succeed(CartPolicies, cartPolicies)
-      );
-      const checkoutPoliciesLayer = Layer.succeed(
-        CheckoutPolicies,
-        checkoutPolicies
-      );
-      const commerceAccountsLayer = Layer.succeed(
-        CommerceAccounts,
-        commerceAccounts
-      );
+      const commerceServices = yield* Effect.context<CommerceStableServices>();
       const authenticationLayer = Layer.succeed(
         CheckoutCustomerJwtVerifier,
         checkoutCustomerJwtVerifier
@@ -484,36 +456,12 @@ const checkoutSessionMiddlewareLayer = (
                 : error
             )
           );
-          const boundary = yield* makeHttpCurrentCartBoundary(
-            headers,
-            authUserId
-          );
-          const commerceContext = CommerceContext.layer(
-            boundary.commerceContextRequest
-          ).pipe(Layer.provide(commerceAccountsLayer));
-          const currentCart = CurrentCart.layer(
-            boundary.currentCartCookie
-          ).pipe(
-            Layer.provide(Layer.merge(currentCartDependencies, commerceContext))
-          );
-          const addressBook = addressBookLayer.pipe(
-            Layer.provide(commerceContext)
-          );
-          const checkoutSession = CheckoutSession.layer.pipe(
-            Layer.provide(
-              Layer.mergeAll(
-                checkoutPoliciesLayer,
-                commerceContext,
-                currentCart,
-                addressBook
-              )
-            )
-          );
-          const requestServices = Layer.merge(addressBook, checkoutSession);
+          const request = yield* makeHttpCommerceRequest(headers, authUserId);
           return yield* httpEffect.pipe(
-            Effect.provide(requestServices),
+            commerceApp.provide(request),
+            Effect.provide(commerceServices),
             Effect.catchTags({
-              ConfigError: (error) =>
+              CommerceAccountError: (error) =>
                 logCheckoutDiagnosticFailure(error).pipe(
                   Effect.andThen(
                     Effect.fail(toCheckoutContextInternalError(locale))
@@ -521,7 +469,7 @@ const checkoutSessionMiddlewareLayer = (
                 ),
               CommerceRequestContextNotFound: (error) =>
                 Effect.fail(toCheckoutContextNotFound(error, locale)),
-              CommerceAccountError: (error) =>
+              ConfigError: (error) =>
                 logCheckoutDiagnosticFailure(error).pipe(
                   Effect.andThen(
                     Effect.fail(toCheckoutContextInternalError(locale))
@@ -575,7 +523,7 @@ const makeCheckoutHttpHandlers = () =>
                     "checkout.addressBook.providerFailure"
                   );
                 default:
-                  error satisfies never;
+                  exhaustive(error);
                   return toCheckoutApiError(headers["x-context-locale"]);
               }
             })
@@ -635,10 +583,9 @@ const makeCheckoutHttpApiLayer = (dependencies: CheckoutHttpDependencies) =>
   }).pipe(
     Layer.provide(makeCheckoutHttpHandlers()),
     Layer.provide(checkoutSchemaErrorMiddlewareLayer),
-    Layer.provide(
-      checkoutSessionMiddlewareLayer(dependencies.addressBookLayer)
-    ),
-    Layer.provideMerge(dependencies.layer),
+    Layer.provide(checkoutSessionMiddlewareLayer(dependencies.commerceApp)),
+    Layer.provideMerge(dependencies.authenticationLayer),
+    Layer.provideMerge(dependencies.commerceApp.layer),
     Layer.provide(HttpServer.layerServices)
   );
 

@@ -1,10 +1,10 @@
+import { NextCommerce } from "@repo/commerce/runtime";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import { ProductDetail as ProductDetailView } from "@repo/design-system/components/commerce/blocks/product-detail";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Option, Schema } from "effect";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { commerceRequestLayer } from "../commerce-context/request";
 import { ProductSlug } from "./identity";
 import {
   toProductDetailMetadata,
@@ -23,11 +23,10 @@ const loadProductDetail = async ({
   slug,
 }: ProductDetailBoundaryProps) => {
   const productSlug = Schema.decodeUnknownSync(ProductSlug)(slug);
-  const layer = await commerceRequestLayer(locale);
-  const product = await Effect.runPromise(
+  const product = await NextCommerce.runPromise(
     Effect.flatMap(ProductDiscovery, (discovery) =>
       discovery.findBySlug(productSlug)
-    ).pipe(Effect.provide(layer))
+    ).pipe(NextCommerce.provide(locale))
   );
 
   if (Option.isNone(product)) {

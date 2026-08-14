@@ -1,12 +1,12 @@
 import "server-only";
 
+import { NextCommerce } from "@repo/commerce/runtime";
 import { CartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Option } from "effect";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
-import { commerceRequestLayer } from "../commerce-context/request";
 import { CurrentCart } from "../services/current-cart";
 import { addToCart, changeCartItemsQuantity, removeCartItem } from "./actions";
 
@@ -14,15 +14,14 @@ const loadCurrentCart = async (locale: Locale) => {
   await connection();
 
   try {
-    const layer = await commerceRequestLayer(locale);
-    const cart = await Effect.runPromise(
+    const cart = await NextCommerce.runPromise(
       CurrentCart.get().pipe(
-        Effect.provide(layer),
         Effect.tapError((error) =>
           Effect.logError("Failed to read Current Cart", error).pipe(
             Effect.annotateLogs({ operation: "currentCart.get" })
           )
-        )
+        ),
+        NextCommerce.provide(locale)
       )
     );
     return Option.match(cart, {

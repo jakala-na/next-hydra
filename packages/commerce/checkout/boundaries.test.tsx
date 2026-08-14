@@ -24,8 +24,9 @@ const boundary = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error("notFound");
   }),
-  requestLayer: vi.fn(),
+  provide: vi.fn(),
   revalidatePath: vi.fn(),
+  runPromise: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -36,42 +37,46 @@ vi.mock("@repo/i18n", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: boundary.revalidatePath }));
 vi.mock("next/navigation", () => ({ notFound: boundary.notFound }));
-vi.mock("../commerce-context/request", () => ({
-  commerceRequestLayer: boundary.requestLayer,
+vi.mock("@repo/commerce/runtime", () => ({
+  NextCommerce: {
+    provide: boundary.provide,
+    runPromise: boundary.runPromise,
+  },
 }));
 
 const checkoutState: CheckoutState = {
-  scope: new StorefrontCustomerCheckoutScope({
-    channel: "storefrontCustomer",
-    locale: CommerceLocale.make("en-US"),
-    customerId: CommerceCustomerId.make("customer-1"),
-    businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-    businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key"),
-  }),
+  activeStep: "contact",
   cart: {
+    checkoutDetails: {},
     id: CartId.make("cart-1"),
-    status: "active",
-    storeKey: StoreKey.make("default-store"),
     lineItems: [
       {
         id: LineItemId.make("line-item-1"),
-        variant: {
-          id: VariantId.make("variant-1"),
-          productId: ProductId.make("product-1"),
-          name: "Hydra Wrench",
-          images: [],
-          attributes: {},
-        },
         quantity: 1,
-        unitPrice: { centAmount: 2500, currencyCode: "USD" },
         totalPrice: { centAmount: 2500, currencyCode: "USD" },
+        unitPrice: { centAmount: 2500, currencyCode: "USD" },
+        variant: {
+          attributes: {},
+          id: VariantId.make("variant-1"),
+          images: [],
+          name: "Hydra Wrench",
+          productId: ProductId.make("product-1"),
+        },
       },
     ],
+    status: "active",
+    storeKey: StoreKey.make("default-store"),
     totalLineItemQuantity: 1,
     totalPrice: { centAmount: 2500, currencyCode: "USD" },
-    checkoutDetails: {},
   },
   details: {},
+  scope: new StorefrontCustomerCheckoutScope({
+    businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+    businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key"),
+    channel: "storefrontCustomer",
+    customerId: CommerceCustomerId.make("customer-1"),
+    locale: CommerceLocale.make("en-US"),
+  }),
   steps: [
     { id: "contact", status: "incomplete" },
     { id: "deliveryDetails", status: "incomplete" },
@@ -79,21 +84,20 @@ const checkoutState: CheckoutState = {
     { id: "paymentOptions", status: "incomplete" },
     { id: "reviewOrder", status: "incomplete" },
   ],
-  activeStep: "contact",
   violations: [],
 };
 
 const shippingAddress = new AddressBookEntry({
-  reference: AddressBookReference.make("office"),
   address: {
     addressLine1: "1 Hydra Way",
-    postalCode: "10001",
     city: "New York",
     country: CountryCode.make("US"),
+    postalCode: "10001",
   },
-  types: ["shipping"],
-  defaultShipping: true,
   defaultBilling: false,
+  defaultShipping: true,
+  reference: AddressBookReference.make("office"),
+  types: ["shipping"],
 });
 
 const checkoutSession = {
@@ -105,8 +109,8 @@ const checkoutSession = {
 };
 
 const addressBook = {
-  list: vi.fn(() => Effect.succeed([shippingAddress])),
   get: vi.fn(() => Effect.die("not used")),
+  list: vi.fn(() => Effect.succeed([shippingAddress])),
   save: vi.fn(() => Effect.die("not used")),
 };
 
@@ -119,9 +123,17 @@ const checkoutLayer = () =>
 beforeEach(() => {
   boundary.getLocale.mockClear();
   boundary.notFound.mockClear();
-  boundary.requestLayer.mockReset();
-  boundary.requestLayer.mockImplementation(async () => checkoutLayer());
+  boundary.provide.mockReset();
+  boundary.provide.mockImplementation(
+    (_locale) =>
+      (
+        program: Effect.Effect<unknown, unknown, AddressBook | CheckoutSession>
+      ) =>
+        program.pipe(Effect.provide(checkoutLayer()))
+  );
   boundary.revalidatePath.mockClear();
+  boundary.runPromise.mockReset();
+  boundary.runPromise.mockImplementation(Effect.runPromise);
   checkoutSession.getCurrent.mockReset();
   checkoutSession.getCurrent.mockImplementation(() =>
     Effect.succeed(checkoutState)
@@ -135,13 +147,13 @@ describe("Checkout boundaries", () => {
   it("loads Checkout and projects Shipping Address options", async () => {
     const page = await CheckoutPage({ locale: "en-US" });
 
-    expect(boundary.requestLayer).toHaveBeenCalledOnce();
+    expect(boundary.provide).toHaveBeenCalledOnce();
     expect(page.props.state).toEqual(checkoutState);
     expect(page.props.shippingAddressOptions).toEqual([
       {
-        reference: "office",
         address: shippingAddress.address,
         defaultShipping: true,
+        reference: "office",
       },
     ]);
     expect(page.props.actions).toEqual({
@@ -187,7 +199,7 @@ describe("Checkout boundaries", () => {
 
     expect(contactState).toEqual({ status: "success" });
     expect(deliveryDetailsState).toEqual({ status: "success" });
-    expect(boundary.requestLayer).toHaveBeenCalledTimes(2);
+    expect(boundary.provide).toHaveBeenCalledTimes(2);
     expect(boundary.revalidatePath).toHaveBeenCalledTimes(2);
     expect(boundary.revalidatePath).toHaveBeenNthCalledWith(
       1,

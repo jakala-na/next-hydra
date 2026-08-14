@@ -11,11 +11,12 @@ import {
   ProductDiscoveryFailure,
 } from "./product-discovery";
 
-const { notFound, requestLayer } = vi.hoisted(() => ({
+const { notFound, provide, runPromise } = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error("notFound");
   }),
-  requestLayer: vi.fn(),
+  provide: vi.fn(),
+  runPromise: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -28,8 +29,8 @@ vi.mock(
   "@repo/design-system/components/commerce/blocks/product-detail",
   () => ({ ProductDetail: () => null })
 );
-vi.mock("../commerce-context/request", () => ({
-  commerceRequestLayer: requestLayer,
+vi.mock("@repo/commerce/runtime", () => ({
+  NextCommerce: { provide, runPromise },
 }));
 
 const detail = Schema.decodeUnknownSync(ProductDetail)({
@@ -54,19 +55,27 @@ const detail = Schema.decodeUnknownSync(ProductDetail)({
 
 beforeEach(() => {
   notFound.mockClear();
-  requestLayer.mockReset();
+  provide.mockReset();
+  runPromise.mockReset();
+  runPromise.mockImplementation(Effect.runPromise);
 });
 
 describe("Product boundaries", () => {
   it("passes structured collection selectors and omits an empty block", async () => {
     let receivedInput: ListProductCardsInput | undefined;
-    requestLayer.mockResolvedValue(
-      ProductDiscovery.testLayer({
-        listCards: (input) => {
-          receivedInput = input;
-          return Effect.succeed([]);
-        },
-      })
+    provide.mockImplementation(
+      (_locale) =>
+        (program: Effect.Effect<unknown, unknown, ProductDiscovery>) =>
+          program.pipe(
+            Effect.provide(
+              ProductDiscovery.testLayer({
+                listCards: (input) => {
+                  receivedInput = input;
+                  return Effect.succeed([]);
+                },
+              })
+            )
+          )
     );
 
     const result = await ProductCollection({
@@ -86,18 +95,24 @@ describe("Product boundaries", () => {
   });
 
   it("projects provider data into a grid without CMS presentation props", async () => {
-    requestLayer.mockResolvedValue(
-      ProductDiscovery.testLayer({
-        listCards: () =>
-          Effect.succeed([
-            Schema.decodeUnknownSync(ProductCard)({
-              availableForSale: true,
-              id: "product-1",
-              slug: "crawler-crane",
-              title: "Crawler crane",
-            }),
-          ]),
-      })
+    provide.mockImplementation(
+      (_locale) =>
+        (program: Effect.Effect<unknown, unknown, ProductDiscovery>) =>
+          program.pipe(
+            Effect.provide(
+              ProductDiscovery.testLayer({
+                listCards: () =>
+                  Effect.succeed([
+                    Schema.decodeUnknownSync(ProductCard)({
+                      availableForSale: true,
+                      id: "product-1",
+                      slug: "crawler-crane",
+                      title: "Crawler crane",
+                    }),
+                  ]),
+              })
+            )
+          )
     );
 
     const result = await ProductCollectionGrid({
@@ -116,10 +131,16 @@ describe("Product boundaries", () => {
   });
 
   it("turns Product absence into notFound at the package boundary", async () => {
-    requestLayer.mockResolvedValue(
-      ProductDiscovery.testLayer({
-        findBySlug: () => Effect.succeed(Option.none()),
-      })
+    provide.mockImplementation(
+      (_locale) =>
+        (program: Effect.Effect<unknown, unknown, ProductDiscovery>) =>
+          program.pipe(
+            Effect.provide(
+              ProductDiscovery.testLayer({
+                findBySlug: () => Effect.succeed(Option.none()),
+              })
+            )
+          )
     );
 
     await expect(
@@ -133,10 +154,16 @@ describe("Product boundaries", () => {
       message: "Product detail query failed",
       operation: "findBySlug",
     });
-    requestLayer.mockResolvedValue(
-      ProductDiscovery.testLayer({
-        findBySlug: () => Effect.fail(failure),
-      })
+    provide.mockImplementation(
+      (_locale) =>
+        (program: Effect.Effect<unknown, unknown, ProductDiscovery>) =>
+          program.pipe(
+            Effect.provide(
+              ProductDiscovery.testLayer({
+                findBySlug: () => Effect.fail(failure),
+              })
+            )
+          )
     );
 
     await expect(
@@ -153,16 +180,30 @@ describe("Product boundaries", () => {
         slug: "crawler-crane",
         title,
       });
-    requestLayer
-      .mockResolvedValueOnce(
-        ProductDiscovery.testLayer({
-          listCards: () => Effect.succeed([cardFor("product-1", "Buyer A")]),
-        })
+    provide
+      .mockImplementationOnce(
+        (_locale) =>
+          (program: Effect.Effect<unknown, unknown, ProductDiscovery>) =>
+            program.pipe(
+              Effect.provide(
+                ProductDiscovery.testLayer({
+                  listCards: () =>
+                    Effect.succeed([cardFor("product-1", "Buyer A")]),
+                })
+              )
+            )
       )
-      .mockResolvedValueOnce(
-        ProductDiscovery.testLayer({
-          listCards: () => Effect.succeed([cardFor("product-1", "Buyer B")]),
-        })
+      .mockImplementationOnce(
+        (_locale) =>
+          (program: Effect.Effect<unknown, unknown, ProductDiscovery>) =>
+            program.pipe(
+              Effect.provide(
+                ProductDiscovery.testLayer({
+                  listCards: () =>
+                    Effect.succeed([cardFor("product-1", "Buyer B")]),
+                })
+              )
+            )
       );
 
     const first = await ProductCollection({
@@ -176,7 +217,7 @@ describe("Product boundaries", () => {
       title: "Featured",
     });
 
-    expect(requestLayer).toHaveBeenCalledTimes(2);
+    expect(provide).toHaveBeenCalledTimes(2);
     expect(first).toMatchObject({
       props: { products: [{ title: "Buyer A" }] },
     });
@@ -187,13 +228,19 @@ describe("Product boundaries", () => {
 
   it("uses the domain Product Detail for metadata and page projection", async () => {
     let receivedSlug: ReturnType<typeof ProductSlug.make> | undefined;
-    requestLayer.mockResolvedValue(
-      ProductDiscovery.testLayer({
-        findBySlug: (slug) => {
-          receivedSlug = slug;
-          return Effect.succeed(Option.some(detail));
-        },
-      })
+    provide.mockImplementation(
+      (_locale) =>
+        (program: Effect.Effect<unknown, unknown, ProductDiscovery>) =>
+          program.pipe(
+            Effect.provide(
+              ProductDiscovery.testLayer({
+                findBySlug: (slug) => {
+                  receivedSlug = slug;
+                  return Effect.succeed(Option.some(detail));
+                },
+              })
+            )
+          )
     );
 
     const metadata = await generateMetadataHandler({
