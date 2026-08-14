@@ -18,4 +18,8 @@ describe("resolveCmsPagePath", () => {
       "about/team"
     );
   });
+
+  it("accepts a scalar CMS path from a runtime route match", () => {
+    expect(resolveCmsPagePath("about/team", "homepage")).toBe("about/team");
+  });
 });

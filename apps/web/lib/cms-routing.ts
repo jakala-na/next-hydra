@@ -7,8 +7,10 @@ function toCmsHomepagePath(homepageSlug: string): string {
 }
 
 export function resolveCmsPagePath(
-  url: readonly string[] | undefined,
+  url: string | readonly string[] | undefined,
   homepageSlug: string
 ): string {
-  return url?.length ? url.join("/") : toCmsHomepagePath(homepageSlug);
+  const requestedPath = typeof url === "string" ? url : url?.join("/");
+
+  return requestedPath || toCmsHomepagePath(homepageSlug);
 }
