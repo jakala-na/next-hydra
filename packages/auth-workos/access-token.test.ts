@@ -1,16 +1,19 @@
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 import {
-  layerWorkosAccessTokenVerifierFromJwtVerifier,
-  WorkosAccessTokenInvalid,
-  WorkosAccessTokenVerificationFailure,
-  WorkosAccessTokenVerifier,
+  AccessTokenInvalid,
+  AccessTokenVerificationFailure,
+  AccessTokenVerifier,
+  accessTokenVerifierLayerFromJwtVerifier,
 } from "./access-token";
 
-describe("WorkosAccessTokenVerifier", () => {
+describe("AccessTokenVerifier", () => {
   it("verifies a WorkOS access token and returns the auth user id", async () => {
     let verifiedToken: string | undefined;
-    const layer = layerWorkosAccessTokenVerifierFromJwtVerifier({
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
+      expectedClientId: "client_1",
+      expectedIssuer: "https://api.workos.com/",
+      requiredPermissions: ["checkout:read"],
       verifyAccessToken: (token) => {
         verifiedToken = token;
         return Promise.resolve({
@@ -21,14 +24,11 @@ describe("WorkosAccessTokenVerifier", () => {
           sub: "user-1",
         });
       },
-      expectedClientId: "client_1",
-      expectedIssuer: "https://api.workos.com/",
-      requiredPermissions: ["checkout:read"],
     });
 
     const result = await Effect.runPromise(
       Effect.gen(function* () {
-        const verifier = yield* WorkosAccessTokenVerifier;
+        const verifier = yield* AccessTokenVerifier;
         return yield* verifier.verify("jwt-1");
       }).pipe(Effect.provide(layer))
     );
@@ -45,25 +45,25 @@ describe("WorkosAccessTokenVerifier", () => {
     const joseError = Object.assign(new Error("signature failed"), {
       code: "ERR_JWS_SIGNATURE_VERIFICATION_FAILED",
     });
-    const layer = layerWorkosAccessTokenVerifierFromJwtVerifier({
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
       verifyAccessToken: () => Promise.reject(joseError),
     });
 
     const exit = await Effect.runPromise(
       Effect.gen(function* () {
-        const verifier = yield* WorkosAccessTokenVerifier;
+        const verifier = yield* AccessTokenVerifier;
         return yield* verifier.verify("jwt-1").pipe(Effect.exit);
       }).pipe(Effect.provide(layer))
     );
 
     expect(exit._tag).toBe("Failure");
     if (exit._tag === "Failure") {
-      expect(exit.cause.toString()).toContain(WorkosAccessTokenInvalid.name);
+      expect(exit.cause.toString()).toContain(AccessTokenInvalid.name);
     }
   });
 
   it("rejects a verified token payload without an auth user id", async () => {
-    const layer = layerWorkosAccessTokenVerifierFromJwtVerifier({
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
       verifyAccessToken: () =>
         Promise.resolve({
           sid: "session-1",
@@ -72,43 +72,43 @@ describe("WorkosAccessTokenVerifier", () => {
 
     const exit = await Effect.runPromise(
       Effect.gen(function* () {
-        const verifier = yield* WorkosAccessTokenVerifier;
+        const verifier = yield* AccessTokenVerifier;
         return yield* verifier.verify("jwt-1").pipe(Effect.exit);
       }).pipe(Effect.provide(layer))
     );
 
     expect(exit._tag).toBe("Failure");
     if (exit._tag === "Failure") {
-      expect(exit.cause.toString()).toContain(WorkosAccessTokenInvalid.name);
+      expect(exit.cause.toString()).toContain(AccessTokenInvalid.name);
     }
   });
 
   it("rejects a verified token payload that is missing required permissions", async () => {
-    const layer = layerWorkosAccessTokenVerifierFromJwtVerifier({
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
+      requiredPermissions: ["checkout:read"],
       verifyAccessToken: () =>
         Promise.resolve({
           permissions: ["profile:read"],
           sid: "session-1",
           sub: "user-1",
         }),
-      requiredPermissions: ["checkout:read"],
     });
 
     const exit = await Effect.runPromise(
       Effect.gen(function* () {
-        const verifier = yield* WorkosAccessTokenVerifier;
+        const verifier = yield* AccessTokenVerifier;
         return yield* verifier.verify("jwt-1").pipe(Effect.exit);
       }).pipe(Effect.provide(layer))
     );
 
     expect(exit._tag).toBe("Failure");
     if (exit._tag === "Failure") {
-      expect(exit.cause.toString()).toContain(WorkosAccessTokenInvalid.name);
+      expect(exit.cause.toString()).toContain(AccessTokenInvalid.name);
     }
   });
 
   it("rejects a verified token payload from an unexpected issuer", async () => {
-    const layer = layerWorkosAccessTokenVerifierFromJwtVerifier({
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
       expectedIssuer: "https://api.workos.com",
       verifyAccessToken: () =>
         Promise.resolve({
@@ -120,19 +120,19 @@ describe("WorkosAccessTokenVerifier", () => {
 
     const exit = await Effect.runPromise(
       Effect.gen(function* () {
-        const verifier = yield* WorkosAccessTokenVerifier;
+        const verifier = yield* AccessTokenVerifier;
         return yield* verifier.verify("jwt-1").pipe(Effect.exit);
       }).pipe(Effect.provide(layer))
     );
 
     expect(exit._tag).toBe("Failure");
     if (exit._tag === "Failure") {
-      expect(exit.cause.toString()).toContain(WorkosAccessTokenInvalid.name);
+      expect(exit.cause.toString()).toContain(AccessTokenInvalid.name);
     }
   });
 
   it("accepts the expected client through the token audience", async () => {
-    const layer = layerWorkosAccessTokenVerifierFromJwtVerifier({
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
       expectedClientId: "client_1",
       verifyAccessToken: () =>
         Promise.resolve({
@@ -144,7 +144,7 @@ describe("WorkosAccessTokenVerifier", () => {
 
     const result = await Effect.runPromise(
       Effect.gen(function* () {
-        const verifier = yield* WorkosAccessTokenVerifier;
+        const verifier = yield* AccessTokenVerifier;
         return yield* verifier.verify("jwt-1");
       }).pipe(Effect.provide(layer))
     );
@@ -153,7 +153,7 @@ describe("WorkosAccessTokenVerifier", () => {
   });
 
   it("rejects a verified token payload for an unexpected client", async () => {
-    const layer = layerWorkosAccessTokenVerifierFromJwtVerifier({
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
       expectedClientId: "client_1",
       verifyAccessToken: () =>
         Promise.resolve({
@@ -165,25 +165,25 @@ describe("WorkosAccessTokenVerifier", () => {
 
     const exit = await Effect.runPromise(
       Effect.gen(function* () {
-        const verifier = yield* WorkosAccessTokenVerifier;
+        const verifier = yield* AccessTokenVerifier;
         return yield* verifier.verify("jwt-1").pipe(Effect.exit);
       }).pipe(Effect.provide(layer))
     );
 
     expect(exit._tag).toBe("Failure");
     if (exit._tag === "Failure") {
-      expect(exit.cause.toString()).toContain(WorkosAccessTokenInvalid.name);
+      expect(exit.cause.toString()).toContain(AccessTokenInvalid.name);
     }
   });
 
   it("maps verifier runtime failures separately from invalid tokens", async () => {
-    const layer = layerWorkosAccessTokenVerifierFromJwtVerifier({
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
       verifyAccessToken: () => Promise.reject(new Error("jwks unavailable")),
     });
 
     const exit = await Effect.runPromise(
       Effect.gen(function* () {
-        const verifier = yield* WorkosAccessTokenVerifier;
+        const verifier = yield* AccessTokenVerifier;
         return yield* verifier.verify("jwt-1").pipe(Effect.exit);
       }).pipe(Effect.provide(layer))
     );
@@ -191,7 +191,7 @@ describe("WorkosAccessTokenVerifier", () => {
     expect(exit._tag).toBe("Failure");
     if (exit._tag === "Failure") {
       expect(exit.cause.toString()).toContain(
-        WorkosAccessTokenVerificationFailure.name
+        AccessTokenVerificationFailure.name
       );
     }
   });

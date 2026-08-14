@@ -1,5 +1,5 @@
-import { identityUsersLayerWorkos } from "@repo/auth/identity-users";
-import { invitationsLayerWorkos } from "@repo/auth/invitations";
+import { identityUsersLayer } from "@repo/auth/identity-users";
+import { invitationsLayer } from "@repo/auth/invitations";
 import { commerceAccountsLayer } from "@repo/commerce-provider/commerce-accounts";
 import { registrationQueriesLayer } from "@repo/commerce-provider/registration";
 import { versionedKeyValueStoreLayer } from "@repo/commerce-provider/versioned-store";
@@ -32,8 +32,8 @@ export const registrationLayer = Registrations.layerStorage.pipe(
     })
   ),
   Layer.provideMerge(commerceAccountsLayer),
-  Layer.provideMerge(identityUsersLayerWorkos),
-  Layer.provideMerge(invitationsLayerWorkos),
+  Layer.provideMerge(identityUsersLayer),
+  Layer.provideMerge(invitationsLayer),
   Layer.provideMerge(RegistrationMarketPolicy.layerDefault),
   Layer.provideMerge(
     VatValidator.layerMemoryFrom({

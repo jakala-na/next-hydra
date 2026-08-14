@@ -12,6 +12,7 @@ import type {
 import type { StoreKey } from "./store";
 
 export type {
+  AddressBookRequestServices,
   CommerceApplication,
   CommerceRequestProvisionError,
   CommerceRequestServices,
@@ -81,6 +82,8 @@ export const CommerceApp: CommerceApplication<
 > = {
   layer: Layer.effectContext(Effect.die(new CommerceRuntimeNotConfigured())),
   provide: () => () => Effect.die(new CommerceRuntimeNotConfigured()),
+  provideAddressBook: () => () =>
+    Effect.die(new CommerceRuntimeNotConfigured()),
 };
 
 export const NextCommerce: NextCommerceRuntime = {

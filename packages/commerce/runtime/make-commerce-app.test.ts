@@ -32,6 +32,7 @@ import { CurrentCart } from "../services/current-cart";
 import { CommerceLocale, resolveStore, StoreKey } from "../store";
 import type { CommerceRequestInput } from "./commerce-request";
 import {
+  type AddressBookRequestServices,
   type CommerceRequestServices,
   makeCommerceApp,
 } from "./make-commerce-app";
@@ -157,6 +158,15 @@ const run = <A, E>(
     program.pipe(app.provide(request), Effect.provide(app.layer))
   );
 
+const runAddressBook = <A, E>(
+  app: ReturnType<typeof makeApp>,
+  request: CustomerCommerceContextRequest,
+  program: Effect.Effect<A, E, AddressBookRequestServices>
+) =>
+  Effect.runPromise(
+    program.pipe(app.provideAddressBook(request), Effect.provide(app.layer))
+  );
+
 describe("CommerceApp composition", () => {
   it("constructs its service graph lazily", async () => {
     const constructed = vi.fn();
@@ -193,6 +203,24 @@ describe("CommerceApp composition", () => {
         CommerceBusinessUnitId.make("business-unit-2")
       ),
       CommerceContext.customerPrincipal()
+    );
+
+    expect(principal.businessUnitId).toBe("business-unit-2");
+  });
+
+  it("provides Address Book from authenticated Commerce Context without a Cart adapter", async () => {
+    const app = makeApp();
+    const principal = await runAddressBook(
+      app,
+      new CustomerCommerceContextRequest({
+        authUserId,
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-2"),
+        store,
+      }),
+      Effect.gen(function* () {
+        yield* AddressBook.list();
+        return yield* CommerceContext.customerPrincipal();
+      })
     );
 
     expect(principal.businessUnitId).toBe("business-unit-2");

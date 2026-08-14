@@ -2,21 +2,21 @@ import { WorkOS } from "@workos-inc/node";
 import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
-export const WorkosAuthUserId = Schema.NonEmptyString.pipe(
-  Schema.brand("WorkosAuthUserId")
+export const AuthUserId = Schema.NonEmptyString.pipe(
+  Schema.brand("AuthUserId")
 );
-export type WorkosAuthUserId = typeof WorkosAuthUserId.Type;
+export type AuthUserId = typeof AuthUserId.Type;
 
-export class VerifiedWorkosAccessToken extends Schema.Class<VerifiedWorkosAccessToken>(
-  "VerifiedWorkosAccessToken"
+export class VerifiedAccessToken extends Schema.Class<VerifiedAccessToken>(
+  "VerifiedAccessToken"
 )({
-  authUserId: WorkosAuthUserId,
-  sessionId: Schema.optional(Schema.NonEmptyString),
+  authUserId: AuthUserId,
   permissions: Schema.optional(Schema.Array(Schema.String)),
+  sessionId: Schema.optional(Schema.NonEmptyString),
 }) {}
 
-export class WorkosAccessTokenInvalid extends Schema.TaggedErrorClass<WorkosAccessTokenInvalid>()(
-  "WorkosAccessTokenInvalid",
+export class AccessTokenInvalid extends Schema.TaggedErrorClass<AccessTokenInvalid>()(
+  "AccessTokenInvalid",
   {
     message: Schema.String,
     reason: Schema.Literals([
@@ -29,11 +29,11 @@ export class WorkosAccessTokenInvalid extends Schema.TaggedErrorClass<WorkosAcce
   }
 ) {}
 
-export class WorkosAccessTokenVerificationFailure extends Schema.TaggedErrorClass<WorkosAccessTokenVerificationFailure>()(
-  "WorkosAccessTokenVerificationFailure",
+export class AccessTokenVerificationFailure extends Schema.TaggedErrorClass<AccessTokenVerificationFailure>()(
+  "AccessTokenVerificationFailure",
   {
-    message: Schema.String,
     cause: Schema.optional(Schema.Defect),
+    message: Schema.String,
   }
 ) {}
 
@@ -52,23 +52,23 @@ const WorkosAccessTokenPayload = Schema.Struct({
   iss: Schema.optional(Schema.NonEmptyString),
   permissions: Schema.optional(Schema.Array(Schema.String)),
   sid: Schema.optional(Schema.NonEmptyString),
-  sub: WorkosAuthUserId,
+  sub: AuthUserId,
 });
 
-export type WorkosAccessTokenJwtVerifier = (token: string) => Promise<unknown>;
+export type AccessTokenJwtVerifier = (token: string) => Promise<unknown>;
 
-export interface WorkosAccessTokenVerifierOptions {
+export interface AccessTokenVerifierOptions {
   readonly expectedClientId?: string;
   readonly expectedIssuer?: string;
   readonly requiredPermissions?: readonly string[];
-  readonly verifyAccessToken: WorkosAccessTokenJwtVerifier;
+  readonly verifyAccessToken: AccessTokenJwtVerifier;
 }
 
 const decodeVerifiedPayload = (payload: unknown) =>
   Schema.decodeUnknownEffect(WorkosAccessTokenPayload)(payload).pipe(
     Effect.mapError(
       () =>
-        new WorkosAccessTokenInvalid({
+        new AccessTokenInvalid({
           message: "WorkOS access token does not contain required claims",
           reason: "invalidClaims",
         })
@@ -76,7 +76,7 @@ const decodeVerifiedPayload = (payload: unknown) =>
   );
 
 const validateRequiredPermissions = (
-  token: VerifiedWorkosAccessToken,
+  token: VerifiedAccessToken,
   requiredPermissions: readonly string[]
 ) => {
   const grantedPermissions = token.permissions ?? [];
@@ -86,7 +86,7 @@ const validateRequiredPermissions = (
 
   if (missingPermission) {
     return Effect.fail(
-      new WorkosAccessTokenInvalid({
+      new AccessTokenInvalid({
         message: `WorkOS access token is missing required permission ${missingPermission}`,
         reason: "missingRequiredPermission",
       })
@@ -97,27 +97,27 @@ const validateRequiredPermissions = (
 };
 
 const invalidToken = () =>
-  new WorkosAccessTokenInvalid({
+  new AccessTokenInvalid({
     message: "Invalid WorkOS access token",
     reason: "invalidToken",
   });
 
 const invalidIssuer = () =>
-  new WorkosAccessTokenInvalid({
+  new AccessTokenInvalid({
     message: "WorkOS access token issuer does not match this application",
     reason: "invalidIssuer",
   });
 
 const invalidAudience = () =>
-  new WorkosAccessTokenInvalid({
+  new AccessTokenInvalid({
     message: "WorkOS access token audience does not match this application",
     reason: "invalidAudience",
   });
 
 const toVerifyAccessTokenError = (cause: unknown) =>
-  new WorkosAccessTokenVerificationFailure({
-    message: "Failed to verify WorkOS access token",
+  new AccessTokenVerificationFailure({
     cause,
+    message: "Failed to verify WorkOS access token",
   });
 
 const isJoseJwtError = (
@@ -179,12 +179,12 @@ const makeWorkosAccessTokenVerifier = ({
   expectedIssuer,
   requiredPermissions = [],
   verifyAccessToken,
-}: WorkosAccessTokenVerifierOptions) =>
-  WorkosAccessTokenVerifier.of({
-    verify: Effect.fn("WorkosAccessTokenVerifier.verify")((token) =>
+}: AccessTokenVerifierOptions) =>
+  AccessTokenVerifier.of({
+    verify: Effect.fn("AccessTokenVerifier.verify")((token) =>
       Effect.tryPromise({
-        try: () => verifyAccessToken(token),
         catch: toAccessTokenVerificationError,
+        try: () => verifyAccessToken(token),
       }).pipe(
         Effect.flatMap(decodeVerifiedPayload),
         Effect.flatMap((payload) =>
@@ -195,7 +195,7 @@ const makeWorkosAccessTokenVerifier = ({
         ),
         Effect.map(
           (payload) =>
-            new VerifiedWorkosAccessToken({
+            new VerifiedAccessToken({
               authUserId: payload.sub,
               ...(payload.sid === undefined ? {} : { sessionId: payload.sid }),
               ...(payload.permissions === undefined
@@ -210,21 +210,17 @@ const makeWorkosAccessTokenVerifier = ({
     ),
   });
 
-export const layerWorkosAccessTokenVerifierFromJwtVerifier = (
-  options: WorkosAccessTokenVerifierOptions
-) =>
-  Layer.succeed(
-    WorkosAccessTokenVerifier,
-    makeWorkosAccessTokenVerifier(options)
-  );
+export const accessTokenVerifierLayerFromJwtVerifier = (
+  options: AccessTokenVerifierOptions
+) => Layer.succeed(AccessTokenVerifier, makeWorkosAccessTokenVerifier(options));
 
-export const layerWorkosAccessTokenVerifier = ({
+export const accessTokenVerifierLayer = ({
   requiredPermissions = [],
 }: {
   readonly requiredPermissions?: readonly string[];
 } = {}) =>
   Layer.effect(
-    WorkosAccessTokenVerifier,
+    AccessTokenVerifier,
     Effect.gen(function* () {
       const clientId = yield* Config.string("WORKOS_CLIENT_ID");
       const apiHostname = yield* Config.option(
@@ -258,14 +254,19 @@ export const layerWorkosAccessTokenVerifier = ({
     })
   );
 
-export class WorkosAccessTokenVerifier extends Context.Service<
-  WorkosAccessTokenVerifier,
+export class AccessTokenVerifier extends Context.Service<
+  AccessTokenVerifier,
   {
     readonly verify: (
       token: string
     ) => Effect.Effect<
-      VerifiedWorkosAccessToken,
-      WorkosAccessTokenInvalid | WorkosAccessTokenVerificationFailure
+      VerifiedAccessToken,
+      AccessTokenInvalid | AccessTokenVerificationFailure
     >;
   }
->()("@repo/auth-workos/WorkosAccessTokenVerifier") {}
+>()("@repo/auth/AccessTokenVerifier") {
+  static readonly verify = Effect.fn("AccessTokenVerifier.verify")(
+    (token: string) =>
+      Effect.flatMap(AccessTokenVerifier, (verifier) => verifier.verify(token))
+  );
+}

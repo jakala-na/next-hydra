@@ -1,31 +1,9 @@
-import { layerWorkosAccessTokenVerifier } from "@repo/auth/access-token";
-import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
-import { makeCommerceApp } from "@repo/commerce/runtime/make-commerce-app";
-import { CartPolicies } from "@repo/commerce/services/cart-policies";
-import {
-  addressBookLayer,
-  cartsLayer,
-  commerceAccountsLayer,
-  productDiscoveryLayer,
-} from "@repo/commerce-provider/provider";
-import { Layer } from "effect";
-import { checkoutCustomerJwtVerifierLayerWorkos } from "./customer-jwt-workos";
+import { commerceApp, commerceAuthenticationLayer } from "../commerce/runtime";
 import { makeCheckoutHttpHandler } from "./http";
 
-const CommerceApp = makeCommerceApp({
-  addressBookLayer,
-  cartPoliciesLayer: CartPolicies.layer,
-  cartsLayer,
-  checkoutPoliciesLayer: CheckoutPolicies.layer,
-  commerceAccountsLayer,
-  productDiscoveryLayer,
-});
-
 const checkoutHttpDependencies = {
-  authenticationLayer: checkoutCustomerJwtVerifierLayerWorkos.pipe(
-    Layer.provide(layerWorkosAccessTokenVerifier())
-  ),
-  commerceApp: CommerceApp,
+  authenticationLayer: commerceAuthenticationLayer,
+  commerceApp,
 };
 
 const checkoutHttp = makeCheckoutHttpHandler(checkoutHttpDependencies);

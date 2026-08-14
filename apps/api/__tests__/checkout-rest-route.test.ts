@@ -1,8 +1,13 @@
 import {
-  AddressBookAccessDenied,
+  AuthUserId as AccessTokenAuthUserId,
+  AccessTokenInvalid,
+  AccessTokenVerificationFailure,
+  AccessTokenVerifier,
+  VerifiedAccessToken,
+} from "@repo/auth/access-token";
+import {
   AddressBookEntry,
   AddressBookEntryNotFound,
-  AddressBookProviderFailure,
   AddressBookReference,
   normalizeAddressTypes,
 } from "@repo/commerce/domain/address-book";
@@ -61,11 +66,6 @@ import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
 import { Context, Effect, Layer, Option, Redacted } from "effect";
 import { expect, test } from "vitest";
-import {
-  CheckoutCustomerJwtInvalid,
-  CheckoutCustomerJwtVerificationFailure,
-  CheckoutCustomerJwtVerifier,
-} from "../lib/checkout/customer-jwt";
 
 const HTTP_OK = 200;
 const HTTP_BAD_REQUEST = 400;
@@ -123,10 +123,33 @@ const cart = ({
   };
 };
 
+const anonymousCartCookieHeader = ({
+  cartId = "cart-1",
+  currency = "USD",
+  locale = "en-US",
+  storeKey = "default-store",
+}: {
+  readonly cartId?: string;
+  readonly currency?: CurrencyCode;
+  readonly locale?: Locale;
+  readonly storeKey?: string;
+} = {}) => {
+  const cookie = makeAnonymousCartCookie({
+    cartId,
+    store: new Store({
+      currency,
+      locale: CommerceLocale.make(locale),
+      storeKey: StoreKey.make(storeKey),
+    }),
+  });
+
+  return `${ANONYMOUS_CART_COOKIE_NAME}=${encodeAnonymousCartCookie(cookie)}`;
+};
+
 const request = (headers?: Record<string, string>) =>
   new Request("http://api.test/checkout/current", {
     headers: {
-      "x-context-anonymous-cart-id": "cart-1",
+      cookie: anonymousCartCookieHeader(),
       "x-context-locale": "en-US",
       ...headers,
     },
@@ -135,15 +158,6 @@ const request = (headers?: Record<string, string>) =>
 
 const requestWithoutAnonymousCart = (headers?: Record<string, string>) =>
   new Request("http://api.test/checkout/current", {
-    headers: {
-      "x-context-locale": "en-US",
-      ...headers,
-    },
-    method: "GET",
-  });
-
-const addressBookRequest = (headers?: Record<string, string>) =>
-  new Request("http://api.test/address-book", {
     headers: {
       "x-context-locale": "en-US",
       ...headers,
@@ -189,7 +203,7 @@ const saveContactRequest = (
     body: JSON.stringify(payload),
     headers: {
       "content-type": "application/json",
-      "x-context-anonymous-cart-id": "cart-1",
+      cookie: anonymousCartCookieHeader(),
       "x-context-locale": "en-US",
       ...headers,
     },
@@ -235,35 +249,12 @@ const saveDeliveryDetailsRequest = (
     body: JSON.stringify(payload),
     headers: {
       "content-type": "application/json",
-      "x-context-anonymous-cart-id": "cart-1",
+      cookie: anonymousCartCookieHeader(),
       "x-context-locale": "en-US",
       ...headers,
     },
     method: "POST",
   });
-
-const anonymousCartCookieHeader = ({
-  cartId = "cart-1",
-  currency = "USD",
-  locale = "en-US",
-  storeKey = "default-store",
-}: {
-  readonly cartId?: string;
-  readonly currency?: CurrencyCode;
-  readonly locale?: Locale;
-  readonly storeKey?: string;
-} = {}) => {
-  const cookie = makeAnonymousCartCookie({
-    cartId,
-    store: new Store({
-      currency,
-      locale: CommerceLocale.make(locale),
-      storeKey: StoreKey.make(storeKey),
-    }),
-  });
-
-  return `${ANONYMOUS_CART_COOKIE_NAME}=${encodeAnonymousCartCookie(cookie)}`;
-};
 
 const makeCheckoutLayer = (
   input: {
@@ -451,18 +442,6 @@ const makeAddressBookLayer = (
   );
 };
 
-const makeFailingAddressBookListLayer = (
-  error: AddressBookAccessDenied | AddressBookProviderFailure
-) =>
-  Layer.succeed(
-    AddressBook,
-    AddressBook.of({
-      get: () => Effect.die("not used"),
-      list: () => Effect.fail(error),
-      save: () => Effect.die("not used"),
-    })
-  );
-
 const makeCommerceAccountsLayer = (
   customerId = CommerceCustomerId.make("customer-1")
 ) =>
@@ -550,14 +529,19 @@ const makeFailingCommerceAccountsLayer = () =>
 
 const makeJwtVerifierLayer = (authUserId = AuthUserId.make("auth-user-1")) =>
   Layer.succeed(
-    CheckoutCustomerJwtVerifier,
-    CheckoutCustomerJwtVerifier.of({
+    AccessTokenVerifier,
+    AccessTokenVerifier.of({
       verify: (token) =>
         token === "valid-token"
-          ? Effect.succeed(authUserId)
+          ? Effect.succeed(
+              new VerifiedAccessToken({
+                authUserId: AccessTokenAuthUserId.make(authUserId),
+              })
+            )
           : Effect.fail(
-              new CheckoutCustomerJwtInvalid({
-                message: "Invalid checkout customer JWT",
+              new AccessTokenInvalid({
+                message: "Invalid commerce customer JWT",
+                reason: "invalidToken",
               })
             ),
     })
@@ -565,28 +549,26 @@ const makeJwtVerifierLayer = (authUserId = AuthUserId.make("auth-user-1")) =>
 
 const makeFailingJwtVerifierLayer = () =>
   Layer.succeed(
-    CheckoutCustomerJwtVerifier,
-    CheckoutCustomerJwtVerifier.of({
+    AccessTokenVerifier,
+    AccessTokenVerifier.of({
       verify: () =>
         Effect.fail(
-          new CheckoutCustomerJwtVerificationFailure({
+          new AccessTokenVerificationFailure({
             message: "JWT verifier unavailable",
           })
         ),
     })
   );
 
-const makeHandler = async (
+const makeTestCommerceApp = (
   layer: Layer.Layer<any, any, never>,
   addressBookLayer: Layer.Layer<
     AddressBook,
     never,
     CommerceContext
   > = AddressBook.layerMemory()
-) => {
-  const { makeCheckoutHttpHandler } = await import("../lib/checkout/http");
-
-  const commerceApp = makeCommerceApp({
+) =>
+  makeCommerceApp({
     addressBookLayer,
     cartPoliciesLayer: Layer.effect(CartPolicies, CartPolicies).pipe(
       Layer.provide(layer)
@@ -602,10 +584,23 @@ const makeHandler = async (
     ).pipe(Layer.provide(layer)),
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
-  const authenticationLayer = Layer.effect(
-    CheckoutCustomerJwtVerifier,
-    CheckoutCustomerJwtVerifier
-  ).pipe(Layer.provide(layer));
+
+const makeAuthenticationLayer = (layer: Layer.Layer<any, any, never>) =>
+  Layer.effect(AccessTokenVerifier, AccessTokenVerifier).pipe(
+    Layer.provide(layer)
+  );
+
+const makeHandler = async (
+  layer: Layer.Layer<any, any, never>,
+  addressBookLayer: Layer.Layer<
+    AddressBook,
+    never,
+    CommerceContext
+  > = AddressBook.layerMemory()
+) => {
+  const { makeCheckoutHttpHandler } = await import("../lib/checkout/http");
+  const commerceApp = makeTestCommerceApp(layer, addressBookLayer);
+  const authenticationLayer = makeAuthenticationLayer(layer);
 
   return makeCheckoutHttpHandler({ authenticationLayer, commerceApp });
 };
@@ -662,7 +657,14 @@ test("GET /checkout/current adds localized fallback messages to public violation
 
   try {
     const response = await handler(
-      request({ "x-context-locale": "de-DE" }),
+      request({
+        cookie: anonymousCartCookieHeader({
+          currency: "EUR",
+          locale: "de-DE",
+          storeKey: "de-fr-uk",
+        }),
+        "x-context-locale": "de-DE",
+      }),
       emptyContext()
     );
     const body = await response.json();
@@ -965,109 +967,6 @@ test("POST /checkout/delivery-details is idempotent for the same Manual Shipping
     await dispose();
   }
 });
-
-test("GET /address-book returns entries for the verified Business Unit principal", async () => {
-  const reference = AddressBookReference.make("london-office");
-  const entry = new AddressBookEntry({
-    address: manualDeliveryDetails.shippingAddress,
-    defaultBilling: false,
-    defaultShipping: true,
-    reference,
-    types: ["shipping"],
-  });
-  let listedCustomerId: CommerceCustomerId | undefined;
-  const addressBookLayer = makeAddressBookLayer([entry], (principal) => {
-    listedCustomerId = principal.customerId;
-  });
-  const layer = Layer.mergeAll(
-    makeCheckoutLayer(),
-    makeCommerceAccountsLayer(),
-    makeJwtVerifierLayer()
-  );
-  const { dispose, handler } = await makeHandler(layer, addressBookLayer);
-
-  try {
-    const response = await handler(
-      addressBookRequest({
-        authorization: "Bearer valid-token",
-        "x-context-business-unit-id": "business-unit-1",
-        "x-context-customer-id": "customer-spoof",
-      }),
-      emptyContext()
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(HTTP_OK);
-    expect(body).toEqual([entry]);
-    expect(listedCustomerId).toBe("customer-1");
-    expect(JSON.stringify(body)).not.toContain("business-unit-1");
-    expect(JSON.stringify(body)).not.toContain("customer-1");
-  } finally {
-    await dispose();
-  }
-});
-
-test("GET /address-book requires an authenticated customer context", async () => {
-  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
-
-  try {
-    const response = await handler(addressBookRequest(), emptyContext());
-    const body = await response.json();
-
-    expect(response.status).toBe(HTTP_NOT_FOUND);
-    expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
-      code: "checkout.notFound",
-    });
-  } finally {
-    await dispose();
-  }
-});
-
-test.each([
-  {
-    code: "checkout.addressBook.accessDenied",
-    error: new AddressBookAccessDenied({
-      message: "Buyer cannot access the Address Book",
-      operation: "list",
-    }),
-    message: "The address book is unavailable for this checkout.",
-    status: HTTP_BAD_REQUEST,
-  },
-  {
-    code: "checkout.addressBook.providerFailure",
-    error: new AddressBookProviderFailure({
-      message: "Commercetools is unavailable",
-      operation: "list",
-    }),
-    message: "Saved addresses could not be loaded. Try again.",
-    status: HTTP_INTERNAL_SERVER_ERROR,
-  },
-])(
-  "GET /address-book maps $error._tag to a stable localized response",
-  async ({ error, status, code, message }) => {
-    const addressBookLayer = makeFailingAddressBookListLayer(error);
-    const layer = Layer.mergeAll(
-      makeCheckoutLayer(),
-      makeCommerceAccountsLayer(),
-      makeJwtVerifierLayer()
-    );
-    const { dispose, handler } = await makeHandler(layer, addressBookLayer);
-
-    try {
-      const response = await handler(
-        addressBookRequest({ authorization: "Bearer valid-token" }),
-        emptyContext()
-      );
-      const body = await response.json();
-
-      expect(response.status).toBe(status);
-      expect(body).toMatchObject({ code, message });
-    } finally {
-      await dispose();
-    }
-  }
-);
 
 test("POST /checkout/delivery-details copies an existing Address Book Entry to the Cart", async () => {
   const reference = AddressBookReference.make("london-office");
@@ -1516,30 +1415,22 @@ test("GET /checkout/current expires a confirmed missing anonymous Cart cookie", 
   }
 });
 
-test("GET /checkout/current prefers anonymous cart cookie over anonymous cart header", async () => {
-  const { dispose, handler } = await makeHandler(
-    makeCheckoutLayer({
-      currentCart: { ...cart(), id: CartId.make("cart-from-cookie") },
-    })
-  );
+test("GET /checkout/current ignores a caller-supplied anonymous cart id header", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
 
   try {
     const response = await handler(
-      request({
-        cookie: anonymousCartCookieHeader({ cartId: "cart-from-cookie" }),
+      requestWithoutAnonymousCart({
         "x-context-anonymous-cart-id": "cart-from-header",
       }),
       emptyContext()
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_OK);
+    expect(response.status).toBe(HTTP_NOT_FOUND);
     expect(body).toMatchObject({
-      scope: {
-        anonymousCartId: "cart-from-cookie",
-        channel: "storefrontAnonymous",
-        locale: "en-US",
-      },
+      _tag: "CheckoutApiNotFound",
+      code: "checkout.notFound",
     });
   } finally {
     await dispose();

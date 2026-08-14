@@ -1,9 +1,14 @@
+import {
+  type AccessTokenInvalid,
+  type AccessTokenVerificationFailure,
+  AccessTokenVerifier,
+} from "@repo/auth/access-token";
 import type { AddressBookReference } from "@repo/commerce/domain/address-book";
 import { CartId } from "@repo/commerce/domain/cart";
 import { currentCartOperationFailure } from "@repo/commerce/domain/cart-errors";
 import {
   AnonymousCommerceContextRequest,
-  type AuthUserId,
+  AuthUserId,
   CommerceRequestContextNotFound,
   CustomerCommerceContextRequest,
 } from "@repo/commerce/domain/commerce-request-context";
@@ -13,12 +18,12 @@ import {
   CheckoutApiError,
   CheckoutApiNotFound,
   CheckoutHttpApi,
-  CheckoutRequestHeaders,
   CheckoutSchemaErrorMiddleware,
   CheckoutSessionMiddleware,
 } from "@repo/commerce/http/checkout-api";
 import { checkoutApiErrorMessage } from "@repo/commerce/http/checkout-api-messages";
 import { toCheckoutApiState } from "@repo/commerce/http/checkout-api-state";
+import { CommerceRequestHeaders } from "@repo/commerce/http/commerce-request";
 import {
   ANONYMOUS_CART_COOKIE_NAME,
   encodeAnonymousCartCookie,
@@ -36,7 +41,6 @@ import type {
   CommerceRequestProvisionError,
   CommerceStableServices,
 } from "@repo/commerce/runtime/make-commerce-app";
-import { AddressBook } from "@repo/commerce/services/address-book";
 import { resolveStore } from "@repo/commerce/store";
 import {
   type Config,
@@ -55,18 +59,13 @@ import {
   HttpServerResponse,
 } from "effect/unstable/http";
 import { HttpApiBuilder, HttpApiMiddleware } from "effect/unstable/httpapi";
-import {
-  type CheckoutCustomerJwtInvalid,
-  type CheckoutCustomerJwtVerificationFailure,
-  CheckoutCustomerJwtVerifier,
-} from "./customer-jwt";
 
 type CheckoutCommerceApp = CommerceApplication<
   Config.ConfigError,
   Config.ConfigError | CommerceRequestProvisionError
 >;
 type CheckoutAuthenticationLayer = Layer.Layer<
-  CheckoutCustomerJwtVerifier,
+  AccessTokenVerifier,
   Config.ConfigError
 >;
 type CommerceRequestContextNotFoundReason = ConstructorParameters<
@@ -107,7 +106,6 @@ const logCheckoutDiagnosticFailure = (error: CheckoutDiagnosticFailure) =>
 const toCheckoutBadRequest = (
   locale?: string,
   code:
-    | "checkout.addressBook.accessDenied"
     | "checkout.badRequest"
     | "checkout.deliveryDetails.addressBookEntryUnavailable"
     | "checkout.deliveryDetails.invalidInput"
@@ -125,10 +123,6 @@ const toCheckoutBadRequest = (
 const getCheckoutRequestHeadersFromRequest = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest;
   const locale = getHeader(request.headers, "x-context-locale");
-  const anonymousCartId = getHeader(
-    request.headers,
-    "x-context-anonymous-cart-id"
-  );
   const businessUnitId = getHeader(
     request.headers,
     "x-context-business-unit-id"
@@ -138,11 +132,8 @@ const getCheckoutRequestHeadersFromRequest = Effect.gen(function* () {
     return yield* Effect.fail(toCheckoutBadRequest());
   }
 
-  return yield* Schema.decodeUnknownEffect(CheckoutRequestHeaders)({
+  return yield* Schema.decodeUnknownEffect(CommerceRequestHeaders)({
     "x-context-locale": locale,
-    ...(anonymousCartId === undefined
-      ? {}
-      : { "x-context-anonymous-cart-id": anonymousCartId }),
     ...(businessUnitId === undefined
       ? {}
       : { "x-context-business-unit-id": businessUnitId }),
@@ -158,7 +149,6 @@ const toCheckoutNotFound = (locale: string) =>
 const toCheckoutApiError = (
   locale: string,
   code:
-    | "checkout.addressBook.providerFailure"
     | "checkout.internal"
     | "checkout.deliveryDetails.providerFailure" = "checkout.internal",
   addressBookReference?: AddressBookReference
@@ -295,12 +285,12 @@ const parseBearerToken = (authorization: string | undefined) => {
 
 const toCheckoutContextAuthError = (
   locale: string,
-  error: CheckoutCustomerJwtInvalid | CheckoutCustomerJwtVerificationFailure
+  error: AccessTokenInvalid | AccessTokenVerificationFailure
 ) => {
   switch (error._tag) {
-    case "CheckoutCustomerJwtInvalid":
+    case "AccessTokenInvalid":
       return commerceRequestContextNotFound("noPrincipal");
-    case "CheckoutCustomerJwtVerificationFailure":
+    case "AccessTokenVerificationFailure":
       return toCheckoutContextInternalError(locale);
     default:
       exhaustive(error);
@@ -308,7 +298,7 @@ const toCheckoutContextAuthError = (
   }
 };
 
-const getAuthUserIdFromAuthorization = (headers: CheckoutRequestHeaders) =>
+const getAuthUserIdFromAuthorization = (headers: CommerceRequestHeaders) =>
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const token = yield* parseBearerToken(
@@ -320,15 +310,15 @@ const getAuthUserIdFromAuthorization = (headers: CheckoutRequestHeaders) =>
     }
 
     const locale = headers["x-context-locale"];
-    const authUserId = yield* CheckoutCustomerJwtVerifier.verify(token).pipe(
+    const verifiedToken = yield* AccessTokenVerifier.verify(token).pipe(
       Effect.tapError((error) =>
-        error._tag === "CheckoutCustomerJwtVerificationFailure"
+        error._tag === "AccessTokenVerificationFailure"
           ? logCheckoutDiagnosticFailure(error)
           : Effect.void
       ),
       Effect.mapError((error) => toCheckoutContextAuthError(locale, error))
     );
-    return authUserId;
+    return AuthUserId.make(verifiedToken.authUserId);
   });
 
 const anonymousCartCookieMaxAgeDays = 90;
@@ -345,7 +335,7 @@ type CartCookieChange =
   | { readonly _tag: "Clear" };
 
 const makeHttpCommerceRequest = (
-  headers: CheckoutRequestHeaders,
+  headers: CommerceRequestHeaders,
   authUserId: AuthUserId | null
 ) =>
   Effect.gen(function* () {
@@ -405,9 +395,7 @@ const makeHttpCommerceRequest = (
       store
     );
     const anonymousCartId =
-      cookieCartId === null
-        ? headers["x-context-anonymous-cart-id"]
-        : CartId.make(cookieCartId);
+      cookieCartId === null ? undefined : CartId.make(cookieCartId);
     return {
       context: new AnonymousCommerceContextRequest({
         store,
@@ -435,11 +423,11 @@ const checkoutSessionMiddlewareLayer = (commerceApp: CheckoutCommerceApp) =>
   Layer.effect(
     CheckoutSessionMiddleware,
     Effect.gen(function* () {
-      const checkoutCustomerJwtVerifier = yield* CheckoutCustomerJwtVerifier;
+      const accessTokenVerifier = yield* AccessTokenVerifier;
       const commerceServices = yield* Effect.context<CommerceStableServices>();
       const authenticationLayer = Layer.succeed(
-        CheckoutCustomerJwtVerifier,
-        checkoutCustomerJwtVerifier
+        AccessTokenVerifier,
+        accessTokenVerifier
       );
 
       return (httpEffect) =>
@@ -498,37 +486,6 @@ const makeCheckoutHttpHandlers = () =>
     "checkout",
     Effect.fn(function* (handlers) {
       return handlers
-        .handle("addressBook", ({ headers }) =>
-          AddressBook.list().pipe(
-            Effect.tapError((error) =>
-              error._tag === "AddressBookProviderFailure"
-                ? logCheckoutDiagnosticFailure(error)
-                : Effect.void
-            ),
-            Effect.mapError((error) => {
-              switch (error._tag) {
-                case "CommerceRequestContextNotFound":
-                  return toCheckoutContextNotFound(
-                    error,
-                    headers["x-context-locale"]
-                  );
-                case "AddressBookAccessDenied":
-                  return toCheckoutBadRequest(
-                    headers["x-context-locale"],
-                    "checkout.addressBook.accessDenied"
-                  );
-                case "AddressBookProviderFailure":
-                  return toCheckoutApiError(
-                    headers["x-context-locale"],
-                    "checkout.addressBook.providerFailure"
-                  );
-                default:
-                  exhaustive(error);
-                  return toCheckoutApiError(headers["x-context-locale"]);
-              }
-            })
-          )
-        )
         .handle("current", ({ headers }) =>
           CheckoutSession.getCurrent().pipe(
             Effect.map(toCheckoutApiState),

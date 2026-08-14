@@ -6,8 +6,7 @@ import {
   HttpApiMiddleware,
   OpenApi,
 } from "effect/unstable/httpapi";
-import { AddressBookEntry, AddressBookReference } from "../domain/address-book";
-import { CartId } from "../domain/cart";
+import { AddressBookReference } from "../domain/address-book";
 import {
   CheckoutCartReference,
   CheckoutContactInput,
@@ -15,10 +14,8 @@ import {
   CheckoutState,
   CheckoutViolation,
 } from "../domain/checkout";
-import { CommerceBusinessUnitId } from "../domain/commerce-account";
 import type { CheckoutSession } from "../lib/checkout/checkout-session";
-import type { AddressBook } from "../services/address-book";
-import { CommerceLocale } from "../store";
+import { CommerceRequestHeaders } from "./commerce-request";
 
 export const CheckoutApiViolation = Schema.Struct({
   ...CheckoutViolation.fields,
@@ -41,7 +38,6 @@ export class CheckoutApiError extends Schema.TaggedErrorClass<CheckoutApiError>(
   "CheckoutApiError",
   {
     code: Schema.Literals([
-      "checkout.addressBook.providerFailure",
       "checkout.internal",
       "checkout.deliveryDetails.providerFailure",
     ]),
@@ -64,7 +60,6 @@ export class CheckoutApiBadRequest extends Schema.TaggedErrorClass<CheckoutApiBa
   "CheckoutApiBadRequest",
   {
     code: Schema.Literals([
-      "checkout.addressBook.accessDenied",
       "checkout.badRequest",
       "checkout.deliveryDetails.invalidInput",
       "checkout.deliveryDetails.sourceUnavailable",
@@ -89,14 +84,6 @@ export class CheckoutApiConflict extends Schema.TaggedErrorClass<CheckoutApiConf
   { httpApiStatus: 409 }
 ) {}
 
-export class CheckoutRequestHeaders extends Schema.Class<CheckoutRequestHeaders>(
-  "CheckoutRequestHeaders"
-)({
-  "x-context-locale": CommerceLocale,
-  "x-context-anonymous-cart-id": Schema.optional(CartId),
-  "x-context-business-unit-id": Schema.optional(CommerceBusinessUnitId),
-}) {}
-
 export class SaveCheckoutContactRequest extends Schema.Class<SaveCheckoutContactRequest>(
   "SaveCheckoutContactRequest"
 )({
@@ -111,11 +98,15 @@ export class SaveCheckoutDeliveryDetailsRequest extends Schema.Class<SaveCheckou
   deliveryDetails: CheckoutDeliveryDetailsInput,
 }) {}
 
-const CheckoutApiErrors = [
+const CheckoutReadErrors = [
   CheckoutApiBadRequest,
-  CheckoutApiConflict,
   CheckoutApiError,
   CheckoutApiNotFound,
+] as const;
+
+const CheckoutMutationErrors = [
+  ...CheckoutReadErrors,
+  CheckoutApiConflict,
 ] as const;
 
 export class CheckoutSchemaErrorMiddleware extends HttpApiMiddleware.Service<
@@ -130,54 +121,43 @@ export class CheckoutSchemaErrorMiddleware extends HttpApiMiddleware.Service<
 export class CheckoutSessionMiddleware extends HttpApiMiddleware.Service<
   CheckoutSessionMiddleware,
   {
-    readonly provides: AddressBook | CheckoutSession;
+    readonly provides: CheckoutSession;
     readonly requires: never;
   }
 >()("@repo/commerce/http/CheckoutSessionMiddleware", {
-  error: Schema.Union([
-    CheckoutApiBadRequest,
-    CheckoutApiError,
-    CheckoutApiNotFound,
-  ]),
+  error: [CheckoutApiBadRequest, CheckoutApiError, CheckoutApiNotFound],
 }) {}
 
 export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
   .add(
-    HttpApiEndpoint.get("addressBook", "/address-book", {
-      headers: CheckoutRequestHeaders,
-      success: Schema.Array(AddressBookEntry),
-      error: CheckoutApiErrors,
-    })
-  )
-  .add(
     HttpApiEndpoint.get("current", "/checkout/current", {
-      headers: CheckoutRequestHeaders,
+      error: CheckoutReadErrors,
+      headers: CommerceRequestHeaders,
       success: CheckoutApiState,
-      error: CheckoutApiErrors,
-    })
+    }).annotate(OpenApi.Summary, "Get the current checkout")
   )
   .add(
     HttpApiEndpoint.post("saveContact", "/checkout/contact", {
-      headers: CheckoutRequestHeaders,
+      error: CheckoutMutationErrors,
+      headers: CommerceRequestHeaders,
       payload: SaveCheckoutContactRequest,
       success: CheckoutApiState,
-      error: CheckoutApiErrors,
-    })
+    }).annotate(OpenApi.Summary, "Save checkout contact details")
   )
   .add(
     HttpApiEndpoint.post("saveDeliveryDetails", "/checkout/delivery-details", {
-      headers: CheckoutRequestHeaders,
+      error: CheckoutMutationErrors,
+      headers: CommerceRequestHeaders,
       payload: SaveCheckoutDeliveryDetailsRequest,
       success: CheckoutApiState,
-      error: CheckoutApiErrors,
-    })
+    }).annotate(OpenApi.Summary, "Save checkout delivery details")
   )
   .middleware(CheckoutSchemaErrorMiddleware)
   .middleware(CheckoutSessionMiddleware)
   .annotateMerge(
     OpenApi.annotations({
+      description: "Checkout endpoints",
       title: "Checkout",
-      description: "Checkout and Business Unit Address Book endpoints",
     })
   ) {}
 

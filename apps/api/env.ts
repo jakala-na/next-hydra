@@ -1,8 +1,5 @@
 import { keys as analytics } from "@repo/analytics/keys";
-import {
-  webhookKeys as authWebhook,
-  keys as authWorkos,
-} from "@repo/auth/keys";
+import { keys as auth, webhookKeys as authWebhook } from "@repo/auth/keys";
 import { keys as commerce } from "@repo/commerce-provider/keys";
 import { keys as email } from "@repo/email/keys";
 import { keys as core } from "@repo/next-config/keys";
@@ -16,7 +13,7 @@ export const env = createEnv({
   client: {},
   extends: [
     analytics(),
-    authWorkos(),
+    auth(),
     authWebhook(),
     commerce(),
     core(),

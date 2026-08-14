@@ -7,7 +7,7 @@ const HTTP_OK = 200;
 const documentedOperations = [
   {
     method: "get",
-    operationId: "checkout.addressBook",
+    operationId: "addressBook.list",
     path: "/address-book",
   },
   {
@@ -87,6 +87,25 @@ test("exposes the aggregate document from the API app", async () => {
   expect(await response.json()).toEqual(applicationOpenApi);
 });
 
+test("documents Address Book independently and never exposes anonymous cart ids as inputs", () => {
+  const addressBookOperation = applicationOpenApi.paths["/address-book"]?.get;
+
+  expect(addressBookOperation?.security).toEqual([{ commerceBearer: [] }]);
+  expect(Object.keys(addressBookOperation?.responses ?? {}).sort()).toEqual([
+    "200",
+    "400",
+    "401",
+    "403",
+    "500",
+  ]);
+  expect(JSON.stringify(applicationOpenApi)).not.toContain(
+    "x-context-anonymous-cart-id"
+  );
+  expect(applicationOpenApi.components?.securitySchemes).toHaveProperty(
+    "commerceBearer"
+  );
+});
+
 test("serves Scalar for the aggregate API", async () => {
   const response = await getDocs(new Request("http://api.test/docs"));
   const html = await response.text();
@@ -95,6 +114,6 @@ test("serves Scalar for the aggregate API", async () => {
   expect(response.headers.get("content-type")).toContain("text/html");
   expect(html).toContain("Next Hydra API");
   expect(html).toContain('id="api-reference"');
-  expect(html).toContain("checkout.addressBook");
+  expect(html).toContain("addressBook.list");
   expect(html).toContain("registrations.create");
 });

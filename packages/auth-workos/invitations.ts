@@ -1,10 +1,3 @@
-import {
-  NotFoundException,
-  WorkOS,
-  type Invitation as WorkosInvitation,
-  type SendInvitationOptions as WorkosSendInvitationOptions,
-} from "@workos-inc/node";
-import { Config, Effect, Layer, Option, Redacted } from "effect";
 import { registrationSystemActor } from "@repo/registration/domain/actors";
 import {
   AcceptedAuthIdentity,
@@ -29,6 +22,13 @@ import {
   type IssueInvitationInput,
   type RevokeInvitationInput,
 } from "@repo/registration/services/invitations";
+import {
+  NotFoundException,
+  WorkOS,
+  type Invitation as WorkosInvitation,
+  type SendInvitationOptions as WorkosSendInvitationOptions,
+} from "@workos-inc/node";
+import { Config, Effect, Layer, Option, Redacted } from "effect";
 
 export type {
   Invitation as WorkosInvitation,
@@ -92,11 +92,11 @@ const pendingFromWorkos = (
 ) =>
   new PendingInvitation({
     _tag: "PendingInvitation",
+    acceptInvitationUrl: invitation.acceptInvitationUrl,
+    createdAt: toDate(invitation.createdAt),
     id: invitationIdFromWorkos(invitation),
     intent: input.intent,
     issuedBy: input.issuedBy,
-    createdAt: toDate(invitation.createdAt),
-    acceptInvitationUrl: invitation.acceptInvitationUrl,
   });
 
 const invitationFromWorkos = (
@@ -104,10 +104,10 @@ const invitationFromWorkos = (
   acceptedIdentity?: AcceptedAuthIdentity
 ): Invitation => {
   const base = {
+    createdAt: toDate(invitation.createdAt),
     id: invitationIdFromWorkos(invitation),
     intent: providerIntentFromWorkos(invitation),
     issuedBy: registrationSystemActor,
-    createdAt: toDate(invitation.createdAt),
   };
 
   switch (invitation.state) {
@@ -115,16 +115,16 @@ const invitationFromWorkos = (
       return new AcceptedInvitation({
         _tag: "AcceptedInvitation",
         ...base,
-        acceptedBy: acceptedIdentityFromWorkos(invitation, acceptedIdentity),
         acceptedAt: toDate(invitation.acceptedAt),
+        acceptedBy: acceptedIdentityFromWorkos(invitation, acceptedIdentity),
       });
     case "revoked":
     case "expired":
       return new RevokedInvitation({
         _tag: "RevokedInvitation",
         ...base,
-        revokedBy: registrationSystemActor,
         revokedAt: toDate(invitation.revokedAt ?? invitation.expiresAt),
+        revokedBy: registrationSystemActor,
       });
     case "pending":
       return new PendingInvitation({
@@ -146,26 +146,26 @@ const providerFailure = (
   cause: unknown
 ) =>
   new InvitationProviderFailure({
+    cause,
     message: `Failed to ${operation} invitation: ${
       cause instanceof Error ? cause.message : String(cause)
     }`,
     operation,
-    cause,
   });
 
 const readFailure = (invitationId: InvitationId, cause: unknown) =>
   cause instanceof NotFoundException
     ? new InvitationNotFound({
-        message: `Invitation ${invitationId} was not found`,
         invitationId,
+        message: `Invitation ${invitationId} was not found`,
       })
     : providerFailure("read", cause);
 
 const revokeFailure = (invitationId: InvitationId, cause: unknown) =>
   cause instanceof NotFoundException
     ? new InvitationNotFound({
-        message: `Invitation ${invitationId} was not found`,
         invitationId,
+        message: `Invitation ${invitationId} was not found`,
       })
     : providerFailure("revoke", cause);
 
@@ -176,9 +176,9 @@ export const makeWorkosInvitations = (
     input: IssueInvitationInput
   ) {
     const invitation = yield* Effect.tryPromise({
+      catch: (cause) => providerFailure("issue", cause),
       try: () =>
         userManagement.sendInvitation(workosIssueInputFromIntent(input)),
-      catch: (cause) => providerFailure("issue", cause),
     });
 
     return pendingFromWorkos(invitation, input);
@@ -187,8 +187,8 @@ export const makeWorkosInvitations = (
   const get = Effect.fn("Invitations.Workos.get")(
     (invitationId: InvitationId) =>
       Effect.tryPromise({
-        try: () => userManagement.getInvitation(invitationId),
         catch: (cause) => readFailure(invitationId, cause),
+        try: () => userManagement.getInvitation(invitationId),
       }).pipe(Effect.map(invitationFromWorkos))
   );
 
@@ -196,8 +196,8 @@ export const makeWorkosInvitations = (
     input: AcceptInvitationInput
   ) {
     const invitation = yield* Effect.tryPromise({
-      try: () => userManagement.getInvitation(input.invitationId),
       catch: (cause) => readFailure(input.invitationId, cause),
+      try: () => userManagement.getInvitation(input.invitationId),
     });
 
     if (invitation.state === "revoked" || invitation.state === "expired") {
@@ -213,12 +213,12 @@ export const makeWorkosInvitations = (
 
     return new AcceptedInvitation({
       _tag: "AcceptedInvitation",
+      acceptedAt,
+      acceptedBy: input.acceptedIdentity,
+      createdAt: toDate(invitation.createdAt),
       id: invitationIdFromWorkos(invitation),
       intent: providerIntentFromWorkos(invitation),
       issuedBy: registrationSystemActor,
-      acceptedBy: input.acceptedIdentity,
-      createdAt: toDate(invitation.createdAt),
-      acceptedAt,
     });
   });
 
@@ -226,8 +226,8 @@ export const makeWorkosInvitations = (
     input: RevokeInvitationInput
   ) {
     const invitation = yield* Effect.tryPromise({
-      try: () => userManagement.revokeInvitation(input.invitationId),
       catch: (cause) => revokeFailure(input.invitationId, cause),
+      try: () => userManagement.revokeInvitation(input.invitationId),
     });
     const revoked = invitationFromWorkos(invitation);
 
@@ -239,24 +239,24 @@ export const makeWorkosInvitations = (
 
     return new RevokedInvitation({
       _tag: "RevokedInvitation",
+      createdAt: revoked.createdAt,
       id: revoked.id,
       intent: revoked.intent,
       issuedBy: revoked.issuedBy,
-      revokedBy: input.revokedBy,
-      createdAt: revoked.createdAt,
       revokedAt: revoked.revokedAt,
+      revokedBy: input.revokedBy,
     });
   });
 
   return Invitations.of({
-    issue,
-    get,
     accept,
+    get,
+    issue,
     revoke,
   });
 };
 
-export const invitationsLayerWorkos = Layer.effect(
+export const invitationsLayer = Layer.effect(
   Invitations,
   Effect.gen(function* () {
     const apiKey = yield* Config.redacted("WORKOS_API_KEY");

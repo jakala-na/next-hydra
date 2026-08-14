@@ -1,5 +1,8 @@
 import { Effect, Layer } from "effect";
-import type { CommerceRequestContextNotFound } from "../domain/commerce-request-context";
+import type {
+  CommerceContextRequest,
+  CommerceRequestContextNotFound,
+} from "../domain/commerce-request-context";
 import type { CheckoutPolicies } from "../lib/checkout/checkout-policy";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import type { ProductDiscovery } from "../product/product-discovery";
@@ -21,6 +24,8 @@ export type CommerceRequestServices =
   | CommerceContext
   | CurrentCart
   | ProductDiscovery;
+
+export type AddressBookRequestServices = AddressBook | CommerceContext;
 
 export type CommerceStableServices =
   | CartPolicies
@@ -62,13 +67,22 @@ export interface CommerceAppBindings<
   >;
 }
 
-export interface CommerceApplication<LayerError, ProvisionError> {
+export interface CommerceApplication<
+  LayerError,
+  ProvisionError,
+  AddressBookProvisionError = ProvisionError,
+> {
   readonly layer: Layer.Layer<CommerceStableServices, LayerError>;
   readonly provide: (
     request: CommerceRequestInput
   ) => <A, E>(
     program: Effect.Effect<A, E, CommerceRequestServices>
   ) => Effect.Effect<A, E | ProvisionError, CommerceStableServices>;
+  readonly provideAddressBook: (
+    request: CommerceContextRequest
+  ) => <A, E>(
+    program: Effect.Effect<A, E, AddressBookRequestServices>
+  ) => Effect.Effect<A, E | AddressBookProvisionError, CommerceStableServices>;
 }
 
 const makeRequestLayer = <
@@ -114,6 +128,32 @@ const makeRequestLayer = <
   );
 };
 
+const makeAddressBookRequestLayer = <
+  AddressBookError,
+  CartPoliciesError,
+  CartsError,
+  CheckoutPoliciesError,
+  CommerceAccountsError,
+  ProductDiscoveryError,
+>(
+  bindings: CommerceAppBindings<
+    AddressBookError,
+    CartPoliciesError,
+    CartsError,
+    CheckoutPoliciesError,
+    CommerceAccountsError,
+    ProductDiscoveryError
+  >,
+  request: CommerceContextRequest
+) => {
+  const commerceContext = CommerceContext.layer(request);
+  const addressBook = bindings.addressBookLayer.pipe(
+    Layer.provideMerge(commerceContext)
+  );
+
+  return Layer.mergeAll(commerceContext, addressBook);
+};
+
 export function makeCommerceApp<
   AddressBookError,
   CartPoliciesError,
@@ -135,7 +175,8 @@ export function makeCommerceApp<
   | CartsError
   | CheckoutPoliciesError
   | CommerceAccountsError,
-  AddressBookError | ProductDiscoveryError | CommerceRequestProvisionError
+  AddressBookError | ProductDiscoveryError | CommerceRequestProvisionError,
+  AddressBookError | CommerceRequestProvisionError
 > {
   const layer = Layer.mergeAll(
     bindings.cartPoliciesLayer,
@@ -147,5 +188,7 @@ export function makeCommerceApp<
   return {
     layer,
     provide: (request) => Effect.provide(makeRequestLayer(bindings, request)),
+    provideAddressBook: (request) =>
+      Effect.provide(makeAddressBookRequestLayer(bindings, request)),
   };
 }

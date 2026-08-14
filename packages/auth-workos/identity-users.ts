@@ -1,10 +1,10 @@
+import type { RedactedEmail } from "@repo/registration/domain/identity";
 import {
   IdentityUserLookupFailure,
   IdentityUsers,
 } from "@repo/registration/services/identity-users";
 import { WorkOS } from "@workos-inc/node";
 import { Config, Effect, Layer, Option, Redacted } from "effect";
-import type { RedactedEmail } from "@repo/registration/domain/identity";
 
 type WorkosSdk = Pick<WorkOS, "userManagement">;
 
@@ -15,11 +15,11 @@ export type WorkosIdentityUserManagement = Pick<
 
 const providerFailure = (cause: unknown) =>
   new IdentityUserLookupFailure({
+    cause,
     message: `Failed to check WorkOS user email: ${
       cause instanceof Error ? cause.message : String(cause)
     }`,
     operation: "hasUserWithEmail",
-    cause,
   });
 
 export const makeWorkosIdentityUsers = (
@@ -29,6 +29,7 @@ export const makeWorkosIdentityUsers = (
     hasUserWithEmail: Effect.fn("IdentityUsers.Workos.hasUserWithEmail")(
       (email: RedactedEmail) =>
         Effect.tryPromise({
+          catch: providerFailure,
           try: async () => {
             const users = await userManagement.listUsers({
               email: Redacted.value(email),
@@ -37,12 +38,11 @@ export const makeWorkosIdentityUsers = (
 
             return users.data.length > 0;
           },
-          catch: providerFailure,
         })
     ),
   });
 
-export const identityUsersLayerWorkos = Layer.effect(
+export const identityUsersLayer = Layer.effect(
   IdentityUsers,
   Effect.gen(function* () {
     const apiKey = yield* Config.redacted("WORKOS_API_KEY");

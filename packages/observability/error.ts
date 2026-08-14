@@ -1,13 +1,18 @@
-import { captureException } from "@sentry/nextjs";
+import { captureException as captureSentryException } from "@sentry/nextjs";
 import { log } from "./log";
+
+export const captureException = (error: unknown): void => {
+  captureSentryException(error);
+};
 
 export const parseError = (error: unknown): string => {
   let message = "An error occurred";
 
   if (error instanceof Error) {
-    message = error.message;
+    ({ message } = error);
   } else if (error && typeof error === "object" && "message" in error) {
-    message = error.message as string;
+    const { message: errorMessage } = error;
+    message = errorMessage as string;
   } else {
     message = String(error);
   }

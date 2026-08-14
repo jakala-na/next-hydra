@@ -21,7 +21,6 @@
     "@repo/observability": "workspace:*",
     "@repo/registration": "workspace:*",
     "@repo/testing": "workspace:*",
-    "@sentry/nextjs": "^10.22.0",
     "@t3-oss/env-nextjs": "catalog:",
     "effect": "catalog:",
     "import-in-the-middle": "2.0.0",

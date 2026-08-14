@@ -4,8 +4,6 @@ import { Option, Schema } from "effect";
 import { CommerceLocale } from "../store";
 
 export type CheckoutApiErrorCode =
-  | "checkout.addressBook.accessDenied"
-  | "checkout.addressBook.providerFailure"
   | "checkout.badRequest"
   | "checkout.cartMismatch"
   | "checkout.deliveryDetails.addressBookEntryUnavailable"
@@ -28,10 +26,6 @@ export const checkoutApiErrorMessage = (
     checkoutMessageCatalogs[decodedLocale as SupportedLocale].errors;
 
   switch (code) {
-    case "checkout.addressBook.accessDenied":
-      return messages.addressBook.accessDenied;
-    case "checkout.addressBook.providerFailure":
-      return messages.addressBook.providerFailure;
     case "checkout.badRequest":
       return messages.badRequest;
     case "checkout.cartMismatch":
@@ -50,8 +44,9 @@ export const checkoutApiErrorMessage = (
       return messages.notFound;
     case "checkout.versionConflict":
       return messages.versionConflict;
-    default:
-      code satisfies never;
-      return messages.internal;
+    default: {
+      const exhaustiveCode: never = code;
+      return exhaustiveCode;
+    }
   }
 };
