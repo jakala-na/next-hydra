@@ -50,6 +50,11 @@ export type CanvasComponentPropsMap = {
     secondaryCtaUrl?: string;
     content?: ReactNode;
   };
+  "latest-articles": {
+    title: string;
+    description?: string;
+    limit?: 3 | 6 | 9;
+  };
   "product-collection": {
     title: string;
     description?: string;

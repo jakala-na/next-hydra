@@ -1,9 +1,0 @@
-{
-  "Default": {
-    "props": {
-      "title": "Featured products",
-      "description": "Explore a selection of products chosen for this collection.",
-      "limit": 3
-    }
-  }
-}

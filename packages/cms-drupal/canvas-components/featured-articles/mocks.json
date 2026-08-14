@@ -1,10 +1,10 @@
 {
   "mocks": [
     {
-      "name": "Unselected article cards",
+      "name": "Three articles",
       "props": {
         "title": "Featured articles",
-        "description": "Select an article for each card to preview the final collection."
+        "description": "Practical guidance for selecting, operating, and maintaining heavy equipment."
       },
       "slots": {
         "articles": ["article-one", "article-two", "article-three"]
@@ -12,15 +12,69 @@
       "elements": {
         "article-one": {
           "type": "article-card",
-          "props": {}
+          "props": {
+            "article": {
+              "_Type": "article",
+              "created": 1767225600,
+              "fieldImage": {
+                "_Type": "image",
+                "fieldMediaImage": {
+                  "alt": "Two compact excavators working at an urban construction site",
+                  "height": 1000,
+                  "src": "/article-excavator-selection.jpg",
+                  "width": 1600
+                }
+              },
+              "fieldSummary": "Match operating weight, reach, and site constraints to the work instead of selecting equipment by bucket size alone.",
+              "id": 1,
+              "label": "Choosing the right excavator for the job",
+              "path": "/resources/choosing-the-right-excavator"
+            }
+          }
         },
         "article-two": {
           "type": "article-card",
-          "props": {}
+          "props": {
+            "article": {
+              "_Type": "article",
+              "created": 1764547200,
+              "fieldImage": {
+                "_Type": "image",
+                "fieldMediaImage": {
+                  "alt": "Large tracked industrial excavator displayed outdoors",
+                  "height": 1000,
+                  "src": "/article-ground-pressure.jpg",
+                  "width": 1600
+                }
+              },
+              "fieldSummary": "Use operating weight and ground pressure together to evaluate stability, access, and surface impact.",
+              "id": 2,
+              "label": "Understanding operating weight and ground pressure",
+              "path": "/resources/operating-weight-and-ground-pressure"
+            }
+          }
         },
         "article-three": {
           "type": "article-card",
-          "props": {}
+          "props": {
+            "article": {
+              "_Type": "article",
+              "created": 1761955200,
+              "fieldImage": {
+                "_Type": "image",
+                "fieldMediaImage": {
+                  "alt": "Technician inspecting industrial equipment with a checklist",
+                  "height": 1000,
+                  "src": "/article-preventive-maintenance.jpg",
+                  "width": 1600
+                }
+              },
+              "fieldSummary": "Turn daily inspections and service intervals into a repeatable routine that reduces avoidable downtime.",
+              "id": 3,
+              "label": "A practical preventive maintenance checklist",
+              "path": "/resources/preventive-maintenance-checklist"
+            }
+          }
         }
       }
     }

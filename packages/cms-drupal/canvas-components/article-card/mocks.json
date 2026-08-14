@@ -9,9 +9,9 @@
           "fieldImage": {
             "_Type": "image",
             "fieldMediaImage": {
-              "alt": "Heavy equipment at a work site",
-              "height": 900,
-              "src": "https://drupal-hydra.ddev.site/sites/default/files/article-equipment.jpg",
+              "alt": "Compact excavators at a work site",
+              "height": 1000,
+              "src": "/article-excavator-selection.jpg",
               "width": 1600
             }
           },

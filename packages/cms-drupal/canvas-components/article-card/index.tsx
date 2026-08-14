@@ -8,16 +8,19 @@ import {
   CardFooter,
 } from "@repo/design-system/components/ui/card";
 import { cn } from "@repo/design-system/lib/utils";
-import { getLocale, getTranslations, type Locale } from "@repo/i18n";
+import type { Locale } from "@repo/i18n";
 import { getPathname } from "@repo/i18n/navigation";
+import type { ReactElement } from "react";
 
 import type { CanvasComponentProps } from "../../generated/canvas-component-props";
 
 const DIGITS_ONLY = /^\d+$/;
 const MILLISECONDS_PER_SECOND = 1000;
 
-type CanvasArticleCardProps = CanvasComponentProps<"article-card"> & {
+export type CanvasArticleCardProps = CanvasComponentProps<"article-card"> & {
   className?: string;
+  locale?: Locale;
+  readMoreLabel?: string;
 };
 
 type CanvasArticleReference = NonNullable<
@@ -118,27 +121,26 @@ export function toCanvasArticleTeaser(
   };
 }
 
-export default async function CanvasArticleCard({
+export default function CanvasArticleCard({
   article,
   className,
-}: CanvasArticleCardProps) {
+  locale = "en-US",
+  readMoreLabel,
+}: CanvasArticleCardProps): ReactElement {
   if (!article) {
     return <CanvasArticleCardPlaceholder className={className} />;
   }
 
-  const locale = await getLocale();
   const teaser = toCanvasArticleTeaser(article, locale);
   if (!teaser) {
     return <CanvasArticleCardPlaceholder className={className} />;
   }
 
-  const t = await getTranslations({ locale, namespace: "web.article" });
-
   return (
     <ArticleCard
       article={teaser}
       className={className}
-      readMoreLabel={t("readGuide")}
+      readMoreLabel={readMoreLabel}
     />
   );
 }

@@ -8,14 +8,6 @@ vi.mock("@repo/design-system/components/cms/article-card", () => ({
   ArticleCard: () => null,
 }));
 
-vi.mock("@repo/i18n", () => ({
-  getLocale: () => Promise.resolve("en-US"),
-  getTranslations: () =>
-    Promise.resolve((key: string) =>
-      key === "readGuide" ? "Read guide" : key
-    ),
-}));
-
 vi.mock("@repo/i18n/navigation", () => ({
   getPathname: ({ href, locale }: { href: string; locale: string }) =>
     `/${locale}${href}`,
@@ -79,9 +71,9 @@ describe("Canvas Article Card", () => {
     ).toBe("/en-US/node/7");
   });
 
-  it("renders a full card placeholder until an article is selected", async () => {
+  it("renders a full card placeholder until an article is selected", () => {
     const html = renderToStaticMarkup(
-      await CanvasArticleCard({ className: "editor-card" })
+      CanvasArticleCard({ className: "editor-card" })
     );
 
     expect(html).toContain("Article card");
@@ -90,16 +82,19 @@ describe("Canvas Article Card", () => {
     expect(html).toContain("editor-card");
   });
 
-  it("renders the shared article card after an article is selected", async () => {
-    const result = (await CanvasArticleCard({
+  it("renders the shared article card synchronously after selection", () => {
+    const result = CanvasArticleCard({
       article: {
         fieldSummary: "Summary",
         id: 7,
         label: "Article",
         path: "/article",
       },
-    })) as ReactElement;
+      locale: "en-US",
+      readMoreLabel: "Read guide",
+    }) as ReactElement;
 
+    expect(result).not.toBeInstanceOf(Promise);
     expect(result.type).toBe(ArticleCard);
     expect(result.props).toMatchObject({
       article: {

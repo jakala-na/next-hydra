@@ -3,6 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../.canvas/components", () => ({ default: {} }));
+vi.mock("../canvas-components/article-card/next", () => ({
+  default: () => null,
+}));
 vi.stubGlobal("React", { createElement, Fragment });
 
 import { CanvasComponentTree } from "./canvas-component-tree";

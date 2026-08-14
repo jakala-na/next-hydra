@@ -1,5 +1,7 @@
 import { cn } from "@repo/design-system/lib/utils";
 import type { ReactNode } from "react";
+import { Card, CardContent, CardFooter } from "../../ui/card";
+import { Skeleton } from "../../ui/skeleton";
 import { ArticleCard, type ArticleTeaser } from "../article-card";
 
 type ArticleCollectionProps = {
@@ -68,4 +70,43 @@ export function ArticleCollectionLayout({
       </div>
     </section>
   );
+}
+
+type ArticleCollectionSkeletonProps = {
+  count?: number;
+};
+
+const ARTICLE_SKELETON_IDS = [
+  "article-skeleton-1",
+  "article-skeleton-2",
+  "article-skeleton-3",
+  "article-skeleton-4",
+  "article-skeleton-5",
+  "article-skeleton-6",
+  "article-skeleton-7",
+  "article-skeleton-8",
+  "article-skeleton-9",
+] as const;
+
+export function ArticleCollectionSkeleton({
+  count = 3,
+}: ArticleCollectionSkeletonProps) {
+  return ARTICLE_SKELETON_IDS.slice(0, count).map((id) => (
+    <article aria-hidden="true" className="h-full" key={id}>
+      <Card className="h-full overflow-hidden py-0 shadow-none">
+        <Skeleton className="aspect-[16/10] w-full rounded-none" />
+        <CardContent className="flex-1 space-y-4 p-6">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-8 w-4/5" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        </CardContent>
+        <CardFooter className="p-6 pt-0">
+          <Skeleton className="h-5 w-28" />
+        </CardFooter>
+      </Card>
+    </article>
+  ));
 }

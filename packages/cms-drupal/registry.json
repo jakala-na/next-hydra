@@ -8,9 +8,7 @@
       "title": "Next Hydra Drupal CMS provider",
       "description": "Installs the Drupal CMS provider package and its Drupal backend app.",
       "docs": "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
-      "registryDependencies": [
-        "jakala-na/next-hydra/drupal"
-      ],
+      "registryDependencies": ["jakala-na/next-hydra/drupal"],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/cms/drupal",
@@ -139,6 +137,26 @@
         {
           "path": "canvas-components/hero/mocks.json",
           "target": "~/packages/cms-drupal/canvas-components/hero/mocks.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/latest-articles/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/latest-articles/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/latest-articles/index.test.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/latest-articles/index.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/latest-articles/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/latest-articles/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/latest-articles/mocks.json",
+          "target": "~/packages/cms-drupal/canvas-components/latest-articles/mocks.json",
           "type": "registry:file"
         },
         {
@@ -344,6 +362,16 @@
         {
           "path": "lib/commerce-category.ts",
           "target": "~/packages/cms-drupal/lib/commerce-category.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/latest-articles.test.ts",
+          "target": "~/packages/cms-drupal/lib/latest-articles.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/latest-articles.ts",
+          "target": "~/packages/cms-drupal/lib/latest-articles.ts",
           "type": "registry:file"
         },
         {

@@ -23,11 +23,6 @@ props:
     image:
       title: Image
       type: object
-      examples:
-        - src: https://drupal-hydra.ddev.site/sites/default/files/hero.jpg
-          alt: A modular storefront experience
-          width: 1600
-          height: 1200
       $ref: json-schema-definitions://canvas.module/image
     primaryCtaLabel:
       title: Primary CTA label

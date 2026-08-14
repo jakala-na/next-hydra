@@ -9,6 +9,7 @@ entity_config:
       menu_route_enabled: true
   node:
     article:
+      edges_enabled: true
       enabled: true
       query_load_enabled: false
       routes_enabled: true
@@ -73,6 +74,7 @@ field_config:
       field_tagline:
         enabled: true
 settings:
+  edge_max_limit: 100
   exclude_unpublished: true
   expose_entity_ids: true
   field_required_override: false

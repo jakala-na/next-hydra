@@ -13,7 +13,9 @@ This recipe provisions the Drupal content contract used by `@repo/cms-drupal`:
   Text external Canvas component definitions;
 - a Next.js for Drupal site that renders landing pages in the View-tab iframe;
 - cache-tag revalidation for pages and their referenced article dependencies;
-- viewer and previewer roles for OAuth clients; and
+- viewer and previewer roles for OAuth clients;
+- a public PKCE OAuth client (`client_id=cli`) for Canvas CLI and Workbench
+  browser login; and
 - translated regular and Canvas demo homepages, a resource center, articles,
   and nested native navigation.
 

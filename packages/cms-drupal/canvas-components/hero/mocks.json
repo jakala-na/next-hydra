@@ -1,11 +1,17 @@
 {
   "mocks": [
     {
-      "name": "Composed content",
+      "name": "Hero with image",
       "props": {
         "title": "Build composable experiences without the integration tax",
         "tagline": "Next Hydra",
         "description": "This fallback is replaced when the content slot is populated.",
+        "image": {
+          "src": "/next-hydra-hero.webp",
+          "alt": "An excavator at a construction site",
+          "width": 1024,
+          "height": 1024
+        },
         "primaryCtaLabel": "Get started",
         "primaryCtaUrl": "/get-started",
         "secondaryCtaLabel": "Learn more",

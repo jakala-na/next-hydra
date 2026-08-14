@@ -120,6 +120,33 @@ Drupal Canvas owns `/api/draft`, `/api/draft/renew`, `/api/disable-draft`, and
 `/api/canvas/components`. `CANVAS_SITE_URL` can override the Drupal origin for
 Canvas; when omitted it defaults to `DRUPAL_BASE_URL`.
 
+## Canvas component Workbench
+
+Use Canvas Workbench to demonstrate and review the package's Canvas components
+without running Drupal or the consuming Next.js application:
+
+```bash
+pnpm --filter @repo/cms-drupal canvas:workbench
+```
+
+Open the local URL printed by the command. Workbench discovers components from
+`canvas-components`, loads the shared Canvas styles, and refreshes previews as
+their source files change.
+
+Add a component in `canvas-components/<component-name>` with a default-exported
+`index.tsx` and a `component.yml`. Its built-in preview uses the examples in the
+component metadata. Add `mocks.json` beside those files when a realistic preview
+needs authored props or slot content. Workbench shows authored mocks in place of
+the generated Default preview. Components with content-entity-reference pickers
+retain Default so authenticated authors can select a real entity; their mock
+fixture remains available to type generation. Keep one representative preview
+unless another state adds clear review value.
+
+Workbench-only composed examples live in `pages`. They may reuse the local
+recipe images served by the custom Workbench Vite config. Page synchronization
+is disabled in `canvas.config.json`, so these preview fixtures are not pushed to
+Drupal Canvas.
+
 ## GraphQL schema
 
 ```bash
