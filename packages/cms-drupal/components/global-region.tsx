@@ -1,8 +1,9 @@
+import { isCanvasComponentTreeDraft } from "@drupal-canvas/headless";
 import { getDraftConfig, getDraftData } from "@drupal-canvas/headless-next";
 import type { Locale } from "@repo/i18n";
 import { cacheLife, cacheTag } from "next/cache";
 import { draftMode } from "next/headers";
-import { cache } from "react";
+import { type CSSProperties, cache } from "react";
 import { keys } from "../keys";
 import { getCanvasCachePolicy } from "../lib/canvas-cacheability";
 import { fetchCanvasGlobalRegions } from "../lib/canvas-global-region";
@@ -26,6 +27,11 @@ const drupalRegionByName = {
   "pre-footer": "pre_footer",
   "pre-header": "pre_header",
 } as const satisfies Record<CmsGlobalRegionName, string>;
+
+const compactDraftRegionStyle = {
+  "--canvas--sortable-empty-region-height": "64px",
+  display: "contents",
+} as CSSProperties;
 
 async function getCachedRegions(path: string) {
   "use cache";
@@ -68,7 +74,16 @@ export async function CmsGlobalRegion({ locale, name }: CmsGlobalRegionProps) {
   const result = await getRegions(locale);
   const content = result?.regions[regionId] ?? null;
 
-  return content ? (
-    <CanvasComponentTree regionId={regionId} tree={content} />
-  ) : null;
+  if (!content) {
+    return null;
+  }
+
+  const tree = <CanvasComponentTree regionId={regionId} tree={content} />;
+  return isCanvasComponentTreeDraft(content) ? (
+    <div data-canvas-global-region={regionId} style={compactDraftRegionStyle}>
+      {tree}
+    </div>
+  ) : (
+    tree
+  );
 }

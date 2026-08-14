@@ -18,6 +18,10 @@ catalog:
 overrides:
   react: 19.2.8
   react-dom: 19.2.8
+patchedDependencies:
+  '@drupal-canvas/headless': patches/@drupal-canvas__headless.patch
+  '@drupal-canvas/headless-next': patches/@drupal-canvas__headless-next.patch
+  '@drupal-canvas/headless-react': patches/@drupal-canvas__headless-react.patch
 ignoredBuiltDependencies:
   - '@clerk/shared'
   - '@nestjs/core'

@@ -172,5 +172,17 @@ describe("CmsGlobalRegion", () => {
     expect(mocks.cacheLife).not.toHaveBeenCalled();
     expect(mocks.cacheTag).not.toHaveBeenCalled();
     expect(rendered).not.toContain(null);
+    expect(
+      rendered.map((element) => element?.props["data-canvas-global-region"])
+    ).toEqual(["pre_header", "post_header", "pre_footer", "post_footer"]);
+    expect(rendered.map((element) => element?.props.style)).toEqual(
+      regionNames.map(() => ({
+        "--canvas--sortable-empty-region-height": "64px",
+        display: "contents",
+      }))
+    );
+    expect(
+      rendered.map((element) => element?.props.children.props.regionId)
+    ).toEqual(["pre_header", "post_header", "pre_footer", "post_footer"]);
   });
 });
