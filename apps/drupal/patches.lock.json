@@ -1,12 +1,12 @@
 {
-  "_hash": "9500e9cb33a76f723208a463de33084d8c3d1ad687b54e4762eada6e7095a69d",
+  "_hash": "1d7df8cda4b82c0f06c1fe4deb5e552587bfb1d22db28e8b370c766e3bad71eb",
   "patches": {
     "drupal/canvas": [
       {
         "package": "drupal/canvas",
         "description": "Add multilingual headless previews, translated default content, and cacheability metadata",
         "url": "patches/drupal-canvas-1.10-next-hydra-compatibility.patch",
-        "sha256": "dad199f83132d4e6985e43356d4354654968185fcc28a762734205459ddb32e8",
+        "sha256": "2b5586b0a4c098995a57aa70b42e8d19bbced210c8f178174cc1e7f2f6191303",
         "depth": 1,
         "extra": {
           "provenance": "root"
