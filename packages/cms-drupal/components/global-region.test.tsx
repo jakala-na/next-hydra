@@ -129,7 +129,7 @@ describe("CmsGlobalRegion", () => {
     ]);
   });
 
-  it("keeps the batched preview request outside the published cache", async () => {
+  it("keeps populated draft regions editable while empty global regions stay absent", async () => {
     mocks.draftMode.mockResolvedValue({ isEnabled: true });
     mocks.getDraftData.mockResolvedValue({
       accessToken: "preview-token",
@@ -171,18 +171,13 @@ describe("CmsGlobalRegion", () => {
     );
     expect(mocks.cacheLife).not.toHaveBeenCalled();
     expect(mocks.cacheTag).not.toHaveBeenCalled();
-    expect(rendered).not.toContain(null);
-    expect(
-      rendered.map((element) => element?.props["data-canvas-global-region"])
-    ).toEqual(["pre_header", "post_header", "pre_footer", "post_footer"]);
-    expect(rendered.map((element) => element?.props.style)).toEqual(
-      regionNames.map(() => ({
-        "--canvas--sortable-empty-region-height": "64px",
-        display: "contents",
-      }))
-    );
-    expect(
-      rendered.map((element) => element?.props.children.props.regionId)
-    ).toEqual(["pre_header", "post_header", "pre_footer", "post_footer"]);
+    expect(rendered.slice(1)).toEqual([null, null, null]);
+    expect(rendered[0]?.props).toEqual({
+      regionId: "pre_header",
+      tree: {
+        canvasDraftMode: true,
+        element: "draft-announcement",
+      },
+    });
   });
 });

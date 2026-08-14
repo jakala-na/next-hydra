@@ -39,7 +39,7 @@ describe("fetchCanvasGlobalRegions", () => {
     });
   });
 
-  it("marks a live authenticated result as an editable Canvas tree", async () => {
+  it("marks populated draft regions as editable without materializing empty global regions", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       Response.json({
         cacheability: { contexts: [], maxAge: 0, tags: ["canvas:auto-save"] },
@@ -76,10 +76,7 @@ describe("fetchCanvasGlobalRegions", () => {
         canvasDraftMode: true,
         element: "secondary-banner",
       },
-      pre_header: {
-        canvasDraftMode: true,
-        element: "renderless-container",
-      },
+      pre_header: null,
     });
     expect(result?.cacheability).toEqual({
       contexts: [],

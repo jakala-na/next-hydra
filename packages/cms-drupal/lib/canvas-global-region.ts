@@ -80,10 +80,7 @@ export async function fetchCanvasGlobalRegions(
     regions: Object.fromEntries(
       Object.entries(result.regions).map(([name, content]) => [
         name,
-        {
-          ...(content ?? { element: "renderless-container" }),
-          canvasDraftMode: true,
-        },
+        content === null ? null : { ...content, canvasDraftMode: true },
       ])
     ),
   };
