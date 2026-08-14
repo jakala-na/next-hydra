@@ -83,7 +83,7 @@ importers:
         specifier: ^16.2.7
         version: 16.2.7
       turbo:
-        specifier: ^2.5.5
+        specifier: 2.6.3
         version: 2.6.3
       typescript:
         specifier: 'catalog:'
@@ -295,6 +295,8 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+
+  apps/drupal: {}
 
   apps/email:
     dependencies:

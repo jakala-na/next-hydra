@@ -31,6 +31,14 @@
       "cache": false,
       "persistent": true
     },
+    "deploy:acquia": {
+      "cache": false,
+      "passThroughEnv": [
+        "ACQUIA_ENVIRONMENT_ALIAS",
+        "COMPOSER_MEMORY_LIMIT",
+        "SSH_AUTH_SOCK"
+      ]
+    },
     "translate": {
       "dependsOn": ["^translate"],
       "cache": false

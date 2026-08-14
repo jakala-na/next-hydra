@@ -326,7 +326,7 @@ describe("customer add", () => {
             content: "name: Next Hydra DAM\ntype: module\n",
             path: "next_hydra_dam.info.yml",
             target:
-              "~/apps/drupal/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
+              "~/apps/drupal/docroot/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
             type: "registry:file",
           },
         ],
@@ -345,7 +345,7 @@ describe("customer add", () => {
       await readFile(
         path.join(
           root,
-          "apps/drupal/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml"
+          "apps/drupal/docroot/modules/custom/next_hydra_dam/next_hydra_dam.info.yml"
         ),
         "utf8"
       )

@@ -1,0 +1,7 @@
+{
+  "name": "@repo/drupal",
+  "private": true,
+  "scripts": {
+    "deploy:acquia": "bash scripts/deploy_to_acquia.sh"
+  }
+}

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const workspaceRoot = path.resolve(import.meta.dirname, "..");
@@ -71,6 +71,7 @@ function sourceFiles(sourceRoot) {
   )
     .split("\n")
     .filter(Boolean)
+    .filter((file) => existsSync(path.join(workspaceRoot, file)))
     .filter((file) => path.posix.basename(file) !== "registry.json");
 
   for (const file of files) {

@@ -70,8 +70,8 @@ describe("Next Hydra source registry", () => {
     expect(backendTargets).toContain(
       "~/apps/drupal/recipes/next-hydra-starter/recipe.yml"
     );
-    expect(backendTargets).not.toContain("~/apps/drupal/web/index.php");
-    expect(backendTargets).not.toContain("~/apps/drupal/web/.htaccess");
+    expect(backendTargets).not.toContain("~/apps/drupal/docroot/index.php");
+    expect(backendTargets).not.toContain("~/apps/drupal/docroot/.htaccess");
     expect(
       [
         ...(drupal.files ?? []),

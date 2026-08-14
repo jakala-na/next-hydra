@@ -15,6 +15,7 @@
     }
   ],
   "require": {
+    "acquia/drupal-recommended-settings": "^1.2",
     "composer/installers": "^2.3",
     "cweagans/composer-patches": "~2.0",
     "drupal/canvas": "^1.10",
@@ -44,6 +45,7 @@
   "prefer-stable": true,
   "config": {
     "allow-plugins": {
+      "acquia/drupal-recommended-settings": true,
       "composer/installers": true,
       "cweagans/composer-patches": true,
       "dealerdirect/phpcodesniffer-composer-installer": true,
@@ -79,19 +81,19 @@
     },
     "drupal-scaffold": {
       "locations": {
-        "web-root": "web/"
+        "web-root": "docroot/"
       }
     },
     "installer-paths": {
-      "web/core": ["type:drupal-core"],
-      "web/libraries/{$name}": ["type:drupal-library"],
-      "web/modules/contrib/{$name}": ["type:drupal-module"],
-      "web/profiles/contrib/{$name}": ["type:drupal-profile"],
-      "web/themes/contrib/{$name}": ["type:drupal-theme"],
+      "docroot/core": ["type:drupal-core"],
+      "docroot/libraries/{$name}": ["type:drupal-library"],
+      "docroot/modules/contrib/{$name}": ["type:drupal-module"],
+      "docroot/profiles/contrib/{$name}": ["type:drupal-profile"],
+      "docroot/themes/contrib/{$name}": ["type:drupal-theme"],
       "drush/Commands/contrib/{$name}": ["type:drupal-drush"],
-      "web/modules/custom/{$name}": ["type:drupal-custom-module"],
-      "web/profiles/custom/{$name}": ["type:drupal-custom-profile"],
-      "web/themes/custom/{$name}": ["type:drupal-custom-theme"],
+      "docroot/modules/custom/{$name}": ["type:drupal-custom-module"],
+      "docroot/profiles/custom/{$name}": ["type:drupal-custom-profile"],
+      "docroot/themes/custom/{$name}": ["type:drupal-custom-theme"],
       "recipes/{$name}": ["type:drupal-recipe"]
     },
     "drupal-core-project-message": {

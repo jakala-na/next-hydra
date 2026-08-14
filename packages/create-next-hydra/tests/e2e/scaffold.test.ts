@@ -121,7 +121,7 @@ async function createSourceRepository(): Promise<string> {
               {
                 path: "next_hydra_dam.info.yml",
                 target:
-                  "~/apps/drupal/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
+                  "~/apps/drupal/docroot/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
                 type: "registry:file",
               },
             ],
@@ -407,7 +407,9 @@ describe("scaffold composition", () => {
         await pathExists(path.join(drupalTarget, "apps/drupal/LICENSE.txt"))
       ).toBe(true);
       expect(
-        await pathExists(path.join(drupalTarget, "apps/drupal/web/index.php"))
+        await pathExists(
+          path.join(drupalTarget, "apps/drupal/docroot/index.php")
+        )
       ).toBe(false);
       expect(
         await pathExists(
@@ -488,7 +490,7 @@ describe("scaffold composition", () => {
         await pathExists(
           path.join(
             target,
-            "apps/drupal/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml"
+            "apps/drupal/docroot/modules/custom/next_hydra_dam/next_hydra_dam.info.yml"
           )
         )
       ).toBe(true);

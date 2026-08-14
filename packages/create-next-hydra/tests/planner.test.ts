@@ -78,7 +78,7 @@ const addOnItem = {
     {
       path: "module.info.yml",
       target:
-        "~/apps/drupal/web/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
+        "~/apps/drupal/docroot/modules/custom/next_hydra_dam/next_hydra_dam.info.yml",
       type: "registry:file",
     },
   ],

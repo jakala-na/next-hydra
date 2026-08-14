@@ -4,8 +4,128 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a1b0556abb0fda4d9c85c0afa0478778",
+    "content-hash": "f80a985def7f5f9e6b478680dee55f6e",
     "packages": [
+        {
+            "name": "acquia/drupal-environment-detector",
+            "version": "1.8.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/acquia/drupal-environment-detector.git",
+                "reference": "5941f413a26f9d041ca22a151b11a1098c64a725"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/acquia/drupal-environment-detector/zipball/5941f413a26f9d041ca22a151b11a1098c64a725",
+                "reference": "5941f413a26f9d041ca22a151b11a1098c64a725",
+                "shasum": ""
+            },
+            "conflict": {
+                "acquia/blt": ">=12.0.0 <13.5.2"
+            },
+            "require-dev": {
+                "acquia/coding-standards": "^3.0.1",
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.0.0",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^10 || ^11"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "1.x-dev"
+                },
+                "phpcodesniffer-search-depth": "4"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Acquia\\DrupalEnvironmentDetector\\": "src/",
+                    "Acquia\\DrupalEnvironmentDetector\\Tests\\": "tests/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Acquia Engineering",
+                    "homepage": "https://www.acquia.com",
+                    "role": "Maintainer"
+                }
+            ],
+            "description": "Provides common methods for detecting the current Acquia environment",
+            "support": {
+                "issues": "https://github.com/acquia/drupal-environment-detector/issues",
+                "source": "https://github.com/acquia/drupal-environment-detector/tree/1.8.0"
+            },
+            "time": "2026-05-29T11:55:23+00:00"
+        },
+        {
+            "name": "acquia/drupal-recommended-settings",
+            "version": "1.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/acquia/drupal-recommended-settings.git",
+                "reference": "adf2a8e771079caccdd16a9de07f02fe07cb60aa"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/acquia/drupal-recommended-settings/zipball/adf2a8e771079caccdd16a9de07f02fe07cb60aa",
+                "reference": "adf2a8e771079caccdd16a9de07f02fe07cb60aa",
+                "shasum": ""
+            },
+            "require": {
+                "acquia/drupal-environment-detector": "^1.5.3",
+                "composer-plugin-api": "^2",
+                "consolidation/config": "^2 || ^3",
+                "drush/drush": "^12 || ^13",
+                "grasmash/yaml-expander": "^3.0",
+                "loophp/phposinfo": "^1.7.1",
+                "php": ">=8.1"
+            },
+            "conflict": {
+                "acquia/blt": "<14"
+            },
+            "require-dev": {
+                "acquia/coding-standards": "^3.0",
+                "composer/composer": "^2.2",
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.0.0",
+                "ergebnis/composer-normalize": "^2.30.2",
+                "phpro/grumphp-shim": "^2.2",
+                "phpunit/phpunit": "^9 || ^10 || ^11"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Acquia\\Drupal\\RecommendedSettings\\Plugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Acquia\\Drupal\\RecommendedSettings\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-2.0-only"
+            ],
+            "authors": [
+                {
+                    "name": "Vishal Khode",
+                    "email": "vishal.khode@acquia.com"
+                }
+            ],
+            "description": "The composer plugin for adding drupal-recommended-settings for Acquia Cloud.",
+            "keywords": [
+                "acquia",
+                "drupal",
+                "drupal-recommended-settings"
+            ],
+            "support": {
+                "docs": "https://docs.acquia.com/drupal-recommended-settings/",
+                "issues": "https://github.com/acquia/drupal-recommended-settings/issues",
+                "source": "https://github.com/acquia/drupal-recommended-settings/tree/1.2.0"
+            },
+            "time": "2026-04-07T14:38:22+00:00"
+        },
         {
             "name": "asm89/stack-cors",
             "version": "v2.4.0",
@@ -3594,6 +3714,51 @@
             "time": "2024-04-23T02:10:57+00:00"
         },
         {
+            "name": "grasmash/yaml-expander",
+            "version": "3.0.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/grasmash/yaml-expander.git",
+                "reference": "6b35ac5ba622c877a4868c6618233655129f0ec5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/grasmash/yaml-expander/zipball/6b35ac5ba622c877a4868c6618233655129f0ec5",
+                "reference": "6b35ac5ba622c877a4868c6618233655129f0ec5",
+                "shasum": ""
+            },
+            "require": {
+                "grasmash/expander": "^1 || ^2 || ^3",
+                "symfony/yaml": "^4 || ^5 || ^6 || ^7"
+            },
+            "require-dev": {
+                "php-coveralls/php-coveralls": "^2.1",
+                "phpunit/phpunit": "^8.0 || ^9",
+                "squizlabs/php_codesniffer": "^2.7 || ^3.3"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Grasmash\\YamlExpander\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Matthew Grasmick"
+                }
+            ],
+            "description": "Expands internal property references in a yaml file.",
+            "support": {
+                "issues": "https://github.com/grasmash/yaml-expander/issues",
+                "source": "https://github.com/grasmash/yaml-expander/tree/3.0.3"
+            },
+            "time": "2024-05-04T17:22:09+00:00"
+        },
+        {
             "name": "guzzlehttp/guzzle",
             "version": "7.15.3",
             "source": {
@@ -4550,6 +4715,63 @@
                 }
             ],
             "time": "2026-03-08T20:05:35+00:00"
+        },
+        {
+            "name": "loophp/phposinfo",
+            "version": "1.8.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/loophp/phposinfo.git",
+                "reference": "9faccbfbf5364fd34fbc230961fa6fc51cc66b8f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/loophp/phposinfo/zipball/9faccbfbf5364fd34fbc230961fa6fc51cc66b8f",
+                "reference": "9faccbfbf5364fd34fbc230961fa6fc51cc66b8f",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8"
+            },
+            "require-dev": {
+                "drupol/php-conventions": "^5.0.0",
+                "ext-pcov": "*",
+                "friends-of-phpspec/phpspec-code-coverage": "^6",
+                "infection/infection": "^0.26",
+                "infection/phpspec-adapter": "^0.2.0",
+                "phpspec/phpspec": "^7"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "loophp\\phposinfo\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Pol Dellaiera",
+                    "email": "pol.dellaiera@protonmail.com"
+                }
+            ],
+            "description": "Try to guess the host operating system.",
+            "keywords": [
+                "operating system detection"
+            ],
+            "support": {
+                "issues": "https://github.com/loophp/phposinfo/issues",
+                "source": "https://github.com/loophp/phposinfo"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/drupol",
+                    "type": "github"
+                }
+            ],
+            "time": "2022-12-20T20:21:10+00:00"
         },
         {
             "name": "marc-mabe/php-enum",
@@ -14205,16 +14427,16 @@
         },
         {
             "name": "squizlabs/php_codesniffer",
-            "version": "3.13.5",
+            "version": "3.13.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPCSStandards/PHP_CodeSniffer.git",
-                "reference": "0ca86845ce43291e8f5692c7356fccf3bcf02bf4"
+                "reference": "4c378e1a528ea066890fc2397cbdd2f94eb2fc91"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPCSStandards/PHP_CodeSniffer/zipball/0ca86845ce43291e8f5692c7356fccf3bcf02bf4",
-                "reference": "0ca86845ce43291e8f5692c7356fccf3bcf02bf4",
+                "url": "https://api.github.com/repos/PHPCSStandards/PHP_CodeSniffer/zipball/4c378e1a528ea066890fc2397cbdd2f94eb2fc91",
+                "reference": "4c378e1a528ea066890fc2397cbdd2f94eb2fc91",
                 "shasum": ""
             },
             "require": {
@@ -14280,7 +14502,7 @@
                     "type": "thanks_dev"
                 }
             ],
-            "time": "2025-11-04T16:30:35+00:00"
+            "time": "2026-08-06T00:17:32+00:00"
         },
         {
             "name": "staabm/side-effects-detector",

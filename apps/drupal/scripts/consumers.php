@@ -8,6 +8,7 @@
 use Drupal\Component\Utility\Crypt;
 use Drupal\Component\Utility\Random;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Site\Settings;
 use Drupal\user\Entity\User;
 
 $random = new Random();
@@ -65,7 +66,21 @@ foreach ($consumer_definitions as $mode => $definition) {
   ];
 }
 
-$directory = '../keys';
+$simple_oauth_settings = \Drupal::config('simple_oauth.settings');
+$private_key_path = $simple_oauth_settings->get('private_key');
+$public_key_path = $simple_oauth_settings->get('public_key');
+
+if (!is_string($private_key_path) || !is_string($public_key_path)) {
+  throw new RuntimeException('Simple OAuth key paths are not configured.');
+}
+
+$private_key_directory = dirname($private_key_path);
+$public_key_directory = dirname($public_key_path);
+if ($private_key_directory !== $public_key_directory) {
+  throw new RuntimeException('Simple OAuth public and private keys must share a directory.');
+}
+
+$directory = $private_key_directory;
 $file_system = \Drupal::service('file_system');
 $directory_ready = $file_system->prepareDirectory(
   $directory,
@@ -76,18 +91,44 @@ if (!$directory_ready) {
   throw new RuntimeException("Could not create the OAuth key directory: {$directory}");
 }
 
-if (!is_file("{$directory}/public.key") || !is_file("{$directory}/private.key")) {
+if (!is_file($public_key_path) || !is_file($private_key_path)) {
   \Drupal::service('simple_oauth.key.generator')->generateKeys($directory);
 }
 
-$messages = [
-  'Consumers created successfully. Save these credentials in the connector environment.',
+$credential_lines = [
   'DRUPAL_PREVIEWER_CLIENT_ID=' . $credentials['previewer']['client_id'],
   'DRUPAL_PREVIEWER_CLIENT_SECRET=' . $credentials['previewer']['client_secret'],
   'DRUPAL_VIEWER_CLIENT_ID=' . $credentials['viewer']['client_id'],
   'DRUPAL_VIEWER_CLIENT_SECRET=' . $credentials['viewer']['client_secret'],
 ];
 
-foreach ($messages as $message) {
-  echo $message . PHP_EOL;
+if (getenv('AH_SITE_ENVIRONMENT')) {
+  $private_files_path = Settings::get('file_private_path');
+  if (!is_string($private_files_path) || $private_files_path === '') {
+    throw new RuntimeException('The Acquia private files path is not configured.');
+  }
+
+  $credential_file = $private_files_path . '/next-hydra-bootstrap.env';
+  $previous_umask = umask(0077);
+  try {
+    $written = file_put_contents(
+      $credential_file,
+      implode(PHP_EOL, $credential_lines) . PHP_EOL,
+      LOCK_EX,
+    );
+  }
+  finally {
+    umask($previous_umask);
+  }
+  if ($written === FALSE || !chmod($credential_file, 0600)) {
+    throw new RuntimeException("Could not securely write {$credential_file}.");
+  }
+
+  echo "Consumers created. Credentials were written to {$credential_file}." . PHP_EOL;
+}
+else {
+  echo 'Consumers created successfully. Save these credentials in the connector environment.' . PHP_EOL;
+  foreach ($credential_lines as $credential_line) {
+    echo $credential_line . PHP_EOL;
+  }
 }

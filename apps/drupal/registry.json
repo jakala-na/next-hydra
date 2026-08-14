@@ -33,8 +33,33 @@
           "type": "registry:file"
         },
         {
+          "path": "config/default/.htaccess",
+          "target": "~/apps/drupal/config/default/.htaccess",
+          "type": "registry:file"
+        },
+        {
+          "path": "docroot/sites/default/settings.php",
+          "target": "~/apps/drupal/docroot/sites/default/settings.php",
+          "type": "registry:file"
+        },
+        {
+          "path": "docroot/sites/settings/global.settings.php",
+          "target": "~/apps/drupal/docroot/sites/settings/global.settings.php",
+          "type": "registry:file"
+        },
+        {
+          "path": "docroot/themes/custom/next_hydra/next_hydra.info.yml",
+          "target": "~/apps/drupal/docroot/themes/custom/next_hydra/next_hydra.info.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "LICENSE.txt",
           "target": "~/apps/drupal/LICENSE.txt",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/apps/drupal/package.json",
           "type": "registry:file"
         },
         {
@@ -538,8 +563,18 @@
           "type": "registry:file"
         },
         {
+          "path": "scripts/bootstrap_acquia.sh",
+          "target": "~/apps/drupal/scripts/bootstrap_acquia.sh",
+          "type": "registry:file"
+        },
+        {
           "path": "scripts/consumers.php",
           "target": "~/apps/drupal/scripts/consumers.php",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/deploy_to_acquia.sh",
+          "target": "~/apps/drupal/scripts/deploy_to_acquia.sh",
           "type": "registry:file"
         },
         {
@@ -550,11 +585,6 @@
         {
           "path": "scripts/scopes.php",
           "target": "~/apps/drupal/scripts/scopes.php",
-          "type": "registry:file"
-        },
-        {
-          "path": "web/themes/custom/next_hydra/next_hydra.info.yml",
-          "target": "~/apps/drupal/web/themes/custom/next_hydra/next_hydra.info.yml",
           "type": "registry:file"
         }
       ]
