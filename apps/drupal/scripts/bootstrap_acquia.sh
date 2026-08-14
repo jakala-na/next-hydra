@@ -61,7 +61,7 @@ echo "Configuring frontend revalidation..."
 remote_drush php:script ../scripts/revalidation
 
 echo "Rebuilding node access and caches..."
-remote_drush php:eval 'node_access_rebuild();'
+remote_drush php:eval "'node_access_rebuild();'"
 remote_drush cache:rebuild
 
 echo "Drupal bootstrap completed for $target_alias."

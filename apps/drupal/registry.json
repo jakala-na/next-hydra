@@ -88,6 +88,11 @@
           "type": "registry:file"
         },
         {
+          "path": "patches/drupal-subrequests-3.0.12-php-8.4-nullable-validator.patch",
+          "target": "~/apps/drupal/patches/drupal-subrequests-3.0.12-php-8.4-nullable-validator.patch",
+          "type": "registry:file"
+        },
+        {
           "path": "README.md",
           "target": "~/apps/drupal/README.md",
           "type": "registry:file"

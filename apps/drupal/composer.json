@@ -78,6 +78,12 @@
           "description": "Allow cache-tag revalidation for config entities",
           "url": "patches/drupal-next-2.1-config-entity-cache-tags.patch"
         }
+      ],
+      "drupal/subrequests": [
+        {
+          "description": "Declare the optional validator explicitly nullable for PHP 8.4",
+          "url": "patches/drupal-subrequests-3.0.12-php-8.4-nullable-validator.patch"
+        }
       ]
     },
     "drupal-scaffold": {

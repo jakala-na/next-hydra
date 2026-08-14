@@ -1,5 +1,5 @@
 {
-  "_hash": "3f299548d15454fd3d484feafa98f2e588c739017fa96af9e6b3c28a8c5d59c1",
+  "_hash": "9500e9cb33a76f723208a463de33084d8c3d1ad687b54e4762eada6e7095a69d",
   "patches": {
     "drupal/canvas": [
       {
@@ -29,6 +29,18 @@
         "description": "Allow cache-tag revalidation for config entities",
         "url": "patches/drupal-next-2.1-config-entity-cache-tags.patch",
         "sha256": "d028c23ff1a7a0bda737c3d693847a035f4c27e16eb407950f201f9681480ab9",
+        "depth": 1,
+        "extra": {
+          "provenance": "root"
+        }
+      }
+    ],
+    "drupal/subrequests": [
+      {
+        "package": "drupal/subrequests",
+        "description": "Declare the optional validator explicitly nullable for PHP 8.4",
+        "url": "patches/drupal-subrequests-3.0.12-php-8.4-nullable-validator.patch",
+        "sha256": "65a7094d167f54a26896fdf3d6fb77d303b51421e4db3a634c3e7c5b5e40e80e",
         "depth": 1,
         "extra": {
           "provenance": "root"
