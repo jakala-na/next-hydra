@@ -1,7 +1,7 @@
 import path from "node:path";
 import { confirm, isCancel } from "@clack/prompts";
 
-import { runCommand } from "../git.js";
+import { CommandExecutionError, runCommand } from "../git.js";
 import { info, printInstructions, success } from "../logger.js";
 import { addCatalogReferences, loadSourceRegistryCatalog } from "./catalog.js";
 import { CompositionValidationError } from "./errors.js";
@@ -91,7 +91,13 @@ function operationFailure(
   completed: string[],
   pending: string[]
 ): Error {
-  const cause = error instanceof Error ? error.message : String(error);
+  let cause = error instanceof Error ? error.message : String(error);
+  if (error instanceof CommandExecutionError) {
+    const output = error.stderr.trim() || error.stdout.trim();
+    if (output) {
+      cause = `${cause}\n${output}`;
+    }
+  }
   return new Error(
     [
       `Composition stopped while ${failed}.`,
@@ -102,6 +108,17 @@ function operationFailure(
       cause,
     ].join("\n")
   );
+}
+
+export async function installCompositionDependencies(
+  cwd: string,
+  verbose: boolean,
+  execute: typeof runCommand = runCommand
+): Promise<void> {
+  await execute("pnpm", ["install", "--no-frozen-lockfile"], {
+    cwd,
+    verbose,
+  });
 }
 
 export async function useComposition(
@@ -243,10 +260,7 @@ export async function useComposition(
       await dependencies.install(cwd, options.verbose ?? false);
       return;
     }
-    await runCommand("pnpm", ["install"], {
-      cwd,
-      verbose: options.verbose ?? false,
-    });
+    await installCompositionDependencies(cwd, options.verbose ?? false);
   });
 
   if (plan.instructions.length > 0) {

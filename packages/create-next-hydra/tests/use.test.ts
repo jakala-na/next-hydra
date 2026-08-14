@@ -3,13 +3,17 @@ import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   formatCompositionPreview,
   formatCompositionResult,
 } from "../src/composition/format.js";
 import { NEXT_HYDRA_SELECTION_SCHEMA_URL } from "../src/composition/schema.js";
-import { useComposition } from "../src/composition/use.js";
+import {
+  installCompositionDependencies,
+  useComposition,
+} from "../src/composition/use.js";
+import { CommandExecutionError } from "../src/git.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const run = promisify(execFile);
@@ -98,6 +102,42 @@ afterEach(async () => {
 });
 
 describe("maintainer use", () => {
+  it("updates the lockfile after changing the workspace composition", async () => {
+    const execute = vi.fn().mockResolvedValue({ stderr: "", stdout: "" });
+
+    await installCompositionDependencies("/workspace", true, execute);
+
+    expect(execute).toHaveBeenCalledWith(
+      "pnpm",
+      ["install", "--no-frozen-lockfile"],
+      {
+        cwd: "/workspace",
+        verbose: true,
+      }
+    );
+  });
+
+  it("includes package-manager output when dependency installation fails", async () => {
+    const cwd = await maintainerFixture();
+
+    await expect(
+      useComposition(
+        { cms: "contentstack", cwd, yes: true },
+        {
+          install: () =>
+            Promise.reject(
+              new CommandExecutionError({
+                code: 1,
+                command: "pnpm install",
+                stderr: "ERR_PNPM_LOCKFILE_CONFIG_MISMATCH",
+                stdout: "",
+              })
+            ),
+        }
+      )
+    ).rejects.toThrow("ERR_PNPM_LOCKFILE_CONFIG_MISMATCH");
+  });
+
   it("switches Drupal to Contentstack and back, then detects drift", async () => {
     const cwd = await maintainerFixture();
     const selectionPath = path.join(cwd, "next-hydra.json");
