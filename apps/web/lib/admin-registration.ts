@@ -1,5 +1,4 @@
 import "server-only";
-
 import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import { RegistrationId } from "@repo/registration";
 import type {
@@ -17,14 +16,13 @@ import {
   RegistrationApiNotFound,
   RegistrationDecisionAlreadyProcessing,
   RegistrationDecisionRequest,
-  type RegistrationDetailResponse,
-  RegistrationReviewerInput,
 } from "@repo/registration/http/registration-api";
+import type { RegistrationDetailResponse } from "@repo/registration/http/registration-api";
 import { Effect } from "effect";
-import { env } from "@/env";
+
 import {
   ADMIN_REGISTRATION_DECIDE_PERMISSION,
-  getAdminActor,
+  ADMIN_REGISTRATION_READ_PERMISSION,
   requireAdminPermission,
 } from "./admin-auth";
 import { makeRegistrationRestClient } from "./registration-rest-client";
@@ -47,13 +45,13 @@ const REGISTRATION_REVIEW_STATUSES = [
   "rejected",
 ] as const satisfies readonly RegistrationDetailStatus[];
 
-const logDecisionFailure = (
+const logDecisionFailure = async (
   input: (ApproveRegistrationInput | RejectRegistrationInput) & {
     readonly decision: "approved" | "rejected";
   },
   error: unknown
-): Promise<void> => {
-  return Effect.runPromise(
+): Promise<void> =>
+  Effect.runPromise(
     Effect.logError("Failed to save registration decision", error).pipe(
       Effect.annotateLogs({
         operation: "registration.admin.decision.save",
@@ -65,16 +63,15 @@ const logDecisionFailure = (
       Effect.provide(sentryEffectTelemetryLayer)
     )
   );
-};
 
 const isRegistrationReviewStatus = (
   status: RegistrationDetailStatus | undefined
 ): status is (typeof REGISTRATION_REVIEW_STATUSES)[number] =>
   Boolean(
     status &&
-      REGISTRATION_REVIEW_STATUSES.includes(
-        status as (typeof REGISTRATION_REVIEW_STATUSES)[number]
-      )
+    REGISTRATION_REVIEW_STATUSES.includes(
+      status as (typeof REGISTRATION_REVIEW_STATUSES)[number]
+    )
   );
 
 const toRegistrationDetailView = (
@@ -106,11 +103,13 @@ const toRegistrationDetailView = (
 export async function listAdminRegistrations(
   input: ListAdminRegistrationsInput
 ): Promise<ListAdminRegistrationsResult> {
-  await requireAdminPermission("registration.read");
+  const session = await requireAdminPermission(
+    ADMIN_REGISTRATION_READ_PERMISSION
+  );
 
   const result = await Effect.runPromise(
-    Effect.gen(function* () {
-      const client = yield* makeRegistrationRestClient();
+    Effect.gen(function* result() {
+      const client = yield* makeRegistrationRestClient(session.accessToken);
       return yield* client.registrations.list({
         query: new ListRegistrationsQuery({
           ...(isRegistrationReviewStatus(input.status)
@@ -133,13 +132,15 @@ export async function listAdminRegistrations(
 export async function getAdminRegistration(input: {
   readonly registrationId: string;
 }): Promise<RegistrationDetailView | null> {
-  await requireAdminPermission("registration.read");
+  const session = await requireAdminPermission(
+    ADMIN_REGISTRATION_READ_PERMISSION
+  );
 
   try {
     return toRegistrationDetailView(
       await Effect.runPromise(
         Effect.gen(function* () {
-          const client = yield* makeRegistrationRestClient();
+          const client = yield* makeRegistrationRestClient(session.accessToken);
           return yield* client.registrations.get({
             params: {
               registrationId: RegistrationId.make(input.registrationId),
@@ -160,37 +161,37 @@ export async function getAdminRegistration(input: {
 const decisionFailure = (error: unknown): RegistrationDecisionResult => {
   if (error instanceof RegistrationApiNotFound) {
     return {
-      status: "invalid",
       fieldErrors: [],
       formErrors: [
         {
           code: "registrationNotFound",
         },
       ],
+      status: "invalid",
     };
   }
 
   if (error instanceof RegistrationAlreadyApproved) {
     return {
-      status: "invalid",
       fieldErrors: [],
       formErrors: [
         {
           code: "registrationAlreadyApproved",
         },
       ],
+      status: "invalid",
     };
   }
 
   if (error instanceof RegistrationAlreadyRejected) {
     return {
-      status: "invalid",
       fieldErrors: [],
       formErrors: [
         {
           code: "registrationAlreadyRejected",
         },
       ],
+      status: "invalid",
     };
   }
 
@@ -199,13 +200,13 @@ const decisionFailure = (error: unknown): RegistrationDecisionResult => {
     error instanceof RegistrationApiConflict
   ) {
     return {
-      status: "invalid",
       fieldErrors: [],
       formErrors: [
         {
           code: "registrationDecisionAlreadyProcessing",
         },
       ],
+      status: "invalid",
     };
   }
 
@@ -220,35 +221,18 @@ const decideRegistration = async (
   const session = await requireAdminPermission(
     ADMIN_REGISTRATION_DECIDE_PERMISSION
   );
-  const actor = await getAdminActor();
-
-  if (!env.REGISTRATION_APPROVAL_SECRET) {
-    throw new Error(
-      "REGISTRATION_APPROVAL_SECRET must be configured to decide registrations."
-    );
-  }
-
-  const approvalSecret = env.REGISTRATION_APPROVAL_SECRET;
 
   try {
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const client = yield* makeRegistrationRestClient();
+      Effect.gen(function* result() {
+        const client = yield* makeRegistrationRestClient(session.accessToken);
         const request = {
           params: {
             registrationId: RegistrationId.make(input.registrationId),
           },
-          headers: {
-            "x-registration-approval-secret": approvalSecret,
-          },
-          payload: new RegistrationDecisionRequest({
-            reviewer: new RegistrationReviewerInput({
-              authUserId: session.user.id,
-              email: actor.actorEmail,
-              name: actor.actorName || actor.actorEmail,
-            }),
-            ...(input.reason ? { reason: input.reason } : {}),
-          }),
+          payload: new RegistrationDecisionRequest(
+            input.reason ? { reason: input.reason } : {}
+          ),
         };
 
         return input.decision === "approved"
@@ -272,9 +256,9 @@ const decideRegistration = async (
     );
 
     return {
-      status: "accepted",
       registrationId: String(result.registrationId),
       registrationStatus: result.status,
+      status: "accepted",
     };
   } catch (error) {
     await logDecisionFailure(input, error);

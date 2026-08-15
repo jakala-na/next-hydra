@@ -20,7 +20,6 @@ const requiredCommerceEnvironment = {
 } as const;
 
 const applicationEnvironment = {
-  REGISTRATION_APPROVAL_SECRET: "registration-approval-secret",
   REGISTRATION_APPROVER_EMAIL: "approver@example.com",
   WORKOS_WEBHOOK_SECRET: "workos-webhook-secret",
 } as const;
@@ -34,7 +33,7 @@ const stubValidEnvironment = () => {
   }
 };
 
-const loadEnvironment = () => import("../env");
+const loadEnvironment = async () => import("../env");
 
 afterEach(() => {
   vi.resetModules();
@@ -58,7 +57,7 @@ describe("API commerce environment", () => {
   it.each(Object.keys(requiredCommerceEnvironment))(
     "fails while loading the API environment when %s is empty",
     async (name) => {
-      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      vi.spyOn(console, "error").mockReturnValue(undefined);
       stubValidEnvironment();
       vi.stubEnv(name, "");
 

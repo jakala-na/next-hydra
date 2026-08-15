@@ -1,12 +1,22 @@
 import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect";
-import type { RedactedEmail } from "../domain/identity";
+
+import { AuthUserId } from "../domain/identity";
+import type { IdentityUserProfile, RedactedEmail } from "../domain/identity";
 
 export class IdentityUserLookupFailure extends Schema.TaggedErrorClass<IdentityUserLookupFailure>()(
   "IdentityUserLookupFailure",
   {
-    message: Schema.String,
-    operation: Schema.Literal("hasUserWithEmail"),
     cause: Schema.Defect,
+    message: Schema.String,
+    operation: Schema.Literals(["getById", "hasUserWithEmail"]),
+  }
+) {}
+
+export class IdentityUserNotFound extends Schema.TaggedErrorClass<IdentityUserNotFound>()(
+  "IdentityUserNotFound",
+  {
+    authUserId: AuthUserId,
+    message: Schema.String,
   }
 ) {}
 
@@ -19,17 +29,41 @@ export class IdentityUsers extends Context.Service<
     readonly hasUserWithEmail: (
       email: RedactedEmail
     ) => Effect.Effect<boolean, IdentityUserLookupFailure>;
+    readonly getById: (
+      authUserId: AuthUserId
+    ) => Effect.Effect<
+      IdentityUserProfile,
+      IdentityUserLookupFailure | IdentityUserNotFound
+    >;
   }
 >()("@repo/registration/IdentityUsers") {
-  static readonly layerMemoryFrom = (emails: Iterable<RedactedEmail>) =>
+  static readonly layerMemoryFrom = (
+    emails: Iterable<RedactedEmail>,
+    profiles: Iterable<IdentityUserProfile> = []
+  ) =>
     Layer.effect(
       IdentityUsers,
       Effect.gen(function* () {
         const knownEmails = yield* Ref.make(
           new Set([...emails].map(normalizedIdentityEmail))
         );
+        const profilesByAuthUserId = new Map(
+          [...profiles].map((profile) => [String(profile.authUserId), profile])
+        );
 
         return IdentityUsers.of({
+          getById: Effect.fn("IdentityUsers.getById")(function* (authUserId) {
+            const profile = profilesByAuthUserId.get(String(authUserId));
+
+            if (profile === undefined) {
+              return yield* new IdentityUserNotFound({
+                authUserId,
+                message: `Identity user ${authUserId} was not found`,
+              });
+            }
+
+            return profile;
+          }),
           hasUserWithEmail: Effect.fn("IdentityUsers.hasUserWithEmail")(
             (email) =>
               Ref.get(knownEmails).pipe(

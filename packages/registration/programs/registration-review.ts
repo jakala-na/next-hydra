@@ -1,23 +1,37 @@
-import { Effect, Redacted } from "effect";
-import type { RegistrationReviewerActor } from "../domain/actors";
+import { Effect, Redacted, Schema } from "effect";
+
+import { RegistrationReviewerActor } from "../domain/actors";
+import { AuthUserId, Email } from "../domain/identity";
 import type { RegistrationId } from "../domain/identity";
 import type { Registration } from "../domain/registration";
-import {
-  Registrations,
-  type RegistrationTransitionError,
-} from "../services/registrations";
+import { Registrations } from "../services/registrations";
+import type { RegistrationTransitionError } from "../services/registrations";
 
-export interface RegistrationReviewWorkflowReviewer {
-  readonly authUserId: string;
-  readonly email: string;
-  readonly name: string;
-}
+export const RegistrationReviewWorkflowReviewer = Schema.Struct({
+  authUserId: AuthUserId,
+  email: Email,
+  name: Schema.String,
+});
+export type RegistrationReviewWorkflowReviewer =
+  typeof RegistrationReviewWorkflowReviewer.Type;
 
-export interface RegistrationReviewWorkflowDecision {
-  readonly decision: "approved" | "rejected";
-  readonly reviewer: RegistrationReviewWorkflowReviewer;
-  readonly reason?: string;
-}
+export const RegistrationReviewWorkflowDecision = Schema.Struct({
+  decision: Schema.Literals(["approved", "rejected"]),
+  reason: Schema.optional(Schema.String),
+  reviewer: RegistrationReviewWorkflowReviewer,
+});
+export type RegistrationReviewWorkflowDecision =
+  typeof RegistrationReviewWorkflowDecision.Type;
+
+export const registrationReviewerActorFromWorkflow = (
+  reviewer: RegistrationReviewWorkflowReviewer
+) =>
+  new RegistrationReviewerActor({
+    actorType: "registration_reviewer",
+    authUserId: reviewer.authUserId,
+    email: Redacted.make(reviewer.email, { label: "email" }),
+    name: reviewer.name,
+  });
 
 export interface AcceptRegistrationReviewDecisionInput<E = never> {
   readonly registrationId: RegistrationId;
@@ -33,14 +47,14 @@ export interface AcceptRegistrationReviewDecisionInput<E = never> {
 const toWorkflowReviewer = (
   reviewer: RegistrationReviewerActor
 ): RegistrationReviewWorkflowReviewer => ({
-  authUserId: String(reviewer.authUserId),
-  email: String(Redacted.value(reviewer.email)),
+  authUserId: reviewer.authUserId,
+  email: Redacted.value(reviewer.email),
   name: reviewer.name,
 });
 
 export const acceptRegistrationReviewDecision = Effect.fn(
   "acceptRegistrationReviewDecision"
-)(function* <E>(
+)(function* acceptRegistrationReviewDecision<E>(
   input: AcceptRegistrationReviewDecisionInput<E>
 ): Effect.fn.Return<
   Registration,
@@ -49,8 +63,8 @@ export const acceptRegistrationReviewDecision = Effect.fn(
 > {
   const registrations = yield* Registrations;
   const processing = yield* registrations.markApprovalProcessing({
-    registrationId: input.registrationId,
     decision: input.decision,
+    registrationId: input.registrationId,
   });
 
   yield* input.resumeWorkflow(input.registrationId, {

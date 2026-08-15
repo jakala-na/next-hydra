@@ -1,5 +1,7 @@
 import { Schema } from "effect";
+
 import { AuthUserId, CommerceBusinessUnitId, RedactedEmail } from "./identity";
+import type { IdentityUserProfile } from "./identity";
 import { CompanyRole } from "./roles";
 
 export class RegistrationReviewerActor extends Schema.Class<RegistrationReviewerActor>(
@@ -10,6 +12,16 @@ export class RegistrationReviewerActor extends Schema.Class<RegistrationReviewer
   email: RedactedEmail,
   name: Schema.String,
 }) {}
+
+export const registrationReviewerActorFromIdentityUser = (
+  user: IdentityUserProfile
+) =>
+  new RegistrationReviewerActor({
+    actorType: "registration_reviewer",
+    authUserId: user.authUserId,
+    email: user.email,
+    name: user.name,
+  });
 
 export class CompanyActor extends Schema.Class<CompanyActor>("CompanyActor")({
   actorType: Schema.Literal("company"),

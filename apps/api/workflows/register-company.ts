@@ -16,20 +16,20 @@ import {
   InvitationId,
   PersonName,
 } from "@repo/registration/domain/identity";
+import { toRegistrationDetailResponse } from "@repo/registration/http/registration-api";
+import type { RegistrationDetailResponse } from "@repo/registration/http/registration-api";
 import {
-  type RegistrationDetailResponse,
-  RegistrationReviewerInput,
-  toRegistrationDetailResponse,
-  toReviewerActor,
-} from "@repo/registration/http/registration-api";
-import { Effect, Redacted } from "effect";
+  RegistrationReviewWorkflowDecision,
+  registrationReviewerActorFromWorkflow,
+} from "@repo/registration/programs/registration-review";
+import { Effect, Redacted, Schema } from "effect";
 import { createHook } from "workflow";
-import { registrationLayer } from "@/lib/registration/runtime";
+
 import type {
   RegistrationInvitationEvent,
-  RegistrationWorkflowDecision,
   RegistrationWorkflowInput,
 } from "@/lib/registration-workflow-contract";
+import { registrationLayer } from "@/lib/registration/runtime";
 
 const toPlainRegistrationDetailResponse = (
   registration: RegistrationDetailResponse
@@ -83,7 +83,7 @@ const toAcceptedAuthIdentity = (
     ),
   });
 
-const runWorkflowStep = <A, R>(
+const runWorkflowStep = async <A, R>(
   effect: Effect.Effect<A, unknown, R>,
   input: RegistrationWorkflowInput,
   step: string,
@@ -112,21 +112,21 @@ const runWorkflowStep = <A, R>(
     }),
     Effect.withSpan(`registration.workflow.${step}`),
     Effect.provide(registrationLayer)
-  ) as Effect.Effect<A, unknown, never>;
+  ) as Effect.Effect<A, unknown>;
 
-  return Effect.runPromise(runnable);
+  return await Effect.runPromise(runnable);
 };
 
 async function approveRegistrationStep(
   input: RegistrationWorkflowInput,
-  decision: RegistrationWorkflowDecision
+  decision: RegistrationReviewWorkflowDecision
 ) {
   "use step";
 
   const registration = await runWorkflowStep(
     approveRegistration({
+      actor: registrationReviewerActorFromWorkflow(decision.reviewer),
       registrationId: RegistrationId.make(input.registrationId),
-      actor: toReviewerActor(new RegistrationReviewerInput(decision.reviewer)),
       ...(decision.reason === undefined ? {} : { reason: decision.reason }),
     }),
     input,
@@ -176,9 +176,9 @@ async function acceptInvitationStep(
 
   const registration = await runWorkflowStep(
     acceptRegistrationInvitation({
-      registrationId: RegistrationId.make(input.registrationId),
-      invitationId: InvitationId.make(invitationId),
       acceptedIdentity: toAcceptedAuthIdentity(event, fallback),
+      invitationId: InvitationId.make(invitationId),
+      registrationId: RegistrationId.make(input.registrationId),
     }),
     input,
     "accept-invitation",
@@ -192,14 +192,14 @@ async function acceptInvitationStep(
 
 async function rejectRegistrationStep(
   input: RegistrationWorkflowInput,
-  decision: RegistrationWorkflowDecision
+  decision: RegistrationReviewWorkflowDecision
 ) {
   "use step";
 
   const registration = await runWorkflowStep(
     rejectRegistration({
+      actor: registrationReviewerActorFromWorkflow(decision.reviewer),
       registrationId: RegistrationId.make(input.registrationId),
-      actor: toReviewerActor(new RegistrationReviewerInput(decision.reviewer)),
       ...(decision.reason === undefined ? {} : { reason: decision.reason }),
     }),
     input,
@@ -231,14 +231,17 @@ export async function registerCompanyWorkflow(
 
   await notifyAwaitingApprovalStep(input);
 
-  const decision = await createHook<RegistrationWorkflowDecision>({
+  const decisionInput = await createHook<unknown>({
     token: getRegistrationApprovalHookToken(input.registrationId),
   });
+  const decision = Schema.decodeUnknownSync(RegistrationReviewWorkflowDecision)(
+    decisionInput
+  );
 
   if (decision.decision === "approved") {
     const registration = await approveRegistrationStep(input, decision);
     await notifyApprovedStep(input);
-    const invitationId = registration.invitationId;
+    const { invitationId } = registration;
     if (!invitationId) {
       throw new Error("Approved registration is missing an invitation id");
     }

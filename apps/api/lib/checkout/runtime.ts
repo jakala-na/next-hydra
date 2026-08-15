@@ -1,8 +1,9 @@
-import { commerceApp, commerceAuthenticationLayer } from "../commerce/runtime";
+import { apiAuthenticationLayer } from "../auth/runtime";
+import { commerceApp } from "../commerce/runtime";
 import { makeCheckoutHttpHandler } from "./http";
 
 const checkoutHttpDependencies = {
-  authenticationLayer: commerceAuthenticationLayer,
+  authenticationLayer: apiAuthenticationLayer,
   commerceApp,
 };
 

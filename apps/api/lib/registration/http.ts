@@ -1,33 +1,58 @@
+import { AccessTokenVerifier } from "@repo/auth/access-token";
+import type {
+  AccessTokenInvalid,
+  AccessTokenVerificationFailure,
+  VerifiedAccessToken,
+} from "@repo/auth/access-token";
 import type { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { CommerceLocale, resolveStore } from "@repo/commerce/store";
+import { registrationReviewerActorFromIdentityUser } from "@repo/registration/domain/actors";
+import { AuthUserId } from "@repo/registration/domain/identity";
+import type { RegistrationId } from "@repo/registration/domain/identity";
 import {
   CreateRegistrationResponse,
   ListRegistrationsResponse,
-  type RegistrationApiError,
+  REGISTRATION_DECIDE_PERMISSION,
+  REGISTRATION_READ_PERMISSION,
+  RegistrationApiAuthenticationUnavailable,
+  RegistrationApiBadRequest,
+  RegistrationApiForbidden,
   RegistrationApiUnauthorized,
   RegistrationApiValidationError,
+  RegistrationDecisionAccessMiddleware,
   RegistrationDecisionAcceptedResponse,
   RegistrationHttpApi,
-  toApiError,
+  RegistrationReadAccessMiddleware,
+  RegistrationReviewerContext,
+  RegistrationSchemaErrorMiddleware,
   toCompanyRegistrationDetails,
   toRegistrationDetailResponse,
-  toReviewerActor,
+  toRegistrationCreateApiError,
+  toRegistrationInternalApiError,
+  toRegistrationQueryApiError,
+  toRegistrationReadApiError,
+  toRegistrationTransitionApiError,
 } from "@repo/registration/http/registration-api";
-import {
-  type RegistrationIntakeValidationError,
-  submitRegistrationForReview,
-} from "@repo/registration/programs/registration-intake";
+import type { RegistrationApiError } from "@repo/registration/http/registration-api";
+import { submitRegistrationForReview } from "@repo/registration/programs/registration-intake";
 import { acceptRegistrationReviewDecision } from "@repo/registration/programs/registration-review";
-import type { IdentityUsers } from "@repo/registration/services/identity-users";
+import type { RegistrationReviewWorkflowDecision } from "@repo/registration/programs/registration-review";
+import { IdentityUsers } from "@repo/registration/services/identity-users";
 import type { Invitations } from "@repo/registration/services/invitations";
 import type { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
 import { RegistrationQueries } from "@repo/registration/services/registration-queries";
 import { Registrations } from "@repo/registration/services/registrations";
 import type { VatValidator } from "@repo/registration/services/vat-validator";
 import { Cause, Effect, Layer } from "effect";
-import { HttpRouter, HttpServer } from "effect/unstable/http";
-import { HttpApiBuilder } from "effect/unstable/httpapi";
-import type { RegistrationWorkflowDecision } from "../registration-workflow-contract";
+import type { Config, Redacted } from "effect";
+import {
+  HttpRouter,
+  HttpServer,
+  HttpServerRequest,
+} from "effect/unstable/http";
+import { HttpApiBuilder, HttpApiMiddleware } from "effect/unstable/httpapi";
+
+import { parseBearerAuthorization } from "../auth/bearer-token";
 
 type RegistrationRuntimeLayer = Layer.Layer<
   | Registrations
@@ -37,75 +62,222 @@ type RegistrationRuntimeLayer = Layer.Layer<
   | RegistrationMarketPolicy
   | VatValidator
   | Invitations,
-  unknown,
-  never
+  unknown
+>;
+type RegistrationAuthenticationLayer = Layer.Layer<
+  AccessTokenVerifier,
+  Config.ConfigError
 >;
 
 export interface RegistrationHttpDependencies {
-  readonly approvalSecret: string;
+  readonly authenticationLayer: RegistrationAuthenticationLayer;
   readonly layer: RegistrationRuntimeLayer;
   readonly resumeRegistrationWorkflow: (
     registrationId: string,
-    decision: RegistrationWorkflowDecision
+    decision: RegistrationReviewWorkflowDecision
   ) => Effect.Effect<void, RegistrationApiError>;
   readonly startRegistrationWorkflow: (
     registrationId: string
   ) => Effect.Effect<unknown, RegistrationApiError>;
 }
 
-const authorizeAdmin = (
-  expectedApprovalSecret: string,
-  approvalSecret: string | undefined
-): Effect.Effect<void, RegistrationApiUnauthorized> =>
-  approvalSecret === expectedApprovalSecret
-    ? Effect.void
-    : Effect.fail(
-        new RegistrationApiUnauthorized({
-          message: "Unauthorized",
-        })
-      );
+const unauthorized = () =>
+  new RegistrationApiUnauthorized({ message: "Authentication is required." });
 
-const toRegistrationHttpError = (
-  error:
-    | Parameters<typeof toApiError>[0]
-    | RegistrationApiError
-    | RegistrationIntakeValidationError
-    | RegistrationApiValidationError
-    | RegistrationApiUnauthorized
-) => {
-  switch (error._tag) {
-    case "RegistrationApiError":
-    case "RegistrationApiUnauthorized":
-    case "RegistrationApiValidationError":
-      return error;
-    case "RegistrationIntakeValidationError":
-      return new RegistrationApiValidationError({
-        message: error.message,
-        reasons: error.reasons,
-      });
-    default:
-      return toApiError(error);
-  }
-};
+const forbidden = () =>
+  new RegistrationApiForbidden({
+    message: "Registration administration access is denied.",
+  });
+
+const authenticationUnavailable = () =>
+  new RegistrationApiAuthenticationUnavailable({
+    message: "Authentication is temporarily unavailable.",
+  });
+
+const logRegistrationAuthenticationFailure = (error: {
+  readonly _tag: string;
+  readonly message: string;
+}) =>
+  Effect.logError(error.message, error).pipe(
+    Effect.annotateLogs({
+      operation: "registration.api.authenticate",
+      "registration.error.tag": error._tag,
+      service: "registration-api",
+    })
+  );
+
+interface RegistrationAccessTokenVerifier {
+  readonly verify: (
+    token: string
+  ) => Effect.Effect<
+    VerifiedAccessToken,
+    AccessTokenInvalid | AccessTokenVerificationFailure
+  >;
+}
+
+const verifyRegistrationAccess = (
+  verifier: RegistrationAccessTokenVerifier,
+  credential: Redacted.Redacted,
+  requiredPermission: string
+) =>
+  Effect.gen(function* verifyRegistrationAccess() {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const authorization = parseBearerAuthorization(
+      request.headers.authorization,
+      credential
+    );
+
+    if (authorization._tag !== "Token") {
+      return yield* Effect.fail(unauthorized());
+    }
+
+    return yield* verifier.verify(authorization.token).pipe(
+      Effect.tapError((error) =>
+        error._tag === "AccessTokenVerificationFailure"
+          ? logRegistrationAuthenticationFailure(error)
+          : Effect.void
+      ),
+      Effect.mapError((error) =>
+        error._tag === "AccessTokenInvalid"
+          ? unauthorized()
+          : authenticationUnavailable()
+      ),
+      Effect.flatMap((verifiedToken) =>
+        verifiedToken.permissions?.includes(requiredPermission)
+          ? Effect.succeed(verifiedToken)
+          : Effect.fail(forbidden())
+      )
+    );
+  });
+
+const registrationReadAccessMiddlewareLayer = Layer.effect(
+  RegistrationReadAccessMiddleware,
+  Effect.gen(function* registrationReadAccessMiddlewareLayer() {
+    const verifier = yield* AccessTokenVerifier;
+
+    return {
+      accessToken: (httpEffect, { credential }) =>
+        verifyRegistrationAccess(
+          verifier,
+          credential,
+          REGISTRATION_READ_PERMISSION
+        ).pipe(Effect.andThen(httpEffect)),
+    };
+  })
+);
+
+const registrationDecisionAccessMiddlewareLayer = Layer.effect(
+  RegistrationDecisionAccessMiddleware,
+  Effect.gen(function* registrationDecisionAccessMiddlewareLayer() {
+    const verifier = yield* AccessTokenVerifier;
+    const identityUsers = yield* IdentityUsers;
+
+    return {
+      accessToken: (httpEffect, { credential }) =>
+        Effect.gen(function* accessToken() {
+          const verifiedToken = yield* verifyRegistrationAccess(
+            verifier,
+            credential,
+            REGISTRATION_DECIDE_PERMISSION
+          );
+          const reviewer = yield* identityUsers
+            .getById(AuthUserId.make(verifiedToken.authUserId))
+            .pipe(
+              Effect.tapError((error) =>
+                error._tag === "IdentityUserLookupFailure"
+                  ? logRegistrationAuthenticationFailure(error)
+                  : Effect.void
+              ),
+              Effect.mapError((error) =>
+                error._tag === "IdentityUserNotFound"
+                  ? unauthorized()
+                  : authenticationUnavailable()
+              ),
+              Effect.map(registrationReviewerActorFromIdentityUser)
+            );
+
+          return yield* Effect.provideService(
+            httpEffect,
+            RegistrationReviewerContext,
+            reviewer
+          );
+        }),
+    };
+  })
+);
+
+const registrationSchemaErrorMiddlewareLayer =
+  HttpApiMiddleware.layerSchemaErrorTransform(
+    RegistrationSchemaErrorMiddleware,
+    () =>
+      Effect.fail(
+        new RegistrationApiBadRequest({
+          message: "The registration request is invalid.",
+        })
+      )
+  );
 
 const makeRegistrationHttpHandlers = ({
-  approvalSecret,
   resumeRegistrationWorkflow,
   startRegistrationWorkflow,
 }: Pick<
   RegistrationHttpDependencies,
-  "approvalSecret" | "resumeRegistrationWorkflow" | "startRegistrationWorkflow"
+  "resumeRegistrationWorkflow" | "startRegistrationWorkflow"
 >) =>
   HttpApiBuilder.group(
     RegistrationHttpApi,
     "registrations",
-    Effect.fn(function* (handlers) {
+    Effect.fn(function* buildRegistrationHttpHandlers(handlers) {
       const registrations = yield* Registrations;
       const queries = yield* RegistrationQueries;
 
+      const acceptDecision = (input: {
+        readonly decision: "approved" | "rejected";
+        readonly reason?: string;
+        readonly registrationId: RegistrationId;
+      }) =>
+        Effect.gen(function* acceptRegistrationDecision() {
+          const reviewer = yield* RegistrationReviewerContext;
+          yield* acceptRegistrationReviewDecision({
+            decision: input.decision,
+            registrationId: input.registrationId,
+            resumeWorkflow: (registrationId, decision) =>
+              resumeRegistrationWorkflow(String(registrationId), decision),
+            reviewer,
+            ...(input.reason === undefined ? {} : { reason: input.reason }),
+          });
+
+          return new RegistrationDecisionAcceptedResponse({
+            registrationId: input.registrationId,
+            status: "approval_processing",
+          });
+        }).pipe(
+          Effect.tapCause((cause) =>
+            Effect.logError("Failed to accept registration decision", cause)
+          ),
+          Effect.annotateLogs({
+            operation: "registration.api.decision.accept",
+            "registration.decision": input.decision,
+            "registration.id": String(input.registrationId),
+            service: "registration-api",
+          }),
+          Effect.annotateSpans({
+            "registration.decision": input.decision,
+            "registration.id": String(input.registrationId),
+            "registration.operation": "decision.accept",
+          }),
+          Effect.withSpan("registration.api.decision.accept"),
+          Effect.withLogSpan("registration.api.decision.accept"),
+          Effect.mapError((error) =>
+            error._tag === "RegistrationApiError"
+              ? toRegistrationInternalApiError()
+              : toRegistrationTransitionApiError(error)
+          )
+        );
+
       return handlers
         .handle("create", ({ headers, payload }) =>
-          Effect.gen(function* () {
+          Effect.gen(function* createRegistration() {
             const details = toCompanyRegistrationDetails(payload);
             const registration = yield* submitRegistrationForReview({
               details,
@@ -151,7 +323,14 @@ const makeRegistrationHttpHandlers = ({
             }),
             Effect.withSpan("registration.api.create"),
             Effect.withLogSpan("registration.api.create"),
-            Effect.mapError(toRegistrationHttpError)
+            Effect.mapError((error) =>
+              error._tag === "RegistrationIntakeValidationError"
+                ? new RegistrationApiValidationError({
+                    message: error.message,
+                    reasons: error.reasons,
+                  })
+                : toRegistrationCreateApiError(error)
+            )
           )
         )
         .handle("list", ({ query }) =>
@@ -181,7 +360,7 @@ const makeRegistrationHttpHandlers = ({
                 operation: "registration.api.list",
                 service: "registration-api",
               }),
-              Effect.mapError(toRegistrationHttpError)
+              Effect.mapError(toRegistrationQueryApiError)
             )
         )
         .handle("get", ({ params }) =>
@@ -189,90 +368,22 @@ const makeRegistrationHttpHandlers = ({
             .get(params.registrationId)
             .pipe(
               Effect.map(toRegistrationDetailResponse),
-              Effect.mapError(toRegistrationHttpError)
+              Effect.mapError(toRegistrationReadApiError)
             )
         )
-        .handle("approve", ({ headers, params, payload }) =>
-          Effect.gen(function* () {
-            yield* authorizeAdmin(
-              approvalSecret,
-              headers["x-registration-approval-secret"]
-            );
-            yield* acceptRegistrationReviewDecision({
-              decision: "approved",
-              registrationId: params.registrationId,
-              resumeWorkflow: (registrationId, decision) =>
-                resumeRegistrationWorkflow(String(registrationId), decision),
-              reviewer: toReviewerActor(payload.reviewer),
-              ...(payload.reason === undefined
-                ? {}
-                : { reason: payload.reason }),
-            });
-
-            return new RegistrationDecisionAcceptedResponse({
-              registrationId: params.registrationId,
-              status: "approval_processing",
-            });
-          }).pipe(
-            Effect.tapCause((cause) =>
-              Effect.logError("Failed to accept registration decision", cause)
-            ),
-            Effect.annotateLogs({
-              operation: "registration.api.decision.accept",
-              "registration.decision": "approved",
-              "registration.id": String(params.registrationId),
-              service: "registration-api",
-            }),
-            Effect.annotateSpans({
-              "registration.decision": "approved",
-              "registration.id": String(params.registrationId),
-              "registration.operation": "decision.accept",
-            }),
-            Effect.withSpan("registration.api.decision.accept"),
-            Effect.withLogSpan("registration.api.decision.accept"),
-            Effect.mapError(toRegistrationHttpError)
-          )
+        .handle("approve", ({ params, payload }) =>
+          acceptDecision({
+            decision: "approved",
+            registrationId: params.registrationId,
+            ...(payload.reason === undefined ? {} : { reason: payload.reason }),
+          })
         )
-        .handle("reject", ({ headers, params, payload }) =>
-          Effect.gen(function* () {
-            yield* authorizeAdmin(
-              approvalSecret,
-              headers["x-registration-approval-secret"]
-            );
-            yield* acceptRegistrationReviewDecision({
-              decision: "rejected",
-              registrationId: params.registrationId,
-              resumeWorkflow: (registrationId, decision) =>
-                resumeRegistrationWorkflow(String(registrationId), decision),
-              reviewer: toReviewerActor(payload.reviewer),
-              ...(payload.reason === undefined
-                ? {}
-                : { reason: payload.reason }),
-            });
-
-            return new RegistrationDecisionAcceptedResponse({
-              registrationId: params.registrationId,
-              status: "approval_processing",
-            });
-          }).pipe(
-            Effect.tapCause((cause) =>
-              Effect.logError("Failed to accept registration decision", cause)
-            ),
-            Effect.annotateLogs({
-              operation: "registration.api.decision.accept",
-              "registration.decision": "rejected",
-              "registration.id": String(params.registrationId),
-              service: "registration-api",
-            }),
-            Effect.annotateSpans({
-              "registration.decision": "rejected",
-              "registration.id": String(params.registrationId),
-              "registration.operation": "decision.accept",
-            }),
-            Effect.withSpan("registration.api.decision.accept"),
-            Effect.withLogSpan("registration.api.decision.accept"),
-            Effect.mapError(toRegistrationHttpError)
-          )
+        .handle("reject", ({ params, payload }) =>
+          acceptDecision({
+            decision: "rejected",
+            registrationId: params.registrationId,
+            ...(payload.reason === undefined ? {} : { reason: payload.reason }),
+          })
         );
     })
   );
@@ -282,6 +393,10 @@ const makeRegistrationHttpApiLayer = (
 ) =>
   HttpApiBuilder.layer(RegistrationHttpApi).pipe(
     Layer.provide(makeRegistrationHttpHandlers(dependencies)),
+    Layer.provide(registrationSchemaErrorMiddlewareLayer),
+    Layer.provide(registrationReadAccessMiddlewareLayer),
+    Layer.provide(registrationDecisionAccessMiddlewareLayer),
+    Layer.provideMerge(dependencies.authenticationLayer),
     Layer.provideMerge(dependencies.layer),
     Layer.provide(HttpServer.layerServices)
   );

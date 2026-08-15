@@ -10,6 +10,7 @@ import { RegistrationMarketPolicy } from "@repo/registration/services/registrati
 import { Registrations } from "@repo/registration/services/registrations";
 import { VatValidator } from "@repo/registration/services/vat-validator";
 import { Layer } from "effect";
+
 import { env } from "@/env";
 
 export const REGISTRATION_CONTAINER =

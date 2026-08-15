@@ -1,7 +1,7 @@
-import {
-  type AccessTokenInvalid,
-  type AccessTokenVerificationFailure,
-  AccessTokenVerifier,
+import { AccessTokenVerifier } from "@repo/auth/access-token";
+import type {
+  AccessTokenInvalid,
+  AccessTokenVerificationFailure,
 } from "@repo/auth/access-token";
 import {
   AuthUserId,
@@ -24,13 +24,16 @@ import type {
 } from "@repo/commerce/runtime/make-commerce-app";
 import { AddressBook } from "@repo/commerce/services/address-book";
 import { resolveStore } from "@repo/commerce/store";
-import { type Config, Effect, Layer, Redacted, Schema } from "effect";
+import { Effect, Layer, Schema } from "effect";
+import type { Config } from "effect";
 import {
   HttpRouter,
   HttpServer,
   HttpServerRequest,
 } from "effect/unstable/http";
 import { HttpApiBuilder, HttpApiMiddleware } from "effect/unstable/httpapi";
+
+import { parseBearerAuthorization } from "../auth/bearer-token";
 
 type AddressBookCommerceApp = CommerceApplication<
   Config.ConfigError,
@@ -94,22 +97,24 @@ const toAddressBookError = (
         : "The Address Book is temporarily unavailable.",
   });
 
-const getAddressBookRequestHeaders = Effect.gen(function* () {
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  const locale = request.headers["x-context-locale"];
-  const businessUnitId = request.headers["x-context-business-unit-id"];
+const getAddressBookRequestHeaders = Effect.gen(
+  function* getAddressBookRequestHeaders() {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const locale = request.headers["x-context-locale"];
+    const businessUnitId = request.headers["x-context-business-unit-id"];
 
-  if (locale === undefined) {
-    return yield* Effect.fail(toAddressBookBadRequest());
+    if (locale === undefined) {
+      return yield* Effect.fail(toAddressBookBadRequest());
+    }
+
+    return yield* Schema.decodeUnknownEffect(CommerceRequestHeaders)({
+      "x-context-locale": locale,
+      ...(businessUnitId === undefined
+        ? {}
+        : { "x-context-business-unit-id": businessUnitId }),
+    }).pipe(Effect.mapError(toAddressBookBadRequest));
   }
-
-  return yield* Schema.decodeUnknownEffect(CommerceRequestHeaders)({
-    "x-context-locale": locale,
-    ...(businessUnitId === undefined
-      ? {}
-      : { "x-context-business-unit-id": businessUnitId }),
-  }).pipe(Effect.mapError(toAddressBookBadRequest));
-});
+);
 
 const makeAddressBookContextRequest = (
   headers: CommerceRequestHeaders,
@@ -135,21 +140,27 @@ const addressBookAccessMiddlewareLayer = (
 ) =>
   Layer.effect(
     AddressBookAccessMiddleware,
-    Effect.gen(function* () {
+    Effect.gen(function* addressBookAccessMiddlewareLayer() {
       const verifier = yield* AccessTokenVerifier;
       const commerceServices = yield* Effect.context<CommerceStableServices>();
       const verifierLayer = Layer.succeed(AccessTokenVerifier, verifier);
 
       return {
-        commerceBearer: (httpEffect, { credential }) =>
-          Effect.gen(function* () {
-            const token = Redacted.value(credential).trim();
-            if (token === "") {
+        accessToken: (httpEffect, { credential }) =>
+          Effect.gen(function* accessToken() {
+            const request = yield* HttpServerRequest.HttpServerRequest;
+            const authorization = parseBearerAuthorization(
+              request.headers.authorization,
+              credential
+            );
+            if (authorization._tag !== "Token") {
               return yield* Effect.fail(toAddressBookUnauthorized());
             }
 
             const headers = yield* getAddressBookRequestHeaders;
-            const verifiedToken = yield* AccessTokenVerifier.verify(token).pipe(
+            const verifiedToken = yield* AccessTokenVerifier.verify(
+              authorization.token
+            ).pipe(
               Effect.tapError((error) =>
                 error._tag === "AccessTokenVerificationFailure"
                   ? logAddressBookDiagnosticFailure(error)
@@ -204,10 +215,12 @@ const addressBookHandlers = HttpApiBuilder.group(
         Effect.mapError((error) => {
           switch (error._tag) {
             case "AddressBookAccessDenied":
-            case "CommerceRequestContextNotFound":
+            case "CommerceRequestContextNotFound": {
               return toAddressBookForbidden();
-            case "AddressBookProviderFailure":
+            }
+            case "AddressBookProviderFailure": {
               return toAddressBookError("addressBook.providerFailure");
+            }
             default: {
               const exhaustiveError: never = error;
               return exhaustiveError;

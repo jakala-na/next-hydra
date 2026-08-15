@@ -1,11 +1,12 @@
 import "server-only";
-
 import { getSignInUrl, withAuth } from "@repo/auth/server";
 import type { Route } from "next";
 import { notFound, redirect } from "next/navigation";
 
-export const ADMIN_REGISTRATION_READ_PERMISSION = "registration.read";
-export const ADMIN_REGISTRATION_DECIDE_PERMISSION = "registration.decide";
+export {
+  REGISTRATION_DECIDE_PERMISSION as ADMIN_REGISTRATION_DECIDE_PERMISSION,
+  REGISTRATION_READ_PERMISSION as ADMIN_REGISTRATION_READ_PERMISSION,
+} from "@repo/registration/http/registration-api";
 
 const hasPermission = (
   permissions: readonly string[] | undefined,
@@ -25,26 +26,4 @@ export async function requireAdminPermission(permission: string) {
   }
 
   return session;
-}
-
-export async function getAdminActor() {
-  const session = await requireAdminPermission(
-    ADMIN_REGISTRATION_DECIDE_PERMISSION
-  );
-  const actorEmail = session.user.email;
-
-  if (!actorEmail) {
-    throw new Error("Admin actor is missing email");
-  }
-
-  const actorName = [session.user.firstName, session.user.lastName]
-    .filter(
-      (value): value is string => typeof value === "string" && value.length > 0
-    )
-    .join(" ");
-
-  return {
-    actorEmail,
-    actorName,
-  };
 }

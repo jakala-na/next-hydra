@@ -7,6 +7,7 @@ import {
   HttpApiSecurity,
   OpenApi,
 } from "effect/unstable/httpapi";
+
 import { AddressBookEntry } from "../domain/address-book";
 import type { AddressBook } from "../services/address-book";
 import { CommerceRequestHeaders } from "./commerce-request";
@@ -71,14 +72,13 @@ export class AddressBookAccessMiddleware extends HttpApiMiddleware.Service<
     AddressBookApiError,
   ],
   security: {
-    commerceBearer: HttpApiSecurity.bearer,
+    accessToken: HttpApiSecurity.bearer,
   },
 }) {}
 
 export class AddressBookApiGroup extends HttpApiGroup.make("addressBook")
   .add(
     HttpApiEndpoint.get("list", "/address-book", {
-      error: [AddressBookApiForbidden, AddressBookApiError],
       headers: CommerceRequestHeaders,
       success: Schema.Array(AddressBookEntry),
     }).annotate(OpenApi.Summary, "List the current Business Unit address book")

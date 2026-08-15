@@ -7,8 +7,6 @@ import { keys as observability } from "@repo/observability/keys";
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
-const MIN_REGISTRATION_APPROVAL_SECRET_LENGTH = 16;
-
 export const env = createEnv({
   client: {},
   extends: [
@@ -21,13 +19,9 @@ export const env = createEnv({
     observability(),
   ],
   runtimeEnv: {
-    REGISTRATION_APPROVAL_SECRET: process.env.REGISTRATION_APPROVAL_SECRET,
     REGISTRATION_APPROVER_EMAIL: process.env.REGISTRATION_APPROVER_EMAIL,
   },
   server: {
-    REGISTRATION_APPROVAL_SECRET: z
-      .string()
-      .min(MIN_REGISTRATION_APPROVAL_SECRET_LENGTH),
     REGISTRATION_APPROVER_EMAIL: z.string().email(),
   },
 });

@@ -28,23 +28,14 @@ import {
   AcceptedInvitation,
   PendingInvitation,
 } from "@repo/registration/domain/invitations";
-import {
-  ApprovalProcessingRegistration,
-  ApprovedRegistration,
-  AwaitingApprovalRegistration,
-  CompanyAddress,
-  CompanyRegistrationDetails,
-  type Registration,
-  RejectedRegistration,
-} from "@repo/registration/domain/registration";
+import { ApprovalProcessingRegistration, ApprovedRegistration, AwaitingApprovalRegistration, CompanyAddress, CompanyRegistrationDetails, RejectedRegistration } from '@repo/registration/domain/registration';
+import type { Registration } from '@repo/registration/domain/registration';
 import {
   InvitationNotFound,
   Invitations,
 } from "@repo/registration/services/invitations";
-import {
-  type RegistrationEmailNotification,
-  RegistrationEmails,
-} from "@repo/registration/services/registration-emails";
+import { RegistrationEmails } from '@repo/registration/services/registration-emails';
+import type { RegistrationEmailNotification } from '@repo/registration/services/registration-emails';
 import {
   RegistrationNotFound,
   Registrations,
@@ -56,7 +47,7 @@ const workflowMocks = vi.hoisted(() => ({
   createHook: vi.fn(),
 }));
 
-vi.mock("workflow", () => ({
+vi.mock(import('workflow'), () => ({
   createHook: workflowMocks.createHook,
 }));
 
@@ -67,18 +58,6 @@ const reviewer = {
 };
 
 const details = new CompanyRegistrationDetails({
-  companyName: CompanyName.make("Hydra Supplies"),
-  companyPhone: Redacted.make(PhoneNumber.make("+1 555 0100"), {
-    label: "companyPhone",
-  }),
-  vatId: Redacted.make(VatId.make("VAT-123"), { label: "vatId" }),
-  contactFirstName: Redacted.make(PersonName.make("Ada"), {
-    label: "personName",
-  }),
-  contactLastName: Redacted.make(PersonName.make("Lovelace"), {
-    label: "personName",
-  }),
-  email: Redacted.make(Email.make("ada@example.com"), { label: "email" }),
   address: new CompanyAddress({
     streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
       label: "addressLine",
@@ -89,16 +68,28 @@ const details = new CompanyRegistrationDetails({
     city: Redacted.make(City.make("New York"), { label: "city" }),
     country: CountryCode.make("US"),
   }),
+  companyName: CompanyName.make("Hydra Supplies"),
+  companyPhone: Redacted.make(PhoneNumber.make("+1 555 0100"), {
+    label: "companyPhone",
+  }),
+  contactFirstName: Redacted.make(PersonName.make("Ada"), {
+    label: "personName",
+  }),
+  contactLastName: Redacted.make(PersonName.make("Lovelace"), {
+    label: "personName",
+  }),
+  email: Redacted.make(Email.make("ada@example.com"), { label: "email" }),
+  vatId: Redacted.make(VatId.make("VAT-123"), { label: "vatId" }),
 });
 
 const makeAwaitingRegistration = (registrationId: string) =>
   new AwaitingApprovalRegistration({
     _tag: "AwaitingApprovalRegistration",
-    status: "awaiting_approval",
-    id: RegistrationId.make(registrationId),
-    storeKey: StoreKey.make("default-store"),
-    details,
     createdAt: new Date("2026-03-22T00:00:00.000Z"),
+    details,
+    id: RegistrationId.make(registrationId),
+    status: "awaiting_approval",
+    storeKey: StoreKey.make("default-store"),
     updatedAt: new Date("2026-03-22T00:00:00.000Z"),
   });
 
@@ -136,12 +127,12 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
 
         const processing = new ApprovalProcessingRegistration({
           _tag: "ApprovalProcessingRegistration",
-          status: "approval_processing",
-          id: current.id,
-          storeKey: current.storeKey,
-          details: current.details,
-          requestedDecision: input.decision,
           createdAt: current.createdAt,
+          details: current.details,
+          id: current.id,
+          requestedDecision: input.decision,
+          status: "approval_processing",
+          storeKey: current.storeKey,
           updatedAt: new Date("2026-03-22T00:00:01.000Z"),
         });
 
@@ -160,14 +151,14 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
 
         const approved = new ApprovedRegistration({
           _tag: "ApprovedRegistration",
-          status: "approved",
-          id: current.id,
-          storeKey: current.storeKey,
-          details: current.details,
-          decision: input.decision,
           commerceAccount: input.commerceAccount,
-          invitationId: input.invitationId,
           createdAt: current.createdAt,
+          decision: input.decision,
+          details: current.details,
+          id: current.id,
+          invitationId: input.invitationId,
+          status: "approved",
+          storeKey: current.storeKey,
           updatedAt: new Date("2026-03-22T00:00:01.000Z"),
         });
 
@@ -186,12 +177,12 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
 
         const rejected = new RejectedRegistration({
           _tag: "RejectedRegistration",
-          status: "rejected",
-          id: current.id,
-          storeKey: current.storeKey,
-          details: current.details,
-          decision: input.decision,
           createdAt: current.createdAt,
+          decision: input.decision,
+          details: current.details,
+          id: current.id,
+          status: "rejected",
+          storeKey: current.storeKey,
           updatedAt: new Date("2026-03-22T00:00:01.000Z"),
         });
 
@@ -203,10 +194,10 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
   const emailsLayer = Layer.succeed(
     RegistrationEmails,
     RegistrationEmails.of({
-      sendAwaitingApprovalToRegistrant: ({ registration: emailRegistration }) =>
+      sendApprovedToRegistrant: ({ registration: emailRegistration }) =>
         Effect.sync(() => {
           emailNotifications.push({
-            notification: "registrant_awaiting_approval",
+            notification: "registrant_approved",
             registrationId: String(emailRegistration.id),
           });
         }),
@@ -217,10 +208,10 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
             registrationId: String(emailRegistration.id),
           });
         }),
-      sendApprovedToRegistrant: ({ registration: emailRegistration }) =>
+      sendAwaitingApprovalToRegistrant: ({ registration: emailRegistration }) =>
         Effect.sync(() => {
           emailNotifications.push({
-            notification: "registrant_approved",
+            notification: "registrant_awaiting_approval",
             registrationId: String(emailRegistration.id),
           });
         }),
@@ -236,32 +227,6 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
   const invitationsLayer = Layer.succeed(
     Invitations,
     Invitations.of({
-      issue: (input) =>
-        Effect.sync(() => {
-          const invitation = new PendingInvitation({
-            _tag: "PendingInvitation",
-            id: InvitationId.make(crypto.randomUUID()),
-            intent: input.intent,
-            issuedBy: input.issuedBy,
-            createdAt: new Date("2026-03-22T00:00:01.000Z"),
-            acceptInvitationUrl: "https://workos.test/invitations/accept",
-          });
-
-          invitations.set(String(invitation.id), invitation);
-          return invitation;
-        }),
-      get: (invitationId) => {
-        const invitation = invitations.get(String(invitationId));
-
-        return invitation
-          ? Effect.succeed(invitation)
-          : Effect.fail(
-              new InvitationNotFound({
-                message: `Invitation ${invitationId} was not found`,
-                invitationId,
-              })
-            );
-      },
       accept: (input) => {
         const invitation = invitations.get(String(input.invitationId));
 
@@ -286,15 +251,52 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
           })
         );
       },
+      get: (invitationId) => {
+        const invitation = invitations.get(String(invitationId));
+
+        return invitation
+          ? Effect.succeed(invitation)
+          : Effect.fail(
+              new InvitationNotFound({
+                message: `Invitation ${invitationId} was not found`,
+                invitationId,
+              })
+            );
+      },
+      issue: (input) =>
+        Effect.sync(() => {
+          const invitation = new PendingInvitation({
+            _tag: "PendingInvitation",
+            id: InvitationId.make(crypto.randomUUID()),
+            intent: input.intent,
+            issuedBy: input.issuedBy,
+            createdAt: new Date("2026-03-22T00:00:01.000Z"),
+            acceptInvitationUrl: "https://workos.test/invitations/accept",
+          });
+
+          invitations.set(String(invitation.id), invitation);
+          return invitation;
+        }),
       revoke: () => Effect.die("not used"),
     })
   );
   const commerceAccountsLayer = Layer.succeed(
     CommerceAccounts,
     CommerceAccounts.of({
-      listBusinessUnitMembershipsForCustomerInStore: () =>
-        Effect.die("not used"),
-      getCustomerProfile: () => Effect.die("not used"),
+      addAssociate: ({ acceptedIdentity, businessUnitId, role }) =>
+        Effect.sync(() => {
+          const membership = new CommerceAssociateMembership({
+            businessUnitId,
+            customerId: CommerceCustomerId.make(
+              `customer-${acceptedIdentity.authUserId}`
+            ),
+            authUserId: acceptedIdentity.authUserId,
+            role,
+          });
+
+          ownerAssociates.push(membership);
+          return membership;
+        }),
       createFromRegistration: (commerceRegistration) =>
         Effect.sync(() => {
           const existing = commerceAccounts.get(
@@ -318,6 +320,9 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
           commerceAccounts.set(String(commerceRegistration.id), account);
           return account;
         }),
+      getCustomerIdByAuthUserId: () => Effect.die("not used"),
+      getCustomerProfile: () => Effect.die("not used"),
+      hasCustomerWithEmail: () => Effect.succeed(false),
       linkRegistrantIdentity: ({
         registration: linkedRegistration,
         acceptedIdentity,
@@ -334,22 +339,8 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
           );
           return linkedRegistration.commerceAccount;
         }),
-      getCustomerIdByAuthUserId: () => Effect.die("not used"),
-      hasCustomerWithEmail: () => Effect.succeed(false),
-      addAssociate: ({ acceptedIdentity, businessUnitId, role }) =>
-        Effect.sync(() => {
-          const membership = new CommerceAssociateMembership({
-            businessUnitId,
-            customerId: CommerceCustomerId.make(
-              `customer-${acceptedIdentity.authUserId}`
-            ),
-            authUserId: acceptedIdentity.authUserId,
-            role,
-          });
-
-          ownerAssociates.push(membership);
-          return membership;
-        }),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
     })
   );
 
@@ -358,14 +349,14 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
       return current;
     },
     emailNotifications,
-    linkedAuthUsers,
-    ownerAssociates,
     layer: Layer.mergeAll(
       registrationsLayer,
       commerceAccountsLayer,
       invitationsLayer,
       emailsLayer
     ),
+    linkedAuthUsers,
+    ownerAssociates,
   };
 };
 
@@ -391,8 +382,8 @@ test("registration workflow waits on the deterministic registration approval hoo
   const state = makeWorkflowLayer(makeAwaitingRegistration(registrationId));
   workflowMocks.createHook.mockResolvedValue({
     decision: "rejected",
-    reviewer,
     reason: "Not eligible",
+    reviewer,
   });
 
   const { registerCompanyWorkflow } = await loadWorkflow(state.layer);
@@ -401,7 +392,7 @@ test("registration workflow waits on the deterministic registration approval hoo
   expect(workflowMocks.createHook).toHaveBeenCalledWith({
     token: getRegistrationApprovalHookToken(registrationId),
   });
-  expect(state.emailNotifications).toEqual([
+  expect(state.emailNotifications).toStrictEqual([
     {
       notification: "registrant_awaiting_approval",
       registrationId,
@@ -417,32 +408,46 @@ test("registration workflow waits on the deterministic registration approval hoo
   ]);
 });
 
+test("registration workflow rejects an invalid approval hook payload", async () => {
+  const registrationId = crypto.randomUUID();
+  const state = makeWorkflowLayer(makeAwaitingRegistration(registrationId));
+  workflowMocks.createHook.mockResolvedValue({
+    decision: "unexpected",
+    reviewer,
+  });
+
+  const { registerCompanyWorkflow } = await loadWorkflow(state.layer);
+
+  await expect(registerCompanyWorkflow({ registrationId })).rejects.toThrow();
+  expect(state.current).toBeInstanceOf(AwaitingApprovalRegistration);
+});
+
 test("registration workflow approval step runs the Effect approval program", async () => {
   const registrationId = crypto.randomUUID();
   const state = makeWorkflowLayer(makeAwaitingRegistration(registrationId));
   workflowMocks.createHook
     .mockResolvedValueOnce({
       decision: "approved",
-      reviewer,
       reason: "Looks good",
+      reviewer,
     })
     .mockResolvedValueOnce({
-      event: "accepted",
       acceptedIdentity: {
         authUserId: "auth-user-1",
         email: "ada@example.com",
         firstName: "Ada",
         lastName: "Lovelace",
       },
+      event: "accepted",
     });
 
   const { registerCompanyWorkflow } = await loadWorkflow(state.layer);
   const result = await registerCompanyWorkflow({ registrationId });
 
   expect(result).toMatchObject({
+    invitationId: expect.any(String),
     registrationId,
     status: "approved",
-    invitationId: expect.any(String),
   });
   expect(state.current._tag).toBe("ApprovedRegistration");
   if (state.current._tag === "ApprovedRegistration") {
@@ -450,7 +455,7 @@ test("registration workflow approval step runs the Effect approval program", asy
     expect(String(commerceAccount.customerId)).toBe(
       `customer-${registrationId}`
     );
-    expect(String(state.current.invitationId)).toEqual(expect.any(String));
+    expect(String(state.current.invitationId)).toStrictEqual(expect.any(String));
     expect(state.current.decision.actor).toBeInstanceOf(
       RegistrationReviewerActor
     );
@@ -460,14 +465,14 @@ test("registration workflow approval step runs the Effect approval program", asy
       ),
     });
   }
-  expect(state.linkedAuthUsers).toEqual(["auth-user-1"]);
+  expect(state.linkedAuthUsers).toStrictEqual(["auth-user-1"]);
   expect(state.ownerAssociates).toMatchObject([
     {
       authUserId: "auth-user-1",
       role: "owner",
     },
   ]);
-  expect(state.emailNotifications).toEqual([
+  expect(state.emailNotifications).toStrictEqual([
     {
       notification: "registrant_awaiting_approval",
       registrationId,
@@ -488,20 +493,20 @@ test("registration workflow rejection step runs the Effect rejection program", a
   const state = makeWorkflowLayer(makeAwaitingRegistration(registrationId));
   workflowMocks.createHook.mockResolvedValue({
     decision: "rejected",
-    reviewer,
     reason: "Not eligible",
+    reviewer,
   });
 
   const { registerCompanyWorkflow } = await loadWorkflow(state.layer);
   const result = await registerCompanyWorkflow({ registrationId });
 
   expect(result).toMatchObject({
+    approvalReason: "Not eligible",
     registrationId,
     status: "rejected",
-    approvalReason: "Not eligible",
   });
   expect(state.current).toBeInstanceOf(RejectedRegistration);
-  expect(state.emailNotifications).toEqual([
+  expect(state.emailNotifications).toStrictEqual([
     {
       notification: "registrant_awaiting_approval",
       registrationId,

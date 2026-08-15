@@ -1,3 +1,9 @@
+import {
+  AccessTokenInvalid,
+  AccessTokenVerifier,
+  AuthUserId as AccessTokenAuthUserId,
+  VerifiedAccessToken,
+} from "@repo/auth/access-token";
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import {
   CommerceAccountError,
@@ -15,20 +21,24 @@ import {
   InvitationId,
   RegistrationId,
 } from "@repo/registration/domain/identity";
+import type { IdentityUserProfile } from "@repo/registration/domain/identity";
 import {
   ApprovalProcessingRegistration,
   ApprovedRegistration,
   AwaitingApprovalRegistration,
-  type Registration,
 } from "@repo/registration/domain/registration";
+import type { Registration } from "@repo/registration/domain/registration";
 import { getRegistrationApprovalHookToken } from "@repo/registration/domain/workflow";
 import {
   CreateRegistrationRequest,
   RegistrationApiError,
-  RegistrationReviewerInput,
   toCompanyRegistrationDetails,
 } from "@repo/registration/http/registration-api";
-import { IdentityUsers } from "@repo/registration/services/identity-users";
+import {
+  IdentityUserLookupFailure,
+  IdentityUserNotFound,
+  IdentityUsers,
+} from "@repo/registration/services/identity-users";
 import { Invitations } from "@repo/registration/services/invitations";
 import { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
 import {
@@ -47,8 +57,11 @@ import { beforeEach, expect, test, vi } from "vitest";
 const HTTP_OK = 200;
 const HTTP_CREATED = 201;
 const HTTP_BAD_REQUEST = 400;
+const HTTP_FORBIDDEN = 403;
 const HTTP_CONFLICT = 409;
 const HTTP_INTERNAL_SERVER_ERROR = 500;
+const HTTP_SERVICE_UNAVAILABLE = 503;
+const HTTP_UNAUTHORIZED = 401;
 const HTTP_UNPROCESSABLE_ENTITY = 422;
 
 const workflowApiMocks = vi.hoisted(() => ({
@@ -56,42 +69,36 @@ const workflowApiMocks = vi.hoisted(() => ({
   start: vi.fn(),
 }));
 
-vi.mock("workflow/api", () => ({
+vi.mock(import("workflow/api"), () => ({
   resumeHook: workflowApiMocks.resumeHook,
   start: workflowApiMocks.start,
 }));
 
-vi.mock("@/env", () => ({
-  env: {
-    REGISTRATION_APPROVAL_SECRET: "test-approval-secret",
-    WORKOS_WEBHOOK_SECRET: "test-webhook-secret",
-  },
-}));
-
 const registrationPayload = {
+  address: {
+    additionalStreetInfo: "Suite 42",
+    city: "New York",
+    country: "US",
+    postalCode: "10001",
+    region: "NY",
+    streetName: "1 Computation Way",
+  },
   companyName: "Hydra Supplies",
   companyPhone: "+1 555 0100",
-  vatId: "VAT-123",
   contactFirstName: "Ada",
   contactLastName: "Lovelace",
   email: "ada@example.com",
-  address: {
-    streetName: "1 Computation Way",
-    additionalStreetInfo: "Suite 42",
-    postalCode: "10001",
-    city: "New York",
-    region: "NY",
-    country: "US",
-  },
+  vatId: "VAT-123",
 };
 
 const reviewerPayload = {
-  reviewer: {
-    authUserId: "auth-reviewer-1",
-    email: "reviewer@example.com",
-    name: "Registration Reviewer",
-  },
   reason: "Looks good",
+};
+
+const reviewerWorkflowPayload = {
+  authUserId: "auth-reviewer-1",
+  email: "reviewer@example.com",
+  name: "Registration Reviewer",
 };
 
 const request = (
@@ -101,12 +108,13 @@ const request = (
   headers?: Record<string, string>
 ) =>
   new Request(`http://api.test${path}`, {
-    method,
     headers: {
       ...(body === undefined ? {} : { "content-type": "application/json" }),
+      authorization: "Bearer admin-token",
       "x-context-locale": "en-US",
       ...headers,
     },
+    method,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
@@ -116,13 +124,13 @@ const makeAwaitingRegistration = (
 ) =>
   new AwaitingApprovalRegistration({
     _tag: "AwaitingApprovalRegistration",
-    status: "awaiting_approval",
-    id: RegistrationId.make(registrationId),
-    storeKey: StoreKey.make("default-store"),
+    createdAt: new Date("2026-03-22T00:00:00.000Z"),
     details: toCompanyRegistrationDetails(
       new CreateRegistrationRequest(payload)
     ),
-    createdAt: new Date("2026-03-22T00:00:00.000Z"),
+    id: RegistrationId.make(registrationId),
+    status: "awaiting_approval",
+    storeKey: StoreKey.make("default-store"),
     updatedAt: new Date("2026-03-22T00:00:00.000Z"),
   });
 
@@ -134,12 +142,13 @@ const makeApprovedRegistration = (
 
   return new ApprovedRegistration({
     _tag: "ApprovedRegistration",
-    status: "approved",
-    id: awaiting.id,
-    storeKey: awaiting.storeKey,
-    details: awaiting.details,
+    commerceAccount: new CommerceAccount({
+      businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+      customerId: CommerceCustomerId.make("customer-1"),
+      registrationId: awaiting.id,
+    }),
+    createdAt: awaiting.createdAt,
     decision: new ApprovedDecision({
-      decision: "approved",
       actor: new RegistrationReviewerActor({
         actorType: "registration_reviewer",
         authUserId: AuthUserId.make("auth-reviewer-1"),
@@ -149,14 +158,13 @@ const makeApprovedRegistration = (
         name: "Registration Reviewer",
       }),
       decidedAt: new Date("2026-03-22T00:00:01.000Z"),
+      decision: "approved",
     }),
-    commerceAccount: new CommerceAccount({
-      registrationId: awaiting.id,
-      customerId: CommerceCustomerId.make("customer-1"),
-      businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-    }),
+    details: awaiting.details,
+    id: awaiting.id,
     invitationId: InvitationId.make("invitation-1"),
-    createdAt: awaiting.createdAt,
+    status: "approved",
+    storeKey: awaiting.storeKey,
     updatedAt: new Date("2026-03-22T00:00:01.000Z"),
   });
 };
@@ -167,6 +175,9 @@ const makeApiLayer = (
     readonly hasCustomerWithEmail?: boolean;
     readonly hasCustomerWithEmailFailure?: CommerceAccountError;
     readonly hasIdentityUserWithEmail?: boolean;
+    readonly identityUserGetFailure?:
+      | IdentityUserLookupFailure
+      | IdentityUserNotFound;
     readonly invalidVatIds?: readonly string[];
     readonly supportedRegistrationCountries?: readonly string[];
   } = {}
@@ -176,11 +187,11 @@ const makeApiLayer = (
   );
   const list = vi.fn((input) =>
     listRegistrationRecords(
-      Array.from(registrations.values()).map((registration) => ({
-        id: String(registration.id),
-        registration,
+      [...registrations.values()].map((registration) => ({
         createdAt: registration.createdAt,
+        id: String(registration.id),
         lastModifiedAt: registration.updatedAt,
+        registration,
       })),
       input
     )
@@ -207,11 +218,11 @@ const makeApiLayer = (
           const createdAt = new Date("2026-03-22T00:00:00.000Z");
           const registration = new AwaitingApprovalRegistration({
             _tag: "AwaitingApprovalRegistration",
-            status: "awaiting_approval",
-            id: registrationId,
-            storeKey,
-            details,
             createdAt,
+            details,
+            id: registrationId,
+            status: "awaiting_approval",
+            storeKey,
             updatedAt: createdAt,
           });
 
@@ -221,7 +232,7 @@ const makeApiLayer = (
       findByInvitationId: () => Effect.die("not used"),
       get,
       markApprovalProcessing: ({ registrationId, decision }) =>
-        Effect.gen(function* () {
+        Effect.gen(function* markApprovalProcessing() {
           const current = registrations.get(String(registrationId));
 
           if (!current) {
@@ -233,21 +244,21 @@ const makeApiLayer = (
 
           if (current._tag !== "AwaitingApprovalRegistration") {
             return yield* new RegistrationTransitionConflict({
+              attemptedDecision: decision,
+              currentState: current._tag,
               message: `Cannot mark registration ${registrationId} as ${decision} from ${current._tag}`,
               registrationId,
-              currentState: current._tag,
-              attemptedDecision: decision,
             });
           }
 
           const processing = new ApprovalProcessingRegistration({
             _tag: "ApprovalProcessingRegistration",
-            status: "approval_processing",
-            id: current.id,
-            storeKey: current.storeKey,
-            details: current.details,
-            requestedDecision: decision,
             createdAt: current.createdAt,
+            details: current.details,
+            id: current.id,
+            requestedDecision: decision,
+            status: "approval_processing",
+            storeKey: current.storeKey,
             updatedAt: new Date("2026-03-22T00:00:01.000Z"),
           });
 
@@ -263,11 +274,11 @@ const makeApiLayer = (
     RegistrationQueries.of({
       hasPendingEmail: (email) =>
         listRegistrationRecords(
-          Array.from(registrations.values()).map((registration) => ({
-            id: String(registration.id),
-            registration,
+          [...registrations.values()].map((registration) => ({
             createdAt: registration.createdAt,
+            id: String(registration.id),
             lastModifiedAt: registration.updatedAt,
+            registration,
           })),
           {}
         ).pipe(
@@ -289,22 +300,32 @@ const makeApiLayer = (
   const commerceAccountsLayer = Layer.succeed(
     CommerceAccounts,
     CommerceAccounts.of({
-      listBusinessUnitMembershipsForCustomerInStore: () =>
-        Effect.die("not used"),
-      getCustomerProfile: () => Effect.die("not used"),
-      createFromRegistration: () => Effect.die("not used"),
-      linkRegistrantIdentity: () => Effect.die("not used"),
       addAssociate: () => Effect.die("not used"),
+      createFromRegistration: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () => Effect.die("not used"),
+      getCustomerProfile: () => Effect.die("not used"),
       hasCustomerWithEmail: () =>
         options.hasCustomerWithEmailFailure
           ? Effect.fail(options.hasCustomerWithEmailFailure)
           : Effect.succeed(options.hasCustomerWithEmail ?? false),
+      linkRegistrantIdentity: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
     })
   );
   const identityUsersLayer = Layer.succeed(
     IdentityUsers,
     IdentityUsers.of({
+      getById: (authUserId) =>
+        options.identityUserGetFailure === undefined
+          ? Effect.succeed({
+              authUserId,
+              email: Redacted.make(Email.make("reviewer@example.com"), {
+                label: "email",
+              }),
+              name: "Registration Reviewer",
+            } satisfies IdentityUserProfile)
+          : Effect.fail(options.identityUserGetFailure),
       hasUserWithEmail: () =>
         Effect.succeed(options.hasIdentityUserWithEmail ?? false),
     })
@@ -320,7 +341,6 @@ const makeApiLayer = (
         ]
       ).map((country) => CountryCode.make(country)),
     });
-
   return {
     get,
     layer: Layer.mergeAll(
@@ -338,33 +358,61 @@ const makeApiLayer = (
 };
 
 const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
-  const { makeRegistrationHttpHandler } = await import(
-    "../lib/registration/http"
+  const { makeRegistrationHttpHandler } =
+    await import("../lib/registration/http");
+  const testWorkflow = () => {};
+  const authenticationLayer = Layer.succeed(
+    AccessTokenVerifier,
+    AccessTokenVerifier.of({
+      verify: (token) => {
+        if (token === "invalid-token") {
+          return Effect.fail(
+            new AccessTokenInvalid({
+              message: "Invalid token",
+              reason: "invalidToken",
+            })
+          );
+        }
+
+        const permissions =
+          token === "read-token"
+            ? ["registration.read"]
+            : token === "decide-token"
+              ? ["registration.decide"]
+              : ["registration.read", "registration.decide"];
+
+        return Effect.succeed(
+          new VerifiedAccessToken({
+            authUserId: AccessTokenAuthUserId.make("auth-reviewer-1"),
+            permissions,
+          })
+        );
+      },
+    })
   );
-  const testWorkflow = () => undefined;
 
   return makeRegistrationHttpHandler({
-    approvalSecret: "test-approval-secret",
+    authenticationLayer,
     layer,
     resumeRegistrationWorkflow: (registrationId, decision) =>
       Effect.tryPromise({
+        catch: (cause) =>
+          new RegistrationApiError({
+            message: cause instanceof Error ? cause.message : "resume failed",
+          }),
         try: () =>
           workflowApiMocks.resumeHook(
             getRegistrationApprovalHookToken(registrationId),
             decision
           ),
-        catch: (cause) =>
-          new RegistrationApiError({
-            message: cause instanceof Error ? cause.message : "resume failed",
-          }),
       }),
     startRegistrationWorkflow: (registrationId) =>
       Effect.tryPromise({
-        try: () => workflowApiMocks.start(testWorkflow, [{ registrationId }]),
         catch: (cause) =>
           new RegistrationApiError({
             message: cause instanceof Error ? cause.message : "start failed",
           }),
+        try: () => workflowApiMocks.start(testWorkflow, [{ registrationId }]),
       }),
   });
 };
@@ -499,8 +547,8 @@ test("POST /registrations rejects duplicate pending registration emails as field
       reasons: [
         {
           _tag: "DuplicateRegistrationEmail",
-          path: "email",
           code: "duplicateEmail",
+          path: "email",
         },
       ],
     });
@@ -528,8 +576,8 @@ test("POST /registrations rejects invalid VAT ids as field errors", async () => 
       reasons: [
         {
           _tag: "InvalidRegistrationVatId",
-          path: "vatId",
           code: "invalidVatId",
+          path: "vatId",
         },
       ],
     });
@@ -561,13 +609,13 @@ test("POST /registrations can return multiple validation reasons", async () => {
       reasons: [
         {
           _tag: "DuplicateRegistrationEmail",
-          path: "email",
           code: "duplicateEmail",
+          path: "email",
         },
         {
           _tag: "InvalidRegistrationVatId",
-          path: "vatId",
           code: "invalidVatId",
+          path: "vatId",
         },
       ],
     });
@@ -598,8 +646,8 @@ test("POST /registrations can return field and unsupported country form validati
       reasons: [
         {
           _tag: "InvalidRegistrationVatId",
-          path: "vatId",
           code: "invalidVatId",
+          path: "vatId",
         },
         {
           _tag: "UnsupportedRegistrationCountry",
@@ -632,8 +680,8 @@ test("POST /registrations rejects existing customer emails as field errors", asy
       reasons: [
         {
           _tag: "DuplicateRegistrationEmail",
-          path: "email",
           code: "duplicateEmail",
+          path: "email",
         },
       ],
     });
@@ -661,8 +709,8 @@ test("POST /registrations rejects existing WorkOS user emails as field errors", 
       reasons: [
         {
           _tag: "DuplicateRegistrationEmail",
-          path: "email",
           code: "duplicateEmail",
+          path: "email",
         },
       ],
     });
@@ -691,9 +739,67 @@ test("GET /registrations lists registrations through RegistrationQueries", async
     });
     expect(body.items).toHaveLength(1);
     expect(body.items[0]).toMatchObject({
-      registrationId: String(registration.id),
       companyName: "Hydra Supplies",
+      registrationId: String(registration.id),
       status: "awaiting_approval",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test.each(["", "1234567admin-token"])(
+  "GET /registrations rejects missing or malformed access token %j",
+  async (authorization) => {
+    const api = makeApiLayer();
+    const { dispose, handler } = await makeHandler(api.layer);
+
+    try {
+      const response = await handler(
+        request("GET", "/registrations", undefined, { authorization }),
+        emptyContext()
+      );
+
+      expect(response.status).toBe(HTTP_UNAUTHORIZED);
+    } finally {
+      await dispose();
+    }
+  }
+);
+
+test("GET /registrations requires registration.read permission", async () => {
+  const api = makeApiLayer();
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("GET", "/registrations", undefined, {
+        authorization: "Bearer decide-token",
+      }),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_FORBIDDEN);
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /registrations maps invalid cursors to bad requests", async () => {
+  const api = makeApiLayer();
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("GET", "/registrations?cursor=not-a-cursor"),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "RegistrationApiInvalidCursor",
+      message: "The registration cursor is invalid.",
     });
   } finally {
     await dispose();
@@ -731,8 +837,7 @@ test("POST /registrations/:id/approve resumes the deterministic workflow hook", 
       request(
         "POST",
         `/registrations/${registration.id}/approve`,
-        reviewerPayload,
-        { "x-registration-approval-secret": "test-approval-secret" }
+        reviewerPayload
       ),
       emptyContext()
     );
@@ -747,16 +852,94 @@ test("POST /registrations/:id/approve resumes the deterministic workflow hook", 
       getRegistrationApprovalHookToken(String(registration.id)),
       {
         decision: "approved",
-        reviewer: reviewerPayload.reviewer,
         reason: "Looks good",
+        reviewer: reviewerWorkflowPayload,
       }
     );
-    expect(
-      workflowApiMocks.resumeHook.mock.calls[0]?.[1].reviewer
-    ).not.toBeInstanceOf(RegistrationReviewerInput);
     expect(api.registrations.get(String(registration.id))?.status).toBe(
       "approval_processing"
     );
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/approve requires registration.decide permission", async () => {
+  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  const registration = makeAwaitingRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration]);
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request(
+        "POST",
+        `/registrations/${registration.id}/approve`,
+        reviewerPayload,
+        { authorization: "Bearer read-token" }
+      ),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_FORBIDDEN);
+    expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/approve rejects a token whose identity no longer exists", async () => {
+  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  const registration = makeAwaitingRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration], {
+    identityUserGetFailure: new IdentityUserNotFound({
+      authUserId: AuthUserId.make("auth-reviewer-1"),
+      message: "Identity user auth-reviewer-1 was not found",
+    }),
+  });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request(
+        "POST",
+        `/registrations/${registration.id}/approve`,
+        reviewerPayload
+      ),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_UNAUTHORIZED);
+    expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/approve reports identity provider failures as unavailable", async () => {
+  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  const registration = makeAwaitingRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration], {
+    identityUserGetFailure: new IdentityUserLookupFailure({
+      cause: new Error("WorkOS unavailable"),
+      message: "WorkOS identity user getById failed",
+      operation: "getById",
+    }),
+  });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request(
+        "POST",
+        `/registrations/${registration.id}/approve`,
+        reviewerPayload
+      ),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
@@ -773,8 +956,7 @@ test("POST /registrations/:id/approve moves accepted decisions out of awaiting a
       request(
         "POST",
         `/registrations/${registration.id}/approve`,
-        reviewerPayload,
-        { "x-registration-approval-secret": "test-approval-secret" }
+        reviewerPayload
       ),
       emptyContext()
     );
@@ -803,8 +985,7 @@ test("POST /registrations/:id/reject does not resume workflow when transition co
       request(
         "POST",
         `/registrations/${registration.id}/reject`,
-        reviewerPayload,
-        { "x-registration-approval-secret": "test-approval-secret" }
+        reviewerPayload
       ),
       emptyContext()
     );
@@ -829,8 +1010,7 @@ test("POST /registrations/:id/reject resumes the deterministic workflow hook", a
       request(
         "POST",
         `/registrations/${registration.id}/reject`,
-        reviewerPayload,
-        { "x-registration-approval-secret": "test-approval-secret" }
+        reviewerPayload
       ),
       emptyContext()
     );
@@ -845,8 +1025,8 @@ test("POST /registrations/:id/reject resumes the deterministic workflow hook", a
       getRegistrationApprovalHookToken(String(registration.id)),
       {
         decision: "rejected",
-        reviewer: reviewerPayload.reviewer,
         reason: "Looks good",
+        reviewer: reviewerWorkflowPayload,
       }
     );
   } finally {

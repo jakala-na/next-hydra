@@ -10,7 +10,6 @@ import { keys as security } from "@repo/security/keys";
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
-const MINIMUM_REGISTRATION_APPROVAL_SECRET_LENGTH = 16;
 const MINIMUM_CMS_REVALIDATION_SECRET_LENGTH = 32;
 
 export const env = createEnv({
@@ -35,17 +34,12 @@ export const env = createEnv({
     CMS_REVALIDATION_SECRET: process.env.CMS_REVALIDATION_SECRET,
     NEXT_PUBLIC_ARCHITECTURE_OVERLAYS:
       process.env.NEXT_PUBLIC_ARCHITECTURE_OVERLAYS,
-    REGISTRATION_APPROVAL_SECRET: process.env.REGISTRATION_APPROVAL_SECRET,
   },
   server: {
     CMS_HOMEPAGE_SLUG: z.string().trim().min(1).default("/"),
     CMS_REVALIDATION_SECRET: z
       .string()
       .min(MINIMUM_CMS_REVALIDATION_SECRET_LENGTH)
-      .optional(),
-    REGISTRATION_APPROVAL_SECRET: z
-      .string()
-      .min(MINIMUM_REGISTRATION_APPROVAL_SECRET_LENGTH)
       .optional(),
   },
 });

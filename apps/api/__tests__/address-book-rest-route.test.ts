@@ -18,10 +18,8 @@ import {
   CommerceBusinessUnitMembership,
   CommerceCustomerId,
 } from "@repo/commerce/domain/commerce-account";
-import {
-  AuthUserId,
-  type CustomerCommercePrincipal,
-} from "@repo/commerce/domain/commerce-request-context";
+import { AuthUserId } from '@repo/commerce/domain/commerce-request-context';
+import type { CustomerCommercePrincipal } from '@repo/commerce/domain/commerce-request-context';
 import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
 import { ProductDiscovery } from "@repo/commerce/product";
 import { makeCommerceApp } from "@repo/commerce/runtime/make-commerce-app";
@@ -33,6 +31,7 @@ import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { StoreKey } from "@repo/commerce/store";
 import { Context, Effect, Layer } from "effect";
 import { expect, test } from "vitest";
+
 import { makeAddressBookHttpHandler } from "../lib/address-book/http";
 
 const HTTP_OK = 200;
@@ -77,7 +76,7 @@ const makeAddressBookLayer = (
 ) =>
   Layer.effect(
     AddressBook,
-    Effect.gen(function* () {
+    Effect.gen(function*  makeAddressBookLayer() {
       const commerceContext = yield* CommerceContext;
 
       return AddressBook.of({
@@ -182,6 +181,10 @@ test.each([
   {
     headers: { authorization: "Bearer invalid-token" },
     label: "invalid",
+  },
+  {
+    headers: { authorization: "1234567valid-token" },
+    label: "malformed",
   },
 ])("GET /address-book rejects $label authentication", async ({ headers }) => {
   const { dispose, handler } = makeHandler(

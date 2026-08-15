@@ -2,16 +2,6 @@ export type RegistrationWorkflowInput = {
   readonly registrationId: string;
 };
 
-export type RegistrationWorkflowDecision = {
-  readonly decision: "approved" | "rejected";
-  readonly reviewer: {
-    readonly authUserId: string;
-    readonly email: string;
-    readonly name: string;
-  };
-  readonly reason?: string;
-};
-
 export type RegistrationInvitationEvent =
   | {
       readonly event: "accepted";

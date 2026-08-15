@@ -1,7 +1,8 @@
-import {
-  type AccessTokenInvalid,
-  type AccessTokenVerificationFailure,
-  AccessTokenVerifier,
+import { AccessTokenVerifier } from "@repo/auth/access-token";
+import type {
+  AccessTokenInvalid,
+  AccessTokenVerificationFailure,
+  VerifiedAccessToken,
 } from "@repo/auth/access-token";
 import type { AddressBookReference } from "@repo/commerce/domain/address-book";
 import { CartId } from "@repo/commerce/domain/cart";
@@ -15,6 +16,9 @@ import {
 import {
   CheckoutApiBadRequest,
   CheckoutApiConflict,
+  CheckoutDeliveryDetailsApiBadRequest,
+  CheckoutDeliveryDetailsApiConflict,
+  CheckoutDeliveryDetailsApiError,
   CheckoutApiError,
   CheckoutApiNotFound,
   CheckoutHttpApi,
@@ -30,10 +34,10 @@ import {
   getAnonymousCartIdFromCookieValue,
   makeAnonymousCartCookie,
 } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
-import {
-  type CheckoutSaveContactFailure,
-  type CheckoutSaveDeliveryDetailsFailure,
-  CheckoutSession,
+import { CheckoutSession } from "@repo/commerce/lib/checkout/checkout-session";
+import type {
+  CheckoutSaveContactFailure,
+  CheckoutSaveDeliveryDetailsFailure,
 } from "@repo/commerce/lib/checkout/checkout-session";
 import type { CommerceRequestInput } from "@repo/commerce/runtime/commerce-request";
 import type {
@@ -42,15 +46,8 @@ import type {
   CommerceStableServices,
 } from "@repo/commerce/runtime/make-commerce-app";
 import { resolveStore } from "@repo/commerce/store";
-import {
-  type Config,
-  Duration,
-  Effect,
-  Layer,
-  Option,
-  Ref,
-  Schema,
-} from "effect";
+import { Duration, Effect, Layer, Option, Ref, Schema } from "effect";
+import type { Config, Redacted } from "effect";
 import {
   HttpEffect,
   HttpRouter,
@@ -59,6 +56,8 @@ import {
   HttpServerResponse,
 } from "effect/unstable/http";
 import { HttpApiBuilder, HttpApiMiddleware } from "effect/unstable/httpapi";
+
+import { parseBearerAuthorization } from "../auth/bearer-token";
 
 type CheckoutCommerceApp = CommerceApplication<
   Config.ConfigError,
@@ -83,7 +82,6 @@ const getHeader = (
 
 const checkoutContextNotFoundMessage =
   "Checkout was not found for the current request context";
-const bearerTokenHeaderPattern = /^Bearer\s+(.+)$/i;
 
 interface CheckoutDiagnosticFailure {
   readonly _tag: string;
@@ -103,16 +101,21 @@ const logCheckoutDiagnosticFailure = (error: CheckoutDiagnosticFailure) =>
     })
   );
 
-const toCheckoutBadRequest = (
-  locale?: string,
+const toCheckoutBadRequest = (locale?: string) =>
+  new CheckoutApiBadRequest({
+    code: "checkout.badRequest",
+    message: checkoutApiErrorMessage(locale, "checkout.badRequest"),
+  });
+
+const toCheckoutDeliveryDetailsBadRequest = (
+  locale: string,
   code:
-    | "checkout.badRequest"
     | "checkout.deliveryDetails.addressBookEntryUnavailable"
     | "checkout.deliveryDetails.invalidInput"
-    | "checkout.deliveryDetails.sourceUnavailable" = "checkout.badRequest",
+    | "checkout.deliveryDetails.sourceUnavailable",
   addressBookReference?: AddressBookReference
 ) =>
-  new CheckoutApiBadRequest({
+  new CheckoutDeliveryDetailsApiBadRequest({
     code,
     message: checkoutApiErrorMessage(locale, code),
     ...(addressBookReference === undefined
@@ -120,25 +123,27 @@ const toCheckoutBadRequest = (
       : { parameters: { addressBookReference } }),
   });
 
-const getCheckoutRequestHeadersFromRequest = Effect.gen(function* () {
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  const locale = getHeader(request.headers, "x-context-locale");
-  const businessUnitId = getHeader(
-    request.headers,
-    "x-context-business-unit-id"
-  );
+const getCheckoutRequestHeadersFromRequest = Effect.gen(
+  function* getCheckoutRequestHeadersFromRequest() {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const locale = getHeader(request.headers, "x-context-locale");
+    const businessUnitId = getHeader(
+      request.headers,
+      "x-context-business-unit-id"
+    );
 
-  if (locale === undefined) {
-    return yield* Effect.fail(toCheckoutBadRequest());
+    if (locale === undefined) {
+      return yield* Effect.fail(toCheckoutBadRequest());
+    }
+
+    return yield* Schema.decodeUnknownEffect(CommerceRequestHeaders)({
+      "x-context-locale": locale,
+      ...(businessUnitId === undefined
+        ? {}
+        : { "x-context-business-unit-id": businessUnitId }),
+    }).pipe(Effect.mapError(() => toCheckoutBadRequest(locale)));
   }
-
-  return yield* Schema.decodeUnknownEffect(CommerceRequestHeaders)({
-    "x-context-locale": locale,
-    ...(businessUnitId === undefined
-      ? {}
-      : { "x-context-business-unit-id": businessUnitId }),
-  }).pipe(Effect.mapError(() => toCheckoutBadRequest(locale)));
-});
+);
 
 const toCheckoutNotFound = (locale: string) =>
   new CheckoutApiNotFound({
@@ -146,16 +151,22 @@ const toCheckoutNotFound = (locale: string) =>
     message: checkoutApiErrorMessage(locale, "checkout.notFound"),
   });
 
-const toCheckoutApiError = (
+const toCheckoutApiError = (locale: string) =>
+  new CheckoutApiError({
+    code: "checkout.internal",
+    message: checkoutApiErrorMessage(locale, "checkout.internal"),
+  });
+
+const toCheckoutDeliveryDetailsApiError = (
   locale: string,
-  code:
-    | "checkout.internal"
-    | "checkout.deliveryDetails.providerFailure" = "checkout.internal",
   addressBookReference?: AddressBookReference
 ) =>
-  new CheckoutApiError({
-    code,
-    message: checkoutApiErrorMessage(locale, code),
+  new CheckoutDeliveryDetailsApiError({
+    code: "checkout.deliveryDetails.providerFailure",
+    message: checkoutApiErrorMessage(
+      locale,
+      "checkout.deliveryDetails.providerFailure"
+    ),
     ...(addressBookReference === undefined
       ? {}
       : { parameters: { addressBookReference } }),
@@ -179,10 +190,19 @@ const toCheckoutContextInternalError = (locale: string) =>
 
 const toCheckoutConflict = (
   locale: string,
+  code: "checkout.cartMismatch" | "checkout.versionConflict"
+) =>
+  new CheckoutApiConflict({
+    code,
+    message: checkoutApiErrorMessage(locale, code),
+  });
+
+const toCheckoutDeliveryDetailsConflict = (
+  locale: string,
   code: "checkout.cartMismatch" | "checkout.versionConflict",
   addressBookReference?: AddressBookReference
 ) =>
-  new CheckoutApiConflict({
+  new CheckoutDeliveryDetailsApiConflict({
     code,
     message: checkoutApiErrorMessage(locale, code),
     ...(addressBookReference === undefined
@@ -195,21 +215,27 @@ const toCheckoutContactHttpError = (
   locale: string
 ) => {
   switch (error._tag) {
-    case "CheckoutUnavailable":
+    case "CheckoutUnavailable": {
       return toCheckoutNotFound(locale);
+    }
     case "CheckoutMutationSchemaFailure":
-    case "CheckoutMutationSourceUnavailable":
+    case "CheckoutMutationSourceUnavailable": {
       return toCheckoutBadRequest(locale);
-    case "CheckoutCartMismatch":
+    }
+    case "CheckoutCartMismatch": {
       return toCheckoutConflict(locale, "checkout.cartMismatch");
-    case "CheckoutVersionConflict":
+    }
+    case "CheckoutVersionConflict": {
       return toCheckoutConflict(locale, "checkout.versionConflict");
+    }
     case "CheckoutMutationProviderFailure":
-    case "CheckoutMutationUnsupported":
+    case "CheckoutMutationUnsupported": {
       return toCheckoutApiError(locale);
-    default:
+    }
+    default: {
       exhaustive(error);
       return toCheckoutApiError(locale);
+    }
   }
 };
 
@@ -218,43 +244,51 @@ const toCheckoutDeliveryDetailsHttpError = (
   locale: string
 ) => {
   switch (error._tag) {
-    case "CheckoutUnavailable":
+    case "CheckoutUnavailable": {
       return toCheckoutNotFound(locale);
-    case "CheckoutMutationSchemaFailure":
-      return toCheckoutBadRequest(
+    }
+    case "CheckoutMutationSchemaFailure": {
+      return toCheckoutDeliveryDetailsBadRequest(
         locale,
         "checkout.deliveryDetails.invalidInput"
       );
-    case "CheckoutMutationSourceUnavailable":
-      return toCheckoutBadRequest(
+    }
+    case "CheckoutMutationSourceUnavailable": {
+      return toCheckoutDeliveryDetailsBadRequest(
         locale,
         "checkout.deliveryDetails.sourceUnavailable"
       );
-    case "CheckoutMutationAddressBookEntryUnavailable":
-      return toCheckoutBadRequest(
+    }
+    case "CheckoutMutationAddressBookEntryUnavailable": {
+      return toCheckoutDeliveryDetailsBadRequest(
         locale,
         "checkout.deliveryDetails.addressBookEntryUnavailable",
         error.addressBookReference
       );
-    case "CheckoutCartMismatch":
-      return toCheckoutConflict(locale, "checkout.cartMismatch");
-    case "CheckoutVersionConflict":
-      return toCheckoutConflict(
+    }
+    case "CheckoutCartMismatch": {
+      return toCheckoutDeliveryDetailsConflict(locale, "checkout.cartMismatch");
+    }
+    case "CheckoutVersionConflict": {
+      return toCheckoutDeliveryDetailsConflict(
         locale,
         "checkout.versionConflict",
         error.addressBookReference
       );
-    case "CheckoutMutationProviderFailure":
-      return toCheckoutApiError(
+    }
+    case "CheckoutMutationProviderFailure": {
+      return toCheckoutDeliveryDetailsApiError(
         locale,
-        "checkout.deliveryDetails.providerFailure",
         error.addressBookReference
       );
-    case "CheckoutMutationUnsupported":
+    }
+    case "CheckoutMutationUnsupported": {
       return toCheckoutApiError(locale);
-    default:
+    }
+    default: {
       exhaustive(error);
       return toCheckoutApiError(locale);
+    }
   }
 };
 
@@ -263,24 +297,13 @@ const logUnexpectedCheckoutMutationFailure = (
 ) => {
   switch (error._tag) {
     case "CheckoutMutationProviderFailure":
-    case "CheckoutMutationUnsupported":
+    case "CheckoutMutationUnsupported": {
       return logCheckoutDiagnosticFailure(error);
-    default:
+    }
+    default: {
       return Effect.void;
+    }
   }
-};
-
-const parseBearerToken = (authorization: string | undefined) => {
-  if (authorization === undefined) {
-    return Effect.succeed(null);
-  }
-
-  const match = authorization.match(bearerTokenHeaderPattern);
-  const token = match?.[1]?.trim();
-
-  return token
-    ? Effect.succeed(token)
-    : Effect.fail(commerceRequestContextNotFound("noPrincipal"));
 };
 
 const toCheckoutContextAuthError = (
@@ -288,36 +311,58 @@ const toCheckoutContextAuthError = (
   error: AccessTokenInvalid | AccessTokenVerificationFailure
 ) => {
   switch (error._tag) {
-    case "AccessTokenInvalid":
+    case "AccessTokenInvalid": {
       return commerceRequestContextNotFound("noPrincipal");
-    case "AccessTokenVerificationFailure":
+    }
+    case "AccessTokenVerificationFailure": {
       return toCheckoutContextInternalError(locale);
-    default:
+    }
+    default: {
       exhaustive(error);
       return toCheckoutContextInternalError(locale);
+    }
   }
 };
 
-const getAuthUserIdFromAuthorization = (headers: CommerceRequestHeaders) =>
-  Effect.gen(function* () {
+interface CheckoutAccessTokenVerifier {
+  readonly verify: (
+    token: string
+  ) => Effect.Effect<
+    VerifiedAccessToken,
+    AccessTokenInvalid | AccessTokenVerificationFailure
+  >;
+}
+
+const getAuthUserIdFromCredential = (
+  headers: CommerceRequestHeaders,
+  credential: Redacted.Redacted,
+  accessTokenVerifier: CheckoutAccessTokenVerifier
+) =>
+  Effect.gen(function* getAuthUserIdFromCredential() {
     const request = yield* HttpServerRequest.HttpServerRequest;
-    const token = yield* parseBearerToken(
-      getHeader(request.headers, "authorization")
+    const authorization = parseBearerAuthorization(
+      getHeader(request.headers, "authorization"),
+      credential
     );
 
-    if (token === null) {
+    if (authorization._tag === "Missing") {
       return null;
+    }
+    if (authorization._tag === "Invalid") {
+      return yield* Effect.fail(commerceRequestContextNotFound("noPrincipal"));
     }
 
     const locale = headers["x-context-locale"];
-    const verifiedToken = yield* AccessTokenVerifier.verify(token).pipe(
-      Effect.tapError((error) =>
-        error._tag === "AccessTokenVerificationFailure"
-          ? logCheckoutDiagnosticFailure(error)
-          : Effect.void
-      ),
-      Effect.mapError((error) => toCheckoutContextAuthError(locale, error))
-    );
+    const verifiedToken = yield* accessTokenVerifier
+      .verify(authorization.token)
+      .pipe(
+        Effect.tapError((error) =>
+          error._tag === "AccessTokenVerificationFailure"
+            ? logCheckoutDiagnosticFailure(error)
+            : Effect.void
+        ),
+        Effect.mapError((error) => toCheckoutContextAuthError(locale, error))
+      );
     return AuthUserId.make(verifiedToken.authUserId);
   });
 
@@ -338,7 +383,7 @@ const makeHttpCommerceRequest = (
   headers: CommerceRequestHeaders,
   authUserId: AuthUserId | null
 ) =>
-  Effect.gen(function* () {
+  Effect.gen(function* makeHttpCommerceRequest() {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const locale = headers["x-context-locale"];
     const store = resolveStore({ locale });
@@ -422,50 +467,49 @@ const makeHttpCommerceRequest = (
 const checkoutSessionMiddlewareLayer = (commerceApp: CheckoutCommerceApp) =>
   Layer.effect(
     CheckoutSessionMiddleware,
-    Effect.gen(function* () {
+    Effect.gen(function* checkoutSessionMiddlewareLayer() {
       const accessTokenVerifier = yield* AccessTokenVerifier;
       const commerceServices = yield* Effect.context<CommerceStableServices>();
-      const authenticationLayer = Layer.succeed(
-        AccessTokenVerifier,
-        accessTokenVerifier
-      );
 
-      return (httpEffect) =>
-        Effect.gen(function* () {
-          const headers = yield* getCheckoutRequestHeadersFromRequest;
-          const locale = headers["x-context-locale"];
-          const authUserId = yield* getAuthUserIdFromAuthorization(
-            headers
-          ).pipe(
-            Effect.provide(authenticationLayer),
-            Effect.mapError((error) =>
-              error._tag === "CommerceRequestContextNotFound"
-                ? toCheckoutContextNotFound(error, locale)
-                : error
-            )
-          );
-          const request = yield* makeHttpCommerceRequest(headers, authUserId);
-          return yield* httpEffect.pipe(
-            commerceApp.provide(request),
-            Effect.provide(commerceServices),
-            Effect.catchTags({
-              CommerceAccountError: (error) =>
-                logCheckoutDiagnosticFailure(error).pipe(
-                  Effect.andThen(
-                    Effect.fail(toCheckoutContextInternalError(locale))
-                  )
-                ),
-              CommerceRequestContextNotFound: (error) =>
-                Effect.fail(toCheckoutContextNotFound(error, locale)),
-              ConfigError: (error) =>
-                logCheckoutDiagnosticFailure(error).pipe(
-                  Effect.andThen(
-                    Effect.fail(toCheckoutContextInternalError(locale))
-                  )
-                ),
-            })
-          );
-        });
+      return {
+        accessToken: (httpEffect, { credential }) =>
+          Effect.gen(function* accessToken() {
+            const headers = yield* getCheckoutRequestHeadersFromRequest;
+            const locale = headers["x-context-locale"];
+            const authUserId = yield* getAuthUserIdFromCredential(
+              headers,
+              credential,
+              accessTokenVerifier
+            ).pipe(
+              Effect.mapError((error) =>
+                error._tag === "CommerceRequestContextNotFound"
+                  ? toCheckoutContextNotFound(error, locale)
+                  : error
+              )
+            );
+            const request = yield* makeHttpCommerceRequest(headers, authUserId);
+            return yield* httpEffect.pipe(
+              commerceApp.provide(request),
+              Effect.provide(commerceServices),
+              Effect.catchTags({
+                CommerceAccountError: (error) =>
+                  logCheckoutDiagnosticFailure(error).pipe(
+                    Effect.andThen(
+                      Effect.fail(toCheckoutContextInternalError(locale))
+                    )
+                  ),
+                CommerceRequestContextNotFound: (error) =>
+                  Effect.fail(toCheckoutContextNotFound(error, locale)),
+                ConfigError: (error) =>
+                  logCheckoutDiagnosticFailure(error).pipe(
+                    Effect.andThen(
+                      Effect.fail(toCheckoutContextInternalError(locale))
+                    )
+                  ),
+              })
+            );
+          }),
+      };
     })
   );
 
@@ -473,7 +517,7 @@ const checkoutSchemaErrorMiddlewareLayer =
   HttpApiMiddleware.layerSchemaErrorTransform(
     CheckoutSchemaErrorMiddleware,
     () =>
-      Effect.gen(function* () {
+      Effect.gen(function* checkoutSchemaErrorMiddlewareLayer() {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const locale = getHeader(request.headers, "x-context-locale");
         return yield* Effect.fail(toCheckoutBadRequest(locale));
@@ -484,7 +528,7 @@ const makeCheckoutHttpHandlers = () =>
   HttpApiBuilder.group(
     CheckoutHttpApi,
     "checkout",
-    Effect.fn(function* (handlers) {
+    Effect.fn(function* makeCheckoutHttpHandlers(handlers) {
       return handlers
         .handle("current", ({ headers }) =>
           CheckoutSession.getCurrent().pipe(
@@ -496,10 +540,12 @@ const makeCheckoutHttpHandlers = () =>
             ),
             Effect.mapError((error) => {
               switch (error._tag) {
-                case "CheckoutUnavailable":
+                case "CheckoutUnavailable": {
                   return toCheckoutNotFound(headers["x-context-locale"]);
-                default:
+                }
+                default: {
                   return toCheckoutApiError(headers["x-context-locale"]);
+                }
               }
             })
           )

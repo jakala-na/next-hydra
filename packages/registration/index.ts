@@ -28,6 +28,7 @@ export {
   type Actor,
   CompanyActor,
   RegistrationReviewerActor,
+  registrationReviewerActorFromIdentityUser,
   registrationSystemActor,
   SystemActor,
 } from "./domain/actors";
@@ -44,6 +45,7 @@ export {
   CountryCode,
   type CountryCode as CountryCodeType,
   Email,
+  IdentityUserProfile,
   InvitationId,
   PersonName,
   type PersonName as PersonNameType,
@@ -112,21 +114,30 @@ export {
   CreateRegistrationResponse,
   ListRegistrationsQuery,
   ListRegistrationsResponse,
+  REGISTRATION_DECIDE_PERMISSION,
+  REGISTRATION_READ_PERMISSION,
   RegistrationAddressInput,
   RegistrationAlreadyApproved,
   RegistrationAlreadyRejected,
+  RegistrationApiAuthenticationUnavailable,
+  RegistrationApiBadRequest,
   RegistrationApiConflict,
   RegistrationApiError,
+  RegistrationApiForbidden,
   RegistrationApiGroup,
+  RegistrationApiInvalidCursor,
   RegistrationApiNotFound,
   RegistrationApiUnauthorized,
+  RegistrationDecisionAccessMiddleware,
   RegistrationDecisionAcceptedResponse,
   RegistrationDecisionAlreadyProcessing,
   RegistrationDecisionRequest,
   RegistrationDecisionResponse,
   RegistrationDetailResponse,
   RegistrationHttpApi,
-  RegistrationReviewerInput,
+  RegistrationReadAccessMiddleware,
+  RegistrationReviewerContext,
+  RegistrationSchemaErrorMiddleware,
 } from "./http/registration-api";
 export {
   type AcceptCompanyMemberInvitationInput,
@@ -163,8 +174,9 @@ export {
 export {
   type AcceptRegistrationReviewDecisionInput,
   acceptRegistrationReviewDecision,
-  type RegistrationReviewWorkflowDecision,
-  type RegistrationReviewWorkflowReviewer,
+  RegistrationReviewWorkflowDecision,
+  RegistrationReviewWorkflowReviewer,
+  registrationReviewerActorFromWorkflow,
 } from "./programs/registration-review";
 export {
   type AuthorizeIssueInviteInput,
@@ -174,6 +186,7 @@ export {
 } from "./services/company-invitation-policy";
 export {
   IdentityUserLookupFailure,
+  IdentityUserNotFound,
   IdentityUsers,
   normalizedIdentityEmail,
 } from "./services/identity-users";

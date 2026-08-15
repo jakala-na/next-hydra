@@ -24,14 +24,16 @@ import type {
   CartSnapshot,
 } from "@repo/commerce/domain/cart-snapshot";
 import {
-  type CartOnlyCheckoutDeliveryDetailsInput,
-  type CheckoutContact,
-  type CheckoutContactInput,
-  type CheckoutDeliveryDetails,
-  type CheckoutDeliveryDetailsInput,
   CheckoutMutationProviderFailure,
-  type CheckoutProviderFailure,
   CountryCode,
+} from "@repo/commerce/domain/checkout";
+import type {
+  CartOnlyCheckoutDeliveryDetailsInput,
+  CheckoutContact,
+  CheckoutContactInput,
+  CheckoutDeliveryDetails,
+  CheckoutDeliveryDetailsInput,
+  CheckoutProviderFailure,
 } from "@repo/commerce/domain/checkout";
 import {
   CommerceBusinessUnitId,
@@ -41,10 +43,8 @@ import {
   CommerceCustomerId,
   CommerceCustomerProfile,
 } from "@repo/commerce/domain/commerce-account";
-import {
-  AuthUserId,
-  type CustomerCommercePrincipal,
-} from "@repo/commerce/domain/commerce-request-context";
+import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
+import type { CustomerCommercePrincipal } from "@repo/commerce/domain/commerce-request-context";
 import {
   ANONYMOUS_CART_COOKIE_NAME,
   encodeAnonymousCartCookie,
@@ -385,7 +385,7 @@ const makeAddressBookLayer = (
 
   return Layer.effect(
     AddressBook,
-    Effect.gen(function* () {
+    Effect.gen(function* makeAddressBookLayer() {
       const commerceContext = yield* CommerceContext;
       const withPrincipal = <A, E>(
         effect: (principal: CustomerCommercePrincipal) => Effect.Effect<A, E>
@@ -394,7 +394,7 @@ const makeAddressBookLayer = (
       return AddressBook.of({
         get: (reference) =>
           withPrincipal((principal) =>
-            Effect.gen(function* () {
+            Effect.gen(function* get() {
               onPrincipal?.(principal);
               const entry = entries.find(
                 (candidate) => candidate.reference === reference
@@ -561,7 +561,7 @@ const makeFailingJwtVerifierLayer = () =>
   );
 
 const makeTestCommerceApp = (
-  layer: Layer.Layer<any, any, never>,
+  layer: Layer.Layer<any, any>,
   addressBookLayer: Layer.Layer<
     AddressBook,
     never,
@@ -585,13 +585,13 @@ const makeTestCommerceApp = (
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 
-const makeAuthenticationLayer = (layer: Layer.Layer<any, any, never>) =>
+const makeAuthenticationLayer = (layer: Layer.Layer<any, any>) =>
   Layer.effect(AccessTokenVerifier, AccessTokenVerifier).pipe(
     Layer.provide(layer)
   );
 
 const makeHandler = async (
-  layer: Layer.Layer<any, any, never>,
+  layer: Layer.Layer<any, any>,
   addressBookLayer: Layer.Layer<
     AddressBook,
     never,
@@ -622,7 +622,6 @@ test("GET /checkout/current reads current checkout state through CheckoutSession
       },
       details: {},
       scope: {
-        anonymousCartId: "cart-1",
         channel: "storefrontAnonymous",
         locale: "en-US",
       },
@@ -670,7 +669,7 @@ test("GET /checkout/current adds localized fallback messages to public violation
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_OK);
-    expect(body.violations).toEqual([
+    expect(body.violations).toStrictEqual([
       expect.objectContaining({
         code: "INCOMPATIBLE_CART_ITEMS",
         message: "Diese Artikel können nicht zusammen gekauft werden.",
@@ -755,11 +754,11 @@ test("POST /checkout/contact resolves Customer Profile from verified bearer cont
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_OK);
-    expect(body.scope).toMatchObject({
+    expect(body.scope).toStrictEqual({
       channel: "storefrontCustomer",
-      customerId: "customer-1",
+      locale: "en-US",
     });
-    expect(body.details.contact).toEqual({
+    expect(body.details.contact).toStrictEqual({
       buyerContact: {
         email: "profile@example.com",
         firstName: "Profile",
@@ -933,7 +932,7 @@ test("POST /checkout/delivery-details saves a Manual Shipping Address and return
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_OK);
-    expect(body.details.deliveryDetails).toEqual(manualDeliveryDetails);
+    expect(body.details.deliveryDetails).toStrictEqual(manualDeliveryDetails);
     expect(body.steps[1]).toMatchObject({
       id: "deliveryDetails",
       status: "complete",
@@ -962,7 +961,9 @@ test("POST /checkout/delivery-details is idempotent for the same Manual Shipping
     expect(secondResponse.status).toBe(HTTP_OK);
     expect(firstBody.cart).not.toHaveProperty("version");
     expect(secondBody.cart).not.toHaveProperty("version");
-    expect(secondBody.details.deliveryDetails).toEqual(manualDeliveryDetails);
+    expect(secondBody.details.deliveryDetails).toStrictEqual(
+      manualDeliveryDetails
+    );
   } finally {
     await dispose();
   }
@@ -1004,7 +1005,7 @@ test("POST /checkout/delivery-details copies an existing Address Book Entry to t
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_OK);
-    expect(body.details.deliveryDetails).toEqual({
+    expect(body.details.deliveryDetails).toStrictEqual({
       addressBookReference: reference,
       shippingAddress: entry.address,
       source: "addressBook",
@@ -1039,8 +1040,8 @@ test("POST /checkout/delivery-details returns a stable unavailable-entry error",
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
-    expect(body).toEqual({
-      _tag: "CheckoutApiBadRequest",
+    expect(body).toStrictEqual({
+      _tag: "CheckoutDeliveryDetailsApiBadRequest",
       code: "checkout.deliveryDetails.addressBookEntryUnavailable",
       message: "This saved address is no longer available.",
       parameters: { addressBookReference: reference },
@@ -1200,7 +1201,7 @@ test("POST /checkout/delivery-details returns the saved reference after a Cart-p
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiError",
+      _tag: "CheckoutDeliveryDetailsApiError",
       code: "checkout.deliveryDetails.providerFailure",
       parameters: {
         addressBookReference: expect.stringMatching(
@@ -1227,7 +1228,7 @@ test("POST /checkout/delivery-details obtains Checkout Scope from request contex
 
     expect(response.status).toBe(HTTP_CONFLICT);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiConflict",
+      _tag: "CheckoutDeliveryDetailsApiConflict",
       code: "checkout.cartMismatch",
       message: "This checkout is no longer current. Refresh and try again.",
     });
@@ -1249,8 +1250,7 @@ test("POST /checkout/delivery-details ignores caller-supplied customer id header
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_OK);
-    expect(body.scope).toMatchObject({
-      anonymousCartId: "cart-1",
+    expect(body.scope).toStrictEqual({
       channel: "storefrontAnonymous",
       locale: "en-US",
     });
@@ -1281,7 +1281,7 @@ test("POST /checkout/delivery-details maps invalid Manual Shipping Address input
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiBadRequest",
+      _tag: "CheckoutDeliveryDetailsApiBadRequest",
       code: "checkout.deliveryDetails.invalidInput",
       message: "Enter address line 1, postal code, city, and country.",
     });
@@ -1340,7 +1340,7 @@ test("POST /checkout/delivery-details maps provider failures to internal errors"
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiError",
+      _tag: "CheckoutDeliveryDetailsApiError",
       code: "checkout.deliveryDetails.providerFailure",
       message: "Delivery details could not be saved. Try again.",
     });
@@ -1360,12 +1360,9 @@ test("GET /checkout/current ignores caller-supplied customer id headers", async 
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_OK);
-    expect(body).toMatchObject({
-      scope: {
-        anonymousCartId: "cart-1",
-        channel: "storefrontAnonymous",
-        locale: "en-US",
-      },
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontAnonymous",
+      locale: "en-US",
     });
   } finally {
     await dispose();
@@ -1383,12 +1380,9 @@ test("GET /checkout/current accepts anonymous cart possession from the cart cook
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_OK);
-    expect(body).toMatchObject({
-      scope: {
-        anonymousCartId: "cart-1",
-        channel: "storefrontAnonymous",
-        locale: "en-US",
-      },
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontAnonymous",
+      locale: "en-US",
     });
   } finally {
     await dispose();
@@ -1479,15 +1473,11 @@ test("GET /checkout/current resolves customer scope from bearer JWT before anony
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_OK);
-    expect(body).toMatchObject({
-      scope: {
-        businessUnitId: "business-unit-1",
-        businessUnitKey: "business-unit-key-1",
-        channel: "storefrontCustomer",
-        customerId: "customer-1",
-        locale: "en-US",
-      },
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontCustomer",
+      locale: "en-US",
     });
+    expect(JSON.stringify(body)).not.toContain("businessUnitId");
   } finally {
     await dispose();
   }
@@ -1512,12 +1502,9 @@ test("GET /checkout/current ignores on-behalf-of customer id headers when a vali
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_OK);
-    expect(body).toMatchObject({
-      scope: {
-        channel: "storefrontCustomer",
-        customerId: "customer-1",
-        locale: "en-US",
-      },
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontCustomer",
+      locale: "en-US",
     });
   } finally {
     await dispose();
@@ -1543,13 +1530,9 @@ test("GET /checkout/current falls back when the Business Unit selector is outsid
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_OK);
-    expect(body).toMatchObject({
-      scope: {
-        businessUnitId: "business-unit-1",
-        businessUnitKey: "business-unit-key-1",
-        channel: "storefrontCustomer",
-        customerId: "customer-1",
-      },
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontCustomer",
+      locale: "en-US",
     });
   } finally {
     await dispose();
@@ -1576,6 +1559,26 @@ test("GET /checkout/current does not fall back to anonymous checkout for invalid
       _tag: "CheckoutApiNotFound",
       code: "checkout.notFound",
     });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current rejects malformed bearer authorization", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "1234567valid-token" }),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
   } finally {
     await dispose();
   }
