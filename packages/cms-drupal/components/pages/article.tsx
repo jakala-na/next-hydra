@@ -2,6 +2,7 @@ import type { ArticleTeaser } from "@repo/design-system/components/cms/article-c
 import { ArticlePage as ArticlePageView } from "@repo/design-system/components/cms/pages/article";
 import type { Locale } from "@repo/i18n";
 import { getPathname } from "@repo/i18n/navigation";
+
 import { type FragmentOf, graphql, readFragment } from "../../graphql";
 import { getNodeCacheTag } from "../../lib/cache-tags";
 
@@ -100,7 +101,7 @@ export function ArticlePage({ data, locale }: ArticlePageProps) {
     <ArticlePageView
       body={
         <div
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: Drupal returns filtered, processed HTML from an allowed text format.
+          // oxlint-disable-next-line react/no-danger -- Drupal returns filtered, processed HTML from an allowed text format.
           dangerouslySetInnerHTML={{ __html: bodyHtml }}
         />
       }

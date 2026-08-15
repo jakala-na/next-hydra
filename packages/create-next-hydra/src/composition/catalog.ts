@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
+
 import {
   getRegistriesConfig,
   getRegistryItems,
@@ -267,7 +268,7 @@ export async function fetchRegistryItemGraph(options: {
 
     let itemName = itemByReference.get(reference);
     if (!itemName) {
-      // biome-ignore lint/performance/noAwaitInLoops: graph discovery is breadth-first and each item reveals the next references
+      // oxlint-disable-next-line no-await-in-loop -- Breadth-first discovery reveals each next reference in order.
       const resolvedReference = await resolveRegistryReference(
         reference,
         options.cwd

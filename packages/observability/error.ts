@@ -1,4 +1,5 @@
 import { captureException as captureSentryException } from "@sentry/nextjs";
+
 import { log } from "./log";
 
 export const captureException = (error: unknown): void => {
@@ -21,7 +22,7 @@ export const parseError = (error: unknown): string => {
     captureException(error);
     log.error(`Parsing error: ${message}`);
   } catch (newError) {
-    // biome-ignore lint/suspicious/noConsole: Need console here
+    // oxlint-disable-next-line no-console -- This fallback must report through the console.
     console.error("Error parsing error:", newError);
   }
 

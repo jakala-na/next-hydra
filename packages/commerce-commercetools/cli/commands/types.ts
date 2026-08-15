@@ -1,9 +1,11 @@
-/* biome-ignore-all lint/suspicious/noConsole: CLI commands write user-facing output. */
+/* oxlint-disable no-console -- CLI commands write user-facing output. */
 
 import { fileURLToPath } from "node:url";
+
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
+
 import { generateCustomTypes, generateProductTypes } from "../typegen";
 
 const CUSTOM_TYPE_SCHEMA_DIRECTORY = fileURLToPath(

@@ -2,30 +2,34 @@ packages:
   - apps/*
   - packages/*
 catalog:
-  '@effect/vitest': 4.0.0-beta.67
-  '@next/bundle-analyzer': 16.3.1
-  '@next/third-parties': 16.3.1
-  '@t3-oss/env-nextjs': ^0.13.4
-  '@types/node': 22.15.21
-  '@types/react': 19.2.10
-  '@types/react-dom': 19.2.3
+  "@effect/vitest": 4.0.0-beta.67
+  "@next/bundle-analyzer": 16.3.1
+  "@next/third-parties": 16.3.1
+  "@t3-oss/env-nextjs": ^0.13.4
+  "@types/node": 22.15.21
+  "@types/react": 19.2.10
+  "@types/react-dom": 19.2.3
   effect: 4.0.0-beta.67
   next: 16.3.1
   react: 19.2.8
   react-dom: 19.2.8
   server-only: ^0.0.1
-  typescript: 5.9.3
+  typescript: npm:@typescript/typescript6@6.0.2
+catalogs:
+  typescript7:
+    "@typescript/native": npm:typescript@7.0.2
+    typescript: npm:typescript@7.0.2
 overrides:
   react: 19.2.8
   react-dom: 19.2.8
 patchedDependencies:
-  '@drupal-canvas/headless': patches/@drupal-canvas__headless.patch
-  '@drupal-canvas/headless-next': patches/@drupal-canvas__headless-next.patch
-  '@drupal-canvas/headless-react': patches/@drupal-canvas__headless-react.patch
-  '@drupal-canvas/workbench@0.10.0': patches/@drupal-canvas__workbench@0.10.0.patch
+  "@drupal-canvas/headless": patches/@drupal-canvas__headless.patch
+  "@drupal-canvas/headless-next": patches/@drupal-canvas__headless-next.patch
+  "@drupal-canvas/headless-react": patches/@drupal-canvas__headless-react.patch
+  "@drupal-canvas/workbench@0.10.0": patches/@drupal-canvas__workbench@0.10.0.patch
 ignoredBuiltDependencies:
-  - '@clerk/shared'
-  - '@nestjs/core'
+  - "@clerk/shared"
+  - "@nestjs/core"
   - bufferutil
   - cbor-extract
   - core-js
@@ -33,9 +37,9 @@ ignoredBuiltDependencies:
   - msgpackr-extract
   - msw
 onlyBuiltDependencies:
-  - '@parcel/watcher'
-  - '@sentry/cli'
-  - '@swc/core'
+  - "@parcel/watcher"
+  - "@sentry/cli"
+  - "@swc/core"
   - esbuild
   - sharp
   - unrs-resolver

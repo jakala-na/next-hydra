@@ -148,7 +148,7 @@ const executeCommercetoolsRequest = async (
   try {
     response = await apiRoot.graphql().post({ body: requestBody }).execute();
 
-    // biome-ignore lint/suspicious/noExplicitAny: Commercetools leaves GraphQL response data untyped.
+    // oxlint-disable-next-line typescript/no-explicit-any -- Commercetools leaves GraphQL response data untyped.
     const body = response.body as any;
 
     return makeResult(

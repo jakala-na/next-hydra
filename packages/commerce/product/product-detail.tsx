@@ -5,6 +5,7 @@ import type { Locale } from "@repo/i18n/types";
 import { Effect, Option, Schema } from "effect";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+
 import { ProductSlug } from "./identity";
 import {
   toProductDetailMetadata,
@@ -59,7 +60,7 @@ export async function ProductDetailPage(props: ProductDetailBoundaryProps) {
     >
       <script
         type="application/ld+json"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD requires a script body.
+        // oxlint-disable-next-line react/no-danger -- JSON-LD requires a script body.
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
       />
       <ProductDetailView {...toProductDetailPresentation(product)} />

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/Effect-TS/language-service/refs/heads/main/schema.json",
+  "$schema": "../../node_modules/@effect/tsgo/schema.json",
   "display": "Effect Next.js",
   "extends": "./nextjs.json",
   "compilerOptions": {
@@ -7,6 +7,7 @@
       { "name": "next" },
       {
         "name": "@effect/language-service",
+        "diagnostics": false,
         "includeSuggestionsInTsc": false
       }
     ]

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/Effect-TS/language-service/refs/heads/main/schema.json",
+  "$schema": "../../node_modules/@effect/tsgo/schema.json",
   "extends": "@repo/typescript-config/effect.json",
   "compilerOptions": {
     "allowImportingTsExtensions": true,
@@ -13,6 +13,7 @@
       },
       {
         "name": "@effect/language-service",
+        "diagnostics": false,
         "includeSuggestionsInTsc": false
       }
     ],

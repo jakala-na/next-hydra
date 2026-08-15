@@ -1,5 +1,6 @@
 import type { Locale } from "@repo/i18n";
 import type { ComponentProps } from "react";
+
 import { ArticlePage } from "./pages/article";
 import { LandingPage } from "./pages/landing-page";
 
@@ -48,7 +49,7 @@ export default function PageRenderer({ data, locale }: PageRendererProps) {
 
   return (
     <Component
-      // biome-ignore lint/suspicious/noExplicitAny: the typename guard selects the matching page fragment
+      // oxlint-disable-next-line typescript/no-explicit-any -- The typename guard selects the matching page fragment.
       data={data as any}
       locale={locale}
     />
@@ -63,6 +64,6 @@ PageRenderer.getCacheTags = (data: DataWithTypename): string[] => {
   }
 
   const definition = pageMap[data.__typename];
-  // biome-ignore lint/suspicious/noExplicitAny: the typename guard selects the matching page fragment.
+  // oxlint-disable-next-line typescript/no-explicit-any -- The typename guard selects the matching page fragment.
   return definition.getCacheTags(data as any);
 };

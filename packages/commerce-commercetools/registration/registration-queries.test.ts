@@ -1,4 +1,4 @@
-// biome-ignore-all lint/suspicious/noMisplacedAssertion: Assertions run inside Effect programs executed by the test helper.
+// oxlint-disable vitest/no-standalone-expect -- Assertions run inside Effect programs executed by the test helper.
 
 import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import { StoreKey } from "@repo/commerce/store";
@@ -27,6 +27,7 @@ import { encodeJsonString } from "@repo/versioned-store";
 import type { Schema } from "effect";
 import { Effect, Redacted } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import {
   encodeRegistrationStorageValue,
   registrationQueriesLayerFrom,

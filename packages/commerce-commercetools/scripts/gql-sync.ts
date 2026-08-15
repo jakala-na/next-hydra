@@ -1,13 +1,15 @@
-/* biome-ignore-all lint/suspicious/noConsole: Schema synchronization reports progress. */
+/* oxlint-disable no-console -- Schema synchronization reports progress. */
+
+import path from "node:path";
 
 import {
   generateOutput,
   generateSchema,
   generateTurbo,
 } from "@gql.tada/cli-utils";
-import { keys } from "../keys.ts";
 import "dotenv/config";
-import path from "node:path";
+
+import { keys } from "../keys.ts";
 
 (async () => {
   try {

@@ -1,4 +1,4 @@
-// biome-ignore-all lint/suspicious/noMisplacedAssertion: Assertions run inside Effect programs executed by the test helper.
+// oxlint-disable vitest/no-standalone-expect -- Assertions run inside Effect programs executed by the test helper.
 
 import { StoreKey } from "@repo/commerce/store";
 import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
@@ -136,9 +136,8 @@ const getLiveApiRoot = async () => {
 
 const seedLiveRegistrations = async () => {
   const apiRoot = await getLiveApiRoot();
-  const { encodeRegistrationStorageValue } = await import(
-    "./registration-queries"
-  );
+  const { encodeRegistrationStorageValue } =
+    await import("./registration-queries");
   const registrations = [
     makeRegistration(
       "registration-query-live-a",

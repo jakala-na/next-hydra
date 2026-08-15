@@ -5,7 +5,7 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "translate": "npx -y languine@latest translate",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next-intl": "^4.13.5"
@@ -17,6 +17,7 @@
     "@types/react-dom": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "typescript": "catalog:"
   }
 }

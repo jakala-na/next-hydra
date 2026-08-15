@@ -49,7 +49,7 @@
     "boundaries": "node --experimental-transform-types scripts/commerce-boundaries.ts",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "test": "vitest run",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/design-system": "workspace:*",
@@ -65,7 +65,8 @@
     "@types/react-dom": "catalog:",
     "effect": "catalog:",
     "next": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "typescript": "catalog:"
   },
   "peerDependencies": {
     "effect": "catalog:"

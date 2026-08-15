@@ -1,8 +1,9 @@
-/* biome-ignore-all lint/suspicious/noConsole: CLI commands write user-facing output. */
+/* oxlint-disable no-console -- CLI commands write user-facing output. */
 
 import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import type {
   ByProjectKeyRequestBuilder,
   ProductType,
@@ -11,6 +12,7 @@ import type {
 import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
+
 import { createCommercetoolsClient } from "../client";
 import type { CommerceCliEnvironmentProvider } from "../environment";
 

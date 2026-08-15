@@ -1,11 +1,13 @@
 import withBundleAnalyzer from "@next/bundle-analyzer";
-
 import type { NextConfig } from "next";
 
 const otelRegex = /@opentelemetry\/instrumentation/;
 
 export const config: NextConfig = {
   cacheComponents: true,
+  experimental: {
+    useTypeScriptCli: true,
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
@@ -26,7 +28,7 @@ export const config: NextConfig = {
     },
   },
 
-  // biome-ignore lint/suspicious/useAwait: rewrites is async
+  // oxlint-disable-next-line require-await -- Next requires rewrites to be async.
   async rewrites() {
     return [
       {

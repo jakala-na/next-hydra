@@ -1,5 +1,6 @@
 import type { Locale } from "@repo/i18n";
 import type { ComponentProps } from "react";
+
 import { DynamicProductCollection } from "./blocks/dynamic-product-collection";
 import { FeaturedArticles } from "./blocks/featured-articles";
 import { HeroSection } from "./blocks/hero-section";
@@ -86,7 +87,7 @@ export default function ComponentRenderer({
 
   return (
     <Component
-      // biome-ignore lint/suspicious/noExplicitAny: the typename guard selects the matching fragment component
+      // oxlint-disable-next-line typescript/no-explicit-any -- The typename guard selects the matching fragment component.
       data={data as any}
       locale={locale}
     />
@@ -113,6 +114,6 @@ ComponentRenderer.getCacheTags = (
   }
 
   const definition = componentMap[data.__typename];
-  // biome-ignore lint/suspicious/noExplicitAny: the typename guard selects the matching component fragment.
+  // oxlint-disable-next-line typescript/no-explicit-any -- The typename guard selects the matching component fragment.
   return definition.getCacheTags(data as any);
 };

@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+
 import { z } from "zod";
 
 import { CompositionValidationError } from "./errors.js";
@@ -42,7 +43,6 @@ export function parsePackageJson(source: string, label: string): PackageJson {
   try {
     value = JSON.parse(source);
   } catch (error) {
-    // biome-ignore lint/style/useErrorCause: CompositionValidationError forwards these ErrorOptions to Error.
     throw new CompositionValidationError(
       `${label} is not a valid package.json file.`,
       [error instanceof Error ? error.message : "JSON parsing failed"],

@@ -10,6 +10,7 @@
       },
       {
         "name": "@effect/language-service",
+        "diagnostics": false,
         "includeSuggestionsInTsc": false
       }
     ],

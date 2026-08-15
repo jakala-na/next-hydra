@@ -7,7 +7,7 @@
     "clean": "git clean -xdf .cache .turbo node_modules",
     "cli": "jiti src/index.ts",
     "test": "vitest run",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",

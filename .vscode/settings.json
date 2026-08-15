@@ -1,22 +1,9 @@
 {
-  "[javascript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[json]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[jsonc]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
+  "[javascript][typescript][javascriptreact][typescriptreact][json][jsonc][css][graphql]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "editor.codeActionsOnSave": {
-    "source.organizeImports.biome": "explicit",
-    "source.fixAll.biome": "explicit"
+    "source.fixAll.oxc": "explicit"
   },
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnPaste": true,
@@ -24,22 +11,9 @@
   "emmet.showExpandedAbbreviation": "never",
   "prettier.enable": false,
   "js/ts.experimental.useTsgo": true,
-  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true,
-  "tailwindCSS.experimental.configFile": "packages/design-system/styles/globals.css",
-  "[javascript][typescript][javascriptreact][typescriptreact][json][jsonc][css][graphql]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[javascriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[css]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[graphql]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "typescript.native-preview.tsdk": "/Users/asgorobets/Sites/next-hydra/node_modules/@typescript/native-preview",
-  "js/ts.tsdk.path": "node_modules/typescript/lib"
+  "js/ts.tsdk.path": "./node_modules/@typescript/native",
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+  "js/ts.tsdk.additionalLocations": ["./node_modules/@typescript/native"],
+  "oxc.typeAware": true,
+  "tailwindCSS.experimental.configFile": "packages/design-system/styles/globals.css"
 }

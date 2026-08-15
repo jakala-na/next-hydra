@@ -8,7 +8,7 @@
     "dev": "NODE_USE_SYSTEM_CA=1 next dev -p 3001 --turbopack",
     "start": "NODE_USE_SYSTEM_CA=1 next start",
     "test": "vitest run",
-    "typecheck": "next typegen && tsgo --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@arcjet/next": "1.0.0-beta.7",
@@ -54,7 +54,7 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "tailwindcss": "^4.1.7",
-    "typescript": "catalog:",
+    "typescript": "catalog:typescript7",
     "vitest": "^3.2.4"
   }
 }

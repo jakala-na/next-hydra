@@ -62,7 +62,6 @@ import {
   Frame,
   GalleryVerticalEnd,
   LogOut,
-  // biome-ignore lint/suspicious/noShadowRestrictedNames: "icon name"
   Map,
   MoreHorizontal,
   PieChart,

@@ -1,5 +1,6 @@
 import { readdir, readFile, rmdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+
 import { parseDocument } from "yaml";
 
 import {
@@ -211,7 +212,7 @@ async function pruneEmptyParents(
   while (current.startsWith(`${root}${path.sep}`)) {
     try {
       // Parent directories must be checked from the leaf toward the root.
-      // biome-ignore lint/performance/noAwaitInLoops: each iteration depends on the previous parent
+      // oxlint-disable-next-line no-await-in-loop -- Each iteration depends on the previous parent.
       const entries = await readdir(current);
       if (entries.length > 0) {
         return;
@@ -234,7 +235,7 @@ export async function removeWorkspaceTargets(
 
   for (const target of deepestFirst) {
     // Targets are deepest-first so pruning one target cannot race another.
-    // biome-ignore lint/performance/noAwaitInLoops: ordered removal keeps parent pruning deterministic
+    // oxlint-disable-next-line no-await-in-loop -- Ordered removal keeps parent pruning deterministic.
     await removePath(path.join(workspaceRoot, target));
     await pruneEmptyParents(workspaceRoot, target);
   }

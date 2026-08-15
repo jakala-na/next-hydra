@@ -96,14 +96,16 @@ const repositoryFiles = (repoRoot: string): readonly string[] =>
     .map((path) => resolve(repoRoot, path))
     .filter(existsSync);
 
-const runBiomeImportBoundaries = (repoRoot: string) => {
+const runOxlintImportBoundaries = (repoRoot: string) => {
   execFileSync(
     "pnpm",
     [
       "exec",
-      "biome",
-      "lint",
-      "--only=style/noRestrictedImports",
+      "oxlint",
+      "--allow",
+      "correctness",
+      "--config",
+      "oxlint.boundaries.config.ts",
       "apps",
       "packages",
     ],
@@ -360,7 +362,7 @@ if (
 ) {
   const commerceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const repoRoot = resolve(commerceRoot, "../..");
-  runBiomeImportBoundaries(repoRoot);
+  runOxlintImportBoundaries(repoRoot);
   const violations = checkCommerceBoundaries(repoRoot);
 
   if (violations.length > 0) {

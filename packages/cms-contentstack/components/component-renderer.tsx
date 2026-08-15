@@ -12,6 +12,7 @@
 import { VB_EmptyBlockParentClass } from "@contentstack/live-preview-utils";
 import type { Locale } from "@repo/i18n";
 import type { ComponentProps } from "react";
+
 import type { LivePreviewHelper } from "../lib/utils/live-preview-helper";
 import { DynamicProductCollection } from "./blocks/dynamic-product-collection";
 import { HeroSection } from "./blocks/hero-section";
@@ -40,7 +41,6 @@ function isComponentKey(key: string): key is ComponentKey {
   return key in componentMap;
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: @todo: reduce complexity to 15
 function flattenComponentsWithPaths(
   data: GraphQLComponent[],
   livePreviewHelper?: LivePreviewHelper
@@ -113,7 +113,7 @@ function flattenComponentWithPath(
 
   if (typeof value === "object" && !Array.isArray(value)) {
     return {
-      // biome-ignore lint/suspicious/noExplicitAny: validated by component fragments
+      // oxlint-disable-next-line typescript/no-explicit-any -- Validated by component fragments.
       data: value as any,
       componentHelper: livePreviewHelper?.getNestedHelper(key),
     };
@@ -195,7 +195,7 @@ export default function ComponentRenderer<
             }
             if (isComponentKey(itemData.__typename)) {
               return (
-                // biome-ignore lint/suspicious/noArrayIndexKey: this is fine for server rendered content.
+                // oxlint-disable-next-line react/no-array-index-key -- This is fine for server-rendered content.
                 <div key={index} {...livePreviewHelper?.getProps(`${index}`)}>
                   <ComponentRenderer
                     locale={locale}
@@ -235,7 +235,7 @@ export default function ComponentRenderer<
 
       return (
         <Component
-          /* biome-ignore lint/suspicious/noExplicitAny: -- At this point we know data is one of the accepted props for the component */
+          /* oxlint-disable-next-line typescript/no-explicit-any -- The typename guard selects an accepted component prop. */
           data={itemData as any}
           locale={locale}
           livePreviewHelper={componentHelper}
@@ -256,7 +256,7 @@ export default function ComponentRenderer<
             return (
               <ComponentRenderer
                 locale={locale}
-                // biome-ignore lint/suspicious/noArrayIndexKey: this is fine for server rendered content.
+                // oxlint-disable-next-line react/no-array-index-key -- This is fine for server-rendered content.
                 key={index}
                 data={item}
                 livePreviewHelper={livePreviewHelper?.getNestedHelper(
@@ -280,7 +280,7 @@ export default function ComponentRenderer<
         {...(skipParentProps ? {} : livePreviewHelper?.getParentProps())}
       >
         <Component
-          /* biome-ignore lint/suspicious/noExplicitAny: -- At this point we know data is one of the accepted props for the component */
+          /* oxlint-disable-next-line typescript/no-explicit-any -- The typename guard selects an accepted component prop. */
           data={data as any}
           locale={locale}
           livePreviewHelper={livePreviewHelper}

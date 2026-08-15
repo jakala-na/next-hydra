@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+
 import { confirm, isCancel } from "@clack/prompts";
 import { getRegistriesConfig, resolveRegistryItems } from "shadcn/registry";
 import type { RegistryItem } from "shadcn/schema";
@@ -519,7 +520,7 @@ async function confirmChanges(
     for (const conflict of conflicts) {
       // Without a global overwrite authorization, each customer-owned change
       // receives its own explicit confirmation.
-      // biome-ignore lint/performance/noAwaitInLoops: sequential confirmation is the safety contract
+      // oxlint-disable-next-line no-await-in-loop -- Sequential confirmation is the safety contract.
       const approved = await prompt({
         initialValue: false,
         message: `Replace changed ${conflict.kind} ${conflict.label}?`,
