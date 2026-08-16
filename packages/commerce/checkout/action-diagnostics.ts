@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+
 import type {
   CheckoutSaveContactFailure,
   CheckoutSaveDeliveryDetailsFailure,
@@ -11,16 +12,21 @@ type CheckoutMutationFailure =
 export const logUnexpectedCheckoutMutationFailure = (
   error: CheckoutMutationFailure
 ) => {
-  switch (error._tag) {
-    case "CheckoutMutationProviderFailure":
-    case "CheckoutMutationUnsupported":
-      return Effect.logError(error.message, error).pipe(
+  if (error._tag === "CheckoutMutationProviderFailure") {
+    return Effect.logError(error.message, error.cause ?? error).pipe(
+      Effect.annotateLogs({
+        "checkout.error.tag": error._tag,
+        "checkout.operation": error.operation,
+      })
+    );
+  }
+
+  return error._tag === "CheckoutMutationUnsupported"
+    ? Effect.logError(error.message, error).pipe(
         Effect.annotateLogs({
           "checkout.error.tag": error._tag,
           "checkout.operation": error.operation,
         })
-      );
-    default:
-      return Effect.void;
-  }
+      )
+    : Effect.void;
 };

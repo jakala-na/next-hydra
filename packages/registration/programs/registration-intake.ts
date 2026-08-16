@@ -3,12 +3,19 @@ import {
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
 import type { StoreKey } from "@repo/commerce/store";
-import { Effect, Schema } from "effect";
-import { CountryCode } from "../domain/identity";
+import { Effect } from "effect";
+
 import type {
   AwaitingApprovalRegistration,
   CompanyRegistrationDetails,
 } from "../domain/registration";
+import {
+  DuplicateRegistrationEmail,
+  InvalidRegistrationVatId,
+  RegistrationIntakeValidationError,
+  type RegistrationIntakeValidationReason,
+  UnsupportedRegistrationCountry,
+} from "../domain/registration-intake-validation";
 import type { IdentityUserLookupFailure } from "../services/identity-users";
 import { IdentityUsers } from "../services/identity-users";
 import { RegistrationMarketPolicy } from "../services/registration-market-policy";
@@ -20,49 +27,19 @@ import {
 } from "../services/registrations";
 import { VatValidator } from "../services/vat-validator";
 
-export const RegistrationIntakeFieldPath = Schema.Literals(["email", "vatId"]);
-export type RegistrationIntakeFieldPath =
-  typeof RegistrationIntakeFieldPath.Type;
+export type RegistrationEligibilityProviderError =
+  | CommerceAccountError
+  | IdentityUserLookupFailure
+  | RegistrationQueryError;
 
-export class DuplicateRegistrationEmail extends Schema.TaggedClass<DuplicateRegistrationEmail>()(
-  "DuplicateRegistrationEmail",
-  {
-    path: RegistrationIntakeFieldPath,
-    code: Schema.Literal("duplicateEmail"),
-  }
-) {}
-
-export class InvalidRegistrationVatId extends Schema.TaggedClass<InvalidRegistrationVatId>()(
-  "InvalidRegistrationVatId",
-  {
-    path: RegistrationIntakeFieldPath,
-    code: Schema.Literal("invalidVatId"),
-  }
-) {}
-
-export class UnsupportedRegistrationCountry extends Schema.TaggedClass<UnsupportedRegistrationCountry>()(
-  "UnsupportedRegistrationCountry",
-  {
-    code: Schema.Literal("unsupportedRegistrationCountry"),
-    country: CountryCode,
-  }
-) {}
-
-export const RegistrationIntakeValidationReason = Schema.Union([
+export {
   DuplicateRegistrationEmail,
   InvalidRegistrationVatId,
+  RegistrationIntakeFieldPath,
+  RegistrationIntakeValidationError,
+  RegistrationIntakeValidationReason,
   UnsupportedRegistrationCountry,
-]);
-export type RegistrationIntakeValidationReason =
-  typeof RegistrationIntakeValidationReason.Type;
-
-export class RegistrationIntakeValidationError extends Schema.TaggedErrorClass<RegistrationIntakeValidationError>()(
-  "RegistrationIntakeValidationError",
-  {
-    message: Schema.String,
-    reasons: Schema.NonEmptyArray(RegistrationIntakeValidationReason),
-  }
-) {}
+} from "../domain/registration-intake-validation";
 
 export interface SubmitRegistrationForReviewInput {
   readonly details: CompanyRegistrationDetails;
@@ -125,7 +102,7 @@ export const checkRegistrationEligibility = Effect.fn(
   details: CompanyRegistrationDetails
 ): Effect.fn.Return<
   void,
-  RegistrationIntakeValidationError,
+  RegistrationEligibilityProviderError | RegistrationIntakeValidationError,
   | CommerceAccounts
   | IdentityUsers
   | RegistrationMarketPolicy
@@ -140,9 +117,9 @@ export const checkRegistrationEligibility = Effect.fn(
     invalidVatId,
   ] = yield* Effect.all(
     [
-      hasCustomerWithEmail(details).pipe(Effect.orDie),
-      hasIdentityUserWithEmail(details).pipe(Effect.orDie),
-      hasPendingRegistrationWithEmail(details).pipe(Effect.orDie),
+      hasCustomerWithEmail(details),
+      hasIdentityUserWithEmail(details),
+      hasPendingRegistrationWithEmail(details),
       isUnsupportedRegistrationCountry(details),
       isInvalidVatId(details),
     ],
@@ -189,7 +166,9 @@ export const submitRegistrationForReview = Effect.fn(
   input: SubmitRegistrationForReviewInput
 ): Effect.fn.Return<
   AwaitingApprovalRegistration,
-  RegistrationIntakeValidationError | RegistrationCreateError,
+  | RegistrationEligibilityProviderError
+  | RegistrationIntakeValidationError
+  | RegistrationCreateError,
   | CommerceAccounts
   | IdentityUsers
   | RegistrationMarketPolicy
@@ -204,8 +183,3 @@ export const submitRegistrationForReview = Effect.fn(
     storeKey: input.storeKey,
   });
 });
-
-export type RegistrationEligibilityProviderError =
-  | CommerceAccountError
-  | IdentityUserLookupFailure
-  | RegistrationQueryError;

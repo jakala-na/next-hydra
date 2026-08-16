@@ -1,10 +1,9 @@
-import type {
-  FormActionFieldError,
-  FormActionFormError,
-  InvalidFormActionResult,
-} from "@repo/form";
+import { makeActionResultSchema } from "@repo/actions";
 import { ISO_COUNTRY_CODES } from "@repo/i18n/countries";
 import { Schema } from "effect";
+
+import { RegistrationId } from "../domain/identity";
+import { RegistrationIntakeValidationError } from "../domain/registration-intake-validation";
 
 export const REGION_REQUIRED_COUNTRY_CODES = ["US", "CA"] as const;
 
@@ -22,28 +21,32 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const COUNTRY_CODES = ISO_COUNTRY_CODES;
 
-export type RegistrationFormMessageKey =
-  | "validation.companyName"
-  | "validation.companyNameMax"
-  | "validation.companyPhone"
-  | "validation.vatId"
-  | "validation.firstName"
-  | "validation.firstNameMax"
-  | "validation.lastName"
-  | "validation.lastNameMax"
-  | "validation.email"
-  | "validation.invalidVatId"
-  | "validation.streetAddress"
-  | "validation.postalCode"
-  | "validation.city"
-  | "validation.region"
-  | "validation.country"
-  | "validation.duplicateEmail"
-  | "errors.invalidSubmission"
-  | "errors.submitFailed"
-  | "errors.unsupportedRegistrationCountry";
+export const RegistrationFormMessageKey = Schema.Literals([
+  "validation.companyName",
+  "validation.companyNameMax",
+  "validation.companyPhone",
+  "validation.vatId",
+  "validation.firstName",
+  "validation.firstNameMax",
+  "validation.lastName",
+  "validation.lastNameMax",
+  "validation.email",
+  "validation.invalidVatId",
+  "validation.streetAddress",
+  "validation.postalCode",
+  "validation.city",
+  "validation.region",
+  "validation.country",
+  "validation.duplicateEmail",
+  "errors.invalidSubmission",
+  "errors.submitFailed",
+  "errors.unsupportedRegistrationCountry",
+]);
+export type RegistrationFormMessageKey = typeof RegistrationFormMessageKey.Type;
 
-type RegistrationFormTranslator = (key: RegistrationFormMessageKey) => string;
+export type RegistrationFormTranslator = (
+  key: RegistrationFormMessageKey
+) => string;
 
 export const requiresRegion = (country: string) =>
   REGION_REQUIRED_COUNTRY_CODES.includes(
@@ -151,7 +154,18 @@ export const makeRegistrationFormInputSchema = (
       )
     ),
     address: addressSchema,
-  });
+  }).pipe(
+    Schema.check(
+      Schema.makeFilter((input) =>
+        requiresRegion(input.address.country) && !input.address.region
+          ? {
+              path: ["address", "region"],
+              issue: t("validation.region"),
+            }
+          : undefined
+      )
+    )
+  );
 };
 
 const defaultMessage = (key: RegistrationFormMessageKey) => key;
@@ -162,32 +176,61 @@ export const RegistrationFormInputSchema =
 export type RegistrationFormInput = typeof RegistrationFormInputSchema.Type;
 export type RegistrationFormValues = typeof RegistrationFormInputSchema.Encoded;
 
-export type RegistrationFormFieldPath =
-  | keyof Omit<RegistrationFormValues, "address">
-  | `address.${keyof RegistrationFormValues["address"]}`;
+export const REGISTRATION_FORM_FIELD_PATHS = [
+  "companyName",
+  "companyPhone",
+  "vatId",
+  "contactFirstName",
+  "contactLastName",
+  "email",
+  "address.streetName",
+  "address.additionalStreetInfo",
+  "address.postalCode",
+  "address.city",
+  "address.region",
+  "address.country",
+] as const;
 
-export type RegistrationFormFieldErrorCode = "duplicateEmail" | "invalidVatId";
+export const RegistrationFormIssuePath = Schema.Literals([
+  ...REGISTRATION_FORM_FIELD_PATHS,
+  "root",
+]);
+export type RegistrationFormIssuePath = typeof RegistrationFormIssuePath.Type;
 
-export type RegistrationFormFieldError = FormActionFieldError<
-  RegistrationFormFieldPath,
-  RegistrationFormFieldErrorCode
->;
+export class RegistrationFormIssue extends Schema.Class<RegistrationFormIssue>(
+  "RegistrationFormIssue"
+)({
+  path: RegistrationFormIssuePath,
+  message: Schema.String,
+}) {}
 
-export type RegistrationFormValidationErrorCode =
-  | "invalidSubmission"
-  | "unsupportedRegistrationCountry";
+export const RegistrationFormSuccess = Schema.Struct({
+  registrationId: RegistrationId,
+});
+export type RegistrationFormSuccess = typeof RegistrationFormSuccess.Type;
 
-export type RegistrationFormError =
-  FormActionFormError<RegistrationFormValidationErrorCode>;
+export const RegistrationSubmissionUnavailable = Schema.TaggedStruct(
+  "RegistrationSubmissionUnavailable",
+  {}
+);
+export type RegistrationSubmissionUnavailable =
+  typeof RegistrationSubmissionUnavailable.Type;
 
+export const RegistrationFormError = Schema.Union([
+  RegistrationIntakeValidationError,
+  RegistrationSubmissionUnavailable,
+]);
+export type RegistrationFormError = typeof RegistrationFormError.Type;
+
+export const RegistrationFormFailure = Schema.Struct({
+  error: RegistrationFormError,
+  issues: Schema.NonEmptyArray(RegistrationFormIssue),
+});
+export type RegistrationFormFailure = typeof RegistrationFormFailure.Type;
+
+export const RegistrationFormResultSchema = makeActionResultSchema(
+  RegistrationFormSuccess,
+  RegistrationFormFailure
+);
 export type RegistrationFormResult =
-  | {
-      readonly status: "submitted";
-      readonly registrationId: string;
-      readonly redirectTo?: string;
-    }
-  | InvalidFormActionResult<
-      RegistrationFormFieldPath,
-      RegistrationFormFieldErrorCode,
-      RegistrationFormValidationErrorCode
-    >;
+  typeof RegistrationFormResultSchema.Encoded;

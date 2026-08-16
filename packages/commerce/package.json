@@ -9,7 +9,9 @@
     "./cart/add-to-cart": "./cart/add-to-cart.ts",
     "./cart/change-cart-items-quantity": "./cart/change-cart-items-quantity.ts",
     "./cart/remove-cart-item": "./cart/remove-cart-item.ts",
+    "./cart/procedures": "./cart/procedures.ts",
     "./checkout": "./checkout/index.ts",
+    "./checkout/procedures": "./checkout/procedures.ts",
     "./commerce-context": "./commerce-context/index.ts",
     "./commerce-context/business-unit-cookie": "./commerce-context/business-unit-cookie.ts",
     "./domain/address": "./domain/address.ts",
@@ -52,6 +54,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@repo/actions": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "react": "catalog:",

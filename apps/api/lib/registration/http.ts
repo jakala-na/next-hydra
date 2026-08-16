@@ -35,6 +35,7 @@ import {
 } from "@repo/registration/http/registration-api";
 import type { RegistrationApiError } from "@repo/registration/http/registration-api";
 import { submitRegistrationForReview } from "@repo/registration/programs/registration-intake";
+import type { RegistrationEligibilityProviderError } from "@repo/registration/programs/registration-intake";
 import { acceptRegistrationReviewDecision } from "@repo/registration/programs/registration-review";
 import type { RegistrationReviewWorkflowDecision } from "@repo/registration/programs/registration-review";
 import { IdentityUsers } from "@repo/registration/services/identity-users";
@@ -105,6 +106,14 @@ const logRegistrationAuthenticationFailure = (error: {
       service: "registration-api",
     })
   );
+
+const isRegistrationEligibilityProviderError = (error: {
+  readonly _tag: string;
+}): error is RegistrationEligibilityProviderError =>
+  error._tag === "CommerceAccountError" ||
+  error._tag === "IdentityUserLookupFailure" ||
+  error._tag === "RegistrationQueryFailure" ||
+  error._tag === "RegistrationQueryInvalidCursor";
 
 interface RegistrationAccessTokenVerifier {
   readonly verify: (
@@ -294,8 +303,7 @@ const makeRegistrationHttpHandlers = ({
                 attributes: {
                   "registration.id": String(registration.id),
                 },
-              }),
-              Effect.orDie
+              })
             );
 
             return new CreateRegistrationResponse({
@@ -309,7 +317,9 @@ const makeRegistrationHttpHandlers = ({
                 (reason) =>
                   Cause.isDieReason(reason) ||
                   (Cause.isFailReason(reason) &&
-                    reason.error._tag === "RegistrationPersistenceFailure")
+                    (reason.error._tag === "RegistrationApiError" ||
+                      reason.error._tag === "RegistrationPersistenceFailure" ||
+                      isRegistrationEligibilityProviderError(reason.error)))
               )
                 ? Effect.logError("Failed to create registration", cause)
                 : Effect.void
@@ -323,14 +333,26 @@ const makeRegistrationHttpHandlers = ({
             }),
             Effect.withSpan("registration.api.create"),
             Effect.withLogSpan("registration.api.create"),
-            Effect.mapError((error) =>
-              error._tag === "RegistrationIntakeValidationError"
-                ? new RegistrationApiValidationError({
+            Effect.mapError((error) => {
+              switch (error._tag) {
+                case "RegistrationIntakeValidationError":
+                  return new RegistrationApiValidationError({
                     message: error.message,
                     reasons: error.reasons,
-                  })
-                : toRegistrationCreateApiError(error)
-            )
+                  });
+                case "RegistrationAlreadyExists":
+                case "RegistrationPersistenceFailure":
+                  return toRegistrationCreateApiError(error);
+                case "CommerceAccountError":
+                case "IdentityUserLookupFailure":
+                case "RegistrationQueryFailure":
+                case "RegistrationQueryInvalidCursor":
+                case "RegistrationApiError":
+                  return toRegistrationInternalApiError();
+                default:
+                  return error satisfies never;
+              }
+            })
           )
         )
         .handle("list", ({ query }) =>

@@ -32,7 +32,7 @@ import {
   RegistrationStatus,
 } from "../domain/registration";
 import type { Registration } from "../domain/registration";
-import { RegistrationIntakeValidationReason } from "../programs/registration-intake";
+import { RegistrationIntakeValidationReason } from "../domain/registration-intake-validation";
 import type { RegistrationQueryError } from "../services/registration-queries";
 import type {
   RegistrationCreateError,
@@ -140,7 +140,7 @@ export {
   DuplicateRegistrationEmail,
   InvalidRegistrationVatId,
   UnsupportedRegistrationCountry,
-} from "../programs/registration-intake";
+} from "../domain/registration-intake-validation";
 
 export class RegistrationApiValidationError extends Schema.TaggedErrorClass<RegistrationApiValidationError>()(
   "RegistrationApiValidationError",

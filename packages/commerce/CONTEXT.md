@@ -4,304 +4,153 @@ The Checkout context describes how a buyer completes the information and choices
 
 ## Language
 
-**Checkout**:
-The buyer-facing process for completing the information and choices required before placing an order.
-_Avoid_: Checkout page, checkout wizard
-
-**Cart**:
-The current collection of products and cart-owned checkout details being prepared for purchase in a Store and, for B2B Checkout, a Business Unit.
-_Avoid_: Checkout state
-
-**Cart Snapshot**:
-An observation of a Cart's current semantic state, independent of provider resource revisions and storage representation.
-_Avoid_: Provider Cart, Cart version
-
-**Current Cart**:
-The Cart resolved for the buyer's current Store and, for B2B activity, Business Unit Buying Context. The `cart` cookie identifies an anonymous Current Cart.
-_Avoid_: Cart Session, arbitrary Cart
-
-**Carts**:
-The process-level Effect Service used by Current Cart for provider-neutral Cart discovery, creation, and persistence programs.
-_Avoid_: Cart repository, global Cart service
-
-**Commerce Cart Layer**:
-The Effect Layer that provides Carts for one commerce provider while keeping provider revisions, payloads, and retry mechanics private.
-_Avoid_: Adapter, repository implementation
-
-**Cart Identity**:
-The stable identity of a Cart, observable by callers for correlation and stale-form detection but never sufficient to select or authorize the Current Cart.
-_Avoid_: Cart authority, Cart version
-
-**Product Attribute**:
-A typed characteristic of a purchasable Product Variant. A provider may source it from Product- or Variant-level storage, but the domain value does not retain that origin.
-_Avoid_: Provider attribute payload, raw attribute, attribute origin
-
-**Product**:
-A catalog item that groups shared merchandising information with one or more purchasable Product Variants. A Product is discovered and presented but is not itself purchased.
-_Avoid_: Provider Product Projection, purchasable Product
-
-**Product Card**:
-The compact Product projection used in catalog collections and discovery.
-_Avoid_: Product Summary, Product Card DTO, Product Card component props
-
-**Product Detail**:
-The complete Product projection used to present and select a purchasable Product Variant.
-_Avoid_: Product Details DTO, Product page, Provider Product Projection
-
-**Product Variant**:
-The purchasable Product projection represented by a Cart Line Item, including its effective Product Attributes.
-_Avoid_: Provider Product and Variant hierarchy
-
-**Default Product Variant**:
-The Product Variant initially selected when Product Detail is presented. It must be one of the Product Detail's purchasable Product Variants.
-_Avoid_: Master Variant, first array element
-
-**Product Price**:
-The price selected for a Product Variant in the current Commerce Context, including an optional discount applied to that selected price.
-_Avoid_: Price candidates, Customer Group price list, provider price payload
-
-**Product Availability**:
-Whether a Product Variant can currently be purchased in the Commerce Context, together with an available quantity when the provider can report one.
-_Avoid_: Supply Channel inventory, stock-record payload, quantity-derived saleability
-
-**Product Option**:
-A named selection dimension whose values distinguish purchasable Product Variants, such as Model or Color.
-_Avoid_: Descriptive Product Attribute, provider option type
-
-**Product Category**:
-A catalog classification used to discover or contextualize Products.
-_Avoid_: Provider Category payload, CMS Category field
-
-**Product Catalog**:
-The Products and Product Variants eligible for discovery and purchase in a Store.
-_Avoid_: Product Selection, sales channel, provider catalog payload
-
-**Product Type**:
-A catalog schema that identifies which typed Product Attributes are available for a Product's Variants.
-_Avoid_: Untyped attribute bag, provider Product Type payload
-
-**Cart Policy**:
-A rule based only on Cart data that determines whether the Cart is purchasable as currently composed.
-_Avoid_: Checkout policy
-
-**Cart Policy Violation**:
-A reason the Cart is not purchasable as currently composed.
-_Avoid_: Checkout policy violation
-
-**Checkout State**:
-The derived view of Checkout progress and available actions for the current Cart.
-_Avoid_: Stored checkout, checkout aggregate
-
-**Checkout Read Schema**:
-The structural shape that can represent ordinary incomplete Checkout.
-_Avoid_: Completed checkout schema
-
-**Checkout Action Schema**:
-The stricter structural shape required to perform a Checkout action.
-_Avoid_: Checkout state schema
-
-**Checkout Detail**:
-A current detail used to evaluate Checkout, either saved on the Cart or derived for the current Cart.
-_Avoid_: Option list, choice catalog
-
-**Checkout Mutation**:
-An action that saves cart-backed checkout details without owning Checkout State.
-_Avoid_: Checkout state update
-
-**Checkout Mutation Failure**:
-A typed reason a Checkout Mutation could not save its requested details.
-_Avoid_: Exception, generic error
-
-**Commerce Principal**:
-The verified commerce identity resolved for a request: anonymous Cart possession or an authenticated Customer acting in a verified Business Unit.
-_Avoid_: HTTP headers, Checkout Scope, Registration Actor
-
-**Commerce Context Request**:
-The trusted Store and buyer selectors decoded at a request boundary before provider-backed commerce identity is resolved. An authenticated request carries a verified Auth User ID and may carry a requested Business Unit ID; it never accepts a Customer ID as authority.
-_Avoid_: Resolved principal, raw headers, auth session
-
-**Commerce Context**:
-The current Store and verified Commerce Principal under which commerce activity occurs.
-_Avoid_: Commerce Request Context, auth session, raw request, Checkout Scope
-
-**Checkout Scope**:
-The value object that identifies which storefront Checkout context is being evaluated, such as anonymous checkout for a locale/cart or customer checkout for a locale/customer.
-_Avoid_: HTTP headers, cookie bag, auth session
-
-**Current Checkout Scope**:
-A request-scoped Effect context value supplied by an adapter or middleware when transport context has already been resolved.
-_Avoid_: Checkout capability, persistent session
-
-**CheckoutSession**:
-The public Effect Service for Checkout use-case programs.
-_Avoid_: HTTP handler, stored session data
-
-**Checkout Use-Case Program**:
-An externally meaningful Checkout operation exposed by `CheckoutSession`, such as getting current Checkout State or saving Contact.
-_Avoid_: Mapper, decoder, implementation helper
-
-**Checkout State Builder**:
-The internal function that builds `CheckoutState` from already-resolved Checkout inputs.
-_Avoid_: Fetcher, Service, use-case program
-
-**Cart Write Conflict**:
-A Cart persistence failure emitted when conflict recovery is exhausted without exposing a provider revision.
-_Avoid_: Checkout version conflict, provider version
-
-**Checkout Cart Mismatch**:
-A Checkout Mutation Failure caused when the submitted Cart ID differs from the authoritative Cart resolved for the current Checkout context.
-_Avoid_: Version conflict, authorization check
-
-**Checkout Policy**:
-A rule that can block Checkout progress based on the Cart, buyer context, and checkout details.
-_Avoid_: Cart policy
-
-**Checkout Policy Violation**:
-A reason Checkout progress is blocked by a Checkout Policy.
-_Avoid_: Cart issue, policy error
-
-**Violation Target**:
-The part of Checkout or Cart that a policy violation explains.
-_Avoid_: Affected UI element
-
-**Checkout Violation**:
-A normalized violation included in Checkout State, preserving whether it came from Cart Policy or Checkout Policy.
-_Avoid_: Step error
-
-**Checkout Step**:
-A section of Checkout with a completion condition derived from current checkout details.
-_Avoid_: Saved step, persisted step
-
-**Contact**:
-The Checkout Step that establishes how the buyer is known for Checkout.
-_Avoid_: Buyer identification, login step, account step
-
-**Contact Input**:
-A detail or choice submitted to resolve Contact for the current Checkout.
-_Avoid_: Provider payload, form field
-
-**Delivery Details Input**:
-The buyer-submitted choice used to establish the Shipping Address: a manually entered address with optional Address Book save preferences, or an existing Address Book Entry.
-_Avoid_: Resolved Delivery Details, provider address payload
-
-**Contact Source Policy**:
-A rule that determines whether a Contact Source is allowed for the current Checkout.
-_Avoid_: UI-only rule
-
-**Contact Source**:
-The selected strategy for resolving Buyer Contact, such as manual entry or customer profile.
-_Avoid_: Guest, provider field name, field-level provenance
-
-**Store**:
-The commerce selling context in which a buyer browses, owns a Current Cart, and checks out.
-_Avoid_: Locale, sales channel
-
-**Store Key**:
-The stable domain identifier used to select a Store across request and commerce-provider boundaries.
-_Avoid_: Locale, provider Store payload
-
-**Business Unit**:
-A company or company division in which an authenticated Customer may act, directly or through an inherited company hierarchy.
-_Avoid_: Account, provider Business Unit payload
-
-**Business Unit ID**:
-The stable domain identifier used to select a Business Unit. A submitted Business Unit ID is a selector that must be verified against the authenticated Customer's memberships in the current Store.
-_Avoid_: Business Unit authority, Business Unit key
-
-**Business Unit Label**:
-The human-readable name used to present a Business Unit to a buyer. It is display text, not Business Unit identity or authority.
-_Avoid_: Business Unit key, provider name field
-
-**Business Unit Membership**:
-A provider-reported relationship showing that a Customer may act in a Business Unit within a Store, directly or through an inherited hierarchy.
-_Avoid_: Current Buying Context, selected Business Unit
-
-**Buying Context**:
-The verified Business Unit in which an authenticated Customer is currently acting for commerce operations in a Store.
-_Avoid_: Account, unverified company selection
-
-**Buyer Contact**:
-The contact details used for communicating with the buyer during Checkout, whether entered by the buyer or derived from a known buyer.
-_Avoid_: Contact information
-
-**Shipping Address**:
-The delivery destination selected or entered during Checkout.
-Uses **Address Line 1** for the primary address text and optional **Address Line 2** for secondary address text.
-_Avoid_: Shipping information
-
-**Billing Address**:
-The address selected for billing during Payment Options.
-_Avoid_: Shipping Address, payment method
-
-**Address Line 1**:
-The primary postal address line used by Checkout.
-_Avoid_: Street Name, Street Number
-
-**Address Line 2**:
-Optional secondary postal address text used by Checkout.
-_Avoid_: Additional Street Info
-
-**Country Code**:
-An ISO 3166-1 alpha-2 code identifying the Shipping Address country.
-Store or Checkout availability is evaluated separately from structural country-code validity.
-_Avoid_: Country name, arbitrary region string
-
-**Delivery Details Source**:
-The selected strategy for resolving Shipping Address, such as manual entry or address book.
-_Avoid_: Provider address object
-
-**Address Book**:
-The collection of saved company addresses owned by a Business Unit and available to authenticated buyers acting in that Buying Context.
-_Avoid_: Customer address book, Checkout address list
-
-**Current Address Book**:
-The request-scoped Address Book selected from the verified customer and Business Unit Buying Context. Its operations do not accept caller-supplied Customer or Business Unit identity.
-_Avoid_: Checkout address list, submitted address owner
-
-**Address Book Entry**:
-A saved company address together with its Address Types and Default Address Flags.
-_Avoid_: Customer address, Checkout Shipping Address
-
-**Address Book Reference**:
-A reference to the saved Address Book Entry associated with current Delivery Details.
-The Cart still owns a complete Shipping Address snapshot; the reference preserves saved-address identity rather than replacing that value.
-_Avoid_: Copied address book record
-
-**Address Type**:
-The supported use of an Address Book Entry: Shipping, Billing, or both.
-_Avoid_: Address source, provider address list
-
-**Default Address Flag**:
-A marker that identifies an Address Book Entry as the Business Unit default for Shipping or Billing.
-_Avoid_: Address Type
-
-**Active Checkout Step**:
-The single Checkout Step currently open for buyer input.
-_Avoid_: Open step, selected step
-
-**Checkout Step Completion**:
-The derived state that a Checkout Step's completion condition is currently satisfied.
-_Avoid_: Completion flag, saved completion
-
-**Delivery Details**:
-The Checkout Step that establishes the Shipping Address.
-_Avoid_: Contact information, shipping information
-
-**Shipping Options**:
-The Checkout Step where the buyer chooses how the order should be delivered.
-_Avoid_: Delivery options
-
-**Payment Method**:
-The way the buyer will pay or settle the order.
-_Avoid_: Payment arrangement, payment option
-
-**Payment Options**:
-The Checkout Step where the buyer chooses one or more Payment Methods for the order.
-_Avoid_: Payment methods step, payment arrangement
-
-**Review Order**:
-The Checkout Step where the buyer confirms the order before it is placed.
-_Avoid_: Review checkout, order summary
+**Checkout**: The buyer-facing process for completing the information and choices required before placing an order. _Avoid_: Checkout page, checkout wizard
+
+**Cart**: The current collection of products and cart-owned checkout details being prepared for purchase in a Store and, for B2B Checkout, a Business Unit. _Avoid_: Checkout state
+
+**Cart Snapshot**: An observation of a Cart's current semantic state, independent of provider resource revisions and storage representation. _Avoid_: Provider Cart, Cart version
+
+**Current Cart**: The Cart resolved for the buyer's current Store and, for B2B activity, Business Unit Buying Context. The `cart` cookie identifies an anonymous Current Cart. _Avoid_: Cart Session, arbitrary Cart
+
+**Carts**: The process-level Effect Service used by Current Cart for provider-neutral Cart discovery, creation, and persistence programs. _Avoid_: Cart repository, global Cart service
+
+**Commerce Cart Layer**: The Effect Layer that provides Carts for one commerce provider while keeping provider revisions, payloads, and retry mechanics private. _Avoid_: Adapter, repository implementation
+
+**Cart Identity**: The stable identity of a Cart, observable by callers for correlation and stale-form detection but never sufficient to select or authorize the Current Cart. _Avoid_: Cart authority, Cart version
+
+**Product Attribute**: A typed characteristic of a purchasable Product Variant. A provider may source it from Product- or Variant-level storage, but the domain value does not retain that origin. _Avoid_: Provider attribute payload, raw attribute, attribute origin
+
+**Product**: A catalog item that groups shared merchandising information with one or more purchasable Product Variants. A Product is discovered and presented but is not itself purchased. _Avoid_: Provider Product Projection, purchasable Product
+
+**Product Card**: The compact Product projection used in catalog collections and discovery. _Avoid_: Product Summary, Product Card DTO, Product Card component props
+
+**Product Detail**: The complete Product projection used to present and select a purchasable Product Variant. _Avoid_: Product Details DTO, Product page, Provider Product Projection
+
+**Product Variant**: The purchasable Product projection represented by a Cart Line Item, including its effective Product Attributes. _Avoid_: Provider Product and Variant hierarchy
+
+**Default Product Variant**: The Product Variant initially selected when Product Detail is presented. It must be one of the Product Detail's purchasable Product Variants. _Avoid_: Master Variant, first array element
+
+**Product Price**: The price selected for a Product Variant in the current Commerce Context, including an optional discount applied to that selected price. _Avoid_: Price candidates, Customer Group price list, provider price payload
+
+**Product Availability**: Whether a Product Variant can currently be purchased in the Commerce Context, together with an available quantity when the provider can report one. _Avoid_: Supply Channel inventory, stock-record payload, quantity-derived saleability
+
+**Product Option**: A named selection dimension whose values distinguish purchasable Product Variants, such as Model or Color. _Avoid_: Descriptive Product Attribute, provider option type
+
+**Product Category**: A catalog classification used to discover or contextualize Products. _Avoid_: Provider Category payload, CMS Category field
+
+**Product Catalog**: The Products and Product Variants eligible for discovery and purchase in a Store. _Avoid_: Product Selection, sales channel, provider catalog payload
+
+**Product Type**: A catalog schema that identifies which typed Product Attributes are available for a Product's Variants. _Avoid_: Untyped attribute bag, provider Product Type payload
+
+**Cart Policy**: A rule based only on Cart data that determines whether the Cart is purchasable as currently composed. _Avoid_: Checkout policy
+
+**Cart Policy Violation**: A reason the Cart is not purchasable as currently composed. _Avoid_: Checkout policy violation
+
+**Checkout State**: The derived view of Checkout progress and available actions for the current Cart. _Avoid_: Stored checkout, checkout aggregate
+
+**Checkout Read Schema**: The structural shape that can represent ordinary incomplete Checkout. _Avoid_: Completed checkout schema
+
+**Checkout Action Schema**: The stricter structural shape required to perform a Checkout action. _Avoid_: Checkout state schema
+
+**Checkout Detail**: A current detail used to evaluate Checkout, either saved on the Cart or derived for the current Cart. _Avoid_: Option list, choice catalog
+
+**Checkout Mutation**: An action that saves cart-backed checkout details without owning Checkout State. _Avoid_: Checkout state update
+
+**Checkout Mutation Failure**: A typed reason a Checkout Mutation could not save its requested details. _Avoid_: Exception, generic error
+
+**Commerce Principal**: The verified commerce identity resolved for a request: anonymous Cart possession or an authenticated Customer acting in a verified Business Unit. _Avoid_: HTTP headers, Checkout Scope, Registration Actor
+
+**Commerce Context Request**: The trusted Store and buyer selectors decoded at a request boundary before provider-backed commerce identity is resolved. An authenticated request carries a verified Auth User ID and may carry a requested Business Unit ID; it never accepts a Customer ID as authority. _Avoid_: Resolved principal, raw headers, auth session
+
+**Commerce Context**: The current Store and verified Commerce Principal under which commerce activity occurs. _Avoid_: Commerce Request Context, auth session, raw request, Checkout Scope
+
+**Checkout Scope**: The value object that identifies which storefront Checkout context is being evaluated, such as anonymous checkout for a locale/cart or customer checkout for a locale/customer. _Avoid_: HTTP headers, cookie bag, auth session
+
+**Current Checkout Scope**: A request-scoped Effect context value supplied by an adapter or middleware when transport context has already been resolved. _Avoid_: Checkout capability, persistent session
+
+**CheckoutSession**: The public Effect Service for Checkout use-case programs. _Avoid_: HTTP handler, stored session data
+
+**Checkout Use-Case Program**: An externally meaningful Checkout operation exposed by `CheckoutSession`, such as getting current Checkout State or saving Contact. _Avoid_: Mapper, decoder, implementation helper
+
+**Checkout State Builder**: The internal function that builds `CheckoutState` from already-resolved Checkout inputs. _Avoid_: Fetcher, Service, use-case program
+
+**Cart Write Conflict**: A Cart persistence failure emitted when conflict recovery is exhausted without exposing a provider revision. _Avoid_: Checkout version conflict, provider version
+
+**Checkout Cart Mismatch**: A Checkout Mutation Failure caused when the submitted Cart ID differs from the authoritative Cart resolved for the current Checkout context. _Avoid_: Version conflict, authorization check
+
+**Checkout Policy**: A rule that can block Checkout progress based on the Cart, buyer context, and checkout details. _Avoid_: Cart policy
+
+**Checkout Policy Violation**: A reason Checkout progress is blocked by a Checkout Policy. _Avoid_: Cart issue, policy error
+
+**Violation Target**: The part of Checkout or Cart that a policy violation explains. _Avoid_: Affected UI element
+
+**Checkout Violation**: A normalized violation included in Checkout State, preserving whether it came from Cart Policy or Checkout Policy. _Avoid_: Step error
+
+**Checkout Step**: A section of Checkout with a completion condition derived from current checkout details. _Avoid_: Saved step, persisted step
+
+**Contact**: The Checkout Step that establishes how the buyer is known for Checkout. _Avoid_: Buyer identification, login step, account step
+
+**Contact Input**: A detail or choice submitted to resolve Contact for the current Checkout. _Avoid_: Provider payload, form field
+
+**Delivery Details Input**: The buyer-submitted choice used to establish the Shipping Address: a manually entered address with optional Address Book save preferences, or an existing Address Book Entry. _Avoid_: Resolved Delivery Details, provider address payload
+
+**Contact Source Policy**: A rule that determines whether a Contact Source is allowed for the current Checkout. _Avoid_: UI-only rule
+
+**Contact Source**: The selected strategy for resolving Buyer Contact, such as manual entry or customer profile. _Avoid_: Guest, provider field name, field-level provenance
+
+**Store**: The commerce selling context in which a buyer browses, owns a Current Cart, and checks out. _Avoid_: Locale, sales channel
+
+**Store Key**: The stable domain identifier used to select a Store across request and commerce-provider boundaries. _Avoid_: Locale, provider Store payload
+
+**Business Unit**: A company or company division in which an authenticated Customer may act, directly or through an inherited company hierarchy. _Avoid_: Account, provider Business Unit payload
+
+**Business Unit ID**: The stable domain identifier used to select a Business Unit. A submitted Business Unit ID is a selector that must be verified against the authenticated Customer's memberships in the current Store. _Avoid_: Business Unit authority, Business Unit key
+
+**Business Unit Label**: The human-readable name used to present a Business Unit to a buyer. It is display text, not Business Unit identity or authority. _Avoid_: Business Unit key, provider name field
+
+**Business Unit Membership**: A provider-reported relationship showing that a Customer may act in a Business Unit within a Store, directly or through an inherited hierarchy. _Avoid_: Current Buying Context, selected Business Unit
+
+**Buying Context**: The verified Business Unit in which an authenticated Customer is currently acting for commerce operations in a Store. _Avoid_: Account, unverified company selection
+
+**Buyer Contact**: The contact details used for communicating with the buyer during Checkout, whether entered by the buyer or derived from a known buyer. _Avoid_: Contact information
+
+**Shipping Address**: The delivery destination selected or entered during Checkout. Uses **Address Line 1** for the primary address text and optional **Address Line 2** for secondary address text. _Avoid_: Shipping information
+
+**Billing Address**: The address selected for billing during Payment Options. _Avoid_: Shipping Address, payment method
+
+**Address Line 1**: The primary postal address line used by Checkout. _Avoid_: Street Name, Street Number
+
+**Address Line 2**: Optional secondary postal address text used by Checkout. _Avoid_: Additional Street Info
+
+**Country Code**: An ISO 3166-1 alpha-2 code identifying the Shipping Address country. Store or Checkout availability is evaluated separately from structural country-code validity. _Avoid_: Country name, arbitrary region string
+
+**Delivery Details Source**: The selected strategy for resolving Shipping Address, such as manual entry or address book. _Avoid_: Provider address object
+
+**Address Book**: The collection of saved company addresses owned by a Business Unit and available to authenticated buyers acting in that Buying Context. _Avoid_: Customer address book, Checkout address list
+
+**Current Address Book**: The request-scoped Address Book selected from the verified customer and Business Unit Buying Context. Its operations do not accept caller-supplied Customer or Business Unit identity. _Avoid_: Checkout address list, submitted address owner
+
+**Address Book Entry**: A saved company address together with its Address Types and Default Address Flags. _Avoid_: Customer address, Checkout Shipping Address
+
+**Address Book Reference**: A reference to the saved Address Book Entry associated with current Delivery Details. The Cart still owns a complete Shipping Address snapshot; the reference preserves saved-address identity rather than replacing that value. _Avoid_: Copied address book record
+
+**Address Type**: The supported use of an Address Book Entry: Shipping, Billing, or both. _Avoid_: Address source, provider address list
+
+**Default Address Flag**: A marker that identifies an Address Book Entry as the Business Unit default for Shipping or Billing. _Avoid_: Address Type
+
+**Active Checkout Step**: The single Checkout Step currently open for buyer input. _Avoid_: Open step, selected step
+
+**Checkout Step Completion**: The derived state that a Checkout Step's completion condition is currently satisfied. _Avoid_: Completion flag, saved completion
+
+**Delivery Details**: The Checkout Step that establishes the Shipping Address. _Avoid_: Contact information, shipping information
+
+**Shipping Options**: The Checkout Step where the buyer chooses how the order should be delivered. _Avoid_: Delivery options
+
+**Payment Method**: The way the buyer will pay or settle the order. _Avoid_: Payment arrangement, payment option
+
+**Payment Options**: The Checkout Step where the buyer chooses one or more Payment Methods for the order. _Avoid_: Payment methods step, payment arrangement
+
+**Review Order**: The Checkout Step where the buyer confirms the order before it is placed. _Avoid_: Review checkout, order summary
 
 ## Relationships
 
@@ -339,7 +188,7 @@ _Avoid_: Review checkout, order summary
 - A **Checkout State Builder** does not fetch provider data or resolve request context.
 - A **Commerce Context** combines the resolved Store with a verified **Commerce Principal** before Checkout derives **Checkout Scope**.
 - An anonymous **Commerce Principal** may exist without a Cart ID, representing an ordinary guest request with no Current Cart. Access to an existing anonymous Cart is possession-based and requires its request-bound Cart ID.
-- HTTP and Next request adapters construct transport-neutral commerce request values from verified authentication, Store selection, Business Unit selection, and, where relevant, anonymous Cart possession. `CommerceApp.layer` composes stable provider Services. `CommerceApp.provide(request)` adds the request-scoped services needed by Cart and Checkout programs, while `CommerceApp.provideAddressBook(request)` adds only `CommerceContext` and `AddressBook` and therefore requires no Cart cookie adapter. The web app owns one module-level `ManagedRuntime` and exposes `NextCommerce.build` as its terminal Next boundary; HTTP adapters let their outer Effect HTTP handlers own Layer lifecycles. Callers invoke named Service methods and map typed errors to transport responses; no Contact, Address Book, or Delivery Details operation accepts context or scope.
+- HTTP and Next request adapters construct transport-neutral commerce request values from verified authentication, Store selection, Business Unit selection, and, where relevant, anonymous Cart possession. `CommerceApp.layer` composes stable provider Services. `CommerceApp.provide(request)` adds the request-scoped services needed by Cart and Checkout programs, while `CommerceApp.provideAddressBook(request)` adds only `CommerceContext` and `AddressBook` and therefore requires no Cart cookie adapter. The web app owns one module-level `ManagedRuntime`. React Server Component reads execute request-provided programs through `NextCommerce.runPromise`, while Server Action mutations execute shared procedures through `CommerceActions` and `ActionClient`; both resolve the same app-owned runtime and request services. HTTP adapters let their outer Effect HTTP handlers own Layer lifecycles. Callers invoke named Service methods and map typed errors to transport responses; no Contact, Address Book, or Delivery Details operation accepts context or scope.
 - A first-slice **Checkout State** reports current **Checkout Details**, binary step status, active step, and **Checkout Violations**.
 - A first-slice **Checkout State** does not report structured incompletion reasons.
 - Blocking violations in **Checkout State** are global and do not have to belong to a **Checkout Step**.
@@ -439,140 +288,95 @@ _Avoid_: Review checkout, order summary
 
 ## Example Dialogue
 
-> **Dev:** "Should we save that the shipping step is complete?"
-> **Domain expert:** "No — **Checkout Step Completion** is derived from the current checkout details, because address or cart changes can make a completed step incomplete again."
+> **Dev:** "Should we save that the shipping step is complete?" **Domain expert:** "No — **Checkout Step Completion** is derived from the current checkout details, because address or cart changes can make a completed step incomplete again."
 
-> **Dev:** "Does Checkout have its own stored state?"
-> **Domain expert:** "No — **Checkout State** is derived from the current **Cart** and buyer context."
+> **Dev:** "Does Checkout have its own stored state?" **Domain expert:** "No — **Checkout State** is derived from the current **Cart** and buyer context."
 
-> **Dev:** "Does saving Delivery Details return and store a new Checkout State?"
-> **Domain expert:** "No — saving Delivery Details is a **Checkout Mutation**; **Checkout State** is recomputed from the updated **Cart**."
+> **Dev:** "Does saving Delivery Details return and store a new Checkout State?" **Domain expert:** "No — saving Delivery Details is a **Checkout Mutation**; **Checkout State** is recomputed from the updated **Cart**."
 
-> **Dev:** "Is a provider outage a Checkout Policy Violation?"
-> **Domain expert:** "No — provider failures are **Checkout Mutation Failures** when they prevent saving details."
+> **Dev:** "Is a provider outage a Checkout Policy Violation?" **Domain expert:** "No — provider failures are **Checkout Mutation Failures** when they prevent saving details."
 
-> **Dev:** "If the same Delivery Details are submitted twice, should that create duplicate checkout details?"
-> **Domain expert:** "No — replacement-style **Checkout Mutations** are idempotent for the same requested details."
+> **Dev:** "If the same Delivery Details are submitted twice, should that create duplicate checkout details?" **Domain expert:** "No — replacement-style **Checkout Mutations** are idempotent for the same requested details."
 
-> **Dev:** "Can a buyer start Checkout without a Cart?"
-> **Domain expert:** "No — **Checkout** requires an existing non-empty **Cart**."
+> **Dev:** "Can a buyer start Checkout without a Cart?" **Domain expert:** "No — **Checkout** requires an existing non-empty **Cart**."
 
-> **Dev:** "Should we reject an Alaska shipping address if the current cart contains an item that cannot ship to Alaska?"
-> **Domain expert:** "No — save the structurally valid **Shipping Address**, then show the resulting **Checkout Policy Violation** in **Checkout State**."
+> **Dev:** "Should we reject an Alaska shipping address if the current cart contains an item that cannot ship to Alaska?" **Domain expert:** "No — save the structurally valid **Shipping Address**, then show the resulting **Checkout Policy Violation** in **Checkout State**."
 
-> **Dev:** "If Delivery Details are saved but shipping cannot continue because of a policy violation, do we reopen Delivery Details?"
-> **Domain expert:** "No — **Shipping Options** becomes the **Active Checkout Step** and remains incomplete while the blocking violation prevents selecting shipping."
+> **Dev:** "If Delivery Details are saved but shipping cannot continue because of a policy violation, do we reopen Delivery Details?" **Domain expert:** "No — **Shipping Options** becomes the **Active Checkout Step** and remains incomplete while the blocking violation prevents selecting shipping."
 
-> **Dev:** "Does Delivery Details only support manually entered addresses?"
-> **Domain expert:** "No — first design includes **Manual** and **Address Book** as **Delivery Details Sources**."
+> **Dev:** "Does Delivery Details only support manually entered addresses?" **Domain expert:** "No — first design includes **Manual** and **Address Book** as **Delivery Details Sources**."
 
-> **Dev:** "When saving Delivery Details from Address Book, do we submit a copied Shipping Address?"
-> **Domain expert:** "No — submit an **Address Book Reference** and let the save operation resolve the **Shipping Address** for the **Cart**."
+> **Dev:** "When saving Delivery Details from Address Book, do we submit a copied Shipping Address?" **Domain expert:** "No — submit an **Address Book Reference** and let the save operation resolve the **Shipping Address** for the **Cart**."
 
-> **Dev:** "Does Delivery Details completion require preserving the Address Book Reference?"
-> **Domain expert:** "No — completion depends on the resolved **Shipping Address** saved for the **Cart**."
+> **Dev:** "Does Delivery Details completion require preserving the Address Book Reference?" **Domain expert:** "No — completion depends on the resolved **Shipping Address** saved for the **Cart**."
 
-> **Dev:** "If an Address Book Reference resolves to a structurally valid address that violates checkout policy, should Delivery Details still save it?"
-> **Domain expert:** "Yes — save the structurally valid **Shipping Address**, then derive the resulting **Checkout Violation** in **Checkout State**."
+> **Dev:** "If an Address Book Reference resolves to a structurally valid address that violates checkout policy, should Delivery Details still save it?" **Domain expert:** "Yes — save the structurally valid **Shipping Address**, then derive the resulting **Checkout Violation** in **Checkout State**."
 
-> **Dev:** "If an Address Book Reference is stale or inaccessible, should Delivery Details save and remain incomplete?"
-> **Domain expert:** "No — saving **Delivery Details** fails with a **Checkout Mutation Failure** because the **Shipping Address** cannot be resolved."
+> **Dev:** "If an Address Book Reference is stale or inaccessible, should Delivery Details save and remain incomplete?" **Domain expert:** "No — saving **Delivery Details** fails with a **Checkout Mutation Failure** because the **Shipping Address** cannot be resolved."
 
-> **Dev:** "Should Checkout Step status include blocked?"
-> **Domain expert:** "No — first-slice **Checkout Step** status is binary, and the **Active Checkout Step** is the first incomplete step."
+> **Dev:** "Should Checkout Step status include blocked?" **Domain expert:** "No — first-slice **Checkout Step** status is binary, and the **Active Checkout Step** is the first incomplete step."
 
-> **Dev:** "Do blocking violations always belong to a Checkout Step?"
-> **Domain expert:** "No — blocking violations are global in **Checkout State** and can target a **Checkout Step**, a Cart item, or the whole **Cart**."
+> **Dev:** "Do blocking violations always belong to a Checkout Step?" **Domain expert:** "No — blocking violations are global in **Checkout State** and can target a **Checkout Step**, a Cart item, or the whole **Cart**."
 
-> **Dev:** "If two products cannot be purchased together, should both line items always be marked invalid?"
-> **Domain expert:** "No — the violation can target the **Cart** instead of individual line items when the buyer chooses which item to remove."
+> **Dev:** "If two products cannot be purchased together, should both line items always be marked invalid?" **Domain expert:** "No — the violation can target the **Cart** instead of individual line items when the buyer chooses which item to remove."
 
-> **Dev:** "Does a Cart Policy become a Checkout Policy when Checkout shows it?"
-> **Domain expert:** "No — a **Cart Policy Violation** can block Checkout progress, but it remains about the **Cart** being purchasable as composed."
+> **Dev:** "Does a Cart Policy become a Checkout Policy when Checkout shows it?" **Domain expert:** "No — a **Cart Policy Violation** can block Checkout progress, but it remains about the **Cart** being purchasable as composed."
 
-> **Dev:** "Is invoice payment a special arrangement outside payment?"
-> **Domain expert:** "No — invoice terms are a **Payment Method**."
+> **Dev:** "Is invoice payment a special arrangement outside payment?" **Domain expert:** "No — invoice terms are a **Payment Method**."
 
-> **Dev:** "Should the checkout step be called Payment Methods?"
-> **Domain expert:** "No — **Payment Options** is the buyer-facing step; **Payment Methods** are what the buyer selects."
+> **Dev:** "Should the checkout step be called Payment Methods?" **Domain expert:** "No — **Payment Options** is the buyer-facing step; **Payment Methods** are what the buyer selects."
 
-> **Dev:** "If the buyer is already signed in, do we still show **Contact**?"
-> **Domain expert:** "Only if required contact details or buyer context are incomplete; otherwise **Contact** is already complete and Checkout advances to the next incomplete step."
+> **Dev:** "If the buyer is already signed in, do we still show **Contact**?" **Domain expert:** "Only if required contact details or buyer context are incomplete; otherwise **Contact** is already complete and Checkout advances to the next incomplete step."
 
-> **Dev:** "If the buyer is already signed in, should saving Contact fail because the contact details are derived?"
-> **Domain expert:** "No — saving **Contact** can record or replace derived **Buyer Contact** details for the **Cart**, and repeated saves are idempotent."
+> **Dev:** "If the buyer is already signed in, should saving Contact fail because the contact details are derived?" **Domain expert:** "No — saving **Contact** can record or replace derived **Buyer Contact** details for the **Cart**, and repeated saves are idempotent."
 
-> **Dev:** "If an authenticated buyer changes the cart contact email, does that change who the buyer is?"
-> **Domain expert:** "No — **Buyer Contact** is order communication detail; it does not change the authenticated buyer or **Buying Context**."
+> **Dev:** "If an authenticated buyer changes the cart contact email, does that change who the buyer is?" **Domain expert:** "No — **Buyer Contact** is order communication detail; it does not change the authenticated buyer or **Buying Context**."
 
-> **Dev:** "If the buyer profile has an email, but the current Checkout does not yet have required Buyer Contact details, is Contact complete?"
-> **Domain expert:** "No — **Contact** is complete when required **Buyer Contact** details are available to the current **Checkout**, not merely known elsewhere about the buyer."
+> **Dev:** "If the buyer profile has an email, but the current Checkout does not yet have required Buyer Contact details, is Contact complete?" **Domain expert:** "No — **Contact** is complete when required **Buyer Contact** details are available to the current **Checkout**, not merely known elsewhere about the buyer."
 
-> **Dev:** "Is email enough to complete Contact?"
-> **Domain expert:** "No — required **Buyer Contact** details are email address, first name, and last name; phone number is optional."
+> **Dev:** "Is email enough to complete Contact?" **Domain expert:** "No — required **Buyer Contact** details are email address, first name, and last name; phone number is optional."
 
-> **Dev:** "After signing in, what happens to the anonymous Cart?"
-> **Domain expert:** "It remains a Store-only anonymous **Cart**. Authenticated B2B **Checkout** resolves a separate Cart for the Store and **Buying Context** Business Unit."
+> **Dev:** "After signing in, what happens to the anonymous Cart?" **Domain expert:** "It remains a Store-only anonymous **Cart**. Authenticated B2B **Checkout** resolves a separate Cart for the Store and **Buying Context** Business Unit."
 
-> **Dev:** "If Buyer Contact is available after sign-in, but Buying Context is unresolved, can authenticated Checkout start?"
-> **Domain expert:** "No — authenticated B2B **Checkout Scope** requires **Buying Context** so it can select the Cart for the Store and Business Unit."
+> **Dev:** "If Buyer Contact is available after sign-in, but Buying Context is unresolved, can authenticated Checkout start?" **Domain expert:** "No — authenticated B2B **Checkout Scope** requires **Buying Context** so it can select the Cart for the Store and Business Unit."
 
-> **Dev:** "What happens when the authenticated buyer's Buying Context cannot be resolved?"
-> **Domain expert:** "Authenticated B2B **Checkout Scope** cannot be constructed. Checkout does not fall back to or merge the anonymous Cart."
+> **Dev:** "What happens when the authenticated buyer's Buying Context cannot be resolved?" **Domain expert:** "Authenticated B2B **Checkout Scope** cannot be constructed. Checkout does not fall back to or merge the anonymous Cart."
 
-> **Dev:** "Does saving Contact always mean submitting email, first name, and last name fields typed by the buyer?"
-> **Domain expert:** "No — saving **Contact** submits the **Contact Inputs** needed to resolve **Contact**; those inputs can be entered manually or derived from the customer profile."
+> **Dev:** "Does saving Contact always mean submitting email, first name, and last name fields typed by the buyer?" **Domain expert:** "No — saving **Contact** submits the **Contact Inputs** needed to resolve **Contact**; those inputs can be entered manually or derived from the customer profile."
 
-> **Dev:** "Does Checkout State expose profile email choices or address book entries?"
-> **Domain expert:** "No — **Checkout State** is a lean read model of current **Checkout Details**; option lists come from separate capabilities before they are saved to the **Cart**."
+> **Dev:** "Does Checkout State expose profile email choices or address book entries?" **Domain expert:** "No — **Checkout State** is a lean read model of current **Checkout Details**; option lists come from separate capabilities before they are saved to the **Cart**."
 
-> **Dev:** "Should Checkout State fail schema decoding when Contact is incomplete?"
-> **Domain expert:** "No — the **Checkout Read Schema** can represent ordinary incomplete **Checkout**; stricter **Checkout Action Schemas** enforce details required by specific actions."
+> **Dev:** "Should Checkout State fail schema decoding when Contact is incomplete?" **Domain expert:** "No — the **Checkout Read Schema** can represent ordinary incomplete **Checkout**; stricter **Checkout Action Schemas** enforce details required by specific actions."
 
-> **Dev:** "Should Checkout State explain why every incomplete step is incomplete?"
-> **Domain expert:** "Not in the first slice — first-slice **Checkout State** reports step status and current details, not structured incompletion reasons."
+> **Dev:** "Should Checkout State explain why every incomplete step is incomplete?" **Domain expert:** "Not in the first slice — first-slice **Checkout State** reports step status and current details, not structured incompletion reasons."
 
-> **Dev:** "After saving Contact, do we record a source for each contact field?"
-> **Domain expert:** "No — **Contact Source** is the selected strategy for resolving **Buyer Contact**, not field-level provenance."
+> **Dev:** "After saving Contact, do we record a source for each contact field?" **Domain expert:** "No — **Contact Source** is the selected strategy for resolving **Buyer Contact**, not field-level provenance."
 
-> **Dev:** "Can Buying Context be a Contact Source?"
-> **Domain expert:** "No — **Buying Context** may be required for authenticated B2B **Checkout**, but it is not a **Contact Source** for **Buyer Contact**."
+> **Dev:** "Can Buying Context be a Contact Source?" **Domain expert:** "No — **Buying Context** may be required for authenticated B2B **Checkout**, but it is not a **Contact Source** for **Buyer Contact**."
 
-> **Dev:** "Should the buyer-entered Contact Source be called Guest?"
-> **Domain expert:** "No — the **Contact Source** is **Manual**; guest describes buyer mode, not how **Buyer Contact** is resolved."
+> **Dev:** "Should the buyer-entered Contact Source be called Guest?" **Domain expert:** "No — the **Contact Source** is **Manual**; guest describes buyer mode, not how **Buyer Contact** is resolved."
 
-> **Dev:** "Can Customer Profile Contact Source include a manual email override?"
-> **Domain expert:** "Not now — **Contact Source** resolves a complete **Buyer Contact**; partial overrides are not part of the current Contact language."
+> **Dev:** "Can Customer Profile Contact Source include a manual email override?" **Domain expert:** "Not now — **Contact Source** resolves a complete **Buyer Contact**; partial overrides are not part of the current Contact language."
 
-> **Dev:** "If Customer Profile is selected but the profile lacks a required contact detail, should Contact save and remain incomplete?"
-> **Domain expert:** "No — saving **Contact** fails with a **Checkout Mutation Failure** because the selected **Contact Source** cannot resolve required **Buyer Contact**."
+> **Dev:** "If Customer Profile is selected but the profile lacks a required contact detail, should Contact save and remain incomplete?" **Domain expert:** "No — saving **Contact** fails with a **Checkout Mutation Failure** because the selected **Contact Source** cannot resolve required **Buyer Contact**."
 
-> **Dev:** "Should Checkout State include every possible Contact Source option?"
-> **Domain expert:** "No — **Checkout State** reports whether the current **Contact Source** satisfies **Contact**; selectable options are not owned by **Checkout State** until saved."
+> **Dev:** "Should Checkout State include every possible Contact Source option?" **Domain expert:** "No — **Checkout State** reports whether the current **Contact Source** satisfies **Contact**; selectable options are not owned by **Checkout State** until saved."
 
-> **Dev:** "If the store later disallows Manual Contact Source for authenticated customers, do older carts need a migration?"
-> **Domain expert:** "No — **Checkout State** is derived again from current details and **Contact Source Policy** results."
+> **Dev:** "If the store later disallows Manual Contact Source for authenticated customers, do older carts need a migration?" **Domain expert:** "No — **Checkout State** is derived again from current details and **Contact Source Policy** results."
 
-> **Dev:** "If a client submits Manual Contact Source when Manual is not allowed, should Checkout save it and show a policy violation?"
-> **Domain expert:** "No — saving **Contact** fails with a **Checkout Mutation Failure** because the selected **Contact Source** is not allowed."
+> **Dev:** "If a client submits Manual Contact Source when Manual is not allowed, should Checkout save it and show a policy violation?" **Domain expert:** "No — saving **Contact** fails with a **Checkout Mutation Failure** because the selected **Contact Source** is not allowed."
 
-> **Dev:** "If a cart already has Manual Buyer Contact and Manual later becomes disallowed, is Contact still complete?"
-> **Domain expert:** "No — the previously saved **Contact Source** no longer satisfies **Contact**, and **Checkout State** reports **Contact** as incomplete."
+> **Dev:** "If a cart already has Manual Buyer Contact and Manual later becomes disallowed, is Contact still complete?" **Domain expert:** "No — the previously saved **Contact Source** no longer satisfies **Contact**, and **Checkout State** reports **Contact** as incomplete."
 
-> **Dev:** "Is disallowed Manual Contact Source a Checkout Policy Violation?"
-> **Domain expert:** "No — it is represented as **Contact** incompletion, not as a **Checkout Policy Violation**."
+> **Dev:** "Is disallowed Manual Contact Source a Checkout Policy Violation?" **Domain expert:** "No — it is represented as **Contact** incompletion, not as a **Checkout Policy Violation**."
 
-> **Dev:** "Should Checkout State keep Cart Policy Violations and Checkout Policy Violations in separate lists?"
-> **Domain expert:** "No — **Checkout State** includes one global list of **Checkout Violations**, while preserving whether each violation came from **Cart Policy** or **Checkout Policy**."
+> **Dev:** "Should Checkout State keep Cart Policy Violations and Checkout Policy Violations in separate lists?" **Domain expert:** "No — **Checkout State** includes one global list of **Checkout Violations**, while preserving whether each violation came from **Cart Policy** or **Checkout Policy**."
 
-> **Dev:** "Do first-slice Checkout Violations need warning/advisory severity?"
-> **Domain expert:** "No — first-slice **Checkout Violations** are blocking."
+> **Dev:** "Do first-slice Checkout Violations need warning/advisory severity?" **Domain expert:** "No — first-slice **Checkout Violations** are blocking."
 
-> **Dev:** "Is signing in enough for B2B Checkout?"
-> **Domain expert:** "No — **Contact** also needs the **Buying Context** the buyer is acting within."
+> **Dev:** "Is signing in enough for B2B Checkout?" **Domain expert:** "No — **Contact** also needs the **Buying Context** the buyer is acting within."
 
-> **Dev:** "Can the buyer switch Buying Context during Checkout?"
-> **Domain expert:** "Yes — changing **Buying Context** changes the **Current Cart**, so Checkout must be rebuilt for the new context. Another active **Cart** yields its Checkout; no active **Cart** means Checkout is unavailable. Previously shown Checkout State must never be reused."
+> **Dev:** "Can the buyer switch Buying Context during Checkout?" **Domain expert:** "Yes — changing **Buying Context** changes the **Current Cart**, so Checkout must be rebuilt for the new context. Another active **Cart** yields its Checkout; no active **Cart** means Checkout is unavailable. Previously shown Checkout State must never be reused."
 
 ## Flagged Ambiguities
 

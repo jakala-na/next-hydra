@@ -2,12 +2,9 @@
 
 import { useTranslations } from "@repo/i18n";
 import { useActionState } from "react";
+
 import type { BuyerContact, CheckoutContactSource } from "../domain/checkout";
-import { checkoutActionErrorMessageKey } from "./action-error";
-import {
-  initialSaveCheckoutContactActionState,
-  type SaveCheckoutContactAction,
-} from "./save-contact-state";
+import type { SaveCheckoutContactAction } from "./action-contract";
 
 export function CheckoutContactForm({
   buyerContact,
@@ -21,10 +18,12 @@ export function CheckoutContactForm({
   readonly source: CheckoutContactSource;
 }) {
   const t = useTranslations("web.checkout");
-  const [actionState, formAction, isPending] = useActionState(
+  const [actionResult, formAction, isPending] = useActionState(
     saveAction,
-    initialSaveCheckoutContactActionState
+    null
   );
+  const actionFailure =
+    actionResult?._tag === "Failure" ? actionResult.failure : undefined;
   let submitLabel = t("contact.actions.save");
 
   if (source === "customerProfile") {
@@ -38,15 +37,15 @@ export function CheckoutContactForm({
     <form action={formAction} className="grid gap-4">
       <input name="cartId" type="hidden" value={cartId} />
       <input name="source" type="hidden" value={source} />
-      {actionState.status === "error" ? (
+      {actionFailure === undefined ? null : (
         <p
           aria-live="polite"
           className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive text-sm"
           role="alert"
         >
-          {t(checkoutActionErrorMessageKey[actionState.code])}
+          {actionFailure.displayMessage}
         </p>
-      ) : null}
+      )}
       {source === "manual" ? (
         <>
           <div className="grid gap-2">

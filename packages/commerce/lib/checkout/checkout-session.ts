@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Option, Random, Redacted } from "effect";
+
 import {
   type AddressBookEntry,
   type AddressBookProviderFailure,
@@ -22,6 +23,7 @@ import {
   type CheckoutDeliveryDetailsInput,
   CheckoutMutationAddressBookEntryUnavailable,
   type CheckoutMutationFailure,
+  CheckoutMutationIssue,
   CheckoutMutationProviderFailure,
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
@@ -87,6 +89,12 @@ const contactSourceUnavailable = (source: CheckoutContactSource) =>
 
 const requiredFieldError = (field: keyof CheckoutContact["buyerContact"]) =>
   new CheckoutMutationSchemaFailure({
+    issues: [
+      new CheckoutMutationIssue({
+        message: `Manual Contact ${field} is required`,
+        path: field,
+      }),
+    ],
     message: `Manual Contact ${field} is required`,
   });
 
@@ -132,6 +140,12 @@ const normalizeManualContact = (
 
 const customerProfileRequiredFieldError = (field: keyof BuyerContact) =>
   new CheckoutMutationSchemaFailure({
+    issues: [
+      new CheckoutMutationIssue({
+        message: `Customer Profile Contact ${field} is required`,
+        path: field,
+      }),
+    ],
     message: `Customer Profile Contact ${field} is required`,
   });
 
@@ -211,6 +225,12 @@ const requiredShippingAddressFieldError = (
   field: keyof CheckoutDeliveryDetails["shippingAddress"]
 ) =>
   new CheckoutMutationSchemaFailure({
+    issues: [
+      new CheckoutMutationIssue({
+        message: `Manual Shipping Address ${field} is required`,
+        path: field,
+      }),
+    ],
     message: `Manual Shipping Address ${field} is required`,
   });
 

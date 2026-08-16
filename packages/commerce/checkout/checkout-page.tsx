@@ -1,15 +1,27 @@
 import "server-only";
-
 import { NextCommerce } from "@repo/commerce/runtime";
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
 import { notFound } from "next/navigation";
+
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import { AddressBook } from "../services/address-book";
-import { saveCheckoutContact, saveCheckoutDeliveryDetails } from "./actions";
+import type {
+  SaveCheckoutContactAction,
+  SaveCheckoutDeliveryDetailsAction,
+} from "./action-contract";
 import { CheckoutView } from "./checkout-view";
 
-export async function CheckoutPage({ locale }: { readonly locale: Locale }) {
+export async function CheckoutPage({
+  actions,
+  locale,
+}: {
+  readonly actions: {
+    readonly saveContact: SaveCheckoutContactAction;
+    readonly saveDeliveryDetails: SaveCheckoutDeliveryDetailsAction;
+  };
+  readonly locale: Locale;
+}) {
   const pageData = await NextCommerce.runPromise(
     Effect.gen(function* () {
       const state = yield* CheckoutSession.getCurrent().pipe(
@@ -51,8 +63,8 @@ export async function CheckoutPage({ locale }: { readonly locale: Locale }) {
   return (
     <CheckoutView
       actions={{
-        saveContact: saveCheckoutContact,
-        saveDeliveryDetails: saveCheckoutDeliveryDetails,
+        saveContact: actions.saveContact,
+        saveDeliveryDetails: actions.saveDeliveryDetails,
       }}
       locale={locale}
       shippingAddressOptions={pageData.shippingAddressOptions}

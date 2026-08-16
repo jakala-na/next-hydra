@@ -476,7 +476,7 @@ test("POST /registrations rejects unsupported storefront locales", async () => {
   }
 });
 
-test("POST /registrations treats preflight provider failures as internal defects", async () => {
+test("POST /registrations maps preflight provider failures to the typed internal error", async () => {
   workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
   const api = makeApiLayer([], {
     hasCustomerWithEmailFailure: new CommerceAccountError({
@@ -490,18 +490,21 @@ test("POST /registrations treats preflight provider failures as internal defects
       request("POST", "/registrations", registrationPayload),
       emptyContext()
     );
-    const body = await response.text();
+    const body = await response.json();
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
-    expect(body).not.toContain("RegistrationApiError");
-    expect(body).not.toContain("CommerceAccountError");
+    expect(body).toEqual({
+      _tag: "RegistrationApiError",
+      message: "The registration service is temporarily unavailable.",
+    });
+    expect(JSON.stringify(body)).not.toContain("Commercetools unavailable");
     expect(workflowApiMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
-test("POST /registrations treats workflow start failures as internal defects", async () => {
+test("POST /registrations maps workflow start failures to the typed internal error", async () => {
   workflowApiMocks.start.mockRejectedValue(new Error("workflow unavailable"));
   const api = makeApiLayer();
   const { dispose, handler } = await makeHandler(api.layer);
@@ -511,11 +514,14 @@ test("POST /registrations treats workflow start failures as internal defects", a
       request("POST", "/registrations", registrationPayload),
       emptyContext()
     );
-    const body = await response.text();
+    const body = await response.json();
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
-    expect(body).not.toContain("RegistrationApiError");
-    expect(body).not.toContain("workflow unavailable");
+    expect(body).toEqual({
+      _tag: "RegistrationApiError",
+      message: "The registration service is temporarily unavailable.",
+    });
+    expect(JSON.stringify(body)).not.toContain("workflow unavailable");
     expect(api.registrations.size).toBe(1);
   } finally {
     await dispose();

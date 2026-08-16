@@ -1,12 +1,17 @@
 export {
   type ApproveRegistrationInput as ApproveRegistrationViewInput,
+  ApproveRegistrationInputSchema,
   canDecideRegistration,
   DecisionFormSchema,
   type DecisionFormValues,
   getRegistrationDecisionUnavailableMessage,
-  type RegistrationDecisionResult,
+  type RegistrationDecisionActionFailure,
+  RegistrationDecisionActionError,
+  RegistrationDecisionResult,
+  RegistrationDecisionSuccess,
   type RegistrationDetailView,
   type RejectRegistrationInput as RejectRegistrationViewInput,
+  RejectRegistrationInputSchema,
   registrationStatusFilters,
   registrationStatusLabels,
   toRegistrationDetailView,
@@ -15,12 +20,19 @@ export { registrationFormInputToDetails } from "./components/registration-form-d
 export {
   getCountryOptions,
   makeRegistrationFormInputSchema,
-  type RegistrationFormError,
-  type RegistrationFormFieldError,
+  REGISTRATION_FORM_FIELD_PATHS,
+  RegistrationFormError,
+  RegistrationFormFailure,
   type RegistrationFormInput,
   RegistrationFormInputSchema,
+  RegistrationFormIssue,
+  RegistrationFormIssuePath,
+  RegistrationFormMessageKey,
   type RegistrationFormResult,
-  type RegistrationFormValidationErrorCode,
+  RegistrationFormResultSchema,
+  RegistrationFormSuccess,
+  RegistrationSubmissionUnavailable,
+  type RegistrationFormTranslator,
   type RegistrationFormValues,
   requiresRegion,
 } from "./components/registration-form-schema";
@@ -77,6 +89,14 @@ export {
   RevokedInvitation,
   RevokedRegistrationInvitation,
 } from "./domain/invitations";
+export {
+  DuplicateRegistrationEmail,
+  InvalidRegistrationVatId,
+  RegistrationIntakeFieldPath,
+  RegistrationIntakeValidationError,
+  RegistrationIntakeValidationReason,
+  UnsupportedRegistrationCountry,
+} from "./domain/registration-intake-validation";
 export {
   ApprovedRegistration,
   AwaitingApprovalRegistration,
@@ -149,13 +169,8 @@ export {
 } from "./programs/company-member-invitations";
 export {
   checkRegistrationEligibility,
-  DuplicateRegistrationEmail,
-  InvalidRegistrationVatId,
-  RegistrationIntakeValidationError,
-  RegistrationIntakeValidationReason,
   type SubmitRegistrationForReviewInput,
   submitRegistrationForReview,
-  UnsupportedRegistrationCountry,
 } from "./programs/registration-intake";
 export {
   type NotifyRegistrationInput,

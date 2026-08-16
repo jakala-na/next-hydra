@@ -261,12 +261,6 @@
         "badRequest": "La richiesta di checkout non è valida.",
         "cartMismatch": "Questo checkout non è più aggiornato. Aggiorna la pagina e riprova.",
         "internal": "Impossibile completare il checkout. Riprova.",
-        "contact": {
-          "invalidInput": "Inserisci e-mail, nome e cognome.",
-          "sourceUnavailable": "Questa origine del contatto non è disponibile per questo checkout.",
-          "providerFailure": "Impossibile salvare il contatto. Riprova.",
-          "unsupported": "Questa origine del contatto non è ancora supportata."
-        },
         "deliveryDetails": {
           "addressBookEntryUnavailable": "Questo indirizzo salvato non è più disponibile.",
           "invalidInput": "Inserisci indirizzo, codice postale, città e paese.",
@@ -275,7 +269,32 @@
           "unsupported": "Questa origine di consegna non è ancora supportata."
         },
         "notFound": "Checkout non trovato per questa richiesta.",
-        "versionConflict": "Il checkout è cambiato prima del salvataggio. Aggiorna la pagina e riprova."
+        "versionConflict": "Il checkout è cambiato prima del salvataggio. Aggiorna la pagina e riprova.",
+        "saveContact": {
+          "CheckoutCartMismatch": "Questo checkout non è più aggiornato. Aggiorna la pagina e riprova.",
+          "CheckoutMutationSchemaFailure": "Inserisci e-mail, nome e cognome.",
+          "CheckoutMutationSourceUnavailable": "Questa origine del contatto non è disponibile per questo checkout.",
+          "CheckoutMutationProviderFailure": "Impossibile salvare il contatto. Riprova.",
+          "CommerceAccountError": "Impossibile salvare il contatto. Riprova.",
+          "CommerceRequestFailure": "Impossibile salvare il contatto. Riprova.",
+          "CheckoutMutationUnsupported": "Questa origine del contatto non è ancora supportata.",
+          "CheckoutUnavailable": "Checkout non trovato per questa richiesta.",
+          "CommerceRequestContextNotFound": "Checkout non trovato per questa richiesta.",
+          "CheckoutVersionConflict": "Il checkout è cambiato prima del salvataggio. Aggiorna la pagina e riprova."
+        },
+        "saveDeliveryDetails": {
+          "CheckoutCartMismatch": "Questo checkout non è più aggiornato. Aggiorna la pagina e riprova.",
+          "CheckoutMutationAddressBookEntryUnavailable": "Questo indirizzo salvato non è più disponibile.",
+          "CheckoutMutationSchemaFailure": "Inserisci indirizzo, codice postale, città e paese.",
+          "CheckoutMutationSourceUnavailable": "Questa origine di consegna non è disponibile per questo checkout.",
+          "CheckoutMutationProviderFailure": "Impossibile salvare i dettagli di consegna. Riprova.",
+          "CommerceAccountError": "Impossibile salvare i dettagli di consegna. Riprova.",
+          "CommerceRequestFailure": "Impossibile salvare i dettagli di consegna. Riprova.",
+          "CheckoutMutationUnsupported": "Questa origine di consegna non è ancora supportata.",
+          "CheckoutUnavailable": "Checkout non trovato per questa richiesta.",
+          "CommerceRequestContextNotFound": "Checkout non trovato per questa richiesta.",
+          "CheckoutVersionConflict": "Il checkout è cambiato prima del salvataggio. Aggiorna la pagina e riprova."
+        }
       },
       "violations": {
         "unknownCountry": "questa destinazione",

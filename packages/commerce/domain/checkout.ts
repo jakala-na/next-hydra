@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+
 import { CommerceLocale } from "../store";
 import { Address } from "./address";
 import { AddressBookReference } from "./address-book";
@@ -253,9 +254,37 @@ export class CheckoutProviderFailure extends Schema.TaggedErrorClass<CheckoutPro
   }
 ) {}
 
+export const CheckoutMutationIssuePath = Schema.Literals([
+  "root",
+  "addressLine1",
+  "addressLine2",
+  "cartId",
+  "city",
+  "country",
+  "deliveryAddressChoice",
+  "email",
+  "firstName",
+  "lastName",
+  "makeDefaultShipping",
+  "phoneNumber",
+  "postalCode",
+  "region",
+  "saveToAddressBook",
+  "source",
+]);
+export type CheckoutMutationIssuePath = typeof CheckoutMutationIssuePath.Type;
+
+export class CheckoutMutationIssue extends Schema.Class<CheckoutMutationIssue>(
+  "CheckoutMutationIssue"
+)({
+  message: Schema.String,
+  path: CheckoutMutationIssuePath,
+}) {}
+
 export class CheckoutMutationSchemaFailure extends Schema.TaggedErrorClass<CheckoutMutationSchemaFailure>()(
   "CheckoutMutationSchemaFailure",
   {
+    issues: Schema.NonEmptyArray(CheckoutMutationIssue),
     message: Schema.String,
   }
 ) {}
@@ -323,7 +352,13 @@ export const CheckoutMutationFailure = Schema.Union([
 ]);
 export type CheckoutMutationFailure = typeof CheckoutMutationFailure.Type;
 
-export type CheckoutContactMutationFailure = Exclude<
-  CheckoutMutationFailure,
-  CheckoutMutationAddressBookEntryUnavailable
->;
+export const CheckoutContactMutationFailure = Schema.Union([
+  CheckoutMutationSchemaFailure,
+  CheckoutMutationSourceUnavailable,
+  CheckoutCartMismatch,
+  CheckoutVersionConflict,
+  CheckoutMutationProviderFailure,
+  CheckoutMutationUnsupported,
+]);
+export type CheckoutContactMutationFailure =
+  typeof CheckoutContactMutationFailure.Type;

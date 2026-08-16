@@ -18,11 +18,7 @@ import {
   SheetTitle,
 } from "@repo/design-system/components/ui/sheet";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import {
-  type ReactHookFormActionErrorMessages,
-  setReactHookFormActionErrors,
-  setReactHookFormRootError,
-} from "@repo/form/react-hook-form";
+import { setReactHookFormRootError } from "@repo/form/react-hook-form";
 import { Schema } from "effect";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
@@ -30,6 +26,7 @@ import { useEffect, useState } from "react";
 import type { SubmitHandler } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+
 import {
   canDecideRegistration,
   getRegistrationDecisionUnavailableMessage,
@@ -40,7 +37,7 @@ import {
   type ApproveRegistrationInput,
   DecisionFormSchema,
   type DecisionFormValues,
-  type RegistrationDecisionFormErrorCode,
+  type RegistrationDecisionActionFailure,
   type RegistrationDecisionResult,
   type RegistrationDetailView,
   type RejectRegistrationInput,
@@ -82,6 +79,41 @@ const getAddress = (registration: RegistrationDetailView) =>
     .filter((value): value is string => Boolean(value))
     .join(", ");
 
+const getDecisionErrorMessage = (error: RegistrationDecisionActionFailure) => {
+  switch (error._tag) {
+    case "RegistrationApiNotFound": {
+      return "This registration could not be found anymore.";
+    }
+    case "RegistrationAlreadyApproved": {
+      return "This registration has already been approved.";
+    }
+    case "RegistrationAlreadyRejected": {
+      return "This registration has already been rejected.";
+    }
+    case "RegistrationDecisionConflict": {
+      return "This registration changed while you were reviewing it. Refresh and try again.";
+    }
+    case "RegistrationDecisionAlreadyProcessing": {
+      return "This registration decision is already being processed.";
+    }
+    case "RegistrationApiUnauthorized": {
+      return "Sign in again before saving this decision.";
+    }
+    case "RegistrationApiForbidden": {
+      return "You no longer have permission to save registration decisions.";
+    }
+    case "ActionInputInvalid": {
+      return "Review the decision and try again.";
+    }
+    case "RegistrationDecisionUnavailable": {
+      return "The decision could not be saved. Please try again.";
+    }
+    default: {
+      return error satisfies never;
+    }
+  }
+};
+
 export function RegistrationDecisionSheet({
   approve,
   closeHref,
@@ -102,22 +134,6 @@ export function RegistrationDecisionSheet({
   });
   const submitError = form.formState.errors.root?.serverError?.message;
   const isSubmitting = form.formState.isSubmitting;
-  const actionErrorMessages = {
-    field: {},
-    form: {
-      registrationAlreadyApproved:
-        "This registration has already been approved.",
-      registrationAlreadyRejected:
-        "This registration has already been rejected.",
-      registrationDecisionAlreadyProcessing:
-        "This registration decision is already being processed.",
-      registrationNotFound: "This registration could not be found anymore.",
-    },
-  } satisfies ReactHookFormActionErrorMessages<
-    never,
-    RegistrationDecisionFormErrorCode
-  >;
-
   useEffect(() => {
     setIsOpen(Boolean(registrationId));
     form.clearErrors("root");
@@ -141,43 +157,39 @@ export function RegistrationDecisionSheet({
     async (values) => {
       form.clearErrors("root");
 
-      try {
-        const action = decision === "approved" ? approve : reject;
+      const action = decision === "approved" ? approve : reject;
 
-        if (!action) {
-          setReactHookFormRootError(form, "This decision is not available.");
+      if (!action) {
+        setReactHookFormRootError(form, "This decision is not available.");
+        return;
+      }
+
+      const result = await action({
+        registrationId: registration.registrationId,
+        ...(values.reason ? { reason: values.reason } : {}),
+      });
+
+      switch (result._tag) {
+        case "Success":
+          form.clearErrors("root");
+          form.reset({ reason: "" });
+          setIsOpen(false);
+          toast.success(
+            `Registration ${registrationStatusLabels[
+              result.success.registrationStatus
+            ].toLowerCase()}.`
+          );
+          router.replace(closeHref as Route);
+          router.refresh();
           return;
-        }
-
-        const result = await action({
-          registrationId: registration.registrationId,
-          ...(values.reason ? { reason: values.reason } : {}),
-        });
-
-        switch (result.status) {
-          case "accepted":
-            form.clearErrors("root");
-            form.reset({ reason: "" });
-            setIsOpen(false);
-            toast.success(
-              `Registration ${registrationStatusLabels[
-                result.registrationStatus
-              ].toLowerCase()}.`
-            );
-            router.replace(closeHref as Route);
-            router.refresh();
-            return;
-          case "invalid":
-            setReactHookFormActionErrors(form, result, actionErrorMessages);
-            return;
-          default:
-            result satisfies never;
-        }
-      } catch {
-        setReactHookFormRootError(
-          form,
-          "The decision could not be saved. Please try again."
-        );
+        case "Failure":
+          setReactHookFormRootError(
+            form,
+            getDecisionErrorMessage(result.failure)
+          );
+          return;
+        default:
+          result satisfies never;
       }
     };
 

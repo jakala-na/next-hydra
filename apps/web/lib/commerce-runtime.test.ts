@@ -6,12 +6,19 @@ import {
 import { decodeAnonymousCartCookie } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
-import { Effect } from "effect";
+import { Effect, Logger, Schema } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextCommerce } from "./commerce-runtime";
+
+import { AppRuntime } from "./app-runtime";
+import {
+  CommerceActions,
+  NextCommerce,
+  type NextCommerceRequestError,
+} from "./commerce-runtime";
 
 const request = vi.hoisted(() => ({
   authUserId: undefined as string | undefined,
+  commerceAccountFailure: undefined as Error | undefined,
   connection: vi.fn(async () => undefined),
   cookies: new Map<string, string>(),
   deleteCookie: vi.fn(),
@@ -35,11 +42,12 @@ vi.mock("next/headers", () => ({
   }),
 }));
 vi.mock("@repo/commerce-provider/provider", async () => {
+  const { Effect: ProviderEffect, Layer: ProviderLayer } =
+    await import("effect");
   const { AddressBook } = await import("@repo/commerce/services/address-book");
   const { Carts } = await import("@repo/commerce/services/carts");
-  const { CommerceAccounts } = await import(
-    "@repo/commerce/services/commerce-accounts"
-  );
+  const { CommerceAccountError, CommerceAccounts } =
+    await import("@repo/commerce/services/commerce-accounts");
   const { ProductDiscovery } = await import("@repo/commerce/product");
   const {
     CommerceBusinessUnitId,
@@ -48,36 +56,55 @@ vi.mock("@repo/commerce-provider/provider", async () => {
     CommerceBusinessUnitMembership,
     CommerceCustomerId,
   } = await import("@repo/commerce/domain/commerce-account");
-  const { AuthUserId } = await import(
-    "@repo/commerce/domain/commerce-request-context"
-  );
+  const { AuthUserId } =
+    await import("@repo/commerce/domain/commerce-request-context");
   const { StoreKey } = await import("@repo/commerce/store");
   const authUserId = AuthUserId.make("auth-user-1");
   const customerId = CommerceCustomerId.make("customer-1");
+  const memoryAccountsLayer = CommerceAccounts.layerMemoryFrom({
+    businessUnitMemberships: ["business-unit-1", "business-unit-2"].map(
+      (id) => ({
+        customerId,
+        membership: new CommerceBusinessUnitMembership({
+          businessUnitId: CommerceBusinessUnitId.make(id),
+          businessUnitKey: CommerceBusinessUnitKey.make(`${id}-key`),
+          businessUnitLabel: CommerceBusinessUnitLabel.make(id),
+        }),
+        storeKey: StoreKey.make("default-store"),
+      })
+    ),
+    customers: [{ authUserId, customerId }],
+  });
 
   return {
     addressBookLayer: AddressBook.layerMemory(),
     cartsLayer: Carts.layerMemory(),
-    commerceAccountsLayer: CommerceAccounts.layerMemoryFrom({
-      businessUnitMemberships: ["business-unit-1", "business-unit-2"].map(
-        (id) => ({
-          customerId,
-          membership: new CommerceBusinessUnitMembership({
-            businessUnitId: CommerceBusinessUnitId.make(id),
-            businessUnitKey: CommerceBusinessUnitKey.make(`${id}-key`),
-            businessUnitLabel: CommerceBusinessUnitLabel.make(id),
-          }),
-          storeKey: StoreKey.make("default-store"),
-        })
-      ),
-      customers: [{ authUserId, customerId }],
-    }),
+    commerceAccountsLayer: ProviderLayer.effect(
+      CommerceAccounts,
+      CommerceAccounts.pipe(
+        ProviderEffect.map((accounts) =>
+          CommerceAccounts.of({
+            ...accounts,
+            getCustomerIdByAuthUserId: (requestedAuthUserId) =>
+              request.commerceAccountFailure === undefined
+                ? accounts.getCustomerIdByAuthUserId(requestedAuthUserId)
+                : ProviderEffect.fail(
+                    new CommerceAccountError({
+                      cause: request.commerceAccountFailure,
+                      message: "Failed to resolve Commerce account",
+                    })
+                  ),
+          })
+        )
+      )
+    ).pipe(ProviderLayer.provide(memoryAccountsLayer)),
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   };
 });
 
 beforeEach(() => {
   request.authUserId = undefined;
+  request.commerceAccountFailure = undefined;
   request.locale = "en-US";
   request.connection.mockClear();
   request.cookies.clear();
@@ -150,25 +177,60 @@ describe("Next Commerce request adapter", () => {
     });
   });
 
-  it("builds a Next handler with request provision and terminal execution", async () => {
-    const handler = NextCommerce.build(
-      (prefix: string) =>
+  it("builds an action that encodes request provisioning failures", async () => {
+    const ActionFailure = Schema.Literal("invalid-request");
+    const procedure = CommerceActions.procedure("CommerceTest.action")
+      .input(Schema.String)
+      .output(Schema.String)
+      .error(ActionFailure)
+      .mapError(
+        (_error: NextCommerceRequestError) => "invalid-request" as const
+      )
+      .handle((prefix) =>
         CommerceContext.pipe(
           Effect.map((context) => `${prefix}:${context.store.locale}`)
-        ),
-      {
-        transform: (effect) =>
-          effect.pipe(
-            Effect.catchTag("CommerceRequestFailure", () =>
-              Effect.succeed("invalid-request")
-            )
-          ),
-      }
-    );
+        )
+      );
+    const action = procedure.toAction();
 
-    await expect(handler("locale")).resolves.toBe("locale:en-US");
+    await expect(action("locale")).resolves.toEqual({
+      _tag: "Success",
+      success: "locale:en-US",
+    });
 
     request.authUserId = "";
-    await expect(handler("locale")).resolves.toBe("invalid-request");
+    await expect(action("locale")).resolves.toEqual({
+      _tag: "Failure",
+      failure: "invalid-request",
+    });
+  });
+
+  it("logs provider causes raised while an action request Layer is acquired", async () => {
+    request.authUserId = "auth-user-1";
+    request.commerceAccountFailure = new Error("provider credentials leaked");
+    const logOutput: string[] = [];
+    const logger = Logger.make(({ message }) => {
+      logOutput.push(String(message));
+    });
+    const ActionFailure = Schema.Literal("invalid-request");
+    const procedure = CommerceActions.procedure("CommerceTest.layerFailure")
+      .input(Schema.String)
+      .output(Schema.String)
+      .error(ActionFailure)
+      .mapError(
+        (_error: NextCommerceRequestError) => "invalid-request" as const
+      )
+      .handle((prefix) =>
+        CommerceContext.pipe(
+          Effect.map((context) => `${prefix}:${context.store.locale}`)
+        )
+      );
+
+    await expect(
+      AppRuntime.runPromise(
+        procedure.effect("locale").pipe(Effect.provide(Logger.layer([logger])))
+      )
+    ).resolves.toEqual({ _tag: "Failure", failure: "invalid-request" });
+    expect(logOutput.join(" ")).toContain("Failed to resolve Commerce account");
   });
 });

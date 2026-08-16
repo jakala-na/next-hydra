@@ -32,6 +32,7 @@ import {
 } from "@repo/commerce/services/commerce-accounts";
 import type { StoreKey } from "@repo/commerce/store";
 import { Effect, Layer, Redacted, Schema } from "effect";
+
 import { toCommercetoolsAddressKey } from "../address-book/address-book-key";
 import { commercetoolsClientsLayer } from "../client/layers";
 import { CommercetoolsRestClient } from "../client/rest-client";
@@ -49,26 +50,6 @@ const CommercetoolsStatusCodeError = Schema.Struct({
   statusCode: Schema.Number,
 });
 
-const CommercetoolsErrorInfo = Schema.Struct({
-  statusCode: Schema.optional(Schema.Number),
-  code: Schema.optional(Schema.String),
-  message: Schema.optional(Schema.String),
-  body: Schema.optional(
-    Schema.Struct({
-      message: Schema.optional(Schema.String),
-      errors: Schema.optional(
-        Schema.Array(
-          Schema.Struct({
-            code: Schema.optional(Schema.String),
-            message: Schema.optional(Schema.String),
-            detailedErrorMessage: Schema.optional(Schema.String),
-          })
-        )
-      ),
-    })
-  ),
-});
-
 const isNotFoundError = (error: unknown) =>
   Schema.decodeUnknownOption(CommercetoolsStatusCodeError)(
     commercetoolsFailureCause(error)
@@ -78,44 +59,10 @@ const isNotFoundError = (error: unknown) =>
       option.value.statusCode === NOT_FOUND_STATUS_CODE
   );
 
-const formatCause = (cause: unknown) => {
-  const decoded = Schema.decodeUnknownOption(CommercetoolsErrorInfo)(cause);
-  if (decoded._tag === "Some") {
-    const error = decoded.value;
-    const errors =
-      error.body?.errors?.map((detail) =>
-        [detail.code, detail.message, detail.detailedErrorMessage]
-          .filter(Boolean)
-          .join(": ")
-      ) ?? [];
-    const parts = [
-      error.statusCode ? `status ${String(error.statusCode)}` : undefined,
-      error.code,
-      error.message,
-      error.body?.message,
-      ...errors,
-    ].filter(Boolean);
-
-    if (parts.length > 0) {
-      return parts.join("; ");
-    }
-  }
-
-  if (cause instanceof Error) {
-    return cause.message;
-  }
-
-  try {
-    return JSON.stringify(cause);
-  } catch {
-    return String(cause);
-  }
-};
-
 const accountError = (reason: string, cause?: unknown) =>
   new CommerceAccountError({
-    message: cause ? `${reason}: ${formatCause(cause)}` : reason,
-    ...(cause ? { cause } : {}),
+    message: reason,
+    ...(cause === undefined ? {} : { cause }),
   });
 
 const customerKey = (registration: CommerceAccountRegistrationInput) =>

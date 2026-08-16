@@ -22,11 +22,17 @@ import { routing } from "@repo/i18n/routing";
 import { ShoppingCart } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+
 import {
   AccountMenu,
   AccountMenuSkeleton,
 } from "@/components/layout/account-menu";
 import { DocumentShell } from "@/components/layout/document-shell";
+import {
+  addToCart,
+  changeCartItemsQuantity,
+  removeCartItem,
+} from "@/lib/commerce-actions";
 
 export const instant = false;
 
@@ -56,7 +62,10 @@ export default async function RootLayout({
   return (
     <DocumentShell lang={locale}>
       <NextIntlClientProvider>
-        <CommerceCartProvider locale={locale}>
+        <CommerceCartProvider
+          actions={{ addToCart, changeCartItemsQuantity, removeCartItem }}
+          locale={locale}
+        >
           <CmsGlobalRegion locale={locale} name="pre-header" />
           <SiteHeader
             MainNavigation={

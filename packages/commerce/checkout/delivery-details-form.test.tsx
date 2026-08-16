@@ -1,6 +1,7 @@
 import { createCheckoutTranslator } from "@repo/i18n/checkout-messages";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+
 import { CountryCode } from "../domain/address";
 import { AddressBookReference } from "../domain/address-book";
 import {
@@ -10,6 +11,7 @@ import {
   deliveryAddressSelectionAfterAction,
   preferredDeliveryAddressSelection,
 } from "./delivery-details-form";
+import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
 
 const officeReference = AddressBookReference.make("office");
 const warehouseReference = AddressBookReference.make("warehouse");
@@ -104,7 +106,7 @@ describe("Checkout delivery address selection", () => {
 
   it("renders saved Shipping cards, the default marker, and new address last", () => {
     const html = renderContent({
-      selection: { type: "addressBook", reference: warehouseReference },
+      selection: { reference: warehouseReference, type: "addressBook" },
     });
 
     expect(html).toContain("Lieferadresse auswählen");
@@ -115,9 +117,33 @@ describe("Checkout delivery address selection", () => {
       html.indexOf("Neue Adresse verwenden")
     );
     expect(html).toContain("Standard-Lieferadresse");
-    expect(html).toContain('name="addressBookReference"');
-    expect(html).toContain('value="warehouse"');
-    expect(html).not.toContain('name="addressLine1"');
+  });
+
+  it("renders the native address choice as the only submitted selection", () => {
+    const html = renderContent({
+      selection: { reference: warehouseReference, type: "addressBook" },
+    });
+
+    expect(html).toContain('name="deliveryAddressChoice"');
+    expect(html).not.toContain('name="addressBookReference"');
+    expect(html).toContain(`value="${MANUAL_DELIVERY_ADDRESS_CHOICE}"`);
+    expect(html).toContain('name="addressLine1"');
+    expect(html).toContain("peer-checked:grid");
+  });
+
+  it("keeps native address selection usable before hydration", () => {
+    const html = renderContent({
+      selection: undefined,
+      shippingAddressOptions: options.map((option) => ({
+        ...option,
+        defaultShipping: false,
+      })),
+    });
+
+    expect(html).toContain('name="deliveryAddressChoice"');
+    expect(html).toContain("required");
+    expect(html).not.toContain('type="hidden" name="addressBookReference"');
+    expect(html).not.toContain('disabled=""');
   });
 
   it("opens a successful empty Address Book and nests the default control under save", () => {
@@ -125,30 +151,38 @@ describe("Checkout delivery address selection", () => {
       selection: { type: "manual" },
       shippingAddressOptions: [],
     });
-    const withDefault = renderContent({
-      saveToAddressBook: true,
-      selection: { type: "manual" },
-      shippingAddressOptions: [],
-    });
 
     expect(withoutDefault).toContain('name="addressLine1"');
     expect(withoutDefault).toContain('name="saveToAddressBook"');
-    expect(withoutDefault).not.toContain('name="makeDefaultShipping"');
-    expect(withDefault).toContain('name="makeDefaultShipping"');
-    expect(withDefault).toContain("Als Standard-Lieferadresse festlegen");
+    expect(withoutDefault).toContain('name="makeDefaultShipping"');
+    expect(withoutDefault).toContain(
+      `value="${MANUAL_DELIVERY_ADDRESS_CHOICE}"`
+    );
+    expect(withoutDefault).toContain("Als Standard-Lieferadresse festlegen");
   });
 
   it("renders localized partial-save retry and pending states", () => {
     const retrySelection = deliveryAddressSelectionAfterAction(
       {
-        status: "error",
-        code: "checkout.deliveryDetails.providerFailure",
-        parameters: { addressBookReference: officeReference },
+        _tag: "Failure",
+        failure: {
+          displayMessage: t(
+            "errors.saveDeliveryDetails.CheckoutMutationProviderFailure"
+          ),
+          error: {
+            _tag: "CheckoutMutationProviderFailure",
+            addressBookReference: officeReference,
+            message: "Commercetools update failed",
+            operation: "checkout.deliveryDetails.save",
+          },
+        },
       },
       { type: "manual" }
     );
     const retryHtml = renderContent({
-      errorMessage: t("errors.deliveryDetails.providerFailure"),
+      errorMessage: t(
+        "errors.saveDeliveryDetails.CheckoutMutationProviderFailure"
+      ),
       selection: retrySelection,
     });
     const pendingHtml = renderContent({

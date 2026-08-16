@@ -261,12 +261,6 @@
         "badRequest": "Die Checkout-Anfrage ist ungültig.",
         "cartMismatch": "Dieser Checkout ist nicht mehr aktuell. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
         "internal": "Der Checkout konnte nicht abgeschlossen werden. Versuchen Sie es erneut.",
-        "contact": {
-          "invalidInput": "Geben Sie E-Mail-Adresse, Vorname und Nachname ein.",
-          "sourceUnavailable": "Diese Kontaktquelle ist für diesen Checkout nicht verfügbar.",
-          "providerFailure": "Die Kontaktdaten konnten nicht gespeichert werden. Versuchen Sie es erneut.",
-          "unsupported": "Diese Kontaktquelle wird noch nicht unterstützt."
-        },
         "deliveryDetails": {
           "addressBookEntryUnavailable": "Diese gespeicherte Adresse ist nicht mehr verfügbar.",
           "invalidInput": "Geben Sie Adresszeile 1, Postleitzahl, Stadt und Land ein.",
@@ -275,7 +269,32 @@
           "unsupported": "Diese Lieferquelle wird noch nicht unterstützt."
         },
         "notFound": "Der Checkout wurde für diese Anfrage nicht gefunden.",
-        "versionConflict": "Der Checkout wurde vor dem Speichern geändert. Aktualisieren Sie die Seite und versuchen Sie es erneut."
+        "versionConflict": "Der Checkout wurde vor dem Speichern geändert. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
+        "saveContact": {
+          "CheckoutCartMismatch": "Dieser Checkout ist nicht mehr aktuell. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
+          "CheckoutMutationSchemaFailure": "Geben Sie E-Mail-Adresse, Vorname und Nachname ein.",
+          "CheckoutMutationSourceUnavailable": "Diese Kontaktquelle ist für diesen Checkout nicht verfügbar.",
+          "CheckoutMutationProviderFailure": "Die Kontaktdaten konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CommerceAccountError": "Die Kontaktdaten konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CommerceRequestFailure": "Die Kontaktdaten konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CheckoutMutationUnsupported": "Diese Kontaktquelle wird noch nicht unterstützt.",
+          "CheckoutUnavailable": "Der Checkout wurde für diese Anfrage nicht gefunden.",
+          "CommerceRequestContextNotFound": "Der Checkout wurde für diese Anfrage nicht gefunden.",
+          "CheckoutVersionConflict": "Der Checkout wurde vor dem Speichern geändert. Aktualisieren Sie die Seite und versuchen Sie es erneut."
+        },
+        "saveDeliveryDetails": {
+          "CheckoutCartMismatch": "Dieser Checkout ist nicht mehr aktuell. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
+          "CheckoutMutationAddressBookEntryUnavailable": "Diese gespeicherte Adresse ist nicht mehr verfügbar.",
+          "CheckoutMutationSchemaFailure": "Geben Sie Adresszeile 1, Postleitzahl, Stadt und Land ein.",
+          "CheckoutMutationSourceUnavailable": "Diese Lieferquelle ist für diesen Checkout nicht verfügbar.",
+          "CheckoutMutationProviderFailure": "Die Lieferdetails konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CommerceAccountError": "Die Lieferdetails konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CommerceRequestFailure": "Die Lieferdetails konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CheckoutMutationUnsupported": "Diese Lieferquelle wird noch nicht unterstützt.",
+          "CheckoutUnavailable": "Der Checkout wurde für diese Anfrage nicht gefunden.",
+          "CommerceRequestContextNotFound": "Der Checkout wurde für diese Anfrage nicht gefunden.",
+          "CheckoutVersionConflict": "Der Checkout wurde vor dem Speichern geändert. Aktualisieren Sie die Seite und versuchen Sie es erneut."
+        }
       },
       "violations": {
         "unknownCountry": "dieses Ziel",

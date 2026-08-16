@@ -1,4 +1,5 @@
 import { Effect, Layer } from "effect";
+
 import type {
   CommerceContextRequest,
   CommerceRequestContextNotFound,
@@ -24,6 +25,11 @@ export type CommerceRequestServices =
   | CommerceContext
   | CurrentCart
   | ProductDiscovery;
+
+export type CommerceRequestLayerServices = Exclude<
+  CommerceRequestServices,
+  CommerceAccounts
+>;
 
 export type AddressBookRequestServices = AddressBook | CommerceContext;
 
@@ -73,6 +79,13 @@ export interface CommerceApplication<
   AddressBookProvisionError = ProvisionError,
 > {
   readonly layer: Layer.Layer<CommerceStableServices, LayerError>;
+  readonly requestLayer: (
+    request: CommerceRequestInput
+  ) => Layer.Layer<
+    CommerceRequestLayerServices,
+    ProvisionError,
+    CommerceStableServices
+  >;
   readonly provide: (
     request: CommerceRequestInput
   ) => <A, E>(
@@ -154,7 +167,7 @@ const makeAddressBookRequestLayer = <
   return Layer.mergeAll(commerceContext, addressBook);
 };
 
-export function makeCommerceApp<
+export const makeCommerceApp = <
   AddressBookError,
   CartPoliciesError,
   CartsError,
@@ -177,7 +190,7 @@ export function makeCommerceApp<
   | CommerceAccountsError,
   AddressBookError | ProductDiscoveryError | CommerceRequestProvisionError,
   AddressBookError | CommerceRequestProvisionError
-> {
+> => {
   const layer = Layer.mergeAll(
     bindings.cartPoliciesLayer,
     bindings.cartsLayer,
@@ -190,5 +203,6 @@ export function makeCommerceApp<
     provide: (request) => Effect.provide(makeRequestLayer(bindings, request)),
     provideAddressBook: (request) =>
       Effect.provide(makeAddressBookRequestLayer(bindings, request)),
+    requestLayer: (request) => makeRequestLayer(bindings, request),
   };
-}
+};

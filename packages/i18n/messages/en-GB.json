@@ -261,12 +261,6 @@
         "badRequest": "The checkout request is invalid.",
         "cartMismatch": "This checkout is no longer current. Refresh and try again.",
         "internal": "Checkout could not be completed. Try again.",
-        "contact": {
-          "invalidInput": "Enter an email, first name, and last name.",
-          "sourceUnavailable": "This contact source is unavailable for this checkout.",
-          "providerFailure": "Contact could not be saved. Try again.",
-          "unsupported": "This contact source is not supported yet."
-        },
         "deliveryDetails": {
           "addressBookEntryUnavailable": "This saved address is no longer available.",
           "invalidInput": "Enter address line 1, postcode, city, and country.",
@@ -275,7 +269,32 @@
           "unsupported": "This delivery details source is not supported yet."
         },
         "notFound": "Checkout was not found for the current request.",
-        "versionConflict": "Checkout changed before your details could be saved. Refresh and try again."
+        "versionConflict": "Checkout changed before your details could be saved. Refresh and try again.",
+        "saveContact": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "CheckoutMutationSchemaFailure": "Enter an email, first name, and last name.",
+          "CheckoutMutationSourceUnavailable": "This contact source is unavailable for this checkout.",
+          "CheckoutMutationProviderFailure": "Contact could not be saved. Try again.",
+          "CommerceAccountError": "Contact could not be saved. Try again.",
+          "CommerceRequestFailure": "Contact could not be saved. Try again.",
+          "CheckoutMutationUnsupported": "This contact source is not supported yet.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your details could be saved. Refresh and try again."
+        },
+        "saveDeliveryDetails": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "CheckoutMutationAddressBookEntryUnavailable": "This saved address is no longer available.",
+          "CheckoutMutationSchemaFailure": "Enter address line 1, postcode, city, and country.",
+          "CheckoutMutationSourceUnavailable": "This delivery details source is unavailable for this checkout.",
+          "CheckoutMutationProviderFailure": "Delivery details could not be saved. Try again.",
+          "CommerceAccountError": "Delivery details could not be saved. Try again.",
+          "CommerceRequestFailure": "Delivery details could not be saved. Try again.",
+          "CheckoutMutationUnsupported": "This delivery details source is not supported yet.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your details could be saved. Refresh and try again."
+        }
       },
       "violations": {
         "unknownCountry": "this destination",

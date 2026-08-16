@@ -1,27 +1,19 @@
 import "server-only";
-import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import { RegistrationId } from "@repo/registration";
 import type {
   ApproveRegistrationInput,
-  RegistrationDecisionResult,
   RegistrationDetailStatus,
   RegistrationDetailView,
-  RejectRegistrationInput,
 } from "@repo/registration/components/admin/registration-view-models";
 import {
   ListRegistrationsQuery,
-  RegistrationAlreadyApproved,
-  RegistrationAlreadyRejected,
-  RegistrationApiConflict,
   RegistrationApiNotFound,
-  RegistrationDecisionAlreadyProcessing,
   RegistrationDecisionRequest,
 } from "@repo/registration/http/registration-api";
 import type { RegistrationDetailResponse } from "@repo/registration/http/registration-api";
 import { Effect } from "effect";
 
 import {
-  ADMIN_REGISTRATION_DECIDE_PERMISSION,
   ADMIN_REGISTRATION_READ_PERMISSION,
   requireAdminPermission,
 } from "./admin-auth";
@@ -45,23 +37,20 @@ const REGISTRATION_REVIEW_STATUSES = [
   "rejected",
 ] as const satisfies readonly RegistrationDetailStatus[];
 
-const logDecisionFailure = async (
-  input: (ApproveRegistrationInput | RejectRegistrationInput) & {
+const logDecisionFailure = (
+  input: ApproveRegistrationInput & {
     readonly decision: "approved" | "rejected";
   },
   error: unknown
-): Promise<void> =>
-  Effect.runPromise(
-    Effect.logError("Failed to save registration decision", error).pipe(
-      Effect.annotateLogs({
-        operation: "registration.admin.decision.save",
-        "registration.decision": input.decision,
-        "registration.id": input.registrationId,
-        service: "web-admin",
-      }),
-      Effect.withLogSpan("registration.admin.decision.save"),
-      Effect.provide(sentryEffectTelemetryLayer)
-    )
+) =>
+  Effect.logError("Failed to save registration decision", error).pipe(
+    Effect.annotateLogs({
+      operation: "registration.admin.decision.save",
+      "registration.decision": input.decision,
+      "registration.id": input.registrationId,
+      service: "web-admin",
+    }),
+    Effect.withLogSpan("registration.admin.decision.save")
   );
 
 const isRegistrationReviewStatus = (
@@ -158,122 +147,45 @@ export async function getAdminRegistration(input: {
   }
 }
 
-const decisionFailure = (error: unknown): RegistrationDecisionResult => {
-  if (error instanceof RegistrationApiNotFound) {
-    return {
-      fieldErrors: [],
-      formErrors: [
-        {
-          code: "registrationNotFound",
-        },
-      ],
-      status: "invalid",
-    };
-  }
-
-  if (error instanceof RegistrationAlreadyApproved) {
-    return {
-      fieldErrors: [],
-      formErrors: [
-        {
-          code: "registrationAlreadyApproved",
-        },
-      ],
-      status: "invalid",
-    };
-  }
-
-  if (error instanceof RegistrationAlreadyRejected) {
-    return {
-      fieldErrors: [],
-      formErrors: [
-        {
-          code: "registrationAlreadyRejected",
-        },
-      ],
-      status: "invalid",
-    };
-  }
-
-  if (
-    error instanceof RegistrationDecisionAlreadyProcessing ||
-    error instanceof RegistrationApiConflict
+export const decideAdminRegistration = Effect.fn("AdminRegistration.decide")(
+  function* decideAdminRegistrationEffect(
+    input: ApproveRegistrationInput & {
+      readonly decision: "approved" | "rejected";
+    },
+    accessToken: string
   ) {
-    return {
-      fieldErrors: [],
-      formErrors: [
-        {
-          code: "registrationDecisionAlreadyProcessing",
-        },
-      ],
-      status: "invalid",
+    const client = yield* makeRegistrationRestClient(accessToken);
+    const request = {
+      params: {
+        registrationId: RegistrationId.make(input.registrationId),
+      },
+      payload: new RegistrationDecisionRequest(
+        input.reason ? { reason: input.reason } : {}
+      ),
     };
-  }
-
-  throw error;
-};
-
-const decideRegistration = async (
-  input: (ApproveRegistrationInput | RejectRegistrationInput) & {
-    readonly decision: "approved" | "rejected";
-  }
-): Promise<RegistrationDecisionResult> => {
-  const session = await requireAdminPermission(
-    ADMIN_REGISTRATION_DECIDE_PERMISSION
-  );
-
-  try {
-    const result = await Effect.runPromise(
-      Effect.gen(function* result() {
-        const client = yield* makeRegistrationRestClient(session.accessToken);
-        const request = {
-          params: {
-            registrationId: RegistrationId.make(input.registrationId),
-          },
-          payload: new RegistrationDecisionRequest(
-            input.reason ? { reason: input.reason } : {}
-          ),
-        };
-
-        return input.decision === "approved"
-          ? yield* client.registrations.approve(request)
-          : yield* client.registrations.reject(request);
-      }).pipe(
-        Effect.annotateLogs({
-          operation: "registration.admin.decision.submit",
-          "registration.decision": input.decision,
-          "registration.id": input.registrationId,
-          service: "web-admin",
-        }),
-        Effect.annotateSpans({
-          "registration.decision": input.decision,
-          "registration.id": input.registrationId,
-          "registration.operation": "decision.submit",
-        }),
-        Effect.withSpan("registration.admin.decision.submit"),
-        Effect.provide(sentryEffectTelemetryLayer)
-      )
+    const result = yield* (
+      input.decision === "approved"
+        ? client.registrations.approve(request)
+        : client.registrations.reject(request)
+    ).pipe(
+      Effect.tapError((error) => logDecisionFailure(input, error)),
+      Effect.annotateLogs({
+        operation: "registration.admin.decision.submit",
+        "registration.decision": input.decision,
+        "registration.id": input.registrationId,
+        service: "web-admin",
+      }),
+      Effect.annotateSpans({
+        "registration.decision": input.decision,
+        "registration.id": input.registrationId,
+        "registration.operation": "decision.submit",
+      }),
+      Effect.withSpan("registration.admin.decision.submit")
     );
 
     return {
-      registrationId: String(result.registrationId),
+      registrationId: result.registrationId,
       registrationStatus: result.status,
-      status: "accepted",
     };
-  } catch (error) {
-    await logDecisionFailure(input, error);
-    return decisionFailure(error);
   }
-};
-
-export async function approveRegistration(
-  input: ApproveRegistrationInput
-): Promise<RegistrationDecisionResult> {
-  return await decideRegistration({ ...input, decision: "approved" });
-}
-
-export async function rejectRegistration(
-  input: RejectRegistrationInput
-): Promise<RegistrationDecisionResult> {
-  return await decideRegistration({ ...input, decision: "rejected" });
-}
+);

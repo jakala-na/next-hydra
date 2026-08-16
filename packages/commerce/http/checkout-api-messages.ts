@@ -1,11 +1,14 @@
 import { checkoutMessageCatalogs } from "@repo/i18n/checkout-messages";
 import type { SupportedLocale } from "@repo/i18n/config";
 import { Option, Schema } from "effect";
+
 import { CommerceLocale } from "../store";
 
 export type CheckoutApiErrorCode =
   | "checkout.badRequest"
   | "checkout.cartMismatch"
+  | "checkout.contact.invalidInput"
+  | "checkout.contact.sourceUnavailable"
   | "checkout.deliveryDetails.addressBookEntryUnavailable"
   | "checkout.deliveryDetails.invalidInput"
   | "checkout.deliveryDetails.providerFailure"
@@ -30,6 +33,10 @@ export const checkoutApiErrorMessage = (
       return messages.badRequest;
     case "checkout.cartMismatch":
       return messages.cartMismatch;
+    case "checkout.contact.invalidInput":
+      return messages.saveContact.CheckoutMutationSchemaFailure;
+    case "checkout.contact.sourceUnavailable":
+      return messages.saveContact.CheckoutMutationSourceUnavailable;
     case "checkout.deliveryDetails.addressBookEntryUnavailable":
       return messages.deliveryDetails.addressBookEntryUnavailable;
     case "checkout.deliveryDetails.invalidInput":

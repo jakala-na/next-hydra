@@ -16,6 +16,8 @@ import {
 import {
   CheckoutApiBadRequest,
   CheckoutApiConflict,
+  CheckoutContactApiBadRequest,
+  CheckoutContactApiIssue,
   CheckoutDeliveryDetailsApiBadRequest,
   CheckoutDeliveryDetailsApiConflict,
   CheckoutDeliveryDetailsApiError,
@@ -123,6 +125,30 @@ const toCheckoutDeliveryDetailsBadRequest = (
       : { parameters: { addressBookReference } }),
   });
 
+const toCheckoutContactBadRequest = (
+  locale: string,
+  code: "checkout.contact.invalidInput" | "checkout.contact.sourceUnavailable",
+  issues?: readonly ConstructorParameters<typeof CheckoutContactApiIssue>[0][]
+) => {
+  const firstIssue = issues?.[0];
+  const remainingIssues = issues?.slice(1) ?? [];
+
+  return new CheckoutContactApiBadRequest({
+    code,
+    message: checkoutApiErrorMessage(locale, code),
+    ...(firstIssue === undefined
+      ? {}
+      : {
+          issues: [
+            new CheckoutContactApiIssue(firstIssue),
+            ...remainingIssues.map(
+              (issue) => new CheckoutContactApiIssue(issue)
+            ),
+          ],
+        }),
+  });
+};
+
 const getCheckoutRequestHeadersFromRequest = Effect.gen(
   function* getCheckoutRequestHeadersFromRequest() {
     const request = yield* HttpServerRequest.HttpServerRequest;
@@ -219,8 +245,16 @@ const toCheckoutContactHttpError = (
       return toCheckoutNotFound(locale);
     }
     case "CheckoutMutationSchemaFailure":
+      return toCheckoutContactBadRequest(
+        locale,
+        "checkout.contact.invalidInput",
+        error.issues.map(({ path }) => ({ path }))
+      );
     case "CheckoutMutationSourceUnavailable": {
-      return toCheckoutBadRequest(locale);
+      return toCheckoutContactBadRequest(
+        locale,
+        "checkout.contact.sourceUnavailable"
+      );
     }
     case "CheckoutCartMismatch": {
       return toCheckoutConflict(locale, "checkout.cartMismatch");

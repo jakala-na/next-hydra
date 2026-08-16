@@ -6,6 +6,7 @@ import {
 } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
 import { Effect, Exit, Layer, Redacted } from "effect";
+
 import {
   AddressLine,
   City,
@@ -231,17 +232,17 @@ describe("submitRegistrationForReview", () => {
       )
   );
 
-  it.effect("treats provider lookup failures as defects", () =>
+  it.effect("keeps provider lookup failures in the typed error channel", () =>
     Effect.gen(function* () {
-      const exit = yield* submitRegistrationForReview({
+      const error = yield* submitRegistrationForReview({
         details: details(),
         storeKey: StoreKey.make("default-store"),
-      }).pipe(Effect.exit);
+      }).pipe(Effect.flip);
 
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        expect(exit.cause.toString()).toContain("CommerceAccountError");
-      }
+      expect(error).toMatchObject({
+        _tag: "CommerceAccountError",
+        message: "commerce unavailable",
+      });
     }).pipe(
       Effect.provide(
         layerWithRecords([], {

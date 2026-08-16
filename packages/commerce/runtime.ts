@@ -1,7 +1,8 @@
 import "server-only";
-
+import type { ActionClient } from "@repo/actions";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer } from "effect";
+
 import type { CommerceRequestFailure } from "./runtime/commerce-request";
 import type {
   CommerceApplication,
@@ -15,6 +16,7 @@ export type {
   AddressBookRequestServices,
   CommerceApplication,
   CommerceRequestProvisionError,
+  CommerceRequestLayerServices,
   CommerceRequestServices,
   CommerceStableServices,
 } from "./runtime/make-commerce-app";
@@ -27,36 +29,19 @@ export type NextCommerceRequestError =
   | CommerceRequestFailure
   | CommerceRequestProvisionError;
 
-export interface NextCommerceBuildOptions<
-  Args extends readonly unknown[],
-  A,
-  E,
-  B,
-  E2,
-> {
-  readonly locale?: (...args: Args) => Locale | Promise<Locale>;
-  readonly transform: (
-    effect: Effect.Effect<
-      A,
-      E | NextCommerceRequestError,
-      CommerceStableServices
-    >
-  ) => Effect.Effect<B, E2, CommerceStableServices>;
-}
+export type CommerceActionClient<
+  ActionServices,
+  RuntimeServices,
+  Context extends object,
+> = ActionClient<
+  RuntimeServices | ActionServices,
+  NextCommerceRequestError,
+  RuntimeServices,
+  Context,
+  "Provided"
+>;
 
 export interface NextCommerceRuntime {
-  readonly build: {
-    <Args extends readonly unknown[], A, E>(
-      handler: (...args: Args) => Effect.Effect<A, E, CommerceRequestServices>,
-      options?: {
-        readonly locale?: (...args: Args) => Locale | Promise<Locale>;
-      }
-    ): (...args: Args) => Promise<A>;
-    <Args extends readonly unknown[], A, E, B, E2>(
-      handler: (...args: Args) => Effect.Effect<A, E, CommerceRequestServices>,
-      options: NextCommerceBuildOptions<Args, A, E, B, E2>
-    ): (...args: Args) => Promise<B>;
-  };
   readonly provide: (
     locale: Locale,
     options?: CommerceRequestOptions
@@ -68,6 +53,7 @@ export interface NextCommerceRuntime {
   ) => Promise<A>;
 }
 
+// oxlint-disable-next-line unicorn/custom-error-definition -- Preserve the established public binding name.
 export class CommerceRuntimeNotConfigured extends Error {
   override readonly name = "CommerceRuntimeNotConfigured";
 
@@ -84,10 +70,12 @@ export const CommerceApp: CommerceApplication<
   provide: () => () => Effect.die(new CommerceRuntimeNotConfigured()),
   provideAddressBook: () => () =>
     Effect.die(new CommerceRuntimeNotConfigured()),
+  requestLayer: () =>
+    Layer.effectContext(Effect.die(new CommerceRuntimeNotConfigured())),
 };
 
 export const NextCommerce: NextCommerceRuntime = {
-  build: () => () => Promise.reject(new CommerceRuntimeNotConfigured()),
   provide: () => () => Effect.die(new CommerceRuntimeNotConfigured()),
-  runPromise: () => Promise.reject(new CommerceRuntimeNotConfigured()),
+  runPromise: async () =>
+    await Promise.reject(new CommerceRuntimeNotConfigured()),
 };

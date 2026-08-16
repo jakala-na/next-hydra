@@ -788,9 +788,9 @@ test("POST /checkout/contact cannot save Customer Profile from a spoofed custome
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiBadRequest",
-      code: "checkout.badRequest",
-      message: "The checkout request is invalid.",
+      _tag: "CheckoutContactApiBadRequest",
+      code: "checkout.contact.sourceUnavailable",
+      message: "This contact source is unavailable for this checkout.",
     });
   } finally {
     await dispose();
@@ -840,9 +840,10 @@ test("POST /checkout/contact maps invalid Manual Contact input to bad request", 
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiBadRequest",
-      code: "checkout.badRequest",
-      message: "The checkout request is invalid.",
+      _tag: "CheckoutContactApiBadRequest",
+      code: "checkout.contact.invalidInput",
+      issues: [{ path: "firstName" }],
+      message: "Enter an email, first name, and last name.",
     });
   } finally {
     await dispose();
@@ -867,9 +868,9 @@ test("POST /checkout/contact maps disallowed Manual Contact source to bad reques
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiBadRequest",
-      code: "checkout.badRequest",
-      message: "The checkout request is invalid.",
+      _tag: "CheckoutContactApiBadRequest",
+      code: "checkout.contact.sourceUnavailable",
+      message: "This contact source is unavailable for this checkout.",
     });
   } finally {
     await dispose();

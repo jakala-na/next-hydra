@@ -1,6 +1,7 @@
 "use client";
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { ActionInputInvalid } from "@repo/actions";
 import {
   Alert,
   AlertDescription,
@@ -28,22 +29,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/design-system/components/ui/select";
-import {
-  type ReactHookFormActionErrorMessages,
-  setReactHookFormActionErrors,
-  setReactHookFormRootError,
-} from "@repo/form/react-hook-form";
+import { setReactHookFormRootError } from "@repo/form/react-hook-form";
 import { useLocale, useTranslations } from "@repo/i18n";
-import { Schema } from "effect";
-import { unstable_rethrow } from "next/navigation";
+import { Result, Schema } from "effect";
 import type { FieldPath } from "react-hook-form";
 import { useForm } from "react-hook-form";
+
 import {
   getCountryOptions,
   makeRegistrationFormInputSchema,
-  type RegistrationFormError,
-  type RegistrationFormFieldError,
   type RegistrationFormResult,
+  RegistrationFormResultSchema,
+  RegistrationFormIssuePath,
   type RegistrationFormValues,
   requiresRegion,
 } from "./registration-form-schema";
@@ -69,6 +66,16 @@ const defaultValues: RegistrationFormValues = {
     region: "",
     country: "US",
   },
+};
+
+type RegistrationActionFailure = Extract<
+  typeof RegistrationFormResultSchema.Type,
+  { readonly _tag: "Failure" }
+>["failure"];
+
+type RegistrationDisplayIssue = {
+  readonly path: typeof RegistrationFormIssuePath.Type;
+  readonly message: string;
 };
 
 function TranslatedFormMessage({ className }: { readonly className?: string }) {
@@ -100,27 +107,42 @@ export function RegistrationForm({ submit }: RegistrationFormProps) {
   const selectedCountry = form.watch("address.country");
   const isRegionRequired = requiresRegion(selectedCountry);
   const countryOptions = getCountryOptions(locale);
-  const actionErrorMessages = {
-    field: {
-      duplicateEmail: t("validation.duplicateEmail"),
-      invalidVatId: t("validation.invalidVatId"),
-    },
-    form: {
-      invalidSubmission: t("errors.invalidSubmission"),
-      unsupportedRegistrationCountry: t(
-        "errors.unsupportedRegistrationCountry"
-      ),
-    },
-  } satisfies ReactHookFormActionErrorMessages<
-    RegistrationFormFieldError["code"],
-    RegistrationFormError["code"]
-  >;
   const formError = form.formState.errors.root?.serverError?.message;
   const isSubmitting = form.formState.isSubmitting;
   const renderRowFieldMessage = (name: FieldPath<RegistrationFormValues>) => {
     const message = form.getFieldState(name, form.formState).error?.message;
 
     return <p className="min-h-5 text-destructive text-sm">{message ?? ""}</p>;
+  };
+  const applyRegistrationFailure = (failure: RegistrationActionFailure) => {
+    const issues: readonly RegistrationDisplayIssue[] = Schema.is(
+      ActionInputInvalid
+    )(failure)
+      ? failure.issues.map((issue) => {
+          const candidate =
+            issue.path.length === 0 ? "root" : issue.path.join(".");
+          return {
+            path: Schema.is(RegistrationFormIssuePath)(candidate)
+              ? candidate
+              : "root",
+            message: issue.message,
+          };
+        })
+      : failure.issues;
+    const rootIssue = issues.find((issue) => issue.path === "root");
+
+    for (const issue of issues) {
+      if (issue.path !== "root") {
+        form.setError(issue.path, {
+          message: issue.message,
+          type: "server",
+        });
+      }
+    }
+
+    if (rootIssue) {
+      setReactHookFormRootError(form, rootIssue.message);
+    }
   };
 
   return (
@@ -129,34 +151,15 @@ export function RegistrationForm({ submit }: RegistrationFormProps) {
         className="grid gap-6"
         onSubmit={form.handleSubmit(async (values) => {
           form.clearErrors("root");
+          const encodedResult = await submit(values);
+          const result = Schema.decodeUnknownSync(RegistrationFormResultSchema)(
+            encodedResult
+          );
 
-          if (
-            requiresRegion(values.address.country) &&
-            !values.address.region
-          ) {
-            form.setError("address.region", {
-              message: t("validation.region"),
-              type: "manual",
-            });
-            return;
-          }
-
-          try {
-            const result = await submit(values);
-
-            switch (result.status) {
-              case "submitted":
-                return;
-              case "invalid":
-                setReactHookFormActionErrors(form, result, actionErrorMessages);
-                return;
-              default:
-                result satisfies never;
-            }
-          } catch (error) {
-            unstable_rethrow(error);
-            setReactHookFormRootError(form, t("errors.submitFailed"));
-          }
+          Result.match(result, {
+            onFailure: applyRegistrationFailure,
+            onSuccess: () => undefined,
+          });
         })}
       >
         {formError ? (

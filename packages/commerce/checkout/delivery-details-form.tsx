@@ -2,14 +2,14 @@
 
 import { useTranslations } from "@repo/i18n";
 import { useActionState, useEffect, useState } from "react";
+
 import type { AddressBookReference } from "../domain/address-book";
 import type { ShippingAddress } from "../domain/checkout";
-import { checkoutActionErrorMessageKey } from "./action-error";
-import {
-  initialSaveCheckoutDeliveryDetailsActionState,
-  type SaveCheckoutDeliveryDetailsAction,
-  type SaveCheckoutDeliveryDetailsActionState,
-} from "./save-delivery-details-state";
+import type {
+  SaveCheckoutDeliveryDetailsAction,
+  SaveCheckoutDeliveryDetailsActionResult,
+} from "./action-contract";
+import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
 
 export interface CheckoutShippingAddressOption {
   readonly reference: AddressBookReference;
@@ -76,24 +76,19 @@ export const preferredDeliveryAddressSelection = (
 };
 
 const partialSaveReference = (
-  actionState: SaveCheckoutDeliveryDetailsActionState
-) => {
-  if (
-    actionState.status !== "error" ||
-    (actionState.code !== "checkout.deliveryDetails.providerFailure" &&
-      actionState.code !== "checkout.versionConflict")
-  ) {
-    return undefined;
-  }
-
-  return actionState.parameters?.addressBookReference;
-};
+  actionResult: SaveCheckoutDeliveryDetailsActionResult | null
+) =>
+  actionResult?._tag === "Failure" &&
+  (actionResult.failure.error._tag === "CheckoutMutationProviderFailure" ||
+    actionResult.failure.error._tag === "CheckoutVersionConflict")
+    ? actionResult.failure.error.addressBookReference
+    : undefined;
 
 export const deliveryAddressSelectionAfterAction = (
-  actionState: SaveCheckoutDeliveryDetailsActionState,
+  actionResult: SaveCheckoutDeliveryDetailsActionResult | null,
   currentSelection: CheckoutDeliveryAddressSelection
 ): CheckoutDeliveryAddressSelection => {
-  const retryReference = partialSaveReference(actionState);
+  const retryReference = partialSaveReference(actionResult);
 
   return retryReference === undefined
     ? currentSelection
@@ -135,7 +130,6 @@ function ManualShippingAddressFields({
           defaultValue={address?.addressLine1 ?? ""}
           id="checkout-address-line-1"
           name="addressLine1"
-          required
           type="text"
         />
       </div>
@@ -164,7 +158,6 @@ function ManualShippingAddressFields({
             defaultValue={address?.city ?? ""}
             id="checkout-city"
             name="city"
-            required
             type="text"
           />
         </div>
@@ -177,7 +170,6 @@ function ManualShippingAddressFields({
             defaultValue={address?.postalCode ?? ""}
             id="checkout-postal-code"
             name="postalCode"
-            required
             type="text"
           />
         </div>
@@ -205,7 +197,6 @@ function ManualShippingAddressFields({
             id="checkout-country"
             maxLength={2}
             name="country"
-            required
             type="text"
           />
         </div>
@@ -213,6 +204,52 @@ function ManualShippingAddressFields({
     </>
   );
 }
+
+const ManualDeliveryDetailsFields = ({
+  canUseAddressBook,
+  messages,
+  onSaveToAddressBookChange,
+  saveToAddressBook,
+  shippingAddress,
+}: {
+  readonly canUseAddressBook: boolean;
+  readonly messages: CheckoutDeliveryDetailsMessages;
+  readonly onSaveToAddressBookChange: (checked: boolean) => void;
+  readonly saveToAddressBook: boolean;
+  readonly shippingAddress?: ShippingAddress;
+}) => (
+  <>
+    <ManualShippingAddressFields
+      address={shippingAddress}
+      messages={messages}
+    />
+    {canUseAddressBook ? (
+      <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-3 rounded-md border border-border p-4">
+        <input
+          checked={saveToAddressBook}
+          className="peer size-4"
+          id="checkout-save-to-address-book"
+          name="saveToAddressBook"
+          onChange={(event) => {
+            onSaveToAddressBookChange(event.currentTarget.checked);
+          }}
+          type="checkbox"
+        />
+        <label className="text-sm" htmlFor="checkout-save-to-address-book">
+          {messages.addressBook.saveShippingAddress}
+        </label>
+        <label className="col-start-2 hidden items-center gap-3 text-sm peer-checked:flex">
+          <input
+            className="size-4"
+            name="makeDefaultShipping"
+            type="checkbox"
+          />
+          <span>{messages.addressBook.makeDefaultShipping}</span>
+        </label>
+      </div>
+    ) : null}
+  </>
+);
 
 export function CheckoutDeliveryDetailsFormContent({
   errorMessage,
@@ -243,13 +280,6 @@ export function CheckoutDeliveryDetailsFormContent({
 
   return (
     <>
-      {selection?.type === "addressBook" ? (
-        <input
-          name="addressBookReference"
-          type="hidden"
-          value={selection.reference}
-        />
-      ) : null}
       {errorMessage ? (
         <p
           aria-live="polite"
@@ -278,12 +308,13 @@ export function CheckoutDeliveryDetailsFormContent({
                   checked={isSelected}
                   className="mt-1 size-4"
                   name="deliveryAddressChoice"
-                  onChange={() =>
+                  onChange={() => {
                     onSelectionChange({
                       type: "addressBook",
                       reference: option.reference,
-                    })
-                  }
+                    });
+                  }}
+                  required
                   type="radio"
                   value={option.reference}
                 />
@@ -298,59 +329,58 @@ export function CheckoutDeliveryDetailsFormContent({
               </label>
             );
           })}
-          <label className="flex cursor-pointer items-center gap-3 rounded-md border border-border p-4 has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+          <div className="relative grid gap-4">
             <input
               checked={isManual}
-              className="size-4"
+              className="peer absolute top-5 left-4 size-4"
+              id="checkout-delivery-address-manual"
               name="deliveryAddressChoice"
-              onChange={() => onSelectionChange({ type: "manual" })}
+              onChange={() => {
+                onSelectionChange({ type: "manual" });
+              }}
+              required
               type="radio"
-              value="manual"
+              value={MANUAL_DELIVERY_ADDRESS_CHOICE}
             />
-            <span className="font-medium text-sm">
-              {messages.addressBook.useNewAddress}
-            </span>
-          </label>
-        </fieldset>
-      ) : null}
-      {isManual ? (
-        <>
-          <ManualShippingAddressFields
-            address={shippingAddress}
-            messages={messages}
-          />
-          {canUseAddressBook ? (
-            <div className="grid gap-3 rounded-md border border-border p-4">
-              <label className="flex items-center gap-3 text-sm">
-                <input
-                  checked={saveToAddressBook}
-                  className="size-4"
-                  name="saveToAddressBook"
-                  onChange={(event) =>
-                    onSaveToAddressBookChange(event.currentTarget.checked)
-                  }
-                  type="checkbox"
-                />
-                <span>{messages.addressBook.saveShippingAddress}</span>
-              </label>
-              {saveToAddressBook ? (
-                <label className="ml-7 flex items-center gap-3 text-sm">
-                  <input
-                    className="size-4"
-                    name="makeDefaultShipping"
-                    type="checkbox"
-                  />
-                  <span>{messages.addressBook.makeDefaultShipping}</span>
-                </label>
-              ) : null}
+            <label
+              className="cursor-pointer rounded-md border border-border py-4 pr-4 pl-11 peer-checked:border-primary peer-checked:bg-primary/5"
+              htmlFor="checkout-delivery-address-manual"
+            >
+              <span className="font-medium text-sm">
+                {messages.addressBook.useNewAddress}
+              </span>
+            </label>
+            <div className="hidden gap-4 peer-checked:grid">
+              <ManualDeliveryDetailsFields
+                canUseAddressBook={canUseAddressBook}
+                messages={messages}
+                onSaveToAddressBookChange={onSaveToAddressBookChange}
+                saveToAddressBook={saveToAddressBook}
+                shippingAddress={shippingAddress}
+              />
             </div>
-          ) : null}
+          </div>
+        </fieldset>
+      ) : (
+        <>
+          <input
+            name="deliveryAddressChoice"
+            type="hidden"
+            value={MANUAL_DELIVERY_ADDRESS_CHOICE}
+          />
+          <ManualDeliveryDetailsFields
+            canUseAddressBook={canUseAddressBook}
+            messages={messages}
+            onSaveToAddressBookChange={onSaveToAddressBookChange}
+            saveToAddressBook={saveToAddressBook}
+            shippingAddress={shippingAddress}
+          />
         </>
-      ) : null}
+      )}
       <div>
         <button
           className="h-10 rounded-md bg-primary px-4 font-medium text-primary-foreground text-sm disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isPending || selection === undefined}
+          disabled={isPending}
           type="submit"
         >
           {isPending ? messages.saving : messages.save}
@@ -374,9 +404,9 @@ export function CheckoutDeliveryDetailsForm({
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
 }) {
   const t = useTranslations("web.checkout");
-  const [actionState, formAction, isPending] = useActionState(
+  const [actionResult, formAction, isPending] = useActionState(
     saveAction,
-    initialSaveCheckoutDeliveryDetailsActionState
+    null
   );
   const [selection, setSelection] = useState<CheckoutDeliveryAddressSelection>(
     () =>
@@ -389,9 +419,9 @@ export function CheckoutDeliveryDetailsForm({
 
   useEffect(() => {
     setSelection((currentSelection) =>
-      deliveryAddressSelectionAfterAction(actionState, currentSelection)
+      deliveryAddressSelectionAfterAction(actionResult, currentSelection)
     );
-  }, [actionState]);
+  }, [actionResult]);
 
   const messages: CheckoutDeliveryDetailsMessages = {
     addressBook: {
@@ -415,8 +445,8 @@ export function CheckoutDeliveryDetailsForm({
     saving: t("deliveryDetails.actions.saving"),
   };
   const errorMessage =
-    actionState.status === "error"
-      ? t(checkoutActionErrorMessageKey[actionState.code])
+    actionResult?._tag === "Failure"
+      ? actionResult.failure.displayMessage
       : undefined;
 
   return (

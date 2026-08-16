@@ -1,11 +1,14 @@
-import { Effect, Layer } from "effect";
+import { ActionClient, ActionMiddleware } from "@repo/actions";
+import { Effect, Layer, ManagedRuntime } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { CountryCode } from "../domain/address";
 import { AddressBookEntry, AddressBookReference } from "../domain/address-book";
 import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
 import {
   type CheckoutState,
   CheckoutUnavailable,
+  CheckoutVersionConflict,
   StorefrontCustomerCheckoutScope,
 } from "../domain/checkout";
 import {
@@ -13,11 +16,17 @@ import {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "../domain/commerce-account";
-import { CheckoutSession } from "../lib/checkout/checkout-session";
+import { AnonymousCommercePrincipal } from "../domain/commerce-request-context";
+import {
+  type CheckoutSaveContactFailure,
+  CheckoutSession,
+} from "../lib/checkout/checkout-session";
 import { AddressBook } from "../services/address-book";
-import { CommerceLocale, StoreKey } from "../store";
-import { saveCheckoutContact, saveCheckoutDeliveryDetails } from "./actions";
+import { CommerceContext } from "../services/commerce-context";
+import { CommerceLocale, resolveStore, StoreKey } from "../store";
 import { CheckoutPage } from "./checkout-page";
+import { makeCheckoutProcedures } from "./procedures";
+import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
 
 const boundary = vi.hoisted(() => ({
   getLocale: vi.fn(async () => "en-US" as const),
@@ -25,7 +34,6 @@ const boundary = vi.hoisted(() => ({
     throw new Error("notFound");
   }),
   provide: vi.fn(),
-  revalidatePath: vi.fn(),
   runPromise: vi.fn(),
 }));
 
@@ -35,14 +43,45 @@ vi.mock("@repo/i18n", () => ({
   getTranslations: async () => (key: string) => key,
   useTranslations: () => (key: string) => key,
 }));
-vi.mock("next/cache", () => ({ revalidatePath: boundary.revalidatePath }));
 vi.mock("next/navigation", () => ({ notFound: boundary.notFound }));
-vi.mock("@repo/commerce/runtime", () => ({
-  NextCommerce: {
-    provide: boundary.provide,
-    runPromise: boundary.runPromise,
-  },
-}));
+vi.mock("@repo/commerce/runtime", async () => {
+  return {
+    NextCommerce: {
+      provide: boundary.provide,
+      runPromise: boundary.runPromise,
+    },
+  };
+});
+
+const TestCommerceActions = ActionClient.make(ManagedRuntime.make(Layer.empty))
+  .use(
+    ActionMiddleware.context(() =>
+      Effect.promise(boundary.getLocale).pipe(
+        Effect.map((locale) => ({ locale }))
+      )
+    )
+  )
+  .provide(({ locale }: { readonly locale: string }) =>
+    Layer.unwrap(
+      Effect.sync(() => {
+        boundary.provide(locale);
+        return checkoutLayer();
+      })
+    )
+  );
+const { saveCheckoutContactProcedure, saveCheckoutDeliveryDetailsProcedure } =
+  makeCheckoutProcedures(TestCommerceActions);
+const saveCheckoutContact = saveCheckoutContactProcedure.toFormAction({
+  getFailureMessage: (error) => `Localized en-US ${error._tag}`,
+});
+const saveCheckoutDeliveryDetails =
+  saveCheckoutDeliveryDetailsProcedure.toFormAction({
+    getFailureMessage: (error) => `Localized en-US ${error._tag}`,
+  });
+const checkoutActions = {
+  saveContact: saveCheckoutContact,
+  saveDeliveryDetails: saveCheckoutDeliveryDetails,
+};
 
 const checkoutState: CheckoutState = {
   activeStep: "contact",
@@ -104,7 +143,9 @@ const checkoutSession = {
   getCurrent: vi.fn<() => Effect.Effect<CheckoutState, CheckoutUnavailable>>(
     () => Effect.succeed(checkoutState)
   ),
-  saveContact: vi.fn(() => Effect.succeed(checkoutState)),
+  saveContact: vi.fn<
+    () => Effect.Effect<CheckoutState, CheckoutSaveContactFailure>
+  >(() => Effect.succeed(checkoutState)),
   saveDeliveryDetails: vi.fn(() => Effect.succeed({ state: checkoutState })),
 };
 
@@ -114,10 +155,18 @@ const addressBook = {
   save: vi.fn(() => Effect.die("not used")),
 };
 
+const commerceContext = CommerceContext.of({
+  store: resolveStore({ locale: CommerceLocale.make("en-US") }),
+  principal: new AnonymousCommercePrincipal(),
+  customerPrincipal: () => Effect.die("not used"),
+  customerProfile: () => Effect.die("not used"),
+});
+
 const checkoutLayer = () =>
-  Layer.merge(
+  Layer.mergeAll(
     Layer.succeed(CheckoutSession, checkoutSession),
-    Layer.succeed(AddressBook, addressBook)
+    Layer.succeed(AddressBook, addressBook),
+    Layer.succeed(CommerceContext, commerceContext)
   );
 
 beforeEach(() => {
@@ -127,25 +176,37 @@ beforeEach(() => {
   boundary.provide.mockImplementation(
     (_locale) =>
       (
-        program: Effect.Effect<unknown, unknown, AddressBook | CheckoutSession>
+        program: Effect.Effect<
+          unknown,
+          unknown,
+          AddressBook | CheckoutSession | CommerceContext
+        >
       ) =>
         program.pipe(Effect.provide(checkoutLayer()))
   );
-  boundary.revalidatePath.mockClear();
   boundary.runPromise.mockReset();
   boundary.runPromise.mockImplementation(Effect.runPromise);
   checkoutSession.getCurrent.mockReset();
   checkoutSession.getCurrent.mockImplementation(() =>
     Effect.succeed(checkoutState)
   );
-  checkoutSession.saveContact.mockClear();
-  checkoutSession.saveDeliveryDetails.mockClear();
+  checkoutSession.saveContact.mockReset();
+  checkoutSession.saveContact.mockImplementation(() =>
+    Effect.succeed(checkoutState)
+  );
+  checkoutSession.saveDeliveryDetails.mockReset();
+  checkoutSession.saveDeliveryDetails.mockImplementation(() =>
+    Effect.succeed({ state: checkoutState })
+  );
   addressBook.list.mockClear();
 });
 
 describe("Checkout boundaries", () => {
   it("loads Checkout and projects Shipping Address options", async () => {
-    const page = await CheckoutPage({ locale: "en-US" });
+    const page = await CheckoutPage({
+      actions: checkoutActions,
+      locale: "en-US",
+    });
 
     expect(boundary.provide).toHaveBeenCalledOnce();
     expect(page.props.state).toEqual(checkoutState);
@@ -156,10 +217,7 @@ describe("Checkout boundaries", () => {
         reference: "office",
       },
     ]);
-    expect(page.props.actions).toEqual({
-      saveContact: saveCheckoutContact,
-      saveDeliveryDetails: saveCheckoutDeliveryDetails,
-    });
+    expect(page.props.actions).toEqual(checkoutActions);
   });
 
   it("uses notFound when there is no current Checkout", async () => {
@@ -172,11 +230,13 @@ describe("Checkout boundaries", () => {
       )
     );
 
-    await expect(CheckoutPage({ locale: "en-US" })).rejects.toThrow("notFound");
+    await expect(
+      CheckoutPage({ actions: checkoutActions, locale: "en-US" })
+    ).rejects.toThrow("notFound");
     expect(boundary.notFound).toHaveBeenCalledOnce();
   });
 
-  it("runs each Checkout mutation with fresh request state and revalidates", async () => {
+  it("runs each Checkout mutation with fresh request state", async () => {
     const contact = new FormData();
     contact.set("cartId", "cart-1");
     contact.set("source", "manual");
@@ -190,24 +250,159 @@ describe("Checkout boundaries", () => {
     deliveryDetails.set("postalCode", "10001");
     deliveryDetails.set("city", "New York");
     deliveryDetails.set("country", "us");
+    deliveryDetails.set(
+      "deliveryAddressChoice",
+      MANUAL_DELIVERY_ADDRESS_CHOICE
+    );
 
-    const contactState = await saveCheckoutContact({ status: "idle" }, contact);
-    const deliveryDetailsState = await saveCheckoutDeliveryDetails(
-      { status: "idle" },
+    const contactResult = await saveCheckoutContact(null, contact);
+    const deliveryDetailsResult = await saveCheckoutDeliveryDetails(
+      null,
       deliveryDetails
     );
 
-    expect(contactState).toEqual({ status: "success" });
-    expect(deliveryDetailsState).toEqual({ status: "success" });
+    expect(contactResult).toEqual({
+      _tag: "Success",
+      success: checkoutState,
+    });
+    expect(deliveryDetailsResult).toEqual({
+      _tag: "Success",
+      success: checkoutState,
+    });
     expect(boundary.provide).toHaveBeenCalledTimes(2);
-    expect(boundary.revalidatePath).toHaveBeenCalledTimes(2);
-    expect(boundary.revalidatePath).toHaveBeenNthCalledWith(
-      1,
-      "/en-US/checkout"
+    expect(checkoutSession.saveDeliveryDetails).toHaveBeenCalledWith({
+      cart: { id: "cart-1" },
+      deliveryDetails: {
+        saveToAddressBook: false,
+        shippingAddress: {
+          addressLine1: "1 Hydra Way",
+          city: "New York",
+          country: "US",
+          postalCode: "10001",
+        },
+        type: "manual",
+      },
+    });
+  });
+
+  it("uses the native delivery address choice as the submitted Address Book reference", async () => {
+    const deliveryDetails = new FormData();
+    deliveryDetails.set("cartId", "cart-1");
+    deliveryDetails.set("deliveryAddressChoice", "office");
+
+    await expect(
+      saveCheckoutDeliveryDetails(null, deliveryDetails)
+    ).resolves.toEqual({
+      _tag: "Success",
+      success: checkoutState,
+    });
+    expect(checkoutSession.saveDeliveryDetails).toHaveBeenCalledWith({
+      cart: { id: "cart-1" },
+      deliveryDetails: {
+        addressBookReference: "office",
+        type: "addressBook",
+      },
+    });
+  });
+
+  it("executes the shared procedure directly with the same encoded result", async () => {
+    const contact = new FormData();
+    contact.set("cartId", "cart-1");
+    contact.set("source", "customerProfile");
+
+    await expect(
+      saveCheckoutContactProcedure.execute(contact)
+    ).resolves.toEqual({
+      _tag: "Success",
+      success: checkoutState,
+    });
+    expect(checkoutSession.saveContact).toHaveBeenCalledOnce();
+  });
+
+  it("returns schema failures without running the Checkout Session", async () => {
+    const contact = new FormData();
+    contact.set("cartId", "cart-1");
+    contact.set("source", "manual");
+    contact.set("email", "");
+    contact.set("firstName", "");
+    contact.set("lastName", "");
+
+    const result = await saveCheckoutContact(null, contact);
+
+    expect(result._tag).toBe("Failure");
+    if (result._tag !== "Failure") {
+      throw new Error("Expected Checkout Contact validation to fail");
+    }
+    expect(result.failure.error._tag).toBe("ActionInputInvalid");
+    if (result.failure.error._tag !== "ActionInputInvalid") {
+      throw new Error("Expected an Action Input Invalid failure");
+    }
+    expect(result.failure.displayMessage).toBe(
+      "Localized en-US ActionInputInvalid"
     );
-    expect(boundary.revalidatePath).toHaveBeenNthCalledWith(
-      2,
-      "/en-US/checkout"
+    expect(result.failure.error.issues).toEqual([
+      { message: "This field is invalid.", path: ["email"] },
+      { message: "This field is invalid.", path: ["firstName"] },
+      { message: "This field is invalid.", path: ["lastName"] },
+    ]);
+    expect(boundary.getLocale).toHaveBeenCalledOnce();
+    expect(checkoutSession.saveContact).not.toHaveBeenCalled();
+  });
+
+  it("returns delivery schema failures with the invalid field paths", async () => {
+    const deliveryDetails = new FormData();
+    deliveryDetails.set("addressLine1", "");
+    deliveryDetails.set("cartId", "cart-1");
+    deliveryDetails.set("city", "");
+    deliveryDetails.set("country", "");
+    deliveryDetails.set(
+      "deliveryAddressChoice",
+      MANUAL_DELIVERY_ADDRESS_CHOICE
     );
+    deliveryDetails.set("postalCode", "");
+
+    const result = await saveCheckoutDeliveryDetails(null, deliveryDetails);
+
+    expect(result._tag).toBe("Failure");
+    if (result._tag !== "Failure") {
+      throw new Error("Expected Checkout Delivery Details validation to fail");
+    }
+    expect(result.failure.error._tag).toBe("ActionInputInvalid");
+    if (result.failure.error._tag !== "ActionInputInvalid") {
+      throw new Error("Expected an Action Input Invalid failure");
+    }
+    expect(result.failure.error.issues).toEqual([
+      { message: "This field is invalid.", path: ["addressLine1"] },
+      { message: "This field is invalid.", path: ["city"] },
+      { message: "This field is invalid.", path: ["country"] },
+      { message: "This field is invalid.", path: ["postalCode"] },
+    ]);
+    expect(checkoutSession.saveDeliveryDetails).not.toHaveBeenCalled();
+  });
+
+  it("returns typed mutation failures unchanged", async () => {
+    checkoutSession.saveContact.mockImplementation(() =>
+      Effect.fail(
+        new CheckoutVersionConflict({
+          cartId: CartId.make("cart-1"),
+          message: "Checkout changed before Contact could be saved",
+        })
+      )
+    );
+    const contact = new FormData();
+    contact.set("cartId", "cart-1");
+    contact.set("source", "customerProfile");
+
+    await expect(saveCheckoutContact(null, contact)).resolves.toEqual({
+      _tag: "Failure",
+      failure: {
+        displayMessage: "Localized en-US CheckoutVersionConflict",
+        error: {
+          _tag: "CheckoutVersionConflict",
+          cartId: "cart-1",
+          message: "Checkout changed before Contact could be saved",
+        },
+      },
+    });
   });
 });

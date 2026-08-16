@@ -3,6 +3,11 @@ import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import { notFound } from "next/navigation";
 
+import {
+  saveCheckoutContact,
+  saveCheckoutDeliveryDetails,
+} from "@/lib/commerce-actions";
+
 type CheckoutRouteProps = {
   readonly params: Promise<{
     readonly locale: string;
@@ -16,5 +21,13 @@ export default async function Checkout({ params }: CheckoutRouteProps) {
   }
 
   setRequestLocale(locale);
-  return <CheckoutPage locale={locale} />;
+  return (
+    <CheckoutPage
+      actions={{
+        saveContact: saveCheckoutContact,
+        saveDeliveryDetails: saveCheckoutDeliveryDetails,
+      }}
+      locale={locale}
+    />
+  );
 }

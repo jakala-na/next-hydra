@@ -15,6 +15,7 @@ import {
   CheckoutContactInput,
   CheckoutDetails,
   CheckoutDeliveryDetailsInput,
+  CheckoutMutationIssuePath,
   CheckoutState,
   CheckoutViolation,
 } from "../domain/checkout";
@@ -104,6 +105,25 @@ export class CheckoutApiBadRequest extends Schema.TaggedErrorClass<CheckoutApiBa
   "CheckoutApiBadRequest",
   {
     code: Schema.Literal("checkout.badRequest"),
+    message: Schema.String,
+  },
+  { httpApiStatus: 400 }
+) {}
+
+export class CheckoutContactApiIssue extends Schema.Class<CheckoutContactApiIssue>(
+  "CheckoutContactApiIssue"
+)({
+  path: CheckoutMutationIssuePath,
+}) {}
+
+export class CheckoutContactApiBadRequest extends Schema.TaggedErrorClass<CheckoutContactApiBadRequest>()(
+  "CheckoutContactApiBadRequest",
+  {
+    code: Schema.Literals([
+      "checkout.contact.invalidInput",
+      "checkout.contact.sourceUnavailable",
+    ]),
+    issues: Schema.optional(Schema.NonEmptyArray(CheckoutContactApiIssue)),
     message: Schema.String,
   },
   { httpApiStatus: 400 }
@@ -202,7 +222,7 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
   )
   .add(
     HttpApiEndpoint.post("saveContact", "/checkout/contact", {
-      error: CheckoutApiConflict,
+      error: [CheckoutApiConflict, CheckoutContactApiBadRequest],
       headers: CommerceRequestHeaders,
       payload: SaveCheckoutContactRequest,
       success: CheckoutApiState,

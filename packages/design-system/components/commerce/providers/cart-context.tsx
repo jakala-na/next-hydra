@@ -191,7 +191,7 @@ export function useCart() {
   const addItem = useCallback(
     async (input: AddToCartInput) => {
       const result = await actions.addToCart(input);
-      if ("error" in result) {
+      if (result._tag === "Failure") {
         toast.error(t("toast.failedToAdd"));
         return;
       }
@@ -205,7 +205,7 @@ export function useCart() {
   const removeItem = useCallback(
     async (id: string) => {
       const result = await actions.removeCartItem({ lineItemId: id });
-      if ("error" in result) {
+      if (result._tag === "Failure") {
         toast.error(t("toast.failedToRemove"));
         return;
       }
@@ -221,7 +221,7 @@ export function useCart() {
         lineItemId: id,
         quantity,
       });
-      if ("error" in result) {
+      if (result._tag === "Failure") {
         toast.error(t("toast.failedToUpdate"));
         return;
       }
@@ -264,7 +264,7 @@ export function useCartActions() {
   const addItem = useCallback(
     async (input: AddToCartInput) => {
       const result = await actions.addToCart(input);
-      if ("error" in result) {
+      if (result._tag === "Failure") {
         toast.error(t("toast.failedToAdd"));
         return;
       }

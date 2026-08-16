@@ -16,6 +16,7 @@ import {
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
+
 import { commerceAccountsLayerFrom } from "./commerce-accounts";
 
 const mocks = vi.hoisted(() => {
@@ -235,76 +236,82 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
-  it.effect(
-    "preserves structured Commercetools details from SDK Error instances",
-    () =>
-      Effect.gen(function* () {
-        mocks.customerWithKeyGetExecute.mockRejectedValueOnce({
-          statusCode: 404,
-        });
-        mocks.customerCreateExecute.mockResolvedValueOnce({
+  it.effect("keeps structured Commercetools details in the private cause", () =>
+    Effect.gen(function* () {
+      mocks.customerWithKeyGetExecute.mockRejectedValueOnce({
+        statusCode: 404,
+      });
+      mocks.customerCreateExecute.mockResolvedValueOnce({
+        body: {
+          customer: {
+            id: "customer-1",
+          },
+        },
+      });
+      mocks.businessUnitWithKeyGetExecute.mockRejectedValueOnce({
+        statusCode: 404,
+      });
+      mocks.businessUnitCreateExecute.mockRejectedValueOnce(
+        Object.assign(new Error("Request body does not contain valid JSON."), {
+          statusCode: 400,
+          code: "BadRequest",
           body: {
-            customer: {
-              id: "customer-1",
+            message: "Request body does not contain valid JSON.",
+            errors: [
+              {
+                code: "InvalidJsonInput",
+                message: "Request body does not contain valid JSON.",
+                detailedErrorMessage:
+                  "The 'stores' field does not conform to the expected shape.",
+              },
+            ],
+          },
+        })
+      );
+
+      const commerceAccounts = yield* CommerceAccounts;
+      const error = yield* commerceAccounts
+        .createFromRegistration({
+          _tag: "AwaitingApprovalRegistration",
+          id: "registration-1",
+          storeKey: StoreKey.make("de-fr-uk"),
+          details: {
+            companyName: "Hydra Supply",
+            contactFirstName: Redacted.make("Ada", { label: "personName" }),
+            contactLastName: Redacted.make("Lovelace", {
+              label: "personName",
+            }),
+            email: Redacted.make("ada@example.com", { label: "email" }),
+            address: {
+              streetName: Redacted.make("Main Street", {
+                label: "addressLine",
+              }),
+              postalCode: Redacted.make("10001", { label: "postalCode" }),
+              city: Redacted.make("New York", { label: "city" }),
+              country: "US",
             },
           },
-        });
-        mocks.businessUnitWithKeyGetExecute.mockRejectedValueOnce({
-          statusCode: 404,
-        });
-        mocks.businessUnitCreateExecute.mockRejectedValueOnce(
-          Object.assign(
-            new Error("Request body does not contain valid JSON."),
-            {
-              statusCode: 400,
-              code: "BadRequest",
-              body: {
-                message: "Request body does not contain valid JSON.",
-                errors: [
-                  {
-                    code: "InvalidJsonInput",
-                    message: "Request body does not contain valid JSON.",
-                    detailedErrorMessage:
-                      "The 'stores' field does not conform to the expected shape.",
-                  },
-                ],
-              },
-            }
-          )
-        );
+        })
+        .pipe(Effect.flip);
 
-        const commerceAccounts = yield* CommerceAccounts;
-        const error = yield* commerceAccounts
-          .createFromRegistration({
-            _tag: "AwaitingApprovalRegistration",
-            id: "registration-1",
-            storeKey: StoreKey.make("de-fr-uk"),
-            details: {
-              companyName: "Hydra Supply",
-              contactFirstName: Redacted.make("Ada", { label: "personName" }),
-              contactLastName: Redacted.make("Lovelace", {
-                label: "personName",
-              }),
-              email: Redacted.make("ada@example.com", { label: "email" }),
-              address: {
-                streetName: Redacted.make("Main Street", {
-                  label: "addressLine",
-                }),
-                postalCode: Redacted.make("10001", { label: "postalCode" }),
-                city: Redacted.make("New York", { label: "city" }),
-                country: "US",
-              },
-            },
-          })
-          .pipe(Effect.flip);
-
-        expect(error).toBeInstanceOf(CommerceAccountError);
-        expect(error.message).toContain("status 400");
-        expect(error.message).toContain("InvalidJsonInput");
-        expect(error.message).toContain(
-          "The 'stores' field does not conform to the expected shape."
-        );
-      }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+      expect(error).toBeInstanceOf(CommerceAccountError);
+      expect(error.message).toBe(
+        "Failed to create Commercetools business unit"
+      );
+      expect(error.cause).toMatchObject({
+        statusCode: 400,
+        code: "BadRequest",
+        body: {
+          errors: [
+            expect.objectContaining({
+              code: "InvalidJsonInput",
+              detailedErrorMessage:
+                "The 'stores' field does not conform to the expected shape.",
+            }),
+          ],
+        },
+      });
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
   it.effect(
@@ -902,7 +909,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
   );
 
   it.effect(
-    "includes Commercetools response details when owner association fails",
+    "keeps owner association response details in the private cause",
     () =>
       Effect.gen(function* () {
         mocks.customerGetExecute.mockResolvedValueOnce({
@@ -945,13 +952,17 @@ describe("layerCommercetoolsCommerceAccounts", () => {
           .pipe(Effect.flip);
 
         expect(error).toBeInstanceOf(CommerceAccountError);
-        expect(error.message).toContain(
+        expect(error.message).toBe(
           "Failed to add Commercetools business unit associate"
         );
-        expect(error.message).toContain(
-          "The referenced associate role does not exist."
-        );
-        expect(error.message).toContain("ReferencedResourceNotFound");
+        expect(error.cause).toMatchObject({
+          body: {
+            message: "The referenced associate role does not exist.",
+            errors: [
+              expect.objectContaining({ code: "ReferencedResourceNotFound" }),
+            ],
+          },
+        });
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 });

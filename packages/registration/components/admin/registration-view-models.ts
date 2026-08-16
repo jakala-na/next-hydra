@@ -1,15 +1,13 @@
-import type { InvalidFormActionResult } from "@repo/form";
+import { makeActionResultSchema } from "@repo/actions";
 import { Redacted, Schema } from "effect";
+
 import type { RegistrationReviewerActor } from "../../domain/actors";
+import { RegistrationId } from "../../domain/identity";
 import type {
   ApprovedRegistration,
   RegistrationStatus as DomainRegistrationStatus,
   Registration,
 } from "../../domain/registration";
-import type {
-  ApproveRegistrationInput as ApproveRegistrationProgramInput,
-  RejectRegistrationInput as RejectRegistrationProgramInput,
-} from "../../programs/registration-onboarding";
 import { REGISTRATION_FIELD_LIMITS } from "../registration-form-schema";
 
 export type RegistrationDetailStatus =
@@ -71,36 +69,46 @@ export const DecisionFormSchema = Schema.Struct({
 
 export type DecisionFormValues = typeof DecisionFormSchema.Type;
 
-export type ApproveRegistrationInput = Pick<
-  ApproveRegistrationProgramInput,
-  "reason"
-> & {
-  readonly registrationId: string;
-};
+const RegistrationDecisionInput = Schema.Struct({
+  reason: Schema.optional(DecisionFormSchema.fields.reason),
+  registrationId: RegistrationId,
+});
 
-export type RejectRegistrationInput = Pick<
-  RejectRegistrationProgramInput,
-  "reason"
-> & {
-  readonly registrationId: string;
-};
+export const ApproveRegistrationInputSchema = RegistrationDecisionInput;
+export type ApproveRegistrationInput =
+  typeof ApproveRegistrationInputSchema.Encoded;
+export const RejectRegistrationInputSchema = RegistrationDecisionInput;
+export type RejectRegistrationInput =
+  typeof RejectRegistrationInputSchema.Encoded;
 
+export const RegistrationDecisionSuccess = Schema.Struct({
+  registrationId: RegistrationId,
+  registrationStatus: Schema.Literal("approval_processing"),
+});
+
+export const RegistrationDecisionActionError = Schema.Union([
+  Schema.TaggedStruct("RegistrationApiNotFound", {}),
+  Schema.TaggedStruct("RegistrationAlreadyApproved", {}),
+  Schema.TaggedStruct("RegistrationAlreadyRejected", {}),
+  Schema.TaggedStruct("RegistrationDecisionConflict", {}),
+  Schema.TaggedStruct("RegistrationDecisionAlreadyProcessing", {}),
+  Schema.TaggedStruct("RegistrationApiUnauthorized", {}),
+  Schema.TaggedStruct("RegistrationApiForbidden", {}),
+  Schema.TaggedStruct("RegistrationDecisionUnavailable", {}),
+]);
+export type RegistrationDecisionActionError =
+  typeof RegistrationDecisionActionError.Type;
+
+export const RegistrationDecisionResult = makeActionResultSchema(
+  RegistrationDecisionSuccess,
+  RegistrationDecisionActionError
+);
 export type RegistrationDecisionResult =
-  | {
-      readonly status: "accepted";
-      readonly registrationId: string;
-      readonly registrationStatus: Extract<
-        RegistrationDetailStatus,
-        "approval_processing" | "approved" | "rejected"
-      >;
-    }
-  | InvalidFormActionResult<never, never, RegistrationDecisionFormErrorCode>;
-
-export type RegistrationDecisionFormErrorCode =
-  | "registrationAlreadyApproved"
-  | "registrationAlreadyRejected"
-  | "registrationDecisionAlreadyProcessing"
-  | "registrationNotFound";
+  typeof RegistrationDecisionResult.Encoded;
+export type RegistrationDecisionActionFailure = Extract<
+  RegistrationDecisionResult,
+  { readonly _tag: "Failure" }
+>["failure"];
 
 const reviewerEmail = (actor: RegistrationReviewerActor) =>
   String(Redacted.value(actor.email));

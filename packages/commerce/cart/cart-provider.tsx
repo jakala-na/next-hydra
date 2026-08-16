@@ -1,5 +1,4 @@
 import "server-only";
-
 import { NextCommerce } from "@repo/commerce/runtime";
 import { CartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
 import type { Locale } from "@repo/i18n/types";
@@ -7,8 +6,11 @@ import { Effect, Option } from "effect";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
+
 import { CurrentCart } from "../services/current-cart";
-import { addToCart, changeCartItemsQuantity, removeCartItem } from "./actions";
+import type { AddToCartAction } from "./add-to-cart";
+import type { ChangeCartItemsQuantityAction } from "./change-cart-items-quantity";
+import type { RemoveCartItemAction } from "./remove-cart-item";
 
 const loadCurrentCart = async (locale: Locale) => {
   await connection();
@@ -40,19 +42,22 @@ const loadCurrentCart = async (locale: Locale) => {
 };
 
 interface CommerceCartProviderProps {
+  readonly actions: {
+    readonly addToCart: AddToCartAction;
+    readonly changeCartItemsQuantity: ChangeCartItemsQuantityAction;
+    readonly removeCartItem: RemoveCartItemAction;
+  };
   readonly children: ReactNode;
   readonly locale: Locale;
 }
 
 export function CommerceCartProvider({
+  actions,
   children,
   locale,
 }: CommerceCartProviderProps) {
   return (
-    <CartProvider
-      actions={{ addToCart, changeCartItemsQuantity, removeCartItem }}
-      cartPromise={loadCurrentCart(locale)}
-    >
+    <CartProvider actions={actions} cartPromise={loadCurrentCart(locale)}>
       {children}
     </CartProvider>
   );

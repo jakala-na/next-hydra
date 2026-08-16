@@ -33,9 +33,7 @@ export default async function RegisterPage({
           </p>
         </div>
 
-        <RegistrationForm
-          submit={submitRegistration.bind(null, "/register/awaiting-approval")}
-        />
+        <RegistrationForm submit={submitRegistration} />
       </div>
     </main>
   );

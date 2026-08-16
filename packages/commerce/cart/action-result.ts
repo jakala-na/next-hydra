@@ -1,4 +1,6 @@
-import { Effect, Schema } from "effect";
+import { makeActionResultSchema } from "@repo/actions";
+import { Schema } from "effect";
+
 import {
   CartLineItemNotFound,
   CartMerchandiseUnavailable,
@@ -18,42 +20,6 @@ export const CartActionOperation = Schema.Literals([
 ]);
 export type CartActionOperation = typeof CartActionOperation.Type;
 
-export class CartActionInvalidInput extends Schema.TaggedErrorClass<CartActionInvalidInput>()(
-  "CartActionInvalidInput",
-  {
-    operation: CartActionOperation,
-  }
-) {}
-
-export type ActionResult<Success, Failure> =
-  | { readonly success: Success }
-  | { readonly error: Failure };
-
-export const ActionResult = <
-  Success extends Schema.Top,
-  Failure extends Schema.Top,
->(
-  success: Success,
-  failure: Failure
-) =>
-  Schema.Union([Schema.Struct({ success }), Schema.Struct({ error: failure })]);
-
-export const encodeActionResult =
-  <Success, Failure, Encoded>(
-    schema: Schema.Codec<ActionResult<Success, Failure>, Encoded, never, never>
-  ) =>
-  <ActualSuccess extends Success, ActualFailure extends Failure, Requirements>(
-    effect: Effect.Effect<ActualSuccess, ActualFailure, Requirements>
-  ): Effect.Effect<Encoded, never, Requirements> =>
-    effect.pipe(
-      Effect.match({
-        onFailure: (error) => ({ error }),
-        onSuccess: (success) => ({ success }),
-      }),
-      Effect.flatMap(Schema.encodeEffect(schema)),
-      Effect.orDie
-    );
-
 const CartProviderActionFailure = Schema.TaggedStruct("CartProviderFailure", {
   operation: CartOperation,
   reason: Schema.Literals(["unavailable", "invalidData", "unexpectedResponse"]),
@@ -69,7 +35,6 @@ const CurrentCartActionOperationFailure = Schema.TaggedStruct(
 );
 
 export const AddToCartActionFailure = Schema.Union([
-  CartActionInvalidInput,
   CommerceRequestContextNotFound,
   CurrentCartSelectionConflict,
   CurrentCartUnavailable,
@@ -82,14 +47,13 @@ export const AddToCartActionFailure = Schema.Union([
 ]);
 export type AddToCartActionFailure = typeof AddToCartActionFailure.Type;
 
-export const AddToCartActionResult = ActionResult(
+export const AddToCartActionResult = makeActionResultSchema(
   CurrentCartState,
   AddToCartActionFailure
 );
 export type AddToCartActionResult = typeof AddToCartActionResult.Encoded;
 
 export const SetCartLineItemQuantityActionFailure = Schema.Union([
-  CartActionInvalidInput,
   CommerceRequestContextNotFound,
   CurrentCartSelectionConflict,
   CurrentCartUnavailable,
@@ -102,7 +66,7 @@ export const SetCartLineItemQuantityActionFailure = Schema.Union([
 export type SetCartLineItemQuantityActionFailure =
   typeof SetCartLineItemQuantityActionFailure.Type;
 
-export const SetCartLineItemQuantityActionResult = ActionResult(
+export const SetCartLineItemQuantityActionResult = makeActionResultSchema(
   CurrentCartState,
   SetCartLineItemQuantityActionFailure
 );
@@ -114,7 +78,7 @@ export const RemoveCartLineItemActionFailure =
 export type RemoveCartLineItemActionFailure =
   typeof RemoveCartLineItemActionFailure.Type;
 
-export const RemoveCartLineItemActionResult = ActionResult(
+export const RemoveCartLineItemActionResult = makeActionResultSchema(
   CurrentCartState,
   RemoveCartLineItemActionFailure
 );

@@ -1,6 +1,7 @@
 import { getTranslations } from "@repo/i18n";
 import type { Locale } from "@repo/i18n/types";
 import type { ReactNode } from "react";
+
 import type {
   CheckoutState,
   CheckoutStepId,
@@ -8,13 +9,15 @@ import type {
 } from "../domain/checkout";
 import { checkoutViolationMessage } from "../lib/checkout/violation-message";
 import { CommerceLocale } from "../store";
+import type {
+  SaveCheckoutContactAction,
+  SaveCheckoutDeliveryDetailsAction,
+} from "./action-contract";
 import { CheckoutContactForm } from "./contact-form";
 import {
   CheckoutDeliveryDetailsForm,
   type CheckoutShippingAddressOption,
 } from "./delivery-details-form";
-import type { SaveCheckoutContactAction } from "./save-contact-state";
-import type { SaveCheckoutDeliveryDetailsAction } from "./save-delivery-details-state";
 import { ActiveStepViolations, CartSidebarViolations } from "./violations";
 
 const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
