@@ -1,9 +1,10 @@
 import { RegistrationId } from "@repo/registration";
 import {
-  RegistrationApiConflict,
-  RegistrationApiError,
-  RegistrationApiNotFound,
-} from "@repo/registration/http/registration-api";
+  RegistrationDecisionOutcomeUnknownFailure,
+  RegistrationApiErrorFailure,
+  PublicRegistrationConcurrentModificationFailure,
+  PublicRegistrationNotFoundFailure,
+} from "@repo/registration/public-errors";
 import { Effect } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -111,7 +112,13 @@ describe("admin registration actions", () => {
       rejectRegistration({ registrationId: "registration-1" })
     ).resolves.toEqual({
       _tag: "Failure",
-      failure: { _tag: "RegistrationApiUnauthorized" },
+      failure: {
+        _tag: "RegistrationApiUnauthorized",
+        category: "unauthenticated",
+        code: "registration.unauthenticated",
+        message: "Authentication is required.",
+        recovery: "reauthenticate",
+      },
     });
     expect(boundary.decide).not.toHaveBeenCalled();
     expect(boundary.revalidatePath).not.toHaveBeenCalled();
@@ -126,23 +133,29 @@ describe("admin registration actions", () => {
     ).resolves.toEqual({
       _tag: "Failure",
       failure: {
-        _tag: "ActionInputInvalid",
+        _tag: "InputInvalid",
+        category: "bad_input",
+        code: "input.invalid",
         issues: [
           {
             path: ["reason"],
             message: "Invalid input.",
           },
         ],
+        message: "Invalid input.",
+        recovery: "fix_input",
       },
     });
     expect(boundary.decide).not.toHaveBeenCalled();
     expect(boundary.revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("preserves safe API tags while removing diagnostic messages", async () => {
+  it("preserves the complete safe API projection", async () => {
     boundary.decide.mockReturnValue(
       Effect.fail(
-        new RegistrationApiNotFound({ message: "private API diagnostic" })
+        PublicRegistrationNotFoundFailure.make({
+          message: "Registration not found",
+        })
       )
     );
 
@@ -152,28 +165,45 @@ describe("admin registration actions", () => {
 
     expect(result).toEqual({
       _tag: "Failure",
-      failure: { _tag: "RegistrationApiNotFound" },
+      failure: {
+        _tag: "RegistrationNotFound",
+        category: "not_found",
+        code: "registration.notFound",
+        message: "Registration not found",
+        recovery: "refresh",
+      },
     });
-    expect(JSON.stringify(result)).not.toContain("private API diagnostic");
     expect(boundary.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("preserves generic decision conflicts separately from processing", async () => {
     boundary.decide.mockReturnValue(
-      Effect.fail(new RegistrationApiConflict({ message: "conflict" }))
+      Effect.fail(
+        PublicRegistrationConcurrentModificationFailure.make({
+          message: "conflict",
+        })
+      )
     );
 
     await expect(
       rejectRegistration({ registrationId: "registration-1" })
     ).resolves.toEqual({
       _tag: "Failure",
-      failure: { _tag: "RegistrationDecisionConflict" },
+      failure: {
+        _tag: "RegistrationConcurrentModification",
+        category: "conflict",
+        code: "registration.conflict",
+        message: "conflict",
+        recovery: "refresh",
+      },
     });
   });
 
   it("maps typed API availability failures to the public unavailable error", async () => {
     boundary.decide.mockReturnValue(
-      Effect.fail(new RegistrationApiError({ message: "private diagnostic" }))
+      Effect.fail(
+        RegistrationApiErrorFailure.make({ message: "Service unavailable" })
+      )
     );
 
     const result = await approveRegistration({
@@ -182,9 +212,40 @@ describe("admin registration actions", () => {
 
     expect(result).toEqual({
       _tag: "Failure",
-      failure: { _tag: "RegistrationDecisionUnavailable" },
+      failure: {
+        _tag: "RegistrationApiError",
+        category: "unavailable",
+        code: "registration.unavailable",
+        message: "Service unavailable",
+        recovery: "retry",
+      },
     });
-    expect(JSON.stringify(result)).not.toContain("private diagnostic");
+    expect(boundary.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("preserves an ambiguous decision outcome as refreshable", async () => {
+    boundary.decide.mockReturnValue(
+      Effect.fail(
+        RegistrationDecisionOutcomeUnknownFailure.make({
+          message: "Refresh before taking further action.",
+          registrationId: RegistrationId.make("registration-1"),
+        })
+      )
+    );
+
+    await expect(
+      approveRegistration({ registrationId: "registration-1" })
+    ).resolves.toEqual({
+      _tag: "Failure",
+      failure: {
+        _tag: "RegistrationDecisionOutcomeUnknown",
+        category: "unavailable",
+        code: "registration.decisionOutcomeUnknown",
+        message: "Refresh before taking further action.",
+        recovery: "refresh",
+        registrationId: "registration-1",
+      },
+    });
     expect(boundary.revalidatePath).not.toHaveBeenCalled();
   });
 

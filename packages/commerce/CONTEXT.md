@@ -58,6 +58,8 @@ The Checkout context describes how a buyer completes the information and choices
 
 **Checkout Mutation Failure**: A typed reason a Checkout Mutation could not save its requested details. _Avoid_: Exception, generic error
 
+**Checkout Mutation Outcome Unknown**: A Checkout Mutation Failure emitted when the Cart provider may have accepted the write but its result could not be confirmed. Callers refresh Checkout before deciding whether another write is needed; Delivery Details retains any Address Book Reference saved before the ambiguous Cart write. _Avoid_: Provider failure, version conflict
+
 **Commerce Principal**: The verified commerce identity resolved for a request: anonymous Cart possession or an authenticated Customer acting in a verified Business Unit. _Avoid_: HTTP headers, Checkout Scope, Registration Actor
 
 **Commerce Context Request**: The trusted Store and buyer selectors decoded at a request boundary before provider-backed commerce identity is resolved. An authenticated request carries a verified Auth User ID and may carry a requested Business Unit ID; it never accepts a Customer ID as authority. _Avoid_: Resolved principal, raw headers, auth session
@@ -205,8 +207,8 @@ The Checkout context describes how a buyer completes the information and choices
 - First-slice **Checkout Violations** are blocking.
 - A **Checkout Mutation** can change the **Cart** details from which **Checkout State** is derived.
 - A **Checkout Mutation Failure** prevents the requested details from being saved.
-- Effect error messages are diagnostic; public adapters map known Checkout Mutation Failures to stable codes before localized UI rendering.
-- Checkout HTTP errors and violations expose both stable machine-readable codes and localized human messages; clients may branch and translate by code or render the supplied message directly.
+- Effect error messages and causes are diagnostic. A client-recoverable Checkout Mutation Failure is projected once into a safe public error that keeps its exact `_tag`, adds a broad `category`, stable `code`, and `recovery`, and exposes only deliberate fields and a localized message. Classified provider or transport outages remain typed failures; invalid provider data, response-schema mismatches, trusted-context decoding failures, and unsupported compositions are defects.
+- Checkout Server Actions and Checkout HTTP endpoints use the same public error schemas and projectors for overlapping operations. Clients may branch precisely by `_tag`, handle a broad class by `category`, follow `recovery`, or render the supplied message directly.
 - Replacement-style **Checkout Mutations** are idempotent for the same requested details.
 - The Commercetools client retries transient HTTP failures, but it does not retry `ConcurrentModification` globally. Each versioned-write boundary chooses how to reconcile its own mutation.
 - Shared versioned-write infrastructure decodes the provider's current version and bounds conflict handling to one retry; it does not decide which action is safe to repeat.
@@ -273,6 +275,7 @@ The Checkout context describes how a buyer completes the information and choices
 - The Cart stores the complete resolved **Shipping Address**, not only its **Address Book Reference**, so Cart and Order consumers do not depend on a later Address Book lookup.
 - If the Business Unit address is saved but the Cart update fails, saving the **Delivery Details** step fails and returns the saved **Address Book Reference** for retry.
 - If the Cart update succeeds but the response-state read fails, the failure still returns the saved **Address Book Reference** so a transport caller does not repeat the Business Unit write.
+- If the Cart write result cannot be confirmed, **Checkout Mutation Outcome Unknown** remains a client-recoverable failure and retains the saved **Address Book Reference** for refresh-based recovery.
 - Retrying after that partial failure uses the existing-Address-Book **Delivery Details Input**, gets the canonical **Address Book Entry** by reference, and retries only the Cart update; retry is not a separate input kind.
 - Address Book save idempotency is reference-based and does not compare address fields: an existing reference returns its canonical entry without another write.
 - **Delivery Details** completion depends on the resolved **Shipping Address**, not on preserving an **Address Book Reference**.
@@ -294,7 +297,7 @@ The Checkout context describes how a buyer completes the information and choices
 
 > **Dev:** "Does saving Delivery Details return and store a new Checkout State?" **Domain expert:** "No — saving Delivery Details is a **Checkout Mutation**; **Checkout State** is recomputed from the updated **Cart**."
 
-> **Dev:** "Is a provider outage a Checkout Policy Violation?" **Domain expert:** "No — provider failures are **Checkout Mutation Failures** when they prevent saving details."
+> **Dev:** "Is a provider outage a Checkout Policy Violation?" **Domain expert:** "No — a provider outage deliberately classified as recoverable is a **Checkout Mutation Failure** when it prevents saving details. Provider contract violations are defects, not buyer-facing policy or mutation failures."
 
 > **Dev:** "If the same Delivery Details are submitted twice, should that create duplicate checkout details?" **Domain expert:** "No — replacement-style **Checkout Mutations** are idempotent for the same requested details."
 

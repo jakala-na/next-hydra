@@ -15,9 +15,11 @@ import { versionedKeyValueStoreLayerFrom } from "./versioned-store";
 
 const getExecute = vi.fn();
 const postExecute = vi.fn();
+const removeExecute = vi.fn();
 const get = vi.fn(() => ({ execute: getExecute }));
 const post = vi.fn(() => ({ execute: postExecute }));
-const withContainerAndKey = vi.fn(() => ({ get }));
+const remove = vi.fn(() => ({ execute: removeExecute }));
+const withContainerAndKey = vi.fn(() => ({ delete: remove, get }));
 const customObjects = vi.fn(() => ({ post, withContainerAndKey }));
 
 class StoredItem extends Schema.Class<StoredItem>("StoredItem")({
@@ -47,8 +49,10 @@ const concurrentModificationError = Object.assign(
 beforeEach(() => {
   getExecute.mockReset();
   postExecute.mockReset();
+  removeExecute.mockReset();
   get.mockClear();
   post.mockClear();
+  remove.mockClear();
   withContainerAndKey.mockClear();
   customObjects.mockClear();
 });
@@ -135,6 +139,70 @@ describe("versionedKeyValueStoreLayer", () => {
           },
         },
       });
+    }).pipe(Effect.provide(layer))
+  );
+
+  it.effect("uses the loaded provider version for removals", () =>
+    Effect.gen(function* () {
+      removeExecute.mockResolvedValueOnce({});
+      const store = yield* VersionedKeyValueStore;
+
+      yield* store.remove(key, {
+        value: item,
+        version: StoreVersion.make("7"),
+      });
+
+      expect(remove).toHaveBeenCalledWith({ queryArgs: { version: 7 } });
+    }).pipe(Effect.provide(layer))
+  );
+
+  it.effect("treats an already-missing removal as successful", () =>
+    Effect.gen(function* () {
+      removeExecute.mockRejectedValueOnce(
+        Object.assign(new Error("Not found"), { statusCode: 404 })
+      );
+      const store = yield* VersionedKeyValueStore;
+
+      yield* store.remove(key, {
+        value: item,
+        version: StoreVersion.make("7"),
+      });
+
+      expect(remove).toHaveBeenCalledWith({ queryArgs: { version: 7 } });
+    }).pipe(Effect.provide(layer))
+  );
+
+  it.effect("maps concurrent removals to store conflicts", () =>
+    Effect.gen(function* () {
+      removeExecute.mockRejectedValueOnce(concurrentModificationError);
+      const store = yield* VersionedKeyValueStore;
+
+      const error = yield* store
+        .remove(key, {
+          value: item,
+          version: StoreVersion.make("7"),
+        })
+        .pipe(Effect.flip);
+
+      expect(error).toBeInstanceOf(StoreConflict);
+      expect(error.operation).toBe("remove");
+    }).pipe(Effect.provide(layer))
+  );
+
+  it.effect("labels invalid removal versions as remove failures", () =>
+    Effect.gen(function* () {
+      const store = yield* VersionedKeyValueStore;
+
+      const error = yield* store
+        .remove(key, {
+          value: item,
+          version: StoreVersion.make("invalid"),
+        })
+        .pipe(Effect.flip);
+
+      expect(error).toBeInstanceOf(StoreError);
+      expect(error.operation).toBe("remove");
+      expect(removeExecute).not.toHaveBeenCalled();
     }).pipe(Effect.provide(layer))
   );
 

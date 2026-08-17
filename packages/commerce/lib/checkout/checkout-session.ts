@@ -4,6 +4,7 @@ import {
   type AddressBookEntry,
   type AddressBookProviderFailure,
   AddressBookReference,
+  type AddressBookWriteOutcomeUnknown,
   SaveAddressBookEntryInput,
 } from "../../domain/address-book";
 import type {
@@ -11,7 +12,6 @@ import type {
   CurrentCartState,
 } from "../../domain/cart-snapshot";
 import {
-  type BuyerContact,
   type CheckoutBuyerContext,
   CheckoutCartMismatch,
   type CheckoutCartReference,
@@ -19,11 +19,14 @@ import {
   type CheckoutContactInput,
   type CheckoutContactMutationFailure,
   type CheckoutContactSource,
+  CheckoutCustomerProfileIncomplete,
+  type CheckoutCustomerProfileField,
   type CheckoutDeliveryDetails,
   type CheckoutDeliveryDetailsInput,
+  type CheckoutDeliveryDetailsMutationFailure,
   CheckoutMutationAddressBookEntryUnavailable,
-  type CheckoutMutationFailure,
   CheckoutMutationIssue,
+  CheckoutMutationOutcomeUnknown,
   CheckoutMutationProviderFailure,
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
@@ -37,6 +40,7 @@ import type { CommerceRequestContextNotFound } from "../../domain/commerce-reque
 import {
   AddressBook,
   type AddressBookGetFailure,
+  type AddressBookSaveFailure,
 } from "../../services/address-book";
 import type { CommerceCustomerProfileNotFound } from "../../services/commerce-accounts";
 import { CommerceContext } from "../../services/commerce-context";
@@ -47,6 +51,10 @@ import type {
 import { CurrentCart } from "../../services/current-cart";
 import { CheckoutPolicies } from "./checkout-policy";
 import { allowedContactSourcesForCheckout } from "./contact-source-policy";
+import {
+  retainExpectedCheckoutMutationFailures,
+  retainExpectedCheckoutReadFailures,
+} from "./failure-policy";
 import { toCheckoutScope } from "./request-context";
 import { buildCheckoutState } from "./state";
 
@@ -70,7 +78,7 @@ export type CheckoutSaveContactFailure =
   | CheckoutUnavailable;
 
 export type CheckoutSaveDeliveryDetailsFailure =
-  | CheckoutMutationFailure
+  | CheckoutDeliveryDetailsMutationFailure
   | CheckoutUnavailable;
 
 const guestBuyerContext: CheckoutBuyerContext = {
@@ -138,17 +146,6 @@ const normalizeManualContact = (
   });
 };
 
-const customerProfileRequiredFieldError = (field: keyof BuyerContact) =>
-  new CheckoutMutationSchemaFailure({
-    issues: [
-      new CheckoutMutationIssue({
-        message: `Customer Profile Contact ${field} is required`,
-        path: field,
-      }),
-    ],
-    message: `Customer Profile Contact ${field} is required`,
-  });
-
 type CommerceContextService = Context.Service.Shape<typeof CommerceContext>;
 
 const customerProfileNotFoundToMutationFailure = (
@@ -162,6 +159,7 @@ const resolveCustomerProfileContact = Effect.fn(
   commerceContext: CommerceContextService
 ): Effect.fn.Return<
   CheckoutContact,
+  | CheckoutCustomerProfileIncomplete
   | CheckoutMutationSchemaFailure
   | CheckoutMutationSourceUnavailable
   | CheckoutMutationProviderFailure
@@ -179,6 +177,7 @@ const resolveCustomerProfileContact = Effect.fn(
             message: error.message,
             operation: "checkout.contact.customerProfile.resolve",
             cause: error,
+            reason: "unavailable",
           })
     )
   );
@@ -190,16 +189,23 @@ const resolveCustomerProfileContact = Effect.fn(
     ? Redacted.value(profile.lastName).trim()
     : "";
 
+  const missingFields: Array<CheckoutCustomerProfileField> = [];
   if (email.length === 0) {
-    return yield* customerProfileRequiredFieldError("email");
+    missingFields.push("email");
   }
-
   if (firstName.length === 0) {
-    return yield* customerProfileRequiredFieldError("firstName");
+    missingFields.push("firstName");
+  }
+  if (lastName.length === 0) {
+    missingFields.push("lastName");
   }
 
-  if (lastName.length === 0) {
-    return yield* customerProfileRequiredFieldError("lastName");
+  const [firstMissingField, ...remainingMissingFields] = missingFields;
+  if (firstMissingField !== undefined) {
+    return yield* new CheckoutCustomerProfileIncomplete({
+      message: "Customer Profile is missing required Contact information",
+      missingFields: [firstMissingField, ...remainingMissingFields],
+    });
   }
 
   return {
@@ -318,9 +324,34 @@ const addressBookProviderFailure = (error: AddressBookProviderFailure) =>
     message: error.message,
     operation: `checkout.deliveryDetails.addressBook.${error.operation}`,
     cause: error,
+    reason: error.reason,
   });
 
+const addressBookWriteOutcomeUnknown = (
+  error: AddressBookWriteOutcomeUnknown
+) =>
+  new CheckoutMutationOutcomeUnknown({
+    addressBookReference: error.reference,
+    message: error.message,
+    operation: "saveDeliveryDetails",
+  });
+
+const mapAddressBookSaveError = (error: AddressBookSaveFailure) => {
+  switch (error._tag) {
+    case "AddressBookAccessDenied":
+    case "CommerceRequestContextNotFound":
+      return addressBookSourceUnavailable();
+    case "AddressBookProviderFailure":
+      return addressBookProviderFailure(error);
+    case "AddressBookWriteOutcomeUnknown":
+      return addressBookWriteOutcomeUnknown(error);
+    default:
+      return error satisfies never;
+  }
+};
+
 const mapAddressBookGetError = (error: AddressBookGetFailure) => {
+  // oxlint-disable-next-line typescript/switch-exhaustiveness-check -- Only failures carrying a saved reference are rebuilt.
   switch (error._tag) {
     case "AddressBookEntryNotFound":
       return addressBookEntryUnavailable(error.reference);
@@ -354,7 +385,10 @@ const resolveCheckoutDeliveryDetails = Effect.fn(
 )(function* (
   input: CheckoutDeliveryDetailsInput,
   addressBook: AddressBookService
-): Effect.fn.Return<ResolvedCheckoutDeliveryDetails, CheckoutMutationFailure> {
+): Effect.fn.Return<
+  ResolvedCheckoutDeliveryDetails,
+  CheckoutDeliveryDetailsMutationFailure
+> {
   if (input.type === "manual" && !input.saveToAddressBook) {
     return {
       deliveryDetails: {
@@ -385,14 +419,7 @@ const resolveCheckoutDeliveryDetails = Effect.fn(
         defaultBilling: false,
       })
     )
-    .pipe(
-      Effect.mapError((error) =>
-        error._tag === "AddressBookAccessDenied" ||
-        error._tag === "CommerceRequestContextNotFound"
-          ? addressBookSourceUnavailable()
-          : addressBookProviderFailure(error)
-      )
-    );
+    .pipe(Effect.mapError(mapAddressBookSaveError));
 
   return {
     deliveryDetails: yield* shippingDeliveryDetailsFromEntry(entry),
@@ -419,7 +446,15 @@ const withSavedAddressBookReference = (
       return new CheckoutMutationProviderFailure({
         message: error.message,
         operation: error.operation,
+        reason: error.reason,
         ...(error.cause === undefined ? {} : { cause: error.cause }),
+        addressBookReference,
+      });
+    case "CheckoutMutationOutcomeUnknown":
+      return new CheckoutMutationOutcomeUnknown({
+        message: error.message,
+        operation: error.operation,
+        ...(error.cartId === undefined ? {} : { cartId: error.cartId }),
         addressBookReference,
       });
     default:
@@ -464,12 +499,16 @@ export class CheckoutSession extends Context.Service<
   }
 >()("@repo/commerce/checkout/CheckoutSession") {
   static readonly getCurrent = Effect.fn("CheckoutSession.getCurrent")(() =>
-    Effect.flatMap(CheckoutSession, (session) => session.getCurrent())
+    Effect.flatMap(CheckoutSession, (session) => session.getCurrent()).pipe(
+      retainExpectedCheckoutReadFailures
+    )
   );
 
   static readonly saveContact = Effect.fn("CheckoutSession.saveContact")(
     (input: SaveCheckoutContactInput) =>
-      Effect.flatMap(CheckoutSession, (session) => session.saveContact(input))
+      Effect.flatMap(CheckoutSession, (session) =>
+        session.saveContact(input)
+      ).pipe(retainExpectedCheckoutMutationFailures)
   );
 
   static readonly saveDeliveryDetails = Effect.fn(
@@ -477,7 +516,7 @@ export class CheckoutSession extends Context.Service<
   )((input: SaveCheckoutDeliveryDetailsInput) =>
     Effect.flatMap(CheckoutSession, (session) =>
       session.saveDeliveryDetails(input)
-    )
+    ).pipe(retainExpectedCheckoutMutationFailures)
   );
 
   static readonly layer = Layer.effect(
@@ -526,34 +565,52 @@ export class CheckoutSession extends Context.Service<
           message: "Failed to resolve Checkout Cart",
           operation: `checkout.currentCart.${error._tag}`,
           cause: error,
+          reason:
+            error._tag === "CartProviderFailure"
+              ? error.reason
+              : "unexpectedResponse",
         });
 
-      const mutationFailure = (error: SaveCurrentCartDetailsFailure) => {
-        switch (error._tag) {
-          case "CurrentCartUnavailable":
-            return new CheckoutUnavailable({
-              message: "Checkout requires an existing Cart",
-              reason: error.reason,
-            });
-          case "CartWriteConflict":
-            return new CheckoutVersionConflict({
-              message: "Checkout Cart changed while it was being updated",
-              cartId: error.cartId,
-            });
-          default:
-            return new CheckoutMutationProviderFailure({
-              message: "Failed to update Checkout Cart",
-              operation: `checkout.currentCart.${error._tag}`,
-              cause: error,
-            });
-        }
-      };
+      const mutationFailure =
+        (operation: "saveContact" | "saveDeliveryDetails") =>
+        (error: SaveCurrentCartDetailsFailure) => {
+          // oxlint-disable-next-line typescript/switch-exhaustiveness-check -- All remaining Cart failures become one Checkout provider failure.
+          switch (error._tag) {
+            case "CurrentCartUnavailable":
+              return new CheckoutUnavailable({
+                message: "Checkout requires an existing Cart",
+                reason: error.reason,
+              });
+            case "CartWriteConflict":
+              return new CheckoutVersionConflict({
+                message: "Checkout Cart changed while it was being updated",
+                cartId: error.cartId,
+              });
+            case "CartWriteOutcomeUnknown":
+              return new CheckoutMutationOutcomeUnknown({
+                message: "Checkout Cart write outcome could not be confirmed",
+                operation,
+                ...(error.cartId === undefined ? {} : { cartId: error.cartId }),
+              });
+            default:
+              return new CheckoutMutationProviderFailure({
+                message: "Failed to update Checkout Cart",
+                operation: `checkout.currentCart.${error._tag}`,
+                cause: error,
+                reason:
+                  error._tag === "CartProviderFailure"
+                    ? error.reason
+                    : "unexpectedResponse",
+              });
+          }
+        };
 
       const mutationReadFailure = (error: CheckoutProviderFailure) =>
         new CheckoutMutationProviderFailure({
           message: error.message,
           operation: error.operation,
           cause: error,
+          reason: error.reason,
         });
 
       const requireCurrent = () =>
@@ -601,7 +658,7 @@ export class CheckoutSession extends Context.Service<
             yield* ensureCurrentCartIdentity(current.cart, input.cart);
             const updated = yield* currentCart
               .saveContact(contact)
-              .pipe(Effect.mapError(mutationFailure));
+              .pipe(Effect.mapError(mutationFailure("saveContact")));
             return yield* buildState(updated);
           }),
         saveDeliveryDetails: (input) =>
@@ -631,7 +688,7 @@ export class CheckoutSession extends Context.Service<
               .pipe(
                 Effect.mapError((error) =>
                   withSavedAddressBookReference(
-                    mutationFailure(error),
+                    mutationFailure("saveDeliveryDetails")(error),
                     resolved.savedAddressBookReference
                   )
                 )

@@ -1,9 +1,10 @@
 import { StoreKey } from "@repo/commerce/store";
+import { ErrorIssue, makeInputInvalid } from "@repo/errors";
 import { DuplicateRegistrationEmail, RegistrationId } from "@repo/registration";
 import {
-  RegistrationApiError,
-  RegistrationApiValidationError,
-} from "@repo/registration/http/registration-api";
+  RegistrationApiErrorFailure,
+  RegistrationApiValidationErrorFailure,
+} from "@repo/registration/public-errors";
 import { Effect } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -22,6 +23,8 @@ vi.mock("@repo/i18n", () => ({
   getTranslations: async () => (key: string) =>
     ({
       "errors.invalidSubmission": "Review the highlighted fields.",
+      "errors.submissionOutcomeUnknown":
+        "Registration receipt could not be confirmed.",
       "errors.submitFailed": "Registration is currently unavailable.",
       "validation.duplicateEmail": "This email is already registered.",
       "validation.email": "Enter a valid email address.",
@@ -138,13 +141,17 @@ describe("submitRegistration", () => {
     expect(result).toEqual({
       _tag: "Failure",
       failure: {
-        _tag: "ActionInputInvalid",
+        _tag: "InputInvalid",
+        category: "bad_input",
+        code: "input.invalid",
         issues: [
           {
             path: ["email"],
             message: "Enter a valid email address.",
           },
         ],
+        message: "Invalid input.",
+        recovery: "fix_input",
       },
     });
     expect(registrationRequest.create).not.toHaveBeenCalled();
@@ -163,13 +170,17 @@ describe("submitRegistration", () => {
     expect(result).toEqual({
       _tag: "Failure",
       failure: {
-        _tag: "ActionInputInvalid",
+        _tag: "InputInvalid",
+        category: "bad_input",
+        code: "input.invalid",
         issues: [
           {
             path: ["address", "region"],
             message: "Enter a state, province, or region.",
           },
         ],
+        message: "Invalid input.",
+        recovery: "fix_input",
       },
     });
     expect(registrationRequest.create).not.toHaveBeenCalled();
@@ -178,8 +189,14 @@ describe("submitRegistration", () => {
   it("preserves registration validation failures as typed schema data", async () => {
     registrationRequest.create.mockReturnValue(
       Effect.fail(
-        new RegistrationApiValidationError({
-          message: "Registration has field validation errors",
+        RegistrationApiValidationErrorFailure.make({
+          issues: [
+            new ErrorIssue({
+              message: "This email is already registered.",
+              path: ["email"],
+            }),
+          ],
+          message: "Review the highlighted fields.",
           reasons: [
             new DuplicateRegistrationEmail({
               path: "email",
@@ -195,33 +212,35 @@ describe("submitRegistration", () => {
     expect(result).toEqual({
       _tag: "Failure",
       failure: {
-        error: {
-          _tag: "RegistrationIntakeValidationError",
-          message: "Registration has field validation errors",
-          reasons: [
-            {
-              _tag: "DuplicateRegistrationEmail",
-              code: "duplicateEmail",
-              path: "email",
-            },
-          ],
-        },
+        _tag: "RegistrationApiValidationError",
+        category: "bad_input",
+        code: "registration.invalidInput",
         issues: [
           {
-            path: "email",
             message: "This email is already registered.",
+            path: ["email"],
           },
         ],
+        message: "Review the highlighted fields.",
+        reasons: [
+          {
+            _tag: "DuplicateRegistrationEmail",
+            code: "duplicateEmail",
+            path: "email",
+          },
+        ],
+        recovery: "fix_input",
       },
     });
     expect(registrationRequest.redirect).not.toHaveBeenCalled();
   });
 
-  it("redacts transport failures behind a typed unavailable failure", async () => {
+  it("preserves typed API availability failures at the action boundary", async () => {
     registrationRequest.create.mockReturnValue(
       Effect.fail(
-        new RegistrationApiError({
-          message: "private upstream diagnostic",
+        RegistrationApiErrorFailure.make({
+          message: "The API returned an English availability message.",
+          retryAfterSeconds: 17,
         })
       )
     );
@@ -231,15 +250,131 @@ describe("submitRegistration", () => {
     expect(result).toEqual({
       _tag: "Failure",
       failure: {
-        error: { _tag: "RegistrationSubmissionUnavailable" },
-        issues: [
-          {
-            path: "root",
-            message: "Registration is currently unavailable.",
-          },
-        ],
+        _tag: "RegistrationApiError",
+        category: "unavailable",
+        code: "registration.unavailable",
+        message: "The API returned an English availability message.",
+        recovery: "retry",
+        retryAfterSeconds: 17,
       },
     });
-    expect(JSON.stringify(result)).not.toContain("private upstream diagnostic");
+  });
+
+  it("maps an ambiguous client transport failure to outcome unknown", async () => {
+    registrationRequest.create.mockReturnValue(
+      Effect.fail({
+        _tag: "HttpClientError",
+        reason: {
+          _tag: "TransportError",
+          cause: Object.assign(new Error("socket reset"), {
+            code: "ECONNRESET",
+          }),
+        },
+      })
+    );
+
+    await expect(submitRegistration(validInput)).resolves.toMatchObject({
+      _tag: "Failure",
+      failure: {
+        _tag: "RegistrationSubmissionOutcomeUnknown",
+        category: "unavailable",
+        code: "registration.submissionOutcomeUnknown",
+        message:
+          "We could not confirm whether your registration was received. Contact support before submitting it again.",
+        recovery: "none",
+      },
+    });
+  });
+
+  it("maps a refused connection transport failure to outcome unknown", async () => {
+    registrationRequest.create.mockReturnValue(
+      Effect.fail({
+        _tag: "HttpClientError",
+        reason: {
+          _tag: "TransportError",
+          cause: Object.assign(new Error("connection refused"), {
+            code: "ECONNREFUSED",
+          }),
+        },
+      })
+    );
+
+    await expect(submitRegistration(validInput)).resolves.toMatchObject({
+      _tag: "Failure",
+      failure: {
+        _tag: "RegistrationSubmissionOutcomeUnknown",
+        category: "unavailable",
+        code: "registration.submissionOutcomeUnknown",
+        message:
+          "We could not confirm whether your registration was received. Contact support before submitting it again.",
+        recovery: "none",
+      },
+    });
+  });
+
+  it("maps a transport failure with an opaque cause to outcome unknown", async () => {
+    registrationRequest.create.mockReturnValue(
+      Effect.fail({
+        _tag: "HttpClientError",
+        reason: {
+          _tag: "TransportError",
+          cause: new TypeError("fetch failed"),
+        },
+      })
+    );
+
+    await expect(submitRegistration(validInput)).resolves.toMatchObject({
+      _tag: "Failure",
+      failure: {
+        _tag: "RegistrationSubmissionOutcomeUnknown",
+        code: "registration.submissionOutcomeUnknown",
+        recovery: "none",
+      },
+    });
+  });
+
+  it("maps a classified response contract mismatch to outcome unknown", async () => {
+    registrationRequest.create.mockReturnValue(
+      Effect.fail({
+        _tag: "RegistrationHttpResponseError",
+        cause: { _tag: "SchemaError" },
+      })
+    );
+
+    await expect(submitRegistration(validInput)).resolves.toMatchObject({
+      _tag: "Failure",
+      failure: {
+        _tag: "RegistrationSubmissionOutcomeUnknown",
+        code: "registration.submissionOutcomeUnknown",
+        recovery: "none",
+      },
+    });
+    expect(registrationRequest.redirect).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unclassified schema error as a defect", async () => {
+    registrationRequest.create.mockReturnValue(
+      Effect.fail({ _tag: "SchemaError" })
+    );
+
+    await expect(submitRegistration(validInput)).rejects.toBeDefined();
+    expect(registrationRequest.redirect).not.toHaveBeenCalled();
+  });
+
+  it("rejects downstream bad requests after the action input was decoded", async () => {
+    registrationRequest.create.mockReturnValue(
+      Effect.fail(
+        makeInputInvalid({
+          issues: [
+            new ErrorIssue({ message: "HTTP contract drift", path: [] }),
+          ],
+          message: "HTTP contract drift",
+        })
+      )
+    );
+
+    await expect(submitRegistration(validInput)).rejects.toMatchObject({
+      _tag: "InputInvalid",
+    });
   });
 });

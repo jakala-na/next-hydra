@@ -20,17 +20,25 @@ export class StoreConflict extends Schema.TaggedErrorClass<StoreConflict>()(
   {
     message: Schema.String,
     key: Schema.String,
-    operation: Schema.Literals(["insert", "update"]),
+    operation: Schema.Literals(["insert", "remove", "update"]),
   }
 ) {}
+
+export const StoreFailureReason = Schema.Literals([
+  "unavailable",
+  "invalidData",
+  "unexpectedResponse",
+]);
+export type StoreFailureReason = typeof StoreFailureReason.Type;
 
 export class StoreError extends Schema.TaggedErrorClass<StoreError>()(
   "StoreError",
   {
     message: Schema.String,
     key: Schema.String,
-    operation: Schema.Literals(["read", "insert", "update"]),
+    operation: Schema.Literals(["read", "insert", "remove", "update"]),
     cause: Schema.Defect,
+    reason: StoreFailureReason,
   }
 ) {}
 
@@ -48,7 +56,8 @@ const versionFromRevision = (revision: number) =>
 const storeError = (
   key: string,
   operation: StoreError["operation"],
-  cause: unknown
+  cause: unknown,
+  reason: StoreError["reason"] = "invalidData"
 ) =>
   new StoreError({
     message: `Failed to ${operation} store value ${key}: ${
@@ -57,6 +66,7 @@ const storeError = (
     key,
     operation,
     cause,
+    reason,
   });
 
 export const encodeJsonString = <S extends Schema.Top>(
@@ -119,6 +129,10 @@ export class VersionedKeyValueStore extends Context.Service<
       StoreConflict | StoreError,
       S["DecodingServices"] | S["EncodingServices"]
     >;
+    readonly remove: (
+      key: string,
+      current: Versioned<unknown>
+    ) => Effect.Effect<void, StoreConflict | StoreError>;
     readonly update: <S extends Schema.Top>(
       key: string,
       schema: S,
@@ -219,6 +233,31 @@ export class VersionedKeyValueStore extends Context.Service<
         });
       });
 
+      const remove = Effect.fn("VersionedKeyValueStore.remove")(
+        (key: string, current: Versioned<unknown>) =>
+          SynchronizedRef.updateEffect(store, (entries) => {
+            const stored = entries.get(key);
+
+            if (!stored) {
+              return Effect.succeed(entries);
+            }
+
+            if (stored.version !== current.version) {
+              return Effect.fail(
+                new StoreConflict({
+                  message: `Store remove conflict for ${key}: Stored version does not match current version`,
+                  key,
+                  operation: "remove",
+                })
+              );
+            }
+
+            const next = new Map(entries);
+            next.delete(key);
+            return Effect.succeed(next);
+          })
+      );
+
       const values = Effect.fn("VersionedKeyValueStore.values")(
         <S extends Schema.Top>(schema: S) =>
           SynchronizedRef.get(store).pipe(
@@ -235,6 +274,7 @@ export class VersionedKeyValueStore extends Context.Service<
       return {
         get,
         insert,
+        remove,
         update,
         values,
       };

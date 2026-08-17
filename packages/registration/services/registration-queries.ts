@@ -1,4 +1,6 @@
+import { StoreFailureReason } from "@repo/versioned-store";
 import { Context, Effect, Layer, Option, Redacted, Schema } from "effect";
+
 import type { RedactedEmail } from "../domain/identity";
 import type { Registration, RegistrationStatus } from "../domain/registration";
 
@@ -36,6 +38,7 @@ export class RegistrationQueryFailure extends Schema.TaggedErrorClass<Registrati
     message: Schema.String,
     operation: Schema.Literal("list"),
     cause: Schema.Defect,
+    reason: StoreFailureReason,
   }
 ) {}
 
@@ -338,6 +341,7 @@ export const listRegistrationRecords = (
           }`,
           operation: "list",
           cause,
+          reason: "unexpectedResponse",
         }),
     });
   });
@@ -376,6 +380,7 @@ export class RegistrationQueries extends Context.Service<
                   }`,
                   operation: "list",
                   cause,
+                  reason: "unexpectedResponse",
                 }),
             })
         ),

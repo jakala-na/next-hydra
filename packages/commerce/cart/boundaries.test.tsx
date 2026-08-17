@@ -1,9 +1,5 @@
-import {
-  ActionClient,
-  ActionInputInvalid,
-  ActionMiddleware,
-  actionToEffect,
-} from "@repo/actions";
+import { ActionClient, ActionMiddleware, actionToEffect } from "@repo/actions";
+import { InputInvalid } from "@repo/errors";
 import {
   type Context,
   Effect,
@@ -16,6 +12,7 @@ import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { CartProviderFailure } from "../domain/cart-errors";
 import { CurrentCartState } from "../domain/cart-snapshot";
+import { CommerceRequestContextNotFound } from "../domain/commerce-request-context";
 import { CurrentCart } from "../services/current-cart";
 import type { AddToCartActionFailure } from "./action-result";
 import { CommerceCartProvider } from "./cart-provider";
@@ -24,7 +21,12 @@ import { makeCartProcedures } from "./procedures";
 const boundary = vi.hoisted(() => {
   const getLocale = vi.fn(async () => "en-US" as const);
   const provide = vi.fn();
-  const requestLayer = vi.fn<(_locale: "en-US") => Layer.Layer<CurrentCart>>();
+  const requestLayer =
+    vi.fn<
+      (
+        _locale: "en-US"
+      ) => Layer.Layer<CurrentCart, CommerceRequestContextNotFound>
+    >();
   const runPromise = vi.fn();
 
   return {
@@ -144,13 +146,17 @@ describe("Cart boundaries", () => {
     ).resolves.toEqual({
       _tag: "Failure",
       failure: {
-        _tag: "ActionInputInvalid",
+        _tag: "InputInvalid",
+        category: "bad_input",
+        code: "input.invalid",
         issues: [
           {
             path: ["quantity"],
             message: "Invalid input.",
           },
         ],
+        message: "Invalid input.",
+        recovery: "fix_input",
       },
     });
   });
@@ -163,7 +169,7 @@ describe("Cart boundaries", () => {
 
     expectTypeOf<
       Effect.Error<ReturnType<typeof addToCartEffect>>
-    >().toEqualTypeOf<ActionInputInvalid | AddToCartActionFailure>();
+    >().toEqualTypeOf<InputInvalid | AddToCartActionFailure>();
 
     await expect(
       Effect.runPromise(
@@ -185,9 +191,9 @@ describe("Cart boundaries", () => {
       )
     );
 
-    expect(failure).toBeInstanceOf(ActionInputInvalid);
+    expect(Schema.is(InputInvalid)(failure)).toBe(true);
     expect(failure).toMatchObject({
-      _tag: "ActionInputInvalid",
+      _tag: "InputInvalid",
       issues: [{ path: ["quantity"], message: "Invalid input." }],
     });
   });
@@ -221,6 +227,66 @@ describe("Cart boundaries", () => {
       },
     });
   });
+
+  it("projects Commerce request diagnostics before serializing them", async () => {
+    boundary.requestLayer.mockImplementationOnce(() =>
+      Layer.effect(
+        CurrentCart,
+        Effect.fail(
+          new CommerceRequestContextNotFound({
+            message: "Commerce customer mapping does not exist for auth-user-1",
+            reason: "noCustomerMapping",
+          })
+        )
+      )
+    );
+
+    await expect(
+      addToCart({
+        productId: "product-1",
+        quantity: 1,
+        variantId: "variant-1",
+      })
+    ).resolves.toEqual({
+      _tag: "Failure",
+      failure: {
+        _tag: "CommerceRequestContextNotFound",
+        category: "not_found",
+        code: "cart.contextUnavailable",
+        message: "The cart is unavailable for the current account.",
+        reason: "noCustomerMapping",
+        recovery: "refresh",
+      },
+    });
+  });
+
+  it.each(["invalidData", "unexpectedResponse"] as const)(
+    "lets %s provider failures reject the Server Action",
+    async (reason) => {
+      boundary.requestLayer.mockImplementationOnce(() =>
+        currentCartLayer({
+          addItem: () =>
+            Effect.fail(
+              new CartProviderFailure({
+                operation: "addItem",
+                reason,
+              })
+            ),
+        })
+      );
+
+      await expect(
+        addToCart({
+          productId: "product-1",
+          quantity: 1,
+          variantId: "variant-1",
+        })
+      ).rejects.toMatchObject({
+        _tag: "CartProviderFailure",
+        reason,
+      });
+    }
+  );
 
   it("lets defects reject the Server Action", async () => {
     boundary.requestLayer.mockImplementationOnce(() =>

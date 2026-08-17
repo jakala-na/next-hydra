@@ -1,39 +1,13 @@
 import { makeDisplayActionResultSchema } from "@repo/actions";
-import { Schema } from "effect";
 
-import {
-  CheckoutCartMismatch,
-  CheckoutMutationAddressBookEntryUnavailable,
-  CheckoutMutationSchemaFailure,
-  CheckoutMutationSourceUnavailable,
-  CheckoutMutationUnsupported,
-  CheckoutState,
-  CheckoutUnavailable,
-  CheckoutVersionConflict,
-} from "../domain/checkout";
-import { CommerceRequestContextNotFound } from "../domain/commerce-request-context";
-import {
-  CheckoutMutationProviderActionError,
-  CommerceAccountActionError,
-  CommerceRequestActionError,
-} from "./public-action-errors";
+import { CheckoutState } from "../domain/checkout";
+import { SaveCheckoutDeliveryDetailsPublicError } from "./public-errors";
 
 /** This sentinel cannot decode as an AddressBookReference because `:` is forbidden there. */
 export const MANUAL_DELIVERY_ADDRESS_CHOICE = "manual:";
 
-export const SaveCheckoutDeliveryDetailsActionError = Schema.Union([
-  CheckoutMutationSchemaFailure,
-  CheckoutMutationSourceUnavailable,
-  CheckoutMutationAddressBookEntryUnavailable,
-  CheckoutCartMismatch,
-  CheckoutVersionConflict,
-  CheckoutMutationProviderActionError,
-  CheckoutMutationUnsupported,
-  CheckoutUnavailable,
-  CommerceRequestContextNotFound,
-  CommerceRequestActionError,
-  CommerceAccountActionError,
-]);
+export const SaveCheckoutDeliveryDetailsActionError =
+  SaveCheckoutDeliveryDetailsPublicError;
 export type SaveCheckoutDeliveryDetailsActionError =
   typeof SaveCheckoutDeliveryDetailsActionError.Type;
 

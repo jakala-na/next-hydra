@@ -80,6 +80,7 @@ const partialSaveReference = (
 ) =>
   actionResult?._tag === "Failure" &&
   (actionResult.failure.error._tag === "CheckoutMutationProviderFailure" ||
+    actionResult.failure.error._tag === "CheckoutMutationOutcomeUnknown" ||
     actionResult.failure.error._tag === "CheckoutVersionConflict")
     ? actionResult.failure.error.addressBookReference
     : undefined;

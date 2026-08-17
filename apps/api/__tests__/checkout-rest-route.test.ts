@@ -18,13 +18,17 @@ import {
   Sku,
   VariantId,
 } from "@repo/commerce/domain/cart";
-import { CartProviderFailure } from "@repo/commerce/domain/cart-errors";
+import {
+  CartProviderFailure,
+  CartWriteOutcomeUnknown,
+} from "@repo/commerce/domain/cart-errors";
 import type {
   CartPolicyViolation,
   CartSnapshot,
 } from "@repo/commerce/domain/cart-snapshot";
 import {
   CheckoutMutationProviderFailure,
+  CheckoutProviderFailure,
   CountryCode,
 } from "@repo/commerce/domain/checkout";
 import type {
@@ -33,7 +37,6 @@ import type {
   CheckoutContactInput,
   CheckoutDeliveryDetails,
   CheckoutDeliveryDetailsInput,
-  CheckoutProviderFailure,
 } from "@repo/commerce/domain/checkout";
 import {
   CommerceBusinessUnitId,
@@ -45,6 +48,7 @@ import {
 } from "@repo/commerce/domain/commerce-account";
 import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
 import type { CustomerCommercePrincipal } from "@repo/commerce/domain/commerce-request-context";
+import type { ProviderFailureReason } from "@repo/commerce/domain/provider-failure";
 import {
   ANONYMOUS_CART_COOKIE_NAME,
   encodeAnonymousCartCookie,
@@ -57,7 +61,7 @@ import { AddressBook } from "@repo/commerce/services/address-book";
 import { CartPolicies } from "@repo/commerce/services/cart-policies";
 import { Carts } from "@repo/commerce/services/carts";
 import {
-  CommerceAccountError,
+  CommerceAccountUnavailable,
   CommerceAccounts,
   CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
@@ -69,9 +73,12 @@ import { expect, test } from "vitest";
 
 const HTTP_OK = 200;
 const HTTP_BAD_REQUEST = 400;
+const HTTP_UNAUTHORIZED = 401;
 const HTTP_NOT_FOUND = 404;
 const HTTP_CONFLICT = 409;
+const HTTP_UNPROCESSABLE_CONTENT = 422;
 const HTTP_INTERNAL_SERVER_ERROR = 500;
+const HTTP_SERVICE_UNAVAILABLE = 503;
 const ADDRESS_BOOK_REFERENCE_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 const money = {
@@ -261,10 +268,15 @@ const makeCheckoutLayer = (
     readonly currentCart?: ReturnType<typeof cart> | undefined;
     readonly allowedContactSources?: readonly string[];
     readonly cartPolicyViolations?: readonly CartPolicyViolation[];
-    readonly saveContactFailure?: CheckoutMutationProviderFailure;
-    readonly saveDeliveryDetailsFailure?: CheckoutMutationProviderFailure;
+    readonly saveContactFailure?:
+      | CartWriteOutcomeUnknown
+      | CheckoutMutationProviderFailure;
+    readonly saveDeliveryDetailsFailure?:
+      | CartWriteOutcomeUnknown
+      | CheckoutMutationProviderFailure;
     readonly getCurrentFailure?: CheckoutProviderFailure;
     readonly customerProfiles?: readonly CommerceCustomerProfile[];
+    readonly providerFailureReason?: ProviderFailureReason;
   } = {}
 ) => {
   const {
@@ -273,12 +285,25 @@ const makeCheckoutLayer = (
     saveDeliveryDetailsFailure,
     getCurrentFailure,
     customerProfiles = [],
+    providerFailureReason = "unavailable",
   } = input;
   const currentCart = "currentCart" in input ? input.currentCart : cart();
   const providerFailure = (
     operation: "findById" | "saveContact" | "saveDeliveryDetails",
     cause: unknown
-  ) => new CartProviderFailure({ cause, operation, reason: "unavailable" });
+  ) =>
+    new CartProviderFailure({
+      cause,
+      operation,
+      reason: providerFailureReason,
+    });
+  const saveFailure = (
+    operation: "saveContact" | "saveDeliveryDetails",
+    failure: CartWriteOutcomeUnknown | CheckoutMutationProviderFailure
+  ) =>
+    failure._tag === "CartWriteOutcomeUnknown"
+      ? failure
+      : providerFailure(operation, failure);
   let activeCart = currentCart;
   const forAnonymous = (value: NonNullable<typeof activeCart>) => {
     const { buyingContext: _buyingContext, ...anonymous } = value;
@@ -319,9 +344,7 @@ const makeCheckoutLayer = (
       removeLineItem: () => Effect.die("not used"),
       saveContact: ({ target, contact }) => {
         if (saveContactFailure !== undefined) {
-          return Effect.fail(
-            providerFailure("saveContact", saveContactFailure)
-          );
+          return Effect.fail(saveFailure("saveContact", saveContactFailure));
         }
         if (activeCart === undefined) {
           return Effect.die("Cart missing");
@@ -339,7 +362,7 @@ const makeCheckoutLayer = (
       saveDeliveryDetails: ({ target, deliveryDetails }) => {
         if (saveDeliveryDetailsFailure !== undefined) {
           return Effect.fail(
-            providerFailure("saveDeliveryDetails", saveDeliveryDetailsFailure)
+            saveFailure("saveDeliveryDetails", saveDeliveryDetailsFailure)
           );
         }
         if (activeCart === undefined) {
@@ -443,7 +466,8 @@ const makeAddressBookLayer = (
 };
 
 const makeCommerceAccountsLayer = (
-  customerId = CommerceCustomerId.make("customer-1")
+  customerId = CommerceCustomerId.make("customer-1"),
+  profile = customerProfile
 ) =>
   Layer.succeed(
     CommerceAccounts,
@@ -451,7 +475,7 @@ const makeCommerceAccountsLayer = (
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () => Effect.succeed(customerId),
-      getCustomerProfile: () => Effect.succeed(customerProfile),
+      getCustomerProfile: () => Effect.succeed(profile),
       hasCustomerWithEmail: () => Effect.die("not used"),
       linkRegistrantIdentity: () => Effect.die("not used"),
       listBusinessUnitMembershipsForCustomerInStore: () =>
@@ -515,7 +539,7 @@ const makeFailingCommerceAccountsLayer = () =>
       createFromRegistration: () => Effect.die("not used"),
       getCustomerIdByAuthUserId: () =>
         Effect.fail(
-          new CommerceAccountError({
+          new CommerceAccountUnavailable({
             message: "Commerce account lookup failed",
           })
         ),
@@ -555,6 +579,22 @@ const makeFailingJwtVerifierLayer = () =>
         Effect.fail(
           new AccessTokenVerificationFailure({
             message: "JWT verifier unavailable",
+            reason: "unavailable",
+          })
+        ),
+    })
+  );
+
+const makeUnexpectedJwtVerifierLayer = () =>
+  Layer.succeed(
+    AccessTokenVerifier,
+    AccessTokenVerifier.of({
+      verify: () =>
+        Effect.fail(
+          new AccessTokenVerificationFailure({
+            cause: new Error("invalid JWKS configuration"),
+            message: "Private verifier diagnostic",
+            reason: "unexpected",
           })
         ),
     })
@@ -696,8 +736,9 @@ test.each(["en-CA", "toString"])(
 
       expect(response.status).toBe(HTTP_BAD_REQUEST);
       expect(body).toMatchObject({
-        _tag: "CheckoutApiBadRequest",
-        code: "checkout.badRequest",
+        _tag: "InputInvalid",
+        code: "input.invalid",
+        issues: [{ path: ["x-context-locale"] }],
         message: "The checkout request is invalid.",
       });
     } finally {
@@ -705,6 +746,28 @@ test.each(["en-CA", "toString"])(
     }
   }
 );
+
+test("POST /checkout/delivery-details preserves HTTP payload schema paths", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest({
+        deliveryDetails: cartOnlyDeliveryDetailsInput,
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "InputInvalid",
+      issues: [{ path: ["cart"] }],
+    });
+  } finally {
+    await dispose();
+  }
+});
 
 test("POST /checkout/contact saves Manual Contact and returns recomputed checkout state", async () => {
   const { dispose, handler } = await makeHandler(makeCheckoutLayer());
@@ -771,6 +834,47 @@ test("POST /checkout/contact resolves Customer Profile from verified bearer cont
   }
 });
 
+test("POST /checkout/contact reports an incomplete Customer Profile as unprocessable content", async () => {
+  const incompleteProfile = new CommerceCustomerProfile({
+    customerId: CommerceCustomerId.make("customer-1"),
+    firstName: Redacted.make("Profile", { label: "personName" }),
+    lastName: Redacted.make("Buyer", { label: "personName" }),
+  });
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      allowedContactSources: ["customerProfile"],
+      customerProfiles: [incompleteProfile],
+    }),
+    makeCommerceAccountsLayer(incompleteProfile.customerId, incompleteProfile),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      saveContactRequest(
+        saveContactPayload({ contact: { source: "customerProfile" } }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_UNPROCESSABLE_CONTENT);
+    expect(body).toStrictEqual({
+      _tag: "CheckoutCustomerProfileIncomplete",
+      category: "bad_input",
+      code: "checkout.contact.customerProfileIncomplete",
+      message:
+        "Your customer profile is missing required contact information. Enter it below to continue.",
+      missingFields: ["email"],
+      recovery: "fix_input",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
 test("POST /checkout/contact cannot save Customer Profile from a spoofed customer header", async () => {
   const { dispose, handler } = await makeHandler(
     makeCheckoutLayer({ customerProfiles: [customerProfile] })
@@ -788,7 +892,8 @@ test("POST /checkout/contact cannot save Customer Profile from a spoofed custome
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(body).toMatchObject({
-      _tag: "CheckoutContactApiBadRequest",
+      _tag: "CheckoutMutationSourceUnavailable",
+      category: "bad_input",
       code: "checkout.contact.sourceUnavailable",
       message: "This contact source is unavailable for this checkout.",
     });
@@ -809,7 +914,8 @@ test("POST /checkout/contact obtains Checkout Scope from request context, not pa
 
     expect(response.status).toBe(HTTP_CONFLICT);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiConflict",
+      _tag: "CheckoutCartMismatch",
+      category: "conflict",
       code: "checkout.cartMismatch",
       message: "This checkout is no longer current. Refresh and try again.",
     });
@@ -840,9 +946,10 @@ test("POST /checkout/contact maps invalid Manual Contact input to bad request", 
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(body).toMatchObject({
-      _tag: "CheckoutContactApiBadRequest",
+      _tag: "CheckoutMutationSchemaFailure",
+      category: "bad_input",
       code: "checkout.contact.invalidInput",
-      issues: [{ path: "firstName" }],
+      issues: [{ path: ["firstName"] }],
       message: "Enter an email, first name, and last name.",
     });
   } finally {
@@ -850,7 +957,7 @@ test("POST /checkout/contact maps invalid Manual Contact input to bad request", 
   }
 });
 
-test("POST /checkout/contact maps disallowed Manual Contact source to bad request", async () => {
+test("POST /checkout/contact allows Manual Contact for a signed-in customer", async () => {
   const { dispose, handler } = await makeHandler(
     Layer.mergeAll(
       makeCheckoutLayer(),
@@ -866,11 +973,12 @@ test("POST /checkout/contact maps disallowed Manual Contact source to bad reques
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(response.status).toBe(HTTP_OK);
     expect(body).toMatchObject({
-      _tag: "CheckoutContactApiBadRequest",
-      code: "checkout.contact.sourceUnavailable",
-      message: "This contact source is unavailable for this checkout.",
+      activeStep: "deliveryDetails",
+      details: {
+        contact: manualContact,
+      },
     });
   } finally {
     await dispose();
@@ -883,6 +991,62 @@ test("POST /checkout/contact maps provider failures to internal errors", async (
       saveContactFailure: new CheckoutMutationProviderFailure({
         message: "Commercetools update failed",
         operation: "checkout.contact.save",
+        reason: "unavailable",
+      }),
+    })
+  );
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationProviderFailure",
+      category: "unavailable",
+      code: "checkout.internal",
+      message: "Checkout could not be completed. Try again.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact preserves an ambiguous Cart write outcome", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      saveContactFailure: new CartWriteOutcomeUnknown({
+        cartId: CartId.make("cart-1"),
+        operation: "saveContact",
+      }),
+    })
+  );
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationOutcomeUnknown",
+      cartId: "cart-1",
+      category: "unavailable",
+      code: "checkout.contact.outcomeUnknown",
+      recovery: "refresh",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact sanitizes invalid provider data as an unexpected defect", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      providerFailureReason: "invalidData",
+      saveContactFailure: new CheckoutMutationProviderFailure({
+        message: "Provider returned invalid Cart data",
+        operation: "checkout.contact.save",
+        reason: "invalidData",
       }),
     })
   );
@@ -893,9 +1057,9 @@ test("POST /checkout/contact maps provider failures to internal errors", async (
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiError",
-      code: "checkout.internal",
-      message: "Checkout could not be completed. Try again.",
+      _tag: "Unexpected",
+      code: "unexpected",
+      message: "Something went wrong.",
     });
   } finally {
     await dispose();
@@ -913,7 +1077,8 @@ test("POST /checkout/contact maps an unavailable Cart to checkout not found", as
 
     expect(response.status).toBe(HTTP_NOT_FOUND);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
+      _tag: "CheckoutUnavailable",
+      category: "not_found",
       code: "checkout.notFound",
       message: "Checkout was not found for the current request.",
     });
@@ -1040,12 +1205,14 @@ test("POST /checkout/delivery-details returns a stable unavailable-entry error",
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(response.status).toBe(HTTP_CONFLICT);
     expect(body).toStrictEqual({
-      _tag: "CheckoutDeliveryDetailsApiBadRequest",
+      _tag: "CheckoutMutationAddressBookEntryUnavailable",
+      addressBookReference: reference,
+      category: "conflict",
       code: "checkout.deliveryDetails.addressBookEntryUnavailable",
       message: "This saved address is no longer available.",
-      parameters: { addressBookReference: reference },
+      recovery: "refresh",
     });
   } finally {
     await dispose();
@@ -1176,6 +1343,7 @@ test("POST /checkout/delivery-details returns the saved reference after a Cart-p
       saveDeliveryDetailsFailure: new CheckoutMutationProviderFailure({
         message: "Commercetools update failed",
         operation: "checkout.deliveryDetails.save",
+        reason: "unavailable",
       }),
     }),
     makeCommerceAccountsLayer(),
@@ -1200,15 +1368,60 @@ test("POST /checkout/delivery-details returns the saved reference after a Cart-p
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
     expect(body).toMatchObject({
-      _tag: "CheckoutDeliveryDetailsApiError",
+      _tag: "CheckoutMutationProviderFailure",
+      addressBookReference: expect.stringMatching(
+        ADDRESS_BOOK_REFERENCE_PATTERN
+      ),
+      category: "unavailable",
       code: "checkout.deliveryDetails.providerFailure",
-      parameters: {
-        addressBookReference: expect.stringMatching(
-          ADDRESS_BOOK_REFERENCE_PATTERN
-        ),
-      },
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details preserves the saved reference when the Cart write outcome is unknown", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      saveDeliveryDetailsFailure: new CartWriteOutcomeUnknown({
+        cartId: CartId.make("cart-1"),
+        operation: "saveDeliveryDetails",
+      }),
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer, makeAddressBookLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            makeDefaultShipping: false,
+            saveToAddressBook: true,
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            type: "manual",
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationOutcomeUnknown",
+      addressBookReference: expect.stringMatching(
+        ADDRESS_BOOK_REFERENCE_PATTERN
+      ),
+      cartId: "cart-1",
+      category: "unavailable",
+      code: "checkout.deliveryDetails.outcomeUnknown",
+      recovery: "refresh",
     });
   } finally {
     await dispose();
@@ -1229,7 +1442,8 @@ test("POST /checkout/delivery-details obtains Checkout Scope from request contex
 
     expect(response.status).toBe(HTTP_CONFLICT);
     expect(body).toMatchObject({
-      _tag: "CheckoutDeliveryDetailsApiConflict",
+      _tag: "CheckoutCartMismatch",
+      category: "conflict",
       code: "checkout.cartMismatch",
       message: "This checkout is no longer current. Refresh and try again.",
     });
@@ -1282,7 +1496,8 @@ test("POST /checkout/delivery-details maps invalid Manual Shipping Address input
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(body).toMatchObject({
-      _tag: "CheckoutDeliveryDetailsApiBadRequest",
+      _tag: "CheckoutMutationSchemaFailure",
+      category: "bad_input",
       code: "checkout.deliveryDetails.invalidInput",
       message: "Enter address line 1, postal code, city, and country.",
     });
@@ -1313,8 +1528,8 @@ test("POST /checkout/delivery-details rejects invalid ISO country codes at the s
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiBadRequest",
-      code: "checkout.badRequest",
+      _tag: "InputInvalid",
+      code: "input.invalid",
       message: "The checkout request is invalid.",
     });
   } finally {
@@ -1328,6 +1543,7 @@ test("POST /checkout/delivery-details maps provider failures to internal errors"
       saveDeliveryDetailsFailure: new CheckoutMutationProviderFailure({
         message: "Commercetools update failed",
         operation: "checkout.deliveryDetails.save",
+        reason: "unavailable",
       }),
     })
   );
@@ -1339,9 +1555,10 @@ test("POST /checkout/delivery-details maps provider failures to internal errors"
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
     expect(body).toMatchObject({
-      _tag: "CheckoutDeliveryDetailsApiError",
+      _tag: "CheckoutMutationProviderFailure",
+      category: "unavailable",
       code: "checkout.deliveryDetails.providerFailure",
       message: "Delivery details could not be saved. Try again.",
     });
@@ -1424,7 +1641,7 @@ test("GET /checkout/current ignores a caller-supplied anonymous cart id header",
 
     expect(response.status).toBe(HTTP_NOT_FOUND);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
+      _tag: "CheckoutUnavailable",
       code: "checkout.notFound",
     });
   } finally {
@@ -1450,7 +1667,7 @@ test("GET /checkout/current ignores anonymous cart cookies for a different store
 
     expect(response.status).toBe(HTTP_NOT_FOUND);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
+      _tag: "CheckoutUnavailable",
       code: "checkout.notFound",
     });
   } finally {
@@ -1555,10 +1772,12 @@ test("GET /checkout/current does not fall back to anonymous checkout for invalid
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(response.status).toBe(HTTP_UNAUTHORIZED);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
-      code: "checkout.notFound",
+      _tag: "CheckoutUnauthenticated",
+      category: "unauthenticated",
+      code: "checkout.unauthenticated",
+      recovery: "reauthenticate",
     });
   } finally {
     await dispose();
@@ -1579,7 +1798,7 @@ test("GET /checkout/current rejects malformed bearer authorization", async () =>
       emptyContext()
     );
 
-    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(response.status).toBe(HTTP_UNAUTHORIZED);
   } finally {
     await dispose();
   }
@@ -1600,10 +1819,10 @@ test("GET /checkout/current treats machine bearer tokens as unsupported for chec
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(response.status).toBe(HTTP_UNAUTHORIZED);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
-      code: "checkout.notFound",
+      _tag: "CheckoutUnauthenticated",
+      code: "checkout.unauthenticated",
     });
   } finally {
     await dispose();
@@ -1627,7 +1846,7 @@ test("GET /checkout/current maps missing customer account for valid bearer JWT t
 
     expect(response.status).toBe(HTTP_NOT_FOUND);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
+      _tag: "CommerceRequestContextNotFound",
       code: "checkout.notFound",
     });
   } finally {
@@ -1652,7 +1871,7 @@ test("GET /checkout/current maps missing Business Unit context for valid bearer 
 
     expect(response.status).toBe(HTTP_NOT_FOUND);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
+      _tag: "CommerceRequestContextNotFound",
       code: "checkout.notFound",
     });
   } finally {
@@ -1675,11 +1894,40 @@ test("GET /checkout/current maps JWT verifier runtime failures to an internal er
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiError",
+      _tag: "CheckoutAuthenticationUnavailable",
       code: "checkout.internal",
     });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current defects on unclassified JWT verifier failures", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeUnexpectedJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).toEqual({
+      _tag: "Unexpected",
+      category: "unexpected",
+      code: "unexpected",
+      message: "Something went wrong.",
+      recovery: "none",
+    });
+    expect(JSON.stringify(body)).not.toContain("Private verifier diagnostic");
   } finally {
     await dispose();
   }
@@ -1700,10 +1948,37 @@ test("GET /checkout/current maps Commerce customer lookup runtime failures to an
     );
     const body = await response.json();
 
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CommerceAccountUnavailable",
+      code: "checkout.internal",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current sanitizes invalid provider data as an unexpected defect", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      getCurrentFailure: new CheckoutProviderFailure({
+        message: "Provider returned invalid Cart data",
+        operation: "checkout.current",
+        reason: "invalidData",
+      }),
+      providerFailureReason: "invalidData",
+    })
+  );
+
+  try {
+    const response = await handler(request(), emptyContext());
+    const body = await response.json();
+
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiError",
-      code: "checkout.internal",
+      _tag: "Unexpected",
+      code: "unexpected",
+      message: "Something went wrong.",
     });
   } finally {
     await dispose();
@@ -1724,7 +1999,7 @@ test("GET /checkout/current maps an empty Cart to a checkout not-found response"
     const body = await response.json();
 
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
+      _tag: "CheckoutUnavailable",
       code: "checkout.notFound",
     });
   } finally {
@@ -1744,7 +2019,7 @@ test("GET /checkout/current maps missing checkout context to not found", async (
 
     expect(response.status).toBe(HTTP_NOT_FOUND);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
+      _tag: "CheckoutUnavailable",
       code: "checkout.notFound",
     });
   } finally {
@@ -1764,7 +2039,7 @@ test("GET /checkout/current localizes the fallback error message from request co
 
     expect(response.status).toBe(HTTP_NOT_FOUND);
     expect(body).toMatchObject({
-      _tag: "CheckoutApiNotFound",
+      _tag: "CheckoutUnavailable",
       code: "checkout.notFound",
       message: "Der Checkout wurde für diese Anfrage nicht gefunden.",
     });

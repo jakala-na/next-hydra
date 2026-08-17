@@ -8,6 +8,7 @@ import type {
   RegistrationStatus as DomainRegistrationStatus,
   Registration,
 } from "../../domain/registration";
+import { RegistrationDecisionPublicError } from "../../public-errors";
 import { REGISTRATION_FIELD_LIMITS } from "../registration-form-schema";
 
 export type RegistrationDetailStatus =
@@ -86,16 +87,7 @@ export const RegistrationDecisionSuccess = Schema.Struct({
   registrationStatus: Schema.Literal("approval_processing"),
 });
 
-export const RegistrationDecisionActionError = Schema.Union([
-  Schema.TaggedStruct("RegistrationApiNotFound", {}),
-  Schema.TaggedStruct("RegistrationAlreadyApproved", {}),
-  Schema.TaggedStruct("RegistrationAlreadyRejected", {}),
-  Schema.TaggedStruct("RegistrationDecisionConflict", {}),
-  Schema.TaggedStruct("RegistrationDecisionAlreadyProcessing", {}),
-  Schema.TaggedStruct("RegistrationApiUnauthorized", {}),
-  Schema.TaggedStruct("RegistrationApiForbidden", {}),
-  Schema.TaggedStruct("RegistrationDecisionUnavailable", {}),
-]);
+export const RegistrationDecisionActionError = RegistrationDecisionPublicError;
 export type RegistrationDecisionActionError =
   typeof RegistrationDecisionActionError.Type;
 

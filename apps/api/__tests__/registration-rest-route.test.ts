@@ -6,7 +6,7 @@ import {
 } from "@repo/auth/access-token";
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import {
-  CommerceAccountError,
+  CommerceAccountUnavailable,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
@@ -31,7 +31,6 @@ import type { Registration } from "@repo/registration/domain/registration";
 import { getRegistrationApprovalHookToken } from "@repo/registration/domain/workflow";
 import {
   CreateRegistrationRequest,
-  RegistrationApiError,
   toCompanyRegistrationDetails,
 } from "@repo/registration/http/registration-api";
 import {
@@ -44,7 +43,13 @@ import { RegistrationMarketPolicy } from "@repo/registration/services/registrati
 import {
   listRegistrationRecords,
   RegistrationQueries,
+  RegistrationQueryFailure,
 } from "@repo/registration/services/registration-queries";
+import {
+  RegistrationWorkflow,
+  RegistrationWorkflowResumeOutcomeUnknown,
+  RegistrationWorkflowStartUnavailable,
+} from "@repo/registration/services/registration-workflow";
 import {
   RegistrationNotFound,
   Registrations,
@@ -173,12 +178,14 @@ const makeApiLayer = (
   seed: readonly Registration[] = [],
   options: {
     readonly hasCustomerWithEmail?: boolean;
-    readonly hasCustomerWithEmailFailure?: CommerceAccountError;
+    readonly hasCustomerWithEmailFailure?: CommerceAccountUnavailable;
     readonly hasIdentityUserWithEmail?: boolean;
+    readonly hasIdentityUserWithEmailFailure?: IdentityUserLookupFailure;
     readonly identityUserGetFailure?:
       | IdentityUserLookupFailure
       | IdentityUserNotFound;
     readonly invalidVatIds?: readonly string[];
+    readonly listFailure?: RegistrationQueryFailure;
     readonly supportedRegistrationCountries?: readonly string[];
   } = {}
 ) => {
@@ -186,15 +193,17 @@ const makeApiLayer = (
     seed.map((registration) => [String(registration.id), registration])
   );
   const list = vi.fn((input) =>
-    listRegistrationRecords(
-      [...registrations.values()].map((registration) => ({
-        createdAt: registration.createdAt,
-        id: String(registration.id),
-        lastModifiedAt: registration.updatedAt,
-        registration,
-      })),
-      input
-    )
+    options.listFailure === undefined
+      ? listRegistrationRecords(
+          [...registrations.values()].map((registration) => ({
+            createdAt: registration.createdAt,
+            id: String(registration.id),
+            lastModifiedAt: registration.updatedAt,
+            registration,
+          })),
+          input
+        )
+      : Effect.fail(options.listFailure)
   );
   const get = vi.fn((registrationId: RegistrationId) => {
     const registration = registrations.get(String(registrationId));
@@ -228,6 +237,10 @@ const makeApiLayer = (
 
           registrations.set(String(registrationId), registration);
           return registration;
+        }),
+      discardAwaitingApproval: (registrationId) =>
+        Effect.sync(() => {
+          registrations.delete(String(registrationId));
         }),
       findByInvitationId: () => Effect.die("not used"),
       get,
@@ -327,7 +340,9 @@ const makeApiLayer = (
             } satisfies IdentityUserProfile)
           : Effect.fail(options.identityUserGetFailure),
       hasUserWithEmail: () =>
-        Effect.succeed(options.hasIdentityUserWithEmail ?? false),
+        options.hasIdentityUserWithEmailFailure === undefined
+          ? Effect.succeed(options.hasIdentityUserWithEmail ?? false)
+          : Effect.fail(options.hasIdentityUserWithEmailFailure),
     })
   );
   const vatValidatorLayer = VatValidator.layerMemoryFrom({
@@ -391,29 +406,39 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
     })
   );
 
+  const workflowLayer = Layer.succeed(
+    RegistrationWorkflow,
+    RegistrationWorkflow.of({
+      resume: (registrationId, decision) =>
+        Effect.tryPromise({
+          catch: (cause) =>
+            new RegistrationWorkflowResumeOutcomeUnknown({
+              cause,
+              message: "Workflow resume outcome is unknown",
+              registrationId,
+            }),
+          try: () =>
+            workflowApiMocks.resumeHook(
+              getRegistrationApprovalHookToken(registrationId),
+              decision
+            ),
+        }),
+      start: (registrationId) =>
+        Effect.tryPromise({
+          catch: (cause) =>
+            new RegistrationWorkflowStartUnavailable({
+              cause,
+              message: "Workflow could not be started",
+              registrationId,
+            }),
+          try: () => workflowApiMocks.start(testWorkflow, [{ registrationId }]),
+        }).pipe(Effect.asVoid),
+    })
+  );
+
   return makeRegistrationHttpHandler({
     authenticationLayer,
-    layer,
-    resumeRegistrationWorkflow: (registrationId, decision) =>
-      Effect.tryPromise({
-        catch: (cause) =>
-          new RegistrationApiError({
-            message: cause instanceof Error ? cause.message : "resume failed",
-          }),
-        try: () =>
-          workflowApiMocks.resumeHook(
-            getRegistrationApprovalHookToken(registrationId),
-            decision
-          ),
-      }),
-    startRegistrationWorkflow: (registrationId) =>
-      Effect.tryPromise({
-        catch: (cause) =>
-          new RegistrationApiError({
-            message: cause instanceof Error ? cause.message : "start failed",
-          }),
-        try: () => workflowApiMocks.start(testWorkflow, [{ registrationId }]),
-      }),
+    layer: layer.pipe(Layer.provideMerge(workflowLayer)),
   });
 };
 
@@ -467,8 +492,13 @@ test("POST /registrations rejects unsupported storefront locales", async () => {
       }),
       emptyContext()
     );
+    const body = await response.json();
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "InputInvalid",
+      issues: [{ path: ["x-context-locale"] }],
+    });
     expect(api.registrations.size).toBe(0);
     expect(workflowApiMocks.start).not.toHaveBeenCalled();
   } finally {
@@ -479,8 +509,76 @@ test("POST /registrations rejects unsupported storefront locales", async () => {
 test("POST /registrations maps preflight provider failures to the typed internal error", async () => {
   workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
   const api = makeApiLayer([], {
-    hasCustomerWithEmailFailure: new CommerceAccountError({
+    hasCustomerWithEmailFailure: new CommerceAccountUnavailable({
       message: "Commercetools unavailable",
+    }),
+  });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", registrationPayload),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toEqual({
+      _tag: "RegistrationApiError",
+      category: "unavailable",
+      code: "registration.unavailable",
+      message: "The registration service is temporarily unavailable.",
+      recovery: "retry",
+    });
+    expect(JSON.stringify(body)).not.toContain("Commercetools unavailable");
+    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations keeps recoverable identity provider outages typed", async () => {
+  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  const api = makeApiLayer([], {
+    hasIdentityUserWithEmailFailure: new IdentityUserLookupFailure({
+      cause: new TypeError("fetch failed"),
+      message: "Private WorkOS transport diagnostic",
+      operation: "hasUserWithEmail",
+      reason: "unavailable",
+    }),
+  });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", "/registrations", registrationPayload),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toEqual({
+      _tag: "RegistrationApiError",
+      category: "unavailable",
+      code: "registration.unavailable",
+      message: "The registration service is temporarily unavailable.",
+      recovery: "retry",
+    });
+    expect(JSON.stringify(body)).not.toContain("WorkOS");
+    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations treats identity provider client failures as defects", async () => {
+  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  const api = makeApiLayer([], {
+    hasIdentityUserWithEmailFailure: new IdentityUserLookupFailure({
+      cause: new Error("invalid WorkOS credentials"),
+      message: "Private WorkOS authentication diagnostic",
+      operation: "hasUserWithEmail",
+      reason: "unexpectedResponse",
     }),
   });
   const { dispose, handler } = await makeHandler(api.layer);
@@ -494,17 +592,20 @@ test("POST /registrations maps preflight provider failures to the typed internal
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
     expect(body).toEqual({
-      _tag: "RegistrationApiError",
-      message: "The registration service is temporarily unavailable.",
+      _tag: "Unexpected",
+      category: "unexpected",
+      code: "unexpected",
+      message: "Something went wrong.",
+      recovery: "none",
     });
-    expect(JSON.stringify(body)).not.toContain("Commercetools unavailable");
+    expect(JSON.stringify(body)).not.toContain("WorkOS");
     expect(workflowApiMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
-test("POST /registrations maps workflow start failures to the typed internal error", async () => {
+test("POST /registrations compensates a failed workflow start and recommends retry", async () => {
   workflowApiMocks.start.mockRejectedValue(new Error("workflow unavailable"));
   const api = makeApiLayer();
   const { dispose, handler } = await makeHandler(api.layer);
@@ -516,13 +617,18 @@ test("POST /registrations maps workflow start failures to the typed internal err
     );
     const body = await response.json();
 
-    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
     expect(body).toEqual({
       _tag: "RegistrationApiError",
-      message: "The registration service is temporarily unavailable.",
+      category: "unavailable",
+      code: "registration.unavailable",
+      message:
+        "We could not submit your registration right now. Please try again.",
+      recovery: "retry",
     });
     expect(JSON.stringify(body)).not.toContain("workflow unavailable");
-    expect(api.registrations.size).toBe(1);
+    expect(workflowApiMocks.start).toHaveBeenCalledOnce();
+    expect(api.registrations.size).toBe(0);
   } finally {
     await dispose();
   }
@@ -754,6 +860,46 @@ test("GET /registrations lists registrations through RegistrationQueries", async
   }
 });
 
+test.each([
+  { expectedStatus: HTTP_SERVICE_UNAVAILABLE, reason: "unavailable" },
+  { expectedStatus: HTTP_INTERNAL_SERVER_ERROR, reason: "invalidData" },
+] as const)(
+  "GET /registrations classifies $reason query failures",
+  async ({ expectedStatus, reason }) => {
+    const api = makeApiLayer([], {
+      listFailure: new RegistrationQueryFailure({
+        cause: new Error("private registration query diagnostic"),
+        message: "Private registration query diagnostic",
+        operation: "list",
+        reason,
+      }),
+    });
+    const { dispose, handler } = await makeHandler(api.layer);
+
+    try {
+      const response = await handler(
+        request("GET", "/registrations", undefined, {
+          authorization: "Bearer read-token",
+        }),
+        emptyContext()
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(expectedStatus);
+      expect(JSON.stringify(body)).not.toContain(
+        "private registration query diagnostic"
+      );
+      expect(body).toMatchObject(
+        reason === "unavailable"
+          ? { _tag: "RegistrationApiError", category: "unavailable" }
+          : { _tag: "Unexpected", category: "unexpected" }
+      );
+    } finally {
+      await dispose();
+    }
+  }
+);
+
 test.each(["", "1234567admin-token"])(
   "GET /registrations rejects missing or malformed access token %j",
   async (authorization) => {
@@ -804,7 +950,7 @@ test("GET /registrations maps invalid cursors to bad requests", async () => {
 
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(body).toMatchObject({
-      _tag: "RegistrationApiInvalidCursor",
+      _tag: "RegistrationQueryInvalidCursor",
       message: "The registration cursor is invalid.",
     });
   } finally {
@@ -930,6 +1076,7 @@ test("POST /registrations/:id/approve reports identity provider failures as unav
       cause: new Error("WorkOS unavailable"),
       message: "WorkOS identity user getById failed",
       operation: "getById",
+      reason: "unavailable",
     }),
   });
   const { dispose, handler } = await makeHandler(api.layer);
@@ -945,6 +1092,45 @@ test("POST /registrations/:id/approve reports identity provider failures as unav
     );
 
     expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/approve treats identity provider client failures as defects", async () => {
+  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  const registration = makeAwaitingRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration], {
+    identityUserGetFailure: new IdentityUserLookupFailure({
+      cause: new Error("invalid WorkOS credentials"),
+      message: "Private WorkOS authentication diagnostic",
+      operation: "getById",
+      reason: "unexpectedResponse",
+    }),
+  });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request(
+        "POST",
+        `/registrations/${registration.id}/approve`,
+        reviewerPayload
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).toEqual({
+      _tag: "Unexpected",
+      category: "unexpected",
+      code: "unexpected",
+      message: "Something went wrong.",
+      recovery: "none",
+    });
+    expect(JSON.stringify(body)).not.toContain("WorkOS");
     expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
   } finally {
     await dispose();
@@ -1000,6 +1186,41 @@ test("POST /registrations/:id/reject does not resume workflow when transition co
     expect(response.status).toBe(HTTP_CONFLICT);
     expect(body._tag).toBe("RegistrationAlreadyApproved");
     expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/approve reports an ambiguous decision outcome as refreshable", async () => {
+  workflowApiMocks.resumeHook.mockRejectedValue(new TypeError("fetch failed"));
+  const registration = makeAwaitingRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration]);
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request(
+        "POST",
+        `/registrations/${registration.id}/approve`,
+        reviewerPayload
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toEqual({
+      _tag: "RegistrationDecisionOutcomeUnknown",
+      category: "unavailable",
+      code: "registration.decisionOutcomeUnknown",
+      message:
+        "The decision was received, but processing could not be confirmed. Refresh before taking further action.",
+      recovery: "refresh",
+      registrationId: String(registration.id),
+    });
+    expect(api.registrations.get(registration.id)?._tag).toBe(
+      "ApprovalProcessingRegistration"
+    );
   } finally {
     await dispose();
   }

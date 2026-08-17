@@ -6,6 +6,8 @@ import type {
 } from "@repo/auth/access-token";
 import type { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { CommerceLocale, resolveStore } from "@repo/commerce/store";
+import { makeSchemaErrorIssues } from "@repo/errors";
+import { unexpectedHttpErrorsLayer } from "@repo/errors/http";
 import { registrationReviewerActorFromIdentityUser } from "@repo/registration/domain/actors";
 import { AuthUserId } from "@repo/registration/domain/identity";
 import type { RegistrationId } from "@repo/registration/domain/identity";
@@ -14,11 +16,6 @@ import {
   ListRegistrationsResponse,
   REGISTRATION_DECIDE_PERMISSION,
   REGISTRATION_READ_PERMISSION,
-  RegistrationApiAuthenticationUnavailable,
-  RegistrationApiBadRequest,
-  RegistrationApiForbidden,
-  RegistrationApiUnauthorized,
-  RegistrationApiValidationError,
   RegistrationDecisionAccessMiddleware,
   RegistrationDecisionAcceptedResponse,
   RegistrationHttpApi,
@@ -33,16 +30,29 @@ import {
   toRegistrationReadApiError,
   toRegistrationTransitionApiError,
 } from "@repo/registration/http/registration-api";
-import type { RegistrationApiError } from "@repo/registration/http/registration-api";
 import { submitRegistrationForReview } from "@repo/registration/programs/registration-intake";
 import type { RegistrationEligibilityProviderError } from "@repo/registration/programs/registration-intake";
 import { acceptRegistrationReviewDecision } from "@repo/registration/programs/registration-review";
-import type { RegistrationReviewWorkflowDecision } from "@repo/registration/programs/registration-review";
-import { IdentityUsers } from "@repo/registration/services/identity-users";
+import {
+  projectRegistrationIntakeValidation,
+  registrationAuthenticationUnavailable,
+  registrationBadRequest,
+  registrationDecisionOutcomeUnknown,
+  registrationForbidden,
+  registrationUnavailable,
+  registrationUnauthorized,
+} from "@repo/registration/public-errors";
+import {
+  IdentityUsers,
+  isRecoverableIdentityUserLookupFailure,
+} from "@repo/registration/services/identity-users";
 import type { Invitations } from "@repo/registration/services/invitations";
 import type { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
 import { RegistrationQueries } from "@repo/registration/services/registration-queries";
+import type { RegistrationQueryFailure } from "@repo/registration/services/registration-queries";
+import { RegistrationWorkflow } from "@repo/registration/services/registration-workflow";
 import { Registrations } from "@repo/registration/services/registrations";
+import type { RegistrationPersistenceFailure } from "@repo/registration/services/registrations";
 import type { VatValidator } from "@repo/registration/services/vat-validator";
 import { Cause, Effect, Layer } from "effect";
 import type { Config, Redacted } from "effect";
@@ -62,7 +72,8 @@ type RegistrationRuntimeLayer = Layer.Layer<
   | IdentityUsers
   | RegistrationMarketPolicy
   | VatValidator
-  | Invitations,
+  | Invitations
+  | RegistrationWorkflow,
   unknown
 >;
 type RegistrationAuthenticationLayer = Layer.Layer<
@@ -73,27 +84,13 @@ type RegistrationAuthenticationLayer = Layer.Layer<
 export interface RegistrationHttpDependencies {
   readonly authenticationLayer: RegistrationAuthenticationLayer;
   readonly layer: RegistrationRuntimeLayer;
-  readonly resumeRegistrationWorkflow: (
-    registrationId: string,
-    decision: RegistrationReviewWorkflowDecision
-  ) => Effect.Effect<void, RegistrationApiError>;
-  readonly startRegistrationWorkflow: (
-    registrationId: string
-  ) => Effect.Effect<unknown, RegistrationApiError>;
 }
 
-const unauthorized = () =>
-  new RegistrationApiUnauthorized({ message: "Authentication is required." });
+const unauthorized = registrationUnauthorized;
 
-const forbidden = () =>
-  new RegistrationApiForbidden({
-    message: "Registration administration access is denied.",
-  });
+const forbidden = registrationForbidden;
 
-const authenticationUnavailable = () =>
-  new RegistrationApiAuthenticationUnavailable({
-    message: "Authentication is temporarily unavailable.",
-  });
+const authenticationUnavailable = registrationAuthenticationUnavailable;
 
 const logRegistrationAuthenticationFailure = (error: {
   readonly _tag: string;
@@ -110,10 +107,28 @@ const logRegistrationAuthenticationFailure = (error: {
 const isRegistrationEligibilityProviderError = (error: {
   readonly _tag: string;
 }): error is RegistrationEligibilityProviderError =>
-  error._tag === "CommerceAccountError" ||
+  error._tag === "CommerceAccountUnavailable" ||
   error._tag === "IdentityUserLookupFailure" ||
-  error._tag === "RegistrationQueryFailure" ||
-  error._tag === "RegistrationQueryInvalidCursor";
+  error._tag === "RegistrationQueryFailure";
+
+type ClassifiedRegistrationInfrastructureFailure =
+  | RegistrationQueryFailure
+  | RegistrationPersistenceFailure;
+
+const retainRecoverableRegistrationInfrastructureFailure = <
+  Failure extends ClassifiedRegistrationInfrastructureFailure,
+>(
+  error: Failure
+): Effect.Effect<never, Failure> =>
+  Effect.logError(error.message, error.cause).pipe(
+    Effect.annotateLogs({
+      "registration.error.tag": error._tag,
+      "registration.failure.reason": error.reason,
+    }),
+    Effect.andThen(
+      error.reason === "unavailable" ? Effect.fail(error) : Effect.die(error)
+    )
+  );
 
 interface RegistrationAccessTokenVerifier {
   readonly verify: (
@@ -141,16 +156,17 @@ const verifyRegistrationAccess = (
     }
 
     return yield* verifier.verify(authorization.token).pipe(
-      Effect.tapError((error) =>
-        error._tag === "AccessTokenVerificationFailure"
-          ? logRegistrationAuthenticationFailure(error)
-          : Effect.void
-      ),
-      Effect.mapError((error) =>
-        error._tag === "AccessTokenInvalid"
-          ? unauthorized()
-          : authenticationUnavailable()
-      ),
+      Effect.catchTags({
+        AccessTokenInvalid: () => Effect.fail(unauthorized()),
+        AccessTokenVerificationFailure: (error) =>
+          logRegistrationAuthenticationFailure(error).pipe(
+            Effect.andThen(
+              error.reason === "unavailable"
+                ? Effect.fail(authenticationUnavailable())
+                : Effect.die(error)
+            )
+          ),
+      }),
       Effect.flatMap((verifiedToken) =>
         verifiedToken.permissions?.includes(requiredPermission)
           ? Effect.succeed(verifiedToken)
@@ -192,16 +208,17 @@ const registrationDecisionAccessMiddlewareLayer = Layer.effect(
           const reviewer = yield* identityUsers
             .getById(AuthUserId.make(verifiedToken.authUserId))
             .pipe(
-              Effect.tapError((error) =>
-                error._tag === "IdentityUserLookupFailure"
-                  ? logRegistrationAuthenticationFailure(error)
-                  : Effect.void
-              ),
-              Effect.mapError((error) =>
-                error._tag === "IdentityUserNotFound"
-                  ? unauthorized()
-                  : authenticationUnavailable()
-              ),
+              Effect.catchTags({
+                IdentityUserNotFound: () => Effect.fail(unauthorized()),
+                IdentityUserLookupFailure: (error) =>
+                  logRegistrationAuthenticationFailure(error).pipe(
+                    Effect.andThen(
+                      isRecoverableIdentityUserLookupFailure(error)
+                        ? Effect.fail(authenticationUnavailable())
+                        : Effect.die(error)
+                    )
+                  ),
+              }),
               Effect.map(registrationReviewerActorFromIdentityUser)
             );
 
@@ -218,21 +235,21 @@ const registrationDecisionAccessMiddlewareLayer = Layer.effect(
 const registrationSchemaErrorMiddlewareLayer =
   HttpApiMiddleware.layerSchemaErrorTransform(
     RegistrationSchemaErrorMiddleware,
-    () =>
-      Effect.fail(
-        new RegistrationApiBadRequest({
-          message: "The registration request is invalid.",
-        })
-      )
+    (error) =>
+      error.kind === "Body"
+        ? Effect.die(error)
+        : Effect.fail(
+            registrationBadRequest(
+              "The registration request is invalid.",
+              makeSchemaErrorIssues(
+                error.cause,
+                "The registration request is invalid."
+              )
+            )
+          )
   );
 
-const makeRegistrationHttpHandlers = ({
-  resumeRegistrationWorkflow,
-  startRegistrationWorkflow,
-}: Pick<
-  RegistrationHttpDependencies,
-  "resumeRegistrationWorkflow" | "startRegistrationWorkflow"
->) =>
+const makeRegistrationHttpHandlers = () =>
   HttpApiBuilder.group(
     RegistrationHttpApi,
     "registrations",
@@ -250,8 +267,6 @@ const makeRegistrationHttpHandlers = ({
           yield* acceptRegistrationReviewDecision({
             decision: input.decision,
             registrationId: input.registrationId,
-            resumeWorkflow: (registrationId, decision) =>
-              resumeRegistrationWorkflow(String(registrationId), decision),
             reviewer,
             ...(input.reason === undefined ? {} : { reason: input.reason }),
           });
@@ -261,6 +276,10 @@ const makeRegistrationHttpHandlers = ({
             status: "approval_processing",
           });
         }).pipe(
+          Effect.catchTag(
+            "RegistrationPersistenceFailure",
+            retainRecoverableRegistrationInfrastructureFailure
+          ),
           Effect.tapCause((cause) =>
             Effect.logError("Failed to accept registration decision", cause)
           ),
@@ -277,11 +296,13 @@ const makeRegistrationHttpHandlers = ({
           }),
           Effect.withSpan("registration.api.decision.accept"),
           Effect.withLogSpan("registration.api.decision.accept"),
-          Effect.mapError((error) =>
-            error._tag === "RegistrationApiError"
-              ? toRegistrationInternalApiError()
-              : toRegistrationTransitionApiError(error)
-          )
+          Effect.mapError((error) => {
+            if (error._tag === "RegistrationWorkflowResumeOutcomeUnknown") {
+              return registrationDecisionOutcomeUnknown(error.registrationId);
+            }
+
+            return toRegistrationTransitionApiError(error);
+          })
         );
 
       return handlers
@@ -298,27 +319,29 @@ const makeRegistrationHttpHandlers = ({
               "registration.id": String(registration.id),
             });
 
-            yield* startRegistrationWorkflow(String(registration.id)).pipe(
-              Effect.withSpan("registration.workflow.start", {
-                attributes: {
-                  "registration.id": String(registration.id),
-                },
-              })
-            );
-
             return new CreateRegistrationResponse({
               registrationId: registration.id,
               status: "awaiting_approval",
               storeKey: registration.storeKey,
             });
           }).pipe(
+            Effect.catchTag("IdentityUserLookupFailure", (error) =>
+              isRecoverableIdentityUserLookupFailure(error)
+                ? Effect.fail(error)
+                : Effect.die(error)
+            ),
+            Effect.catchTags({
+              RegistrationPersistenceFailure:
+                retainRecoverableRegistrationInfrastructureFailure,
+              RegistrationQueryFailure:
+                retainRecoverableRegistrationInfrastructureFailure,
+            }),
             Effect.tapCause((cause) =>
               cause.reasons.some(
                 (reason) =>
                   Cause.isDieReason(reason) ||
                   (Cause.isFailReason(reason) &&
-                    (reason.error._tag === "RegistrationApiError" ||
-                      reason.error._tag === "RegistrationPersistenceFailure" ||
+                    (reason.error._tag === "RegistrationPersistenceFailure" ||
                       isRegistrationEligibilityProviderError(reason.error)))
               )
                 ? Effect.logError("Failed to create registration", cause)
@@ -336,19 +359,18 @@ const makeRegistrationHttpHandlers = ({
             Effect.mapError((error) => {
               switch (error._tag) {
                 case "RegistrationIntakeValidationError":
-                  return new RegistrationApiValidationError({
-                    message: error.message,
-                    reasons: error.reasons,
-                  });
-                case "RegistrationAlreadyExists":
+                  return projectRegistrationIntakeValidation(
+                    error,
+                    headers["x-context-locale"]
+                  );
                 case "RegistrationPersistenceFailure":
                   return toRegistrationCreateApiError(error);
-                case "CommerceAccountError":
+                case "CommerceAccountUnavailable":
                 case "IdentityUserLookupFailure":
                 case "RegistrationQueryFailure":
-                case "RegistrationQueryInvalidCursor":
-                case "RegistrationApiError":
                   return toRegistrationInternalApiError();
+                case "RegistrationWorkflowStartUnavailable":
+                  return registrationUnavailable(headers["x-context-locale"]);
                 default:
                   return error satisfies never;
               }
@@ -378,6 +400,10 @@ const makeRegistrationHttpHandlers = ({
               Effect.tapErrorTag("RegistrationQueryFailure", (error) =>
                 Effect.logError(error.message)
               ),
+              Effect.catchTag(
+                "RegistrationQueryFailure",
+                retainRecoverableRegistrationInfrastructureFailure
+              ),
               Effect.annotateLogs({
                 operation: "registration.api.list",
                 service: "registration-api",
@@ -389,6 +415,10 @@ const makeRegistrationHttpHandlers = ({
           registrations
             .get(params.registrationId)
             .pipe(
+              Effect.catchTag(
+                "RegistrationPersistenceFailure",
+                retainRecoverableRegistrationInfrastructureFailure
+              ),
               Effect.map(toRegistrationDetailResponse),
               Effect.mapError(toRegistrationReadApiError)
             )
@@ -414,10 +444,11 @@ const makeRegistrationHttpApiLayer = (
   dependencies: RegistrationHttpDependencies
 ) =>
   HttpApiBuilder.layer(RegistrationHttpApi).pipe(
-    Layer.provide(makeRegistrationHttpHandlers(dependencies)),
+    Layer.provide(makeRegistrationHttpHandlers()),
     Layer.provide(registrationSchemaErrorMiddlewareLayer),
     Layer.provide(registrationReadAccessMiddlewareLayer),
     Layer.provide(registrationDecisionAccessMiddlewareLayer),
+    Layer.provide(unexpectedHttpErrorsLayer),
     Layer.provideMerge(dependencies.authenticationLayer),
     Layer.provideMerge(dependencies.layer),
     Layer.provide(HttpServer.layerServices)

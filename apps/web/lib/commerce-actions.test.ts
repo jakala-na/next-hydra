@@ -104,6 +104,46 @@ describe("Commerce action cache policy", () => {
     expect(boundary.revalidatePath).not.toHaveBeenCalled();
   });
 
+  it("keeps incomplete Customer Profile recovery in the current form", async () => {
+    boundary.contact.mockResolvedValueOnce({
+      _tag: "Failure",
+      failure: {
+        displayMessage:
+          "Your customer profile is missing required contact information. Enter it below to continue.",
+        error: {
+          _tag: "CheckoutCustomerProfileIncomplete",
+          category: "bad_input",
+          code: "checkout.contact.customerProfileIncomplete",
+          message: "Customer Profile is incomplete",
+          missingFields: ["email"],
+          recovery: "fix_input",
+        },
+      },
+    });
+
+    await saveCheckoutContact(null, new FormData());
+
+    expect(boundary.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("revalidates Checkout after an ambiguous mutation outcome", async () => {
+    boundary.contact.mockResolvedValueOnce({
+      _tag: "Failure",
+      failure: {
+        displayMessage: "Refresh Checkout",
+        error: {
+          _tag: "CheckoutMutationOutcomeUnknown",
+          cartId: CartId.make("cart-1"),
+          message: "Contact write outcome is unknown",
+        },
+      },
+    });
+
+    await saveCheckoutContact(null, new FormData());
+
+    expect(boundary.revalidatePath).toHaveBeenCalledOnce();
+  });
+
   it("revalidates provider failures only when an Address Book entry may have changed", async () => {
     boundary.delivery.mockResolvedValueOnce({
       _tag: "Failure",

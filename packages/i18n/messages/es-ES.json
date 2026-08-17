@@ -147,7 +147,8 @@
         "errors": {
           "invalidSubmission": "Revisa los campos marcados e inténtalo de nuevo.",
           "unsupportedRegistrationCountry": "Aún no podemos aceptar registros de empresas de este país.",
-          "submitFailed": "No hemos podido enviar tu registro en este momento. Inténtalo de nuevo."
+          "submitFailed": "No hemos podido enviar tu registro en este momento. Inténtalo de nuevo.",
+          "submissionOutcomeUnknown": "No hemos podido confirmar si se recibió tu registro. Ponte en contacto con soporte antes de volver a enviarlo."
         },
         "validation": {
           "companyName": "Introduce el nombre de la empresa.",
@@ -272,10 +273,12 @@
         "versionConflict": "El proceso de compra cambió antes de guardar. Actualiza la página e inténtalo de nuevo.",
         "saveContact": {
           "CheckoutCartMismatch": "Este proceso de compra ya no está actualizado. Actualiza la página e inténtalo de nuevo.",
+          "CheckoutCustomerProfileIncomplete": "En tu perfil de cliente faltan datos de contacto obligatorios. Introdúcelos abajo para continuar.",
           "CheckoutMutationSchemaFailure": "Introduce un correo electrónico, un nombre y unos apellidos.",
+          "CheckoutMutationOutcomeUnknown": "No hemos podido confirmar si se guardaron tus datos de contacto. Actualiza antes de volver a intentarlo.",
           "CheckoutMutationSourceUnavailable": "Esta fuente de contacto no está disponible para este proceso de compra.",
           "CheckoutMutationProviderFailure": "No se pudo guardar el contacto. Inténtalo de nuevo.",
-          "CommerceAccountError": "No se pudo guardar el contacto. Inténtalo de nuevo.",
+          "CommerceAccountUnavailable": "No se pudo guardar el contacto. Inténtalo de nuevo.",
           "CommerceRequestFailure": "No se pudo guardar el contacto. Inténtalo de nuevo.",
           "CheckoutMutationUnsupported": "Esta fuente de contacto aún no es compatible.",
           "CheckoutUnavailable": "No se encontró el proceso de compra para esta solicitud.",
@@ -286,9 +289,10 @@
           "CheckoutCartMismatch": "Este proceso de compra ya no está actualizado. Actualiza la página e inténtalo de nuevo.",
           "CheckoutMutationAddressBookEntryUnavailable": "Esta dirección guardada ya no está disponible.",
           "CheckoutMutationSchemaFailure": "Introduce la dirección, el código postal, la ciudad y el país.",
+          "CheckoutMutationOutcomeUnknown": "No hemos podido confirmar si se guardaron tus datos de entrega. Actualiza antes de volver a intentarlo.",
           "CheckoutMutationSourceUnavailable": "Esta fuente de entrega no está disponible para este proceso de compra.",
           "CheckoutMutationProviderFailure": "No se pudieron guardar los datos de entrega. Inténtalo de nuevo.",
-          "CommerceAccountError": "No se pudieron guardar los datos de entrega. Inténtalo de nuevo.",
+          "CommerceAccountUnavailable": "No se pudieron guardar los datos de entrega. Inténtalo de nuevo.",
           "CommerceRequestFailure": "No se pudieron guardar los datos de entrega. Inténtalo de nuevo.",
           "CheckoutMutationUnsupported": "Esta fuente de entrega aún no es compatible.",
           "CheckoutUnavailable": "No se encontró el proceso de compra para esta solicitud.",

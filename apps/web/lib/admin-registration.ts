@@ -7,11 +7,12 @@ import type {
 } from "@repo/registration/components/admin/registration-view-models";
 import {
   ListRegistrationsQuery,
-  RegistrationApiNotFound,
+  PublicRegistrationNotFound,
   RegistrationDecisionRequest,
 } from "@repo/registration/http/registration-api";
 import type { RegistrationDetailResponse } from "@repo/registration/http/registration-api";
-import { Effect } from "effect";
+import { registrationDecisionOutcomeUnknown } from "@repo/registration/public-errors";
+import { Effect, Schema } from "effect";
 
 import {
   ADMIN_REGISTRATION_READ_PERMISSION,
@@ -139,7 +140,7 @@ export async function getAdminRegistration(input: {
       )
     );
   } catch (error) {
-    if (error instanceof RegistrationApiNotFound) {
+    if (Schema.is(PublicRegistrationNotFound)(error)) {
       return null;
     }
 
@@ -168,6 +169,32 @@ export const decideAdminRegistration = Effect.fn("AdminRegistration.decide")(
         ? client.registrations.approve(request)
         : client.registrations.reject(request)
     ).pipe(
+      Effect.catchTags({
+        HttpClientError: (error) =>
+          error.reason._tag === "TransportError"
+            ? Effect.fail(
+                registrationDecisionOutcomeUnknown(
+                  RegistrationId.make(input.registrationId)
+                )
+              )
+            : Effect.die(error),
+        InputInvalid: Effect.die,
+        RegistrationHttpResponseError: (error) =>
+          Effect.logError(
+            "Registration decision response violated its HTTP contract",
+            error.cause
+          ).pipe(
+            Effect.andThen(
+              Effect.fail(
+                registrationDecisionOutcomeUnknown(
+                  RegistrationId.make(input.registrationId)
+                )
+              )
+            )
+          ),
+        SchemaError: Effect.die,
+        Unexpected: Effect.die,
+      }),
       Effect.tapError((error) => logDecisionFailure(input, error)),
       Effect.annotateLogs({
         operation: "registration.admin.decision.submit",

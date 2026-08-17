@@ -1,5 +1,5 @@
 import {
-  type CommerceAccountError,
+  type CommerceAccountUnavailable,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
 import { Effect } from "effect";
@@ -95,7 +95,7 @@ export const acceptCompanyMemberInvitation = (
   input: AcceptCompanyMemberInvitationInput
 ): Effect.Effect<
   AcceptedInvitation,
-  InvitationAcceptError | CommerceAccountError,
+  InvitationAcceptError | CommerceAccountUnavailable,
   Invitations | CommerceAccounts
 > =>
   Effect.gen(function* () {

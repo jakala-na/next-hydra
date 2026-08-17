@@ -1,10 +1,12 @@
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
+
 import {
   AccessTokenInvalid,
   AccessTokenVerificationFailure,
   AccessTokenVerifier,
   accessTokenVerifierLayerFromJwtVerifier,
+  fetchWorkosJwks,
 } from "./access-token";
 
 describe("AccessTokenVerifier", () => {
@@ -60,6 +62,27 @@ describe("AccessTokenVerifier", () => {
     if (exit._tag === "Failure") {
       expect(exit.cause.toString()).toContain(AccessTokenInvalid.name);
     }
+  });
+
+  it("rejects access tokens whose key is absent from the trusted JWKS", async () => {
+    const joseError = Object.assign(new Error("no matching key"), {
+      code: "ERR_JWKS_NO_MATCHING_KEY",
+    });
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
+      verifyAccessToken: () => Promise.reject(joseError),
+    });
+
+    const error = await Effect.runPromise(
+      Effect.gen(function* () {
+        const verifier = yield* AccessTokenVerifier;
+        return yield* verifier.verify("jwt-1").pipe(Effect.flip);
+      }).pipe(Effect.provide(layer))
+    );
+
+    expect(error).toMatchObject({
+      _tag: AccessTokenInvalid.name,
+      reason: "invalidToken",
+    });
   });
 
   it("rejects a verified token payload without an auth user id", async () => {
@@ -176,23 +199,96 @@ describe("AccessTokenVerifier", () => {
     }
   });
 
-  it("maps verifier runtime failures separately from invalid tokens", async () => {
+  it("classifies unknown verifier failures as unexpected", async () => {
     const layer = accessTokenVerifierLayerFromJwtVerifier({
       verifyAccessToken: () => Promise.reject(new Error("jwks unavailable")),
     });
 
-    const exit = await Effect.runPromise(
+    const error = await Effect.runPromise(
       Effect.gen(function* () {
         const verifier = yield* AccessTokenVerifier;
-        return yield* verifier.verify("jwt-1").pipe(Effect.exit);
+        return yield* verifier.verify("jwt-1").pipe(Effect.flip);
       }).pipe(Effect.provide(layer))
     );
 
-    expect(exit._tag).toBe("Failure");
-    if (exit._tag === "Failure") {
-      expect(exit.cause.toString()).toContain(
-        AccessTokenVerificationFailure.name
+    expect(error).toMatchObject({
+      _tag: AccessTokenVerificationFailure.name,
+      reason: "unexpected",
+    });
+  });
+
+  it("does not infer verifier availability from TypeError alone", async () => {
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
+      verifyAccessToken: () => Promise.reject(new TypeError("fetch failed")),
+    });
+
+    const error = await Effect.runPromise(
+      Effect.gen(function* () {
+        const verifier = yield* AccessTokenVerifier;
+        return yield* verifier.verify("jwt-1").pipe(Effect.flip);
+      }).pipe(Effect.provide(layer))
+    );
+
+    expect(error).toMatchObject({
+      _tag: "AccessTokenVerificationFailure",
+      reason: "unexpected",
+    });
+  });
+
+  it("classifies coded verifier transport failures as unavailable", async () => {
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
+      verifyAccessToken: () =>
+        Promise.reject(
+          new TypeError("fetch failed", {
+            cause: Object.assign(new Error("socket reset"), {
+              code: "ECONNRESET",
+            }),
+          })
+        ),
+    });
+
+    const error = await Effect.runPromise(
+      Effect.gen(function* () {
+        const verifier = yield* AccessTokenVerifier;
+        return yield* verifier.verify("jwt-1").pipe(Effect.flip);
+      }).pipe(Effect.provide(layer))
+    );
+
+    expect(error).toMatchObject({
+      _tag: "AccessTokenVerificationFailure",
+      reason: "unavailable",
+    });
+  });
+
+  it("preserves JWKS server failures as unavailable verification errors", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = () =>
+      Promise.resolve(new Response("unavailable", { status: 503 }));
+
+    try {
+      const error = await fetchWorkosJwks("https://api.workos.com/jwks", {
+        headers: new Headers(),
+        method: "GET",
+        redirect: "manual",
+        signal: new AbortController().signal,
+      }).catch((cause: unknown) => cause);
+      const layer = accessTokenVerifierLayerFromJwtVerifier({
+        verifyAccessToken: () => Promise.reject(error),
+      });
+
+      const verificationError = await Effect.runPromise(
+        Effect.gen(function* () {
+          const verifier = yield* AccessTokenVerifier;
+          return yield* verifier.verify("jwt-1").pipe(Effect.flip);
+        }).pipe(Effect.provide(layer))
       );
+
+      expect(verificationError).toMatchObject({
+        _tag: AccessTokenVerificationFailure.name,
+        reason: "unavailable",
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
     }
   });
 });

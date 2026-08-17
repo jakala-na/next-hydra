@@ -1,9 +1,9 @@
 import "server-only";
+import { REGISTRATION_DECIDE_PERMISSION } from "@repo/registration/http/registration-api";
 import {
-  REGISTRATION_DECIDE_PERMISSION,
-  RegistrationApiForbidden,
-  RegistrationApiUnauthorized,
-} from "@repo/registration/http/registration-api";
+  registrationForbidden,
+  registrationUnauthorized,
+} from "@repo/registration/public-errors";
 import { Context, Effect, Layer, Redacted } from "effect";
 
 import { decideAdminRegistration } from "./admin-registration";
@@ -19,21 +19,15 @@ export class RegistrationReviewers extends Context.Service<
   { readonly decide: DecideRegistration }
 >()("@repo/web/RegistrationReviewers") {}
 
-const unauthorized = () =>
-  new RegistrationApiUnauthorized({
-    message: "Authentication is required.",
-  });
+const unauthorized = registrationUnauthorized;
 
-const forbidden = () =>
-  new RegistrationApiForbidden({
-    message: "Registration administration access is denied.",
-  });
+const forbidden = registrationForbidden;
 
 export const registrationReviewersLayer = (
   session: CurrentAuthSnapshot
 ): Layer.Layer<
   RegistrationReviewers,
-  RegistrationApiUnauthorized | RegistrationApiForbidden
+  ReturnType<typeof unauthorized> | ReturnType<typeof forbidden>
 > =>
   Layer.effect(
     RegistrationReviewers,

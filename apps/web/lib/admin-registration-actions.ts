@@ -14,44 +14,11 @@ import {
   RegistrationReviewers,
   registrationReviewersLayer,
 } from "./registration-reviewers";
-import type {
-  RegistrationReviewerDecisionFailure,
-  RegistrationReviewerFailure,
-} from "./registration-reviewers";
 import { SessionActions } from "./session-actions";
 
 const RegistrationReviewerActions = SessionActions.provide(({ session }) =>
   registrationReviewersLayer(session)
 );
-
-const publicDecisionError = (
-  error: RegistrationReviewerFailure
-): RegistrationDecisionActionError => {
-  switch (error._tag) {
-    case "RegistrationApiNotFound":
-      return { _tag: "RegistrationApiNotFound" };
-    case "RegistrationAlreadyApproved":
-      return { _tag: "RegistrationAlreadyApproved" };
-    case "RegistrationAlreadyRejected":
-      return { _tag: "RegistrationAlreadyRejected" };
-    case "RegistrationApiConflict":
-      return { _tag: "RegistrationDecisionConflict" };
-    case "RegistrationDecisionAlreadyProcessing":
-      return { _tag: "RegistrationDecisionAlreadyProcessing" };
-    case "RegistrationApiUnauthorized":
-      return { _tag: "RegistrationApiUnauthorized" };
-    case "RegistrationApiForbidden":
-      return { _tag: "RegistrationApiForbidden" };
-    case "RegistrationApiAuthenticationUnavailable":
-    case "RegistrationApiBadRequest":
-    case "RegistrationApiError":
-    case "HttpClientError":
-    case "SchemaError":
-      return { _tag: "RegistrationDecisionUnavailable" };
-    default:
-      return error satisfies never;
-  }
-};
 
 const approveRegistrationProcedure = RegistrationReviewerActions.procedure(
   "AdminRegistration.approve"
@@ -59,7 +26,6 @@ const approveRegistrationProcedure = RegistrationReviewerActions.procedure(
   .input(ApproveRegistrationInputSchema)
   .output(RegistrationDecisionSuccess)
   .error(RegistrationDecisionActionError)
-  .mapError<RegistrationReviewerDecisionFailure>(publicDecisionError)
   .handle((input) =>
     RegistrationReviewers.pipe(
       Effect.flatMap((reviewers) =>
@@ -74,7 +40,6 @@ const rejectRegistrationProcedure = RegistrationReviewerActions.procedure(
   .input(RejectRegistrationInputSchema)
   .output(RegistrationDecisionSuccess)
   .error(RegistrationDecisionActionError)
-  .mapError<RegistrationReviewerDecisionFailure>(publicDecisionError)
   .handle((input) =>
     RegistrationReviewers.pipe(
       Effect.flatMap((reviewers) =>

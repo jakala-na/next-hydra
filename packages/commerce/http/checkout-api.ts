@@ -1,3 +1,5 @@
+import { InputInvalid } from "@repo/errors";
+import { UnexpectedHttpErrors } from "@repo/errors/http";
 import { Schema } from "effect";
 import {
   HttpApi,
@@ -8,14 +10,20 @@ import {
   OpenApi,
 } from "effect/unstable/httpapi";
 
-import { AddressBookReference } from "../domain/address-book";
+import {
+  CheckoutAuthenticationUnavailable,
+  CheckoutCurrentOperationPublicErrors,
+  CheckoutRequestPublicErrors,
+  CheckoutUnauthenticated,
+  SaveCheckoutContactOperationPublicErrors,
+  SaveCheckoutDeliveryDetailsOperationPublicErrors,
+} from "../checkout/public-errors";
 import { CartSnapshot } from "../domain/cart-snapshot";
 import {
   CheckoutCartReference,
   CheckoutContactInput,
   CheckoutDetails,
   CheckoutDeliveryDetailsInput,
-  CheckoutMutationIssuePath,
   CheckoutState,
   CheckoutViolation,
 } from "../domain/checkout";
@@ -68,106 +76,6 @@ export const CheckoutApiState = Schema.Struct({
 });
 export type CheckoutApiState = typeof CheckoutApiState.Type;
 
-export const CheckoutApiErrorParameters = Schema.Struct({
-  addressBookReference: Schema.optional(AddressBookReference),
-});
-export type CheckoutApiErrorParameters = typeof CheckoutApiErrorParameters.Type;
-
-export class CheckoutApiError extends Schema.TaggedErrorClass<CheckoutApiError>()(
-  "CheckoutApiError",
-  {
-    code: Schema.Literal("checkout.internal"),
-    message: Schema.String,
-  },
-  { httpApiStatus: 500 }
-) {}
-
-export class CheckoutDeliveryDetailsApiError extends Schema.TaggedErrorClass<CheckoutDeliveryDetailsApiError>()(
-  "CheckoutDeliveryDetailsApiError",
-  {
-    code: Schema.Literal("checkout.deliveryDetails.providerFailure"),
-    message: Schema.String,
-    parameters: Schema.optional(CheckoutApiErrorParameters),
-  },
-  { httpApiStatus: 500 }
-) {}
-
-export class CheckoutApiNotFound extends Schema.TaggedErrorClass<CheckoutApiNotFound>()(
-  "CheckoutApiNotFound",
-  {
-    code: Schema.Literal("checkout.notFound"),
-    message: Schema.String,
-  },
-  { httpApiStatus: 404 }
-) {}
-
-export class CheckoutApiBadRequest extends Schema.TaggedErrorClass<CheckoutApiBadRequest>()(
-  "CheckoutApiBadRequest",
-  {
-    code: Schema.Literal("checkout.badRequest"),
-    message: Schema.String,
-  },
-  { httpApiStatus: 400 }
-) {}
-
-export class CheckoutContactApiIssue extends Schema.Class<CheckoutContactApiIssue>(
-  "CheckoutContactApiIssue"
-)({
-  path: CheckoutMutationIssuePath,
-}) {}
-
-export class CheckoutContactApiBadRequest extends Schema.TaggedErrorClass<CheckoutContactApiBadRequest>()(
-  "CheckoutContactApiBadRequest",
-  {
-    code: Schema.Literals([
-      "checkout.contact.invalidInput",
-      "checkout.contact.sourceUnavailable",
-    ]),
-    issues: Schema.optional(Schema.NonEmptyArray(CheckoutContactApiIssue)),
-    message: Schema.String,
-  },
-  { httpApiStatus: 400 }
-) {}
-
-export class CheckoutDeliveryDetailsApiBadRequest extends Schema.TaggedErrorClass<CheckoutDeliveryDetailsApiBadRequest>()(
-  "CheckoutDeliveryDetailsApiBadRequest",
-  {
-    code: Schema.Literals([
-      "checkout.deliveryDetails.invalidInput",
-      "checkout.deliveryDetails.sourceUnavailable",
-      "checkout.deliveryDetails.addressBookEntryUnavailable",
-    ]),
-    message: Schema.String,
-    parameters: Schema.optional(CheckoutApiErrorParameters),
-  },
-  { httpApiStatus: 400 }
-) {}
-
-export class CheckoutApiConflict extends Schema.TaggedErrorClass<CheckoutApiConflict>()(
-  "CheckoutApiConflict",
-  {
-    code: Schema.Literals([
-      "checkout.cartMismatch",
-      "checkout.versionConflict",
-    ]),
-    message: Schema.String,
-  },
-  { httpApiStatus: 409 }
-) {}
-
-export class CheckoutDeliveryDetailsApiConflict extends Schema.TaggedErrorClass<CheckoutDeliveryDetailsApiConflict>()(
-  "CheckoutDeliveryDetailsApiConflict",
-  {
-    code: Schema.Literals([
-      "checkout.cartMismatch",
-      "checkout.versionConflict",
-    ]),
-    message: Schema.String,
-    parameters: Schema.optional(CheckoutApiErrorParameters),
-  },
-  { httpApiStatus: 409 }
-) {}
-
 export class SaveCheckoutContactRequest extends Schema.Class<SaveCheckoutContactRequest>(
   "SaveCheckoutContactRequest"
 )({
@@ -188,7 +96,7 @@ export class CheckoutSchemaErrorMiddleware extends HttpApiMiddleware.Service<
     readonly requires: never;
   }
 >()("@repo/commerce/http/CheckoutSchemaErrorMiddleware", {
-  error: CheckoutApiBadRequest,
+  error: InputInvalid,
 }) {}
 
 export class CheckoutSessionMiddleware extends HttpApiMiddleware.Service<
@@ -198,7 +106,12 @@ export class CheckoutSessionMiddleware extends HttpApiMiddleware.Service<
     readonly requires: never;
   }
 >()("@repo/commerce/http/CheckoutSessionMiddleware", {
-  error: [CheckoutApiBadRequest, CheckoutApiError, CheckoutApiNotFound],
+  error: [
+    InputInvalid,
+    CheckoutAuthenticationUnavailable,
+    CheckoutUnauthenticated,
+    ...CheckoutRequestPublicErrors,
+  ],
   security: {
     accessToken: HttpApiSecurity.bearer,
   },
@@ -216,13 +129,14 @@ const optionalAccessTokenOpenApi = (summary: string) =>
 export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
   .add(
     HttpApiEndpoint.get("current", "/checkout/current", {
+      error: CheckoutCurrentOperationPublicErrors,
       headers: CommerceRequestHeaders,
       success: CheckoutApiState,
     }).annotateMerge(optionalAccessTokenOpenApi("Get the current checkout"))
   )
   .add(
     HttpApiEndpoint.post("saveContact", "/checkout/contact", {
-      error: [CheckoutApiConflict, CheckoutContactApiBadRequest],
+      error: SaveCheckoutContactOperationPublicErrors,
       headers: CommerceRequestHeaders,
       payload: SaveCheckoutContactRequest,
       success: CheckoutApiState,
@@ -232,11 +146,7 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
   )
   .add(
     HttpApiEndpoint.post("saveDeliveryDetails", "/checkout/delivery-details", {
-      error: [
-        CheckoutDeliveryDetailsApiConflict,
-        CheckoutDeliveryDetailsApiBadRequest,
-        CheckoutDeliveryDetailsApiError,
-      ],
+      error: SaveCheckoutDeliveryDetailsOperationPublicErrors,
       headers: CommerceRequestHeaders,
       payload: SaveCheckoutDeliveryDetailsRequest,
       success: CheckoutApiState,
@@ -255,6 +165,7 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
 
 export class CheckoutHttpApi extends HttpApi.make("checkout-http-api")
   .add(CheckoutApiGroup)
+  .middleware(UnexpectedHttpErrors)
   .annotateMerge(
     OpenApi.annotations({
       title: "Checkout HTTP API",

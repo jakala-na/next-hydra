@@ -23,7 +23,7 @@ import {
 import type { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
 import {
   type AcceptedCommerceIdentity,
-  CommerceAccountError,
+  CommerceAccountUnavailable,
   type CommerceAccountRegistrationInput,
   CommerceAccounts,
   CommerceCustomerIdNotFound,
@@ -37,6 +37,7 @@ import { toCommercetoolsAddressKey } from "../address-book/address-book-key";
 import { commercetoolsClientsLayer } from "../client/layers";
 import { CommercetoolsRestClient } from "../client/rest-client";
 import {
+  commercetoolsProviderFailureReason,
   CommercetoolsRequestFailure,
   commercetoolsFailureCause,
   commercetoolsRequest,
@@ -59,11 +60,33 @@ const isNotFoundError = (error: unknown) =>
       option.value.statusCode === NOT_FOUND_STATUS_CODE
   );
 
-const accountError = (reason: string, cause?: unknown) =>
-  new CommerceAccountError({
-    message: reason,
-    ...(cause === undefined ? {} : { cause }),
-  });
+const failAccountRequest = (message: string, cause: unknown) =>
+  commercetoolsProviderFailureReason(cause) === "unavailable"
+    ? Effect.fail(new CommerceAccountUnavailable({ cause, message }))
+    : Effect.die(new Error(message, { cause }));
+
+interface CommercetoolsAccountRequestFailure {
+  readonly _tag: "CommercetoolsAccountRequestFailure";
+  readonly cause: unknown;
+  readonly message: string;
+}
+
+const commerceAccountRequest = <A>(
+  message: string,
+  request: () => Promise<A>
+) =>
+  Effect.tryPromise({
+    try: request,
+    catch: (cause): CommercetoolsAccountRequestFailure => ({
+      _tag: "CommercetoolsAccountRequestFailure",
+      cause,
+      message,
+    }),
+  }).pipe(
+    Effect.catchTag("CommercetoolsAccountRequestFailure", (failure) =>
+      failAccountRequest(failure.message, failure.cause)
+    )
+  );
 
 const customerKey = (registration: CommerceAccountRegistrationInput) =>
   `registration-customer-${registration.id}`;
@@ -119,11 +142,9 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
       Effect.catch((failure) =>
         isNotFoundError(failure)
           ? Effect.succeed(null)
-          : Effect.fail(
-              accountError(
-                "Failed to read Commercetools customer",
-                commercetoolsFailureCause(failure)
-              )
+          : failAccountRequest(
+              "Failed to read Commercetools customer",
+              commercetoolsFailureCause(failure)
             )
       )
     );
@@ -147,42 +168,38 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
       Effect.catch((failure) =>
         isNotFoundError(failure)
           ? Effect.succeed(null)
-          : Effect.fail(
-              accountError(
-                "Failed to read Commercetools business unit",
-                commercetoolsFailureCause(failure)
-              )
+          : failAccountRequest(
+              "Failed to read Commercetools business unit",
+              commercetoolsFailureCause(failure)
             )
       )
     );
 
   const getCustomerById = (commerceCustomerId: CommerceCustomerId) =>
-    Effect.tryPromise({
-      try: async () => {
+    commerceAccountRequest(
+      "Failed to read Commercetools customer",
+      async () => {
         const response = await apiRoot
           .customers()
           .withId({ ID: String(commerceCustomerId) })
           .get()
           .execute();
         return response.body;
-      },
-      catch: (cause) =>
-        accountError("Failed to read Commercetools customer", cause),
-    });
+      }
+    );
 
   const queryFirstCustomer = (where: string) =>
-    Effect.tryPromise({
-      try: async () => {
+    commerceAccountRequest(
+      "Failed to query Commercetools customer",
+      async () => {
         const response = await apiRoot
           .customers()
           .get({ queryArgs: { where, limit: 1 } })
           .execute();
 
         return response.body.results[0] ?? null;
-      },
-      catch: (cause) =>
-        accountError("Failed to query Commercetools customer", cause),
-    });
+      }
+    );
 
   const getCustomerByAcceptedIdentity = (identity: AcceptedCommerceIdentity) =>
     queryFirstCustomer(
@@ -229,7 +246,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           failure
         ): Effect.Effect<
           never,
-          CommerceAccountError | CommerceCustomerProfileNotFound
+          CommerceAccountUnavailable | CommerceCustomerProfileNotFound
         > =>
           isNotFoundError(failure)
             ? Effect.fail(
@@ -238,11 +255,9 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
                   customerId,
                 })
               )
-            : Effect.fail(
-                accountError(
-                  "Failed to read Commercetools customer profile",
-                  commercetoolsFailureCause(failure)
-                )
+            : failAccountRequest(
+                "Failed to read Commercetools customer profile",
+                commercetoolsFailureCause(failure)
               )
       )
     );
@@ -275,8 +290,9 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
   const listBusinessUnitMembershipsForCustomerInStore = Effect.fn(
     "CommercetoolsCommerceAccounts.listBusinessUnitMembershipsForCustomerInStore"
   )(function* (customerId: CommerceCustomerId, storeKey: StoreKey) {
-    const businessUnits = yield* Effect.tryPromise({
-      try: async () => {
+    const businessUnits = yield* commerceAccountRequest(
+      "Failed to list Commercetools Business Unit memberships",
+      async () => {
         const results: BusinessUnit[] = [];
         let offset = 0;
 
@@ -301,13 +317,8 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           }
           offset += page.length;
         }
-      },
-      catch: (cause) =>
-        accountError(
-          "Failed to list Commercetools Business Unit memberships",
-          cause
-        ),
-    });
+      }
+    );
 
     return businessUnits.map(
       (businessUnit) =>
@@ -322,18 +333,17 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
   const getBusinessUnitById = (
     commerceBusinessUnitId: CommerceBusinessUnitId
   ) =>
-    Effect.tryPromise({
-      try: async () => {
+    commerceAccountRequest(
+      "Failed to read Commercetools business unit",
+      async () => {
         const response = await apiRoot
           .businessUnits()
           .withId({ ID: String(commerceBusinessUnitId) })
           .get()
           .execute();
         return response.body;
-      },
-      catch: (cause) =>
-        accountError("Failed to read Commercetools business unit", cause),
-    });
+      }
+    );
 
   const toCustomerDraft = (
     registration: CommerceAccountRegistrationInput,
@@ -401,24 +411,24 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     registration: CommerceAccountRegistrationInput,
     key: string
   ) =>
-    Effect.tryPromise({
-      try: async () => {
+    commerceAccountRequest(
+      "Failed to create Commercetools customer",
+      async () => {
         const response = await apiRoot
           .customers()
           .post({ body: toCustomerDraft(registration, key) })
           .execute();
 
         return response.body.customer;
-      },
-      catch: (cause) =>
-        accountError("Failed to create Commercetools customer", cause),
-    });
+      }
+    );
 
   const createCustomerFromAcceptedIdentity = (
     identity: AcceptedCommerceIdentity
   ) =>
-    Effect.tryPromise({
-      try: async () => {
+    commerceAccountRequest(
+      "Failed to create Commercetools customer",
+      async () => {
         const response = await apiRoot
           .customers()
           .post({
@@ -435,32 +445,29 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           .execute();
 
         return response.body.customer;
-      },
-      catch: (cause) =>
-        accountError("Failed to create Commercetools customer", cause),
-    });
+      }
+    );
 
   const createBusinessUnit = (
     registration: CommerceAccountRegistrationInput,
     key: string
   ) =>
-    Effect.tryPromise({
-      try: async () => {
+    commerceAccountRequest(
+      "Failed to create Commercetools business unit",
+      async () => {
         const response = await apiRoot
           .businessUnits()
           .post({ body: toBusinessUnitDraft(registration, key) })
           .execute();
 
         return response.body;
-      },
-      catch: (cause) =>
-        accountError("Failed to create Commercetools business unit", cause),
-    });
+      }
+    );
 
   const ensureBusinessUnitStore = (
     businessUnit: BusinessUnit,
     registration: CommerceAccountRegistrationInput
-  ): Effect.Effect<BusinessUnit, CommerceAccountError> => {
+  ): Effect.Effect<BusinessUnit, CommerceAccountUnavailable> => {
     const store = registrationStore(registration);
 
     const attempt = (current: BusinessUnit) => {
@@ -504,10 +511,10 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           Effect.map((current) => new RetryVersionedWrite(current))
         ),
     }).pipe(
-      Effect.mapError((failure) =>
-        failure instanceof CommerceAccountError
-          ? failure
-          : accountError(
+      Effect.catch((failure) =>
+        failure instanceof CommerceAccountUnavailable
+          ? Effect.fail(failure)
+          : failAccountRequest(
               "Failed to associate Commercetools business unit with Store",
               commercetoolsFailureCause(failure)
             )
@@ -579,10 +586,10 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           Effect.map((current) => new RetryVersionedWrite(current))
         ),
     }).pipe(
-      Effect.mapError((failure) =>
-        failure instanceof CommerceAccountError
-          ? failure
-          : accountError(
+      Effect.catch((failure) =>
+        failure instanceof CommerceAccountUnavailable
+          ? Effect.fail(failure)
+          : failAccountRequest(
               "Failed to sync Commercetools customer identity",
               commercetoolsFailureCause(failure)
             )
@@ -695,10 +702,10 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           )
         ),
     }).pipe(
-      Effect.mapError((failure) =>
-        failure instanceof CommerceAccountError
-          ? failure
-          : accountError(
+      Effect.catch((failure) =>
+        failure instanceof CommerceAccountUnavailable
+          ? Effect.fail(failure)
+          : failAccountRequest(
               "Failed to add Commercetools business unit associate",
               commercetoolsFailureCause(failure)
             )
@@ -709,8 +716,9 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
   const hasCustomerWithEmail = Effect.fn(
     "CommercetoolsCommerceAccounts.hasCustomerWithEmail"
   )((email: RedactedString) =>
-    Effect.tryPromise({
-      try: async () => {
+    commerceAccountRequest(
+      "Failed to check Commercetools customer email",
+      async () => {
         const response = await apiRoot
           .customers()
           .get({
@@ -723,10 +731,8 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           .execute();
 
         return response.body.results.length > 0;
-      },
-      catch: (cause) =>
-        accountError("Failed to check Commercetools customer email", cause),
-    })
+      }
+    )
   );
 
   return CommerceAccounts.of({
@@ -738,8 +744,8 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
       "CommercetoolsCommerceAccounts.createFromRegistration"
     )(function* (registration) {
       if (registration._tag === "RejectedRegistration") {
-        return yield* accountError(
-          "Cannot provision commerce for a rejected registration"
+        return yield* Effect.die(
+          new Error("Cannot provision commerce for a rejected registration")
         );
       }
 

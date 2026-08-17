@@ -19,6 +19,9 @@
     "typescript": "catalog:",
     "vitest": "^3.2.4"
   },
+  "dependencies": {
+    "@repo/errors": "workspace:*"
+  },
   "peerDependencies": {
     "effect": "catalog:"
   }

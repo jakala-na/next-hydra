@@ -8,6 +8,7 @@ import {
   SchemaGetter,
 } from "effect";
 import { describe, expect, it } from "vitest";
+
 import {
   StoreConflict,
   VersionedKeyValueStore,
@@ -136,6 +137,43 @@ describe("VersionedKeyValueStore.layerMemory", () => {
         const exit = yield* store
           .update(key, ExampleRecord, stale, example)
           .pipe(Effect.exit);
+
+        expect(Exit.isFailure(exit)).toBe(true);
+        if (Exit.isFailure(exit)) {
+          expect(exit.cause.toString()).toContain(StoreConflict.name);
+        }
+      }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
+    ));
+
+  it("removes only the current version and is idempotent once absent", async () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const store = yield* VersionedKeyValueStore;
+
+        yield* store.insert(key, ExampleRecord, example);
+        const current = yield* store
+          .get(key, ExampleRecord)
+          .pipe(Effect.flatMap(Effect.fromOption));
+
+        yield* store.remove(key, current);
+        yield* store.remove(key, current);
+
+        expect(Option.isNone(yield* store.get(key, ExampleRecord))).toBe(true);
+      }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
+    ));
+
+  it("rejects removal with a stale version", async () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const store = yield* VersionedKeyValueStore;
+
+        yield* store.insert(key, ExampleRecord, example);
+        const stale = yield* store
+          .get(key, ExampleRecord)
+          .pipe(Effect.flatMap(Effect.fromOption));
+        yield* store.update(key, ExampleRecord, stale, updatedExample);
+
+        const exit = yield* store.remove(key, stale).pipe(Effect.exit);
 
         expect(Exit.isFailure(exit)).toBe(true);
         if (Exit.isFailure(exit)) {

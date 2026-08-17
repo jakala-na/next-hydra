@@ -147,7 +147,8 @@
         "errors": {
           "invalidSubmission": "Controlla i campi evidenziati e riprova.",
           "unsupportedRegistrationCountry": "Non possiamo ancora accettare registrazioni aziendali da questo paese.",
-          "submitFailed": "Non è stato possibile inviare la registrazione in questo momento. Riprova."
+          "submitFailed": "Non è stato possibile inviare la registrazione in questo momento. Riprova.",
+          "submissionOutcomeUnknown": "Non è stato possibile confermare la ricezione della registrazione. Contatta l’assistenza prima di inviarla di nuovo."
         },
         "validation": {
           "companyName": "Inserisci il nome dell’azienda.",
@@ -272,10 +273,12 @@
         "versionConflict": "Il checkout è cambiato prima del salvataggio. Aggiorna la pagina e riprova.",
         "saveContact": {
           "CheckoutCartMismatch": "Questo checkout non è più aggiornato. Aggiorna la pagina e riprova.",
+          "CheckoutCustomerProfileIncomplete": "Nel tuo profilo cliente mancano informazioni di contatto obbligatorie. Inseriscile qui sotto per continuare.",
           "CheckoutMutationSchemaFailure": "Inserisci e-mail, nome e cognome.",
+          "CheckoutMutationOutcomeUnknown": "Non è stato possibile confermare il salvataggio dei dati di contatto. Aggiorna la pagina prima di riprovare.",
           "CheckoutMutationSourceUnavailable": "Questa origine del contatto non è disponibile per questo checkout.",
           "CheckoutMutationProviderFailure": "Impossibile salvare il contatto. Riprova.",
-          "CommerceAccountError": "Impossibile salvare il contatto. Riprova.",
+          "CommerceAccountUnavailable": "Impossibile salvare il contatto. Riprova.",
           "CommerceRequestFailure": "Impossibile salvare il contatto. Riprova.",
           "CheckoutMutationUnsupported": "Questa origine del contatto non è ancora supportata.",
           "CheckoutUnavailable": "Checkout non trovato per questa richiesta.",
@@ -286,9 +289,10 @@
           "CheckoutCartMismatch": "Questo checkout non è più aggiornato. Aggiorna la pagina e riprova.",
           "CheckoutMutationAddressBookEntryUnavailable": "Questo indirizzo salvato non è più disponibile.",
           "CheckoutMutationSchemaFailure": "Inserisci indirizzo, codice postale, città e paese.",
+          "CheckoutMutationOutcomeUnknown": "Non è stato possibile confermare il salvataggio dei dati di consegna. Aggiorna la pagina prima di riprovare.",
           "CheckoutMutationSourceUnavailable": "Questa origine di consegna non è disponibile per questo checkout.",
           "CheckoutMutationProviderFailure": "Impossibile salvare i dettagli di consegna. Riprova.",
-          "CommerceAccountError": "Impossibile salvare i dettagli di consegna. Riprova.",
+          "CommerceAccountUnavailable": "Impossibile salvare i dettagli di consegna. Riprova.",
           "CommerceRequestFailure": "Impossibile salvare i dettagli di consegna. Riprova.",
           "CheckoutMutationUnsupported": "Questa origine di consegna non è ancora supportata.",
           "CheckoutUnavailable": "Checkout non trovato per questa richiesta.",

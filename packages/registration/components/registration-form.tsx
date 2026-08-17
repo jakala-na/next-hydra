@@ -1,7 +1,6 @@
 "use client";
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
-import { ActionInputInvalid } from "@repo/actions";
 import {
   Alert,
   AlertDescription,
@@ -114,21 +113,32 @@ export function RegistrationForm({ submit }: RegistrationFormProps) {
 
     return <p className="min-h-5 text-destructive text-sm">{message ?? ""}</p>;
   };
+  const getRootFailureMessage = (failure: RegistrationActionFailure) => {
+    if (failure.code === "registration.unavailable") {
+      return t("errors.submitFailed");
+    }
+
+    return failure.code === "registration.submissionOutcomeUnknown"
+      ? t("errors.submissionOutcomeUnknown")
+      : failure.message;
+  };
   const applyRegistrationFailure = (failure: RegistrationActionFailure) => {
-    const issues: readonly RegistrationDisplayIssue[] = Schema.is(
-      ActionInputInvalid
-    )(failure)
-      ? failure.issues.map((issue) => {
-          const candidate =
-            issue.path.length === 0 ? "root" : issue.path.join(".");
-          return {
-            path: Schema.is(RegistrationFormIssuePath)(candidate)
-              ? candidate
-              : "root",
-            message: issue.message,
-          };
-        })
-      : failure.issues;
+    const publicIssues =
+      "issues" in failure && failure.issues !== undefined
+        ? failure.issues
+        : [{ message: getRootFailureMessage(failure), path: [] }];
+    const issues: readonly RegistrationDisplayIssue[] = publicIssues.map(
+      (issue) => {
+        const candidate =
+          issue.path.length === 0 ? "root" : issue.path.join(".");
+        return {
+          message: issue.message,
+          path: Schema.is(RegistrationFormIssuePath)(candidate)
+            ? candidate
+            : "root",
+        };
+      }
+    );
     const rootIssue = issues.find((issue) => issue.path === "root");
 
     for (const issue of issues) {

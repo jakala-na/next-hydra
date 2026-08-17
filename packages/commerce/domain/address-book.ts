@@ -1,5 +1,7 @@
 import { Schema } from "effect";
+
 import { Address } from "./address";
+import { ProviderFailureReason } from "./provider-failure";
 
 const ADDRESS_BOOK_REFERENCE_MAX_LENGTH = 160;
 const ADDRESS_BOOK_REFERENCE_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -107,9 +109,19 @@ export class AddressBookEntryNotFound extends Schema.TaggedErrorClass<AddressBoo
 export class AddressBookProviderFailure extends Schema.TaggedErrorClass<AddressBookProviderFailure>()(
   "AddressBookProviderFailure",
   {
+    cause: Schema.optional(Schema.Defect),
     message: Schema.String,
     operation: AddressBookOperation,
+    reason: ProviderFailureReason,
+  }
+) {}
+
+export class AddressBookWriteOutcomeUnknown extends Schema.TaggedErrorClass<AddressBookWriteOutcomeUnknown>()(
+  "AddressBookWriteOutcomeUnknown",
+  {
     cause: Schema.optional(Schema.Defect),
+    message: Schema.String,
+    reference: AddressBookReference,
   }
 ) {}
 

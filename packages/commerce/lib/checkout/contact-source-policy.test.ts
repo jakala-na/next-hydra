@@ -25,7 +25,7 @@ describe("allowedContactSourcesForCheckout", () => {
     ).toEqual(["manual"]);
   });
 
-  it("disallows Manual Contact for customer storefront checkout", () => {
+  it("allows Customer Profile and Manual Contact for customer checkout", () => {
     expect(
       allowedContactSourcesForCheckout(
         new StorefrontCustomerCheckoutScope({
@@ -36,6 +36,6 @@ describe("allowedContactSourcesForCheckout", () => {
           businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
         })
       )
-    ).toEqual(["customerProfile"]);
+    ).toEqual(["customerProfile", "manual"]);
   });
 });

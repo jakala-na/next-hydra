@@ -5,11 +5,12 @@ import {
 } from "@repo/commerce/domain/commerce-account";
 import {
   type AcceptedCommerceIdentity,
-  CommerceAccountError,
+  CommerceAccountUnavailable,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
 import { Effect, Exit, Layer, Redacted } from "effect";
+
 import { RegistrationReviewerActor } from "../domain/actors";
 import {
   AcceptedAuthIdentity,
@@ -215,19 +216,47 @@ describe("registration onboarding", () => {
     () => {
       const commerceFailureLayer = Layer.succeed(CommerceAccounts)({
         createFromRegistration: () =>
-          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+          Effect.fail(
+            new CommerceAccountUnavailable({
+              message: "commerce down",
+            })
+          ),
         getCustomerProfile: () =>
-          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+          Effect.fail(
+            new CommerceAccountUnavailable({
+              message: "commerce down",
+            })
+          ),
         getCustomerIdByAuthUserId: () =>
-          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+          Effect.fail(
+            new CommerceAccountUnavailable({
+              message: "commerce down",
+            })
+          ),
         linkRegistrantIdentity: () =>
-          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+          Effect.fail(
+            new CommerceAccountUnavailable({
+              message: "commerce down",
+            })
+          ),
         hasCustomerWithEmail: () =>
-          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+          Effect.fail(
+            new CommerceAccountUnavailable({
+              message: "commerce down",
+            })
+          ),
         listBusinessUnitMembershipsForCustomerInStore: () =>
-          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+          Effect.fail(
+            new CommerceAccountUnavailable({
+              message: "commerce down",
+            })
+          ),
         addAssociate: () =>
-          Effect.fail(new CommerceAccountError({ message: "commerce down" })),
+          Effect.fail(
+            new CommerceAccountUnavailable({
+              message: "commerce down",
+            })
+          ),
       });
       const layer = Layer.mergeAll(
         Registrations.layerMemory,

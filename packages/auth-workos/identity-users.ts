@@ -1,3 +1,4 @@
+import { hasTransientTransportCode } from "@repo/errors/transport";
 import { Email } from "@repo/registration/domain/identity";
 import type {
   AuthUserId,
@@ -9,7 +10,13 @@ import {
   IdentityUserNotFound,
   IdentityUsers,
 } from "@repo/registration/services/identity-users";
-import { NotFoundException, WorkOS } from "@workos-inc/node";
+import type { IdentityProviderFailureReason } from "@repo/registration/services/identity-users";
+import {
+  GenericServerException,
+  NotFoundException,
+  RateLimitExceededException,
+  WorkOS,
+} from "@workos-inc/node";
 import { Config, Effect, Layer, Option, Redacted, Schema } from "effect";
 
 export interface WorkosIdentityUserManagement {
@@ -17,7 +24,7 @@ export interface WorkosIdentityUserManagement {
   readonly listUsers: (input: {
     readonly email: string;
     readonly limit: number;
-  }) => Promise<{ readonly data: readonly unknown[] }>;
+  }) => Promise<unknown>;
 }
 
 const WorkosIdentityUserProfile = Schema.Struct({
@@ -25,6 +32,24 @@ const WorkosIdentityUserProfile = Schema.Struct({
   firstName: Schema.optional(Schema.NullOr(Schema.String)),
   lastName: Schema.optional(Schema.NullOr(Schema.String)),
 });
+
+const WorkosIdentityUserList = Schema.Struct({
+  data: Schema.Array(Schema.Unknown),
+});
+const EMPTY_USER_LIST_LENGTH = 0;
+const REQUEST_TIMEOUT_STATUS_CODE = 408;
+const SERVER_ERROR_STATUS_CODE = 500;
+
+const providerFailureReason = (
+  cause: unknown
+): IdentityProviderFailureReason =>
+  cause instanceof RateLimitExceededException ||
+  hasTransientTransportCode(cause) ||
+  (cause instanceof GenericServerException &&
+    (cause.status === REQUEST_TIMEOUT_STATUS_CODE ||
+      cause.status >= SERVER_ERROR_STATUS_CODE))
+    ? "unavailable"
+    : "unexpectedResponse";
 
 const providerFailure = (
   operation: "getById" | "hasUserWithEmail",
@@ -36,6 +61,7 @@ const providerFailure = (
       cause instanceof Error ? cause.message : String(cause)
     }`,
     operation,
+    reason: providerFailureReason(cause),
   });
 
 const getIdentityUserFailure = (authUserId: AuthUserId, cause: unknown) =>
@@ -65,11 +91,11 @@ export const makeWorkosIdentityUsers = (
       (authUserId: AuthUserId) =>
         Effect.tryPromise({
           catch: (cause) => getIdentityUserFailure(authUserId, cause),
-          try: () => userManagement.getUser(String(authUserId)),
+          try: async () => await userManagement.getUser(String(authUserId)),
         }).pipe(
           Effect.flatMap((user) =>
             Schema.decodeUnknownEffect(WorkosIdentityUserProfile)(user).pipe(
-              Effect.mapError((cause) => providerFailure("getById", cause))
+              Effect.orDie
             )
           ),
           Effect.map(
@@ -87,18 +113,25 @@ export const makeWorkosIdentityUsers = (
       (email: RedactedEmail) =>
         Effect.tryPromise({
           catch: (cause) => providerFailure("hasUserWithEmail", cause),
-          try: () =>
-            userManagement.listUsers({
+          try: async () =>
+            await userManagement.listUsers({
               email: Redacted.value(email),
               limit: 1,
             }),
-        }).pipe(Effect.map((users) => users.data.length !== 0))
+        }).pipe(
+          Effect.flatMap((users) =>
+            Schema.decodeUnknownEffect(WorkosIdentityUserList)(users).pipe(
+              Effect.orDie
+            )
+          ),
+          Effect.map((users) => users.data.length !== EMPTY_USER_LIST_LENGTH)
+        )
     ),
   });
 
 export const identityUsersLayer = Layer.effect(
   IdentityUsers,
-  Effect.gen(function* () {
+  Effect.gen(function* identityUsersLayerEffect() {
     const apiKey = yield* Config.redacted("WORKOS_API_KEY");
     const clientId = yield* Config.option(Config.string("WORKOS_CLIENT_ID"));
     const clientIdValue = Option.getOrUndefined(clientId);

@@ -1,34 +1,9 @@
 import { makeDisplayActionResultSchema } from "@repo/actions";
-import { Schema } from "effect";
 
-import {
-  CheckoutCartMismatch,
-  CheckoutMutationSchemaFailure,
-  CheckoutMutationSourceUnavailable,
-  CheckoutMutationUnsupported,
-  CheckoutState,
-  CheckoutUnavailable,
-  CheckoutVersionConflict,
-} from "../domain/checkout";
-import { CommerceRequestContextNotFound } from "../domain/commerce-request-context";
-import {
-  CheckoutMutationProviderActionError,
-  CommerceAccountActionError,
-  CommerceRequestActionError,
-} from "./public-action-errors";
+import { CheckoutState } from "../domain/checkout";
+import { SaveCheckoutContactPublicError } from "./public-errors";
 
-export const SaveCheckoutContactActionError = Schema.Union([
-  CheckoutMutationSchemaFailure,
-  CheckoutMutationSourceUnavailable,
-  CheckoutCartMismatch,
-  CheckoutVersionConflict,
-  CheckoutMutationProviderActionError,
-  CheckoutMutationUnsupported,
-  CheckoutUnavailable,
-  CommerceRequestContextNotFound,
-  CommerceRequestActionError,
-  CommerceAccountActionError,
-]);
+export const SaveCheckoutContactActionError = SaveCheckoutContactPublicError;
 export type SaveCheckoutContactActionError =
   typeof SaveCheckoutContactActionError.Type;
 

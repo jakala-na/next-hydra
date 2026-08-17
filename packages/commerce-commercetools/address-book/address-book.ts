@@ -11,17 +11,23 @@ import {
   type AddressBookOperation,
   AddressBookProviderFailure,
   type AddressBookReference,
+  AddressBookWriteOutcomeUnknown,
   type AddressType,
   normalizeAddressTypes,
   type SaveAddressBookEntryInput,
 } from "@repo/commerce/domain/address-book";
 import type { CustomerCommercePrincipal } from "@repo/commerce/domain/commerce-request-context";
+import type { ProviderFailureReason } from "@repo/commerce/domain/provider-failure";
 import { AddressBook } from "@repo/commerce/services/address-book";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { Effect, Layer, Option, Schema } from "effect";
+
 import { commercetoolsClientsLayer } from "../client/layers";
 import { CommercetoolsRestClient } from "../client/rest-client";
-import { isConcurrentModification } from "../client/versioned-write";
+import {
+  commercetoolsProviderFailureReason,
+  isConcurrentModification,
+} from "../client/versioned-write";
 import {
   fromCommercetoolsAddressKey,
   toCommercetoolsAddressKey,
@@ -71,8 +77,16 @@ const accessDenied = (operation: AddressBookOperation) =>
 const providerFailure = (
   operation: AddressBookOperation,
   cause: unknown,
+  reason: ProviderFailureReason,
   message = `Failed to ${operation} Business Unit Address Book`
-) => new AddressBookProviderFailure({ message, operation, cause });
+) => new AddressBookProviderFailure({ message, operation, cause, reason });
+
+const writeOutcomeUnknown = (reference: AddressBookReference, cause: unknown) =>
+  new AddressBookWriteOutcomeUnknown({
+    cause,
+    message: "Could not confirm whether the Address Book entry was saved",
+    reference,
+  });
 
 const businessUnitRequest = (
   apiRoot: ByProjectKeyRequestBuilder,
@@ -101,7 +115,11 @@ const readBusinessUnit = (
     catch: (cause) =>
       isAccessDenied(cause)
         ? accessDenied(operation)
-        : providerFailure(operation, cause),
+        : providerFailure(
+            operation,
+            cause,
+            commercetoolsProviderFailureReason(cause)
+          ),
   });
 
 const addressTypes = (
@@ -149,6 +167,7 @@ const toAddressBookEntry = (
       providerFailure(
         operation,
         cause,
+        "invalidData",
         "Business Unit contains an invalid Address Book entry"
       )
     )
@@ -302,6 +321,7 @@ const entryFromSuccessfulWrite = (
         providerFailure(
           "save",
           businessUnit,
+          "unexpectedResponse",
           "Commercetools did not return the saved Address Book entry"
         )
       );
@@ -315,7 +335,9 @@ const saveAbsentEntry = (
   retriesRemaining: number
 ): Effect.Effect<
   AddressBookEntry,
-  AddressBookAccessDenied | AddressBookProviderFailure
+  | AddressBookAccessDenied
+  | AddressBookProviderFailure
+  | AddressBookWriteOutcomeUnknown
 > =>
   Effect.gen(function* () {
     const writeResult = yield* Effect.result(
@@ -334,10 +356,18 @@ const saveAbsentEntry = (
       return yield* accessDenied("save");
     }
     if (!isAmbiguousWriteFailure(writeCause)) {
-      return yield* providerFailure("save", writeCause);
+      return yield* providerFailure(
+        "save",
+        writeCause,
+        commercetoolsProviderFailureReason(writeCause)
+      );
     }
 
-    const reconciled = yield* readBusinessUnit(apiRoot, principal, "save");
+    const reconciled = yield* readBusinessUnit(apiRoot, principal, "save").pipe(
+      Effect.mapError((reconciliationFailure) =>
+        writeOutcomeUnknown(input.reference, reconciliationFailure)
+      )
+    );
     const existing = findAddress(reconciled, input.reference);
 
     if (existing) {
@@ -350,7 +380,11 @@ const saveAbsentEntry = (
     }
 
     if (retriesRemaining === 0) {
-      return yield* providerFailure("save", writeCause);
+      return yield* providerFailure(
+        "save",
+        writeCause,
+        commercetoolsProviderFailureReason(writeCause)
+      );
     }
 
     return yield* saveAbsentEntry(

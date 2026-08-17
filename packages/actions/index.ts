@@ -1,4 +1,10 @@
-import { Effect, Result, Schema, SchemaIssue } from "effect";
+import {
+  ErrorIssue,
+  InputInvalid,
+  makeInputInvalid,
+  makeSchemaErrorIssues,
+} from "@repo/errors";
+import { Effect, Result, Schema } from "effect";
 import type { Layer, ManagedRuntime } from "effect";
 
 type ActionInputSchema = Schema.Codec<unknown, unknown, never, unknown>;
@@ -7,30 +13,16 @@ type ActionErrorSchema = Schema.Codec<unknown, unknown>;
 
 export type EmptyActionContext = Readonly<Record<never, never>>;
 
-export class ActionInputIssue extends Schema.Class<ActionInputIssue>(
-  "ActionInputIssue"
-)({
-  path: Schema.Array(Schema.String),
-  message: Schema.String,
-}) {}
-
-export class ActionInputInvalid extends Schema.TaggedErrorClass<ActionInputInvalid>()(
-  "ActionInputInvalid",
-  {
-    issues: Schema.Array(ActionInputIssue),
-  }
-) {}
-
 export type ActionFailure<Error extends Schema.Top> =
-  | ActionInputInvalid
+  | InputInvalid
   | Error["Type"];
 
 type ActionErrorSchemaWithInput<Error extends Schema.Top> = Schema.Union<
-  readonly [typeof ActionInputInvalid, Error]
+  readonly [typeof InputInvalid, Error]
 >;
 
 const makeActionErrorSchema = <Error extends ActionErrorSchema>(error: Error) =>
-  Schema.Union([ActionInputInvalid, error]);
+  Schema.Union([InputInvalid, error]);
 
 export type EncodedActionResult<
   Output extends Schema.Top,
@@ -98,9 +90,10 @@ export const actionToEffect =
       Effect.flatMap(Effect.fromResult)
     );
 
-export type ActionSchemaIssuePath = ReadonlyArray<
-  PropertyKey | { readonly key: PropertyKey }
->;
+export type ActionSchemaIssuePath = readonly (
+  | PropertyKey
+  | { readonly key: PropertyKey }
+)[];
 
 const actionSchemaIssuePathKeys = (
   path: ActionSchemaIssuePath | undefined
@@ -116,32 +109,18 @@ const actionSchemaIssuePathKeys = (
   return keys.some((key) => typeof key === "symbol") ? [] : keys.map(String);
 };
 
-const actionInputIssueFormatter = SchemaIssue.makeFormatterStandardSchemaV1({
-  checkHook: (issue) =>
-    issue.issue._tag === "Pointer" || issue.issue._tag === "Composite"
-      ? undefined
-      : "Invalid input.",
-  leafHook: () => "Invalid input.",
-});
-
-const ensureActionInputIssues = (issues: readonly ActionInputIssue[]) =>
-  issues.length === 0
-    ? [new ActionInputIssue({ path: [], message: "Invalid input." })]
-    : issues;
+const ensureActionInputIssues = (
+  issues: readonly ErrorIssue[]
+): readonly [ErrorIssue, ...ErrorIssue[]] => {
+  const [first, ...remaining] = issues;
+  return first === undefined
+    ? [new ErrorIssue({ message: "Invalid input.", path: [] })]
+    : [first, ...remaining];
+};
 
 export const makeActionInputIssues = (
   error: Schema.SchemaError
-): readonly ActionInputIssue[] => {
-  const issues = actionInputIssueFormatter(error.issue).issues.map(
-    (issue) =>
-      new ActionInputIssue({
-        path: actionSchemaIssuePathKeys(issue.path),
-        message: issue.message,
-      })
-  );
-
-  return ensureActionInputIssues(issues);
-};
+): readonly ErrorIssue[] => makeSchemaErrorIssues(error, "Invalid input.");
 
 export const normalizeActionSchemaIssuePath = <Path extends string>(
   schema: Schema.Schema<Path>,
@@ -342,7 +321,7 @@ interface ActionProcedureHandlerBuilder<
       error: Schema.SchemaError,
       context: Context,
       input: Input["Encoded"]
-    ) => readonly ActionInputIssue[]
+    ) => readonly ErrorIssue[]
   ) => ActionProcedureHandlerBuilder<
     Name,
     Services,
@@ -608,7 +587,7 @@ const makeProcedure = <
     error: Schema.SchemaError,
     context: Context,
     input: Input["Encoded"]
-  ) => readonly ActionInputIssue[];
+  ) => readonly ErrorIssue[];
   readonly mapError: (
     error: ProgramFailure | ClientFailure,
     context: Context
@@ -638,13 +617,13 @@ const makeProcedure = <
         )
       ),
       // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect combinator, not Promise control flow.
-      Effect.mapError(
-        (error) =>
-          new ActionInputInvalid({
-            issues: ensureActionInputIssues(
-              options.mapInputIssues(error, context, input)
-            ),
-          })
+      Effect.mapError((error) =>
+        makeInputInvalid({
+          issues: ensureActionInputIssues(
+            options.mapInputIssues(error, context, input)
+          ),
+          message: "Invalid input.",
+        })
       ),
       Effect.result
     );
@@ -871,7 +850,7 @@ const makeClient = <
               issue: Schema.SchemaError,
               context: Context,
               encodedInput: Input["Encoded"]
-            ) => readonly ActionInputIssue[] = makeActionInputIssues
+            ) => readonly ErrorIssue[] = makeActionInputIssues
           ): ActionProcedureHandlerBuilder<
             Name,
             Services,

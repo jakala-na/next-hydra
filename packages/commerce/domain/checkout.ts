@@ -10,6 +10,7 @@ import {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "./commerce-account";
+import { ProviderFailureReason } from "./provider-failure";
 
 export class StorefrontAnonymousCheckoutScope extends Schema.TaggedClass<StorefrontAnonymousCheckoutScope>()(
   "StorefrontAnonymousCheckoutScope",
@@ -75,15 +76,34 @@ export const CheckoutContact = Schema.Struct({
 });
 export type CheckoutContact = typeof CheckoutContact.Type;
 
+export const ManualCheckoutContactInput = Schema.Struct({
+  source: Schema.Literal("manual"),
+  buyerContact: BuyerContact,
+}).annotate({
+  description: "Contact details supplied in this request.",
+  identifier: "ManualCheckoutContactInput",
+  title: "Manual contact",
+});
+export type ManualCheckoutContactInput = typeof ManualCheckoutContactInput.Type;
+
+export const CustomerProfileCheckoutContactInput = Schema.Struct({
+  source: Schema.Literal("customerProfile"),
+}).annotate({
+  description:
+    "Contact details resolved from the authenticated customer's commerce profile.",
+  identifier: "CustomerProfileCheckoutContactInput",
+  title: "Customer profile contact",
+});
+export type CustomerProfileCheckoutContactInput =
+  typeof CustomerProfileCheckoutContactInput.Type;
+
 export const CheckoutContactInput = Schema.Union([
-  Schema.Struct({
-    source: Schema.Literal("manual"),
-    buyerContact: BuyerContact,
-  }),
-  Schema.Struct({
-    source: Schema.Literal("customerProfile"),
-  }),
-]);
+  ManualCheckoutContactInput,
+  CustomerProfileCheckoutContactInput,
+]).annotate({
+  identifier: "CheckoutContactInput",
+  title: "Checkout contact",
+});
 export type CheckoutContactInput = typeof CheckoutContactInput.Type;
 
 export const CheckoutCartReference = Schema.Struct({
@@ -251,6 +271,7 @@ export class CheckoutProviderFailure extends Schema.TaggedErrorClass<CheckoutPro
     message: Schema.String,
     operation: Schema.String,
     cause: Schema.optional(Schema.Defect),
+    reason: ProviderFailureReason,
   }
 ) {}
 
@@ -297,6 +318,24 @@ export class CheckoutMutationSourceUnavailable extends Schema.TaggedErrorClass<C
   }
 ) {}
 
+export const CheckoutCustomerProfileField = Schema.Literals([
+  "email",
+  "firstName",
+  "lastName",
+]);
+export type CheckoutCustomerProfileField =
+  typeof CheckoutCustomerProfileField.Type;
+
+export class CheckoutCustomerProfileIncomplete extends Schema.TaggedErrorClass<CheckoutCustomerProfileIncomplete>()(
+  "CheckoutCustomerProfileIncomplete",
+  {
+    message: Schema.String,
+    missingFields: Schema.NonEmptyArray(CheckoutCustomerProfileField).check(
+      Schema.isUnique()
+    ),
+  }
+) {}
+
 export class CheckoutMutationAddressBookEntryUnavailable extends Schema.TaggedErrorClass<CheckoutMutationAddressBookEntryUnavailable>()(
   "CheckoutMutationAddressBookEntryUnavailable",
   {
@@ -323,6 +362,16 @@ export class CheckoutVersionConflict extends Schema.TaggedErrorClass<CheckoutVer
   }
 ) {}
 
+export class CheckoutMutationOutcomeUnknown extends Schema.TaggedErrorClass<CheckoutMutationOutcomeUnknown>()(
+  "CheckoutMutationOutcomeUnknown",
+  {
+    message: Schema.String,
+    operation: Schema.Literals(["saveContact", "saveDeliveryDetails"]),
+    cartId: Schema.optional(CartId),
+    addressBookReference: Schema.optional(AddressBookReference),
+  }
+) {}
+
 export class CheckoutMutationProviderFailure extends Schema.TaggedErrorClass<CheckoutMutationProviderFailure>()(
   "CheckoutMutationProviderFailure",
   {
@@ -330,6 +379,7 @@ export class CheckoutMutationProviderFailure extends Schema.TaggedErrorClass<Che
     operation: Schema.String,
     cause: Schema.optional(Schema.Defect),
     addressBookReference: Schema.optional(AddressBookReference),
+    reason: ProviderFailureReason,
   }
 ) {}
 
@@ -344,9 +394,11 @@ export class CheckoutMutationUnsupported extends Schema.TaggedErrorClass<Checkou
 export const CheckoutMutationFailure = Schema.Union([
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
+  CheckoutCustomerProfileIncomplete,
   CheckoutMutationAddressBookEntryUnavailable,
   CheckoutCartMismatch,
   CheckoutVersionConflict,
+  CheckoutMutationOutcomeUnknown,
   CheckoutMutationProviderFailure,
   CheckoutMutationUnsupported,
 ]);
@@ -355,10 +407,25 @@ export type CheckoutMutationFailure = typeof CheckoutMutationFailure.Type;
 export const CheckoutContactMutationFailure = Schema.Union([
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
+  CheckoutCustomerProfileIncomplete,
   CheckoutCartMismatch,
   CheckoutVersionConflict,
+  CheckoutMutationOutcomeUnknown,
   CheckoutMutationProviderFailure,
   CheckoutMutationUnsupported,
 ]);
 export type CheckoutContactMutationFailure =
   typeof CheckoutContactMutationFailure.Type;
+
+export const CheckoutDeliveryDetailsMutationFailure = Schema.Union([
+  CheckoutMutationSchemaFailure,
+  CheckoutMutationSourceUnavailable,
+  CheckoutMutationAddressBookEntryUnavailable,
+  CheckoutCartMismatch,
+  CheckoutVersionConflict,
+  CheckoutMutationOutcomeUnknown,
+  CheckoutMutationProviderFailure,
+  CheckoutMutationUnsupported,
+]);
+export type CheckoutDeliveryDetailsMutationFailure =
+  typeof CheckoutDeliveryDetailsMutationFailure.Type;

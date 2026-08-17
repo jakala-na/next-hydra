@@ -8,15 +8,22 @@ import {
 } from "./action-result";
 
 const actionInputInvalid = {
-  _tag: "ActionInputInvalid",
+  _tag: "InputInvalid",
+  category: "bad_input",
+  code: "input.invalid",
   issues: [{ path: [], message: "Invalid input." }],
+  message: "Invalid input.",
+  recovery: "fix_input",
 };
 
 const commonCartFailures = [
   actionInputInvalid,
   {
     _tag: "CommerceRequestContextNotFound",
-    message: "No Commerce Principal is available",
+    category: "not_found",
+    code: "cart.contextUnavailable",
+    message: "The cart is unavailable for the current account.",
+    recovery: "refresh",
     reason: "noPrincipal",
   },
   {
@@ -32,7 +39,6 @@ const commonCartFailures = [
     operation: "addItem",
   },
   { _tag: "CartProviderFailure", operation: "addItem", reason: "unavailable" },
-  { _tag: "CartPolicyFailure" },
 ] as const;
 
 const addToCartFailures = [
@@ -42,7 +48,6 @@ const addToCartFailures = [
     productId: "product-1",
     variantId: "variant-1",
   },
-  { _tag: "CurrentCartOperationFailure", operation: "set" },
 ] as const;
 
 const lineItemMutationFailures = [

@@ -155,10 +155,11 @@ describe("Registration REST contract mappers", () => {
         message:
           'Failed to list registrations: SchemaError(Missing key at ["id"])',
         operation: "list",
+        reason: "unavailable",
       })
     );
 
-    expect(error).toBeInstanceOf(RegistrationApiError);
+    expect(Schema.is(RegistrationApiError)(error)).toBe(true);
     expect(error.message).toBe(
       "The registration service is temporarily unavailable."
     );

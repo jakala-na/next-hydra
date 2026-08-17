@@ -3,7 +3,6 @@ import type { ActionClient } from "@repo/actions";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer } from "effect";
 
-import type { CommerceRequestFailure } from "./runtime/commerce-request";
 import type {
   CommerceApplication,
   CommerceRequestProvisionError,
@@ -25,9 +24,7 @@ export interface CommerceRequestOptions {
   readonly selectedStoreKey?: StoreKey;
 }
 
-export type NextCommerceRequestError =
-  | CommerceRequestFailure
-  | CommerceRequestProvisionError;
+export type NextCommerceRequestError = CommerceRequestProvisionError;
 
 export type CommerceActionClient<
   ActionServices,

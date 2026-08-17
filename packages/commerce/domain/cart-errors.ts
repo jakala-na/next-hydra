@@ -1,6 +1,8 @@
 import { Schema } from "effect";
+
 import { CartId, LineItemId, ProductId, VariantId } from "./cart";
 import { CommerceBusinessUnitId } from "./commerce-account";
+import { ProviderFailureReason } from "./provider-failure";
 
 export const CartOperation = Schema.Literals([
   "findById",
@@ -67,13 +69,9 @@ export class CartWriteOutcomeUnknown extends Schema.TaggedErrorClass<CartWriteOu
 export class CartProviderFailure extends Schema.TaggedErrorClass<CartProviderFailure>()(
   "CartProviderFailure",
   {
-    operation: CartOperation,
-    reason: Schema.Literals([
-      "unavailable",
-      "invalidData",
-      "unexpectedResponse",
-    ]),
     cause: Schema.optional(Schema.Defect),
+    operation: CartOperation,
+    reason: ProviderFailureReason,
   }
 ) {}
 

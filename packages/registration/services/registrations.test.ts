@@ -7,6 +7,8 @@ import {
   VersionedKeyValueStore,
 } from "@repo/versioned-store";
 import { Effect, Exit, Layer, Redacted } from "effect";
+import { vi } from "vitest";
+
 import { RegistrationReviewerActor } from "../domain/actors";
 import { ApprovedDecision, RejectedDecision } from "../domain/approval";
 import {
@@ -31,7 +33,6 @@ import {
   CompanyRegistrationDetails,
 } from "../domain/registration";
 import {
-  RegistrationAlreadyExists,
   RegistrationConcurrentModification,
   RegistrationNotFound,
   RegistrationPersistenceFailure,
@@ -131,8 +132,17 @@ describe("Registrations over versioned storage", () => {
   );
 
   it.effect(
-    "maps create storage conflicts to a domain already-exists error",
+    "retries generated registration ID conflicts before defecting",
     () => {
+      const insert = vi.fn((key: string) =>
+        Effect.fail(
+          new StoreConflict({
+            message: `Store insert conflict for ${key}: forced conflict`,
+            key,
+            operation: "insert",
+          })
+        )
+      );
       const conflictingStore = Layer.effect(
         VersionedKeyValueStore,
         Effect.gen(function* () {
@@ -140,14 +150,8 @@ describe("Registrations over versioned storage", () => {
 
           return VersionedKeyValueStore.of({
             get: store.get,
-            insert: (key) =>
-              Effect.fail(
-                new StoreConflict({
-                  message: `Store insert conflict for ${key}: forced conflict`,
-                  key,
-                  operation: "insert",
-                })
-              ),
+            insert,
+            remove: store.remove,
             update: store.update,
             values: store.values,
           });
@@ -166,11 +170,9 @@ describe("Registrations over versioned storage", () => {
 
         expect(Exit.isFailure(exit)).toBe(true);
         if (Exit.isFailure(exit)) {
-          expect(exit.cause.toString()).toContain(
-            RegistrationAlreadyExists.name
-          );
-          expect(exit.cause.toString()).not.toContain(StoreConflict.name);
+          expect(exit.cause.toString()).toContain(StoreConflict.name);
         }
+        expect(insert).toHaveBeenCalledTimes(3);
       }).pipe(Effect.provide(layer));
     }
   );
@@ -192,8 +194,10 @@ describe("Registrations over versioned storage", () => {
                   key,
                   operation: "insert",
                   cause: "forced insert failure",
+                  reason: "unavailable",
                 })
               ),
+            remove: store.remove,
             update: store.update,
             values: store.values,
           });
@@ -215,6 +219,25 @@ describe("Registrations over versioned storage", () => {
     }
   );
 
+  it.effect("discards an awaiting approval registration idempotently", () =>
+    Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
+
+      yield* registrations.discardAwaitingApproval(created.id);
+      yield* registrations.discardAwaitingApproval(created.id);
+
+      const missing = yield* registrations.get(created.id).pipe(Effect.exit);
+      expect(Exit.isFailure(missing)).toBe(true);
+      if (Exit.isFailure(missing)) {
+        expect(missing.cause.toString()).toContain(RegistrationNotFound.name);
+      }
+    }).pipe(Effect.provide(Registrations.layerMemory))
+  );
+
   it.effect("maps read storage failures to a domain persistence error", () => {
     const failingStore = Layer.succeed(
       VersionedKeyValueStore,
@@ -226,9 +249,11 @@ describe("Registrations over versioned storage", () => {
               key,
               operation: "read",
               cause: "forced read failure",
+              reason: "unavailable",
             })
           ),
         insert: () => Effect.void,
+        remove: () => Effect.void,
         update: () => Effect.void,
         values: () =>
           Effect.fail(
@@ -238,6 +263,7 @@ describe("Registrations over versioned storage", () => {
               key: "registration-1",
               operation: "read",
               cause: "forced read failure",
+              reason: "unavailable",
             })
           ),
       })
@@ -415,6 +441,7 @@ describe("Registrations over versioned storage", () => {
         return VersionedKeyValueStore.of({
           get: store.get,
           insert: store.insert,
+          remove: store.remove,
           update: (key) =>
             Effect.fail(
               new StoreConflict({
@@ -470,6 +497,7 @@ describe("Registrations over versioned storage", () => {
           return VersionedKeyValueStore.of({
             get: store.get,
             insert: store.insert,
+            remove: store.remove,
             update: (key) =>
               Effect.fail(
                 new StoreError({
@@ -477,6 +505,7 @@ describe("Registrations over versioned storage", () => {
                   key,
                   operation: "update",
                   cause: "forced update failure",
+                  reason: "unavailable",
                 })
               ),
             values: store.values,

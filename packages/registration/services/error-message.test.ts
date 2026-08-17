@@ -1,7 +1,8 @@
-import { CommerceAccountError } from "@repo/commerce/services/commerce-accounts";
+import { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
 import { EmailProviderFailure } from "@repo/email";
 import { StoreConflict, StoreError } from "@repo/versioned-store";
 import { describe, expect, it } from "vitest";
+
 import { InvitationId, RegistrationId } from "../domain/identity";
 import { InvitationPolicyError } from "./company-invitation-policy";
 import {
@@ -15,7 +16,6 @@ import {
   RegistrationQueryInvalidCursor,
 } from "./registration-queries";
 import {
-  RegistrationAlreadyExists,
   RegistrationConcurrentModification,
   RegistrationNotFound,
   RegistrationNotFoundByInvitationId,
@@ -28,9 +28,11 @@ const invitationId = InvitationId.make("invitation-1");
 
 describe("workflow-facing tagged error messages", () => {
   it("delegates reason fields to native error messages", () => {
-    expect(new CommerceAccountError({ message: "commerce down" }).message).toBe(
-      "commerce down"
-    );
+    expect(
+      new CommerceAccountUnavailable({
+        message: "commerce down",
+      }).message
+    ).toBe("commerce down");
     expect(
       new InvitationConflict({ message: "already accepted" }).message
     ).toBe("already accepted");
@@ -46,6 +48,7 @@ describe("workflow-facing tagged error messages", () => {
         registrationId,
         operation: "update",
         cause: new Error("store down"),
+        reason: "unavailable",
       }).message
     ).toBe("Failed to update registration registration-1: store down");
 
@@ -78,6 +81,7 @@ describe("workflow-facing tagged error messages", () => {
         message: "Failed to list registrations: query failed",
         operation: "list",
         cause: new Error("query failed"),
+        reason: "unavailable",
       }).message
     ).toBe("Failed to list registrations: query failed");
 
@@ -87,6 +91,7 @@ describe("workflow-facing tagged error messages", () => {
         key: "registration-1",
         operation: "read",
         cause: new Error("decode failed"),
+        reason: "invalidData",
       }).message
     ).toBe("Failed to read store value registration-1: decode failed");
   });
@@ -119,12 +124,6 @@ describe("workflow-facing tagged error messages", () => {
         registrationId,
       }).message
     ).toBe("Registration registration-1 was modified concurrently");
-    expect(
-      new RegistrationAlreadyExists({
-        message: "Registration registration-1 already exists",
-        registrationId,
-      }).message
-    ).toBe("Registration registration-1 already exists");
     expect(
       new InvitationNotFound({
         message: "Invitation invitation-1 was not found",

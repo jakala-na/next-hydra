@@ -11,7 +11,7 @@ import type { AddressBook } from "../services/address-book";
 import type { CartPolicies } from "../services/cart-policies";
 import type { Carts } from "../services/carts";
 import type {
-  CommerceAccountError,
+  CommerceAccountUnavailable,
   CommerceAccounts,
 } from "../services/commerce-accounts";
 import { CommerceContext } from "../services/commerce-context";
@@ -40,7 +40,7 @@ export type CommerceStableServices =
   | CommerceAccounts;
 
 export type CommerceRequestProvisionError =
-  | CommerceAccountError
+  | CommerceAccountUnavailable
   | CommerceRequestContextNotFound;
 
 export interface CommerceAppBindings<

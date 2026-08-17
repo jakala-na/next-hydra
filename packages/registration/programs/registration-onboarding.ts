@@ -1,8 +1,9 @@
 import {
-  type CommerceAccountError,
+  type CommerceAccountUnavailable,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
 import { Clock, Effect } from "effect";
+
 import type { RegistrationReviewerActor } from "../domain/actors";
 import { registrationSystemActor } from "../domain/actors";
 import { ApprovedDecision, RejectedDecision } from "../domain/approval";
@@ -54,7 +55,9 @@ export const approveRegistration = (
   input: ApproveRegistrationInput
 ): Effect.Effect<
   ApprovedRegistration,
-  RegistrationTransitionError | CommerceAccountError | InvitationIssueError,
+  | RegistrationTransitionError
+  | CommerceAccountUnavailable
+  | InvitationIssueError,
   Registrations | CommerceAccounts | Invitations
 > =>
   Effect.gen(function* () {
@@ -130,7 +133,7 @@ export const acceptRegistrationInvitation = (
 ): Effect.Effect<
   ApprovedRegistration,
   | InvitationAcceptError
-  | CommerceAccountError
+  | CommerceAccountUnavailable
   | RegistrationReadError
   | RegistrationNotFoundByInvitationId,
   Invitations | CommerceAccounts | Registrations

@@ -9,6 +9,7 @@ const anonymousCheckoutContactSources = [
 
 const customerCheckoutContactSources = [
   "customerProfile",
+  "manual",
 ] as const satisfies readonly CheckoutContactSource[];
 
 export const allowedContactSourcesForCheckout = (

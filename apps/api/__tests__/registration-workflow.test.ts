@@ -28,14 +28,21 @@ import {
   AcceptedInvitation,
   PendingInvitation,
 } from "@repo/registration/domain/invitations";
-import { ApprovalProcessingRegistration, ApprovedRegistration, AwaitingApprovalRegistration, CompanyAddress, CompanyRegistrationDetails, RejectedRegistration } from '@repo/registration/domain/registration';
-import type { Registration } from '@repo/registration/domain/registration';
+import {
+  ApprovalProcessingRegistration,
+  ApprovedRegistration,
+  AwaitingApprovalRegistration,
+  CompanyAddress,
+  CompanyRegistrationDetails,
+  RejectedRegistration,
+} from "@repo/registration/domain/registration";
+import type { Registration } from "@repo/registration/domain/registration";
 import {
   InvitationNotFound,
   Invitations,
 } from "@repo/registration/services/invitations";
-import { RegistrationEmails } from '@repo/registration/services/registration-emails';
-import type { RegistrationEmailNotification } from '@repo/registration/services/registration-emails';
+import { RegistrationEmails } from "@repo/registration/services/registration-emails";
+import type { RegistrationEmailNotification } from "@repo/registration/services/registration-emails";
 import {
   RegistrationNotFound,
   Registrations,
@@ -47,7 +54,7 @@ const workflowMocks = vi.hoisted(() => ({
   createHook: vi.fn(),
 }));
 
-vi.mock(import('workflow'), () => ({
+vi.mock(import("workflow"), () => ({
   createHook: workflowMocks.createHook,
 }));
 
@@ -105,6 +112,7 @@ const makeWorkflowLayer = (seedRegistration: Registration) => {
     Registrations,
     Registrations.of({
       createAwaitingApproval: () => Effect.die("not used"),
+      discardAwaitingApproval: () => Effect.die("not used"),
       findByInvitationId: () => Effect.die("not used"),
       get: (registrationId) =>
         current.id === registrationId
@@ -455,7 +463,9 @@ test("registration workflow approval step runs the Effect approval program", asy
     expect(String(commerceAccount.customerId)).toBe(
       `customer-${registrationId}`
     );
-    expect(String(state.current.invitationId)).toStrictEqual(expect.any(String));
+    expect(String(state.current.invitationId)).toStrictEqual(
+      expect.any(String)
+    );
     expect(state.current.decision.actor).toBeInstanceOf(
       RegistrationReviewerActor
     );

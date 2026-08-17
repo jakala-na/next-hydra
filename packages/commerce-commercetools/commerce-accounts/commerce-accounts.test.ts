@@ -1,6 +1,6 @@
 import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Redacted } from "effect";
+import { Cause, Effect, Redacted } from "effect";
 import { beforeEach, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -12,7 +12,7 @@ import {
 } from "@repo/commerce/domain/commerce-account";
 import {
   type AcceptedCommerceIdentity,
-  CommerceAccountError,
+  CommerceAccountUnavailable,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
@@ -163,8 +163,8 @@ beforeEach(() => {
 });
 
 describe("layerCommercetoolsCommerceAccounts", () => {
-  it("uses the commerce failure reason as the error message", () => {
-    const error = new CommerceAccountError({
+  it("uses the commerce failure message as the error message", () => {
+    const error = new CommerceAccountUnavailable({
       message: "Failed to add Commercetools business unit associate",
     });
 
@@ -236,7 +236,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
-  it.effect("keeps structured Commercetools details in the private cause", () =>
+  it.effect("defects on an invalid Commercetools create response", () =>
     Effect.gen(function* () {
       mocks.customerWithKeyGetExecute.mockRejectedValueOnce({
         statusCode: 404,
@@ -270,7 +270,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       );
 
       const commerceAccounts = yield* CommerceAccounts;
-      const error = yield* commerceAccounts
+      const exit = yield* commerceAccounts
         .createFromRegistration({
           _tag: "AwaitingApprovalRegistration",
           id: "registration-1",
@@ -292,23 +292,27 @@ describe("layerCommercetoolsCommerceAccounts", () => {
             },
           },
         })
-        .pipe(Effect.flip);
+        .pipe(Effect.exit);
 
-      expect(error).toBeInstanceOf(CommerceAccountError);
-      expect(error.message).toBe(
-        "Failed to create Commercetools business unit"
-      );
-      expect(error.cause).toMatchObject({
-        statusCode: 400,
-        code: "BadRequest",
-        body: {
-          errors: [
-            expect.objectContaining({
-              code: "InvalidJsonInput",
-              detailedErrorMessage:
-                "The 'stores' field does not conform to the expected shape.",
-            }),
-          ],
+      expect(exit._tag).toBe("Failure");
+      if (exit._tag !== "Failure") {
+        throw new Error("Expected the invalid provider response to defect");
+      }
+      const defect = exit.cause.reasons.find(Cause.isDieReason)?.defect;
+      expect(defect).toMatchObject({
+        message: "Failed to create Commercetools business unit",
+        cause: {
+          statusCode: 400,
+          code: "BadRequest",
+          body: {
+            errors: [
+              expect.objectContaining({
+                code: "InvalidJsonInput",
+                detailedErrorMessage:
+                  "The 'stores' field does not conform to the expected shape.",
+              }),
+            ],
+          },
         },
       });
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
@@ -464,6 +468,23 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       expect(profile.lastName && Redacted.value(profile.lastName)).toBe(
         "Lovelace"
       );
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect("classifies provider rate limits as recoverable", () =>
+    Effect.gen(function* () {
+      mocks.customerGetExecute.mockRejectedValueOnce({ statusCode: 429 });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      const error = yield* commerceAccounts
+        .getCustomerProfile(CommerceCustomerId.make("customer-1"))
+        .pipe(Effect.flip);
+
+      expect(error).toBeInstanceOf(CommerceAccountUnavailable);
+      expect(error).toMatchObject({
+        _tag: "CommerceAccountUnavailable",
+        message: "Failed to read Commercetools customer profile",
+      });
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
@@ -908,61 +929,63 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
-  it.effect(
-    "keeps owner association response details in the private cause",
-    () =>
-      Effect.gen(function* () {
-        mocks.customerGetExecute.mockResolvedValueOnce({
-          body: {
-            id: "customer-1",
-            version: 8,
-            externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
-            email: "ada@example.com",
-            firstName: "Ada",
-            lastName: "Lovelace",
-          },
-        });
-        mocks.businessUnitGetExecute.mockResolvedValueOnce({
-          body: {
-            id: "business-unit-1",
-            version: 3,
-            status: "Active",
-            associates: [],
-          },
-        });
-        mocks.businessUnitPostExecute.mockRejectedValueOnce({
-          statusCode: 400,
-          body: {
-            message: "The referenced associate role does not exist.",
-            errors: [
-              {
-                code: "ReferencedResourceNotFound",
-                message: "Referenced resource with key admin was not found.",
-              },
-            ],
-          },
-        });
+  it.effect("defects on an invalid owner association response", () =>
+    Effect.gen(function* () {
+      mocks.customerGetExecute.mockResolvedValueOnce({
+        body: {
+          id: "customer-1",
+          version: 8,
+          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+          email: "ada@example.com",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+      });
+      mocks.businessUnitGetExecute.mockResolvedValueOnce({
+        body: {
+          id: "business-unit-1",
+          version: 3,
+          status: "Active",
+          associates: [],
+        },
+      });
+      mocks.businessUnitPostExecute.mockRejectedValueOnce({
+        statusCode: 400,
+        body: {
+          message: "The referenced associate role does not exist.",
+          errors: [
+            {
+              code: "ReferencedResourceNotFound",
+              message: "Referenced resource with key admin was not found.",
+            },
+          ],
+        },
+      });
 
-        const commerceAccounts = yield* CommerceAccounts;
-        const error = yield* commerceAccounts
-          .linkRegistrantIdentity({
-            registration,
-            acceptedIdentity,
-          })
-          .pipe(Effect.flip);
+      const commerceAccounts = yield* CommerceAccounts;
+      const exit = yield* commerceAccounts
+        .linkRegistrantIdentity({
+          registration,
+          acceptedIdentity,
+        })
+        .pipe(Effect.exit);
 
-        expect(error).toBeInstanceOf(CommerceAccountError);
-        expect(error.message).toBe(
-          "Failed to add Commercetools business unit associate"
-        );
-        expect(error.cause).toMatchObject({
+      expect(exit._tag).toBe("Failure");
+      if (exit._tag !== "Failure") {
+        throw new Error("Expected the invalid provider response to defect");
+      }
+      const defect = exit.cause.reasons.find(Cause.isDieReason)?.defect;
+      expect(defect).toMatchObject({
+        message: "Failed to add Commercetools business unit associate",
+        cause: {
           body: {
             message: "The referenced associate role does not exist.",
             errors: [
               expect.objectContaining({ code: "ReferencedResourceNotFound" }),
             ],
           },
-        });
-      }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+        },
+      });
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 });

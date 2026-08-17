@@ -1,4 +1,6 @@
 import { StoreKey } from "@repo/commerce/store";
+import { InputInvalid } from "@repo/errors";
+import { UnexpectedHttpErrors } from "@repo/errors/http";
 import { locales } from "@repo/i18n/config";
 import { Context, Redacted, Schema } from "effect";
 import {
@@ -33,6 +35,29 @@ import {
 } from "../domain/registration";
 import type { Registration } from "../domain/registration";
 import { RegistrationIntakeValidationReason } from "../domain/registration-intake-validation";
+import {
+  PublicRegistrationTransitionConflict,
+  RegistrationAlreadyApproved,
+  RegistrationAlreadyApprovedFailure,
+  RegistrationAlreadyRejected,
+  RegistrationAlreadyRejectedFailure,
+  RegistrationApiAuthenticationUnavailable,
+  RegistrationApiError,
+  RegistrationApiErrorFailure,
+  RegistrationApiForbidden,
+  RegistrationApiUnauthorized,
+  RegistrationApiValidationError,
+  RegistrationDecisionAlreadyProcessing,
+  RegistrationDecisionAlreadyProcessingFailure,
+  RegistrationDecisionOutcomeUnknown,
+  RegistrationTransitionConflictFailure,
+  PublicRegistrationConcurrentModification,
+  PublicRegistrationConcurrentModificationFailure,
+  PublicRegistrationNotFound,
+  PublicRegistrationNotFoundFailure,
+  PublicRegistrationQueryInvalidCursor,
+  PublicRegistrationQueryInvalidCursorFailure,
+} from "../public-errors";
 import type { RegistrationQueryError } from "../services/registration-queries";
 import type {
   RegistrationCreateError,
@@ -40,96 +65,23 @@ import type {
   RegistrationTransitionError,
 } from "../services/registrations";
 
+export {
+  RegistrationAlreadyApproved,
+  RegistrationAlreadyRejected,
+  RegistrationApiAuthenticationUnavailable,
+  RegistrationApiError,
+  RegistrationApiForbidden,
+  RegistrationApiUnauthorized,
+  RegistrationApiValidationError,
+  RegistrationDecisionAlreadyProcessing,
+  RegistrationDecisionOutcomeUnknown,
+  PublicRegistrationConcurrentModification,
+  PublicRegistrationNotFound,
+  PublicRegistrationQueryInvalidCursor,
+} from "../public-errors";
+
 export const REGISTRATION_READ_PERMISSION = "registration.read";
 export const REGISTRATION_DECIDE_PERMISSION = "registration.decide";
-
-export class RegistrationApiError extends Schema.TaggedErrorClass<RegistrationApiError>()(
-  "RegistrationApiError",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 500 }
-) {}
-
-export class RegistrationApiBadRequest extends Schema.TaggedErrorClass<RegistrationApiBadRequest>()(
-  "RegistrationApiBadRequest",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 400 }
-) {}
-
-export class RegistrationApiInvalidCursor extends Schema.TaggedErrorClass<RegistrationApiInvalidCursor>()(
-  "RegistrationApiInvalidCursor",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 400 }
-) {}
-
-export class RegistrationApiConflict extends Schema.TaggedErrorClass<RegistrationApiConflict>()(
-  "RegistrationApiConflict",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 409 }
-) {}
-
-export class RegistrationAlreadyApproved extends Schema.TaggedErrorClass<RegistrationAlreadyApproved>()(
-  "RegistrationAlreadyApproved",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 409 }
-) {}
-
-export class RegistrationAlreadyRejected extends Schema.TaggedErrorClass<RegistrationAlreadyRejected>()(
-  "RegistrationAlreadyRejected",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 409 }
-) {}
-
-export class RegistrationDecisionAlreadyProcessing extends Schema.TaggedErrorClass<RegistrationDecisionAlreadyProcessing>()(
-  "RegistrationDecisionAlreadyProcessing",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 409 }
-) {}
-
-export class RegistrationApiNotFound extends Schema.TaggedErrorClass<RegistrationApiNotFound>()(
-  "RegistrationApiNotFound",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 404 }
-) {}
-
-export class RegistrationApiUnauthorized extends Schema.TaggedErrorClass<RegistrationApiUnauthorized>()(
-  "RegistrationApiUnauthorized",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 401 }
-) {}
-
-export class RegistrationApiForbidden extends Schema.TaggedErrorClass<RegistrationApiForbidden>()(
-  "RegistrationApiForbidden",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 403 }
-) {}
-
-export class RegistrationApiAuthenticationUnavailable extends Schema.TaggedErrorClass<RegistrationApiAuthenticationUnavailable>()(
-  "RegistrationApiAuthenticationUnavailable",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 503 }
-) {}
 
 export const RegistrationApiValidationReason =
   RegistrationIntakeValidationReason;
@@ -141,15 +93,6 @@ export {
   InvalidRegistrationVatId,
   UnsupportedRegistrationCountry,
 } from "../domain/registration-intake-validation";
-
-export class RegistrationApiValidationError extends Schema.TaggedErrorClass<RegistrationApiValidationError>()(
-  "RegistrationApiValidationError",
-  {
-    message: Schema.String,
-    reasons: Schema.NonEmptyArray(RegistrationApiValidationReason),
-  },
-  { httpApiStatus: 422 }
-) {}
 
 export class RegistrationAddressInput extends Schema.Class<RegistrationAddressInput>(
   "RegistrationAddressInput"
@@ -258,7 +201,7 @@ export class RegistrationSchemaErrorMiddleware extends HttpApiMiddleware.Service
   RegistrationSchemaErrorMiddleware,
   { readonly requires: never }
 >()("@repo/registration/http/RegistrationSchemaErrorMiddleware", {
-  error: RegistrationApiBadRequest,
+  error: InputInvalid,
 }) {}
 
 const RegistrationAccessErrors = [
@@ -291,28 +234,29 @@ export class RegistrationDecisionAccessMiddleware extends HttpApiMiddleware.Serv
 }) {}
 
 const RegistrationCreateErrors = [
-  RegistrationApiConflict,
   RegistrationApiError,
   RegistrationApiValidationError,
 ] as const;
 
 const RegistrationReadErrors = [
   RegistrationApiError,
-  RegistrationApiInvalidCursor,
+  PublicRegistrationQueryInvalidCursor,
 ] as const;
 
 const RegistrationGetErrors = [
   RegistrationApiError,
-  RegistrationApiNotFound,
+  PublicRegistrationNotFound,
 ] as const;
 
 const RegistrationDecisionErrors = [
   RegistrationApiError,
   RegistrationAlreadyApproved,
   RegistrationAlreadyRejected,
-  RegistrationApiConflict,
+  PublicRegistrationConcurrentModification,
+  PublicRegistrationTransitionConflict,
   RegistrationDecisionAlreadyProcessing,
-  RegistrationApiNotFound,
+  PublicRegistrationNotFound,
+  RegistrationDecisionOutcomeUnknown,
 ] as const;
 
 export class RegistrationApiGroup extends HttpApiGroup.make("registrations")
@@ -364,6 +308,7 @@ export class RegistrationApiGroup extends HttpApiGroup.make("registrations")
 
 export class RegistrationHttpApi extends HttpApi.make("registration-http-api")
   .add(RegistrationApiGroup)
+  .middleware(UnexpectedHttpErrors)
   .annotateMerge(
     OpenApi.annotations({
       title: "Registration HTTP API",
@@ -489,49 +434,56 @@ export const toRegistrationDetailResponse = (
 };
 
 const internalRegistrationError = () =>
-  new RegistrationApiError({
+  RegistrationApiErrorFailure.make({
     message: "The registration service is temporarily unavailable.",
   });
 
 export const toRegistrationCreateApiError = (
   error: RegistrationCreateError
-): RegistrationApiConflict | RegistrationApiError => {
-  switch (error._tag) {
-    case "RegistrationAlreadyExists": {
-      return new RegistrationApiConflict({
-        message: error.message,
-      });
-    }
-    case "RegistrationPersistenceFailure": {
-      return internalRegistrationError();
-    }
+): RegistrationApiError => {
+  if (error.reason !== "unavailable") {
+    throw error;
   }
+
+  return internalRegistrationError();
 };
 
 export const toRegistrationReadApiError = (
   error: RegistrationReadError
-): RegistrationApiNotFound | RegistrationApiError => {
+): PublicRegistrationNotFound | RegistrationApiError => {
   switch (error._tag) {
     case "RegistrationNotFound": {
-      return new RegistrationApiNotFound({ message: error.message });
+      return PublicRegistrationNotFoundFailure.make({ message: error.message });
     }
     case "RegistrationPersistenceFailure": {
+      if (error.reason !== "unavailable") {
+        throw error;
+      }
       return internalRegistrationError();
+    }
+    default: {
+      return error satisfies never;
     }
   }
 };
 
 export const toRegistrationQueryApiError = (
   error: RegistrationQueryError
-): RegistrationApiInvalidCursor | RegistrationApiError => {
+): PublicRegistrationQueryInvalidCursor | RegistrationApiError => {
   switch (error._tag) {
     case "RegistrationQueryInvalidCursor": {
-      return new RegistrationApiInvalidCursor({
+      return PublicRegistrationQueryInvalidCursorFailure.make({
         message: "The registration cursor is invalid.",
       });
     }
     case "RegistrationQueryFailure": {
+      if (error.reason !== "unavailable") {
+        throw error;
+      }
       return internalRegistrationError();
+    }
+    default: {
+      return error satisfies never;
     }
   }
 };
@@ -541,39 +493,48 @@ export const toRegistrationTransitionApiError = (
 ):
   | RegistrationAlreadyApproved
   | RegistrationAlreadyRejected
-  | RegistrationApiConflict
+  | PublicRegistrationConcurrentModification
   | RegistrationApiError
-  | RegistrationApiNotFound
-  | RegistrationDecisionAlreadyProcessing => {
+  | PublicRegistrationNotFound
+  | RegistrationDecisionAlreadyProcessing
+  | PublicRegistrationTransitionConflict => {
   switch (error._tag) {
     case "RegistrationNotFound": {
-      return new RegistrationApiNotFound({ message: error.message });
+      return PublicRegistrationNotFoundFailure.make({ message: error.message });
     }
     case "RegistrationConcurrentModification": {
-      return new RegistrationApiConflict({ message: error.message });
+      return PublicRegistrationConcurrentModificationFailure.make({
+        message: error.message,
+      });
     }
     case "RegistrationTransitionConflict": {
       switch (error.currentState) {
         case "ApprovedRegistration":
-          return new RegistrationAlreadyApproved({
+          return RegistrationAlreadyApprovedFailure.make({
             message: error.message,
           });
         case "RejectedRegistration":
-          return new RegistrationAlreadyRejected({
+          return RegistrationAlreadyRejectedFailure.make({
             message: error.message,
           });
         case "ApprovalProcessingRegistration":
-          return new RegistrationDecisionAlreadyProcessing({
+          return RegistrationDecisionAlreadyProcessingFailure.make({
             message: error.message,
           });
         default:
-          return new RegistrationApiConflict({
+          return RegistrationTransitionConflictFailure.make({
             message: error.message,
           });
       }
     }
     case "RegistrationPersistenceFailure": {
+      if (error.reason !== "unavailable") {
+        throw error;
+      }
       return internalRegistrationError();
+    }
+    default: {
+      return error satisfies never;
     }
   }
 };

@@ -81,7 +81,7 @@ const getAddress = (registration: RegistrationDetailView) =>
 
 const getDecisionErrorMessage = (error: RegistrationDecisionActionFailure) => {
   switch (error._tag) {
-    case "RegistrationApiNotFound": {
+    case "RegistrationNotFound": {
       return "This registration could not be found anymore.";
     }
     case "RegistrationAlreadyApproved": {
@@ -90,7 +90,8 @@ const getDecisionErrorMessage = (error: RegistrationDecisionActionFailure) => {
     case "RegistrationAlreadyRejected": {
       return "This registration has already been rejected.";
     }
-    case "RegistrationDecisionConflict": {
+    case "RegistrationConcurrentModification":
+    case "RegistrationTransitionConflict": {
       return "This registration changed while you were reviewing it. Refresh and try again.";
     }
     case "RegistrationDecisionAlreadyProcessing": {
@@ -102,11 +103,15 @@ const getDecisionErrorMessage = (error: RegistrationDecisionActionFailure) => {
     case "RegistrationApiForbidden": {
       return "You no longer have permission to save registration decisions.";
     }
-    case "ActionInputInvalid": {
+    case "InputInvalid": {
       return "Review the decision and try again.";
     }
-    case "RegistrationDecisionUnavailable": {
+    case "RegistrationApiAuthenticationUnavailable":
+    case "RegistrationApiError": {
       return "The decision could not be saved. Please try again.";
+    }
+    case "RegistrationDecisionOutcomeUnknown": {
+      return error.message;
     }
     default: {
       return error satisfies never;

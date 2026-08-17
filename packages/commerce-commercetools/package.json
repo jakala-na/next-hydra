@@ -26,6 +26,7 @@
     "@commercetools/ts-client": "^4.2.1",
     "@gql.tada/cli-utils": "^1.6.3",
     "@repo/commerce": "workspace:*",
+    "@repo/errors": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/observability": "workspace:*",
     "@repo/registration": "workspace:*",

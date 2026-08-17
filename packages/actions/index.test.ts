@@ -1,9 +1,9 @@
+import { ErrorIssue } from "@repo/errors";
 import { Context, Effect, Layer, ManagedRuntime, Schema } from "effect";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import {
   ActionClient,
-  ActionInputIssue,
   ActionMiddleware,
   normalizeActionSchemaIssuePath,
 } from "./index";
@@ -75,8 +75,12 @@ describe("ActionClient", () => {
     await expect(action({ name: "   " })).resolves.toEqual({
       _tag: "Failure",
       failure: {
-        _tag: "ActionInputInvalid",
+        _tag: "InputInvalid",
+        category: "bad_input",
+        code: "input.invalid",
         issues: [{ path: ["name"], message: "Invalid input." }],
+        message: "Invalid input.",
+        recovery: "fix_input",
       },
     });
     expect(handler).not.toHaveBeenCalled();
@@ -104,13 +108,17 @@ describe("ActionClient", () => {
     await expect(action({ address: { region: "" } })).resolves.toEqual({
       _tag: "Failure",
       failure: {
-        _tag: "ActionInputInvalid",
+        _tag: "InputInvalid",
+        category: "bad_input",
+        code: "input.invalid",
         issues: [
           {
             path: ["address", "region"],
             message: "Invalid input.",
           },
         ],
+        message: "Invalid input.",
+        recovery: "fix_input",
       },
     });
   });
@@ -134,8 +142,12 @@ describe("ActionClient", () => {
     await expect(action({ name: "   " })).resolves.toEqual({
       _tag: "Failure",
       failure: {
-        _tag: "ActionInputInvalid",
+        _tag: "InputInvalid",
+        category: "bad_input",
+        code: "input.invalid",
         issues: [{ path: ["name"], message: "Invalid input." }],
+        message: "Invalid input.",
+        recovery: "fix_input",
       },
     });
     expect(acquire).not.toHaveBeenCalled();
@@ -143,7 +155,7 @@ describe("ActionClient", () => {
 
   it("makes context and encoded input available to input issue mapping", async () => {
     const mapInputIssues = vi.fn(() => [
-      new ActionInputIssue({ path: ["name"], message: "Use a name." }),
+      new ErrorIssue({ message: "Use a name.", path: ["name"] }),
     ]);
     const action = Actions.procedure("Test.inputErrorContext")
       .input(TestInput)
@@ -157,8 +169,12 @@ describe("ActionClient", () => {
     await expect(action(input)).resolves.toEqual({
       _tag: "Failure",
       failure: {
-        _tag: "ActionInputInvalid",
+        _tag: "InputInvalid",
+        category: "bad_input",
+        code: "input.invalid",
         issues: [{ path: ["name"], message: "Use a name." }],
+        message: "Invalid input.",
+        recovery: "fix_input",
       },
     });
     expect(mapInputIssues).toHaveBeenCalledExactlyOnceWith(

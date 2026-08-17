@@ -172,8 +172,10 @@ describe("Checkout delivery address selection", () => {
           error: {
             _tag: "CheckoutMutationProviderFailure",
             addressBookReference: officeReference,
-            message: "Commercetools update failed",
-            operation: "checkout.deliveryDetails.save",
+            category: "unavailable",
+            code: "checkout.deliveryDetails.providerFailure",
+            message: "Delivery details could not be saved. Try again.",
+            recovery: "retry",
           },
         },
       },
@@ -198,5 +200,30 @@ describe("Checkout delivery address selection", () => {
     expect(retryHtml).toContain('value="office"');
     expect(pendingHtml).toContain("Wird gespeichert...");
     expect(pendingHtml).toContain("disabled");
+  });
+
+  it("reuses a saved Address Book reference after an ambiguous Cart write", () => {
+    const retrySelection = deliveryAddressSelectionAfterAction(
+      {
+        _tag: "Failure",
+        failure: {
+          displayMessage: "Refresh before trying again.",
+          error: {
+            _tag: "CheckoutMutationOutcomeUnknown",
+            addressBookReference: officeReference,
+            category: "unavailable",
+            code: "checkout.deliveryDetails.outcomeUnknown",
+            message: "The Cart write outcome is unknown.",
+            recovery: "refresh",
+          },
+        },
+      },
+      { type: "manual" }
+    );
+
+    expect(retrySelection).toEqual({
+      type: "addressBook",
+      reference: officeReference,
+    });
   });
 });

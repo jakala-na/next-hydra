@@ -12,6 +12,7 @@
     "./cart/procedures": "./cart/procedures.ts",
     "./checkout": "./checkout/index.ts",
     "./checkout/procedures": "./checkout/procedures.ts",
+    "./checkout/public-errors": "./checkout/public-errors.ts",
     "./commerce-context": "./commerce-context/index.ts",
     "./commerce-context/business-unit-cookie": "./commerce-context/business-unit-cookie.ts",
     "./domain/address": "./domain/address.ts",
@@ -23,6 +24,7 @@
     "./domain/commerce-account": "./domain/commerce-account.ts",
     "./domain/commerce-request-context": "./domain/commerce-request-context.ts",
     "./domain/money": "./domain/money.ts",
+    "./domain/provider-failure": "./domain/provider-failure.ts",
     "./http/address-book-api": "./http/address-book-api.ts",
     "./http/checkout-api": "./http/checkout-api.ts",
     "./http/checkout-api-messages": "./http/checkout-api-messages.ts",
@@ -56,6 +58,7 @@
   "dependencies": {
     "@repo/actions": "workspace:*",
     "@repo/design-system": "workspace:*",
+    "@repo/errors": "workspace:*",
     "@repo/i18n": "workspace:*",
     "react": "catalog:",
     "server-only": "catalog:"

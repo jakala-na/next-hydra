@@ -1,8 +1,11 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option } from "effect";
 import { vi } from "vitest";
+
 import {
+  commercetoolsProviderFailureReason,
   decodeConcurrentModification,
+  isCommercetoolsClientFailure,
   PreserveVersionedWriteConflict,
   RetryVersionedWrite,
   retryVersionedWrite,
@@ -11,6 +14,51 @@ import {
 const INITIAL_VERSION = 7;
 const REST_CURRENT_VERSION = 8;
 const GRAPHQL_CURRENT_VERSION = 9;
+
+describe("commercetoolsProviderFailureReason", () => {
+  it("keeps rate limits recoverable instead of classifying them as client defects", () => {
+    const rateLimit = { statusCode: 429 };
+
+    expect(isCommercetoolsClientFailure(rateLimit)).toBe(false);
+    expect(commercetoolsProviderFailureReason(rateLimit)).toBe("unavailable");
+  });
+
+  it("classifies non-recoverable client responses as unexpected", () => {
+    const invalidRequest = { statusCode: 400 };
+
+    expect(isCommercetoolsClientFailure(invalidRequest)).toBe(true);
+    expect(commercetoolsProviderFailureReason(invalidRequest)).toBe(
+      "unexpectedResponse"
+    );
+  });
+
+  it("keeps request timeouts recoverable", () => {
+    expect(commercetoolsProviderFailureReason({ statusCode: 408 })).toBe(
+      "unavailable"
+    );
+  });
+
+  it("does not classify unknown exceptions as provider availability", () => {
+    expect(commercetoolsProviderFailureReason(new Error("bug"))).toBe(
+      "unexpectedResponse"
+    );
+    expect(
+      commercetoolsProviderFailureReason(new TypeError("application bug"))
+    ).toBe("unexpectedResponse");
+  });
+
+  it("recognizes coded transport failures through nested causes", () => {
+    expect(
+      commercetoolsProviderFailureReason(
+        new TypeError("fetch failed", {
+          cause: Object.assign(new Error("socket reset"), {
+            code: "ECONNRESET",
+          }),
+        })
+      )
+    ).toBe("unavailable");
+  });
+});
 
 const restConflict = {
   statusCode: 409,

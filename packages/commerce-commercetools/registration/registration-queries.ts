@@ -21,9 +21,11 @@ import {
 } from "@repo/registration/services/registration-queries";
 import { decodeJsonString } from "@repo/versioned-store";
 import { Effect, Layer, Option, Redacted, Schema } from "effect";
+
 import { commercetoolsClientsLayer } from "../client/layers";
 import { CommercetoolsRestClient } from "../client/rest-client";
 import {
+  commercetoolsProviderFailureReason,
   commercetoolsFailureCause,
   commercetoolsRequest,
 } from "../client/versioned-write";
@@ -255,6 +257,7 @@ const queryCustomObjects = ({
         }`,
         operation: "list",
         cause,
+        reason: commercetoolsProviderFailureReason(cause),
       });
     })
   );
@@ -272,6 +275,7 @@ const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
             }`,
             operation: "list",
             cause,
+            reason: "invalidData",
           })
       )
     ) as Effect.Effect<Registration, RegistrationQueryFailure, never>;
@@ -285,6 +289,7 @@ const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
         cause: new Error(
           `Invalid custom object createdAt ${customObject.createdAt}`
         ),
+        reason: "invalidData",
       });
     }
 
@@ -295,6 +300,7 @@ const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
         cause: new Error(
           `Invalid custom object lastModifiedAt ${customObject.lastModifiedAt}`
         ),
+        reason: "invalidData",
       });
     }
 

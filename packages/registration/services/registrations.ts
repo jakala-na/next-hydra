@@ -1,11 +1,13 @@
 import type { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import type { StoreKey } from "@repo/commerce/store";
 import {
+  StoreFailureReason,
   type StoreConflict,
   type StoreError,
   VersionedKeyValueStore,
 } from "@repo/versioned-store";
 import { Clock, Context, Effect, Layer, Option, Random, Schema } from "effect";
+
 import type { ApprovedDecision, RejectedDecision } from "../domain/approval";
 import { InvitationId, RegistrationId } from "../domain/identity";
 import {
@@ -51,11 +53,12 @@ export class RegistrationConcurrentModification extends Schema.TaggedErrorClass<
   }
 ) {}
 
-export class RegistrationAlreadyExists extends Schema.TaggedErrorClass<RegistrationAlreadyExists>()(
-  "RegistrationAlreadyExists",
+export class RegistrationDiscardConflict extends Schema.TaggedErrorClass<RegistrationDiscardConflict>()(
+  "RegistrationDiscardConflict",
   {
     message: Schema.String,
     registrationId: RegistrationId,
+    currentState: Schema.String,
   }
 ) {}
 
@@ -64,8 +67,9 @@ export class RegistrationPersistenceFailure extends Schema.TaggedErrorClass<Regi
   {
     message: Schema.String,
     registrationId: RegistrationId,
-    operation: Schema.Literals(["read", "create", "update"]),
+    operation: Schema.Literals(["read", "create", "delete", "update"]),
     cause: Schema.Defect,
+    reason: StoreFailureReason,
   }
 ) {}
 
@@ -75,8 +79,10 @@ export type RegistrationReadError =
 export type RegistrationFindByInvitationError =
   | RegistrationNotFoundByInvitationId
   | RegistrationPersistenceFailure;
-export type RegistrationCreateError =
-  | RegistrationAlreadyExists
+export type RegistrationCreateError = RegistrationPersistenceFailure;
+export type RegistrationDiscardError =
+  | RegistrationDiscardConflict
+  | RegistrationConcurrentModification
   | RegistrationPersistenceFailure;
 export type RegistrationTransitionError =
   | RegistrationNotFound
@@ -130,6 +136,7 @@ const mapStoreError =
       registrationId,
       operation,
       cause: error.cause,
+      reason: error.reason,
     });
 
 export class Registrations extends Context.Service<
@@ -138,6 +145,9 @@ export class Registrations extends Context.Service<
     readonly createAwaitingApproval: (
       input: CreateAwaitingApprovalRegistrationInput
     ) => Effect.Effect<AwaitingApprovalRegistration, RegistrationCreateError>;
+    readonly discardAwaitingApproval: (
+      id: RegistrationId
+    ) => Effect.Effect<void, RegistrationDiscardError>;
     readonly get: (
       id: RegistrationId
     ) => Effect.Effect<Registration, RegistrationReadError>;
@@ -182,36 +192,83 @@ export class Registrations extends Context.Service<
 
       const createAwaitingApproval = Effect.fn(
         "Registrations.createAwaitingApproval"
-      )(function* (input: CreateAwaitingApprovalRegistrationInput) {
-        const id = RegistrationId.make(yield* Random.nextUUIDv4);
-        const createdAt = yield* nowDate;
-        const registration = new AwaitingApprovalRegistration({
-          _tag: "AwaitingApprovalRegistration",
-          status: "awaiting_approval",
-          id,
-          storeKey: input.storeKey,
-          details: input.details,
-          createdAt,
-          updatedAt: createdAt,
-        });
+      )((input: CreateAwaitingApprovalRegistrationInput) => {
+        const insertWithFreshId = (
+          remainingAttempts: number
+        ): Effect.Effect<
+          AwaitingApprovalRegistration,
+          RegistrationPersistenceFailure
+        > =>
+          Effect.gen(function* () {
+            const id = RegistrationId.make(yield* Random.nextUUIDv4);
+            const createdAt = yield* nowDate;
+            const registration = new AwaitingApprovalRegistration({
+              _tag: "AwaitingApprovalRegistration",
+              status: "awaiting_approval",
+              id,
+              storeKey: input.storeKey,
+              details: input.details,
+              createdAt,
+              updatedAt: createdAt,
+            });
 
-        yield* store
-          .insert(registrationKey(id), Registration, registration)
-          .pipe(
+            yield* store.insert(
+              registrationKey(id),
+              Registration,
+              registration
+            );
+
+            return registration;
+          }).pipe(
             Effect.catchTags({
-              StoreConflict: () =>
-                Effect.fail(
-                  new RegistrationAlreadyExists({
-                    message: `Registration ${id} already exists`,
-                    registrationId: id,
-                  })
-                ),
+              StoreConflict: (error) =>
+                remainingAttempts > 1
+                  ? Effect.suspend(() =>
+                      insertWithFreshId(remainingAttempts - 1)
+                    )
+                  : Effect.die(error),
               StoreError: (error) =>
-                Effect.fail(mapStoreError(id, "create")(error)),
+                Effect.fail(
+                  mapStoreError(RegistrationId.make(error.key), "create")(error)
+                ),
             })
           );
 
-        return registration;
+        return insertWithFreshId(3);
+      });
+
+      const discardAwaitingApproval = Effect.fn(
+        "Registrations.discardAwaitingApproval"
+      )(function* (id: RegistrationId) {
+        const key = registrationKey(id);
+        const current = yield* store
+          .get(key, Registration)
+          .pipe(
+            Effect.catchTag("StoreError", (error) =>
+              Effect.fail(mapStoreError(id, "read")(error))
+            )
+          );
+
+        if (Option.isNone(current)) {
+          return;
+        }
+
+        if (current.value.value._tag !== "AwaitingApprovalRegistration") {
+          return yield* new RegistrationDiscardConflict({
+            message: `Cannot discard registration ${id} from ${current.value.value._tag}`,
+            registrationId: id,
+            currentState: current.value.value._tag,
+          });
+        }
+
+        yield* store.remove(key, current.value).pipe(
+          Effect.catchTags({
+            StoreConflict: (error) =>
+              Effect.fail(mapStoreUpdateConflict(id)(error)),
+            StoreError: (error) =>
+              Effect.fail(mapStoreError(id, "delete")(error)),
+          })
+        );
       });
 
       const findByInvitationId = Effect.fn("Registrations.findByInvitationId")(
@@ -462,6 +519,7 @@ export class Registrations extends Context.Service<
 
       return {
         createAwaitingApproval,
+        discardAwaitingApproval,
         findByInvitationId,
         markApprovalProcessing,
         get,

@@ -24,6 +24,7 @@
     "@repo/commerce": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/email": "workspace:*",
+    "@repo/errors": "workspace:*",
     "@repo/form": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/versioned-store": "workspace:*",

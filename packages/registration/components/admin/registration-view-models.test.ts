@@ -1,32 +1,58 @@
-import {
-  ActionInputInvalid,
-  ActionInputIssue,
-  type ActionFailure,
-} from "@repo/actions";
+import type { ActionFailure } from "@repo/actions";
+import { ErrorIssue, makeInputInvalid } from "@repo/errors";
 import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
+import { RegistrationId } from "../../domain/identity";
+import {
+  RegistrationAlreadyApprovedFailure,
+  RegistrationAlreadyRejectedFailure,
+  RegistrationApiAuthenticationUnavailableFailure,
+  RegistrationDecisionOutcomeUnknownFailure,
+  RegistrationApiErrorFailure,
+  RegistrationApiForbiddenFailure,
+  RegistrationApiUnauthorizedFailure,
+  RegistrationDecisionAlreadyProcessingFailure,
+  RegistrationTransitionConflictFailure,
+  PublicRegistrationConcurrentModificationFailure,
+  PublicRegistrationNotFoundFailure,
+} from "../../public-errors";
 import {
   RegistrationDecisionActionError,
   RegistrationDecisionResult,
 } from "./registration-view-models";
 
 const decisionFailures = [
-  { _tag: "RegistrationApiNotFound" },
-  { _tag: "RegistrationAlreadyApproved" },
-  { _tag: "RegistrationAlreadyRejected" },
-  { _tag: "RegistrationDecisionConflict" },
-  { _tag: "RegistrationDecisionAlreadyProcessing" },
-  { _tag: "RegistrationApiUnauthorized" },
-  { _tag: "RegistrationApiForbidden" },
-  { _tag: "RegistrationDecisionUnavailable" },
-  new ActionInputInvalid({
+  PublicRegistrationNotFoundFailure.make({ message: "Not found." }),
+  RegistrationAlreadyApprovedFailure.make({ message: "Already approved." }),
+  RegistrationAlreadyRejectedFailure.make({ message: "Already rejected." }),
+  PublicRegistrationConcurrentModificationFailure.make({
+    message: "Changed.",
+  }),
+  RegistrationTransitionConflictFailure.make({
+    message: "State changed.",
+  }),
+  RegistrationDecisionAlreadyProcessingFailure.make({
+    message: "Already processing.",
+  }),
+  RegistrationApiUnauthorizedFailure.make({ message: "Sign in." }),
+  RegistrationApiForbiddenFailure.make({ message: "Forbidden." }),
+  RegistrationApiErrorFailure.make({ message: "Unavailable." }),
+  RegistrationDecisionOutcomeUnknownFailure.make({
+    message: "Decision outcome is unknown.",
+    registrationId: RegistrationId.make("registration-unknown"),
+  }),
+  RegistrationApiAuthenticationUnavailableFailure.make({
+    message: "Authentication unavailable.",
+  }),
+  makeInputInvalid({
     issues: [
-      new ActionInputIssue({
+      new ErrorIssue({
         path: ["registrationId"],
         message: "Invalid input.",
       }),
     ],
+    message: "Invalid input.",
   }),
 ] satisfies ReadonlyArray<
   ActionFailure<typeof RegistrationDecisionActionError>

@@ -3,7 +3,7 @@ import { ISO_COUNTRY_CODES } from "@repo/i18n/countries";
 import { Schema } from "effect";
 
 import { RegistrationId } from "../domain/identity";
-import { RegistrationIntakeValidationError } from "../domain/registration-intake-validation";
+import { RegistrationSubmissionPublicError } from "../public-errors";
 
 export const REGION_REQUIRED_COUNTRY_CODES = ["US", "CA"] as const;
 
@@ -40,6 +40,7 @@ export const RegistrationFormMessageKey = Schema.Literals([
   "validation.duplicateEmail",
   "errors.invalidSubmission",
   "errors.submitFailed",
+  "errors.submissionOutcomeUnknown",
   "errors.unsupportedRegistrationCountry",
 ]);
 export type RegistrationFormMessageKey = typeof RegistrationFormMessageKey.Type;
@@ -197,40 +198,14 @@ export const RegistrationFormIssuePath = Schema.Literals([
 ]);
 export type RegistrationFormIssuePath = typeof RegistrationFormIssuePath.Type;
 
-export class RegistrationFormIssue extends Schema.Class<RegistrationFormIssue>(
-  "RegistrationFormIssue"
-)({
-  path: RegistrationFormIssuePath,
-  message: Schema.String,
-}) {}
-
 export const RegistrationFormSuccess = Schema.Struct({
   registrationId: RegistrationId,
 });
 export type RegistrationFormSuccess = typeof RegistrationFormSuccess.Type;
 
-export const RegistrationSubmissionUnavailable = Schema.TaggedStruct(
-  "RegistrationSubmissionUnavailable",
-  {}
-);
-export type RegistrationSubmissionUnavailable =
-  typeof RegistrationSubmissionUnavailable.Type;
-
-export const RegistrationFormError = Schema.Union([
-  RegistrationIntakeValidationError,
-  RegistrationSubmissionUnavailable,
-]);
-export type RegistrationFormError = typeof RegistrationFormError.Type;
-
-export const RegistrationFormFailure = Schema.Struct({
-  error: RegistrationFormError,
-  issues: Schema.NonEmptyArray(RegistrationFormIssue),
-});
-export type RegistrationFormFailure = typeof RegistrationFormFailure.Type;
-
 export const RegistrationFormResultSchema = makeActionResultSchema(
   RegistrationFormSuccess,
-  RegistrationFormFailure
+  RegistrationSubmissionPublicError
 );
 export type RegistrationFormResult =
   typeof RegistrationFormResultSchema.Encoded;

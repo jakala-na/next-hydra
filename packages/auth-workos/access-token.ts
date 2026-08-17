@@ -1,6 +1,8 @@
+import { hasTransientTransportCode } from "@repo/errors/transport";
 import { WorkOS } from "@workos-inc/node";
 import { Config, Context, Effect, Layer, Option, Schema } from "effect";
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import type { FetchImplementation } from "jose";
+import { createRemoteJWKSet, customFetch, jwtVerify } from "jose";
 
 export const AuthUserId = Schema.NonEmptyString.pipe(
   Schema.brand("AuthUserId")
@@ -34,12 +36,21 @@ export class AccessTokenVerificationFailure extends Schema.TaggedErrorClass<Acce
   {
     cause: Schema.optional(Schema.Defect),
     message: Schema.String,
+    reason: Schema.Literals(["unavailable", "unexpected"]),
   }
 ) {}
 
 const DEFAULT_WORKOS_API_HOSTNAME = "api.workos.com";
 const WORKOS_JWKS_COOLDOWN_DURATION_MS = 300_000;
+const HTTP_REQUEST_TIMEOUT = 408;
+const HTTP_TOO_MANY_REQUESTS = 429;
+const HTTP_SERVER_ERROR_MINIMUM = 500;
+const WORKOS_JWKS_UNAVAILABLE_CODE = "WORKOS_JWKS_UNAVAILABLE";
 const trailingSlashesPattern = /\/+$/;
+const INVALID_TOKEN_JOSE_CODES = new Set([
+  "ERR_JWKS_MULTIPLE_MATCHING_KEYS",
+  "ERR_JWKS_NO_MATCHING_KEY",
+]);
 
 const WorkosAccessTokenAudience = Schema.Union([
   Schema.NonEmptyString,
@@ -114,22 +125,54 @@ const invalidAudience = () =>
     reason: "invalidAudience",
   });
 
+const isVerificationUnavailable = (cause: unknown) =>
+  hasTransientTransportCode(cause, [
+    "ERR_JWKS_TIMEOUT",
+    WORKOS_JWKS_UNAVAILABLE_CODE,
+  ]);
+
 const toVerifyAccessTokenError = (cause: unknown) =>
   new AccessTokenVerificationFailure({
     cause,
     message: "Failed to verify WorkOS access token",
+    reason: isVerificationUnavailable(cause) ? "unavailable" : "unexpected",
   });
 
-const isJoseJwtError = (
+const isInvalidTokenJoseError = (
   cause: unknown
 ): cause is Error & { readonly code: string } =>
   cause instanceof Error &&
   "code" in cause &&
   typeof cause.code === "string" &&
-  (cause.code.startsWith("ERR_JWT_") || cause.code.startsWith("ERR_JWS_"));
+  (cause.code.startsWith("ERR_JWT_") ||
+    cause.code.startsWith("ERR_JWS_") ||
+    INVALID_TOKEN_JOSE_CODES.has(cause.code));
 
 const toAccessTokenVerificationError = (cause: unknown) =>
-  isJoseJwtError(cause) ? invalidToken() : toVerifyAccessTokenError(cause);
+  isInvalidTokenJoseError(cause)
+    ? invalidToken()
+    : toVerifyAccessTokenError(cause);
+
+const isUnavailableJwksStatus = (status: number) =>
+  status === HTTP_REQUEST_TIMEOUT ||
+  status === HTTP_TOO_MANY_REQUESTS ||
+  status >= HTTP_SERVER_ERROR_MINIMUM;
+
+export const fetchWorkosJwks: FetchImplementation = async (url, options) => {
+  const response = await fetch(url, options);
+
+  if (isUnavailableJwksStatus(response.status)) {
+    throw Object.assign(
+      new Error(`WorkOS JWKS request failed with status ${response.status}`),
+      {
+        code: WORKOS_JWKS_UNAVAILABLE_CODE,
+        status: response.status,
+      }
+    );
+  }
+
+  return response;
+};
 
 const normalizeIssuer = (issuer: string) =>
   issuer.replace(trailingSlashesPattern, "");
@@ -241,7 +284,10 @@ export const accessTokenVerifierLayer = ({
       });
       const jwks = createRemoteJWKSet(
         new URL(workos.userManagement.getJwksUrl(clientId)),
-        { cooldownDuration: WORKOS_JWKS_COOLDOWN_DURATION_MS }
+        {
+          cooldownDuration: WORKOS_JWKS_COOLDOWN_DURATION_MS,
+          [customFetch]: fetchWorkosJwks,
+        }
       );
 
       return makeWorkosAccessTokenVerifier({

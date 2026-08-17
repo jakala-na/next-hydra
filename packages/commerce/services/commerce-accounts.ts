@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect";
+
 import {
   CommerceAccount,
   CommerceAssociateMembership,
@@ -51,11 +52,11 @@ export interface AcceptedCommerceIdentity {
   readonly lastName: RedactedString;
 }
 
-export class CommerceAccountError extends Schema.TaggedErrorClass<CommerceAccountError>()(
-  "CommerceAccountError",
+export class CommerceAccountUnavailable extends Schema.TaggedErrorClass<CommerceAccountUnavailable>()(
+  "CommerceAccountUnavailable",
   {
-    message: Schema.String,
     cause: Schema.optional(Schema.Defect),
+    message: Schema.String,
   }
 ) {}
 
@@ -137,34 +138,34 @@ export class CommerceAccounts extends Context.Service<
   {
     readonly createFromRegistration: (
       registration: CommerceAccountRegistrationInput
-    ) => Effect.Effect<CommerceAccount, CommerceAccountError>;
+    ) => Effect.Effect<CommerceAccount, CommerceAccountUnavailable>;
     readonly linkRegistrantIdentity: (
       input: LinkRegistrantIdentityInput
-    ) => Effect.Effect<CommerceAccount, CommerceAccountError>;
+    ) => Effect.Effect<CommerceAccount, CommerceAccountUnavailable>;
     readonly addAssociate: (
       input: AddAssociateInput
-    ) => Effect.Effect<CommerceAssociateMembership, CommerceAccountError>;
+    ) => Effect.Effect<CommerceAssociateMembership, CommerceAccountUnavailable>;
     readonly hasCustomerWithEmail: (
       email: RedactedString
-    ) => Effect.Effect<boolean, CommerceAccountError>;
+    ) => Effect.Effect<boolean, CommerceAccountUnavailable>;
     readonly getCustomerIdByAuthUserId: (
       authUserId: AuthUserId
     ) => Effect.Effect<
       CommerceCustomerId,
-      CommerceCustomerIdNotFound | CommerceAccountError
+      CommerceCustomerIdNotFound | CommerceAccountUnavailable
     >;
     readonly getCustomerProfile: (
       customerId: CommerceCustomerId
     ) => Effect.Effect<
       CommerceCustomerProfile,
-      CommerceCustomerProfileNotFound | CommerceAccountError
+      CommerceCustomerProfileNotFound | CommerceAccountUnavailable
     >;
     readonly listBusinessUnitMembershipsForCustomerInStore: (
       customerId: CommerceCustomerId,
       storeKey: StoreKey
     ) => Effect.Effect<
       readonly CommerceBusinessUnitMembership[],
-      CommerceAccountError
+      CommerceAccountUnavailable
     >;
   }
 >()("@repo/commerce/CommerceAccounts") {
@@ -184,9 +185,9 @@ export class CommerceAccounts extends Context.Service<
           }
 
           if (registration._tag === "RejectedRegistration") {
-            return yield* new CommerceAccountError({
-              message: "Cannot provision commerce for a rejected registration",
-            });
+            return yield* Effect.die(
+              new Error("Cannot provision commerce for a rejected registration")
+            );
           }
 
           const account = new CommerceAccount({
@@ -226,9 +227,9 @@ export class CommerceAccounts extends Context.Service<
           const account = current.accountsByRegistration.get(registrationId);
 
           if (!account) {
-            return yield* new CommerceAccountError({
-              message: "Commerce account does not exist for registration",
-            });
+            return yield* Effect.die(
+              new Error("Commerce account does not exist for registration")
+            );
           }
 
           yield* Ref.update(state, (latest) => ({
@@ -251,9 +252,9 @@ export class CommerceAccounts extends Context.Service<
             );
 
             if (!account) {
-              return yield* new CommerceAccountError({
-                message: "Commerce account does not exist for business unit",
-              });
+              return yield* Effect.die(
+                new Error("Commerce account does not exist for business unit")
+              );
             }
 
             const customer =

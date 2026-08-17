@@ -1,3 +1,5 @@
+import { InputInvalid, definePublicError } from "@repo/errors";
+import { UnexpectedHttpErrors } from "@repo/errors/http";
 import { Schema } from "effect";
 import {
   HttpApi,
@@ -12,50 +14,71 @@ import { AddressBookEntry } from "../domain/address-book";
 import type { AddressBook } from "../services/address-book";
 import { CommerceRequestHeaders } from "./commerce-request";
 
-export class AddressBookApiBadRequest extends Schema.TaggedErrorClass<AddressBookApiBadRequest>()(
-  "AddressBookApiBadRequest",
-  {
-    code: Schema.Literal("addressBook.badRequest"),
-    message: Schema.String,
-  },
-  { httpApiStatus: 400 }
-) {}
+const AddressBookApiUnauthorizedDefinition = definePublicError({
+  category: "unauthenticated",
+  code: "auth.unauthorized",
+  fields: {},
+  recovery: "reauthenticate",
+  status: 401,
+  tag: "AddressBookApiUnauthorized",
+});
+export const AddressBookApiUnauthorized =
+  AddressBookApiUnauthorizedDefinition.schema;
+export type AddressBookApiUnauthorized = typeof AddressBookApiUnauthorized.Type;
+export const makeAddressBookApiUnauthorized =
+  AddressBookApiUnauthorizedDefinition.make;
 
-export class AddressBookApiUnauthorized extends Schema.TaggedErrorClass<AddressBookApiUnauthorized>()(
-  "AddressBookApiUnauthorized",
-  {
-    code: Schema.Literal("auth.unauthorized"),
-    message: Schema.String,
-  },
-  { httpApiStatus: 401 }
-) {}
+const AddressBookApiForbiddenDefinition = definePublicError({
+  category: "forbidden",
+  code: "addressBook.accessDenied",
+  fields: {},
+  recovery: "request_access",
+  status: 403,
+  tag: "AddressBookApiForbidden",
+});
+export const AddressBookApiForbidden = AddressBookApiForbiddenDefinition.schema;
+export type AddressBookApiForbidden = typeof AddressBookApiForbidden.Type;
+export const makeAddressBookApiForbidden =
+  AddressBookApiForbiddenDefinition.make;
 
-export class AddressBookApiForbidden extends Schema.TaggedErrorClass<AddressBookApiForbidden>()(
-  "AddressBookApiForbidden",
-  {
-    code: Schema.Literal("addressBook.accessDenied"),
-    message: Schema.String,
-  },
-  { httpApiStatus: 403 }
-) {}
-
-export class AddressBookApiError extends Schema.TaggedErrorClass<AddressBookApiError>()(
-  "AddressBookApiError",
-  {
-    code: Schema.Literals([
-      "addressBook.internal",
-      "addressBook.providerFailure",
+const AddressBookContextUnavailableDefinition = definePublicError({
+  category: "not_found",
+  code: "addressBook.contextUnavailable",
+  fields: {
+    reason: Schema.Literals([
+      "noPrincipal",
+      "noCustomerMapping",
+      "noBuyingContext",
     ]),
-    message: Schema.String,
   },
-  { httpApiStatus: 500 }
-) {}
+  recovery: "refresh",
+  status: 404,
+  tag: "CommerceRequestContextNotFound",
+});
+export const AddressBookContextUnavailable =
+  AddressBookContextUnavailableDefinition.schema;
+export type AddressBookContextUnavailable =
+  typeof AddressBookContextUnavailable.Type;
+export const makeAddressBookContextUnavailable =
+  AddressBookContextUnavailableDefinition.make;
+
+const AddressBookApiErrorDefinition = definePublicError({
+  category: "unavailable",
+  code: "addressBook.unavailable",
+  fields: {},
+  recovery: "retry",
+  status: 503,
+  tag: "AddressBookApiError",
+});
+export const AddressBookApiError = AddressBookApiErrorDefinition.schema;
+export type AddressBookApiError = typeof AddressBookApiError.Type;
+export const makeAddressBookApiError = AddressBookApiErrorDefinition.make;
 
 export class AddressBookSchemaErrorMiddleware extends HttpApiMiddleware.Service<
   AddressBookSchemaErrorMiddleware,
   { readonly requires: never }
 >()("@repo/commerce/http/AddressBookSchemaErrorMiddleware", {
-  error: AddressBookApiBadRequest,
+  error: InputInvalid,
 }) {}
 
 export class AddressBookAccessMiddleware extends HttpApiMiddleware.Service<
@@ -66,9 +89,10 @@ export class AddressBookAccessMiddleware extends HttpApiMiddleware.Service<
   }
 >()("@repo/commerce/http/AddressBookAccessMiddleware", {
   error: [
-    AddressBookApiBadRequest,
+    InputInvalid,
     AddressBookApiUnauthorized,
     AddressBookApiForbidden,
+    AddressBookContextUnavailable,
     AddressBookApiError,
   ],
   security: {
@@ -94,6 +118,7 @@ export class AddressBookApiGroup extends HttpApiGroup.make("addressBook")
 
 export class AddressBookHttpApi extends HttpApi.make("address-book-http-api")
   .add(AddressBookApiGroup)
+  .middleware(UnexpectedHttpErrors)
   .annotateMerge(
     OpenApi.annotations({
       title: "Address Book HTTP API",

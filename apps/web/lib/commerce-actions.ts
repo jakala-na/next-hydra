@@ -42,7 +42,7 @@ const saveCheckoutContactAction = saveCheckoutContactProcedure.toFormAction({
     });
 
     return t(
-      error._tag === "ActionInputInvalid"
+      error._tag === "InputInvalid"
         ? "CheckoutMutationSchemaFailure"
         : error._tag
     );
@@ -57,7 +57,7 @@ const saveCheckoutDeliveryDetailsAction =
       });
 
       return t(
-        error._tag === "ActionInputInvalid"
+        error._tag === "InputInvalid"
           ? "CheckoutMutationSchemaFailure"
           : error._tag
       );
@@ -76,6 +76,7 @@ const revalidateCheckout = Effect.fn("CheckoutAction.revalidate")(
 const shouldRevalidateContact = (result: SaveCheckoutContactActionResult) =>
   result._tag === "Success" ||
   result.failure.error._tag === "CheckoutCartMismatch" ||
+  result.failure.error._tag === "CheckoutMutationOutcomeUnknown" ||
   result.failure.error._tag === "CheckoutVersionConflict";
 
 const shouldRevalidateDeliveryDetails = (
@@ -83,6 +84,7 @@ const shouldRevalidateDeliveryDetails = (
 ) =>
   result._tag === "Success" ||
   result.failure.error._tag === "CheckoutCartMismatch" ||
+  result.failure.error._tag === "CheckoutMutationOutcomeUnknown" ||
   result.failure.error._tag === "CheckoutVersionConflict" ||
   (result.failure.error._tag === "CheckoutMutationProviderFailure" &&
     result.failure.error.addressBookReference !== undefined);

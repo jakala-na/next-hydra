@@ -94,7 +94,7 @@ test("documents Address Book independently and never exposes anonymous cart ids 
   expect(addressBookOperation?.security).toStrictEqual([{ accessToken: [] }]);
   expect(
     new Set(Object.keys(addressBookOperation?.responses ?? {}))
-  ).toStrictEqual(new Set(["200", "400", "401", "403", "500"]));
+  ).toStrictEqual(new Set(["200", "400", "401", "403", "404", "500", "503"]));
   expect(JSON.stringify(applicationOpenApi)).not.toContain(
     "x-context-anonymous-cart-id"
   );
@@ -131,14 +131,32 @@ test("documents checkout authentication as optional without exposing identity co
   }
 
   expect(JSON.stringify(checkoutOperations[0]?.responses)).not.toContain(
-    "CheckoutDeliveryDetailsApi"
+    "checkout.deliveryDetails.providerFailure"
   );
   expect(JSON.stringify(checkoutOperations[1]?.responses)).not.toContain(
-    "CheckoutDeliveryDetailsApi"
+    "checkout.deliveryDetails.providerFailure"
   );
   expect(JSON.stringify(checkoutOperations[2]?.responses)).toContain(
-    "CheckoutDeliveryDetailsApi"
+    "checkout.deliveryDetails.providerFailure"
   );
+});
+
+test("names the checkout contact request variants", () => {
+  expect(applicationOpenApi.components?.schemas).toMatchObject({
+    CheckoutContactInput: {
+      anyOf: [
+        { $ref: "#/components/schemas/ManualCheckoutContactInput" },
+        { $ref: "#/components/schemas/CustomerProfileCheckoutContactInput" },
+      ],
+      title: "Checkout contact",
+    },
+    CustomerProfileCheckoutContactInput: {
+      title: "Customer profile contact",
+    },
+    ManualCheckoutContactInput: {
+      title: "Manual contact",
+    },
+  });
 });
 
 test("keeps checkout conflict schemas specific to each mutation", () => {
@@ -146,18 +164,10 @@ test("keeps checkout conflict schemas specific to each mutation", () => {
   const saveDeliveryDetails =
     applicationOpenApi.paths["/checkout/delivery-details"]?.post;
 
-  const contactConflict =
-    applicationOpenApi.components?.schemas?.CheckoutApiConflict;
-  const deliveryConflict =
-    applicationOpenApi.components?.schemas?.CheckoutDeliveryDetailsApiConflict;
+  const contactConflict = saveContact?.responses?.["409"];
+  const deliveryConflict = saveDeliveryDetails?.responses?.["409"];
 
   expect(JSON.stringify(contactConflict)).not.toContain("addressBookReference");
-  expect(JSON.stringify(saveContact?.responses)).not.toContain(
-    "CheckoutDeliveryDetailsApiConflict"
-  );
-  expect(JSON.stringify(saveDeliveryDetails?.responses)).toContain(
-    "CheckoutDeliveryDetailsApiConflict"
-  );
   expect(JSON.stringify(deliveryConflict)).toContain("addressBookReference");
 });
 
@@ -172,7 +182,7 @@ test("documents registration permissions and operation-specific errors", () => {
 
   expect(create?.security).toStrictEqual([]);
   expect(new Set(Object.keys(create?.responses ?? {}))).toStrictEqual(
-    new Set(["201", "400", "409", "422", "500"])
+    new Set(["201", "400", "422", "500", "503"])
   );
 
   for (const operation of [list, get, approve, reject]) {

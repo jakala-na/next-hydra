@@ -147,7 +147,8 @@
         "errors": {
           "invalidSubmission": "Controleer de gemarkeerde velden en probeer het opnieuw.",
           "unsupportedRegistrationCountry": "We kunnen nog geen bedrijfsregistraties uit dit land accepteren.",
-          "submitFailed": "We konden uw registratie nu niet verzenden. Probeer het opnieuw."
+          "submitFailed": "We konden uw registratie nu niet verzenden. Probeer het opnieuw.",
+          "submissionOutcomeUnknown": "We konden niet bevestigen of uw registratie is ontvangen. Neem contact op met de ondersteuning voordat u deze opnieuw indient."
         },
         "validation": {
           "companyName": "Voer de bedrijfsnaam in.",
@@ -272,10 +273,12 @@
         "versionConflict": "De checkout is gewijzigd voordat de gegevens zijn opgeslagen. Vernieuw de pagina en probeer het opnieuw.",
         "saveContact": {
           "CheckoutCartMismatch": "Deze checkout is niet meer actueel. Vernieuw de pagina en probeer het opnieuw.",
+          "CheckoutCustomerProfileIncomplete": "In uw klantprofiel ontbreken verplichte contactgegevens. Vul ze hieronder in om verder te gaan.",
           "CheckoutMutationSchemaFailure": "Voer een e-mailadres, voornaam en achternaam in.",
+          "CheckoutMutationOutcomeUnknown": "We konden niet bevestigen of uw contactgegevens zijn opgeslagen. Vernieuw de pagina voordat u het opnieuw probeert.",
           "CheckoutMutationSourceUnavailable": "Deze contactbron is niet beschikbaar voor deze checkout.",
           "CheckoutMutationProviderFailure": "Het contact kon niet worden opgeslagen. Probeer het opnieuw.",
-          "CommerceAccountError": "Het contact kon niet worden opgeslagen. Probeer het opnieuw.",
+          "CommerceAccountUnavailable": "Het contact kon niet worden opgeslagen. Probeer het opnieuw.",
           "CommerceRequestFailure": "Het contact kon niet worden opgeslagen. Probeer het opnieuw.",
           "CheckoutMutationUnsupported": "Deze contactbron wordt nog niet ondersteund.",
           "CheckoutUnavailable": "De checkout is niet gevonden voor dit verzoek.",
@@ -286,9 +289,10 @@
           "CheckoutCartMismatch": "Deze checkout is niet meer actueel. Vernieuw de pagina en probeer het opnieuw.",
           "CheckoutMutationAddressBookEntryUnavailable": "Dit opgeslagen adres is niet meer beschikbaar.",
           "CheckoutMutationSchemaFailure": "Voer adresregel 1, postcode, plaats en land in.",
+          "CheckoutMutationOutcomeUnknown": "We konden niet bevestigen of uw bezorggegevens zijn opgeslagen. Vernieuw de pagina voordat u het opnieuw probeert.",
           "CheckoutMutationSourceUnavailable": "Deze bezorgbron is niet beschikbaar voor deze checkout.",
           "CheckoutMutationProviderFailure": "De bezorggegevens konden niet worden opgeslagen. Probeer het opnieuw.",
-          "CommerceAccountError": "De bezorggegevens konden niet worden opgeslagen. Probeer het opnieuw.",
+          "CommerceAccountUnavailable": "De bezorggegevens konden niet worden opgeslagen. Probeer het opnieuw.",
           "CommerceRequestFailure": "De bezorggegevens konden niet worden opgeslagen. Probeer het opnieuw.",
           "CheckoutMutationUnsupported": "Deze bezorgbron wordt nog niet ondersteund.",
           "CheckoutUnavailable": "De checkout is niet gevonden voor dit verzoek.",

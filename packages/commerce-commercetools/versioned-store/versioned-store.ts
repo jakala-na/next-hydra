@@ -6,9 +6,11 @@ import {
   VersionedKeyValueStore,
 } from "@repo/versioned-store";
 import { Effect, Layer, Option, Schema } from "effect";
+
 import { commercetoolsClientsLayer } from "../client/layers";
 import { CommercetoolsRestClient } from "../client/rest-client";
 import {
+  commercetoolsProviderFailureReason,
   commercetoolsFailureCause,
   commercetoolsRequest,
   isConcurrentModification,
@@ -50,7 +52,8 @@ const isNotFoundError = (error: unknown) =>
 const storeError = (
   key: string,
   operation: StoreError["operation"],
-  cause: unknown
+  cause: unknown,
+  reason: StoreError["reason"] = "invalidData"
 ) =>
   new StoreError({
     message: `Failed to ${operation} store value ${key}: ${
@@ -59,6 +62,7 @@ const storeError = (
     key,
     operation,
     cause,
+    reason,
   });
 
 const storeConflict = (
@@ -78,7 +82,11 @@ const storeConflict = (
 const versionFromCustomObject = (version: number) =>
   StoreVersion.make(String(version));
 
-const versionToNumber = (key: string, version: StoreVersion) =>
+const versionToNumber = (
+  key: string,
+  operation: "remove" | "update",
+  version: StoreVersion
+) =>
   Effect.sync(() => Number(version)).pipe(
     Effect.flatMap((value) =>
       Number.isSafeInteger(value) && value > 0
@@ -86,7 +94,7 @@ const versionToNumber = (key: string, version: StoreVersion) =>
         : Effect.fail(
             storeError(
               key,
-              "update",
+              operation,
               new Error(
                 `Invalid Commercetools custom object version ${version}`
               )
@@ -147,7 +155,14 @@ const readCustomObject = (
       isNotFoundError(failure)
         ? Effect.succeed(Option.none())
         : Effect.fail(
-            storeError(key, "read", commercetoolsFailureCause(failure))
+            storeError(
+              key,
+              "read",
+              commercetoolsFailureCause(failure),
+              commercetoolsProviderFailureReason(
+                commercetoolsFailureCause(failure)
+              )
+            )
           )
     )
   );
@@ -176,6 +191,23 @@ const writeCustomObject = (
     }
   );
 
+const removeCustomObject = (
+  apiRoot: ByProjectKeyRequestBuilder,
+  container: string,
+  key: string,
+  version: number
+) =>
+  commercetoolsRequest(
+    "Failed to remove Commercetools custom object",
+    async () => {
+      await apiRoot
+        .customObjects()
+        .withContainerAndKey({ container, key })
+        .delete({ queryArgs: { version } })
+        .execute();
+    }
+  );
+
 const queryCustomObjects = (
   apiRoot: ByProjectKeyRequestBuilder,
   container: string
@@ -198,7 +230,12 @@ const queryCustomObjects = (
     }
   ).pipe(
     Effect.mapError((error) =>
-      storeError(container, "read", commercetoolsFailureCause(error))
+      storeError(
+        container,
+        "read",
+        commercetoolsFailureCause(error),
+        commercetoolsProviderFailureReason(commercetoolsFailureCause(error))
+      )
     )
   );
 
@@ -246,7 +283,14 @@ const versionedKeyValueStoreImplementationLayer = ({
             Effect.mapError((error) =>
               isConcurrentModification(error)
                 ? storeConflict(key, "insert", commercetoolsFailureCause(error))
-                : storeError(key, "insert", commercetoolsFailureCause(error))
+                : storeError(
+                    key,
+                    "insert",
+                    commercetoolsFailureCause(error),
+                    commercetoolsProviderFailureReason(
+                      commercetoolsFailureCause(error)
+                    )
+                  )
             )
           );
         }
@@ -259,7 +303,11 @@ const versionedKeyValueStoreImplementationLayer = ({
           current: { readonly version: StoreVersion },
           next: S["Type"]
         ) {
-          const version = yield* versionToNumber(key, current.version);
+          const version = yield* versionToNumber(
+            key,
+            "update",
+            current.version
+          );
           const encoded = yield* encodeJsonValue(key, "update", schema, next);
 
           yield* writeCustomObject(
@@ -272,8 +320,46 @@ const versionedKeyValueStoreImplementationLayer = ({
             Effect.mapError((error) =>
               isConcurrentModification(error)
                 ? storeConflict(key, "update", commercetoolsFailureCause(error))
-                : storeError(key, "update", commercetoolsFailureCause(error))
+                : storeError(
+                    key,
+                    "update",
+                    commercetoolsFailureCause(error),
+                    commercetoolsProviderFailureReason(
+                      commercetoolsFailureCause(error)
+                    )
+                  )
             )
+          );
+        }
+      );
+
+      const remove = Effect.fn("CommercetoolsCustomObjectKeyValueStore.remove")(
+        function* (key: string, current: { readonly version: StoreVersion }) {
+          const version = yield* versionToNumber(
+            key,
+            "remove",
+            current.version
+          );
+
+          yield* removeCustomObject(apiRoot, container, key, version).pipe(
+            Effect.catch((error) => {
+              const cause = commercetoolsFailureCause(error);
+
+              if (isNotFoundError(error)) {
+                return Effect.void;
+              }
+
+              return Effect.fail(
+                isConcurrentModification(error)
+                  ? storeConflict(key, "remove", cause)
+                  : storeError(
+                      key,
+                      "remove",
+                      cause,
+                      commercetoolsProviderFailureReason(cause)
+                    )
+              );
+            })
           );
         }
       );
@@ -300,6 +386,7 @@ const versionedKeyValueStoreImplementationLayer = ({
       return VersionedKeyValueStore.of({
         get,
         insert,
+        remove,
         update,
         values,
       });

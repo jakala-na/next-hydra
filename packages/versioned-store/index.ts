@@ -3,6 +3,7 @@ export {
   encodeJsonString,
   StoreConflict,
   StoreError,
+  StoreFailureReason,
   StoreVersion,
   type Versioned,
   VersionedKeyValueStore,

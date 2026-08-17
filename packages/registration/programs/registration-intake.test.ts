@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@effect/vitest";
 import {
-  CommerceAccountError,
+  CommerceAccountUnavailable,
   type CommerceAccountRegistrationInput,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
-import { Effect, Exit, Layer, Redacted } from "effect";
+import { Context, Effect, Exit, Layer, Redacted } from "effect";
 
 import {
   AddressLine,
@@ -28,6 +28,10 @@ import {
   RegistrationQueries,
   type RegistrationQueryRecord,
 } from "../services/registration-queries";
+import {
+  RegistrationWorkflow,
+  RegistrationWorkflowStartUnavailable,
+} from "../services/registration-workflow";
 import { Registrations } from "../services/registrations";
 import { VatValidator } from "../services/vat-validator";
 import {
@@ -99,7 +103,7 @@ const commerceAccountsLayer = ({
   failure,
   hasCustomerWithEmail = false,
 }: {
-  readonly failure?: CommerceAccountError;
+  readonly failure?: CommerceAccountUnavailable;
   readonly hasCustomerWithEmail?: boolean;
 } = {}) =>
   Layer.succeed(
@@ -127,16 +131,22 @@ const layerWithRecords = (
     identityEmails = [],
     invalidVatIds = [],
     supportedCountries = ["US"],
+    workflow = RegistrationWorkflow.of({
+      resume: () => Effect.die("not used"),
+      start: () => Effect.void,
+    }),
   }: {
-    readonly commerceFailure?: CommerceAccountError;
+    readonly commerceFailure?: CommerceAccountUnavailable;
     readonly hasCustomerWithEmail?: boolean;
     readonly identityEmails?: readonly string[];
     readonly invalidVatIds?: readonly string[];
     readonly supportedCountries?: readonly string[];
+    readonly workflow?: Context.Service.Shape<typeof RegistrationWorkflow>;
   } = {}
 ) =>
   Layer.mergeAll(
     Registrations.layerMemory,
+    Layer.succeed(RegistrationWorkflow, workflow),
     RegistrationQueries.layerMemoryFrom(records),
     commerceAccountsLayer({
       hasCustomerWithEmail,
@@ -172,6 +182,75 @@ describe("submitRegistrationForReview", () => {
         expect(registration.storeKey).toBe("de-fr-uk");
       }).pipe(Effect.provide(layerWithRecords([])))
   );
+
+  it.effect(
+    "discards the registration when the workflow cannot be started",
+    () => {
+      const workflowFailure = new RegistrationWorkflowStartUnavailable({
+        cause: new Error("workflow queue unavailable"),
+        message: "Registration workflow could not be started",
+        registrationId:
+          "registration-pending" as AwaitingApprovalRegistration["id"],
+      });
+      const workflow = RegistrationWorkflow.of({
+        resume: () => Effect.die("not used"),
+        start: (registrationId) =>
+          Effect.fail(
+            new RegistrationWorkflowStartUnavailable({
+              cause: workflowFailure.cause,
+              message: workflowFailure.message,
+              registrationId,
+            })
+          ),
+      });
+
+      return Effect.gen(function* () {
+        const error = yield* submitRegistrationForReview({
+          details: details(),
+          storeKey: StoreKey.make("default-store"),
+        }).pipe(Effect.flip);
+        const registrations = yield* Registrations;
+
+        expect(error).toBeInstanceOf(RegistrationWorkflowStartUnavailable);
+        if (!(error instanceof RegistrationWorkflowStartUnavailable)) {
+          return yield* Effect.die("Expected workflow start failure");
+        }
+        const persisted = yield* registrations
+          .get(error.registrationId)
+          .pipe(Effect.exit);
+        expect(Exit.isFailure(persisted)).toBe(true);
+      }).pipe(Effect.provide(layerWithRecords([], { workflow })));
+    }
+  );
+
+  it.effect("discards the registration when workflow start defects", () => {
+    let startedRegistrationId: AwaitingApprovalRegistration["id"] | undefined;
+    const workflow = RegistrationWorkflow.of({
+      resume: () => Effect.die("not used"),
+      start: (registrationId) => {
+        startedRegistrationId = registrationId;
+        return Effect.die("invalid workflow function");
+      },
+    });
+
+    return Effect.gen(function* () {
+      const exit = yield* submitRegistrationForReview({
+        details: details(),
+        storeKey: StoreKey.make("default-store"),
+      }).pipe(Effect.exit);
+      const registrations = yield* Registrations;
+
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (startedRegistrationId === undefined) {
+        return yield* Effect.die("Expected workflow start to be attempted");
+      }
+
+      const persisted = yield* registrations
+        .get(startedRegistrationId)
+        .pipe(Effect.exit);
+      expect(Exit.isFailure(persisted)).toBe(true);
+    }).pipe(Effect.provide(layerWithRecords([], { workflow })));
+  });
 
   it.effect(
     "rejects duplicate pending Registration emails before creating",
@@ -240,13 +319,13 @@ describe("submitRegistrationForReview", () => {
       }).pipe(Effect.flip);
 
       expect(error).toMatchObject({
-        _tag: "CommerceAccountError",
+        _tag: "CommerceAccountUnavailable",
         message: "commerce unavailable",
       });
     }).pipe(
       Effect.provide(
         layerWithRecords([], {
-          commerceFailure: new CommerceAccountError({
+          commerceFailure: new CommerceAccountUnavailable({
             message: "commerce unavailable",
           }),
         })

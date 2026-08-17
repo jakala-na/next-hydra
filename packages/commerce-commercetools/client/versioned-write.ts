@@ -1,9 +1,14 @@
+import type { ProviderFailureReason } from "@repo/commerce/domain/provider-failure";
+import { hasTransientTransportCode } from "@repo/errors/transport";
 import { Effect, Option, Schema } from "effect";
 
 const HTTP_CONCURRENT_MODIFICATION_STATUS_CODE = 409;
 const HTTP_CLIENT_ERROR_MIN_STATUS_CODE = 400;
 const HTTP_CLIENT_ERROR_MAX_STATUS_CODE = 500;
 const HTTP_FORBIDDEN_STATUS_CODE = 403;
+const HTTP_RATE_LIMITED_STATUS_CODE = 429;
+const HTTP_REQUEST_TIMEOUT_STATUS_CODE = 408;
+const HTTP_SERVER_ERROR_MIN_STATUS_CODE = 500;
 const HTTP_UNAUTHORIZED_STATUS_CODE = 401;
 
 const CommercetoolsErrorDetail = Schema.Struct({
@@ -120,9 +125,50 @@ export const isCommercetoolsClientFailure = (error: unknown) => {
     envelope !== undefined &&
     envelope.statusCode !== undefined &&
     envelope.statusCode >= HTTP_CLIENT_ERROR_MIN_STATUS_CODE &&
-    envelope.statusCode < HTTP_CLIENT_ERROR_MAX_STATUS_CODE
+    envelope.statusCode < HTTP_CLIENT_ERROR_MAX_STATUS_CODE &&
+    envelope.statusCode !== HTTP_REQUEST_TIMEOUT_STATUS_CODE &&
+    envelope.statusCode !== HTTP_RATE_LIMITED_STATUS_CODE
   );
 };
+
+export const isCommercetoolsRateLimited = (error: unknown) =>
+  decodeEnvelope(error)?.statusCode === HTTP_RATE_LIMITED_STATUS_CODE;
+
+const isTransientCommercetoolsFailure = (
+  error: unknown,
+  remainingCauseDepth = 1
+): boolean => {
+  const cause = commercetoolsFailureCause(error);
+  const envelope = decodeEnvelope(cause);
+  const statusCode = envelope?.statusCode;
+
+  if (
+    statusCode === HTTP_REQUEST_TIMEOUT_STATUS_CODE ||
+    statusCode === HTTP_RATE_LIMITED_STATUS_CODE ||
+    (statusCode !== undefined &&
+      statusCode >= HTTP_SERVER_ERROR_MIN_STATUS_CODE)
+  ) {
+    return true;
+  }
+
+  if (hasTransientTransportCode(cause)) {
+    return true;
+  }
+
+  return envelope?.cause === undefined || remainingCauseDepth === 0
+    ? false
+    : isTransientCommercetoolsFailure(envelope.cause, remainingCauseDepth - 1);
+};
+
+/**
+ * Classifies provider failures at the adapter boundary. Availability requires
+ * a positive transient signal; unknown exceptions and contract responses are
+ * defect candidates rather than retryable public failures.
+ */
+export const commercetoolsProviderFailureReason = (
+  error: unknown
+): ProviderFailureReason =>
+  isTransientCommercetoolsFailure(error) ? "unavailable" : "unexpectedResponse";
 
 const decodedConcurrentModification = (
   error: unknown,

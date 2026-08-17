@@ -1,4 +1,5 @@
 import { makeActionResultSchema } from "@repo/actions";
+import { definePublicError } from "@repo/errors";
 import { Schema } from "effect";
 
 import {
@@ -11,7 +12,24 @@ import {
   CurrentCartUnavailable,
 } from "../domain/cart-errors";
 import { CurrentCartState } from "../domain/cart-snapshot";
-import { CommerceRequestContextNotFound } from "../domain/commerce-request-context";
+
+const CartContextUnavailableDefinition = definePublicError({
+  category: "not_found",
+  code: "cart.contextUnavailable",
+  fields: {
+    reason: Schema.Literals([
+      "noPrincipal",
+      "noCustomerMapping",
+      "noBuyingContext",
+    ]),
+  },
+  recovery: "refresh",
+  status: 404,
+  tag: "CommerceRequestContextNotFound",
+});
+export const CartContextUnavailable = CartContextUnavailableDefinition.schema;
+export type CartContextUnavailable = typeof CartContextUnavailable.Type;
+export const makeCartContextUnavailable = CartContextUnavailableDefinition.make;
 
 export const CartActionOperation = Schema.Literals([
   "addItem",
@@ -20,30 +38,23 @@ export const CartActionOperation = Schema.Literals([
 ]);
 export type CartActionOperation = typeof CartActionOperation.Type;
 
-const CartProviderActionFailure = Schema.TaggedStruct("CartProviderFailure", {
-  operation: CartOperation,
-  reason: Schema.Literals(["unavailable", "invalidData", "unexpectedResponse"]),
-});
-
-const CartPolicyActionFailure = Schema.TaggedStruct("CartPolicyFailure", {});
-
-const CurrentCartActionOperationFailure = Schema.TaggedStruct(
-  "CurrentCartOperationFailure",
+export const CartProviderActionFailure = Schema.TaggedStruct(
+  "CartProviderFailure",
   {
-    operation: Schema.Literal("set"),
+    operation: CartOperation,
+    reason: Schema.Literal("unavailable"),
   }
 );
+export type CartProviderActionFailure = typeof CartProviderActionFailure.Type;
 
 export const AddToCartActionFailure = Schema.Union([
-  CommerceRequestContextNotFound,
+  CartContextUnavailable,
   CurrentCartSelectionConflict,
   CurrentCartUnavailable,
   CartMerchandiseUnavailable,
   CartWriteConflict,
   CartWriteOutcomeUnknown,
-  CurrentCartActionOperationFailure,
   CartProviderActionFailure,
-  CartPolicyActionFailure,
 ]);
 export type AddToCartActionFailure = typeof AddToCartActionFailure.Type;
 
@@ -54,14 +65,13 @@ export const AddToCartActionResult = makeActionResultSchema(
 export type AddToCartActionResult = typeof AddToCartActionResult.Encoded;
 
 export const SetCartLineItemQuantityActionFailure = Schema.Union([
-  CommerceRequestContextNotFound,
+  CartContextUnavailable,
   CurrentCartSelectionConflict,
   CurrentCartUnavailable,
   CartLineItemNotFound,
   CartWriteConflict,
   CartWriteOutcomeUnknown,
   CartProviderActionFailure,
-  CartPolicyActionFailure,
 ]);
 export type SetCartLineItemQuantityActionFailure =
   typeof SetCartLineItemQuantityActionFailure.Type;

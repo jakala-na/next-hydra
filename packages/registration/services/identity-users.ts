@@ -3,14 +3,26 @@ import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect";
 import { AuthUserId } from "../domain/identity";
 import type { IdentityUserProfile, RedactedEmail } from "../domain/identity";
 
+export const IdentityProviderFailureReason = Schema.Literals([
+  "unavailable",
+  "unexpectedResponse",
+]);
+export type IdentityProviderFailureReason =
+  typeof IdentityProviderFailureReason.Type;
+
 export class IdentityUserLookupFailure extends Schema.TaggedErrorClass<IdentityUserLookupFailure>()(
   "IdentityUserLookupFailure",
   {
     cause: Schema.Defect,
     message: Schema.String,
     operation: Schema.Literals(["getById", "hasUserWithEmail"]),
+    reason: IdentityProviderFailureReason,
   }
 ) {}
+
+export const isRecoverableIdentityUserLookupFailure = (
+  error: IdentityUserLookupFailure
+) => error.reason === "unavailable";
 
 export class IdentityUserNotFound extends Schema.TaggedErrorClass<IdentityUserNotFound>()(
   "IdentityUserNotFound",

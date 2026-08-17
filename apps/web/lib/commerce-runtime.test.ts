@@ -1,3 +1,4 @@
+import { makeCartProcedures } from "@repo/commerce/cart/procedures";
 import {
   PositiveCartQuantity,
   ProductId,
@@ -46,7 +47,7 @@ vi.mock("@repo/commerce-provider/provider", async () => {
     await import("effect");
   const { AddressBook } = await import("@repo/commerce/services/address-book");
   const { Carts } = await import("@repo/commerce/services/carts");
-  const { CommerceAccountError, CommerceAccounts } =
+  const { CommerceAccountUnavailable, CommerceAccounts } =
     await import("@repo/commerce/services/commerce-accounts");
   const { ProductDiscovery } = await import("@repo/commerce/product");
   const {
@@ -89,7 +90,7 @@ vi.mock("@repo/commerce-provider/provider", async () => {
               request.commerceAccountFailure === undefined
                 ? accounts.getCustomerIdByAuthUserId(requestedAuthUserId)
                 : ProviderEffect.fail(
-                    new CommerceAccountError({
+                    new CommerceAccountUnavailable({
                       cause: request.commerceAccountFailure,
                       message: "Failed to resolve Commerce account",
                     })
@@ -143,19 +144,12 @@ describe("Next Commerce request adapter", () => {
     expect(principal.businessUnitId).toBe("business-unit-2");
   });
 
-  it("reports an invalid authenticated user through the Effect error channel", async () => {
+  it("rejects when the trusted authenticated user ID violates its contract", async () => {
     request.authUserId = "";
 
-    const result = await NextCommerce.runPromise(
-      Effect.void.pipe(
-        NextCommerce.provide("en-US"),
-        Effect.catchTag("CommerceRequestFailure", () =>
-          Effect.succeed("mapped")
-        )
-      )
-    );
-
-    expect(result).toBe("mapped");
+    await expect(
+      NextCommerce.runPromise(Effect.void.pipe(NextCommerce.provide("en-US")))
+    ).rejects.toBeDefined();
   });
 
   it("writes a newly created anonymous Cart with the Next cookie adapter", async () => {
@@ -175,6 +169,22 @@ describe("Next Commerce request adapter", () => {
       locale: "en-US",
       storeKey: "default-store",
     });
+  });
+
+  it("rejects the Add to Cart action when its anonymous Cart cookie cannot be persisted", async () => {
+    request.setCookie.mockImplementationOnce(() => {
+      throw new Error("cookie store unavailable");
+    });
+    const { addToCartProcedure } = makeCartProcedures(CommerceActions);
+    const addToCart = addToCartProcedure.toAction();
+
+    await expect(
+      addToCart({
+        productId: "product-1",
+        quantity: 1,
+        variantId: "variant-1",
+      })
+    ).rejects.toBeDefined();
   });
 
   it("builds an action that encodes request provisioning failures", async () => {
@@ -199,10 +209,7 @@ describe("Next Commerce request adapter", () => {
     });
 
     request.authUserId = "";
-    await expect(action("locale")).resolves.toEqual({
-      _tag: "Failure",
-      failure: "invalid-request",
-    });
+    await expect(action("locale")).rejects.toBeDefined();
   });
 
   it("logs provider causes raised while an action request Layer is acquired", async () => {

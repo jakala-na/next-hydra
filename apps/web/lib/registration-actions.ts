@@ -1,31 +1,30 @@
 "use server";
 
 import {
-  ActionInputIssue,
-  type ActionSchemaIssuePath,
   ActionMiddleware,
   normalizeActionSchemaIssuePath,
 } from "@repo/actions";
+import type { ActionSchemaIssuePath } from "@repo/actions";
+import { ErrorIssue } from "@repo/errors";
 import { getTranslations } from "@repo/i18n";
 import { redirect } from "@repo/i18n/navigation";
 import {
-  RegistrationFormFailure,
   RegistrationFormInputSchema,
-  RegistrationFormIssue,
   RegistrationFormIssuePath,
   RegistrationFormMessageKey,
   RegistrationFormSuccess,
-  RegistrationIntakeValidationError,
 } from "@repo/registration";
 import type {
   RegistrationFormInput,
   RegistrationFormResult,
   RegistrationFormTranslator,
   RegistrationFormValues,
-  RegistrationSubmissionUnavailable,
 } from "@repo/registration";
 import { CreateRegistrationRequest } from "@repo/registration/http/registration-api";
-import type { RegistrationApiValidationError } from "@repo/registration/http/registration-api";
+import {
+  registrationSubmissionOutcomeUnknown,
+  RegistrationSubmissionPublicError,
+} from "@repo/registration/public-errors";
 import { Effect, Schema, SchemaIssue } from "effect";
 
 import { Actions } from "./actions";
@@ -57,39 +56,24 @@ const toRegistrationInput = (
   input: RegistrationFormInput
 ): CreateRegistrationRequest =>
   new CreateRegistrationRequest({
+    address: {
+      additionalStreetInfo: input.address.additionalStreetInfo,
+      city: input.address.city,
+      country: input.address.country,
+      postalCode: input.address.postalCode,
+      region: input.address.region,
+      streetName: input.address.streetName,
+    },
     companyName: input.companyName,
     companyPhone: input.companyPhone,
-    vatId: input.vatId,
     contactFirstName: input.contactFirstName,
     contactLastName: input.contactLastName,
     email: input.email,
-    address: {
-      streetName: input.address.streetName,
-      additionalStreetInfo: input.address.additionalStreetInfo,
-      postalCode: input.address.postalCode,
-      city: input.address.city,
-      region: input.address.region,
-      country: input.address.country,
-    },
+    vatId: input.vatId,
   });
-
-const toRegistrationValidationFailure = (
-  error: RegistrationApiValidationError
-): RegistrationIntakeValidationError =>
-  new RegistrationIntakeValidationError({
-    message: error.message,
-    reasons: error.reasons,
-  });
-
-type RegistrationSubmissionFailure =
-  | RegistrationIntakeValidationError
-  | RegistrationSubmissionUnavailable;
 
 const toIssuePath = (path: ActionSchemaIssuePath | undefined) =>
   normalizeActionSchemaIssuePath(RegistrationFormIssuePath, path, "root");
-
-const makeRootIssue = (message: string) =>
-  new RegistrationFormIssue({ path: "root", message });
 
 const toInputIssues = (
   error: Schema.SchemaError,
@@ -116,73 +100,30 @@ const toInputIssues = (
 
   const issues = formatted.issues.map((issue) => {
     const path = toIssuePath(issue.path);
-    return new ActionInputIssue({
-      path: path === "root" ? [] : path.split("."),
+    return new ErrorIssue({
       message: issue.message,
+      path: path === "root" ? [] : path.split("."),
     });
   });
 
   return issues.length === 0
     ? [
-        new ActionInputIssue({
-          path: [],
+        new ErrorIssue({
           message: t("errors.invalidSubmission"),
+          path: [],
         }),
       ]
     : issues;
 };
 
-const toSubmissionFailure = (
-  error: RegistrationSubmissionFailure,
-  t: RegistrationFormTranslator
-): RegistrationFormFailure => {
-  switch (error._tag) {
-    case "RegistrationIntakeValidationError": {
-      const toReasonIssue = (
-        reason: (typeof error.reasons)[number]
-      ): RegistrationFormIssue => {
-        switch (reason._tag) {
-          case "DuplicateRegistrationEmail":
-            return new RegistrationFormIssue({
-              path: reason.path,
-              message: t("validation.duplicateEmail"),
-            });
-          case "InvalidRegistrationVatId":
-            return new RegistrationFormIssue({
-              path: reason.path,
-              message: t("validation.invalidVatId"),
-            });
-          case "UnsupportedRegistrationCountry":
-            return makeRootIssue(t("errors.unsupportedRegistrationCountry"));
-          default:
-            return reason satisfies never;
-        }
-      };
-      const [firstReason, ...remainingReasons] = error.reasons;
-
-      return {
-        error,
-        issues: [
-          toReasonIssue(firstReason),
-          ...remainingReasons.map(toReasonIssue),
-        ],
-      } satisfies RegistrationFormFailure;
-    }
-    case "RegistrationSubmissionUnavailable":
-      return {
-        error,
-        issues: [makeRootIssue(t("errors.submitFailed"))],
-      } satisfies RegistrationFormFailure;
-    default:
-      return error satisfies never;
-  }
-};
-
 const submitRegistrationProgram = Effect.fn("RegistrationForm.submit")(
-  function* (
+  function* submitRegistration(
     input: RegistrationFormInput,
     locale: WebActionContext["locale"]
-  ): Effect.fn.Return<RegistrationFormSuccess, RegistrationSubmissionFailure> {
+  ): Effect.fn.Return<
+    RegistrationFormSuccess,
+    RegistrationSubmissionPublicError
+  > {
     const client = yield* makeRegistrationRestClient();
     const registration = yield* client.registrations
       .create({
@@ -192,16 +133,28 @@ const submitRegistrationProgram = Effect.fn("RegistrationForm.submit")(
         payload: toRegistrationInput(input),
       })
       .pipe(
+        Effect.catchTags({
+          HttpClientError: (error) =>
+            error.reason._tag === "TransportError"
+              ? Effect.fail(registrationSubmissionOutcomeUnknown(locale))
+              : Effect.die(error),
+          InputInvalid: Effect.die,
+          RegistrationHttpResponseError: (error) =>
+            Effect.logError(
+              "Registration submission response violated its HTTP contract",
+              error.cause
+            ).pipe(
+              Effect.andThen(
+                Effect.fail(registrationSubmissionOutcomeUnknown(locale))
+              )
+            ),
+          SchemaError: Effect.die,
+          Unexpected: Effect.die,
+        }),
         Effect.tapError((error) =>
           error._tag === "RegistrationApiValidationError"
             ? Effect.void
             : Effect.logError("Registration submission request failed", error)
-        ),
-        Effect.mapError(
-          (error): RegistrationSubmissionFailure =>
-            error._tag === "RegistrationApiValidationError"
-              ? toRegistrationValidationFailure(error)
-              : { _tag: "RegistrationSubmissionUnavailable" }
         )
       );
 
@@ -216,13 +169,12 @@ const submitRegistrationProcedure = RegistrationActions.procedure(
 )
   .input(RegistrationFormInputSchema)
   .output(RegistrationFormSuccess)
-  .error(RegistrationFormFailure)
+  .error(RegistrationSubmissionPublicError)
+  // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect action input mapper, not Promise control flow.
   .mapInputIssues((error, { t }) => toInputIssues(error, t))
-  .mapError((error: RegistrationSubmissionFailure, { t }) =>
-    toSubmissionFailure(error, t)
-  )
   .handle((decoded, { locale }) =>
     submitRegistrationProgram(decoded, locale).pipe(
+      // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect combinator, not Promise control flow.
       Effect.tapDefect((defect) =>
         Effect.logError("Registration submission defect", defect).pipe(
           Effect.withLogSpan("registration.form.submit.failure")
@@ -243,8 +195,6 @@ const submitRegistrationAction = submitRegistrationProcedure.toAction({
     redirect({ href: AWAITING_APPROVAL_HREF, locale }),
 });
 
-export async function submitRegistration(
+export const submitRegistration = async (
   input: RegistrationFormValues
-): Promise<RegistrationFormResult> {
-  return await submitRegistrationAction(input);
-}
+): Promise<RegistrationFormResult> => await submitRegistrationAction(input);

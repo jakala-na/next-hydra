@@ -333,13 +333,11 @@ describe("Checkout boundaries", () => {
     if (result._tag !== "Failure") {
       throw new Error("Expected Checkout Contact validation to fail");
     }
-    expect(result.failure.error._tag).toBe("ActionInputInvalid");
-    if (result.failure.error._tag !== "ActionInputInvalid") {
+    expect(result.failure.error._tag).toBe("InputInvalid");
+    if (result.failure.error._tag !== "InputInvalid") {
       throw new Error("Expected an Action Input Invalid failure");
     }
-    expect(result.failure.displayMessage).toBe(
-      "Localized en-US ActionInputInvalid"
-    );
+    expect(result.failure.displayMessage).toBe("Localized en-US InputInvalid");
     expect(result.failure.error.issues).toEqual([
       { message: "This field is invalid.", path: ["email"] },
       { message: "This field is invalid.", path: ["firstName"] },
@@ -367,8 +365,8 @@ describe("Checkout boundaries", () => {
     if (result._tag !== "Failure") {
       throw new Error("Expected Checkout Delivery Details validation to fail");
     }
-    expect(result.failure.error._tag).toBe("ActionInputInvalid");
-    if (result.failure.error._tag !== "ActionInputInvalid") {
+    expect(result.failure.error._tag).toBe("InputInvalid");
+    if (result.failure.error._tag !== "InputInvalid") {
       throw new Error("Expected an Action Input Invalid failure");
     }
     expect(result.failure.error.issues).toEqual([
@@ -400,7 +398,11 @@ describe("Checkout boundaries", () => {
         error: {
           _tag: "CheckoutVersionConflict",
           cartId: "cart-1",
-          message: "Checkout changed before Contact could be saved",
+          category: "conflict",
+          code: "checkout.versionConflict",
+          message:
+            "Checkout changed before your details could be saved. Refresh and try again.",
+          recovery: "refresh",
         },
       },
     });

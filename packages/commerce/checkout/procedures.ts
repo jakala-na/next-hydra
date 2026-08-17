@@ -1,9 +1,7 @@
 import "server-only";
-import {
-  ActionInputIssue,
-  type ActionSchemaIssuePath,
-  normalizeActionSchemaIssuePath,
-} from "@repo/actions";
+import { normalizeActionSchemaIssuePath } from "@repo/actions";
+import type { ActionSchemaIssuePath } from "@repo/actions";
+import { ErrorIssue } from "@repo/errors";
 import { Effect, Schema, SchemaIssue } from "effect";
 
 import { AddressBookReference } from "../domain/address-book";
@@ -23,7 +21,14 @@ import {
   SaveCheckoutContactActionError,
   SaveCheckoutDeliveryDetailsActionError,
 } from "./action-contract";
-import { logUnexpectedCheckoutMutationFailure } from "./action-diagnostics";
+import type {
+  CheckoutSaveContactExpectedFailure,
+  CheckoutSaveDeliveryDetailsExpectedFailure,
+} from "./public-errors";
+import {
+  projectSaveCheckoutContactFailure,
+  projectSaveCheckoutDeliveryDetailsFailure,
+} from "./public-errors";
 import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
 
 const RequiredFormString = Schema.Trim.pipe(
@@ -144,9 +149,7 @@ const toSaveCheckoutDeliveryDetailsInput = (
 
 const saveCheckoutContactProgram = Effect.fn("CheckoutAction.saveContact")(
   (input: typeof SaveCheckoutContactForm.Type) =>
-    CheckoutSession.saveContact(toSaveCheckoutContactInput(input)).pipe(
-      Effect.tapError(logUnexpectedCheckoutMutationFailure)
-    )
+    CheckoutSession.saveContact(toSaveCheckoutContactInput(input))
 );
 
 const saveCheckoutDeliveryDetailsProgram = Effect.fn(
@@ -154,10 +157,7 @@ const saveCheckoutDeliveryDetailsProgram = Effect.fn(
 )((input: typeof SaveCheckoutDeliveryDetailsForm.Type) =>
   CheckoutSession.saveDeliveryDetails(
     toSaveCheckoutDeliveryDetailsInput(input)
-  ).pipe(
-    Effect.tapError(logUnexpectedCheckoutMutationFailure),
-    Effect.map(({ state }) => state)
-  )
+  ).pipe(Effect.map(({ state }) => state))
 );
 
 const toCheckoutMutationIssuePath = (
@@ -169,10 +169,10 @@ const checkoutInputIssues = (
   error: Schema.SchemaError,
   rootMessage: string,
   includesPath: (path: CheckoutMutationIssuePath) => boolean
-): readonly ActionInputIssue[] => {
+): readonly ErrorIssue[] => {
   const formatted = SchemaIssue.makeFormatterStandardSchemaV1()(error.issue);
   const seen = new Set<CheckoutMutationIssuePath>();
-  const issues: ActionInputIssue[] = [];
+  const issues: ErrorIssue[] = [];
 
   for (const issue of formatted.issues) {
     const path = toCheckoutMutationIssuePath(issue.path);
@@ -182,7 +182,7 @@ const checkoutInputIssues = (
 
     seen.add(path);
     issues.push(
-      new ActionInputIssue({
+      new ErrorIssue({
         message: path === "root" ? rootMessage : "This field is invalid.",
         path: path === "root" ? [] : [path],
       })
@@ -190,7 +190,7 @@ const checkoutInputIssues = (
   }
 
   return issues.length === 0
-    ? [new ActionInputIssue({ message: rootMessage, path: [] })]
+    ? [new ErrorIssue({ message: rootMessage, path: [] })]
     : issues;
 };
 
@@ -269,7 +269,10 @@ const checkoutDeliveryDetailsInputIssues = (
     (path) => checkoutDeliveryDetailsPath(formData, path)
   );
 
-export const makeCheckoutProcedures = <RuntimeServices, Context extends object>(
+export const makeCheckoutProcedures = <
+  RuntimeServices,
+  Context extends { readonly locale: string },
+>(
   actions: CommerceActionClient<CheckoutSession, RuntimeServices, Context>
 ) => ({
   saveCheckoutContactProcedure: actions
@@ -278,6 +281,10 @@ export const makeCheckoutProcedures = <RuntimeServices, Context extends object>(
     .output(CheckoutState)
     .error(SaveCheckoutContactActionError)
     .mapInputIssues(checkoutContactInputIssues)
+    // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect action error mapper, not Promise control flow.
+    .mapError<CheckoutSaveContactExpectedFailure>((error, { locale }) =>
+      projectSaveCheckoutContactFailure(error, locale)
+    )
     .handle(saveCheckoutContactProgram),
   saveCheckoutDeliveryDetailsProcedure: actions
     .procedure("CheckoutAction.saveDeliveryDetails")
@@ -285,5 +292,9 @@ export const makeCheckoutProcedures = <RuntimeServices, Context extends object>(
     .output(CheckoutState)
     .error(SaveCheckoutDeliveryDetailsActionError)
     .mapInputIssues(checkoutDeliveryDetailsInputIssues)
+    // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect action error mapper, not Promise control flow.
+    .mapError<CheckoutSaveDeliveryDetailsExpectedFailure>((error, { locale }) =>
+      projectSaveCheckoutDeliveryDetailsFailure(error, locale)
+    )
     .handle(saveCheckoutDeliveryDetailsProgram),
 });

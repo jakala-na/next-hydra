@@ -12,7 +12,9 @@ vi.mock("server-only", () => ({}));
 import { CountryCode } from "@repo/commerce/domain/address";
 import {
   AddressBookEntryNotFound,
+  AddressBookProviderFailure,
   AddressBookReference,
+  AddressBookWriteOutcomeUnknown,
 } from "@repo/commerce/domain/address-book";
 import {
   CommerceBusinessUnitId,
@@ -30,6 +32,7 @@ import { AddressBook } from "@repo/commerce/services/address-book";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
+
 import {
   addressBookLayerFrom,
   toCommercetoolsAddressKey,
@@ -329,6 +332,66 @@ describe("addressBookLayer", () => {
     }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
   });
 
+  it.effect("classifies provider outages as recoverable", () => {
+    const api = apiRootForBusinessUnit();
+    api.getExecute.mockRejectedValueOnce({ statusCode: 503 });
+
+    return Effect.gen(function* () {
+      const addressBook = yield* AddressBook;
+      const error = yield* addressBook.list().pipe(Effect.flip);
+
+      expect(error).toBeInstanceOf(AddressBookProviderFailure);
+      expect(error).toMatchObject({
+        operation: "list",
+        reason: "unavailable",
+      });
+    }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
+  });
+
+  it.effect("classifies provider rate limits as recoverable", () => {
+    const api = apiRootForBusinessUnit();
+    api.getExecute.mockRejectedValueOnce({ statusCode: 429 });
+
+    return Effect.gen(function* () {
+      const addressBook = yield* AddressBook;
+      const error = yield* addressBook.list().pipe(Effect.flip);
+
+      expect(error).toBeInstanceOf(AddressBookProviderFailure);
+      expect(error).toMatchObject({
+        operation: "list",
+        reason: "unavailable",
+      });
+    }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
+  });
+
+  it.effect(
+    "classifies invalid provider address data as a defect candidate",
+    () => {
+      const api = apiRootForBusinessUnit();
+      const invalidAddress = businessUnit();
+      const firstAddress = invalidAddress.addresses[0];
+      if (firstAddress === undefined) {
+        throw new Error("Business Unit fixture requires an address");
+      }
+      api.getExecute.mockResolvedValueOnce({
+        body: businessUnit({
+          addresses: [{ ...firstAddress, country: "ZZ" }],
+        }),
+      });
+
+      return Effect.gen(function* () {
+        const addressBook = yield* AddressBook;
+        const error = yield* addressBook.list().pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(AddressBookProviderFailure);
+        expect(error).toMatchObject({
+          operation: "list",
+          reason: "invalidData",
+        });
+      }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
+    }
+  );
+
   it.effect(
     "recovers an entry that exists after an ambiguous write failure",
     () => {
@@ -397,6 +460,41 @@ describe("addressBookLayer", () => {
         expect(saved.reference).toBe(reference);
         expect(api.post).toHaveBeenCalledTimes(2);
         expect(api.get).toHaveBeenCalledTimes(2);
+      }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
+    }
+  );
+
+  it.effect(
+    "preserves the reference when an ambiguous write cannot be reconciled",
+    () => {
+      const api = apiRootForBusinessUnit();
+      api.getExecute
+        .mockResolvedValueOnce({
+          body: businessUnit({
+            addresses: [],
+            billingAddressIds: [],
+            defaultBillingAddressId: undefined,
+            defaultShippingAddressId: undefined,
+            shippingAddressIds: [],
+          }),
+        })
+        .mockRejectedValueOnce({ statusCode: 503 });
+      api.postExecute.mockRejectedValueOnce({ statusCode: 503 });
+
+      return Effect.gen(function* () {
+        const addressBook = yield* AddressBook;
+        const error = yield* addressBook
+          .save({
+            address,
+            defaultBilling: false,
+            defaultShipping: false,
+            reference,
+            types: ["shipping"],
+          })
+          .pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(AddressBookWriteOutcomeUnknown);
+        expect(error).toMatchObject({ reference });
       }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
     }
   );

@@ -9,12 +9,12 @@ import {
 } from "@repo/commerce/domain/commerce-request-context";
 import {
   AddressBookAccessMiddleware,
-  AddressBookApiBadRequest,
-  AddressBookApiError,
-  AddressBookApiForbidden,
-  AddressBookApiUnauthorized,
   AddressBookHttpApi,
   AddressBookSchemaErrorMiddleware,
+  makeAddressBookContextUnavailable,
+  makeAddressBookApiError,
+  makeAddressBookApiForbidden,
+  makeAddressBookApiUnauthorized,
 } from "@repo/commerce/http/address-book-api";
 import { CommerceRequestHeaders } from "@repo/commerce/http/commerce-request";
 import type {
@@ -24,6 +24,12 @@ import type {
 } from "@repo/commerce/runtime/make-commerce-app";
 import { AddressBook } from "@repo/commerce/services/address-book";
 import { resolveStore } from "@repo/commerce/store";
+import {
+  ErrorIssue,
+  makeInputInvalid,
+  makeSchemaErrorIssues,
+} from "@repo/errors";
+import { unexpectedHttpErrorsLayer } from "@repo/errors/http";
 import { Effect, Layer, Schema } from "effect";
 import type { Config } from "effect";
 import {
@@ -66,35 +72,38 @@ const logAddressBookDiagnosticFailure = (error: AddressBookDiagnosticFailure) =>
     })
   );
 
-const toAddressBookBadRequest = () =>
-  new AddressBookApiBadRequest({
-    code: "addressBook.badRequest",
-    message: "The address book request is invalid.",
+const addressBookBadRequestMessage = "The address book request is invalid.";
+
+const toAddressBookBadRequest = (cause?: Schema.SchemaError) =>
+  makeInputInvalid({
+    issues:
+      cause === undefined
+        ? [new ErrorIssue({ message: addressBookBadRequestMessage, path: [] })]
+        : makeSchemaErrorIssues(cause, addressBookBadRequestMessage),
+    message: addressBookBadRequestMessage,
   });
 
 const toAddressBookUnauthorized = () =>
-  new AddressBookApiUnauthorized({
-    code: "auth.unauthorized",
+  makeAddressBookApiUnauthorized({
     message: "Authentication is required.",
   });
 
 const toAddressBookForbidden = () =>
-  new AddressBookApiForbidden({
-    code: "addressBook.accessDenied",
+  makeAddressBookApiForbidden({
     message: "Address Book access is denied.",
   });
 
-const toAddressBookError = (
-  code:
-    | "addressBook.internal"
-    | "addressBook.providerFailure" = "addressBook.internal"
+const toAddressBookContextUnavailable = (
+  reason: "noPrincipal" | "noCustomerMapping" | "noBuyingContext"
 ) =>
-  new AddressBookApiError({
-    code,
-    message:
-      code === "addressBook.providerFailure"
-        ? "Saved addresses could not be loaded. Try again."
-        : "The Address Book is temporarily unavailable.",
+  makeAddressBookContextUnavailable({
+    message: "The Address Book is unavailable for the current account.",
+    reason,
+  });
+
+const toAddressBookError = () =>
+  makeAddressBookApiError({
+    message: "The Address Book is temporarily unavailable.",
   });
 
 const getAddressBookRequestHeaders = Effect.gen(
@@ -128,13 +137,6 @@ const makeAddressBookContextRequest = (
       : { businessUnitId: headers["x-context-business-unit-id"] }),
   });
 
-const toAddressBookAuthenticationError = (
-  error: AccessTokenInvalid | AccessTokenVerificationFailure
-) =>
-  error._tag === "AccessTokenInvalid"
-    ? toAddressBookUnauthorized()
-    : toAddressBookError();
-
 const addressBookAccessMiddlewareLayer = (
   commerceApp: AddressBookCommerceApp
 ) =>
@@ -161,12 +163,18 @@ const addressBookAccessMiddlewareLayer = (
             const verifiedToken = yield* AccessTokenVerifier.verify(
               authorization.token
             ).pipe(
-              Effect.tapError((error) =>
-                error._tag === "AccessTokenVerificationFailure"
-                  ? logAddressBookDiagnosticFailure(error)
-                  : Effect.void
-              ),
-              Effect.mapError(toAddressBookAuthenticationError),
+              Effect.catchTags({
+                AccessTokenInvalid: () =>
+                  Effect.fail(toAddressBookUnauthorized()),
+                AccessTokenVerificationFailure: (error) =>
+                  logAddressBookDiagnosticFailure(error).pipe(
+                    Effect.andThen(
+                      error.reason === "unavailable"
+                        ? Effect.fail(toAddressBookError())
+                        : Effect.die(error)
+                    )
+                  ),
+              }),
               Effect.provide(verifierLayer)
             );
             const contextRequest = makeAddressBookContextRequest(
@@ -178,15 +186,15 @@ const addressBookAccessMiddlewareLayer = (
               commerceApp.provideAddressBook(contextRequest),
               Effect.provide(commerceServices),
               Effect.catchTags({
-                CommerceAccountError: (error) =>
+                CommerceAccountUnavailable: (error) =>
                   logAddressBookDiagnosticFailure(error).pipe(
                     Effect.andThen(Effect.fail(toAddressBookError()))
                   ),
-                CommerceRequestContextNotFound: () =>
-                  Effect.fail(toAddressBookForbidden()),
+                CommerceRequestContextNotFound: (error) =>
+                  Effect.fail(toAddressBookContextUnavailable(error.reason)),
                 ConfigError: (error) =>
                   logAddressBookDiagnosticFailure(error).pipe(
-                    Effect.andThen(Effect.fail(toAddressBookError()))
+                    Effect.andThen(Effect.die(error))
                   ),
               })
             );
@@ -198,7 +206,10 @@ const addressBookAccessMiddlewareLayer = (
 const addressBookSchemaErrorMiddlewareLayer =
   HttpApiMiddleware.layerSchemaErrorTransform(
     AddressBookSchemaErrorMiddleware,
-    () => Effect.fail(toAddressBookBadRequest())
+    (error) =>
+      error.kind === "Body"
+        ? Effect.die(error)
+        : Effect.fail(toAddressBookBadRequest(error.cause))
   );
 
 const addressBookHandlers = HttpApiBuilder.group(
@@ -207,19 +218,25 @@ const addressBookHandlers = HttpApiBuilder.group(
   (handlers) =>
     handlers.handle("list", () =>
       AddressBook.list().pipe(
-        Effect.tapError((error) =>
-          error._tag === "AddressBookProviderFailure"
-            ? logAddressBookDiagnosticFailure(error)
-            : Effect.void
+        Effect.catchTag("AddressBookProviderFailure", (error) =>
+          logAddressBookDiagnosticFailure(error).pipe(
+            Effect.andThen(
+              error.reason === "unavailable"
+                ? Effect.fail(error)
+                : Effect.die(error)
+            )
+          )
         ),
         Effect.mapError((error) => {
           switch (error._tag) {
-            case "AddressBookAccessDenied":
-            case "CommerceRequestContextNotFound": {
+            case "AddressBookAccessDenied": {
               return toAddressBookForbidden();
             }
+            case "CommerceRequestContextNotFound": {
+              return toAddressBookContextUnavailable(error.reason);
+            }
             case "AddressBookProviderFailure": {
-              return toAddressBookError("addressBook.providerFailure");
+              return toAddressBookError();
             }
             default: {
               const exhaustiveError: never = error;
@@ -238,6 +255,7 @@ const makeAddressBookHttpApiLayer = (
     Layer.provide(addressBookHandlers),
     Layer.provide(addressBookSchemaErrorMiddlewareLayer),
     Layer.provide(addressBookAccessMiddlewareLayer(dependencies.commerceApp)),
+    Layer.provide(unexpectedHttpErrorsLayer),
     Layer.provideMerge(dependencies.authenticationLayer),
     Layer.provideMerge(dependencies.commerceApp.layer),
     Layer.provide(HttpServer.layerServices)

@@ -7,10 +7,13 @@ import { CommerceLocale } from "../store";
 export type CheckoutApiErrorCode =
   | "checkout.badRequest"
   | "checkout.cartMismatch"
+  | "checkout.contact.customerProfileIncomplete"
   | "checkout.contact.invalidInput"
+  | "checkout.contact.outcomeUnknown"
   | "checkout.contact.sourceUnavailable"
   | "checkout.deliveryDetails.addressBookEntryUnavailable"
   | "checkout.deliveryDetails.invalidInput"
+  | "checkout.deliveryDetails.outcomeUnknown"
   | "checkout.deliveryDetails.providerFailure"
   | "checkout.deliveryDetails.sourceUnavailable"
   | "checkout.internal"
@@ -33,14 +36,20 @@ export const checkoutApiErrorMessage = (
       return messages.badRequest;
     case "checkout.cartMismatch":
       return messages.cartMismatch;
+    case "checkout.contact.customerProfileIncomplete":
+      return messages.saveContact.CheckoutCustomerProfileIncomplete;
     case "checkout.contact.invalidInput":
       return messages.saveContact.CheckoutMutationSchemaFailure;
+    case "checkout.contact.outcomeUnknown":
+      return messages.saveContact.CheckoutMutationOutcomeUnknown;
     case "checkout.contact.sourceUnavailable":
       return messages.saveContact.CheckoutMutationSourceUnavailable;
     case "checkout.deliveryDetails.addressBookEntryUnavailable":
       return messages.deliveryDetails.addressBookEntryUnavailable;
     case "checkout.deliveryDetails.invalidInput":
       return messages.deliveryDetails.invalidInput;
+    case "checkout.deliveryDetails.outcomeUnknown":
+      return messages.saveDeliveryDetails.CheckoutMutationOutcomeUnknown;
     case "checkout.deliveryDetails.providerFailure":
       return messages.deliveryDetails.providerFailure;
     case "checkout.deliveryDetails.sourceUnavailable":

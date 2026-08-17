@@ -1,7 +1,5 @@
-import {
-  type CommerceAccountError,
-  CommerceAccounts,
-} from "@repo/commerce/services/commerce-accounts";
+import type { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import type { StoreKey } from "@repo/commerce/store";
 import { Effect } from "effect";
 
@@ -13,24 +11,24 @@ import {
   DuplicateRegistrationEmail,
   InvalidRegistrationVatId,
   RegistrationIntakeValidationError,
-  type RegistrationIntakeValidationReason,
   UnsupportedRegistrationCountry,
 } from "../domain/registration-intake-validation";
+import type { RegistrationIntakeValidationReason } from "../domain/registration-intake-validation";
 import type { IdentityUserLookupFailure } from "../services/identity-users";
 import { IdentityUsers } from "../services/identity-users";
 import { RegistrationMarketPolicy } from "../services/registration-market-policy";
-import type { RegistrationQueryError } from "../services/registration-queries";
+import type { RegistrationQueryFailure } from "../services/registration-queries";
 import { RegistrationQueries } from "../services/registration-queries";
-import {
-  type RegistrationCreateError,
-  Registrations,
-} from "../services/registrations";
+import type { RegistrationWorkflowStartUnavailable } from "../services/registration-workflow";
+import { RegistrationWorkflow } from "../services/registration-workflow";
+import type { RegistrationCreateError } from "../services/registrations";
+import { Registrations } from "../services/registrations";
 import { VatValidator } from "../services/vat-validator";
 
 export type RegistrationEligibilityProviderError =
-  | CommerceAccountError
+  | CommerceAccountUnavailable
   | IdentityUserLookupFailure
-  | RegistrationQueryError;
+  | RegistrationQueryFailure;
 
 export {
   DuplicateRegistrationEmail,
@@ -71,7 +69,9 @@ const hasIdentityUserWithEmail = (details: CompanyRegistrationDetails) =>
 const hasPendingRegistrationWithEmail = (details: CompanyRegistrationDetails) =>
   Effect.gen(function* () {
     const queries = yield* RegistrationQueries;
-    return yield* queries.hasPendingEmail(details.email);
+    return yield* queries
+      .hasPendingEmail(details.email)
+      .pipe(Effect.catchTag("RegistrationQueryInvalidCursor", Effect.die));
   });
 
 const isUnsupportedRegistrationCountry = (
@@ -168,18 +168,28 @@ export const submitRegistrationForReview = Effect.fn(
   AwaitingApprovalRegistration,
   | RegistrationEligibilityProviderError
   | RegistrationIntakeValidationError
-  | RegistrationCreateError,
+  | RegistrationCreateError
+  | RegistrationWorkflowStartUnavailable,
   | CommerceAccounts
   | IdentityUsers
   | RegistrationMarketPolicy
   | RegistrationQueries
+  | RegistrationWorkflow
   | Registrations
   | VatValidator
 > {
   yield* checkRegistrationEligibility(input.details);
   const registrations = yield* Registrations;
-  return yield* registrations.createAwaitingApproval({
+  const workflow = yield* RegistrationWorkflow;
+  const registration = yield* registrations.createAwaitingApproval({
     details: input.details,
     storeKey: input.storeKey,
   });
+
+  return yield* workflow.start(registration.id).pipe(
+    Effect.as(registration),
+    Effect.onError(() =>
+      registrations.discardAwaitingApproval(registration.id).pipe(Effect.orDie)
+    )
+  );
 });

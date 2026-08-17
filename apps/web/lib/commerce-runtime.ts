@@ -1,4 +1,5 @@
 import "server-only";
+/* oxlint-disable promise/prefer-await-to-callbacks, promise/prefer-await-to-then -- Effect combinators use callback APIs to transform Effect values. */
 import {
   BUSINESS_UNIT_COOKIE_NAME,
   getBusinessUnitIdFromCookieValue,
@@ -17,17 +18,15 @@ import {
   makeAnonymousCartCookie,
 } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
 import type { CurrentCartCookie } from "@repo/commerce/lib/current-cart/cookie";
-import {
-  CommerceRequestFailure,
-  decodeCommerceAuthUserId,
-} from "@repo/commerce/runtime/commerce-request";
+import { decodeCommerceAuthUserId } from "@repo/commerce/runtime/commerce-request";
 import type { CommerceRequestInput } from "@repo/commerce/runtime/commerce-request";
 import type {
   CommerceRequestProvisionError,
+  CommerceRequestLayerServices,
   CommerceRequestServices,
   CommerceStableServices,
 } from "@repo/commerce/runtime/make-commerce-app";
-import { CommerceAccountError } from "@repo/commerce/services/commerce-accounts";
+import { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
 import { CommerceLocale, resolveStore } from "@repo/commerce/store";
 import type { StoreKey } from "@repo/commerce/store";
 import type { Locale } from "@repo/i18n/types";
@@ -81,14 +80,20 @@ const makeCommerceRequest = (
             ),
             ANONYMOUS_CART_COOKIE_OPTIONS
           ),
-      }).pipe(Effect.asVoid),
+      }).pipe(
+        Effect.tapError((error) =>
+          Effect.logError("Failed to persist the anonymous cart cookie", error)
+        ),
+        Effect.orDie,
+        Effect.asVoid
+      ),
   };
 
   return decodeCommerceAuthUserId(authUserId).pipe(
     Effect.map(
-      (authUserId): CommerceRequestInput => ({
+      (decodedAuthUserId): CommerceRequestInput => ({
         context:
-          authUserId === undefined
+          decodedAuthUserId === undefined
             ? new AnonymousCommerceContextRequest({
                 store,
                 ...(anonymousCartId === null
@@ -96,7 +101,7 @@ const makeCommerceRequest = (
                   : { anonymousCartId: CartId.make(anonymousCartId) }),
               })
             : new CustomerCommerceContextRequest({
-                authUserId,
+                authUserId: decodedAuthUserId,
                 store,
                 ...(businessUnitId === undefined ? {} : { businessUnitId }),
               }),
@@ -125,32 +130,31 @@ const makeNextCommerceRequest = (
       currentAuth.userId,
       options
     );
-  });
+  }).pipe(
+    Effect.catchTag("CommerceRequestFailure", (error) =>
+      Effect.logError(
+        "The authenticated user ID violated the Commerce request contract",
+        error.cause
+      ).pipe(
+        Effect.annotateLogs({
+          "commerce.error.tag": error._tag,
+          "commerce.operation": error.operation,
+        }),
+        Effect.andThen(Effect.die(error))
+      )
+    )
+  );
 
 type CommerceRuntimeServices =
   | CommerceStableServices
   | CurrentAuth
   | NextRequestApi;
 
-export type NextCommerceRequestError =
-  | CommerceRequestFailure
-  | CommerceRequestProvisionError;
+export type NextCommerceRequestError = CommerceRequestProvisionError;
 
 const logCommerceRequestCause = (error: unknown) => {
-  if (Schema.is(CommerceRequestFailure)(error)) {
-    return Effect.logError(
-      "Failed to decode the Commerce auth user ID",
-      error.cause
-    ).pipe(
-      Effect.annotateLogs({
-        "commerce.error.tag": error._tag,
-        "commerce.operation": error.operation,
-      })
-    );
-  }
-
-  if (Schema.is(CommerceAccountError)(error) && error.cause !== undefined) {
-    return Effect.logError(error.message, error.cause).pipe(
+  if (Schema.is(CommerceAccountUnavailable)(error)) {
+    return Effect.logError(error.message, error.cause ?? error).pipe(
       Effect.annotateLogs({
         "commerce.error.tag": error._tag,
       })
@@ -162,23 +166,36 @@ const logCommerceRequestCause = (error: unknown) => {
 
 const provide =
   (locale: Locale, options?: NextCommerceRequestOptions) =>
-  <A, E>(program: Effect.Effect<A, E, CommerceRequestServices>) =>
+  <A, E>(
+    program: Effect.Effect<A, E, CommerceRequestServices>
+  ): Effect.Effect<
+    A,
+    E | CommerceRequestProvisionError,
+    CommerceRuntimeServices
+  > =>
     makeNextCommerceRequest(locale, options).pipe(
       Effect.flatMap((request) => program.pipe(CommerceApp.provide(request))),
       Effect.tapError(logCommerceRequestCause)
     );
 
-export const CommerceActions = Actions.provide(({ locale }) =>
-  Layer.unwrap(
-    makeNextCommerceRequest(locale).pipe(
-      Effect.tapError(logCommerceRequestCause),
-      Effect.map((request) =>
-        CommerceApp.requestLayer(request).pipe(
-          Layer.tapError(logCommerceRequestCause)
+export const CommerceActions = Actions.provide(
+  ({
+    locale,
+  }): Layer.Layer<
+    CommerceRequestLayerServices,
+    CommerceRequestProvisionError,
+    CommerceStableServices | CurrentAuth | NextRequestApi
+  > =>
+    Layer.unwrap(
+      makeNextCommerceRequest(locale).pipe(
+        Effect.tapError(logCommerceRequestCause),
+        Effect.map((request) =>
+          CommerceApp.requestLayer(request).pipe(
+            Layer.tapError(logCommerceRequestCause)
+          )
         )
       )
     )
-  )
 );
 
 export const NextCommerce = {

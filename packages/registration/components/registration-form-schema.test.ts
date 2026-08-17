@@ -1,3 +1,4 @@
+import { ErrorIssue, makeInputInvalid } from "@repo/errors";
 import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
@@ -7,8 +8,12 @@ import {
   RegistrationIntakeValidationError,
 } from "../domain/registration-intake-validation";
 import {
+  projectRegistrationIntakeValidation,
+  RegistrationApiErrorFailure,
+  RegistrationSubmissionOutcomeUnknownFailure,
+} from "../public-errors";
+import {
   RegistrationFormInputSchema,
-  RegistrationFormIssue,
   RegistrationFormResultSchema,
 } from "./registration-form-schema";
 
@@ -28,6 +33,31 @@ const validInput = {
     country: "US",
   },
 } as const;
+
+const validationFailure = projectRegistrationIntakeValidation(
+  new RegistrationIntakeValidationError({
+    message: "Registration has field validation errors",
+    reasons: [
+      new DuplicateRegistrationEmail({
+        code: "duplicateEmail",
+        path: "email",
+      }),
+    ],
+  }),
+  "en-US"
+);
+
+const registrationFailures = [
+  makeInputInvalid({
+    issues: [new ErrorIssue({ message: "Invalid input.", path: ["email"] })],
+    message: "Invalid input.",
+  }),
+  RegistrationApiErrorFailure.make({ message: "Unavailable." }),
+  RegistrationSubmissionOutcomeUnknownFailure.make({
+    message: "Registration outcome is unknown.",
+  }),
+  validationFailure,
+] as const;
 
 describe("public registration action schemas", () => {
   it("decodes and transforms untrusted form values", () => {
@@ -93,23 +123,7 @@ describe("public registration action schemas", () => {
 
   it("round-trips translated form issues", () => {
     const encoded = Schema.encodeSync(RegistrationFormResultSchema)(
-      Result.fail({
-        error: new RegistrationIntakeValidationError({
-          message: "Registration has field validation errors",
-          reasons: [
-            new DuplicateRegistrationEmail({
-              code: "duplicateEmail",
-              path: "email",
-            }),
-          ],
-        }),
-        issues: [
-          new RegistrationFormIssue({
-            path: "email",
-            message: "This email is already registered.",
-          }),
-        ],
-      })
+      Result.fail(validationFailure)
     );
     const decoded = Schema.decodeUnknownSync(RegistrationFormResultSchema)(
       encoded
@@ -118,25 +132,32 @@ describe("public registration action schemas", () => {
     expect(encoded).toMatchObject({
       _tag: "Failure",
       failure: {
-        error: {
-          _tag: "RegistrationIntakeValidationError",
-          message: "Registration has field validation errors",
-          reasons: [
-            {
-              _tag: "DuplicateRegistrationEmail",
-              code: "duplicateEmail",
-              path: "email",
-            },
-          ],
-        },
+        _tag: "RegistrationApiValidationError",
+        category: "bad_input",
+        code: "registration.invalidInput",
         issues: [
           {
-            path: "email",
-            message: "This email is already registered.",
+            path: ["email"],
+            message:
+              "This email is already associated with an existing or pending registration.",
           },
         ],
+        recovery: "fix_input",
       },
     });
     expect(Result.isFailure(decoded)).toBe(true);
+  });
+
+  it.each(registrationFailures)("round-trips the $_tag failure", (failure) => {
+    const encoded = Schema.encodeSync(RegistrationFormResultSchema)(
+      Result.fail(failure)
+    );
+    const decoded = Schema.decodeUnknownSync(RegistrationFormResultSchema)(
+      encoded
+    );
+
+    expect(Schema.encodeSync(RegistrationFormResultSchema)(decoded)).toEqual(
+      encoded
+    );
   });
 });

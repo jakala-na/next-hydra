@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Ref } from "effect";
+
 import {
   type AddressBookAccessDenied,
   AddressBookEntry,
@@ -7,6 +8,7 @@ import {
   type AddressBookProviderFailure,
   type AddressBookReadError,
   type AddressBookReference,
+  type AddressBookWriteOutcomeUnknown,
   normalizeAddressTypes,
   type SaveAddressBookEntryInput,
 } from "../domain/address-book";
@@ -25,6 +27,7 @@ export type AddressBookGetFailure =
 export type AddressBookSaveFailure =
   | AddressBookAccessDenied
   | AddressBookProviderFailure
+  | AddressBookWriteOutcomeUnknown
   | CommerceRequestContextNotFound;
 
 export class AddressBook extends Context.Service<

@@ -4,9 +4,20 @@ import { useTranslations } from "@repo/i18n";
 import { useActionState } from "react";
 
 import type { BuyerContact, CheckoutContactSource } from "../domain/checkout";
-import type { SaveCheckoutContactAction } from "./action-contract";
+import type {
+  SaveCheckoutContactAction,
+  SaveCheckoutContactActionFailure,
+} from "./action-contract";
 
-export function CheckoutContactForm({
+export const contactSourceAfterAction = (
+  actionFailure: SaveCheckoutContactActionFailure | undefined,
+  source: CheckoutContactSource
+): CheckoutContactSource =>
+  actionFailure?.error._tag === "CheckoutCustomerProfileIncomplete"
+    ? "manual"
+    : source;
+
+export const CheckoutContactForm = ({
   buyerContact,
   cartId,
   saveAction,
@@ -16,7 +27,7 @@ export function CheckoutContactForm({
   readonly cartId: string;
   readonly saveAction: SaveCheckoutContactAction;
   readonly source: CheckoutContactSource;
-}) {
+}) => {
   const t = useTranslations("web.checkout");
   const [actionResult, formAction, isPending] = useActionState(
     saveAction,
@@ -24,9 +35,10 @@ export function CheckoutContactForm({
   );
   const actionFailure =
     actionResult?._tag === "Failure" ? actionResult.failure : undefined;
+  const activeSource = contactSourceAfterAction(actionFailure, source);
   let submitLabel = t("contact.actions.save");
 
-  if (source === "customerProfile") {
+  if (activeSource === "customerProfile") {
     submitLabel = t("contact.actions.useCustomerProfile");
   }
   if (isPending) {
@@ -36,7 +48,7 @@ export function CheckoutContactForm({
   return (
     <form action={formAction} className="grid gap-4">
       <input name="cartId" type="hidden" value={cartId} />
-      <input name="source" type="hidden" value={source} />
+      <input name="source" type="hidden" value={activeSource} />
       {actionFailure === undefined ? null : (
         <p
           aria-live="polite"
@@ -46,7 +58,7 @@ export function CheckoutContactForm({
           {actionFailure.displayMessage}
         </p>
       )}
-      {source === "manual" ? (
+      {activeSource === "manual" ? (
         <>
           <div className="grid gap-2">
             <label className="font-medium text-sm" htmlFor="checkout-email">
@@ -120,4 +132,4 @@ export function CheckoutContactForm({
       </div>
     </form>
   );
-}
+};

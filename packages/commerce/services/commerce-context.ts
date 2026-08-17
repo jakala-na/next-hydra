@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from "effect";
+
 import type {
   CommerceBusinessUnitMembership,
   CommerceCustomerProfile,
@@ -14,7 +15,7 @@ import {
 } from "../domain/commerce-request-context";
 import type { Store } from "../store";
 import {
-  type CommerceAccountError,
+  type CommerceAccountUnavailable,
   CommerceAccounts,
   type CommerceCustomerProfileNotFound,
 } from "./commerce-accounts";
@@ -22,7 +23,7 @@ import {
 export type CommerceContextProfileFailure =
   | CommerceRequestContextNotFound
   | CommerceCustomerProfileNotFound
-  | CommerceAccountError;
+  | CommerceAccountUnavailable;
 
 const noBuyingContext = () =>
   new CommerceRequestContextNotFound({
