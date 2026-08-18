@@ -8,7 +8,9 @@
       "title": "Next Hydra Drupal CMS provider",
       "description": "Installs the Drupal CMS provider package and its Drupal backend app.",
       "docs": "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
-      "registryDependencies": ["jakala-na/next-hydra/drupal"],
+      "registryDependencies": [
+        "jakala-na/next-hydra/drupal"
+      ],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/cms/drupal",
@@ -105,6 +107,16 @@
           "type": "registry:file"
         },
         {
+          "path": "canvas-components/article-card/next.test.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/article-card/next.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/article-card/next.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/article-card/next.tsx",
+          "type": "registry:file"
+        },
+        {
           "path": "canvas-components/featured-articles/component.yml",
           "target": "~/packages/cms-drupal/canvas-components/featured-articles/component.yml",
           "type": "registry:file"
@@ -155,11 +167,6 @@
           "type": "registry:file"
         },
         {
-          "path": "canvas-components/latest-articles/mocks.json",
-          "target": "~/packages/cms-drupal/canvas-components/latest-articles/mocks.json",
-          "type": "registry:file"
-        },
-        {
           "path": "canvas-components/product-collection/component.yml",
           "target": "~/packages/cms-drupal/canvas-components/product-collection/component.yml",
           "type": "registry:file"
@@ -172,11 +179,6 @@
         {
           "path": "canvas-components/product-collection/index.tsx",
           "target": "~/packages/cms-drupal/canvas-components/product-collection/index.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "canvas-components/product-collection/mocks.json",
-          "target": "~/packages/cms-drupal/canvas-components/product-collection/mocks.json",
           "type": "registry:file"
         },
         {
@@ -440,6 +442,11 @@
           "type": "registry:file"
         },
         {
+          "path": "pages/home-page.json",
+          "target": "~/packages/cms-drupal/pages/home-page.json",
+          "type": "registry:file"
+        },
+        {
           "path": "proxy.ts",
           "target": "~/packages/cms-drupal/proxy.ts",
           "type": "registry:file"
@@ -505,6 +512,16 @@
           "type": "registry:file"
         },
         {
+          "path": "scripts/canvas-workbench-headless-props.test.mjs",
+          "target": "~/packages/cms-drupal/scripts/canvas-workbench-headless-props.test.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/canvas-workbench.config.mjs",
+          "target": "~/packages/cms-drupal/scripts/canvas-workbench.config.mjs",
+          "type": "registry:file"
+        },
+        {
           "path": "scripts/generate-canvas-component-registry.mjs",
           "target": "~/packages/cms-drupal/scripts/generate-canvas-component-registry.mjs",
           "type": "registry:file"
@@ -522,6 +539,11 @@
         {
           "path": "scripts/gql-sync.ts",
           "target": "~/packages/cms-drupal/scripts/gql-sync.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/workbench-shims/server-only.mjs",
+          "target": "~/packages/cms-drupal/scripts/workbench-shims/server-only.mjs",
           "type": "registry:file"
         },
         {

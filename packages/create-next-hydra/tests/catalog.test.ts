@@ -130,26 +130,6 @@ describe("Next Hydra source registry", () => {
     expect(contentstack.managedTargets).not.toContain(
       "apps/web/app/api/canvas/components/route.ts"
     );
-    expect(drupal.assets).toEqual([
-      {
-        source:
-          "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
-        target:
-          "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
-      },
-      {
-        source: "patches/@drupal-canvas__headless-next.patch",
-        target: "patches/@drupal-canvas__headless-next.patch",
-      },
-      {
-        source: "patches/@drupal-canvas__headless-react.patch",
-        target: "patches/@drupal-canvas__headless-react.patch",
-      },
-      {
-        source: "patches/@drupal-canvas__headless.patch",
-        target: "patches/@drupal-canvas__headless.patch",
-      },
-    ]);
     expect(drupal.pnpmPatches).toHaveLength(DRUPAL_PNPM_PATCH_COUNT);
     expect(contentstack.pnpmPatches).toEqual([]);
     expect(drupal.instructions).toEqual([

@@ -468,6 +468,11 @@
           "type": "registry:file"
         },
         {
+          "path": "recipes/next-hydra-starter/content/consumer/5bba2dd6-0bf1-4d4d-8c29-8e2da51eacdb.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/content/consumer/5bba2dd6-0bf1-4d4d-8c29-8e2da51eacdb.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "recipes/next-hydra-starter/content/file/187f65b5-5811-4554-9378-a8f9f8f1c493.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/content/file/187f65b5-5811-4554-9378-a8f9f8f1c493.yml",
           "type": "registry:file"

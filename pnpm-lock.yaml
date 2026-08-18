@@ -52,15 +52,6 @@ overrides:
   react-dom: 19.2.8
 
 patchedDependencies:
-  '@drupal-canvas/headless':
-    hash: ca334356d8e8819e6b8360dec9b9be70f8002793c1d607dc224cb1f487953ccb
-    path: patches/@drupal-canvas__headless.patch
-  '@drupal-canvas/headless-next':
-    hash: d6849e0fb6fa695d3e7eb4550235f980143e7cd375ea2cb8ac03d40f73430a5b
-    path: patches/@drupal-canvas__headless-next.patch
-  '@drupal-canvas/headless-react':
-    hash: c86ff15d58abe6119890bf5eb79d8e95ae84254b5ccd3bd700d87d2a27aacc8b
-    path: patches/@drupal-canvas__headless-react.patch
   '@drupal-canvas/workbench@0.10.0':
     hash: 888fd4ae64d567a4db437314cdd3018d26a4cf4469b24123564334c31c8f7029
     path: patches/@drupal-canvas__workbench@0.10.0.patch
@@ -471,8 +462,8 @@ importers:
         specifier: workspace:@repo/auth-workos@*
         version: link:../../packages/auth-workos
       '@repo/cms':
-        specifier: workspace:@repo/cms-drupal@*
-        version: link:../../packages/cms-drupal
+        specifier: workspace:@repo/cms-contentstack@*
+        version: link:../../packages/cms-contentstack
       '@repo/commerce':
         specifier: workspace:*
         version: link:../../packages/commerce
@@ -868,13 +859,13 @@ importers:
     dependencies:
       '@drupal-canvas/headless':
         specifier: ^0.3.0
-        version: 0.3.0(patch_hash=ca334356d8e8819e6b8360dec9b9be70f8002793c1d607dc224cb1f487953ccb)
+        version: 0.3.0
       '@drupal-canvas/headless-next':
         specifier: ^0.1.1
-        version: 0.1.1(patch_hash=d6849e0fb6fa695d3e7eb4550235f980143e7cd375ea2cb8ac03d40f73430a5b)(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+        version: 0.1.1(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
       '@drupal-canvas/headless-react':
         specifier: ^0.2.1
-        version: 0.2.1(patch_hash=c86ff15d58abe6119890bf5eb79d8e95ae84254b5ccd3bd700d87d2a27aacc8b)(react@19.2.8)
+        version: 0.2.1(react@19.2.8)
       '@repo/commerce':
         specifier: workspace:*
         version: link:../commerce
@@ -14380,19 +14371,19 @@ snapshots:
       - supports-color
       - typescript
 
-  '@drupal-canvas/headless-next@0.1.1(patch_hash=d6849e0fb6fa695d3e7eb4550235f980143e7cd375ea2cb8ac03d40f73430a5b)(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)':
+  '@drupal-canvas/headless-next@0.1.1(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)':
     dependencies:
-      '@drupal-canvas/headless': 0.3.0(patch_hash=ca334356d8e8819e6b8360dec9b9be70f8002793c1d607dc224cb1f487953ccb)
-      '@drupal-canvas/headless-react': 0.2.1(patch_hash=c86ff15d58abe6119890bf5eb79d8e95ae84254b5ccd3bd700d87d2a27aacc8b)(react@19.2.8)
+      '@drupal-canvas/headless': 0.3.0
+      '@drupal-canvas/headless-react': 0.2.1(react@19.2.8)
       next: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
 
-  '@drupal-canvas/headless-react@0.2.1(patch_hash=c86ff15d58abe6119890bf5eb79d8e95ae84254b5ccd3bd700d87d2a27aacc8b)(react@19.2.8)':
+  '@drupal-canvas/headless-react@0.2.1(react@19.2.8)':
     dependencies:
-      '@drupal-canvas/headless': 0.3.0(patch_hash=ca334356d8e8819e6b8360dec9b9be70f8002793c1d607dc224cb1f487953ccb)
+      '@drupal-canvas/headless': 0.3.0
       react: 19.2.8
 
-  '@drupal-canvas/headless@0.3.0(patch_hash=ca334356d8e8819e6b8360dec9b9be70f8002793c1d607dc224cb1f487953ccb)':
+  '@drupal-canvas/headless@0.3.0':
     dependencies:
       '@drupal-api-client/json-api-client': 1.5.0
 
