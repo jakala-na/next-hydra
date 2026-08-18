@@ -9,6 +9,7 @@ const generatedPatterns = [
   "apps/email/.react-email/",
   ".scratch/**",
   "repos/**",
+  "tools/oxlint/anti-slop/**",
 ];
 
 export default defineConfig({

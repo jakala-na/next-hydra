@@ -35,7 +35,8 @@
     "commander": "^14.0.0"
   },
   "devDependencies": {
-    "@effect/tsgo": "0.36.4",
+    "@effect/tsgo": "0.36.5",
+    "@oxlint/plugins": "1.78.0",
     "@repo/typescript-config": "workspace:*",
     "@turbo/gen": "^2.5.3",
     "@types/node": "catalog:",
@@ -43,7 +44,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "oxfmt": "0.61.0",
-    "oxlint": "1.77.0",
+    "oxlint": "1.78.0",
     "oxlint-tsgolint": "7.0.2001",
     "turbo": "2.6.3",
     "typescript": "catalog:",
