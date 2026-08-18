@@ -2,6 +2,7 @@
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import type { StorybookConfig } from "@storybook/nextjs-vite";
 
 const require = createRequire(import.meta.url);
@@ -15,6 +16,9 @@ const getAbsolutePath = (value: string) =>
 
 const logtailShimPath = fileURLToPath(
   new URL("./shims/logtail.ts", import.meta.url)
+);
+const repoPackagesPath = fileURLToPath(
+  new URL("../../../packages", import.meta.url)
 );
 const config: StorybookConfig = {
   stories: [
@@ -36,7 +40,7 @@ const config: StorybookConfig = {
     if (config.resolve) {
       config.resolve.alias = {
         ...config.resolve.alias,
-        "@repo": "../../packages",
+        "@repo": repoPackagesPath,
         "@logtail/next": logtailShimPath,
       };
     }

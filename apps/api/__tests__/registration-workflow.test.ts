@@ -4,14 +4,11 @@ import {
 } from "@repo/commerce/domain/commerce-account";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
-import {
-  getRegistrationApprovalHookToken,
-  getRegistrationInvitationHookToken,
-  RegistrationId,
-} from "@repo/registration";
+import { RegistrationId } from "@repo/registration";
 import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
 import {
   AddressLine,
+  AuthUserId,
   City,
   CommerceBusinessUnitId,
   CommerceCustomerId,
@@ -51,16 +48,21 @@ import { Effect, Layer, Redacted } from "effect";
 import { beforeEach, expect, test, vi } from "vitest";
 
 const workflowMocks = vi.hoisted(() => ({
-  createHook: vi.fn(),
+  hookCreate:
+    vi.fn<(options?: { readonly token?: string }) => Promise<unknown>>(),
+  hookResume: vi.fn<(token: string, payload: unknown) => Promise<unknown>>(),
 }));
 
-vi.mock(import("workflow"), () => ({
-  createHook: workflowMocks.createHook,
+vi.mock("workflow", () => ({
+  defineHook: () => ({
+    create: workflowMocks.hookCreate,
+    resume: workflowMocks.hookResume,
+  }),
 }));
 
 const reviewer = {
-  authUserId: "auth-reviewer-1",
-  email: "reviewer@example.com",
+  authUserId: AuthUserId.make("auth-reviewer-1"),
+  email: Email.make("reviewer@example.com"),
   name: "Registration Reviewer",
 };
 
@@ -382,13 +384,14 @@ const loadWorkflow = async (
 
 beforeEach(() => {
   vi.resetModules();
-  workflowMocks.createHook.mockReset();
+  workflowMocks.hookCreate.mockReset();
+  workflowMocks.hookResume.mockReset();
 });
 
 test("registration workflow waits on the deterministic registration approval hook", async () => {
   const registrationId = crypto.randomUUID();
   const state = makeWorkflowLayer(makeAwaitingRegistration(registrationId));
-  workflowMocks.createHook.mockResolvedValue({
+  workflowMocks.hookCreate.mockResolvedValue({
     decision: "rejected",
     reason: "Not eligible",
     reviewer,
@@ -397,8 +400,8 @@ test("registration workflow waits on the deterministic registration approval hoo
   const { registerCompanyWorkflow } = await loadWorkflow(state.layer);
   await registerCompanyWorkflow({ registrationId });
 
-  expect(workflowMocks.createHook).toHaveBeenCalledWith({
-    token: getRegistrationApprovalHookToken(registrationId),
+  expect(workflowMocks.hookCreate).toHaveBeenCalledWith({
+    token: `registration-approval:${registrationId}`,
   });
   expect(state.emailNotifications).toStrictEqual([
     {
@@ -416,24 +419,10 @@ test("registration workflow waits on the deterministic registration approval hoo
   ]);
 });
 
-test("registration workflow rejects an invalid approval hook payload", async () => {
-  const registrationId = crypto.randomUUID();
-  const state = makeWorkflowLayer(makeAwaitingRegistration(registrationId));
-  workflowMocks.createHook.mockResolvedValue({
-    decision: "unexpected",
-    reviewer,
-  });
-
-  const { registerCompanyWorkflow } = await loadWorkflow(state.layer);
-
-  await expect(registerCompanyWorkflow({ registrationId })).rejects.toThrow();
-  expect(state.current).toBeInstanceOf(AwaitingApprovalRegistration);
-});
-
 test("registration workflow approval step runs the Effect approval program", async () => {
   const registrationId = crypto.randomUUID();
   const state = makeWorkflowLayer(makeAwaitingRegistration(registrationId));
-  workflowMocks.createHook
+  workflowMocks.hookCreate
     .mockResolvedValueOnce({
       decision: "approved",
       reason: "Looks good",
@@ -441,10 +430,10 @@ test("registration workflow approval step runs the Effect approval program", asy
     })
     .mockResolvedValueOnce({
       acceptedIdentity: {
-        authUserId: "auth-user-1",
-        email: "ada@example.com",
-        firstName: "Ada",
-        lastName: "Lovelace",
+        authUserId: AuthUserId.make("auth-user-1"),
+        email: Email.make("ada@example.com"),
+        firstName: PersonName.make("Ada"),
+        lastName: PersonName.make("Lovelace"),
       },
       event: "accepted",
     });
@@ -469,10 +458,8 @@ test("registration workflow approval step runs the Effect approval program", asy
     expect(state.current.decision.actor).toBeInstanceOf(
       RegistrationReviewerActor
     );
-    expect(workflowMocks.createHook).toHaveBeenNthCalledWith(2, {
-      token: getRegistrationInvitationHookToken(
-        String(state.current.invitationId)
-      ),
+    expect(workflowMocks.hookCreate).toHaveBeenNthCalledWith(2, {
+      token: `registration-invitation:${state.current.invitationId}`,
     });
   }
   expect(state.linkedAuthUsers).toStrictEqual(["auth-user-1"]);
@@ -501,7 +488,7 @@ test("registration workflow approval step runs the Effect approval program", asy
 test("registration workflow rejection step runs the Effect rejection program", async () => {
   const registrationId = crypto.randomUUID();
   const state = makeWorkflowLayer(makeAwaitingRegistration(registrationId));
-  workflowMocks.createHook.mockResolvedValue({
+  workflowMocks.hookCreate.mockResolvedValue({
     decision: "rejected",
     reason: "Not eligible",
     reviewer,
@@ -530,4 +517,65 @@ test("registration workflow rejection step runs the Effect rejection program", a
       registrationId,
     },
   ]);
+});
+
+test("registration invitation resume uses the workflow hook token", async () => {
+  const registrationId = crypto.randomUUID();
+  const state = makeWorkflowLayer(makeAwaitingRegistration(registrationId));
+  const event = {
+    acceptedIdentity: {
+      authUserId: AuthUserId.make("user_123"),
+      email: Email.make("ada@example.com"),
+      firstName: PersonName.make("Ada"),
+      lastName: PersonName.make("Lovelace"),
+    },
+    event: "accepted" as const,
+  };
+  workflowMocks.hookResume.mockResolvedValue(undefined);
+
+  const { resumeRegistrationInvitationHook } = await loadWorkflow(state.layer);
+  await resumeRegistrationInvitationHook("inv_123", event);
+
+  expect(workflowMocks.hookResume).toHaveBeenCalledWith(
+    "registration-invitation:inv_123",
+    event
+  );
+});
+
+test("registration invitation resume preserves invalid payload field issues", async () => {
+  const registrationId = crypto.randomUUID();
+  const state = makeWorkflowLayer(makeAwaitingRegistration(registrationId));
+  const {
+    isRegistrationWorkflowHookPayloadValidationError,
+    resumeRegistrationInvitationHook,
+  } = await loadWorkflow(state.layer);
+  const invalidEvent = {
+    acceptedIdentity: {
+      authUserId: "user_123",
+      email: 123,
+    },
+    event: "accepted",
+  };
+
+  const failure: unknown = await resumeRegistrationInvitationHook(
+    "inv_123",
+    // @ts-expect-error — exercise the runtime boundary with untrusted input.
+    invalidEvent
+  ).catch((error: unknown) => error);
+
+  expect(
+    isRegistrationWorkflowHookPayloadValidationError(failure)
+  ).toBeTruthy();
+  if (!isRegistrationWorkflowHookPayloadValidationError(failure)) {
+    throw new Error("Expected a workflow hook validation failure");
+  }
+  expect(failure.hook).toBe("invitation");
+  expect(failure.issues).toStrictEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        path: ["acceptedIdentity", "email"],
+      }),
+    ])
+  );
+  expect(workflowMocks.hookResume).not.toHaveBeenCalled();
 });

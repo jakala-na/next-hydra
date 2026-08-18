@@ -1,12 +1,12 @@
 import {
   acceptRegistrationInvitation,
   approveRegistration,
-  getRegistrationApprovalHookToken,
-  getRegistrationInvitationHookToken,
   notifyRegistrationApproved,
   notifyRegistrationAwaitingApproval,
   notifyRegistrationRejected,
+  RegistrationInvitationEvent,
   RegistrationId,
+  RegistrationReviewWorkflowDecision,
   rejectRegistration,
 } from "@repo/registration";
 import {
@@ -18,18 +18,97 @@ import {
 } from "@repo/registration/domain/identity";
 import { toRegistrationDetailResponse } from "@repo/registration/http/registration-api";
 import type { RegistrationDetailResponse } from "@repo/registration/http/registration-api";
-import {
-  RegistrationReviewWorkflowDecision,
-  registrationReviewerActorFromWorkflow,
-} from "@repo/registration/programs/registration-review";
+import { registrationReviewerActorFromWorkflow } from "@repo/registration/programs/registration-review";
 import { Effect, Redacted, Schema } from "effect";
-import { createHook } from "workflow";
+import { defineHook } from "workflow";
 
-import type {
-  RegistrationInvitationEvent,
-  RegistrationWorkflowInput,
-} from "@/lib/registration-workflow-contract";
 import { registrationLayer } from "@/lib/registration/runtime";
+
+type RegistrationWorkflowInput = {
+  readonly registrationId: string;
+};
+
+const RegistrationWorkflowHookName = Schema.Literals([
+  "approval",
+  "invitation",
+]);
+type RegistrationWorkflowHookName = typeof RegistrationWorkflowHookName.Type;
+
+class RegistrationWorkflowHookPayloadValidationError extends Schema.TaggedErrorClass<RegistrationWorkflowHookPayloadValidationError>()(
+  "RegistrationWorkflowHookPayloadValidationError",
+  {
+    hook: RegistrationWorkflowHookName,
+    issues: Schema.Array(Schema.Unknown),
+    message: Schema.String,
+  }
+) {}
+
+export const isRegistrationWorkflowHookPayloadValidationError = Schema.is(
+  RegistrationWorkflowHookPayloadValidationError
+);
+
+const approvalSchema = Schema.toStandardSchemaV1(
+  RegistrationReviewWorkflowDecision
+);
+const invitationSchema = Schema.toStandardSchemaV1(RegistrationInvitationEvent);
+
+const registrationApprovalHook = defineHook({ schema: approvalSchema });
+const registrationInvitationHook = defineHook({ schema: invitationSchema });
+
+const approvalToken = (registrationId: string) =>
+  `registration-approval:${registrationId}`;
+const invitationToken = (invitationId: string) =>
+  `registration-invitation:${invitationId}`;
+
+const validateHookPayload = async <Output>(
+  hook: RegistrationWorkflowHookName,
+  validation:
+    | { readonly value: Output }
+    | { readonly issues: readonly unknown[] }
+    | PromiseLike<
+        { readonly value: Output } | { readonly issues: readonly unknown[] }
+      >
+) => {
+  const result = await validation;
+  if ("issues" in result) {
+    throw new RegistrationWorkflowHookPayloadValidationError({
+      hook,
+      issues: [...result.issues],
+      message: `Registration ${hook} hook payload failed validation`,
+    });
+  }
+};
+
+const createRegistrationApprovalHook = (registrationId: string) =>
+  registrationApprovalHook.create({ token: approvalToken(registrationId) });
+
+export const resumeRegistrationApprovalHook = async (
+  registrationId: string,
+  payload: RegistrationReviewWorkflowDecision
+): Promise<void> => {
+  await validateHookPayload(
+    "approval",
+    approvalSchema["~standard"].validate(payload)
+  );
+  await registrationApprovalHook.resume(approvalToken(registrationId), payload);
+};
+
+const createRegistrationInvitationHook = (invitationId: string) =>
+  registrationInvitationHook.create({ token: invitationToken(invitationId) });
+
+export const resumeRegistrationInvitationHook = async (
+  invitationId: string,
+  payload: RegistrationInvitationEvent
+): Promise<void> => {
+  await validateHookPayload(
+    "invitation",
+    invitationSchema["~standard"].validate(payload)
+  );
+  await registrationInvitationHook.resume(
+    invitationToken(invitationId),
+    payload
+  );
+};
 
 const toPlainRegistrationDetailResponse = (
   registration: RegistrationDetailResponse
@@ -231,12 +310,7 @@ export async function registerCompanyWorkflow(
 
   await notifyAwaitingApprovalStep(input);
 
-  const decisionInput = await createHook<unknown>({
-    token: getRegistrationApprovalHookToken(input.registrationId),
-  });
-  const decision = Schema.decodeUnknownSync(RegistrationReviewWorkflowDecision)(
-    decisionInput
-  );
+  const decision = await createRegistrationApprovalHook(input.registrationId);
 
   if (decision.decision === "approved") {
     const registration = await approveRegistrationStep(input, decision);
@@ -246,9 +320,8 @@ export async function registerCompanyWorkflow(
       throw new Error("Approved registration is missing an invitation id");
     }
 
-    const invitationEvent = await createHook<RegistrationInvitationEvent>({
-      token: getRegistrationInvitationHookToken(invitationId),
-    });
+    const invitationEvent =
+      await createRegistrationInvitationHook(invitationId);
 
     if (invitationEvent.event === "accepted") {
       return await acceptInvitationStep(input, invitationId, invitationEvent, {

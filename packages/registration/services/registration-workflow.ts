@@ -1,6 +1,30 @@
-import { Context, type Effect, Schema } from "effect";
+import { Context, Schema } from "effect";
+import type { Effect } from "effect";
 
-import { AuthUserId, Email, RegistrationId } from "../domain/identity";
+import {
+  AuthUserId,
+  Email,
+  InvitationId,
+  PersonName,
+  RegistrationId,
+} from "../domain/identity";
+
+export const RegistrationInvitationEvent = Schema.Union([
+  Schema.Struct({
+    acceptedIdentity: Schema.Struct({
+      authUserId: AuthUserId,
+      email: Email,
+      firstName: Schema.optional(PersonName),
+      lastName: Schema.optional(PersonName),
+    }),
+    event: Schema.Literal("accepted"),
+  }),
+  Schema.Struct({
+    event: Schema.Literal("revoked"),
+  }),
+]);
+export type RegistrationInvitationEvent =
+  typeof RegistrationInvitationEvent.Type;
 
 export const RegistrationReviewWorkflowReviewer = Schema.Struct({
   authUserId: AuthUserId,
@@ -36,6 +60,15 @@ export class RegistrationWorkflowResumeOutcomeUnknown extends Schema.TaggedError
   }
 ) {}
 
+export class RegistrationWorkflowInvitationResumeOutcomeUnknown extends Schema.TaggedErrorClass<RegistrationWorkflowInvitationResumeOutcomeUnknown>()(
+  "RegistrationWorkflowInvitationResumeOutcomeUnknown",
+  {
+    cause: Schema.Defect,
+    invitationId: InvitationId,
+    message: Schema.String,
+  }
+) {}
+
 /** Provider-neutral capability for handing Registration lifecycle work to the
  * durable workflow engine. Provider diagnostics stay inside these failures. */
 export class RegistrationWorkflow extends Context.Service<
@@ -44,9 +77,16 @@ export class RegistrationWorkflow extends Context.Service<
     readonly start: (
       registrationId: RegistrationId
     ) => Effect.Effect<void, RegistrationWorkflowStartUnavailable>;
-    readonly resume: (
+    readonly resumeReview: (
       registrationId: RegistrationId,
       decision: RegistrationReviewWorkflowDecision
     ) => Effect.Effect<void, RegistrationWorkflowResumeOutcomeUnknown>;
+    readonly resumeInvitation: (
+      invitationId: InvitationId,
+      event: RegistrationInvitationEvent
+    ) => Effect.Effect<
+      void,
+      RegistrationWorkflowInvitationResumeOutcomeUnknown
+    >;
   }
 >()("@repo/registration/RegistrationWorkflow") {}

@@ -122,10 +122,6 @@ export {
   type CompanyRole as CompanyRoleType,
 } from "./domain/roles";
 export {
-  getRegistrationApprovalHookToken,
-  getRegistrationInvitationHookToken,
-} from "./domain/workflow";
-export {
   CreateRegistrationRequest,
   CreateRegistrationResponse,
   ListRegistrationsQuery,
@@ -214,7 +210,9 @@ export {
   type RevokeInvitationInput,
 } from "./services/invitations";
 export {
+  RegistrationInvitationEvent,
   RegistrationWorkflow,
+  RegistrationWorkflowInvitationResumeOutcomeUnknown,
   RegistrationWorkflowResumeOutcomeUnknown,
   RegistrationWorkflowStartUnavailable,
 } from "./services/registration-workflow";

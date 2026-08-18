@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { getRegistrationInvitationHookToken } from "@repo/registration";
+
 import { beforeEach, expect, test, vi } from "vitest";
 
 const HTTP_OK = 200;
@@ -8,7 +8,7 @@ const HTTP_UNAUTHORIZED = 401;
 
 const mocks = vi.hoisted(() => ({
   getWorkosUser: vi.fn(),
-  resumeHook: vi.fn(),
+  resumeRegistrationInvitation: vi.fn(),
   warn: vi.fn(),
 }));
 
@@ -23,8 +23,8 @@ vi.mock("@repo/auth/keys", () => ({
   webhookKeys: () => ({ WORKOS_WEBHOOK_SECRET: "workos-test-secret" }),
 }));
 
-vi.mock("workflow/api", () => ({
-  resumeHook: mocks.resumeHook,
+vi.mock("@/lib/registration/workflow-runtime", () => ({
+  resumeRegistrationInvitation: mocks.resumeRegistrationInvitation,
 }));
 
 vi.mock("@repo/observability/log", () => ({
@@ -60,7 +60,7 @@ const createWebhookRequest = (payload: unknown, signature?: string) => {
 beforeEach(() => {
   vi.resetModules();
   mocks.getWorkosUser.mockReset();
-  mocks.resumeHook.mockReset();
+  mocks.resumeRegistrationInvitation.mockReset();
   mocks.warn.mockReset();
 });
 
@@ -77,7 +77,7 @@ test("unsupported webhook events are ignored", async () => {
   expect(response.status).toBe(HTTP_OK);
   expect(await response.json()).toEqual({ ignored: true, ok: true });
   expect(mocks.getWorkosUser).not.toHaveBeenCalled();
-  expect(mocks.resumeHook).not.toHaveBeenCalled();
+  expect(mocks.resumeRegistrationInvitation).not.toHaveBeenCalled();
 });
 
 test("invalid webhook signatures are rejected", async () => {
@@ -97,9 +97,30 @@ test("invalid webhook signatures are rejected", async () => {
   expect(await response.json()).toEqual({ error: "Invalid WorkOS signature" });
 });
 
-test("revoked invitation events resume the registration invitation hook", async () => {
+test("invalid webhook JSON is rejected before event processing", async () => {
+  const rawBody = "{";
   const { POST } = await loadRoute();
-  mocks.resumeHook.mockResolvedValue(undefined);
+  const response = await POST(
+    new Request("http://localhost/api/webhooks/workos", {
+      body: rawBody,
+      headers: {
+        "content-type": "application/json",
+        "workos-signature": signPayload(rawBody),
+      },
+      method: "POST",
+    })
+  );
+
+  expect(response.status).toBe(HTTP_BAD_REQUEST);
+  expect(await response.json()).toEqual({
+    error: "Invalid WorkOS webhook payload",
+  });
+  expect(mocks.resumeRegistrationInvitation).not.toHaveBeenCalled();
+});
+
+test("revoked invitation events resume the registration workflow", async () => {
+  const { POST } = await loadRoute();
+  mocks.resumeRegistrationInvitation.mockResolvedValue(undefined);
   const response = await POST(
     createWebhookRequest({
       data: { id: "inv_123" },
@@ -110,10 +131,48 @@ test("revoked invitation events resume the registration invitation hook", async 
 
   expect(response.status).toBe(HTTP_OK);
   expect(await response.json()).toEqual({ ok: true });
-  expect(mocks.resumeHook).toHaveBeenCalledWith(
-    getRegistrationInvitationHookToken("inv_123"),
-    { event: "revoked" }
-  );
+  expect(mocks.resumeRegistrationInvitation).toHaveBeenCalledWith({
+    event: { event: "revoked" },
+    invitationId: "inv_123",
+  });
+});
+
+test("workflow payload validation defects escape so WorkOS can retry", async () => {
+  const failure = new Error("Registration invitation hook payload is invalid");
+  mocks.resumeRegistrationInvitation.mockRejectedValue(failure);
+  const { POST } = await loadRoute();
+
+  await expect(
+    POST(
+      createWebhookRequest({
+        data: { id: "inv_123" },
+        event: "invitation.revoked",
+        id: "evt_123",
+      })
+    )
+  ).rejects.toBe(failure);
+  expect(mocks.warn).toHaveBeenCalledWith("WorkOS webhook processing failed", {
+    error: failure,
+  });
+});
+
+test("downstream syntax defects are not mistaken for invalid webhook JSON", async () => {
+  const failure = new SyntaxError("Workflow callback failed to parse state");
+  mocks.resumeRegistrationInvitation.mockRejectedValue(failure);
+  const { POST } = await loadRoute();
+
+  await expect(
+    POST(
+      createWebhookRequest({
+        data: { id: "inv_123" },
+        event: "invitation.revoked",
+        id: "evt_123",
+      })
+    )
+  ).rejects.toBe(failure);
+  expect(mocks.warn).toHaveBeenCalledWith("WorkOS webhook processing failed", {
+    error: failure,
+  });
 });
 
 test("accepted invitation events require an accepted user id", async () => {
@@ -132,14 +191,14 @@ test("accepted invitation events require an accepted user id", async () => {
   });
 });
 
-test("accepted invitation events resume the registration invitation hook", async () => {
+test("accepted invitation events resume the registration workflow", async () => {
   mocks.getWorkosUser.mockResolvedValue({
     email: "ada@example.com",
     firstName: "Ada",
     id: "user_123",
     lastName: "Lovelace",
   });
-  mocks.resumeHook.mockResolvedValue(undefined);
+  mocks.resumeRegistrationInvitation.mockResolvedValue(undefined);
   const { POST } = await loadRoute();
   const response = await POST(
     createWebhookRequest({
@@ -152,9 +211,8 @@ test("accepted invitation events resume the registration invitation hook", async
   expect(response.status).toBe(HTTP_OK);
   expect(await response.json()).toEqual({ ok: true });
   expect(mocks.getWorkosUser).toHaveBeenCalledWith("user_123");
-  expect(mocks.resumeHook).toHaveBeenCalledWith(
-    getRegistrationInvitationHookToken("inv_123"),
-    {
+  expect(mocks.resumeRegistrationInvitation).toHaveBeenCalledWith({
+    event: {
       acceptedIdentity: {
         authUserId: "user_123",
         email: "ada@example.com",
@@ -162,6 +220,7 @@ test("accepted invitation events resume the registration invitation hook", async
         lastName: "Lovelace",
       },
       event: "accepted",
-    }
-  );
+    },
+    invitationId: "inv_123",
+  });
 });

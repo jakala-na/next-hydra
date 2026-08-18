@@ -57,7 +57,7 @@ export const acceptRegistrationReviewDecision = Effect.fn(
     registrationId: input.registrationId,
   });
 
-  yield* workflow.resume(input.registrationId, {
+  yield* workflow.resumeReview(input.registrationId, {
     decision: input.decision,
     reviewer: toWorkflowReviewer(input.reviewer),
     ...(input.reason === undefined ? {} : { reason: input.reason }),

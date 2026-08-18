@@ -102,8 +102,9 @@ describe("acceptRegistrationReviewDecision", () => {
           Layer.succeed(
             RegistrationWorkflow,
             RegistrationWorkflow.of({
-              resume: (registrationId, decision) =>
+              resumeReview: (registrationId, decision) =>
                 Effect.sync(() => resumed.push({ decision, registrationId })),
+              resumeInvitation: () => Effect.die("not used"),
               start: () => Effect.die("not used"),
             })
           )
@@ -142,8 +143,9 @@ describe("acceptRegistrationReviewDecision", () => {
           Layer.succeed(
             RegistrationWorkflow,
             RegistrationWorkflow.of({
-              resume: (registrationId, decision) =>
+              resumeReview: (registrationId, decision) =>
                 Effect.sync(() => resumed.push({ decision, registrationId })),
+              resumeInvitation: () => Effect.die("not used"),
               start: () => Effect.die("not used"),
             })
           )

@@ -28,7 +28,6 @@ import {
   AwaitingApprovalRegistration,
 } from "@repo/registration/domain/registration";
 import type { Registration } from "@repo/registration/domain/registration";
-import { getRegistrationApprovalHookToken } from "@repo/registration/domain/workflow";
 import {
   CreateRegistrationRequest,
   toCompanyRegistrationDetails,
@@ -69,14 +68,9 @@ const HTTP_SERVICE_UNAVAILABLE = 503;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_UNPROCESSABLE_ENTITY = 422;
 
-const workflowApiMocks = vi.hoisted(() => ({
-  resumeHook: vi.fn(),
+const workflowMocks = vi.hoisted(() => ({
+  resumeReview: vi.fn(),
   start: vi.fn(),
-}));
-
-vi.mock(import("workflow/api"), () => ({
-  resumeHook: workflowApiMocks.resumeHook,
-  start: workflowApiMocks.start,
 }));
 
 const registrationPayload = {
@@ -375,7 +369,6 @@ const makeApiLayer = (
 const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
   const { makeRegistrationHttpHandler } =
     await import("../lib/registration/http");
-  const testWorkflow = () => {};
   const authenticationLayer = Layer.succeed(
     AccessTokenVerifier,
     AccessTokenVerifier.of({
@@ -409,7 +402,8 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
   const workflowLayer = Layer.succeed(
     RegistrationWorkflow,
     RegistrationWorkflow.of({
-      resume: (registrationId, decision) =>
+      resumeInvitation: () => Effect.die("not used"),
+      resumeReview: (registrationId, decision) =>
         Effect.tryPromise({
           catch: (cause) =>
             new RegistrationWorkflowResumeOutcomeUnknown({
@@ -417,11 +411,7 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
               message: "Workflow resume outcome is unknown",
               registrationId,
             }),
-          try: () =>
-            workflowApiMocks.resumeHook(
-              getRegistrationApprovalHookToken(registrationId),
-              decision
-            ),
+          try: () => workflowMocks.resumeReview(registrationId, decision),
         }),
       start: (registrationId) =>
         Effect.tryPromise({
@@ -431,7 +421,7 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
               message: "Workflow could not be started",
               registrationId,
             }),
-          try: () => workflowApiMocks.start(testWorkflow, [{ registrationId }]),
+          try: () => workflowMocks.start(registrationId),
         }).pipe(Effect.asVoid),
     })
   );
@@ -446,12 +436,12 @@ const emptyContext = () => Context.empty() as Context.Context<unknown>;
 
 beforeEach(() => {
   vi.resetModules();
-  workflowApiMocks.resumeHook.mockReset();
-  workflowApiMocks.start.mockReset();
+  workflowMocks.resumeReview.mockReset();
+  workflowMocks.start.mockReset();
 });
 
 test("POST /registrations creates an Effect registration and starts the workflow", async () => {
-  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  workflowMocks.start.mockResolvedValue({ id: "run-123" });
   const api = makeApiLayer();
   const { dispose, handler } = await makeHandler(api.layer);
 
@@ -473,9 +463,7 @@ test("POST /registrations creates an Effect registration and starts the workflow
     expect(api.registrations.get(body.registrationId)?.storeKey).toBe(
       "de-fr-uk"
     );
-    expect(workflowApiMocks.start).toHaveBeenCalledWith(expect.any(Function), [
-      { registrationId: body.registrationId },
-    ]);
+    expect(workflowMocks.start).toHaveBeenCalledWith(body.registrationId);
   } finally {
     await dispose();
   }
@@ -500,14 +488,14 @@ test("POST /registrations rejects unsupported storefront locales", async () => {
       issues: [{ path: ["x-context-locale"] }],
     });
     expect(api.registrations.size).toBe(0);
-    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+    expect(workflowMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations maps preflight provider failures to the typed internal error", async () => {
-  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  workflowMocks.start.mockResolvedValue({ id: "run-123" });
   const api = makeApiLayer([], {
     hasCustomerWithEmailFailure: new CommerceAccountUnavailable({
       message: "Commercetools unavailable",
@@ -531,14 +519,14 @@ test("POST /registrations maps preflight provider failures to the typed internal
       recovery: "retry",
     });
     expect(JSON.stringify(body)).not.toContain("Commercetools unavailable");
-    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+    expect(workflowMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations keeps recoverable identity provider outages typed", async () => {
-  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  workflowMocks.start.mockResolvedValue({ id: "run-123" });
   const api = makeApiLayer([], {
     hasIdentityUserWithEmailFailure: new IdentityUserLookupFailure({
       cause: new TypeError("fetch failed"),
@@ -565,14 +553,14 @@ test("POST /registrations keeps recoverable identity provider outages typed", as
       recovery: "retry",
     });
     expect(JSON.stringify(body)).not.toContain("WorkOS");
-    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+    expect(workflowMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations treats identity provider client failures as defects", async () => {
-  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  workflowMocks.start.mockResolvedValue({ id: "run-123" });
   const api = makeApiLayer([], {
     hasIdentityUserWithEmailFailure: new IdentityUserLookupFailure({
       cause: new Error("invalid WorkOS credentials"),
@@ -599,14 +587,14 @@ test("POST /registrations treats identity provider client failures as defects", 
       recovery: "none",
     });
     expect(JSON.stringify(body)).not.toContain("WorkOS");
-    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+    expect(workflowMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations compensates a failed workflow start and recommends retry", async () => {
-  workflowApiMocks.start.mockRejectedValue(new Error("workflow unavailable"));
+  workflowMocks.start.mockRejectedValue(new Error("workflow unavailable"));
   const api = makeApiLayer();
   const { dispose, handler } = await makeHandler(api.layer);
 
@@ -627,7 +615,7 @@ test("POST /registrations compensates a failed workflow start and recommends ret
       recovery: "retry",
     });
     expect(JSON.stringify(body)).not.toContain("workflow unavailable");
-    expect(workflowApiMocks.start).toHaveBeenCalledOnce();
+    expect(workflowMocks.start).toHaveBeenCalledOnce();
     expect(api.registrations.size).toBe(0);
   } finally {
     await dispose();
@@ -635,7 +623,7 @@ test("POST /registrations compensates a failed workflow start and recommends ret
 });
 
 test("POST /registrations rejects duplicate pending registration emails as field errors", async () => {
-  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  workflowMocks.start.mockResolvedValue({ id: "run-123" });
   const existing = makeAwaitingRegistration(crypto.randomUUID(), {
     ...registrationPayload,
     vatId: "VAT-OTHER",
@@ -664,14 +652,14 @@ test("POST /registrations rejects duplicate pending registration emails as field
         },
       ],
     });
-    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+    expect(workflowMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations rejects invalid VAT ids as field errors", async () => {
-  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  workflowMocks.start.mockResolvedValue({ id: "run-123" });
   const api = makeApiLayer([], { invalidVatIds: ["VAT-123"] });
   const { dispose, handler } = await makeHandler(api.layer);
 
@@ -693,14 +681,14 @@ test("POST /registrations rejects invalid VAT ids as field errors", async () => 
         },
       ],
     });
-    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+    expect(workflowMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations can return multiple validation reasons", async () => {
-  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  workflowMocks.start.mockResolvedValue({ id: "run-123" });
   const existing = makeAwaitingRegistration(crypto.randomUUID(), {
     ...registrationPayload,
     vatId: "VAT-OTHER",
@@ -731,14 +719,14 @@ test("POST /registrations can return multiple validation reasons", async () => {
         },
       ],
     });
-    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+    expect(workflowMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations can return field and unsupported country form validation reasons together", async () => {
-  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  workflowMocks.start.mockResolvedValue({ id: "run-123" });
   const api = makeApiLayer([], {
     invalidVatIds: ["VAT-123"],
     supportedRegistrationCountries: ["CA"],
@@ -768,14 +756,14 @@ test("POST /registrations can return field and unsupported country form validati
         },
       ],
     });
-    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+    expect(workflowMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations rejects existing customer emails as field errors", async () => {
-  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  workflowMocks.start.mockResolvedValue({ id: "run-123" });
   const api = makeApiLayer([], { hasCustomerWithEmail: true });
   const { dispose, handler } = await makeHandler(api.layer);
 
@@ -797,14 +785,14 @@ test("POST /registrations rejects existing customer emails as field errors", asy
         },
       ],
     });
-    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+    expect(workflowMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations rejects existing WorkOS user emails as field errors", async () => {
-  workflowApiMocks.start.mockResolvedValue({ id: "run-123" });
+  workflowMocks.start.mockResolvedValue({ id: "run-123" });
   const api = makeApiLayer([], { hasIdentityUserWithEmail: true });
   const { dispose, handler } = await makeHandler(api.layer);
 
@@ -826,7 +814,7 @@ test("POST /registrations rejects existing WorkOS user emails as field errors", 
         },
       ],
     });
-    expect(workflowApiMocks.start).not.toHaveBeenCalled();
+    expect(workflowMocks.start).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
@@ -979,7 +967,7 @@ test("GET /registrations/:id loads a registration through Registrations", async 
 });
 
 test("POST /registrations/:id/approve resumes the deterministic workflow hook", async () => {
-  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  workflowMocks.resumeReview.mockResolvedValue(undefined);
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration]);
   const { dispose, handler } = await makeHandler(api.layer);
@@ -1000,14 +988,11 @@ test("POST /registrations/:id/approve resumes the deterministic workflow hook", 
       registrationId: String(registration.id),
       status: "approval_processing",
     });
-    expect(workflowApiMocks.resumeHook).toHaveBeenCalledWith(
-      getRegistrationApprovalHookToken(String(registration.id)),
-      {
-        decision: "approved",
-        reason: "Looks good",
-        reviewer: reviewerWorkflowPayload,
-      }
-    );
+    expect(workflowMocks.resumeReview).toHaveBeenCalledWith(registration.id, {
+      decision: "approved",
+      reason: "Looks good",
+      reviewer: reviewerWorkflowPayload,
+    });
     expect(api.registrations.get(String(registration.id))?.status).toBe(
       "approval_processing"
     );
@@ -1017,7 +1002,7 @@ test("POST /registrations/:id/approve resumes the deterministic workflow hook", 
 });
 
 test("POST /registrations/:id/approve requires registration.decide permission", async () => {
-  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  workflowMocks.resumeReview.mockResolvedValue(undefined);
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration]);
   const { dispose, handler } = await makeHandler(api.layer);
@@ -1034,14 +1019,14 @@ test("POST /registrations/:id/approve requires registration.decide permission", 
     );
 
     expect(response.status).toBe(HTTP_FORBIDDEN);
-    expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
+    expect(workflowMocks.resumeReview).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations/:id/approve rejects a token whose identity no longer exists", async () => {
-  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  workflowMocks.resumeReview.mockResolvedValue(undefined);
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration], {
     identityUserGetFailure: new IdentityUserNotFound({
@@ -1062,14 +1047,14 @@ test("POST /registrations/:id/approve rejects a token whose identity no longer e
     );
 
     expect(response.status).toBe(HTTP_UNAUTHORIZED);
-    expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
+    expect(workflowMocks.resumeReview).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations/:id/approve reports identity provider failures as unavailable", async () => {
-  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  workflowMocks.resumeReview.mockResolvedValue(undefined);
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration], {
     identityUserGetFailure: new IdentityUserLookupFailure({
@@ -1092,14 +1077,14 @@ test("POST /registrations/:id/approve reports identity provider failures as unav
     );
 
     expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
-    expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
+    expect(workflowMocks.resumeReview).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations/:id/approve treats identity provider client failures as defects", async () => {
-  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  workflowMocks.resumeReview.mockResolvedValue(undefined);
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration], {
     identityUserGetFailure: new IdentityUserLookupFailure({
@@ -1131,14 +1116,14 @@ test("POST /registrations/:id/approve treats identity provider client failures a
       recovery: "none",
     });
     expect(JSON.stringify(body)).not.toContain("WorkOS");
-    expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
+    expect(workflowMocks.resumeReview).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations/:id/approve moves accepted decisions out of awaiting approval list", async () => {
-  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  workflowMocks.resumeReview.mockResolvedValue(undefined);
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration]);
   const { dispose, handler } = await makeHandler(api.layer);
@@ -1167,7 +1152,7 @@ test("POST /registrations/:id/approve moves accepted decisions out of awaiting a
 });
 
 test("POST /registrations/:id/reject does not resume workflow when transition conflicts", async () => {
-  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  workflowMocks.resumeReview.mockResolvedValue(undefined);
   const registration = makeApprovedRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration]);
   const { dispose, handler } = await makeHandler(api.layer);
@@ -1185,14 +1170,14 @@ test("POST /registrations/:id/reject does not resume workflow when transition co
 
     expect(response.status).toBe(HTTP_CONFLICT);
     expect(body._tag).toBe("RegistrationAlreadyApproved");
-    expect(workflowApiMocks.resumeHook).not.toHaveBeenCalled();
+    expect(workflowMocks.resumeReview).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }
 });
 
 test("POST /registrations/:id/approve reports an ambiguous decision outcome as refreshable", async () => {
-  workflowApiMocks.resumeHook.mockRejectedValue(new TypeError("fetch failed"));
+  workflowMocks.resumeReview.mockRejectedValue(new TypeError("fetch failed"));
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration]);
   const { dispose, handler } = await makeHandler(api.layer);
@@ -1227,7 +1212,7 @@ test("POST /registrations/:id/approve reports an ambiguous decision outcome as r
 });
 
 test("POST /registrations/:id/reject resumes the deterministic workflow hook", async () => {
-  workflowApiMocks.resumeHook.mockResolvedValue(undefined);
+  workflowMocks.resumeReview.mockResolvedValue(undefined);
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration]);
   const { dispose, handler } = await makeHandler(api.layer);
@@ -1248,14 +1233,11 @@ test("POST /registrations/:id/reject resumes the deterministic workflow hook", a
       registrationId: String(registration.id),
       status: "approval_processing",
     });
-    expect(workflowApiMocks.resumeHook).toHaveBeenCalledWith(
-      getRegistrationApprovalHookToken(String(registration.id)),
-      {
-        decision: "rejected",
-        reason: "Looks good",
-        reviewer: reviewerWorkflowPayload,
-      }
-    );
+    expect(workflowMocks.resumeReview).toHaveBeenCalledWith(registration.id, {
+      decision: "rejected",
+      reason: "Looks good",
+      reviewer: reviewerWorkflowPayload,
+    });
   } finally {
     await dispose();
   }

@@ -19,7 +19,6 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "server-only": "catalog:",
-    "workflow": "4.8.0",
     "zod": "^3.25.28"
   },
   "devDependencies": {

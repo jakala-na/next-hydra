@@ -132,7 +132,8 @@ const layerWithRecords = (
     invalidVatIds = [],
     supportedCountries = ["US"],
     workflow = RegistrationWorkflow.of({
-      resume: () => Effect.die("not used"),
+      resumeInvitation: () => Effect.die("not used"),
+      resumeReview: () => Effect.die("not used"),
       start: () => Effect.void,
     }),
   }: {
@@ -193,7 +194,8 @@ describe("submitRegistrationForReview", () => {
           "registration-pending" as AwaitingApprovalRegistration["id"],
       });
       const workflow = RegistrationWorkflow.of({
-        resume: () => Effect.die("not used"),
+        resumeInvitation: () => Effect.die("not used"),
+        resumeReview: () => Effect.die("not used"),
         start: (registrationId) =>
           Effect.fail(
             new RegistrationWorkflowStartUnavailable({
@@ -226,7 +228,8 @@ describe("submitRegistrationForReview", () => {
   it.effect("discards the registration when workflow start defects", () => {
     let startedRegistrationId: AwaitingApprovalRegistration["id"] | undefined;
     const workflow = RegistrationWorkflow.of({
-      resume: () => Effect.die("not used"),
+      resumeInvitation: () => Effect.die("not used"),
+      resumeReview: () => Effect.die("not used"),
       start: (registrationId) => {
         startedRegistrationId = registrationId;
         return Effect.die("invalid workflow function");
