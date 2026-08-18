@@ -1,5 +1,7 @@
 import { withLogtail } from "@logtail/next";
 import { withSentryConfig } from "@sentry/nextjs";
+import type { NextConfig } from "next";
+
 import { keys } from "./keys";
 
 export const sentryConfig: Parameters<typeof withSentryConfig>[1] = {
@@ -38,10 +40,13 @@ export const sentryConfig: Parameters<typeof withSentryConfig>[1] = {
   automaticVercelMonitors: true,
 };
 
-export const withSentry = (sourceConfig: object): object => {
+export const withSentry = (sourceConfig: NextConfig): NextConfig => {
   const configWithTranspile = {
     ...sourceConfig,
-    transpilePackages: ["@sentry/nextjs"],
+    transpilePackages: [
+      ...(sourceConfig.transpilePackages ?? []),
+      "@sentry/nextjs",
+    ],
   };
 
   return withSentryConfig(configWithTranspile, sentryConfig);

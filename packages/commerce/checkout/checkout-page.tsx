@@ -3,6 +3,7 @@ import { NextCommerce } from "@repo/commerce/runtime";
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import { AddressBook } from "../services/address-book";
@@ -22,6 +23,8 @@ export async function CheckoutPage({
   };
   readonly locale: Locale;
 }) {
+  await connection();
+
   const pageData = await NextCommerce.runPromise(
     Effect.gen(function* () {
       const state = yield* CheckoutSession.getCurrent().pipe(

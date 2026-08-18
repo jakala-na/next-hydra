@@ -29,6 +29,7 @@ import { makeCheckoutProcedures } from "./procedures";
 import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
 
 const boundary = vi.hoisted(() => ({
+  connection: vi.fn<() => Promise<void>>(() => Promise.resolve()),
   getLocale: vi.fn(async () => "en-US" as const),
   notFound: vi.fn(() => {
     throw new Error("notFound");
@@ -44,6 +45,7 @@ vi.mock("@repo/i18n", () => ({
   useTranslations: () => (key: string) => key,
 }));
 vi.mock("next/navigation", () => ({ notFound: boundary.notFound }));
+vi.mock("next/server", () => ({ connection: boundary.connection }));
 vi.mock("@repo/commerce/runtime", async () => {
   return {
     NextCommerce: {
@@ -170,6 +172,7 @@ const checkoutLayer = () =>
   );
 
 beforeEach(() => {
+  boundary.connection.mockClear();
   boundary.getLocale.mockClear();
   boundary.notFound.mockClear();
   boundary.provide.mockReset();
@@ -218,6 +221,16 @@ describe("Checkout boundaries", () => {
       },
     ]);
     expect(page.props.actions).toEqual(checkoutActions);
+  });
+
+  it("enters dynamic rendering before starting the Effect runtime", async () => {
+    await CheckoutPage({ actions: checkoutActions, locale: "en-US" });
+
+    expect(boundary.connection).toHaveBeenCalledOnce();
+    expect(boundary.connection.mock.invocationCallOrder[0]).toBeLessThan(
+      boundary.runPromise.mock.invocationCallOrder[0] ??
+        Number.POSITIVE_INFINITY
+    );
   });
 
   it("uses notFound when there is no current Checkout", async () => {
