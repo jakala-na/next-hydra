@@ -10,10 +10,8 @@ import {
 import { Effect } from "effect";
 
 import { AppRuntime } from "./app-runtime";
-import {
-  RegistrationReviewers,
-  registrationReviewersLayer,
-} from "./registration-reviewers";
+import { registrationReviewersLayer } from "./registration-reviewers";
+import { RegistrationReviewers } from "./registration-reviewers-api";
 import { SessionActions } from "./session-actions";
 
 const RegistrationReviewerActions = SessionActions.provide(({ session }) =>

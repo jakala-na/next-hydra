@@ -7,7 +7,4 @@ export default defineConfig({
       "server-only": serverOnlyShim,
     },
   },
-  test: {
-    include: ["**/*.test.ts"],
-  },
 });

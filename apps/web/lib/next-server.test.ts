@@ -1,39 +1,76 @@
 import { NextServer } from "@repo/actions/next-server";
 import { Effect } from "effect";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { nextServerLayer } from "./next-server";
-
-const next = vi.hoisted(() => ({
-  revalidatePath:
-    vi.fn<(path: string, type?: "layout" | "page") => undefined>(),
-}));
-
-vi.mock(import("server-only"), () => ({}));
-vi.mock(import("next/cache"), () => ({
-  revalidatePath: next.revalidatePath,
-}));
+import { nextServerLayerFrom } from "./next-server";
 
 describe("Next server adapter", () => {
-  beforeEach(() => {
-    next.revalidatePath.mockClear();
+  it("refreshes the current route", async () => {
+    const calls: string[] = [];
+
+    await Effect.gen(function* refreshCurrentRoute() {
+      const server = yield* NextServer;
+      yield* server.refresh();
+    }).pipe(
+      Effect.provide(
+        nextServerLayerFrom({
+          refresh: () => {
+            calls.push("refresh");
+          },
+          revalidatePath: () => {
+            /* unused */
+          },
+        })
+      ),
+      Effect.runPromise
+    );
+
+    expect(calls).toStrictEqual(["refresh"]);
   });
 
   it("revalidates a path without inventing a cache type", async () => {
+    const paths: { path: string; type?: string }[] = [];
+
     await Effect.gen(function* revalidatePathWithoutType() {
       const server = yield* NextServer;
       yield* server.revalidatePath("/en-US/checkout");
-    }).pipe(Effect.provide(nextServerLayer), Effect.runPromise);
+    }).pipe(
+      Effect.provide(
+        nextServerLayerFrom({
+          refresh: () => {
+            /* unused */
+          },
+          revalidatePath: (path, type) => {
+            paths.push(type === undefined ? { path } : { path, type });
+          },
+        })
+      ),
+      Effect.runPromise
+    );
 
-    expect(next.revalidatePath).toHaveBeenCalledWith("/en-US/checkout");
+    expect(paths).toStrictEqual([{ path: "/en-US/checkout" }]);
   });
 
   it("forwards an explicit cache type", async () => {
+    const paths: { path: string; type?: string }[] = [];
+
     await Effect.gen(function* revalidatePathWithType() {
       const server = yield* NextServer;
       yield* server.revalidatePath("/en-US/checkout", "page");
-    }).pipe(Effect.provide(nextServerLayer), Effect.runPromise);
+    }).pipe(
+      Effect.provide(
+        nextServerLayerFrom({
+          refresh: () => {
+            /* unused */
+          },
+          revalidatePath: (path, type) => {
+            paths.push(type === undefined ? { path } : { path, type });
+          },
+        })
+      ),
+      Effect.runPromise
+    );
 
-    expect(next.revalidatePath).toHaveBeenCalledWith("/en-US/checkout", "page");
+    expect(paths).toStrictEqual([{ path: "/en-US/checkout", type: "page" }]);
   });
 });

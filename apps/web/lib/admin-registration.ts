@@ -1,24 +1,29 @@
 import "server-only";
 import { RegistrationId } from "@repo/registration";
 import type {
-  ApproveRegistrationInput,
   RegistrationDetailStatus,
   RegistrationDetailView,
 } from "@repo/registration/components/admin/registration-view-models";
 import {
   ListRegistrationsQuery,
   PublicRegistrationNotFound,
-  RegistrationDecisionRequest,
 } from "@repo/registration/http/registration-api";
 import type { RegistrationDetailResponse } from "@repo/registration/http/registration-api";
-import { registrationDecisionOutcomeUnknown } from "@repo/registration/public-errors";
 import { Effect, Schema } from "effect";
 
 import {
   ADMIN_REGISTRATION_READ_PERMISSION,
   requireAdminPermission,
 } from "./admin-auth";
-import { makeRegistrationRestClient } from "./registration-rest-client";
+import {
+  RegistrationClient,
+  registrationClientLayer,
+} from "./registration-rest-client";
+
+export {
+  decideAdminRegistration,
+  decideAdminRegistrationWithClient,
+} from "./admin-registration-decide";
 
 export type ListAdminRegistrationsInput = {
   readonly status?: RegistrationDetailStatus;
@@ -38,57 +43,93 @@ const REGISTRATION_REVIEW_STATUSES = [
   "rejected",
 ] as const satisfies readonly RegistrationDetailStatus[];
 
-const logDecisionFailure = (
-  input: ApproveRegistrationInput & {
-    readonly decision: "approved" | "rejected";
-  },
-  error: unknown
-) =>
-  Effect.logError("Failed to save registration decision", error).pipe(
-    Effect.annotateLogs({
-      operation: "registration.admin.decision.save",
-      "registration.decision": input.decision,
-      "registration.id": input.registrationId,
-      service: "web-admin",
-    }),
-    Effect.withLogSpan("registration.admin.decision.save")
-  );
-
 const isRegistrationReviewStatus = (
   status: RegistrationDetailStatus | undefined
-): status is (typeof REGISTRATION_REVIEW_STATUSES)[number] =>
-  Boolean(
-    status &&
-    REGISTRATION_REVIEW_STATUSES.includes(
-      status as (typeof REGISTRATION_REVIEW_STATUSES)[number]
-    )
-  );
+): status is (typeof REGISTRATION_REVIEW_STATUSES)[number] => {
+  if (status === undefined) {
+    return false;
+  }
+
+  for (const reviewStatus of REGISTRATION_REVIEW_STATUSES) {
+    if (status === reviewStatus) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const buildListRegistrationsQuery = (input: ListAdminRegistrationsInput) => {
+  const query = {};
+
+  if (isRegistrationReviewStatus(input.status)) {
+    Object.assign(query, { status: input.status });
+  }
+  if (input.search !== undefined && input.search !== "") {
+    Object.assign(query, { search: input.search });
+  }
+  if (input.cursor !== undefined && input.cursor !== "") {
+    Object.assign(query, { cursor: input.cursor });
+  }
+  if (input.limit !== undefined && input.limit !== 0) {
+    Object.assign(query, { limit: input.limit });
+  }
+
+  return query;
+};
 
 const toRegistrationDetailView = (
   registration: RegistrationDetailResponse
-): RegistrationDetailView => ({
-  registrationId: String(registration.registrationId),
-  status: registration.status,
-  companyName: registration.companyName,
-  companyPhone: registration.companyPhone,
-  vatId: registration.vatId,
-  contactFirstName: registration.contactFirstName,
-  contactLastName: registration.contactLastName,
-  email: registration.email,
-  address: registration.address,
-  ...(registration.invitationId
-    ? { invitationId: String(registration.invitationId) }
-    : {}),
-  createdAt: registration.createdAt,
-  updatedAt: registration.updatedAt,
-  ...(registration.approvedAt ? { approvedAt: registration.approvedAt } : {}),
-  ...(registration.rejectedAt ? { rejectedAt: registration.rejectedAt } : {}),
-  ...(registration.approvalReason
-    ? { approvalReason: registration.approvalReason }
-    : {}),
-  ...(registration.actorEmail ? { actorEmail: registration.actorEmail } : {}),
-  ...(registration.actorName ? { actorName: registration.actorName } : {}),
-});
+): RegistrationDetailView => {
+  const optionalFields: Partial<
+    Pick<
+      RegistrationDetailView,
+      | "invitationId"
+      | "approvedAt"
+      | "rejectedAt"
+      | "approvalReason"
+      | "actorEmail"
+      | "actorName"
+    >
+  > = {};
+
+  if (registration.invitationId !== undefined) {
+    optionalFields.invitationId = String(registration.invitationId);
+  }
+  if (registration.approvedAt !== undefined && registration.approvedAt !== "") {
+    optionalFields.approvedAt = registration.approvedAt;
+  }
+  if (registration.rejectedAt !== undefined && registration.rejectedAt !== "") {
+    optionalFields.rejectedAt = registration.rejectedAt;
+  }
+  if (
+    registration.approvalReason !== undefined &&
+    registration.approvalReason !== ""
+  ) {
+    optionalFields.approvalReason = registration.approvalReason;
+  }
+  if (registration.actorEmail !== undefined && registration.actorEmail !== "") {
+    optionalFields.actorEmail = registration.actorEmail;
+  }
+  if (registration.actorName !== undefined && registration.actorName !== "") {
+    optionalFields.actorName = registration.actorName;
+  }
+
+  return {
+    address: registration.address,
+    companyName: registration.companyName,
+    companyPhone: registration.companyPhone,
+    contactFirstName: registration.contactFirstName,
+    contactLastName: registration.contactLastName,
+    createdAt: registration.createdAt,
+    email: registration.email,
+    registrationId: String(registration.registrationId),
+    status: registration.status,
+    updatedAt: registration.updatedAt,
+    vatId: registration.vatId,
+    ...optionalFields,
+  };
+};
 
 export async function listAdminRegistrations(
   input: ListAdminRegistrationsInput
@@ -98,25 +139,20 @@ export async function listAdminRegistrations(
   );
 
   const result = await Effect.runPromise(
-    Effect.gen(function* result() {
-      const client = yield* makeRegistrationRestClient(session.accessToken);
+    Effect.gen(function* listAdminRegistrationsEffect() {
+      const client = yield* RegistrationClient;
       return yield* client.registrations.list({
-        query: new ListRegistrationsQuery({
-          ...(isRegistrationReviewStatus(input.status)
-            ? { status: input.status }
-            : {}),
-          ...(input.search ? { search: input.search } : {}),
-          ...(input.cursor ? { cursor: input.cursor } : {}),
-          ...(input.limit ? { limit: input.limit } : {}),
-        }),
+        query: new ListRegistrationsQuery(buildListRegistrationsQuery(input)),
       });
-    })
+    }).pipe(Effect.provide(registrationClientLayer(session.accessToken)))
   );
   const items = result.items.map(toRegistrationDetailView);
 
-  return result.nextCursor
-    ? { items, nextCursor: result.nextCursor }
-    : { items };
+  if (result.nextCursor !== undefined && result.nextCursor !== "") {
+    return { items, nextCursor: result.nextCursor };
+  }
+
+  return { items };
 }
 
 export async function getAdminRegistration(input: {
@@ -129,14 +165,14 @@ export async function getAdminRegistration(input: {
   try {
     return toRegistrationDetailView(
       await Effect.runPromise(
-        Effect.gen(function* () {
-          const client = yield* makeRegistrationRestClient(session.accessToken);
+        Effect.gen(function* getAdminRegistrationEffect() {
+          const client = yield* RegistrationClient;
           return yield* client.registrations.get({
             params: {
               registrationId: RegistrationId.make(input.registrationId),
             },
           });
-        })
+        }).pipe(Effect.provide(registrationClientLayer(session.accessToken)))
       )
     );
   } catch (error) {
@@ -147,72 +183,3 @@ export async function getAdminRegistration(input: {
     throw error;
   }
 }
-
-export const decideAdminRegistration = Effect.fn("AdminRegistration.decide")(
-  function* decideAdminRegistrationEffect(
-    input: ApproveRegistrationInput & {
-      readonly decision: "approved" | "rejected";
-    },
-    accessToken: string
-  ) {
-    const client = yield* makeRegistrationRestClient(accessToken);
-    const request = {
-      params: {
-        registrationId: RegistrationId.make(input.registrationId),
-      },
-      payload: new RegistrationDecisionRequest(
-        input.reason ? { reason: input.reason } : {}
-      ),
-    };
-    const result = yield* (
-      input.decision === "approved"
-        ? client.registrations.approve(request)
-        : client.registrations.reject(request)
-    ).pipe(
-      Effect.catchTags({
-        HttpClientError: (error) =>
-          error.reason._tag === "TransportError"
-            ? Effect.fail(
-                registrationDecisionOutcomeUnknown(
-                  RegistrationId.make(input.registrationId)
-                )
-              )
-            : Effect.die(error),
-        InputInvalid: Effect.die,
-        RegistrationHttpResponseError: (error) =>
-          Effect.logError(
-            "Registration decision response violated its HTTP contract",
-            error.cause
-          ).pipe(
-            Effect.andThen(
-              Effect.fail(
-                registrationDecisionOutcomeUnknown(
-                  RegistrationId.make(input.registrationId)
-                )
-              )
-            )
-          ),
-        SchemaError: Effect.die,
-        Unexpected: Effect.die,
-      }),
-      Effect.tapError((error) => logDecisionFailure(input, error)),
-      Effect.annotateLogs({
-        operation: "registration.admin.decision.submit",
-        "registration.decision": input.decision,
-        "registration.id": input.registrationId,
-        service: "web-admin",
-      }),
-      Effect.annotateSpans({
-        "registration.decision": input.decision,
-        "registration.id": input.registrationId,
-        "registration.operation": "decision.submit",
-      }),
-      Effect.withSpan("registration.admin.decision.submit")
-    );
-
-    return {
-      registrationId: result.registrationId,
-      registrationStatus: result.status,
-    };
-  }
-);

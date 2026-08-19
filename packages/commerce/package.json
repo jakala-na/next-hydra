@@ -65,6 +65,7 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "@repo/testing": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

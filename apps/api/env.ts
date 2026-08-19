@@ -5,7 +5,8 @@ import { keys as email } from "@repo/email/keys";
 import { keys as core } from "@repo/next-config/keys";
 import { keys as observability } from "@repo/observability/keys";
 import { createEnv } from "@t3-oss/env-nextjs";
-import { z } from "zod";
+
+import { apiServerEnvFields } from "./env-schema";
 
 export const env = createEnv({
   client: {},
@@ -21,7 +22,5 @@ export const env = createEnv({
   runtimeEnv: {
     REGISTRATION_APPROVER_EMAIL: process.env.REGISTRATION_APPROVER_EMAIL,
   },
-  server: {
-    REGISTRATION_APPROVER_EMAIL: z.string().email(),
-  },
+  server: apiServerEnvFields,
 });

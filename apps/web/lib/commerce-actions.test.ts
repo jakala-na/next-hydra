@@ -1,177 +1,94 @@
-import { CartId } from "@repo/commerce/domain/cart";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextServer } from "@repo/actions/next-server";
+import { Effect, Layer } from "effect";
+import { describe, expect, it } from "vitest";
 
-const boundary = vi.hoisted(() => ({
-  contact:
-    vi.fn<(previousResult: unknown, formData: FormData) => Promise<unknown>>(),
-  delivery:
-    vi.fn<(previousResult: unknown, formData: FormData) => Promise<unknown>>(),
-  revalidatePath: vi.fn<(path: string) => void>(),
-}));
-
-vi.mock("server-only", () => ({}));
-vi.mock("@repo/i18n", () => ({
-  getLocale: () => "en-US",
-  getTranslations: () => (key: string) => key,
-}));
-vi.mock("next/headers", () => ({ cookies: vi.fn<() => void>() }));
-vi.mock("next/server", () => ({ connection: vi.fn<() => void>() }));
-vi.mock("./commerce-runtime", () => ({ CommerceActions: {} }));
-vi.mock("@repo/commerce/cart/procedures", () => ({
-  makeCartProcedures: () => ({
-    addToCartProcedure: { toAction: () => vi.fn<() => void>() },
-    changeCartItemsQuantityProcedure: { toAction: () => vi.fn<() => void>() },
-    removeCartItemProcedure: { toAction: () => vi.fn<() => void>() },
-  }),
-}));
-vi.mock("@repo/commerce/checkout/procedures", () => ({
-  makeCheckoutProcedures: () => ({
-    saveCheckoutContactProcedure: {
-      toFormAction: () => boundary.contact,
-    },
-    saveCheckoutDeliveryDetailsProcedure: {
-      toFormAction: () => boundary.delivery,
-    },
-  }),
-}));
-vi.mock("./app-runtime", async () => {
-  const { NextServer } = await import("@repo/actions/next-server");
-  const { Effect, Layer, ManagedRuntime } = await import("effect");
-  const { NextRequestApi } = await import("./next-request");
-  const testLayer = Layer.mergeAll(
-    Layer.succeed(NextRequestApi, {
-      connect: () => Effect.void,
-      getCookies: () => Effect.die("not used"),
-      getLocale: () => Effect.succeed("en-US" as const),
-    }),
-    Layer.succeed(NextServer, {
-      revalidatePath: (path) =>
-        Effect.sync(() => boundary.revalidatePath(path)),
-    })
-  );
-
-  return { AppRuntime: ManagedRuntime.make(testLayer) };
-});
-
-const { saveCheckoutContact, saveCheckoutDeliveryDetails } =
-  await import("./commerce-actions");
+import {
+  shouldRevalidateContact,
+  shouldRevalidateDeliveryDetails,
+} from "./commerce-action-cache-policy";
+import { NextRequestApi } from "./next-request-api";
 
 describe("Commerce action cache policy", () => {
-  beforeEach(() => {
-    boundary.contact.mockReset();
-    boundary.delivery.mockReset();
-    boundary.revalidatePath.mockClear();
+  it("revalidates Checkout after success and state conflicts", () => {
+    expect(shouldRevalidateContact({ _tag: "Success" })).toBeTruthy();
+    expect(
+      shouldRevalidateContact({
+        _tag: "Failure",
+        failure: { error: { _tag: "CheckoutVersionConflict" } },
+      })
+    ).toBeTruthy();
   });
 
-  it("revalidates Checkout after success and state conflicts", async () => {
-    boundary.contact.mockResolvedValueOnce({
-      _tag: "Success",
-      success: {},
-    });
-    await saveCheckoutContact(null, new FormData());
-
-    boundary.contact.mockResolvedValueOnce({
-      _tag: "Failure",
-      failure: {
-        displayMessage: "Checkout changed",
-        error: {
-          _tag: "CheckoutVersionConflict",
-          cartId: CartId.make("cart-1"),
-          message: "Checkout changed",
-        },
-      },
-    });
-    await saveCheckoutContact(null, new FormData());
-
-    expect(boundary.revalidatePath).toHaveBeenCalledTimes(2);
-    expect(boundary.revalidatePath).toHaveBeenCalledWith("/en-US/checkout");
+  it("does not revalidate for ordinary validation failures", () => {
+    expect(
+      shouldRevalidateContact({
+        _tag: "Failure",
+        failure: { error: { _tag: "CheckoutMutationSchemaFailure" } },
+      })
+    ).toBeFalsy();
   });
 
-  it("does not revalidate for ordinary validation failures", async () => {
-    boundary.contact.mockResolvedValueOnce({
-      _tag: "Failure",
-      failure: {
-        displayMessage: "Invalid input",
-        error: {
-          _tag: "CheckoutMutationSchemaFailure",
-          message: "Invalid input",
-        },
-      },
-    });
-
-    await saveCheckoutContact(null, new FormData());
-
-    expect(boundary.revalidatePath).not.toHaveBeenCalled();
+  it("keeps incomplete Customer Profile recovery in the current form", () => {
+    expect(
+      shouldRevalidateContact({
+        _tag: "Failure",
+        failure: { error: { _tag: "CheckoutCustomerProfileIncomplete" } },
+      })
+    ).toBeFalsy();
   });
 
-  it("keeps incomplete Customer Profile recovery in the current form", async () => {
-    boundary.contact.mockResolvedValueOnce({
-      _tag: "Failure",
-      failure: {
-        displayMessage:
-          "Your customer profile is missing required contact information. Enter it below to continue.",
-        error: {
-          _tag: "CheckoutCustomerProfileIncomplete",
-          category: "bad_input",
-          code: "checkout.contact.customerProfileIncomplete",
-          message: "Customer Profile is incomplete",
-          missingFields: ["email"],
-          recovery: "fix_input",
-        },
-      },
-    });
-
-    await saveCheckoutContact(null, new FormData());
-
-    expect(boundary.revalidatePath).not.toHaveBeenCalled();
+  it("revalidates Checkout after an ambiguous mutation outcome", () => {
+    expect(
+      shouldRevalidateContact({
+        _tag: "Failure",
+        failure: { error: { _tag: "CheckoutMutationOutcomeUnknown" } },
+      })
+    ).toBeTruthy();
   });
 
-  it("revalidates Checkout after an ambiguous mutation outcome", async () => {
-    boundary.contact.mockResolvedValueOnce({
-      _tag: "Failure",
-      failure: {
-        displayMessage: "Refresh Checkout",
-        error: {
-          _tag: "CheckoutMutationOutcomeUnknown",
-          cartId: CartId.make("cart-1"),
-          message: "Contact write outcome is unknown",
+  it("revalidates provider failures only when an Address Book entry may have changed", () => {
+    expect(
+      shouldRevalidateDeliveryDetails({
+        _tag: "Failure",
+        failure: {
+          error: {
+            _tag: "CheckoutMutationProviderFailure",
+            addressBookReference: "office",
+          },
         },
-      },
-    });
-
-    await saveCheckoutContact(null, new FormData());
-
-    expect(boundary.revalidatePath).toHaveBeenCalledOnce();
+      })
+    ).toBeTruthy();
+    expect(
+      shouldRevalidateDeliveryDetails({
+        _tag: "Failure",
+        failure: { error: { _tag: "CheckoutMutationProviderFailure" } },
+      })
+    ).toBeFalsy();
   });
 
-  it("revalidates provider failures only when an Address Book entry may have changed", async () => {
-    boundary.delivery.mockResolvedValueOnce({
-      _tag: "Failure",
-      failure: {
-        displayMessage: "Provider failure",
-        error: {
-          _tag: "CheckoutMutationProviderFailure",
-          addressBookReference: "office",
-          message: "Provider failure",
-          operation: "saveDeliveryDetails",
-        },
-      },
-    });
-    await saveCheckoutDeliveryDetails(null, new FormData());
+  it("revalidates Checkout through NextRequestApi and NextServer Layers", async () => {
+    const paths: string[] = [];
+    const layer = Layer.mergeAll(
+      Layer.succeed(NextRequestApi, {
+        connect: () => Effect.void,
+        getCookies: () => Effect.die("not used"),
+        getLocale: () => Effect.succeed("en-US" as const),
+      }),
+      Layer.succeed(NextServer, {
+        refresh: () => Effect.void,
+        revalidatePath: (path) => Effect.sync(() => paths.push(path)),
+      })
+    );
 
-    boundary.delivery.mockResolvedValueOnce({
-      _tag: "Failure",
-      failure: {
-        displayMessage: "Provider failure",
-        error: {
-          _tag: "CheckoutMutationProviderFailure",
-          message: "Provider failure",
-          operation: "saveDeliveryDetails",
-        },
-      },
-    });
-    await saveCheckoutDeliveryDetails(null, new FormData());
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const request = yield* NextRequestApi;
+        const next = yield* NextServer;
+        const locale = yield* request.getLocale();
+        yield* next.revalidatePath(`/${locale}/checkout`);
+      }).pipe(Effect.provide(layer))
+    );
 
-    expect(boundary.revalidatePath).toHaveBeenCalledOnce();
+    expect(paths).toStrictEqual(["/en-US/checkout"]);
   });
 });

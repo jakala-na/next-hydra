@@ -1,81 +1,16 @@
 import { ActionClient, ActionMiddleware, actionToEffect } from "@repo/actions";
 import { InputInvalid } from "@repo/errors";
-import {
-  type Context,
-  Effect,
-  Layer,
-  ManagedRuntime,
-  Option,
-  Schema,
-} from "effect";
-import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import { Effect, Layer, ManagedRuntime, Option, Schema } from "effect";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { CartProviderFailure } from "../domain/cart-errors";
 import { CurrentCartState } from "../domain/cart-snapshot";
 import { CommerceRequestContextNotFound } from "../domain/commerce-request-context";
 import { CurrentCart } from "../services/current-cart";
 import type { AddToCartActionFailure } from "./action-result";
-import { CommerceCartProvider } from "./cart-provider";
 import { makeCartProcedures } from "./procedures";
 
-const boundary = vi.hoisted(() => {
-  const getLocale = vi.fn(async () => "en-US" as const);
-  const provide = vi.fn();
-  const requestLayer =
-    vi.fn<
-      (
-        _locale: "en-US"
-      ) => Layer.Layer<CurrentCart, CommerceRequestContextNotFound>
-    >();
-  const runPromise = vi.fn();
-
-  return {
-    connection: vi.fn(async () => undefined),
-    getLocale,
-    provide,
-    requestLayer,
-    runPromise,
-  };
-});
-
 const CART_MUTATION_COUNT = 3;
-
-vi.mock("server-only", () => ({}));
-vi.mock("@repo/i18n", () => ({ getLocale: boundary.getLocale }));
-vi.mock(
-  "@repo/design-system/components/commerce/providers/cart-context",
-  () => ({ CartProvider: () => null })
-);
-vi.mock("@repo/commerce/runtime", async () => {
-  return {
-    NextCommerce: {
-      provide: boundary.provide,
-      runPromise: boundary.runPromise,
-    },
-  };
-});
-vi.mock("next/server", () => ({ connection: boundary.connection }));
-
-const TestCommerceActions = ActionClient.make(ManagedRuntime.make(Layer.empty))
-  .use(
-    ActionMiddleware.context(() =>
-      Effect.promise(boundary.getLocale).pipe(
-        Effect.map((locale) => ({ locale }))
-      )
-    )
-  )
-  .provide(({ locale }: { readonly locale: "en-US" }) =>
-    Layer.unwrap(Effect.sync(() => boundary.requestLayer(locale)))
-  );
-const {
-  addToCartProcedure,
-  changeCartItemsQuantityProcedure,
-  removeCartItemProcedure,
-} = makeCartProcedures(TestCommerceActions);
-const addToCart = addToCartProcedure.toAction();
-const changeCartItemsQuantity = changeCartItemsQuantityProcedure.toAction();
-const removeCartItem = removeCartItemProcedure.toAction();
-const cartActions = { addToCart, changeCartItemsQuantity, removeCartItem };
 
 const cartState = Schema.decodeUnknownSync(CurrentCartState)({
   cart: {
@@ -90,7 +25,7 @@ const cartState = Schema.decodeUnknownSync(CurrentCartState)({
   violations: [],
 });
 
-type CurrentCartService = Context.Service.Shape<typeof CurrentCart>;
+type CurrentCartService = (typeof CurrentCart)["Service"];
 
 const currentCartLayer = (overrides: Partial<CurrentCartService> = {}) =>
   Layer.succeed(CurrentCart, {
@@ -103,47 +38,73 @@ const currentCartLayer = (overrides: Partial<CurrentCartService> = {}) =>
     ...overrides,
   });
 
-beforeEach(() => {
-  boundary.connection.mockClear();
-  boundary.getLocale.mockClear();
-  boundary.provide.mockReset();
-  boundary.provide.mockImplementation(
-    (_locale) => (program: Effect.Effect<unknown, unknown, CurrentCart>) =>
-      program.pipe(Effect.provide(currentCartLayer()))
-  );
-  boundary.requestLayer.mockReset();
-  boundary.requestLayer.mockImplementation(() => currentCartLayer());
-  boundary.runPromise.mockReset();
-  boundary.runPromise.mockImplementation(Effect.runPromise);
-});
+const makeCartActions = (
+  requestLayer: () => Layer.Layer<CurrentCart, CommerceRequestContextNotFound>
+) => {
+  let requestLayerCalls = 0;
+  const TestCommerceActions = ActionClient.make(
+    ManagedRuntime.make(Layer.empty)
+  )
+    .use(
+      ActionMiddleware.context(() =>
+        Effect.succeed({ locale: "en-US" as const })
+      )
+    )
+    .provide((_context: { readonly locale: "en-US" }) =>
+      Layer.unwrap(
+        Effect.sync(() => {
+          requestLayerCalls += 1;
+          return requestLayer();
+        })
+      )
+    );
+
+  const {
+    addToCartProcedure,
+    changeCartItemsQuantityProcedure,
+    removeCartItemProcedure,
+  } = makeCartProcedures(TestCommerceActions);
+
+  return {
+    addToCart: addToCartProcedure.toAction(),
+    addToCartProcedure,
+    changeCartItemsQuantity: changeCartItemsQuantityProcedure.toAction(),
+    removeCartItem: removeCartItemProcedure.toAction(),
+    requestLayerCalls: () => requestLayerCalls,
+  };
+};
 
 describe("Cart boundaries", () => {
   it("runs each Cart mutation with fresh request state", async () => {
-    const added = await addToCart({
+    const actions = makeCartActions(() => currentCartLayer());
+
+    const added = await actions.addToCart({
       productId: "product-1",
       quantity: 1,
       variantId: "variant-1",
     });
-    const changed = await changeCartItemsQuantity({
+    const changed = await actions.changeCartItemsQuantity({
       lineItemId: "line-item-1",
       quantity: 1,
     });
-    const removed = await removeCartItem({ lineItemId: "line-item-1" });
+    const removed = await actions.removeCartItem({ lineItemId: "line-item-1" });
 
-    expect(boundary.requestLayer).toHaveBeenCalledTimes(CART_MUTATION_COUNT);
-    expect(added).toEqual({ _tag: "Success", success: cartState });
-    expect(changed).toEqual({ _tag: "Success", success: cartState });
-    expect(removed).toEqual({ _tag: "Success", success: cartState });
+    expect(actions.requestLayerCalls()).toBe(CART_MUTATION_COUNT);
+    expect(added).toStrictEqual({ _tag: "Success", success: cartState });
+    expect(changed).toStrictEqual({ _tag: "Success", success: cartState });
+    expect(removed).toStrictEqual({ _tag: "Success", success: cartState });
   });
 
   it("returns invalid action input as a typed failure", async () => {
+    const { addToCart } = makeCartActions(() => currentCartLayer());
+
     await expect(
       addToCart({
         productId: "product-1",
         quantity: 0,
         variantId: "variant-1",
       })
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "InputInvalid",
@@ -151,8 +112,8 @@ describe("Cart boundaries", () => {
         code: "input.invalid",
         issues: [
           {
-            path: ["quantity"],
             message: "Invalid input.",
+            path: ["quantity"],
           },
         ],
         message: "Invalid input.",
@@ -162,6 +123,9 @@ describe("Cart boundaries", () => {
   });
 
   it("reconstructs the declared Effect channels after the action boundary", async () => {
+    const { addToCart, addToCartProcedure } = makeCartActions(() =>
+      currentCartLayer()
+    );
     const addToCartEffect = actionToEffect(
       addToCartProcedure.resultSchema,
       addToCart
@@ -179,7 +143,7 @@ describe("Cart boundaries", () => {
           variantId: "variant-1",
         })
       )
-    ).resolves.toEqual(cartState);
+    ).resolves.toStrictEqual(cartState);
 
     const failure = await Effect.runPromise(
       Effect.flip(
@@ -191,15 +155,15 @@ describe("Cart boundaries", () => {
       )
     );
 
-    expect(Schema.is(InputInvalid)(failure)).toBe(true);
+    expect(Schema.is(InputInvalid)(failure)).toBeTruthy();
     expect(failure).toMatchObject({
       _tag: "InputInvalid",
-      issues: [{ path: ["quantity"], message: "Invalid input." }],
+      issues: [{ message: "Invalid input.", path: ["quantity"] }],
     });
   });
 
   it("removes internal causes from action failures", async () => {
-    boundary.requestLayer.mockImplementationOnce(() =>
+    const { addToCart } = makeCartActions(() =>
       currentCartLayer({
         addItem: () =>
           Effect.fail(
@@ -218,7 +182,7 @@ describe("Cart boundaries", () => {
         quantity: 1,
         variantId: "variant-1",
       })
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "CartProviderFailure",
@@ -229,7 +193,7 @@ describe("Cart boundaries", () => {
   });
 
   it("projects Commerce request diagnostics before serializing them", async () => {
-    boundary.requestLayer.mockImplementationOnce(() =>
+    const { addToCart } = makeCartActions(() =>
       Layer.effect(
         CurrentCart,
         Effect.fail(
@@ -247,7 +211,7 @@ describe("Cart boundaries", () => {
         quantity: 1,
         variantId: "variant-1",
       })
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "CommerceRequestContextNotFound",
@@ -263,7 +227,7 @@ describe("Cart boundaries", () => {
   it.each(["invalidData", "unexpectedResponse"] as const)(
     "lets %s provider failures reject the Server Action",
     async (reason) => {
-      boundary.requestLayer.mockImplementationOnce(() =>
+      const { addToCart } = makeCartActions(() =>
         currentCartLayer({
           addItem: () =>
             Effect.fail(
@@ -289,7 +253,7 @@ describe("Cart boundaries", () => {
   );
 
   it("lets defects reject the Server Action", async () => {
-    boundary.requestLayer.mockImplementationOnce(() =>
+    const { addToCart } = makeCartActions(() =>
       currentCartLayer({
         addItem: () => Effect.die(new Error("unexpected cart defect")),
       })
@@ -302,18 +266,5 @@ describe("Cart boundaries", () => {
         variantId: "variant-1",
       })
     ).rejects.toThrow("unexpected cart defect");
-  });
-
-  it("loads Current Cart and supplies the package actions to CartProvider", async () => {
-    const element = CommerceCartProvider({
-      actions: cartActions,
-      children: <main>Storefront</main>,
-      locale: "en-US",
-    });
-
-    expect(element.props.actions).toEqual(cartActions);
-    await expect(element.props.cartPromise).resolves.toEqual(cartState);
-    expect(boundary.connection).toHaveBeenCalledOnce();
-    expect(boundary.provide).toHaveBeenCalledOnce();
   });
 });

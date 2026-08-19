@@ -8,16 +8,11 @@ import { keys as observability } from "@repo/observability/keys";
 import { keys as rateLimit } from "@repo/rate-limit/keys";
 import { keys as security } from "@repo/security/keys";
 import { createEnv } from "@t3-oss/env-nextjs";
-import { z } from "zod";
 
-const MINIMUM_CMS_REVALIDATION_SECRET_LENGTH = 32;
+import { webClientEnvFields, webCmsServerEnvFields } from "./env-schema";
 
 export const env = createEnv({
-  client: {
-    NEXT_PUBLIC_ARCHITECTURE_OVERLAYS: z
-      .enum(["true", "false"])
-      .default("false"),
-  },
+  client: webClientEnvFields,
   extends: [
     authWorkos(),
     cms(),
@@ -35,11 +30,5 @@ export const env = createEnv({
     NEXT_PUBLIC_ARCHITECTURE_OVERLAYS:
       process.env.NEXT_PUBLIC_ARCHITECTURE_OVERLAYS,
   },
-  server: {
-    CMS_HOMEPAGE_SLUG: z.string().trim().min(1).default("/"),
-    CMS_REVALIDATION_SECRET: z
-      .string()
-      .min(MINIMUM_CMS_REVALIDATION_SECRET_LENGTH)
-      .optional(),
-  },
+  server: webCmsServerEnvFields,
 });

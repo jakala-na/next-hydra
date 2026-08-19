@@ -19,6 +19,10 @@ import { getTranslations } from "@repo/i18n";
 import { Effect } from "effect";
 
 import { AppRuntime } from "./app-runtime";
+import {
+  shouldRevalidateContact,
+  shouldRevalidateDeliveryDetails,
+} from "./commerce-action-cache-policy";
 import { CommerceActions } from "./commerce-runtime";
 import { NextRequestApi } from "./next-request";
 
@@ -72,22 +76,6 @@ const revalidateCheckout = Effect.fn("CheckoutAction.revalidate")(
     yield* next.revalidatePath(`/${locale}/checkout`);
   }
 );
-
-const shouldRevalidateContact = (result: SaveCheckoutContactActionResult) =>
-  result._tag === "Success" ||
-  result.failure.error._tag === "CheckoutCartMismatch" ||
-  result.failure.error._tag === "CheckoutMutationOutcomeUnknown" ||
-  result.failure.error._tag === "CheckoutVersionConflict";
-
-const shouldRevalidateDeliveryDetails = (
-  result: SaveCheckoutDeliveryDetailsActionResult
-) =>
-  result._tag === "Success" ||
-  result.failure.error._tag === "CheckoutCartMismatch" ||
-  result.failure.error._tag === "CheckoutMutationOutcomeUnknown" ||
-  result.failure.error._tag === "CheckoutVersionConflict" ||
-  (result.failure.error._tag === "CheckoutMutationProviderFailure" &&
-    result.failure.error.addressBookReference !== undefined);
 
 const revalidateCheckoutWhen = async (condition: boolean) => {
   if (condition) {

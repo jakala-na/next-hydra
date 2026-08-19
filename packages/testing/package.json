@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "main": "./index.js",
+  "types": "./index.d.ts",
   "type": "commonjs",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",

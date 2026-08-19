@@ -1,48 +1,44 @@
 import "server-only";
 import { RegistrationHttpApi } from "@repo/registration/http/registration-api";
-import { Data, Effect, Schema } from "effect";
+import { Context, Effect, Layer } from "effect";
 import {
   FetchHttpClient,
   HttpClient,
-  HttpClientError,
   HttpClientRequest,
 } from "effect/unstable/http";
 import { HttpApiClient } from "effect/unstable/httpapi";
 
-import { env } from "@/env";
+import {
+  classifyRegistrationResponse,
+  exposeRegistrationResponseError,
+} from "./registration-http-response-error";
 
 const TRAILING_SLASH_PATTERN = /\/$/u;
 
-const apiBaseUrl = (env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002").replace(
-  TRAILING_SLASH_PATTERN,
-  ""
-);
+const resolveApiBaseUrl = (baseUrl?: string) => {
+  if (baseUrl !== undefined) {
+    return Effect.succeed(baseUrl.replace(TRAILING_SLASH_PATTERN, ""));
+  }
 
-export class RegistrationHttpResponseError extends Data.TaggedError(
-  "RegistrationHttpResponseError"
-)<{
-  readonly cause: Schema.SchemaError | HttpClientError.HttpClientError;
-}> {}
-
-const classifyRegistrationResponse = <A, E, R>(
-  response: Effect.Effect<A, E, R>
-): Effect.Effect<A, E | RegistrationHttpResponseError, R> =>
-  // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This transforms an Effect failure channel, not Promise control flow.
-  Effect.mapError(response, (error) =>
-    Schema.isSchemaError(error) || HttpClientError.isHttpClientError(error)
-      ? new RegistrationHttpResponseError({ cause: error })
-      : error
-  );
-
-const exposeRegistrationResponseError = <A, E, R>(
-  effect: Effect.Effect<A, E, R>
-): Effect.Effect<A, E | RegistrationHttpResponseError, R> => effect;
+  return Effect.promise(async () => {
+    const { env } = await import("@/env");
+    return (env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002").replace(
+      TRAILING_SLASH_PATTERN,
+      ""
+    );
+  });
+};
 
 export const makeRegistrationRestClient = Effect.fn(
   "RegistrationRestClient.make"
-)((accessToken?: string) =>
-  HttpApiClient.make(RegistrationHttpApi, {
-    baseUrl: apiBaseUrl,
+)(function* makeRegistrationRestClientEffect(
+  accessToken?: string,
+  baseUrl?: string
+) {
+  const resolvedBaseUrl = yield* resolveApiBaseUrl(baseUrl);
+
+  return yield* HttpApiClient.make(RegistrationHttpApi, {
+    baseUrl: resolvedBaseUrl,
     transformClient: HttpClient.mapRequest((request) => {
       const acceptedRequest = HttpClientRequest.acceptJson(request);
 
@@ -75,5 +71,25 @@ export const makeRegistrationRestClient = Effect.fn(
       },
     })),
     Effect.provide(FetchHttpClient.layer)
-  )
-);
+  );
+});
+
+export type RegistrationHttpApiClient = Effect.Success<
+  ReturnType<typeof makeRegistrationRestClient>
+>;
+
+export class RegistrationClient extends Context.Service<
+  RegistrationClient,
+  RegistrationHttpApiClient
+>()("@repo/web/RegistrationClient") {}
+
+export const registrationClientLayer = (
+  accessToken?: string,
+  baseUrl?: string
+): Layer.Layer<RegistrationClient> =>
+  Layer.effect(
+    RegistrationClient,
+    makeRegistrationRestClient(accessToken, baseUrl)
+  );
+
+export { RegistrationHttpResponseError } from "./registration-http-response-error";

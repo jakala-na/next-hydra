@@ -1,3 +1,6 @@
+import { ActionClient, ActionMiddleware } from "@repo/actions";
+import { NextServer } from "@repo/actions/next-server";
+import type { Locale } from "@repo/i18n/types";
 import { RegistrationId } from "@repo/registration";
 import {
   RegistrationDecisionOutcomeUnknownFailure,
@@ -5,112 +8,153 @@ import {
   PublicRegistrationConcurrentModificationFailure,
   PublicRegistrationNotFoundFailure,
 } from "@repo/registration/public-errors";
-import { Effect } from "effect";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Effect, Layer, ManagedRuntime, Redacted } from "effect";
+import { describe, expect, it } from "vitest";
 
-const boundary = vi.hoisted(() => ({
-  accessToken: "access-token" as string | undefined,
-  decide:
-    vi.fn<(...args: readonly unknown[]) => Effect.Effect<unknown, unknown>>(),
-  permissions: ["registration.decide"] as readonly string[],
-  revalidatePath: vi.fn<(path: string) => void>(),
-  userId: "user-1" as string | undefined,
-}));
+import { makeAdminRegistrationProcedures } from "./admin-registration-procedures";
+import type { CurrentAuthSnapshot } from "./current-auth-api";
+import { CurrentAuth } from "./current-auth-api";
+import type { NextCookieStore } from "./next-request-api";
+import { NextRequestApi } from "./next-request-api";
+import type { DecideRegistration } from "./registration-reviewers-api";
+import { registrationReviewersLayerFrom } from "./registration-reviewers-api";
+import type { WebSessionActionContext } from "./session-actions";
 
-vi.mock("server-only", () => ({}));
-vi.mock("@repo/auth/server", () => ({ withAuth: vi.fn<() => void>() }));
-vi.mock("@repo/i18n", () => ({ getLocale: () => "en-US" }));
-vi.mock("next/headers", () => ({ cookies: vi.fn<() => void>() }));
-vi.mock("next/server", () => ({ connection: vi.fn<() => void>() }));
-vi.mock("./admin-registration", () => ({
-  decideAdminRegistration: boundary.decide,
-}));
-vi.mock("./app-runtime", async () => {
-  const { NextServer } = await import("@repo/actions/next-server");
-  const {
-    Effect: TestEffect,
-    Layer,
-    ManagedRuntime,
-    Redacted,
-  } = await import("effect");
-  const { CurrentAuth } = await import("./current-auth");
-  const { NextRequestApi } = await import("./next-request");
-  const testLayer = Layer.mergeAll(
-    Layer.succeed(CurrentAuth, {
-      snapshot: TestEffect.sync(() => ({
-        permissions: boundary.permissions,
-        ...(boundary.accessToken === undefined
-          ? {}
-          : { accessToken: Redacted.make(boundary.accessToken) }),
-        ...(boundary.userId === undefined ? {} : { userId: boundary.userId }),
-      })),
-    }),
-    Layer.succeed(NextRequestApi, {
-      connect: () => TestEffect.void,
-      getCookies: () => TestEffect.die("not used"),
-      getLocale: () => TestEffect.succeed("en-US" as const),
-    }),
-    Layer.succeed(NextServer, {
-      revalidatePath: (path) =>
-        TestEffect.sync(() => boundary.revalidatePath(path)),
-    })
+const makeHarness = (options: {
+  readonly decide: DecideRegistration;
+  readonly session?: CurrentAuthSnapshot;
+}) => {
+  const revalidated: string[] = [];
+  const session: CurrentAuthSnapshot = options.session ?? {
+    accessToken: Redacted.make("access-token"),
+    permissions: ["registration.decide"],
+    userId: "user-1",
+  };
+
+  const runtime = ManagedRuntime.make(
+    Layer.mergeAll(
+      Layer.succeed(CurrentAuth, {
+        snapshot: Effect.succeed(session),
+      }),
+      Layer.succeed(NextRequestApi, {
+        connect: () => Effect.void,
+        getCookies: () =>
+          Effect.succeed({
+            delete: () => {
+              /* unused */
+            },
+            get: (): { readonly value: string } | undefined => undefined,
+            set: () => {
+              /* unused */
+            },
+          } satisfies NextCookieStore),
+        getLocale: () => Effect.succeed("en-US"),
+      }),
+      Layer.succeed(NextServer, {
+        refresh: () => Effect.void,
+        revalidatePath: (path) => Effect.sync(() => revalidated.push(path)),
+      })
+    )
   );
 
-  return { AppRuntime: ManagedRuntime.make(testLayer) };
-});
+  const TestActions = ActionClient.make(runtime)
+    .use(ActionMiddleware.context(() => Effect.succeed({ locale: "en-US" })))
+    .use(
+      ActionMiddleware.context<
+        { readonly locale: Locale },
+        Pick<WebSessionActionContext, "session">,
+        CurrentAuth
+      >(() =>
+        CurrentAuth.pipe(
+          Effect.flatMap((currentAuth) => currentAuth.snapshot),
+          Effect.map((currentSession) => ({ session: currentSession }))
+        )
+      )
+    )
+    .provide(({ session: currentSession }) =>
+      registrationReviewersLayerFrom(currentSession, options.decide)
+    );
 
-const { approveRegistration, rejectRegistration } =
-  await import("./admin-registration-actions");
+  const { approveRegistrationProcedure, rejectRegistrationProcedure } =
+    makeAdminRegistrationProcedures(TestActions);
+
+  const revalidate = async () => {
+    await runtime.runPromise(
+      NextServer.pipe(
+        Effect.flatMap((next) =>
+          next.revalidatePath("/admin/registration-approvals")
+        )
+      )
+    );
+  };
+
+  return {
+    approveRegistration: approveRegistrationProcedure.toAction({
+      onSuccess: revalidate,
+    }),
+    rejectRegistration: rejectRegistrationProcedure.toAction({
+      onSuccess: revalidate,
+    }),
+    revalidated,
+  };
+};
 
 describe("admin registration actions", () => {
-  beforeEach(() => {
-    boundary.accessToken = "access-token";
-    boundary.decide.mockReset();
-    boundary.permissions = ["registration.decide"];
-    boundary.revalidatePath.mockClear();
-    boundary.userId = "user-1";
-  });
-
   it("provides authenticated access, encodes success, and revalidates", async () => {
-    boundary.decide.mockReturnValue(
-      Effect.succeed({
-        registrationId: RegistrationId.make("registration-1"),
-        registrationStatus: "approval_processing",
-      })
-    );
+    const calls: {
+      accessToken: string;
+      input: Parameters<DecideRegistration>[0];
+    }[] = [];
+    const { approveRegistration, revalidated } = makeHarness({
+      decide: (input, accessToken) => {
+        calls.push({ accessToken, input });
+        return Effect.succeed({
+          registrationId: RegistrationId.make("registration-1"),
+          registrationStatus: "approval_processing",
+        });
+      },
+    });
 
     await expect(
       approveRegistration({
         reason: "Looks good",
         registrationId: "registration-1",
       })
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       _tag: "Success",
       success: {
         registrationId: "registration-1",
         registrationStatus: "approval_processing",
       },
     });
-    expect(boundary.decide).toHaveBeenCalledWith(
+    expect(calls).toStrictEqual([
       {
-        decision: "approved",
-        reason: "Looks good",
-        registrationId: "registration-1",
+        accessToken: "access-token",
+        input: {
+          decision: "approved",
+          reason: "Looks good",
+          registrationId: "registration-1",
+        },
       },
-      "access-token"
-    );
-    expect(boundary.revalidatePath).toHaveBeenCalledWith(
-      "/admin/registration-approvals"
-    );
+    ]);
+    expect(revalidated).toStrictEqual(["/admin/registration-approvals"]);
   });
 
   it("returns provider-neutral authorization failures without invoking the API", async () => {
-    boundary.accessToken = undefined;
-    boundary.userId = undefined;
+    let decideCalled = false;
+    const { rejectRegistration, revalidated } = makeHarness({
+      decide: () => {
+        decideCalled = true;
+        return Effect.die("should not decide");
+      },
+      session: {
+        permissions: ["registration.decide"],
+      },
+    });
 
     await expect(
       rejectRegistration({ registrationId: "registration-1" })
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "RegistrationApiUnauthorized",
@@ -120,17 +164,25 @@ describe("admin registration actions", () => {
         recovery: "reauthenticate",
       },
     });
-    expect(boundary.decide).not.toHaveBeenCalled();
-    expect(boundary.revalidatePath).not.toHaveBeenCalled();
+    expect(decideCalled).toBeFalsy();
+    expect(revalidated).toStrictEqual([]);
   });
 
   it("returns the standard structural failure before invoking the API", async () => {
+    let decideCalled = false;
+    const { approveRegistration, revalidated } = makeHarness({
+      decide: () => {
+        decideCalled = true;
+        return Effect.die("should not decide");
+      },
+    });
+
     await expect(
       approveRegistration({
         reason: "x".repeat(501),
         registrationId: "registration-1",
       })
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "InputInvalid",
@@ -138,32 +190,33 @@ describe("admin registration actions", () => {
         code: "input.invalid",
         issues: [
           {
-            path: ["reason"],
             message: "Invalid input.",
+            path: ["reason"],
           },
         ],
         message: "Invalid input.",
         recovery: "fix_input",
       },
     });
-    expect(boundary.decide).not.toHaveBeenCalled();
-    expect(boundary.revalidatePath).not.toHaveBeenCalled();
+    expect(decideCalled).toBeFalsy();
+    expect(revalidated).toStrictEqual([]);
   });
 
   it("preserves the complete safe API projection", async () => {
-    boundary.decide.mockReturnValue(
-      Effect.fail(
-        PublicRegistrationNotFoundFailure.make({
-          message: "Registration not found",
-        })
-      )
-    );
+    const { approveRegistration, revalidated } = makeHarness({
+      decide: () =>
+        Effect.fail(
+          PublicRegistrationNotFoundFailure.make({
+            message: "Registration not found",
+          })
+        ),
+    });
 
     const result = await approveRegistration({
       registrationId: "registration-1",
     });
 
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "RegistrationNotFound",
@@ -173,21 +226,22 @@ describe("admin registration actions", () => {
         recovery: "refresh",
       },
     });
-    expect(boundary.revalidatePath).not.toHaveBeenCalled();
+    expect(revalidated).toStrictEqual([]);
   });
 
   it("preserves generic decision conflicts separately from processing", async () => {
-    boundary.decide.mockReturnValue(
-      Effect.fail(
-        PublicRegistrationConcurrentModificationFailure.make({
-          message: "conflict",
-        })
-      )
-    );
+    const { rejectRegistration } = makeHarness({
+      decide: () =>
+        Effect.fail(
+          PublicRegistrationConcurrentModificationFailure.make({
+            message: "conflict",
+          })
+        ),
+    });
 
     await expect(
       rejectRegistration({ registrationId: "registration-1" })
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "RegistrationConcurrentModification",
@@ -200,17 +254,18 @@ describe("admin registration actions", () => {
   });
 
   it("maps typed API availability failures to the public unavailable error", async () => {
-    boundary.decide.mockReturnValue(
-      Effect.fail(
-        RegistrationApiErrorFailure.make({ message: "Service unavailable" })
-      )
-    );
+    const { approveRegistration, revalidated } = makeHarness({
+      decide: () =>
+        Effect.fail(
+          RegistrationApiErrorFailure.make({ message: "Service unavailable" })
+        ),
+    });
 
     const result = await approveRegistration({
       registrationId: "registration-1",
     });
 
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "RegistrationApiError",
@@ -220,22 +275,23 @@ describe("admin registration actions", () => {
         recovery: "retry",
       },
     });
-    expect(boundary.revalidatePath).not.toHaveBeenCalled();
+    expect(revalidated).toStrictEqual([]);
   });
 
   it("preserves an ambiguous decision outcome as refreshable", async () => {
-    boundary.decide.mockReturnValue(
-      Effect.fail(
-        RegistrationDecisionOutcomeUnknownFailure.make({
-          message: "Refresh before taking further action.",
-          registrationId: RegistrationId.make("registration-1"),
-        })
-      )
-    );
+    const { approveRegistration, revalidated } = makeHarness({
+      decide: () =>
+        Effect.fail(
+          RegistrationDecisionOutcomeUnknownFailure.make({
+            message: "Refresh before taking further action.",
+            registrationId: RegistrationId.make("registration-1"),
+          })
+        ),
+    });
 
     await expect(
       approveRegistration({ registrationId: "registration-1" })
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "RegistrationDecisionOutcomeUnknown",
@@ -246,20 +302,21 @@ describe("admin registration actions", () => {
         registrationId: "registration-1",
       },
     });
-    expect(boundary.revalidatePath).not.toHaveBeenCalled();
+    expect(revalidated).toStrictEqual([]);
   });
 
   it("rejects finalized statuses that the decision endpoint cannot return", async () => {
-    boundary.decide.mockReturnValue(
-      Effect.succeed({
-        registrationId: RegistrationId.make("registration-1"),
-        registrationStatus: "approved",
-      })
-    );
+    const { approveRegistration, revalidated } = makeHarness({
+      decide: () =>
+        Effect.sync(() => ({
+          registrationId: RegistrationId.make("registration-1"),
+          registrationStatus: "approved",
+        })),
+    });
 
     await expect(
       approveRegistration({ registrationId: "registration-1" })
-    ).rejects.toThrow();
-    expect(boundary.revalidatePath).not.toHaveBeenCalled();
+    ).rejects.toThrow(/Expected "approval_processing"/u);
+    expect(revalidated).toStrictEqual([]);
   });
 });

@@ -4,16 +4,14 @@ import { CreateRegistrationRequest } from "@repo/registration/http/registration-
 import { RegistrationApiErrorFailure } from "@repo/registration/public-errors";
 import { Effect, Schema } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock(import("server-only"), () => ({}));
-// oxlint-disable-next-line vitest/prefer-import-in-mock -- The real env module requires unrelated application secrets during this isolated adapter test.
-vi.mock("@/env", () => ({
-  env: { NEXT_PUBLIC_API_URL: "http://registration.test" },
-}));
+import {
+  makeRegistrationRestClient,
+  RegistrationHttpResponseError,
+} from "./registration-rest-client";
 
-const { makeRegistrationRestClient, RegistrationHttpResponseError } =
-  await import("./registration-rest-client");
+const API_BASE_URL = "http://registration.test";
 
 const request = new CreateRegistrationRequest({
   address: {
@@ -32,7 +30,7 @@ const request = new CreateRegistrationRequest({
 });
 
 const createRegistration = Effect.gen(function* createRegistrationEffect() {
-  const client = yield* makeRegistrationRestClient();
+  const client = yield* makeRegistrationRestClient(undefined, API_BASE_URL);
 
   return yield* client.registrations.create({
     headers: { "x-context-locale": "en-US" },
@@ -61,7 +59,7 @@ const fetchResponse =
 const failedFetch: typeof globalThis.fetch = async () =>
   await Promise.reject(new TypeError("fetch failed"));
 
-describe("makeRegistrationRestClient", () => {
+describe("registration REST client", () => {
   it("classifies a success response that violates its schema", async () => {
     const fetch = fetchResponse(
       Response.json(

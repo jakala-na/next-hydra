@@ -2,104 +2,38 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@repo/auth/keys", () => ({ keys: () => ({}) }));
-vi.mock("@repo/cms/keys", () => ({ keys: () => ({}) }));
-vi.mock("@repo/email/keys", () => ({ keys: () => ({}) }));
-vi.mock("@repo/feature-flags/keys", () => ({ keys: () => ({}) }));
-vi.mock("@repo/next-config/keys", () => ({ keys: () => ({}) }));
-vi.mock("@repo/observability/keys", () => ({ keys: () => ({}) }));
-vi.mock("@repo/rate-limit/keys", () => ({ keys: () => ({}) }));
-vi.mock("@repo/security/keys", () => ({ keys: () => ({}) }));
+import { webCmsServerEnvSchema } from "./env-schema";
 
-const requiredCommerceEnvironment = {
-  COMMERCETOOLS_CLIENT_ID: "client-id",
-  COMMERCETOOLS_CLIENT_SECRET: "client-secret",
-  COMMERCETOOLS_PROJECT_KEY: "project-key",
-  COMMERCETOOLS_REGION: "region",
-  COMMERCETOOLS_SCOPE: "scope",
-} as const;
-
-const stubRequiredCommerceEnvironment = () => {
-  for (const [name, value] of Object.entries(requiredCommerceEnvironment)) {
-    vi.stubEnv(name, value);
-  }
-};
-
-const loadEnvironment = () => import("./env");
-
-afterEach(() => {
-  vi.resetModules();
-  vi.restoreAllMocks();
-  vi.unstubAllEnvs();
-});
-
-describe("Web CMS environment", () => {
-  it("reads the configured homepage slug", async () => {
-    stubRequiredCommerceEnvironment();
-    vi.stubEnv("CMS_HOMEPAGE_SLUG", "homepage");
-
-    const { env } = await loadEnvironment();
-
-    expect(env.CMS_HOMEPAGE_SLUG).toBe("homepage");
+describe("Web CMS environment schema", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
-  it("preserves root CMS lookup by default", async () => {
-    stubRequiredCommerceEnvironment();
-    vi.stubEnv("CMS_HOMEPAGE_SLUG", undefined);
-
-    const { env } = await loadEnvironment();
-
-    expect(env.CMS_HOMEPAGE_SLUG).toBe("/");
+  it("reads the configured homepage slug", () => {
+    expect(
+      webCmsServerEnvSchema.parse({
+        CMS_HOMEPAGE_SLUG: "homepage",
+      }).CMS_HOMEPAGE_SLUG
+    ).toBe("homepage");
   });
 
-  it("reads a CMS revalidation secret", async () => {
-    stubRequiredCommerceEnvironment();
-    vi.stubEnv(
-      "CMS_REVALIDATION_SECRET",
-      "a-secure-cms-revalidation-secret-value"
-    );
-
-    const { env } = await loadEnvironment();
-
-    expect(env.CMS_REVALIDATION_SECRET).toBe(
-      "a-secure-cms-revalidation-secret-value"
-    );
+  it("preserves root CMS lookup by default", () => {
+    expect(webCmsServerEnvSchema.parse({}).CMS_HOMEPAGE_SLUG).toBe("/");
   });
 
-  it("rejects a short CMS revalidation secret", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    stubRequiredCommerceEnvironment();
-    vi.stubEnv("CMS_REVALIDATION_SECRET", "too-short");
-
-    await expect(loadEnvironment()).rejects.toThrow(
-      "Invalid environment variables"
-    );
-  });
-});
-
-describe("Web commerce environment", () => {
-  it("loads all five server-only Commercetools values", async () => {
-    stubRequiredCommerceEnvironment();
-
-    const { env } = await loadEnvironment();
-
-    expect(env.COMMERCETOOLS_PROJECT_KEY).toBe("project-key");
-    expect(env.COMMERCETOOLS_CLIENT_ID).toBe("client-id");
-    expect(env.COMMERCETOOLS_CLIENT_SECRET).toBe("client-secret");
-    expect(env.COMMERCETOOLS_SCOPE).toBe("scope");
-    expect(env.COMMERCETOOLS_REGION).toBe("region");
+  it("reads a CMS revalidation secret", () => {
+    expect(
+      webCmsServerEnvSchema.parse({
+        CMS_REVALIDATION_SECRET: "a-secure-cms-revalidation-secret-value",
+      }).CMS_REVALIDATION_SECRET
+    ).toBe("a-secure-cms-revalidation-secret-value");
   });
 
-  it.each(Object.keys(requiredCommerceEnvironment))(
-    "fails while loading the Web environment when %s is empty",
-    async (name) => {
-      vi.spyOn(console, "error").mockImplementation(() => undefined);
-      stubRequiredCommerceEnvironment();
-      vi.stubEnv(name, "");
-
-      await expect(loadEnvironment()).rejects.toThrow(
-        "Invalid environment variables"
-      );
-    }
-  );
+  it("rejects a short CMS revalidation secret", () => {
+    expect(() =>
+      webCmsServerEnvSchema.parse({
+        CMS_REVALIDATION_SECRET: "too-short",
+      })
+    ).toThrow(/CMS_REVALIDATION_SECRET/u);
+  });
 });

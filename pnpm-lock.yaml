@@ -159,7 +159,7 @@ importers:
         version: 2.0.0
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -251,13 +251,13 @@ importers:
         version: 2.1.1
       fumadocs-core:
         specifier: 16.4.11
-        version: 16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76)
+        version: 16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3)
       fumadocs-mdx:
         specifier: 14.2.6
-        version: 14.2.6(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@7.3.0(@types/node@22.15.21)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(yaml@2.9.0))
+        version: 14.2.6(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@7.3.0(@types/node@22.15.21)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(yaml@2.9.0))
       fumadocs-ui:
         specifier: 16.4.11
-        version: 16.4.11(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
+        version: 16.4.11(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
       gsap:
         specifier: ^3.14.2
         version: 3.14.2
@@ -266,7 +266,7 @@ importers:
         version: 0.563.0(react@19.2.8)
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       ogl:
         specifier: ^1.0.11
         version: 1.0.11
@@ -378,7 +378,7 @@ importers:
         version: 0.511.0(react@19.2.8)
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -532,7 +532,7 @@ importers:
         version: 10.1.1(acorn@8.18.0)(esbuild@0.28.1)
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -670,7 +670,7 @@ importers:
         version: 0.13.10(@typescript/typescript6@6.0.2)(arktype@2.1.20)(zod@3.25.76)
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -737,7 +737,7 @@ importers:
         version: 6.1.3
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -847,7 +847,7 @@ importers:
         version: 19.2.3(@types/react@19.2.10)
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
@@ -912,6 +912,9 @@ importers:
       '@gql.tada/cli-utils':
         specifier: ^1.6.3
         version: 1.7.2(@0no-co/graphqlsp@1.12.16(@typescript/typescript6@6.0.2)(graphql@16.12.0))(@typescript/typescript6@6.0.2)(graphql@16.12.0)
+      '@repo/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -958,6 +961,9 @@ importers:
       '@effect/vitest':
         specifier: 'catalog:'
         version: 4.0.0-beta.67(effect@4.0.0-beta.67)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.15.21)(jiti@2.7.0)(jsdom@26.1.0(bufferutil@4.0.9))(lightningcss@1.32.0)(msw@2.12.10(@types/node@22.15.21)(@typescript/typescript6@6.0.2))(terser@5.44.0)(yaml@2.9.0))
+      '@repo/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -975,7 +981,7 @@ importers:
         version: 4.0.0-beta.67
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-dom:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
@@ -1049,6 +1055,9 @@ importers:
       '@effect/vitest':
         specifier: 'catalog:'
         version: 4.0.0-beta.67(effect@4.0.0-beta.67)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.15.21)(jiti@2.7.0)(jsdom@26.1.0(bufferutil@4.0.9))(lightningcss@1.32.0)(msw@2.12.10(@types/node@22.15.21)(@typescript/typescript6@6.0.2))(terser@5.44.0)(yaml@2.9.0))
+      '@repo/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -1217,7 +1226,7 @@ importers:
         version: 0.511.0(react@19.2.8)
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1267,6 +1276,9 @@ importers:
         specifier: ^3.25.28
         version: 3.25.76
     devDependencies:
+      '@repo/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -1372,7 +1384,7 @@ importers:
         version: 4.0.2(@opentelemetry/api@1.9.1)(next@16.3.1(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -1438,7 +1450,7 @@ importers:
         version: 19.2.3(@types/react@19.2.10)
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -1472,7 +1484,7 @@ importers:
         version: link:../typescript-config
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -1499,7 +1511,7 @@ importers:
         version: 0.13.10(@typescript/typescript6@6.0.2)(arktype@2.1.20)(zod@3.25.76)
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -1588,7 +1600,7 @@ importers:
         version: link:../versioned-store
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -1681,7 +1693,7 @@ importers:
         version: 19.2.3(@types/react@19.2.10)
       next:
         specifier: 'catalog:'
-        version: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
@@ -14951,9 +14963,9 @@ snapshots:
     dependencies:
       '@formatjs/fast-memoize': 3.1.7
 
-  '@fumadocs/ui@16.4.11(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)':
+  '@fumadocs/ui@16.4.11(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)':
     dependencies:
-      fumadocs-core: 16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76)
+      fumadocs-core: 16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3)
       next-themes: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       postcss-selector-parser: 7.1.1
       react: 19.2.8
@@ -14961,7 +14973,7 @@ snapshots:
       tailwind-merge: 3.6.0
     optionalDependencies:
       '@types/react': 19.2.10
-      next: 16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      next: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       tailwindcss: 4.3.3
 
   '@gql.tada/cli-utils@1.7.2(@0no-co/graphqlsp@1.12.16(@typescript/typescript6@6.0.2)(graphql@16.12.0))(@typescript/typescript6@6.0.2)(graphql@16.12.0)':
@@ -17830,7 +17842,7 @@ snapshots:
   '@sentry/webpack-plugin@5.3.0(webpack@5.102.1(@swc/core@1.15.3(@swc/helpers@0.5.23)))':
     dependencies:
       '@sentry/bundler-plugin-core': 5.3.0
-      webpack: 5.102.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(esbuild@0.25.10)
+      webpack: 5.102.1(@swc/core@1.15.3(@swc/helpers@0.5.23))
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -18006,7 +18018,7 @@ snapshots:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       storybook: 10.1.10(@testing-library/dom@10.4.0)(bufferutil@4.0.9)(prettier@3.7.4)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      styled-jsx: 5.1.6(@babel/core@7.29.7)(react@19.2.8)
+      styled-jsx: 5.1.6(@babel/core@7.26.10)(react@19.2.8)
       vite: 7.3.0(@types/node@22.15.21)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(yaml@2.9.0)
       vite-plugin-storybook-nextjs: 3.1.8(@typescript/typescript6@6.0.2)(next@16.3.1(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(storybook@10.1.10(@testing-library/dom@10.4.0)(bufferutil@4.0.9)(prettier@3.7.4)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(vite@7.3.0(@types/node@22.15.21)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(yaml@2.9.0))
     optionalDependencies:
@@ -18809,7 +18821,7 @@ snapshots:
     dependencies:
       '@types/node': 25.1.0
       tapable: 2.3.0
-      webpack: 5.102.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(esbuild@0.25.10)
+      webpack: 5.102.1(@swc/core@1.15.3(@swc/helpers@0.5.23))
     transitivePeerDependencies:
       - '@swc/core'
       - esbuild
@@ -21762,7 +21774,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76):
+  fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3):
     dependencies:
       '@formatjs/intl-localematcher': 0.8.0
       '@orama/orama': 3.1.18
@@ -21786,22 +21798,22 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.10
       lucide-react: 0.563.0(react@19.2.8)
-      next: 16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      next: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       react-router: 7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      zod: 3.25.76
+      zod: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-mdx@14.2.6(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@7.3.0(@types/node@22.15.21)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(yaml@2.9.0)):
+  fumadocs-mdx@14.2.6(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vite@7.3.0(@types/node@22.15.21)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(yaml@2.9.0)):
     dependencies:
       '@mdx-js/mdx': 3.1.1
       '@standard-schema/spec': 1.1.0
       chokidar: 5.0.0
       esbuild: 0.27.2
       estree-util-value-to-estree: 3.5.0
-      fumadocs-core: 16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76)
+      fumadocs-core: 16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3)
       js-yaml: 4.1.1
       mdast-util-to-markdown: 2.1.2
       picocolors: 1.1.1
@@ -21816,15 +21828,15 @@ snapshots:
       zod: 4.3.6
     optionalDependencies:
       '@types/react': 19.2.10
-      next: 16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      next: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
       vite: 7.3.0(@types/node@22.15.21)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(yaml@2.9.0)
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-ui@16.4.11(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3):
+  fumadocs-ui@16.4.11(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3):
     dependencies:
-      '@fumadocs/ui': 16.4.11(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
+      '@fumadocs/ui': 16.4.11(@types/react@19.2.10)(fumadocs-core@16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(tailwindcss@4.3.3)
       '@radix-ui/react-accordion': 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@radix-ui/react-collapsible': 1.1.12(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -21836,7 +21848,7 @@ snapshots:
       '@radix-ui/react-slot': 1.2.4(@types/react@19.2.10)(react@19.2.8)
       '@radix-ui/react-tabs': 1.1.13(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       class-variance-authority: 0.7.1
-      fumadocs-core: 16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@3.25.76)
+      fumadocs-core: 16.4.11(@types/react@19.2.10)(lucide-react@0.563.0(react@19.2.8))(next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-router@7.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(zod@4.4.3)
       lucide-react: 0.563.0(react@19.2.8)
       next-themes: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
@@ -21845,7 +21857,7 @@ snapshots:
       scroll-into-view-if-needed: 3.1.0
     optionalDependencies:
       '@types/react': 19.2.10
-      next: 16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      next: 16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       tailwindcss: 4.3.3
     transitivePeerDependencies:
       - '@types/react-dom'
@@ -23852,32 +23864,6 @@ snapshots:
       - '@types/node'
       - babel-plugin-macros
 
-  next@16.3.1(@babel/core@7.28.5)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
-    dependencies:
-      '@next/env': 16.3.1
-      '@swc/helpers': 0.5.23
-      baseline-browser-mapping: 2.9.19
-      caniuse-lite: 1.0.30001766
-      postcss: 8.5.23
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-      styled-jsx: 5.1.6(@babel/core@7.28.5)(react@19.2.8)
-    optionalDependencies:
-      '@next/swc-darwin-arm64': 16.3.1
-      '@next/swc-darwin-x64': 16.3.1
-      '@next/swc-linux-arm64-gnu': 16.3.1
-      '@next/swc-linux-arm64-musl': 16.3.1
-      '@next/swc-linux-x64-gnu': 16.3.1
-      '@next/swc-linux-x64-musl': 16.3.1
-      '@next/swc-win32-arm64-msvc': 16.3.1
-      '@next/swc-win32-x64-msvc': 16.3.1
-      '@opentelemetry/api': 1.9.1
-      sharp: 0.35.3(@types/node@22.15.21)
-    transitivePeerDependencies:
-      - '@babel/core'
-      - '@types/node'
-      - babel-plugin-macros
-
   next@16.3.1(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.15.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       '@next/env': 16.3.1
@@ -23913,7 +23899,7 @@ snapshots:
       postcss: 8.5.23
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
-      styled-jsx: 5.1.6(@babel/core@7.29.7)(react@19.2.8)
+      styled-jsx: 5.1.6(@babel/core@7.26.10)(react@19.2.8)
     optionalDependencies:
       '@next/swc-darwin-arm64': 16.3.1
       '@next/swc-darwin-x64': 16.3.1
@@ -25961,13 +25947,6 @@ snapshots:
     optionalDependencies:
       '@babel/core': 7.26.10
 
-  styled-jsx@5.1.6(@babel/core@7.28.5)(react@19.2.8):
-    dependencies:
-      client-only: 0.0.1
-      react: 19.2.8
-    optionalDependencies:
-      '@babel/core': 7.28.5
-
   styled-jsx@5.1.6(@babel/core@7.29.7)(react@19.2.8):
     dependencies:
       client-only: 0.0.1
@@ -26101,7 +26080,7 @@ snapshots:
       schema-utils: 4.3.3
       serialize-javascript: 6.0.2
       terser: 5.44.0
-      webpack: 5.102.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(esbuild@0.25.10)
+      webpack: 5.102.1(@swc/core@1.15.3(@swc/helpers@0.5.23))
     optionalDependencies:
       '@swc/core': 1.15.3(@swc/helpers@0.5.23)
       esbuild: 0.25.10
@@ -27020,7 +26999,7 @@ snapshots:
 
   webpack-virtual-modules@0.6.2: {}
 
-  webpack@5.102.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(esbuild@0.25.10):
+  webpack@5.102.1(@swc/core@1.15.3(@swc/helpers@0.5.23)):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.9

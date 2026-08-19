@@ -58,6 +58,7 @@
     "@drupal-canvas/cli": "^0.22.0",
     "@drupal-canvas/workbench": "^0.10.0",
     "@gql.tada/cli-utils": "^1.6.3",
+    "@repo/testing": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

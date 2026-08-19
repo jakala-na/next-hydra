@@ -13,11 +13,7 @@ import { RegionSelector } from "@repo/design-system/components/layout/region-sel
 import { SearchAutocomplete } from "@repo/design-system/components/layout/search-autocomplete";
 import { SiteFooter } from "@repo/design-system/components/layout/site-footer";
 import { SiteHeader } from "@repo/design-system/components/layout/site-header";
-import {
-  hasLocale,
-  NextIntlClientProvider,
-  setRequestLocale,
-} from "@repo/i18n";
+import { hasLocale, NextIntlClientProvider } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import { ShoppingCart } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -33,6 +29,7 @@ import {
   changeCartItemsQuantity,
   removeCartItem,
 } from "@/lib/commerce-actions";
+import { selectBusinessUnit } from "@/lib/commerce-context-actions";
 
 export const instant = false;
 
@@ -57,7 +54,6 @@ export default async function RootLayout({
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
-  setRequestLocale(locale);
   const navigation = await getNavigation(locale);
   return (
     <DocumentShell lang={locale}>
@@ -87,7 +83,10 @@ export default async function RootLayout({
                   <div className="h-8 w-16 animate-pulse rounded bg-accent-foreground/15" />
                 }
               >
-                <BusinessUnitSwitcher locale={locale} />
+                <BusinessUnitSwitcher
+                  locale={locale}
+                  onSwitchBusinessUnit={selectBusinessUnit}
+                />
               </Suspense>
             }
             MobileMenuSlot={

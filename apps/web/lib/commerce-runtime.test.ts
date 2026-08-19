@@ -1,67 +1,56 @@
+import { ActionClient, ActionMiddleware } from "@repo/actions";
+/* oxlint-disable promise/prefer-await-to-callbacks, promise/prefer-await-to-then -- Effect combinators use callback APIs to transform Effect values. */
 import { makeCartProcedures } from "@repo/commerce/cart/procedures";
 import {
   PositiveCartQuantity,
   ProductId,
   VariantId,
 } from "@repo/commerce/domain/cart";
+import {
+  CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
+  CommerceBusinessUnitLabel,
+  CommerceBusinessUnitMembership,
+  CommerceCustomerId,
+} from "@repo/commerce/domain/commerce-account";
+import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
 import { decodeAnonymousCartCookie } from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
+import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
+import { ProductDiscovery } from "@repo/commerce/product";
+import { makeCommerceApp } from "@repo/commerce/runtime/make-commerce-app";
+import type { CommerceRequestServices } from "@repo/commerce/runtime/make-commerce-app";
+import { AddressBook } from "@repo/commerce/services/address-book";
+import { CartPolicies } from "@repo/commerce/services/cart-policies";
+import { Carts } from "@repo/commerce/services/carts";
+import {
+  CommerceAccountUnavailable,
+  CommerceAccounts,
+} from "@repo/commerce/services/commerce-accounts";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
-import { Effect, Logger, Schema } from "effect";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { StoreKey } from "@repo/commerce/store";
+import type { Locale } from "@repo/i18n/types";
+import { Effect, Layer, Logger, ManagedRuntime, Schema } from "effect";
+import { describe, expect, it } from "vitest";
 
-import { AppRuntime } from "./app-runtime";
-import {
-  CommerceActions,
-  NextCommerce,
-  type NextCommerceRequestError,
-} from "./commerce-runtime";
+import { makeNextCommerceRequest } from "./commerce-request";
+import type { CurrentAuthSnapshot } from "./current-auth-api";
+import { CurrentAuth } from "./current-auth-api";
+import { NextRequestApi } from "./next-request-api";
 
-const request = vi.hoisted(() => ({
-  authUserId: undefined as string | undefined,
-  commerceAccountFailure: undefined as Error | undefined,
-  connection: vi.fn(async () => undefined),
-  cookies: new Map<string, string>(),
-  deleteCookie: vi.fn(),
-  locale: "en-US",
-  setCookie: vi.fn(),
-  withAuth: vi.fn(),
-}));
+const authUserId = AuthUserId.make("auth-user-1");
+const customerId = CommerceCustomerId.make("customer-1");
 
-vi.mock("server-only", () => ({}));
-vi.mock("@repo/auth/server", () => ({ withAuth: request.withAuth }));
-vi.mock("@repo/i18n", () => ({ getLocale: async () => request.locale }));
-vi.mock("next/server", () => ({ connection: request.connection }));
-vi.mock("next/headers", () => ({
-  cookies: async () => ({
-    delete: request.deleteCookie,
-    get: (name: string) => {
-      const value = request.cookies.get(name);
-      return value === undefined ? undefined : { value };
-    },
-    set: request.setCookie,
-  }),
-}));
-vi.mock("@repo/commerce-provider/provider", async () => {
-  const { Effect: ProviderEffect, Layer: ProviderLayer } =
-    await import("effect");
-  const { AddressBook } = await import("@repo/commerce/services/address-book");
-  const { Carts } = await import("@repo/commerce/services/carts");
-  const { CommerceAccountUnavailable, CommerceAccounts } =
-    await import("@repo/commerce/services/commerce-accounts");
-  const { ProductDiscovery } = await import("@repo/commerce/product");
-  const {
-    CommerceBusinessUnitId,
-    CommerceBusinessUnitKey,
-    CommerceBusinessUnitLabel,
-    CommerceBusinessUnitMembership,
-    CommerceCustomerId,
-  } = await import("@repo/commerce/domain/commerce-account");
-  const { AuthUserId } =
-    await import("@repo/commerce/domain/commerce-request-context");
-  const { StoreKey } = await import("@repo/commerce/store");
-  const authUserId = AuthUserId.make("auth-user-1");
-  const customerId = CommerceCustomerId.make("customer-1");
+const logCommerceRequestCause = (error: CommerceAccountUnavailable) =>
+  Effect.logError(error.message, error.cause ?? error).pipe(
+    Effect.annotateLogs({
+      "commerce.error.tag": error._tag,
+    })
+  );
+
+const makeTestCommerceApp = (options?: {
+  readonly commerceAccountFailure?: Error;
+}) => {
   const memoryAccountsLayer = CommerceAccounts.layerMemoryFrom({
     businessUnitMemberships: ["business-unit-1", "business-unit-2"].map(
       (id) => ({
@@ -77,67 +66,142 @@ vi.mock("@repo/commerce-provider/provider", async () => {
     customers: [{ authUserId, customerId }],
   });
 
-  return {
+  return makeCommerceApp({
     addressBookLayer: AddressBook.layerMemory(),
+    cartPoliciesLayer: CartPolicies.layer,
     cartsLayer: Carts.layerMemory(),
-    commerceAccountsLayer: ProviderLayer.effect(
+    checkoutPoliciesLayer: CheckoutPolicies.layer,
+    commerceAccountsLayer: Layer.effect(
       CommerceAccounts,
       CommerceAccounts.pipe(
-        ProviderEffect.map((accounts) =>
+        Effect.map((accounts) =>
           CommerceAccounts.of({
             ...accounts,
             getCustomerIdByAuthUserId: (requestedAuthUserId) =>
-              request.commerceAccountFailure === undefined
+              options?.commerceAccountFailure === undefined
                 ? accounts.getCustomerIdByAuthUserId(requestedAuthUserId)
-                : ProviderEffect.fail(
+                : Effect.fail(
                     new CommerceAccountUnavailable({
-                      cause: request.commerceAccountFailure,
+                      cause: options.commerceAccountFailure,
                       message: "Failed to resolve Commerce account",
                     })
                   ),
           })
         )
       )
-    ).pipe(ProviderLayer.provide(memoryAccountsLayer)),
+    ).pipe(Layer.provide(memoryAccountsLayer)),
     productDiscoveryLayer: ProductDiscovery.testLayer(),
-  };
-});
-
-beforeEach(() => {
-  request.authUserId = undefined;
-  request.commerceAccountFailure = undefined;
-  request.locale = "en-US";
-  request.connection.mockClear();
-  request.cookies.clear();
-  request.deleteCookie.mockClear();
-  request.setCookie.mockReset();
-  request.setCookie.mockImplementation((name, value) => {
-    request.cookies.set(name, value);
   });
-  request.withAuth.mockReset();
-  request.withAuth.mockImplementation(async () => ({
-    user:
-      request.authUserId === undefined ? undefined : { id: request.authUserId },
-  }));
-});
+};
+
+const makeCookieStore = (cookies: Map<string, string>) => {
+  const store = {
+    delete: (name: string) => {
+      cookies.delete(name);
+    },
+    get: (name: string) => {
+      const value = cookies.get(name);
+      return value === undefined ? undefined : { value };
+    },
+    set: (name: string, value: string) => {
+      cookies.set(name, value);
+    },
+  };
+
+  return store;
+};
+
+const makeHarness = (options?: {
+  readonly commerceAccountFailure?: Error;
+  readonly session?: CurrentAuthSnapshot;
+  readonly setCookie?: (name: string, value: string) => void;
+}) => {
+  const cookies = new Map<string, string>();
+  const cookieStore = makeCookieStore(cookies);
+  if (options?.setCookie !== undefined) {
+    cookieStore.set = options.setCookie;
+  }
+  const session: CurrentAuthSnapshot = options?.session ?? { permissions: [] };
+  const commerceApp = makeTestCommerceApp({
+    commerceAccountFailure: options?.commerceAccountFailure,
+  });
+
+  const runtime = ManagedRuntime.make(
+    Layer.mergeAll(
+      commerceApp.layer,
+      Layer.succeed(CurrentAuth, {
+        snapshot: Effect.succeed(session),
+      }),
+      Layer.succeed(NextRequestApi, {
+        connect: () => Effect.void,
+        getCookies: () => Effect.succeed(cookieStore),
+        getLocale: () => Effect.succeed("en-US" satisfies Locale),
+      })
+    )
+  );
+
+  const provide =
+    (locale: Locale) =>
+    <A, E>(program: Effect.Effect<A, E, CommerceRequestServices>) =>
+      makeNextCommerceRequest(locale).pipe(
+        Effect.flatMap((request) => program.pipe(commerceApp.provide(request)))
+      );
+
+  const TestActions = ActionClient.make(runtime)
+    .use(
+      ActionMiddleware.context(() =>
+        Effect.succeed({ locale: "en-US" satisfies Locale })
+      )
+    )
+    .provide(({ locale }) =>
+      Layer.unwrap(
+        makeNextCommerceRequest(locale).pipe(
+          Effect.tapError((error) =>
+            Schema.is(CommerceAccountUnavailable)(error)
+              ? logCommerceRequestCause(error)
+              : Effect.void
+          ),
+          Effect.map((request) =>
+            commerceApp
+              .requestLayer(request)
+              .pipe(
+                Layer.tapError((error) =>
+                  Schema.is(CommerceAccountUnavailable)(error)
+                    ? logCommerceRequestCause(error)
+                    : Effect.void
+                )
+              )
+          )
+        )
+      )
+    );
+
+  return {
+    TestActions,
+    cookieStore,
+    cookies,
+    provide,
+    runPromise: runtime.runPromise.bind(runtime),
+  };
+};
 
 describe("Next Commerce request adapter", () => {
   it("provides an anonymous Commerce Request Input", async () => {
-    const context = await NextCommerce.runPromise(
-      CommerceContext.pipe(NextCommerce.provide("en-US"))
-    );
+    const { provide, runPromise } = makeHarness();
+
+    const context = await runPromise(CommerceContext.pipe(provide("en-US")));
 
     expect(context.principal._tag).toBe("AnonymousCommercePrincipal");
-    expect(request.connection).toHaveBeenCalledOnce();
-    expect(request.withAuth).toHaveBeenCalledOnce();
   });
 
   it("provides the authenticated user and selected Business Unit", async () => {
-    request.authUserId = "auth-user-1";
-    request.cookies.set("business-unit-id", "business-unit-2");
+    const { cookies, provide, runPromise } = makeHarness({
+      session: { permissions: [], userId: "auth-user-1" },
+    });
+    cookies.set("business-unit-id", "business-unit-2");
 
-    const principal = await NextCommerce.runPromise(
-      CommerceContext.customerPrincipal().pipe(NextCommerce.provide("en-US"))
+    const principal = await runPromise(
+      CommerceContext.customerPrincipal().pipe(provide("en-US"))
     );
 
     expect(principal.authUserId).toBe("auth-user-1");
@@ -145,25 +209,28 @@ describe("Next Commerce request adapter", () => {
   });
 
   it("rejects when the trusted authenticated user ID violates its contract", async () => {
-    request.authUserId = "";
+    const { provide, runPromise } = makeHarness({
+      session: { permissions: [], userId: "" },
+    });
 
     await expect(
-      NextCommerce.runPromise(Effect.void.pipe(NextCommerce.provide("en-US")))
+      runPromise(Effect.void.pipe(provide("en-US")))
     ).rejects.toBeDefined();
   });
 
   it("writes a newly created anonymous Cart with the Next cookie adapter", async () => {
-    await NextCommerce.runPromise(
+    const { cookies, provide, runPromise } = makeHarness();
+
+    await runPromise(
       CurrentCart.addItem({
         productId: ProductId.make("product-1"),
         quantity: PositiveCartQuantity.make(1),
         variantId: VariantId.make("variant-1"),
-      }).pipe(Effect.exit, NextCommerce.provide("en-US"))
+      }).pipe(Effect.exit, provide("en-US"))
     );
 
-    expect(request.setCookie).toHaveBeenCalledOnce();
-    const [name, value] = request.setCookie.mock.calls[0] ?? [];
-    expect(name).toBe("cart");
+    const value = cookies.get("cart");
+    expect(value).toBeDefined();
     expect(decodeAnonymousCartCookie(value)).toMatchObject({
       currency: "USD",
       locale: "en-US",
@@ -172,10 +239,12 @@ describe("Next Commerce request adapter", () => {
   });
 
   it("rejects the Add to Cart action when its anonymous Cart cookie cannot be persisted", async () => {
-    request.setCookie.mockImplementationOnce(() => {
-      throw new Error("cookie store unavailable");
+    const { TestActions } = makeHarness({
+      setCookie: () => {
+        throw new Error("cookie store unavailable");
+      },
     });
-    const { addToCartProcedure } = makeCartProcedures(CommerceActions);
+    const { addToCartProcedure } = makeCartProcedures(TestActions);
     const addToCart = addToCartProcedure.toAction();
 
     await expect(
@@ -188,14 +257,13 @@ describe("Next Commerce request adapter", () => {
   });
 
   it("builds an action that encodes request provisioning failures", async () => {
+    const harness = makeHarness();
     const ActionFailure = Schema.Literal("invalid-request");
-    const procedure = CommerceActions.procedure("CommerceTest.action")
+    const procedure = harness.TestActions.procedure("CommerceTest.action")
       .input(Schema.String)
       .output(Schema.String)
       .error(ActionFailure)
-      .mapError(
-        (_error: NextCommerceRequestError) => "invalid-request" as const
-      )
+      .mapError(() => "invalid-request" as const)
       .handle((prefix) =>
         CommerceContext.pipe(
           Effect.map((context) => `${prefix}:${context.store.locale}`)
@@ -203,30 +271,46 @@ describe("Next Commerce request adapter", () => {
       );
     const action = procedure.toAction();
 
-    await expect(action("locale")).resolves.toEqual({
+    await expect(action("locale")).resolves.toStrictEqual({
       _tag: "Success",
       success: "locale:en-US",
     });
 
-    request.authUserId = "";
-    await expect(action("locale")).rejects.toBeDefined();
+    const broken = makeHarness({
+      session: { permissions: [], userId: "" },
+    });
+    const brokenAction = broken.TestActions.procedure(
+      "CommerceTest.actionBroken"
+    )
+      .input(Schema.String)
+      .output(Schema.String)
+      .error(ActionFailure)
+      .mapError(() => "invalid-request" as const)
+      .handle((prefix) =>
+        CommerceContext.pipe(
+          Effect.map((context) => `${prefix}:${context.store.locale}`)
+        )
+      )
+      .toAction();
+
+    await expect(brokenAction("locale")).rejects.toBeDefined();
   });
 
   it("logs provider causes raised while an action request Layer is acquired", async () => {
-    request.authUserId = "auth-user-1";
-    request.commerceAccountFailure = new Error("provider credentials leaked");
     const logOutput: string[] = [];
     const logger = Logger.make(({ message }) => {
       logOutput.push(String(message));
     });
+    const { TestActions, runPromise } = makeHarness({
+      commerceAccountFailure: new Error("provider credentials leaked"),
+      session: { permissions: [], userId: "auth-user-1" },
+    });
     const ActionFailure = Schema.Literal("invalid-request");
-    const procedure = CommerceActions.procedure("CommerceTest.layerFailure")
+    const procedure = TestActions.procedure("CommerceTest.layerFailure")
       .input(Schema.String)
       .output(Schema.String)
       .error(ActionFailure)
-      .mapError(
-        (_error: NextCommerceRequestError) => "invalid-request" as const
-      )
+      .mapError(() => "invalid-request" as const)
       .handle((prefix) =>
         CommerceContext.pipe(
           Effect.map((context) => `${prefix}:${context.store.locale}`)
@@ -234,10 +318,10 @@ describe("Next Commerce request adapter", () => {
       );
 
     await expect(
-      AppRuntime.runPromise(
+      runPromise(
         procedure.effect("locale").pipe(Effect.provide(Logger.layer([logger])))
       )
-    ).resolves.toEqual({ _tag: "Failure", failure: "invalid-request" });
+    ).resolves.toStrictEqual({ _tag: "Failure", failure: "invalid-request" });
     expect(logOutput.join(" ")).toContain("Failed to resolve Commerce account");
   });
 });

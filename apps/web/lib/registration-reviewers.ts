@@ -1,56 +1,35 @@
 import "server-only";
-import { REGISTRATION_DECIDE_PERMISSION } from "@repo/registration/http/registration-api";
-import {
-  registrationForbidden,
-  registrationUnauthorized,
-} from "@repo/registration/public-errors";
-import { Context, Effect, Layer, Redacted } from "effect";
+import type { Effect, Layer } from "effect";
 
-import { decideAdminRegistration } from "./admin-registration";
-import type { CurrentAuthSnapshot } from "./current-auth";
-
-type DecideRegistrationInput = Parameters<typeof decideAdminRegistration>[0];
-type DecideRegistration = (
-  input: DecideRegistrationInput
-) => ReturnType<typeof decideAdminRegistration>;
-
-export class RegistrationReviewers extends Context.Service<
+import { decideAdminRegistration } from "./admin-registration-decide";
+import type { CurrentAuthSnapshot } from "./current-auth-api";
+import type {
+  DecideRegistration,
   RegistrationReviewers,
-  { readonly decide: DecideRegistration }
->()("@repo/web/RegistrationReviewers") {}
+} from "./registration-reviewers-api";
+import { registrationReviewersLayerFrom } from "./registration-reviewers-api";
 
-const unauthorized = registrationUnauthorized;
+export type {
+  DecideRegistration,
+  DecideRegistrationInput,
+} from "./registration-reviewers-api";
+export {
+  RegistrationReviewers,
+  registrationReviewersLayerFrom,
+} from "./registration-reviewers-api";
 
-const forbidden = registrationForbidden;
+const defaultDecide: DecideRegistration = (input, accessToken) =>
+  decideAdminRegistration(input, accessToken);
 
 export const registrationReviewersLayer = (
   session: CurrentAuthSnapshot
 ): Layer.Layer<
   RegistrationReviewers,
-  ReturnType<typeof unauthorized> | ReturnType<typeof forbidden>
-> =>
-  Layer.effect(
-    RegistrationReviewers,
-    Effect.gen(function* registrationReviewersEffect() {
-      if (session.userId === undefined || session.accessToken === undefined) {
-        return yield* Effect.fail(unauthorized());
-      }
-
-      if (!session.permissions.includes(REGISTRATION_DECIDE_PERMISSION)) {
-        return yield* Effect.fail(forbidden());
-      }
-
-      const accessToken = session.accessToken;
-
-      return RegistrationReviewers.of({
-        decide: (input) =>
-          decideAdminRegistration(input, Redacted.value(accessToken)),
-      });
-    })
-  );
+  Layer.Error<ReturnType<typeof registrationReviewersLayerFrom>>
+> => registrationReviewersLayerFrom(session, defaultDecide);
 
 export type RegistrationReviewerDecisionFailure = Effect.Error<
-  ReturnType<DecideRegistration>
+  ReturnType<typeof decideAdminRegistration>
 >;
 
 export type RegistrationReviewerFailure =

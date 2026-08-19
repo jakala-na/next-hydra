@@ -1,5 +1,6 @@
 import path from "node:path";
-import baseConfig from "@repo/testing";
+
+import baseConfig, { serverOnlyShim } from "@repo/testing";
 import { defineConfig, mergeConfig } from "vitest/config";
 
 export default mergeConfig(
@@ -7,6 +8,10 @@ export default mergeConfig(
   defineConfig({
     resolve: {
       alias: [
+        {
+          find: "server-only",
+          replacement: serverOnlyShim,
+        },
         {
           find: "@repo/auth",
           replacement: path.resolve(

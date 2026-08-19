@@ -1,144 +1,167 @@
+import { ActionClient, ActionMiddleware } from "@repo/actions";
 import { StoreKey } from "@repo/commerce/store";
 import { ErrorIssue, makeInputInvalid } from "@repo/errors";
+import type { Locale } from "@repo/i18n/types";
 import { DuplicateRegistrationEmail, RegistrationId } from "@repo/registration";
+import type { RegistrationFormTranslator } from "@repo/registration";
 import {
   RegistrationApiErrorFailure,
   RegistrationApiValidationErrorFailure,
 } from "@repo/registration/public-errors";
-import { Effect } from "effect";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Effect, Layer, ManagedRuntime } from "effect";
+import { describe, expect, it } from "vitest";
 
-import { submitRegistration } from "./registration-actions";
+import { makeRegistrationProcedures } from "./registration-procedures";
+import type { RegistrationHttpApiClient } from "./registration-rest-client";
+import { RegistrationClient } from "./registration-rest-client";
 
-const registrationRequest = vi.hoisted(() => ({
-  create: vi.fn(),
-  getLocale: vi.fn(async () => "en-US" as const),
-  locale: "en-US" as const,
-  redirect: vi.fn(),
-}));
+const AWAITING_APPROVAL_HREF = "/register/awaiting-approval";
 
-vi.mock("server-only", () => ({}));
-vi.mock("@repo/i18n", () => ({
-  getLocale: registrationRequest.getLocale,
-  getTranslations: async () => (key: string) =>
-    ({
-      "errors.invalidSubmission": "Review the highlighted fields.",
-      "errors.submissionOutcomeUnknown":
-        "Registration receipt could not be confirmed.",
-      "errors.submitFailed": "Registration is currently unavailable.",
-      "validation.duplicateEmail": "This email is already registered.",
-      "validation.email": "Enter a valid email address.",
-      "validation.region": "Enter a state, province, or region.",
-    })[key] ?? key,
-}));
-vi.mock("@repo/i18n/navigation", () => ({
-  redirect: registrationRequest.redirect,
-}));
-vi.mock("@repo/observability/effect", async () => {
-  const { Layer } = await import("effect");
-  return { sentryEffectTelemetryLayer: Layer.empty };
-});
-vi.mock("./app-runtime", async () => {
-  const [{ ManagedRuntime }, { nextRequestApiLayer }] = await Promise.all([
-    import("effect"),
-    import("./next-request"),
-  ]);
+const messages = {
+  "errors.invalidSubmission": "Review the highlighted fields.",
+  "errors.submissionOutcomeUnknown":
+    "Registration receipt could not be confirmed.",
+  "errors.submitFailed": "Registration is currently unavailable.",
+  "validation.duplicateEmail": "This email is already registered.",
+  "validation.email": "Enter a valid email address.",
+  "validation.region": "Enter a state, province, or region.",
+} as const;
 
-  return { AppRuntime: ManagedRuntime.make(nextRequestApiLayer) };
-});
-vi.mock("./registration-rest-client", async () => {
-  const { Effect } = await import("effect");
-  return {
-    makeRegistrationRestClient: () =>
-      Effect.succeed({
-        registrations: {
-          create: registrationRequest.create,
-        },
-      }),
-  };
-});
+const isMessageKey = (key: string): key is keyof typeof messages =>
+  key in messages;
+
+const translate: RegistrationFormTranslator = (key) =>
+  isMessageKey(key) ? messages[key] : key;
 
 const validInput = {
+  address: {
+    additionalStreetInfo: "Suite 2",
+    city: "New York",
+    country: "US",
+    postalCode: "10001",
+    region: "NY",
+    streetName: "1 Main Street",
+  },
   companyName: "Hydra Supply",
   companyPhone: "555-0100",
-  vatId: "US123",
   contactFirstName: "Ada",
   contactLastName: "Lovelace",
   email: "ada@example.com",
-  address: {
-    streetName: "1 Main Street",
-    additionalStreetInfo: "Suite 2",
-    postalCode: "10001",
-    city: "New York",
-    region: "NY",
-    country: "US",
-  },
+  vatId: "US123",
 } as const;
 
-beforeEach(() => {
-  registrationRequest.create.mockReset();
-  registrationRequest.getLocale.mockClear();
-  registrationRequest.getLocale.mockImplementation(
-    async () => registrationRequest.locale
-  );
-  registrationRequest.redirect.mockReset();
-});
+const makeHarness = (options: {
+  readonly create: RegistrationHttpApiClient["registrations"]["create"];
+  readonly onRedirect?: (args: {
+    readonly href: string;
+    readonly locale: Locale;
+  }) => void;
+}) => {
+  const redirects: { href: string; locale: Locale }[] = [];
+  // SAFETY: Test stub supplies only the registrations.create handler exercised by these cases.
+  const client: RegistrationHttpApiClient = {
+    registrations: {
+      approve: () => Effect.die("unused"),
+      create: options.create,
+      get: () => Effect.die("unused"),
+      list: () => Effect.die("unused"),
+      reject: () => Effect.die("unused"),
+    },
+  };
+
+  const TestActions = ActionClient.make(ManagedRuntime.make(Layer.empty))
+    .use(
+      ActionMiddleware.context(() =>
+        Effect.succeed({
+          locale: "en-US",
+          t: translate,
+        })
+      )
+    )
+    .provide(() => Layer.succeed(RegistrationClient, client));
+
+  const { submitRegistrationProcedure } =
+    makeRegistrationProcedures(TestActions);
+
+  return {
+    redirects,
+    submitRegistration: submitRegistrationProcedure.toAction({
+      onSuccess: (_registration, { locale }) => {
+        const target = {
+          href: AWAITING_APPROVAL_HREF,
+          locale,
+        };
+        redirects.push(target);
+        options.onRedirect?.(target);
+      },
+    }),
+  };
+};
 
 describe("submitRegistration", () => {
   it("validates and encodes a successful registration before redirecting", async () => {
-    registrationRequest.create.mockReturnValue(
-      Effect.succeed({
-        registrationId: RegistrationId.make("registration-1"),
-        status: "awaiting_approval",
-        storeKey: StoreKey.make("default-store"),
-      })
-    );
+    const creates: Parameters<
+      RegistrationHttpApiClient["registrations"]["create"]
+    >[0][] = [];
+    const { redirects, submitRegistration } = makeHarness({
+      create: (request) => {
+        creates.push(request);
+        return Effect.succeed({
+          registrationId: RegistrationId.make("registration-1"),
+          status: "awaiting_approval",
+          storeKey: StoreKey.make("default-store"),
+        });
+      },
+    });
 
-    await expect(submitRegistration(validInput)).resolves.toEqual({
+    await expect(submitRegistration(validInput)).resolves.toStrictEqual({
       _tag: "Success",
       success: {
         registrationId: "registration-1",
       },
     });
-    expect(registrationRequest.redirect).toHaveBeenCalledWith({
-      href: "/register/awaiting-approval",
-      locale: "en-US",
-    });
-    expect(registrationRequest.create).toHaveBeenCalledWith(
+    expect(redirects).toStrictEqual([
+      { href: "/register/awaiting-approval", locale: "en-US" },
+    ]);
+    expect(creates).toStrictEqual([
       expect.objectContaining({
         headers: { "x-context-locale": "en-US" },
-      })
-    );
-    expect(registrationRequest.getLocale).toHaveBeenCalledOnce();
+      }),
+    ]);
   });
 
   it("propagates Next redirect control flow unchanged", async () => {
     const redirectSignal = new Error("NEXT_REDIRECT");
-    registrationRequest.create.mockReturnValue(
-      Effect.succeed({
-        registrationId: RegistrationId.make("registration-1"),
-        status: "awaiting_approval",
-        storeKey: StoreKey.make("default-store"),
-      })
-    );
-    registrationRequest.redirect.mockImplementationOnce(() => {
-      throw redirectSignal;
+    const { submitRegistration } = makeHarness({
+      create: () =>
+        Effect.succeed({
+          registrationId: RegistrationId.make("registration-1"),
+          status: "awaiting_approval",
+          storeKey: StoreKey.make("default-store"),
+        }),
+      onRedirect: () => {
+        throw redirectSignal;
+      },
     });
 
     await expect(submitRegistration(validInput)).rejects.toBe(redirectSignal);
-    expect(registrationRequest.redirect).toHaveBeenCalledWith({
-      href: "/register/awaiting-approval",
-      locale: "en-US",
-    });
   });
 
   it("returns schema-invalid input through the Effect failure channel", async () => {
+    let createCalled = false;
+    const { redirects, submitRegistration } = makeHarness({
+      create: () => {
+        createCalled = true;
+        return Effect.die("unused");
+      },
+    });
+
     const result = await submitRegistration({
       ...validInput,
       email: "not-an-email",
     });
 
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "InputInvalid",
@@ -146,19 +169,27 @@ describe("submitRegistration", () => {
         code: "input.invalid",
         issues: [
           {
-            path: ["email"],
             message: "Enter a valid email address.",
+            path: ["email"],
           },
         ],
         message: "Invalid input.",
         recovery: "fix_input",
       },
     });
-    expect(registrationRequest.create).not.toHaveBeenCalled();
-    expect(registrationRequest.redirect).not.toHaveBeenCalled();
+    expect(createCalled).toBeFalsy();
+    expect(redirects).toStrictEqual([]);
   });
 
   it("preserves nested Effect Schema paths in translated issues", async () => {
+    let createCalled = false;
+    const { submitRegistration } = makeHarness({
+      create: () => {
+        createCalled = true;
+        return Effect.die("unused");
+      },
+    });
+
     const result = await submitRegistration({
       ...validInput,
       address: {
@@ -167,7 +198,7 @@ describe("submitRegistration", () => {
       },
     });
 
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "InputInvalid",
@@ -175,41 +206,42 @@ describe("submitRegistration", () => {
         code: "input.invalid",
         issues: [
           {
-            path: ["address", "region"],
             message: "Enter a state, province, or region.",
+            path: ["address", "region"],
           },
         ],
         message: "Invalid input.",
         recovery: "fix_input",
       },
     });
-    expect(registrationRequest.create).not.toHaveBeenCalled();
+    expect(createCalled).toBeFalsy();
   });
 
   it("preserves registration validation failures as typed schema data", async () => {
-    registrationRequest.create.mockReturnValue(
-      Effect.fail(
-        RegistrationApiValidationErrorFailure.make({
-          issues: [
-            new ErrorIssue({
-              message: "This email is already registered.",
-              path: ["email"],
-            }),
-          ],
-          message: "Review the highlighted fields.",
-          reasons: [
-            new DuplicateRegistrationEmail({
-              path: "email",
-              code: "duplicateEmail",
-            }),
-          ],
-        })
-      )
-    );
+    const { redirects, submitRegistration } = makeHarness({
+      create: () =>
+        Effect.fail(
+          RegistrationApiValidationErrorFailure.make({
+            issues: [
+              new ErrorIssue({
+                message: "This email is already registered.",
+                path: ["email"],
+              }),
+            ],
+            message: "Review the highlighted fields.",
+            reasons: [
+              new DuplicateRegistrationEmail({
+                code: "duplicateEmail",
+                path: "email",
+              }),
+            ],
+          })
+        ),
+    });
 
     const result = await submitRegistration(validInput);
 
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "RegistrationApiValidationError",
@@ -232,22 +264,23 @@ describe("submitRegistration", () => {
         recovery: "fix_input",
       },
     });
-    expect(registrationRequest.redirect).not.toHaveBeenCalled();
+    expect(redirects).toStrictEqual([]);
   });
 
   it("preserves typed API availability failures at the action boundary", async () => {
-    registrationRequest.create.mockReturnValue(
-      Effect.fail(
-        RegistrationApiErrorFailure.make({
-          message: "The API returned an English availability message.",
-          retryAfterSeconds: 17,
-        })
-      )
-    );
+    const { submitRegistration } = makeHarness({
+      create: () =>
+        Effect.fail(
+          RegistrationApiErrorFailure.make({
+            message: "The API returned an English availability message.",
+            retryAfterSeconds: 17,
+          })
+        ),
+    });
 
     const result = await submitRegistration(validInput);
 
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "RegistrationApiError",
@@ -261,17 +294,18 @@ describe("submitRegistration", () => {
   });
 
   it("maps an ambiguous client transport failure to outcome unknown", async () => {
-    registrationRequest.create.mockReturnValue(
-      Effect.fail({
-        _tag: "HttpClientError",
-        reason: {
-          _tag: "TransportError",
-          cause: Object.assign(new Error("socket reset"), {
-            code: "ECONNRESET",
-          }),
-        },
-      })
-    );
+    const { submitRegistration } = makeHarness({
+      create: () =>
+        Effect.fail({
+          _tag: "HttpClientError",
+          reason: {
+            _tag: "TransportError",
+            cause: Object.assign(new Error("socket reset"), {
+              code: "ECONNRESET",
+            }),
+          },
+        }),
+    });
 
     await expect(submitRegistration(validInput)).resolves.toMatchObject({
       _tag: "Failure",
@@ -287,17 +321,18 @@ describe("submitRegistration", () => {
   });
 
   it("maps a refused connection transport failure to outcome unknown", async () => {
-    registrationRequest.create.mockReturnValue(
-      Effect.fail({
-        _tag: "HttpClientError",
-        reason: {
-          _tag: "TransportError",
-          cause: Object.assign(new Error("connection refused"), {
-            code: "ECONNREFUSED",
-          }),
-        },
-      })
-    );
+    const { submitRegistration } = makeHarness({
+      create: () =>
+        Effect.fail({
+          _tag: "HttpClientError",
+          reason: {
+            _tag: "TransportError",
+            cause: Object.assign(new Error("connection refused"), {
+              code: "ECONNREFUSED",
+            }),
+          },
+        }),
+    });
 
     await expect(submitRegistration(validInput)).resolves.toMatchObject({
       _tag: "Failure",
@@ -313,15 +348,16 @@ describe("submitRegistration", () => {
   });
 
   it("maps a transport failure with an opaque cause to outcome unknown", async () => {
-    registrationRequest.create.mockReturnValue(
-      Effect.fail({
-        _tag: "HttpClientError",
-        reason: {
-          _tag: "TransportError",
-          cause: new TypeError("fetch failed"),
-        },
-      })
-    );
+    const { submitRegistration } = makeHarness({
+      create: () =>
+        Effect.fail({
+          _tag: "HttpClientError",
+          reason: {
+            _tag: "TransportError",
+            cause: new TypeError("fetch failed"),
+          },
+        }),
+    });
 
     await expect(submitRegistration(validInput)).resolves.toMatchObject({
       _tag: "Failure",
@@ -334,12 +370,13 @@ describe("submitRegistration", () => {
   });
 
   it("maps a classified response contract mismatch to outcome unknown", async () => {
-    registrationRequest.create.mockReturnValue(
-      Effect.fail({
-        _tag: "RegistrationHttpResponseError",
-        cause: { _tag: "SchemaError" },
-      })
-    );
+    const { redirects, submitRegistration } = makeHarness({
+      create: () =>
+        Effect.fail({
+          _tag: "RegistrationHttpResponseError",
+          cause: { _tag: "SchemaError" },
+        }),
+    });
 
     await expect(submitRegistration(validInput)).resolves.toMatchObject({
       _tag: "Failure",
@@ -349,29 +386,30 @@ describe("submitRegistration", () => {
         recovery: "none",
       },
     });
-    expect(registrationRequest.redirect).not.toHaveBeenCalled();
+    expect(redirects).toStrictEqual([]);
   });
 
   it("rejects an unclassified schema error as a defect", async () => {
-    registrationRequest.create.mockReturnValue(
-      Effect.fail({ _tag: "SchemaError" })
-    );
+    const { redirects, submitRegistration } = makeHarness({
+      create: () => Effect.fail({ _tag: "SchemaError" }),
+    });
 
     await expect(submitRegistration(validInput)).rejects.toBeDefined();
-    expect(registrationRequest.redirect).not.toHaveBeenCalled();
+    expect(redirects).toStrictEqual([]);
   });
 
   it("rejects downstream bad requests after the action input was decoded", async () => {
-    registrationRequest.create.mockReturnValue(
-      Effect.fail(
-        makeInputInvalid({
-          issues: [
-            new ErrorIssue({ message: "HTTP contract drift", path: [] }),
-          ],
-          message: "HTTP contract drift",
-        })
-      )
-    );
+    const { submitRegistration } = makeHarness({
+      create: () =>
+        Effect.fail(
+          makeInputInvalid({
+            issues: [
+              new ErrorIssue({ message: "HTTP contract drift", path: [] }),
+            ],
+            message: "HTTP contract drift",
+          })
+        ),
+    });
 
     await expect(submitRegistration(validInput)).rejects.toMatchObject({
       _tag: "InputInvalid",

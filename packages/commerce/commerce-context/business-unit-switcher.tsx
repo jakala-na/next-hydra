@@ -1,24 +1,30 @@
 import "server-only";
-
 import { NextCommerce } from "@repo/commerce/runtime";
 import { BusinessUnitSwitcher as BusinessUnitSwitcherView } from "@repo/design-system/components/layout/business-unit-switcher";
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
+
 import { CommerceAccounts } from "../services/commerce-accounts";
 import { CommerceContext } from "../services/commerce-context";
-import { selectBusinessUnit } from "./actions";
 
 interface BusinessUnitSwitcherProps {
   readonly locale: Locale;
+  readonly onSwitchBusinessUnit: (businessUnitId: string) => Promise<void>;
 }
 
-export async function BusinessUnitSwitcher({
-  locale,
-}: BusinessUnitSwitcherProps) {
-  await connection();
+type BusinessUnitSwitcherData = {
+  readonly currentBusinessUnitId: string;
+  readonly items: readonly {
+    readonly id: string;
+    readonly label: string;
+  }[];
+};
 
+async function loadBusinessUnitSwitcherData(
+  locale: Locale
+): Promise<BusinessUnitSwitcherData | null> {
   try {
     const result = await NextCommerce.runPromise(
       Effect.gen(function* () {
@@ -56,20 +62,37 @@ export async function BusinessUnitSwitcher({
       return null;
     }
 
-    return (
-      <BusinessUnitSwitcherView
-        currentBusinessUnitId={result.success.currentBusinessUnitId}
-        items={result.success.items}
-        onSwitchBusinessUnit={selectBusinessUnit}
-      />
-    );
-  } catch (cause) {
-    unstable_rethrow(cause);
+    return result.success;
+  } catch (error) {
+    unstable_rethrow(error);
     await Effect.runPromise(
-      Effect.logError("Failed to load Business Unit switcher", cause).pipe(
+      Effect.logError("Failed to load Business Unit switcher", error).pipe(
         Effect.annotateLogs({ operation: "buyingContext.switcher.load" })
       )
     );
     return null;
   }
+}
+
+export async function BusinessUnitSwitcher({
+  locale,
+  onSwitchBusinessUnit,
+}: BusinessUnitSwitcherProps) {
+  await connection();
+
+  const switcherData = await loadBusinessUnitSwitcherData(locale);
+
+  if (switcherData === null) {
+    return null;
+  }
+
+  return (
+    <BusinessUnitSwitcherView
+      currentBusinessUnitId={switcherData.currentBusinessUnitId}
+      items={switcherData.items}
+      onSwitchBusinessUnit={(businessUnitId) => {
+        void onSwitchBusinessUnit(businessUnitId);
+      }}
+    />
+  );
 }
