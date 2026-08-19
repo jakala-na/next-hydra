@@ -3,7 +3,40 @@ import { defineConfig } from "oxlint";
 import core from "ultracite/oxlint/core";
 import next from "ultracite/oxlint/next";
 import react from "ultracite/oxlint/react";
-import vitest from "ultracite/oxlint/vitest";
+import vitestBase from "ultracite/oxlint/vitest";
+
+// Ultracite's vitest override wins over later extends/local overrides for the same
+// files, so patch that override in place for @effect/vitest testers.
+const vitest = {
+  ...vitestBase,
+  overrides: vitestBase.overrides?.map((override) => ({
+    ...override,
+    rules: {
+      ...override.rules,
+      "vitest/no-standalone-expect": [
+        "error",
+        {
+          additionalTestBlockFunctions: [
+            "effect",
+            "it.effect",
+            "it.live",
+            "live",
+            "test.effect",
+            "test.live",
+          ],
+        },
+      ],
+      // Syntactic rule with no type information: it cannot tell a `Context.Service`
+      // class from a `Schema.Struct` value, and rewrites `describe("X", ...)` to
+      // `describe(X, ...)` for both. Vitest requires a function there.
+      "vitest/prefer-describe-function-title": "off",
+      // `toStrictEqual` also compares prototypes, so rewriting `toEqual` breaks
+      // every assertion that checks a Schema/Data class instance against a plain
+      // object literal. Failures surface only at run time, not in typecheck.
+      "vitest/prefer-strict-equal": "off",
+    },
+  })),
+};
 
 const generatedPatterns = [
   "packages/cms-contentstack/gql/*",
@@ -213,7 +246,17 @@ export default defineConfig({
     "react/no-unstable-nested-components": "warn",
     "sort-keys": "warn",
     "typescript/consistent-type-definitions": "off",
+    // Off by default, re-enabled for the Next apps below. A workspace package is
+    // type-checked against its own tsconfig, where `Route` from `next` is the
+    // unnarrowed default, so `href as Route` looks redundant and the autofix
+    // removes it. The apps compile those same sources with their generated
+    // `.next/types` route declarations in scope, where the assertion is required.
+    "typescript/no-unnecessary-type-assertion": "off",
     "typescript/prefer-optional-chain": "warn",
+    // Autofix strips arguments that are required but undefined-able, silently
+    // changing behaviour: `Effect.succeed(undefined)`, `Option.some(undefined)`,
+    // `reduce(fn, undefined)`, `mockResolvedValue(undefined)`.
+    "unicorn/no-useless-undefined": "off",
     "unicorn/prefer-node-protocol": "warn",
     "use-isnan": "warn",
   },
@@ -233,6 +276,14 @@ export default defineConfig({
       files: ["packages/testing/**"],
       rules: {
         "unicorn/prefer-module": "off",
+      },
+    },
+    {
+      // These roots own the generated route types, so the rule sees the same
+      // types `next build` does and its fixes are trustworthy here.
+      files: ["apps/web/**", "apps/api/**"],
+      rules: {
+        "typescript/no-unnecessary-type-assertion": "error",
       },
     },
   ],
