@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+
 import { fetchCanvasGlobalRegions } from "./canvas-global-region";
 
 const ONE_MINUTE_MS = 60_000;
 
-describe("fetchCanvasGlobalRegions", () => {
+describe(fetchCanvasGlobalRegions, () => {
   it("fetches every locale-prefixed placement in one request", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       Response.json({
@@ -28,11 +29,11 @@ describe("fetchCanvasGlobalRegions", () => {
         headers: { Accept: "application/json" },
       }
     );
-    expect(result?.regions).toEqual({
+    expect(result?.regions).toStrictEqual({
       post_header: null,
       pre_header: { element: "announcement-banner" },
     });
-    expect(result?.cacheability).toEqual({
+    expect(result?.cacheability).toStrictEqual({
       contexts: [],
       maxAge: -1,
       tags: ["region:header"],
@@ -71,14 +72,14 @@ describe("fetchCanvasGlobalRegions", () => {
         },
       }
     );
-    expect(result?.regions).toEqual({
+    expect(result?.regions).toStrictEqual({
       post_header: {
         canvasDraftMode: true,
         element: "secondary-banner",
       },
       pre_header: null,
     });
-    expect(result?.cacheability).toEqual({
+    expect(result?.cacheability).toStrictEqual({
       contexts: [],
       maxAge: 0,
       tags: ["canvas:auto-save"],

@@ -9,11 +9,12 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * For sighted users to preview content available behind a link.
  */
 const meta = {
-  title: "ui/HoverCard",
-  component: HoverCard,
-  tags: ["autodocs"],
   argTypes: {},
   args: {},
+  component: HoverCard,
+  parameters: {
+    layout: "centered",
+  },
   render: (args) => (
     <HoverCard {...args}>
       <HoverCardTrigger>Hover</HoverCardTrigger>
@@ -22,9 +23,8 @@ const meta = {
       </HoverCardContent>
     </HoverCard>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/HoverCard",
 } satisfies Meta<typeof HoverCard>;
 
 export default meta;
@@ -42,7 +42,7 @@ export const Default: Story = {};
  */
 export const Instant: Story = {
   args: {
-    openDelay: 0,
     closeDelay: 0,
+    openDelay: 0,
   },
 };

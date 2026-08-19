@@ -6,6 +6,7 @@ import {
 } from "@repo/commerce/product";
 import type { CommerceLocale } from "@repo/commerce/store";
 import { Effect, Schema } from "effect";
+
 import type {
   CommercetoolsProductPrice,
   CommercetoolsProductProjection,
@@ -15,8 +16,7 @@ import type {
 type ProductTypeKeyValue = typeof ProductTypeKey.Type;
 type ProductTypeName = keyof typeof ProductAttributesSchemaByProductType;
 
-const productTypeName = (value: ProductTypeKeyValue): ProductTypeName =>
-  value as ProductTypeName;
+const productTypeName = (value: ProductTypeKeyValue): ProductTypeName => value;
 
 const OPTION_BY_PRODUCT_TYPE = {
   "generic-product": undefined,
@@ -47,7 +47,7 @@ const localize = (value: unknown, locale: CommerceLocale): unknown => {
     return value.id;
   }
   if (typeof value.key === "string" && "label" in value) {
-    const label = value.label;
+    const { label } = value;
     if (typeof label === "string") {
       return { key: value.key, label };
     }
@@ -163,15 +163,15 @@ export const mapProductDetail = (
     const values =
       option === undefined
         ? []
-        : Array.from(
-            new Map(
+        : [
+            ...new Map(
               variantsWithOptions.flatMap(({ selectedOption }) =>
                 selectedOption === undefined
                   ? []
                   : [[selectedOption.key, selectedOption] as const]
               )
-            ).values()
-          );
+            ).values(),
+          ];
     const variants = variantsWithOptions.map(
       ({ selectedOption: _selectedOption, ...item }) => item
     );

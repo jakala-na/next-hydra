@@ -8,25 +8,26 @@ import {
 } from "@repo/registration/domain/identity";
 import {
   AcceptedInvitation,
-  type Invitation,
   PendingInvitation,
   ProviderInvitationIntent,
   RevokedInvitation,
 } from "@repo/registration/domain/invitations";
+import type { Invitation } from "@repo/registration/domain/invitations";
 import {
-  type AcceptInvitationInput,
   InvitationConflict,
   InvitationNotFound,
   InvitationProviderFailure,
   Invitations,
-  type IssueInvitationInput,
-  type RevokeInvitationInput,
 } from "@repo/registration/services/invitations";
-import {
-  NotFoundException,
-  WorkOS,
-  type Invitation as WorkosInvitation,
-  type SendInvitationOptions as WorkosSendInvitationOptions,
+import type {
+  AcceptInvitationInput,
+  IssueInvitationInput,
+  RevokeInvitationInput,
+} from "@repo/registration/services/invitations";
+import { NotFoundException, WorkOS } from "@workos-inc/node";
+import type {
+  Invitation as WorkosInvitation,
+  SendInvitationOptions as WorkosSendInvitationOptions,
 } from "@workos-inc/node";
 import { Config, Effect, Layer, Option, Redacted } from "effect";
 
@@ -111,33 +112,37 @@ const invitationFromWorkos = (
   };
 
   switch (invitation.state) {
-    case "accepted":
+    case "accepted": {
       return new AcceptedInvitation({
         _tag: "AcceptedInvitation",
         ...base,
         acceptedAt: toDate(invitation.acceptedAt),
         acceptedBy: acceptedIdentityFromWorkos(invitation, acceptedIdentity),
       });
+    }
     case "revoked":
-    case "expired":
+    case "expired": {
       return new RevokedInvitation({
         _tag: "RevokedInvitation",
         ...base,
         revokedAt: toDate(invitation.revokedAt ?? invitation.expiresAt),
         revokedBy: registrationSystemActor,
       });
-    case "pending":
+    }
+    case "pending": {
       return new PendingInvitation({
         _tag: "PendingInvitation",
         ...base,
         acceptInvitationUrl: invitation.acceptInvitationUrl,
       });
-    default:
+    }
+    default: {
       return new PendingInvitation({
         _tag: "PendingInvitation",
         ...base,
         acceptInvitationUrl: invitation.acceptInvitationUrl,
       });
+    }
   }
 };
 
@@ -177,8 +182,8 @@ export const makeWorkosInvitations = (
   ) {
     const invitation = yield* Effect.tryPromise({
       catch: (cause) => providerFailure("issue", cause),
-      try: () =>
-        userManagement.sendInvitation(workosIssueInputFromIntent(input)),
+      try: async () =>
+        await userManagement.sendInvitation(workosIssueInputFromIntent(input)),
     });
 
     return pendingFromWorkos(invitation, input);
@@ -188,7 +193,7 @@ export const makeWorkosInvitations = (
     (invitationId: InvitationId) =>
       Effect.tryPromise({
         catch: (cause) => readFailure(invitationId, cause),
-        try: () => userManagement.getInvitation(invitationId),
+        try: async () => await userManagement.getInvitation(invitationId),
       }).pipe(Effect.map(invitationFromWorkos))
   );
 
@@ -197,7 +202,7 @@ export const makeWorkosInvitations = (
   ) {
     const invitation = yield* Effect.tryPromise({
       catch: (cause) => readFailure(input.invitationId, cause),
-      try: () => userManagement.getInvitation(input.invitationId),
+      try: async () => await userManagement.getInvitation(input.invitationId),
     });
 
     if (invitation.state === "revoked" || invitation.state === "expired") {
@@ -227,7 +232,8 @@ export const makeWorkosInvitations = (
   ) {
     const invitation = yield* Effect.tryPromise({
       catch: (cause) => revokeFailure(input.invitationId, cause),
-      try: () => userManagement.revokeInvitation(input.invitationId),
+      try: async () =>
+        await userManagement.revokeInvitation(input.invitationId),
     });
     const revoked = invitationFromWorkos(invitation);
 

@@ -1,5 +1,6 @@
 import { withCanvas } from "@drupal-canvas/headless-next/config";
 import type { NextConfig } from "next";
+
 import { canvasProjectRoot } from "./canvas-project";
 import { keys } from "./keys";
 

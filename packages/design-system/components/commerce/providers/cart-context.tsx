@@ -14,7 +14,6 @@ import { useTranslations } from "@repo/i18n";
 import type { CurrencyCode } from "@repo/i18n/types";
 import {
   createContext,
-  type ReactNode,
   use,
   useCallback,
   useContext,
@@ -22,6 +21,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 const CENTS_PER_UNIT = 100 as const;
@@ -64,8 +64,12 @@ export function CartProvider({
   const [cart, setCart] = useState<CurrentCartStateEncoded | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  const openCart = useCallback(() => setIsOpen(true), []);
-  const closeCart = useCallback(() => setIsOpen(false), []);
+  const openCart = useCallback(() => {
+    setIsOpen(true);
+  }, []);
+  const closeCart = useCallback(() => {
+    setIsOpen(false);
+  }, []);
 
   const value = useMemo(
     () => ({

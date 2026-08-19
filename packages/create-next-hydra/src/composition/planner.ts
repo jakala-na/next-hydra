@@ -185,7 +185,7 @@ function validateProviderAliasRequirements(
 ): void {
   const requiredLocations: Record<
     ProviderSlot,
-    Array<{ cwd: string; section: PackageRequirement["section"] }>
+    { cwd: string; section: PackageRequirement["section"] }[]
   > = {
     auth: [
       { cwd: "apps/api", section: "dependencies" },

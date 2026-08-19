@@ -14,20 +14,20 @@ import Link from "next/link";
 
 const experiences = [
   {
-    href: "/admin/registration-approvals",
-    title: "Registration approvals",
+    cta: "Open approvals",
     description:
       "Review new registrations, inspect submitted details, and record approval decisions.",
-    cta: "Open approvals",
+    href: "/admin/registration-approvals",
     icon: ShieldCheckIcon,
+    title: "Registration approvals",
   },
   {
-    href: "/admin/user-impersonation",
-    title: "User impersonation",
+    cta: "View space",
     description:
       "Access support tools for stepping into a customer session when that experience is ready.",
-    cta: "View space",
+    href: "/admin/user-impersonation",
     icon: UserRoundCogIcon,
+    title: "User impersonation",
   },
 ] as const;
 

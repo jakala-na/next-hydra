@@ -7,25 +7,25 @@ const config = {
   experimental: {
     useTypeScriptCli: true,
   },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  reactStrictMode: true,
   images: {
     remotePatterns: [
       {
-        protocol: "https",
         hostname: "images.unsplash.com",
+        protocol: "https",
       },
     ],
   },
+  reactStrictMode: true,
   async rewrites() {
     return [
       {
-        source: "/docs/:path*.mdx",
         destination: "/llms.mdx/docs/:path*",
+        source: "/docs/:path*.mdx",
       },
     ];
+  },
+  typescript: {
+    ignoreBuildErrors: true,
   },
 };
 

@@ -1,7 +1,8 @@
 "use client";
 import { cn } from "@repo/design-system/lib/utils";
 import { Minus, Plus } from "lucide-react";
-import { type ChangeEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { ChangeEvent } from "react";
 
 interface QuantityInputBasicProps {
   quantity: number;
@@ -97,7 +98,7 @@ const QuantityInputBasic = ({
         onBlur={handleBlur}
         className="w-12 border-y px-2 py-1 text-center font-mono outline-none"
         min={min}
-        max={max !== null ? max : undefined}
+        max={max === null ? undefined : max}
         disabled={disabled}
         aria-label="Quantity"
       />

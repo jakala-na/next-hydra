@@ -1,10 +1,10 @@
 langcode: en
 status: true
-dependencies: {  }
+dependencies: {}
 id: next_hydra
-label: 'Next Hydra'
-base_url: 'http://localhost:3001'
-preview_url: 'http://localhost:3001/api/drupal-preview'
-preview_secret: ''
-revalidate_url: 'http://host.docker.internal:3001/api/revalidate'
-revalidate_secret: ''
+label: "Next Hydra"
+base_url: "http://localhost:3001"
+preview_url: "http://localhost:3001/api/drupal-preview"
+preview_secret: ""
+revalidate_url: "http://host.docker.internal:3001/api/revalidate"
+revalidate_secret: ""

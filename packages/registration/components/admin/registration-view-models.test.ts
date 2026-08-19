@@ -17,10 +17,8 @@ import {
   PublicRegistrationConcurrentModificationFailure,
   PublicRegistrationNotFoundFailure,
 } from "../../public-errors";
-import {
-  RegistrationDecisionActionError,
-  RegistrationDecisionResult,
-} from "./registration-view-models";
+import type { RegistrationDecisionActionError } from "./registration-view-models";
+import { RegistrationDecisionResult } from "./registration-view-models";
 
 const decisionFailures = [
   PublicRegistrationNotFoundFailure.make({ message: "Not found." }),
@@ -48,15 +46,13 @@ const decisionFailures = [
   makeInputInvalid({
     issues: [
       new ErrorIssue({
-        path: ["registrationId"],
         message: "Invalid input.",
+        path: ["registrationId"],
       }),
     ],
     message: "Invalid input.",
   }),
-] satisfies ReadonlyArray<
-  ActionFailure<typeof RegistrationDecisionActionError>
->;
+] satisfies readonly ActionFailure<typeof RegistrationDecisionActionError>[];
 
 describe("RegistrationDecisionResult", () => {
   it.each(decisionFailures)("round-trips the $_tag failure", (failure) => {
@@ -68,6 +64,6 @@ describe("RegistrationDecisionResult", () => {
     );
     const reencoded = Schema.encodeSync(RegistrationDecisionResult)(decoded);
 
-    expect(reencoded).toEqual(encoded);
+    expect(reencoded).toStrictEqual(encoded);
   });
 });

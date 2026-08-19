@@ -46,7 +46,7 @@ export async function removePath(targetPath: string): Promise<void> {
 }
 
 export async function readJsonFile<T>(filePath: string): Promise<T> {
-  const raw = await readFile(filePath, "utf8");
+  const raw = await readFile(filePath, "utf-8");
   return JSON.parse(raw) as T;
 }
 
@@ -54,7 +54,7 @@ export async function writeJsonFile(
   filePath: string,
   value: unknown
 ): Promise<void> {
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
 }
 
 export function toDisplayPath(

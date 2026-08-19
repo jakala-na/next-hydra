@@ -5,7 +5,7 @@ dependencies:
     module:
       - canvas
 name: canvas_parametrized_width
-label: 'Drupal Canvas parametrized width'
+label: "Drupal Canvas parametrized width"
 effects:
   249b8926-f421-4d60-8453-fb5d9265c731:
     uuid: 249b8926-f421-4d60-8453-fb5d9265c731

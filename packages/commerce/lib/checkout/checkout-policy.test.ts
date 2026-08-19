@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
+
 import { CartId } from "../../domain/cart";
 import type { CartSnapshot } from "../../domain/cart-snapshot";
 import { CountryCode } from "../../domain/checkout";
@@ -10,13 +11,13 @@ import {
 } from "./checkout-policy";
 
 const cart: CartSnapshot = {
+  checkoutDetails: {},
   id: CartId.make("cart-1"),
+  lineItems: [],
   status: "active",
   storeKey: StoreKey.make("default-store"),
-  lineItems: [],
   totalLineItemQuantity: 0,
   totalPrice: { centAmount: 0, currencyCode: "USD" },
-  checkoutDetails: {},
 };
 
 const buyerContext = {
@@ -24,29 +25,29 @@ const buyerContext = {
   requiresBuyingContext: false,
 } as const;
 
-describe("CheckoutPolicies", () => {
+describe(CheckoutPolicies, () => {
   it.effect("returns a shipping violation for an unavailable country", () =>
     Effect.gen(function* () {
       const policies = yield* CheckoutPolicies;
       const violations = yield* policies.evaluate({
-        cart,
         buyerContext,
+        cart,
         details: {
           deliveryDetails: {
-            source: "manual",
             shippingAddress: {
               addressLine1: "1 Hydra Way",
-              postalCode: "97400",
               city: "Saint-Denis",
               country: CountryCode.make("RE"),
+              postalCode: "97400",
             },
+            source: "manual",
           },
         },
       });
       expect(violations).toMatchObject([
         {
           code: "shipping.country.unavailable",
-          targets: [{ type: "checkoutStep", step: "shippingOptions" }],
+          targets: [{ step: "shippingOptions", type: "checkoutStep" }],
         },
       ]);
     }).pipe(
@@ -62,8 +63,8 @@ describe("CheckoutPolicies", () => {
     Effect.gen(function* () {
       const policies = yield* CheckoutPolicies;
       expect(
-        yield* policies.evaluate({ cart, buyerContext, details: {} })
-      ).toEqual([]);
+        yield* policies.evaluate({ buyerContext, cart, details: {} })
+      ).toStrictEqual([]);
     }).pipe(Effect.provide(CheckoutPolicies.layer))
   );
 });

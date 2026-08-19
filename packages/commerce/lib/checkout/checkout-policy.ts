@@ -1,10 +1,11 @@
 import { Context, Effect, Layer } from "effect";
+
 import type { CartSnapshot } from "../../domain/cart-snapshot";
-import {
-  type CheckoutBuyerContext,
-  type CheckoutDetails,
-  type CheckoutPolicyViolation,
-  CountryCode,
+import { CountryCode } from "../../domain/checkout";
+import type {
+  CheckoutBuyerContext,
+  CheckoutDetails,
+  CheckoutPolicyViolation,
 } from "../../domain/checkout";
 
 export interface EvaluateCheckoutPolicyInput {
@@ -23,7 +24,6 @@ export interface CheckoutPolicy {
 export const makeShippingCountryAvailabilityPolicy = (
   unavailableCountries: readonly CountryCode[]
 ): CheckoutPolicy => ({
-  name: "shipping-country-availability",
   evaluate: ({ details }) => {
     const shippingCountry = details.deliveryDetails?.shippingAddress.country;
 
@@ -40,10 +40,11 @@ export const makeShippingCountryAvailabilityPolicy = (
         code: "shipping.country.unavailable",
         message: `Shipping country ${shippingCountry} is configured as unavailable`,
         parameters: { country: shippingCountry },
-        targets: [{ type: "checkoutStep", step: "shippingOptions" }],
+        targets: [{ step: "shippingOptions", type: "checkoutStep" }],
       },
     ];
   },
+  name: "shipping-country-availability",
 });
 
 export const shippingCountryAvailabilityPolicy =

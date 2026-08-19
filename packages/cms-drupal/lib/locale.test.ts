@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { isDrupalLangcode, toDrupalLangcode, toDrupalPath } from "./locale";
 
 describe("Drupal locale mapping", () => {
@@ -18,10 +19,10 @@ describe("Drupal locale mapping", () => {
   });
 
   it("recognizes only configured Drupal language IDs", () => {
-    expect(isDrupalLangcode("en")).toBe(true);
-    expect(isDrupalLangcode("nl")).toBe(true);
-    expect(isDrupalLangcode("fr")).toBe(true);
-    expect(isDrupalLangcode("fr-FR")).toBe(false);
-    expect(isDrupalLangcode(undefined)).toBe(false);
+    expect(isDrupalLangcode("en")).toBeTruthy();
+    expect(isDrupalLangcode("nl")).toBeTruthy();
+    expect(isDrupalLangcode("fr")).toBeTruthy();
+    expect(isDrupalLangcode("fr-FR")).toBeFalsy();
+    expect(isDrupalLangcode(undefined)).toBeFalsy();
   });
 });

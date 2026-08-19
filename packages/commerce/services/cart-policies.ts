@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from "effect";
+
 import type { CartPolicyFailure } from "../domain/cart-errors";
 import type {
   CartPolicyViolation,
@@ -15,7 +16,6 @@ export interface CartPolicy {
 const maximumGuestItems = 50;
 
 export const guestMaximumItemsPolicy: CartPolicy = {
-  name: "guest-max-limits",
   evaluate: Effect.fn("CartPolicies.guestMaximumItems")((cart) => {
     if (
       cart.buyingContext !== undefined ||
@@ -42,15 +42,15 @@ export const guestMaximumItemsPolicy: CartPolicy = {
       violations.push({
         code: "MAX_GUEST_TOTAL_ITEMS_EXCEEDED",
         parameters: {
+          excessQuantity,
           maxQuantity: maximumGuestItems,
           totalQuantity: cart.totalLineItemQuantity,
-          excessQuantity,
         },
         targets: [
           {
-            type: "cartItem",
             lineItemId: lineItem.id,
             productId: lineItem.variant.productId,
+            type: "cartItem",
             variantId: lineItem.variant.id,
             ...(lineItem.variant.sku === undefined
               ? {}
@@ -61,6 +61,7 @@ export const guestMaximumItemsPolicy: CartPolicy = {
     }
     return Effect.succeed(violations);
   }),
+  name: "guest-max-limits",
 };
 
 export class CartPolicies extends Context.Service<

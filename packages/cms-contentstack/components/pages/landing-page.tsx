@@ -5,6 +5,7 @@ import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
+
 import { graphqlClient } from "../../client";
 import { graphql } from "../../graphql";
 import { entryLivePreview } from "../../lib/utils/live-preview-helper";
@@ -19,42 +20,42 @@ const getPageCached = async (
   "use cache";
   const pageQuery = graphql(
     `
-    query PageQuery($url: String, $locale: String!) {
-      all_landing_page(
+      query PageQuery($url: String, $locale: String!) {
+        all_landing_page(
           locale: $locale
           fallback_locale: true
           limit: 1
           where: { url: $url }
-      ) {
-        items {
-          title
-          display_title
-          hide_display_title
-          url
-          components {
-            __typename
-            ... on LandingPageComponentsHeroSection {
-              hero_section {
-                __typename
-                ...HeroSection
+        ) {
+          items {
+            title
+            display_title
+            hide_display_title
+            url
+            components {
+              __typename
+              ... on LandingPageComponentsHeroSection {
+                hero_section {
+                  __typename
+                  ...HeroSection
+                }
+              }
+              ... on LandingPageComponentsDynamicProductCollection {
+                dynamic_product_collection {
+                  __typename
+                  ...DynamicProductCollection
+                }
               }
             }
-            ... on LandingPageComponentsDynamicProductCollection {
-              dynamic_product_collection {
-                __typename
-                ...DynamicProductCollection
-              }
+            system {
+              uid
+              content_type_uid
+              locale
             }
-          }
-          system {
-            uid
-            content_type_uid
-            locale
           }
         }
       }
-    }
-  `,
+    `,
     [...ComponentRenderer.fragments]
   );
 

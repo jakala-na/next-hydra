@@ -1,5 +1,7 @@
 import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
+
 import {
   checkCommerceBoundaries,
   checkGeneratedProductAttributesSource,
@@ -10,7 +12,7 @@ const repoRoot = resolve(import.meta.dirname, "../../..");
 
 describe("Commerce provider boundaries", () => {
   it("accepts the repository's configured commerce boundary", () => {
-    expect(checkCommerceBoundaries(repoRoot)).toEqual([]);
+    expect(checkCommerceBoundaries(repoRoot)).toStrictEqual([]);
   });
 
   it("recognizes static, side-effect, dynamic, and CommonJS imports", () => {
@@ -22,7 +24,7 @@ describe("Commerce provider boundaries", () => {
         const four = import("four");
         const five = require("five");
       `)
-    ).toEqual(["one", "three", "two", "four", "five"]);
+    ).toStrictEqual(["one", "three", "two", "four", "five"]);
   });
 
   it("rejects forbidden package subpaths in generated artifacts", () => {

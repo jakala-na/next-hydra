@@ -1,5 +1,6 @@
 import { cookies, draftMode } from "next/headers";
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   // TODO: Validate live preview token if possible.
@@ -12,12 +13,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const cookieStore = await cookies();
     const cookie = cookieStore.get("__prerender_bypass");
     (await cookies()).set({
-      name: "__prerender_bypass",
-      value: cookie?.value ?? "",
       httpOnly: true,
+      name: "__prerender_bypass",
       path: "/",
-      secure: true,
       sameSite: "none",
+      secure: true,
+      value: cookie?.value ?? "",
     });
   }
 

@@ -78,8 +78,8 @@ export type PreparedComposition = {
   itemByReference: Map<string, string>;
   entryItems: string[];
   registryConfig: RegistriesConfig;
-  assets: Array<AssetContribution & { content: Uint8Array }>;
-  managedFiles: Array<{ content: string; target: string }>;
+  assets: (AssetContribution & { content: Uint8Array })[];
+  managedFiles: { content: string; target: string }[];
 };
 
 export type CompositionPlan = {

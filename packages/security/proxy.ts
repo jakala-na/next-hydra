@@ -1,8 +1,5 @@
-import {
-  defaults,
-  type NoseconeOptions,
-  withVercelToolbar,
-} from "@nosecone/next";
+import { defaults, withVercelToolbar } from "@nosecone/next";
+import type { NoseconeOptions } from "@nosecone/next";
 
 export { createMiddleware as noseconeProxy } from "@nosecone/next";
 

@@ -16,8 +16,8 @@ const animateCssPath = fileURLToPath(
 );
 
 const [globalCss, animateCss] = await Promise.all([
-  readFile(globalCssPath, "utf8"),
-  readFile(animateCssPath, "utf8"),
+  readFile(globalCssPath, "utf-8"),
+  readFile(animateCssPath, "utf-8"),
 ]);
 
 if (globalCss.split(animateImport).length !== 2) {
@@ -29,4 +29,4 @@ const canvasCss = globalCss.replace(
   `/* tw-animate-css is inlined because Canvas' browser Tailwind compiler cannot resolve package imports. */\n${animateCss}`
 );
 
-await writeFile(canvasCssPath, canvasCss, "utf8");
+await writeFile(canvasCssPath, canvasCss, "utf-8");

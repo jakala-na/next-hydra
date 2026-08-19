@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   BUSINESS_UNIT_COOKIE_NAME,
   BUSINESS_UNIT_COOKIE_OPTIONS,
@@ -13,9 +14,9 @@ describe("Business Unit selection cookie", () => {
     expect(BUSINESS_UNIT_COOKIE_NAME).toBe("business-unit-id");
     expect(BUSINESS_UNIT_COOKIE_OPTIONS).toMatchObject({
       httpOnly: true,
-      sameSite: "lax",
-      path: "/",
       maxAge: NINETY_DAYS_IN_SECONDS,
+      path: "/",
+      sameSite: "lax",
     });
   });
 

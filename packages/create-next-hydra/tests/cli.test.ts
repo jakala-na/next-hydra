@@ -9,9 +9,9 @@ describe("CLI", () => {
     await runCli(
       ["node", "create-next-hydra", "use", "--cms", "contentstack"],
       {
-        useComposition: (options) => {
+        useComposition: async (options) => {
           received = options;
-          return Promise.resolve();
+          return;
         },
       }
     );
@@ -33,9 +33,9 @@ describe("CLI", () => {
         "--yes",
       ],
       {
-        useComposition: (options) => {
+        useComposition: async (options) => {
           received = options;
-          return Promise.resolve();
+          return;
         },
       }
     );

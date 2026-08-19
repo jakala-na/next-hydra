@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+
 import { CountryCode } from "../domain/address";
 import { AddressBookEntry, AddressBookReference } from "../domain/address-book";
 import {
@@ -23,25 +24,25 @@ import { CommerceContext } from "./commerce-context";
 const principal = (businessUnitId: string, businessUnitKey = businessUnitId) =>
   new CustomerCommercePrincipal({
     authUserId: AuthUserId.make(`auth-${businessUnitId}`),
-    customerId: CommerceCustomerId.make(`customer-${businessUnitId}`),
     businessUnitId: CommerceBusinessUnitId.make(businessUnitId),
     businessUnitKey: CommerceBusinessUnitKey.make(businessUnitKey),
+    customerId: CommerceCustomerId.make(`customer-${businessUnitId}`),
   });
 
 const officeAddress = {
   addressLine1: "100 Main Street",
   addressLine2: "Suite 200",
-  postalCode: "10001",
   city: "New York",
-  region: "NY",
   country: CountryCode.make("US"),
+  postalCode: "10001",
+  region: "NY",
 };
 
 const OVERLONG_UNICODE_REFERENCE_LENGTH = 80;
 const store = new Store({
+  currency: "USD",
   locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("default-store"),
-  currency: "USD",
 });
 
 const provideAddressBook = <A, E>(
@@ -49,27 +50,27 @@ const provideAddressBook = <A, E>(
   buyer = principal("business-unit-1")
 ) => {
   const request = new CustomerCommerceContextRequest({
-    store,
     authUserId: buyer.authUserId,
     businessUnitId: buyer.businessUnitId,
+    store,
   });
   const commerceContext = CommerceContext.layer(request).pipe(
     Layer.provide(
       CommerceAccounts.layerMemoryFrom({
-        customers: [
-          { authUserId: buyer.authUserId, customerId: buyer.customerId },
-        ],
         businessUnitMemberships: [
           {
             customerId: buyer.customerId,
-            storeKey: store.storeKey,
             membership: new CommerceBusinessUnitMembership({
               businessUnitId: buyer.businessUnitId,
               businessUnitKey: buyer.businessUnitKey,
               businessUnitLabel:
                 CommerceBusinessUnitLabel.make("Business Unit One"),
             }),
+            storeKey: store.storeKey,
           },
+        ],
+        customers: [
+          { authUserId: buyer.authUserId, customerId: buyer.customerId },
         ],
       })
     )
@@ -80,7 +81,7 @@ const provideAddressBook = <A, E>(
   return program.pipe(Effect.provide(addressBook));
 };
 
-describe("AddressBook", () => {
+describe(AddressBook, () => {
   it("keeps references provider-neutral and entries internally consistent", () => {
     expect(AddressBookReference.make("office_123")).toBe("office_123");
     expect(() => AddressBookReference.make("office/address")).toThrow();
@@ -90,21 +91,21 @@ describe("AddressBook", () => {
     expect(
       () =>
         new AddressBookEntry({
-          reference: AddressBookReference.make("office"),
           address: officeAddress,
-          types: ["billing"],
-          defaultShipping: true,
           defaultBilling: false,
+          defaultShipping: true,
+          reference: AddressBookReference.make("office"),
+          types: ["billing"],
         })
     ).toThrow();
     expect(
       () =>
         new AddressBookEntry({
-          reference: AddressBookReference.make("duplicate-types"),
           address: officeAddress,
-          types: ["shipping", "shipping"],
-          defaultShipping: false,
           defaultBilling: false,
+          defaultShipping: false,
+          reference: AddressBookReference.make("duplicate-types"),
+          types: ["shipping", "shipping"],
         })
     ).toThrow();
   });
@@ -116,21 +117,21 @@ describe("AddressBook", () => {
         const addressBook = yield* AddressBook;
 
         const saved = yield* addressBook.save({
-          reference: AddressBookReference.make("office"),
           address: officeAddress,
-          types: ["billing"],
-          defaultShipping: true,
           defaultBilling: true,
+          defaultShipping: true,
+          reference: AddressBookReference.make("office"),
+          types: ["billing"],
         });
 
         expect(saved).toEqual({
-          reference: "office",
           address: officeAddress,
-          types: ["shipping", "billing"],
-          defaultShipping: true,
           defaultBilling: true,
+          defaultShipping: true,
+          reference: "office",
+          types: ["shipping", "billing"],
         });
-        expect(yield* addressBook.list()).toEqual([saved]);
+        expect(yield* addressBook.list()).toStrictEqual([saved]);
       }).pipe(provideAddressBook)
   );
 
@@ -160,25 +161,25 @@ describe("AddressBook", () => {
         const reference = AddressBookReference.make("office");
 
         const first = yield* addressBook.save({
-          reference,
           address: officeAddress,
-          types: ["shipping"],
-          defaultShipping: false,
           defaultBilling: false,
+          defaultShipping: false,
+          reference,
+          types: ["shipping"],
         });
         const repeated = yield* addressBook.save({
-          reference,
           address: {
             ...officeAddress,
             addressLine1: "A different submitted address",
           },
-          types: ["billing"],
-          defaultShipping: false,
           defaultBilling: true,
+          defaultShipping: false,
+          reference,
+          types: ["billing"],
         });
 
-        expect(repeated).toEqual(first);
-        expect(yield* addressBook.list()).toEqual([first]);
+        expect(repeated).toStrictEqual(first);
+        expect(yield* addressBook.list()).toStrictEqual([first]);
       }).pipe(provideAddressBook)
   );
 
@@ -187,33 +188,33 @@ describe("AddressBook", () => {
       const addressBook = yield* AddressBook;
 
       yield* addressBook.save({
-        reference: AddressBookReference.make("first"),
         address: officeAddress,
-        types: ["shipping", "billing"],
-        defaultShipping: true,
         defaultBilling: true,
+        defaultShipping: true,
+        reference: AddressBookReference.make("first"),
+        types: ["shipping", "billing"],
       });
       yield* addressBook.save({
-        reference: AddressBookReference.make("second"),
         address: {
           ...officeAddress,
           addressLine1: "200 Broadway",
         },
-        types: ["shipping"],
-        defaultShipping: true,
         defaultBilling: false,
+        defaultShipping: true,
+        reference: AddressBookReference.make("second"),
+        types: ["shipping"],
       });
 
-      expect(yield* addressBook.list()).toEqual([
+      expect(yield* addressBook.list()).toStrictEqual([
         expect.objectContaining({
-          reference: "first",
-          defaultShipping: false,
           defaultBilling: true,
+          defaultShipping: false,
+          reference: "first",
         }),
         expect.objectContaining({
-          reference: "second",
-          defaultShipping: true,
           defaultBilling: false,
+          defaultShipping: true,
+          reference: "second",
         }),
       ]);
     }).pipe(provideAddressBook)

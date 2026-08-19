@@ -50,7 +50,7 @@ const ImageViewer_Basic = ({
         <div className={cn("cursor-pointer", className)}>
           <Image
             src={thumbnailUrl || imageUrl}
-            alt={`${imageTitle ?? ""}`}
+            alt={imageTitle ?? ""}
             width={500}
             height={500}
             className={cn(
@@ -79,7 +79,7 @@ const ImageViewer_Basic = ({
                   <TransformComponent>
                     <Image
                       src={imageUrl}
-                      alt={`${imageTitle ?? ""}`}
+                      alt={imageTitle ?? ""}
                       className={cn(
                         "h-auto max-h-[90vh] w-full max-w-[90vw] object-contain",
                         classNameImageViewer
@@ -93,7 +93,9 @@ const ImageViewer_Basic = ({
                     <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2">
                       <button
                         type="button"
-                        onClick={() => zoomOut()}
+                        onClick={() => {
+                          zoomOut();
+                        }}
                         className="cursor-pointer rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
                         aria-label="Zoom out"
                       >
@@ -101,7 +103,9 @@ const ImageViewer_Basic = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => zoomIn()}
+                        onClick={() => {
+                          zoomIn();
+                        }}
                         className="cursor-pointer rounded-full bg-black/50 p-2 text-white transition-colors hover:bg-black/70"
                         aria-label="Zoom in"
                       >

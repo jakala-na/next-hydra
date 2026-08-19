@@ -1,10 +1,12 @@
 import path from "node:path";
+
 import {
   generateOutput,
   generateSchema,
   generateTurbo,
 } from "@gql.tada/cli-utils";
 import "dotenv/config";
+
 import { getDrupalAccessToken } from "../auth.ts";
 import { getDrupalGraphqlUri, keys } from "../keys.ts";
 

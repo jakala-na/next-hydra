@@ -11,16 +11,16 @@ import { REGEXP_ONLY_DIGITS_AND_CHARS } from "input-otp";
  * Accessible one-time password component with copy paste functionality.
  */
 const meta = {
-  title: "ui/InputOTP",
-  component: InputOTP,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
+    children: null,
     maxLength: 6,
     pattern: REGEXP_ONLY_DIGITS_AND_CHARS,
-    children: null,
   },
-
+  component: InputOTP,
+  parameters: {
+    layout: "centered",
+  },
   render: (args) => (
     <InputOTP {...args} render={undefined}>
       <InputOTPGroup>
@@ -33,9 +33,8 @@ const meta = {
       </InputOTPGroup>
     </InputOTP>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/InputOTP",
 } satisfies Meta<typeof InputOTP>;
 
 export default meta;

@@ -1,19 +1,20 @@
 import { Effect } from "effect";
+
 import type {
   CartPolicyViolation,
   CartSnapshot,
 } from "../../domain/cart-snapshot";
-import {
-  type CheckoutBuyerContext,
-  type CheckoutContactSource,
-  type CheckoutDetails,
-  type CheckoutPolicyViolation,
-  type CheckoutScope,
-  type CheckoutState,
-  type CheckoutStep,
-  type CheckoutStepId,
-  CheckoutUnavailable,
-  type CheckoutViolation,
+import { CheckoutUnavailable } from "../../domain/checkout";
+import type {
+  CheckoutBuyerContext,
+  CheckoutContactSource,
+  CheckoutDetails,
+  CheckoutPolicyViolation,
+  CheckoutScope,
+  CheckoutState,
+  CheckoutStep,
+  CheckoutStepId,
+  CheckoutViolation,
 } from "../../domain/checkout";
 
 export const CHECKOUT_STEP_SEQUENCE = [
@@ -58,9 +59,9 @@ const isDeliveryDetailsComplete = (details: CheckoutDetails) => {
 
   return Boolean(
     shippingAddress?.addressLine1.trim() &&
-      shippingAddress.postalCode.trim() &&
-      shippingAddress.city.trim() &&
-      shippingAddress.country.trim()
+    shippingAddress.postalCode.trim() &&
+    shippingAddress.city.trim() &&
+    shippingAddress.country.trim()
   );
 };
 
@@ -163,11 +164,11 @@ export const buildCheckoutState = Effect.fn("buildCheckoutState")(function* ({
   );
 
   return {
-    scope,
+    activeStep: activeStepFrom(steps),
     cart,
     details,
+    scope,
     steps,
-    activeStep: activeStepFrom(steps),
     violations: [
       ...cartPolicyViolations.map(normalizeCartPolicyViolation),
       ...checkoutPolicyViolations.map(normalizeCheckoutPolicyViolation),

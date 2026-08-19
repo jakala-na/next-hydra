@@ -1,13 +1,7 @@
-import {
-  type IJsonToHtmlOptions,
-  jsonToHtml,
-} from "@contentstack/json-rte-serializer";
-import parse, {
-  type DOMNode,
-  domToReact,
-  Element,
-  type HTMLReactParserOptions,
-} from "html-react-parser";
+import { jsonToHtml } from "@contentstack/json-rte-serializer";
+import type { IJsonToHtmlOptions } from "@contentstack/json-rte-serializer";
+import parse, { domToReact, Element } from "html-react-parser";
+import type { DOMNode, HTMLReactParserOptions } from "html-react-parser";
 import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -19,9 +13,11 @@ type EmbeddedItem = {
 };
 
 type EmbeddedItemsConnection = {
-  edges?: Array<{
-    node?: EmbeddedItem | null;
-  } | null> | null;
+  edges?:
+    | ({
+        node?: EmbeddedItem | null;
+      } | null)[]
+    | null;
 };
 
 /**

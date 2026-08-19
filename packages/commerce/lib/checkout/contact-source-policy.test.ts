@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { CartId } from "../../domain/cart";
 import {
   StorefrontAnonymousCheckoutScope,
@@ -12,30 +13,30 @@ import {
 import { CommerceLocale } from "../../store";
 import { allowedContactSourcesForCheckout } from "./contact-source-policy";
 
-describe("allowedContactSourcesForCheckout", () => {
+describe(allowedContactSourcesForCheckout, () => {
   it("allows Manual Contact for anonymous storefront checkout", () => {
     expect(
       allowedContactSourcesForCheckout(
         new StorefrontAnonymousCheckoutScope({
+          anonymousCartId: CartId.make("cart-1"),
           channel: "storefrontAnonymous",
           locale: CommerceLocale.make("en-US"),
-          anonymousCartId: CartId.make("cart-1"),
         })
       )
-    ).toEqual(["manual"]);
+    ).toStrictEqual(["manual"]);
   });
 
   it("allows Customer Profile and Manual Contact for customer checkout", () => {
     expect(
       allowedContactSourcesForCheckout(
         new StorefrontCustomerCheckoutScope({
-          channel: "storefrontCustomer",
-          locale: CommerceLocale.make("en-US"),
-          customerId: CommerceCustomerId.make("customer-1"),
           businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
           businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+          channel: "storefrontCustomer",
+          customerId: CommerceCustomerId.make("customer-1"),
+          locale: CommerceLocale.make("en-US"),
         })
       )
-    ).toEqual(["customerProfile", "manual"]);
+    ).toStrictEqual(["customerProfile", "manual"]);
   });
 });

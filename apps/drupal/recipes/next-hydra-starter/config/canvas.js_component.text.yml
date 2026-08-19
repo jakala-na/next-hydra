@@ -1,7 +1,7 @@
 uuid: b9ea941a-6cb4-4ca4-ac21-5bdbd5f8d14f
 langcode: en
 status: true
-dependencies: {  }
+dependencies: {}
 machineName: text
 name: Text
 type: external
@@ -12,6 +12,6 @@ props:
     type: string
     title: Text
     examples:
-      - 'Connect content and commerce while keeping every provider replaceable.'
-slots: {  }
-dataDependencies: {  }
+      - "Connect content and commerce while keeping every provider replaceable."
+slots: {}
+dataDependencies: {}

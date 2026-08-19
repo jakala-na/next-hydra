@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+
 import { ProductId } from "../domain/cart";
 import type { CheckoutViolation } from "../domain/checkout";
 import { checkoutViolationMessage } from "../lib/checkout/violation-message";
@@ -8,43 +9,43 @@ import { ActiveStepViolations, CartSidebarViolations } from "./violations";
 
 const violations = [
   {
-    source: "checkoutPolicy",
-    severity: "blocking",
     code: "unknown.global.violation",
+    severity: "blocking",
+    source: "checkoutPolicy",
     targets: [],
   },
   {
-    source: "cartPolicy",
-    severity: "blocking",
     code: "INCOMPATIBLE_CART_ITEMS",
+    severity: "blocking",
+    source: "cartPolicy",
     targets: [{ type: "cart" }],
   },
   {
-    source: "cartPolicy",
-    severity: "blocking",
     code: "MAX_GUEST_TOTAL_ITEMS_EXCEEDED",
     parameters: {
       excessQuantity: 1,
       maxQuantity: 50,
     },
+    severity: "blocking",
+    source: "cartPolicy",
     targets: [
       {
-        type: "cartItem",
         productId: ProductId.make("product-1"),
+        type: "cartItem",
       },
     ],
   },
   {
-    source: "checkoutPolicy",
-    severity: "blocking",
     code: "SHIPPING_ADDRESS_RESTRICTED",
-    targets: [{ type: "checkoutStep", step: "shippingOptions" }],
+    severity: "blocking",
+    source: "checkoutPolicy",
+    targets: [{ step: "shippingOptions", type: "checkoutStep" }],
   },
   {
-    source: "checkoutPolicy",
-    severity: "blocking",
     code: "POLICY_ERROR",
-    targets: [{ type: "checkoutStep", step: "contact" }],
+    severity: "blocking",
+    source: "checkoutPolicy",
+    targets: [{ step: "contact", type: "checkoutStep" }],
   },
 ] as const satisfies readonly CheckoutViolation[];
 

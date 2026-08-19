@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { cancel } from "@clack/prompts";
+
 import { runCli } from "./index.js";
 import { UserCancelledError } from "./prompts.js";
 

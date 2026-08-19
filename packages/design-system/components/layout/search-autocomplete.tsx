@@ -11,67 +11,67 @@ import { useEffect, useRef, useState } from "react";
 // Sample product data - in a real app, this would come from an API
 const products = [
   {
-    id: 1,
-    name: "TX-500 Excavator",
     category: "Excavators",
-    price: 285_000,
+    id: 1,
     image: "/heavy-industrial-excavator-machinery-on-constructi.jpg",
+    name: "TX-500 Excavator",
+    price: 285_000,
     slug: "tx-500-excavator",
   },
   {
-    id: 2,
-    name: "TX-750 Excavator",
     category: "Excavators",
-    price: 425_000,
+    id: 2,
     image: "/heavy-industrial-excavator-machinery-on-constructi.jpg",
+    name: "TX-750 Excavator",
+    price: 425_000,
     slug: "tx-750-excavator",
   },
   {
-    id: 3,
-    name: "BL-400 Bulldozer",
     category: "Bulldozers",
-    price: 350_000,
+    id: 3,
     image: "/heavy-industrial-excavator-machinery-on-constructi.jpg",
+    name: "BL-400 Bulldozer",
+    price: 350_000,
     slug: "bl-400-bulldozer",
   },
   {
-    id: 4,
-    name: "BL-600 Bulldozer",
     category: "Bulldozers",
-    price: 485_000,
+    id: 4,
     image: "/heavy-industrial-excavator-machinery-on-constructi.jpg",
+    name: "BL-600 Bulldozer",
+    price: 485_000,
     slug: "bl-600-bulldozer",
   },
   {
-    id: 5,
-    name: "CR-300 Crane",
     category: "Cranes",
-    price: 520_000,
+    id: 5,
     image: "/heavy-industrial-excavator-machinery-on-constructi.jpg",
+    name: "CR-300 Crane",
+    price: 520_000,
     slug: "cr-300-crane",
   },
   {
-    id: 6,
-    name: "LD-250 Loader",
     category: "Loaders",
-    price: 195_000,
+    id: 6,
     image: "/heavy-industrial-excavator-machinery-on-constructi.jpg",
+    name: "LD-250 Loader",
+    price: 195_000,
     slug: "ld-250-loader",
   },
   {
-    id: 7,
-    name: "DT-40 Dump Truck",
     category: "Dump Trucks",
-    price: 275_000,
+    id: 7,
     image: "/heavy-industrial-excavator-machinery-on-constructi.jpg",
+    name: "DT-40 Dump Truck",
+    price: 275_000,
     slug: "dt-40-dump-truck",
   },
   {
-    id: 8,
-    name: "GR-200 Grader",
     category: "Graders",
-    price: 310_000,
+    id: 8,
     image: "/heavy-industrial-excavator-machinery-on-constructi.jpg",
+    name: "GR-200 Grader",
+    price: 310_000,
     slug: "gr-200-grader",
   },
 ];
@@ -108,7 +108,9 @@ export function SearchAutocomplete() {
     }
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   const handleClear = () => {
@@ -125,7 +127,9 @@ export function SearchAutocomplete() {
           type="search"
           placeholder="Search products..."
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+          }}
           onFocus={() => query.length > 0 && setIsOpen(true)}
           className="bg-muted/50 pr-9 pl-9"
         />

@@ -8,13 +8,15 @@ import {
   AddressBookAccessDenied,
   AddressBookEntry,
   AddressBookEntryNotFound,
-  type AddressBookOperation,
   AddressBookProviderFailure,
-  type AddressBookReference,
   AddressBookWriteOutcomeUnknown,
-  type AddressType,
   normalizeAddressTypes,
-  type SaveAddressBookEntryInput,
+} from "@repo/commerce/domain/address-book";
+import type {
+  AddressBookOperation,
+  AddressBookReference,
+  AddressType,
+  SaveAddressBookEntryInput,
 } from "@repo/commerce/domain/address-book";
 import type { CustomerCommercePrincipal } from "@repo/commerce/domain/commerce-request-context";
 import type { ProviderFailureReason } from "@repo/commerce/domain/provider-failure";
@@ -41,8 +43,8 @@ const MAX_SAVE_RETRIES = 1;
 export { toCommercetoolsAddressKey } from "./address-book-key";
 
 const CommercetoolsError = Schema.Struct({
-  statusCode: Schema.optional(Schema.Number),
   code: Schema.optional(Schema.String),
+  statusCode: Schema.optional(Schema.Number),
 });
 
 const decodeCommercetoolsError = (error: unknown) =>
@@ -79,7 +81,7 @@ const providerFailure = (
   cause: unknown,
   reason: ProviderFailureReason,
   message = `Failed to ${operation} Business Unit Address Book`
-) => new AddressBookProviderFailure({ message, operation, cause, reason });
+) => new AddressBookProviderFailure({ cause, message, operation, reason });
 
 const writeOutcomeUnknown = (reference: AddressBookReference, cause: unknown) =>
   new AddressBookWriteOutcomeUnknown({
@@ -106,12 +108,6 @@ const readBusinessUnit = (
   operation: AddressBookOperation
 ) =>
   Effect.tryPromise({
-    try: async () => {
-      const response = await businessUnitRequest(apiRoot, principal)
-        .get()
-        .execute();
-      return response.body;
-    },
     catch: (cause) =>
       isAccessDenied(cause)
         ? accessDenied(operation)
@@ -120,6 +116,12 @@ const readBusinessUnit = (
             cause,
             commercetoolsProviderFailureReason(cause)
           ),
+    try: async () => {
+      const response = await businessUnitRequest(apiRoot, principal)
+        .get()
+        .execute();
+      return response.body;
+    },
   });
 
 const addressTypes = (
@@ -136,8 +138,8 @@ const addressTypes = (
   }
 
   return normalizeAddressTypes(types, {
-    defaultShipping: businessUnit.defaultShippingAddressId === addressId,
     defaultBilling: businessUnit.defaultBillingAddressId === addressId,
+    defaultShipping: businessUnit.defaultShippingAddressId === addressId,
   });
 };
 
@@ -150,18 +152,18 @@ const toAddressBookEntry = (
   const types = address.id ? addressTypes(businessUnit, address.id) : [];
 
   return Schema.decodeUnknownEffect(AddressBookEntry)({
-    reference,
     address: {
       addressLine1: address.streetName,
       addressLine2: address.additionalStreetInfo,
-      postalCode: address.postalCode,
       city: address.city,
       country: address.country,
+      postalCode: address.postalCode,
       region: address.region,
     },
-    types,
-    defaultShipping: address.id === businessUnit.defaultShippingAddressId,
     defaultBilling: address.id === businessUnit.defaultBillingAddressId,
+    defaultShipping: address.id === businessUnit.defaultShippingAddressId,
+    reference,
+    types,
   }).pipe(
     Effect.mapError((cause) =>
       providerFailure(
@@ -296,18 +298,18 @@ const writeBusinessUnit = (
   input: SaveAddressBookEntryInput
 ) =>
   Effect.tryPromise({
+    catch: (cause) => new CommercetoolsAddressBookWriteFailure(cause),
     try: async () => {
       const response = await businessUnitRequest(apiRoot, principal)
         .post({
           body: {
-            version: businessUnit.version,
             actions: updateActions(input),
+            version: businessUnit.version,
           },
         })
         .execute();
       return response.body;
     },
-    catch: (cause) => new CommercetoolsAddressBookWriteFailure(cause),
   });
 
 const entryFromSuccessfulWrite = (
@@ -403,6 +405,11 @@ const addressBookImplementationLayer = Layer.effect(
     const { apiRoot } = yield* CommercetoolsRestClient;
 
     return AddressBook.of({
+      get: Effect.fn("CommercetoolsAddressBook.get")(function* (reference) {
+        const principal = yield* commerceContext.customerPrincipal();
+        const businessUnit = yield* readBusinessUnit(apiRoot, principal, "get");
+        return yield* getEntry(businessUnit, reference, "get");
+      }),
       list: Effect.fn("CommercetoolsAddressBook.list")(function* () {
         const principal = yield* commerceContext.customerPrincipal();
         const businessUnit = yield* readBusinessUnit(
@@ -411,11 +418,6 @@ const addressBookImplementationLayer = Layer.effect(
           "list"
         );
         return yield* listEntries(businessUnit, "list");
-      }),
-      get: Effect.fn("CommercetoolsAddressBook.get")(function* (reference) {
-        const principal = yield* commerceContext.customerPrincipal();
-        const businessUnit = yield* readBusinessUnit(apiRoot, principal, "get");
-        return yield* getEntry(businessUnit, reference, "get");
       }),
       save: Effect.fn("CommercetoolsAddressBook.save")(function* (input) {
         const principal = yield* commerceContext.customerPrincipal();

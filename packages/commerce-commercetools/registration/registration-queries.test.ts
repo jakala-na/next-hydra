@@ -1,6 +1,5 @@
-// oxlint-disable vitest/no-standalone-expect -- Assertions run inside Effect programs executed by the test helper.
-
 import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
+import { describe, expect, it } from "@effect/vitest";
 import { StoreKey } from "@repo/commerce/store";
 import {
   AddressLine,
@@ -23,31 +22,57 @@ import {
   RegistrationQueryFailure,
   RegistrationQueryInvalidCursor,
 } from "@repo/registration/services/registration-queries";
-import { encodeJsonString } from "@repo/versioned-store";
-import type { Schema } from "effect";
-import { Effect, Redacted } from "effect";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Effect, Redacted, Schema } from "effect";
+import { beforeEach, vi } from "vitest";
 
 import {
   encodeRegistrationStorageValue,
   registrationQueriesLayerFrom,
 } from "./registration-queries";
 
-const itEffect = (
-  name: string,
-  effect: () => Effect.Effect<unknown, unknown, never>
-) => it(name, () => Effect.runPromise(effect()));
-
-vi.mock("server-only", () => ({}));
-
 interface CustomObjectsGetRequest {
   readonly queryArgs?: { readonly where?: string };
 }
 
-const execute = vi.fn();
-const get = vi.fn((_request?: CustomObjectsGetRequest) => ({ execute }));
-const withContainer = vi.fn(() => ({ get }));
-const customObjects = vi.fn(() => ({ withContainer }));
+interface CustomObjectPayload {
+  readonly createdAt: string;
+  readonly id: string;
+  readonly lastModifiedAt: string;
+  readonly value: string;
+}
+
+interface CustomObjectResult {
+  readonly createdAt: string;
+  readonly id: string;
+  readonly lastModifiedAt: string;
+  readonly value: unknown;
+}
+
+interface CustomObjectsResponse {
+  readonly body: { readonly results: readonly CustomObjectResult[] };
+}
+
+interface EncodedRegistrationValue {
+  readonly status: string;
+  readonly storeKey?: string;
+}
+
+interface CustomObjectsGetBuilder {
+  readonly execute: () => Promise<CustomObjectsResponse>;
+}
+
+const execute = vi.fn<() => Promise<CustomObjectsResponse>>();
+const get = vi.fn<
+  (request?: CustomObjectsGetRequest) => CustomObjectsGetBuilder
+>(() => ({ execute }));
+const withContainer = vi.fn<() => { readonly get: typeof get }>(() => ({
+  get,
+}));
+const customObjects = vi.fn<
+  () => { readonly withContainer: typeof withContainer }
+>(() => ({ withContainer }));
+// SAFETY: Test double only implements customObjects used by this suite.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions -- CT SDK request builder is not constructible in unit tests.
 const apiRoot = { customObjects } as unknown as ByProjectKeyRequestBuilder;
 
 const container = "b2b-registration-by-id";
@@ -55,6 +80,16 @@ const layer = registrationQueriesLayerFrom({ apiRoot, container });
 
 const makeDetails = (companyName: string) =>
   new CompanyRegistrationDetails({
+    address: new CompanyAddress({
+      city: Redacted.make(City.make("New York"), { label: "city" }),
+      country: CountryCode.make("US"),
+      postalCode: Redacted.make(PostalCode.make("10001"), {
+        label: "postalCode",
+      }),
+      streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
+        label: "addressLine",
+      }),
+    }),
     companyName: CompanyName.make(companyName),
     contactFirstName: Redacted.make(PersonName.make("Ada"), {
       label: "personName",
@@ -63,100 +98,87 @@ const makeDetails = (companyName: string) =>
       label: "personName",
     }),
     email: Redacted.make(Email.make("ada@example.com"), { label: "email" }),
-    address: new CompanyAddress({
-      streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
-        label: "addressLine",
-      }),
-      postalCode: Redacted.make(PostalCode.make("10001"), {
-        label: "postalCode",
-      }),
-      city: Redacted.make(City.make("New York"), { label: "city" }),
-      country: CountryCode.make("US"),
-    }),
   });
 
 const makeAwaiting = (id: string, companyName = "Hydra Supplies") =>
   new AwaitingApprovalRegistration({
     _tag: "AwaitingApprovalRegistration",
-    status: "awaiting_approval",
-    id: RegistrationId.make(id),
-    storeKey: StoreKey.make("default-store"),
-    details: makeDetails(companyName),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    details: makeDetails(companyName),
+    id: RegistrationId.make(id),
+    status: "awaiting_approval",
+    storeKey: StoreKey.make("default-store"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   });
+
+const RegistrationJsonString = Schema.fromJsonString(
+  Schema.toCodecJson(Registration)
+);
 
 const customObject = (
   id: string,
   lastModifiedAt: string,
   registration: Registration
-) =>
+): Effect.Effect<CustomObjectPayload, Schema.SchemaError> =>
   Effect.gen(function* () {
     return {
       createdAt: registration.createdAt.toISOString(),
       id,
       lastModifiedAt,
-      value: yield* encodeJsonString(Registration, registration),
+      value: yield* Schema.encodeEffect(RegistrationJsonString)(registration),
     };
-  }) as Effect.Effect<
-    {
-      readonly createdAt: string;
-      readonly id: string;
-      readonly lastModifiedAt: string;
-      readonly value: string;
-    },
-    Schema.SchemaError,
-    never
-  >;
-
-beforeEach(() => {
-  customObjects.mockClear();
-  withContainer.mockClear();
-  get.mockClear();
-  execute.mockReset();
-});
+  });
 
 describe("registrationQueriesLayer", () => {
-  itEffect("queries custom objects by lastModifiedAt and id cursor order", () =>
-    Effect.gen(function* () {
-      execute.mockResolvedValueOnce({
-        body: {
-          results: [
-            yield* customObject(
-              "custom-object-3",
-              "2026-01-03T00:00:00.000Z",
-              makeAwaiting("registration-3", "Hydra Three")
-            ),
-            yield* customObject(
-              "custom-object-2",
-              "2026-01-02T00:00:00.000Z",
-              makeAwaiting("registration-2", "Hydra Two")
-            ),
-          ],
-        },
-      });
-      const queries = yield* RegistrationQueries;
+  beforeEach(() => {
+    customObjects.mockClear();
+    withContainer.mockClear();
+    get.mockClear();
+    execute.mockReset();
+  });
 
-      const result = yield* queries.list({ limit: 1 });
+  it.effect(
+    "queries custom objects by lastModifiedAt and id cursor order",
+    () =>
+      Effect.gen(function* () {
+        execute.mockResolvedValueOnce({
+          body: {
+            results: [
+              yield* customObject(
+                "custom-object-3",
+                "2026-01-03T00:00:00.000Z",
+                makeAwaiting("registration-3", "Hydra Three")
+              ),
+              yield* customObject(
+                "custom-object-2",
+                "2026-01-02T00:00:00.000Z",
+                makeAwaiting("registration-2", "Hydra Two")
+              ),
+            ],
+          },
+        });
+        const queries = yield* RegistrationQueries;
 
-      expect(result.items.map((item) => String(item.registration.id))).toEqual([
-        "registration-3",
-      ]);
-      expect(result.nextCursor).toBeDefined();
-      expect(withContainer).toHaveBeenCalledWith({ container });
-      expect(get).toHaveBeenCalledWith({
-        queryArgs: {
-          limit: 2,
-          offset: 0,
-          sort: ["lastModifiedAt desc", "id desc"],
-          where: "value(storeKey is defined)",
-          withTotal: false,
-        },
-      });
-    }).pipe(Effect.provide(layer))
+        const result = yield* queries.list({ limit: 1 });
+
+        expect(
+          result.items.map((item) => String(item.registration.id))
+        ).toStrictEqual(["registration-3"]);
+        expect(result.nextCursor).toBeDefined();
+        expect(withContainer).toHaveBeenCalledWith({ container });
+        expect(get).toHaveBeenCalledWith({
+          queryArgs: {
+            limit: 2,
+            offset: 0,
+            sort: ["lastModifiedAt desc", "id desc"],
+            where: "value(storeKey is defined)",
+            withTotal: false,
+          },
+        });
+      }).pipe(Effect.provide(layer))
   );
 
-  itEffect("uses the opaque cursor as a Commercetools seek predicate", () =>
+  it.effect("uses the opaque cursor as a Commercetools seek predicate", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
         body: {
@@ -195,7 +217,7 @@ describe("registrationQueriesLayer", () => {
       const firstPage = yield* queries.list({ limit: 1 });
       expect(firstPage.nextCursor).toBeDefined();
       const cursor = firstPage.nextCursor;
-      if (!cursor) {
+      if (cursor === undefined) {
         throw new Error("Expected a next cursor");
       }
       const secondPage = yield* queries.list({
@@ -205,7 +227,7 @@ describe("registrationQueriesLayer", () => {
 
       expect(
         secondPage.items.map((item) => String(item.registration.id))
-      ).toEqual(["registration-2"]);
+      ).toStrictEqual(["registration-2"]);
       expect(get).toHaveBeenLastCalledWith({
         queryArgs: {
           limit: 2,
@@ -219,7 +241,7 @@ describe("registrationQueriesLayer", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  itEffect("pushes status filtering into the provider predicate", () =>
+  it.effect("pushes status filtering into the provider predicate", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
         body: {
@@ -244,10 +266,10 @@ describe("registrationQueriesLayer", () => {
         status: "awaiting_approval",
       });
 
-      expect(execute).toHaveBeenCalledTimes(1);
-      expect(result.items.map((item) => String(item.registration.id))).toEqual([
-        "registration-2",
-      ]);
+      expect(execute).toHaveBeenCalledOnce();
+      expect(
+        result.items.map((item) => String(item.registration.id))
+      ).toStrictEqual(["registration-2"]);
       expect(result.nextCursor).toBeDefined();
       expect(get).toHaveBeenCalledWith({
         queryArgs: {
@@ -262,7 +284,7 @@ describe("registrationQueriesLayer", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  itEffect("combines status and cursor predicates in one provider query", () =>
+  it.effect("combines status and cursor predicates in one provider query", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
         body: {
@@ -298,7 +320,7 @@ describe("registrationQueriesLayer", () => {
         status: "awaiting_approval",
       });
       const cursor = firstPage.nextCursor;
-      if (!cursor) {
+      if (cursor === undefined) {
         throw new Error("Expected a next cursor");
       }
       const secondPage = yield* queries.list({
@@ -309,7 +331,7 @@ describe("registrationQueriesLayer", () => {
 
       expect(
         secondPage.items.map((item) => String(item.registration.id))
-      ).toEqual(["registration-2"]);
+      ).toStrictEqual(["registration-2"]);
       expect(get).toHaveBeenLastCalledWith({
         queryArgs: {
           limit: 2,
@@ -323,7 +345,7 @@ describe("registrationQueriesLayer", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  itEffect("decodes storage status values without persisting _tag", () =>
+  it.effect("decodes storage status values without persisting _tag", () =>
     Effect.gen(function* () {
       const registration = makeAwaiting("registration-1");
       const customObjectValue =
@@ -332,7 +354,7 @@ describe("registrationQueriesLayer", () => {
       expect(customObjectValue).toMatchObject({
         status: "awaiting_approval",
       });
-      expect(Object.hasOwn(customObjectValue as object, "_tag")).toBe(false);
+      expect(customObjectValue).not.toHaveProperty("_tag");
 
       execute.mockResolvedValueOnce({
         body: {
@@ -350,28 +372,24 @@ describe("registrationQueriesLayer", () => {
 
       const result = yield* queries.list({ limit: 1 });
 
-      expect(result.items.map((item) => String(item.registration.id))).toEqual([
-        "registration-1",
-      ]);
+      expect(
+        result.items.map((item) => String(item.registration.id))
+      ).toStrictEqual(["registration-1"]);
     }).pipe(Effect.provide(layer))
   );
 
-  itEffect(
+  it.effect(
     "eligibility lookup excludes registrations without a Store Key",
     () =>
       Effect.gen(function* () {
         const legacyRegistration = makeAwaiting("legacy-registration");
         const encodedLegacyValue =
           yield* encodeRegistrationStorageValue(legacyRegistration);
-        if (
-          typeof encodedLegacyValue !== "object" ||
-          encodedLegacyValue === null ||
-          Array.isArray(encodedLegacyValue)
-        ) {
-          throw new Error("Expected an encoded Registration object");
-        }
-        const { storeKey: _storeKey, ...legacyValue } =
-          encodedLegacyValue as Record<string, unknown>;
+
+        // SAFETY: encodeRegistrationStorageValue returns the encoded Registration object, whose storeKey this fixture drops.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The encoder declares `unknown`, so the suite names the one field it strips.
+        const encoded = encodedLegacyValue as EncodedRegistrationValue;
+        const { storeKey: _storeKey, ...legacyValue } = encoded;
         const compatibleRegistration = makeAwaiting("compatible-registration");
         const compatibleCustomObject = yield* customObject(
           "compatible-custom-object",
@@ -380,23 +398,25 @@ describe("registrationQueriesLayer", () => {
         );
 
         get.mockImplementationOnce((request) => ({
-          execute: vi.fn().mockResolvedValue({
-            body: {
-              results:
-                request?.queryArgs?.where ===
-                'value(storeKey is defined) and value(status = "awaiting_approval")'
-                  ? [compatibleCustomObject]
-                  : [
-                      {
-                        createdAt: legacyRegistration.createdAt.toISOString(),
-                        id: "legacy-custom-object",
-                        lastModifiedAt: "2026-01-03T00:00:00.000Z",
-                        value: legacyValue,
-                      },
-                      compatibleCustomObject,
-                    ],
-            },
-          }),
+          execute: vi
+            .fn<() => Promise<CustomObjectsResponse>>()
+            .mockResolvedValue({
+              body: {
+                results:
+                  request?.queryArgs?.where ===
+                  'value(storeKey is defined) and value(status = "awaiting_approval")'
+                    ? [compatibleCustomObject]
+                    : [
+                        {
+                          createdAt: legacyRegistration.createdAt.toISOString(),
+                          id: "legacy-custom-object",
+                          lastModifiedAt: "2026-01-03T00:00:00.000Z",
+                          value: legacyValue,
+                        },
+                        compatibleCustomObject,
+                      ],
+              },
+            }),
         }));
         const queries = yield* RegistrationQueries;
 
@@ -404,7 +424,7 @@ describe("registrationQueriesLayer", () => {
           Redacted.make(Email.make("ada@example.com"), { label: "email" })
         );
 
-        expect(hasPendingEmail).toBe(true);
+        expect(hasPendingEmail).toBeTruthy();
         expect(get).toHaveBeenCalledWith({
           queryArgs: {
             limit: 101,
@@ -418,7 +438,7 @@ describe("registrationQueriesLayer", () => {
       }).pipe(Effect.provide(layer))
   );
 
-  itEffect(
+  it.effect(
     "uses provider ascending keyset pagination for last modified sort",
     () =>
       Effect.gen(function* () {
@@ -458,21 +478,21 @@ describe("registrationQueriesLayer", () => {
 
         const firstPage = yield* queries.list({
           limit: 1,
-          sort: { field: "lastModifiedAt", direction: "asc" },
+          sort: { direction: "asc", field: "lastModifiedAt" },
         });
         const cursor = firstPage.nextCursor;
-        if (!cursor) {
+        if (cursor === undefined) {
           throw new Error("Expected a next cursor");
         }
         const secondPage = yield* queries.list({
           cursor,
           limit: 1,
-          sort: { field: "lastModifiedAt", direction: "asc" },
+          sort: { direction: "asc", field: "lastModifiedAt" },
         });
 
         expect(
           secondPage.items.map((item) => String(item.registration.id))
-        ).toEqual(["registration-2"]);
+        ).toStrictEqual(["registration-2"]);
         expect(get).toHaveBeenLastCalledWith({
           queryArgs: {
             limit: 2,
@@ -486,7 +506,7 @@ describe("registrationQueriesLayer", () => {
       }).pipe(Effect.provide(layer))
   );
 
-  itEffect("uses provider keyset pagination for created at sort", () =>
+  it.effect("uses provider keyset pagination for created at sort", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
         body: {
@@ -524,21 +544,21 @@ describe("registrationQueriesLayer", () => {
 
       const firstPage = yield* queries.list({
         limit: 1,
-        sort: { field: "createdAt", direction: "asc" },
+        sort: { direction: "asc", field: "createdAt" },
       });
       const cursor = firstPage.nextCursor;
-      if (!cursor) {
+      if (cursor === undefined) {
         throw new Error("Expected a next cursor");
       }
       const secondPage = yield* queries.list({
         cursor,
         limit: 1,
-        sort: { field: "createdAt", direction: "asc" },
+        sort: { direction: "asc", field: "createdAt" },
       });
 
       expect(
         secondPage.items.map((item) => String(item.registration.id))
-      ).toEqual(["registration-b"]);
+      ).toStrictEqual(["registration-b"]);
       expect(get).toHaveBeenLastCalledWith({
         queryArgs: {
           limit: 2,
@@ -552,7 +572,7 @@ describe("registrationQueriesLayer", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  itEffect("maps invalid custom object payloads to query failures", () =>
+  it.effect("maps invalid custom object payloads to query failures", () =>
     Effect.gen(function* () {
       execute.mockResolvedValueOnce({
         body: {
@@ -575,7 +595,7 @@ describe("registrationQueriesLayer", () => {
     }).pipe(Effect.provide(layer))
   );
 
-  itEffect("fails malformed cursors before querying Commercetools", () =>
+  it.effect("fails malformed cursors before querying Commercetools", () =>
     Effect.gen(function* () {
       const queries = yield* RegistrationQueries;
 

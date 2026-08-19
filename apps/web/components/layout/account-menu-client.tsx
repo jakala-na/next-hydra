@@ -2,10 +2,8 @@
 
 import { signOutAction } from "@repo/auth/actions";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
-import {
-  AccountMenu,
-  type AccountMenuUser,
-} from "@repo/design-system/components/layout/account-menu";
+import { AccountMenu } from "@repo/design-system/components/layout/account-menu";
+import type { AccountMenuUser } from "@repo/design-system/components/layout/account-menu";
 import { useTranslations } from "@repo/i18n";
 
 type AccountMenuClientProps = {

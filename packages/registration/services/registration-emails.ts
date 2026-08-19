@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Ref, Schema } from "effect";
+
 import type { PendingInvitation } from "../domain/invitations";
 import type {
   ApprovedRegistration,
@@ -9,6 +10,7 @@ import type {
 export class RegistrationEmailFailure extends Schema.TaggedErrorClass<RegistrationEmailFailure>()(
   "RegistrationEmailFailure",
   {
+    cause: Schema.Defect,
     message: Schema.String,
     notification: Schema.Literals([
       "registrant_awaiting_approval",
@@ -16,7 +18,6 @@ export class RegistrationEmailFailure extends Schema.TaggedErrorClass<Registrati
       "registrant_approved",
       "registrant_rejected",
     ]),
-    cause: Schema.Defect,
   }
 ) {}
 
@@ -83,9 +84,9 @@ export class RegistrationEmails extends Context.Service<
         Ref.update(sent, (notifications) => [...notifications, notification]);
 
       return RegistrationEmails.of({
-        sendAwaitingApprovalToRegistrant: ({ registration }) =>
+        sendApprovedToRegistrant: ({ registration }) =>
           record({
-            notification: "registrant_awaiting_approval",
+            notification: "registrant_approved",
             registrationId: String(registration.id),
           }),
         sendAwaitingApprovalToApprover: ({ registration }) =>
@@ -93,9 +94,9 @@ export class RegistrationEmails extends Context.Service<
             notification: "approver_awaiting_approval",
             registrationId: String(registration.id),
           }),
-        sendApprovedToRegistrant: ({ registration }) =>
+        sendAwaitingApprovalToRegistrant: ({ registration }) =>
           record({
-            notification: "registrant_approved",
+            notification: "registrant_awaiting_approval",
             registrationId: String(registration.id),
           }),
         sendRejectedToRegistrant: ({ registration }) =>

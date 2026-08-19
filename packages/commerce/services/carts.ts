@@ -1,19 +1,21 @@
 import { Context, Effect, Layer, Option, Ref } from "effect";
-import {
-  CartId,
-  LineItemId,
-  type PositiveCartQuantity,
-  type ProductId,
-  type VariantId,
+
+import { CartId, LineItemId } from "../domain/cart";
+import type {
+  PositiveCartQuantity,
+  ProductId,
+  VariantId,
 } from "../domain/cart";
 import {
   CartAccessDenied,
   CartLineItemNotFound,
   CartMerchandiseUnavailable,
   CartNotFound,
-  type CartProviderFailure,
-  type CartWriteConflict,
-  type CartWriteOutcomeUnknown,
+} from "../domain/cart-errors";
+import type {
+  CartProviderFailure,
+  CartWriteConflict,
+  CartWriteOutcomeUnknown,
 } from "../domain/cart-errors";
 import type {
   CartProductVariant,
@@ -47,8 +49,7 @@ export interface CreateAnonymousCart {
   readonly store: Store;
 }
 
-export interface CreateBusinessUnitCart
-  extends FindActiveCartsForBusinessUnit {}
+export interface CreateBusinessUnitCart extends FindActiveCartsForBusinessUnit {}
 
 export interface AddCartItem {
   readonly productId: ProductId;

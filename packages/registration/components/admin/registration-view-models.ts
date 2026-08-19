@@ -46,9 +46,9 @@ export const registrationStatusLabels: Record<
   RegistrationDetailStatus,
   string
 > = {
-  awaiting_approval: "Awaiting approval",
   approval_processing: "Approval processing",
   approved: "Approved",
+  awaiting_approval: "Awaiting approval",
   rejected: "Rejected",
 };
 
@@ -110,7 +110,7 @@ const decisionFields = (
     | ApprovedRegistration
     | Extract<Registration, { status: "rejected" }>
 ) => {
-  const decision = registration.decision;
+  const { decision } = registration;
   const decidedAt = decision.decidedAt.toISOString();
 
   return {
@@ -126,7 +126,7 @@ const decisionFields = (
 export const toRegistrationDetailView = (
   registration: Registration
 ): RegistrationDetailView => {
-  const details = registration.details;
+  const { details } = registration;
 
   return {
     registrationId: String(registration.id),
@@ -140,16 +140,16 @@ export const toRegistrationDetailView = (
     contactLastName: Redacted.value(details.contactLastName),
     email: Redacted.value(details.email),
     address: {
-      streetName: Redacted.value(details.address.streetName),
       additionalStreetInfo: details.address.additionalStreetInfo
         ? Redacted.value(details.address.additionalStreetInfo)
         : "",
-      postalCode: Redacted.value(details.address.postalCode),
       city: Redacted.value(details.address.city),
+      country: String(details.address.country),
+      postalCode: Redacted.value(details.address.postalCode),
       region: details.address.region
         ? Redacted.value(details.address.region)
         : "",
-      country: String(details.address.country),
+      streetName: Redacted.value(details.address.streetName),
     },
     ...(registration._tag === "ApprovedRegistration"
       ? {
@@ -172,14 +172,18 @@ export const getRegistrationDecisionUnavailableMessage = (
   status: RegistrationDetailStatus
 ) => {
   switch (status) {
-    case "approval_processing":
+    case "approval_processing": {
       return "This registration decision is already being processed.";
+    }
     case "approved":
-    case "rejected":
+    case "rejected": {
       return "This registration is finalized and cannot be updated from the dashboard.";
-    case "awaiting_approval":
-      return undefined;
-    default:
+    }
+    case "awaiting_approval": {
+      return;
+    }
+    default: {
       return status satisfies never;
+    }
   }
 };

@@ -1,5 +1,5 @@
 _meta:
-  version: '1.0'
+  version: "1.0"
   entity_type: menu_link_content
   uuid: 3307f099-20e7-4fde-91d2-f726f79c2852
   bundle: menu_link_content
@@ -9,37 +9,26 @@ _meta:
     86f0e2fb-8e92-4698-b85e-27cd4154ca9e: node
 default:
   enabled:
-    -
-      value: true
+    - value: true
   title:
-    -
-      value: 'All equipment guides'
+    - value: "All equipment guides"
   description:
-    -
-      value: 'Browse every guide in the resource center.'
+    - value: "Browse every guide in the resource center."
   menu_name:
-    -
-      value: main
+    - value: main
   link:
-    -
-      title: null
-      options: {  }
+    - title: null
+      options: {}
       target_uuid: 86f0e2fb-8e92-4698-b85e-27cd4154ca9e
   external:
-    -
-      value: false
+    - value: false
   rediscover:
-    -
-      value: false
+    - value: false
   weight:
-    -
-      value: 0
+    - value: 0
   expanded:
-    -
-      value: false
+    - value: false
   parent:
-    -
-      value: 'menu_link_content:d53f6b84-47d8-4f88-b01b-fb40e8f46f9e'
+    - value: "menu_link_content:d53f6b84-47d8-4f88-b01b-fb40e8f46f9e"
   revision_translation_affected:
-    -
-      value: true
+    - value: true

@@ -1,5 +1,7 @@
-import { isValidElement, type ReactNode } from "react";
+import { isValidElement } from "react";
+import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
+
 import { BusinessUnitSwitcher } from "./business-unit-switcher";
 
 const containsText = (node: ReactNode, text: string): boolean => {
@@ -16,7 +18,7 @@ const containsText = (node: ReactNode, text: string): boolean => {
     : false;
 };
 
-describe("BusinessUnitSwitcher", () => {
+describe(BusinessUnitSwitcher, () => {
   it("shows the current Business Unit when it is the only available membership", () => {
     const switcher = BusinessUnitSwitcher({
       currentBusinessUnitId: "business-unit-1",
@@ -28,7 +30,7 @@ describe("BusinessUnitSwitcher", () => {
       props: { title: "Operating as Hydra Supply" },
       type: "div",
     });
-    expect(containsText(switcher, "Operating as ")).toBe(true);
-    expect(containsText(switcher, "Hydra Supply")).toBe(true);
+    expect(containsText(switcher, "Operating as ")).toBeTruthy();
+    expect(containsText(switcher, "Hydra Supply")).toBeTruthy();
   });
 });

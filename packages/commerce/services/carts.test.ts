@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option } from "effect";
+
 import { CountryCode } from "../domain/address";
 import { CartId, LineItemId, ProductId, Sku, VariantId } from "../domain/cart";
 import { CartProviderFailure } from "../domain/cart-errors";
@@ -12,9 +13,9 @@ import { CommerceLocale, Store, StoreKey } from "../store";
 import { Carts } from "./carts";
 
 const store = new Store({
+  currency: "USD",
   locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("us-store"),
-  currency: "USD",
 });
 const unitPriceCentAmount = 1250;
 const initialQuantity = 2;
@@ -46,7 +47,7 @@ describe("Carts memory Layer", () => {
         store,
       });
 
-      expect(Option.isNone(found)).toBe(true);
+      expect(Option.isNone(found)).toBeTruthy();
     }).pipe(Effect.provide(Carts.layerMemory()))
   );
 
@@ -54,16 +55,16 @@ describe("Carts memory Layer", () => {
     Effect.gen(function* () {
       const carts = yield* Carts;
       const businessUnit = {
-        store,
-        customerId: CommerceCustomerId.make("customer-1"),
         businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
         businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+        customerId: CommerceCustomerId.make("customer-1"),
+        store,
       };
 
       const created = yield* carts.createForBusinessUnit(businessUnit);
       const found = yield* carts.findActiveForBusinessUnit(businessUnit);
 
-      expect(found.map((cart) => cart.id)).toEqual([created.id]);
+      expect(found.map((cart) => cart.id)).toStrictEqual([created.id]);
       expect(created.buyingContext?.businessUnitId).toBe(
         businessUnit.businessUnitId
       );
@@ -75,14 +76,14 @@ describe("Carts memory Layer", () => {
       const carts = yield* Carts;
       const created = yield* carts.createAnonymous({ store });
       const updated = yield* carts.addItem({
+        productId: ProductId.make("product-1"),
+        quantity: initialQuantity,
         target: {
           _tag: "AnonymousCartTarget",
           id: created.id,
           store,
         },
-        productId: ProductId.make("product-1"),
         variantId: VariantId.make("variant-1"),
-        quantity: initialQuantity,
       });
 
       expect(updated).not.toBe(created);
@@ -97,18 +98,18 @@ describe("Carts memory Layer", () => {
         Carts.layerMemory({
           merchandise: [
             {
-              variant: {
-                id: VariantId.make("variant-1"),
-                productId: ProductId.make("product-1"),
-                productType: "generic-product",
-                name: "Hydra Wrench",
-                sku: Sku.make("SKU-1"),
-                images: [],
-                attributes: {},
-              },
               unitPrice: {
                 centAmount: unitPriceCentAmount,
                 currencyCode: "USD",
+              },
+              variant: {
+                attributes: {},
+                id: VariantId.make("variant-1"),
+                images: [],
+                name: "Hydra Wrench",
+                productId: ProductId.make("product-1"),
+                productType: "generic-product",
+                sku: Sku.make("SKU-1"),
               },
             },
           ],
@@ -127,10 +128,10 @@ describe("Carts memory Layer", () => {
         store,
       };
       const added = yield* carts.addItem({
-        target,
         productId: ProductId.make("product-1"),
-        variantId: VariantId.make("variant-1"),
         quantity: initialQuantity,
+        target,
+        variantId: VariantId.make("variant-1"),
       });
       const lineItemId = added.lineItems[0]?.id;
 
@@ -139,33 +140,33 @@ describe("Carts memory Layer", () => {
       }
 
       const changed = yield* carts.setLineItemQuantity({
-        target,
         lineItemId,
         quantity: updatedQuantity,
+        target,
       });
-      const removed = yield* carts.removeLineItem({ target, lineItemId });
+      const removed = yield* carts.removeLineItem({ lineItemId, target });
 
       expect(changed.lineItems[0]?.quantity).toBe(updatedQuantity);
       expect(changed.totalLineItemQuantity).toBe(updatedQuantity);
-      expect(removed.lineItems).toEqual([]);
+      expect(removed.lineItems).toStrictEqual([]);
       expect(removed.totalPrice.centAmount).toBe(0);
     }).pipe(
       Effect.provide(
         Carts.layerMemory({
           merchandise: [
             {
-              variant: {
-                id: VariantId.make("variant-1"),
-                productId: ProductId.make("product-1"),
-                productType: "generic-product",
-                name: "Hydra Wrench",
-                sku: Sku.make("SKU-1"),
-                images: [],
-                attributes: {},
-              },
               unitPrice: {
                 centAmount: unitPriceCentAmount,
                 currencyCode: "USD",
+              },
+              variant: {
+                attributes: {},
+                id: VariantId.make("variant-1"),
+                images: [],
+                name: "Hydra Wrench",
+                productId: ProductId.make("product-1"),
+                productType: "generic-product",
+                sku: Sku.make("SKU-1"),
               },
             },
           ],
@@ -184,32 +185,32 @@ describe("Carts memory Layer", () => {
         store,
       };
       const contact = {
-        source: "manual" as const,
         buyerContact: {
           email: "buyer@example.com",
           firstName: "Ada",
           lastName: "Lovelace",
         },
+        source: "manual" as const,
       };
       const deliveryDetails = {
-        source: "manual" as const,
         shippingAddress: {
           addressLine1: "123 Example Street",
-          postalCode: "10001",
           city: "New York",
           country: CountryCode.make("US"),
+          postalCode: "10001",
         },
+        source: "manual" as const,
       };
 
-      const withContact = yield* carts.saveContact({ target, contact });
+      const withContact = yield* carts.saveContact({ contact, target });
       const withDelivery = yield* carts.saveDeliveryDetails({
-        target,
         deliveryDetails,
+        target,
       });
 
-      expect(withContact.checkoutDetails.contact).toEqual(contact);
-      expect(withDelivery.checkoutDetails.contact).toEqual(contact);
-      expect(withDelivery.checkoutDetails.deliveryDetails).toEqual(
+      expect(withContact.checkoutDetails.contact).toStrictEqual(contact);
+      expect(withDelivery.checkoutDetails.contact).toStrictEqual(contact);
+      expect(withDelivery.checkoutDetails.deliveryDetails).toStrictEqual(
         deliveryDetails
       );
     }).pipe(Effect.provide(Carts.layerMemory()))
@@ -221,33 +222,33 @@ describe("Carts memory Layer", () => {
       const created = yield* carts.createAnonymous({ store });
       const missingLine = yield* carts
         .removeLineItem({
+          lineItemId: LineItemId.make("missing-line"),
           target: {
             _tag: "AnonymousCartTarget",
             id: created.id,
             store,
           },
-          lineItemId: LineItemId.make("missing-line"),
         })
         .pipe(Effect.flip);
       const denied = yield* carts
         .saveContact({
-          target: {
-            _tag: "BusinessUnitCartTarget",
-            id: created.id,
-            store,
-            customerId: CommerceCustomerId.make("customer-1"),
-            businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-            businessUnitKey: CommerceBusinessUnitKey.make(
-              "business-unit-key-1"
-            ),
-          },
           contact: {
-            source: "manual",
             buyerContact: {
               email: "buyer@example.com",
               firstName: "Ada",
               lastName: "Lovelace",
             },
+            source: "manual",
+          },
+          target: {
+            _tag: "BusinessUnitCartTarget",
+            businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+            businessUnitKey: CommerceBusinessUnitKey.make(
+              "business-unit-key-1"
+            ),
+            customerId: CommerceCustomerId.make("customer-1"),
+            id: created.id,
+            store,
           },
         })
         .pipe(Effect.flip);

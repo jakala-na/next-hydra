@@ -6,7 +6,7 @@ export const ProductImageUrl = Schema.String.check(
       if (!URL.canParse(value)) {
         return false;
       }
-      const protocol = new URL(value).protocol;
+      const { protocol } = new URL(value);
       return protocol === "http:" || protocol === "https:";
     },
     { expected: "an absolute HTTP(S) URL" }
@@ -15,7 +15,7 @@ export const ProductImageUrl = Schema.String.check(
 export type ProductImageUrl = typeof ProductImageUrl.Type;
 
 export const ProductImage = Schema.Struct({
-  url: ProductImageUrl,
   altText: Schema.optional(Schema.String),
+  url: ProductImageUrl,
 });
 export type ProductImage = typeof ProductImage.Type;

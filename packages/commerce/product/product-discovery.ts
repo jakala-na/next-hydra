@@ -1,14 +1,16 @@
 import { Context, Effect, Layer, Option, Schema } from "effect";
+
 import type { ProductDetail } from "./generated/attributes";
-import { CategoryId, ProductId, type ProductSlug } from "./identity";
+import { CategoryId, ProductId } from "./identity";
+import type { ProductSlug } from "./identity";
 import type { ProductCard } from "./model";
 
 export class ListProductCardsInput extends Schema.Class<ListProductCardsInput>(
   "ListProductCardsInput"
 )({
   categoryId: Schema.optional(CategoryId),
-  limit: Schema.Int.check(Schema.isGreaterThan(0)),
   excludeProductId: Schema.optional(ProductId),
+  limit: Schema.Int.check(Schema.isGreaterThan(0)),
 }) {}
 
 export const ProductDiscoveryOperation = Schema.Literals([
@@ -20,9 +22,9 @@ export type ProductDiscoveryOperation = typeof ProductDiscoveryOperation.Type;
 export class ProductDiscoveryFailure extends Schema.TaggedErrorClass<ProductDiscoveryFailure>()(
   "ProductDiscoveryFailure",
   {
-    operation: ProductDiscoveryOperation,
-    message: Schema.String,
     cause: Schema.optional(Schema.Defect),
+    message: Schema.String,
+    operation: ProductDiscoveryOperation,
   }
 ) {}
 

@@ -1,4 +1,5 @@
 import { cancel, isCancel, select, text } from "@clack/prompts";
+
 import type { ProviderSlot } from "./composition/types.js";
 
 export class UserCancelledError extends Error {
@@ -29,7 +30,7 @@ export async function promptForTargetDirectory(): Promise<string> {
 
 const PROVIDER_CHOICES: Record<
   ProviderSlot,
-  Array<{ label: string; value: string; hint?: string }>
+  { label: string; value: string; hint?: string }[]
 > = {
   auth: [{ label: "WorkOS", value: "workos" }],
   cms: [

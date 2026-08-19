@@ -1,9 +1,9 @@
 import "server-only";
-
 import { withAuth } from "@repo/auth/server";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import type { AccountMenuUser } from "@repo/design-system/components/layout/account-menu";
 import { connection } from "next/server";
+
 import { AccountMenuClient } from "./account-menu-client";
 
 const toAccountMenuUser = (

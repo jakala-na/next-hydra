@@ -227,7 +227,7 @@ const makeWorkosAccessTokenVerifier = ({
     verify: Effect.fn("AccessTokenVerifier.verify")((token) =>
       Effect.tryPromise({
         catch: toAccessTokenVerificationError,
-        try: () => verifyAccessToken(token),
+        try: async () => await verifyAccessToken(token),
       }).pipe(
         Effect.flatMap(decodeVerifiedPayload),
         Effect.flatMap((payload) =>
@@ -294,8 +294,8 @@ export const accessTokenVerifierLayer = ({
         expectedClientId: clientId,
         expectedIssuer,
         requiredPermissions,
-        verifyAccessToken: (token) =>
-          jwtVerify(token, jwks).then(({ payload }) => payload),
+        verifyAccessToken: async (token) =>
+          await jwtVerify(token, jwks).then(({ payload }) => payload),
       });
     })
   );

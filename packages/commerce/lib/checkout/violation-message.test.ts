@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+
 import { localizedCountryName } from "./violation-message";
 
-describe("localizedCountryName", () => {
+describe(localizedCountryName, () => {
   it("localizes schema-safe country codes", () => {
     expect(localizedCountryName("RE", "en-US", "Unknown destination")).toBe(
       "Réunion"

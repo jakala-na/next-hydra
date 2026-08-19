@@ -1,8 +1,7 @@
 import type { CanvasComponentTreeElement } from "@drupal-canvas/headless";
-import {
-  type CanvasComponentRegistry,
-  CanvasComponentTree as ReactCanvasComponentTree,
-} from "@drupal-canvas/headless-react";
+import { CanvasComponentTree as ReactCanvasComponentTree } from "@drupal-canvas/headless-react";
+import type { CanvasComponentRegistry } from "@drupal-canvas/headless-react";
+
 import generatedCanvasComponents from "../.canvas/components";
 import CanvasArticleCardNextAdapter from "../canvas-components/article-card/next";
 

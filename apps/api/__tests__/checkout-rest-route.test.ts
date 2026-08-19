@@ -1920,7 +1920,7 @@ test("GET /checkout/current defects on unclassified JWT verifier failures", asyn
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
-    expect(body).toEqual({
+    expect(body).toStrictEqual({
       _tag: "Unexpected",
       category: "unexpected",
       code: "unexpected",

@@ -1,5 +1,6 @@
 import type { Locale } from "@repo/i18n/types";
 import { initGraphQLTada } from "gql.tada";
+
 import type { introspection } from "./gql/graphql-env.d.ts";
 
 export const graphql = initGraphQLTada<{

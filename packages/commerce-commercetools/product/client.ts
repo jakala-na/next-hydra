@@ -7,8 +7,8 @@ import { Context, Effect, Layer, Schema } from "effect";
 export class CommercetoolsProductRequestFailure extends Schema.TaggedErrorClass<CommercetoolsProductRequestFailure>()(
   "CommercetoolsProductRequestFailure",
   {
-    message: Schema.String,
     cause: Schema.optional(Schema.Defect),
+    message: Schema.String,
   }
 ) {}
 
@@ -139,19 +139,19 @@ export class CommercetoolsProductDiscoveryClient extends Context.Service<
     Layer.succeed(
       CommercetoolsProductDiscoveryClient,
       CommercetoolsProductDiscoveryClient.of({
+        findProductBySlug: (input) =>
+          handlers.findProductBySlug?.(input) ?? Effect.succeed(null),
+        getProductSelectionRules: (storeKey, productIds) =>
+          handlers.getProductSelectionRules?.(storeKey, productIds) ??
+          Effect.succeed(new Map()),
+        listProductProjections: (input) =>
+          handlers.listProductProjections?.(input) ?? Effect.succeed([]),
         resolveProductContext: (input) =>
           handlers.resolveProductContext?.(input) ??
           Effect.succeed({
             distributionChannelId: "",
             supplyChannelIds: [],
           }),
-        findProductBySlug: (input) =>
-          handlers.findProductBySlug?.(input) ?? Effect.succeed(null),
-        listProductProjections: (input) =>
-          handlers.listProductProjections?.(input) ?? Effect.succeed([]),
-        getProductSelectionRules: (storeKey, productIds) =>
-          handlers.getProductSelectionRules?.(storeKey, productIds) ??
-          Effect.succeed(new Map()),
       })
     );
 }

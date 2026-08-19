@@ -4,6 +4,7 @@ import type {
 } from "@repo/commerce/domain/checkout";
 import type { CommerceBusinessUnitId } from "@repo/commerce/domain/commerce-account";
 import type { CurrencyCode } from "@repo/commerce/domain/money";
+
 import type { ProductAttributes, ProductTypeKey } from "./attributes";
 
 export type CommercetoolsMoney = {

@@ -19,34 +19,34 @@ const RedactedEmail = Schema.String.pipe(
     decode: SchemaGetter.transform((email: string) =>
       Redacted.make(email, { label: "email" })
     ),
-    encode: SchemaGetter.transform((email: Redacted.Redacted<string>) =>
+    encode: SchemaGetter.transform((email: Redacted.Redacted) =>
       Redacted.value(email)
     ),
   })
 );
 
 class ExampleRecord extends Schema.Class<ExampleRecord>("ExampleRecord")({
-  id: Schema.String,
-  email: RedactedEmail,
   createdAt: Schema.Date,
+  email: RedactedEmail,
+  id: Schema.String,
 }) {}
 
 const key = "example-1";
 const example = new ExampleRecord({
-  id: key,
-  email: Redacted.make("ada@example.com", { label: "email" }),
   createdAt: new Date(0),
+  email: Redacted.make("ada@example.com", { label: "email" }),
+  id: key,
 });
 
 const updatedExample = new ExampleRecord({
-  id: key,
-  email: Redacted.make("grace@example.com", { label: "email" }),
   createdAt: new Date(1),
+  email: Redacted.make("grace@example.com", { label: "email" }),
+  id: key,
 });
 
 describe("VersionedKeyValueStore.layerMemory", () => {
-  it("keeps redacted fields redacted during formatted JSON logging", async () =>
-    Effect.runPromise(
+  it("keeps redacted fields redacted during formatted JSON logging", async () => {
+    await Effect.runPromise(
       Effect.gen(function* () {
         const storageJson = yield* Schema.encodeEffect(
           Schema.fromJsonString(Schema.toCodecJson(ExampleRecord))
@@ -57,37 +57,40 @@ describe("VersionedKeyValueStore.layerMemory", () => {
         expect(logJson).not.toContain("ada@example.com");
         expect(logJson).toContain("<redacted:email>");
       })
-    ));
+    );
+  });
 
-  it("returns none for missing keys", async () =>
-    Effect.runPromise(
+  it("returns none for missing keys", async () => {
+    await Effect.runPromise(
       Effect.gen(function* () {
         const store = yield* VersionedKeyValueStore;
 
         const missing = yield* store.get(key, ExampleRecord);
 
-        expect(Option.isNone(missing)).toBe(true);
+        expect(Option.isNone(missing)).toBeTruthy();
       }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
-    ));
+    );
+  });
 
-  it("inserts and decodes schema values by key", async () =>
-    Effect.runPromise(
+  it("inserts and decodes schema values by key", async () => {
+    await Effect.runPromise(
       Effect.gen(function* () {
         const store = yield* VersionedKeyValueStore;
 
         yield* store.insert(key, ExampleRecord, example);
         const stored = yield* store.get(key, ExampleRecord);
 
-        expect(Option.isSome(stored)).toBe(true);
+        expect(Option.isSome(stored)).toBeTruthy();
         if (Option.isSome(stored)) {
           expect(stored.value.value.id).toBe(example.id);
           expect(stored.value.value.createdAt).toBeInstanceOf(Date);
         }
       }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
-    ));
+    );
+  });
 
-  it("rejects duplicate create-only inserts", async () =>
-    Effect.runPromise(
+  it("rejects duplicate create-only inserts", async () => {
+    await Effect.runPromise(
       Effect.gen(function* () {
         const store = yield* VersionedKeyValueStore;
 
@@ -96,15 +99,16 @@ describe("VersionedKeyValueStore.layerMemory", () => {
           .insert(key, ExampleRecord, example)
           .pipe(Effect.exit);
 
-        expect(Exit.isFailure(exit)).toBe(true);
+        expect(Exit.isFailure(exit)).toBeTruthy();
         if (Exit.isFailure(exit)) {
           expect(exit.cause.toString()).toContain(StoreConflict.name);
         }
       }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
-    ));
+    );
+  });
 
-  it("updates with the current version and returns a new version", async () =>
-    Effect.runPromise(
+  it("updates with the current version and returns a new version", async () => {
+    await Effect.runPromise(
       Effect.gen(function* () {
         const store = yield* VersionedKeyValueStore;
 
@@ -121,10 +125,11 @@ describe("VersionedKeyValueStore.layerMemory", () => {
         expect(updated.value.email).toStrictEqual(updatedExample.email);
         expect(updated.version).not.toBe(current.version);
       }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
-    ));
+    );
+  });
 
-  it("rejects stale versioned updates", async () =>
-    Effect.runPromise(
+  it("rejects stale versioned updates", async () => {
+    await Effect.runPromise(
       Effect.gen(function* () {
         const store = yield* VersionedKeyValueStore;
 
@@ -138,15 +143,16 @@ describe("VersionedKeyValueStore.layerMemory", () => {
           .update(key, ExampleRecord, stale, example)
           .pipe(Effect.exit);
 
-        expect(Exit.isFailure(exit)).toBe(true);
+        expect(Exit.isFailure(exit)).toBeTruthy();
         if (Exit.isFailure(exit)) {
           expect(exit.cause.toString()).toContain(StoreConflict.name);
         }
       }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
-    ));
+    );
+  });
 
-  it("removes only the current version and is idempotent once absent", async () =>
-    Effect.runPromise(
+  it("removes only the current version and is idempotent once absent", async () => {
+    await Effect.runPromise(
       Effect.gen(function* () {
         const store = yield* VersionedKeyValueStore;
 
@@ -158,12 +164,15 @@ describe("VersionedKeyValueStore.layerMemory", () => {
         yield* store.remove(key, current);
         yield* store.remove(key, current);
 
-        expect(Option.isNone(yield* store.get(key, ExampleRecord))).toBe(true);
+        expect(
+          Option.isNone(yield* store.get(key, ExampleRecord))
+        ).toBeTruthy();
       }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
-    ));
+    );
+  });
 
-  it("rejects removal with a stale version", async () =>
-    Effect.runPromise(
+  it("rejects removal with a stale version", async () => {
+    await Effect.runPromise(
       Effect.gen(function* () {
         const store = yield* VersionedKeyValueStore;
 
@@ -175,10 +184,11 @@ describe("VersionedKeyValueStore.layerMemory", () => {
 
         const exit = yield* store.remove(key, stale).pipe(Effect.exit);
 
-        expect(Exit.isFailure(exit)).toBe(true);
+        expect(Exit.isFailure(exit)).toBeTruthy();
         if (Exit.isFailure(exit)) {
           expect(exit.cause.toString()).toContain(StoreConflict.name);
         }
       }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
-    ));
+    );
+  });
 });

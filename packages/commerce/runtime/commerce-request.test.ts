@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
+
 import { decodeCommerceAuthUserId } from "./commerce-request";
 
 describe("Commerce request input", () => {
@@ -12,9 +13,7 @@ describe("Commerce request input", () => {
   });
 
   it("keeps an anonymous request anonymous", async () => {
-    const authUserId = await Effect.runPromise(
-      decodeCommerceAuthUserId(undefined)
-    );
+    const authUserId = await Effect.runPromise(decodeCommerceAuthUserId(undefined));
 
     expect(authUserId).toBeUndefined();
   });

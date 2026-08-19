@@ -129,16 +129,16 @@ export const checkRegistrationEligibility = Effect.fn(
     ...(hasCustomer || hasIdentityUser || hasPendingEmailRegistration
       ? [
           new DuplicateRegistrationEmail({
-            path: "email",
             code: "duplicateEmail",
+            path: "email",
           }),
         ]
       : []),
     ...(invalidVatId
       ? [
           new InvalidRegistrationVatId({
-            path: "vatId",
             code: "invalidVatId",
+            path: "vatId",
           }),
         ]
       : []),

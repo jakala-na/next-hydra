@@ -12,4 +12,4 @@ export const JsonLd = ({ code }: JsonLdProps) => (
   />
 );
 
-export * from "schema-dts";
+export type * from "schema-dts";

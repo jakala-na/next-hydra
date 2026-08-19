@@ -7,17 +7,19 @@ import type {
 import {
   AnonymousCommerceContextRequest,
   AnonymousCommercePrincipal,
-  type CommerceContextRequest,
-  type CommercePrincipal,
   CommerceRequestContextNotFound,
-  type CustomerCommerceContextRequest,
   CustomerCommercePrincipal,
 } from "../domain/commerce-request-context";
+import type {
+  CommerceContextRequest,
+  CommercePrincipal,
+  CustomerCommerceContextRequest,
+} from "../domain/commerce-request-context";
 import type { Store } from "../store";
-import {
-  type CommerceAccountUnavailable,
-  CommerceAccounts,
-  type CommerceCustomerProfileNotFound,
+import { CommerceAccounts } from "./commerce-accounts";
+import type {
+  CommerceAccountUnavailable,
+  CommerceCustomerProfileNotFound,
 } from "./commerce-accounts";
 
 export type CommerceContextProfileFailure =
@@ -82,11 +84,11 @@ export class CommerceContext extends Context.Service<
         const accounts = yield* CommerceAccounts;
         const principal: CommercePrincipal =
           request instanceof AnonymousCommerceContextRequest
-            ? new AnonymousCommercePrincipal({
-                ...(request.anonymousCartId === undefined
+            ? new AnonymousCommercePrincipal(
+                request.anonymousCartId === undefined
                   ? {}
-                  : { anonymousCartId: request.anonymousCartId }),
-              })
+                  : { anonymousCartId: request.anonymousCartId }
+              )
             : yield* Effect.gen(function* () {
                 const customerId = yield* accounts
                   .getCustomerIdByAuthUserId(request.authUserId)
@@ -116,9 +118,9 @@ export class CommerceContext extends Context.Service<
 
                 return new CustomerCommercePrincipal({
                   authUserId: request.authUserId,
-                  customerId,
                   businessUnitId: businessUnit.businessUnitId,
                   businessUnitKey: businessUnit.businessUnitKey,
+                  customerId,
                 });
               });
         const customerPrincipal: Effect.Effect<
@@ -136,8 +138,6 @@ export class CommerceContext extends Context.Service<
               );
 
         return CommerceContext.of({
-          store: request.store,
-          principal,
           customerPrincipal: () => customerPrincipal,
           customerProfile: () =>
             customerPrincipal.pipe(
@@ -147,6 +147,8 @@ export class CommerceContext extends Context.Service<
                 )
               )
             ),
+          principal,
+          store: request.store,
         });
       })
     );

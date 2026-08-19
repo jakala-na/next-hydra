@@ -3,6 +3,7 @@ import {
   getDraftEditorOrigin,
   isDraftSessionExpired,
 } from "@drupal-canvas/headless-next";
+
 import { CanvasDraftBanner } from "./canvas-draft-banner";
 
 export async function LivePreview({ isEnabled }: { isEnabled: boolean }) {

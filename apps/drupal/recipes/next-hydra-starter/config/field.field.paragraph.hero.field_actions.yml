@@ -11,11 +11,11 @@ field_name: field_actions
 entity_type: paragraph
 bundle: hero
 label: Actions
-description: ''
+description: ""
 required: false
 translatable: true
-default_value: {  }
-default_value_callback: ''
+default_value: {}
+default_value_callback: ""
 settings:
   title: 1
   link_type: 17

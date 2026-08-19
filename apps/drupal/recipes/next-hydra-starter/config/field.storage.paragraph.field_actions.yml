@@ -8,11 +8,11 @@ id: paragraph.field_actions
 field_name: field_actions
 entity_type: paragraph
 type: link
-settings: {  }
+settings: {}
 module: link
 locked: false
 cardinality: 2
 translatable: true
-indexes: {  }
+indexes: {}
 persist_with_no_fields: false
 custom_storage: false

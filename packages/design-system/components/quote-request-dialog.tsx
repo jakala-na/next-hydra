@@ -95,9 +95,9 @@ export function QuoteRequestDialog({
               {price !== undefined && currencyCode !== undefined && (
                 <p className="font-bold text-lg">
                   {new Intl.NumberFormat("en-US", {
-                    style: "currency",
                     currency: currencyCode,
                     minimumFractionDigits: 0,
+                    style: "currency",
                   }).format(price)}
                 </p>
               )}
@@ -171,7 +171,9 @@ export function QuoteRequestDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => {
+                  onOpenChange(false);
+                }}
                 className="bg-transparent"
               >
                 Cancel

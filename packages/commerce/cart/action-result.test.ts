@@ -11,7 +11,7 @@ const actionInputInvalid = {
   _tag: "InputInvalid",
   category: "bad_input",
   code: "input.invalid",
-  issues: [{ path: [], message: "Invalid input." }],
+  issues: [{ message: "Invalid input.", path: [] }],
   message: "Invalid input.",
   recovery: "fix_input",
 };
@@ -23,8 +23,8 @@ const commonCartFailures = [
     category: "not_found",
     code: "cart.contextUnavailable",
     message: "The cart is unavailable for the current account.",
-    recovery: "refresh",
     reason: "noPrincipal",
+    recovery: "refresh",
   },
   {
     _tag: "CurrentCartSelectionConflict",
@@ -61,7 +61,7 @@ const lineItemMutationFailures = [
 ] as const;
 
 const expectFailureRoundTrips = (
-  schema: Schema.Codec<unknown, unknown, never, never>,
+  schema: Schema.Codec<unknown, unknown>,
   failures: readonly unknown[]
 ) => {
   for (const failure of failures) {

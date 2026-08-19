@@ -58,7 +58,7 @@ export const preferredDeliveryAddressSelection = (
   );
 
   if (current) {
-    return { type: "addressBook", reference: current.reference };
+    return { reference: current.reference, type: "addressBook" };
   }
 
   const defaultShipping = shippingAddressOptions.find(
@@ -67,8 +67,8 @@ export const preferredDeliveryAddressSelection = (
 
   if (defaultShipping) {
     return {
-      type: "addressBook",
       reference: defaultShipping.reference,
+      type: "addressBook",
     };
   }
 
@@ -93,7 +93,7 @@ export const deliveryAddressSelectionAfterAction = (
 
   return retryReference === undefined
     ? currentSelection
-    : { type: "addressBook", reference: retryReference };
+    : { reference: retryReference, type: "addressBook" };
 };
 
 function AddressLines({ address }: { readonly address: ShippingAddress }) {
@@ -311,8 +311,8 @@ export function CheckoutDeliveryDetailsFormContent({
                   name="deliveryAddressChoice"
                   onChange={() => {
                     onSelectionChange({
-                      type: "addressBook",
                       reference: option.reference,
+                      type: "addressBook",
                     });
                   }}
                   required

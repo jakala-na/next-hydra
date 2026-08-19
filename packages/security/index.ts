@@ -1,10 +1,6 @@
-import arcjet, {
-  type ArcjetBotCategory,
-  type ArcjetWellKnownBot,
-  detectBot,
-  request,
-  shield,
-} from "@arcjet/next";
+import arcjet, { detectBot, request, shield } from "@arcjet/next";
+import type { ArcjetBotCategory, ArcjetWellKnownBot } from "@arcjet/next";
+
 import { keys } from "./keys";
 
 const arcjetKey = keys().ARCJET_KEY;
@@ -33,7 +29,7 @@ export const secure = async (
   });
 
   const req = sourceRequest ?? (await request());
-  const aj = base.withRule(detectBot({ mode: "LIVE", allow }));
+  const aj = base.withRule(detectBot({ allow, mode: "LIVE" }));
   const decision = await aj.protect(req);
 
   if (decision.isDenied()) {

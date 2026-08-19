@@ -10,13 +10,14 @@ import { Info } from "lucide-react";
  * An interactive component which expands/collapses a panel.
  */
 const meta = {
-  title: "ui/Collapsible",
-  component: Collapsible,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
     className: "w-96",
     disabled: false,
+  },
+  component: Collapsible,
+  parameters: {
+    layout: "centered",
   },
   render: (args) => (
     <Collapsible {...args}>
@@ -30,9 +31,8 @@ const meta = {
       </CollapsibleContent>
     </Collapsible>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/Collapsible",
 } satisfies Meta<typeof Collapsible>;
 
 export default meta;

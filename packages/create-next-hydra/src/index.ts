@@ -1,10 +1,8 @@
 import { Command } from "commander";
 
 import { addRegistryItem } from "./composition/add.js";
-import {
-  type UseCompositionOptions,
-  useComposition,
-} from "./composition/use.js";
+import { useComposition } from "./composition/use.js";
+import type { UseCompositionOptions } from "./composition/use.js";
 import { CLI_NAME, DEFAULT_REPO_URL } from "./constants.js";
 import { promptForTargetDirectory } from "./prompts.js";
 import { scaffoldProject } from "./scaffold.js";

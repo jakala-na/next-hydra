@@ -21,9 +21,8 @@ const packageJsonSchema = z
 
 export type PackageJson = Partial<
   Record<DependencySection, Record<string, string>>
-> & {
-  [key: string]: unknown;
-};
+> &
+  Record<string, unknown>;
 
 function decodePackageJson(value: unknown, label: string): PackageJson {
   const result = packageJsonSchema.safeParse(value);
@@ -56,7 +55,7 @@ export async function readPackageJson(
   filePath: string,
   label = filePath
 ): Promise<PackageJson> {
-  return parsePackageJson(await readFile(filePath, "utf8"), label);
+  return parsePackageJson(await readFile(filePath, "utf-8"), label);
 }
 
 export function mergePackageRequirements(

@@ -34,6 +34,16 @@ const reviewer = new RegistrationReviewerActor({
 });
 
 const details = new CompanyRegistrationDetails({
+  address: new CompanyAddress({
+    city: Redacted.make(City.make("New York"), { label: "city" }),
+    country: CountryCode.make("US"),
+    postalCode: Redacted.make(PostalCode.make("10001"), {
+      label: "postalCode",
+    }),
+    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
+      label: "addressLine",
+    }),
+  }),
   companyName: CompanyName.make("Hydra Supplies"),
   contactFirstName: Redacted.make(PersonName.make("Ada"), {
     label: "personName",
@@ -42,16 +52,6 @@ const details = new CompanyRegistrationDetails({
     label: "personName",
   }),
   email: Redacted.make(Email.make("ada@example.com"), { label: "email" }),
-  address: new CompanyAddress({
-    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
-      label: "addressLine",
-    }),
-    postalCode: Redacted.make(PostalCode.make("10001"), {
-      label: "postalCode",
-    }),
-    city: Redacted.make(City.make("New York"), { label: "city" }),
-    country: CountryCode.make("US"),
-  }),
 });
 
 const createRegistration = Effect.gen(function* () {
@@ -62,7 +62,7 @@ const createRegistration = Effect.gen(function* () {
   });
 });
 
-describe("acceptRegistrationReviewDecision", () => {
+describe(acceptRegistrationReviewDecision, () => {
   it.effect("marks approval processing before resuming workflow", () => {
     const resumed: unknown[] = [];
 
@@ -81,9 +81,8 @@ describe("acceptRegistrationReviewDecision", () => {
 
       expect(accepted.status).toBe("approval_processing");
       expect(current.status).toBe("approval_processing");
-      expect(resumed).toEqual([
+      expect(resumed).toStrictEqual([
         {
-          registrationId: registration.id,
           decision: {
             decision: "approved",
             reason: "Looks good",
@@ -93,6 +92,7 @@ describe("acceptRegistrationReviewDecision", () => {
               name: "Registration Reviewer",
             },
           },
+          registrationId: registration.id,
         },
       ]);
     }).pipe(
@@ -102,9 +102,9 @@ describe("acceptRegistrationReviewDecision", () => {
           Layer.succeed(
             RegistrationWorkflow,
             RegistrationWorkflow.of({
+              resumeInvitation: () => Effect.die("not used"),
               resumeReview: (registrationId, decision) =>
                 Effect.sync(() => resumed.push({ decision, registrationId })),
-              resumeInvitation: () => Effect.die("not used"),
               start: () => Effect.die("not used"),
             })
           )
@@ -129,13 +129,13 @@ describe("acceptRegistrationReviewDecision", () => {
         reviewer,
       }).pipe(Effect.exit);
 
-      expect(Exit.isFailure(exit)).toBe(true);
+      expect(Exit.isFailure(exit)).toBeTruthy();
       if (Exit.isFailure(exit)) {
         expect(exit.cause.toString()).toContain(
           RegistrationTransitionConflict.name
         );
       }
-      expect(resumed).toEqual([]);
+      expect(resumed).toStrictEqual([]);
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
@@ -143,9 +143,9 @@ describe("acceptRegistrationReviewDecision", () => {
           Layer.succeed(
             RegistrationWorkflow,
             RegistrationWorkflow.of({
+              resumeInvitation: () => Effect.die("not used"),
               resumeReview: (registrationId, decision) =>
                 Effect.sync(() => resumed.push({ decision, registrationId })),
-              resumeInvitation: () => Effect.die("not used"),
               start: () => Effect.die("not used"),
             })
           )

@@ -1,9 +1,9 @@
 uuid: b74a31cb-164f-4f57-ae12-31505f2b0774
 langcode: en
 status: true
-dependencies: {  }
+dependencies: {}
 machineName: featured-articles
-name: 'Featured Articles'
+name: "Featured Articles"
 type: external
 required:
   - title
@@ -12,13 +12,13 @@ props:
     type: string
     title: Title
     examples:
-      - 'Equipment guides'
+      - "Equipment guides"
   description:
     type: string
     title: Description
     examples:
-      - 'Practical guidance for selecting, operating, and maintaining heavy equipment.'
+      - "Practical guidance for selecting, operating, and maintaining heavy equipment."
 slots:
   articles:
     title: Articles
-dataDependencies: {  }
+dataDependencies: {}

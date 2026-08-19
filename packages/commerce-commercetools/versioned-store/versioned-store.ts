@@ -18,15 +18,6 @@ import {
 
 const NOT_FOUND_STATUS_CODE = 404;
 
-interface CommercetoolsCustomObject {
-  readonly value: unknown;
-  readonly version: number;
-}
-
-interface CommercetoolsCustomObjectPagedQueryResponse {
-  readonly results: readonly CommercetoolsCustomObject[];
-}
-
 const CommercetoolsStatusCodeError = Schema.Struct({
   statusCode: Schema.Number,
 });
@@ -56,12 +47,12 @@ const storeError = (
   reason: StoreError["reason"] = "invalidData"
 ) =>
   new StoreError({
+    cause,
+    key,
     message: `Failed to ${operation} store value ${key}: ${
       cause instanceof Error ? cause.message : String(cause)
     }`,
-    key,
     operation,
-    cause,
     reason,
   });
 
@@ -71,11 +62,11 @@ const storeConflict = (
   cause: unknown
 ) =>
   new StoreConflict({
+    key,
     message: `Store ${operation} conflict for ${key}: ${
       Option.getOrUndefined(Schema.decodeUnknownOption(ErrorMessage)(cause))
         ?.message ?? "Commercetools custom object version conflict"
     }`,
-    key,
     operation,
   });
 
@@ -147,20 +138,20 @@ const readCustomObject = (
         .get()
         .execute();
 
-      return response.body as CommercetoolsCustomObject;
+      return response.body;
     }
   ).pipe(
     Effect.map(Option.some),
-    Effect.catch((failure) =>
-      isNotFoundError(failure)
+    Effect.catch((error) =>
+      isNotFoundError(error)
         ? Effect.succeed(Option.none())
         : Effect.fail(
             storeError(
               key,
               "read",
-              commercetoolsFailureCause(failure),
+              commercetoolsFailureCause(error),
               commercetoolsProviderFailureReason(
-                commercetoolsFailureCause(failure)
+                commercetoolsFailureCause(error)
               )
             )
           )
@@ -183,8 +174,8 @@ const writeCustomObject = (
           body: {
             container,
             key,
-            version,
             value,
+            version,
           },
         })
         .execute();
@@ -226,7 +217,7 @@ const queryCustomObjects = (
         })
         .execute();
 
-      return response.body as CommercetoolsCustomObjectPagedQueryResponse;
+      return response.body;
     }
   ).pipe(
     Effect.mapError((error) =>

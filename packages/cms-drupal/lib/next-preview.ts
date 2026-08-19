@@ -1,11 +1,9 @@
 import "server-only";
-
 import { z } from "zod";
+
 import { keys } from "../keys";
-import {
-  type DrupalNextPreviewContext,
-  isSafeDrupalPreviewPath,
-} from "./preview-context";
+import { isSafeDrupalPreviewPath } from "./preview-context";
+import type { DrupalNextPreviewContext } from "./preview-context";
 
 const NEXT_DRUPAL_PREVIEW_PLUGIN = "simple_oauth";
 const ID_RESOURCE_VERSION_PREFIX = "id:";

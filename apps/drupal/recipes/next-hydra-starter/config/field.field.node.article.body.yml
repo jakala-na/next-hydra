@@ -11,13 +11,13 @@ field_name: body
 entity_type: node
 bundle: article
 label: Body
-description: ''
+description: ""
 required: true
 translatable: true
-default_value: {  }
-default_value_callback: ''
+default_value: {}
+default_value_callback: ""
 settings:
   display_summary: false
   required_summary: false
-  allowed_formats: {  }
+  allowed_formats: {}
 field_type: text_with_summary

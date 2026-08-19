@@ -6,13 +6,12 @@ dev:
   ac-realm: devcloud
   uri: nexthydrademoogrnyaxrvn.devcloud.acquia-sites.com
   dev.livedev:
-    parent: '@nexthydrademo.dev'
+    parent: "@nexthydrademo.dev"
     root: /mnt/gfs/nexthydrademo.dev/livedev/docroot
   host: nexthydrademoogrnyaxrvn.ssh.devcloud.acquia-sites.com
   user: nexthydrademo.dev
   paths:
     drush-script: drush9
-
 
 # Application 'nexthydrademo', environment 'prod'.
 prod:
@@ -22,13 +21,12 @@ prod:
   ac-realm: devcloud
   uri: nexthydrademoblzfqnc2db.devcloud.acquia-sites.com
   prod.livedev:
-    parent: '@nexthydrademo.prod'
+    parent: "@nexthydrademo.prod"
     root: /mnt/gfs/nexthydrademo.prod/livedev/docroot
   host: nexthydrademoblzfqnc2db.ssh.devcloud.acquia-sites.com
   user: nexthydrademo.prod
   paths:
     drush-script: drush9
-
 
 # Application 'nexthydrademo', environment 'test'.
 test:
@@ -38,11 +36,9 @@ test:
   ac-realm: devcloud
   uri: nexthydrademoejtbbcdejf.devcloud.acquia-sites.com
   test.livedev:
-    parent: '@nexthydrademo.test'
+    parent: "@nexthydrademo.test"
     root: /mnt/gfs/nexthydrademo.test/livedev/docroot
   host: nexthydrademoejtbbcdejf.ssh.devcloud.acquia-sites.com
   user: nexthydrademo.test
   paths:
     drush-script: drush9
-
-

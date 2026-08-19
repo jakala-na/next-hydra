@@ -1,6 +1,6 @@
-name: 'Next Hydra starter'
-description: 'A minimal Drupal backend for Next Hydra with landing pages, articles, Hydra blocks, native navigation, GraphQL, and preview.'
-type: 'Site'
+name: "Next Hydra starter"
+description: "A minimal Drupal backend for Next Hydra with landing pages, articles, Hydra blocks, native navigation, GraphQL, and preview."
+type: "Site"
 
 recipes:
   - core/recipes/administrator_role
@@ -80,9 +80,9 @@ config:
       createIfNotExists:
         langcode: en
         status: true
-        dependencies: {  }
+        dependencies: {}
         id: en
-        label: 'English (United States)'
+        label: "English (United States)"
         direction: ltr
         weight: 0
         locked: false
@@ -90,9 +90,9 @@ config:
       createIfNotExists:
         langcode: en
         status: true
-        dependencies: {  }
+        dependencies: {}
         id: und
-        label: 'Not specified'
+        label: "Not specified"
         direction: ltr
         weight: 8
         locked: true
@@ -100,9 +100,9 @@ config:
       createIfNotExists:
         langcode: en
         status: true
-        dependencies: {  }
+        dependencies: {}
         id: zxx
-        label: 'Not applicable'
+        label: "Not applicable"
         direction: ltr
         weight: 9
         locked: true
@@ -110,9 +110,9 @@ config:
       createIfNotExists:
         langcode: en
         status: true
-        dependencies: {  }
+        dependencies: {}
         id: en-gb
-        label: 'English, British'
+        label: "English, British"
         direction: ltr
         weight: 1
         locked: false
@@ -120,7 +120,7 @@ config:
       createIfNotExists:
         langcode: en
         status: true
-        dependencies: {  }
+        dependencies: {}
         id: es
         label: Spanish
         direction: ltr
@@ -130,7 +130,7 @@ config:
       createIfNotExists:
         langcode: en
         status: true
-        dependencies: {  }
+        dependencies: {}
         id: fr
         label: French
         direction: ltr
@@ -140,7 +140,7 @@ config:
       createIfNotExists:
         langcode: en
         status: true
-        dependencies: {  }
+        dependencies: {}
         id: de
         label: German
         direction: ltr
@@ -150,7 +150,7 @@ config:
       createIfNotExists:
         langcode: en
         status: true
-        dependencies: {  }
+        dependencies: {}
         id: it
         label: Italian
         direction: ltr
@@ -160,9 +160,9 @@ config:
       createIfNotExists:
         langcode: en
         status: true
-        dependencies: {  }
+        dependencies: {}
         id: pt-pt
-        label: 'Portuguese, Portugal'
+        label: "Portuguese, Portugal"
         direction: ltr
         weight: 6
         locked: false
@@ -170,7 +170,7 @@ config:
       createIfNotExists:
         langcode: en
         status: true
-        dependencies: {  }
+        dependencies: {}
         id: nl
         label: Dutch
         direction: ltr
@@ -179,7 +179,7 @@ config:
     language.negotiation:
       simpleConfigUpdate:
         url.prefixes:
-          en: ''
+          en: ""
           en-gb: en-GB
           es: es-ES
           fr: fr-FR
@@ -188,14 +188,14 @@ config:
           pt-pt: pt-PT
           nl: nl-NL
         url.domains:
-          en: ''
-          en-gb: ''
-          es: ''
-          fr: ''
-          de: ''
-          it: ''
-          pt-pt: ''
-          nl: ''
+          en: ""
+          en-gb: ""
+          es: ""
+          fr: ""
+          de: ""
+          it: ""
+          pt-pt: ""
+          nl: ""
     canvas.page_region.next_hydra.pre_header:
       setProperties:
         component_tree:
@@ -203,7 +203,7 @@ config:
             component_id: js.text
             component_version: 9a9978112194b13f
             inputs: '{"text":"Global pre-header region"}'
-            label: 'Global pre-header region'
+            label: "Global pre-header region"
     canvas.page_region.next_hydra.post_header:
       setProperties:
         component_tree:
@@ -211,7 +211,7 @@ config:
             component_id: js.text
             component_version: 9a9978112194b13f
             inputs: '{"text":"Global post-header region"}'
-            label: 'Global post-header region'
+            label: "Global post-header region"
     canvas.page_region.next_hydra.pre_footer:
       setProperties:
         component_tree:
@@ -219,7 +219,7 @@ config:
             component_id: js.text
             component_version: 9a9978112194b13f
             inputs: '{"text":"Global pre-footer region"}'
-            label: 'Global pre-footer region'
+            label: "Global pre-footer region"
     canvas.page_region.next_hydra.post_footer:
       setProperties:
         component_tree:
@@ -227,7 +227,7 @@ config:
             component_id: js.text
             component_version: 9a9978112194b13f
             inputs: '{"text":"Global post-footer region"}'
-            label: 'Global post-footer region'
+            label: "Global post-footer region"
     locale.settings:
       simpleConfigUpdate:
         translation.import_enabled: true
@@ -282,7 +282,7 @@ config:
         - module: content_translation
           key: bundle_settings
           value:
-            untranslatable_fields_hide: '1'
+            untranslatable_fields_hide: "1"
     language.content_settings.paragraph.dynamic_product_collection:
       createIfNotExists:
         target_entity_type_id: paragraph
@@ -301,7 +301,7 @@ config:
         - module: content_translation
           key: bundle_settings
           value:
-            untranslatable_fields_hide: '1'
+            untranslatable_fields_hide: "1"
     language.content_settings.paragraph.featured_articles:
       createIfNotExists:
         target_entity_type_id: paragraph
@@ -320,7 +320,7 @@ config:
         - module: content_translation
           key: bundle_settings
           value:
-            untranslatable_fields_hide: '1'
+            untranslatable_fields_hide: "1"
     language.content_settings.menu_link_content.menu_link_content:
       createIfNotExists:
         target_entity_type_id: menu_link_content
@@ -390,29 +390,29 @@ config:
         disable_openid_connect: false
     user.role.content_editor:
       grantPermissions:
-        - 'access content overview'
-        - 'access media overview'
-        - 'create article content'
-        - 'create content translations'
-        - 'create landing_page content'
-        - 'create media'
-        - 'delete any article content'
-        - 'delete any landing_page content'
-        - 'delete article revisions'
-        - 'delete landing_page revisions'
-        - 'edit any article content'
-        - 'edit any landing_page content'
-        - 'revert article revisions'
-        - 'revert landing_page revisions'
-        - 'translate editable entities'
-        - 'update any media'
-        - 'update content translations'
-        - 'use text format basic_html'
-        - 'view article revisions'
-        - 'view landing_page revisions'
+        - "access content overview"
+        - "access media overview"
+        - "create article content"
+        - "create content translations"
+        - "create landing_page content"
+        - "create media"
+        - "delete any article content"
+        - "delete any landing_page content"
+        - "delete article revisions"
+        - "delete landing_page revisions"
+        - "edit any article content"
+        - "edit any landing_page content"
+        - "revert article revisions"
+        - "revert landing_page revisions"
+        - "translate editable entities"
+        - "update any media"
+        - "update content translations"
+        - "use text format basic_html"
+        - "view article revisions"
+        - "view landing_page revisions"
     user.role.viewer:
       grantPermissions:
-        - 'execute graphql_compose_server arbitrary graphql requests'
+        - "execute graphql_compose_server arbitrary graphql requests"
     user.role.previewer:
       grantPermissions:
-        - 'execute graphql_compose_server arbitrary graphql requests'
+        - "execute graphql_compose_server arbitrary graphql requests"

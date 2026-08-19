@@ -55,7 +55,7 @@ export function decodeDrupalPreviewContext(
 
   try {
     const decoded: unknown = JSON.parse(
-      Buffer.from(value, "base64url").toString("utf8")
+      Buffer.from(value, "base64url").toString("utf-8")
     );
     const result = drupalPreviewContextSchema.safeParse(decoded);
     return result.success ? result.data : undefined;

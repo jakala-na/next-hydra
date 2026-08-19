@@ -1,8 +1,5 @@
-import {
-  type CompositionPlan,
-  PROVIDER_SLOTS,
-  type WorkspaceSelection,
-} from "./types.js";
+import { PROVIDER_SLOTS } from "./types.js";
+import type { CompositionPlan, WorkspaceSelection } from "./types.js";
 
 const NO_ADD_ONS = "none";
 

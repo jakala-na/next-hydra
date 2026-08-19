@@ -2,6 +2,7 @@ import type { NavigationItem } from "@repo/design-system/components/layout/navig
 import type { Locale } from "@repo/i18n";
 import { cacheLife, cacheTag } from "next/cache";
 import { draftMode } from "next/headers";
+
 import { graphqlClient } from "../../client";
 import { graphql } from "../../graphql";
 import { toDrupalLangcode } from "../locale";
@@ -71,5 +72,7 @@ export async function getNavigation(
   locale: Locale
 ): Promise<{ navigationItems: NavigationItem[] }> {
   const { isEnabled: preview } = await draftMode();
-  return preview ? loadNavigation(locale, true) : getCachedNavigation(locale);
+  return preview
+    ? await loadNavigation(locale, true)
+    : await getCachedNavigation(locale);
 }

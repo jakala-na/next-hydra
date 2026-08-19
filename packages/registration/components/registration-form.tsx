@@ -37,11 +37,13 @@ import { useForm } from "react-hook-form";
 import {
   getCountryOptions,
   makeRegistrationFormInputSchema,
-  type RegistrationFormResult,
   RegistrationFormResultSchema,
   RegistrationFormIssuePath,
-  type RegistrationFormValues,
   requiresRegion,
+} from "./registration-form-schema";
+import type {
+  RegistrationFormResult,
+  RegistrationFormValues,
 } from "./registration-form-schema";
 
 type RegistrationFormProps = {
@@ -51,20 +53,20 @@ type RegistrationFormProps = {
 };
 
 const defaultValues: RegistrationFormValues = {
+  address: {
+    additionalStreetInfo: "",
+    city: "",
+    country: "US",
+    postalCode: "",
+    region: "",
+    streetName: "",
+  },
   companyName: "",
   companyPhone: "",
-  vatId: "",
   contactFirstName: "",
   contactLastName: "",
   email: "",
-  address: {
-    streetName: "",
-    additionalStreetInfo: "",
-    postalCode: "",
-    city: "",
-    region: "",
-    country: "US",
-  },
+  vatId: "",
 };
 
 type RegistrationActionFailure = Extract<
@@ -97,17 +99,17 @@ export function RegistrationForm({ submit }: RegistrationFormProps) {
   const locale = useLocale();
   const registrationFormSchema = makeRegistrationFormInputSchema(t);
   const form = useForm<RegistrationFormValues>({
+    defaultValues,
+    mode: "onBlur",
     resolver: standardSchemaResolver(
       Schema.toStandardSchemaV1(registrationFormSchema)
     ),
-    defaultValues,
-    mode: "onBlur",
   });
   const selectedCountry = form.watch("address.country");
   const isRegionRequired = requiresRegion(selectedCountry);
   const countryOptions = getCountryOptions(locale);
   const formError = form.formState.errors.root?.serverError?.message;
-  const isSubmitting = form.formState.isSubmitting;
+  const { isSubmitting } = form.formState;
   const renderRowFieldMessage = (name: FieldPath<RegistrationFormValues>) => {
     const message = form.getFieldState(name, form.formState).error?.message;
 
@@ -168,7 +170,7 @@ export function RegistrationForm({ submit }: RegistrationFormProps) {
 
           Result.match(result, {
             onFailure: applyRegistrationFailure,
-            onSuccess: () => undefined,
+            onSuccess: () => {},
           });
         })}
       >

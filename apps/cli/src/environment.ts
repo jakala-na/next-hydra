@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { config as loadDotenv } from "dotenv";
 
 const DEFAULT_ENV_FILE = fileURLToPath(new URL("../.env", import.meta.url));
@@ -38,8 +39,8 @@ export const loadEnvironmentFile = (envFile?: string): void => {
   }
 
   const result = loadDotenv({
-    path,
     override: envFile !== undefined,
+    path,
     quiet: true,
   });
 

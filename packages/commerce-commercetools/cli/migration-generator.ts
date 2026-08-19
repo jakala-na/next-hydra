@@ -15,8 +15,8 @@ const migrationTimestamp = (date: Date): string => {
 const normalizeMigrationName = (name: string): string =>
   name
     .toLowerCase()
-    .replace(/[_\s]+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+    .replaceAll(/[_\s]+/g, "-")
+    .replaceAll(/[^a-z0-9-]/g, "");
 
 const migrationTitle = (name: string): string =>
   name
@@ -67,7 +67,7 @@ export const createMigration = async (
   await writeFile(
     join(migrationsDirectory, fileName),
     migrationTemplate(normalizedName, description),
-    "utf8"
+    "utf-8"
   );
 
   return fileName;

@@ -1,12 +1,12 @@
 import "server-only";
-
 import { createApiBuilderFromCtpClient } from "@commercetools/platform-sdk";
-import {
-  type AuthMiddlewareOptions,
-  ClientBuilder,
-  type HttpMiddlewareOptions,
+import { ClientBuilder } from "@commercetools/ts-client";
+import type {
+  AuthMiddlewareOptions,
+  HttpMiddlewareOptions,
 } from "@commercetools/ts-client";
 import { Effect, Layer, Redacted } from "effect";
+
 import { CommercetoolsConfig } from "../config/config";
 import { CommercetoolsRestClient } from "./rest-client";
 
@@ -18,27 +18,27 @@ export const restClientLayer = Layer.effect(
   Effect.gen(function* () {
     const config = yield* CommercetoolsConfig;
     const authMiddlewareOptions: AuthMiddlewareOptions = {
-      host: `https://auth.${config.region}.commercetools.com`,
-      projectKey: config.projectKey,
       credentials: {
         clientId: config.clientId,
         clientSecret: Redacted.value(config.clientSecret),
       },
-      scopes: config.scope.split(" "),
+      host: `https://auth.${config.region}.commercetools.com`,
       httpClient: fetch,
+      projectKey: config.projectKey,
+      scopes: config.scope.split(" "),
     };
     const httpMiddlewareOptions: HttpMiddlewareOptions = {
+      enableRetry: true,
       host: `https://api.${config.region}.commercetools.com`,
       httpClient: fetch,
-      enableRetry: true,
       retryConfig: {
-        maxRetries: 3,
-        retryDelay: 200,
         backoff: false,
+        maxRetries: 3,
         retryCodes: [
           INTERNAL_SERVER_ERROR_STATUS_CODE,
           SERVICE_UNAVAILABLE_STATUS_CODE,
         ],
+        retryDelay: 200,
       },
     };
     const client = new ClientBuilder()

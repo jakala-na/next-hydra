@@ -1,7 +1,9 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
+
 import type { CompositionPlan } from "../src/composition/types.js";
 import {
   applyPackageEntries,
@@ -59,9 +61,9 @@ function removalPlan(): CompositionPlan {
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories
-      .splice(0)
-      .map((directory) => rm(directory, { force: true, recursive: true }))
+    temporaryDirectories.splice(0).map(async (directory) => {
+      await rm(directory, { force: true, recursive: true });
+    })
   );
 });
 
@@ -94,7 +96,7 @@ describe("package manifest updates", () => {
       },
     ]);
 
-    expect(await readFile(manifestPath, "utf8")).toBe(
+    await expect(readFile(manifestPath, "utf-8")).resolves.toBe(
       source.replace(
         "workspace:@repo/cms-drupal@*",
         "workspace:@repo/cms-contentstack@*"
@@ -128,7 +130,7 @@ describe("package manifest updates", () => {
       },
     ]);
 
-    expect(await readFile(manifestPath, "utf8")).toBe(`{
+    await expect(readFile(manifestPath, "utf-8")).resolves.toBe(`{
   "name": "web",
   "dependencies": {
     "zeta": "^1.0.0",
@@ -156,7 +158,7 @@ describe("package manifest updates", () => {
       },
     ]);
 
-    expect(await readFile(manifestPath, "utf8")).toBe(source);
+    await expect(readFile(manifestPath, "utf-8")).resolves.toBe(source);
   });
 
   it("does not rewrite a manifest when a removed catalog entry is absent", async () => {
@@ -165,7 +167,7 @@ describe("package manifest updates", () => {
 
     await applyPackageRequirements(workspaceRoot, removalPlan());
 
-    expect(await readFile(manifestPath, "utf8")).toBe(source);
+    await expect(readFile(manifestPath, "utf-8")).resolves.toBe(source);
   });
 
   it("preserves remaining key positions when removing a dependency", async () => {
@@ -183,7 +185,7 @@ describe("package manifest updates", () => {
 
     await applyPackageRequirements(workspaceRoot, removalPlan());
 
-    expect(await readFile(manifestPath, "utf8")).toBe(`{
+    await expect(readFile(manifestPath, "utf-8")).resolves.toBe(`{
   "name": "web",
   "dependencies": {
     "zeta": "^1.0.0",
@@ -215,12 +217,12 @@ describe("workspace selection updates", () => {
 
     const selection = await readWorkspaceSelection(workspaceRoot);
 
-    expect(Object.keys(selection)).toEqual(["providers", "addOns"]);
-    expect(Object.keys(selection.providers)).toEqual([
+    expect(Object.keys(selection)).toStrictEqual(["providers", "addOns"]);
+    expect(Object.keys(selection.providers)).toStrictEqual([
       "commerce",
       "auth",
       "cms",
     ]);
-    expect(selection.addOns).toEqual([]);
+    expect(selection.addOns).toStrictEqual([]);
   });
 });

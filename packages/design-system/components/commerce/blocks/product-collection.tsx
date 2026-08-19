@@ -1,9 +1,9 @@
-import {
-  ArchitectureBoundary,
-  type ArchitectureMetadata,
-} from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import type { ArchitectureMetadata } from "@repo/design-system/components/architecture/architecture-boundary";
 import type { ReactNode } from "react";
-import ProductCard, { type ProductCardProps } from "../product-card";
+
+import ProductCard from "../product-card";
+import type { ProductCardProps } from "../product-card";
 
 interface ProductCollectionProps {
   architecture?: ArchitectureMetadata;

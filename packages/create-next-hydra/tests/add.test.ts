@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
 
 import { addRegistryItem } from "../src/composition/add.js";
@@ -82,9 +83,9 @@ async function fixture() {
 afterEach(async () => {
   const { rm } = await import("node:fs/promises");
   await Promise.all(
-    temporaryDirectories
-      .splice(0)
-      .map((directory) => rm(directory, { force: true, recursive: true }))
+    temporaryDirectories.splice(0).map(async (directory) => {
+      await rm(directory, { force: true, recursive: true });
+    })
   );
 });
 
@@ -115,9 +116,9 @@ describe("customer add", () => {
 
     await addRegistryItem(artifactPath, { cwd: root, yes: true });
 
-    expect(await readFile(path.join(root, "src/ordinary.ts"), "utf8")).toBe(
-      "export const ordinary = true;\n"
-    );
+    await expect(
+      readFile(path.join(root, "src/ordinary.ts"), "utf-8")
+    ).resolves.toBe("export const ordinary = true;\n");
   });
 
   it("rejects registry files that ShadCN would transform before writing", async () => {
@@ -154,7 +155,7 @@ describe("customer add", () => {
       })
     ).rejects.toThrow(EXACT_COPY_FILES);
     await expect(
-      readFile(path.join(root, "src/component.tsx"), "utf8")
+      readFile(path.join(root, "src/component.tsx"), "utf-8")
     ).rejects.toThrow();
   });
 
@@ -190,42 +191,39 @@ describe("customer add", () => {
 
     await addRegistryItem(artifactPath, { cwd: root, yes: true });
 
-    expect(await readFile(target, "utf8")).toBe(existing);
+    await expect(readFile(target, "utf-8")).resolves.toBe(existing);
   });
 
   it("creates missing files, skips identical files, and never deletes other code", async () => {
     const { root, artifactPath } = await fixture();
     const unrelated = path.join(root, "customer-owned.ts");
     let installCount = 0;
-    const install = (cwd: string) => {
+    const install = async (cwd: string) => {
       expect(cwd).toBe(root);
       installCount += 1;
-      return Promise.resolve();
+      return;
     };
     await writeFile(unrelated, "keep me\n");
 
     await addRegistryItem(artifactPath, { cwd: root, yes: true }, { install });
     await addRegistryItem(artifactPath, { cwd: root, yes: true }, { install });
 
-    expect(
-      await readFile(
+    await expect(
+      readFile(
         path.join(root, "packages/cms-drupal/integrations/dam.ts"),
-        "utf8"
+        "utf-8"
       )
-    ).toBe("export const dam = true;\n");
-    expect(await readFile(unrelated, "utf8")).toBe("keep me\n");
+    ).resolves.toBe("export const dam = true;\n");
+    await expect(readFile(unrelated, "utf-8")).resolves.toBe("keep me\n");
     expect(installCount).toBe(1);
-    expect(
-      await readFile(
-        path.join(root, "apps/web/app/api/dam/sync/route.ts"),
-        "utf8"
-      )
-    ).toContain("export const POST");
+    await expect(
+      readFile(path.join(root, "apps/web/app/api/dam/sync/route.ts"), "utf-8")
+    ).resolves.toContain("export const POST");
     expect(
       JSON.parse(
         await readFile(
           path.join(root, "packages/cms-drupal/package.json"),
-          "utf8"
+          "utf-8"
         )
       ).dependencies["example-dam-client"]
     ).toBe("^1.0.0");
@@ -240,7 +238,9 @@ describe("customer add", () => {
     await expect(
       addRegistryItem(artifactPath, { cwd: root, yes: true })
     ).rejects.toThrow(OVERWRITE_REQUIRED);
-    expect(await readFile(target, "utf8")).toBe("customer improvement\n");
+    await expect(readFile(target, "utf-8")).resolves.toBe(
+      "customer improvement\n"
+    );
   });
 
   it("overwrites disclosed file and package conflicts under --yes --overwrite", async () => {
@@ -260,15 +260,17 @@ describe("customer add", () => {
         overwrite: true,
         yes: true,
       },
-      { install: async () => undefined }
+      { install: async () => {} }
     );
 
-    expect(await readFile(target, "utf8")).toBe("export const dam = true;\n");
+    await expect(readFile(target, "utf-8")).resolves.toBe(
+      "export const dam = true;\n"
+    );
     expect(
       JSON.parse(
         await readFile(
           path.join(root, "packages/cms-drupal/package.json"),
-          "utf8"
+          "utf-8"
         )
       ).dependencies["example-dam-client"]
     ).toBe("^1.0.0");
@@ -276,7 +278,7 @@ describe("customer add", () => {
 
   it("discloses and refuses conflicting standard registry dependencies", async () => {
     const { artifactPath, root } = await fixture();
-    const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+    const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
     artifact.dependencies = ["standard-dam-client@^2.0.0"];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
     await writeFile(
@@ -292,7 +294,7 @@ describe("customer add", () => {
       addRegistryItem(artifactPath, { cwd: root, yes: true })
     ).rejects.toThrow(OVERWRITE_REQUIRED);
     expect(
-      JSON.parse(await readFile(path.join(root, "package.json"), "utf8"))
+      JSON.parse(await readFile(path.join(root, "package.json"), "utf-8"))
         .dependencies["standard-dam-client"]
     ).toBe("^1.0.0");
   });
@@ -309,13 +311,13 @@ describe("customer add", () => {
       )
     ).rejects.toThrow("Installation cancelled");
 
-    await expect(readFile(target, "utf8")).rejects.toThrow();
+    await expect(readFile(target, "utf-8")).rejects.toThrow();
   });
 
   it("installs and checks the complete registry dependency graph", async () => {
     const { artifactPath, root } = await fixture();
     const dependencyPath = path.join(root, "dam-backend.json");
-    const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+    const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
     artifact.registryDependencies = [dependencyPath];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
     await writeFile(
@@ -338,24 +340,24 @@ describe("customer add", () => {
     await addRegistryItem(
       artifactPath,
       { cwd: root, yes: true },
-      { install: async () => undefined }
+      { install: async () => {} }
     );
 
-    expect(
-      await readFile(
+    await expect(
+      readFile(
         path.join(
           root,
           "apps/drupal/docroot/modules/custom/next_hydra_dam/next_hydra_dam.info.yml"
         ),
-        "utf8"
+        "utf-8"
       )
-    ).toContain("name: Next Hydra DAM");
+    ).resolves.toContain("name: Next Hydra DAM");
   });
 
   it("rejects target collisions in registry dependencies before writing", async () => {
     const { artifactPath, root } = await fixture();
     const dependencyPath = path.join(root, "dam-collision.json");
-    const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+    const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
     artifact.registryDependencies = [dependencyPath];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
     await writeFile(
@@ -380,7 +382,7 @@ describe("customer add", () => {
     await expect(
       readFile(
         path.join(root, "packages/cms-drupal/integrations/dam.ts"),
-        "utf8"
+        "utf-8"
       )
     ).rejects.toThrow();
   });
@@ -400,7 +402,7 @@ describe("customer add", () => {
   it("validates a private Provider from its declared stable alias", async () => {
     const { artifactPath, root } = await fixture();
     const providerPath = path.join(root, "private-cms.json");
-    const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+    const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
     artifact.meta.nextHydra.compatibility.requires = ["vendor/cms/private"];
     artifact.registryDependencies = [providerPath];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
@@ -436,7 +438,7 @@ describe("customer add", () => {
   it("does not let a nested Provider switch the customer alias", async () => {
     const { artifactPath, root } = await fixture();
     const providerPath = path.join(root, "nested-drupal-provider.json");
-    const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
+    const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
     artifact.meta.nextHydra.compatibility.requires = [];
     artifact.registryDependencies = [providerPath];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
@@ -486,11 +488,11 @@ describe("customer add", () => {
 
     expect(
       JSON.parse(
-        await readFile(path.join(root, "apps/web/package.json"), "utf8")
+        await readFile(path.join(root, "apps/web/package.json"), "utf-8")
       ).dependencies["@repo/cms"]
     ).toBe("workspace:@repo/cms-contentstack@*");
     await expect(
-      readFile(path.join(root, "packages/cms-drupal/provider.ts"), "utf8")
+      readFile(path.join(root, "packages/cms-drupal/provider.ts"), "utf-8")
     ).rejects.toThrow();
   });
 
@@ -528,9 +530,9 @@ describe("customer add", () => {
       }
     );
 
-    expect(await readFile(path.join(root, "src/approved.ts"), "utf8")).toBe(
-      "approved content\n"
-    );
+    await expect(
+      readFile(path.join(root, "src/approved.ts"), "utf-8")
+    ).resolves.toBe("approved content\n");
   });
 
   it("applies package requirements to a package supplied by the Add-on", async () => {
@@ -580,14 +582,14 @@ describe("customer add", () => {
     await addRegistryItem(
       artifactPath,
       { cwd: root, yes: true },
-      { install: async () => undefined }
+      { install: async () => {} }
     );
 
     expect(
       JSON.parse(
         await readFile(
           path.join(root, "packages/new-package/package.json"),
-          "utf8"
+          "utf-8"
         )
       ).dependencies["example-client"]
     ).toBe("^1.0.0");
@@ -643,7 +645,7 @@ describe("customer add", () => {
       addRegistryItem(artifactPath, { cwd: root, yes: true })
     ).rejects.toThrow(INVALID_PACKAGE_JSON);
     await expect(
-      readFile(path.join(root, "packages/invalid/package.json"), "utf8")
+      readFile(path.join(root, "packages/invalid/package.json"), "utf-8")
     ).rejects.toThrow();
   });
 });

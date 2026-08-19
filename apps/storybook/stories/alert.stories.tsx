@@ -10,18 +10,16 @@ import { AlertCircle } from "lucide-react";
  * Displays a callout for user attention.
  */
 const meta = {
-  title: "ui/Alert",
-  component: Alert,
-  tags: ["autodocs"],
   argTypes: {
     variant: {
-      options: ["default", "destructive"],
       control: { type: "radio" },
+      options: ["default", "destructive"],
     },
   },
   args: {
     variant: "default",
   },
+  component: Alert,
   render: (args) => (
     <Alert {...args}>
       <AlertTitle>Heads up!</AlertTitle>
@@ -30,6 +28,8 @@ const meta = {
       </AlertDescription>
     </Alert>
   ),
+  tags: ["autodocs"],
+  title: "ui/Alert",
 } satisfies Meta<typeof Alert>;
 
 export default meta;
@@ -44,6 +44,9 @@ export const Default: Story = {};
  * Use the `destructive` alert to indicate a destructive action.
  */
 export const Destructive: Story = {
+  args: {
+    variant: "destructive",
+  },
   render: (args) => (
     <Alert {...args}>
       <AlertCircle className="h-4 w-4" />
@@ -53,7 +56,4 @@ export const Destructive: Story = {
       </AlertDescription>
     </Alert>
   ),
-  args: {
-    variant: "destructive",
-  },
 };

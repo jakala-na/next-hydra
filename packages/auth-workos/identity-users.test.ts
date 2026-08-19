@@ -12,41 +12,38 @@ import {
 import { Cause, Effect, Layer, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 
-import {
-  makeWorkosIdentityUsers,
-  type WorkosIdentityUserManagement,
-} from "./identity-users";
+import { makeWorkosIdentityUsers } from "./identity-users";
+import type { WorkosIdentityUserManagement } from "./identity-users";
 
 const email = Redacted.make(Email.make("ada@example.com"), { label: "email" });
 
 const makeUserManagement = (
   overrides: Partial<WorkosIdentityUserManagement> = {}
 ): WorkosIdentityUserManagement => ({
-  getUser: () =>
-    Promise.resolve({
-      email: "ada@example.com",
-      firstName: "Ada",
-      lastName: "Lovelace",
-    }),
-  listUsers: () => Promise.resolve({ data: [] }),
+  getUser: async () => ({
+    email: "ada@example.com",
+    firstName: "Ada",
+    lastName: "Lovelace",
+  }),
+  listUsers: async () => ({ data: [] }),
   ...overrides,
 });
 
 const makeLayer = (userManagement: WorkosIdentityUserManagement) =>
   Layer.succeed(IdentityUsers, makeWorkosIdentityUsers(userManagement));
 
-describe("makeWorkosIdentityUsers", () => {
+describe(makeWorkosIdentityUsers, () => {
   it("checks WorkOS users by email with a one-record query", async () => {
     let listInput:
       | Parameters<WorkosIdentityUserManagement["listUsers"]>[0]
       | undefined;
     const layer = makeLayer(
       makeUserManagement({
-        listUsers: (input) => {
+        listUsers: async (input) => {
           listInput = input;
-          return Promise.resolve({
-            data: [{ id: "user-1", email: "ada@example.com" }],
-          });
+          return {
+            data: [{ email: "ada@example.com", id: "user-1" }],
+          };
         },
       })
     );
@@ -56,8 +53,8 @@ describe("makeWorkosIdentityUsers", () => {
         const identityUsers = yield* IdentityUsers;
         const exists = yield* identityUsers.hasUserWithEmail(email);
 
-        expect(exists).toBe(true);
-        expect(listInput).toEqual({
+        expect(exists).toBeTruthy();
+        expect(listInput).toStrictEqual({
           email: "ada@example.com",
           limit: 1,
         });
@@ -69,13 +66,13 @@ describe("makeWorkosIdentityUsers", () => {
     let requestedAuthUserId: string | undefined;
     const layer = makeLayer(
       makeUserManagement({
-        getUser: (authUserId) => {
+        getUser: async (authUserId) => {
           requestedAuthUserId = authUserId;
-          return Promise.resolve({
+          return {
             email: "reviewer@example.com",
             firstName: "Grace",
             lastName: "Hopper",
-          });
+          };
         },
       })
     );
@@ -96,14 +93,13 @@ describe("makeWorkosIdentityUsers", () => {
   it("maps coded WorkOS transport failures to unavailable identity lookups", async () => {
     const layer = makeLayer(
       makeUserManagement({
-        getUser: () =>
-          Promise.reject(
-            new TypeError("fetch failed", {
-              cause: Object.assign(new Error("socket reset"), {
-                code: "ECONNRESET",
-              }),
-            })
-          ),
+        getUser: async () => {
+          throw new TypeError("fetch failed", {
+            cause: Object.assign(new Error("socket reset"), {
+              code: "ECONNRESET",
+            }),
+          });
+        },
       })
     );
 
@@ -126,7 +122,9 @@ describe("makeWorkosIdentityUsers", () => {
   it("does not infer provider availability from TypeError alone", async () => {
     const layer = makeLayer(
       makeUserManagement({
-        getUser: () => Promise.reject(new TypeError("application bug")),
+        getUser: async () => {
+          throw new TypeError("application bug");
+        },
       })
     );
 
@@ -148,10 +146,13 @@ describe("makeWorkosIdentityUsers", () => {
   it("classifies WorkOS rate limits as recoverable", async () => {
     const layer = makeLayer(
       makeUserManagement({
-        listUsers: () =>
-          Promise.reject(
-            new RateLimitExceededException("Too many requests", "request-1", 10)
-          ),
+        listUsers: async () => {
+          throw new RateLimitExceededException(
+            "Too many requests",
+            "request-1",
+            10
+          );
+        },
       })
     );
 
@@ -171,7 +172,7 @@ describe("makeWorkosIdentityUsers", () => {
   it("treats malformed WorkOS user lists as defects", async () => {
     const layer = makeLayer(
       makeUserManagement({
-        listUsers: () => Promise.resolve({ users: [] }),
+        listUsers: async () => ({ users: [] }),
       })
     );
 
@@ -184,20 +185,19 @@ describe("makeWorkosIdentityUsers", () => {
 
     expect(exit._tag).toBe("Failure");
     if (exit._tag === "Failure") {
-      expect(Cause.hasDies(exit.cause)).toBe(true);
+      expect(Cause.hasDies(exit.cause)).toBeTruthy();
     }
   });
 
   it("maps a missing WorkOS profile to identity user not found", async () => {
     const layer = makeLayer(
       makeUserManagement({
-        getUser: () =>
-          Promise.reject(
-            new NotFoundException({
-              path: "/user_management/users/user-1",
-              requestID: "request-1",
-            })
-          ),
+        getUser: async () => {
+          throw new NotFoundException({
+            path: "/user_management/users/user-1",
+            requestID: "request-1",
+          });
+        },
       })
     );
 
@@ -217,7 +217,7 @@ describe("makeWorkosIdentityUsers", () => {
   it("rejects malformed WorkOS profiles at the schema boundary", async () => {
     const layer = makeLayer(
       makeUserManagement({
-        getUser: () => Promise.resolve({ firstName: "Missing email" }),
+        getUser: async () => ({ firstName: "Missing email" }),
       })
     );
 
@@ -232,14 +232,16 @@ describe("makeWorkosIdentityUsers", () => {
 
     expect(exit._tag).toBe("Failure");
     if (exit._tag === "Failure") {
-      expect(Cause.hasDies(exit.cause)).toBe(true);
+      expect(Cause.hasDies(exit.cause)).toBeTruthy();
     }
   });
 
   it("classifies WorkOS authentication failures as unexpected", async () => {
     const layer = makeLayer(
       makeUserManagement({
-        listUsers: () => Promise.reject(new UnauthorizedException("request-1")),
+        listUsers: async () => {
+          throw new UnauthorizedException("request-1");
+        },
       })
     );
 

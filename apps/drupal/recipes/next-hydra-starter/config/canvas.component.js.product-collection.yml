@@ -14,52 +14,49 @@ versioned_properties:
         title:
           required: true
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value:
-            -
-              value: 'Featured products'
+            - value: "Featured products"
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
         description:
           required: false
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value:
-            -
-              value: 'Explore a selection of products chosen for this collection.'
+            - value: "Explore a selection of products chosen for this collection."
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
         categoryId:
           required: false
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value: null
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
         limit:
           required: false
           field_type: list_integer
           field_storage_settings:
             allowed_values_function: canvas_load_allowed_values_for_component_prop
-          field_instance_settings: {  }
+          field_instance_settings: {}
           field_widget: options_select
           default_value:
-            -
-              value: 3
+            - value: 3
           expression: ℹ︎list_integer␟value
-          derived_schema_metadata: {  }
+          derived_schema_metadata: {}
     fallback_metadata:
-      slot_definitions: {  }
-label: 'Product Collection'
+      slot_definitions: {}
+label: "Product Collection"
 id: js.product-collection
 provider: null
 source: js

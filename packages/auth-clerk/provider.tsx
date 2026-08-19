@@ -22,33 +22,33 @@ export const AuthProvider = ({
     fontFamilyButtons: "var(--font-sans)",
     fontWeight: {
       bold: "var(--font-weight-bold)",
-      normal: "var(--font-weight-normal)",
       medium: "var(--font-weight-medium)",
+      normal: "var(--font-weight-normal)",
     },
   };
 
   const elements: Theme["elements"] = {
     dividerLine: "bg-border",
-    socialButtonsIconButton: "bg-card",
     navbarButton: "text-foreground",
-    organizationSwitcherTrigger__open: "bg-background",
-    organizationPreviewMainIdentifier: "text-foreground",
-    organizationSwitcherTriggerIcon: "text-muted-foreground",
-    organizationPreview__organizationSwitcherTrigger: "gap-2",
     organizationPreviewAvatarContainer: "shrink-0",
+    organizationPreviewMainIdentifier: "text-foreground",
+    organizationPreview__organizationSwitcherTrigger: "gap-2",
+    organizationSwitcherTriggerIcon: "text-muted-foreground",
+    organizationSwitcherTrigger__open: "bg-background",
+    socialButtonsIconButton: "bg-card",
   };
 
   const layout: Theme["layout"] = {
+    helpPageUrl: helpUrl,
     privacyPageUrl: privacyUrl,
     termsPageUrl: termsUrl,
-    helpPageUrl: helpUrl,
   };
 
   return (
     <Suspense fallback={null}>
       <ClerkProvider
         {...properties}
-        appearance={{ layout, elements, variables }}
+        appearance={{ elements, layout, variables }}
       />
     </Suspense>
   );

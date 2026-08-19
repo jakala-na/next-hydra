@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import {
   SANITIZE_REMOVE_PATHS,
   SANITIZE_REMOVE_ROOT_DEPENDENCIES,
@@ -30,8 +31,10 @@ export async function sanitizeStarter({
   registryAuthoringPaths = [],
 }: SanitizeStarterOptions): Promise<{ packageName: string }> {
   await Promise.all(
-    [...SANITIZE_REMOVE_PATHS, ...registryAuthoringPaths].map((relativePath) =>
-      removePath(path.join(targetPath, relativePath))
+    [...SANITIZE_REMOVE_PATHS, ...registryAuthoringPaths].map(
+      async (relativePath) => {
+        await removePath(path.join(targetPath, relativePath));
+      }
     )
   );
 

@@ -1,9 +1,9 @@
 langcode: en
 status: true
-dependencies: {  }
-name: 'Landing page'
+dependencies: {}
+name: "Landing page"
 type: landing_page
-description: 'Routeable pages composed from Hydra CMS blocks.'
+description: "Routeable pages composed from Hydra CMS blocks."
 help: null
 new_revision: true
 preview_mode: 1

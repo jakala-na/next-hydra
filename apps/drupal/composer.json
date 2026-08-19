@@ -92,19 +92,42 @@
       }
     },
     "installer-paths": {
-      "docroot/core": ["type:drupal-core"],
-      "docroot/libraries/{$name}": ["type:drupal-library"],
-      "docroot/modules/contrib/{$name}": ["type:drupal-module"],
-      "docroot/profiles/contrib/{$name}": ["type:drupal-profile"],
-      "docroot/themes/contrib/{$name}": ["type:drupal-theme"],
-      "drush/Commands/contrib/{$name}": ["type:drupal-drush"],
-      "docroot/modules/custom/{$name}": ["type:drupal-custom-module"],
-      "docroot/profiles/custom/{$name}": ["type:drupal-custom-profile"],
-      "docroot/themes/custom/{$name}": ["type:drupal-custom-theme"],
-      "recipes/{$name}": ["type:drupal-recipe"]
+      "docroot/core": [
+        "type:drupal-core"
+      ],
+      "docroot/libraries/{$name}": [
+        "type:drupal-library"
+      ],
+      "docroot/modules/contrib/{$name}": [
+        "type:drupal-module"
+      ],
+      "docroot/profiles/contrib/{$name}": [
+        "type:drupal-profile"
+      ],
+      "docroot/themes/contrib/{$name}": [
+        "type:drupal-theme"
+      ],
+      "drush/Commands/contrib/{$name}": [
+        "type:drupal-drush"
+      ],
+      "docroot/modules/custom/{$name}": [
+        "type:drupal-custom-module"
+      ],
+      "docroot/profiles/custom/{$name}": [
+        "type:drupal-custom-profile"
+      ],
+      "docroot/themes/custom/{$name}": [
+        "type:drupal-custom-theme"
+      ],
+      "recipes/{$name}": [
+        "type:drupal-recipe"
+      ]
     },
     "drupal-core-project-message": {
-      "include-keys": ["homepage", "support"],
+      "include-keys": [
+        "homepage",
+        "support"
+      ],
       "post-create-project-cmd-message": [
         "<bg=blue;fg=white>                                                         </>",
         "<bg=blue;fg=white>  Congratulations, you’ve installed the Drupal codebase  </>",
@@ -112,7 +135,6 @@
         "<bg=blue;fg=white>                                                         </>",
         "",
         "<bg=yellow;fg=black>Next steps</>:",
-
         "  * Install the site: https://www.drupal.org/docs/installing-drupal",
         "  * Read the user guide: https://www.drupal.org/docs/user_guide/en/index.html",
         "  * Get support: https://www.drupal.org/support",

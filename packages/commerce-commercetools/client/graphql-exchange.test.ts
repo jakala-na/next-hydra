@@ -2,6 +2,7 @@ import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import type { HttpErrorType } from "@commercetools/ts-client";
 import { createClient, fetchExchange, gql } from "@urql/core";
 import { describe, expect, it, vi } from "vitest";
+
 import { makeCommercetoolsGraphqlExchange } from "./graphql-exchange";
 
 const executeExchange = async (

@@ -1,6 +1,9 @@
 import { ArticleCollection } from "@repo/design-system/components/cms/blocks/article-collection";
-import { getTranslations, type Locale } from "@repo/i18n";
-import { type FragmentOf, graphql, readFragment } from "../../graphql";
+import { getTranslations } from "@repo/i18n";
+import type { Locale } from "@repo/i18n";
+
+import { graphql, readFragment } from "../../graphql";
+import type { FragmentOf } from "../../graphql";
 import { getNodeCacheTag } from "../../lib/cache-tags";
 import { articleTeaserFragment, toArticleTeaser } from "../pages/article";
 

@@ -9,22 +9,22 @@ import {
   fetchWorkosJwks,
 } from "./access-token";
 
-describe("AccessTokenVerifier", () => {
+describe(AccessTokenVerifier, () => {
   it("verifies a WorkOS access token and returns the auth user id", async () => {
     let verifiedToken: string | undefined;
     const layer = accessTokenVerifierLayerFromJwtVerifier({
       expectedClientId: "client_1",
       expectedIssuer: "https://api.workos.com/",
       requiredPermissions: ["checkout:read"],
-      verifyAccessToken: (token) => {
+      verifyAccessToken: async (token) => {
         verifiedToken = token;
-        return Promise.resolve({
+        return {
           client_id: "client_1",
           iss: "https://api.workos.com",
           permissions: ["checkout:read", "checkout:write"],
           sid: "session-1",
           sub: "user-1",
-        });
+        };
       },
     });
 
@@ -48,7 +48,9 @@ describe("AccessTokenVerifier", () => {
       code: "ERR_JWS_SIGNATURE_VERIFICATION_FAILED",
     });
     const layer = accessTokenVerifierLayerFromJwtVerifier({
-      verifyAccessToken: () => Promise.reject(joseError),
+      verifyAccessToken: async () => {
+        throw joseError;
+      },
     });
 
     const exit = await Effect.runPromise(
@@ -69,7 +71,9 @@ describe("AccessTokenVerifier", () => {
       code: "ERR_JWKS_NO_MATCHING_KEY",
     });
     const layer = accessTokenVerifierLayerFromJwtVerifier({
-      verifyAccessToken: () => Promise.reject(joseError),
+      verifyAccessToken: async () => {
+        throw joseError;
+      },
     });
 
     const error = await Effect.runPromise(
@@ -87,10 +91,9 @@ describe("AccessTokenVerifier", () => {
 
   it("rejects a verified token payload without an auth user id", async () => {
     const layer = accessTokenVerifierLayerFromJwtVerifier({
-      verifyAccessToken: () =>
-        Promise.resolve({
-          sid: "session-1",
-        }),
+      verifyAccessToken: async () => ({
+        sid: "session-1",
+      }),
     });
 
     const exit = await Effect.runPromise(
@@ -109,12 +112,11 @@ describe("AccessTokenVerifier", () => {
   it("rejects a verified token payload that is missing required permissions", async () => {
     const layer = accessTokenVerifierLayerFromJwtVerifier({
       requiredPermissions: ["checkout:read"],
-      verifyAccessToken: () =>
-        Promise.resolve({
-          permissions: ["profile:read"],
-          sid: "session-1",
-          sub: "user-1",
-        }),
+      verifyAccessToken: async () => ({
+        permissions: ["profile:read"],
+        sid: "session-1",
+        sub: "user-1",
+      }),
     });
 
     const exit = await Effect.runPromise(
@@ -133,12 +135,11 @@ describe("AccessTokenVerifier", () => {
   it("rejects a verified token payload from an unexpected issuer", async () => {
     const layer = accessTokenVerifierLayerFromJwtVerifier({
       expectedIssuer: "https://api.workos.com",
-      verifyAccessToken: () =>
-        Promise.resolve({
-          client_id: "client_1",
-          iss: "https://evil.example.com",
-          sub: "user-1",
-        }),
+      verifyAccessToken: async () => ({
+        client_id: "client_1",
+        iss: "https://evil.example.com",
+        sub: "user-1",
+      }),
     });
 
     const exit = await Effect.runPromise(
@@ -157,12 +158,11 @@ describe("AccessTokenVerifier", () => {
   it("accepts the expected client through the token audience", async () => {
     const layer = accessTokenVerifierLayerFromJwtVerifier({
       expectedClientId: "client_1",
-      verifyAccessToken: () =>
-        Promise.resolve({
-          aud: ["client_1", "api"],
-          iss: "https://api.workos.com",
-          sub: "user-1",
-        }),
+      verifyAccessToken: async () => ({
+        aud: ["client_1", "api"],
+        iss: "https://api.workos.com",
+        sub: "user-1",
+      }),
     });
 
     const result = await Effect.runPromise(
@@ -178,12 +178,11 @@ describe("AccessTokenVerifier", () => {
   it("rejects a verified token payload for an unexpected client", async () => {
     const layer = accessTokenVerifierLayerFromJwtVerifier({
       expectedClientId: "client_1",
-      verifyAccessToken: () =>
-        Promise.resolve({
-          client_id: "client_other",
-          iss: "https://api.workos.com",
-          sub: "user-1",
-        }),
+      verifyAccessToken: async () => ({
+        client_id: "client_other",
+        iss: "https://api.workos.com",
+        sub: "user-1",
+      }),
     });
 
     const exit = await Effect.runPromise(
@@ -201,7 +200,9 @@ describe("AccessTokenVerifier", () => {
 
   it("classifies unknown verifier failures as unexpected", async () => {
     const layer = accessTokenVerifierLayerFromJwtVerifier({
-      verifyAccessToken: () => Promise.reject(new Error("jwks unavailable")),
+      verifyAccessToken: async () => {
+        throw new Error("jwks unavailable");
+      },
     });
 
     const error = await Effect.runPromise(
@@ -219,7 +220,9 @@ describe("AccessTokenVerifier", () => {
 
   it("does not infer verifier availability from TypeError alone", async () => {
     const layer = accessTokenVerifierLayerFromJwtVerifier({
-      verifyAccessToken: () => Promise.reject(new TypeError("fetch failed")),
+      verifyAccessToken: async () => {
+        throw new TypeError("fetch failed");
+      },
     });
 
     const error = await Effect.runPromise(
@@ -237,14 +240,13 @@ describe("AccessTokenVerifier", () => {
 
   it("classifies coded verifier transport failures as unavailable", async () => {
     const layer = accessTokenVerifierLayerFromJwtVerifier({
-      verifyAccessToken: () =>
-        Promise.reject(
-          new TypeError("fetch failed", {
-            cause: Object.assign(new Error("socket reset"), {
-              code: "ECONNRESET",
-            }),
-          })
-        ),
+      verifyAccessToken: async () => {
+        throw new TypeError("fetch failed", {
+          cause: Object.assign(new Error("socket reset"), {
+            code: "ECONNRESET",
+          }),
+        });
+      },
     });
 
     const error = await Effect.runPromise(
@@ -262,8 +264,7 @@ describe("AccessTokenVerifier", () => {
 
   it("preserves JWKS server failures as unavailable verification errors", async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = () =>
-      Promise.resolve(new Response("unavailable", { status: 503 }));
+    globalThis.fetch = async () => new Response("unavailable", { status: 503 });
 
     try {
       const error = await fetchWorkosJwks("https://api.workos.com/jwks", {
@@ -271,9 +272,11 @@ describe("AccessTokenVerifier", () => {
         method: "GET",
         redirect: "manual",
         signal: new AbortController().signal,
-      }).catch((cause: unknown) => cause);
+      }).catch((error: unknown) => error);
       const layer = accessTokenVerifierLayerFromJwtVerifier({
-        verifyAccessToken: () => Promise.reject(error),
+        verifyAccessToken: async () => {
+          throw error;
+        },
       });
 
       const verificationError = await Effect.runPromise(

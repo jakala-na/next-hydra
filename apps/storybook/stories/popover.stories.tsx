@@ -9,20 +9,19 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * Displays rich content in a portal, triggered by a button.
  */
 const meta = {
-  title: "ui/Popover",
-  component: Popover,
-  tags: ["autodocs"],
   argTypes: {},
-
+  component: Popover,
+  parameters: {
+    layout: "centered",
+  },
   render: (args) => (
     <Popover {...args}>
       <PopoverTrigger>Open</PopoverTrigger>
       <PopoverContent>Place content for the popover here.</PopoverContent>
     </Popover>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/Popover",
 } satisfies Meta<typeof Popover>;
 
 export default meta;

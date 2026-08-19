@@ -7,11 +7,11 @@ import {
   CommerceBusinessUnitKey,
   CommerceBusinessUnitLabel,
   CommerceBusinessUnitMembership,
-  type CommerceCompanyRole,
   CommerceCustomer,
   CommerceCustomerId,
   CommerceCustomerProfile,
 } from "../domain/commerce-account";
+import type { CommerceCompanyRole } from "../domain/commerce-account";
 import { AuthUserId } from "../domain/commerce-request-context";
 import type { StoreKey } from "../store";
 
@@ -21,7 +21,7 @@ type RegistrationLikeTag =
   | "ApprovedRegistration"
   | "RejectedRegistration";
 
-export type RedactedString = Redacted.Redacted<string>;
+export type RedactedString = Redacted.Redacted;
 
 export interface CommerceAccountRegistrationInput {
   readonly _tag: RegistrationLikeTag;
@@ -63,16 +63,16 @@ export class CommerceAccountUnavailable extends Schema.TaggedErrorClass<Commerce
 export class CommerceCustomerIdNotFound extends Schema.TaggedErrorClass<CommerceCustomerIdNotFound>()(
   "CommerceCustomerIdNotFound",
   {
-    message: Schema.String,
     authUserId: AuthUserId,
+    message: Schema.String,
   }
 ) {}
 
 export class CommerceCustomerProfileNotFound extends Schema.TaggedErrorClass<CommerceCustomerProfileNotFound>()(
   "CommerceCustomerProfileNotFound",
   {
-    message: Schema.String,
     customerId: CommerceCustomerId,
+    message: Schema.String,
   }
 ) {}
 
@@ -126,11 +126,11 @@ interface CommerceState {
 
 const initialState: CommerceState = {
   accountsByRegistration: new Map(),
-  storeKeysByRegistration: new Map(),
+  associatesByBusinessUnit: new Map(),
   businessUnitLabels: new Map(),
   customersByAuthUserId: new Map(),
   linkedRegistrantIdentities: new Map(),
-  associatesByBusinessUnit: new Map(),
+  storeKeysByRegistration: new Map(),
 };
 
 export class CommerceAccounts extends Context.Service<
@@ -191,11 +191,11 @@ export class CommerceAccounts extends Context.Service<
           }
 
           const account = new CommerceAccount({
-            registrationId: registration.id,
-            customerId: CommerceCustomerId.make(`customer-${registration.id}`),
             businessUnitId: CommerceBusinessUnitId.make(
               `business-unit-${registration.id}`
             ),
+            customerId: CommerceCustomerId.make(`customer-${registration.id}`),
+            registrationId: registration.id,
           });
 
           yield* Ref.update(state, (latest) => ({
@@ -204,13 +204,13 @@ export class CommerceAccounts extends Context.Service<
               registration.id,
               account
             ),
-            storeKeysByRegistration: new Map(
-              latest.storeKeysByRegistration
-            ).set(registration.id, registration.storeKey),
             businessUnitLabels: new Map(latest.businessUnitLabels).set(
               account.businessUnitId,
               CommerceBusinessUnitLabel.make(registration.details.companyName)
             ),
+            storeKeysByRegistration: new Map(
+              latest.storeKeysByRegistration
+            ).set(registration.id, registration.storeKey),
           }));
 
           return account;
@@ -262,10 +262,10 @@ export class CommerceAccounts extends Context.Service<
                 input.acceptedIdentity.authUserId
               ) ??
               new CommerceCustomer({
+                authUserId: input.acceptedIdentity.authUserId,
                 customerId: CommerceCustomerId.make(
                   `customer-${input.acceptedIdentity.authUserId}`
                 ),
-                authUserId: input.acceptedIdentity.authUserId,
                 email: input.acceptedIdentity.email,
                 firstName: input.acceptedIdentity.firstName,
                 lastName: input.acceptedIdentity.lastName,
@@ -282,21 +282,21 @@ export class CommerceAccounts extends Context.Service<
             }
 
             const membership = new CommerceAssociateMembership({
+              authUserId: input.acceptedIdentity.authUserId,
               businessUnitId: input.businessUnitId,
               customerId: customer.customerId,
-              authUserId: input.acceptedIdentity.authUserId,
               role: input.role,
             });
 
             yield* Ref.update(state, (latest) => ({
               ...latest,
+              associatesByBusinessUnit: new Map(
+                latest.associatesByBusinessUnit
+              ).set(input.businessUnitId, [...existing, membership]),
               customersByAuthUserId: new Map(latest.customersByAuthUserId).set(
                 input.acceptedIdentity.authUserId,
                 customer
               ),
-              associatesByBusinessUnit: new Map(
-                latest.associatesByBusinessUnit
-              ).set(input.businessUnitId, [...existing, membership]),
             }));
 
             return membership;
@@ -343,8 +343,8 @@ export class CommerceAccounts extends Context.Service<
           }
 
           return yield* new CommerceCustomerIdNotFound({
-            message: "Commerce customer id does not exist for auth user",
             authUserId,
+            message: "Commerce customer id does not exist for auth user",
           });
         })
       );
@@ -383,8 +383,8 @@ export class CommerceAccounts extends Context.Service<
           }
 
           return yield* new CommerceCustomerProfileNotFound({
-            message: "Commerce customer profile does not exist",
             customerId,
+            message: "Commerce customer profile does not exist",
           });
         })
       );
@@ -458,12 +458,12 @@ export class CommerceAccounts extends Context.Service<
       );
 
       return {
-        createFromRegistration,
-        linkRegistrantIdentity,
         addAssociate,
-        hasCustomerWithEmail,
+        createFromRegistration,
         getCustomerIdByAuthUserId,
         getCustomerProfile,
+        hasCustomerWithEmail,
+        linkRegistrantIdentity,
         listBusinessUnitMembershipsForCustomerInStore,
       };
     })

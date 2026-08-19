@@ -16,19 +16,21 @@ import {
   CommerceBusinessUnitKey,
   CommerceBusinessUnitLabel,
   CommerceBusinessUnitMembership,
-  type CommerceCompanyRole,
   CommerceCustomerId,
   CommerceCustomerProfile,
 } from "@repo/commerce/domain/commerce-account";
+import type { CommerceCompanyRole } from "@repo/commerce/domain/commerce-account";
 import type { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
 import {
-  type AcceptedCommerceIdentity,
   CommerceAccountUnavailable,
-  type CommerceAccountRegistrationInput,
   CommerceAccounts,
   CommerceCustomerIdNotFound,
   CommerceCustomerProfileNotFound,
-  type RedactedString,
+} from "@repo/commerce/services/commerce-accounts";
+import type {
+  AcceptedCommerceIdentity,
+  CommerceAccountRegistrationInput,
+  RedactedString,
 } from "@repo/commerce/services/commerce-accounts";
 import type { StoreKey } from "@repo/commerce/store";
 import { Effect, Layer, Redacted, Schema } from "effect";
@@ -76,12 +78,12 @@ const commerceAccountRequest = <A>(
   request: () => Promise<A>
 ) =>
   Effect.tryPromise({
-    try: request,
     catch: (cause): CommercetoolsAccountRequestFailure => ({
       _tag: "CommercetoolsAccountRequestFailure",
       cause,
       message,
     }),
+    try: request,
   }).pipe(
     Effect.catchTag("CommercetoolsAccountRequestFailure", (failure) =>
       failAccountRequest(failure.message, failure.cause)
@@ -118,13 +120,18 @@ const customerLastName = (identity: AcceptedCommerceIdentity) =>
   Redacted.value(identity.lastName);
 
 const registrationStore = (registration: CommerceAccountRegistrationInput) => ({
-  typeId: "store" as const,
   key: String(registration.storeKey),
+  typeId: "store" as const,
 });
 
 const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
   const getCustomerByKey = (key: string) =>
     Effect.tryPromise({
+      catch: (cause) =>
+        new CommercetoolsRequestFailure({
+          cause,
+          message: "Failed to read Commercetools customer by key",
+        }),
       try: async () => {
         const response = await apiRoot
           .customers()
@@ -133,24 +140,24 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           .execute();
         return response.body;
       },
-      catch: (cause) =>
-        new CommercetoolsRequestFailure({
-          message: "Failed to read Commercetools customer by key",
-          cause,
-        }),
     }).pipe(
-      Effect.catch((failure) =>
-        isNotFoundError(failure)
+      Effect.catch((error) =>
+        isNotFoundError(error)
           ? Effect.succeed(null)
           : failAccountRequest(
               "Failed to read Commercetools customer",
-              commercetoolsFailureCause(failure)
+              commercetoolsFailureCause(error)
             )
       )
     );
 
   const getBusinessUnitByKey = (key: string) =>
     Effect.tryPromise({
+      catch: (cause) =>
+        new CommercetoolsRequestFailure({
+          cause,
+          message: "Failed to read Commercetools business unit by key",
+        }),
       try: async () => {
         const response = await apiRoot
           .businessUnits()
@@ -159,18 +166,13 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           .execute();
         return response.body;
       },
-      catch: (cause) =>
-        new CommercetoolsRequestFailure({
-          message: "Failed to read Commercetools business unit by key",
-          cause,
-        }),
     }).pipe(
-      Effect.catch((failure) =>
-        isNotFoundError(failure)
+      Effect.catch((error) =>
+        isNotFoundError(error)
           ? Effect.succeed(null)
           : failAccountRequest(
               "Failed to read Commercetools business unit",
-              commercetoolsFailureCause(failure)
+              commercetoolsFailureCause(error)
             )
       )
     );
@@ -194,7 +196,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
       async () => {
         const response = await apiRoot
           .customers()
-          .get({ queryArgs: { where, limit: 1 } })
+          .get({ queryArgs: { limit: 1, where } })
           .execute();
 
         return response.body.results[0] ?? null;
@@ -215,8 +217,8 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
 
     if (!customer) {
       return yield* new CommerceCustomerIdNotFound({
-        message: "Commerce customer id does not exist for auth user",
         authUserId: input,
+        message: "Commerce customer id does not exist for auth user",
       });
     }
 
@@ -227,6 +229,11 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     "CommercetoolsCommerceAccounts.getCustomerProfile"
   )(function* (customerId: CommerceCustomerId) {
     const customer = yield* Effect.tryPromise({
+      catch: (cause) =>
+        new CommercetoolsRequestFailure({
+          cause,
+          message: "Failed to read Commercetools customer profile",
+        }),
       try: async () => {
         const response = await apiRoot
           .customers()
@@ -235,29 +242,24 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           .execute();
         return response.body;
       },
-      catch: (cause) =>
-        new CommercetoolsRequestFailure({
-          message: "Failed to read Commercetools customer profile",
-          cause,
-        }),
     }).pipe(
       Effect.catch(
         (
-          failure
+          error
         ): Effect.Effect<
           never,
           CommerceAccountUnavailable | CommerceCustomerProfileNotFound
         > =>
-          isNotFoundError(failure)
+          isNotFoundError(error)
             ? Effect.fail(
                 new CommerceCustomerProfileNotFound({
-                  message: "Commerce customer profile does not exist",
                   customerId,
+                  message: "Commerce customer profile does not exist",
                 })
               )
             : failAccountRequest(
                 "Failed to read Commercetools customer profile",
-                commercetoolsFailureCause(failure)
+                commercetoolsFailureCause(error)
               )
       )
     );
@@ -302,10 +304,10 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
             .businessUnits()
             .get({
               queryArgs: {
-                where: businessUnitForCustomerPredicate(customerId),
                 limit: BUSINESS_UNIT_PAGE_SIZE,
                 offset,
                 sort: "id asc",
+                where: businessUnitForCustomerPredicate(customerId),
               },
             })
             .execute();
@@ -349,7 +351,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     registration: CommerceAccountRegistrationInput,
     key: string
   ): CustomerDraft => {
-    const details = registration.details;
+    const { details } = registration;
 
     return {
       key,
@@ -367,43 +369,43 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     registration: CommerceAccountRegistrationInput,
     key: string
   ): BusinessUnitDraft => {
-    const details = registration.details;
+    const { details } = registration;
 
     return {
-      key,
-      unitType: "Company",
-      status: "Active",
-      name: String(details.companyName),
-      contactEmail: Redacted.value(details.email),
       addresses: [
         {
-          key: toCommercetoolsAddressKey(
-            AddressBookReference.make(`registration-${registration.id}`)
-          ),
-          streetName: Redacted.value(details.address.streetName),
           additionalStreetInfo: details.address.additionalStreetInfo
             ? Redacted.value(details.address.additionalStreetInfo)
             : undefined,
-          postalCode: Redacted.value(details.address.postalCode),
           city: Redacted.value(details.address.city),
-          region: details.address.region
-            ? Redacted.value(details.address.region)
-            : undefined,
+          company: String(details.companyName),
           country: String(details.address.country),
           firstName: Redacted.value(details.contactFirstName),
+          key: toCommercetoolsAddressKey(
+            AddressBookReference.make(`registration-${registration.id}`)
+          ),
           lastName: Redacted.value(details.contactLastName),
-          company: String(details.companyName),
           phone: details.companyPhone
             ? Redacted.value(details.companyPhone)
             : undefined,
+          postalCode: Redacted.value(details.address.postalCode),
+          region: details.address.region
+            ? Redacted.value(details.address.region)
+            : undefined,
+          streetName: Redacted.value(details.address.streetName),
         },
       ],
       billingAddresses: [0],
-      shippingAddresses: [0],
+      contactEmail: Redacted.value(details.email),
       defaultBillingAddress: 0,
       defaultShippingAddress: 0,
+      key,
+      name: String(details.companyName),
+      shippingAddresses: [0],
+      status: "Active",
       storeMode: "Explicit",
       stores: [registrationStore(registration)],
+      unitType: "Company",
     };
   };
 
@@ -433,13 +435,13 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           .customers()
           .post({
             body: {
-              key: customerKeyFromAcceptedIdentity(identity),
               authenticationMode: "ExternalAuth",
-              externalId: authUserId(identity),
               email: customerEmail(identity),
+              externalId: authUserId(identity),
               firstName: customerFirstName(identity),
-              lastName: customerLastName(identity),
               isEmailVerified: true,
+              key: customerKeyFromAcceptedIdentity(identity),
+              lastName: customerLastName(identity),
             },
           })
           .execute();
@@ -486,13 +488,13 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
             .withId({ ID: current.id })
             .post({
               body: {
-                version: current.version,
                 actions: [
                   {
                     action: "setStores",
                     stores: [store],
                   },
                 ],
+                version: current.version,
               },
             })
             .execute();
@@ -503,20 +505,20 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     };
 
     return retryVersionedWrite({
-      operation: "commerceAccount.businessUnit.ensureStore",
-      input: businessUnit,
       attempt,
+      input: businessUnit,
+      operation: "commerceAccount.businessUnit.ensureStore",
       resolveConflict: () =>
         getBusinessUnitById(CommerceBusinessUnitId.make(businessUnit.id)).pipe(
           Effect.map((current) => new RetryVersionedWrite(current))
         ),
     }).pipe(
-      Effect.catch((failure) =>
-        failure instanceof CommerceAccountUnavailable
-          ? Effect.fail(failure)
+      Effect.catch((error) =>
+        error instanceof CommerceAccountUnavailable
+          ? Effect.fail(error)
           : failAccountRequest(
               "Failed to associate Commercetools business unit with Store",
-              commercetoolsFailureCause(failure)
+              commercetoolsFailureCause(error)
             )
       )
     );
@@ -566,8 +568,8 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
             .withId({ ID: current.id })
             .post({
               body: {
-                version: current.version,
                 actions,
+                version: current.version,
               },
             })
             .execute();
@@ -578,20 +580,20 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     };
 
     return retryVersionedWrite({
-      operation: "commerceAccount.customer.syncIdentity",
-      input: customer,
       attempt,
+      input: customer,
+      operation: "commerceAccount.customer.syncIdentity",
       resolveConflict: () =>
         getCustomerById(CommerceCustomerId.make(customer.id)).pipe(
           Effect.map((current) => new RetryVersionedWrite(current))
         ),
     }).pipe(
-      Effect.catch((failure) =>
-        failure instanceof CommerceAccountUnavailable
-          ? Effect.fail(failure)
+      Effect.catch((error) =>
+        error instanceof CommerceAccountUnavailable
+          ? Effect.fail(error)
           : failAccountRequest(
               "Failed to sync Commercetools customer identity",
-              commercetoolsFailureCause(failure)
+              commercetoolsFailureCause(error)
             )
       )
     );
@@ -612,14 +614,14 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     customer: Customer,
     role: CommerceCompanyRole
   ): AssociateDraft => ({
-    customer: { typeId: "customer", id: customer.id },
     associateRoleAssignments: associateRoleKeys(role).map((key) => ({
       associateRole: {
-        typeId: "associate-role",
         key,
+        typeId: "associate-role",
       },
       inheritance: "Enabled",
     })),
+    customer: { id: customer.id, typeId: "customer" },
   });
 
   const hasAssociateRoles = (
@@ -674,8 +676,8 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
             .withId({ ID: current.businessUnit.id })
             .post({
               body: {
-                version: current.businessUnit.version,
                 actions: [action],
+                version: current.businessUnit.version,
               },
             })
             .execute();
@@ -686,9 +688,9 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     };
 
     return retryVersionedWrite({
-      operation: "commerceAccount.businessUnit.ensureAssociate",
-      input,
       attempt,
+      input,
+      operation: "commerceAccount.businessUnit.ensureAssociate",
       resolveConflict: () =>
         getBusinessUnitById(
           CommerceBusinessUnitId.make(input.businessUnit.id)
@@ -702,12 +704,12 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           )
         ),
     }).pipe(
-      Effect.catch((failure) =>
-        failure instanceof CommerceAccountUnavailable
-          ? Effect.fail(failure)
+      Effect.catch((error) =>
+        error instanceof CommerceAccountUnavailable
+          ? Effect.fail(error)
           : failAccountRequest(
               "Failed to add Commercetools business unit associate",
-              commercetoolsFailureCause(failure)
+              commercetoolsFailureCause(error)
             )
       )
     );
@@ -723,9 +725,9 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           .customers()
           .get({
             queryArgs: {
-              where: "email = :email",
-              "var.email": Redacted.value(email),
               limit: 1,
+              "var.email": Redacted.value(email),
+              where: "email = :email",
             },
           })
           .execute();
@@ -736,10 +738,27 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
   );
 
   return CommerceAccounts.of({
-    hasCustomerWithEmail,
-    getCustomerIdByAuthUserId,
-    getCustomerProfile,
-    listBusinessUnitMembershipsForCustomerInStore,
+    addAssociate: Effect.fn("CommercetoolsCommerceAccounts.addAssociate")(
+      function* (input) {
+        const customer = yield* ensureAcceptedIdentityCustomer(
+          input.acceptedIdentity
+        );
+        const businessUnit = yield* getBusinessUnitById(input.businessUnitId);
+
+        yield* ensureBusinessUnitAssociate({
+          businessUnit,
+          customer,
+          role: input.role,
+        });
+
+        return new CommerceAssociateMembership({
+          authUserId: input.acceptedIdentity.authUserId,
+          businessUnitId: input.businessUnitId,
+          customerId: toCommerceCustomerId(customer),
+          role: input.role,
+        });
+      }
+    ),
     createFromRegistration: Effect.fn(
       "CommercetoolsCommerceAccounts.createFromRegistration"
     )(function* (registration) {
@@ -760,11 +779,14 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
         : yield* createBusinessUnit(registration, buKey);
 
       return new CommerceAccount({
-        registrationId: registration.id,
-        customerId: toCommerceCustomerId(customer),
         businessUnitId: toCommerceBusinessUnitId(businessUnit),
+        customerId: toCommerceCustomerId(customer),
+        registrationId: registration.id,
       });
     }),
+    getCustomerIdByAuthUserId,
+    getCustomerProfile,
+    hasCustomerWithEmail,
     linkRegistrantIdentity: Effect.fn(
       "CommercetoolsCommerceAccounts.linkRegistrantIdentity"
     )(function* (input) {
@@ -787,27 +809,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
 
       return input.registration.commerceAccount;
     }),
-    addAssociate: Effect.fn("CommercetoolsCommerceAccounts.addAssociate")(
-      function* (input) {
-        const customer = yield* ensureAcceptedIdentityCustomer(
-          input.acceptedIdentity
-        );
-        const businessUnit = yield* getBusinessUnitById(input.businessUnitId);
-
-        yield* ensureBusinessUnitAssociate({
-          businessUnit,
-          customer,
-          role: input.role,
-        });
-
-        return new CommerceAssociateMembership({
-          businessUnitId: input.businessUnitId,
-          customerId: toCommerceCustomerId(customer),
-          authUserId: input.acceptedIdentity.authUserId,
-          role: input.role,
-        });
-      }
-    ),
+    listBusinessUnitMembershipsForCustomerInStore,
   });
 };
 

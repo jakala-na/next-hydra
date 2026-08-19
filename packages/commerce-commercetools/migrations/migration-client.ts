@@ -98,10 +98,10 @@ class TypeMigrationBuilder {
     }
   ): this {
     return this.addField({
-      name,
-      label,
-      required: options?.required ?? false,
       inputHint: options?.inputHint ?? "SingleLine",
+      label,
+      name,
+      required: options?.required ?? false,
       type: { name: "String" },
     });
   }
@@ -112,8 +112,8 @@ class TypeMigrationBuilder {
     options?: { readonly required?: boolean }
   ): this {
     return this.addField({
-      name,
       label,
+      name,
       required: options?.required ?? false,
       type: { name: "LocalizedString" },
     });
@@ -125,8 +125,8 @@ class TypeMigrationBuilder {
     options?: { readonly required?: boolean }
   ): this {
     return this.addField({
-      name,
       label,
+      name,
       required: options?.required ?? false,
       type: { name: "Boolean" },
     });
@@ -138,8 +138,8 @@ class TypeMigrationBuilder {
     options?: { readonly required?: boolean }
   ): this {
     return this.addField({
-      name,
       label,
+      name,
       required: options?.required ?? false,
       type: { name: "Number" },
     });
@@ -151,8 +151,8 @@ class TypeMigrationBuilder {
     options?: { readonly required?: boolean }
   ): this {
     return this.addField({
-      name,
       label,
+      name,
       required: options?.required ?? false,
       type: { name: "DateTime" },
     });
@@ -165,8 +165,8 @@ class TypeMigrationBuilder {
     options?: { readonly required?: boolean }
   ): this {
     return this.addField({
-      name,
       label,
+      name,
       required: options?.required ?? false,
       type: {
         name: "Enum",
@@ -182,8 +182,8 @@ class TypeMigrationBuilder {
     options?: { readonly required?: boolean }
   ): this {
     return this.addField({
-      name,
       label,
+      name,
       required: options?.required ?? false,
       type: {
         name: "Reference",
@@ -199,15 +199,15 @@ class TypeMigrationBuilder {
     options?: { readonly required?: boolean }
   ): this {
     return this.addField({
-      name,
       label,
+      name,
       required: options?.required ?? false,
       type: {
-        name: "Set",
         elementType: {
           name: "Reference",
           referenceTypeId,
         },
+        name: "Set",
       },
     });
   }
@@ -237,8 +237,8 @@ class TypeMigrationBuilder {
       .withKey({ key: this.typeKey })
       .post({
         body: {
-          version: this.#existingType.version,
           actions: this.#actions,
+          version: this.#existingType.version,
         },
       })
       .execute();
@@ -246,7 +246,7 @@ class TypeMigrationBuilder {
 }
 
 export const migrationClient = (apiRoot: ByProjectKeyRequestBuilder) => ({
-  type: (typeKey: string) => new TypeMigrationBuilder(apiRoot, typeKey),
   ensureType: (typeKey: string, configuration: TypeConfiguration) =>
     new TypeMigrationBuilder(apiRoot, typeKey, configuration),
+  type: (typeKey: string) => new TypeMigrationBuilder(apiRoot, typeKey),
 });

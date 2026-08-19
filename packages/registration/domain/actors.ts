@@ -26,8 +26,8 @@ export const registrationReviewerActorFromIdentityUser = (
 export class CompanyActor extends Schema.Class<CompanyActor>("CompanyActor")({
   actorType: Schema.Literal("company"),
   authUserId: AuthUserId,
-  email: RedactedEmail,
   businessUnitId: CommerceBusinessUnitId,
+  email: RedactedEmail,
   role: CompanyRole,
 }) {}
 

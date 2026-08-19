@@ -3,7 +3,8 @@
 import { useLocale, useTranslations } from "@repo/i18n";
 import type { ReactElement } from "react";
 
-import CanvasArticleCard, { type CanvasArticleCardProps } from ".";
+import CanvasArticleCard from ".";
+import type { CanvasArticleCardProps } from ".";
 
 export default function CanvasArticleCardNextAdapter(
   props: CanvasArticleCardProps

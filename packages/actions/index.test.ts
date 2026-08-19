@@ -61,8 +61,8 @@ describe("ActionClient", () => {
 
     await expect(
       Effect.runPromise(procedure.effect({ name: "  Ada  " }))
-    ).resolves.toEqual({ _tag: "Success", success: "Hello, Ada" });
-    await expect(procedure.execute({ name: "Grace" })).resolves.toEqual({
+    ).resolves.toStrictEqual({ _tag: "Success", success: "Hello, Ada" });
+    await expect(procedure.execute({ name: "Grace" })).resolves.toStrictEqual({
       _tag: "Success",
       success: "Hello, Grace",
     });
@@ -72,13 +72,13 @@ describe("ActionClient", () => {
     const handler = vi.fn(() => Effect.succeed("unreachable"));
     const action = makeGreeting().handle(handler).toAction();
 
-    await expect(action({ name: "   " })).resolves.toEqual({
+    await expect(action({ name: "   " })).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "InputInvalid",
         category: "bad_input",
         code: "input.invalid",
-        issues: [{ path: ["name"], message: "Invalid input." }],
+        issues: [{ message: "Invalid input.", path: ["name"] }],
         message: "Invalid input.",
         recovery: "fix_input",
       },
@@ -93,7 +93,7 @@ describe("ActionClient", () => {
       Schema.check(
         Schema.makeFilter((input) =>
           input.address.region === ""
-            ? { path: ["address", "region"], issue: "Region is required" }
+            ? { issue: "Region is required", path: ["address", "region"] }
             : undefined
         )
       )
@@ -105,7 +105,7 @@ describe("ActionClient", () => {
       .handle(() => Effect.succeed("unreachable"))
       .toAction();
 
-    await expect(action({ address: { region: "" } })).resolves.toEqual({
+    await expect(action({ address: { region: "" } })).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "InputInvalid",
@@ -113,8 +113,8 @@ describe("ActionClient", () => {
         code: "input.invalid",
         issues: [
           {
-            path: ["address", "region"],
             message: "Invalid input.",
+            path: ["address", "region"],
           },
         ],
         message: "Invalid input.",
@@ -139,13 +139,13 @@ describe("ActionClient", () => {
       .handle(({ name }) => Effect.succeed(name))
       .toAction();
 
-    await expect(action({ name: "   " })).resolves.toEqual({
+    await expect(action({ name: "   " })).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "InputInvalid",
         category: "bad_input",
         code: "input.invalid",
-        issues: [{ path: ["name"], message: "Invalid input." }],
+        issues: [{ message: "Invalid input.", path: ["name"] }],
         message: "Invalid input.",
         recovery: "fix_input",
       },
@@ -166,13 +166,13 @@ describe("ActionClient", () => {
       .toAction();
     const input = { name: "   " };
 
-    await expect(action(input)).resolves.toEqual({
+    await expect(action(input)).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         _tag: "InputInvalid",
         category: "bad_input",
         code: "input.invalid",
-        issues: [{ path: ["name"], message: "Use a name." }],
+        issues: [{ message: "Use a name.", path: ["name"] }],
         message: "Invalid input.",
         recovery: "fix_input",
       },
@@ -189,7 +189,7 @@ describe("ActionClient", () => {
       Effect.fail(new TestFailure({ reason: "invalid" }))
     );
 
-    await expect(procedure.execute({ name: "Ada" })).resolves.toEqual({
+    await expect(procedure.execute({ name: "Ada" })).resolves.toStrictEqual({
       _tag: "Failure",
       failure: { _tag: "TestFailure", reason: "invalid" },
     });
@@ -200,7 +200,7 @@ describe("ActionClient", () => {
       .mapError((reason: string) => new TestFailure({ reason }))
       .handle(() => Effect.fail("private diagnostic"));
 
-    await expect(procedure.execute({ name: "Ada" })).resolves.toEqual({
+    await expect(procedure.execute({ name: "Ada" })).resolves.toStrictEqual({
       _tag: "Failure",
       failure: { _tag: "TestFailure", reason: "private diagnostic" },
     });
@@ -211,7 +211,7 @@ describe("ActionClient", () => {
       .handle(({ name }) => Effect.succeed(`Hello, ${name}`))
       .toFormAction();
 
-    await expect(formAction(null, { name: "Ada" })).resolves.toEqual({
+    await expect(formAction(null, { name: "Ada" })).resolves.toStrictEqual({
       _tag: "Success",
       success: "Hello, Ada",
     });
@@ -225,7 +225,7 @@ describe("ActionClient", () => {
       getFailureMessage: (error) => `Localized ${error._tag}`,
     });
 
-    await expect(formAction(null, { name: "Ada" })).resolves.toEqual({
+    await expect(formAction(null, { name: "Ada" })).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         displayMessage: "Localized TestFailure",
@@ -240,7 +240,7 @@ describe("ActionClient", () => {
       .handle(({ name }) => Effect.succeed(`Hello, ${name}`))
       .toAction({ getFailureMessage });
 
-    await expect(action({ name: "Ada" })).resolves.toEqual({
+    await expect(action({ name: "Ada" })).resolves.toStrictEqual({
       _tag: "Success",
       success: "Hello, Ada",
     });
@@ -264,7 +264,7 @@ describe("ActionClient", () => {
       .handle(({ name }) => Effect.succeed(`Hello, ${name}`))
       .toAction({ onSuccess });
 
-    await expect(action({ name: "Ada" })).resolves.toEqual({
+    await expect(action({ name: "Ada" })).resolves.toStrictEqual({
       _tag: "Success",
       success: "Hello, Ada",
     });
@@ -346,14 +346,14 @@ describe("ActionClient", () => {
         getFailureMessage: () => (active ? "active" : "released"),
       });
 
-    await expect(action({ name: "Ada" })).resolves.toEqual({
+    await expect(action({ name: "Ada" })).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         displayMessage: "active",
         error: { _tag: "TestFailure", reason: "invalid" },
       },
     });
-    expect(active).toBe(false);
+    expect(active).toBeFalsy();
   });
 
   it("keeps acquired Layers alive while presenting a later Layer acquisition failure", async () => {
@@ -380,14 +380,14 @@ describe("ActionClient", () => {
         getFailureMessage: () => (active ? "active" : "released"),
       });
 
-    await expect(action({ name: "Ada" })).resolves.toEqual({
+    await expect(action({ name: "Ada" })).resolves.toStrictEqual({
       _tag: "Failure",
       failure: {
         displayMessage: "active",
         error: { _tag: "TestRuntimeFailure" },
       },
     });
-    expect(active).toBe(false);
+    expect(active).toBeFalsy();
   });
 
   it("rejects context middleware registered after provide", () => {
@@ -431,7 +431,7 @@ describe("ActionClient", () => {
     const data = new FormData();
     data.set("name", "Ada");
 
-    await expect(procedure.toFormAction()(null, data)).resolves.toEqual({
+    await expect(procedure.toFormAction()(null, data)).resolves.toStrictEqual({
       _tag: "Success",
       success: "Ada",
     });
@@ -452,7 +452,7 @@ describe("ActionClient", () => {
       .error(TestFailure)
       .handle(() => Subject.pipe(Effect.map(({ name }) => name)));
 
-    await expect(procedure.execute({ name: "Ada" })).resolves.toEqual({
+    await expect(procedure.execute({ name: "Ada" })).resolves.toStrictEqual({
       _tag: "Success",
       success: "Welcome, Ada",
     });
@@ -470,7 +470,7 @@ describe("ActionClient", () => {
         Greeting.pipe(Effect.map(({ prefix }) => `${prefix}, ${name}`))
       );
 
-    await expect(procedure.execute({ name: "Ada" })).resolves.toEqual({
+    await expect(procedure.execute({ name: "Ada" })).resolves.toStrictEqual({
       _tag: "Failure",
       failure: { _tag: "TestRuntimeFailure" },
     });
@@ -490,11 +490,11 @@ describe("ActionClient", () => {
       .error(TestFailure)
       .handle(() => Greeting.pipe(Effect.map(({ prefix }) => prefix)));
 
-    await expect(procedure.execute({ name: "Ada" })).resolves.toEqual({
+    await expect(procedure.execute({ name: "Ada" })).resolves.toStrictEqual({
       _tag: "Success",
       success: "request-1",
     });
-    await expect(procedure.execute({ name: "Grace" })).resolves.toEqual({
+    await expect(procedure.execute({ name: "Grace" })).resolves.toStrictEqual({
       _tag: "Success",
       success: "request-2",
     });

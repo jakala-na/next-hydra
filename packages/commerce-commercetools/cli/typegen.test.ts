@@ -1,7 +1,9 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
+
 import { generateCustomTypes, generateProductTypes } from "./typegen";
 
 const temporaryDirectories: string[] = [];
@@ -14,9 +16,9 @@ const createTemporaryDirectory = async () => {
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories
-      .splice(0)
-      .map((directory) => rm(directory, { recursive: true, force: true }))
+    temporaryDirectories.splice(0).map(async (directory) => {
+      await rm(directory, { force: true, recursive: true });
+    })
   );
 });
 
@@ -28,22 +30,25 @@ describe("schema type generation", () => {
     await writeFile(
       join(schemaDirectory, "orderCustomFields.json"),
       JSON.stringify({
-        key: "orderCustomFields",
         fieldDefinitions: [
           {
-            name: "checkoutContact",
             label: { "en-US": "Checkout contact" },
+            name: "checkoutContact",
             type: { name: "String" },
           },
         ],
+        key: "orderCustomFields",
       }),
-      "utf8"
+      "utf-8"
     );
 
     await generateCustomTypes(schemaDirectory, outputDirectory);
 
-    const types = await readFile(join(outputDirectory, "types.ts"), "utf8");
-    const schemas = await readFile(join(outputDirectory, "schemas.ts"), "utf8");
+    const types = await readFile(join(outputDirectory, "types.ts"), "utf-8");
+    const schemas = await readFile(
+      join(outputDirectory, "schemas.ts"),
+      "utf-8"
+    );
 
     expect(types).toContain("export type OrderCustomFieldsSchema = {");
     expect(types).toContain('checkoutContact: CustomField<"text">;');
@@ -57,47 +62,47 @@ describe("schema type generation", () => {
     await writeFile(
       join(schemaDirectory, "equipment.json"),
       JSON.stringify({
-        key: "equipment",
         attributes: [
           {
-            name: "capacity",
             isRequired: true,
+            name: "capacity",
             type: { name: "number" },
           },
           {
-            name: "certifications",
             isRequired: false,
+            name: "certifications",
             type: {
-              name: "set",
               elementType: { name: "text" },
+              name: "set",
             },
           },
           {
-            name: "relatedProducts",
             isRequired: true,
+            name: "relatedProducts",
             type: {
-              name: "set",
               elementType: {
                 name: "reference",
                 referenceTypeId: "product",
               },
+              name: "set",
             },
           },
           {
-            name: "availableOn",
             isRequired: true,
+            name: "availableOn",
             type: { name: "date" },
           },
         ],
+        key: "equipment",
       }),
-      "utf8"
+      "utf-8"
     );
 
     await generateProductTypes(schemaDirectory, outputDirectory);
 
     const attributes = await readFile(
       join(outputDirectory, "attributes.ts"),
-      "utf8"
+      "utf-8"
     );
     expect(attributes).toContain(
       'const EquipmentProductTypeKey = Schema.Literal("equipment").pipe('

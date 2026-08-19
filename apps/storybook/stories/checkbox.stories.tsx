@@ -5,13 +5,14 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * A control that allows the user to toggle between checked and not checked.
  */
 const meta: Meta<typeof Checkbox> = {
-  title: "ui/Checkbox",
-  component: Checkbox,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
-    id: "terms",
     disabled: false,
+    id: "terms",
+  },
+  component: Checkbox,
+  parameters: {
+    layout: "centered",
   },
   render: (args) => (
     <div className="flex space-x-2">
@@ -24,9 +25,8 @@ const meta: Meta<typeof Checkbox> = {
       </label>
     </div>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/Checkbox",
 } satisfies Meta<typeof Checkbox>;
 
 export default meta;
@@ -43,7 +43,7 @@ export const Default: Story = {};
  */
 export const Disabled: Story = {
   args: {
-    id: "disabled-terms",
     disabled: true,
+    id: "disabled-terms",
   },
 };

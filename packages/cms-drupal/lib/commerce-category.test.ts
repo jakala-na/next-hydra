@@ -1,14 +1,15 @@
 import { Option } from "effect";
 import { describe, expect, it } from "vitest";
+
 import { decodeCommerceCategoryId } from "./commerce-category";
 
-describe("decodeCommerceCategoryId", () => {
+describe(decodeCommerceCategoryId, () => {
   it.each([undefined, null, "", "   "])(
     "preserves an absent category selection (%s)",
     (value) => {
       const result = decodeCommerceCategoryId(value);
 
-      expect(Option.isSome(result)).toBe(true);
+      expect(Option.isSome(result)).toBeTruthy();
       expect(Option.getOrUndefined(result)).toBeUndefined();
     }
   );
@@ -20,8 +21,8 @@ describe("decodeCommerceCategoryId", () => {
   });
 
   it("rejects malformed category data", () => {
-    expect(Option.isNone(decodeCommerceCategoryId({ id: "category-1" }))).toBe(
-      true
-    );
+    expect(
+      Option.isNone(decodeCommerceCategoryId({ id: "category-1" }))
+    ).toBeTruthy();
   });
 });

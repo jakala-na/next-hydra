@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+
 import {
   canDecideRegistration,
   getRegistrationDecisionUnavailableMessage,
@@ -7,16 +8,16 @@ import {
 } from "./registration-lifecycle";
 
 test("admin lifecycle labels cover every registration status", () => {
-  expect(registrationStatusLabels).toEqual({
-    awaiting_approval: "Awaiting approval",
+  expect(registrationStatusLabels).toStrictEqual({
     approval_processing: "Approval processing",
     approved: "Approved",
+    awaiting_approval: "Awaiting approval",
     rejected: "Rejected",
   });
 });
 
 test("admin lifecycle filters include every visible status", () => {
-  expect(registrationStatusFilters).toEqual([
+  expect(registrationStatusFilters).toStrictEqual([
     "awaiting_approval",
     "approved",
     "rejected",
@@ -24,10 +25,10 @@ test("admin lifecycle filters include every visible status", () => {
 });
 
 test("admin decisions are available only for awaiting approval registrations", () => {
-  expect(canDecideRegistration("awaiting_approval")).toBe(true);
-  expect(canDecideRegistration("approval_processing")).toBe(false);
-  expect(canDecideRegistration("approved")).toBe(false);
-  expect(canDecideRegistration("rejected")).toBe(false);
+  expect(canDecideRegistration("awaiting_approval")).toBeTruthy();
+  expect(canDecideRegistration("approval_processing")).toBeFalsy();
+  expect(canDecideRegistration("approved")).toBeFalsy();
+  expect(canDecideRegistration("rejected")).toBeFalsy();
 });
 
 test("non-decidable statuses explain why actions are unavailable", () => {
@@ -40,7 +41,7 @@ test("non-decidable statuses explain why actions are unavailable", () => {
   expect(getRegistrationDecisionUnavailableMessage("rejected")).toContain(
     "finalized"
   );
-  expect(getRegistrationDecisionUnavailableMessage("awaiting_approval")).toBe(
-    undefined
-  );
+  expect(
+    getRegistrationDecisionUnavailableMessage("awaiting_approval")
+  ).toBeUndefined();
 });

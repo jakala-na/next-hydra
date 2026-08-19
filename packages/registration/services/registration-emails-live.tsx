@@ -5,6 +5,7 @@ import RegistrationAwaitingApprovalTemplate from "@repo/email/templates/registra
 import RegistrationAwaitingApproverTemplate from "@repo/email/templates/registration-awaiting-approver";
 import RegistrationRejectedTemplate from "@repo/email/templates/registration-rejected";
 import { Effect, Layer, Redacted } from "effect";
+
 import type { Registration } from "../domain/registration";
 import {
   RegistrationEmailFailure,
@@ -37,9 +38,9 @@ const toFailure =
   (notification: RegistrationEmailFailure["notification"]) =>
   (cause: EmailProviderFailure) =>
     new RegistrationEmailFailure({
+      cause,
       message: `Failed to send ${notification} email: ${cause.message}`,
       notification,
-      cause,
     });
 
 const sendRegistrationEmail = (
@@ -65,33 +66,8 @@ export const layerRegistrationEmails = ({
       const emailProvider = yield* EmailProvider;
 
       return RegistrationEmails.of({
-        sendAwaitingApprovalToRegistrant: ({ registration }) =>
-          sendRegistrationEmail(emailProvider, "registrant_awaiting_approval", {
-            to: getRegistrationEmail(registration),
-            subject: `${getCompanyName(registration)} registration received`,
-            react: (
-              <RegistrationAwaitingApprovalTemplate
-                companyName={getCompanyName(registration)}
-                contactName={getContactName(registration)}
-              />
-            ),
-          }),
-        sendAwaitingApprovalToApprover: ({ registration }) =>
-          sendRegistrationEmail(emailProvider, "approver_awaiting_approval", {
-            to: approverEmail,
-            subject: `${getCompanyName(registration)} registration needs review`,
-            react: (
-              <RegistrationAwaitingApproverTemplate
-                approvalUrl={getApprovalUrl(webUrl, registration)}
-                companyName={getCompanyName(registration)}
-                contactName={getContactName(registration)}
-              />
-            ),
-          }),
         sendApprovedToRegistrant: ({ invitation, registration }) =>
           sendRegistrationEmail(emailProvider, "registrant_approved", {
-            to: getRegistrationEmail(registration),
-            subject: `${getCompanyName(registration)} account approved`,
             react: (
               <RegistrationApprovedTemplate
                 companyName={getCompanyName(registration)}
@@ -102,11 +78,34 @@ export const layerRegistrationEmails = ({
                 }
               />
             ),
+            subject: `${getCompanyName(registration)} account approved`,
+            to: getRegistrationEmail(registration),
+          }),
+        sendAwaitingApprovalToApprover: ({ registration }) =>
+          sendRegistrationEmail(emailProvider, "approver_awaiting_approval", {
+            react: (
+              <RegistrationAwaitingApproverTemplate
+                approvalUrl={getApprovalUrl(webUrl, registration)}
+                companyName={getCompanyName(registration)}
+                contactName={getContactName(registration)}
+              />
+            ),
+            subject: `${getCompanyName(registration)} registration needs review`,
+            to: approverEmail,
+          }),
+        sendAwaitingApprovalToRegistrant: ({ registration }) =>
+          sendRegistrationEmail(emailProvider, "registrant_awaiting_approval", {
+            react: (
+              <RegistrationAwaitingApprovalTemplate
+                companyName={getCompanyName(registration)}
+                contactName={getContactName(registration)}
+              />
+            ),
+            subject: `${getCompanyName(registration)} registration received`,
+            to: getRegistrationEmail(registration),
           }),
         sendRejectedToRegistrant: ({ registration }) =>
           sendRegistrationEmail(emailProvider, "registrant_rejected", {
-            to: getRegistrationEmail(registration),
-            subject: `${getCompanyName(registration)} registration not approved`,
             react: (
               <RegistrationRejectedTemplate
                 companyName={getCompanyName(registration)}
@@ -116,6 +115,8 @@ export const layerRegistrationEmails = ({
                   : {})}
               />
             ),
+            subject: `${getCompanyName(registration)} registration not approved`,
+            to: getRegistrationEmail(registration),
           }),
       });
     })

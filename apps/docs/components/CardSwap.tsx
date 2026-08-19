@@ -6,13 +6,11 @@ import React, {
   cloneElement,
   forwardRef,
   isValidElement,
-  type ReactElement,
-  type ReactNode,
-  type RefObject,
   useEffect,
   useMemo,
   useRef,
 } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 
 export interface CardSwapProps {
   width?: number | string;
@@ -64,15 +62,15 @@ const makeSlot = (
 
 const placeNow = (el: HTMLElement, slot: Slot, skew: number) =>
   gsap.set(el, {
-    x: slot.x,
-    y: slot.y,
-    z: slot.z,
-    xPercent: -50,
-    yPercent: -50,
+    force3D: true,
     skewY: skew,
     transformOrigin: "center center",
+    x: slot.x,
+    xPercent: -50,
+    y: slot.y,
+    yPercent: -50,
+    z: slot.z,
     zIndex: slot.zIndex,
-    force3D: true,
   });
 
 const CardSwap: React.FC<CardSwapProps> = ({
@@ -90,18 +88,18 @@ const CardSwap: React.FC<CardSwapProps> = ({
   const config =
     easing === "elastic"
       ? {
-          ease: "elastic.out(0.6,0.9)",
           durDrop: 2,
           durMove: 2,
           durReturn: 2,
+          ease: "elastic.out(0.6,0.9)",
           promoteOverlap: 0.9,
           returnDelay: 0.05,
         }
       : {
-          ease: "power1.inOut",
           durDrop: 0.8,
           durMove: 0.8,
           durReturn: 0.8,
+          ease: "power1.inOut",
           promoteOverlap: 0.45,
           returnDelay: 0.2,
         };
@@ -134,7 +132,9 @@ const CardSwap: React.FC<CardSwapProps> = ({
     );
 
     const swap = () => {
-      if (order.current.length < 2) return;
+      if (order.current.length < 2) {
+        return;
+      }
 
       const [front, ...rest] = order.current;
       const elFront = refs[front].current!;
@@ -142,9 +142,9 @@ const CardSwap: React.FC<CardSwapProps> = ({
       tlRef.current = tl;
 
       tl.to(elFront, {
-        y: "+=500",
         duration: config.durDrop,
         ease: config.ease,
+        y: "+=500",
       });
 
       tl.addLabel("promote", `-=${config.durDrop * config.promoteOverlap}`);
@@ -155,11 +155,11 @@ const CardSwap: React.FC<CardSwapProps> = ({
         tl.to(
           el,
           {
+            duration: config.durMove,
+            ease: config.ease,
             x: slot.x,
             y: slot.y,
             z: slot.z,
-            duration: config.durMove,
-            ease: config.ease,
           },
           `promote+=${i * 0.15}`
         );
@@ -182,11 +182,11 @@ const CardSwap: React.FC<CardSwapProps> = ({
       tl.to(
         elFront,
         {
+          duration: config.durReturn,
+          ease: config.ease,
           x: backSlot.x,
           y: backSlot.y,
           z: backSlot.z,
-          duration: config.durReturn,
-          ease: config.ease,
         },
         "return"
       );
@@ -217,19 +217,21 @@ const CardSwap: React.FC<CardSwapProps> = ({
         clearInterval(intervalRef.current);
       };
     }
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      clearInterval(intervalRef.current);
+    };
   }, [cardDistance, verticalDistance, delay, pauseOnHover, skewAmount, easing]);
 
   const rendered = childArr.map((child, i) =>
     isValidElement<CardProps>(child)
       ? cloneElement(child, {
           key: i,
-          ref: refs[i],
-          style: { width, height, ...(child.props.style ?? {}) },
           onClick: (e) => {
-            child.props.onClick?.(e as React.MouseEvent<HTMLDivElement>);
+            child.props.onClick?.(e);
             onCardClick?.(i);
           },
+          ref: refs[i],
+          style: { height, width, ...child.props.style },
         } as CardProps & React.RefAttributes<HTMLDivElement>)
       : child
   );
@@ -238,7 +240,7 @@ const CardSwap: React.FC<CardSwapProps> = ({
     <div
       ref={container}
       className="perspective-[900px] absolute right-0 bottom-0 origin-bottom-right translate-x-[5%] translate-y-[20%] transform overflow-visible max-[480px]:translate-x-[25%] max-[768px]:translate-x-[25%] max-[480px]:translate-y-[25%] max-[768px]:translate-y-[25%] max-[480px]:scale-[0.55] max-[768px]:scale-[0.75]"
-      style={{ width, height }}
+      style={{ height, width }}
     >
       {rendered}
     </div>

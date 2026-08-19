@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { env } from "../env";
 
 const requiredCommerceEnvironment = {
-  COMMERCETOOLS_PROJECT_KEY: "project-key",
   COMMERCETOOLS_CLIENT_ID: "client-id",
   COMMERCETOOLS_CLIENT_SECRET: "client-secret",
-  COMMERCETOOLS_SCOPE: "scope",
+  COMMERCETOOLS_PROJECT_KEY: "project-key",
   COMMERCETOOLS_REGION: "region",
+  COMMERCETOOLS_SCOPE: "scope",
 } as const;
 
 const stubRequiredCommerceEnvironment = () => {
@@ -33,13 +34,14 @@ describe("CLI commerce environment", () => {
     expect(environment.COMMERCETOOLS_REGION).toBe("region");
   });
 
-  it.each(
-    Object.keys(requiredCommerceEnvironment)
-  )("fails when the CLI resolves %s as empty", (name) => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    stubRequiredCommerceEnvironment();
-    vi.stubEnv(name, "");
+  it.each(Object.keys(requiredCommerceEnvironment))(
+    "fails when the CLI resolves %s as empty",
+    (name) => {
+      vi.spyOn(console, "error").mockReturnValue();
+      stubRequiredCommerceEnvironment();
+      vi.stubEnv(name, "");
 
-    expect(env).toThrow("Invalid environment variables");
-  });
+      expect(env).toThrow("Invalid environment variables");
+    }
+  );
 });

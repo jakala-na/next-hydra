@@ -1,80 +1,134 @@
-import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
+import type {
+  BusinessUnit,
+  BusinessUnitDraft,
+  ByProjectKeyRequestBuilder,
+  Customer,
+} from "@commercetools/platform-sdk";
 import { describe, expect, it } from "@effect/vitest";
-import { Cause, Effect, Redacted } from "effect";
-import { beforeEach, vi } from "vitest";
-
-vi.mock("server-only", () => ({}));
-
 import {
   CommerceAccount,
   CommerceBusinessUnitId,
   CommerceCustomerId,
 } from "@repo/commerce/domain/commerce-account";
+import type { AcceptedCommerceIdentity } from "@repo/commerce/services/commerce-accounts";
 import {
-  type AcceptedCommerceIdentity,
   CommerceAccountUnavailable,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
+import { Cause, Effect, Redacted } from "effect";
+import { beforeEach, vi } from "vitest";
 
 import { commerceAccountsLayerFrom } from "./commerce-accounts";
 
+type BusinessUnitResponse = { body: Partial<BusinessUnit> };
+type BusinessUnitPageResponse = { body: { results: Partial<BusinessUnit>[] } };
+type CustomerResponse = { body: Partial<Customer> };
+type CustomerSignInResponse = { body: { customer: Partial<Customer> } };
+
 const mocks = vi.hoisted(() => {
-  const businessUnitGetExecute = vi.fn();
-  const businessUnitPostExecute = vi.fn();
-  const businessUnitCreateExecute = vi.fn();
-  const businessUnitCreate = vi.fn(() => ({
+  const businessUnitGetExecute = vi.fn<() => Promise<BusinessUnitResponse>>();
+  const businessUnitPostExecute = vi.fn<() => Promise<BusinessUnitResponse>>();
+  const businessUnitCreateExecute =
+    vi.fn<() => Promise<BusinessUnitResponse>>();
+  const businessUnitCreate = vi.fn<
+    (_request: { readonly body: BusinessUnitDraft }) => {
+      execute: typeof businessUnitCreateExecute;
+    }
+  >(() => ({
     execute: businessUnitCreateExecute,
   }));
-  const businessUnitWithKeyGetExecute = vi.fn();
-  const businessUnitWithKeyGet = vi.fn(() => ({
+  const businessUnitWithKeyGetExecute =
+    vi.fn<() => Promise<BusinessUnitResponse>>();
+  const businessUnitWithKeyGet = vi.fn<
+    () => { execute: typeof businessUnitWithKeyGetExecute }
+  >(() => ({
     execute: businessUnitWithKeyGetExecute,
   }));
-  const businessUnitWithKey = vi.fn(() => ({
+  const businessUnitWithKey = vi.fn<
+    () => { get: typeof businessUnitWithKeyGet }
+  >(() => ({
     get: businessUnitWithKeyGet,
   }));
-  const businessUnitGet = vi.fn(() => ({ execute: businessUnitGetExecute }));
-  const businessUnitPost = vi.fn(() => ({
+  const businessUnitGet = vi.fn<
+    () => { execute: typeof businessUnitGetExecute }
+  >(() => ({ execute: businessUnitGetExecute }));
+  const businessUnitPost = vi.fn<
+    () => { execute: typeof businessUnitPostExecute }
+  >(() => ({
     execute: businessUnitPostExecute,
   }));
-  const businessUnitWithId = vi.fn(() => ({
+  const businessUnitWithId = vi.fn<
+    () => { get: typeof businessUnitGet; post: typeof businessUnitPost }
+  >(() => ({
     get: businessUnitGet,
     post: businessUnitPost,
   }));
-  const businessUnits = vi.fn(() => ({
+  const businessUnits = vi.fn<
+    () => {
+      withId: typeof businessUnitWithId;
+      withKey: typeof businessUnitWithKey;
+      post: typeof businessUnitCreate;
+    }
+  >(() => ({
+    post: businessUnitCreate,
     withId: businessUnitWithId,
     withKey: businessUnitWithKey,
-    post: businessUnitCreate,
   }));
-  const inStoreBusinessUnitsGetExecute = vi.fn();
-  const inStoreBusinessUnitsGet = vi.fn(() => ({
+  const inStoreBusinessUnitsGetExecute =
+    vi.fn<() => Promise<BusinessUnitPageResponse>>();
+  const inStoreBusinessUnitsGet = vi.fn<
+    () => { execute: typeof inStoreBusinessUnitsGetExecute }
+  >(() => ({
     execute: inStoreBusinessUnitsGetExecute,
   }));
-  const inStoreBusinessUnits = vi.fn(() => ({
+  const inStoreBusinessUnits = vi.fn<
+    () => { get: typeof inStoreBusinessUnitsGet }
+  >(() => ({
     get: inStoreBusinessUnitsGet,
   }));
-  const inStore = vi.fn(() => ({
-    businessUnits: inStoreBusinessUnits,
-  }));
-  const customerGetExecute = vi.fn();
-  const customerPostExecute = vi.fn();
-  const customerCreateExecute = vi.fn();
-  const customerCreate = vi.fn(() => ({ execute: customerCreateExecute }));
-  const customerWithKeyGetExecute = vi.fn();
-  const customerWithKeyGet = vi.fn(() => ({
+  const inStore = vi.fn<() => { businessUnits: typeof inStoreBusinessUnits }>(
+    () => ({
+      businessUnits: inStoreBusinessUnits,
+    })
+  );
+  const customerGetExecute = vi.fn<() => Promise<CustomerResponse>>();
+  const customerPostExecute = vi.fn<() => Promise<CustomerResponse>>();
+  const customerCreateExecute = vi.fn<() => Promise<CustomerSignInResponse>>();
+  const customerCreate = vi.fn<() => { execute: typeof customerCreateExecute }>(
+    () => ({ execute: customerCreateExecute })
+  );
+  const customerWithKeyGetExecute = vi.fn<() => Promise<CustomerResponse>>();
+  const customerWithKeyGet = vi.fn<
+    () => { execute: typeof customerWithKeyGetExecute }
+  >(() => ({
     execute: customerWithKeyGetExecute,
   }));
-  const customerWithKey = vi.fn(() => ({ get: customerWithKeyGet }));
-  const customerGet = vi.fn(() => ({ execute: customerGetExecute }));
-  const customerPost = vi.fn(() => ({ execute: customerPostExecute }));
-  const customerWithId = vi.fn(() => ({
+  const customerWithKey = vi.fn<() => { get: typeof customerWithKeyGet }>(
+    () => ({ get: customerWithKeyGet })
+  );
+  const customerGet = vi.fn<() => { execute: typeof customerGetExecute }>(
+    () => ({ execute: customerGetExecute })
+  );
+  const customerPost = vi.fn<() => { execute: typeof customerPostExecute }>(
+    () => ({ execute: customerPostExecute })
+  );
+  const customerWithId = vi.fn<
+    () => { get: typeof customerGet; post: typeof customerPost }
+  >(() => ({
     get: customerGet,
     post: customerPost,
   }));
-  const customers = vi.fn(() => ({
+  const customers = vi.fn<
+    () => {
+      withId: typeof customerWithId;
+      withKey: typeof customerWithKey;
+      post: typeof customerCreate;
+    }
+  >(() => ({
+    post: customerCreate,
     withId: customerWithId,
     withKey: customerWithKey,
-    post: customerCreate,
   }));
 
   return {
@@ -89,10 +143,6 @@ const mocks = vi.hoisted(() => {
     businessUnitWithKeyGet,
     businessUnitWithKeyGetExecute,
     businessUnits,
-    inStore,
-    inStoreBusinessUnits,
-    inStoreBusinessUnitsGet,
-    inStoreBusinessUnitsGetExecute,
     customerCreate,
     customerCreateExecute,
     customerGet,
@@ -104,9 +154,15 @@ const mocks = vi.hoisted(() => {
     customerWithKeyGet,
     customerWithKeyGetExecute,
     customers,
+    inStore,
+    inStoreBusinessUnits,
+    inStoreBusinessUnitsGet,
+    inStoreBusinessUnitsGetExecute,
   };
 });
 
+// SAFETY: Test double implements only the ByProjectKeyRequestBuilder members this suite calls.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions -- Platform ByProjectKeyRequestBuilder is not constructible in unit tests.
 const apiRoot = {
   businessUnits: mocks.businessUnits,
   customers: mocks.customers,
@@ -125,44 +181,44 @@ const acceptedIdentity: AcceptedCommerceIdentity = {
 };
 
 const registration = {
-  id: "registration-1",
   commerceAccount: new CommerceAccount({
-    registrationId: "registration-1",
-    customerId: CommerceCustomerId.make("customer-1"),
     businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+    customerId: CommerceCustomerId.make("customer-1"),
+    registrationId: "registration-1",
   }),
+  id: "registration-1",
 };
 
-beforeEach(() => {
-  mocks.customerCreate.mockClear();
-  mocks.customerCreateExecute.mockReset();
-  mocks.customerGet.mockClear();
-  mocks.customerGetExecute.mockReset();
-  mocks.customerPost.mockClear();
-  mocks.customerPostExecute.mockReset();
-  mocks.customerWithId.mockClear();
-  mocks.customerWithKey.mockClear();
-  mocks.customerWithKeyGet.mockClear();
-  mocks.customerWithKeyGetExecute.mockReset();
-  mocks.customers.mockClear();
-  mocks.businessUnitCreate.mockClear();
-  mocks.businessUnitCreateExecute.mockReset();
-  mocks.businessUnitGet.mockClear();
-  mocks.businessUnitGetExecute.mockReset();
-  mocks.businessUnitPost.mockClear();
-  mocks.businessUnitPostExecute.mockReset();
-  mocks.businessUnitWithId.mockClear();
-  mocks.businessUnitWithKey.mockClear();
-  mocks.businessUnitWithKeyGet.mockClear();
-  mocks.businessUnitWithKeyGetExecute.mockReset();
-  mocks.businessUnits.mockClear();
-  mocks.inStore.mockClear();
-  mocks.inStoreBusinessUnits.mockClear();
-  mocks.inStoreBusinessUnitsGet.mockClear();
-  mocks.inStoreBusinessUnitsGetExecute.mockReset();
-});
-
 describe("layerCommercetoolsCommerceAccounts", () => {
+  beforeEach(() => {
+    mocks.customerCreate.mockClear();
+    mocks.customerCreateExecute.mockReset();
+    mocks.customerGet.mockClear();
+    mocks.customerGetExecute.mockReset();
+    mocks.customerPost.mockClear();
+    mocks.customerPostExecute.mockReset();
+    mocks.customerWithId.mockClear();
+    mocks.customerWithKey.mockClear();
+    mocks.customerWithKeyGet.mockClear();
+    mocks.customerWithKeyGetExecute.mockReset();
+    mocks.customers.mockClear();
+    mocks.businessUnitCreate.mockClear();
+    mocks.businessUnitCreateExecute.mockReset();
+    mocks.businessUnitGet.mockClear();
+    mocks.businessUnitGetExecute.mockReset();
+    mocks.businessUnitPost.mockClear();
+    mocks.businessUnitPostExecute.mockReset();
+    mocks.businessUnitWithId.mockClear();
+    mocks.businessUnitWithKey.mockClear();
+    mocks.businessUnitWithKeyGet.mockClear();
+    mocks.businessUnitWithKeyGetExecute.mockReset();
+    mocks.businessUnits.mockClear();
+    mocks.inStore.mockClear();
+    mocks.inStoreBusinessUnits.mockClear();
+    mocks.inStoreBusinessUnitsGet.mockClear();
+    mocks.inStoreBusinessUnitsGetExecute.mockReset();
+  });
+
   it("uses the commerce failure message as the error message", () => {
     const error = new CommerceAccountUnavailable({
       message: "Failed to add Commercetools business unit associate",
@@ -202,37 +258,35 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         const commerceAccounts = yield* CommerceAccounts;
         yield* commerceAccounts.createFromRegistration({
           _tag: "AwaitingApprovalRegistration",
-          id: "registration-1",
-          storeKey: StoreKey.make("de-fr-uk"),
           details: {
+            address: {
+              city: Redacted.make("New York", { label: "city" }),
+              country: "US",
+              postalCode: Redacted.make("10001", { label: "postalCode" }),
+              streetName: Redacted.make("Main Street", {
+                label: "addressLine",
+              }),
+            },
             companyName: "Hydra Supply",
             contactFirstName: Redacted.make("Ada", { label: "personName" }),
             contactLastName: Redacted.make("Lovelace", {
               label: "personName",
             }),
             email: Redacted.make("ada@example.com", { label: "email" }),
-            address: {
-              streetName: Redacted.make("Main Street", {
-                label: "addressLine",
-              }),
-              postalCode: Redacted.make("10001", { label: "postalCode" }),
-              city: Redacted.make("New York", { label: "city" }),
-              country: "US",
-            },
           },
+          id: "registration-1",
+          storeKey: StoreKey.make("de-fr-uk"),
         });
 
-        expect(mocks.businessUnitCreate).toHaveBeenCalledWith({
-          body: expect.objectContaining({
-            addresses: [
-              expect.objectContaining({
-                key: "address-book-cmVnaXN0cmF0aW9uLXJlZ2lzdHJhdGlvbi0x",
-              }),
-            ],
-            storeMode: "Explicit",
-            stores: [{ typeId: "store", key: "de-fr-uk" }],
-          }),
-        });
+        const createRequest = mocks.businessUnitCreate.mock.calls[0]?.[0];
+
+        expect(createRequest?.body.storeMode).toBe("Explicit");
+        expect(createRequest?.body.stores).toStrictEqual([
+          { key: "de-fr-uk", typeId: "store" },
+        ]);
+        expect(createRequest?.body.addresses?.[0]?.key).toBe(
+          "address-book-cmVnaXN0cmF0aW9uLXJlZ2lzdHJhdGlvbi0x"
+        );
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
@@ -253,19 +307,19 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       });
       mocks.businessUnitCreateExecute.mockRejectedValueOnce(
         Object.assign(new Error("Request body does not contain valid JSON."), {
-          statusCode: 400,
-          code: "BadRequest",
           body: {
-            message: "Request body does not contain valid JSON.",
             errors: [
               {
                 code: "InvalidJsonInput",
-                message: "Request body does not contain valid JSON.",
                 detailedErrorMessage:
                   "The 'stores' field does not conform to the expected shape.",
+                message: "Request body does not contain valid JSON.",
               },
             ],
+            message: "Request body does not contain valid JSON.",
           },
+          code: "BadRequest",
+          statusCode: 400,
         })
       );
 
@@ -273,24 +327,24 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       const exit = yield* commerceAccounts
         .createFromRegistration({
           _tag: "AwaitingApprovalRegistration",
-          id: "registration-1",
-          storeKey: StoreKey.make("de-fr-uk"),
           details: {
+            address: {
+              city: Redacted.make("New York", { label: "city" }),
+              country: "US",
+              postalCode: Redacted.make("10001", { label: "postalCode" }),
+              streetName: Redacted.make("Main Street", {
+                label: "addressLine",
+              }),
+            },
             companyName: "Hydra Supply",
             contactFirstName: Redacted.make("Ada", { label: "personName" }),
             contactLastName: Redacted.make("Lovelace", {
               label: "personName",
             }),
             email: Redacted.make("ada@example.com", { label: "email" }),
-            address: {
-              streetName: Redacted.make("Main Street", {
-                label: "addressLine",
-              }),
-              postalCode: Redacted.make("10001", { label: "postalCode" }),
-              city: Redacted.make("New York", { label: "city" }),
-              country: "US",
-            },
           },
+          id: "registration-1",
+          storeKey: StoreKey.make("de-fr-uk"),
         })
         .pipe(Effect.exit);
 
@@ -300,10 +354,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       }
       const defect = exit.cause.reasons.find(Cause.isDieReason)?.defect;
       expect(defect).toMatchObject({
-        message: "Failed to create Commercetools business unit",
         cause: {
-          statusCode: 400,
-          code: "BadRequest",
           body: {
             errors: [
               expect.objectContaining({
@@ -313,7 +364,10 @@ describe("layerCommercetoolsCommerceAccounts", () => {
               }),
             ],
           },
+          code: "BadRequest",
+          statusCode: 400,
         },
+        message: "Failed to create Commercetools business unit",
       });
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
@@ -330,50 +384,50 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         mocks.businessUnitWithKeyGetExecute.mockResolvedValueOnce({
           body: {
             id: "business-unit-1",
+            stores: [{ key: "default-store", typeId: "store" }],
             version: 3,
-            stores: [{ typeId: "store", key: "default-store" }],
           },
         });
         mocks.businessUnitPostExecute.mockResolvedValueOnce({
           body: {
             id: "business-unit-1",
+            stores: [{ key: "de-fr-uk", typeId: "store" }],
             version: 4,
-            stores: [{ typeId: "store", key: "de-fr-uk" }],
           },
         });
 
         const commerceAccounts = yield* CommerceAccounts;
         yield* commerceAccounts.createFromRegistration({
           _tag: "AwaitingApprovalRegistration",
-          id: "registration-1",
-          storeKey: StoreKey.make("de-fr-uk"),
           details: {
+            address: {
+              city: Redacted.make("New York", { label: "city" }),
+              country: "US",
+              postalCode: Redacted.make("10001", { label: "postalCode" }),
+              streetName: Redacted.make("Main Street", {
+                label: "addressLine",
+              }),
+            },
             companyName: "Hydra Supply",
             contactFirstName: Redacted.make("Ada", { label: "personName" }),
             contactLastName: Redacted.make("Lovelace", {
               label: "personName",
             }),
             email: Redacted.make("ada@example.com", { label: "email" }),
-            address: {
-              streetName: Redacted.make("Main Street", {
-                label: "addressLine",
-              }),
-              postalCode: Redacted.make("10001", { label: "postalCode" }),
-              city: Redacted.make("New York", { label: "city" }),
-              country: "US",
-            },
           },
+          id: "registration-1",
+          storeKey: StoreKey.make("de-fr-uk"),
         });
 
         expect(mocks.businessUnitPost).toHaveBeenCalledWith({
           body: {
-            version: 3,
             actions: [
               {
                 action: "setStores",
-                stores: [{ typeId: "store", key: "de-fr-uk" }],
+                stores: [{ key: "de-fr-uk", typeId: "store" }],
               },
             ],
+            version: 3,
           },
         });
         expect(mocks.businessUnitCreate).not.toHaveBeenCalled();
@@ -390,12 +444,11 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         mocks.businessUnitWithKeyGetExecute.mockResolvedValueOnce({
           body: {
             id: "business-unit-1",
+            stores: [{ key: "default-store", typeId: "store" }],
             version: 3,
-            stores: [{ typeId: "store", key: "default-store" }],
           },
         });
         mocks.businessUnitPostExecute.mockRejectedValueOnce({
-          statusCode: 409,
           body: {
             errors: [
               {
@@ -404,40 +457,41 @@ describe("layerCommercetoolsCommerceAccounts", () => {
               },
             ],
           },
+          statusCode: 409,
         });
         mocks.businessUnitGetExecute.mockResolvedValueOnce({
           body: {
             id: "business-unit-1",
+            stores: [{ key: "de-fr-uk", typeId: "store" }],
             version: 4,
-            stores: [{ typeId: "store", key: "de-fr-uk" }],
           },
         });
 
         const commerceAccounts = yield* CommerceAccounts;
         yield* commerceAccounts.createFromRegistration({
           _tag: "AwaitingApprovalRegistration",
-          id: "registration-1",
-          storeKey: StoreKey.make("de-fr-uk"),
           details: {
+            address: {
+              city: Redacted.make("New York", { label: "city" }),
+              country: "US",
+              postalCode: Redacted.make("10001", { label: "postalCode" }),
+              streetName: Redacted.make("Main Street", {
+                label: "addressLine",
+              }),
+            },
             companyName: "Hydra Supply",
             contactFirstName: Redacted.make("Ada", { label: "personName" }),
             contactLastName: Redacted.make("Lovelace", {
               label: "personName",
             }),
             email: Redacted.make("ada@example.com", { label: "email" }),
-            address: {
-              streetName: Redacted.make("Main Street", {
-                label: "addressLine",
-              }),
-              postalCode: Redacted.make("10001", { label: "postalCode" }),
-              city: Redacted.make("New York", { label: "city" }),
-              country: "US",
-            },
           },
+          id: "registration-1",
+          storeKey: StoreKey.make("de-fr-uk"),
         });
 
-        expect(mocks.businessUnitPost).toHaveBeenCalledTimes(1);
-        expect(mocks.businessUnitGet).toHaveBeenCalledTimes(1);
+        expect(mocks.businessUnitPost).toHaveBeenCalledOnce();
+        expect(mocks.businessUnitGet).toHaveBeenCalledOnce();
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
@@ -445,11 +499,11 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
         body: {
-          id: "customer-1",
-          version: 7,
           email: "ada@example.com",
           firstName: "Ada",
+          id: "customer-1",
           lastName: "Lovelace",
+          version: 7,
         },
       });
 
@@ -514,14 +568,14 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       });
       expect(mocks.inStoreBusinessUnitsGet).toHaveBeenCalledWith({
         queryArgs: {
-          where:
-            'associates(customer(id="customer-1")) or inheritedAssociates(customer(id="customer-1"))',
           limit: 500,
           offset: 0,
           sort: "id asc",
+          where:
+            'associates(customer(id="customer-1")) or inheritedAssociates(customer(id="customer-1"))',
         },
       });
-      expect(memberships).toEqual([
+      expect(memberships).toStrictEqual([
         expect.objectContaining({
           businessUnitId: "business-unit-1",
           businessUnitKey: "business-unit-key-1",
@@ -559,9 +613,9 @@ describe("layerCommercetoolsCommerceAccounts", () => {
             StoreKey.make("default-store")
           );
 
-        expect(memberships.map(({ businessUnitId }) => businessUnitId)).toEqual(
-          ["business-unit-1", "business-unit-2"]
-        );
+        expect(
+          memberships.map(({ businessUnitId }) => businessUnitId)
+        ).toStrictEqual(["business-unit-1", "business-unit-2"]);
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
@@ -569,83 +623,83 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
         body: {
-          id: "customer-1",
-          version: 7,
           email: "ada@example.com",
           firstName: "Ada",
+          id: "customer-1",
           lastName: "Lovelace",
+          version: 7,
         },
       });
       mocks.customerPostExecute.mockResolvedValueOnce({
         body: {
-          id: "customer-1",
-          version: 8,
-          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
           email: "ada@example.com",
+          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
           firstName: "Ada",
+          id: "customer-1",
           lastName: "Lovelace",
+          version: 8,
         },
       });
       mocks.businessUnitGetExecute.mockResolvedValueOnce({
         body: {
-          id: "business-unit-1",
-          version: 3,
-          status: "Active",
           associates: [],
+          id: "business-unit-1",
+          status: "Active",
+          version: 3,
         },
       });
       mocks.businessUnitPostExecute.mockResolvedValueOnce({
         body: {
           id: "business-unit-1",
-          version: 4,
           status: "Active",
+          version: 4,
         },
       });
 
       const commerceAccounts = yield* CommerceAccounts;
       yield* commerceAccounts.linkRegistrantIdentity({
-        registration,
         acceptedIdentity,
+        registration,
       });
 
       expect(mocks.customerPost).toHaveBeenCalledWith({
         body: {
-          version: 7,
           actions: [
             {
               action: "setExternalId",
               externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
             },
           ],
+          version: 7,
         },
       });
       expect(mocks.businessUnitPost).toHaveBeenCalledWith({
         body: {
-          version: 3,
           actions: [
             {
               action: "addAssociate",
               associate: {
-                customer: { typeId: "customer", id: "customer-1" },
                 associateRoleAssignments: [
                   {
                     associateRole: {
-                      typeId: "associate-role",
                       key: "admin",
+                      typeId: "associate-role",
                     },
                     inheritance: "Enabled",
                   },
                   {
                     associateRole: {
-                      typeId: "associate-role",
                       key: "buyer",
+                      typeId: "associate-role",
                     },
                     inheritance: "Enabled",
                   },
                 ],
+                customer: { id: "customer-1", typeId: "customer" },
               },
             },
           ],
+          version: 3,
         },
       });
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
@@ -658,25 +712,24 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         mocks.customerGetExecute
           .mockResolvedValueOnce({
             body: {
-              id: "customer-1",
-              version: 7,
               email: "ada@example.com",
               firstName: "Ada",
+              id: "customer-1",
               lastName: "Lovelace",
+              version: 7,
             },
           })
           .mockResolvedValueOnce({
             body: {
-              id: "customer-1",
-              version: 8,
-              externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
               email: "ada@example.com",
+              externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
               firstName: "Ada",
+              id: "customer-1",
               lastName: "Lovelace",
+              version: 8,
             },
           });
         mocks.customerPostExecute.mockRejectedValueOnce({
-          statusCode: 409,
           body: {
             errors: [
               {
@@ -685,42 +738,43 @@ describe("layerCommercetoolsCommerceAccounts", () => {
               },
             ],
           },
+          statusCode: 409,
         });
         mocks.businessUnitGetExecute.mockResolvedValueOnce({
           body: {
-            id: "business-unit-1",
-            version: 3,
             associates: [
               {
-                customer: { typeId: "customer", id: "customer-1" },
                 associateRoleAssignments: [
                   {
                     associateRole: {
-                      typeId: "associate-role",
                       key: "admin",
+                      typeId: "associate-role",
                     },
                     inheritance: "Enabled",
                   },
                   {
                     associateRole: {
-                      typeId: "associate-role",
                       key: "buyer",
+                      typeId: "associate-role",
                     },
                     inheritance: "Enabled",
                   },
                 ],
+                customer: { id: "customer-1", typeId: "customer" },
               },
             ],
+            id: "business-unit-1",
+            version: 3,
           },
         });
 
         const commerceAccounts = yield* CommerceAccounts;
         yield* commerceAccounts.linkRegistrantIdentity({
-          registration,
           acceptedIdentity,
+          registration,
         });
 
-        expect(mocks.customerPost).toHaveBeenCalledTimes(1);
+        expect(mocks.customerPost).toHaveBeenCalledOnce();
         expect(mocks.customerGet).toHaveBeenCalledTimes(2);
         expect(mocks.businessUnitPost).not.toHaveBeenCalled();
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
@@ -730,51 +784,50 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
         body: {
-          id: "customer-1",
-          version: 8,
-          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
           email: "ada@example.com",
+          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
           firstName: "Ada",
+          id: "customer-1",
           lastName: "Lovelace",
+          version: 8,
         },
       });
       mocks.businessUnitGetExecute
         .mockResolvedValueOnce({
           body: {
+            associates: [],
             id: "business-unit-1",
             version: 3,
-            associates: [],
           },
         })
         .mockResolvedValueOnce({
           body: {
-            id: "business-unit-1",
-            version: 4,
             associates: [
               {
-                customer: { typeId: "customer", id: "customer-1" },
                 associateRoleAssignments: [
                   {
                     associateRole: {
-                      typeId: "associate-role",
                       key: "admin",
+                      typeId: "associate-role",
                     },
                     inheritance: "Enabled",
                   },
                   {
                     associateRole: {
-                      typeId: "associate-role",
                       key: "buyer",
+                      typeId: "associate-role",
                     },
                     inheritance: "Enabled",
                   },
                 ],
+                customer: { id: "customer-1", typeId: "customer" },
               },
             ],
+            id: "business-unit-1",
+            version: 4,
           },
         });
       mocks.businessUnitPostExecute.mockRejectedValueOnce({
-        statusCode: 409,
         body: {
           errors: [
             {
@@ -783,15 +836,16 @@ describe("layerCommercetoolsCommerceAccounts", () => {
             },
           ],
         },
+        statusCode: 409,
       });
 
       const commerceAccounts = yield* CommerceAccounts;
       yield* commerceAccounts.linkRegistrantIdentity({
-        registration,
         acceptedIdentity,
+        registration,
       });
 
-      expect(mocks.businessUnitPost).toHaveBeenCalledTimes(1);
+      expect(mocks.businessUnitPost).toHaveBeenCalledOnce();
       expect(mocks.businessUnitGet).toHaveBeenCalledTimes(2);
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
@@ -800,76 +854,76 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
         body: {
-          id: "customer-1",
-          version: 8,
-          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
           email: "ada@example.com",
+          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
           firstName: "Ada",
+          id: "customer-1",
           lastName: "Lovelace",
+          version: 8,
         },
       });
       mocks.businessUnitGetExecute.mockResolvedValueOnce({
         body: {
-          id: "business-unit-1",
-          version: 3,
-          status: "Active",
           associates: [
             {
-              customer: { typeId: "customer", id: "customer-1" },
               associateRoleAssignments: [
                 {
                   associateRole: {
-                    typeId: "associate-role",
                     key: "admin",
+                    typeId: "associate-role",
                   },
                   inheritance: "Enabled",
                 },
               ],
+              customer: { id: "customer-1", typeId: "customer" },
             },
           ],
+          id: "business-unit-1",
+          status: "Active",
+          version: 3,
         },
       });
       mocks.businessUnitPostExecute.mockResolvedValueOnce({
         body: {
           id: "business-unit-1",
-          version: 4,
           status: "Active",
+          version: 4,
         },
       });
 
       const commerceAccounts = yield* CommerceAccounts;
       yield* commerceAccounts.linkRegistrantIdentity({
-        registration,
         acceptedIdentity,
+        registration,
       });
 
       expect(mocks.businessUnitPost).toHaveBeenCalledWith({
         body: {
-          version: 3,
           actions: [
             {
               action: "changeAssociate",
               associate: {
-                customer: { typeId: "customer", id: "customer-1" },
                 associateRoleAssignments: [
                   {
                     associateRole: {
-                      typeId: "associate-role",
                       key: "admin",
+                      typeId: "associate-role",
                     },
                     inheritance: "Enabled",
                   },
                   {
                     associateRole: {
-                      typeId: "associate-role",
                       key: "buyer",
+                      typeId: "associate-role",
                     },
                     inheritance: "Enabled",
                   },
                 ],
+                customer: { id: "customer-1", typeId: "customer" },
               },
             },
           ],
+          version: 3,
         },
       });
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
@@ -881,47 +935,47 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       Effect.gen(function* () {
         mocks.customerGetExecute.mockResolvedValueOnce({
           body: {
-            id: "customer-1",
-            version: 8,
-            externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
             email: "ada@example.com",
+            externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
             firstName: "Ada",
+            id: "customer-1",
             lastName: "Lovelace",
+            version: 8,
           },
         });
         mocks.businessUnitGetExecute.mockResolvedValueOnce({
           body: {
-            id: "business-unit-1",
-            version: 3,
-            status: "Active",
             associates: [
               {
-                customer: { typeId: "customer", id: "customer-1" },
                 associateRoleAssignments: [
                   {
                     associateRole: {
-                      typeId: "associate-role",
                       key: "admin",
+                      typeId: "associate-role",
                     },
                     inheritance: "Enabled",
                   },
                   {
                     associateRole: {
-                      typeId: "associate-role",
                       key: "buyer",
+                      typeId: "associate-role",
                     },
                     inheritance: "Enabled",
                   },
                 ],
+                customer: { id: "customer-1", typeId: "customer" },
               },
             ],
+            id: "business-unit-1",
+            status: "Active",
+            version: 3,
           },
         });
 
         const commerceAccounts = yield* CommerceAccounts;
         yield* commerceAccounts.linkRegistrantIdentity({
-          registration,
           acceptedIdentity,
+          registration,
         });
 
         expect(mocks.customerPost).not.toHaveBeenCalled();
@@ -933,40 +987,40 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
         body: {
-          id: "customer-1",
-          version: 8,
-          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
           email: "ada@example.com",
+          externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
           firstName: "Ada",
+          id: "customer-1",
           lastName: "Lovelace",
+          version: 8,
         },
       });
       mocks.businessUnitGetExecute.mockResolvedValueOnce({
         body: {
-          id: "business-unit-1",
-          version: 3,
-          status: "Active",
           associates: [],
+          id: "business-unit-1",
+          status: "Active",
+          version: 3,
         },
       });
       mocks.businessUnitPostExecute.mockRejectedValueOnce({
-        statusCode: 400,
         body: {
-          message: "The referenced associate role does not exist.",
           errors: [
             {
               code: "ReferencedResourceNotFound",
               message: "Referenced resource with key admin was not found.",
             },
           ],
+          message: "The referenced associate role does not exist.",
         },
+        statusCode: 400,
       });
 
       const commerceAccounts = yield* CommerceAccounts;
       const exit = yield* commerceAccounts
         .linkRegistrantIdentity({
-          registration,
           acceptedIdentity,
+          registration,
         })
         .pipe(Effect.exit);
 
@@ -976,15 +1030,15 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       }
       const defect = exit.cause.reasons.find(Cause.isDieReason)?.defect;
       expect(defect).toMatchObject({
-        message: "Failed to add Commercetools business unit associate",
         cause: {
           body: {
-            message: "The referenced associate role does not exist.",
             errors: [
               expect.objectContaining({ code: "ReferencedResourceNotFound" }),
             ],
+            message: "The referenced associate role does not exist.",
           },
         },
+        message: "Failed to add Commercetools business unit associate",
       });
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );

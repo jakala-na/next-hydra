@@ -2,6 +2,7 @@ import "server-only";
 import {
   addressBookLayer,
   cartsLayer,
+  commercetoolsClientsLayer,
   commerceAccountsLayer,
   productDiscoveryLayer,
 } from "@repo/commerce-provider/provider";
@@ -18,7 +19,9 @@ import { nextServerLayer } from "./next-server";
 export const CommerceApp = makeCommerceApp({
   addressBookLayer: Layer.orDie(addressBookLayer),
   cartPoliciesLayer: CartPolicies.layer,
-  cartsLayer: Layer.orDie(cartsLayer),
+  cartsLayer: Layer.orDie(
+    cartsLayer.pipe(Layer.provide(commercetoolsClientsLayer))
+  ),
   checkoutPoliciesLayer: CheckoutPolicies.layer,
   commerceAccountsLayer: Layer.orDie(commerceAccountsLayer),
   productDiscoveryLayer: Layer.orDie(productDiscoveryLayer),

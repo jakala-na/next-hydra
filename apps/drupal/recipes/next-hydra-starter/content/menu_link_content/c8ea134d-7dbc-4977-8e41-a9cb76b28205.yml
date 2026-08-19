@@ -1,5 +1,5 @@
 _meta:
-  version: '1.0'
+  version: "1.0"
   entity_type: menu_link_content
   uuid: c8ea134d-7dbc-4977-8e41-a9cb76b28205
   bundle: menu_link_content
@@ -9,37 +9,26 @@ _meta:
     b883487a-71fa-424a-9881-1b6ac99cd98d: node
 default:
   enabled:
-    -
-      value: true
+    - value: true
   title:
-    -
-      value: 'A practical preventive maintenance checklist'
+    - value: "A practical preventive maintenance checklist"
   description:
-    -
-      value: 'Build a maintenance routine that prevents downtime.'
+    - value: "Build a maintenance routine that prevents downtime."
   menu_name:
-    -
-      value: main
+    - value: main
   link:
-    -
-      title: null
-      options: {  }
+    - title: null
+      options: {}
       target_uuid: b883487a-71fa-424a-9881-1b6ac99cd98d
   external:
-    -
-      value: false
+    - value: false
   rediscover:
-    -
-      value: false
+    - value: false
   weight:
-    -
-      value: 2
+    - value: 2
   expanded:
-    -
-      value: false
+    - value: false
   parent:
-    -
-      value: 'menu_link_content:d53f6b84-47d8-4f88-b01b-fb40e8f46f9e'
+    - value: "menu_link_content:d53f6b84-47d8-4f88-b01b-fb40e8f46f9e"
   revision_translation_affected:
-    -
-      value: true
+    - value: true

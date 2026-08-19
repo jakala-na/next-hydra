@@ -1,12 +1,9 @@
 import "server-only";
-
 import { graphqlClient } from "../client";
 import { graphql } from "../graphql";
 import type { DrupalLangcode } from "./locale";
-import {
-  type DrupalGraphqlPreviewContext,
-  isSafeDrupalPreviewPath,
-} from "./preview-context";
+import { isSafeDrupalPreviewPath } from "./preview-context";
+import type { DrupalGraphqlPreviewContext } from "./preview-context";
 
 const previewHandshakeQuery = graphql(`
   query DrupalPreviewHandshake($id: ID!, $token: String!, $langcode: String) {

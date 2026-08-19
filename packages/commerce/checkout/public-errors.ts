@@ -3,10 +3,10 @@ import { Schema } from "effect";
 
 import { AddressBookReference } from "../domain/address-book";
 import { CartId } from "../domain/cart";
-import {
-  CheckoutCustomerProfileField,
-  type CheckoutProviderFailure,
-  type CheckoutUnavailable,
+import { CheckoutCustomerProfileField } from "../domain/checkout";
+import type {
+  CheckoutProviderFailure,
+  CheckoutUnavailable,
 } from "../domain/checkout";
 import { checkoutApiErrorMessage } from "../http/checkout-api-messages";
 import type { CheckoutApiErrorCode } from "../http/checkout-api-messages";

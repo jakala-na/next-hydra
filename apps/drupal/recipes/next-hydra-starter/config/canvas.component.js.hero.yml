@@ -20,77 +20,72 @@ versioned_properties:
         title:
           required: true
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value:
-            -
-              value: 'Build composable experiences without the integration tax'
+            - value: "Build composable experiences without the integration tax"
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
         tagline:
           required: false
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value:
-            -
-              value: 'Next Hydra'
+            - value: "Next Hydra"
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
         description:
           required: false
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value:
-            -
-              value: 'Connect content and commerce while keeping every provider replaceable.'
+            - value: "Connect content and commerce while keeping every provider replaceable."
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
         image:
           required: false
           field_type: entity_reference
           field_storage_settings:
             target_type: media
           field_instance_settings:
-            handler: 'default:media'
+            handler: "default:media"
             handler_settings:
               target_bundles:
                 image: image
           field_widget: media_library_widget
-          default_value: {  }
-          expression: 'ℹ︎entity_reference␟entity␜␜entity:media:image␝field_media_image␞␟{src↠src_with_alternate_widths,alt↠alt,width↠width,height↠height}'
-          derived_schema_metadata: {  }
+          default_value: {}
+          expression: "ℹ︎entity_reference␟entity␜␜entity:media:image␝field_media_image␞␟{src↠src_with_alternate_widths,alt↠alt,width↠width,height↠height}"
+          derived_schema_metadata: {}
         primaryCtaLabel:
           required: false
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value:
-            -
-              value: 'Get started'
+            - value: "Get started"
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
         primaryCtaUrl:
           required: false
           field_type: link
-          field_storage_settings: {  }
+          field_storage_settings: {}
           field_instance_settings:
             title: 0
             link_type: 17
           field_widget: link_default
           default_value:
-            -
-              uri: /get-started
-              options: {  }
+            - uri: /get-started
+              options: {}
           expression: ℹ︎link␟url
           derived_schema_metadata:
             string_shape:
@@ -98,27 +93,25 @@ versioned_properties:
         secondaryCtaLabel:
           required: false
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value:
-            -
-              value: 'Learn more'
+            - value: "Learn more"
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
         secondaryCtaUrl:
           required: false
           field_type: link
-          field_storage_settings: {  }
+          field_storage_settings: {}
           field_instance_settings:
             title: 0
             link_type: 17
           field_widget: link_default
           default_value:
-            -
-              uri: /about
-              options: {  }
+            - uri: /about
+              options: {}
           expression: ℹ︎link␟url
           derived_schema_metadata:
             string_shape:

@@ -13,10 +13,10 @@ export const CountryCodeFromString = Schema.Trim.pipe(
 
 export const Address = Schema.Struct({
   addressLine1: Schema.String,
-  postalCode: Schema.String,
+  addressLine2: Schema.optional(Schema.String),
   city: Schema.String,
   country: CountryCode,
-  addressLine2: Schema.optional(Schema.String),
+  postalCode: Schema.String,
   region: Schema.optional(Schema.String),
 });
 export type Address = typeof Address.Type;

@@ -52,7 +52,7 @@ const binaryExtensions = new Set([
 const declaredAssetSources = new Set(
   manifests.flatMap(({ manifest }) => {
     const registry = JSON.parse(
-      readFileSync(path.join(workspaceRoot, manifest), "utf8")
+      readFileSync(path.join(workspaceRoot, manifest), "utf-8")
     );
     return registry.items.flatMap(
       (item) => item.meta?.nextHydra?.assets?.map((asset) => asset.source) ?? []
@@ -66,7 +66,7 @@ function sourceFiles(sourceRoot) {
     ["ls-files", "--cached", "--others", "--exclude-standard", sourceRoot],
     {
       cwd: workspaceRoot,
-      encoding: "utf8",
+      encoding: "utf-8",
     }
   )
     .split("\n")
@@ -94,7 +94,7 @@ let hasDrift = false;
 
 for (const definition of manifests) {
   const manifestPath = path.join(workspaceRoot, definition.manifest);
-  const registry = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const registry = JSON.parse(readFileSync(manifestPath, "utf-8"));
   const item = registry.items.find(
     (candidate) => candidate.name === definition.item
   );
@@ -118,7 +118,7 @@ for (const definition of manifests) {
   });
 
   const expected = `${JSON.stringify(registry, null, 2)}\n`;
-  const current = readFileSync(manifestPath, "utf8");
+  const current = readFileSync(manifestPath, "utf-8");
 
   if (current === expected) {
     continue;
@@ -130,7 +130,7 @@ for (const definition of manifests) {
       `${definition.manifest} does not list the current tracked files. Run pnpm registry:sync.\n`
     );
   } else {
-    writeFileSync(manifestPath, expected, "utf8");
+    writeFileSync(manifestPath, expected, "utf-8");
     process.stdout.write(`Updated ${definition.manifest}.\n`);
   }
 }

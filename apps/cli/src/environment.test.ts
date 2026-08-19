@@ -1,7 +1,9 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
+
 import {
   environmentFileFromArguments,
   loadEnvironmentFile,
@@ -43,13 +45,13 @@ describe("CLI environment", () => {
 
     try {
       process.env[TEST_ENVIRONMENT_KEY] = "inherited";
-      await writeFile(envFile, `${TEST_ENVIRONMENT_KEY}=from-file`, "utf8");
+      await writeFile(envFile, `${TEST_ENVIRONMENT_KEY}=from-file`, "utf-8");
 
       loadEnvironmentFile(envFile);
 
       expect(process.env[TEST_ENVIRONMENT_KEY]).toBe("from-file");
     } finally {
-      await rm(directory, { recursive: true, force: true });
+      await rm(directory, { force: true, recursive: true });
     }
   });
 });

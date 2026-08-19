@@ -2,6 +2,7 @@ import { Page as CmsPage } from "@repo/cms/components/page";
 import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import { notFound } from "next/navigation";
+
 import { env } from "@/env";
 import { resolveCmsPagePath } from "@/lib/cms-routing";
 

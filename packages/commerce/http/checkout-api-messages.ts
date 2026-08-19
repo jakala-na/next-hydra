@@ -32,34 +32,48 @@ export const checkoutApiErrorMessage = (
     checkoutMessageCatalogs[decodedLocale as SupportedLocale].errors;
 
   switch (code) {
-    case "checkout.badRequest":
+    case "checkout.badRequest": {
       return messages.badRequest;
-    case "checkout.cartMismatch":
+    }
+    case "checkout.cartMismatch": {
       return messages.cartMismatch;
-    case "checkout.contact.customerProfileIncomplete":
+    }
+    case "checkout.contact.customerProfileIncomplete": {
       return messages.saveContact.CheckoutCustomerProfileIncomplete;
-    case "checkout.contact.invalidInput":
+    }
+    case "checkout.contact.invalidInput": {
       return messages.saveContact.CheckoutMutationSchemaFailure;
-    case "checkout.contact.outcomeUnknown":
+    }
+    case "checkout.contact.outcomeUnknown": {
       return messages.saveContact.CheckoutMutationOutcomeUnknown;
-    case "checkout.contact.sourceUnavailable":
+    }
+    case "checkout.contact.sourceUnavailable": {
       return messages.saveContact.CheckoutMutationSourceUnavailable;
-    case "checkout.deliveryDetails.addressBookEntryUnavailable":
+    }
+    case "checkout.deliveryDetails.addressBookEntryUnavailable": {
       return messages.deliveryDetails.addressBookEntryUnavailable;
-    case "checkout.deliveryDetails.invalidInput":
+    }
+    case "checkout.deliveryDetails.invalidInput": {
       return messages.deliveryDetails.invalidInput;
-    case "checkout.deliveryDetails.outcomeUnknown":
+    }
+    case "checkout.deliveryDetails.outcomeUnknown": {
       return messages.saveDeliveryDetails.CheckoutMutationOutcomeUnknown;
-    case "checkout.deliveryDetails.providerFailure":
+    }
+    case "checkout.deliveryDetails.providerFailure": {
       return messages.deliveryDetails.providerFailure;
-    case "checkout.deliveryDetails.sourceUnavailable":
+    }
+    case "checkout.deliveryDetails.sourceUnavailable": {
       return messages.deliveryDetails.sourceUnavailable;
-    case "checkout.internal":
+    }
+    case "checkout.internal": {
       return messages.internal;
-    case "checkout.notFound":
+    }
+    case "checkout.notFound": {
       return messages.notFound;
-    case "checkout.versionConflict":
+    }
+    case "checkout.versionConflict": {
       return messages.versionConflict;
+    }
     default: {
       const exhaustiveCode: never = code;
       return exhaustiveCode;

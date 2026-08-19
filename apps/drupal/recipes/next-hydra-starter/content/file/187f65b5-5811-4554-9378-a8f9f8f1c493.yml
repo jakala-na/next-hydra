@@ -1,27 +1,20 @@
 _meta:
-  version: '1.0'
+  version: "1.0"
   entity_type: file
   uuid: 187f65b5-5811-4554-9378-a8f9f8f1c493
   default_langcode: en
 default:
   uid:
-    -
-      target_id: 1
+    - target_id: 1
   filename:
-    -
-      value: article-ground-pressure.jpg
+    - value: article-ground-pressure.jpg
   uri:
-    -
-      value: 'public://next-hydra/article-ground-pressure.jpg'
+    - value: "public://next-hydra/article-ground-pressure.jpg"
   filemime:
-    -
-      value: image/jpeg
+    - value: image/jpeg
   filesize:
-    -
-      value: 287563
+    - value: 287563
   status:
-    -
-      value: true
+    - value: true
   created:
-    -
-      value: 1754352000
+    - value: 1754352000

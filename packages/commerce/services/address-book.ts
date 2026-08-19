@@ -1,16 +1,18 @@
 import { Context, Effect, Layer, Ref } from "effect";
 
 import {
-  type AddressBookAccessDenied,
   AddressBookEntry,
   AddressBookEntryNotFound,
-  type AddressBookGetError,
-  type AddressBookProviderFailure,
-  type AddressBookReadError,
-  type AddressBookReference,
-  type AddressBookWriteOutcomeUnknown,
   normalizeAddressTypes,
-  type SaveAddressBookEntryInput,
+} from "../domain/address-book";
+import type {
+  AddressBookAccessDenied,
+  AddressBookGetError,
+  AddressBookProviderFailure,
+  AddressBookReadError,
+  AddressBookReference,
+  AddressBookWriteOutcomeUnknown,
+  SaveAddressBookEntryInput,
 } from "../domain/address-book";
 import type { CommerceBusinessUnitId } from "../domain/commerce-account";
 import type { CommerceRequestContextNotFound } from "../domain/commerce-request-context";
@@ -96,7 +98,7 @@ export class AddressBook extends Context.Service<
           input: SaveAddressBookEntryInput
         ) {
           const customerPrincipal = yield* commerceContext.customerPrincipal();
-          const businessUnitId = customerPrincipal.businessUnitId;
+          const { businessUnitId } = customerPrincipal;
           const current = yield* Ref.get(state);
           const entries = current.get(businessUnitId) ?? [];
           const existing = entries.find(
@@ -115,12 +117,12 @@ export class AddressBook extends Context.Service<
             (candidate) =>
               new AddressBookEntry({
                 ...candidate,
-                defaultShipping: input.defaultShipping
-                  ? false
-                  : candidate.defaultShipping,
                 defaultBilling: input.defaultBilling
                   ? false
                   : candidate.defaultBilling,
+                defaultShipping: input.defaultShipping
+                  ? false
+                  : candidate.defaultShipping,
               })
           );
 
@@ -132,7 +134,7 @@ export class AddressBook extends Context.Service<
           return entry;
         });
 
-        return AddressBook.of({ list, get, save });
+        return AddressBook.of({ get, list, save });
       })
     );
 }

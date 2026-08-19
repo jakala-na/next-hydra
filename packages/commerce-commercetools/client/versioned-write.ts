@@ -122,8 +122,7 @@ export const isCommercetoolsAccessDenied = (error: unknown) => {
 export const isCommercetoolsClientFailure = (error: unknown) => {
   const envelope = decodeEnvelope(error);
   return (
-    envelope !== undefined &&
-    envelope.statusCode !== undefined &&
+    envelope?.statusCode !== undefined &&
     envelope.statusCode >= HTTP_CLIENT_ERROR_MIN_STATUS_CODE &&
     envelope.statusCode < HTTP_CLIENT_ERROR_MAX_STATUS_CODE &&
     envelope.statusCode !== HTTP_REQUEST_TIMEOUT_STATUS_CODE &&
@@ -310,14 +309,17 @@ export const retryVersionedWrite = <
     const resolution = yield* resolveConflict(conflict.value, input);
 
     switch (resolution._tag) {
-      case "PreserveConflict":
+      case "PreserveConflict": {
         return yield* Effect.fail(firstAttempt.failure);
-      case "Retry":
+      }
+      case "Retry": {
         yield* Effect.logInfo(
           `Retrying Commercetools versioned write ${operation} after provider reported version ${String(conflict.value.currentVersion)}`
         );
         return yield* attempt(resolution.input);
-      default:
+      }
+      default: {
         return resolution satisfies never;
+      }
     }
   });

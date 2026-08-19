@@ -37,43 +37,43 @@ import { CheckoutPolicies } from "./checkout-policy";
 import { CheckoutSession } from "./checkout-session";
 
 const store = new Store({
+  currency: "USD",
   locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("default-store"),
-  currency: "USD",
 });
 
 const cart: CartSnapshot = {
+  checkoutDetails: {},
   id: CartId.make("cart-1"),
-  status: "active",
-  storeKey: store.storeKey,
   lineItems: [
     {
       id: LineItemId.make("line-1"),
-      variant: {
-        id: VariantId.make("variant-1"),
-        productId: ProductId.make("product-1"),
-        name: "Hydra Wrench",
-        images: [],
-        attributes: {},
-      },
       quantity: 1,
-      unitPrice: { centAmount: 2500, currencyCode: "USD" },
       totalPrice: { centAmount: 2500, currencyCode: "USD" },
+      unitPrice: { centAmount: 2500, currencyCode: "USD" },
+      variant: {
+        attributes: {},
+        id: VariantId.make("variant-1"),
+        images: [],
+        name: "Hydra Wrench",
+        productId: ProductId.make("product-1"),
+      },
     },
   ],
+  status: "active",
+  storeKey: store.storeKey,
   totalLineItemQuantity: 1,
   totalPrice: { centAmount: 2500, currencyCode: "USD" },
-  checkoutDetails: {},
 };
 
 const context = new AnonymousCommerceContextRequest({
-  store,
   anonymousCartId: cart.id,
+  store,
 });
 
 const currentCartCookie: CurrentCartCookie = {
-  set: () => Effect.void,
   clear: () => Effect.void,
+  set: () => Effect.void,
 };
 
 const provideCheckout = <A, E>(
@@ -154,18 +154,18 @@ const provideCustomerCheckout = <A, E>(
   return program.pipe(Effect.provide(checkoutSession));
 };
 
-describe("CheckoutSession", () => {
+describe(CheckoutSession, () => {
   it.effect("builds Checkout state from the request-bound Current Cart", () =>
     provideCheckout(
       Effect.gen(function* () {
         const state = yield* CheckoutSession.getCurrent();
-        expect(state.cart).toEqual(cart);
+        expect(state.cart).toStrictEqual(cart);
         expect(state.scope).toMatchObject({
-          channel: "storefrontAnonymous",
           anonymousCartId: cart.id,
+          channel: "storefrontAnonymous",
         });
         expect(state.activeStep).toBe("contact");
-        expect("version" in state.cart).toBe(false);
+        expect("version" in state.cart).toBeFalsy();
       })
     )
   );
@@ -176,21 +176,21 @@ describe("CheckoutSession", () => {
         const state = yield* CheckoutSession.saveContact({
           cart: { id: cart.id },
           contact: {
-            source: "manual",
             buyerContact: {
               email: " ada@example.com ",
               firstName: " Ada ",
               lastName: " Lovelace ",
             },
+            source: "manual",
           },
         });
-        expect(state.details.contact).toEqual({
-          source: "manual",
+        expect(state.details.contact).toStrictEqual({
           buyerContact: {
             email: "ada@example.com",
             firstName: "Ada",
             lastName: "Lovelace",
           },
+          source: "manual",
         });
         expect(state.activeStep).toBe("deliveryDetails");
       })
@@ -206,12 +206,12 @@ describe("CheckoutSession", () => {
           contact: { source: "customerProfile" },
         }).pipe(
           Effect.flip,
-          Effect.map((error) =>
+          Effect.map((error) => {
             expect(error).toMatchObject({
               _tag: "CheckoutCustomerProfileIncomplete",
               missingFields: ["email"],
-            })
-          )
+            });
+          })
         ),
         new CommerceCustomerProfile({
           customerId: CommerceCustomerId.make("customer-1"),
@@ -221,47 +221,43 @@ describe("CheckoutSession", () => {
       )
   );
 
-  it.effect(
-    "allows Manual Contact after an incomplete customer profile",
-    () =>
-      provideCustomerCheckout(
-        Effect.gen(function* () {
-          const profileFailure = yield* CheckoutSession.saveContact({
-            cart: { id: cart.id },
-            contact: { source: "customerProfile" },
-          }).pipe(Effect.flip);
+  it.effect("allows Manual Contact after an incomplete customer profile", () =>
+    provideCustomerCheckout(
+      Effect.gen(function* () {
+        const profileFailure = yield* CheckoutSession.saveContact({
+          cart: { id: cart.id },
+          contact: { source: "customerProfile" },
+        }).pipe(Effect.flip);
 
-          expect(profileFailure._tag).toBe(
-            "CheckoutCustomerProfileIncomplete"
-          );
+        expect(profileFailure._tag).toBe("CheckoutCustomerProfileIncomplete");
 
-          const state = yield* CheckoutSession.saveContact({
-            cart: { id: cart.id },
-            contact: {
-              source: "manual",
-              buyerContact: {
-                email: "ada@example.com",
-                firstName: "Ada",
-                lastName: "Lovelace",
-              },
-            },
-          });
-
-          expect(state.details.contact).toMatchObject({
-            source: "manual",
+        const state = yield* CheckoutSession.saveContact({
+          cart: { id: cart.id },
+          contact: {
             buyerContact: {
               email: "ada@example.com",
               firstName: "Ada",
               lastName: "Lovelace",
             },
-          });
-        }),
-        new CommerceCustomerProfile({
-          customerId: CommerceCustomerId.make("customer-1"),
-          firstName: Redacted.make("Ada", { label: "personName" }),
-          lastName: Redacted.make("Lovelace", { label: "personName" }),
-        })
-      )
+            source: "manual",
+          },
+        });
+
+        expect(state.details.contact).toMatchObject({
+          buyerContact: {
+            email: "ada@example.com",
+            firstName: "Ada",
+            lastName: "Lovelace",
+          },
+          source: "manual",
+        });
+      }),
+      new CommerceCustomerProfile({
+        customerId: CommerceCustomerId.make("customer-1"),
+        firstName: Redacted.make("Ada", { label: "personName" }),
+        lastName: Redacted.make("Lovelace", { label: "personName" }),
+      })
+    )
   );
 
   it.effect("preserves submitted Cart identity mismatch", () =>
@@ -270,16 +266,18 @@ describe("CheckoutSession", () => {
         CheckoutSession.saveContact({
           cart: { id: CartId.make("different-cart") },
           contact: {
-            source: "manual",
             buyerContact: {
               email: "ada@example.com",
               firstName: "Ada",
               lastName: "Lovelace",
             },
+            source: "manual",
           },
         })
       ).pipe(
-        Effect.map((error) => expect(error._tag).toBe("CheckoutCartMismatch"))
+        Effect.map((error) => {
+          expect(error._tag).toBe("CheckoutCartMismatch");
+        })
       )
     )
   );
@@ -292,18 +290,18 @@ describe("CheckoutSession", () => {
           CheckoutSession.saveContact({
             cart: { id: cart.id },
             contact: {
-              source: "manual",
               buyerContact: {
                 email: "ada@example.com",
                 firstName: "Ada",
                 lastName: "Lovelace",
               },
+              source: "manual",
             },
           })
         ).pipe(
-          Effect.map((error) =>
-            expect(error._tag).toBe("CheckoutVersionConflict")
-          )
+          Effect.map((error) => {
+            expect(error._tag).toBe("CheckoutVersionConflict");
+          })
         ),
         Carts.layerMemory({
           carts: [cart],
@@ -323,22 +321,22 @@ describe("CheckoutSession", () => {
         CheckoutSession.saveContact({
           cart: { id: cart.id },
           contact: {
-            source: "manual",
             buyerContact: {
               email: "ada@example.com",
               firstName: "Ada",
               lastName: "Lovelace",
             },
+            source: "manual",
           },
         })
       ).pipe(
-        Effect.map((error) =>
+        Effect.map((error) => {
           expect(error).toMatchObject({
             _tag: "CheckoutMutationOutcomeUnknown",
             cartId: cart.id,
             operation: "saveContact",
-          })
-        )
+          });
+        })
       ),
       Carts.layerMemory({
         carts: [cart],
@@ -360,23 +358,23 @@ describe("CheckoutSession", () => {
           const result = yield* CheckoutSession.saveDeliveryDetails({
             cart: { id: cart.id },
             deliveryDetails: {
-              type: "manual",
               saveToAddressBook: false,
               shippingAddress: {
                 addressLine1: " 1 Hydra Way ",
-                postalCode: " 10001 ",
                 city: " New York ",
                 country: CountryCode.make("US"),
+                postalCode: " 10001 ",
               },
+              type: "manual",
             },
           });
           expect(result.state.details.deliveryDetails).toMatchObject({
-            source: "manual",
             shippingAddress: {
               addressLine1: "1 Hydra Way",
-              postalCode: "10001",
               city: "New York",
+              postalCode: "10001",
             },
+            source: "manual",
           });
         })
       )

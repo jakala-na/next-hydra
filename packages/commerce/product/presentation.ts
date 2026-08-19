@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+
 import type { ProductDetail } from "./generated/attributes";
 import type { ProductCard } from "./model";
 
@@ -64,8 +65,8 @@ export const toProductCardPresentation = (
   ...(product.startingPrice === undefined
     ? {}
     : {
-        price: toUnits(product.startingPrice.centAmount),
         currencyCode: product.startingPrice.currencyCode,
+        price: toUnits(product.startingPrice.centAmount),
       }),
   isInStock: product.availableForSale,
 });
@@ -104,7 +105,7 @@ export const toProductDetailPresentation = (
     variantLabel: product.options.map((option) => option.label).join(" / "),
     variants: product.variants.map((variant) => {
       const imageUrl = variant.images[0]?.url;
-      const availableQuantity = variant.availability.availableQuantity;
+      const { availableQuantity } = variant.availability;
       return {
         id: variant.id,
         value: variant.id,
@@ -129,30 +130,28 @@ export const toProductDetailPresentation = (
 };
 
 export const toProductDetailMetadata = (product: ProductDetail): Metadata => ({
-  title: product.title,
   description: product.description,
   robots: {
-    index: true,
     follow: true,
     googleBot: {
-      index: true,
       follow: true,
+      index: true,
     },
+    index: true,
   },
+  title: product.title,
 });
 
-export const toProductJsonLd = (product: ProductDetail) => {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.title,
-    description: product.description,
-    image: defaultVariant(product)?.images[0]?.url,
-    offers: {
-      "@type": "AggregateOffer",
-      availability: isAvailableForSale(product)
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
-    },
-  };
-};
+export const toProductJsonLd = (product: ProductDetail) => ({
+  "@context": "https://schema.org",
+  "@type": "Product",
+  description: product.description,
+  image: defaultVariant(product)?.images[0]?.url,
+  name: product.title,
+  offers: {
+    "@type": "AggregateOffer",
+    availability: isAvailableForSale(product)
+      ? "https://schema.org/InStock"
+      : "https://schema.org/OutOfStock",
+  },
+});

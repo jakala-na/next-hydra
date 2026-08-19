@@ -9,16 +9,16 @@ export type RegistrationIntakeFieldPath =
 export class DuplicateRegistrationEmail extends Schema.TaggedClass<DuplicateRegistrationEmail>()(
   "DuplicateRegistrationEmail",
   {
-    path: Schema.Literal("email"),
     code: Schema.Literal("duplicateEmail"),
+    path: Schema.Literal("email"),
   }
 ) {}
 
 export class InvalidRegistrationVatId extends Schema.TaggedClass<InvalidRegistrationVatId>()(
   "InvalidRegistrationVatId",
   {
-    path: Schema.Literal("vatId"),
     code: Schema.Literal("invalidVatId"),
+    path: Schema.Literal("vatId"),
   }
 ) {}
 

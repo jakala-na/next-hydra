@@ -1,9 +1,10 @@
 "use client";
 
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
-import ProductVariant, {
-  type VariantItem,
-  type VariantSelectionPayload,
+import ProductVariant from "@repo/design-system/components/commerce/blocks/product-variants";
+import type {
+  VariantItem,
+  VariantSelectionPayload,
 } from "@repo/design-system/components/commerce/blocks/product-variants";
 import { useCart } from "@repo/design-system/components/commerce/providers/cart-context";
 import { QuoteRequestDialog } from "@repo/design-system/components/quote-request-dialog";
@@ -79,7 +80,9 @@ export function ProductDetail({
     [addItem, openCart, productId]
   );
 
-  const handleQuoteRequest = useCallback(() => setQuoteDialogOpen(true), []);
+  const handleQuoteRequest = useCallback(() => {
+    setQuoteDialogOpen(true);
+  }, []);
 
   const selectedVariant =
     variants.find((variant) => variant.value === selectedVariantId) ??

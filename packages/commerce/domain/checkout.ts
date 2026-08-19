@@ -15,20 +15,20 @@ import { ProviderFailureReason } from "./provider-failure";
 export class StorefrontAnonymousCheckoutScope extends Schema.TaggedClass<StorefrontAnonymousCheckoutScope>()(
   "StorefrontAnonymousCheckoutScope",
   {
+    anonymousCartId: Schema.optional(CartId),
     channel: Schema.Literal("storefrontAnonymous"),
     locale: CommerceLocale,
-    anonymousCartId: Schema.optional(CartId),
   }
 ) {}
 
 export class StorefrontCustomerCheckoutScope extends Schema.TaggedClass<StorefrontCustomerCheckoutScope>()(
   "StorefrontCustomerCheckoutScope",
   {
-    channel: Schema.Literal("storefrontCustomer"),
-    locale: CommerceLocale,
-    customerId: CommerceCustomerId,
     businessUnitId: CommerceBusinessUnitId,
     businessUnitKey: CommerceBusinessUnitKey,
+    channel: Schema.Literal("storefrontCustomer"),
+    customerId: CommerceCustomerId,
+    locale: CommerceLocale,
   }
 ) {}
 
@@ -71,14 +71,14 @@ export const CheckoutContactSource = Schema.Literals([
 export type CheckoutContactSource = typeof CheckoutContactSource.Type;
 
 export const CheckoutContact = Schema.Struct({
-  source: CheckoutContactSource,
   buyerContact: BuyerContact,
+  source: CheckoutContactSource,
 });
 export type CheckoutContact = typeof CheckoutContact.Type;
 
 export const ManualCheckoutContactInput = Schema.Struct({
-  source: Schema.Literal("manual"),
   buyerContact: BuyerContact,
+  source: Schema.Literal("manual"),
 }).annotate({
   description: "Contact details supplied in this request.",
   identifier: "ManualCheckoutContactInput",
@@ -122,18 +122,18 @@ export const ShippingAddress = Address;
 export type ShippingAddress = typeof ShippingAddress.Type;
 
 export const CartOnlyCheckoutDeliveryDetailsInput = Schema.Struct({
-  type: Schema.Literal("manual"),
-  shippingAddress: ShippingAddress,
   saveToAddressBook: Schema.Literal(false),
+  shippingAddress: ShippingAddress,
+  type: Schema.Literal("manual"),
 });
 export type CartOnlyCheckoutDeliveryDetailsInput =
   typeof CartOnlyCheckoutDeliveryDetailsInput.Type;
 
 export const SaveManualAddressCheckoutDeliveryDetailsInput = Schema.Struct({
-  type: Schema.Literal("manual"),
-  shippingAddress: ShippingAddress,
-  saveToAddressBook: Schema.Literal(true),
   makeDefaultShipping: Schema.Boolean,
+  saveToAddressBook: Schema.Literal(true),
+  shippingAddress: ShippingAddress,
+  type: Schema.Literal("manual"),
 });
 export type SaveManualAddressCheckoutDeliveryDetailsInput =
   typeof SaveManualAddressCheckoutDeliveryDetailsInput.Type;
@@ -146,8 +146,8 @@ export type ManualCheckoutDeliveryDetailsInput =
   typeof ManualCheckoutDeliveryDetailsInput.Type;
 
 export const AddressBookCheckoutDeliveryDetailsInput = Schema.Struct({
-  type: Schema.Literal("addressBook"),
   addressBookReference: AddressBookReference,
+  type: Schema.Literal("addressBook"),
 });
 export type AddressBookCheckoutDeliveryDetailsInput =
   typeof AddressBookCheckoutDeliveryDetailsInput.Type;
@@ -168,20 +168,20 @@ export type CheckoutDeliveryDetailsSource =
 
 export const CheckoutDeliveryDetails = Schema.Union([
   Schema.Struct({
-    source: Schema.Literal("manual"),
     shippingAddress: ShippingAddress,
+    source: Schema.Literal("manual"),
   }),
   Schema.Struct({
-    source: Schema.Literal("addressBook"),
     addressBookReference: AddressBookReference,
     shippingAddress: ShippingAddress,
+    source: Schema.Literal("addressBook"),
   }),
 ]);
 export type CheckoutDeliveryDetails = typeof CheckoutDeliveryDetails.Type;
 
 export const CheckoutDetails = Schema.Struct({
-  contact: Schema.optional(CheckoutContact),
   buyingContext: Schema.optional(BuyingContext),
+  contact: Schema.optional(CheckoutContact),
   deliveryDetails: Schema.optional(CheckoutDeliveryDetails),
 });
 export type CheckoutDetails = typeof CheckoutDetails.Type;
@@ -191,15 +191,15 @@ export const ViolationTarget = Schema.Union([
     type: Schema.Literal("cart"),
   }),
   Schema.Struct({
-    type: Schema.Literal("cartItem"),
     lineItemId: Schema.optional(LineItemId),
     productId: ProductId,
-    variantId: Schema.optional(VariantId),
     sku: Schema.optional(Sku),
+    type: Schema.Literal("cartItem"),
+    variantId: Schema.optional(VariantId),
   }),
   Schema.Struct({
-    type: Schema.Literal("checkoutStep"),
     step: CheckoutStepId,
+    type: Schema.Literal("checkoutStep"),
   }),
 ]);
 export type ViolationTarget = typeof ViolationTarget.Type;
@@ -224,10 +224,10 @@ export type CheckoutViolationParameters =
   typeof CheckoutViolationParameters.Type;
 
 export const CheckoutViolation = Schema.Struct({
-  source: CheckoutViolationSource,
-  severity: Schema.Literal("blocking"),
   code: Schema.String,
   parameters: Schema.optional(CheckoutViolationParameters),
+  severity: Schema.Literal("blocking"),
+  source: CheckoutViolationSource,
   targets: Schema.Array(ViolationTarget),
 });
 export type CheckoutViolation = typeof CheckoutViolation.Type;
@@ -241,19 +241,19 @@ export const CheckoutPolicyViolation = Schema.Struct({
 export type CheckoutPolicyViolation = typeof CheckoutPolicyViolation.Type;
 
 export const CheckoutState = Schema.Struct({
-  scope: CheckoutScope,
+  activeStep: CheckoutStepId,
   cart: Schema.suspend(() => CartSnapshot),
   details: CheckoutDetails,
+  scope: CheckoutScope,
   steps: Schema.Array(CheckoutStep),
-  activeStep: CheckoutStepId,
   violations: Schema.Array(CheckoutViolation),
 });
 export type CheckoutState = typeof CheckoutState.Type;
 
 export const CheckoutBuyerContext = Schema.Struct({
   buyerMode: Schema.Literals(["guest", "customer", "b2bCustomer"]),
-  requiresBuyingContext: Schema.Boolean,
   buyingContext: Schema.optional(BuyingContext),
+  requiresBuyingContext: Schema.Boolean,
 });
 export type CheckoutBuyerContext = typeof CheckoutBuyerContext.Type;
 
@@ -268,9 +268,9 @@ export class CheckoutUnavailable extends Schema.TaggedErrorClass<CheckoutUnavail
 export class CheckoutProviderFailure extends Schema.TaggedErrorClass<CheckoutProviderFailure>()(
   "CheckoutProviderFailure",
   {
+    cause: Schema.optional(Schema.Defect),
     message: Schema.String,
     operation: Schema.String,
-    cause: Schema.optional(Schema.Defect),
     reason: ProviderFailureReason,
   }
 ) {}
@@ -339,46 +339,46 @@ export class CheckoutCustomerProfileIncomplete extends Schema.TaggedErrorClass<C
 export class CheckoutMutationAddressBookEntryUnavailable extends Schema.TaggedErrorClass<CheckoutMutationAddressBookEntryUnavailable>()(
   "CheckoutMutationAddressBookEntryUnavailable",
   {
-    message: Schema.String,
     addressBookReference: AddressBookReference,
+    message: Schema.String,
   }
 ) {}
 
 export class CheckoutCartMismatch extends Schema.TaggedErrorClass<CheckoutCartMismatch>()(
   "CheckoutCartMismatch",
   {
+    currentCartId: CartId,
     message: Schema.String,
     submittedCartId: CartId,
-    currentCartId: CartId,
   }
 ) {}
 
 export class CheckoutVersionConflict extends Schema.TaggedErrorClass<CheckoutVersionConflict>()(
   "CheckoutVersionConflict",
   {
-    message: Schema.String,
-    cartId: CartId,
     addressBookReference: Schema.optional(AddressBookReference),
+    cartId: CartId,
+    message: Schema.String,
   }
 ) {}
 
 export class CheckoutMutationOutcomeUnknown extends Schema.TaggedErrorClass<CheckoutMutationOutcomeUnknown>()(
   "CheckoutMutationOutcomeUnknown",
   {
+    addressBookReference: Schema.optional(AddressBookReference),
+    cartId: Schema.optional(CartId),
     message: Schema.String,
     operation: Schema.Literals(["saveContact", "saveDeliveryDetails"]),
-    cartId: Schema.optional(CartId),
-    addressBookReference: Schema.optional(AddressBookReference),
   }
 ) {}
 
 export class CheckoutMutationProviderFailure extends Schema.TaggedErrorClass<CheckoutMutationProviderFailure>()(
   "CheckoutMutationProviderFailure",
   {
+    addressBookReference: Schema.optional(AddressBookReference),
+    cause: Schema.optional(Schema.Defect),
     message: Schema.String,
     operation: Schema.String,
-    cause: Schema.optional(Schema.Defect),
-    addressBookReference: Schema.optional(AddressBookReference),
     reason: ProviderFailureReason,
   }
 ) {}

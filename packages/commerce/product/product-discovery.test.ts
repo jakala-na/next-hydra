@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Option, Schema } from "effect";
+
 import {
   CategoryId,
   ListProductCardsInput,
@@ -12,7 +13,7 @@ import {
 
 const COLLECTION_LIMIT = 3;
 
-describe("ProductDiscovery", () => {
+describe(ProductDiscovery, () => {
   it.effect("represents a missing Product as normal absence", () =>
     Effect.gen(function* () {
       const productDiscovery = yield* ProductDiscovery;
@@ -20,7 +21,7 @@ describe("ProductDiscovery", () => {
         ProductSlug.make("missing-product")
       );
 
-      expect(Option.isNone(product)).toBe(true);
+      expect(Option.isNone(product)).toBeTruthy();
     }).pipe(Effect.provide(ProductDiscovery.testLayer()))
   );
 
@@ -33,21 +34,21 @@ describe("ProductDiscovery", () => {
         })
       );
 
-      expect(products).toEqual([]);
+      expect(products).toStrictEqual([]);
     }).pipe(Effect.provide(ProductDiscovery.testLayer()))
   );
 
   it.effect("supplies domain inputs and deterministic cards to callers", () => {
     const card = Schema.decodeUnknownSync(ProductCard)({
+      availableForSale: true,
       id: "product-1",
       slug: "crawler-crane",
       title: "Crawler crane",
-      availableForSale: true,
     });
     const input = new ListProductCardsInput({
       categoryId: CategoryId.make("category-1"),
-      limit: COLLECTION_LIMIT,
       excludeProductId: ProductId.make("product-2"),
+      limit: COLLECTION_LIMIT,
     });
     let receivedInput: ListProductCardsInput | undefined;
 
@@ -56,7 +57,7 @@ describe("ProductDiscovery", () => {
       const products = yield* productDiscovery.listCards(input);
 
       expect(receivedInput).toBe(input);
-      expect(products).toEqual([card]);
+      expect(products).toStrictEqual([card]);
     }).pipe(
       Effect.provide(
         ProductDiscovery.testLayer({
@@ -71,9 +72,9 @@ describe("ProductDiscovery", () => {
 
   it.effect("preserves the failed Product Discovery operation", () => {
     const failure = new ProductDiscoveryFailure({
-      operation: "listCards",
-      message: "Product collection query failed",
       cause: new Error("provider unavailable"),
+      message: "Product collection query failed",
+      operation: "listCards",
     });
 
     return Effect.gen(function* () {
@@ -89,8 +90,8 @@ describe("ProductDiscovery", () => {
       expect(error).toBe(failure);
       expect(error).toMatchObject({
         _tag: "ProductDiscoveryFailure",
-        operation: "listCards",
         message: "Product collection query failed",
+        operation: "listCards",
       });
     }).pipe(
       Effect.provide(
@@ -102,18 +103,18 @@ describe("ProductDiscovery", () => {
   });
 });
 
-describe("ListProductCardsInput", () => {
+describe(ListProductCardsInput, () => {
   it("decodes only positive integer limits", () => {
     const input = Schema.decodeUnknownSync(ListProductCardsInput)({
       categoryId: "category-1",
-      limit: COLLECTION_LIMIT,
       excludeProductId: "product-2",
+      limit: COLLECTION_LIMIT,
     });
 
     expect(input).toEqual({
       categoryId: "category-1",
-      limit: COLLECTION_LIMIT,
       excludeProductId: "product-2",
+      limit: COLLECTION_LIMIT,
     });
     expect(() =>
       Schema.decodeUnknownSync(ListProductCardsInput)({ limit: 0 })

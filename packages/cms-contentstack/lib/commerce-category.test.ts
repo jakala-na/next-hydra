@@ -1,12 +1,13 @@
 import { Option } from "effect";
 import { describe, expect, it } from "vitest";
+
 import { decodeCommerceCategoryId } from "./commerce-category";
 
-describe("decodeCommerceCategoryId", () => {
+describe(decodeCommerceCategoryId, () => {
   it("preserves an absent Category selection", () => {
     const result = decodeCommerceCategoryId(undefined);
 
-    expect(Option.isSome(result)).toBe(true);
+    expect(Option.isSome(result)).toBeTruthy();
     expect(Option.getOrUndefined(result)).toBeUndefined();
   });
 
@@ -21,9 +22,9 @@ describe("decodeCommerceCategoryId", () => {
   it("rejects malformed CMS Category data", () => {
     expect(
       Option.isNone(decodeCommerceCategoryId({ data: [{ id: "" }] }))
-    ).toBe(true);
+    ).toBeTruthy();
     expect(
       Option.isNone(decodeCommerceCategoryId({ data: "category-1" }))
-    ).toBe(true);
+    ).toBeTruthy();
   });
 });

@@ -14,8 +14,8 @@ content:
   field_description:
     type: basic_string
     label: above
-    settings: {  }
-    third_party_settings: {  }
+    settings: {}
+    third_party_settings: {}
     weight: 1
     region: content
   field_heading:
@@ -23,7 +23,7 @@ content:
     label: above
     settings:
       link_to_entity: false
-    third_party_settings: {  }
+    third_party_settings: {}
     weight: 0
     region: content
   field_product_category:
@@ -31,7 +31,7 @@ content:
     label: above
     settings:
       link_to_entity: false
-    third_party_settings: {  }
+    third_party_settings: {}
     weight: 2
     region: content
-hidden: {  }
+hidden: {}

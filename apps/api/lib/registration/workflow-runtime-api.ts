@@ -120,17 +120,17 @@ const logWorkflowFailure =
   ) =>
   <A>(program: Effect.Effect<A, RegistrationWorkflowRejection>) =>
     program.pipe(
-      Effect.tapError((failure) =>
+      Effect.tapError((error) =>
         Effect.logError(
           `Registration workflow ${operation} failed`,
-          failure.cause
+          error.cause
         ).pipe(
           Effect.annotateLogs({
             operation: `registration.workflow.${operation}`,
             service: "registration-api",
             ...workflowFailureAnnotations(
               isHookPayloadValidationError,
-              failure.cause
+              error.cause
             ),
           })
         )

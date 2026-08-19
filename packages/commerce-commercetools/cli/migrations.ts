@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+
 import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 
 const MIGRATIONS_CONTAINER = "schema-migrations";
@@ -92,7 +93,7 @@ export const getAppliedMigrations = async (
       };
 
       if (typeof value.appliedAt !== "string") {
-        throw new Error(
+        throw new TypeError(
           `Migration record "${customObject.key}" has no appliedAt timestamp`
         );
       }

@@ -1,4 +1,5 @@
 import { Command } from "commander";
+
 import { createMigrateCommand } from "./commands/migrate";
 import { createSchemaCommand } from "./commands/schema";
 import { createTypesCommand } from "./commands/types";

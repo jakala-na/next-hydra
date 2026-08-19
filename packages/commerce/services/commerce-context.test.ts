@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Redacted } from "effect";
+
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -20,9 +21,9 @@ import { CommerceContext } from "./commerce-context";
 
 const customerId = CommerceCustomerId.make("customer-1");
 const store = new Store({
+  currency: "USD",
   locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("default-store"),
-  currency: "USD",
 });
 const authUserId = AuthUserId.make("user-1");
 const businessUnit = new CommerceBusinessUnitMembership({
@@ -31,8 +32,8 @@ const businessUnit = new CommerceBusinessUnitMembership({
   businessUnitLabel: CommerceBusinessUnitLabel.make("Business Unit One"),
 });
 const customerRequest = new CustomerCommerceContextRequest({
-  store,
   authUserId,
+  store,
 });
 const customerProfile = new CommerceCustomerProfile({
   customerId,
@@ -53,36 +54,36 @@ const provideCommerceContext = <A, E>(
       CommerceContext.layer(request).pipe(
         Layer.provide(
           CommerceAccounts.layerMemoryFrom({
-            customerProfiles: [customerProfile],
-            customers: [{ authUserId, customerId }],
             businessUnitMemberships: memberships.map((membership) => ({
               customerId,
-              storeKey: store.storeKey,
               membership,
+              storeKey: store.storeKey,
             })),
+            customerProfiles: [customerProfile],
+            customers: [{ authUserId, customerId }],
           })
         )
       )
     )
   );
 
-describe("CommerceContext", () => {
+describe(CommerceContext, () => {
   it.effect("owns the current customer and profile", () =>
     provideCommerceContext(
       Effect.gen(function* () {
-        expect(yield* CommerceContext.customerPrincipal()).toEqual(
+        expect(yield* CommerceContext.customerPrincipal()).toStrictEqual(
           new CustomerCommercePrincipal({
             authUserId,
-            customerId,
             businessUnitId: businessUnit.businessUnitId,
             businessUnitKey: businessUnit.businessUnitKey,
+            customerId,
           })
         );
-        expect(yield* CommerceContext.customerProfile()).toEqual(
+        expect(yield* CommerceContext.customerProfile()).toStrictEqual(
           customerProfile
         );
         const context = yield* CommerceContext;
-        expect(context.store).toEqual(store);
+        expect(context.store).toStrictEqual(store);
       })
     )
   );
@@ -123,9 +124,9 @@ describe("CommerceContext", () => {
         expect(customerPrincipal.businessUnitId).toBe(selected.businessUnitId);
       }),
       new CustomerCommerceContextRequest({
-        store,
         authUserId,
         businessUnitId: selected.businessUnitId,
+        store,
       }),
       [businessUnit, selected]
     );
@@ -140,9 +141,9 @@ describe("CommerceContext", () => {
         );
       }),
       new CustomerCommerceContextRequest({
-        store,
         authUserId,
         businessUnitId: CommerceBusinessUnitId.make("business-unit-2"),
+        store,
       })
     )
   );

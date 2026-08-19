@@ -19,6 +19,7 @@ import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CommerceLocale, resolveStore } from "@repo/commerce/store";
 import { Effect, Layer } from "effect";
 import { beforeEach, vi } from "vitest";
+
 import { CommercetoolsGraphQLClient } from "../client/graphql-client";
 import { CommercetoolsProductDiscoveryClient } from "./client";
 import { commercetoolsProductDiscoveryClientLayer } from "./client-live";
@@ -30,8 +31,8 @@ const PRODUCT_SELECTION_PAGE_SIZE = 500;
 const PRODUCT_SELECTION_ASSIGNMENT_COUNT = PRODUCT_SELECTION_PAGE_SIZE + 1;
 
 const graphqlClientLayer = CommercetoolsGraphQLClient.testLayer({
-  query,
   mutation,
+  query,
 });
 const productClientLayer = commercetoolsProductDiscoveryClientLayer.pipe(
   Layer.provide(graphqlClientLayer)
@@ -43,17 +44,17 @@ const contextLayer = (authenticated: boolean) =>
   Layer.succeed(
     CommerceContext,
     CommerceContext.of({
-      store,
+      customerPrincipal: () => Effect.die("not used"),
+      customerProfile: () => Effect.die("not used"),
       principal: authenticated
         ? new CustomerCommercePrincipal({
             authUserId: AuthUserId.make("auth-user-1"),
-            customerId: CommerceCustomerId.make("customer-1"),
             businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
             businessUnitKey: CommerceBusinessUnitKey.make("business-unit-1"),
+            customerId: CommerceCustomerId.make("customer-1"),
           })
         : new AnonymousCommercePrincipal({}),
-      customerPrincipal: () => Effect.die("not used"),
-      customerProfile: () => Effect.die("not used"),
+      store,
     })
   );
 
@@ -97,7 +98,10 @@ describe("Commercetools Product Discovery GraphQL client", () => {
           )
         );
 
-        expect(query.mock.calls[1]?.[1]).toEqual({
+        expect(query.mock.calls[1]?.[1]).toStrictEqual({
+          currency: "USD",
+          customerGroupId: undefined,
+          distributionChannelId: "distribution-channel-1",
           filters: [
             {
               model: {
@@ -109,10 +113,7 @@ describe("Commercetools Product Discovery GraphQL client", () => {
             },
           ],
           locale: "en-US",
-          currency: "USD",
-          distributionChannelId: "distribution-channel-1",
           supplyChannelIds: ["supply-channel-1", "supply-channel-2"],
-          customerGroupId: undefined,
         });
       })
   );
@@ -137,7 +138,7 @@ describe("Commercetools Product Discovery GraphQL client", () => {
           true
         );
 
-        expect(query.mock.calls[1]?.[1]).toEqual({
+        expect(query.mock.calls[1]?.[1]).toStrictEqual({
           customerId: "customer-1",
         });
         expect(query.mock.calls[2]?.[1]).toMatchObject({
@@ -234,21 +235,21 @@ describe("Commercetools Product Discovery GraphQL client", () => {
     () =>
       Effect.gen(function* () {
         const assignment = {
-          productSelection: { mode: "Individual" },
           productRef: { id: "product-1" },
-          variantSelection: null,
+          productSelection: { mode: "Individual" },
           variantExclusion: null,
+          variantSelection: null,
         };
         query
           .mockResolvedValueOnce({
             data: {
               inStore: {
                 productSelectionAssignments: {
-                  total: PRODUCT_SELECTION_ASSIGNMENT_COUNT,
                   results: Array.from(
                     { length: PRODUCT_SELECTION_PAGE_SIZE },
                     () => assignment
                   ),
+                  total: PRODUCT_SELECTION_ASSIGNMENT_COUNT,
                 },
               },
             },
@@ -257,8 +258,8 @@ describe("Commercetools Product Discovery GraphQL client", () => {
             data: {
               inStore: {
                 productSelectionAssignments: {
-                  total: PRODUCT_SELECTION_ASSIGNMENT_COUNT,
                   results: [assignment],
+                  total: PRODUCT_SELECTION_ASSIGNMENT_COUNT,
                 },
               },
             },
@@ -273,14 +274,13 @@ describe("Commercetools Product Discovery GraphQL client", () => {
         expect(rules.get("product-1")).toHaveLength(
           PRODUCT_SELECTION_ASSIGNMENT_COUNT
         );
-        expect(query.mock.calls.map((call) => call[1]?.offset)).toEqual([
+        expect(query.mock.calls.map((call) => call[1]?.offset)).toStrictEqual([
           0,
           PRODUCT_SELECTION_PAGE_SIZE,
         ]);
-        expect(query.mock.calls.map((call) => call[1]?.storeKey)).toEqual([
-          "default-store",
-          "default-store",
-        ]);
+        expect(query.mock.calls.map((call) => call[1]?.storeKey)).toStrictEqual(
+          ["default-store", "default-store"]
+        );
       })
   );
 
@@ -292,15 +292,15 @@ describe("Commercetools Product Discovery GraphQL client", () => {
           data: {
             inStore: {
               productSelectionAssignments: {
-                total: 1,
                 results: [
                   {
-                    productSelection: { mode: "FutureMode" },
                     productRef: { id: "product-1" },
-                    variantSelection: null,
+                    productSelection: { mode: "FutureMode" },
                     variantExclusion: null,
+                    variantSelection: null,
                   },
                 ],
+                total: 1,
               },
             },
           },

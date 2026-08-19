@@ -1,12 +1,8 @@
 import { authProxy } from "@repo/auth/proxy";
 import { cmsProxy } from "@repo/cms/proxy";
 import { i18nProxy } from "@repo/i18n/proxy";
-
-import {
-  createNEMO,
-  type GlobalMiddlewareConfig,
-  type MiddlewareConfig,
-} from "@rescale/nemo";
+import { createNEMO } from "@rescale/nemo";
+import type { GlobalMiddlewareConfig, MiddlewareConfig } from "@rescale/nemo";
 
 export const config = {
   // Run middleware on page routes while allowing WorkOS auth and Sentry tunnel handlers.
@@ -40,7 +36,7 @@ const globalMiddlewares: GlobalMiddlewareConfig = {
 };
 
 const middlewares: MiddlewareConfig = {
-  "/": () => undefined,
+  "/": () => {},
 };
 
 const proxy = createNEMO(middlewares, globalMiddlewares);

@@ -20,11 +20,12 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * triggered by a button.
  */
 const meta = {
-  title: "ui/ContextMenu",
-  component: ContextMenu,
-  tags: ["autodocs"],
   argTypes: {},
   args: {},
+  component: ContextMenu,
+  parameters: {
+    layout: "centered",
+  },
   render: (args) => (
     <ContextMenu {...args}>
       <ContextMenuTrigger className="flex h-48 w-96 items-center justify-center rounded-md border border-dashed bg-accent text-sm">
@@ -38,9 +39,8 @@ const meta = {
       </ContextMenuContent>
     </ContextMenu>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/ContextMenu",
 } satisfies Meta<typeof ContextMenu>;
 
 export default meta;

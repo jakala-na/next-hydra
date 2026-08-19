@@ -152,12 +152,12 @@ export class RegistrationDetailResponse extends Schema.Class<RegistrationDetailR
   actorEmail: Schema.optional(Schema.String),
   actorName: Schema.optional(Schema.String),
   address: Schema.Struct({
-    streetName: Schema.String,
     additionalStreetInfo: Schema.String,
-    postalCode: Schema.String,
     city: Schema.String,
-    region: Schema.String,
     country: Schema.String,
+    postalCode: Schema.String,
+    region: Schema.String,
+    streetName: Schema.String,
   }),
   approvalReason: Schema.optional(Schema.String),
   approvedAt: Schema.optional(Schema.String),
@@ -509,22 +509,26 @@ export const toRegistrationTransitionApiError = (
     }
     case "RegistrationTransitionConflict": {
       switch (error.currentState) {
-        case "ApprovedRegistration":
+        case "ApprovedRegistration": {
           return RegistrationAlreadyApprovedFailure.make({
             message: error.message,
           });
-        case "RejectedRegistration":
+        }
+        case "RejectedRegistration": {
           return RegistrationAlreadyRejectedFailure.make({
             message: error.message,
           });
-        case "ApprovalProcessingRegistration":
+        }
+        case "ApprovalProcessingRegistration": {
           return RegistrationDecisionAlreadyProcessingFailure.make({
             message: error.message,
           });
-        default:
+        }
+        default: {
           return RegistrationTransitionConflictFailure.make({
             message: error.message,
           });
+        }
       }
     }
     case "RegistrationPersistenceFailure": {

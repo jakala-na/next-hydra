@@ -49,11 +49,11 @@ export async function readWorkspaceSelection(
   return value as WorkspaceSelection;
 }
 
-export function writeWorkspaceSelection(
+export async function writeWorkspaceSelection(
   workspaceRoot: string,
   selection: WorkspaceSelection
 ): Promise<void> {
-  return writeJsonFile(
+  await writeJsonFile(
     path.join(workspaceRoot, WORKSPACE_SELECTION_FILE),
     selection
   );
@@ -156,9 +156,10 @@ function readPnpmWorkspaceConfig(source: string): {
 } {
   const document = parseDocument(source);
   if (document.errors.length > 0) {
-    throw new CompositionValidationError("pnpm-workspace.yaml is invalid.", [
-      ...document.errors.map((error) => error.message),
-    ]);
+    throw new CompositionValidationError(
+      "pnpm-workspace.yaml is invalid.",
+      document.errors.map((error) => error.message)
+    );
   }
   return {
     config: document.toJS() as PnpmWorkspaceConfig,
@@ -176,7 +177,7 @@ export async function applyPnpmPatches(
 
   const workspaceFile = path.join(workspaceRoot, "pnpm-workspace.yaml");
   const { config, document } = readPnpmWorkspaceConfig(
-    await readFile(workspaceFile, "utf8")
+    await readFile(workspaceFile, "utf-8")
   );
   const governedDependencies = new Set(
     plan.catalogPnpmPatches.map((patch) => patch.dependency)
@@ -199,7 +200,7 @@ export async function applyPnpmPatches(
   } else {
     document.set("patchedDependencies", sortedPatches);
   }
-  await writeFile(workspaceFile, document.toString(), "utf8");
+  await writeFile(workspaceFile, document.toString(), "utf-8");
 }
 
 async function pruneEmptyParents(
@@ -301,7 +302,7 @@ export async function checkWorkspaceComposition(
   if (plan.catalogPnpmPatches.length > 0) {
     const workspaceFile = path.join(workspaceRoot, "pnpm-workspace.yaml");
     const { config } = readPnpmWorkspaceConfig(
-      await readFile(workspaceFile, "utf8")
+      await readFile(workspaceFile, "utf-8")
     );
     const selectedPatches = new Map(
       plan.pnpmPatches.map((patch) => [patch.dependency, patch.path])
@@ -332,7 +333,7 @@ export async function checkWorkspaceComposition(
       if (!(await pathExists(filePath))) {
         return `${target}: managed file is missing`;
       }
-      const actual = await readFile(filePath, "utf8");
+      const actual = await readFile(filePath, "utf-8");
       return actual === expected
         ? undefined
         : `${target}: managed file differs from the composition plan`;

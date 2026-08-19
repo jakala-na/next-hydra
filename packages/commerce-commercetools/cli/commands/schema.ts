@@ -74,7 +74,7 @@ const fetchCustomTypes = async (
 };
 
 const writeJson = async (path: string, value: unknown): Promise<void> => {
-  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
 };
 
 export const prepareSchemaDirectory = async (
@@ -86,7 +86,9 @@ export const prepareSchemaDirectory = async (
   await Promise.all(
     files
       .filter((file) => file.endsWith(".json"))
-      .map((file) => unlink(resolve(directory, file)))
+      .map(async (file) => {
+        await unlink(resolve(directory, file));
+      })
   );
 };
 
@@ -103,10 +105,10 @@ const exportProductTypes = async (
     }
 
     await writeJson(resolve(directory, `${productType.key}.json`), {
+      attributes: productType.attributes ?? [],
+      description: productType.description,
       key: productType.key,
       name: productType.name,
-      description: productType.description,
-      attributes: productType.attributes ?? [],
     });
   }
 };

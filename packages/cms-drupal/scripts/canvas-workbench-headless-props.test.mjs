@@ -5,20 +5,20 @@ describe("Canvas Workbench headless prop canonicalization", () => {
   it("recursively matches Canvas Headless key casing", () => {
     expect(
       canonicalizeCanvasHeadlessPropValue({
-        field_summary: "Summary",
         field_image: {
           field_media_image: {
             src_with_alternate_widths: ["small", "large"],
           },
         },
+        field_summary: "Summary",
       })
     ).toEqual({
-      fieldSummary: "Summary",
       fieldImage: {
         fieldMediaImage: {
           srcWithAlternateWidths: ["small", "large"],
         },
       },
+      fieldSummary: "Summary",
     });
   });
 });

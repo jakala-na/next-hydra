@@ -9,10 +9,10 @@ field_name: field_tagline
 entity_type: paragraph
 bundle: hero
 label: Tagline
-description: 'Optional short label above the hero heading.'
+description: "Optional short label above the hero heading."
 required: false
 translatable: true
-default_value: {  }
-default_value_callback: ''
-settings: {  }
+default_value: {}
+default_value_callback: ""
+settings: {}
 field_type: string

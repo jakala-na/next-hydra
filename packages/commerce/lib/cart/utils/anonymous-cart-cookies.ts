@@ -1,7 +1,9 @@
 import { Option, Schema } from "effect";
+
 import { CartId } from "../../../domain/cart";
 import { CurrencyCode } from "../../../domain/money";
-import { CommerceLocale, type Store, StoreKey } from "../../../store";
+import { CommerceLocale, StoreKey } from "../../../store";
+import type { Store } from "../../../store";
 
 export const ANONYMOUS_CART_COOKIE_NAME = "cart";
 const CART_COOKIE_MAX_AGE_DAYS = 90;
@@ -83,8 +85,8 @@ export const getAnonymousCartIdFromCookieValue = (
 
 export const ANONYMOUS_CART_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  path: "/",
   maxAge: 60 * 60 * 24 * CART_COOKIE_MAX_AGE_DAYS,
+  path: "/",
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
 };

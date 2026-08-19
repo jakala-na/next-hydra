@@ -4,13 +4,9 @@ import type {
   ByProjectKeyRequestBuilder,
 } from "@commercetools/platform-sdk";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
-import { vi } from "vitest";
-
-vi.mock("server-only", () => ({}));
-
 import { CountryCode } from "@repo/commerce/domain/address";
 import {
+  AddressBookEntry,
   AddressBookEntryNotFound,
   AddressBookProviderFailure,
   AddressBookReference,
@@ -32,6 +28,8 @@ import { AddressBook } from "@repo/commerce/services/address-book";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
+import { Effect, Layer } from "effect";
+import { vi } from "vitest";
 
 import {
   addressBookLayerFrom,
@@ -40,39 +38,39 @@ import {
 
 const buyer = new CustomerCommercePrincipal({
   authUserId: AuthUserId.make("auth-user-1"),
-  customerId: CommerceCustomerId.make("customer-1"),
   businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
   businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+  customerId: CommerceCustomerId.make("customer-1"),
 });
 const store = new Store({
+  currency: "USD",
   locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("default-store"),
-  currency: "USD",
 });
 
 const commerceContext = CommerceContext.layer(
   new CustomerCommerceContextRequest({
-    store,
     authUserId: buyer.authUserId,
     businessUnitId: buyer.businessUnitId,
+    store,
   })
 ).pipe(
   Layer.provide(
     CommerceAccounts.layerMemoryFrom({
-      customers: [
-        { authUserId: buyer.authUserId, customerId: buyer.customerId },
-      ],
       businessUnitMemberships: [
         {
           customerId: buyer.customerId,
-          storeKey: store.storeKey,
           membership: new CommerceBusinessUnitMembership({
             businessUnitId: buyer.businessUnitId,
             businessUnitKey: buyer.businessUnitKey,
             businessUnitLabel:
               CommerceBusinessUnitLabel.make("Business Unit One"),
           }),
+          storeKey: store.storeKey,
         },
+      ],
+      customers: [
+        { authUserId: buyer.authUserId, customerId: buyer.customerId },
       ],
     })
   )
@@ -84,61 +82,80 @@ const addressBookLayerFor = (apiRoot: ByProjectKeyRequestBuilder) =>
 const address = {
   addressLine1: "100 Main Street",
   addressLine2: "Suite 200",
-  postalCode: "10001",
   city: "New York",
-  region: "NY",
   country: CountryCode.make("US"),
+  postalCode: "10001",
+  region: "NY",
 };
 
 const reference = AddressBookReference.make("office");
 
 const businessUnit = (overrides: Partial<BusinessUnit> = {}): BusinessUnit =>
+  // SAFETY: Test fixture supplies only the BusinessUnit fields this suite reads.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Platform BusinessUnit is not constructible in unit tests.
   ({
-    id: "business-unit-1",
-    version: 3,
-    key: "business-unit-key-1",
     addresses: [
       {
+        additionalStreetInfo: address.addressLine2,
+        city: address.city,
+        country: address.country,
         id: "address-1",
         key: toCommercetoolsAddressKey(reference),
-        streetName: address.addressLine1,
-        additionalStreetInfo: address.addressLine2,
         postalCode: address.postalCode,
-        city: address.city,
         region: address.region,
-        country: address.country,
+        streetName: address.addressLine1,
       },
     ],
-    shippingAddressIds: ["address-1"],
     billingAddressIds: ["address-1"],
-    defaultShippingAddressId: "address-1",
     defaultBillingAddressId: "address-1",
+    defaultShippingAddressId: "address-1",
+    id: "business-unit-1",
+    key: "business-unit-key-1",
+    shippingAddressIds: ["address-1"],
+    version: 3,
     ...overrides,
-  }) as unknown as BusinessUnit;
+  }) as BusinessUnit;
 
 const apiRootForBusinessUnit = () => {
-  const getExecute = vi.fn();
-  const postExecute = vi.fn();
-  const get = vi.fn(() => ({ execute: getExecute }));
-  const post = vi.fn((_request: { readonly body: BusinessUnitUpdate }) => ({
+  const getExecute = vi.fn<() => Promise<{ body: BusinessUnit }>>();
+  const postExecute = vi.fn<() => Promise<{ body: BusinessUnit }>>();
+  const get = vi.fn<() => { execute: typeof getExecute }>(() => ({
+    execute: getExecute,
+  }));
+  const post = vi.fn<
+    (_request: { readonly body: BusinessUnitUpdate }) => {
+      execute: typeof postExecute;
+    }
+  >((_request) => ({
     execute: postExecute,
   }));
-  const withKey = vi.fn(() => ({ get, post }));
-  const businessUnits = vi.fn(() => ({ withKey }));
-  const withAssociateIdValue = vi.fn(() => ({ businessUnits }));
-  const asAssociate = vi.fn(() => ({ withAssociateIdValue }));
+  const withKey = vi.fn<() => { get: typeof get; post: typeof post }>(() => ({
+    get,
+    post,
+  }));
+  const businessUnits = vi.fn<() => { withKey: typeof withKey }>(() => ({
+    withKey,
+  }));
+  const withAssociateIdValue = vi.fn<
+    () => { businessUnits: typeof businessUnits }
+  >(() => ({ businessUnits }));
+  const asAssociate = vi.fn<
+    () => { withAssociateIdValue: typeof withAssociateIdValue }
+  >(() => ({ withAssociateIdValue }));
+  // SAFETY: Test fixture supplies only the ByProjectKeyRequestBuilder fields this suite reads.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions -- Platform ByProjectKeyRequestBuilder is not constructible in unit tests.
   const apiRoot = { asAssociate } as unknown as ByProjectKeyRequestBuilder;
 
   return {
     apiRoot,
     asAssociate,
-    withAssociateIdValue,
     businessUnits,
-    withKey,
     get,
     getExecute,
     post,
     postExecute,
+    withAssociateIdValue,
+    withKey,
   };
 };
 
@@ -150,8 +167,8 @@ describe("addressBookLayer", () => {
         const api = apiRootForBusinessUnit();
         api.getExecute.mockResolvedValueOnce({
           body: businessUnit({
-            shippingAddressIds: [],
             billingAddressIds: [],
+            shippingAddressIds: [],
           }),
         });
 
@@ -159,14 +176,14 @@ describe("addressBookLayer", () => {
           const addressBook = yield* AddressBook;
           const entries = yield* addressBook.list();
 
-          expect(entries).toEqual([
-            {
-              reference: "office",
+          expect(entries).toStrictEqual([
+            new AddressBookEntry({
               address,
-              types: ["shipping", "billing"],
-              defaultShipping: true,
               defaultBilling: true,
-            },
+              defaultShipping: true,
+              reference: AddressBookReference.make("office"),
+              types: ["shipping", "billing"],
+            }),
           ]);
           expect(api.withAssociateIdValue).toHaveBeenCalledWith({
             associateId: "customer-1",
@@ -187,15 +204,15 @@ describe("addressBookLayer", () => {
       return Effect.gen(function* () {
         const addressBook = yield* AddressBook;
         const saved = yield* addressBook.save({
-          reference,
           address: { ...address, addressLine1: "Different submission" },
-          types: ["billing"],
-          defaultShipping: false,
           defaultBilling: false,
+          defaultShipping: false,
+          reference,
+          types: ["billing"],
         });
 
         expect(saved.address.addressLine1).toBe("100 Main Street");
-        expect(saved.types).toEqual(["shipping", "billing"]);
+        expect(saved.types).toStrictEqual(["shipping", "billing"]);
         expect(api.post).not.toHaveBeenCalled();
       }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
     }
@@ -208,10 +225,10 @@ describe("addressBookLayer", () => {
       api.getExecute.mockResolvedValueOnce({
         body: businessUnit({
           addresses: [],
-          shippingAddressIds: [],
           billingAddressIds: [],
-          defaultShippingAddressId: undefined,
           defaultBillingAddressId: undefined,
+          defaultShippingAddressId: undefined,
+          shippingAddressIds: [],
         }),
       });
       api.postExecute.mockResolvedValueOnce({ body: businessUnit() });
@@ -219,28 +236,27 @@ describe("addressBookLayer", () => {
       return Effect.gen(function* () {
         const addressBook = yield* AddressBook;
         const saved = yield* addressBook.save({
-          reference,
           address,
-          types: ["billing"],
-          defaultShipping: true,
           defaultBilling: true,
+          defaultShipping: true,
+          reference,
+          types: ["billing"],
         });
 
         expect(saved.reference).toBe(reference);
         expect(api.post).toHaveBeenCalledWith({
           body: {
-            version: 3,
             actions: [
               {
                 action: "addAddress",
                 address: {
-                  key: toCommercetoolsAddressKey(reference),
-                  streetName: address.addressLine1,
                   additionalStreetInfo: address.addressLine2,
-                  postalCode: address.postalCode,
                   city: address.city,
-                  region: address.region,
                   country: address.country,
+                  key: toCommercetoolsAddressKey(reference),
+                  postalCode: address.postalCode,
+                  region: address.region,
+                  streetName: address.addressLine1,
                 },
               },
               {
@@ -260,6 +276,7 @@ describe("addressBookLayer", () => {
                 addressKey: toCommercetoolsAddressKey(reference),
               },
             ],
+            version: 3,
           },
         });
       }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
@@ -286,7 +303,7 @@ describe("addressBookLayer", () => {
       const api = apiRootForBusinessUnit();
       const untypedReference = AddressBookReference.make("untyped");
       const current = businessUnit();
-      const firstAddress = current.addresses[0];
+      const [firstAddress] = current.addresses;
       if (!firstAddress) {
         throw new Error("Business Unit fixture requires an address");
       }
@@ -317,8 +334,8 @@ describe("addressBookLayer", () => {
   it.effect("preserves associate access denial as a typed error", () => {
     const api = apiRootForBusinessUnit();
     api.getExecute.mockRejectedValueOnce({
-      statusCode: 403,
       code: "AssociateMissingPermission",
+      statusCode: 403,
     });
 
     return Effect.gen(function* () {
@@ -369,7 +386,7 @@ describe("addressBookLayer", () => {
     () => {
       const api = apiRootForBusinessUnit();
       const invalidAddress = businessUnit();
-      const firstAddress = invalidAddress.addresses[0];
+      const [firstAddress] = invalidAddress.addresses;
       if (firstAddress === undefined) {
         throw new Error("Business Unit fixture requires an address");
       }
@@ -400,10 +417,10 @@ describe("addressBookLayer", () => {
         .mockResolvedValueOnce({
           body: businessUnit({
             addresses: [],
-            shippingAddressIds: [],
             billingAddressIds: [],
-            defaultShippingAddressId: undefined,
             defaultBillingAddressId: undefined,
+            defaultShippingAddressId: undefined,
+            shippingAddressIds: [],
           }),
         })
         .mockResolvedValueOnce({ body: businessUnit() });
@@ -412,15 +429,15 @@ describe("addressBookLayer", () => {
       return Effect.gen(function* () {
         const addressBook = yield* AddressBook;
         const saved = yield* addressBook.save({
-          reference,
           address,
-          types: ["shipping", "billing"],
-          defaultShipping: true,
           defaultBilling: true,
+          defaultShipping: true,
+          reference,
+          types: ["shipping", "billing"],
         });
 
         expect(saved.reference).toBe(reference);
-        expect(api.post).toHaveBeenCalledTimes(1);
+        expect(api.post).toHaveBeenCalledOnce();
         expect(api.get).toHaveBeenCalledTimes(2);
       }).pipe(Effect.provide(addressBookLayerFor(api.apiRoot)));
     }
@@ -431,12 +448,12 @@ describe("addressBookLayer", () => {
     () => {
       const api = apiRootForBusinessUnit();
       const withoutAddresses = businessUnit({
-        version: 3,
         addresses: [],
-        shippingAddressIds: [],
         billingAddressIds: [],
-        defaultShippingAddressId: undefined,
         defaultBillingAddressId: undefined,
+        defaultShippingAddressId: undefined,
+        shippingAddressIds: [],
+        version: 3,
       });
       api.getExecute
         .mockResolvedValueOnce({ body: withoutAddresses })
@@ -450,11 +467,11 @@ describe("addressBookLayer", () => {
       return Effect.gen(function* () {
         const addressBook = yield* AddressBook;
         const saved = yield* addressBook.save({
-          reference,
           address,
-          types: ["shipping"],
-          defaultShipping: false,
           defaultBilling: false,
+          defaultShipping: false,
+          reference,
+          types: ["shipping"],
         });
 
         expect(saved.reference).toBe(reference);

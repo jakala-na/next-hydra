@@ -9,9 +9,6 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * Accessible resizable panel groups and layouts with keyboard support.
  */
 const meta: Meta<typeof ResizablePanelGroup> = {
-  title: "ui/ResizablePanelGroup",
-  component: ResizablePanelGroup,
-  tags: ["autodocs"],
   argTypes: {
     onLayout: {
       control: false,
@@ -21,6 +18,7 @@ const meta: Meta<typeof ResizablePanelGroup> = {
     className: "max-w-96 rounded-lg border",
     direction: "horizontal",
   },
+  component: ResizablePanelGroup,
   render: (args) => (
     <ResizablePanelGroup {...args}>
       <ResizablePanel defaultSize={50}>
@@ -46,6 +44,8 @@ const meta: Meta<typeof ResizablePanelGroup> = {
       </ResizablePanel>
     </ResizablePanelGroup>
   ),
+  tags: ["autodocs"],
+  title: "ui/ResizablePanelGroup",
 } satisfies Meta<typeof ResizablePanelGroup>;
 
 export default meta;

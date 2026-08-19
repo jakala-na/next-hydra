@@ -1,5 +1,6 @@
-import type { useRouter as useNextRouter } from "next/navigation";
 import { createNavigation } from "next-intl/navigation";
+import type { useRouter as useNextRouter } from "next/navigation";
+
 import type { SupportedLocale } from "./config";
 import { routing } from "./routing";
 

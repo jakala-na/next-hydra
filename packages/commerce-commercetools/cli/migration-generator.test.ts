@@ -1,7 +1,9 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
+
 import { createMigration } from "./migration-generator";
 
 describe("migration generator", () => {
@@ -17,14 +19,14 @@ describe("migration generator", () => {
       );
 
       expect(fileName).toBe("2026-07-28-130000-add-checkout-field.ts");
-      const migration = await readFile(join(directory, fileName), "utf8");
+      const migration = await readFile(join(directory, fileName), "utf-8");
       expect(migration).toContain('description: "Add checkout state"');
       expect(migration).toContain(
         'import type { MigrationDefinition } from "../types";'
       );
       expect(migration).not.toContain("@repo/commerce/migrations");
     } finally {
-      await rm(directory, { recursive: true, force: true });
+      await rm(directory, { force: true, recursive: true });
     }
   });
 });

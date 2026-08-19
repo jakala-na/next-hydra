@@ -48,22 +48,31 @@ const getAnchorAndDir = (
 ): { anchor: [number, number]; dir: [number, number] } => {
   const outside = 0.2;
   switch (origin) {
-    case "top-left":
+    case "top-left": {
       return { anchor: [0, -outside * h], dir: [0, 1] };
-    case "top-right":
+    }
+    case "top-right": {
       return { anchor: [w, -outside * h], dir: [0, 1] };
-    case "left":
+    }
+    case "left": {
       return { anchor: [-outside * w, 0.5 * h], dir: [1, 0] };
-    case "right":
+    }
+    case "right": {
       return { anchor: [(1 + outside) * w, 0.5 * h], dir: [-1, 0] };
-    case "bottom-left":
+    }
+    case "bottom-left": {
       return { anchor: [0, (1 + outside) * h], dir: [0, -1] };
-    case "bottom-center":
+    }
+    case "bottom-center": {
       return { anchor: [0.5 * w, (1 + outside) * h], dir: [0, -1] };
-    case "bottom-right":
+    }
+    case "bottom-right": {
       return { anchor: [w, (1 + outside) * h], dir: [0, -1] };
-    default: // "top-center"
+    }
+    default: {
+      // "top-center"
       return { anchor: [0.5 * w, -outside * h], dir: [0, 1] };
+    }
   }
 };
 
@@ -95,12 +104,12 @@ const LightRays: React.FC<LightRaysProps> = ({
   lightSpread = 1,
   rayLength = 2,
   pulsating = false,
-  fadeDistance = 1.0,
-  saturation = 1.0,
+  fadeDistance = 1,
+  saturation = 1,
   followMouse = true,
   mouseInfluence = 0.1,
-  noiseAmount = 0.0,
-  distortion = 0.0,
+  noiseAmount = 0,
+  distortion = 0,
   className = "",
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -115,7 +124,9 @@ const LightRays: React.FC<LightRaysProps> = ({
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {
+      return;
+    }
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -136,7 +147,9 @@ const LightRays: React.FC<LightRaysProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!(isVisible && containerRef.current)) return;
+    if (!(isVisible && containerRef.current)) {
+      return;
+    }
 
     if (cleanupFunctionRef.current) {
       cleanupFunctionRef.current();
@@ -144,26 +157,30 @@ const LightRays: React.FC<LightRaysProps> = ({
     }
 
     const initializeWebGL = async () => {
-      if (!containerRef.current) return;
+      if (!containerRef.current) {
+        return;
+      }
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      if (!containerRef.current) return;
+      if (!containerRef.current) {
+        return;
+      }
 
       const renderer = new Renderer({
-        dpr: Math.min(window.devicePixelRatio, 2),
         alpha: true,
+        dpr: Math.min(window.devicePixelRatio, 2),
       });
       rendererRef.current = renderer;
 
-      const gl = renderer.gl;
+      const { gl } = renderer;
       gl.canvas.style.width = "100%";
       gl.canvas.style.height = "100%";
 
       while (containerRef.current.firstChild) {
         containerRef.current.removeChild(containerRef.current.firstChild);
       }
-      containerRef.current.appendChild(gl.canvas);
+      containerRef.current.append(gl.canvas);
 
       const vert = `
 attribute vec2 position;
@@ -268,44 +285,44 @@ void main() {
 }`;
 
       const uniforms: Uniforms = {
-        iTime: { value: 0 },
+        distortion: { value: distortion },
+        fadeDistance: { value: fadeDistance },
         iResolution: { value: [1, 1] },
-
-        rayPos: { value: [0, 0] },
+        iTime: { value: 0 },
+        lightSpread: { value: lightSpread },
+        mouseInfluence: { value: mouseInfluence },
+        mousePos: { value: [0.5, 0.5] },
+        noiseAmount: { value: noiseAmount },
+        pulsating: { value: pulsating ? 1 : 0 },
         rayDir: { value: [0, 1] },
-
+        rayLength: { value: rayLength },
+        rayPos: { value: [0, 0] },
         raysColor: { value: hexToRgb(raysColor) },
         raysSpeed: { value: raysSpeed },
-        lightSpread: { value: lightSpread },
-        rayLength: { value: rayLength },
-        pulsating: { value: pulsating ? 1.0 : 0.0 },
-        fadeDistance: { value: fadeDistance },
         saturation: { value: saturation },
-        mousePos: { value: [0.5, 0.5] },
-        mouseInfluence: { value: mouseInfluence },
-        noiseAmount: { value: noiseAmount },
-        distortion: { value: distortion },
       };
       uniformsRef.current = uniforms;
 
       const geometry = new Triangle(gl);
       const program = new Program(gl, {
-        vertex: vert,
         fragment: frag,
         uniforms,
+        vertex: vert,
       });
       const mesh = new Mesh(gl, { geometry, program });
       meshRef.current = mesh;
 
       const updatePlacement = () => {
-        if (!(containerRef.current && renderer)) return;
+        if (!(containerRef.current && renderer)) {
+          return;
+        }
 
         renderer.dpr = Math.min(window.devicePixelRatio, 2);
 
         const { clientWidth: wCSS, clientHeight: hCSS } = containerRef.current;
         renderer.setSize(wCSS, hCSS);
 
-        const dpr = renderer.dpr;
+        const { dpr } = renderer;
         const w = wCSS * dpr;
         const h = hCSS * dpr;
 
@@ -323,7 +340,7 @@ void main() {
 
         uniforms.iTime.value = t * 0.001;
 
-        if (followMouse && mouseInfluence > 0.0) {
+        if (followMouse && mouseInfluence > 0) {
           const smoothing = 0.92;
 
           smoothMouseRef.current.x =
@@ -362,7 +379,7 @@ void main() {
 
         if (renderer) {
           try {
-            const canvas = renderer.gl.canvas;
+            const { canvas } = renderer.gl;
             const loseContextExt =
               renderer.gl.getExtension("WEBGL_lose_context");
             if (loseContextExt) {
@@ -408,8 +425,9 @@ void main() {
   ]);
 
   useEffect(() => {
-    if (!(uniformsRef.current && containerRef.current && rendererRef.current))
+    if (!(uniformsRef.current && containerRef.current && rendererRef.current)) {
       return;
+    }
 
     const u = uniformsRef.current;
     const renderer = rendererRef.current;
@@ -418,7 +436,7 @@ void main() {
     u.raysSpeed.value = raysSpeed;
     u.lightSpread.value = lightSpread;
     u.rayLength.value = rayLength;
-    u.pulsating.value = pulsating ? 1.0 : 0.0;
+    u.pulsating.value = pulsating ? 1 : 0;
     u.fadeDistance.value = fadeDistance;
     u.saturation.value = saturation;
     u.mouseInfluence.value = mouseInfluence;
@@ -426,7 +444,7 @@ void main() {
     u.distortion.value = distortion;
 
     const { clientWidth: wCSS, clientHeight: hCSS } = containerRef.current;
-    const dpr = renderer.dpr;
+    const { dpr } = renderer;
     const { anchor, dir } = getAnchorAndDir(raysOrigin, wCSS * dpr, hCSS * dpr);
     u.rayPos.value = anchor;
     u.rayDir.value = dir;
@@ -446,7 +464,9 @@ void main() {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!(containerRef.current && rendererRef.current)) return;
+      if (!(containerRef.current && rendererRef.current)) {
+        return;
+      }
       const rect = containerRef.current.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
       const y = (e.clientY - rect.top) / rect.height;
@@ -455,7 +475,9 @@ void main() {
 
     if (followMouse) {
       window.addEventListener("mousemove", handleMouseMove);
-      return () => window.removeEventListener("mousemove", handleMouseMove);
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+      };
     }
   }, [followMouse]);
 

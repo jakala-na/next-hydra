@@ -1,8 +1,8 @@
-import { fetchPage as fetchPublishedCanvasPage } from "@drupal-canvas/headless/server";
 import {
   fetchPage as fetchDraftAwareCanvasPage,
   isPageRedirect,
 } from "@drupal-canvas/headless-next";
+import { fetchPage as fetchPublishedCanvasPage } from "@drupal-canvas/headless/server";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import type { Locale } from "@repo/i18n";
 import { hasLocale, setRequestLocale } from "@repo/i18n";
@@ -11,6 +11,7 @@ import type { Route } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { draftMode } from "next/headers";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
+
 import { graphqlClient } from "../client";
 import { graphql } from "../graphql";
 import { keys } from "../keys";
@@ -156,18 +157,18 @@ async function getPagePreview(
   return preview && isPageKey(preview.__typename) ? preview : undefined;
 }
 
-function getPageForContext(
+async function getPageForContext(
   path: string,
   context: DrupalPreviewContext | undefined,
   locale: Locale
 ) {
   if (context?.path !== toDrupalPath(path, locale)) {
-    return getRouteEntity(path, locale);
+    return await getRouteEntity(path, locale);
   }
 
   return context.kind === "graphql"
-    ? getPagePreview(context, locale)
-    : getRouteEntity(path, locale, context.revision, true);
+    ? await getPagePreview(context, locale)
+    : await getRouteEntity(path, locale, context.revision, true);
 }
 
 export async function Page(props: { url: string; locale: Locale }) {

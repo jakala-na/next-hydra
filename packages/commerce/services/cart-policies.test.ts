@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
+
 import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
 import { CartPolicyFailure } from "../domain/cart-errors";
 import type { CartSnapshot } from "../domain/cart-snapshot";
@@ -7,19 +8,19 @@ import { StoreKey } from "../store";
 import { CartPolicies } from "./cart-policies";
 
 const cart: CartSnapshot = {
+  checkoutDetails: {},
   id: CartId.make("cart-1"),
+  lineItems: [],
   status: "active",
   storeKey: StoreKey.make("us-store"),
-  lineItems: [],
   totalLineItemQuantity: 0,
   totalPrice: { centAmount: 0, currencyCode: "USD" },
-  checkoutDetails: {},
 };
 const quantityOverGuestLimit = 51;
 const unitPriceCentAmount = 100;
 const maximumGuestItems = 50;
 
-describe("CartPolicies", () => {
+describe(CartPolicies, () => {
   it.effect(
     "reports the existing guest maximum-items rule as violation data",
     () =>
@@ -30,20 +31,20 @@ describe("CartPolicies", () => {
           lineItems: [
             {
               id: LineItemId.make("line-1"),
-              variant: {
-                id: VariantId.make("variant-1"),
-                productId: ProductId.make("product-1"),
-                images: [],
-                attributes: {},
-              },
               quantity: quantityOverGuestLimit,
+              totalPrice: {
+                centAmount: unitPriceCentAmount * quantityOverGuestLimit,
+                currencyCode: "USD",
+              },
               unitPrice: {
                 centAmount: unitPriceCentAmount,
                 currencyCode: "USD",
               },
-              totalPrice: {
-                centAmount: unitPriceCentAmount * quantityOverGuestLimit,
-                currencyCode: "USD",
+              variant: {
+                attributes: {},
+                id: VariantId.make("variant-1"),
+                images: [],
+                productId: ProductId.make("product-1"),
               },
             },
           ],
@@ -61,7 +62,7 @@ describe("CartPolicies", () => {
               excessQuantity: quantityOverGuestLimit - maximumGuestItems,
               maxQuantity: maximumGuestItems,
             },
-            targets: [{ type: "cartItem", lineItemId: "line-1" }],
+            targets: [{ lineItemId: "line-1", type: "cartItem" }],
           },
         ]);
       }).pipe(Effect.provide(CartPolicies.layer))
@@ -72,7 +73,7 @@ describe("CartPolicies", () => {
       const policies = yield* CartPolicies;
       const violations = yield* policies.evaluate(cart);
 
-      expect(violations.map((violation) => violation.code)).toEqual([
+      expect(violations.map((violation) => violation.code)).toStrictEqual([
         "cart.first",
         "cart.second",
       ]);
@@ -80,18 +81,18 @@ describe("CartPolicies", () => {
       Effect.provide(
         CartPolicies.layerFrom([
           {
-            name: "first",
             evaluate: () =>
               Effect.succeed([
                 { code: "cart.first", targets: [{ type: "cart" as const }] },
               ]),
+            name: "first",
           },
           {
-            name: "second",
             evaluate: () =>
               Effect.succeed([
                 { code: "cart.second", targets: [{ type: "cart" as const }] },
               ]),
+            name: "second",
           },
         ])
       )
@@ -108,8 +109,8 @@ describe("CartPolicies", () => {
       Effect.provide(
         CartPolicies.layerFrom([
           {
-            name: "broken",
             evaluate: () => Effect.fail(new CartPolicyFailure({})),
+            name: "broken",
           },
         ])
       )

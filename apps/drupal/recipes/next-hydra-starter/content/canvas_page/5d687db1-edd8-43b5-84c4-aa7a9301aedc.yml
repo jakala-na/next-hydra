@@ -1,5 +1,5 @@
 _meta:
-  version: '1.0'
+  version: "1.0"
   entity_type: canvas_page
   uuid: 5d687db1-edd8-43b5-84c4-aa7a9301aedc
   default_langcode: en
@@ -11,52 +11,44 @@ _meta:
     dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b: media
 default:
   revision_user:
-    -
-      target_id: 1
+    - target_id: 1
   status:
-    -
-      value: true
+    - value: true
   owner:
-    -
-      target_id: 1
+    - target_id: 1
   title:
-    -
-      value: 'Homepage (Canvas)'
+    - value: "Homepage (Canvas)"
   components:
-    -
-      uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
+    - uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
       component_id: js.hero
       inputs:
-        title: 'Build enterprise commerce without rebuilding the foundation'
-        tagline: 'Composable commerce starter'
-        description: 'Next Hydra combines a swappable CMS, commerce provider, and production-ready Next.js application behind stable package contracts.'
+        title: "Build enterprise commerce without rebuilding the foundation"
+        tagline: "Composable commerce starter"
+        description: "Next Hydra combines a swappable CMS, commerce provider, and production-ready Next.js application behind stable package contracts."
         image:
           CANVAS_ENTITY_REFERENCE:
             target_uuid: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
             target_type: media
-        primaryCtaLabel: 'Explore products'
+        primaryCtaLabel: "Explore products"
         primaryCtaUrl:
-          uri: 'internal:/products'
-          options: {  }
-        secondaryCtaLabel: 'View the project'
+          uri: "internal:/products"
+          options: {}
+        secondaryCtaLabel: "View the project"
         secondaryCtaUrl:
-          uri: 'https://github.com/next-hydra'
-          options: {  }
-    -
-      uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
+          uri: "https://github.com/next-hydra"
+          options: {}
+    - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
       component_id: js.product-collection
       inputs:
-        title: 'Featured products'
-        description: 'Products supplied by the active Hydra commerce provider.'
+        title: "Featured products"
+        description: "Products supplied by the active Hydra commerce provider."
         limit: 3
-    -
-      uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+    - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
       component_id: js.featured-articles
       inputs:
-        title: 'Equipment guides'
-        description: 'Practical guidance for selecting, operating, and maintaining heavy equipment.'
-    -
-      parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+        title: "Equipment guides"
+        description: "Practical guidance for selecting, operating, and maintaining heavy equipment."
+    - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
       slot: articles
       uuid: 95740097-72fd-4a3c-ab37-c295b4d3501d
       component_id: js.article-card
@@ -65,8 +57,7 @@ default:
           CANVAS_ENTITY_REFERENCE:
             target_uuid: d128b08b-22c0-4603-8d90-4595df7e6853
             target_type: node
-    -
-      parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+    - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
       slot: articles
       uuid: 2636140c-7e67-4073-951d-f6e4a5928a7d
       component_id: js.article-card
@@ -75,8 +66,7 @@ default:
           CANVAS_ENTITY_REFERENCE:
             target_uuid: b883487a-71fa-424a-9881-1b6ac99cd98d
             target_type: node
-    -
-      parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+    - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
       slot: articles
       uuid: eb5da40b-6140-448a-8024-d69560fe83b7
       component_id: js.article-card
@@ -86,58 +76,49 @@ default:
             target_uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
             target_type: node
   path:
-    -
-      alias: /canvas-homepage
+    - alias: /canvas-homepage
       langcode: en
   content_translation_source:
-    -
-      value: und
+    - value: und
   content_translation_outdated:
-    -
-      value: false
+    - value: false
   content_translation_uid:
-    -
-      target_id: 1
+    - target_id: 1
 translations:
   en-gb:
     title:
-      -
-        value: 'Homepage (Canvas)'
+      - value: "Homepage (Canvas)"
     components:
-      -
-        uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
+      - uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
         component_id: js.hero
         inputs:
-          title: 'Build enterprise commerce without rebuilding the foundation'
-          tagline: 'Composable commerce starter'
-          description: 'Next Hydra combines a swappable CMS, commerce provider, and production-ready Next.js application behind stable package contracts.'
+          title: "Build enterprise commerce without rebuilding the foundation"
+          tagline: "Composable commerce starter"
+          description: "Next Hydra combines a swappable CMS, commerce provider, and production-ready Next.js application behind stable package contracts."
           image:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
               target_type: media
-          primaryCtaLabel: 'Explore products'
+          primaryCtaLabel: "Explore products"
           primaryCtaUrl:
-            uri: 'internal:/products'
-            options: {  }
-          secondaryCtaLabel: 'View the project'
+            uri: "internal:/products"
+            options: {}
+          secondaryCtaLabel: "View the project"
           secondaryCtaUrl:
-            uri: 'https://github.com/next-hydra'
-            options: {  }
-      -
-        uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
+            uri: "https://github.com/next-hydra"
+            options: {}
+      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
         component_id: js.product-collection
         inputs:
-          title: 'Featured products'
-          description: 'Products supplied by the active Hydra commerce provider.'
+          title: "Featured products"
+          description: "Products supplied by the active Hydra commerce provider."
           limit: 3
-      -
-        uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
-          title: 'Equipment guides'
-          description: 'Practical guidance for selecting, operating, and maintaining heavy equipment.'
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+          title: "Equipment guides"
+          description: "Practical guidance for selecting, operating, and maintaining heavy equipment."
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 95740097-72fd-4a3c-ab37-c295b4d3501d
         component_id: js.article-card
@@ -146,8 +127,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: d128b08b-22c0-4603-8d90-4595df7e6853
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 2636140c-7e67-4073-951d-f6e4a5928a7d
         component_id: js.article-card
@@ -156,8 +136,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: b883487a-71fa-424a-9881-1b6ac99cd98d
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: eb5da40b-6140-448a-8024-d69560fe83b7
         component_id: js.article-card
@@ -167,54 +146,46 @@ translations:
               target_uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
               target_type: node
     path:
-      -
-        alias: /canvas-homepage
+      - alias: /canvas-homepage
         langcode: en-gb
     content_translation_source:
-      -
-        value: en
+      - value: en
     content_translation_outdated:
-      -
-        value: false
+      - value: false
   es:
     title:
-      -
-        value: 'Página de inicio (Canvas)'
+      - value: "Página de inicio (Canvas)"
     components:
-      -
-        uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
+      - uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
         component_id: js.hero
         inputs:
-          title: 'Crea comercio empresarial sin reconstruir los cimientos'
-          tagline: 'Kit de inicio de comercio componible'
-          description: 'Next Hydra combina un CMS intercambiable, un proveedor de comercio y una aplicación Next.js lista para producción mediante contratos de paquete estables.'
+          title: "Crea comercio empresarial sin reconstruir los cimientos"
+          tagline: "Kit de inicio de comercio componible"
+          description: "Next Hydra combina un CMS intercambiable, un proveedor de comercio y una aplicación Next.js lista para producción mediante contratos de paquete estables."
           image:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
               target_type: media
-          primaryCtaLabel: 'Explorar productos'
+          primaryCtaLabel: "Explorar productos"
           primaryCtaUrl:
-            uri: 'internal:/products'
-            options: {  }
-          secondaryCtaLabel: 'Ver el proyecto'
+            uri: "internal:/products"
+            options: {}
+          secondaryCtaLabel: "Ver el proyecto"
           secondaryCtaUrl:
-            uri: 'https://github.com/next-hydra'
-            options: {  }
-      -
-        uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
+            uri: "https://github.com/next-hydra"
+            options: {}
+      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
         component_id: js.product-collection
         inputs:
-          title: 'Productos destacados'
-          description: 'Productos suministrados por el proveedor de comercio Hydra activo.'
+          title: "Productos destacados"
+          description: "Productos suministrados por el proveedor de comercio Hydra activo."
           limit: 3
-      -
-        uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
-          title: 'Guías de equipamiento'
-          description: 'Orientación práctica para seleccionar, operar y mantener maquinaria pesada.'
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+          title: "Guías de equipamiento"
+          description: "Orientación práctica para seleccionar, operar y mantener maquinaria pesada."
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 95740097-72fd-4a3c-ab37-c295b4d3501d
         component_id: js.article-card
@@ -223,8 +194,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: d128b08b-22c0-4603-8d90-4595df7e6853
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 2636140c-7e67-4073-951d-f6e4a5928a7d
         component_id: js.article-card
@@ -233,8 +203,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: b883487a-71fa-424a-9881-1b6ac99cd98d
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: eb5da40b-6140-448a-8024-d69560fe83b7
         component_id: js.article-card
@@ -244,54 +213,46 @@ translations:
               target_uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
               target_type: node
     path:
-      -
-        alias: /canvas-homepage
+      - alias: /canvas-homepage
         langcode: es
     content_translation_source:
-      -
-        value: en
+      - value: en
     content_translation_outdated:
-      -
-        value: false
+      - value: false
   fr:
     title:
-      -
-        value: 'Accueil (Canvas)'
+      - value: "Accueil (Canvas)"
     components:
-      -
-        uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
+      - uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
         component_id: js.hero
         inputs:
-          title: 'Créez une plateforme de commerce d’entreprise sans reconstruire les fondations'
-          tagline: 'Kit de démarrage pour le commerce composable'
-          description: 'Next Hydra réunit un CMS interchangeable, un fournisseur de commerce et une application Next.js prête pour la production derrière des contrats de paquet stables.'
+          title: "Créez une plateforme de commerce d’entreprise sans reconstruire les fondations"
+          tagline: "Kit de démarrage pour le commerce composable"
+          description: "Next Hydra réunit un CMS interchangeable, un fournisseur de commerce et une application Next.js prête pour la production derrière des contrats de paquet stables."
           image:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
               target_type: media
-          primaryCtaLabel: 'Découvrir les produits'
+          primaryCtaLabel: "Découvrir les produits"
           primaryCtaUrl:
-            uri: 'internal:/products'
-            options: {  }
-          secondaryCtaLabel: 'Voir le projet'
+            uri: "internal:/products"
+            options: {}
+          secondaryCtaLabel: "Voir le projet"
           secondaryCtaUrl:
-            uri: 'https://github.com/next-hydra'
-            options: {  }
-      -
-        uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
+            uri: "https://github.com/next-hydra"
+            options: {}
+      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
         component_id: js.product-collection
         inputs:
-          title: 'Produits à la une'
-          description: 'Produits fournis par le fournisseur de commerce Hydra actif.'
+          title: "Produits à la une"
+          description: "Produits fournis par le fournisseur de commerce Hydra actif."
           limit: 3
-      -
-        uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
-          title: 'Guides sur les équipements'
-          description: 'Des conseils pratiques pour choisir, utiliser et entretenir des équipements lourds.'
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+          title: "Guides sur les équipements"
+          description: "Des conseils pratiques pour choisir, utiliser et entretenir des équipements lourds."
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 95740097-72fd-4a3c-ab37-c295b4d3501d
         component_id: js.article-card
@@ -300,8 +261,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: d128b08b-22c0-4603-8d90-4595df7e6853
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 2636140c-7e67-4073-951d-f6e4a5928a7d
         component_id: js.article-card
@@ -310,8 +270,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: b883487a-71fa-424a-9881-1b6ac99cd98d
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: eb5da40b-6140-448a-8024-d69560fe83b7
         component_id: js.article-card
@@ -321,54 +280,46 @@ translations:
               target_uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
               target_type: node
     path:
-      -
-        alias: /canvas-homepage
+      - alias: /canvas-homepage
         langcode: fr
     content_translation_source:
-      -
-        value: en
+      - value: en
     content_translation_outdated:
-      -
-        value: false
+      - value: false
   de:
     title:
-      -
-        value: 'Startseite (Canvas)'
+      - value: "Startseite (Canvas)"
     components:
-      -
-        uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
+      - uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
         component_id: js.hero
         inputs:
-          title: 'Unternehmens-Commerce aufbauen, ohne das Fundament neu zu entwickeln'
-          tagline: 'Starter für Composable Commerce'
-          description: 'Next Hydra kombiniert ein austauschbares CMS, einen Commerce-Anbieter und eine produktionsbereite Next.js-Anwendung hinter stabilen Paketverträgen.'
+          title: "Unternehmens-Commerce aufbauen, ohne das Fundament neu zu entwickeln"
+          tagline: "Starter für Composable Commerce"
+          description: "Next Hydra kombiniert ein austauschbares CMS, einen Commerce-Anbieter und eine produktionsbereite Next.js-Anwendung hinter stabilen Paketverträgen."
           image:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
               target_type: media
-          primaryCtaLabel: 'Produkte entdecken'
+          primaryCtaLabel: "Produkte entdecken"
           primaryCtaUrl:
-            uri: 'internal:/products'
-            options: {  }
-          secondaryCtaLabel: 'Projekt ansehen'
+            uri: "internal:/products"
+            options: {}
+          secondaryCtaLabel: "Projekt ansehen"
           secondaryCtaUrl:
-            uri: 'https://github.com/next-hydra'
-            options: {  }
-      -
-        uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
+            uri: "https://github.com/next-hydra"
+            options: {}
+      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
         component_id: js.product-collection
         inputs:
-          title: 'Ausgewählte Produkte'
-          description: 'Produkte des aktiven Hydra-Commerce-Anbieters.'
+          title: "Ausgewählte Produkte"
+          description: "Produkte des aktiven Hydra-Commerce-Anbieters."
           limit: 3
-      -
-        uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
-          title: 'Geräteratgeber'
-          description: 'Praxisnahe Hilfe zur Auswahl, Bedienung und Wartung schwerer Maschinen.'
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+          title: "Geräteratgeber"
+          description: "Praxisnahe Hilfe zur Auswahl, Bedienung und Wartung schwerer Maschinen."
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 95740097-72fd-4a3c-ab37-c295b4d3501d
         component_id: js.article-card
@@ -377,8 +328,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: d128b08b-22c0-4603-8d90-4595df7e6853
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 2636140c-7e67-4073-951d-f6e4a5928a7d
         component_id: js.article-card
@@ -387,8 +337,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: b883487a-71fa-424a-9881-1b6ac99cd98d
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: eb5da40b-6140-448a-8024-d69560fe83b7
         component_id: js.article-card
@@ -398,54 +347,46 @@ translations:
               target_uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
               target_type: node
     path:
-      -
-        alias: /canvas-homepage
+      - alias: /canvas-homepage
         langcode: de
     content_translation_source:
-      -
-        value: en
+      - value: en
     content_translation_outdated:
-      -
-        value: false
+      - value: false
   it:
     title:
-      -
-        value: 'Pagina iniziale (Canvas)'
+      - value: "Pagina iniziale (Canvas)"
     components:
-      -
-        uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
+      - uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
         component_id: js.hero
         inputs:
-          title: 'Crea commercio enterprise senza ricostruire le fondamenta'
-          tagline: 'Starter per il commercio componibile'
-          description: 'Next Hydra combina un CMS intercambiabile, un provider di commercio e un’applicazione Next.js pronta per la produzione dietro contratti di pacchetto stabili.'
+          title: "Crea commercio enterprise senza ricostruire le fondamenta"
+          tagline: "Starter per il commercio componibile"
+          description: "Next Hydra combina un CMS intercambiabile, un provider di commercio e un’applicazione Next.js pronta per la produzione dietro contratti di pacchetto stabili."
           image:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
               target_type: media
-          primaryCtaLabel: 'Esplora i prodotti'
+          primaryCtaLabel: "Esplora i prodotti"
           primaryCtaUrl:
-            uri: 'internal:/products'
-            options: {  }
-          secondaryCtaLabel: 'Vedi il progetto'
+            uri: "internal:/products"
+            options: {}
+          secondaryCtaLabel: "Vedi il progetto"
           secondaryCtaUrl:
-            uri: 'https://github.com/next-hydra'
-            options: {  }
-      -
-        uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
+            uri: "https://github.com/next-hydra"
+            options: {}
+      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
         component_id: js.product-collection
         inputs:
-          title: 'Prodotti in evidenza'
-          description: 'Prodotti forniti dal provider di commercio Hydra attivo.'
+          title: "Prodotti in evidenza"
+          description: "Prodotti forniti dal provider di commercio Hydra attivo."
           limit: 3
-      -
-        uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
-          title: 'Guide alle attrezzature'
-          description: 'Indicazioni pratiche per scegliere, utilizzare e mantenere le attrezzature pesanti.'
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+          title: "Guide alle attrezzature"
+          description: "Indicazioni pratiche per scegliere, utilizzare e mantenere le attrezzature pesanti."
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 95740097-72fd-4a3c-ab37-c295b4d3501d
         component_id: js.article-card
@@ -454,8 +395,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: d128b08b-22c0-4603-8d90-4595df7e6853
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 2636140c-7e67-4073-951d-f6e4a5928a7d
         component_id: js.article-card
@@ -464,8 +404,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: b883487a-71fa-424a-9881-1b6ac99cd98d
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: eb5da40b-6140-448a-8024-d69560fe83b7
         component_id: js.article-card
@@ -475,54 +414,46 @@ translations:
               target_uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
               target_type: node
     path:
-      -
-        alias: /canvas-homepage
+      - alias: /canvas-homepage
         langcode: it
     content_translation_source:
-      -
-        value: en
+      - value: en
     content_translation_outdated:
-      -
-        value: false
+      - value: false
   pt-pt:
     title:
-      -
-        value: 'Página inicial (Canvas)'
+      - value: "Página inicial (Canvas)"
     components:
-      -
-        uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
+      - uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
         component_id: js.hero
         inputs:
-          title: 'Crie comércio empresarial sem reconstruir os alicerces'
-          tagline: 'Base de comércio componível'
-          description: 'O Next Hydra combina um CMS substituível, um fornecedor de comércio e uma aplicação Next.js pronta para produção através de contratos de pacotes estáveis.'
+          title: "Crie comércio empresarial sem reconstruir os alicerces"
+          tagline: "Base de comércio componível"
+          description: "O Next Hydra combina um CMS substituível, um fornecedor de comércio e uma aplicação Next.js pronta para produção através de contratos de pacotes estáveis."
           image:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
               target_type: media
-          primaryCtaLabel: 'Explorar produtos'
+          primaryCtaLabel: "Explorar produtos"
           primaryCtaUrl:
-            uri: 'internal:/products'
-            options: {  }
-          secondaryCtaLabel: 'Ver o projeto'
+            uri: "internal:/products"
+            options: {}
+          secondaryCtaLabel: "Ver o projeto"
           secondaryCtaUrl:
-            uri: 'https://github.com/next-hydra'
-            options: {  }
-      -
-        uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
+            uri: "https://github.com/next-hydra"
+            options: {}
+      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
         component_id: js.product-collection
         inputs:
-          title: 'Produtos em destaque'
-          description: 'Produtos fornecidos pelo fornecedor de comércio Hydra ativo.'
+          title: "Produtos em destaque"
+          description: "Produtos fornecidos pelo fornecedor de comércio Hydra ativo."
           limit: 3
-      -
-        uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
-          title: 'Guias de equipamento'
-          description: 'Orientação prática para selecionar, operar e manter equipamento pesado.'
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+          title: "Guias de equipamento"
+          description: "Orientação prática para selecionar, operar e manter equipamento pesado."
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 95740097-72fd-4a3c-ab37-c295b4d3501d
         component_id: js.article-card
@@ -531,8 +462,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: d128b08b-22c0-4603-8d90-4595df7e6853
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 2636140c-7e67-4073-951d-f6e4a5928a7d
         component_id: js.article-card
@@ -541,8 +471,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: b883487a-71fa-424a-9881-1b6ac99cd98d
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: eb5da40b-6140-448a-8024-d69560fe83b7
         component_id: js.article-card
@@ -552,54 +481,46 @@ translations:
               target_uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
               target_type: node
     path:
-      -
-        alias: /canvas-homepage
+      - alias: /canvas-homepage
         langcode: pt-pt
     content_translation_source:
-      -
-        value: en
+      - value: en
     content_translation_outdated:
-      -
-        value: false
+      - value: false
   nl:
     title:
-      -
-        value: 'Startpagina (Canvas)'
+      - value: "Startpagina (Canvas)"
     components:
-      -
-        uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
+      - uuid: 343cb910-9c6b-433f-bccf-6738b1133cb8
         component_id: js.hero
         inputs:
-          title: 'Bouw enterprise-commerce zonder de fundering opnieuw op te bouwen'
-          tagline: 'Starter voor composable commerce'
-          description: 'Next Hydra combineert een verwisselbaar CMS, een commerceprovider en een productieklare Next.js-applicatie achter stabiele pakketcontracten.'
+          title: "Bouw enterprise-commerce zonder de fundering opnieuw op te bouwen"
+          tagline: "Starter voor composable commerce"
+          description: "Next Hydra combineert een verwisselbaar CMS, een commerceprovider en een productieklare Next.js-applicatie achter stabiele pakketcontracten."
           image:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
               target_type: media
-          primaryCtaLabel: 'Producten bekijken'
+          primaryCtaLabel: "Producten bekijken"
           primaryCtaUrl:
-            uri: 'internal:/products'
-            options: {  }
-          secondaryCtaLabel: 'Project bekijken'
+            uri: "internal:/products"
+            options: {}
+          secondaryCtaLabel: "Project bekijken"
           secondaryCtaUrl:
-            uri: 'https://github.com/next-hydra'
-            options: {  }
-      -
-        uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
+            uri: "https://github.com/next-hydra"
+            options: {}
+      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
         component_id: js.product-collection
         inputs:
-          title: 'Uitgelichte producten'
-          description: 'Producten geleverd door de actieve Hydra-commerceprovider.'
+          title: "Uitgelichte producten"
+          description: "Producten geleverd door de actieve Hydra-commerceprovider."
           limit: 3
-      -
-        uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
-          title: 'Materieelgidsen'
-          description: 'Praktische begeleiding voor het kiezen, bedienen en onderhouden van zwaar materieel.'
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+          title: "Materieelgidsen"
+          description: "Praktische begeleiding voor het kiezen, bedienen en onderhouden van zwaar materieel."
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 95740097-72fd-4a3c-ab37-c295b4d3501d
         component_id: js.article-card
@@ -608,8 +529,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: d128b08b-22c0-4603-8d90-4595df7e6853
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: 2636140c-7e67-4073-951d-f6e4a5928a7d
         component_id: js.article-card
@@ -618,8 +538,7 @@ translations:
             CANVAS_ENTITY_REFERENCE:
               target_uuid: b883487a-71fa-424a-9881-1b6ac99cd98d
               target_type: node
-      -
-        parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
+      - parent_uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         slot: articles
         uuid: eb5da40b-6140-448a-8024-d69560fe83b7
         component_id: js.article-card
@@ -629,12 +548,9 @@ translations:
               target_uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
               target_type: node
     path:
-      -
-        alias: /canvas-homepage
+      - alias: /canvas-homepage
         langcode: nl
     content_translation_source:
-      -
-        value: en
+      - value: en
     content_translation_outdated:
-      -
-        value: false
+      - value: false

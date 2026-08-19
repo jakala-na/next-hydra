@@ -3,6 +3,7 @@ import type { Locale } from "@repo/i18n";
 import { cacheLife, cacheTag } from "next/cache";
 import { draftMode } from "next/headers";
 import { cache } from "react";
+
 import { keys } from "../keys";
 import { getCanvasCachePolicy } from "../lib/canvas-cacheability";
 import { fetchCanvasGlobalRegions } from "../lib/canvas-global-region";

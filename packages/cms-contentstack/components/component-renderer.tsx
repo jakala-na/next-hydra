@@ -18,8 +18,8 @@ import { DynamicProductCollection } from "./blocks/dynamic-product-collection";
 import { HeroSection } from "./blocks/hero-section";
 
 export const componentMap = {
-  HeroSection,
   DynamicProductCollection,
+  HeroSection,
 } as const;
 
 type BaseData = {
@@ -31,11 +31,7 @@ type Data = ComponentProps<ComponentMapType[ComponentKey]>["data"];
 type ComponentKey = keyof ComponentMapType;
 export type DataWithTypename = (Data & BaseData) | BaseData | null;
 
-type GraphQLComponent =
-  | (BaseData & {
-      [key: string]: unknown;
-    })
-  | null;
+type GraphQLComponent = (BaseData & Record<string, unknown>) | null;
 
 function isComponentKey(key: string): key is ComponentKey {
   return key in componentMap;
@@ -44,14 +40,14 @@ function isComponentKey(key: string): key is ComponentKey {
 function flattenComponentsWithPaths(
   data: GraphQLComponent[],
   livePreviewHelper?: LivePreviewHelper
-): Array<{
+): {
   data: DataWithTypename;
   componentHelper?: LivePreviewHelper;
-}> {
-  const result: Array<{
+}[] {
+  const result: {
     data: DataWithTypename;
     componentHelper?: LivePreviewHelper;
-  }> = [];
+  }[] = [];
 
   for (let i = 0; i < data.length; i++) {
     const component = data[i];
@@ -74,15 +70,15 @@ function flattenComponentsWithPaths(
         const item = value[j];
         if (item != null) {
           result.push({
-            data: item as DataWithTypename,
             componentHelper: componentHelper?.getNestedHelper(`${j}`),
+            data: item as DataWithTypename,
           });
         }
       }
     } else if (value != null) {
       result.push({
-        data: value as DataWithTypename,
         componentHelper,
+        data: value as DataWithTypename,
       });
     }
   }
@@ -104,8 +100,8 @@ function flattenComponentWithPath(
 
   if (entries.length !== 1 || entries[0] === undefined) {
     return {
-      data: component as DataWithTypename,
       componentHelper: livePreviewHelper,
+      data: component as DataWithTypename,
     };
   }
 
@@ -120,8 +116,8 @@ function flattenComponentWithPath(
   }
 
   return {
-    data: component as DataWithTypename,
     componentHelper: livePreviewHelper,
+    data: component as DataWithTypename,
   };
 }
 
@@ -219,10 +215,7 @@ export default function ComponentRenderer<
     "__typename" in data &&
     dataType === "singleModularBlock"
   ) {
-    const flattened = flattenComponentWithPath(
-      data as GraphQLComponent,
-      livePreviewHelper
-    );
+    const flattened = flattenComponentWithPath(data, livePreviewHelper);
 
     if (!flattened?.data) {
       return null;

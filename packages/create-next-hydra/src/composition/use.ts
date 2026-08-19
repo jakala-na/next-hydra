@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import { confirm, isCancel } from "@clack/prompts";
 
 import { CommandExecutionError, runCommand } from "../git.js";
@@ -242,19 +243,21 @@ export async function useComposition(
     }
   };
 
-  await runStep("write next-hydra.json", () =>
-    writeWorkspaceSelection(cwd, plan.selection)
-  );
-  await runStep("remove managed application files", () =>
-    removeWorkspaceTargets(cwd, plan.catalogManagedTargets)
-  );
-  await runStep("install selected source", () =>
-    installPreparedComposition(cwd, prepared)
-  );
-  await runStep("update package aliases", () =>
-    applyPackageRequirements(cwd, plan)
-  );
-  await runStep("update pnpm patches", () => applyPnpmPatches(cwd, plan));
+  await runStep("write next-hydra.json", async () => {
+    await writeWorkspaceSelection(cwd, plan.selection);
+  });
+  await runStep("remove managed application files", async () => {
+    await removeWorkspaceTargets(cwd, plan.catalogManagedTargets);
+  });
+  await runStep("install selected source", async () => {
+    await installPreparedComposition(cwd, prepared);
+  });
+  await runStep("update package aliases", async () => {
+    await applyPackageRequirements(cwd, plan);
+  });
+  await runStep("update pnpm patches", async () => {
+    await applyPnpmPatches(cwd, plan);
+  });
   await runStep("install dependencies", async () => {
     if (dependencies.install) {
       await dependencies.install(cwd, options.verbose ?? false);

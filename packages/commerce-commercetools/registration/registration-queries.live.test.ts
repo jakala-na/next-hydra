@@ -1,5 +1,4 @@
-// oxlint-disable vitest/no-standalone-expect -- Assertions run inside Effect programs executed by the test helper.
-
+import { describe, expect, it } from "@effect/vitest";
 import { StoreKey } from "@repo/commerce/store";
 import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
 import { RejectedDecision } from "@repo/registration/domain/approval";
@@ -20,19 +19,10 @@ import {
   CompanyRegistrationDetails,
   RejectedRegistration,
 } from "@repo/registration/domain/registration";
-import {
-  RegistrationQueries,
-  type RegistrationQueryRecord,
-} from "@repo/registration/services/registration-queries";
+import type { RegistrationQueryRecord } from "@repo/registration/services/registration-queries";
+import { RegistrationQueries } from "@repo/registration/services/registration-queries";
 import { Effect, Redacted } from "effect";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
-const itEffect = (
-  name: string,
-  effect: () => Effect.Effect<unknown, unknown, never>
-) => it(name, () => Effect.runPromise(effect()));
-
-vi.mock("server-only", () => ({}));
+import { afterAll, beforeAll } from "vitest";
 
 const requiredEnv = [
   "COMMERCETOOLS_PROJECT_KEY",
@@ -42,9 +32,11 @@ const requiredEnv = [
   "COMMERCETOOLS_REGION",
 ] as const;
 
-const hasRequiredEnv = requiredEnv.every(
-  (name) => process.env[name] && process.env[name].length > 0
-);
+const hasRequiredEnv = requiredEnv.every((name) => {
+  const value = process.env[name];
+
+  return value !== undefined && value.length > 0;
+});
 const shouldRunLive = process.env.COMMERCETOOLS_LIVE_TESTS === "1";
 
 const describeLive = shouldRunLive && hasRequiredEnv ? describe : describe.skip;
@@ -68,10 +60,18 @@ const reviewer = new RegistrationReviewerActor({
 const makeRegistration = (id: string, companyName: string, createdAt: Date) =>
   new AwaitingApprovalRegistration({
     _tag: "AwaitingApprovalRegistration",
-    status: "awaiting_approval",
-    id: RegistrationId.make(id),
-    storeKey: StoreKey.make("default-store"),
+    createdAt,
     details: new CompanyRegistrationDetails({
+      address: new CompanyAddress({
+        city: Redacted.make(City.make("New York"), { label: "city" }),
+        country: CountryCode.make("US"),
+        postalCode: Redacted.make(PostalCode.make("10001"), {
+          label: "postalCode",
+        }),
+        streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
+          label: "addressLine",
+        }),
+      }),
       companyName: CompanyName.make(companyName),
       contactFirstName: Redacted.make(PersonName.make("Ada"), {
         label: "personName",
@@ -82,18 +82,10 @@ const makeRegistration = (id: string, companyName: string, createdAt: Date) =>
       email: Redacted.make(Email.make(`${id}@example.com`), {
         label: "email",
       }),
-      address: new CompanyAddress({
-        streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
-          label: "addressLine",
-        }),
-        postalCode: Redacted.make(PostalCode.make("10001"), {
-          label: "postalCode",
-        }),
-        city: Redacted.make(City.make("New York"), { label: "city" }),
-        country: CountryCode.make("US"),
-      }),
     }),
-    createdAt,
+    id: RegistrationId.make(id),
+    status: "awaiting_approval",
+    storeKey: StoreKey.make("default-store"),
     updatedAt: createdAt,
   });
 
@@ -106,16 +98,16 @@ const makeRejectedRegistration = (
 
   return new RejectedRegistration({
     _tag: "RejectedRegistration",
-    status: "rejected",
-    id: registration.id,
-    storeKey: registration.storeKey,
-    details: registration.details,
+    createdAt: registration.createdAt,
     decision: new RejectedDecision({
-      decision: "rejected",
       actor: reviewer,
       decidedAt: createdAt,
+      decision: "rejected",
     }),
-    createdAt: registration.createdAt,
+    details: registration.details,
+    id: registration.id,
+    status: "rejected",
+    storeKey: registration.storeKey,
     updatedAt: registration.updatedAt,
   });
 };
@@ -127,10 +119,12 @@ const getLiveApiRoot = async () => {
       import("../client/rest-client"),
     ]);
 
-  return Effect.runPromise(
-    Effect.map(CommercetoolsRestClient, ({ apiRoot }) => apiRoot).pipe(
-      Effect.provide(commercetoolsRestClientLayer)
-    )
+  return await Effect.runPromise(
+    Effect.gen(function* () {
+      const { apiRoot } = yield* CommercetoolsRestClient;
+
+      return apiRoot;
+    }).pipe(Effect.provide(commercetoolsRestClientLayer))
   );
 };
 
@@ -161,52 +155,52 @@ const seedLiveRegistrations = async () => {
     ),
   ];
 
-  for (const registration of registrations) {
-    const value = await Effect.runPromise(
-      encodeRegistrationStorageValue(registration) as Effect.Effect<
-        unknown,
-        unknown,
-        never
-      >
-    );
+  await Promise.all(
+    registrations.map(async (registration) => {
+      const value = await Effect.runPromise(
+        encodeRegistrationStorageValue(registration)
+      );
 
-    await apiRoot
-      .customObjects()
-      .post({
-        body: {
-          container: liveContainer,
-          key: String(registration.id),
-          value,
-        },
-      })
-      .execute();
-  }
+      await apiRoot
+        .customObjects()
+        .post({
+          body: {
+            container: liveContainer,
+            key: String(registration.id),
+            value,
+          },
+        })
+        .execute();
+    })
+  );
 };
 
 const deleteLiveRegistrations = async () => {
   const apiRoot = await getLiveApiRoot();
 
-  for (const key of seededKeys) {
-    try {
-      const response = await apiRoot
-        .customObjects()
-        .withContainerAndKey({ container: liveContainer, key })
-        .get()
-        .execute();
+  await Promise.all(
+    seededKeys.map(async (key) => {
+      try {
+        const response = await apiRoot
+          .customObjects()
+          .withContainerAndKey({ container: liveContainer, key })
+          .get()
+          .execute();
 
-      await apiRoot
-        .customObjects()
-        .withContainerAndKey({ container: liveContainer, key })
-        .delete({
-          queryArgs: {
-            version: response.body.version,
-          },
-        })
-        .execute();
-    } catch {
-      // Best-effort cleanup for live-test data.
-    }
-  }
+        await apiRoot
+          .customObjects()
+          .withContainerAndKey({ container: liveContainer, key })
+          .delete({
+            queryArgs: {
+              version: response.body.version,
+            },
+          })
+          .execute();
+      } catch {
+        // Best-effort cleanup for live-test data.
+      }
+    })
+  );
 };
 
 const compareNewestFirst = (
@@ -240,28 +234,26 @@ const expectOrdered = (
     right: RegistrationQueryRecord
   ) => boolean
 ) => {
-  for (let index = 1; index < items.length; index++) {
+  for (const [index, current] of items.entries()) {
     const previous = items[index - 1];
-    const current = items[index];
 
-    if (!(previous && current)) {
-      throw new Error("Expected adjacent items");
+    if (previous !== undefined) {
+      expect(compare(previous, current)).toBeTruthy();
     }
-
-    expect(compare(previous, current)).toBe(true);
   }
 };
 
 describeLive("registrationQueriesLayer live", () => {
   beforeAll(seedLiveRegistrations);
+
   afterAll(deleteLiveRegistrations);
 
-  itEffect(
+  it.effect(
     "pages registrations through Commercetools without the admin UI",
     () =>
       Effect.gen(function* () {
         const { registrationQueriesLayer } = yield* Effect.promise(
-          () => import("./registration-queries")
+          async () => await import("./registration-queries")
         );
         const layer = registrationQueriesLayer({
           container: liveContainer,
@@ -273,8 +265,8 @@ describeLive("registrationQueriesLayer live", () => {
 
           expect(firstPage.items.length).toBeLessThanOrEqual(1);
 
-          const firstItem = firstPage.items[0];
-          if (!(firstItem && firstPage.nextCursor)) {
+          const [firstItem] = firstPage.items;
+          if (firstItem === undefined || firstPage.nextCursor === undefined) {
             return;
           }
 
@@ -282,22 +274,22 @@ describeLive("registrationQueriesLayer live", () => {
             cursor: firstPage.nextCursor,
             limit: 1,
           });
-          const secondItem = secondPage.items[0];
+          const [secondItem] = secondPage.items;
 
-          if (!secondItem) {
+          if (secondItem === undefined) {
             return;
           }
 
           expect(secondItem.id).not.toBe(firstItem.id);
-          expect(compareNewestFirst(firstItem, secondItem)).toBe(true);
+          expect(compareNewestFirst(firstItem, secondItem)).toBeTruthy();
         }).pipe(Effect.provide(layer));
       })
   );
 
-  itEffect("sorts live registrations by last modified ascending", () =>
+  it.effect("sorts live registrations by last modified ascending", () =>
     Effect.gen(function* () {
       const { registrationQueriesLayer } = yield* Effect.promise(
-        () => import("./registration-queries")
+        async () => await import("./registration-queries")
       );
       const layer = registrationQueriesLayer({
         container: liveContainer,
@@ -307,16 +299,17 @@ describeLive("registrationQueriesLayer live", () => {
         const queries = yield* RegistrationQueries;
         const firstPage = yield* queries.list({
           limit: 2,
-          sort: { field: "lastModifiedAt", direction: "asc" },
+          sort: { direction: "asc", field: "lastModifiedAt" },
         });
 
-        const secondPage = firstPage.nextCursor
-          ? yield* queries.list({
-              cursor: firstPage.nextCursor,
-              limit: 2,
-              sort: { field: "lastModifiedAt", direction: "asc" },
-            })
-          : { items: [] };
+        const secondPage =
+          firstPage.nextCursor === undefined
+            ? { items: [] }
+            : yield* queries.list({
+                cursor: firstPage.nextCursor,
+                limit: 2,
+                sort: { direction: "asc", field: "lastModifiedAt" },
+              });
         const items = [...firstPage.items, ...secondPage.items];
 
         expectOrdered(items, compareOldestFirst);
@@ -325,10 +318,10 @@ describeLive("registrationQueriesLayer live", () => {
     })
   );
 
-  itEffect("sorts live registrations by created time", () =>
+  it.effect("sorts live registrations by created time", () =>
     Effect.gen(function* () {
       const { registrationQueriesLayer } = yield* Effect.promise(
-        () => import("./registration-queries")
+        async () => await import("./registration-queries")
       );
       const layer = registrationQueriesLayer({
         container: liveContainer,
@@ -338,16 +331,17 @@ describeLive("registrationQueriesLayer live", () => {
         const queries = yield* RegistrationQueries;
         const firstPage = yield* queries.list({
           limit: 2,
-          sort: { field: "createdAt", direction: "asc" },
+          sort: { direction: "asc", field: "createdAt" },
         });
 
-        const secondPage = firstPage.nextCursor
-          ? yield* queries.list({
-              cursor: firstPage.nextCursor,
-              limit: 2,
-              sort: { field: "createdAt", direction: "asc" },
-            })
-          : { items: [] };
+        const secondPage =
+          firstPage.nextCursor === undefined
+            ? { items: [] }
+            : yield* queries.list({
+                cursor: firstPage.nextCursor,
+                limit: 2,
+                sort: { direction: "asc", field: "createdAt" },
+              });
         const items = [...firstPage.items, ...secondPage.items];
 
         expectOrdered(items, compareCreatedFirst);
@@ -356,10 +350,10 @@ describeLive("registrationQueriesLayer live", () => {
     })
   );
 
-  itEffect("combines status filtering with cursor pagination", () =>
+  it.effect("combines status filtering with cursor pagination", () =>
     Effect.gen(function* () {
       const { registrationQueriesLayer } = yield* Effect.promise(
-        () => import("./registration-queries")
+        async () => await import("./registration-queries")
       );
       const layer = registrationQueriesLayer({
         container: liveContainer,
@@ -372,24 +366,23 @@ describeLive("registrationQueriesLayer live", () => {
           status: "awaiting_approval",
         });
 
-        expect(firstPage.items).toHaveLength(1);
-        expect(firstPage.items[0]?.registration.status).toBe(
-          "awaiting_approval"
-        );
+        expect(
+          firstPage.items.map((item) => item.registration.status)
+        ).toStrictEqual(["awaiting_approval"]);
         expect(firstPage.nextCursor).toBeDefined();
 
-        const secondPage = firstPage.nextCursor
-          ? yield* queries.list({
-              cursor: firstPage.nextCursor,
-              limit: 1,
-              status: "awaiting_approval",
-            })
-          : { items: [] };
+        const secondPage =
+          firstPage.nextCursor === undefined
+            ? { items: [] }
+            : yield* queries.list({
+                cursor: firstPage.nextCursor,
+                limit: 1,
+                status: "awaiting_approval",
+              });
 
-        expect(secondPage.items).toHaveLength(1);
-        expect(secondPage.items[0]?.registration.status).toBe(
-          "awaiting_approval"
-        );
+        expect(
+          secondPage.items.map((item) => item.registration.status)
+        ).toStrictEqual(["awaiting_approval"]);
 
         const registrationIds = new Set(
           [...firstPage.items, ...secondPage.items].map((item) =>
@@ -397,9 +390,9 @@ describeLive("registrationQueriesLayer live", () => {
           )
         );
 
-        expect(registrationIds.has("registration-query-live-rejected")).toBe(
-          false
-        );
+        expect(
+          registrationIds.has("registration-query-live-rejected")
+        ).toBeFalsy();
       }).pipe(Effect.provide(layer));
     })
   );

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
+
 import type { ArticleImage } from "../article-card";
 
 type ArticlePageProps = {

@@ -9,14 +9,12 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * the buttons can be checked at a time.
  */
 const meta = {
-  title: "ui/RadioGroup",
-  component: RadioGroup,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
-    defaultValue: "comfortable",
     className: "grid gap-2 grid-cols-[1rem_1fr] items-center",
+    defaultValue: "comfortable",
   },
+  component: RadioGroup,
   render: (args) => (
     <RadioGroup {...args}>
       <RadioGroupItem id="r1" value="default" />
@@ -27,6 +25,8 @@ const meta = {
       <label htmlFor="r3">Compact</label>
     </RadioGroup>
   ),
+  tags: ["autodocs"],
+  title: "ui/RadioGroup",
 } satisfies Meta<typeof RadioGroup>;
 
 export default meta;

@@ -1,5 +1,5 @@
 _meta:
-  version: '1.0'
+  version: "1.0"
   entity_type: node
   uuid: 823f1c6c-ed43-4d95-8632-fb983ee89030
   bundle: article
@@ -8,38 +8,27 @@ _meta:
     43b667b9-c3c0-4938-a896-1e19b59244da: media
 default:
   revision_uid:
-    -
-      target_id: 1
+    - target_id: 1
   status:
-    -
-      value: true
+    - value: true
   uid:
-    -
-      target_id: 1
+    - target_id: 1
   title:
-    -
-      value: 'Understanding operating weight and ground pressure'
+    - value: "Understanding operating weight and ground pressure"
   promote:
-    -
-      value: false
+    - value: false
   sticky:
-    -
-      value: false
+    - value: false
   revision_translation_affected:
-    -
-      value: true
+    - value: true
   path:
-    -
-      alias: /resources/operating-weight-and-ground-pressure
+    - alias: /resources/operating-weight-and-ground-pressure
       langcode: en
   body:
-    -
-      value: '<p>Machine weight tells only part of the story. Ground pressure explains how that weight is distributed across the working surface.</p><h2>Use the configured operating weight</h2><p>Include the operator, fuel, standard bucket, coupler, and any guarding or counterweight options. Shipping weight is not a working-site specification.</p><h2>Look beyond the headline number</h2><p>Track width, shoe design, and undercarriage length influence flotation and stability. Compare machines in the configuration that will actually be delivered.</p><h2>Validate the site</h2><p>Soft ground, buried services, suspended slabs, and finished surfaces may impose limits well below the machine rating. Confirm allowable loading with the responsible site engineer.</p>'
+    - value: "<p>Machine weight tells only part of the story. Ground pressure explains how that weight is distributed across the working surface.</p><h2>Use the configured operating weight</h2><p>Include the operator, fuel, standard bucket, coupler, and any guarding or counterweight options. Shipping weight is not a working-site specification.</p><h2>Look beyond the headline number</h2><p>Track width, shoe design, and undercarriage length influence flotation and stability. Compare machines in the configuration that will actually be delivered.</p><h2>Validate the site</h2><p>Soft ground, buried services, suspended slabs, and finished surfaces may impose limits well below the machine rating. Confirm allowable loading with the responsible site engineer.</p>"
       format: basic_html
-      summary: ''
+      summary: ""
   field_image:
-    -
-      entity: 43b667b9-c3c0-4938-a896-1e19b59244da
+    - entity: 43b667b9-c3c0-4938-a896-1e19b59244da
   field_summary:
-    -
-      value: 'Use operating weight and ground pressure together to evaluate stability, access, and surface impact.'
+    - value: "Use operating weight and ground pressure together to evaluate stability, access, and surface impact."

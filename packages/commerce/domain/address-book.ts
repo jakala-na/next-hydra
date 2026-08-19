@@ -49,11 +49,11 @@ export function normalizeAddressTypes(
 }
 
 const addressBookEntryFields = {
-  reference: AddressBookReference,
   address: Address,
-  types: Schema.NonEmptyArray(AddressType).check(Schema.isUnique()),
-  defaultShipping: Schema.Boolean,
   defaultBilling: Schema.Boolean,
+  defaultShipping: Schema.Boolean,
+  reference: AddressBookReference,
+  types: Schema.NonEmptyArray(AddressType).check(Schema.isUnique()),
 };
 
 const addressBookEntrySchema = Schema.Struct(addressBookEntryFields).check(
@@ -65,14 +65,14 @@ const addressBookEntrySchema = Schema.Struct(addressBookEntryFields).check(
     const issues: Schema.FilterIssue[] = [];
     if (entry.defaultShipping && !entry.types.includes("shipping")) {
       issues.push({
-        path: ["types"],
         issue: "Default Shipping requires the Shipping Address Type",
+        path: ["types"],
       });
     }
     if (entry.defaultBilling && !entry.types.includes("billing")) {
       issues.push({
-        path: ["types"],
         issue: "Default Billing requires the Billing Address Type",
+        path: ["types"],
       });
     }
     return issues;

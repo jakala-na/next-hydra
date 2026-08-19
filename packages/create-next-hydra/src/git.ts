@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+
 import { DEFAULT_COMMIT_MESSAGE } from "./constants.js";
 import { formatCommand } from "./logger.js";
 import type { GitInitResult, RunCommandResult } from "./types.js";
@@ -90,11 +91,11 @@ export async function runCommand(
   return { stderr, stdout };
 }
 
-export function runGit(
+export async function runGit(
   args: string[],
   options: RunCommandOptions = {}
 ): Promise<RunCommandResult> {
-  return runCommand("git", args, {
+  return await runCommand("git", args, {
     ...options,
     env: {
       GIT_TERMINAL_PROMPT: "0",

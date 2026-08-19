@@ -18,20 +18,20 @@ import {
 } from "./registration-form-schema";
 
 const validInput = {
+  address: {
+    additionalStreetInfo: " Suite 2 ",
+    city: " New York ",
+    country: "US",
+    postalCode: " 10001 ",
+    region: " NY ",
+    streetName: " 1 Main Street ",
+  },
   companyName: "  Hydra Supply  ",
   companyPhone: " 555-0100 ",
-  vatId: " US123 ",
   contactFirstName: " Ada ",
   contactLastName: " Lovelace ",
   email: " ada@example.com ",
-  address: {
-    streetName: " 1 Main Street ",
-    additionalStreetInfo: " Suite 2 ",
-    postalCode: " 10001 ",
-    city: " New York ",
-    region: " NY ",
-    country: "US",
-  },
+  vatId: " US123 ",
 } as const;
 
 const validationFailure = projectRegistrationIntakeValidation(
@@ -65,21 +65,21 @@ describe("public registration action schemas", () => {
       validInput
     );
 
-    expect(input).toEqual({
+    expect(input).toStrictEqual({
+      address: {
+        additionalStreetInfo: "Suite 2",
+        city: "New York",
+        country: "US",
+        postalCode: "10001",
+        region: "NY",
+        streetName: "1 Main Street",
+      },
       companyName: "Hydra Supply",
       companyPhone: "555-0100",
-      vatId: "US123",
       contactFirstName: "Ada",
       contactLastName: "Lovelace",
       email: "ada@example.com",
-      address: {
-        streetName: "1 Main Street",
-        additionalStreetInfo: "Suite 2",
-        postalCode: "10001",
-        city: "New York",
-        region: "NY",
-        country: "US",
-      },
+      vatId: "US123",
     });
   });
 
@@ -114,11 +114,11 @@ describe("public registration action schemas", () => {
       encoded
     );
 
-    expect(encoded).toEqual({
+    expect(encoded).toStrictEqual({
       _tag: "Success",
       success: { registrationId: "registration-1" },
     });
-    expect(Result.isSuccess(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBeTruthy();
   });
 
   it("round-trips translated form issues", () => {
@@ -137,15 +137,15 @@ describe("public registration action schemas", () => {
         code: "registration.invalidInput",
         issues: [
           {
-            path: ["email"],
             message:
               "This email is already associated with an existing or pending registration.",
+            path: ["email"],
           },
         ],
         recovery: "fix_input",
       },
     });
-    expect(Result.isFailure(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBeTruthy();
   });
 
   it.each(registrationFailures)("round-trips the $_tag failure", (failure) => {
@@ -156,8 +156,8 @@ describe("public registration action schemas", () => {
       encoded
     );
 
-    expect(Schema.encodeSync(RegistrationFormResultSchema)(decoded)).toEqual(
-      encoded
-    );
+    expect(
+      Schema.encodeSync(RegistrationFormResultSchema)(decoded)
+    ).toStrictEqual(encoded);
   });
 });

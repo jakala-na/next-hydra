@@ -16,15 +16,15 @@ import { keys } from "../keys.ts";
     const authResponse = await fetch(
       `https://auth.${keys().COMMERCETOOLS_REGION}.commercetools.com/oauth/token`,
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${Buffer.from(`${keys().COMMERCETOOLS_CLIENT_ID}:${keys().COMMERCETOOLS_CLIENT_SECRET}`).toString("base64")}`,
-        },
         body: new URLSearchParams({
           grant_type: "client_credentials",
           scope: `manage_shopping_lists:${keys().COMMERCETOOLS_PROJECT_KEY}`,
         }),
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${keys().COMMERCETOOLS_CLIENT_ID}:${keys().COMMERCETOOLS_CLIENT_SECRET}`).toString("base64")}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        method: "POST",
       }
     );
 
@@ -32,25 +32,25 @@ import { keys } from "../keys.ts";
 
     console.log("\n🚀 Generating GraphQL Schema");
     await generateSchema({
-      input: `https://api.${keys().COMMERCETOOLS_REGION}.commercetools.com/${keys().COMMERCETOOLS_PROJECT_KEY}/graphql`,
-      output: path.join(process.cwd(), "gql/schema.graphql"),
       headers: {
         Authorization: `${authData.token_type} ${authData.access_token}`,
       },
+      input: `https://api.${keys().COMMERCETOOLS_REGION}.commercetools.com/${keys().COMMERCETOOLS_PROJECT_KEY}/graphql`,
+      output: path.join(process.cwd(), "gql/schema.graphql"),
       tsconfig: undefined,
     });
 
     console.log("\n🚀 Generating Types");
     await generateOutput({
-      output: undefined,
       disablePreprocessing: false,
+      output: undefined,
       tsconfig: undefined,
     });
 
     console.log("\n🚀 Generating Cache");
     await generateTurbo({
-      output: undefined,
       failOnWarn: false,
+      output: undefined,
       tsconfig: undefined,
     });
   } catch (error) {

@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+
 import baseConfig from "@drupal-canvas/workbench/dist/server/vite.published.config.mjs";
 import { imageConfigDefault } from "next/dist/shared/lib/image-config.js";
 
@@ -15,8 +16,8 @@ const imageConfig = {
 };
 const browserProcess = {
   env: {
-    __NEXT_IMAGE_OPTS: imageConfig,
     NODE_ENV: "development",
+    __NEXT_IMAGE_OPTS: imageConfig,
   },
 };
 
@@ -28,8 +29,8 @@ export default {
     __filename: JSON.stringify("/workbench-preview.js"),
     process: JSON.stringify(browserProcess),
     "process.env": JSON.stringify(browserProcess.env),
-    "process.env.__NEXT_IMAGE_OPTS": JSON.stringify(imageConfig),
     "process.env.NODE_ENV": JSON.stringify("development"),
+    "process.env.__NEXT_IMAGE_OPTS": JSON.stringify(imageConfig),
   },
   publicDir: recipeImageDir,
   resolve: {
@@ -37,7 +38,7 @@ export default {
     alias: {
       ...resolvedBaseConfig.resolve?.alias,
       "server-only": fileURLToPath(
-        new URL("./workbench-shims/server-only.mjs", import.meta.url)
+        new URL("workbench-shims/server-only.mjs", import.meta.url)
       ),
     },
   },

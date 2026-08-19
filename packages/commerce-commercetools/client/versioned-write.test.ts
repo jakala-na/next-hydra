@@ -15,18 +15,18 @@ const INITIAL_VERSION = 7;
 const REST_CURRENT_VERSION = 8;
 const GRAPHQL_CURRENT_VERSION = 9;
 
-describe("commercetoolsProviderFailureReason", () => {
+describe(commercetoolsProviderFailureReason, () => {
   it("keeps rate limits recoverable instead of classifying them as client defects", () => {
     const rateLimit = { statusCode: 429 };
 
-    expect(isCommercetoolsClientFailure(rateLimit)).toBe(false);
+    expect(isCommercetoolsClientFailure(rateLimit)).toBeFalsy();
     expect(commercetoolsProviderFailureReason(rateLimit)).toBe("unavailable");
   });
 
   it("classifies non-recoverable client responses as unexpected", () => {
     const invalidRequest = { statusCode: 400 };
 
-    expect(isCommercetoolsClientFailure(invalidRequest)).toBe(true);
+    expect(isCommercetoolsClientFailure(invalidRequest)).toBeTruthy();
     expect(commercetoolsProviderFailureReason(invalidRequest)).toBe(
       "unexpectedResponse"
     );
@@ -61,7 +61,6 @@ describe("commercetoolsProviderFailureReason", () => {
 });
 
 const restConflict = {
-  statusCode: 409,
   body: {
     errors: [
       {
@@ -70,9 +69,10 @@ const restConflict = {
       },
     ],
   },
+  statusCode: 409,
 };
 
-describe("decodeConcurrentModification", () => {
+describe(decodeConcurrentModification, () => {
   it("decodes the provider current version from REST errors", () => {
     const result = decodeConcurrentModification(restConflict);
 
@@ -97,7 +97,7 @@ describe("decodeConcurrentModification", () => {
   });
 });
 
-describe("retryVersionedWrite", () => {
+describe(retryVersionedWrite, () => {
   it.effect(
     "retries once with the input selected by conflict resolution",
     () => {
@@ -108,9 +108,9 @@ describe("retryVersionedWrite", () => {
 
       return Effect.gen(function* () {
         const result = yield* retryVersionedWrite({
-          operation: "cart.save",
-          input: { version: INITIAL_VERSION },
           attempt,
+          input: { version: INITIAL_VERSION },
+          operation: "cart.save",
           resolveConflict: (conflict, input) =>
             Effect.succeed(
               new RetryVersionedWrite({
@@ -140,15 +140,15 @@ describe("retryVersionedWrite", () => {
 
       return Effect.gen(function* () {
         const error = yield* retryVersionedWrite({
-          operation: "cart.save",
-          input: { version: INITIAL_VERSION },
           attempt,
+          input: { version: INITIAL_VERSION },
+          operation: "cart.save",
           resolveConflict: () =>
             Effect.succeed(new PreserveVersionedWriteConflict()),
         }).pipe(Effect.flip);
 
         expect(error).toBe(restConflict);
-        expect(attempt).toHaveBeenCalledTimes(1);
+        expect(attempt).toHaveBeenCalledOnce();
       });
     }
   );
@@ -164,9 +164,9 @@ describe("retryVersionedWrite", () => {
 
     return Effect.gen(function* () {
       const error = yield* retryVersionedWrite({
-        operation: "cart.save",
-        input: { version: INITIAL_VERSION },
         attempt,
+        input: { version: INITIAL_VERSION },
+        operation: "cart.save",
         resolveConflict,
       }).pipe(Effect.flip);
 

@@ -12,17 +12,16 @@ versioned_properties:
         text:
           required: true
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value:
-            -
-              value: 'Connect content and commerce while keeping every provider replaceable.'
+            - value: "Connect content and commerce while keeping every provider replaceable."
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
     fallback_metadata:
-      slot_definitions: {  }
+      slot_definitions: {}
 label: Text
 id: js.text
 provider: null

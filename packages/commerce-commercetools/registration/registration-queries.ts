@@ -1,23 +1,27 @@
 import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import type { RedactedEmail } from "@repo/registration/domain/identity";
 import {
-  type Registration,
   Registration as RegistrationSchema,
   RegistrationStatus,
-  type RegistrationStatus as RegistrationStatusType,
+} from "@repo/registration/domain/registration";
+import type {
+  Registration,
+  RegistrationStatus as RegistrationStatusType,
 } from "@repo/registration/domain/registration";
 import {
   encodeRegistrationQueryCursor,
-  type ListRegistrationsInput,
   normalizeRegistrationQuerySort,
   parseRegistrationQueryCursor,
   RegistrationQueries,
-  type RegistrationQueryCursor,
   RegistrationQueryFailure,
-  type RegistrationQueryRecord,
-  type RegistrationQuerySortDirection,
-  type RegistrationQuerySortField,
   registrationQueryCursorFromRecord,
+} from "@repo/registration/services/registration-queries";
+import type {
+  ListRegistrationsInput,
+  RegistrationQueryCursor,
+  RegistrationQueryRecord,
+  RegistrationQuerySortDirection,
+  RegistrationQuerySortField,
 } from "@repo/registration/services/registration-queries";
 import { decodeJsonString } from "@repo/versioned-store";
 import { Effect, Layer, Option, Redacted, Schema } from "effect";
@@ -35,10 +39,6 @@ interface CommercetoolsCustomObject {
   readonly createdAt: string;
   readonly value: unknown;
   readonly lastModifiedAt: string;
-}
-
-interface CommercetoolsCustomObjectPagedQueryResponse {
-  readonly results: readonly CommercetoolsCustomObject[];
 }
 
 const MAX_PROVIDER_BATCH_SIZE = 500;
@@ -98,9 +98,7 @@ const wherePredicate = ({
 const sortExpressions = (
   field: RegistrationQuerySortField,
   direction: RegistrationQuerySortDirection
-) => {
-  return [`${field} ${direction}`, `id ${direction}`];
-};
+) => [`${field} ${direction}`, `id ${direction}`];
 
 const normalizedEmail = (email: RedactedEmail) =>
   Redacted.value(email).trim().toLowerCase();
@@ -127,7 +125,7 @@ const registrationMatchesSearch = (
     return true;
   }
 
-  const details = registration.details;
+  const { details } = registration;
 
   return [
     String(details.companyName),
@@ -148,16 +146,21 @@ const tagFromStatus = (
   status: Registration["status"]
 ): Registration["_tag"] => {
   switch (status) {
-    case "awaiting_approval":
+    case "awaiting_approval": {
       return "AwaitingApprovalRegistration";
-    case "approval_processing":
+    }
+    case "approval_processing": {
       return "ApprovalProcessingRegistration";
-    case "approved":
+    }
+    case "approved": {
       return "ApprovedRegistration";
-    case "rejected":
+    }
+    case "rejected": {
       return "RejectedRegistration";
-    default:
+    }
+    default: {
       return status satisfies never;
+    }
   }
 };
 
@@ -245,18 +248,18 @@ const queryCustomObjects = ({
         })
         .execute();
 
-      return response.body as CommercetoolsCustomObjectPagedQueryResponse;
+      return response.body;
     }
   ).pipe(
-    Effect.mapError((failure) => {
-      const cause = commercetoolsFailureCause(failure);
+    Effect.mapError((error) => {
+      const cause = commercetoolsFailureCause(error);
 
       return new RegistrationQueryFailure({
+        cause,
         message: `Failed to list registrations: ${
           cause instanceof Error ? cause.message : String(cause)
         }`,
         operation: "list",
-        cause,
         reason: commercetoolsProviderFailureReason(cause),
       });
     })
@@ -270,45 +273,45 @@ const decodeCustomObject = (customObject: CommercetoolsCustomObject) =>
       Effect.mapError(
         (cause) =>
           new RegistrationQueryFailure({
+            cause,
             message: `Failed to list registrations: ${
               cause instanceof Error ? cause.message : String(cause)
             }`,
             operation: "list",
-            cause,
             reason: "invalidData",
           })
       )
-    ) as Effect.Effect<Registration, RegistrationQueryFailure, never>;
+    ) as Effect.Effect<Registration, RegistrationQueryFailure>;
     const createdAt = new Date(customObject.createdAt);
     const lastModifiedAt = new Date(customObject.lastModifiedAt);
 
     if (Number.isNaN(createdAt.getTime())) {
       return yield* new RegistrationQueryFailure({
-        message: `Failed to list registrations: Invalid custom object createdAt ${customObject.createdAt}`,
-        operation: "list",
         cause: new Error(
           `Invalid custom object createdAt ${customObject.createdAt}`
         ),
+        message: `Failed to list registrations: Invalid custom object createdAt ${customObject.createdAt}`,
+        operation: "list",
         reason: "invalidData",
       });
     }
 
     if (Number.isNaN(lastModifiedAt.getTime())) {
       return yield* new RegistrationQueryFailure({
-        message: `Failed to list registrations: Invalid custom object lastModifiedAt ${customObject.lastModifiedAt}`,
-        operation: "list",
         cause: new Error(
           `Invalid custom object lastModifiedAt ${customObject.lastModifiedAt}`
         ),
+        message: `Failed to list registrations: Invalid custom object lastModifiedAt ${customObject.lastModifiedAt}`,
+        operation: "list",
         reason: "invalidData",
       });
     }
 
     return {
-      id: customObject.id,
       createdAt,
-      registration,
+      id: customObject.id,
       lastModifiedAt,
+      registration,
     } satisfies RegistrationQueryRecord;
   });
 
@@ -335,9 +338,9 @@ const makeRegistrationQueries = ({
         apiRoot,
         container,
         cursor,
+        limit: clamp(limit + 1, MIN_LIST_LIMIT, MAX_PROVIDER_BATCH_SIZE),
         sort,
         status: input.status,
-        limit: clamp(limit + 1, MIN_LIST_LIMIT, MAX_PROVIDER_BATCH_SIZE),
       });
       const records = yield* Effect.forEach(
         response.results,
@@ -365,9 +368,9 @@ const makeRegistrationQueries = ({
         apiRoot,
         container,
         cursor: providerCursor,
+        limit: MAX_PROVIDER_BATCH_SIZE,
         sort,
         status: input.status,
-        limit: MAX_PROVIDER_BATCH_SIZE,
       });
       const records = yield* Effect.forEach(
         response.results,
@@ -413,8 +416,8 @@ const makeRegistrationQueries = ({
 
       do {
         const result = yield* list({
-          status,
           limit: MAX_LIST_LIMIT,
+          status,
           ...(cursor === undefined ? {} : { cursor }),
         });
 

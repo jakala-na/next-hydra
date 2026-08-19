@@ -1,7 +1,8 @@
 import "server-only";
-
 import { createClient, fetchExchange } from "@urql/core";
-import { type DrupalAccessMode, getDrupalAccessToken } from "./auth";
+
+import { getDrupalAccessToken } from "./auth";
+import type { DrupalAccessMode } from "./auth";
 import { getDrupalGraphqlUri, keys } from "./keys";
 
 const clients = new Map<DrupalAccessMode, ReturnType<typeof createClient>>();
@@ -16,7 +17,7 @@ function createAuthenticatedFetch(mode: DrupalAccessMode): typeof fetch {
     });
     headers.set("authorization", await getDrupalAccessToken(mode));
 
-    return globalThis.fetch(input, { ...init, headers });
+    return await globalThis.fetch(input, { ...init, headers });
   };
 }
 

@@ -20,7 +20,7 @@ export type InstructionOutput = {
 };
 
 function printableText(value: string): string {
-  return stripVTControlCharacters(value).replace(/\s+/g, " ").trim();
+  return stripVTControlCharacters(value).replaceAll(/\s+/g, " ").trim();
 }
 
 function printableWidth(value: string): number {

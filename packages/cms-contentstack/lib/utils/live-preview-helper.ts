@@ -5,8 +5,8 @@ export type LivePreviewHelper = {
   getParentProps: () => { "data-cslp": string };
   getUIProps: <T extends Record<string, string>>(
     mapping: T
-  ) => { root: { [key: string]: string } } & {
-    [K in keyof T]: { [key: string]: string };
+  ) => { root: Record<string, string> } & {
+    [K in keyof T]: Record<string, string>;
   };
 };
 
@@ -34,57 +34,54 @@ export function entryLivePreview<
 
   const createLivePreviewHelper = (
     currentPrefix: string
-  ): LivePreviewHelper => {
-    return {
-      prefix: currentPrefix,
-      getProps: (key: string) => ({
-        "data-cslp": `${currentPrefix}.${key}`,
-      }),
-      getParentProps: () => ({
-        "data-cslp": currentPrefix,
-      }),
-      getNestedHelper: (key: string) =>
-        createLivePreviewHelper(`${currentPrefix}.${key}`),
+  ): LivePreviewHelper => ({
+    getNestedHelper: (key: string) =>
+      createLivePreviewHelper(`${currentPrefix}.${key}`),
+    getParentProps: () => ({
+      "data-cslp": currentPrefix,
+    }),
+    getProps: (key: string) => ({
+      "data-cslp": `${currentPrefix}.${key}`,
+    }),
+    /**
+     * Maps design system field names (keys) to CMS field names (values) and returns an object with live preview props for each field.
+     *
+     * @param mapping - A mapping of UI field names to CMS field names.
+     * @returns An object with live preview attributes for each UI field name, including a root property.
+     *
+     * @example
+     * ```typescript
+     * const livePreviewProps = livePreviewHelper.getUIProps({
+     *   title: 'title',
+     *   description: 'description_richtext',
+     * });
+     *
+     * // Result:
+     * // {
+     * //   root: { 'data-cslp': 'blog_post.123.en-us' },
+     * //   title: { 'data-cslp': 'blog_post.123.en-us.title' },
+     * //   description: { 'data-cslp': 'blog_post.123.en-us.description_richtext' }
+     * // }
+     * ```
+     */
+    getUIProps: (mapping) => {
+      const result: Record<string, Record<string, string>> = {
+        root: { "data-cslp": currentPrefix },
+      };
 
-      /**
-       * Maps design system field names (keys) to CMS field names (values) and returns an object with live preview props for each field.
-       *
-       * @param mapping - A mapping of UI field names to CMS field names.
-       * @returns An object with live preview attributes for each UI field name, including a root property.
-       *
-       * @example
-       * ```typescript
-       * const livePreviewProps = livePreviewHelper.getUIProps({
-       *   title: 'title',
-       *   description: 'description_richtext',
-       * });
-       *
-       * // Result:
-       * // {
-       * //   root: { 'data-cslp': 'blog_post.123.en-us' },
-       * //   title: { 'data-cslp': 'blog_post.123.en-us.title' },
-       * //   description: { 'data-cslp': 'blog_post.123.en-us.description_richtext' }
-       * // }
-       * ```
-       */
-      getUIProps: (mapping) => {
-        const result: Record<string, { [key: string]: string }> = {
-          root: { "data-cslp": currentPrefix },
-        };
+      for (const fieldName of Object.keys(mapping)) {
+        const cmsFieldName = mapping[fieldName as keyof typeof mapping];
+        result[fieldName] = cmsFieldName
+          ? { "data-cslp": `${currentPrefix}.${cmsFieldName}` }
+          : {};
+      }
 
-        for (const fieldName of Object.keys(mapping)) {
-          const cmsFieldName = mapping[fieldName as keyof typeof mapping];
-          result[fieldName] = cmsFieldName
-            ? { "data-cslp": `${currentPrefix}.${cmsFieldName}` }
-            : {};
-        }
-
-        return result as { root: { [key: string]: string } } & {
-          [K in keyof typeof mapping]: { [key: string]: string };
-        };
-      },
-    };
-  };
+      return result as { root: Record<string, string> } & {
+        [K in keyof typeof mapping]: Record<string, string>;
+      };
+    },
+    prefix: currentPrefix,
+  });
 
   // Return the helper object with the current prefix
   return createLivePreviewHelper(prefix);

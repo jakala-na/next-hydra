@@ -6,10 +6,12 @@ import { CountryCode } from "../domain/address";
 import { AddressBookReference } from "../domain/address-book";
 import {
   CheckoutDeliveryDetailsFormContent,
-  type CheckoutDeliveryDetailsMessages,
-  type CheckoutShippingAddressOption,
   deliveryAddressSelectionAfterAction,
   preferredDeliveryAddressSelection,
+} from "./delivery-details-form";
+import type {
+  CheckoutDeliveryDetailsMessages,
+  CheckoutShippingAddressOption,
 } from "./delivery-details-form";
 import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
 
@@ -19,25 +21,25 @@ const t = createCheckoutTranslator("de-DE");
 
 const options = [
   {
-    reference: officeReference,
     address: {
       addressLine1: "1 Office Road",
-      postalCode: "10115",
       city: "Berlin",
       country: CountryCode.make("DE"),
+      postalCode: "10115",
     },
     defaultShipping: false,
+    reference: officeReference,
   },
   {
-    reference: warehouseReference,
     address: {
       addressLine1: "2 Warehouse Lane",
       addressLine2: "Loading bay 3",
-      postalCode: "20095",
       city: "Hamburg",
       country: CountryCode.make("DE"),
+      postalCode: "20095",
     },
     defaultShipping: true,
+    reference: warehouseReference,
   },
 ] as const satisfies readonly CheckoutShippingAddressOption[];
 
@@ -72,8 +74,8 @@ const renderContent = (
     <CheckoutDeliveryDetailsFormContent
       isPending={false}
       messages={messages}
-      onSaveToAddressBookChange={() => undefined}
-      onSelectionChange={() => undefined}
+      onSaveToAddressBookChange={() => {}}
+      onSelectionChange={() => {}}
       saveToAddressBook={false}
       selection={undefined}
       shippingAddressOptions={options}
@@ -83,12 +85,12 @@ const renderContent = (
 
 describe("Checkout delivery address selection", () => {
   it("prefers the current reference, then Default Shipping, and otherwise requires a choice", () => {
-    expect(preferredDeliveryAddressSelection(options, officeReference)).toEqual(
-      { type: "addressBook", reference: officeReference }
-    );
-    expect(preferredDeliveryAddressSelection(options, undefined)).toEqual({
-      type: "addressBook",
+    expect(
+      preferredDeliveryAddressSelection(options, officeReference)
+    ).toStrictEqual({ reference: officeReference, type: "addressBook" });
+    expect(preferredDeliveryAddressSelection(options, undefined)).toStrictEqual({
       reference: warehouseReference,
+      type: "addressBook",
     });
     expect(
       preferredDeliveryAddressSelection(
@@ -96,10 +98,10 @@ describe("Checkout delivery address selection", () => {
         undefined
       )
     ).toBeUndefined();
-    expect(preferredDeliveryAddressSelection([], undefined)).toEqual({
+    expect(preferredDeliveryAddressSelection([], undefined)).toStrictEqual({
       type: "manual",
     });
-    expect(preferredDeliveryAddressSelection(undefined, undefined)).toEqual({
+    expect(preferredDeliveryAddressSelection(undefined, undefined)).toStrictEqual({
       type: "manual",
     });
   });
@@ -221,9 +223,9 @@ describe("Checkout delivery address selection", () => {
       { type: "manual" }
     );
 
-    expect(retrySelection).toEqual({
-      type: "addressBook",
+    expect(retrySelection).toStrictEqual({
       reference: officeReference,
+      type: "addressBook",
     });
   });
 });

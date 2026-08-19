@@ -14,10 +14,8 @@ import type {
   SaveCheckoutDeliveryDetailsAction,
 } from "./action-contract";
 import { CheckoutContactForm } from "./contact-form";
-import {
-  CheckoutDeliveryDetailsForm,
-  type CheckoutShippingAddressOption,
-} from "./delivery-details-form";
+import { CheckoutDeliveryDetailsForm } from "./delivery-details-form";
+import type { CheckoutShippingAddressOption } from "./delivery-details-form";
 import { ActiveStepViolations, CartSidebarViolations } from "./violations";
 
 const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
@@ -27,8 +25,8 @@ const formatMoney = (
   locale: string
 ) =>
   new Intl.NumberFormat(locale, {
-    style: "currency",
     currency: money.currencyCode,
+    style: "currency",
   }).format(money.centAmount / CENTS_PER_MAJOR_CURRENCY_UNIT);
 
 interface CheckoutActions {
@@ -166,7 +164,7 @@ function CartSidebar({
   readonly messages: CheckoutPageMessages;
   readonly state: CheckoutState;
 }) {
-  const locale = state.scope.locale;
+  const { locale } = state.scope;
 
   return (
     <aside className="rounded-md border border-border p-6 sm:col-span-2">
@@ -228,22 +226,22 @@ export async function CheckoutView({
   const messages: CheckoutPageMessages = {
     activeStep: t("activeStep"),
     attention: t("attention"),
-    cartTitle: t("cart.title"),
     cartItems: (count) => t("cart.items", { count }),
     cartQuantity: (quantity) => t("cart.quantity", { quantity }),
+    cartTitle: t("cart.title"),
     cartViolations: t("cart.violations"),
-    subtotal: t("cart.subtotal"),
     stepLabels: {
       contact: t("steps.contact"),
       deliveryDetails: t("steps.deliveryDetails"),
-      shippingOptions: t("steps.shippingOptions"),
       paymentOptions: t("steps.paymentOptions"),
       reviewOrder: t("steps.reviewOrder"),
+      shippingOptions: t("steps.shippingOptions"),
     },
     stepStatuses: {
       complete: t("status.complete"),
       incomplete: t("status.incomplete"),
     },
+    subtotal: t("cart.subtotal"),
     violation: (violation) =>
       checkoutViolationMessage(checkoutLocale, violation),
   };

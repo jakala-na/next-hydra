@@ -41,11 +41,24 @@ import {
 } from "./registrations";
 
 const details = new CompanyRegistrationDetails({
+  address: new CompanyAddress({
+    additionalStreetInfo: Redacted.make(AddressLine.make("Suite 42"), {
+      label: "addressLine",
+    }),
+    city: Redacted.make(City.make("New York"), { label: "city" }),
+    country: CountryCode.make("US"),
+    postalCode: Redacted.make(PostalCode.make("10001"), {
+      label: "postalCode",
+    }),
+    region: Redacted.make(Region.make("NY"), { label: "region" }),
+    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
+      label: "addressLine",
+    }),
+  }),
   companyName: CompanyName.make("Hydra Supplies"),
   companyPhone: Redacted.make(PhoneNumber.make("+1 555 0100"), {
     label: "companyPhone",
   }),
-  vatId: Redacted.make(VatId.make("VAT-123"), { label: "vatId" }),
   contactFirstName: Redacted.make(PersonName.make("Ada"), {
     label: "personName",
   }),
@@ -53,20 +66,7 @@ const details = new CompanyRegistrationDetails({
     label: "personName",
   }),
   email: Redacted.make(Email.make("ada@example.com"), { label: "email" }),
-  address: new CompanyAddress({
-    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
-      label: "addressLine",
-    }),
-    additionalStreetInfo: Redacted.make(AddressLine.make("Suite 42"), {
-      label: "addressLine",
-    }),
-    postalCode: Redacted.make(PostalCode.make("10001"), {
-      label: "postalCode",
-    }),
-    city: Redacted.make(City.make("New York"), { label: "city" }),
-    region: Redacted.make(Region.make("NY"), { label: "region" }),
-    country: CountryCode.make("US"),
-  }),
+  vatId: Redacted.make(VatId.make("VAT-123"), { label: "vatId" }),
 });
 
 const storeKey = StoreKey.make("default-store");
@@ -82,30 +82,30 @@ const reviewer = new RegistrationReviewerActor({
 
 const makeDecision = () =>
   new ApprovedDecision({
-    decision: "approved",
     actor: reviewer,
     decidedAt: new Date(1),
+    decision: "approved",
   });
 
 const makeRejectedDecision = () =>
   new RejectedDecision({
-    decision: "rejected",
     actor: reviewer,
     decidedAt: new Date(1),
+    decision: "rejected",
   });
 
 const makeCommerceAccount = (registrationId: RegistrationId) =>
   new CommerceAccount({
-    registrationId,
-    customerId: CommerceCustomerId.make("customer-1"),
     businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+    customerId: CommerceCustomerId.make("customer-1"),
+    registrationId,
   });
 
 const makeInvitationId = (_registrationId: RegistrationId) =>
   InvitationId.make("invitation-1");
 
 const expectDomainPersistenceFailure = (exit: Exit.Exit<unknown, unknown>) => {
-  expect(Exit.isFailure(exit)).toBe(true);
+  expect(Exit.isFailure(exit)).toBeTruthy();
   if (Exit.isFailure(exit)) {
     expect(exit.cause.toString()).toContain(
       RegistrationPersistenceFailure.name
@@ -137,8 +137,8 @@ describe("Registrations over versioned storage", () => {
       const insert = vi.fn((key: string) =>
         Effect.fail(
           new StoreConflict({
-            message: `Store insert conflict for ${key}: forced conflict`,
             key,
+            message: `Store insert conflict for ${key}: forced conflict`,
             operation: "insert",
           })
         )
@@ -168,7 +168,7 @@ describe("Registrations over versioned storage", () => {
           .createAwaitingApproval({ details, storeKey })
           .pipe(Effect.exit);
 
-        expect(Exit.isFailure(exit)).toBe(true);
+        expect(Exit.isFailure(exit)).toBeTruthy();
         if (Exit.isFailure(exit)) {
           expect(exit.cause.toString()).toContain(StoreConflict.name);
         }
@@ -190,10 +190,10 @@ describe("Registrations over versioned storage", () => {
             insert: (key) =>
               Effect.fail(
                 new StoreError({
-                  message: `Failed to insert store value ${key}: forced insert failure`,
-                  key,
-                  operation: "insert",
                   cause: "forced insert failure",
+                  key,
+                  message: `Failed to insert store value ${key}: forced insert failure`,
+                  operation: "insert",
                   reason: "unavailable",
                 })
               ),
@@ -231,7 +231,7 @@ describe("Registrations over versioned storage", () => {
       yield* registrations.discardAwaitingApproval(created.id);
 
       const missing = yield* registrations.get(created.id).pipe(Effect.exit);
-      expect(Exit.isFailure(missing)).toBe(true);
+      expect(Exit.isFailure(missing)).toBeTruthy();
       if (Exit.isFailure(missing)) {
         expect(missing.cause.toString()).toContain(RegistrationNotFound.name);
       }
@@ -245,10 +245,10 @@ describe("Registrations over versioned storage", () => {
         get: (key) =>
           Effect.fail(
             new StoreError({
-              message: `Failed to read store value ${key}: forced read failure`,
-              key,
-              operation: "read",
               cause: "forced read failure",
+              key,
+              message: `Failed to read store value ${key}: forced read failure`,
+              operation: "read",
               reason: "unavailable",
             })
           ),
@@ -258,11 +258,11 @@ describe("Registrations over versioned storage", () => {
         values: () =>
           Effect.fail(
             new StoreError({
+              cause: "forced read failure",
+              key: "registration-1",
               message:
                 "Failed to read store value registration-1: forced read failure",
-              key: "registration-1",
               operation: "read",
-              cause: "forced read failure",
               reason: "unavailable",
             })
           ),
@@ -289,7 +289,7 @@ describe("Registrations over versioned storage", () => {
         .get(RegistrationId.make("missing-registration"))
         .pipe(Effect.exit);
 
-      expect(Exit.isFailure(exit)).toBe(true);
+      expect(Exit.isFailure(exit)).toBeTruthy();
       if (Exit.isFailure(exit)) {
         expect(exit.cause.toString()).toContain(RegistrationNotFound.name);
       }
@@ -305,10 +305,10 @@ describe("Registrations over versioned storage", () => {
       });
 
       const approved = yield* registrations.markApproved({
-        registrationId: created.id,
-        decision: makeDecision(),
         commerceAccount: makeCommerceAccount(created.id),
+        decision: makeDecision(),
         invitationId: makeInvitationId(created.id),
+        registrationId: created.id,
       });
 
       expect(approved._tag).toBe("ApprovedRegistration");
@@ -326,8 +326,8 @@ describe("Registrations over versioned storage", () => {
       });
 
       const processing = yield* registrations.markApprovalProcessing({
-        registrationId: created.id,
         decision: "approved",
+        registrationId: created.id,
       });
 
       expect(processing._tag).toBe("ApprovalProcessingRegistration");
@@ -346,15 +346,15 @@ describe("Registrations over versioned storage", () => {
         storeKey,
       });
       yield* registrations.markApprovalProcessing({
-        registrationId: created.id,
         decision: "approved",
+        registrationId: created.id,
       });
 
       const approved = yield* registrations.markApproved({
-        registrationId: created.id,
-        decision: makeDecision(),
         commerceAccount: makeCommerceAccount(created.id),
+        decision: makeDecision(),
         invitationId: makeInvitationId(created.id),
+        registrationId: created.id,
       });
 
       expect(approved._tag).toBe("ApprovedRegistration");
@@ -371,10 +371,10 @@ describe("Registrations over versioned storage", () => {
       const invitationId = makeInvitationId(created.id);
 
       yield* registrations.markApproved({
-        registrationId: created.id,
-        decision: makeDecision(),
         commerceAccount: makeCommerceAccount(created.id),
+        decision: makeDecision(),
         invitationId,
+        registrationId: created.id,
       });
 
       const found = yield* registrations.findByInvitationId(invitationId);
@@ -393,8 +393,8 @@ describe("Registrations over versioned storage", () => {
       });
 
       const rejected = yield* registrations.markRejected({
-        registrationId: created.id,
         decision: makeRejectedDecision(),
+        registrationId: created.id,
       });
 
       expect(rejected._tag).toBe("RejectedRegistration");
@@ -410,20 +410,20 @@ describe("Registrations over versioned storage", () => {
         storeKey,
       });
       yield* registrations.markApproved({
-        registrationId: created.id,
-        decision: makeDecision(),
         commerceAccount: makeCommerceAccount(created.id),
+        decision: makeDecision(),
         invitationId: makeInvitationId(created.id),
+        registrationId: created.id,
       });
 
       const exit = yield* registrations
         .markRejected({
-          registrationId: created.id,
           decision: makeRejectedDecision(),
+          registrationId: created.id,
         })
         .pipe(Effect.exit);
 
-      expect(Exit.isFailure(exit)).toBe(true);
+      expect(Exit.isFailure(exit)).toBeTruthy();
       if (Exit.isFailure(exit)) {
         expect(exit.cause.toString()).toContain(
           RegistrationTransitionConflict.name
@@ -445,8 +445,8 @@ describe("Registrations over versioned storage", () => {
           update: (key) =>
             Effect.fail(
               new StoreConflict({
-                message: `Store update conflict for ${key}: forced conflict`,
                 key,
+                message: `Store update conflict for ${key}: forced conflict`,
                 operation: "update",
               })
             ),
@@ -467,14 +467,14 @@ describe("Registrations over versioned storage", () => {
 
       const exit = yield* registrations
         .markApproved({
-          registrationId: created.id,
-          decision: makeDecision(),
           commerceAccount: makeCommerceAccount(created.id),
+          decision: makeDecision(),
           invitationId: makeInvitationId(created.id),
+          registrationId: created.id,
         })
         .pipe(Effect.exit);
 
-      expect(Exit.isFailure(exit)).toBe(true);
+      expect(Exit.isFailure(exit)).toBeTruthy();
       if (Exit.isFailure(exit)) {
         expect(exit.cause.toString()).toContain(
           RegistrationConcurrentModification.name
@@ -501,10 +501,10 @@ describe("Registrations over versioned storage", () => {
             update: (key) =>
               Effect.fail(
                 new StoreError({
-                  message: `Failed to update store value ${key}: forced update failure`,
-                  key,
-                  operation: "update",
                   cause: "forced update failure",
+                  key,
+                  message: `Failed to update store value ${key}: forced update failure`,
+                  operation: "update",
                   reason: "unavailable",
                 })
               ),
@@ -525,10 +525,10 @@ describe("Registrations over versioned storage", () => {
 
         const exit = yield* registrations
           .markApproved({
-            registrationId: created.id,
-            decision: makeDecision(),
             commerceAccount: makeCommerceAccount(created.id),
+            decision: makeDecision(),
             invitationId: makeInvitationId(created.id),
+            registrationId: created.id,
           })
           .pipe(Effect.exit);
 

@@ -4,6 +4,7 @@ import { withI18n } from "@repo/i18n/next-config";
 import { config, withAnalyzer } from "@repo/next-config";
 import { withLogging, withSentry } from "@repo/observability/next-config";
 import type { NextConfig } from "next";
+
 import { env } from "@/env";
 
 let nextConfig: NextConfig = withToolbar(withLogging(config));

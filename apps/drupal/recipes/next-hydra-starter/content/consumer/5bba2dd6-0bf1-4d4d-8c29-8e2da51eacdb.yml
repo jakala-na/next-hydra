@@ -1,50 +1,35 @@
 _meta:
-  version: '1.0'
+  version: "1.0"
   entity_type: consumer
   uuid: 5bba2dd6-0bf1-4d4d-8c29-8e2da51eacdb
   default_langcode: en
 default:
   owner_id:
-    -
-      target_id: 1
+    - target_id: 1
   client_id:
-    -
-      value: cli
+    - value: cli
   label:
-    -
-      value: 'Canvas CLI'
+    - value: "Canvas CLI"
   third_party:
-    -
-      value: true
+    - value: true
   is_default:
-    -
-      value: false
+    - value: false
   status:
-    -
-      value: true
+    - value: true
   grant_types:
-    -
-      value: authorization_code
-    -
-      value: refresh_token
+    - value: authorization_code
+    - value: refresh_token
   confidential:
-    -
-      value: false
+    - value: false
   redirect:
-    -
-      value: 'http://localhost:4444/callback'
+    - value: "http://localhost:4444/callback"
   access_token_expiration:
-    -
-      value: 300
+    - value: 300
   refresh_token_expiration:
-    -
-      value: 1209600
+    - value: 1209600
   pkce:
-    -
-      value: true
+    - value: true
   automatic_authorization:
-    -
-      value: false
+    - value: false
   remember_approval:
-    -
-      value: true
+    - value: true

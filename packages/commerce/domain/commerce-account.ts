@@ -31,16 +31,16 @@ export class CommerceBusinessUnitMembership extends Schema.Class<CommerceBusines
 export class CommerceAccount extends Schema.Class<CommerceAccount>(
   "CommerceAccount"
 )({
-  registrationId: Schema.String,
-  customerId: CommerceCustomerId,
   businessUnitId: CommerceBusinessUnitId,
+  customerId: CommerceCustomerId,
+  registrationId: Schema.String,
 }) {}
 
 export class CommerceCustomer extends Schema.Class<CommerceCustomer>(
   "CommerceCustomer"
 )({
-  customerId: CommerceCustomerId,
   authUserId: Schema.String,
+  customerId: CommerceCustomerId,
   email: Schema.Redacted(Schema.String, { label: "email" }),
   firstName: Schema.Redacted(Schema.String, { label: "personName" }),
   lastName: Schema.Redacted(Schema.String, { label: "personName" }),
@@ -65,8 +65,8 @@ export type CommerceCompanyRole = typeof CommerceCompanyRole.Type;
 export class CommerceAssociateMembership extends Schema.Class<CommerceAssociateMembership>(
   "CommerceAssociateMembership"
 )({
+  authUserId: Schema.String,
   businessUnitId: CommerceBusinessUnitId,
   customerId: CommerceCustomerId,
-  authUserId: Schema.String,
   role: CommerceCompanyRole,
 }) {}

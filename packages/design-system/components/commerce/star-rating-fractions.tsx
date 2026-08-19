@@ -70,7 +70,7 @@ const StarRating_Fractions = ({
       const star = event.currentTarget;
       const rect = star.getBoundingClientRect();
       const x = event.clientX - rect.left;
-      const width = rect.width;
+      const { width } = rect;
       const clickPosition = x / width;
 
       let fraction = 1;
@@ -130,7 +130,7 @@ const StarRating_Fractions = ({
       return {
         color,
         fill: `url(#${starIds[index]})`,
-      } as React.CSSProperties;
+      };
     },
     [readOnly, hoverRating, value, color, starIds]
   );
@@ -167,8 +167,12 @@ const StarRating_Fractions = ({
           index={index}
           style={style}
           iconSize={iconSize}
-          onClick={(e) => handleStarClick(index, e)}
-          onMouseMove={(e) => handleStarHover(index, e)}
+          onClick={(e) => {
+            handleStarClick(index, e);
+          }}
+          onMouseMove={(e) => {
+            handleStarHover(index, e);
+          }}
           isInteractive={!readOnly}
         />
       );

@@ -1,4 +1,5 @@
 import { createTranslator } from "next-intl";
+
 import deDE from "./messages/de-DE.json" with { type: "json" };
 import enGB from "./messages/en-GB.json" with { type: "json" };
 import enUS from "./messages/en-US.json" with { type: "json" };

@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Option, Ref } from "effect";
+
 import type {
   LineItemId,
   PositiveCartQuantity,
@@ -6,16 +7,18 @@ import type {
   VariantId,
 } from "../domain/cart";
 import {
-  type CartLineItemNotFound,
-  type CartMerchandiseUnavailable,
-  type CartOperation,
-  type CartPolicyFailure,
   CartProviderFailure,
-  type CartWriteConflict,
-  type CartWriteOutcomeUnknown,
-  type CurrentCartOperationFailure,
   CurrentCartSelectionConflict,
   CurrentCartUnavailable,
+} from "../domain/cart-errors";
+import type {
+  CartLineItemNotFound,
+  CartMerchandiseUnavailable,
+  CartOperation,
+  CartPolicyFailure,
+  CartWriteConflict,
+  CartWriteOutcomeUnknown,
+  CurrentCartOperationFailure,
 } from "../domain/cart-errors";
 import type {
   CartSnapshot,

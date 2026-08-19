@@ -23,10 +23,11 @@ import { Mail, Plus, PlusCircle, Search, UserPlus } from "lucide-react";
  * triggered by a button.
  */
 const meta = {
-  title: "ui/DropdownMenu",
-  component: DropdownMenu,
-  tags: ["autodocs"],
   argTypes: {},
+  component: DropdownMenu,
+  parameters: {
+    layout: "centered",
+  },
   render: (args) => (
     <DropdownMenu {...args}>
       <DropdownMenuTrigger>Open</DropdownMenuTrigger>
@@ -40,9 +41,8 @@ const meta = {
       </DropdownMenuContent>
     </DropdownMenu>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/DropdownMenu",
 } satisfies Meta<typeof DropdownMenu>;
 
 export default meta;

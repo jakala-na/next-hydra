@@ -6,6 +6,7 @@ import {
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Schema } from "effect";
 import type { ReactNode } from "react";
+
 import type { CategoryId, ProductId } from "./identity";
 import { toProductCardPresentation } from "./presentation";
 import { ListProductCardsInput, ProductDiscovery } from "./product-discovery";

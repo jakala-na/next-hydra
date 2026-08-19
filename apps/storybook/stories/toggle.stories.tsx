@@ -6,21 +6,21 @@ import { Bold, Italic } from "lucide-react";
  * A two-state button that can be either on or off.
  */
 const meta: Meta<typeof Toggle> = {
-  title: "ui/Toggle",
-  component: Toggle,
-  tags: ["autodocs"],
   argTypes: {
     children: {
       control: { disable: true },
     },
   },
   args: {
-    children: <Bold className="h-4 w-4" />,
     "aria-label": "Toggle bold",
+    children: <Bold className="h-4 w-4" />,
   },
+  component: Toggle,
   parameters: {
     layout: "centered",
   },
+  tags: ["autodocs"],
+  title: "ui/Toggle",
 };
 export default meta;
 
@@ -37,9 +37,9 @@ export const Default: Story = {};
  */
 export const Outline: Story = {
   args: {
-    variant: "outline",
-    children: <Italic className="h-4 w-4" />,
     "aria-label": "Toggle italic",
+    children: <Italic className="h-4 w-4" />,
+    variant: "outline",
   },
 };
 
@@ -47,13 +47,13 @@ export const Outline: Story = {
  * Use the text element to add a label to the toggle.
  */
 export const WithText: Story = {
+  args: { ...Outline.args },
   render: (args) => (
     <Toggle {...args}>
       <Italic className="mr-2 h-4 w-4" />
       Italic
     </Toggle>
   ),
-  args: { ...Outline.args },
 };
 
 /**

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+
 import { createProgram } from "./program";
 
 describe("workspace CLI program", () => {
@@ -11,12 +12,12 @@ describe("workspace CLI program", () => {
 
     const program = createProgram(environment);
 
-    expect(program.commands.map((command) => command.name())).toEqual([
+    expect(program.commands.map((command) => command.name())).toStrictEqual([
       "commerce",
     ]);
 
     const commerce = program.commands[0];
-    expect(commerce?.commands.map((command) => command.name())).toEqual([
+    expect(commerce?.commands.map((command) => command.name())).toStrictEqual([
       "migrate",
       "schema",
       "types",
@@ -25,7 +26,7 @@ describe("workspace CLI program", () => {
       commerce?.commands
         .find((command) => command.name() === "types")
         ?.commands.map((command) => command.name())
-    ).toEqual(["generate"]);
+    ).toStrictEqual(["generate"]);
     expect(environment).not.toHaveBeenCalled();
   });
 });

@@ -51,14 +51,14 @@ const registrationPayload = {
 
 const details = new CompanyRegistrationDetails({
   address: new CompanyAddress({
-    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
-      label: "addressLine",
-    }),
+    city: Redacted.make(City.make("New York"), { label: "city" }),
+    country: CountryCode.make("US"),
     postalCode: Redacted.make(PostalCode.make("10001"), {
       label: "postalCode",
     }),
-    city: Redacted.make(City.make("New York"), { label: "city" }),
-    country: CountryCode.make("US"),
+    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
+      label: "addressLine",
+    }),
   }),
   companyName: CompanyName.make("Hydra Supplies"),
   companyPhone: Redacted.make(PhoneNumber.make("+1 555 0100"), {
@@ -159,7 +159,7 @@ describe("Registration REST contract mappers", () => {
       })
     );
 
-    expect(Schema.is(RegistrationApiError)(error)).toBe(true);
+    expect(Schema.is(RegistrationApiError)(error)).toBeTruthy();
     expect(error.message).toBe(
       "The registration service is temporarily unavailable."
     );

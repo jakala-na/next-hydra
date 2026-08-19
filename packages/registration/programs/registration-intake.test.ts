@@ -1,11 +1,12 @@
 import { describe, expect, it } from "@effect/vitest";
 import {
   CommerceAccountUnavailable,
-  type CommerceAccountRegistrationInput,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
+import type { CommerceAccountRegistrationInput } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
-import { Context, Effect, Exit, Layer, Redacted } from "effect";
+import type { Context } from "effect";
+import { Effect, Exit, Layer, Redacted } from "effect";
 
 import {
   AddressLine,
@@ -24,10 +25,8 @@ import {
 } from "../domain/registration";
 import { IdentityUsers } from "../services/identity-users";
 import { RegistrationMarketPolicy } from "../services/registration-market-policy";
-import {
-  RegistrationQueries,
-  type RegistrationQueryRecord,
-} from "../services/registration-queries";
+import { RegistrationQueries } from "../services/registration-queries";
+import type { RegistrationQueryRecord } from "../services/registration-queries";
 import {
   RegistrationWorkflow,
   RegistrationWorkflowStartUnavailable,
@@ -68,34 +67,34 @@ const details = ({
     }),
     email: Redacted.make(Email.make(email), { label: "email" }),
     address: new CompanyAddress({
-      streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
-        label: "addressLine",
-      }),
+      city: Redacted.make(City.make("New York"), { label: "city" }),
+      country: CountryCode.make(country),
       postalCode: Redacted.make(PostalCode.make("10001"), {
         label: "postalCode",
       }),
-      city: Redacted.make(City.make("New York"), { label: "city" }),
-      country: CountryCode.make(country),
+      streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
+        label: "addressLine",
+      }),
     }),
   });
 
 const record = (
   registration: AwaitingApprovalRegistration
 ): RegistrationQueryRecord => ({
-  id: String(registration.id),
-  registration,
   createdAt: registration.createdAt,
+  id: String(registration.id),
   lastModifiedAt: registration.updatedAt,
+  registration,
 });
 
 const makeAwaiting = (email: string) =>
   new AwaitingApprovalRegistration({
     _tag: "AwaitingApprovalRegistration",
-    status: "awaiting_approval",
-    id: "registration-existing" as AwaitingApprovalRegistration["id"],
-    storeKey: StoreKey.make("default-store"),
-    details: details({ email }),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    details: details({ email }),
+    id: "registration-existing" as AwaitingApprovalRegistration["id"],
+    status: "awaiting_approval",
+    storeKey: StoreKey.make("default-store"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   });
 
@@ -109,17 +108,17 @@ const commerceAccountsLayer = ({
   Layer.succeed(
     CommerceAccounts,
     CommerceAccounts.of({
-      getCustomerProfile: () => Effect.die("not used"),
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: (
         _registration: CommerceAccountRegistrationInput
       ) => Effect.die("not used"),
       getCustomerIdByAuthUserId: () => Effect.die("not used"),
+      getCustomerProfile: () => Effect.die("not used"),
       hasCustomerWithEmail: () =>
         failure ? Effect.fail(failure) : Effect.succeed(hasCustomerWithEmail),
+      linkRegistrantIdentity: () => Effect.die("not used"),
       listBusinessUnitMembershipsForCustomerInStore: () =>
         Effect.die("not used"),
-      linkRegistrantIdentity: () => Effect.die("not used"),
     })
   );
 
@@ -166,7 +165,7 @@ const layerWithRecords = (
     VatValidator.layerMemoryFrom({ invalidVatIds })
   );
 
-describe("submitRegistrationForReview", () => {
+describe(submitRegistrationForReview, () => {
   it.effect(
     "creates an awaiting approval Registration when eligibility passes",
     () =>
@@ -220,7 +219,7 @@ describe("submitRegistrationForReview", () => {
         const persisted = yield* registrations
           .get(error.registrationId)
           .pipe(Effect.exit);
-        expect(Exit.isFailure(persisted)).toBe(true);
+        expect(Exit.isFailure(persisted)).toBeTruthy();
       }).pipe(Effect.provide(layerWithRecords([], { workflow })));
     }
   );
@@ -243,7 +242,7 @@ describe("submitRegistrationForReview", () => {
       }).pipe(Effect.exit);
       const registrations = yield* Registrations;
 
-      expect(Exit.isFailure(exit)).toBe(true);
+      expect(Exit.isFailure(exit)).toBeTruthy();
       if (startedRegistrationId === undefined) {
         return yield* Effect.die("Expected workflow start to be attempted");
       }
@@ -251,7 +250,7 @@ describe("submitRegistrationForReview", () => {
       const persisted = yield* registrations
         .get(startedRegistrationId)
         .pipe(Effect.exit);
-      expect(Exit.isFailure(persisted)).toBe(true);
+      expect(Exit.isFailure(persisted)).toBeTruthy();
     }).pipe(Effect.provide(layerWithRecords([], { workflow })));
   });
 
@@ -273,7 +272,7 @@ describe("submitRegistrationForReview", () => {
         const missing = yield* registrations
           .get("registration-existing" as AwaitingApprovalRegistration["id"])
           .pipe(Effect.exit);
-        expect(Exit.isFailure(missing)).toBe(true);
+        expect(Exit.isFailure(missing)).toBeTruthy();
       }).pipe(
         Effect.provide(
           layerWithRecords([record(makeAwaiting("ada@example.com"))])
@@ -292,7 +291,7 @@ describe("submitRegistrationForReview", () => {
 
         expect(error).toBeInstanceOf(RegistrationIntakeValidationError);
         if (error instanceof RegistrationIntakeValidationError) {
-          expect(error.reasons.map((reason) => reason._tag)).toEqual([
+          expect(error.reasons.map((reason) => reason._tag)).toStrictEqual([
             "DuplicateRegistrationEmail",
             "InvalidRegistrationVatId",
             "UnsupportedRegistrationCountry",

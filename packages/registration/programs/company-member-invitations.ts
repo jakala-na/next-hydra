@@ -1,31 +1,27 @@
-import {
-  type CommerceAccountUnavailable,
-  CommerceAccounts,
-} from "@repo/commerce/services/commerce-accounts";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import type { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
 import { Effect } from "effect";
+
 import type { CompanyActor } from "../domain/actors";
 import type {
   AcceptedAuthIdentity,
   InvitationId,
   RedactedEmail,
 } from "../domain/identity";
-import {
-  type AcceptedInvitation,
-  CompanyMemberIntent,
-  type PendingInvitation,
-  type RevokedInvitation,
+import { CompanyMemberIntent } from "../domain/invitations";
+import type {
+  AcceptedInvitation,
+  PendingInvitation,
+  RevokedInvitation,
 } from "../domain/invitations";
 import type { CompanyMemberInvitationRole } from "../domain/roles";
-import {
-  CompanyInvitationPolicy,
-  type InvitationPolicyError,
-} from "../services/company-invitation-policy";
-import {
-  type InvitationAcceptError,
-  InvitationConflict,
-  type InvitationIssueError,
-  type InvitationRevokeError,
-  Invitations,
+import { CompanyInvitationPolicy } from "../services/company-invitation-policy";
+import type { InvitationPolicyError } from "../services/company-invitation-policy";
+import { InvitationConflict, Invitations } from "../services/invitations";
+import type {
+  InvitationAcceptError,
+  InvitationIssueError,
+  InvitationRevokeError,
 } from "../services/invitations";
 
 export interface IssueCompanyMemberInviteInput {
@@ -63,8 +59,8 @@ export const issueCompanyMemberInvite = (
 
     return yield* invitations.issue({
       intent: new CompanyMemberIntent({
-        intent: "company_member",
         businessUnitId: input.actor.businessUnitId,
+        intent: "company_member",
         inviteeEmail: input.inviteeEmail,
         role: "associate",
       }),
@@ -103,9 +99,9 @@ export const acceptCompanyMemberInvitation = (
     const commerceAccounts = yield* CommerceAccounts;
 
     const invitation = yield* invitations.accept({
-      invitationId: input.invitationId,
       acceptedIdentity: input.acceptedIdentity,
       expectedIntent: "company_member",
+      invitationId: input.invitationId,
     });
 
     if (invitation.intent.intent !== "company_member") {
@@ -121,8 +117,8 @@ export const acceptCompanyMemberInvitation = (
     }
 
     yield* commerceAccounts.addAssociate({
-      businessUnitId: invitation.intent.businessUnitId,
       acceptedIdentity: input.acceptedIdentity,
+      businessUnitId: invitation.intent.businessUnitId,
       role: invitation.intent.role,
     });
 

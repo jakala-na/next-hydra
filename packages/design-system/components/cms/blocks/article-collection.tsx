@@ -1,8 +1,10 @@
 import { cn } from "@repo/design-system/lib/utils";
 import type { ReactNode } from "react";
+
 import { Card, CardContent, CardFooter } from "../../ui/card";
 import { Skeleton } from "../../ui/skeleton";
-import { ArticleCard, type ArticleTeaser } from "../article-card";
+import { ArticleCard } from "../article-card";
+import type { ArticleTeaser } from "../article-card";
 
 type ArticleCollectionProps = {
   articles: ArticleTeaser[];

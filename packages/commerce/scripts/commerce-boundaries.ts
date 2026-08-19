@@ -75,7 +75,7 @@ const extension = (path: string) => {
 };
 
 const readJson = (path: string): PackageManifest =>
-  JSON.parse(readFileSync(path, "utf8")) as PackageManifest;
+  JSON.parse(readFileSync(path, "utf-8")) as PackageManifest;
 
 const repositoryFiles = (repoRoot: string): readonly string[] =>
   execFileSync(
@@ -89,7 +89,7 @@ const repositoryFiles = (repoRoot: string): readonly string[] =>
       "apps",
       "packages",
     ],
-    { cwd: repoRoot, encoding: "utf8" }
+    { cwd: repoRoot, encoding: "utf-8" }
   )
     .split("\n")
     .filter((path) => path.length > 0)
@@ -151,7 +151,7 @@ const checkExplicitExports = (
   manifest: PackageManifest,
   packageName: string
 ): readonly string[] => {
-  const exports = manifest.exports;
+  const { exports } = manifest;
   if (exports === undefined) {
     return [`${packageName} must declare explicit package exports`];
   }
@@ -185,7 +185,7 @@ const checkImportedSubpaths = (
   const violations: string[] = [];
 
   for (const file of files) {
-    const imports = extractImportSpecifiers(readFileSync(file, "utf8"));
+    const imports = extractImportSpecifiers(readFileSync(file, "utf-8"));
     for (const specifier of imports) {
       if (
         (specifier === packageName ||
@@ -249,7 +249,7 @@ const checkGeneratedProductAttributes = (
 ): readonly string[] => {
   const artifactPath = resolve(commerceRoot, "product/generated/attributes.ts");
   return checkGeneratedProductAttributesSource(
-    readFileSync(artifactPath, "utf8"),
+    readFileSync(artifactPath, "utf-8"),
     artifactPath,
     commerceRoot
   );
@@ -302,7 +302,7 @@ export const checkCommerceBoundaries = (
   }
 
   for (const file of cmsSourceFiles) {
-    const source = readFileSync(file, "utf8");
+    const source = readFileSync(file, "utf-8");
     if (providerCategoryVocabularyPattern.test(source)) {
       violations.push(
         `${posixPath(relative(repoRoot, file))} names a provider Category representation`
@@ -356,11 +356,8 @@ export const checkCommerceBoundaries = (
 };
 
 const scriptPath = process.argv[1];
-if (
-  scriptPath !== undefined &&
-  resolve(scriptPath) === fileURLToPath(import.meta.url)
-) {
-  const commerceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+if (scriptPath !== undefined && resolve(scriptPath) === import.meta.filename) {
+  const commerceRoot = resolve(import.meta.dirname, "..");
   const repoRoot = resolve(commerceRoot, "../..");
   runOxlintImportBoundaries(repoRoot);
   const violations = checkCommerceBoundaries(repoRoot);

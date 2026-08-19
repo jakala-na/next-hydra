@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+
 import { Money } from "../domain/money";
 import {
   CategoryId,
@@ -13,19 +14,19 @@ import {
 import { ProductImage } from "./image";
 
 export const ProductCard = Schema.Struct({
-  id: ProductId,
-  slug: ProductSlug,
-  title: Schema.NonEmptyString,
+  availableForSale: Schema.Boolean,
   description: Schema.optional(Schema.String),
   featuredImage: Schema.optional(ProductImage),
+  id: ProductId,
+  slug: ProductSlug,
   startingPrice: Schema.optional(Money),
-  availableForSale: Schema.Boolean,
+  title: Schema.NonEmptyString,
 });
 export type ProductCard = typeof ProductCard.Type;
 
 export const ProductPrice = Schema.Struct({
-  regular: Money,
   discounted: Schema.optional(Money),
+  regular: Money,
 });
 export type ProductPrice = typeof ProductPrice.Type;
 
@@ -64,13 +65,13 @@ export const makeProductVariantSchema = <Attributes extends Schema.Top>(
   attributes: Attributes
 ) =>
   Schema.Struct({
-    id: VariantId,
-    sku: Schema.optional(Sku),
-    images: Schema.Array(ProductImage),
     attributes,
+    availability: ProductAvailability,
+    id: VariantId,
+    images: Schema.Array(ProductImage),
     optionValues: Schema.Record(ProductOptionKey, ProductOptionValueKey),
     price: Schema.optional(ProductPrice),
-    availability: ProductAvailability,
+    sku: Schema.optional(Sku),
   });
 
 export const makeProductDetailSchema = <
@@ -81,27 +82,27 @@ export const makeProductDetailSchema = <
   variant: Variant
 ) =>
   Schema.Struct({
-    id: ProductId,
-    slug: ProductSlug,
-    productType,
-    title: Schema.NonEmptyString,
-    description: Schema.optional(Schema.String),
     categories: Schema.Array(ProductCategory),
-    options: Schema.Array(ProductOption),
-    variants: Schema.NonEmptyArray(variant),
     defaultVariantId: VariantId,
+    description: Schema.optional(Schema.String),
+    id: ProductId,
+    options: Schema.Array(ProductOption),
+    productType,
+    slug: ProductSlug,
+    title: Schema.NonEmptyString,
+    variants: Schema.NonEmptyArray(variant),
   });
 
 type ProductDetailInvariantInput = {
   readonly defaultVariantId: string;
-  readonly options: ReadonlyArray<{
+  readonly options: readonly {
     readonly key: string;
-    readonly values: ReadonlyArray<{ readonly key: string }>;
-  }>;
-  readonly variants: ReadonlyArray<{
+    readonly values: readonly { readonly key: string }[];
+  }[];
+  readonly variants: readonly {
     readonly id: string;
     readonly optionValues: Readonly<Record<string, string>>;
-  }>;
+  }[];
 };
 
 export const hasDefaultProductVariant = (

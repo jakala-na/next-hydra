@@ -55,7 +55,7 @@ export function isManagedApplicationSource(
   const marker = `/${REGISTRY_SOURCE_DIRECTORY}/`;
   const sourceWithLeadingSlash = `/${normalized}`;
   const markerIndex = sourceWithLeadingSlash.lastIndexOf(marker);
-  if (markerIndex < 0) {
+  if (markerIndex === -1) {
     return false;
   }
   return (

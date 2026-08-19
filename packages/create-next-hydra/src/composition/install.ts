@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
 import { addRegistryItems, loadRegistryItem } from "shadcn/registry";
 import type { RegistryItem } from "shadcn/schema";
 
@@ -25,7 +26,7 @@ async function suppressShadcnEnvironmentHeading<T>(
   operation: () => Promise<T>
 ): Promise<T> {
   const originalWrite = process.stderr.write;
-  process.stderr.write = ((...args: unknown[]) => {
+  process.stderr.write = (...args: unknown[]) => {
     const [chunk] = args;
     // ShadCN 4.16.2 emits this Ora heading even when `silent` is enabled.
     if (String(chunk).includes(SHADCN_ENVIRONMENT_HEADING)) {
@@ -36,7 +37,7 @@ async function suppressShadcnEnvironmentHeading<T>(
       return true;
     }
     return Reflect.apply(originalWrite, process.stderr, args) as boolean;
-  }) as typeof process.stderr.write;
+  };
 
   try {
     return await operation();
@@ -45,13 +46,13 @@ async function suppressShadcnEnvironmentHeading<T>(
   }
 }
 
-export function addRegistryItemsQuietly(
+export async function addRegistryItemsQuietly(
   items: string[],
   options: AddRegistryItemsOptions
 ): Promise<void> {
-  return suppressShadcnEnvironmentHeading(() =>
-    addRegistryItems(items, { ...options, silent: true })
-  );
+  await suppressShadcnEnvironmentHeading(async () => {
+    await addRegistryItems(items, { ...options, silent: true });
+  });
 }
 
 function resolveArtifact(catalog: SourceRegistryCatalog, item: string) {
@@ -160,7 +161,7 @@ export async function withPreparedRegistryArtifacts<T>(options: {
         await writeFile(
           artifactPath,
           `${JSON.stringify({ ...artifact, registryDependencies }, null, 2)}\n`,
-          "utf8"
+          "utf-8"
         );
       })
     );
@@ -255,11 +256,12 @@ export async function installPreparedComposition(
     })),
     entryItems: prepared.entryItems,
     itemByReference: prepared.itemByReference,
-    run: (entries) =>
-      addRegistryItemsQuietly(entries, {
+    run: async (entries) => {
+      await addRegistryItemsQuietly(entries, {
         config: prepared.registryConfig,
         cwd: workspaceRoot,
         overwrite: true,
-      }),
+      });
+    },
   });
 }

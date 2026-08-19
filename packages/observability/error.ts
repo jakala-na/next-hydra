@@ -21,9 +21,11 @@ export const parseError = (error: unknown): string => {
   try {
     captureException(error);
     log.error(`Parsing error: ${message}`);
-  } catch (newError) {
+    // Shadows parseError's `error` param; catch bindings stay named `error`.
+    // oxlint-disable-next-line eslint/no-shadow
+  } catch (error) {
     // oxlint-disable-next-line no-console -- This fallback must report through the console.
-    console.error("Error parsing error:", newError);
+    console.error("Error parsing error:", error);
   }
 
   return message;

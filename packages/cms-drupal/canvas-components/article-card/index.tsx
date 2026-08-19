@@ -1,7 +1,5 @@
-import {
-  ArticleCard,
-  type ArticleTeaser,
-} from "@repo/design-system/components/cms/article-card";
+import { ArticleCard } from "@repo/design-system/components/cms/article-card";
+import type { ArticleTeaser } from "@repo/design-system/components/cms/article-card";
 import {
   Card,
   CardContent,

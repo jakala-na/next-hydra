@@ -4,10 +4,10 @@
  */
 
 import "server-only";
-
 import { createClient, fetchExchange } from "@urql/core";
 import memoize from "lodash.memoize";
 import { mapExchange } from "urql";
+
 import { keys } from "./keys";
 
 const makeClient = (livePreviewHash?: string) => {
@@ -17,21 +17,6 @@ const makeClient = (livePreviewHash?: string) => {
   const graphqlEndpoint = `https://${livePreviewHash ? graphqlLivePreviewHostName : graphqlHostName}/stacks/${keys().CONTENTSTACK_API_KEY}?environment=${keys().CONTENTSTACK_ENVIRONMENT}`;
 
   return createClient({
-    url: graphqlEndpoint,
-    fetchOptions: {
-      headers: {
-        access_token: keys().CONTENTSTACK_DELIVERY_TOKEN,
-        ...(livePreviewHash
-          ? {
-              live_preview: livePreviewHash,
-              preview_token: keys().CONTENTSTACK_PREVIEW_TOKEN,
-              // TODO: This currently breaks the query in a transformation layer outside of our control,
-              // report a bug to Contentstack and uncomment when it's fixed.
-              // include_applied_variants: 'true'
-            }
-          : {}),
-      },
-    },
     exchanges: [
       /**
        * It may seem counter-intuitive, but exchanges are bi-directional, so mapExchange can both pass things to fetch,
@@ -53,8 +38,8 @@ const makeClient = (livePreviewHash?: string) => {
             console.error("GraphQL Errors:", JSON.stringify(errors, null, 2));
 
             console.dir(operation.query.loc?.source?.body, {
-              depth: null,
               colors: true,
+              depth: null,
             });
           }
         },
@@ -64,6 +49,21 @@ const makeClient = (livePreviewHash?: string) => {
       }),
       fetchExchange,
     ],
+    fetchOptions: {
+      headers: {
+        access_token: keys().CONTENTSTACK_DELIVERY_TOKEN,
+        ...(livePreviewHash
+          ? {
+              live_preview: livePreviewHash,
+              preview_token: keys().CONTENTSTACK_PREVIEW_TOKEN,
+              // TODO: This currently breaks the query in a transformation layer outside of our control,
+              // report a bug to Contentstack and uncomment when it's fixed.
+              // include_applied_variants: 'true'
+            }
+          : {}),
+      },
+    },
+    url: graphqlEndpoint,
   });
 };
 

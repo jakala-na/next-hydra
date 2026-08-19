@@ -50,7 +50,7 @@ import type { Invitations } from "@repo/registration/services/invitations";
 import type { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
 import { RegistrationQueries } from "@repo/registration/services/registration-queries";
 import type { RegistrationQueryFailure } from "@repo/registration/services/registration-queries";
-import { RegistrationWorkflow } from "@repo/registration/services/registration-workflow";
+import type { RegistrationWorkflow } from "@repo/registration/services/registration-workflow";
 import { Registrations } from "@repo/registration/services/registrations";
 import type { RegistrationPersistenceFailure } from "@repo/registration/services/registrations";
 import type { VatValidator } from "@repo/registration/services/vat-validator";
@@ -209,7 +209,6 @@ const registrationDecisionAccessMiddlewareLayer = Layer.effect(
             .getById(AuthUserId.make(verifiedToken.authUserId))
             .pipe(
               Effect.catchTags({
-                IdentityUserNotFound: () => Effect.fail(unauthorized()),
                 IdentityUserLookupFailure: (error) =>
                   logRegistrationAuthenticationFailure(error).pipe(
                     Effect.andThen(
@@ -218,6 +217,7 @@ const registrationDecisionAccessMiddlewareLayer = Layer.effect(
                         : Effect.die(error)
                     )
                   ),
+                IdentityUserNotFound: () => Effect.fail(unauthorized()),
               }),
               Effect.map(registrationReviewerActorFromIdentityUser)
             );
@@ -358,21 +358,26 @@ const makeRegistrationHttpHandlers = () =>
             Effect.withLogSpan("registration.api.create"),
             Effect.mapError((error) => {
               switch (error._tag) {
-                case "RegistrationIntakeValidationError":
+                case "RegistrationIntakeValidationError": {
                   return projectRegistrationIntakeValidation(
                     error,
                     headers["x-context-locale"]
                   );
-                case "RegistrationPersistenceFailure":
+                }
+                case "RegistrationPersistenceFailure": {
                   return toRegistrationCreateApiError(error);
+                }
                 case "CommerceAccountUnavailable":
                 case "IdentityUserLookupFailure":
-                case "RegistrationQueryFailure":
+                case "RegistrationQueryFailure": {
                   return toRegistrationInternalApiError();
-                case "RegistrationWorkflowStartUnavailable":
+                }
+                case "RegistrationWorkflowStartUnavailable": {
                   return registrationUnavailable(headers["x-context-locale"]);
-                default:
+                }
+                default: {
                   return error satisfies never;
+                }
               }
             })
           )

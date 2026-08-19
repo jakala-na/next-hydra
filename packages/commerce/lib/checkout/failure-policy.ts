@@ -1,11 +1,9 @@
 /* oxlint-disable promise/prefer-await-to-callbacks -- Effect combinators transform Effect values, not Promises. */
 import { Effect, Filter } from "effect";
 
-import {
+import type {
   CheckoutMutationProviderFailure,
   CheckoutProviderFailure,
-} from "../../domain/checkout";
-import type {
   CheckoutMutationFailure,
   CheckoutMutationUnsupported,
   CheckoutUnavailable,

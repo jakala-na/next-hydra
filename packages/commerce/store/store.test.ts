@@ -1,42 +1,39 @@
 import { describe, expect, it } from "vitest";
+
 import { CurrencyCode } from "../domain/money";
-import {
-  CommerceLocale,
-  resolveStore,
-  type StoreConfiguration,
-  StoreKey,
-} from "./index";
+import { CommerceLocale, resolveStore, StoreKey } from "./index";
+import type { StoreConfiguration } from "./index";
 
 const enUs = CommerceLocale.make("en-US");
 const selectableStores = [
   {
-    storeKey: StoreKey.make("default-store"),
-    locale: enUs,
     currency: CurrencyCode.make("USD"),
     isDefault: true,
+    locale: enUs,
+    storeKey: StoreKey.make("default-store"),
   },
   {
-    storeKey: StoreKey.make("wholesale-store"),
-    locale: enUs,
     currency: CurrencyCode.make("USD"),
     isDefault: false,
+    locale: enUs,
+    storeKey: StoreKey.make("wholesale-store"),
   },
   {
-    storeKey: StoreKey.make("europe-store"),
-    locale: CommerceLocale.make("en-GB"),
     currency: CurrencyCode.make("GBP"),
     isDefault: true,
+    locale: CommerceLocale.make("en-GB"),
+    storeKey: StoreKey.make("europe-store"),
   },
 ] satisfies StoreConfiguration;
 
-describe("resolveStore", () => {
+describe(resolveStore, () => {
   it("resolves the locale's configured default Store", () => {
     const store = resolveStore({ locale: CommerceLocale.make("en-GB") });
 
     expect(store).toEqual({
-      storeKey: "de-fr-uk",
-      locale: "en-GB",
       currency: "GBP",
+      locale: "en-GB",
+      storeKey: "de-fr-uk",
     });
   });
 

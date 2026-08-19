@@ -9,33 +9,48 @@ import {
 import { Effect, Option, Schema } from "effect";
 import { beforeEach, vi } from "vitest";
 
-vi.mock("server-only", () => ({}));
-
 import { versionedKeyValueStoreLayerFrom } from "./versioned-store";
 
-const getExecute = vi.fn();
-const postExecute = vi.fn();
-const removeExecute = vi.fn();
-const get = vi.fn(() => ({ execute: getExecute }));
-const post = vi.fn(() => ({ execute: postExecute }));
-const remove = vi.fn(() => ({ execute: removeExecute }));
-const withContainerAndKey = vi.fn(() => ({ delete: remove, get }));
-const customObjects = vi.fn(() => ({ post, withContainerAndKey }));
+interface CustomObjectResponse {
+  readonly body?: {
+    readonly value: unknown;
+    readonly version: number;
+  };
+}
+
+const getExecute = vi.fn<() => Promise<CustomObjectResponse>>();
+const postExecute = vi.fn<() => Promise<CustomObjectResponse>>();
+const removeExecute = vi.fn<() => Promise<CustomObjectResponse>>();
+const get = vi.fn<() => { execute: typeof getExecute }>(() => ({
+  execute: getExecute,
+}));
+const post = vi.fn<() => { execute: typeof postExecute }>(() => ({
+  execute: postExecute,
+}));
+const remove = vi.fn<() => { execute: typeof removeExecute }>(() => ({
+  execute: removeExecute,
+}));
+const withContainerAndKey = vi.fn<
+  () => { delete: typeof remove; get: typeof get }
+>(() => ({ delete: remove, get }));
+const customObjects = vi.fn<
+  () => { post: typeof post; withContainerAndKey: typeof withContainerAndKey }
+>(() => ({ post, withContainerAndKey }));
 
 class StoredItem extends Schema.Class<StoredItem>("StoredItem")({
-  id: Schema.String,
   createdAt: Schema.Date,
+  id: Schema.String,
 }) {}
 
 const container = "versioned-key-value-store";
 const key = "item-1";
 const item = new StoredItem({
-  id: key,
   createdAt: new Date(0),
+  id: key,
 });
-const apiRoot = {
-  customObjects,
-} as unknown as ByProjectKeyRequestBuilder;
+// SAFETY: Test double only implements the customObjects methods this suite calls.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions -- CT SDK request builder is not constructible in unit tests.
+const apiRoot = { customObjects } as unknown as ByProjectKeyRequestBuilder;
 const layer = versionedKeyValueStoreLayerFrom({ apiRoot, container });
 
 const concurrentModificationError = Object.assign(
@@ -46,18 +61,18 @@ const concurrentModificationError = Object.assign(
   }
 );
 
-beforeEach(() => {
-  getExecute.mockReset();
-  postExecute.mockReset();
-  removeExecute.mockReset();
-  get.mockClear();
-  post.mockClear();
-  remove.mockClear();
-  withContainerAndKey.mockClear();
-  customObjects.mockClear();
-});
-
 describe("versionedKeyValueStoreLayer", () => {
+  beforeEach(() => {
+    getExecute.mockReset();
+    postExecute.mockReset();
+    removeExecute.mockReset();
+    get.mockClear();
+    post.mockClear();
+    remove.mockClear();
+    withContainerAndKey.mockClear();
+    customObjects.mockClear();
+  });
+
   it.effect("returns none for missing custom objects", () =>
     Effect.gen(function* () {
       getExecute.mockRejectedValueOnce(
@@ -67,7 +82,7 @@ describe("versionedKeyValueStoreLayer", () => {
 
       const missing = yield* store.get(key, StoredItem);
 
-      expect(Option.isNone(missing)).toBe(true);
+      expect(Option.isNone(missing)).toBeTruthy();
       expect(withContainerAndKey).toHaveBeenCalledWith({ container, key });
     }).pipe(Effect.provide(layer))
   );
@@ -77,8 +92,8 @@ describe("versionedKeyValueStoreLayer", () => {
       getExecute.mockResolvedValueOnce({
         body: {
           value: {
-            id: "item-1",
             createdAt: "1970-01-01T00:00:00.000Z",
+            id: "item-1",
           },
           version: 7,
         },
@@ -101,16 +116,16 @@ describe("versionedKeyValueStoreLayer", () => {
 
       yield* store.insert(key, StoredItem, item);
 
-      expect(customObjects).toHaveBeenCalled();
+      expect(customObjects).toHaveBeenCalledWith();
       expect(post).toHaveBeenCalledWith({
         body: {
           container,
           key,
-          version: 0,
           value: {
-            id: "item-1",
             createdAt: "1970-01-01T00:00:00.000Z",
+            id: "item-1",
           },
+          version: 0,
         },
       });
     }).pipe(Effect.provide(layer))
@@ -125,18 +140,18 @@ describe("versionedKeyValueStoreLayer", () => {
         key,
         StoredItem,
         { value: item, version: StoreVersion.make("7") },
-        new StoredItem({ id: key, createdAt: new Date(1) })
+        new StoredItem({ createdAt: new Date(1), id: key })
       );
 
       expect(post).toHaveBeenCalledWith({
         body: {
           container,
           key,
-          version: 7,
           value: {
-            id: "item-1",
             createdAt: "1970-01-01T00:00:00.001Z",
+            id: "item-1",
           },
+          version: 7,
         },
       });
     }).pipe(Effect.provide(layer))

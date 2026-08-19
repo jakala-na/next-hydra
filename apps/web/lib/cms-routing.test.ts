@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+
 import { resolveCmsPagePath } from "./cms-routing";
 
-describe("resolveCmsPagePath", () => {
+describe(resolveCmsPagePath, () => {
   it.each(["homepage", "/homepage", "//homepage//"])(
     "maps the root route to the configured CMS homepage slug %s",
     (homepageSlug) => {

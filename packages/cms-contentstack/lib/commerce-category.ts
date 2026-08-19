@@ -1,5 +1,6 @@
 import type { CategoryId } from "@repo/commerce/product";
 import { Option, Schema } from "effect";
+
 import { CommerceCategoryField } from "../types";
 
 /**

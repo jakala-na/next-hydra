@@ -19,15 +19,18 @@ import {
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CommerceLocale, resolveStore } from "@repo/commerce/store";
 import { Effect, Layer, Option } from "effect";
+
 import {
   CommercetoolsProductDiscoveryClient,
-  type CommercetoolsProductProjection,
   CommercetoolsProductRequestFailure,
-  type CommercetoolsProductSelectionRule,
-  type CommercetoolsProductVariant,
-  type ListCommercetoolsProductProjectionsInput,
-  type CommercetoolsProductDiscoveryClient as ProductClient,
-  type ResolveCommercetoolsProductContextInput,
+} from "./client";
+import type {
+  CommercetoolsProductProjection,
+  CommercetoolsProductSelectionRule,
+  CommercetoolsProductVariant,
+  ListCommercetoolsProductProjectionsInput,
+  CommercetoolsProductDiscoveryClient as ProductClient,
+  ResolveCommercetoolsProductContextInput,
 } from "./client";
 import { productDiscoveryLayerWithClient } from "./product-discovery";
 
@@ -38,19 +41,19 @@ const commerceContextLayer = (authenticated = false) =>
   Layer.succeed(
     CommerceContext,
     CommerceContext.of({
-      store,
+      customerPrincipal: () => Effect.die("not used"),
+      customerProfile: () => Effect.die("not used"),
       principal: authenticated
         ? new CustomerCommercePrincipal({
             authUserId: AuthUserId.make("auth-user-1"),
-            customerId: CommerceCustomerId.make("customer-1"),
             businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
             businessUnitKey: CommerceBusinessUnitKey.make(
               "business-unit-key-1"
             ),
+            customerId: CommerceCustomerId.make("customer-1"),
           })
         : new AnonymousCommercePrincipal({}),
-      customerPrincipal: () => Effect.die("not used"),
-      customerProfile: () => Effect.die("not used"),
+      store,
     })
   );
 
@@ -62,14 +65,6 @@ const context = {
 const variant = (
   overrides: Partial<CommercetoolsProductVariant> = {}
 ): CommercetoolsProductVariant => ({
-  id: 1,
-  sku: "sku-1",
-  images: [
-    {
-      url: "https://images.example.com/product-1.jpg",
-      label: "Product one",
-    },
-  ],
   attributesRaw: [
     { name: "model", value: 100 },
     {
@@ -78,28 +73,33 @@ const variant = (
     },
     {
       name: "relatedProducts",
-      value: [{ typeId: "product", id: "related-product-1" }],
+      value: [{ id: "related-product-1", typeId: "product" }],
     },
   ],
-  price: {
-    value: { centAmount: 10_000, currencyCode: "USD" },
-    discounted: {
-      value: { centAmount: 9000, currencyCode: "USD" },
-    },
-  },
   availability: {
     channels: [{ availableQuantity: 2 }, { availableQuantity: 3 }],
   },
+  id: 1,
+  images: [
+    {
+      label: "Product one",
+      url: "https://images.example.com/product-1.jpg",
+    },
+  ],
+  price: {
+    discounted: {
+      value: { centAmount: 9000, currencyCode: "USD" },
+    },
+    value: { centAmount: 10_000, currencyCode: "USD" },
+  },
+  sku: "sku-1",
   ...overrides,
 });
 
 const projection = (
   overrides: Partial<CommercetoolsProductProjection> = {}
 ): CommercetoolsProductProjection => ({
-  id: productId,
-  name: "Crawler crane",
-  description: "Heavy lifting equipment",
-  slug: "crawler-crane",
+  allVariants: [variant()],
   categories: [
     {
       id: "category-1",
@@ -107,26 +107,29 @@ const projection = (
       slug: "cranes",
     },
   ],
-  productType: {
-    key: "heavy-earthmoving-and-construction-equipment",
-  },
+  description: "Heavy lifting equipment",
+  id: productId,
   masterVariant: {
     images: [
       {
-        url: "https://images.example.com/product-1.jpg",
         label: "Product one",
+        url: "https://images.example.com/product-1.jpg",
       },
     ],
   },
-  allVariants: [variant()],
+  name: "Crawler crane",
+  productType: {
+    key: "heavy-earthmoving-and-construction-equipment",
+  },
+  slug: "crawler-crane",
   ...overrides,
 });
 
 const includeAll: readonly CommercetoolsProductSelectionRule[] = [
   {
     mode: "Individual",
-    variantSelection: null,
     variantExclusion: null,
+    variantSelection: null,
   },
 ];
 
@@ -134,11 +137,11 @@ const makeClientLayer = (
   handlers: Parameters<typeof CommercetoolsProductDiscoveryClient.testLayer>[0]
 ) =>
   CommercetoolsProductDiscoveryClient.testLayer({
-    resolveProductContext: () => Effect.succeed(context),
     getProductSelectionRules: (_storeKey, productIds) =>
       Effect.succeed(
         new Map(productIds.map((id) => [id, includeAll] as const))
       ),
+    resolveProductContext: () => Effect.succeed(context),
     ...handlers,
   });
 
@@ -164,11 +167,11 @@ describe("Commercetools Product Discovery", () => {
           | ResolveCommercetoolsProductContextInput
           | undefined;
         const clientLayer = makeClientLayer({
+          findProductBySlug: () => Effect.succeed(null),
           resolveProductContext: (input) => {
             receivedContext = input;
             return Effect.succeed(context);
           },
-          findProductBySlug: () => Effect.succeed(null),
         });
 
         const result = yield* runWithClient(
@@ -178,11 +181,11 @@ describe("Commercetools Product Discovery", () => {
           clientLayer
         );
 
-        expect(Option.isNone(result)).toBe(true);
-        expect(receivedContext).toEqual({
-          storeKey: "default-store",
-          locale: "en-US",
+        expect(Option.isNone(result)).toBeTruthy();
+        expect(receivedContext).toStrictEqual({
           customerId: undefined,
+          locale: "en-US",
+          storeKey: "default-store",
         });
       })
   );
@@ -196,13 +199,13 @@ describe("Commercetools Product Discovery", () => {
           | undefined;
         let receivedBuyerSegment: string | undefined;
         const clientLayer = makeClientLayer({
-          resolveProductContext: (input) => {
-            receivedContext = input;
-            return Effect.succeed({ ...context, customerGroupId: "segment-1" });
-          },
           findProductBySlug: (input) => {
             receivedBuyerSegment = input.context.customerGroupId;
             return Effect.succeed(null);
+          },
+          resolveProductContext: (input) => {
+            receivedContext = input;
+            return Effect.succeed({ ...context, customerGroupId: "segment-1" });
           },
         });
 
@@ -233,11 +236,8 @@ describe("Commercetools Product Discovery", () => {
       );
 
       expect(Option.getOrThrow(result)).toMatchObject({
-        id: "product-1",
-        slug: "crawler-crane",
-        productType: "heavy-earthmoving-and-construction-equipment",
-        title: "Crawler crane",
         defaultVariantId: "1",
+        id: "product-1",
         options: [
           {
             key: "model",
@@ -245,24 +245,27 @@ describe("Commercetools Product Discovery", () => {
             values: [{ key: "100", label: "100" }],
           },
         ],
+        productType: "heavy-earthmoving-and-construction-equipment",
+        slug: "crawler-crane",
+        title: "Crawler crane",
         variants: [
           {
-            id: "1",
-            sku: "sku-1",
             attributes: {
-              model: 100,
               mobility: { key: "crawler", label: "Crawler" },
+              model: 100,
               relatedProducts: ["related-product-1"],
-            },
-            optionValues: { model: "100" },
-            price: {
-              regular: { centAmount: 10_000, currencyCode: "USD" },
-              discounted: { centAmount: 9000, currencyCode: "USD" },
             },
             availability: {
               availableForSale: true,
               availableQuantity: 5,
             },
+            id: "1",
+            optionValues: { model: "100" },
+            price: {
+              discounted: { centAmount: 9000, currencyCode: "USD" },
+              regular: { centAmount: 10_000, currencyCode: "USD" },
+            },
+            sku: "sku-1",
           },
         ],
       });
@@ -279,14 +282,14 @@ describe("Commercetools Product Discovery", () => {
               projection({
                 allVariants: [
                   variant({
+                    attributesRaw: [{ name: "model", value: 100 }],
                     id: 1,
                     sku: "excluded",
-                    attributesRaw: [{ name: "model", value: 100 }],
                   }),
                   variant({
+                    attributesRaw: [{ name: "model", value: 200 }],
                     id: 2,
                     sku: "eligible",
-                    attributesRaw: [{ name: "model", value: 200 }],
                   }),
                 ],
               })
@@ -299,11 +302,11 @@ describe("Commercetools Product Discovery", () => {
                   [
                     {
                       mode: "Individual" as const,
-                      variantSelection: {
-                        type: "includeOnly" as const,
-                        skus: ["eligible"],
-                      },
                       variantExclusion: null,
+                      variantSelection: {
+                        skus: ["eligible"],
+                        type: "includeOnly" as const,
+                      },
                     },
                   ],
                 ],
@@ -320,7 +323,7 @@ describe("Commercetools Product Discovery", () => {
         const detail = Option.getOrThrow(result);
 
         expect(detail.defaultVariantId).toBe("2");
-        expect(detail.variants.map(({ id }) => id)).toEqual(["2"]);
+        expect(detail.variants.map(({ id }) => id)).toStrictEqual(["2"]);
       })
   );
 
@@ -344,8 +347,8 @@ describe("Commercetools Product Discovery", () => {
                 [
                   {
                     mode: "IndividualExclusion" as const,
-                    variantSelection: null,
                     variantExclusion: { skus: ["excluded"] },
+                    variantSelection: null,
                   },
                 ],
               ],
@@ -360,9 +363,9 @@ describe("Commercetools Product Discovery", () => {
         clientLayer
       );
 
-      expect(Option.getOrThrow(result).variants.map(({ sku }) => sku)).toEqual([
-        "eligible",
-      ]);
+      expect(
+        Option.getOrThrow(result).variants.map(({ sku }) => sku)
+      ).toStrictEqual(["eligible"]);
     })
   );
 
@@ -380,7 +383,7 @@ describe("Commercetools Product Discovery", () => {
         clientLayer
       );
 
-      expect(Option.isNone(result)).toBe(true);
+      expect(Option.isNone(result)).toBeTruthy();
     })
   );
 
@@ -415,8 +418,8 @@ describe("Commercetools Product Discovery", () => {
                 allVariants: [
                   variant({
                     price: {
-                      value: { centAmount: 10_000, currencyCode: "USD" },
                       discounted: null,
+                      value: { centAmount: 10_000, currencyCode: "USD" },
                     },
                   }),
                 ],
@@ -431,7 +434,7 @@ describe("Commercetools Product Discovery", () => {
           clientLayer
         );
 
-        expect(Option.getOrThrow(result).variants[0]?.price).toEqual({
+        expect(Option.getOrThrow(result).variants[0]?.price).toStrictEqual({
           regular: { centAmount: 10_000, currencyCode: "USD" },
         });
       })
@@ -445,9 +448,6 @@ describe("Commercetools Product Discovery", () => {
           findProductBySlug: () =>
             Effect.succeed(
               projection({
-                productType: {
-                  key: "heavy-lifting-and-specialized-equipment",
-                },
                 allVariants: [
                   variant({
                     attributesRaw: [
@@ -455,12 +455,15 @@ describe("Commercetools Product Discovery", () => {
                         name: "color",
                         value: {
                           key: "red",
-                          label: { "en-US": "Red", "de-DE": "Rot" },
+                          label: { "de-DE": "Rot", "en-US": "Red" },
                         },
                       },
                     ],
                   }),
                 ],
+                productType: {
+                  key: "heavy-lifting-and-specialized-equipment",
+                },
               })
             ),
         });
@@ -541,12 +544,15 @@ describe("Commercetools Product Discovery", () => {
 
         expect(receivedInput).toMatchObject({
           categoryId: "category-1",
+          context,
+          currency: "USD",
           limit: 3,
           locale: "en-US",
-          currency: "USD",
-          context,
         });
-        expect(cards.map(({ title }) => title)).toEqual(["Alpha", "Zulu"]);
+        expect(cards.map(({ title }) => title)).toStrictEqual([
+          "Alpha",
+          "Zulu",
+        ]);
       })
   );
 
@@ -557,29 +563,29 @@ describe("Commercetools Product Discovery", () => {
         const eligibleProduct = ProductId.make("product-eligible");
         const excludedProduct = ProductId.make("product-excluded");
         const productWithIneligibleCheapVariant = projection({
+          allVariants: [
+            variant({
+              availability: { channels: [{ availableQuantity: 20 }] },
+              id: 1,
+              price: {
+                discounted: null,
+                value: { centAmount: 100, currencyCode: "USD" },
+              },
+              sku: "cheap-ineligible",
+            }),
+            variant({
+              availability: { channels: [{ availableQuantity: 0 }] },
+              id: 2,
+              price: {
+                discounted: null,
+                value: { centAmount: 2000, currencyCode: "USD" },
+              },
+              sku: "eligible",
+            }),
+          ],
           id: eligibleProduct,
           name: "Eligible",
           slug: "eligible",
-          allVariants: [
-            variant({
-              id: 1,
-              sku: "cheap-ineligible",
-              price: {
-                value: { centAmount: 100, currencyCode: "USD" },
-                discounted: null,
-              },
-              availability: { channels: [{ availableQuantity: 20 }] },
-            }),
-            variant({
-              id: 2,
-              sku: "eligible",
-              price: {
-                value: { centAmount: 2000, currencyCode: "USD" },
-                discounted: null,
-              },
-              availability: { channels: [{ availableQuantity: 0 }] },
-            }),
-          ],
         });
         const rules = new Map([
           [
@@ -587,17 +593,18 @@ describe("Commercetools Product Discovery", () => {
             [
               {
                 mode: "Individual" as const,
-                variantSelection: {
-                  type: "includeOnly" as const,
-                  skus: ["eligible"],
-                },
                 variantExclusion: null,
+                variantSelection: {
+                  skus: ["eligible"],
+                  type: "includeOnly" as const,
+                },
               },
             ],
           ],
           [excludedProduct, includeAll],
         ]);
         const clientLayer = makeClientLayer({
+          getProductSelectionRules: () => Effect.succeed(rules),
           listProductProjections: () =>
             Effect.succeed([
               productWithIneligibleCheapVariant,
@@ -607,26 +614,25 @@ describe("Commercetools Product Discovery", () => {
                 slug: "excluded",
               }),
             ]),
-          getProductSelectionRules: () => Effect.succeed(rules),
         });
 
         const cards = yield* runWithClient(
           Effect.flatMap(ProductDiscovery, (service) =>
             service.listCards(
               new ListProductCardsInput({
-                limit: 3,
                 excludeProductId: excludedProduct,
+                limit: 3,
               })
             )
           ),
           clientLayer
         );
 
-        expect(cards).toEqual([
+        expect(cards).toStrictEqual([
           expect.objectContaining({
+            availableForSale: false,
             id: "product-eligible",
             startingPrice: { centAmount: 2000, currencyCode: "USD" },
-            availableForSale: false,
           }),
         ]);
       })
@@ -649,7 +655,7 @@ describe("Commercetools Product Discovery", () => {
         clientLayer
       );
 
-      expect(cards.map(({ id }) => id)).toEqual(["valid"]);
+      expect(cards.map(({ id }) => id)).toStrictEqual(["valid"]);
     })
   );
 
@@ -662,8 +668,8 @@ describe("Commercetools Product Discovery", () => {
           listProductProjections: () =>
             Effect.fail(
               new CommercetoolsProductRequestFailure({
-                message: "Commercetools unavailable",
                 cause: providerFailure,
+                message: "Commercetools unavailable",
               })
             ),
         });
@@ -679,11 +685,11 @@ describe("Commercetools Product Discovery", () => {
 
         expect(error).toMatchObject({
           _tag: "ProductDiscoveryFailure",
-          operation: "listCards",
           cause: {
             _tag: "CommercetoolsProductRequestFailure",
             cause: providerFailure,
           },
+          operation: "listCards",
         });
       })
   );

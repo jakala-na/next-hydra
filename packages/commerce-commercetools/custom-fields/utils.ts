@@ -1,4 +1,5 @@
 import type { Locale } from "@repo/i18n/types";
+
 import type {
   CustomField,
   CustomFieldRaw,

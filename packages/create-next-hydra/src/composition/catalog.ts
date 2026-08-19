@@ -343,7 +343,7 @@ export async function loadSourceRegistryCatalog(
     "source registry file"
   );
   const registryPath = path.resolve(resolvedCwd, safeRegistryFile);
-  const sourceRegistry = JSON.parse(await readFile(registryPath, "utf8")) as {
+  const sourceRegistry = JSON.parse(await readFile(registryPath, "utf-8")) as {
     homepage?: string;
     include?: string[];
   };

@@ -1,7 +1,5 @@
-import {
-  type CategoryId,
-  CategoryId as CategoryIdSchema,
-} from "@repo/commerce/product";
+import { CategoryId as CategoryIdSchema } from "@repo/commerce/product";
+import type { CategoryId } from "@repo/commerce/product";
 import { Option, Schema } from "effect";
 
 /**

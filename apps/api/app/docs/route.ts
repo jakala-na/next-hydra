@@ -1,4 +1,4 @@
 import { applicationApiDocsHandler } from "@/lib/openapi-docs";
 
-export const GET = (request: Request): Promise<Response> =>
-  applicationApiDocsHandler(request);
+export const GET = async (request: Request): Promise<Response> =>
+  await applicationApiDocsHandler(request);

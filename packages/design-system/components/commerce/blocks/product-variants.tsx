@@ -3,9 +3,8 @@
 import ImageViewer from "@repo/design-system/components/commerce/image-viewer-basic";
 import PriceFormat_Sale from "@repo/design-system/components/commerce/price-format-sale";
 import QuantityInputBasic from "@repo/design-system/components/commerce/quantity-input-basic";
-import VariantSelectorBasic, {
-  type VariantItem as BaseVariantItem,
-} from "@repo/design-system/components/commerce/variant-selector-basic";
+import VariantSelectorBasic from "@repo/design-system/components/commerce/variant-selector-basic";
+import type { VariantItem as BaseVariantItem } from "@repo/design-system/components/commerce/variant-selector-basic";
 import { Button } from "@repo/design-system/components/ui/button";
 import { useFormatter, useTranslations } from "@repo/i18n";
 import { Clock } from "lucide-react";
@@ -110,7 +109,7 @@ function ProductVariant({
   const currentImage = selectedVariant?.imageUrl || defaultImage;
   const currentPrice = selectedVariant.price;
   const currentSalePrice = selectedVariant.salePrice;
-  const currencyCode = selectedVariant.currencyCode;
+  const { currencyCode } = selectedVariant;
   const isOnSale =
     currentPrice !== undefined &&
     currentSalePrice !== undefined &&
@@ -118,9 +117,9 @@ function ProductVariant({
 
   // Get stock status from the selected variant
   const isInStock =
-    selectedVariant.isInStock !== undefined ? selectedVariant.isInStock : true; // Default to in stock if not specified
+    selectedVariant.isInStock === undefined ? true : selectedVariant.isInStock; // Default to in stock if not specified
 
-  const availableQuantity = selectedVariant.availableQuantity;
+  const { availableQuantity } = selectedVariant;
 
   const effectivePrice = isOnSale ? currentSalePrice : currentPrice;
 
@@ -157,7 +156,7 @@ function ProductVariant({
   // Add visual indicator for out of stock items in variant selector
   const variantsWithStockIndicator = variants.map((variant) => {
     const isVariantInStock =
-      variant.isInStock !== undefined ? variant.isInStock : true;
+      variant.isInStock === undefined ? true : variant.isInStock;
     return {
       ...variant,
       disabled: !isVariantInStock,

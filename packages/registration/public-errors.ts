@@ -260,8 +260,8 @@ export const registrationBadRequest = (
   issues?: readonly [ErrorIssue, ...ErrorIssue[]]
 ) =>
   makeInputInvalid({
-    message,
     issues: issues ?? [new ErrorIssue({ message, path: [] })],
+    message,
   });
 
 export const registrationDecisionOutcomeUnknown = (

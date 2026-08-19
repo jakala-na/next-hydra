@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
+
 import type { CompanyActor } from "../domain/actors";
 import type { RedactedEmail } from "../domain/identity";
 import type { CompanyMemberInvitationRole } from "../domain/roles";

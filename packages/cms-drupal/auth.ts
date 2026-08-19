@@ -1,4 +1,5 @@
-import { type DrupalKeys, getDrupalAuthUri, keys } from "./keys";
+import { getDrupalAuthUri, keys } from "./keys";
+import type { DrupalKeys } from "./keys";
 
 export type DrupalAccessMode = "previewer" | "viewer";
 
@@ -118,22 +119,22 @@ export function createDrupalTokenProvider({
     return authorization;
   };
 
-  return (mode: DrupalAccessMode): Promise<string> => {
+  return async (mode: DrupalAccessMode): Promise<string> => {
     const cached = cache.get(mode);
     if (cached && cached.expiresAt - TOKEN_EXPIRY_SKEW_MS > now()) {
-      return Promise.resolve(cached.authorization);
+      return cached.authorization;
     }
 
     const inFlight = pending.get(mode);
     if (inFlight) {
-      return inFlight;
+      return await inFlight;
     }
 
     const tokenRequest = requestToken(mode).finally(() => {
       pending.delete(mode);
     });
     pending.set(mode, tokenRequest);
-    return tokenRequest;
+    return await tokenRequest;
   };
 }
 
@@ -141,7 +142,9 @@ let runtimeTokenProvider:
   | ReturnType<typeof createDrupalTokenProvider>
   | undefined;
 
-export function getDrupalAccessToken(mode: DrupalAccessMode): Promise<string> {
+export async function getDrupalAccessToken(
+  mode: DrupalAccessMode
+): Promise<string> {
   if (!runtimeTokenProvider) {
     const config = keys();
     runtimeTokenProvider = createDrupalTokenProvider({
@@ -149,5 +152,5 @@ export function getDrupalAccessToken(mode: DrupalAccessMode): Promise<string> {
       credentials: credentialsFromKeys(config),
     });
   }
-  return runtimeTokenProvider(mode);
+  return await runtimeTokenProvider(mode);
 }

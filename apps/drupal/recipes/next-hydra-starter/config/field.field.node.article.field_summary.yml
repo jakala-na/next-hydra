@@ -9,10 +9,10 @@ field_name: field_summary
 entity_type: node
 bundle: article
 label: Summary
-description: 'Short teaser shown in article collections and page headers.'
+description: "Short teaser shown in article collections and page headers."
 required: true
 translatable: true
-default_value: {  }
-default_value_callback: ''
-settings: {  }
+default_value: {}
+default_value_callback: ""
+settings: {}
 field_type: string_long

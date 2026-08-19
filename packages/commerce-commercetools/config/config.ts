@@ -3,7 +3,7 @@ import { Config, Context, Effect, Layer, Redacted } from "effect";
 interface CommercetoolsConfigValue {
   readonly projectKey: string;
   readonly clientId: string;
-  readonly clientSecret: Redacted.Redacted<string>;
+  readonly clientSecret: Redacted.Redacted;
   readonly scope: string;
   readonly region: string;
 }
@@ -26,11 +26,11 @@ export class CommercetoolsConfig extends Context.Service<
       const region = yield* Config.nonEmptyString("COMMERCETOOLS_REGION");
 
       return CommercetoolsConfig.of({
-        projectKey,
         clientId,
         clientSecret,
-        scope,
+        projectKey,
         region,
+        scope,
       });
     })
   );
@@ -38,11 +38,11 @@ export class CommercetoolsConfig extends Context.Service<
   static readonly testLayer = Layer.succeed(
     CommercetoolsConfig,
     CommercetoolsConfig.of({
-      projectKey: "test-project",
       clientId: "test-client",
       clientSecret: Redacted.make("test-secret"),
-      scope: "manage_project:test-project",
+      projectKey: "test-project",
       region: "us-central1.gcp",
+      scope: "manage_project:test-project",
     })
   );
 }

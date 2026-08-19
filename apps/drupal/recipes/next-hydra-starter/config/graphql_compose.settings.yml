@@ -78,8 +78,8 @@ settings:
   exclude_unpublished: true
   expose_entity_ids: true
   field_required_override: false
-  schema_description: 'Next Hydra CMS'
-  schema_version: '1'
+  schema_description: "Next Hydra CMS"
+  schema_version: "1"
   simple_queries: true
   simple_unions: true
   site_front: false

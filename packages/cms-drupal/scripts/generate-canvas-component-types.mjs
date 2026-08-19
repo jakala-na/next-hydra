@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { resolveComponentRegistrySourcePaths } from "@drupal-canvas/headless/component-registry";
 import { buildComponentMetadataPayload } from "@drupal-canvas/headless/components-endpoint";
 
@@ -142,15 +143,19 @@ function schemaToType(schema, referenceSample, indentLevel) {
   }
 
   switch (schema.type) {
-    case "string":
+    case "string": {
       return "string";
+    }
     case "integer":
-    case "number":
+    case "number": {
       return "number";
-    case "boolean":
+    }
+    case "boolean": {
       return "boolean";
-    case "null":
+    }
+    case "null": {
       return "null";
+    }
     case "array": {
       const itemType = schema.items
         ? schemaToType(schema.items, undefined, indentLevel)
@@ -170,8 +175,9 @@ function schemaToType(schema, referenceSample, indentLevel) {
         ? renderObjectType(entries, indentLevel)
         : "Record<string, unknown>";
     }
-    default:
+    default: {
       return "unknown";
+    }
   }
 }
 
@@ -191,12 +197,15 @@ function valueToType(value, indentLevel) {
   }
 
   switch (typeof value) {
-    case "string":
+    case "string": {
       return "string";
-    case "number":
+    }
+    case "number": {
       return "number";
-    case "boolean":
+    }
+    case "boolean": {
       return "boolean";
+    }
     case "object": {
       const entries = Object.entries(value).map(([name, child]) => ({
         name,
@@ -205,8 +214,9 @@ function valueToType(value, indentLevel) {
       }));
       return renderObjectType(entries, indentLevel);
     }
-    default:
+    default: {
       return "unknown";
+    }
   }
 }
 
@@ -294,7 +304,7 @@ async function loadReferenceSamples(components, componentRoot) {
 async function readMocks(mocksPath) {
   let source;
   try {
-    source = await readFile(mocksPath, "utf8");
+    source = await readFile(mocksPath, "utf-8");
   } catch (error) {
     if (isFileNotFoundError(error)) {
       return [];
@@ -335,7 +345,7 @@ async function main() {
   }
 
   if (args.has("--check")) {
-    const current = await readFile(outputPath, "utf8").catch((error) => {
+    const current = await readFile(outputPath, "utf-8").catch((error) => {
       if (isFileNotFoundError(error)) {
         return;
       }
@@ -351,14 +361,14 @@ async function main() {
   }
 
   await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, source, "utf8");
+  await writeFile(outputPath, source, "utf-8");
   process.stdout.write(
     `Generated ${payload.components.length} Canvas component prop type(s) in ${outputPath}.\n`
   );
 }
 
 const entryPath = process.argv[1] ? resolve(process.argv[1]) : undefined;
-if (entryPath === fileURLToPath(import.meta.url)) {
+if (entryPath === import.meta.filename) {
   main().catch((error) => {
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`${message}\n`);

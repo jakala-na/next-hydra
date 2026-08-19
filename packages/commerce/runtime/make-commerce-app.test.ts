@@ -1,5 +1,6 @@
 import { Effect, Layer, ManagedRuntime, Option } from "effect";
 import { describe, expect, it, vi } from "vitest";
+
 import {
   CartId,
   LineItemId,
@@ -31,13 +32,11 @@ import { CommerceContext } from "../services/commerce-context";
 import { CurrentCart } from "../services/current-cart";
 import { CommerceLocale, resolveStore, StoreKey } from "../store";
 import type { CommerceRequestInput } from "./commerce-request";
-import {
-  type AddressBookRequestServices,
-  type CommerceRequestServices,
-  makeCommerceApp,
+import type {
+  AddressBookRequestServices,
+  CommerceRequestServices,
 } from "./make-commerce-app";
-
-vi.mock("server-only", () => ({}));
+import { makeCommerceApp } from "./make-commerce-app";
 
 const authUserId = AuthUserId.make("auth-user-1");
 const customerId = CommerceCustomerId.make("customer-1");
@@ -76,8 +75,8 @@ const cart = (id: string, businessUnitId: string) => ({
 });
 
 const makeCookie = () => {
-  const clear = vi.fn(() => Effect.void);
-  const set = vi.fn(() => Effect.void);
+  const clear = vi.fn<CurrentCartCookie["clear"]>(() => Effect.void);
+  const set = vi.fn<CurrentCartCookie["set"]>(() => Effect.void);
   return {
     adapter: { clear, set } satisfies CurrentCartCookie,
     clear,
@@ -89,10 +88,10 @@ const anonymousRequest = (
   cookie: CurrentCartCookie,
   anonymousCartId?: CartId
 ): CommerceRequestInput => ({
-  context: new AnonymousCommerceContextRequest({
-    store,
-    ...(anonymousCartId === undefined ? {} : { anonymousCartId }),
-  }),
+  context:
+    anonymousCartId === undefined
+      ? new AnonymousCommerceContextRequest({ store })
+      : new AnonymousCommerceContextRequest({ anonymousCartId, store }),
   currentCartCookie: cookie,
 });
 
@@ -100,11 +99,14 @@ const customerRequest = (
   cookie: CurrentCartCookie,
   businessUnitId?: CommerceBusinessUnitId
 ): CommerceRequestInput => ({
-  context: new CustomerCommerceContextRequest({
-    authUserId,
-    store,
-    ...(businessUnitId === undefined ? {} : { businessUnitId }),
-  }),
+  context:
+    businessUnitId === undefined
+      ? new CustomerCommerceContextRequest({ authUserId, store })
+      : new CustomerCommerceContextRequest({
+          authUserId,
+          businessUnitId,
+          store,
+        }),
   currentCartCookie: cookie,
 });
 
@@ -149,27 +151,27 @@ const makeApp = (
   });
 };
 
-const run = <A, E>(
+const run = async <A, E>(
   app: ReturnType<typeof makeApp>,
   request: CommerceRequestInput,
   program: Effect.Effect<A, E, CommerceRequestServices>
 ) =>
-  Effect.runPromise(
+  await Effect.runPromise(
     program.pipe(app.provide(request), Effect.provide(app.layer))
   );
 
-const runAddressBook = <A, E>(
+const runAddressBook = async <A, E>(
   app: ReturnType<typeof makeApp>,
   request: CustomerCommerceContextRequest,
   program: Effect.Effect<A, E, AddressBookRequestServices>
 ) =>
-  Effect.runPromise(
+  await Effect.runPromise(
     program.pipe(app.provideAddressBook(request), Effect.provide(app.layer))
   );
 
 describe("CommerceApp composition", () => {
   it("constructs its service graph lazily", async () => {
-    const constructed = vi.fn();
+    const constructed = vi.fn<() => void>();
     const addressBookLayer = Layer.effect(
       AddressBook,
       Effect.sync(() => {
@@ -245,7 +247,7 @@ describe("CommerceApp composition", () => {
       })
     );
 
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       cartId: "cart-business-unit-2",
       checkoutCartId: "cart-business-unit-2",
     });
@@ -277,7 +279,7 @@ describe("CommerceApp composition", () => {
       CurrentCart.get()
     );
 
-    expect(Option.isNone(current)).toBe(true);
+    expect(Option.isNone(current)).toBeTruthy();
     expect(cookie.clear).toHaveBeenCalledOnce();
   });
 
@@ -301,7 +303,7 @@ describe("CommerceApp composition", () => {
   });
 
   it("builds stable services once for multiple request provisions", async () => {
-    const stableLayerBuilt = vi.fn();
+    const stableLayerBuilt = vi.fn<() => void>();
     const app = makeApp(AddressBook.layerMemory(), stableLayerBuilt);
     const runtime = ManagedRuntime.make(app.layer);
 

@@ -1,9 +1,9 @@
 import {
-  type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@repo/design-system/components/ui/chart";
+import type { ChartConfig } from "@repo/design-system/components/ui/chart";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { useMemo } from "react";
 import {
@@ -21,46 +21,46 @@ import {
 } from "recharts";
 
 const multiSeriesData = [
-  { month: "January", desktop: 186, mobile: 80 },
-  { month: "February", desktop: 305, mobile: 200 },
-  { month: "March", desktop: 237, mobile: 120 },
-  { month: "April", desktop: 73, mobile: 190 },
-  { month: "May", desktop: 209, mobile: 130 },
-  { month: "June", desktop: 214, mobile: 140 },
+  { desktop: 186, mobile: 80, month: "January" },
+  { desktop: 305, mobile: 200, month: "February" },
+  { desktop: 237, mobile: 120, month: "March" },
+  { desktop: 73, mobile: 190, month: "April" },
+  { desktop: 209, mobile: 130, month: "May" },
+  { desktop: 214, mobile: 140, month: "June" },
 ];
 
 const multiSeriesConfig = {
   desktop: {
-    label: "Desktop",
     color: "hsl(var(--chart-1))",
+    label: "Desktop",
   },
   mobile: {
-    label: "Mobile",
     color: "hsl(var(--chart-2))",
+    label: "Mobile",
   },
 } satisfies ChartConfig;
 
 const singleSeriesData = [
-  { browser: "chrome", visitors: 275, fill: "var(--color-chrome)" },
-  { browser: "safari", visitors: 200, fill: "var(--color-safari)" },
-  { browser: "other", visitors: 190, fill: "var(--color-other)" },
+  { browser: "chrome", fill: "var(--color-chrome)", visitors: 275 },
+  { browser: "safari", fill: "var(--color-safari)", visitors: 200 },
+  { browser: "other", fill: "var(--color-other)", visitors: 190 },
 ];
 
 const singleSeriesConfig = {
-  visitors: {
-    label: "Visitors",
-  },
   chrome: {
-    label: "Chrome",
     color: "hsl(var(--chart-1))",
-  },
-  safari: {
-    label: "Safari",
-    color: "hsl(var(--chart-2))",
+    label: "Chrome",
   },
   other: {
-    label: "Other",
     color: "hsl(var(--chart-5))",
+    label: "Other",
+  },
+  safari: {
+    color: "hsl(var(--chart-2))",
+    label: "Safari",
+  },
+  visitors: {
+    label: "Visitors",
   },
 } satisfies ChartConfig;
 
@@ -68,13 +68,13 @@ const singleSeriesConfig = {
  * Beautiful charts. Built using Recharts. Copy and paste into your apps.
  */
 const meta = {
-  title: "ui/Chart",
-  component: ChartContainer,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
     children: <div />,
   },
+  component: ChartContainer,
+  tags: ["autodocs"],
+  title: "ui/Chart",
 } satisfies Meta<typeof ChartContainer>;
 
 export default meta;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   decodeDrupalPreviewContext,
   encodeDrupalPreviewContext,
@@ -16,7 +17,7 @@ describe("Drupal preview context", () => {
   it("round-trips a validated preview session", () => {
     expect(
       decodeDrupalPreviewContext(encodeDrupalPreviewContext(previewContext))
-    ).toEqual(previewContext);
+    ).toStrictEqual(previewContext);
 
     const nextContext = {
       kind: "next",
@@ -25,7 +26,7 @@ describe("Drupal preview context", () => {
     } as const;
     expect(
       decodeDrupalPreviewContext(encodeDrupalPreviewContext(nextContext))
-    ).toEqual(nextContext);
+    ).toStrictEqual(nextContext);
   });
 
   it("rejects malformed and unsafe preview sessions", () => {
@@ -38,8 +39,8 @@ describe("Drupal preview context", () => {
   });
 
   it("only accepts local absolute paths", () => {
-    expect(isSafeDrupalPreviewPath("/homepage")).toBe(true);
-    expect(isSafeDrupalPreviewPath("homepage")).toBe(false);
-    expect(isSafeDrupalPreviewPath("//malicious.example")).toBe(false);
+    expect(isSafeDrupalPreviewPath("/homepage")).toBeTruthy();
+    expect(isSafeDrupalPreviewPath("homepage")).toBeFalsy();
+    expect(isSafeDrupalPreviewPath("//malicious.example")).toBeFalsy();
   });
 });

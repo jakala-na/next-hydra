@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { buildComponentRegistryModule } from "@drupal-canvas/headless/component-registry";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -10,7 +11,7 @@ const source = await buildComponentRegistryModule({ modulePath, projectRoot });
 let currentSource;
 
 try {
-  currentSource = await readFile(modulePath, "utf8");
+  currentSource = await readFile(modulePath, "utf-8");
 } catch (error) {
   if (!isFileNotFoundError(error)) {
     throw error;

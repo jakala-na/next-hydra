@@ -1,6 +1,7 @@
 import { CategoryId } from "@repo/commerce/product";
 import type { Locale } from "@repo/i18n";
 import { Schema } from "effect";
+
 import type { LivePreviewHelper } from "./lib/utils/live-preview-helper";
 
 export type Maybe<T> = T | null;

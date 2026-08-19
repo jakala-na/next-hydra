@@ -1,6 +1,8 @@
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
-import { type FragmentOf, graphql, readFragment } from "../../graphql";
+
+import { graphql, readFragment } from "../../graphql";
+import type { FragmentOf } from "../../graphql";
 import { getNodeCacheTag } from "../../lib/cache-tags";
 import ComponentRenderer from "../component-renderer";
 

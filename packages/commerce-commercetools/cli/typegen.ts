@@ -89,7 +89,7 @@ const readSchemas = async <TSchema>(directory: string): Promise<TSchema[]> => {
     .filter((candidate) => candidate.endsWith(FILE_EXTENSION))
     .sort()) {
     schemas.push(
-      JSON.parse(await readFile(join(directory, file), "utf8")) as TSchema
+      JSON.parse(await readFile(join(directory, file), "utf-8")) as TSchema
     );
   }
   return schemas;
@@ -99,26 +99,35 @@ const customFieldKind = (
   fieldType: CustomTypeFieldDefinition["type"]
 ): GeneratedCustomFieldKind => {
   switch (fieldType.name) {
-    case "LocalizedEnum":
+    case "LocalizedEnum": {
       return "lenum";
-    case "Enum":
+    }
+    case "Enum": {
       return "enum";
-    case "LocalizedString":
+    }
+    case "LocalizedString": {
       return "ltext";
-    case "Number":
+    }
+    case "Number": {
       return "number";
-    case "Boolean":
+    }
+    case "Boolean": {
       return "boolean";
-    case "DateTime":
+    }
+    case "DateTime": {
       return "datetime";
-    case "Reference":
+    }
+    case "Reference": {
       return "reference";
-    case "Set":
+    }
+    case "Set": {
       return fieldType.elementType?.name === "Reference"
         ? "referenceSet"
         : customFieldKind(fieldType.elementType ?? { name: "String" });
-    default:
+    }
+    default: {
       return "text";
+    }
   }
 };
 
@@ -310,7 +319,7 @@ export const generateCustomTypes = async (
 import type { CustomField } from "../types";
 ${types.length === 0 ? "" : `\n${types}`}
 `,
-      "utf8"
+      "utf-8"
     ),
     writeFile(
       join(outputDirectory, "enum-values.ts"),
@@ -319,7 +328,7 @@ ${types.length === 0 ? "" : `\n${types}`}
 
 ${enumDefinitions}
 `,
-      "utf8"
+      "utf-8"
     ),
     writeFile(
       join(outputDirectory, "field-kinds.ts"),
@@ -339,7 +348,7 @@ export type GeneratedCustomFieldKind =
 
 ${fieldKindDefinitions}
 `,
-      "utf8"
+      "utf-8"
     ),
     writeFile(
       join(outputDirectory, "schemas.ts"),
@@ -355,7 +364,7 @@ ${schemaTypeImports}
 
 ${helpers}
 `,
-      "utf8"
+      "utf-8"
     ),
   ]);
 };
@@ -387,29 +396,37 @@ const productAttributeSchema = (
 ): string => {
   switch (attributeType.name) {
     case "text":
-    case "ltext":
+    case "ltext": {
       return "Schema.String";
-    case "number":
+    }
+    case "number": {
       return "Schema.Number";
-    case "boolean":
+    }
+    case "boolean": {
       return "Schema.Boolean";
+    }
     case "enum":
-    case "lenum":
+    case "lenum": {
       dependencies.add("ProductAttributeEnumValue");
       return "ProductAttributeEnumValue";
-    case "money":
+    }
+    case "money": {
       dependencies.add("Money");
       return "Money";
-    case "date":
+    }
+    case "date": {
       dependencies.add("ProductAttributeDate");
       return "ProductAttributeDate";
-    case "time":
+    }
+    case "time": {
       dependencies.add("ProductAttributeTime");
       return "ProductAttributeTime";
-    case "datetime":
+    }
+    case "datetime": {
       dependencies.add("ProductAttributeDateTime");
       return "ProductAttributeDateTime";
-    case "reference":
+    }
+    case "reference": {
       if (attributeType.referenceTypeId !== "product") {
         throw new Error(
           `Unsupported Product Attribute reference type: ${attributeType.referenceTypeId ?? "unknown"}`
@@ -417,6 +434,7 @@ const productAttributeSchema = (
       }
       dependencies.add("ProductId");
       return "ProductId";
+    }
     case "set": {
       if (attributeType.elementType === undefined) {
         throw new Error("Product Attribute set has no element type");
@@ -426,10 +444,11 @@ const productAttributeSchema = (
         dependencies
       )})`;
     }
-    default:
+    default: {
       throw new Error(
         `Unsupported Product Attribute type: ${attributeType.name}`
       );
+    }
   }
 };
 
@@ -626,6 +645,6 @@ export const generateProductTypes = async (
   await writeFile(
     join(outputDirectory, "attributes.ts"),
     generateProductTypesSource(schemas),
-    "utf8"
+    "utf-8"
   );
 };

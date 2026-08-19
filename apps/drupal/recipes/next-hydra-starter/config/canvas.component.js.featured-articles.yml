@@ -12,32 +12,30 @@ versioned_properties:
         title:
           required: true
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value:
-            -
-              value: 'Equipment guides'
+            - value: "Equipment guides"
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
         description:
           required: false
           field_type: string
-          field_storage_settings: {  }
-          field_instance_settings: {  }
+          field_storage_settings: {}
+          field_instance_settings: {}
           field_widget: string_textfield
           default_value:
-            -
-              value: 'Practical guidance for selecting, operating, and maintaining heavy equipment.'
+            - value: "Practical guidance for selecting, operating, and maintaining heavy equipment."
           expression: ℹ︎string␟value
           derived_schema_metadata:
-            string_shape: {  }
+            string_shape: {}
     fallback_metadata:
       slot_definitions:
         articles:
           title: Articles
-label: 'Featured Articles'
+label: "Featured Articles"
 id: js.featured-articles
 provider: null
 source: js

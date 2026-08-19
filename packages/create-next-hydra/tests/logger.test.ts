@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  type InstructionSection,
-  renderInstructions,
-} from "../src/instruction-renderer.js";
+import { renderInstructions } from "../src/instruction-renderer.js";
+import type { InstructionSection } from "../src/instruction-renderer.js";
 
 const sections = [
   {
@@ -66,6 +64,6 @@ describe("instruction rendering", () => {
         .trimEnd()
         .split("\n")
         .every((line) => [...line].length <= NARROW_TERMINAL_COLUMNS)
-    ).toBe(true);
+    ).toBeTruthy();
   });
 });

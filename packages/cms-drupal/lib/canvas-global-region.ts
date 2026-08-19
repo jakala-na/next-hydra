@@ -1,4 +1,5 @@
-import { type DraftData, getSessionToken } from "@drupal-canvas/headless";
+import { getSessionToken } from "@drupal-canvas/headless";
+import type { DraftData } from "@drupal-canvas/headless";
 import type { CanvasComponentTreeElement } from "@drupal-canvas/headless/server";
 import { z } from "zod";
 

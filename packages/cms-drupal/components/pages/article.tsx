@@ -3,7 +3,8 @@ import { ArticlePage as ArticlePageView } from "@repo/design-system/components/c
 import type { Locale } from "@repo/i18n";
 import { getPathname } from "@repo/i18n/navigation";
 
-import { type FragmentOf, graphql, readFragment } from "../../graphql";
+import { graphql, readFragment } from "../../graphql";
+import type { FragmentOf } from "../../graphql";
 import { getNodeCacheTag } from "../../lib/cache-tags";
 
 export const articleTeaserFragment = graphql(`

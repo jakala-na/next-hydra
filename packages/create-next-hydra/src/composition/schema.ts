@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import { z } from "zod";
 
 import { PROVIDER_SLOTS } from "./types.js";

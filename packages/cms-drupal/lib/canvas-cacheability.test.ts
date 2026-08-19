@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { getCanvasCachePolicy } from "./canvas-cacheability";
 
 const OVERLONG_CACHE_TAG_LENGTH = 257;
@@ -12,7 +13,7 @@ describe("Canvas cacheability", () => {
         maxAge: -1,
         tags: ["canvas_page:2", "node:42", "node:42"],
       })
-    ).toEqual({
+    ).toStrictEqual({
       life: {
         expire: Number.POSITIVE_INFINITY,
         revalidate: Number.POSITIVE_INFINITY,
@@ -29,7 +30,7 @@ describe("Canvas cacheability", () => {
         maxAge: 120,
         tags: ["canvas_page:2"],
       })
-    ).toEqual({
+    ).toStrictEqual({
       life: { expire: 120, revalidate: 120, stale: 120 },
       tags: ["canvas_page:2"],
     });
@@ -45,7 +46,7 @@ describe("Canvas cacheability", () => {
           (_, index) => `node:${index}`
         ),
       })
-    ).toEqual({
+    ).toStrictEqual({
       life: {
         expire: Number.POSITIVE_INFINITY,
         revalidate: Number.POSITIVE_INFINITY,
@@ -62,7 +63,7 @@ describe("Canvas cacheability", () => {
         maxAge: 120,
         tags: ["x".repeat(OVERLONG_CACHE_TAG_LENGTH)],
       })
-    ).toEqual({
+    ).toStrictEqual({
       life: { expire: 120, revalidate: 120, stale: 120 },
       tags: [],
     });

@@ -25,11 +25,8 @@ import {
   NEXT_HYDRA_SELECTION_SCHEMA_URL,
   selectionDefinitionSchema,
 } from "./schema.js";
-import {
-  type PackageRequirement,
-  PROVIDER_ALIASES,
-  type SelectionDefinition,
-} from "./types.js";
+import { PROVIDER_ALIASES } from "./types.js";
+import type { PackageRequirement, SelectionDefinition } from "./types.js";
 import { applyPackageEntries } from "./workspace.js";
 
 export type AddOptions = {
@@ -155,7 +152,7 @@ async function changeStatus(
   }
   const normalize = (content: string) =>
     content.replaceAll("\r\n", "\n").trim();
-  return normalize(await readFile(absoluteTarget, "utf8")) ===
+  return normalize(await readFile(absoluteTarget, "utf-8")) ===
     normalize(expected)
     ? "identical"
     : "changed";
@@ -212,7 +209,7 @@ async function inspectFiles(
   );
 }
 
-function inspectPackages(
+async function inspectPackages(
   workspaceRoot: string,
   requirements: PackageRequirement[],
   tree: NonNullable<Awaited<ReturnType<typeof resolveRegistryItems>>>
@@ -228,7 +225,7 @@ function inspectPackages(
     }
   }
 
-  return Promise.all(
+  return await Promise.all(
     requirements.map(async (requirement) => {
       const relativeManifest = path.posix.join(requirement.cwd, "package.json");
       const prospective = prospectiveManifests.get(relativeManifest);

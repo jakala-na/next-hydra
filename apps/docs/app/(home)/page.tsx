@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+
 import { Arcjet } from "@/components/assets/arcjet";
 import { Clerk } from "@/components/assets/clerk";
 import { Commercetools } from "@/components/assets/commercetools";
@@ -27,40 +28,40 @@ import { TerminalCommand } from "@/components/terminal-command";
 
 const starterKitFeatures = [
   {
-    title: "Typed GraphQL by default",
     description:
       "End-to-end type-safety with GraphQL and gql.tada keeps queries, fragments, and UI contracts aligned across apps and packages.",
     icon: Sparkles,
+    title: "Typed GraphQL by default",
   },
   {
-    title: "Contentstack Visual Builder",
     description:
       "Visual Builder support for Contentstack enabled marketers to preview and iterate on their draft content without waiting for builds and deployments.",
     icon: Eye,
+    title: "Contentstack Visual Builder",
   },
   {
-    title: "Multi-region B2B commerce",
     description:
       "A robust multi-region B2B commerce model covers regional product discovery, cart actions, and the primitives needed for further expansion.",
     icon: Globe,
+    title: "Multi-region B2B commerce",
   },
   {
-    title: "Security and observability",
     description:
       "Security and observability are built in through layered protections, error capture, and operational tooling instead of being deferred to later hardening.",
     icon: ShieldCheck,
+    title: "Security and observability",
   },
   {
-    title: "Layered UI architecture",
     description:
       "The opinionated design system encourages clean separation between presentational components and data-fetching orchestration, which keeps teams fast as complexity grows.",
     icon: Layers3,
+    title: "Layered UI architecture",
   },
   {
-    title: "Modern App Router delivery",
     description:
       "Next.js App Router architecture enables streaming of personalized content and delivers dynamic content at the speed of static.",
     icon: ArrowRight,
+    title: "Modern App Router delivery",
   },
 ];
 

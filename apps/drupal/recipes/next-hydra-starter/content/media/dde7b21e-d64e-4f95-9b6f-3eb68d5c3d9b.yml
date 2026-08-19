@@ -1,5 +1,5 @@
 _meta:
-  version: '1.0'
+  version: "1.0"
   entity_type: media
   uuid: dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b
   bundle: image
@@ -8,24 +8,18 @@ _meta:
     d1508587-433e-4c73-8249-1becea181c99: file
 default:
   status:
-    -
-      value: true
+    - value: true
   uid:
-    -
-      target_id: 1
+    - target_id: 1
   name:
-    -
-      value: 'Next Hydra hero'
+    - value: "Next Hydra hero"
   created:
-    -
-      value: 1754352000
+    - value: 1754352000
   revision_translation_affected:
-    -
-      value: true
+    - value: true
   field_media_image:
-    -
-      entity: d1508587-433e-4c73-8249-1becea181c99
-      alt: 'Heavy industrial excavator on a construction site'
-      title: ''
+    - entity: d1508587-433e-4c73-8249-1becea181c99
+      alt: "Heavy industrial excavator on a construction site"
+      title: ""
       width: 1024
       height: 1024

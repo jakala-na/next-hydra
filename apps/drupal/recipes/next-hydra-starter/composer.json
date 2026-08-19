@@ -3,7 +3,13 @@
   "description": "A minimal Drupal backend recipe for Next Hydra.",
   "license": "GPL-2.0-or-later",
   "type": "drupal-recipe",
-  "keywords": ["drupal", "graphql", "headless", "next-hydra", "recipe"],
+  "keywords": [
+    "drupal",
+    "graphql",
+    "headless",
+    "next-hydra",
+    "recipe"
+  ],
   "require": {
     "drupal/canvas": "^1.10",
     "drupal/canvas_translate": "^1.0@alpha",

@@ -8,9 +8,7 @@
       "title": "Next Hydra Drupal CMS provider",
       "description": "Installs the Drupal CMS provider package and its Drupal backend app.",
       "docs": "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
-      "registryDependencies": [
-        "jakala-na/next-hydra/drupal"
-      ],
+      "registryDependencies": ["jakala-na/next-hydra/drupal"],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/cms/drupal",

@@ -7,19 +7,21 @@ import {
 import type { Locale } from "@repo/i18n";
 import { Option } from "effect";
 import { Suspense } from "react";
-import { type FragmentOf, graphql, readFragment } from "../../graphql";
+
+import { graphql, readFragment } from "../../graphql";
+import type { FragmentOf } from "../../graphql";
 import { decodeCommerceCategoryId } from "../../lib/commerce-category";
 import { renderRichText } from "../../lib/utils/rich-text-utils";
 import type { ComponentBaseProps } from "../../types";
 
 export const dynamicProductCollectionFragment = graphql(`
-    fragment DynamicProductCollection on DynamicProductCollection {
-      heading
-      description {
-        json
-      }
-      product_category
+  fragment DynamicProductCollection on DynamicProductCollection {
+    heading
+    description {
+      json
     }
+    product_category
+  }
 `);
 
 export function DynamicProductCollection(

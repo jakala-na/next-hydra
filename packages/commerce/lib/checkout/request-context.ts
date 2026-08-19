@@ -1,13 +1,13 @@
 import {
-  type CheckoutScope,
   StorefrontAnonymousCheckoutScope,
   StorefrontCustomerCheckoutScope,
 } from "../../domain/checkout";
+import type { CheckoutScope } from "../../domain/checkout";
 import {
   AnonymousCommercePrincipal,
-  type CommercePrincipal,
   CustomerCommercePrincipal,
 } from "../../domain/commerce-request-context";
+import type { CommercePrincipal } from "../../domain/commerce-request-context";
 import type { Store } from "../../store";
 
 type CheckoutCommerceContext = {
@@ -23,19 +23,19 @@ export const toCheckoutScope = (
 
   if (principal instanceof AnonymousCommercePrincipal) {
     return new StorefrontAnonymousCheckoutScope({
+      anonymousCartId: principal.anonymousCartId,
       channel: "storefrontAnonymous",
       locale,
-      anonymousCartId: principal.anonymousCartId,
     });
   }
 
   if (principal instanceof CustomerCommercePrincipal) {
     return new StorefrontCustomerCheckoutScope({
-      channel: "storefrontCustomer",
-      locale,
-      customerId: principal.customerId,
       businessUnitId: principal.businessUnitId,
       businessUnitKey: principal.businessUnitKey,
+      channel: "storefrontCustomer",
+      customerId: principal.customerId,
+      locale,
     });
   }
 

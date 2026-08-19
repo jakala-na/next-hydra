@@ -1,3 +1,3 @@
 import { fileURLToPath } from "node:url";
 
-export const canvasProjectRoot = fileURLToPath(new URL(".", import.meta.url));
+export const canvasProjectRoot = import.meta.dirname;

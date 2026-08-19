@@ -1,5 +1,5 @@
 _meta:
-  version: '1.0'
+  version: "1.0"
   entity_type: menu_link_content
   uuid: 15492a61-b442-4c3f-87b9-c855201c9049
   bundle: menu_link_content
@@ -8,31 +8,22 @@ _meta:
     40cb84f8-f472-459f-9ee5-ce08c629ed5d: node
 default:
   enabled:
-    -
-      value: true
+    - value: true
   title:
-    -
-      value: Home
+    - value: Home
   menu_name:
-    -
-      value: main
+    - value: main
   link:
-    -
-      target_uuid: 40cb84f8-f472-459f-9ee5-ce08c629ed5d
-      title: ''
-      options: {  }
+    - target_uuid: 40cb84f8-f472-459f-9ee5-ce08c629ed5d
+      title: ""
+      options: {}
   external:
-    -
-      value: false
+    - value: false
   rediscover:
-    -
-      value: false
+    - value: false
   weight:
-    -
-      value: 0
+    - value: 0
   expanded:
-    -
-      value: false
+    - value: false
   revision_translation_affected:
-    -
-      value: true
+    - value: true

@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { pathExists } from "../../src/fs-utils.js";
@@ -55,7 +56,7 @@ async function createSourceRepository(): Promise<string> {
       })
   );
   const rootRegistryPath = path.join(source, "registry.json");
-  const rootRegistry = JSON.parse(await readFile(rootRegistryPath, "utf8"));
+  const rootRegistry = JSON.parse(await readFile(rootRegistryPath, "utf-8"));
   rootRegistry.include.push("fixtures/drupal-commerce-dam/registry.json");
   await writeFile(
     rootRegistryPath,
@@ -249,16 +250,16 @@ describe("scaffold composition", () => {
         });
       const stderrWriteSpy = vi
         .spyOn(process.stderr, "write")
-        .mockImplementation(((chunk: string | Uint8Array) => {
+        .mockImplementation((chunk: string | Uint8Array) => {
           stderrOutput.push(String(chunk));
           return true;
-        }) as typeof process.stderr.write);
+        });
       const stdoutWriteSpy = vi
         .spyOn(process.stdout, "write")
-        .mockImplementation(((chunk: string | Uint8Array) => {
+        .mockImplementation((chunk: string | Uint8Array) => {
           stdoutOutput.push(String(chunk));
           return true;
-        }) as typeof process.stdout.write);
+        });
 
       try {
         await scaffoldProject(options(target, "contentstack"), {
@@ -293,87 +294,85 @@ describe("scaffold composition", () => {
       });
       await typecheckWeb(contentstackTarget);
 
-      expect(
-        await pathExists(
+      await expect(
+        pathExists(
           path.join(
             contentstackTarget,
             "packages/cms-contentstack/package.json"
           )
         )
-      ).toBe(true);
-      expect(
-        await pathExists(path.join(contentstackTarget, "packages/cms-drupal"))
-      ).toBe(false);
-      expect(
-        await pathExists(
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(contentstackTarget, "packages/cms-drupal"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(
           path.join(
             contentstackTarget,
             "patches/@drupal-canvas__headless.patch"
           )
         )
-      ).toBe(false);
-      expect(
-        await pathExists(path.join(contentstackTarget, "apps/drupal"))
-      ).toBe(false);
-      expect(
-        await pathExists(
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(path.join(contentstackTarget, "apps/drupal"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(
           path.join(contentstackTarget, "packages/auth-workos/package.json")
         )
-      ).toBe(true);
-      expect(
-        await pathExists(
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(
           path.join(
             contentstackTarget,
             "packages/commerce-commercetools/package.json"
           )
         )
-      ).toBe(true);
-      expect(
-        await pathExists(path.join(contentstackTarget, "next-hydra.json"))
-      ).toBe(false);
-      expect(
-        await pathExists(path.join(contentstackTarget, "pnpm-lock.yaml"))
-      ).toBe(true);
-      expect(
-        await pathExists(path.join(contentstackTarget, "registry.json"))
-      ).toBe(false);
-      expect(
-        await pathExists(
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(contentstackTarget, "next-hydra.json"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(path.join(contentstackTarget, "pnpm-lock.yaml"))
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(contentstackTarget, "registry.json"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(
           path.join(contentstackTarget, "packages/cms-contentstack/registry")
         )
-      ).toBe(false);
-      expect(
-        await pathExists(
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(
           path.join(
             contentstackTarget,
             "packages/cms-contentstack/registry.json"
           )
         )
-      ).toBe(false);
-      expect(
-        await pathExists(
-          path.join(contentstackTarget, "packages/create-next-hydra")
-        )
-      ).toBe(false);
-      expect(
-        await pathExists(
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(path.join(contentstackTarget, "packages/create-next-hydra"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(
           path.join(
             contentstackTarget,
             "apps/web/app/api/canvas/components/route.ts"
           )
         )
-      ).toBe(false);
-      expect(
-        await readFile(
+      ).resolves.toBeFalsy();
+      await expect(
+        readFile(
           path.join(contentstackTarget, "apps/web/app/api/draft/route.ts"),
-          "utf8"
+          "utf-8"
         )
-      ).toContain('export { GET } from "@repo/cms/routes/draft";');
+      ).resolves.toContain('export { GET } from "@repo/cms/routes/draft";');
 
       const contentstackWeb = JSON.parse(
         await readFile(
           path.join(contentstackTarget, "apps/web/package.json"),
-          "utf8"
+          "utf-8"
         )
       );
       expect(contentstackWeb.dependencies["@repo/cms"]).toBe(
@@ -392,50 +391,40 @@ describe("scaffold composition", () => {
         install: installWebWorkspace,
       });
       await typecheckWeb(drupalTarget);
-      expect(
-        await pathExists(
-          path.join(drupalTarget, "packages/cms-drupal/package.json")
-        )
-      ).toBe(true);
-      expect(
-        await pathExists(path.join(drupalTarget, "packages/cms-contentstack"))
-      ).toBe(false);
-      expect(
-        await pathExists(path.join(drupalTarget, "apps/drupal/composer.json"))
-      ).toBe(true);
-      expect(
-        await pathExists(path.join(drupalTarget, "apps/drupal/LICENSE.txt"))
-      ).toBe(true);
-      expect(
-        await pathExists(
-          path.join(drupalTarget, "apps/drupal/docroot/index.php")
-        )
-      ).toBe(false);
-      expect(
-        await pathExists(
-          path.join(drupalTarget, "apps/drupal/.lando.local.yml")
-        )
-      ).toBe(false);
-      expect(
-        await pathExists(
+      await expect(
+        pathExists(path.join(drupalTarget, "packages/cms-drupal/package.json"))
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(drupalTarget, "packages/cms-contentstack"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(path.join(drupalTarget, "apps/drupal/composer.json"))
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(drupalTarget, "apps/drupal/LICENSE.txt"))
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(drupalTarget, "apps/drupal/docroot/index.php"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(path.join(drupalTarget, "apps/drupal/.lando.local.yml"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(
           path.join(drupalTarget, "patches/@drupal-canvas__headless.patch")
         )
-      ).toBe(true);
-      expect(
-        await pathExists(
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(
           path.join(drupalTarget, "apps/web/app/api/canvas/components/route.ts")
         )
-      ).toBe(true);
-      expect(
-        await pathExists(
-          path.join(drupalTarget, "packages/cms-drupal/registry")
-        )
-      ).toBe(false);
-      expect(
-        await pathExists(
-          path.join(drupalTarget, "packages/cms-drupal/registry.json")
-        )
-      ).toBe(false);
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(drupalTarget, "packages/cms-drupal/registry"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(path.join(drupalTarget, "packages/cms-drupal/registry.json"))
+      ).resolves.toBeFalsy();
 
       const asset =
         "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp";
@@ -459,11 +448,9 @@ describe("scaffold composition", () => {
         },
         { install: fakeRootInstall }
       );
-      expect(
-        await pathExists(
-          path.join(presetTarget, "packages/cms-drupal/package.json")
-        )
-      ).toBe(true);
+      await expect(
+        pathExists(path.join(presetTarget, "packages/cms-drupal/package.json"))
+      ).resolves.toBeTruthy();
     },
     E2E_TIMEOUT
   );
@@ -480,35 +467,35 @@ describe("scaffold composition", () => {
         { install: fakeRootInstall }
       );
 
-      expect(
-        await readFile(
+      await expect(
+        readFile(
           path.join(target, "packages/cms-drupal/integrations/dam.ts"),
-          "utf8"
+          "utf-8"
         )
-      ).toBe("export const drupalCommerceDam = true;\n");
-      expect(
-        await pathExists(
+      ).resolves.toBe("export const drupalCommerceDam = true;\n");
+      await expect(
+        pathExists(
           path.join(
             target,
             "apps/drupal/docroot/modules/custom/next_hydra_dam/next_hydra_dam.info.yml"
           )
         )
-      ).toBe(true);
-      expect(
-        await pathExists(
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(
           path.join(target, "apps/web/app/api/canvas/components/route.ts")
         )
-      ).toBe(true);
-      expect(
-        await pathExists(path.join(target, "packages/cms-drupal/registry"))
-      ).toBe(false);
-      expect(
-        await pathExists(path.join(target, "packages/cms-drupal/registry.json"))
-      ).toBe(false);
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(target, "packages/cms-drupal/registry"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(path.join(target, "packages/cms-drupal/registry.json"))
+      ).resolves.toBeFalsy();
       const drupalPackage = JSON.parse(
         await readFile(
           path.join(target, "packages/cms-drupal/package.json"),
-          "utf8"
+          "utf-8"
         )
       );
       expect(drupalPackage.dependencies.nanoid).toBe("^5.1.6");
@@ -521,7 +508,7 @@ describe("scaffold composition", () => {
           addOns: ["drupal-commerce-dam"],
         })
       ).rejects.toThrow(INCOMPATIBLE_DRUPAL_ADD_ON);
-      expect(await pathExists(incompatibleTarget)).toBe(false);
+      await expect(pathExists(incompatibleTarget)).resolves.toBeFalsy();
     },
     E2E_TIMEOUT
   );
@@ -532,32 +519,30 @@ describe("scaffold composition", () => {
       const target = path.join(testRoot, "failed-project");
       await expect(
         scaffoldProject(options(target, "contentstack"), {
-          install: () =>
-            Promise.reject(new Error("forced package-manager failure")),
+          install: async () => {
+            throw new Error("forced package-manager failure");
+          },
         })
       ).rejects.toThrow(PARTIAL_PROJECT_PRESERVED);
 
-      expect(await pathExists(target)).toBe(true);
-      expect(await pathExists(path.join(target, "apps/web/package.json"))).toBe(
-        true
-      );
-      expect(await pathExists(path.join(target, "pnpm-lock.yaml"))).toBe(true);
-      expect(
-        await readFile(
-          path.join(target, "apps/web/app/api/draft/route.ts"),
-          "utf8"
-        )
-      ).toContain('export { GET } from "@repo/cms/routes/draft";');
-      expect(
-        await pathExists(
+      await expect(pathExists(target)).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(target, "apps/web/package.json"))
+      ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(target, "pnpm-lock.yaml"))
+      ).resolves.toBeTruthy();
+      await expect(
+        readFile(path.join(target, "apps/web/app/api/draft/route.ts"), "utf-8")
+      ).resolves.toContain('export { GET } from "@repo/cms/routes/draft";');
+      await expect(
+        pathExists(
           path.join(target, "apps/web/app/api/canvas/components/route.ts")
         )
-      ).toBe(false);
-      expect(
-        await pathExists(
-          path.join(target, "packages/cms-contentstack/registry")
-        )
-      ).toBe(false);
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(path.join(target, "packages/cms-contentstack/registry"))
+      ).resolves.toBeFalsy();
     },
     E2E_TIMEOUT
   );

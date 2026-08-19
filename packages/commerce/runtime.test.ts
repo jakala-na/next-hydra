@@ -1,8 +1,7 @@
 import { Effect } from "effect";
-import { describe, expect, it, vi } from "vitest";
-import { CommerceRuntimeNotConfigured, NextCommerce } from "./runtime";
+import { describe, expect, it } from "vitest";
 
-vi.mock("server-only", () => ({}));
+import { CommerceRuntimeNotConfigured, NextCommerce } from "./runtime";
 
 describe("Commerce runtime binding", () => {
   it("fails explicitly when the host does not configure Commerce", async () => {

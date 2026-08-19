@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { intro } from "@clack/prompts";
 
 import { cloneStarter } from "./clone.js";
@@ -69,7 +70,7 @@ function quotePathForShell(value: string): string {
     return value;
   }
 
-  return `'${value.replace(/'/g, `'"'"'`)}'`;
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
 
 async function resolveAndValidateTarget(
@@ -136,7 +137,7 @@ async function localRepositoryPath(repoUrl: string): Promise<string | null> {
 }
 
 function githubRepository(repoUrl: string): string | null {
-  const scpMatch = repoUrl.match(GITHUB_SCP_REPOSITORY);
+  const scpMatch = GITHUB_SCP_REPOSITORY.exec(repoUrl);
   if (scpMatch?.[1] && scpMatch[2]) {
     return `${scpMatch[1]}/${scpMatch[2]}`;
   }
@@ -309,9 +310,9 @@ export async function scaffoldProject(
 
   try {
     spin.start("Cloning next-hydra starter");
-    await runStep("clone the starter", () =>
-      cloneStarter({ ref, repoUrl, targetPath, verbose })
-    );
+    await runStep("clone the starter", async () => {
+      await cloneStarter({ ref, repoUrl, targetPath, verbose });
+    });
     spin.stop("Starter cloned");
 
     spin.start("Resolving workspace composition");
@@ -350,23 +351,23 @@ export async function scaffoldProject(
     info(formatCompositionPlan(plan));
 
     spin.start("Removing unselected provider source");
-    await runStep("remove variable provider source", () =>
-      removeWorkspaceTargets(targetPath, plan.variableTargets)
-    );
+    await runStep("remove variable provider source", async () => {
+      await removeWorkspaceTargets(targetPath, plan.variableTargets);
+    });
     spin.stop("Variable provider source removed");
 
     spin.start("Installing selected provider source");
-    await runStep("install selected source", () =>
-      installPreparedComposition(targetPath, prepared)
-    );
+    await runStep("install selected source", async () => {
+      await installPreparedComposition(targetPath, prepared);
+    });
     spin.stop("Selected provider source installed");
 
-    await runStep("update package aliases", () =>
-      applyPackageRequirements(targetPath, plan)
-    );
-    await runStep("update pnpm patches", () =>
-      applyPnpmPatches(targetPath, plan)
-    );
+    await runStep("update package aliases", async () => {
+      await applyPackageRequirements(targetPath, plan);
+    });
+    await runStep("update pnpm patches", async () => {
+      await applyPnpmPatches(targetPath, plan);
+    });
     spin.start("Removing maintainer-only files");
     const { packageName } = await runStep(
       "remove maintainer-only files",
@@ -407,8 +408,10 @@ export async function scaffoldProject(
           ? "Initializing git repo and creating initial commit"
           : "Initializing git repo"
       );
-      const gitResult = await runStep("initialize Git", () =>
-        initializeGitRepository(targetPath, { commit, verbose })
+      const gitResult = await runStep(
+        "initialize Git",
+        async () =>
+          await initializeGitRepository(targetPath, { commit, verbose })
       );
       ({ committed, gitInitialized } = gitResult);
       spin.stop(

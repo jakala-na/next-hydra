@@ -1,6 +1,8 @@
 import path from "node:path";
+
 import type { RegistryItem } from "shadcn/schema";
 import { describe, expect, it } from "vitest";
+
 import { loadSourceRegistryCatalog } from "../src/composition/catalog.js";
 import { CompositionValidationError } from "../src/composition/errors.js";
 import { planComposition } from "../src/composition/planner.js";
@@ -95,7 +97,7 @@ describe("composition planner failures", () => {
       slot: "cms",
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBeFalsy();
   });
 
   it("rejects preset fields on an Add-on", () => {
@@ -104,7 +106,7 @@ describe("composition planner failures", () => {
       selections: { addOns: [] },
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBeFalsy();
   });
 
   it("rejects asset targets that name the workspace root", () => {
@@ -116,7 +118,7 @@ describe("composition planner failures", () => {
         slot: "cms",
       });
 
-      expect(result.success).toBe(false);
+      expect(result.success).toBeFalsy();
     }
   });
 
@@ -169,8 +171,8 @@ describe("composition planner failures", () => {
       },
     });
 
-    expect(plan.selection.addOns).toEqual(["drupal-commerce-dam"]);
-    expect(plan.registryItems).toEqual([
+    expect(plan.selection.addOns).toStrictEqual(["drupal-commerce-dam"]);
+    expect(plan.registryItems).toStrictEqual([
       "auth-workos",
       "cms-drupal",
       "commerce-commercetools",
@@ -254,7 +256,7 @@ describe("composition planner failures", () => {
       },
     });
 
-    expect(plan.selection.addOns).toEqual([
+    expect(plan.selection.addOns).toStrictEqual([
       "next-hydra/add-on/dam-core",
       "next-hydra/add-on/drupal-commerce-dam",
     ]);

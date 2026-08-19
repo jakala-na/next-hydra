@@ -8,13 +8,13 @@ import { RegistrationSubmissionPublicError } from "../public-errors";
 export const REGION_REQUIRED_COUNTRY_CODES = ["US", "CA"] as const;
 
 export const REGISTRATION_FIELD_LIMITS = {
+  actorName: 120,
+  approvalReason: 500,
   companyName: 120,
   companyPhone: 32,
-  vatId: 64,
   contactName: 80,
-  approvalReason: 500,
-  actorName: 120,
   listLimit: 100,
+  vatId: 64,
 } as const;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -60,8 +60,8 @@ export const getCountryOptions = (locale: string) => {
   });
 
   return COUNTRY_CODES.map((value) => ({
-    value,
     label: countryDisplayNames.of(value) ?? value,
+    value,
   })).sort((left, right) => left.label.localeCompare(right.label));
 };
 
@@ -100,52 +100,49 @@ export const makeRegistrationFormInputSchema = (
   t: RegistrationFormTranslator
 ) => {
   const addressSchema = Schema.Struct({
-    streetName: requiredString({
-      requiredMessage: t("validation.streetAddress"),
-      max: REGISTRATION_FIELD_LIMITS.companyName,
-      maxMessage: t("validation.streetAddress"),
-    }),
     additionalStreetInfo: stringWithLength({
       max: REGISTRATION_FIELD_LIMITS.companyName,
       maxMessage: t("validation.streetAddress"),
     }),
-    postalCode: requiredString({
-      requiredMessage: t("validation.postalCode"),
-      max: REGISTRATION_FIELD_LIMITS.companyPhone,
-      maxMessage: t("validation.postalCode"),
-    }),
     city: requiredString({
-      requiredMessage: t("validation.city"),
       max: REGISTRATION_FIELD_LIMITS.contactName,
       maxMessage: t("validation.city"),
+      requiredMessage: t("validation.city"),
+    }),
+    country: Schema.Literals(COUNTRY_CODES),
+    postalCode: requiredString({
+      max: REGISTRATION_FIELD_LIMITS.companyPhone,
+      maxMessage: t("validation.postalCode"),
+      requiredMessage: t("validation.postalCode"),
     }),
     region: Schema.Trim,
-    country: Schema.Literals(COUNTRY_CODES),
+    streetName: requiredString({
+      max: REGISTRATION_FIELD_LIMITS.companyName,
+      maxMessage: t("validation.streetAddress"),
+      requiredMessage: t("validation.streetAddress"),
+    }),
   });
 
   return Schema.Struct({
+    address: addressSchema,
     companyName: requiredString({
-      requiredMessage: t("validation.companyName"),
       max: REGISTRATION_FIELD_LIMITS.companyName,
       maxMessage: t("validation.companyNameMax"),
+      requiredMessage: t("validation.companyName"),
     }),
     companyPhone: stringWithLength({
       max: REGISTRATION_FIELD_LIMITS.companyPhone,
       maxMessage: t("validation.companyPhone"),
     }),
-    vatId: stringWithLength({
-      max: REGISTRATION_FIELD_LIMITS.vatId,
-      maxMessage: t("validation.vatId"),
-    }),
     contactFirstName: requiredString({
-      requiredMessage: t("validation.firstName"),
       max: REGISTRATION_FIELD_LIMITS.contactName,
       maxMessage: t("validation.firstNameMax"),
+      requiredMessage: t("validation.firstName"),
     }),
     contactLastName: requiredString({
-      requiredMessage: t("validation.lastName"),
       max: REGISTRATION_FIELD_LIMITS.contactName,
       maxMessage: t("validation.lastNameMax"),
+      requiredMessage: t("validation.lastName"),
     }),
     email: Schema.Trim.pipe(
       Schema.check(
@@ -154,14 +151,17 @@ export const makeRegistrationFormInputSchema = (
         })
       )
     ),
-    address: addressSchema,
+    vatId: stringWithLength({
+      max: REGISTRATION_FIELD_LIMITS.vatId,
+      maxMessage: t("validation.vatId"),
+    }),
   }).pipe(
     Schema.check(
       Schema.makeFilter((input) =>
         requiresRegion(input.address.country) && !input.address.region
           ? {
-              path: ["address", "region"],
               issue: t("validation.region"),
+              path: ["address", "region"],
             }
           : undefined
       )

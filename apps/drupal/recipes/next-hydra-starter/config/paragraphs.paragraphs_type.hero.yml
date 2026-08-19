@@ -1,9 +1,9 @@
 langcode: en
 status: true
-dependencies: {  }
+dependencies: {}
 id: hero
-label: 'Hero section'
+label: "Hero section"
 icon_uuid: null
 icon_default: null
-description: 'Hydra hero with tagline, heading, description, image, and up to two actions.'
-behavior_plugins: {  }
+description: "Hydra hero with tagline, heading, description, image, and up to two actions."
+behavior_plugins: {}

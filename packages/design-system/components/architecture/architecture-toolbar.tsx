@@ -1,7 +1,9 @@
 "use client";
 
 import { Boxes, DatabaseZap, EyeOff, Layers3, Server } from "lucide-react";
-import { type MouseEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { MouseEvent } from "react";
+
 import { architectureOverlaysEnabled } from "./architecture-config";
 
 const STORAGE_KEY = "next-hydra-architecture-overlay";

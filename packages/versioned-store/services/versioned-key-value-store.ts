@@ -18,8 +18,8 @@ export interface Versioned<A> {
 export class StoreConflict extends Schema.TaggedErrorClass<StoreConflict>()(
   "StoreConflict",
   {
-    message: Schema.String,
     key: Schema.String,
+    message: Schema.String,
     operation: Schema.Literals(["insert", "remove", "update"]),
   }
 ) {}
@@ -34,10 +34,10 @@ export type StoreFailureReason = typeof StoreFailureReason.Type;
 export class StoreError extends Schema.TaggedErrorClass<StoreError>()(
   "StoreError",
   {
-    message: Schema.String,
-    key: Schema.String,
-    operation: Schema.Literals(["read", "insert", "remove", "update"]),
     cause: Schema.Defect,
+    key: Schema.String,
+    message: Schema.String,
+    operation: Schema.Literals(["read", "insert", "remove", "update"]),
     reason: StoreFailureReason,
   }
 ) {}
@@ -60,12 +60,12 @@ const storeError = (
   reason: StoreError["reason"] = "invalidData"
 ) =>
   new StoreError({
+    cause,
+    key,
     message: `Failed to ${operation} store value ${key}: ${
       cause instanceof Error ? cause.message : String(cause)
     }`,
-    key,
     operation,
-    cause,
     reason,
   });
 
@@ -92,22 +92,20 @@ const encodeValue = <S extends Schema.Top>(
   operation: "insert" | "update",
   schema: S,
   value: S["Type"]
-) => {
-  return encodeJsonString(schema, value).pipe(
+) =>
+  encodeJsonString(schema, value).pipe(
     Effect.mapError((error) => storeError(key, operation, error))
   );
-};
 
 const decodeValue = <S extends Schema.Top>(
   key: string,
   schema: S,
   stored: StoredValue
-) => {
-  return decodeJsonString(schema, stored.encoded).pipe(
+) =>
+  decodeJsonString(schema, stored.encoded).pipe(
     Effect.map((value) => ({ value, version: stored.version })),
     Effect.mapError((error) => storeError(key, "read", error))
   );
-};
 
 export class VersionedKeyValueStore extends Context.Service<
   VersionedKeyValueStore,
@@ -188,8 +186,8 @@ export class VersionedKeyValueStore extends Context.Service<
           if (entries.has(key)) {
             return Effect.fail(
               new StoreConflict({
-                message: `Store insert conflict for ${key}: Key already exists`,
                 key,
+                message: `Store insert conflict for ${key}: Key already exists`,
                 operation: "insert",
               })
             );
@@ -215,8 +213,8 @@ export class VersionedKeyValueStore extends Context.Service<
           if (!stored || stored.version !== current.version) {
             return Effect.fail(
               new StoreConflict({
-                message: `Store update conflict for ${key}: Stored version does not match current version`,
                 key,
+                message: `Store update conflict for ${key}: Stored version does not match current version`,
                 operation: "update",
               })
             );
@@ -245,8 +243,8 @@ export class VersionedKeyValueStore extends Context.Service<
             if (stored.version !== current.version) {
               return Effect.fail(
                 new StoreConflict({
-                  message: `Store remove conflict for ${key}: Stored version does not match current version`,
                   key,
+                  message: `Store remove conflict for ${key}: Stored version does not match current version`,
                   operation: "remove",
                 })
               );

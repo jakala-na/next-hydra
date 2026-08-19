@@ -8,11 +8,10 @@ const componentMetadata = createComponentMetadataHandler({
   scanComponents:
     process.env.NODE_ENV === "development"
       ? async () => {
-          const { buildComponentMetadataPayload } = await import(
-            "@drupal-canvas/headless/components-endpoint"
-          );
+          const { buildComponentMetadataPayload } =
+            await import("@drupal-canvas/headless/components-endpoint");
 
-          return buildComponentMetadataPayload({
+          return await buildComponentMetadataPayload({
             projectRoot: process.env.CANVAS_PROJECT_ROOT ?? process.cwd(),
           });
         }

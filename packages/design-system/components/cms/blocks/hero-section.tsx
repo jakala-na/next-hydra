@@ -1,7 +1,8 @@
-import type { LivePreviewProps } from "../../../lib/types";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
+
+import type { LivePreviewProps } from "../../../lib/types";
 import { Button } from "../../ui/button";
 
 type HeroSectionProps = {

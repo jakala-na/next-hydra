@@ -10,13 +10,13 @@ field_name: field_articles
 entity_type: paragraph
 bundle: featured_articles
 label: Articles
-description: 'Select up to three articles to feature.'
+description: "Select up to three articles to feature."
 required: true
 translatable: true
-default_value: {  }
-default_value_callback: ''
+default_value: {}
+default_value_callback: ""
 settings:
-  handler: 'default:node'
+  handler: "default:node"
   handler_settings:
     target_bundles:
       article: article
@@ -24,5 +24,5 @@ settings:
       field: created
       direction: DESC
     auto_create: false
-    auto_create_bundle: ''
+    auto_create_bundle: ""
 field_type: entity_reference

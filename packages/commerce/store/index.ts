@@ -1,5 +1,7 @@
-import { locales, regions, type SupportedLocale } from "@repo/i18n/config";
+import { locales, regions } from "@repo/i18n/config";
+import type { SupportedLocale } from "@repo/i18n/config";
 import { Schema } from "effect";
+
 import { CurrencyCode } from "../domain/money";
 
 export const CommerceLocale = Schema.Literals(locales).pipe(
@@ -11,9 +13,9 @@ export const StoreKey = Schema.NonEmptyString.pipe(Schema.brand("StoreKey"));
 export type StoreKey = typeof StoreKey.Type;
 
 export class Store extends Schema.Class<Store>("Store")({
-  storeKey: StoreKey,
-  locale: CommerceLocale,
   currency: CurrencyCode,
+  locale: CommerceLocale,
+  storeKey: StoreKey,
 }) {}
 
 export interface ConfiguredStore {
@@ -26,22 +28,22 @@ export interface ConfiguredStore {
 export type StoreConfiguration = readonly ConfiguredStore[];
 
 const defaultStoreKeyByLocale = {
+  "de-DE": "de-fr-uk",
+  "en-GB": "de-fr-uk",
   "en-US": "default-store",
   "es-ES": "default-store",
-  "it-IT": "default-store",
-  "pt-PT": "default-store",
-  "nl-NL": "default-store",
-  "en-GB": "de-fr-uk",
   "fr-FR": "de-fr-uk",
-  "de-DE": "de-fr-uk",
+  "it-IT": "default-store",
+  "nl-NL": "default-store",
+  "pt-PT": "default-store",
 } as const satisfies Record<SupportedLocale, string>;
 
 export const storeConfiguration: StoreConfiguration = regions.map(
   ({ currency, localeCode }) => ({
-    storeKey: StoreKey.make(defaultStoreKeyByLocale[localeCode]),
-    locale: CommerceLocale.make(localeCode),
     currency: CurrencyCode.make(currency),
     isDefault: true,
+    locale: CommerceLocale.make(localeCode),
+    storeKey: StoreKey.make(defaultStoreKeyByLocale[localeCode]),
   })
 );
 
@@ -73,8 +75,8 @@ export const resolveStore = (
   }
 
   return new Store({
-    storeKey: resolvedStore.storeKey,
-    locale: resolvedStore.locale,
     currency: resolvedStore.currency,
+    locale: resolvedStore.locale,
+    storeKey: resolvedStore.storeKey,
   });
 };

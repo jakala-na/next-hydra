@@ -1,7 +1,5 @@
-import {
-  AddressBookReference,
-  type AddressBookReference as AddressBookReferenceValue,
-} from "@repo/commerce/domain/address-book";
+import { AddressBookReference } from "@repo/commerce/domain/address-book";
+import type { AddressBookReference as AddressBookReferenceValue } from "@repo/commerce/domain/address-book";
 import { Option, Schema } from "effect";
 
 const ADDRESS_KEY_PREFIX = "address-book-";
@@ -9,7 +7,7 @@ const ADDRESS_KEY_PREFIX = "address-book-";
 export const toCommercetoolsAddressKey = (
   reference: AddressBookReferenceValue
 ): string =>
-  `${ADDRESS_KEY_PREFIX}${Buffer.from(String(reference), "utf8").toString(
+  `${ADDRESS_KEY_PREFIX}${Buffer.from(String(reference), "utf-8").toString(
     "base64url"
   )}`;
 
@@ -21,7 +19,7 @@ export const fromCommercetoolsAddressKey = (
   }
 
   const encoded = key.slice(ADDRESS_KEY_PREFIX.length);
-  const decoded = Buffer.from(encoded, "base64url").toString("utf8");
+  const decoded = Buffer.from(encoded, "base64url").toString("utf-8");
   const reference = Option.getOrUndefined(
     Schema.decodeUnknownOption(AddressBookReference)(decoded)
   );

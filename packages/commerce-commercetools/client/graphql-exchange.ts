@@ -4,14 +4,8 @@ import type {
   GraphQLResponse,
   GraphQLVariablesMap,
 } from "@commercetools/platform-sdk";
-import {
-  type Exchange,
-  getOperationName,
-  makeErrorResult,
-  makeResult,
-  type Operation,
-  type OperationResult,
-} from "@urql/core";
+import { getOperationName, makeErrorResult, makeResult } from "@urql/core";
+import type { Exchange, Operation, OperationResult } from "@urql/core";
 import { Option, Schema } from "effect";
 import { filter, fromPromise, merge, mergeMap, pipe, takeUntil } from "wonka";
 

@@ -1,6 +1,8 @@
 import { createCheckoutTranslator } from "@repo/i18n/checkout-messages";
 import { Option, Schema } from "effect";
-import { type CheckoutViolation, CountryCode } from "../../domain/checkout";
+
+import { CountryCode } from "../../domain/checkout";
+import type { CheckoutViolation } from "../../domain/checkout";
 import type { CommerceLocale } from "../../store";
 
 export const localizedCountryName = (
@@ -57,14 +59,18 @@ export const checkoutViolationMessage = (
         maxQuantity,
       });
     }
-    case "INCOMPATIBLE_CART_ITEMS":
+    case "INCOMPATIBLE_CART_ITEMS": {
       return t("violations.incompatibleCartItems");
+    }
     case "shipping.region.unsupported":
-    case "SHIPPING_ADDRESS_RESTRICTED":
+    case "SHIPPING_ADDRESS_RESTRICTED": {
       return t("violations.shippingAddressRestricted");
-    case "POLICY_ERROR":
+    }
+    case "POLICY_ERROR": {
       return t("violations.policyUnavailable");
-    default:
+    }
+    default: {
       return t("violations.generic");
+    }
   }
 };

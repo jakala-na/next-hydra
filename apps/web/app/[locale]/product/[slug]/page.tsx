@@ -17,7 +17,7 @@ export async function generateMetadata({
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
-  return generateMetadataHandler({ locale, slug });
+  return await generateMetadataHandler({ locale, slug });
 }
 
 export default async function ProductDetail({

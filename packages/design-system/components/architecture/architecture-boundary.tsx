@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+
 import { architectureOverlaysEnabled } from "./architecture-config";
 
 export type ArchitectureComponent = "client" | "server";

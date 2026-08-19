@@ -193,7 +193,7 @@ test("GET /address-book sanitizes response schema defects at the shared HTTP bou
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
-    expect(body).toEqual({
+    expect(body).toStrictEqual({
       _tag: "Unexpected",
       category: "unexpected",
       code: "unexpected",
@@ -312,7 +312,7 @@ test.each(["invalidData", "unexpectedResponse"] as const)(
       const body = await response.json();
 
       expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
-      expect(body).toEqual({
+      expect(body).toStrictEqual({
         _tag: "Unexpected",
         category: "unexpected",
         code: "unexpected",

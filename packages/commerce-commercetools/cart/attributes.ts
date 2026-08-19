@@ -228,10 +228,10 @@ export function reshapeProductAttributes<TKey extends ProductTypeKey>(
       attributes as ExtractedAttributes<"heavy-lifting-and-specialized-equipment">;
     return {
       capacity: a.capacity,
+      color: a.color,
       iso45001: a.iso45001,
       mobility: a.mobility,
-      color: a.color,
     } as ProductAttributes<TKey>;
   }
-  return {} as ProductAttributes<TKey>;
+  return {};
 }

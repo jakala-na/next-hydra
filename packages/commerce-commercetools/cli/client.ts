@@ -1,12 +1,11 @@
-import {
-  type ByProjectKeyRequestBuilder,
-  createApiBuilderFromCtpClient,
-} from "@commercetools/platform-sdk";
-import {
-  type AuthMiddlewareOptions,
-  ClientBuilder,
-  type HttpMiddlewareOptions,
+import { createApiBuilderFromCtpClient } from "@commercetools/platform-sdk";
+import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
+import { ClientBuilder } from "@commercetools/ts-client";
+import type {
+  AuthMiddlewareOptions,
+  HttpMiddlewareOptions,
 } from "@commercetools/ts-client";
+
 import type { CommerceCliEnvironment } from "./environment";
 
 const INTERNAL_SERVER_ERROR_STATUS = 500;
@@ -16,25 +15,25 @@ export const createCommercetoolsClient = (
   environment: CommerceCliEnvironment
 ): ByProjectKeyRequestBuilder => {
   const authMiddlewareOptions: AuthMiddlewareOptions = {
-    host: `https://auth.${environment.COMMERCETOOLS_REGION}.commercetools.com`,
-    projectKey: environment.COMMERCETOOLS_PROJECT_KEY,
     credentials: {
       clientId: environment.COMMERCETOOLS_CLIENT_ID,
       clientSecret: environment.COMMERCETOOLS_CLIENT_SECRET,
     },
-    scopes: environment.COMMERCETOOLS_SCOPE.split(" "),
+    host: `https://auth.${environment.COMMERCETOOLS_REGION}.commercetools.com`,
     httpClient: fetch,
+    projectKey: environment.COMMERCETOOLS_PROJECT_KEY,
+    scopes: environment.COMMERCETOOLS_SCOPE.split(" "),
   };
 
   const httpMiddlewareOptions: HttpMiddlewareOptions = {
+    enableRetry: true,
     host: `https://api.${environment.COMMERCETOOLS_REGION}.commercetools.com`,
     httpClient: fetch,
-    enableRetry: true,
     retryConfig: {
-      maxRetries: 3,
-      retryDelay: 200,
       backoff: false,
+      maxRetries: 3,
       retryCodes: [INTERNAL_SERVER_ERROR_STATUS, SERVICE_UNAVAILABLE_STATUS],
+      retryDelay: 200,
     },
   };
 

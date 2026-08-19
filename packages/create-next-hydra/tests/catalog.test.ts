@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
 import { loadRegistryItem } from "shadcn/registry";
 import { describe, expect, it } from "vitest";
 
@@ -29,19 +30,19 @@ describe("Next Hydra source registry", () => {
         "packages/cms-drupal/registry/apps/web/app/api/draft/route.ts",
         "~/apps/web/app/api/draft/route.ts"
       )
-    ).toBe(true);
+    ).toBeTruthy();
     expect(
       isManagedApplicationSource(
         "packages/example/src/registry/lookup.ts",
         "~/packages/example/src/registry/lookup.ts"
       )
-    ).toBe(false);
+    ).toBeFalsy();
   });
 
   it("loads the official registry artifacts and required package targets", async () => {
     const catalog = await loadSourceRegistryCatalog(repoRoot);
 
-    expect([...catalog.items.keys()].sort()).toEqual([
+    expect([...catalog.items.keys()].sort()).toStrictEqual([
       "auth-workos",
       "cms-contentstack",
       "cms-drupal",
@@ -78,13 +79,13 @@ describe("Next Hydra source registry", () => {
         ...(contentstack.files ?? []),
         ...(backendApp.files ?? []),
       ].every((file) => Boolean(file.target && file.content !== undefined))
-    ).toBe(true);
+    ).toBeTruthy();
   });
 
   it("resolves the portable standard preset", async () => {
     const catalog = await loadSourceRegistryCatalog(repoRoot);
 
-    expect(selectionFromPreset(catalog, "standard")).toEqual({
+    expect(selectionFromPreset(catalog, "standard")).toStrictEqual({
       addOns: [],
       providers: {
         auth: "workos",
@@ -109,13 +110,13 @@ describe("Next Hydra source registry", () => {
       providers: { ...base, cms: "contentstack" },
     });
 
-    expect(drupal.registryItems).toEqual([
+    expect(drupal.registryItems).toStrictEqual([
       "auth-workos",
       "cms-drupal",
       "commerce-commercetools",
       "drupal",
     ]);
-    expect(contentstack.registryItems).toEqual([
+    expect(contentstack.registryItems).toStrictEqual([
       "auth-workos",
       "cms-contentstack",
       "commerce-commercetools",
@@ -131,14 +132,14 @@ describe("Next Hydra source registry", () => {
       "apps/web/app/api/canvas/components/route.ts"
     );
     expect(drupal.pnpmPatches).toHaveLength(DRUPAL_PNPM_PATCH_COUNT);
-    expect(contentstack.pnpmPatches).toEqual([]);
-    expect(drupal.instructions).toEqual([
+    expect(contentstack.pnpmPatches).toStrictEqual([]);
+    expect(drupal.instructions).toStrictEqual([
       "Configure the WorkOS environment variables described by packages/auth-workos before starting the applications.",
       "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
       "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
     ]);
-    expect(planComposition(catalog, drupal.selection)).toEqual(drupal);
-    expect(contentstack.variableTargets).toEqual(drupal.variableTargets);
+    expect(planComposition(catalog, drupal.selection)).toStrictEqual(drupal);
+    expect(contentstack.variableTargets).toStrictEqual(drupal.variableTargets);
   });
 
   it("loads a locally developed Add-on without adding it to the root registry", async () => {
@@ -212,7 +213,7 @@ describe("Next Hydra source registry", () => {
       });
       const prepared = await prepareComposition(catalog, plan);
 
-      expect(plan.selection.addOns).toEqual([artifactPath]);
+      expect(plan.selection.addOns).toStrictEqual([artifactPath]);
       expect(plan.registryItems).toContain("external-backend");
       expect(
         prepared.artifacts.find((item) => item.name === "external-dam")
@@ -252,11 +253,9 @@ describe("Next Hydra source registry", () => {
     const graph = await fetchRegistryItemGraph({
       config: catalog.registryConfig,
       cwd: repoRoot,
-      fetchItems: (items) => {
+      fetchItems: async (items) => {
         requests.push(items);
-        return Promise.resolve([
-          items[0] === helperReference ? helper : pinned,
-        ]);
+        return [items[0] === helperReference ? helper : pinned];
       },
       itemByReference: catalog.itemByReference,
       items: catalog.items.values(),
@@ -264,9 +263,9 @@ describe("Next Hydra source registry", () => {
       repository: "jakala-na/next-hydra",
     });
 
-    expect(requests).toEqual([[reference], [helperReference]]);
-    expect(graph.items.get("cms-drupal")).toEqual(pinned);
-    expect(graph.items.get(helper.name)).toEqual(helper);
+    expect(requests).toStrictEqual([[reference], [helperReference]]);
+    expect(graph.items.get("cms-drupal")).toStrictEqual(pinned);
+    expect(graph.items.get(helper.name)).toStrictEqual(helper);
     expect(graph.itemByReference.get(reference)).toBe("cms-drupal");
   });
 
@@ -277,7 +276,7 @@ describe("Next Hydra source registry", () => {
           repoRoot,
           "packages/create-next-hydra/schema/selection-definition.json"
         ),
-        "utf8"
+        "utf-8"
       )
     );
     const sourceRegistrySchema = JSON.parse(
@@ -286,7 +285,7 @@ describe("Next Hydra source registry", () => {
           repoRoot,
           "packages/create-next-hydra/schema/source-registry.json"
         ),
-        "utf8"
+        "utf-8"
       )
     );
     const catalog = await loadSourceRegistryCatalog(repoRoot);
@@ -294,7 +293,7 @@ describe("Next Hydra source registry", () => {
     expect(selectionSchema.allOf[0].$ref).toBe(
       "https://ui.shadcn.com/schema/registry-item.json"
     );
-    expect(selectionSchema.$defs.nextHydra.additionalProperties).toBe(false);
+    expect(selectionSchema.$defs.nextHydra.additionalProperties).toBeFalsy();
     expect(sourceRegistrySchema.allOf[1].properties.items.items.then.$ref).toBe(
       NEXT_HYDRA_SELECTION_SCHEMA_URL
     );
@@ -304,6 +303,6 @@ describe("Next Hydra source registry", () => {
           catalog.items.get(selection.itemName)?.$schema ===
           NEXT_HYDRA_SELECTION_SCHEMA_URL
       )
-    ).toBe(true);
+    ).toBeTruthy();
   });
 });

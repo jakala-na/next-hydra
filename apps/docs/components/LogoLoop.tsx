@@ -45,32 +45,38 @@ export interface LogoLoopProps {
 }
 
 const ANIMATION_CONFIG = {
-  SMOOTH_TAU: 0.25,
-  MIN_COPIES: 2,
   COPY_HEADROOM: 2,
+  MIN_COPIES: 2,
+  SMOOTH_TAU: 0.25,
 } as const;
 
 const toCssLength = (value?: number | string): string | undefined =>
   typeof value === "number" ? `${value}px` : (value ?? undefined);
 
-const cx = (...parts: Array<string | false | null | undefined>) =>
+const cx = (...parts: (string | false | null | undefined)[]) =>
   parts.filter(Boolean).join(" ");
 
 const useResizeObserver = (
   callback: () => void,
-  elements: Array<React.RefObject<Element | null>>,
+  elements: React.RefObject<Element | null>[],
   dependencies: React.DependencyList
 ) => {
   useEffect(() => {
     if (!window.ResizeObserver) {
-      const handleResize = () => callback();
+      const handleResize = () => {
+        callback();
+      };
       window.addEventListener("resize", handleResize);
       callback();
-      return () => window.removeEventListener("resize", handleResize);
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
     }
 
     const observers = elements.map((ref) => {
-      if (!ref.current) return null;
+      if (!ref.current) {
+        return null;
+      }
       const observer = new ResizeObserver(callback);
       observer.observe(ref.current);
       return observer;
@@ -106,7 +112,7 @@ const useImageLoader = (
     };
 
     images.forEach((img) => {
-      const htmlImg = img as HTMLImageElement;
+      const htmlImg = img;
       if (htmlImg.complete) {
         handleImageLoad();
       } else {
@@ -140,7 +146,9 @@ const useAnimationLoop = (
 
   useEffect(() => {
     const track = trackRef.current;
-    if (!track) return;
+    if (!track) {
+      return;
+    }
 
     const prefersReduced =
       typeof window !== "undefined" &&
@@ -238,9 +246,15 @@ export const LogoLoop = React.memo<LogoLoopProps>(
     const [isHovered, setIsHovered] = useState<boolean>(false);
 
     const effectiveHoverSpeed = useMemo(() => {
-      if (hoverSpeed !== undefined) return hoverSpeed;
-      if (pauseOnHover === true) return 0;
-      if (pauseOnHover === false) return undefined;
+      if (hoverSpeed !== undefined) {
+        return hoverSpeed;
+      }
+      if (pauseOnHover === true) {
+        return 0;
+      }
+      if (pauseOnHover === false) {
+        return;
+      }
       return 0;
     }, [hoverSpeed, pauseOnHover]);
 
@@ -268,8 +282,9 @@ export const LogoLoop = React.memo<LogoLoopProps>(
           containerRef.current?.parentElement?.clientHeight ?? 0;
         if (containerRef.current && parentHeight > 0) {
           const targetHeight = Math.ceil(parentHeight);
-          if (containerRef.current.style.height !== `${targetHeight}px`)
+          if (containerRef.current.style.height !== `${targetHeight}px`) {
             containerRef.current.style.height = `${targetHeight}px`;
+          }
         }
         if (sequenceHeight > 0) {
           setSeqHeight(Math.ceil(sequenceHeight));
@@ -342,10 +357,14 @@ export const LogoLoop = React.memo<LogoLoopProps>(
     );
 
     const handleMouseEnter = useCallback(() => {
-      if (effectiveHoverSpeed !== undefined) setIsHovered(true);
+      if (effectiveHoverSpeed !== undefined) {
+        setIsHovered(true);
+      }
     }, [effectiveHoverSpeed]);
     const handleMouseLeave = useCallback(() => {
-      if (effectiveHoverSpeed !== undefined) setIsHovered(false);
+      if (effectiveHoverSpeed !== undefined) {
+        setIsHovered(false);
+      }
     }, [effectiveHoverSpeed]);
 
     const renderLogoItem = useCallback(
@@ -361,7 +380,6 @@ export const LogoLoop = React.memo<LogoLoopProps>(
                 scaleOnHover && "group/item overflow-visible"
               )}
               key={key}
-              role="listitem"
             >
               {renderItem(item, key)}
             </li>
@@ -438,7 +456,6 @@ export const LogoLoop = React.memo<LogoLoopProps>(
               scaleOnHover && "group/item overflow-visible"
             )}
             key={key}
-            role="listitem"
           >
             {inner}
           </li>
@@ -453,7 +470,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
           <ul
             className={cx("flex items-center", isVertical && "flex-col")}
             key={`copy-${copyIndex}`}
-            role="list"
+
             aria-hidden={copyIndex > 0}
             ref={copyIndex === 0 ? seqRef : undefined}
           >
@@ -468,9 +485,9 @@ export const LogoLoop = React.memo<LogoLoopProps>(
     const containerStyle = useMemo(
       (): React.CSSProperties => ({
         width: isVertical
-          ? toCssLength(width) === "100%"
+          ? (toCssLength(width) === "100%"
             ? undefined
-            : toCssLength(width)
+            : toCssLength(width))
           : (toCssLength(width) ?? "100%"),
         ...cssVariables,
         ...style,

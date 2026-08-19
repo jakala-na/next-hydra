@@ -65,7 +65,7 @@ describe("public errors", () => {
       )({ address: {} }).pipe(Effect.flip)
     );
 
-    expect(makeSchemaErrorIssues(error, "Invalid input.")).toEqual([
+    expect(makeSchemaErrorIssues(error, "Invalid input.")).toStrictEqual([
       new ErrorIssue({
         message: "Invalid input.",
         path: ["address", "country"],

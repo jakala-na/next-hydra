@@ -3,7 +3,9 @@ import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import {
   formatCompositionPreview,
   formatCompositionResult,
@@ -95,9 +97,9 @@ async function maintainerFixture(): Promise<string> {
 afterEach(async () => {
   const { rm } = await import("node:fs/promises");
   await Promise.all(
-    temporaryDirectories
-      .splice(0)
-      .map((directory) => rm(directory, { force: true, recursive: true }))
+    temporaryDirectories.splice(0).map(async (directory) => {
+      await rm(directory, { force: true, recursive: true });
+    })
   );
 });
 
@@ -124,15 +126,14 @@ describe("maintainer use", () => {
       useComposition(
         { cms: "contentstack", cwd, yes: true },
         {
-          install: () =>
-            Promise.reject(
-              new CommandExecutionError({
-                code: 1,
-                command: "pnpm install",
-                stderr: "ERR_PNPM_LOCKFILE_CONFIG_MISMATCH",
-                stdout: "",
-              })
-            ),
+          install: async () => {
+            throw new CommandExecutionError({
+              code: 1,
+              command: "pnpm install",
+              stderr: "ERR_PNPM_LOCKFILE_CONFIG_MISMATCH",
+              stdout: "",
+            });
+          },
         }
       )
     ).rejects.toThrow("ERR_PNPM_LOCKFILE_CONFIG_MISMATCH");
@@ -146,7 +147,7 @@ describe("maintainer use", () => {
       "packages/cms-contentstack/registry.json"
     );
     const contentstackRegistry = JSON.parse(
-      await readFile(contentstackRegistryPath, "utf8")
+      await readFile(contentstackRegistryPath, "utf-8")
     );
     contentstackRegistry.items[0].meta.nextHydra.packages.push({
       cwd: "apps/web",
@@ -159,55 +160,57 @@ describe("maintainer use", () => {
       `${JSON.stringify(contentstackRegistry, null, 2)}\n`
     );
     const installs: string[] = [];
-    const install = (installCwd: string) => {
+    const install = async (installCwd: string) => {
       installs.push(installCwd);
-      return Promise.resolve();
+      return;
     };
 
     await useComposition({ cms: "contentstack", cwd, yes: true }, { install });
     expect(
       JSON.parse(
-        await readFile(path.join(cwd, "apps/web/package.json"), "utf8")
+        await readFile(path.join(cwd, "apps/web/package.json"), "utf-8")
       ).dependencies["@repo/cms"]
     ).toBe("workspace:@repo/cms-contentstack@*");
     expect(
       JSON.parse(
-        await readFile(path.join(cwd, "apps/web/package.json"), "utf8")
+        await readFile(path.join(cwd, "apps/web/package.json"), "utf-8")
       ).dependencies["contentstack-only"]
     ).toBe("^1.0.0");
-    expect(await readFile(selectionPath, "utf8")).toBe(
+    await expect(readFile(selectionPath, "utf-8")).resolves.toBe(
       DRUPAL_SELECTION.replace('"cms": "drupal"', '"cms": "contentstack"')
     );
-    expect(
-      await readFile(path.join(cwd, "apps/web/app/api/draft/route.ts"), "utf8")
-    ).toContain('export { GET } from "@repo/cms/routes/draft";');
+    await expect(
+      readFile(path.join(cwd, "apps/web/app/api/draft/route.ts"), "utf-8")
+    ).resolves.toContain('export { GET } from "@repo/cms/routes/draft";');
     await expect(
       readFile(
         path.join(cwd, "apps/web/app/api/canvas/components/route.ts"),
-        "utf8"
+        "utf-8"
       )
     ).rejects.toThrow();
-    expect(
-      await readFile(path.join(cwd, "pnpm-workspace.yaml"), "utf8")
-    ).not.toContain("patchedDependencies");
+    await expect(
+      readFile(path.join(cwd, "pnpm-workspace.yaml"), "utf-8")
+    ).resolves.not.toContain("patchedDependencies");
     await useComposition({ check: true, cwd });
 
     await useComposition({ cms: "drupal", cwd, yes: true }, { install });
     expect(
       JSON.parse(
-        await readFile(path.join(cwd, "apps/web/package.json"), "utf8")
+        await readFile(path.join(cwd, "apps/web/package.json"), "utf-8")
       ).dependencies["contentstack-only"]
     ).toBeUndefined();
-    expect(await readFile(selectionPath, "utf8")).toBe(DRUPAL_SELECTION);
-    expect(
-      await readFile(
+    await expect(readFile(selectionPath, "utf-8")).resolves.toBe(
+      DRUPAL_SELECTION
+    );
+    await expect(
+      readFile(
         path.join(cwd, "apps/web/app/api/canvas/components/route.ts"),
-        "utf8"
+        "utf-8"
       )
-    ).toContain("getCanvasComponents as GET");
-    expect(
-      await readFile(path.join(cwd, "pnpm-workspace.yaml"), "utf8")
-    ).toContain("patches/@drupal-canvas__headless.patch");
+    ).resolves.toContain("getCanvasComponents as GET");
+    await expect(
+      readFile(path.join(cwd, "pnpm-workspace.yaml"), "utf-8")
+    ).resolves.toContain("patches/@drupal-canvas__headless.patch");
     expect(installs).toHaveLength(2);
 
     await writeFile(
@@ -263,74 +266,80 @@ describe("maintainer use", () => {
   it("does not change the workspace during a dry run", async () => {
     const cwd = await maintainerFixture();
     const selectionPath = path.join(cwd, "next-hydra.json");
-    const selectionBefore = await readFile(selectionPath, "utf8");
+    const selectionBefore = await readFile(selectionPath, "utf-8");
     let installed = false;
 
     await useComposition(
       { cms: "contentstack", cwd, dryRun: true },
       {
-        install: () => {
+        install: async () => {
           installed = true;
-          return Promise.resolve();
+          return;
         },
       }
     );
 
-    expect(await readFile(selectionPath, "utf8")).toBe(selectionBefore);
-    expect(installed).toBe(false);
+    await expect(readFile(selectionPath, "utf-8")).resolves.toBe(
+      selectionBefore
+    );
+    expect(installed).toBeFalsy();
   });
 
   it("requires confirmation before changing the workspace", async () => {
     const cwd = await maintainerFixture();
     const selectionPath = path.join(cwd, "next-hydra.json");
-    const selectionBefore = await readFile(selectionPath, "utf8");
+    const selectionBefore = await readFile(selectionPath, "utf-8");
     let installed = false;
 
     await expect(
       useComposition(
         { cms: "contentstack", cwd },
         {
-          confirm: () => Promise.resolve(false),
-          install: () => {
+          confirm: async () => false,
+          install: async () => {
             installed = true;
-            return Promise.resolve();
+            return;
           },
         }
       )
     ).rejects.toThrow("No changes were made");
 
-    expect(await readFile(selectionPath, "utf8")).toBe(selectionBefore);
-    expect(installed).toBe(false);
+    await expect(readFile(selectionPath, "utf-8")).resolves.toBe(
+      selectionBefore
+    );
+    expect(installed).toBeFalsy();
   });
 
   it("does not recompose an unchanged selection", async () => {
     const cwd = await maintainerFixture();
     const selectionPath = path.join(cwd, "next-hydra.json");
-    const selectionBefore = await readFile(selectionPath, "utf8");
+    const selectionBefore = await readFile(selectionPath, "utf-8");
     let installed = false;
 
     await useComposition(
       { cwd, yes: true },
       {
-        install: () => {
+        install: async () => {
           installed = true;
-          return Promise.resolve();
+          return;
         },
       }
     );
 
-    expect(await readFile(selectionPath, "utf8")).toBe(selectionBefore);
-    expect(installed).toBe(false);
+    await expect(readFile(selectionPath, "utf-8")).resolves.toBe(
+      selectionBefore
+    );
+    expect(installed).toBeFalsy();
   });
 
   it("rejects missing package manifests before changing the workspace", async () => {
     const cwd = await maintainerFixture();
     const selectionBefore = await readFile(
       path.join(cwd, "next-hydra.json"),
-      "utf8"
+      "utf-8"
     );
     const webManifest = path.join(cwd, "apps/web/package.json");
-    const webManifestBefore = await readFile(webManifest, "utf8");
+    const webManifestBefore = await readFile(webManifest, "utf-8");
     const addOnPath = path.join(cwd, "missing-package-addon.json");
     await writeFile(
       addOnPath,
@@ -358,35 +367,41 @@ describe("maintainer use", () => {
     await expect(
       useComposition(
         { addOns: [addOnPath], cwd, yes: true },
-        { install: async () => undefined }
+        { install: async () => {} }
       )
     ).rejects.toThrow(PACKAGE_JSON_TARGETS);
 
-    expect(await readFile(path.join(cwd, "next-hydra.json"), "utf8")).toBe(
-      selectionBefore
+    await expect(
+      readFile(path.join(cwd, "next-hydra.json"), "utf-8")
+    ).resolves.toBe(selectionBefore);
+    await expect(readFile(webManifest, "utf-8")).resolves.toBe(
+      webManifestBefore
     );
-    expect(await readFile(webManifest, "utf8")).toBe(webManifestBefore);
   });
 
   it("rejects malformed package.json dependency sections before changing the workspace", async () => {
     const cwd = await maintainerFixture();
     const selectionPath = path.join(cwd, "next-hydra.json");
-    const selectionBefore = await readFile(selectionPath, "utf8");
+    const selectionBefore = await readFile(selectionPath, "utf-8");
     const webManifest = path.join(cwd, "apps/web/package.json");
     await writeFile(
       webManifest,
       '{"name":"web","dependencies":"not-an-object"}\n'
     );
-    const webManifestBefore = await readFile(webManifest, "utf8");
+    const webManifestBefore = await readFile(webManifest, "utf-8");
 
     await expect(
       useComposition(
         { cms: "contentstack", cwd, yes: true },
-        { install: async () => undefined }
+        { install: async () => {} }
       )
     ).rejects.toThrow(INVALID_DEPENDENCY_SECTION);
 
-    expect(await readFile(selectionPath, "utf8")).toBe(selectionBefore);
-    expect(await readFile(webManifest, "utf8")).toBe(webManifestBefore);
+    await expect(readFile(selectionPath, "utf-8")).resolves.toBe(
+      selectionBefore
+    );
+    await expect(readFile(webManifest, "utf-8")).resolves.toBe(
+      webManifestBefore
+    );
   });
 });

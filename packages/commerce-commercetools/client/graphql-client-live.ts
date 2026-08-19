@@ -2,6 +2,7 @@ import { log } from "@repo/observability/log";
 import { createClient } from "@urql/core";
 import { Effect, Layer } from "effect";
 import { mapExchange } from "urql";
+
 import { CommercetoolsGraphQLClient } from "./graphql-client";
 import { makeCommercetoolsGraphqlExchange } from "./graphql-exchange";
 import { CommercetoolsRestClient } from "./rest-client";
@@ -11,7 +12,6 @@ export const graphqlClientLayer = Layer.effect(
   Effect.gen(function* () {
     const restClient = yield* CommercetoolsRestClient;
     const client = createClient({
-      url: "<NOT USED>",
       exchanges: [
         mapExchange({
           onError: (error) => {
@@ -32,11 +32,12 @@ export const graphqlClientLayer = Layer.effect(
           },
         }),
       ],
+      url: "<NOT USED>",
     });
 
     return CommercetoolsGraphQLClient.of({
-      query: client.query.bind(client),
       mutation: client.mutation.bind(client),
+      query: client.query.bind(client),
     });
   })
 );

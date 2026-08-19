@@ -2,10 +2,10 @@ import type { NextRequest } from "next/server";
 
 import { registrationHttpHandler } from "@/lib/registration/http-runtime";
 
-const handleRegistrationRequest = (
+const handleRegistrationRequest = async (
   request: NextRequest,
   _context: RouteContext<"/registrations/[[...rest]]">
-): Promise<Response> => registrationHttpHandler(request);
+): Promise<Response> => await registrationHttpHandler(request);
 
 export const GET = handleRegistrationRequest;
 

@@ -1,9 +1,7 @@
 import { log, outro, spinner } from "@clack/prompts";
 
-import {
-  type InstructionSection,
-  renderInstructions,
-} from "./instruction-renderer.js";
+import { renderInstructions } from "./instruction-renderer.js";
+import type { InstructionSection } from "./instruction-renderer.js";
 
 export function info(message: string): void {
   log.info(message);
@@ -23,7 +21,7 @@ export function printInstructions(
   process.stdout.write(
     renderInstructions(sections, {
       columns: process.stdout.columns,
-      isTTY: process.stdout.isTTY === true,
+      isTTY: process.stdout.isTTY,
     })
   );
 }

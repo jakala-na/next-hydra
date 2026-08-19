@@ -5,6 +5,7 @@ import type {
 import type { Locale } from "@repo/i18n";
 import { cacheLife, cacheTag } from "next/cache";
 import { draftMode, headers } from "next/headers";
+
 import { graphqlClient } from "../../client";
 import getLinkProps from "../../components/link";
 import { TAGS } from "../../constants";
@@ -105,9 +106,9 @@ export async function getNavigation(
   const { isEnabled: preview } = await draftMode();
 
   if (!preview) {
-    return getCachedNavigation(locale);
+    return await getCachedNavigation(locale);
   }
 
   const livePreviewHash = (await headers()).get("x-live-preview") ?? "";
-  return loadNavigation(locale, livePreviewHash);
+  return await loadNavigation(locale, livePreviewHash);
 }

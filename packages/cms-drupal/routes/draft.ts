@@ -1,5 +1,8 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { type DrupalLangcode, isDrupalLangcode } from "../lib/locale";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+import { isDrupalLangcode } from "../lib/locale";
+import type { DrupalLangcode } from "../lib/locale";
 import {
   isNextDrupalPreviewRequest,
   NextDrupalPreviewValidationError,

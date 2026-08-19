@@ -11,19 +11,17 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * of content.
  */
 const meta = {
-  title: "ui/Accordion",
-  component: Accordion,
-  tags: ["autodocs"],
   argTypes: {
     type: {
-      options: ["single", "multiple"],
       control: { type: "radio" },
+      options: ["single", "multiple"],
     },
   },
   args: {
-    type: "single",
     collapsible: true,
+    type: "single",
   },
+  component: Accordion,
   render: (args) => (
     <Accordion {...args}>
       <AccordionItem value="item-1">
@@ -47,6 +45,8 @@ const meta = {
       </AccordionItem>
     </Accordion>
   ),
+  tags: ["autodocs"],
+  title: "ui/Accordion",
 } satisfies Meta<typeof Accordion>;
 
 export default meta;

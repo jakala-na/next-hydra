@@ -5,6 +5,7 @@ import type {
   TypeUpdate,
 } from "@commercetools/platform-sdk";
 import { describe, expect, it, vi } from "vitest";
+
 import { migration } from "./scripts/2026-07-28-130000-create-order-custom-fields-type";
 
 type TypeRequestBody = {
@@ -29,11 +30,11 @@ const apiRootForType = (existingType?: Type) => {
       execute: vi.fn().mockResolvedValue({
         body: {
           ...request.body,
-          id: "type-id",
-          version: 1,
           createdAt: "2026-07-28T00:00:00.000Z",
-          lastModifiedAt: "2026-07-28T00:00:00.000Z",
           fieldDefinitions: request.body.fieldDefinitions ?? [],
+          id: "type-id",
+          lastModifiedAt: "2026-07-28T00:00:00.000Z",
+          version: 1,
         },
       }),
     };
@@ -41,11 +42,11 @@ const apiRootForType = (existingType?: Type) => {
 
   const apiRoot = {
     types: () => ({
+      post: createType,
       withKey: () => ({
         get: getType,
         post: updateType,
       }),
-      post: createType,
     }),
   } as unknown as ByProjectKeyRequestBuilder;
 
@@ -59,43 +60,43 @@ describe("orderCustomFields migration", () => {
     await migration.up(apiRoot);
 
     expect(requests.create).toMatchObject({
+      fieldDefinitions: [],
       key: "orderCustomFields",
       resourceTypeIds: ["order"],
-      fieldDefinitions: [],
     });
     expect(requests.update).toMatchObject({
-      version: 1,
       actions: [
         {
           action: "addFieldDefinition",
           fieldDefinition: {
+            inputHint: "MultiLine",
             name: "checkoutContact",
             required: false,
             type: { name: "String" },
-            inputHint: "MultiLine",
           },
         },
       ],
+      version: 1,
     });
   });
 
   it("does not add checkoutContact when the field already exists", async () => {
     const existingType = {
-      id: "type-id",
-      version: 2,
-      key: "orderCustomFields",
-      name: { "en-US": "Order Custom Fields" },
-      resourceTypeIds: ["order"],
+      createdAt: "2026-07-28T00:00:00.000Z",
       fieldDefinitions: [
         {
-          name: "checkoutContact",
           label: { "en-US": "Checkout contact" },
+          name: "checkoutContact",
           required: false,
           type: { name: "String" },
         },
       ],
-      createdAt: "2026-07-28T00:00:00.000Z",
+      id: "type-id",
+      key: "orderCustomFields",
       lastModifiedAt: "2026-07-28T00:00:00.000Z",
+      name: { "en-US": "Order Custom Fields" },
+      resourceTypeIds: ["order"],
+      version: 2,
     } as const satisfies Type;
     const { apiRoot, requests } = apiRootForType(existingType);
 

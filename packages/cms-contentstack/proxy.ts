@@ -1,13 +1,11 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-export const cmsProxy = (
-  request: NextRequest
-): NextResponse<unknown> | undefined => {
+export const cmsProxy = (request: NextRequest): NextResponse | undefined => {
   // Identify if live_preview query param is present and redirect to /api/draft?originalUrl=<currentUrl>&[queryParams]
   // TODO: There is no way to validate if live preview token was legit, so path with secret from Contentstack that we proxy to regular path is needed.
   const url = request.nextUrl;
-  const searchParams = url.searchParams;
+  const { searchParams } = url;
   const originalPathname = url.pathname;
   const livePreview = searchParams.get("live_preview");
   const redirected = searchParams.get("redirected");

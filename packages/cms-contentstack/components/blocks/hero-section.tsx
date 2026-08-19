@@ -1,6 +1,8 @@
 import { HeroSection as HeroSectionComponent } from "@repo/design-system/components/cms/blocks/hero-section";
 import type { Locale } from "@repo/i18n";
-import { type FragmentOf, graphql, readFragment } from "../../graphql";
+
+import { graphql, readFragment } from "../../graphql";
+import type { FragmentOf } from "../../graphql";
 import { getNodesFromConnection } from "../../lib/utils/connection";
 import { renderRichText } from "../../lib/utils/rich-text-utils";
 import type { ComponentBaseProps } from "../../types";
@@ -54,18 +56,18 @@ export function HeroSection(
   const data = readFragment(HeroSectionFragment, props.data);
 
   const livePreviewProps = livePreviewHelper?.getUIProps({
-    tagline: "tagline",
-    title: "title",
+    cta: "cta",
     description: "description",
     image: "image",
-    cta: "cta",
+    tagline: "tagline",
+    title: "title",
   });
 
   const image = getNodesFromConnection(data.imageConnection).map((node) => ({
-    url: node?.url || "",
     altText: data.image_alt || "",
-    width: node?.dimension?.width ?? undefined,
     height: node?.dimension?.height ?? undefined,
+    url: node?.url || "",
+    width: node?.dimension?.width ?? undefined,
   }))[0];
 
   return (

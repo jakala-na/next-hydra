@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { graphql } from "./graphql";
 
 describe("Commercetools GraphQL scalar mappings", () => {

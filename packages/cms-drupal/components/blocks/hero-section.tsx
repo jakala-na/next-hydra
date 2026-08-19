@@ -1,6 +1,8 @@
 import { HeroSection as HeroSectionComponent } from "@repo/design-system/components/cms/blocks/hero-section";
 import type { Locale } from "@repo/i18n";
-import { type FragmentOf, graphql, readFragment } from "../../graphql";
+
+import { graphql, readFragment } from "../../graphql";
+import type { FragmentOf } from "../../graphql";
 
 export const heroSectionFragment = graphql(`
   fragment DrupalHeroSection on ParagraphHero {

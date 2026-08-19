@@ -4,14 +4,11 @@ TypeScript monorepo template for building production-grade, composable digital c
 
 ## Synopsis
 
-`next-hydra` is a composable commerce monorepo template that embeds best practices required to deliver an enterprise digital commerce solution using multiple composable providers (Commerce, CMS, Auth, Security, Email, Intl, etc) and orchestrating them together to deliver the multiple experience (website, API and backoffice integrations)
-It is built for one full-stack team (and their coding agents) to ship features across package boundaries using Next.js primitives and end-to-end type safety.
+`next-hydra` is a composable commerce monorepo template that embeds best practices required to deliver an enterprise digital commerce solution using multiple composable providers (Commerce, CMS, Auth, Security, Email, Intl, etc) and orchestrating them together to deliver the multiple experience (website, API and backoffice integrations) It is built for one full-stack team (and their coding agents) to ship features across package boundaries using Next.js primitives and end-to-end type safety.
 
 ## Why It Exists
 
-Great open-source starter templates that cross provider and domain boundaries are rare or hard to find.
-Most commerce accelerators are either provider-owned or agency-owned, closed-source, and tend to either go deep on the provider stack, or go broad with minimal integration.
-`next-hydra` aims to be an open-source reference architecture for composable architecture that demonstrates the beauty of composing multiple providers, all while keeping a full-stack developer experience only available in monolithic providers
+Great open-source starter templates that cross provider and domain boundaries are rare or hard to find. Most commerce accelerators are either provider-owned or agency-owned, closed-source, and tend to either go deep on the provider stack, or go broad with minimal integration. `next-hydra` aims to be an open-source reference architecture for composable architecture that demonstrates the beauty of composing multiple providers, all while keeping a full-stack developer experience only available in monolithic providers
 
 ## Core Principles
 
@@ -19,7 +16,6 @@ Most commerce accelerators are either provider-owned or agency-owned, closed-sou
 - End-to-end type-safety with Typescript and GraphQL data access layer for CMS and Commerce, with `gql.tada` for query type inference.
 - Domain-driven composition: domain concepts live in packages, app layer stays thin wrapper
 - Swappable components: adapters should be replaceable without rewriting feature orchestration.
-
 
 ## Batteries Included
 
@@ -58,15 +54,14 @@ Shared platform capabilities are reusable concerns that support multiple domains
 - `apps/email`: local preview/build workflow for email templates.
 - `apps/storybook`: design system and UI component playground.
 - `apps/docs`: Fumadocs-powered documentation app.
-- `apps/drupal`: Drupal 11 backend with landing-page, Paragraph,
-  native-menu, preview, and GraphQL Compose configuration.
+- `apps/drupal`: Drupal 11 backend with landing-page, Paragraph, native-menu, preview, and GraphQL Compose configuration.
 
 ## Provider Strategy (Current vs Next)
 
 The README calls this out explicitly because swappability is a core product promise in the marketing context.
 
 | Domain | Shipped in repo today | Also present | Worth prioritizing next |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Commerce | Commercetools | - | Shopify, Medusa, BigCommerce/Saleor adapters |
 | CMS | Contentstack or Drupal through the `@repo/cms` alias | Hydra-owned Drupal recipe and demo content | Contentful, Sanity, Hygraph adapters |
 | Auth | WorkOS (wired in `apps/web`) | Clerk package adapter | Better Auth, Auth0/Okta adapters |
@@ -74,6 +69,7 @@ The README calls this out explicitly because swappability is a core product prom
 | Analytics/Observability | PostHog, GA, Vercel Analytics, Sentry, Logtail | - | Segment and OpenTelemetry-first adapter path |
 
 Notes:
+
 - “Worth prioritizing next” means roadmap candidates, not current support.
 - First release focuses on one production provider path per major domain, then expands adapters incrementally.
 

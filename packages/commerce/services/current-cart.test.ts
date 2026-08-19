@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Option } from "effect";
+
 import { CartId, ProductId, Sku, VariantId } from "../domain/cart";
 import { CartPolicyFailure, CartProviderFailure } from "../domain/cart-errors";
 import type { CartSnapshot } from "../domain/cart-snapshot";
@@ -24,19 +25,19 @@ import { CommerceContext } from "./commerce-context";
 import { CurrentCart } from "./current-cart";
 
 const store = new Store({
+  currency: "USD",
   locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("us-store"),
-  currency: "USD",
 });
 
 const emptyCart = (id: string): CartSnapshot => ({
+  checkoutDetails: {},
   id: CartId.make(id),
+  lineItems: [],
   status: "active",
   storeKey: store.storeKey,
-  lineItems: [],
   totalLineItemQuantity: 0,
   totalPrice: { centAmount: 0, currencyCode: "USD" },
-  checkoutDetails: {},
 });
 
 interface TestCurrentCartBoundary {
@@ -61,8 +62,8 @@ const anonymousRequest = ({
     ...(anonymousCartId === undefined ? {} : { anonymousCartId }),
   }),
   currentCartCookie: {
-    set: (id) => Effect.sync(() => setIds.push(id)).pipe(Effect.asVoid),
     clear: () => Effect.sync(() => cleared.push(true)).pipe(Effect.asVoid),
+    set: (id) => Effect.sync(() => setIds.push(id)).pipe(Effect.asVoid),
   },
 });
 
@@ -76,12 +77,12 @@ const businessUnitMembership = new CommerceBusinessUnitMembership({
 });
 
 const businessUnitRequest = (): TestCurrentCartBoundary => ({
-  contextRequest: new CustomerCommerceContextRequest({ store, authUserId }),
-  currentCartCookie: {
-    set: () => Effect.void,
-    clear: () => Effect.void,
-  },
   businessUnitId,
+  contextRequest: new CustomerCommerceContextRequest({ authUserId, store }),
+  currentCartCookie: {
+    clear: () => Effect.void,
+    set: () => Effect.void,
+  },
 });
 
 const currentCartLayer = (
@@ -90,14 +91,14 @@ const currentCartLayer = (
   policiesLayer: Layer.Layer<CartPolicies> = CartPolicies.layerEmpty
 ) => {
   const commerceAccounts = CommerceAccounts.layerMemoryFrom({
-    customers: [{ authUserId, customerId }],
     businessUnitMemberships: [
       {
         customerId,
-        storeKey: store.storeKey,
         membership: businessUnitMembership,
+        storeKey: store.storeKey,
       },
     ],
+    customers: [{ authUserId, customerId }],
   });
   const commerceContext = CommerceContext.layer(request.contextRequest).pipe(
     Layer.provide(commerceAccounts)
@@ -108,14 +109,14 @@ const currentCartLayer = (
   );
 };
 
-describe("CurrentCart", () => {
+describe(CurrentCart, () => {
   it.effect("reads ordinary absence without creating a Cart", () => {
     const setIds: CartId[] = [];
     return Effect.gen(function* () {
       const state = yield* CurrentCart.get();
 
-      expect(Option.isNone(state)).toBe(true);
-      expect(setIds).toEqual([]);
+      expect(Option.isNone(state)).toBeTruthy();
+      expect(setIds).toStrictEqual([]);
     }).pipe(
       Effect.provide(
         currentCartLayer(anonymousRequest({ setIds }), Carts.layerMemory())
@@ -128,14 +129,14 @@ describe("CurrentCart", () => {
     return Effect.gen(function* () {
       const state = yield* CurrentCart.addItem({
         productId: ProductId.make("product-1"),
-        variantId: VariantId.make("variant-1"),
         quantity: 2,
+        variantId: VariantId.make("variant-1"),
       });
       const reread = Option.getOrThrow(yield* CurrentCart.get());
 
-      expect(setIds).toEqual([state.cart.id]);
+      expect(setIds).toStrictEqual([state.cart.id]);
       expect(state.cart.totalLineItemQuantity).toBe(2);
-      expect(reread.cart).toEqual(state.cart);
+      expect(reread.cart).toStrictEqual(state.cart);
     }).pipe(
       Effect.provide(
         currentCartLayer(
@@ -143,16 +144,16 @@ describe("CurrentCart", () => {
           Carts.layerMemory({
             merchandise: [
               {
+                unitPrice: { centAmount: 1250, currencyCode: "USD" },
                 variant: {
+                  attributes: {},
                   id: VariantId.make("variant-1"),
+                  images: [],
+                  name: "Hydra Wrench",
                   productId: ProductId.make("product-1"),
                   productType: "generic-product",
-                  name: "Hydra Wrench",
                   sku: Sku.make("SKU-1"),
-                  images: [],
-                  attributes: {},
                 },
-                unitPrice: { centAmount: 1250, currencyCode: "USD" },
               },
             ],
           })
@@ -167,8 +168,8 @@ describe("CurrentCart", () => {
       const currentCart = yield* CurrentCart;
       const state = yield* currentCart.get();
 
-      expect(Option.isNone(state)).toBe(true);
-      expect(cleared).toEqual([true]);
+      expect(Option.isNone(state)).toBeTruthy();
+      expect(cleared).toStrictEqual([true]);
     }).pipe(
       Effect.provide(
         currentCartLayer(
@@ -204,8 +205,8 @@ describe("CurrentCart", () => {
       const error = yield* currentCart
         .addItem({
           productId: ProductId.make("product-1"),
-          variantId: VariantId.make("variant-1"),
           quantity: 1,
+          variantId: VariantId.make("variant-1"),
         })
         .pipe(Effect.flip);
 
@@ -214,15 +215,15 @@ describe("CurrentCart", () => {
         operation: "findById",
         reason: "unexpectedResponse",
       });
-      expect(setIds).toEqual([]);
-      expect(cleared).toEqual([]);
+      expect(setIds).toStrictEqual([]);
+      expect(cleared).toStrictEqual([]);
     }).pipe(
       Effect.provide(
         currentCartLayer(
           anonymousRequest({
             anonymousCartId: cart.id,
-            setIds,
             cleared,
+            setIds,
           }),
           Carts.layerMemory({ carts: [cart] })
         )
@@ -233,7 +234,7 @@ describe("CurrentCart", () => {
   it.effect("treats zero Business Unit candidates as ordinary absence", () =>
     Effect.gen(function* () {
       const currentCart = yield* CurrentCart;
-      expect(Option.isNone(yield* currentCart.get())).toBe(true);
+      expect(Option.isNone(yield* currentCart.get())).toBeTruthy();
     }).pipe(
       Effect.provide(
         currentCartLayer(businessUnitRequest(), Carts.layerMemory())
@@ -284,9 +285,9 @@ describe("CurrentCart", () => {
       const currentCart = yield* CurrentCart;
       const state = Option.getOrThrow(yield* currentCart.get());
 
-      expect(state.violations.map((violation) => violation.code)).toEqual([
-        "cart.blocked",
-      ]);
+      expect(state.violations.map((violation) => violation.code)).toStrictEqual(
+        ["cart.blocked"]
+      );
     }).pipe(
       Effect.provide(
         currentCartLayer(
@@ -294,7 +295,6 @@ describe("CurrentCart", () => {
           Carts.layerMemory({ carts: [emptyCart("cart-1")] }),
           CartPolicies.layerFrom([
             {
-              name: "blocked",
               evaluate: () =>
                 Effect.succeed([
                   {
@@ -302,6 +302,7 @@ describe("CurrentCart", () => {
                     targets: [{ type: "cart" as const }],
                   },
                 ]),
+              name: "blocked",
             },
           ])
         )
@@ -324,8 +325,8 @@ describe("CurrentCart", () => {
             Carts.layerMemory({ carts: [emptyCart("cart-1")] }),
             CartPolicies.layerFrom([
               {
-                name: "broken",
                 evaluate: () => Effect.fail(new CartPolicyFailure({})),
+                name: "broken",
               },
             ])
           )
@@ -340,8 +341,8 @@ describe("CurrentCart", () => {
       const error = yield* currentCart
         .addItem({
           productId: ProductId.make("product-1"),
-          variantId: VariantId.make("variant-1"),
           quantity: 1,
+          variantId: VariantId.make("variant-1"),
         })
         .pipe(Effect.flip);
 
@@ -368,12 +369,12 @@ describe("CurrentCart", () => {
     "delegates Contact persistence even when the semantic projection matches",
     () => {
       const contact = {
-        source: "manual" as const,
         buyerContact: {
           email: "buyer@example.com",
           firstName: "Ada",
           lastName: "Lovelace",
         },
+        source: "manual" as const,
       };
       const cart = {
         ...emptyCart("cart-1"),
@@ -384,7 +385,7 @@ describe("CurrentCart", () => {
         const currentCart = yield* CurrentCart;
         const state = yield* currentCart.saveContact(contact);
 
-        expect(state.cart.checkoutDetails.contact).toEqual(contact);
+        expect(state.cart.checkoutDetails.contact).toStrictEqual(contact);
       }).pipe(
         Effect.provide(
           currentCartLayer(

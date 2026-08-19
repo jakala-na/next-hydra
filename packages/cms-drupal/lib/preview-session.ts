@@ -1,13 +1,13 @@
 import "server-only";
-
 import { cookies, draftMode } from "next/headers";
+
 import {
   DRUPAL_PREVIEW_COOKIE,
   DRUPAL_PREVIEW_COOKIE_OPTIONS,
-  type DrupalPreviewContext,
   decodeDrupalPreviewContext,
   encodeDrupalPreviewContext,
 } from "./preview-context";
+import type { DrupalPreviewContext } from "./preview-context";
 
 const NEXT_DRAFT_MODE_COOKIE = "__prerender_bypass";
 

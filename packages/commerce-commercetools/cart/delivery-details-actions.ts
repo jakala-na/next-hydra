@@ -1,5 +1,6 @@
 import type { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
 import { checkoutDeliveryDetailsEqual } from "@repo/commerce/lib/checkout/delivery-details-equality";
+
 import { toCommercetoolsAddressKey } from "../address-book/address-book-key";
 import type { CommercetoolsCart } from "./provider-cart";
 
@@ -49,10 +50,10 @@ export const buildSaveCheckoutDeliveryDetailsActions = (
               ),
             }
           : {}),
-        streetName: deliveryDetails.shippingAddress.addressLine1,
-        postalCode: deliveryDetails.shippingAddress.postalCode,
         city: deliveryDetails.shippingAddress.city,
         country: deliveryDetails.shippingAddress.country,
+        postalCode: deliveryDetails.shippingAddress.postalCode,
+        streetName: deliveryDetails.shippingAddress.addressLine1,
         ...(deliveryDetails.shippingAddress.addressLine2 === undefined
           ? {}
           : {

@@ -385,9 +385,9 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
         const permissions =
           token === "read-token"
             ? ["registration.read"]
-            : token === "decide-token"
+            : (token === "decide-token"
               ? ["registration.decide"]
-              : ["registration.read", "registration.decide"];
+              : ["registration.read", "registration.decide"]);
 
         return Effect.succeed(
           new VerifiedAccessToken({
@@ -511,7 +511,7 @@ test("POST /registrations maps preflight provider failures to the typed internal
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
-    expect(body).toEqual({
+    expect(body).toStrictEqual({
       _tag: "RegistrationApiError",
       category: "unavailable",
       code: "registration.unavailable",
@@ -545,7 +545,7 @@ test("POST /registrations keeps recoverable identity provider outages typed", as
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
-    expect(body).toEqual({
+    expect(body).toStrictEqual({
       _tag: "RegistrationApiError",
       category: "unavailable",
       code: "registration.unavailable",
@@ -579,7 +579,7 @@ test("POST /registrations treats identity provider client failures as defects", 
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
-    expect(body).toEqual({
+    expect(body).toStrictEqual({
       _tag: "Unexpected",
       category: "unexpected",
       code: "unexpected",
@@ -606,7 +606,7 @@ test("POST /registrations compensates a failed workflow start and recommends ret
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
-    expect(body).toEqual({
+    expect(body).toStrictEqual({
       _tag: "RegistrationApiError",
       category: "unavailable",
       code: "registration.unavailable",
@@ -1108,7 +1108,7 @@ test("POST /registrations/:id/approve treats identity provider client failures a
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
-    expect(body).toEqual({
+    expect(body).toStrictEqual({
       _tag: "Unexpected",
       category: "unexpected",
       code: "unexpected",
@@ -1194,7 +1194,7 @@ test("POST /registrations/:id/approve reports an ambiguous decision outcome as r
     const body = await response.json();
 
     expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
-    expect(body).toEqual({
+    expect(body).toStrictEqual({
       _tag: "RegistrationDecisionOutcomeUnknown",
       category: "unavailable",
       code: "registration.decisionOutcomeUnknown",

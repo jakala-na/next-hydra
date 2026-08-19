@@ -61,8 +61,8 @@ export class CartWriteConflict extends Schema.TaggedErrorClass<CartWriteConflict
 export class CartWriteOutcomeUnknown extends Schema.TaggedErrorClass<CartWriteOutcomeUnknown>()(
   "CartWriteOutcomeUnknown",
   {
-    operation: CartOperation,
     cartId: Schema.optional(CartId),
+    operation: CartOperation,
   }
 ) {}
 
@@ -86,13 +86,13 @@ export class CurrentCartSelectionConflict extends Schema.TaggedErrorClass<Curren
 export class CurrentCartOperationFailure extends Schema.TaggedErrorClass<CurrentCartOperationFailure>()(
   "CurrentCartOperationFailure",
   {
-    operation: Schema.Literal("set"),
     cause: Schema.optional(Schema.Defect),
+    operation: Schema.Literal("set"),
   }
 ) {}
 
 export const currentCartOperationFailure = (cause: unknown) =>
-  new CurrentCartOperationFailure({ operation: "set", cause });
+  new CurrentCartOperationFailure({ cause, operation: "set" });
 
 export class CurrentCartUnavailable extends Schema.TaggedErrorClass<CurrentCartUnavailable>()(
   "CurrentCartUnavailable",

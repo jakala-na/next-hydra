@@ -30,10 +30,10 @@ const loadCurrentCart = async (locale: Locale) => {
       onNone: () => null,
       onSome: (state) => state,
     });
-  } catch (cause) {
-    unstable_rethrow(cause);
+  } catch (error) {
+    unstable_rethrow(error);
     await Effect.runPromise(
-      Effect.logError("Failed to read Current Cart", cause).pipe(
+      Effect.logError("Failed to read Current Cart", error).pipe(
         Effect.annotateLogs({ operation: "currentCart.get" })
       )
     );

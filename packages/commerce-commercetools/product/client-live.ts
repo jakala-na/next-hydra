@@ -1,20 +1,19 @@
 import { Effect, Layer } from "effect";
+
 import { CommercetoolsGraphQLClient } from "../client/graphql-client";
-import {
-  type FragmentOf,
-  graphql,
-  type ResultOf,
-  readFragment,
-} from "../graphql";
+import { graphql, readFragment } from "../graphql";
+import type { FragmentOf, ResultOf } from "../graphql";
 import {
   CommercetoolsProductDiscoveryClient,
-  type CommercetoolsProductProjection,
   CommercetoolsProductRequestFailure,
-  type CommercetoolsProductSelectionRule,
-  type CommercetoolsProductVariant,
-  type FindCommercetoolsProductBySlugInput,
-  type ListCommercetoolsProductProjectionsInput,
-  type ResolveCommercetoolsProductContextInput,
+} from "./client";
+import type {
+  CommercetoolsProductProjection,
+  CommercetoolsProductSelectionRule,
+  CommercetoolsProductVariant,
+  FindCommercetoolsProductBySlugInput,
+  ListCommercetoolsProductProjectionsInput,
+  ResolveCommercetoolsProductContextInput,
 } from "./client";
 
 const PRODUCT_SELECTION_ASSIGNMENTS_PAGE_LIMIT = 500;
@@ -168,20 +167,7 @@ const toVariant = (
     >
   >["allVariants"][number]
 ): CommercetoolsProductVariant => ({
-  id: variant.id,
-  sku: variant.sku,
-  images: variant.images,
   attributesRaw: variant.attributesRaw,
-  price:
-    variant.price === null
-      ? null
-      : {
-          value: variant.price.value,
-          discounted:
-            variant.price.discounted === null
-              ? null
-              : { value: variant.price.discounted.value },
-        },
   availability:
     variant.availability === null
       ? null
@@ -192,6 +178,19 @@ const toVariant = (
             })
           ),
         },
+  id: variant.id,
+  images: variant.images,
+  price:
+    variant.price === null
+      ? null
+      : {
+          discounted:
+            variant.price.discounted === null
+              ? null
+              : { value: variant.price.discounted.value },
+          value: variant.price.value,
+        },
+  sku: variant.sku,
 });
 
 const toProjection = (
@@ -199,18 +198,18 @@ const toProjection = (
 ): CommercetoolsProductProjection => {
   const product = readFragment(productProjectionFragment, data);
   return {
-    id: product.id,
-    name: product.name,
-    description: product.description,
-    slug: product.slug,
+    allVariants: product.allVariants.map(toVariant),
     categories: product.categories.map(({ id, name, slug }) => ({
       id,
       name,
       slug,
     })),
-    productType: product.productType,
+    description: product.description,
+    id: product.id,
     masterVariant: product.masterVariant,
-    allVariants: product.allVariants.map(toVariant),
+    name: product.name,
+    productType: product.productType,
+    slug: product.slug,
   };
 };
 
@@ -225,14 +224,14 @@ const failOnGraphqlError = <T extends { readonly error?: unknown }>(
 
 const tryProviderRequest = <A>(request: () => PromiseLike<A>) =>
   Effect.tryPromise({
-    try: request,
     catch: (cause) =>
       cause instanceof CommercetoolsProductRequestFailure
         ? cause
         : new CommercetoolsProductRequestFailure({
-            message: "Commercetools Product request failed",
             cause,
+            message: "Commercetools Product request failed",
           }),
+    try: request,
   });
 
 const isVariantSelectionType = (
@@ -251,7 +250,7 @@ const mapVariantSelection = (
       message: `Unsupported Commercetools Product Selection type ${selection.type}`,
     });
   }
-  return { type: selection.type, skus: selection.skus };
+  return { skus: selection.skus, type: selection.type };
 };
 
 const productQueryVariables = (
@@ -259,11 +258,11 @@ const productQueryVariables = (
     | FindCommercetoolsProductBySlugInput
     | ListCommercetoolsProductProjectionsInput
 ) => ({
-  locale: input.locale,
   currency: input.currency,
-  distributionChannelId: input.context.distributionChannelId,
-  supplyChannelIds: [...input.context.supplyChannelIds],
   customerGroupId: input.context.customerGroupId,
+  distributionChannelId: input.context.distributionChannelId,
+  locale: input.locale,
+  supplyChannelIds: [...input.context.supplyChannelIds],
 });
 
 const escapePredicateValue = (value: string) =>
@@ -275,43 +274,6 @@ export const commercetoolsProductDiscoveryClientLayer = Layer.effect(
     const client = yield* CommercetoolsGraphQLClient;
 
     return CommercetoolsProductDiscoveryClient.of({
-      resolveProductContext: Effect.fn(
-        "CommercetoolsProductDiscoveryClient.resolveProductContext"
-      )((input: ResolveCommercetoolsProductContextInput) =>
-        tryProviderRequest(async () => {
-          const storeResponse = failOnGraphqlError(
-            await client.query(resolveStoreQuery, {
-              storeKey: input.storeKey,
-            })
-          );
-          const store = storeResponse.data?.store;
-          if (store === undefined || store === null) {
-            throw new CommercetoolsProductRequestFailure({
-              message: `Commercetools Store ${input.storeKey} was not found`,
-            });
-          }
-          const distributionChannelId = store.distributionChannels[0]?.id;
-          if (distributionChannelId === undefined) {
-            throw new CommercetoolsProductRequestFailure({
-              message: `Commercetools Store ${input.storeKey} has no distribution channel`,
-            });
-          }
-          const customerGroupId =
-            input.customerId === undefined
-              ? undefined
-              : failOnGraphqlError(
-                  await client.query(resolveCustomerGroupQuery, {
-                    customerId: input.customerId,
-                  })
-                ).data?.customer?.customerGroup?.id;
-
-          return {
-            distributionChannelId,
-            supplyChannelIds: store.supplyChannels.map(({ id }) => id),
-            ...(customerGroupId === undefined ? {} : { customerGroupId }),
-          };
-        })
-      ),
       findProductBySlug: Effect.fn(
         "CommercetoolsProductDiscoveryClient.findProductBySlug"
       )((input) =>
@@ -334,6 +296,75 @@ export const commercetoolsProductDiscoveryClientLayer = Layer.effect(
           const product =
             response.data?.productProjectionSearch.results[0] ?? null;
           return product === null ? null : toProjection(product);
+        })
+      ),
+      getProductSelectionRules: Effect.fn(
+        "CommercetoolsProductDiscoveryClient.getProductSelectionRules"
+      )((storeKey, productIds) =>
+        tryProviderRequest(async () => {
+          if (productIds.length === 0) {
+            return new Map<
+              string,
+              readonly CommercetoolsProductSelectionRule[]
+            >();
+          }
+          const quotedIds = productIds
+            .map((id) => `"${escapePredicateValue(id)}"`)
+            .join(",");
+          const assignments: ProductSelectionAssignment[] = [];
+          let offset = 0;
+          let total = 0;
+
+          do {
+            const response = failOnGraphqlError(
+              await client.query(productSelectionAssignmentsQuery, {
+                limit: PRODUCT_SELECTION_ASSIGNMENTS_PAGE_LIMIT,
+                offset,
+                storeKey,
+                where: `product(id in (${quotedIds}))`,
+              })
+            );
+            const page = response.data?.inStore.productSelectionAssignments;
+            if (page === undefined) {
+              throw new CommercetoolsProductRequestFailure({
+                message:
+                  "Commercetools Product Selection response was missing data",
+              });
+            }
+            if (page.results.length === 0 && offset < page.total) {
+              throw new CommercetoolsProductRequestFailure({
+                message:
+                  "Commercetools Product Selection pagination made no progress",
+              });
+            }
+            assignments.push(...page.results);
+            offset += page.results.length;
+            total = page.total;
+          } while (offset < total);
+
+          const rulesByProduct = new Map<
+            string,
+            CommercetoolsProductSelectionRule[]
+          >();
+
+          for (const assignment of assignments) {
+            const mode = assignment.productSelection?.mode;
+            if (mode !== "Individual" && mode !== "IndividualExclusion") {
+              throw new CommercetoolsProductRequestFailure({
+                message: `Unsupported Commercetools Product Selection mode ${mode ?? "missing"}`,
+              });
+            }
+            const rules = rulesByProduct.get(assignment.productRef.id) ?? [];
+            rules.push({
+              mode,
+              variantExclusion: assignment.variantExclusion,
+              variantSelection: mapVariantSelection(
+                assignment.variantSelection
+              ),
+            });
+            rulesByProduct.set(assignment.productRef.id, rules);
+          }
+          return rulesByProduct;
         })
       ),
       listProductProjections: Effect.fn(
@@ -389,73 +420,41 @@ export const commercetoolsProductDiscoveryClientLayer = Layer.effect(
           );
         })
       ),
-      getProductSelectionRules: Effect.fn(
-        "CommercetoolsProductDiscoveryClient.getProductSelectionRules"
-      )((storeKey, productIds) =>
+      resolveProductContext: Effect.fn(
+        "CommercetoolsProductDiscoveryClient.resolveProductContext"
+      )((input: ResolveCommercetoolsProductContextInput) =>
         tryProviderRequest(async () => {
-          if (productIds.length === 0) {
-            return new Map<
-              string,
-              readonly CommercetoolsProductSelectionRule[]
-            >();
-          }
-          const quotedIds = productIds
-            .map((id) => `"${escapePredicateValue(id)}"`)
-            .join(",");
-          const assignments: ProductSelectionAssignment[] = [];
-          let offset = 0;
-          let total = 0;
-
-          do {
-            const response = failOnGraphqlError(
-              await client.query(productSelectionAssignmentsQuery, {
-                storeKey,
-                where: `product(id in (${quotedIds}))`,
-                limit: PRODUCT_SELECTION_ASSIGNMENTS_PAGE_LIMIT,
-                offset,
-              })
-            );
-            const page = response.data?.inStore.productSelectionAssignments;
-            if (page === undefined) {
-              throw new CommercetoolsProductRequestFailure({
-                message:
-                  "Commercetools Product Selection response was missing data",
-              });
-            }
-            if (page.results.length === 0 && offset < page.total) {
-              throw new CommercetoolsProductRequestFailure({
-                message:
-                  "Commercetools Product Selection pagination made no progress",
-              });
-            }
-            assignments.push(...page.results);
-            offset += page.results.length;
-            total = page.total;
-          } while (offset < total);
-
-          const rulesByProduct = new Map<
-            string,
-            CommercetoolsProductSelectionRule[]
-          >();
-
-          for (const assignment of assignments) {
-            const mode = assignment.productSelection?.mode;
-            if (mode !== "Individual" && mode !== "IndividualExclusion") {
-              throw new CommercetoolsProductRequestFailure({
-                message: `Unsupported Commercetools Product Selection mode ${mode ?? "missing"}`,
-              });
-            }
-            const rules = rulesByProduct.get(assignment.productRef.id) ?? [];
-            rules.push({
-              mode,
-              variantSelection: mapVariantSelection(
-                assignment.variantSelection
-              ),
-              variantExclusion: assignment.variantExclusion,
+          const storeResponse = failOnGraphqlError(
+            await client.query(resolveStoreQuery, {
+              storeKey: input.storeKey,
+            })
+          );
+          const store = storeResponse.data?.store;
+          if (store === undefined || store === null) {
+            throw new CommercetoolsProductRequestFailure({
+              message: `Commercetools Store ${input.storeKey} was not found`,
             });
-            rulesByProduct.set(assignment.productRef.id, rules);
           }
-          return rulesByProduct;
+          const distributionChannelId = store.distributionChannels[0]?.id;
+          if (distributionChannelId === undefined) {
+            throw new CommercetoolsProductRequestFailure({
+              message: `Commercetools Store ${input.storeKey} has no distribution channel`,
+            });
+          }
+          const customerGroupId =
+            input.customerId === undefined
+              ? undefined
+              : failOnGraphqlError(
+                  await client.query(resolveCustomerGroupQuery, {
+                    customerId: input.customerId,
+                  })
+                ).data?.customer?.customerGroup?.id;
+
+          return {
+            distributionChannelId,
+            supplyChannelIds: store.supplyChannels.map(({ id }) => id),
+            ...(customerGroupId === undefined ? {} : { customerGroupId }),
+          };
         })
       ),
     });
