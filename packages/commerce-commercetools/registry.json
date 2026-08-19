@@ -97,28 +97,23 @@
           "type": "registry:file"
         },
         {
+          "path": "cart/graphql/fragments.ts",
+          "target": "~/packages/commerce-commercetools/cart/graphql/fragments.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/graphql/mutations.ts",
+          "target": "~/packages/commerce-commercetools/cart/graphql/mutations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/graphql/queries.ts",
+          "target": "~/packages/commerce-commercetools/cart/graphql/queries.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cart/index.ts",
           "target": "~/packages/commerce-commercetools/cart/index.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "cart/persistence-errors.ts",
-          "target": "~/packages/commerce-commercetools/cart/persistence-errors.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "cart/persistence-types.ts",
-          "target": "~/packages/commerce-commercetools/cart/persistence-types.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "cart/persistence.test.ts",
-          "target": "~/packages/commerce-commercetools/cart/persistence.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "cart/persistence.ts",
-          "target": "~/packages/commerce-commercetools/cart/persistence.ts",
           "type": "registry:file"
         },
         {

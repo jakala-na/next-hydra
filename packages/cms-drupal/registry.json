@@ -8,7 +8,9 @@
       "title": "Next Hydra Drupal CMS provider",
       "description": "Installs the Drupal CMS provider package and its Drupal backend app.",
       "docs": "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
-      "registryDependencies": ["jakala-na/next-hydra/drupal"],
+      "registryDependencies": [
+        "jakala-na/next-hydra/drupal"
+      ],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/cms/drupal",
@@ -90,11 +92,6 @@
           "type": "registry:file"
         },
         {
-          "path": "canvas-components/article-card/index.test.tsx",
-          "target": "~/packages/cms-drupal/canvas-components/article-card/index.test.tsx",
-          "type": "registry:file"
-        },
-        {
           "path": "canvas-components/article-card/index.tsx",
           "target": "~/packages/cms-drupal/canvas-components/article-card/index.tsx",
           "type": "registry:file"
@@ -105,11 +102,6 @@
           "type": "registry:file"
         },
         {
-          "path": "canvas-components/article-card/next.test.tsx",
-          "target": "~/packages/cms-drupal/canvas-components/article-card/next.test.tsx",
-          "type": "registry:file"
-        },
-        {
           "path": "canvas-components/article-card/next.tsx",
           "target": "~/packages/cms-drupal/canvas-components/article-card/next.tsx",
           "type": "registry:file"
@@ -117,11 +109,6 @@
         {
           "path": "canvas-components/featured-articles/component.yml",
           "target": "~/packages/cms-drupal/canvas-components/featured-articles/component.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "canvas-components/featured-articles/index.test.tsx",
-          "target": "~/packages/cms-drupal/canvas-components/featured-articles/index.test.tsx",
           "type": "registry:file"
         },
         {
@@ -155,11 +142,6 @@
           "type": "registry:file"
         },
         {
-          "path": "canvas-components/latest-articles/index.test.tsx",
-          "target": "~/packages/cms-drupal/canvas-components/latest-articles/index.test.tsx",
-          "type": "registry:file"
-        },
-        {
           "path": "canvas-components/latest-articles/index.tsx",
           "target": "~/packages/cms-drupal/canvas-components/latest-articles/index.tsx",
           "type": "registry:file"
@@ -167,11 +149,6 @@
         {
           "path": "canvas-components/product-collection/component.yml",
           "target": "~/packages/cms-drupal/canvas-components/product-collection/component.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "canvas-components/product-collection/index.test.tsx",
-          "target": "~/packages/cms-drupal/canvas-components/product-collection/index.test.tsx",
           "type": "registry:file"
         },
         {
@@ -220,11 +197,6 @@
           "type": "registry:file"
         },
         {
-          "path": "components/canvas-component-tree.test.tsx",
-          "target": "~/packages/cms-drupal/components/canvas-component-tree.test.tsx",
-          "type": "registry:file"
-        },
-        {
           "path": "components/canvas-component-tree.tsx",
           "target": "~/packages/cms-drupal/components/canvas-component-tree.tsx",
           "type": "registry:file"
@@ -235,18 +207,8 @@
           "type": "registry:file"
         },
         {
-          "path": "components/component-renderer.test.tsx",
-          "target": "~/packages/cms-drupal/components/component-renderer.test.tsx",
-          "type": "registry:file"
-        },
-        {
           "path": "components/component-renderer.tsx",
           "target": "~/packages/cms-drupal/components/component-renderer.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "components/global-region.test.tsx",
-          "target": "~/packages/cms-drupal/components/global-region.test.tsx",
           "type": "registry:file"
         },
         {
@@ -260,18 +222,8 @@
           "type": "registry:file"
         },
         {
-          "path": "components/page-renderer.test.tsx",
-          "target": "~/packages/cms-drupal/components/page-renderer.test.tsx",
-          "type": "registry:file"
-        },
-        {
           "path": "components/page-renderer.tsx",
           "target": "~/packages/cms-drupal/components/page-renderer.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "components/page.test.tsx",
-          "target": "~/packages/cms-drupal/components/page.test.tsx",
           "type": "registry:file"
         },
         {
@@ -365,11 +317,6 @@
           "type": "registry:file"
         },
         {
-          "path": "lib/latest-articles.test.ts",
-          "target": "~/packages/cms-drupal/lib/latest-articles.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "lib/latest-articles.ts",
           "target": "~/packages/cms-drupal/lib/latest-articles.ts",
           "type": "registry:file"
@@ -385,18 +332,8 @@
           "type": "registry:file"
         },
         {
-          "path": "lib/navigation/index.test.ts",
-          "target": "~/packages/cms-drupal/lib/navigation/index.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "lib/navigation/index.ts",
           "target": "~/packages/cms-drupal/lib/navigation/index.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "lib/next-preview.test.ts",
-          "target": "~/packages/cms-drupal/lib/next-preview.test.ts",
           "type": "registry:file"
         },
         {
@@ -417,11 +354,6 @@
         {
           "path": "lib/preview-session.ts",
           "target": "~/packages/cms-drupal/lib/preview-session.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "lib/preview.test.ts",
-          "target": "~/packages/cms-drupal/lib/preview.test.ts",
           "type": "registry:file"
         },
         {
@@ -495,11 +427,6 @@
           "type": "registry:file"
         },
         {
-          "path": "routes/draft.test.ts",
-          "target": "~/packages/cms-drupal/routes/draft.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "routes/draft.ts",
           "target": "~/packages/cms-drupal/routes/draft.ts",
           "type": "registry:file"
@@ -557,6 +484,11 @@
         {
           "path": "typescript-config.json",
           "target": "~/packages/cms-drupal/typescript-config.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/cms-drupal/vitest.config.ts",
           "type": "registry:file"
         }
       ]
