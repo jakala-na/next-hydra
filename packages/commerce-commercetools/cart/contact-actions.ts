@@ -1,6 +1,7 @@
+import { CartProviderFailure } from "@repo/commerce/domain/cart-errors";
 import type { CheckoutContact } from "@repo/commerce/domain/checkout";
 import { Effect } from "effect";
-import { CommercetoolsCartCustomTypeConflict } from "./persistence-errors";
+
 import type { CommercetoolsCart } from "./provider-cart";
 
 export const ORDER_CUSTOM_TYPE_KEY = "orderCustomFields";
@@ -50,19 +51,23 @@ export const hasPersistedCheckoutContact = (
   contactsEqual(cart.checkoutDetails?.contact, contact) &&
   cart.customerEmail === contact.buyerContact.email;
 
+/**
+ * A Cart already carrying a different custom type cannot hold the checkout
+ * Contact: overwriting it would discard whatever owns that type today.
+ */
 const cartCustomTypeConflict = (actualTypeKey: string | undefined) =>
-  new CommercetoolsCartCustomTypeConflict({
-    actualTypeKey: actualTypeKey ?? "<unavailable>",
-    expectedTypeKey: ORDER_CUSTOM_TYPE_KEY,
+  new CartProviderFailure({
+    cause: new Error(
+      `Commercetools Cart carries custom type ${actualTypeKey ?? "<unavailable>"} rather than ${ORDER_CUSTOM_TYPE_KEY}`
+    ),
+    operation: "saveContact",
+    reason: "invalidData",
   });
 
 export const buildSaveCheckoutContactActions = (
   cart: Pick<CommercetoolsCart, "custom">,
   contact: CheckoutContact
-): Effect.Effect<
-  SaveCheckoutContactAction[],
-  CommercetoolsCartCustomTypeConflict
-> => {
+): Effect.Effect<SaveCheckoutContactAction[], CartProviderFailure> => {
   const field = {
     name: CHECKOUT_CONTACT_CUSTOM_FIELD_NAME,
     value: checkoutContactCustomFieldValue(contact),

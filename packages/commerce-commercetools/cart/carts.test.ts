@@ -1,3 +1,4 @@
+import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import { describe, expect, it } from "@effect/vitest";
 import {
   CartId,
@@ -5,518 +6,540 @@ import {
   ProductId,
   VariantId,
 } from "@repo/commerce/domain/cart";
+import { CountryCode } from "@repo/commerce/domain/checkout";
 import {
   CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "@repo/commerce/domain/commerce-account";
 import { Carts } from "@repo/commerce/services/carts";
 import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
-import { Effect, Option } from "effect";
-import { vi } from "vitest";
-import { type CommercetoolsCartsPersistence, cartsLayerFrom } from "./carts";
-import {
-  CommercetoolsCartCustomTypeConflict,
-  CommercetoolsCartMerchandiseUnavailable,
-  CommercetoolsCartNotFound,
-  CommercetoolsCartVersionConflict,
-  CommercetoolsCartWriteOutcomeUnknown,
-} from "./persistence-errors";
-import type { CommercetoolsCart } from "./provider-cart";
+import type { Client } from "@urql/core";
+import { Cause, Effect, Exit, Layer, Option } from "effect";
 
-vi.mock("server-only", () => ({}));
+import { CommercetoolsGraphQLClient } from "../client/graphql-client";
+import { CommercetoolsRestClient } from "../client/rest-client";
+import { cartsLayer } from "./carts";
+
+type ScriptedResponse = {
+  readonly data?: unknown;
+  readonly error?: unknown;
+};
+
+type GraphqlDocument = {
+  readonly definitions?: readonly {
+    readonly name?: { readonly value?: string };
+  }[];
+};
+
+type GraphqlVariables = Parameters<Client["query"]>[1];
+
+type RecordedCall = {
+  readonly operation: string;
+  readonly variables: GraphqlVariables;
+};
+
+const operationName = (document: GraphqlDocument): string =>
+  document.definitions?.[0]?.name?.value ?? "unknown";
+
+const makeScriptedClients = () => {
+  const queues = new Map<string, ScriptedResponse[]>();
+  const sticky = new Map<string, ScriptedResponse>();
+  const calls: RecordedCall[] = [];
+
+  // The urql query/mutation contract returns a thenable; this double resolves each scripted
+  // response synchronously but must hand back a Promise so persistence can await it.
+  // oxlint-disable-next-line typescript/promise-function-async
+  const respond = (
+    document: GraphqlDocument,
+    variables: GraphqlVariables
+  ): Promise<ScriptedResponse> => {
+    const operation = operationName(document);
+    calls.push({ operation, variables });
+    const next = queues.get(operation)?.shift();
+    if (next !== undefined) {
+      sticky.set(operation, next);
+      return Promise.resolve(next);
+    }
+    const last = sticky.get(operation);
+    if (last === undefined) {
+      throw new Error(`No scripted response for operation ${operation}`);
+    }
+    return Promise.resolve(last);
+  };
+
+  const on = (operation: string, ...responses: readonly ScriptedResponse[]) => {
+    queues.set(operation, [...(queues.get(operation) ?? []), ...responses]);
+  };
+
+  const callsFor = (operation: string) =>
+    calls.filter((call) => call.operation === operation);
+
+  // SAFETY: Cart persistence only awaits query/mutation and reads `data`/`error`; the scripted
+  // Promise models the entire consumed contract, and the associate REST root stays unused here.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions
+  const graphqlClient = {
+    mutation: respond,
+    query: respond,
+  } as unknown as Pick<Client, "mutation" | "query">;
+  // SAFETY: These cases exercise only the GraphQL client; the associate REST root is never called.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions
+  const unusedApiRoot = {} as ByProjectKeyRequestBuilder;
+
+  const layer = cartsLayer.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        CommercetoolsGraphQLClient.testLayer(graphqlClient),
+        CommercetoolsRestClient.testLayer(unusedApiRoot)
+      )
+    )
+  );
+
+  return { callsFor, layer, on };
+};
 
 const store = new Store({
   currency: "USD",
   locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("us-store"),
 });
-const unitPriceCentAmount = 2500;
-const currentVersion = 7;
-const nextVersion = 8;
-const updatedQuantity = 2;
-const persistedContactRead = 3;
-const contact = {
-  buyerContact: {
-    email: "buyer@example.com",
-    firstName: "Ada",
-    lastName: "Lovelace",
-  },
-  source: "manual" as const,
+
+const anonymousTarget = {
+  _tag: "AnonymousCartTarget" as const,
+  id: CartId.make("cart-1"),
+  store,
 };
 
-const providerCart = ({
-  id = "cart-1",
-  quantity = 1,
-  version = currentVersion,
-}: {
-  readonly id?: string;
-  readonly quantity?: number;
-  readonly version?: number;
-} = {}): CommercetoolsCart => ({
+const currentVersion = 7;
+const providerVersion = 8;
+const unitPriceCentAmount = 2500;
+
+const rawActiveCart = {
+  businessUnit: null,
   cartState: "Active",
-  checkoutDetails: {},
-  id,
-  lineItems: [
-    {
-      id: "line-1",
-      name: "Hydra Crane",
-      price: {
-        discounted: null,
-        value: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
-      },
-      productId: "product-1",
-      productType: "heavy-lifting-and-specialized-equipment",
-      quantity,
-      totalPrice: {
-        centAmount: unitPriceCentAmount * quantity,
-        currencyCode: "USD",
-      },
-      variant: {
-        attributes: {
-          capacity: 20,
-          color: { key: "yellow", label: "Yellow" },
-          iso45001: true,
-          mobility: { key: "mobile", label: "Mobile" },
-        },
-        id: 3,
-        images: [{ altText: "Crane", url: "https://example.com/crane.jpg" }],
-        sku: "SKU-3",
-      },
-    },
-  ],
+  country: null,
+  custom: null,
+  customerEmail: null,
+  id: "cart-1",
+  lineItems: [],
+  shippingAddress: null,
   store: { key: "us-store" },
-  totalLineItemQuantity: quantity,
-  totalPrice: {
-    centAmount: unitPriceCentAmount * quantity,
-    currencyCode: "USD",
+  totalLineItemQuantity: 0,
+  totalPrice: { centAmount: 0, currencyCode: "USD" },
+  version: currentVersion,
+};
+
+const rawCartLineItem = {
+  id: "line-1",
+  key: null,
+  name: "Hydra Crane",
+  price: {
+    discounted: null,
+    value: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
   },
-  version,
+  productId: "product-1",
+  productType: { key: "heavy-lifting-and-specialized-equipment" },
+  quantity: 1,
+  totalPrice: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
+  variant: {
+    attributesRaw: [],
+    id: 3,
+    images: [{ label: "Crane", url: "https://example.com/crane.jpg" }],
+    sku: "SKU-3",
+  },
+};
+
+const rawCartWithLineItem = {
+  ...rawActiveCart,
+  lineItems: [rawCartLineItem],
+  totalLineItemQuantity: 1,
+  totalPrice: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
+};
+
+const rawBusinessUnitCart = {
+  ...rawActiveCart,
+  businessUnit: { id: "business-unit-1" },
+};
+
+const cartByIdData = <Cart>(cart: Cart) => ({ data: { cart } });
+const distributionChannelData = {
+  data: {
+    store: { distributionChannels: [{ key: "distribution-channel-1" }] },
+  },
+};
+const updateCartData = <Cart>(cart: Cart) => ({ data: { updateCart: cart } });
+const forbidden = {
+  error: {
+    graphQLErrors: [{ extensions: { code: "Forbidden" } }],
+    message: "Associate is not authorized",
+  },
+};
+const concurrentModification = (currentProviderVersion: number) => ({
+  error: {
+    graphQLErrors: [
+      {
+        extensions: {
+          code: "ConcurrentModification",
+          currentVersion: currentProviderVersion,
+        },
+      },
+    ],
+  },
 });
 
-const persistence = (
-  overrides: Partial<CommercetoolsCartsPersistence> = {}
-): CommercetoolsCartsPersistence => ({
-  addItem: () => Effect.succeed(providerCart()),
-  createAnonymous: () => Effect.succeed(providerCart()),
-  createForBusinessUnit: () => Effect.succeed(providerCart()),
-  findActiveForBusinessUnit: () => Effect.succeed([]),
-  findById: () => Effect.succeed(providerCart()),
-  removeLineItem: () => Effect.succeed(providerCart()),
-  saveContact: () => Effect.void,
-  saveDeliveryDetails: () => Effect.void,
-  setLineItemQuantity: () => Effect.succeed(providerCart()),
-  ...overrides,
-});
+const associateScopeInput = {
+  businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+  businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
+  customerId: CommerceCustomerId.make("customer-1"),
+  store,
+} as const;
 
-describe("cartsLayer", () => {
-  it.effect("projects provider Cart data without leaking its version", () =>
-    Effect.gen(function* () {
+describe("findById", () => {
+  it.effect(
+    "projects an owned provider Cart without leaking its version",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on("CartById", cartByIdData(rawActiveCart));
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+        const cart = Option.getOrThrow(found);
+
+        expect(cart).not.toHaveProperty("version");
+        expect(cart).toMatchObject({
+          id: "cart-1",
+          status: "active",
+          storeKey: "us-store",
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect("projects provider line-item variant identity", () => {
+    const clients = makeScriptedClients();
+    clients.on("CartById", cartByIdData(rawCartWithLineItem));
+
+    return Effect.gen(function* () {
       const carts = yield* Carts;
       const found = yield* carts.findById({ id: CartId.make("cart-1"), store });
       const cart = Option.getOrThrow(found);
 
-      expect(cart).not.toHaveProperty("version");
       expect(cart.lineItems[0]?.variant).toMatchObject({
-        attributes: {
-          capacity: 20,
-          color: { key: "yellow", label: "Yellow" },
-        },
         id: "3",
-        name: "Hydra Crane",
         productId: "product-1",
-        productType: "heavy-lifting-and-specialized-equipment",
         sku: "SKU-3",
       });
-    }).pipe(Effect.provide(cartsLayerFrom(persistence())))
-  );
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect("distinguishes confirmed absence from provider failure", () => {
+    const clients = makeScriptedClients();
+    clients.on("CartById", cartByIdData(null));
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({
+        id: CartId.make("missing"),
+        store,
+      });
+      expect(Option.isNone(found)).toBeTruthy();
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect("reports invalid provider projections as invalid data", () => {
+    const clients = makeScriptedClients();
+    clients.on(
+      "CartById",
+      cartByIdData({ ...rawActiveCart, totalLineItemQuantity: -1 })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const error = yield* carts
+        .findById({ id: CartId.make("cart-1"), store })
+        .pipe(Effect.flip);
+
+      expect(error).toMatchObject({
+        _tag: "CartProviderFailure",
+        reason: "invalidData",
+      });
+    }).pipe(Effect.provide(clients.layer));
+  });
 
   it.effect(
-    "resolves the provider version before writing and returns fresh state",
+    "rejects Business Unit Carts presented as anonymous possession",
     () => {
-      let writtenVersion: number | undefined;
-      const implementation = persistence({
-        addItem: ({ cart }) => {
-          writtenVersion = cart.version;
-          return Effect.succeed(
-            providerCart({
-              quantity: updatedQuantity,
-              version: nextVersion,
-            })
-          );
-        },
-        findById: () =>
-          Effect.succeed(providerCart({ version: currentVersion })),
-      });
+      const clients = makeScriptedClients();
+      clients.on("CartById", cartByIdData(rawBusinessUnitCart));
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const error = yield* carts
+          .findById({ id: CartId.make("cart-1"), store })
+          .pipe(Effect.flip);
+
+        expect(error._tag).toBe("CartAccessDenied");
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+});
+
+describe("addItem", () => {
+  it.effect(
+    "resolves the Store distribution channel before writing the line item",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on("CartById", cartByIdData(rawActiveCart));
+      clients.on("ProviderCartDistributionChannel", distributionChannelData);
+      clients.on(
+        "AddItemToCart",
+        updateCartData({ ...rawCartWithLineItem, version: providerVersion })
+      );
 
       return Effect.gen(function* () {
         const carts = yield* Carts;
         const updated = yield* carts.addItem({
           productId: ProductId.make("product-1"),
           quantity: 1,
-          target: {
-            _tag: "AnonymousCartTarget",
-            id: CartId.make("cart-1"),
-            store,
-          },
+          target: anonymousTarget,
           variantId: VariantId.make("3"),
         });
 
-        expect(writtenVersion).toBe(currentVersion);
-        expect(updated.totalLineItemQuantity).toBe(updatedQuantity);
-        expect(updated).not.toHaveProperty("version");
-      }).pipe(Effect.provide(cartsLayerFrom(implementation)));
+        expect(updated).toMatchObject({ id: "cart-1" });
+        expect(clients.callsFor("AddItemToCart")[0]?.variables).toMatchObject({
+          distributionChannelKey: "distribution-channel-1",
+        });
+      }).pipe(Effect.provide(clients.layer));
     }
   );
 
-  it.effect("distinguishes confirmed absence from provider failure", () =>
-    Effect.gen(function* () {
-      const missingCarts = yield* Carts;
-      const missing = yield* missingCarts.findById({
-        id: CartId.make("missing"),
-        store,
-      });
-      expect(Option.isNone(missing)).toBe(true);
-    }).pipe(
-      Effect.provide(
-        cartsLayerFrom(
-          persistence({
-            findById: () =>
-              Effect.fail(new CommercetoolsCartNotFound({ cartId: "missing" })),
-          })
-        )
-      )
-    )
-  );
-
-  it.effect("reports invalid provider projections as invalid data", () =>
-    Effect.gen(function* () {
-      const carts = yield* Carts;
-      const error = yield* carts
-        .findById({ id: CartId.make("cart-1"), store })
-        .pipe(Effect.flip);
-
-      expect(error._tag).toBe("CartProviderFailure");
-      if (error._tag === "CartProviderFailure") {
-        expect(error.reason).toBe("invalidData");
-      }
-    }).pipe(
-      Effect.provide(
-        cartsLayerFrom(
-          persistence({
-            findById: () =>
-              Effect.succeed({
-                ...providerCart(),
-                totalLineItemQuantity: -1,
-              }),
-          })
-        )
-      )
-    )
-  );
-
-  it.effect(
-    "rejects customer-owned Carts presented as anonymous possession",
-    () =>
-      Effect.gen(function* () {
-        const carts = yield* Carts;
-        const error = yield* carts
-          .findById({ id: CartId.make("cart-1"), store })
-          .pipe(Effect.flip);
-
-        expect(error._tag).toBe("CartAccessDenied");
-      }).pipe(
-        Effect.provide(
-          cartsLayerFrom(
-            persistence({
-              findById: () =>
-                Effect.succeed({
-                  ...providerCart(),
-                  customerId: CommerceCustomerId.make("customer-1"),
-                }),
-            })
-          )
-        )
-      )
-  );
-
-  it.effect(
-    "rejects Business Unit Carts presented as anonymous possession",
-    () =>
-      Effect.gen(function* () {
-        const carts = yield* Carts;
-        const error = yield* carts
-          .findById({ id: CartId.make("cart-1"), store })
-          .pipe(Effect.flip);
-
-        expect(error._tag).toBe("CartAccessDenied");
-      }).pipe(
-        Effect.provide(
-          cartsLayerFrom(
-            persistence({
-              findById: () =>
-                Effect.succeed({
-                  ...providerCart(),
-                  businessUnitId:
-                    CommerceBusinessUnitId.make("business-unit-1"),
-                }),
-            })
-          )
-        )
-      )
-  );
-
-  it.effect("repairs stale customer email when Contact already matches", () => {
-    let writes = 0;
-    let reads = 0;
-    const implementation = persistence({
-      findById: () => {
-        reads += 1;
-        return Effect.succeed({
-          ...providerCart(),
-          checkoutDetails: { contact },
-          customerEmail:
-            reads === 1 ? "stale@example.com" : contact.buyerContact.email,
-        });
-      },
-      saveContact: () => {
-        writes += 1;
-        return Effect.void;
+  it.effect("maps provider-confirmed unavailable merchandise", () => {
+    const clients = makeScriptedClients();
+    clients.on("CartById", cartByIdData(rawActiveCart));
+    clients.on("ProviderCartDistributionChannel", distributionChannelData);
+    clients.on("AddItemToCart", {
+      error: {
+        graphQLErrors: [{ extensions: { code: "MatchingPriceNotFound" } }],
+        message: "No matching price",
       },
     });
 
     return Effect.gen(function* () {
       const carts = yield* Carts;
-      const updated = yield* carts.saveContact({
-        contact,
-        target: {
-          _tag: "AnonymousCartTarget",
-          id: CartId.make("cart-1"),
-          store,
-        },
-      });
-
-      expect(writes).toBe(1);
-      expect(updated.checkoutDetails.contact).toEqual(contact);
-    }).pipe(Effect.provide(cartsLayerFrom(implementation)));
-  });
-
-  it.effect(
-    "reloads and rebuilds Contact after a setCustomType conflict",
-    () => {
-      let reads = 0;
-      const retryFlags: boolean[] = [];
-      const implementation = persistence({
-        findById: () => {
-          reads += 1;
-          return Effect.succeed({
-            ...providerCart({
-              version: reads === 1 ? currentVersion : nextVersion,
-            }),
-            ...(reads === 1
-              ? {}
-              : {
-                  custom: {
-                    fields: {},
-                    type: { key: "orderCustomFields" },
-                  },
-                }),
-            ...(reads < persistedContactRead
-              ? {}
-              : {
-                  checkoutDetails: { contact },
-                  customerEmail: contact.buyerContact.email,
-                }),
-          });
-        },
-        saveContact: ({ retryConcurrentModification }) => {
-          retryFlags.push(retryConcurrentModification);
-          return retryFlags.length === 1
-            ? Effect.fail(
-                new CommercetoolsCartVersionConflict({
-                  cause: new Error("Concurrent modification"),
-                })
-              )
-            : Effect.void;
-        },
-      });
-
-      return Effect.gen(function* () {
-        const carts = yield* Carts;
-        const updated = yield* carts.saveContact({
-          contact,
-          target: {
-            _tag: "AnonymousCartTarget",
-            id: CartId.make("cart-1"),
-            store,
-          },
-        });
-
-        expect(retryFlags).toEqual([true, false]);
-        expect(updated.checkoutDetails.contact).toEqual(contact);
-      }).pipe(Effect.provide(cartsLayerFrom(implementation)));
-    }
-  );
-
-  it.effect(
-    "returns a provider-neutral conflict after Contact recovery is exhausted",
-    () =>
-      Effect.gen(function* () {
-        const carts = yield* Carts;
-        const error = yield* carts
-          .saveContact({
-            contact,
-            target: {
-              _tag: "AnonymousCartTarget",
-              id: CartId.make("cart-1"),
-              store,
-            },
-          })
-          .pipe(Effect.flip);
-
-        expect(error._tag).toBe("CartWriteConflict");
-      }).pipe(
-        Effect.provide(
-          cartsLayerFrom(
-            persistence({
-              saveContact: () =>
-                Effect.fail(
-                  new CommercetoolsCartVersionConflict({
-                    cause: new Error("Concurrent modification"),
-                  })
-                ),
-            })
-          )
-        )
-      )
-  );
-
-  it.effect("maps provider-confirmed unavailable merchandise", () =>
-    Effect.gen(function* () {
-      const carts = yield* Carts;
       const error = yield* carts
         .addItem({
           productId: ProductId.make("product-1"),
           quantity: 1,
-          target: {
-            _tag: "AnonymousCartTarget",
-            id: CartId.make("cart-1"),
-            store,
-          },
+          target: anonymousTarget,
           variantId: VariantId.make("3"),
         })
         .pipe(Effect.flip);
 
       expect(error._tag).toBe("CartMerchandiseUnavailable");
-    }).pipe(
-      Effect.provide(
-        cartsLayerFrom(
-          persistence({
-            addItem: () =>
-              Effect.fail(
-                new CommercetoolsCartMerchandiseUnavailable({
-                  cause: new Error("Variant is unavailable"),
-                })
-              ),
-          })
-        )
-      )
-    )
-  );
+    }).pipe(Effect.provide(clients.layer));
+  });
 
-  it.effect("rejects a missing line before changing its quantity", () =>
-    Effect.gen(function* () {
+  it.effect("preserves an ambiguous add-line-item result as unknown", () => {
+    const clients = makeScriptedClients();
+    clients.on("CartById", cartByIdData(rawActiveCart));
+    clients.on("ProviderCartDistributionChannel", distributionChannelData);
+    clients.on("AddItemToCart", {
+      error: {
+        message: "Connection closed after dispatch",
+        networkError: new Error("Connection closed after dispatch"),
+      },
+    });
+
+    return Effect.gen(function* () {
       const carts = yield* Carts;
       const error = yield* carts
-        .setLineItemQuantity({
-          lineItemId: LineItemId.make("line-1"),
-          quantity: updatedQuantity,
-          target: {
-            _tag: "AnonymousCartTarget",
-            id: CartId.make("cart-1"),
-            store,
-          },
-        })
-        .pipe(Effect.flip);
-
-      expect(error._tag).toBe("CartLineItemNotFound");
-    }).pipe(
-      Effect.provide(
-        cartsLayerFrom(
-          persistence({
-            findById: () =>
-              Effect.succeed({ ...providerCart(), lineItems: [] }),
-          })
-        )
-      )
-    )
-  );
-
-  it.effect("preserves an unknown quantity-write outcome", () =>
-    Effect.gen(function* () {
-      const carts = yield* Carts;
-      const error = yield* carts
-        .setLineItemQuantity({
-          lineItemId: LineItemId.make("line-1"),
-          quantity: updatedQuantity,
-          target: {
-            _tag: "AnonymousCartTarget",
-            id: CartId.make("cart-1"),
-            store,
-          },
+        .addItem({
+          productId: ProductId.make("product-1"),
+          quantity: 1,
+          target: anonymousTarget,
+          variantId: VariantId.make("3"),
         })
         .pipe(Effect.flip);
 
       expect(error._tag).toBe("CartWriteOutcomeUnknown");
-    }).pipe(
-      Effect.provide(
-        cartsLayerFrom(
-          persistence({
-            setLineItemQuantity: () =>
-              Effect.fail(
-                new CommercetoolsCartWriteOutcomeUnknown({
-                  cause: new Error("Connection closed after dispatch"),
-                })
-              ),
-          })
-        )
-      )
-    )
+    }).pipe(Effect.provide(clients.layer));
+  });
+});
+
+describe("findActiveForBusinessUnit", () => {
+  it.effect("projects provider Carts into domain Carts", () => {
+    const clients = makeScriptedClients();
+    clients.on("GetActiveCartForBusinessUnitAsAssociate", {
+      data: { asAssociate: { carts: { results: [rawBusinessUnitCart] } } },
+    });
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const result =
+        yield* carts.findActiveForBusinessUnit(associateScopeInput);
+
+      expect(result[0]).toMatchObject({
+        buyingContext: { businessUnitId: "business-unit-1" },
+        id: "cart-1",
+      });
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect(
+    "preserves provider authorization failures as access denied",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on("GetActiveCartForBusinessUnitAsAssociate", forbidden);
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const error = yield* carts
+          .findActiveForBusinessUnit(associateScopeInput)
+          .pipe(Effect.flip);
+
+        expect(error._tag).toBe("CartAccessDenied");
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect("treats an unclassified provider read failure as a defect", () => {
+    const clients = makeScriptedClients();
+    clients.on("GetActiveCartForBusinessUnitAsAssociate", {
+      error: {
+        graphQLErrors: [
+          { extensions: { code: "InternalProviderContractViolation" } },
+        ],
+        message: "Unexpected provider response",
+      },
+    });
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const exit = yield* carts
+        .findActiveForBusinessUnit(associateScopeInput)
+        .pipe(Effect.exit);
+
+      expect(Exit.isFailure(exit)).toBeTruthy();
+      expect(Exit.isFailure(exit) ? Cause.pretty(exit.cause) : "").toContain(
+        "Unexpected provider response"
+      );
+    }).pipe(Effect.provide(clients.layer));
+  });
+});
+
+describe("setLineItemQuantity", () => {
+  it.effect("rejects a missing line before changing its quantity", () => {
+    const clients = makeScriptedClients();
+    clients.on("CartById", cartByIdData(rawActiveCart));
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const error = yield* carts
+        .setLineItemQuantity({
+          lineItemId: LineItemId.make("line-1"),
+          quantity: 2,
+          target: anonymousTarget,
+        })
+        .pipe(Effect.flip);
+
+      expect(error._tag).toBe("CartLineItemNotFound");
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect("preserves an unknown quantity-write outcome", () => {
+    const clients = makeScriptedClients();
+    clients.on("CartById", cartByIdData(rawCartWithLineItem));
+    clients.on("ChangeItemQuantity", {
+      error: {
+        message: "Connection closed after dispatch",
+        networkError: new Error("Connection closed after dispatch"),
+      },
+    });
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const error = yield* carts
+        .setLineItemQuantity({
+          lineItemId: LineItemId.make("line-1"),
+          quantity: 2,
+          target: anonymousTarget,
+        })
+        .pipe(Effect.flip);
+
+      expect(error._tag).toBe("CartWriteOutcomeUnknown");
+    }).pipe(Effect.provide(clients.layer));
+  });
+});
+
+describe("versioned write conflict policy", () => {
+  it.effect(
+    "retries a narrow Delivery action with the provider version",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on("CartById", cartByIdData(rawActiveCart));
+      clients.on(
+        "SaveCheckoutDeliveryDetails",
+        concurrentModification(providerVersion),
+        updateCartData(rawActiveCart)
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        yield* carts.saveDeliveryDetails({
+          deliveryDetails: {
+            shippingAddress: {
+              addressLine1: "123 Analytical Engine Way",
+              city: "London",
+              country: CountryCode.make("GB"),
+              postalCode: "SW1A 1AA",
+            },
+            source: "manual",
+          },
+          target: anonymousTarget,
+        });
+
+        const writes = clients.callsFor("SaveCheckoutDeliveryDetails");
+        expect(writes).toHaveLength(2);
+        expect(writes[1]?.variables).toMatchObject({
+          version: providerVersion,
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
   );
 
   it.effect(
-    "maps conflicting Contact custom type evidence to invalid data",
-    () =>
-      Effect.gen(function* () {
+    "does not retry a setCustomType Contact write and surfaces the conflict",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on("CartById", cartByIdData(rawActiveCart));
+      clients.on(
+        "SaveCheckoutContact",
+        concurrentModification(providerVersion),
+        concurrentModification(providerVersion)
+      );
+
+      return Effect.gen(function* () {
         const carts = yield* Carts;
         const error = yield* carts
           .saveContact({
-            contact,
-            target: {
-              _tag: "AnonymousCartTarget",
-              id: CartId.make("cart-1"),
-              store,
+            contact: {
+              buyerContact: {
+                email: "ada@example.com",
+                firstName: "Ada",
+                lastName: "Lovelace",
+              },
+              source: "manual",
             },
+            target: anonymousTarget,
           })
           .pipe(Effect.flip);
 
-        expect(error).toMatchObject({
-          _tag: "CartProviderFailure",
-          reason: "invalidData",
-        });
-      }).pipe(
-        Effect.provide(
-          cartsLayerFrom(
-            persistence({
-              saveContact: () =>
-                Effect.fail(
-                  new CommercetoolsCartCustomTypeConflict({
-                    actualTypeKey: "otherCustomFields",
-                    expectedTypeKey: "orderCustomFields",
-                  })
-                ),
-            })
-          )
-        )
-      )
+        expect(error._tag).toBe("CartWriteConflict");
+      }).pipe(Effect.provide(clients.layer));
+    }
   );
 });

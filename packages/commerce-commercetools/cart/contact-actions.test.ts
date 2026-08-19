@@ -1,6 +1,7 @@
 import type { CheckoutContact } from "@repo/commerce/domain/checkout";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
+
 import {
   buildSaveCheckoutContactActions,
   hasPersistedCheckoutContact,
@@ -24,7 +25,7 @@ const customerProfileContact = {
   source: "customerProfile",
 } as const satisfies CheckoutContact;
 
-describe("buildSaveCheckoutContactActions", () => {
+describe(buildSaveCheckoutContactActions, () => {
   it("sets the checkout custom type for carts without custom fields", () => {
     const actions = Effect.runSync(
       buildSaveCheckoutContactActions(
@@ -74,7 +75,7 @@ describe("buildSaveCheckoutContactActions", () => {
       )
     );
 
-    expect(actions[0]).toEqual({
+    expect(actions[0]).toStrictEqual({
       setCustomerEmail: {
         email: "profile@example.com",
       },
@@ -89,7 +90,7 @@ describe("buildSaveCheckoutContactActions", () => {
     const storedContact = JSON.parse(
       JSON.parse(customTypeAction.setCustomType.fields[0].value)
     );
-    expect(storedContact).toEqual(customerProfileContact);
+    expect(storedContact).toStrictEqual(customerProfileContact);
   });
 
   it("does not replace an unexpected existing cart custom type", () => {
@@ -115,10 +116,12 @@ describe("buildSaveCheckoutContactActions", () => {
     }
 
     expect(result.failure).toMatchObject({
-      _tag: "CommercetoolsCartCustomTypeConflict",
-      actualTypeKey: "other-cart-fields",
-      expectedTypeKey: "orderCustomFields",
+      _tag: "CartProviderFailure",
+      operation: "saveContact",
+      reason: "invalidData",
     });
+    expect(String(result.failure.cause)).toContain("other-cart-fields");
+    expect(String(result.failure.cause)).toContain("orderCustomFields");
   });
 
   it("does not replace existing cart custom fields when the custom type key is unavailable", () => {
@@ -147,14 +150,16 @@ describe("buildSaveCheckoutContactActions", () => {
     }
 
     expect(result.failure).toMatchObject({
-      _tag: "CommercetoolsCartCustomTypeConflict",
-      actualTypeKey: "<unavailable>",
-      expectedTypeKey: "orderCustomFields",
+      _tag: "CartProviderFailure",
+      operation: "saveContact",
+      reason: "invalidData",
     });
+    expect(String(result.failure.cause)).toContain("<unavailable>");
+    expect(String(result.failure.cause)).toContain("orderCustomFields");
   });
 });
 
-describe("hasPersistedCheckoutContact", () => {
+describe(hasPersistedCheckoutContact, () => {
   it("requires matching checkout details and customer email", () => {
     expect(
       hasPersistedCheckoutContact(
@@ -166,7 +171,7 @@ describe("hasPersistedCheckoutContact", () => {
         },
         contact
       )
-    ).toBe(true);
+    ).toBeTruthy();
 
     expect(
       hasPersistedCheckoutContact(
@@ -178,6 +183,6 @@ describe("hasPersistedCheckoutContact", () => {
         },
         contact
       )
-    ).toBe(false);
+    ).toBeFalsy();
   });
 });
