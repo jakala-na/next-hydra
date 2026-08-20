@@ -34,6 +34,7 @@ export function DynamicProductCollection(
   const data = readFragment(dynamicProductCollectionFragment, fragment);
   const { description, heading, product_category: productCategory } = data;
   const title = heading || "";
+  const descriptionJson = description?.json;
   const categoryId = decodeCommerceCategoryId(productCategory);
 
   if (Option.isNone(categoryId)) {
@@ -54,7 +55,7 @@ export function DynamicProductCollection(
     >
       <ProductCollectionLayout
         description={
-          description?.json ? renderRichText(description.json) : undefined
+          Boolean(descriptionJson) ? renderRichText(descriptionJson) : undefined
         }
         title={title}
       >

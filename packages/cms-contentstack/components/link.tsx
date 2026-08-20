@@ -1,5 +1,8 @@
 import { getNodesFromConnection } from "../lib/utils/connection";
 
+const hasValue = (value: string | null | undefined): value is string =>
+  value !== null && value !== undefined && value !== "";
+
 type CMSLinkInput = {
   label: string | null;
   external_url: string | null;
@@ -41,26 +44,35 @@ export default function getLinkProps(
   if (cta && !Array.isArray(cta)) {
     return {
       label: cta.label ?? "",
-      url:
-        getNodesFromConnection(cta.internal_contentConnection)?.[0]?.url ||
-        cta.external_url ||
-        "",
+      url: (() => {
+        const connectionUrl = getNodesFromConnection(
+          cta.internal_contentConnection
+        )?.[0]?.url;
+        return hasValue(connectionUrl)
+          ? connectionUrl
+          : hasValue(cta.external_url)
+            ? cta.external_url
+            : "";
+      })(),
     };
   }
 
   // Handle array input (or null/undefined)
-  return (
-    (Array.isArray(cta)
-      ? cta
-          .filter((i) => i !== null)
-          .map((ctaItem) => ({
+  return Array.isArray(cta)
+    ? cta
+        .filter((i) => i !== null)
+        .map((ctaItem) => {
+          const connectionUrl = getNodesFromConnection(
+            ctaItem.internal_contentConnection
+          )?.[0]?.url;
+          return {
             label: ctaItem.label ?? "",
-            url:
-              getNodesFromConnection(ctaItem.internal_contentConnection)?.[0]
-                ?.url ||
-              ctaItem.external_url ||
-              "",
-          }))
-      : []) || []
-  );
+            url: hasValue(connectionUrl)
+              ? connectionUrl
+              : hasValue(ctaItem.external_url)
+                ? ctaItem.external_url
+                : "",
+          };
+        })
+    : [];
 }

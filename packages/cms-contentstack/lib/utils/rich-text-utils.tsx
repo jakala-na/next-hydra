@@ -30,7 +30,7 @@ export function renderRichText(
   jsonValue: unknown,
   embeddedItems?: EmbeddedItemsConnection | null
 ): ReactNode {
-  if (!jsonValue) {
+  if (jsonValue === undefined || jsonValue === null) {
     return null;
   }
 
@@ -46,7 +46,11 @@ export function renderRichText(
       reference: (_attrs, child, jsonBlock) => {
         // Check if this is an embedded entry (not an asset)
         if (jsonBlock?.attrs?.type === "entry") {
-          const href = jsonBlock.attrs?.href;
+          const rawHref: unknown = jsonBlock.attrs?.href;
+          const href =
+            typeof rawHref === "string" && rawHref !== ""
+              ? rawHref
+              : undefined;
 
           // Try to get embedded item data from GraphQL
           const embeddedItem = embeddedItemsArray[embeddedItemIndex];
@@ -60,12 +64,12 @@ export function renderRichText(
           }
 
           // Fallback: use href from ContentStack JSON and title from embedded item
-          if (href && embeddedItem?.title) {
+          if (href !== undefined && embeddedItem?.title) {
             return `<a href="${href}" class="embedded-entry-link" data-link-type="internal">${embeddedItem.title}</a>`;
           }
 
           // Fallback: use href from ContentStack JSON with path as text
-          if (href) {
+          if (href !== undefined) {
             return `<a href="${href}" class="embedded-entry-link" data-link-type="internal">${child || href}</a>`;
           }
 
@@ -87,9 +91,13 @@ export function renderRichText(
       if (
         domNode instanceof Element &&
         domNode.name === "a" &&
-        domNode.attribs?.class?.includes("embedded-entry-link")
+        (domNode.attribs?.class?.includes("embedded-entry-link") ?? false)
       ) {
-        const href = domNode.attribs.href || "#";
+        const rawLinkHref = domNode.attribs.href;
+        const href =
+          rawLinkHref !== undefined && rawLinkHref !== ""
+            ? rawLinkHref
+            : "#";
         const children = domNode.children as DOMNode[];
 
         return (

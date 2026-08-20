@@ -448,7 +448,7 @@ function describeShadcnEffects(
     if (Array.isArray(value)) {
       return value.some(hasValues);
     }
-    if (value && typeof value === "object") {
+    if (value !== null && typeof value === "object") {
       return Object.values(value).some(hasValues);
     }
     return (
@@ -476,7 +476,11 @@ function describeShadcnEffects(
       `${tree.fonts?.length ?? 0} font definition(s) will be applied by ShadCN`
     );
   }
-  if ([...items].some((item) => "config" in item && item.config)) {
+  if (
+    [...items].some(
+      (item) => "config" in item && item.config !== undefined
+    )
+  ) {
     effects.push("ShadCN project configuration will be updated");
   }
 
@@ -559,7 +563,9 @@ export async function addRegistryItem(
     references: [resolvedReference],
   });
   const primaryName = graph.itemByReference.get(resolvedReference);
-  const primary = primaryName ? graph.items.get(primaryName) : undefined;
+  const primary = primaryName
+    ? graph.items.get(primaryName)
+    : undefined;
   if (!primary) {
     throw new Error(`The registry returned no item for ${reference}.`);
   }

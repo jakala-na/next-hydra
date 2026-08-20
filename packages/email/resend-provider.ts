@@ -26,7 +26,9 @@ export const layerResendEmailProvider = Layer.sync(EmailProvider, () => {
             react: message.react,
             subject: message.subject,
             to: message.to,
-            ...(message.replyTo ? { replyTo: message.replyTo } : {}),
+            ...(message.replyTo !== undefined
+              ? { replyTo: message.replyTo }
+              : {}),
           });
 
           if (result.error) {

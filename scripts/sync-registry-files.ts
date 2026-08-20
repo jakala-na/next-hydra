@@ -98,7 +98,7 @@ for (const definition of manifests) {
   const item = registry.items.find(
     (candidate) => candidate.name === definition.item
   );
-  if (!item) {
+  if (item === undefined) {
     throw new Error(
       `${definition.manifest} does not define ${definition.item}.`
     );

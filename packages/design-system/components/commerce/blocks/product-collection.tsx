@@ -36,7 +36,7 @@ export function ProductCollectionLayout({
             <h3 className="font-bold text-4xl tracking-tight lg:text-5xl">
               {title}
             </h3>
-            {description ? (
+            {Boolean(description) ? (
               <div className="max-w-2xl text-muted-foreground text-xl">
                 {description}
               </div>

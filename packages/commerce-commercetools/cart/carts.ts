@@ -368,14 +368,13 @@ const toCommercetoolsCart = (
             ...(item.variant.sku === null ? {} : { sku: item.variant.sku }),
             attributes: reshapeProductAttributes(
               item.productType?.key as ProductTypeKey,
-              item.variant.attributesRaw || [],
+              item.variant.attributesRaw,
               locale
             ),
-            images:
-              item.variant.images.map((image) => ({
-                altText: image.label ?? "",
-                url: image.url,
-              })) || [],
+            images: item.variant.images.map((image) => ({
+              altText: image.label ?? "",
+              url: image.url,
+            })),
           }
         : null,
     })

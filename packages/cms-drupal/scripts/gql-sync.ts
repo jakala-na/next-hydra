@@ -11,7 +11,7 @@ import { getDrupalAccessToken } from "../auth.ts";
 import { getDrupalGraphqlUri, keys } from "../keys.ts";
 
 function ensureStageSucceeded(stage: string): void {
-  if (process.exitCode && process.exitCode !== 0) {
+  if (process.exitCode !== undefined && process.exitCode !== 0) {
     throw new Error(`${stage} failed`);
   }
 }

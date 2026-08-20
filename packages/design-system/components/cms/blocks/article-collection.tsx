@@ -62,7 +62,7 @@ export function ArticleCollectionLayout({
           <h2 className="text-balance font-bold text-4xl tracking-tight lg:text-5xl">
             {title}
           </h2>
-          {description ? (
+          {Boolean(description) ? (
             <div className="text-muted-foreground text-xl">{description}</div>
           ) : null}
         </div>

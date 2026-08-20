@@ -157,7 +157,7 @@ function schemaToType(schema, referenceSample, indentLevel) {
       return "null";
     }
     case "array": {
-      const itemType = schema.items
+      const itemType = Boolean(schema.items)
         ? schemaToType(schema.items, undefined, indentLevel)
         : "unknown";
       return `Array<${itemType}>`;
@@ -221,7 +221,9 @@ function valueToType(value, indentLevel) {
 }
 
 function addNull(type) {
-  return type === "null" || type.endsWith(" | null") ? type : `${type} | null`;
+  return type === "null" || Boolean(type.endsWith(" | null"))
+    ? type
+    : `${type} | null`;
 }
 
 function renderObjectType(entries, indentLevel) {
@@ -233,7 +235,7 @@ function renderObjectType(entries, indentLevel) {
   const closingIndent = "  ".repeat(indentLevel);
   const properties = entries.map(
     ({ name, optional, type }) =>
-      `${propertyIndent}${renderPropertyName(name)}${optional ? "?" : ""}: ${type};`
+      `${propertyIndent}${renderPropertyName(name)}${Boolean(optional) ? "?" : ""}: ${type};`
   );
   return `{\n${properties.join("\n")}\n${closingIndent}}`;
 }
@@ -367,7 +369,9 @@ async function main() {
   );
 }
 
-const entryPath = process.argv[1] ? resolve(process.argv[1]) : undefined;
+const entryPath = Boolean(process.argv[1])
+  ? resolve(process.argv[1])
+  : undefined;
 if (entryPath === import.meta.filename) {
   main().catch((error) => {
     const message = error instanceof Error ? error.message : String(error);

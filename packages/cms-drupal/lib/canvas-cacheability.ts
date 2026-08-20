@@ -19,20 +19,22 @@ export type CanvasCachePolicy = {
 export function getCanvasCachePolicy(
   cacheability: Page["cacheability"] | undefined
 ): CanvasCachePolicy | undefined {
-  if (!cacheability) {
+  if (!Boolean(cacheability)) {
     return;
   }
 
   const hasValidTags =
     Array.isArray(cacheability.tags) &&
-    cacheability.tags.every((tag) => typeof tag === "string");
+    Boolean(cacheability.tags.every((tag) => typeof tag === "string"));
   if (!hasValidTags) {
     return;
   }
 
   const hasValidContexts =
     Array.isArray(cacheability.contexts) &&
-    cacheability.contexts.every((context) => typeof context === "string");
+    Boolean(
+      cacheability.contexts.every((context) => typeof context === "string")
+    );
   if (!hasValidContexts) {
     return;
   }

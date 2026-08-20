@@ -55,7 +55,7 @@ export function HeroSection({
               {title}
             </h1>
 
-            {description ? (
+            {Boolean(description) ? (
               <div
                 className="max-w-xl text-muted-foreground text-xl leading-relaxed"
                 {...livePreviewProps?.description}

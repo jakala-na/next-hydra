@@ -163,7 +163,12 @@ const LightRays: React.FC<LightRaysProps> = ({
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      if (!containerRef.current) {
+      // The check above narrowed `.current` to non-null, and TS keeps that
+      // narrowing across the await, so it reads this as a redundant check on a
+      // non-null value. At runtime it is not: the component can unmount during
+      // the delay and React sets `.current` back to null. Compared explicitly
+      // rather than with `!` so the narrowed type does not make it look dead.
+      if (containerRef.current === null) {
         return;
       }
 
@@ -313,7 +318,7 @@ void main() {
       meshRef.current = mesh;
 
       const updatePlacement = () => {
-        if (!(containerRef.current && renderer)) {
+        if (!containerRef.current) {
           return;
         }
 
@@ -370,28 +375,25 @@ void main() {
       animationIdRef.current = requestAnimationFrame(loop);
 
       cleanupFunctionRef.current = () => {
-        if (animationIdRef.current) {
+        if (animationIdRef.current !== null) {
           cancelAnimationFrame(animationIdRef.current);
           animationIdRef.current = null;
         }
 
         window.removeEventListener("resize", updatePlacement);
 
-        if (renderer) {
-          try {
-            const { canvas } = renderer.gl;
-            const loseContextExt =
-              renderer.gl.getExtension("WEBGL_lose_context");
-            if (loseContextExt) {
-              loseContextExt.loseContext();
-            }
-
-            if (canvas && canvas.parentNode) {
-              canvas.parentNode.removeChild(canvas);
-            }
-          } catch (error) {
-            console.warn("Error during WebGL cleanup:", error);
+        try {
+          const { canvas } = renderer.gl;
+          const loseContextExt = renderer.gl.getExtension("WEBGL_lose_context");
+          if (loseContextExt) {
+            loseContextExt.loseContext();
           }
+
+          if (canvas.parentNode) {
+            canvas.parentNode.removeChild(canvas);
+          }
+        } catch (error) {
+          console.warn("Error during WebGL cleanup:", error);
         }
 
         rendererRef.current = null;
