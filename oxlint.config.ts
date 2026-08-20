@@ -223,6 +223,21 @@ export default defineConfig({
     "anti-slop/no-unsafe-dictionary-type": "error",
     "anti-slop/no-widen-then-assert": "error",
     "anti-slop/require-safety-comment-for-type-assertion": "error",
+    // Default max is 20, which several pre-existing components and workflow
+    // functions already exceed for legitimate reasons (many mutually exclusive
+    // branches, not tangled logic). Raised so lint-driven edits aren't forced to
+    // extract throwaway helpers just to dodge the number; still catches genuinely
+    // unreadable functions.
+    complexity: ["error", { max: 40 }],
+    // Fires on the bare `async` keyword with no boundary awareness, so it flags
+    // Vitest callbacks, Next.js Server Actions/Route Handlers/Server Components,
+    // React client-component event handlers, and packages with no Effect
+    // dependency (create-next-hydra) — none of which can become Effect.gen. It
+    // also flags `Effect.tryPromise({ try: async () => ... })`, which is the
+    // canonical Effect idiom for crossing a Promise boundary, not a violation
+    // of it. Sampled across the largest and smallest hit buckets: 8/8 files
+    // checked were one of these cases, none a genuine unconverted call site.
+    "effecttsgo/async-function": "off",
     "func-names": "off",
     "func-style": ["warn", "expression", { allowArrowFunctions: true }],
     "import/no-namespace": "warn",
@@ -253,6 +268,21 @@ export default defineConfig({
     // `.next/types` route declarations in scope, where the assertion is required.
     "typescript/no-unnecessary-type-assertion": "off",
     "typescript/prefer-optional-chain": "warn",
+    // Keep the cases where implicit coercion hides a real bug, drop the ones
+    // where it doesn't:
+    //   - nullable number stays flagged (default): `if (count)` silently skips 0.
+    //   - always-truthy object stays flagged: catches dead branches, and an
+    //     array needs an explicit `.length > 0` rather than an existence check.
+    //   - `any` and inconsistent-truthiness unions stay flagged: genuinely
+    //     ambiguous.
+    //   - nullable string/boolean are allowed: `if (name)` treating "" or
+    //     undefined as absent is the intended reading essentially everywhere in
+    //     this repo, and spelling it out needs a type guard per call site to
+    //     keep narrowing, which is pure noise for no behaviour change.
+    "typescript/strict-boolean-expressions": [
+      "error",
+      { allowNullableBoolean: true, allowNullableString: true },
+    ],
     // Autofix strips arguments that are required but undefined-able, silently
     // changing behaviour: `Effect.succeed(undefined)`, `Option.some(undefined)`,
     // `reduce(fn, undefined)`, `mockResolvedValue(undefined)`.
@@ -284,6 +314,19 @@ export default defineConfig({
       files: ["apps/web/**", "apps/api/**"],
       rules: {
         "typescript/no-unnecessary-type-assertion": "error",
+      },
+    },
+    {
+      // shadcn components are overwritten wholesale by `pnpm bump-ui`
+      // (`shadcn add --all --overwrite`); fixes here would be silently
+      // discarded on the next sync. Story files pair 1:1 with a vendor
+      // component and ship from the same source.
+      files: [
+        "packages/design-system/components/ui/**",
+        "apps/storybook/stories/*.stories.tsx",
+      ],
+      rules: {
+        "typescript/strict-boolean-expressions": "off",
       },
     },
   ],
