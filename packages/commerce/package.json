@@ -50,7 +50,7 @@
     "./store": "./store/index.ts"
   },
   "scripts": {
-    "boundaries": "node --experimental-transform-types scripts/commerce-boundaries.ts",
+    "boundaries": "node --experimental-transform-types scripts/check-commerce-boundaries.ts",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

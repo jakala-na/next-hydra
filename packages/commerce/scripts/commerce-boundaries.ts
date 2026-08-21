@@ -1,7 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
 
 type PackageManifest = {
   readonly dependencies?: Readonly<Record<string, string>>;
@@ -95,23 +94,6 @@ const repositoryFiles = (repoRoot: string): readonly string[] =>
     .filter((path) => path.length > 0)
     .map((path) => resolve(repoRoot, path))
     .filter(existsSync);
-
-const runOxlintImportBoundaries = (repoRoot: string) => {
-  execFileSync(
-    "pnpm",
-    [
-      "exec",
-      "oxlint",
-      "--allow",
-      "correctness",
-      "--config",
-      "oxlint.boundaries.config.ts",
-      "apps",
-      "packages",
-    ],
-    { cwd: repoRoot, stdio: "inherit" }
-  );
-};
 
 export const extractImportSpecifiers = (source: string): readonly string[] => {
   const specifiers = new Set<string>();
@@ -354,20 +336,3 @@ export const checkCommerceBoundaries = (
 
   return violations;
 };
-
-const scriptPath = process.argv[1];
-if (scriptPath !== undefined && resolve(scriptPath) === import.meta.filename) {
-  const commerceRoot = resolve(import.meta.dirname, "..");
-  const repoRoot = resolve(commerceRoot, "../..");
-  runOxlintImportBoundaries(repoRoot);
-  const violations = checkCommerceBoundaries(repoRoot);
-
-  if (violations.length > 0) {
-    process.stderr.write(
-      `${violations.map((violation) => `- ${violation}`).join("\n")}\n`
-    );
-    process.exitCode = 1;
-  } else {
-    process.stdout.write("Commerce provider boundaries are valid\n");
-  }
-}

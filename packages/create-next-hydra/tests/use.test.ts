@@ -104,14 +104,14 @@ afterEach(async () => {
 });
 
 describe("maintainer use", () => {
-  it("updates the lockfile after changing the workspace composition", async () => {
+  it("relinks dependencies after changing the workspace composition", async () => {
     const execute = vi.fn().mockResolvedValue({ stderr: "", stdout: "" });
 
     await installCompositionDependencies("/workspace", true, execute);
 
     expect(execute).toHaveBeenCalledWith(
       "pnpm",
-      ["install", "--no-frozen-lockfile"],
+      ["install", "--no-frozen-lockfile", "--force"],
       {
         cwd: "/workspace",
         verbose: true,

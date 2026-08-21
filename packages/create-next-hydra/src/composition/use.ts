@@ -116,7 +116,7 @@ export async function installCompositionDependencies(
   verbose: boolean,
   execute: typeof runCommand = runCommand
 ): Promise<void> {
-  await execute("pnpm", ["install", "--no-frozen-lockfile"], {
+  await execute("pnpm", ["install", "--no-frozen-lockfile", "--force"], {
     cwd,
     verbose,
   });
