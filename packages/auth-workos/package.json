@@ -5,7 +5,7 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/auth-workos/tsconfig.json"
   },
   "dependencies": {
     "@repo/errors": "workspace:*",

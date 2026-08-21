@@ -7,7 +7,7 @@
   "type": "commonjs",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/testing/tsconfig.json"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.5.0",

@@ -40,7 +40,7 @@
     "publish:public": "npm publish --access public",
     "test": "vitest run --exclude 'tests/e2e/**'",
     "test:e2e": "vitest run tests/e2e",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/create-next-hydra/tsconfig.json"
   },
   "dependencies": {
     "@clack/prompts": "^0.11.0",

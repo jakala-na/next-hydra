@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/security/tsconfig.json"
   },
   "dependencies": {
     "@arcjet/next": "1.0.0-beta.7",

@@ -5,7 +5,7 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "translate": "npx -y languine@latest translate",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/i18n/tsconfig.json"
   },
   "dependencies": {
     "next-intl": "^4.13.5"

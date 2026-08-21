@@ -8,7 +8,7 @@
     "dev": "NODE_USE_SYSTEM_CA=1 next dev -p 3001 --turbopack",
     "start": "NODE_USE_SYSTEM_CA=1 next start",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && pnpm --workspace-root exec tsc --noEmit --project apps/web/tsconfig.json"
   },
   "dependencies": {
     "@arcjet/next": "1.0.0-beta.7",

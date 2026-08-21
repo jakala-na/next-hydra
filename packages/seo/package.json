@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/seo/tsconfig.json"
   },
   "dependencies": {
     "lodash.merge": "^4.6.2",

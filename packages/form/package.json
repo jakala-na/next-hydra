@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/form/tsconfig.json"
   },
   "dependencies": {
     "react-hook-form": "^7.68.0"

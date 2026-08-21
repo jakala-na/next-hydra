@@ -6,7 +6,7 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
-    "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",
+    "typecheck": "fumadocs-mdx && next typegen && pnpm --workspace-root exec tsc --noEmit --project apps/docs/tsconfig.json",
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
