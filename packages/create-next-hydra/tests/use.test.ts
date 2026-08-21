@@ -190,7 +190,7 @@ describe("maintainer use", () => {
     ).rejects.toThrow();
     await expect(
       readFile(path.join(cwd, "pnpm-workspace.yaml"), "utf-8")
-    ).resolves.not.toContain("patchedDependencies");
+    ).resolves.not.toContain("patches/@drupal-canvas__headless.patch");
     await useComposition({ check: true, cwd });
 
     await useComposition({ cms: "drupal", cwd, yes: true }, { install });

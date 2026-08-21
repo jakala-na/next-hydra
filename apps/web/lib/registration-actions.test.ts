@@ -1,4 +1,5 @@
 import { ActionClient, ActionMiddleware } from "@repo/actions";
+import type { EmptyActionContext } from "@repo/actions";
 import { StoreKey } from "@repo/commerce/store";
 import { ErrorIssue, makeInputInvalid } from "@repo/errors";
 import type { Locale } from "@repo/i18n/types";
@@ -8,14 +9,39 @@ import {
   RegistrationApiErrorFailure,
   RegistrationApiValidationErrorFailure,
 } from "@repo/registration/public-errors";
-import { Effect, Layer, ManagedRuntime } from "effect";
+import { Effect, Layer, ManagedRuntime, Schema } from "effect";
+import { HttpClientError, HttpClientRequest } from "effect/unstable/http";
 import { describe, expect, it } from "vitest";
 
 import { makeRegistrationProcedures } from "./registration-procedures";
+import type { RegistrationActionContext } from "./registration-procedures";
 import type { RegistrationHttpApiClient } from "./registration-rest-client";
-import { RegistrationClient } from "./registration-rest-client";
+import {
+  RegistrationClient,
+  RegistrationHttpResponseError,
+} from "./registration-rest-client";
 
 const AWAITING_APPROVAL_HREF = "/register/awaiting-approval";
+const registrationRequest = HttpClientRequest.get(
+  "https://registration.test/registrations"
+);
+
+const transportFailure = (cause: unknown) =>
+  Effect.fail(
+    new HttpClientError.HttpClientError({
+      reason: new HttpClientError.TransportError({
+        cause,
+        request: registrationRequest,
+      }),
+    })
+  );
+
+const schemaFailure = () => Schema.decodeUnknownEffect(Schema.Never)(undefined);
+
+const responseContractFailure = () =>
+  schemaFailure().pipe(
+    Effect.mapError((cause) => new RegistrationHttpResponseError({ cause }))
+  );
 
 const messages = {
   "errors.invalidSubmission": "Review the highlighted fields.",
@@ -71,11 +97,12 @@ const makeHarness = (options: {
 
   const TestActions = ActionClient.make(ManagedRuntime.make(Layer.empty))
     .use(
-      ActionMiddleware.context(() =>
-        Effect.succeed({
-          locale: "en-US",
-          t: translate,
-        })
+      ActionMiddleware.context<EmptyActionContext, RegistrationActionContext>(
+        () =>
+          Effect.succeed({
+            locale: "en-US",
+            t: translate,
+          })
       )
     )
     .provide(() => Layer.succeed(RegistrationClient, client));
@@ -296,15 +323,9 @@ describe("submitRegistration", () => {
   it("maps an ambiguous client transport failure to outcome unknown", async () => {
     const { submitRegistration } = makeHarness({
       create: () =>
-        Effect.fail({
-          _tag: "HttpClientError",
-          reason: {
-            _tag: "TransportError",
-            cause: Object.assign(new Error("socket reset"), {
-              code: "ECONNRESET",
-            }),
-          },
-        }),
+        transportFailure(
+          Object.assign(new Error("socket reset"), { code: "ECONNRESET" })
+        ),
     });
 
     await expect(submitRegistration(validInput)).resolves.toMatchObject({
@@ -323,15 +344,11 @@ describe("submitRegistration", () => {
   it("maps a refused connection transport failure to outcome unknown", async () => {
     const { submitRegistration } = makeHarness({
       create: () =>
-        Effect.fail({
-          _tag: "HttpClientError",
-          reason: {
-            _tag: "TransportError",
-            cause: Object.assign(new Error("connection refused"), {
-              code: "ECONNREFUSED",
-            }),
-          },
-        }),
+        transportFailure(
+          Object.assign(new Error("connection refused"), {
+            code: "ECONNREFUSED",
+          })
+        ),
     });
 
     await expect(submitRegistration(validInput)).resolves.toMatchObject({
@@ -349,14 +366,7 @@ describe("submitRegistration", () => {
 
   it("maps a transport failure with an opaque cause to outcome unknown", async () => {
     const { submitRegistration } = makeHarness({
-      create: () =>
-        Effect.fail({
-          _tag: "HttpClientError",
-          reason: {
-            _tag: "TransportError",
-            cause: new TypeError("fetch failed"),
-          },
-        }),
+      create: () => transportFailure(new TypeError("fetch failed")),
     });
 
     await expect(submitRegistration(validInput)).resolves.toMatchObject({
@@ -371,11 +381,7 @@ describe("submitRegistration", () => {
 
   it("maps a classified response contract mismatch to outcome unknown", async () => {
     const { redirects, submitRegistration } = makeHarness({
-      create: () =>
-        Effect.fail({
-          _tag: "RegistrationHttpResponseError",
-          cause: { _tag: "SchemaError" },
-        }),
+      create: responseContractFailure,
     });
 
     await expect(submitRegistration(validInput)).resolves.toMatchObject({
@@ -391,7 +397,7 @@ describe("submitRegistration", () => {
 
   it("rejects an unclassified schema error as a defect", async () => {
     const { redirects, submitRegistration } = makeHarness({
-      create: () => Effect.fail({ _tag: "SchemaError" }),
+      create: schemaFailure,
     });
 
     await expect(submitRegistration(validInput)).rejects.toBeDefined();

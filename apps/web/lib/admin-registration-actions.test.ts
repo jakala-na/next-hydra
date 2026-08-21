@@ -1,4 +1,5 @@
 import { ActionClient, ActionMiddleware } from "@repo/actions";
+import type { EmptyActionContext } from "@repo/actions";
 import { NextServer } from "@repo/actions/next-server";
 import type { Locale } from "@repo/i18n/types";
 import { RegistrationId } from "@repo/registration";
@@ -58,7 +59,11 @@ const makeHarness = (options: {
   );
 
   const TestActions = ActionClient.make(runtime)
-    .use(ActionMiddleware.context(() => Effect.succeed({ locale: "en-US" })))
+    .use(
+      ActionMiddleware.context<EmptyActionContext, { readonly locale: Locale }>(
+        () => Effect.succeed({ locale: "en-US" })
+      )
+    )
     .use(
       ActionMiddleware.context<
         { readonly locale: Locale },
@@ -308,10 +313,14 @@ describe("admin registration actions", () => {
   it("rejects finalized statuses that the decision endpoint cannot return", async () => {
     const { approveRegistration, revalidated } = makeHarness({
       decide: () =>
-        Effect.sync(() => ({
-          registrationId: RegistrationId.make("registration-1"),
-          registrationStatus: "approved",
-        })),
+        Effect.sync(() => {
+          const decision = {
+            registrationId: RegistrationId.make("registration-1"),
+            registrationStatus: "approval_processing" as const,
+          };
+          Reflect.set(decision, "registrationStatus", "approved");
+          return decision;
+        }),
     });
 
     await expect(

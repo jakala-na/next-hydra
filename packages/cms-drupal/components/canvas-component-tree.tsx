@@ -19,15 +19,10 @@ type CanvasComponentTreeProps = {
  * Resolves the generated Canvas registry in the Server Component graph.
  * Individual registry entries can still opt into a client boundary.
  */
-export function CanvasComponentTree({
+export const CanvasComponentTree = ({
   regionId,
   tree,
-}: CanvasComponentTreeProps) {
-  return (
-    <ReactCanvasComponentTree
-      components={canvasComponents}
-      regionId={regionId}
-      tree={tree}
-    />
-  );
-}
+}: CanvasComponentTreeProps) => {
+  const props = { components: canvasComponents, regionId, tree };
+  return <ReactCanvasComponentTree {...props} />;
+};

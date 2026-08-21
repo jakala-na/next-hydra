@@ -15,7 +15,10 @@ import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { graphqlClient } from "../client";
 import { graphql } from "../graphql";
 import { keys } from "../keys";
-import { getCanvasCachePolicy } from "../lib/canvas-cacheability";
+import {
+  getCanvasCachePolicy,
+  getCanvasPageCacheability,
+} from "../lib/canvas-cacheability";
 import { toDrupalLangcode, toDrupalPath } from "../lib/locale";
 import type {
   DrupalGraphqlPreviewContext,
@@ -124,7 +127,7 @@ async function getCachedCanvasPage(path: string) {
     return page;
   }
 
-  const policy = getCanvasCachePolicy(page.cacheability);
+  const policy = getCanvasCachePolicy(getCanvasPageCacheability(page));
   if (!policy) {
     cacheLife({ expire: 0, revalidate: 0, stale: 0 });
     return page;

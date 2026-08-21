@@ -20,6 +20,11 @@ export function withCMS(config: NextConfig) {
 
   const { headers } = config;
 
+  const canvasOptions = {
+    appRoot: process.cwd(),
+    projectRoot: canvasProjectRoot,
+  };
+
   return withCanvas(
     {
       ...config,
@@ -58,9 +63,6 @@ export function withCMS(config: NextConfig) {
         ],
       },
     },
-    {
-      appRoot: process.cwd(),
-      projectRoot: canvasProjectRoot,
-    }
+    canvasOptions
   );
 }

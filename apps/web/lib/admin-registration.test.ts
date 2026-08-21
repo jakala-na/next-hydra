@@ -1,24 +1,35 @@
 import { RegistrationId } from "@repo/registration";
 import { RegistrationDecisionOutcomeUnknown } from "@repo/registration/public-errors";
 import { Effect, Schema } from "effect";
+import { HttpClientError, HttpClientRequest } from "effect/unstable/http";
 import { describe, expect, it } from "vitest";
 
 import { decideAdminRegistrationWithClient } from "./admin-registration-decide";
 import type { RegistrationHttpApiClient } from "./registration-rest-client";
+import { RegistrationHttpResponseError } from "./registration-rest-client";
 
 const input = {
   decision: "approved" as const,
   registrationId: "registration-1",
 };
+const registrationRequest = HttpClientRequest.post(
+  "https://registration.test/registrations/registration-1/approve"
+);
 
 const transportFailure = (code: string) =>
-  Effect.fail({
-    _tag: "HttpClientError",
-    reason: {
-      _tag: "TransportError",
-      cause: Object.assign(new Error(code), { code }),
-    },
-  });
+  Effect.fail(
+    new HttpClientError.HttpClientError({
+      reason: new HttpClientError.TransportError({
+        cause: Object.assign(new Error(code), { code }),
+        request: registrationRequest,
+      }),
+    })
+  );
+
+const responseContractFailure = () =>
+  Schema.decodeUnknownEffect(Schema.Never)(undefined).pipe(
+    Effect.mapError((cause) => new RegistrationHttpResponseError({ cause }))
+  );
 
 const makeClient = (
   approve: RegistrationHttpApiClient["registrations"]["approve"]
@@ -64,17 +75,7 @@ describe("decideAdminRegistration", () => {
   it("returns outcome unknown without inspecting the transport cause", async () => {
     const error = await Effect.runPromise(
       decideAdminRegistrationWithClient(
-        makeClient(() =>
-          Effect.fail({
-            _tag: "HttpClientError",
-            reason: {
-              _tag: "TransportError",
-              cause: Object.assign(new Error("host not found"), {
-                code: "ENOTFOUND",
-              }),
-            },
-          })
-        ),
+        makeClient(() => transportFailure("ENOTFOUND")),
         input
       ).pipe(Effect.flip)
     );
@@ -88,12 +89,7 @@ describe("decideAdminRegistration", () => {
   it("returns outcome unknown for a classified response contract mismatch", async () => {
     const error = await Effect.runPromise(
       decideAdminRegistrationWithClient(
-        makeClient(() =>
-          Effect.fail({
-            _tag: "RegistrationHttpResponseError",
-            cause: { _tag: "SchemaError" },
-          })
-        ),
+        makeClient(responseContractFailure),
         input
       ).pipe(Effect.flip)
     );

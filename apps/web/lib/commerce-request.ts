@@ -90,7 +90,9 @@ export const makeCommerceRequest = (
           typeof AnonymousCommerceContextRequest
         >[0] = { store };
         if (anonymousCartId !== null) {
-          anonymousContext.anonymousCartId = CartId.make(anonymousCartId);
+          Object.assign(anonymousContext, {
+            anonymousCartId: CartId.make(anonymousCartId),
+          });
         }
 
         return {
@@ -106,7 +108,7 @@ export const makeCommerceRequest = (
         store,
       };
       if (businessUnitId !== undefined) {
-        customerContext.businessUnitId = businessUnitId;
+        Object.assign(customerContext, { businessUnitId });
       }
 
       return {

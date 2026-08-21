@@ -105,9 +105,7 @@ describe("registration workflow runtime", () => {
 
   test("projects a rejected workflow start to one unavailable failure", async () => {
     const { startEffect } = makeHarness({
-      start: async () => {
-        await Promise.reject(new Error("Vercel rejected kickoff"));
-      },
+      start: () => Promise.reject(new Error("Vercel rejected kickoff")),
     });
 
     const failure = await Effect.runPromise(startEffect().pipe(Effect.flip));
@@ -117,13 +115,12 @@ describe("registration workflow runtime", () => {
 
   test("keeps Workflow SDK start failures as defects", async () => {
     const { startEffect } = makeHarness({
-      start: async () => {
-        await Promise.reject(
+      start: () =>
+        Promise.reject(
           new WorkflowRuntimeError(
             "'start' received an invalid workflow function"
           )
-        );
-      },
+        ),
     });
 
     const exit = await Effect.runPromise(startEffect().pipe(Effect.exit));

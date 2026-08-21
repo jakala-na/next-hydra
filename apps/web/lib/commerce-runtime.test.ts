@@ -1,4 +1,5 @@
 import { ActionClient, ActionMiddleware } from "@repo/actions";
+import type { EmptyActionContext } from "@repo/actions";
 /* oxlint-disable promise/prefer-await-to-callbacks, promise/prefer-await-to-then -- Effect combinators use callback APIs to transform Effect values. */
 import { makeCartProcedures } from "@repo/commerce/cart/procedures";
 import {
@@ -149,8 +150,8 @@ const makeHarness = (options?: {
 
   const TestActions = ActionClient.make(runtime)
     .use(
-      ActionMiddleware.context(() =>
-        Effect.succeed({ locale: "en-US" satisfies Locale })
+      ActionMiddleware.context<EmptyActionContext, { readonly locale: Locale }>(
+        () => Effect.succeed({ locale: "en-US" })
       )
     )
     .provide(({ locale }) =>

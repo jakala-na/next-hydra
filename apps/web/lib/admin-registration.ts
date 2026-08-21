@@ -81,41 +81,7 @@ const buildListRegistrationsQuery = (input: ListAdminRegistrationsInput) => {
 const toRegistrationDetailView = (
   registration: RegistrationDetailResponse
 ): RegistrationDetailView => {
-  const optionalFields: Partial<
-    Pick<
-      RegistrationDetailView,
-      | "invitationId"
-      | "approvedAt"
-      | "rejectedAt"
-      | "approvalReason"
-      | "actorEmail"
-      | "actorName"
-    >
-  > = {};
-
-  if (registration.invitationId !== undefined) {
-    optionalFields.invitationId = String(registration.invitationId);
-  }
-  if (registration.approvedAt !== undefined && registration.approvedAt !== "") {
-    optionalFields.approvedAt = registration.approvedAt;
-  }
-  if (registration.rejectedAt !== undefined && registration.rejectedAt !== "") {
-    optionalFields.rejectedAt = registration.rejectedAt;
-  }
-  if (
-    registration.approvalReason !== undefined &&
-    registration.approvalReason !== ""
-  ) {
-    optionalFields.approvalReason = registration.approvalReason;
-  }
-  if (registration.actorEmail !== undefined && registration.actorEmail !== "") {
-    optionalFields.actorEmail = registration.actorEmail;
-  }
-  if (registration.actorName !== undefined && registration.actorName !== "") {
-    optionalFields.actorName = registration.actorName;
-  }
-
-  return {
+  const detail: RegistrationDetailView = {
     address: registration.address,
     companyName: registration.companyName,
     companyPhone: registration.companyPhone,
@@ -127,8 +93,33 @@ const toRegistrationDetailView = (
     status: registration.status,
     updatedAt: registration.updatedAt,
     vatId: registration.vatId,
-    ...optionalFields,
   };
+
+  if (registration.invitationId !== undefined) {
+    Object.assign(detail, {
+      invitationId: String(registration.invitationId),
+    });
+  }
+  if (registration.approvedAt !== undefined && registration.approvedAt !== "") {
+    Object.assign(detail, { approvedAt: registration.approvedAt });
+  }
+  if (registration.rejectedAt !== undefined && registration.rejectedAt !== "") {
+    Object.assign(detail, { rejectedAt: registration.rejectedAt });
+  }
+  if (
+    registration.approvalReason !== undefined &&
+    registration.approvalReason !== ""
+  ) {
+    Object.assign(detail, { approvalReason: registration.approvalReason });
+  }
+  if (registration.actorEmail !== undefined && registration.actorEmail !== "") {
+    Object.assign(detail, { actorEmail: registration.actorEmail });
+  }
+  if (registration.actorName !== undefined && registration.actorName !== "") {
+    Object.assign(detail, { actorName: registration.actorName });
+  }
+
+  return detail;
 };
 
 export async function listAdminRegistrations(

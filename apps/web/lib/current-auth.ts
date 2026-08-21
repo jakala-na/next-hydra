@@ -10,15 +10,17 @@ export { CurrentAuth } from "./current-auth-api";
 
 export const currentAuthLayer = Layer.succeed(CurrentAuth, {
   snapshot: Effect.promise(async () => await withAuth()).pipe(
-    Effect.map((session) => {
+    Effect.map((session): CurrentAuthSnapshot => {
       const snapshot: CurrentAuthSnapshot = {
         permissions: session.permissions ?? [],
       };
       if (session.accessToken !== undefined) {
-        snapshot.accessToken = Redacted.make(session.accessToken);
+        Object.assign(snapshot, {
+          accessToken: Redacted.make(session.accessToken),
+        });
       }
       if (session.user?.id !== undefined) {
-        snapshot.userId = session.user.id;
+        Object.assign(snapshot, { userId: session.user.id });
       }
       return snapshot;
     })
