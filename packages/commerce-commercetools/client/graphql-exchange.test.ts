@@ -4,12 +4,13 @@ import { createClient, fetchExchange, gql } from "@urql/core";
 import { describe, expect, it, vi } from "vitest";
 
 import { makeCommercetoolsGraphqlExchange } from "./graphql-exchange";
+import type { CommercetoolsGraphqlRequestFailure } from "./graphql-exchange";
 
 const executeExchange = async (
   error: HttpErrorType,
-  onError: ReturnType<typeof vi.fn>
+  onError: (failure: CommercetoolsGraphqlRequestFailure) => void
 ) => {
-  const execute = vi.fn().mockRejectedValue(error);
+  const execute = vi.fn<() => Promise<never>>().mockRejectedValue(error);
   const apiRoot = {
     graphql: () => ({
       post: () => ({ execute }),
@@ -62,7 +63,8 @@ describe("Commercetools GraphQL exchange", () => {
       status: 400,
       statusCode: 400,
     } satisfies HttpErrorType;
-    const onError = vi.fn();
+    const onError =
+      vi.fn<(failure: CommercetoolsGraphqlRequestFailure) => void>();
 
     const result = await executeExchange(error, onError);
 

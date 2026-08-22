@@ -9,7 +9,7 @@ import { Effect, Option, Schema } from "effect";
 import { NextRequestApi } from "./next-request-api";
 
 /** Reserved channel for ActionClient; invalid selectors currently no-op. */
-export class SelectBusinessUnitActionError extends Schema.TaggedErrorClass<SelectBusinessUnitActionError>()(
+export class SelectBusinessUnitActionError extends Schema.TaggedError<SelectBusinessUnitActionError>()(
   "SelectBusinessUnitActionError",
   {
     message: Schema.String,

@@ -42,28 +42,28 @@ export const RegistrationReviewWorkflowDecision = Schema.Struct({
 export type RegistrationReviewWorkflowDecision =
   typeof RegistrationReviewWorkflowDecision.Type;
 
-export class RegistrationWorkflowStartUnavailable extends Schema.TaggedErrorClass<RegistrationWorkflowStartUnavailable>()(
+export class RegistrationWorkflowStartUnavailable extends Schema.TaggedError<RegistrationWorkflowStartUnavailable>()(
   "RegistrationWorkflowStartUnavailable",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
     registrationId: RegistrationId,
   }
 ) {}
 
-export class RegistrationWorkflowResumeOutcomeUnknown extends Schema.TaggedErrorClass<RegistrationWorkflowResumeOutcomeUnknown>()(
+export class RegistrationWorkflowResumeOutcomeUnknown extends Schema.TaggedError<RegistrationWorkflowResumeOutcomeUnknown>()(
   "RegistrationWorkflowResumeOutcomeUnknown",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
     registrationId: RegistrationId,
   }
 ) {}
 
-export class RegistrationWorkflowInvitationResumeOutcomeUnknown extends Schema.TaggedErrorClass<RegistrationWorkflowInvitationResumeOutcomeUnknown>()(
+export class RegistrationWorkflowInvitationResumeOutcomeUnknown extends Schema.TaggedError<RegistrationWorkflowInvitationResumeOutcomeUnknown>()(
   "RegistrationWorkflowInvitationResumeOutcomeUnknown",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     invitationId: InvitationId,
     message: Schema.String,
   }

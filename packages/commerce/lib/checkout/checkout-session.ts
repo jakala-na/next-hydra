@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option, Random, Redacted } from "effect";
+import { Context, Effect, Layer, Option, Redacted } from "effect";
 
 import {
   AddressBookReference,
@@ -420,7 +420,9 @@ const resolveCheckoutDeliveryDetails = Effect.fn(
     };
   }
 
-  const reference = AddressBookReference.make(yield* Random.nextUUIDv4);
+  const reference = AddressBookReference.make(
+    yield* Effect.sync(() => crypto.randomUUID())
+  );
   const entry = yield* addressBook
     .save(
       new SaveAddressBookEntryInput({

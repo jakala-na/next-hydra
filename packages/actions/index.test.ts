@@ -8,12 +8,12 @@ import {
   normalizeActionSchemaIssuePath,
 } from "./index";
 
-class TestFailure extends Schema.TaggedErrorClass<TestFailure>()(
+class TestFailure extends Schema.TaggedError<TestFailure>()(
   "TestFailure",
   { reason: Schema.String }
 ) {}
 
-class TestRuntimeFailure extends Schema.TaggedErrorClass<TestRuntimeFailure>()(
+class TestRuntimeFailure extends Schema.TaggedError<TestRuntimeFailure>()(
   "TestRuntimeFailure",
   {}
 ) {}

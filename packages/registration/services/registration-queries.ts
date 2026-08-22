@@ -32,17 +32,17 @@ export interface ListRegistrationsResult {
   readonly nextCursor?: string;
 }
 
-export class RegistrationQueryFailure extends Schema.TaggedErrorClass<RegistrationQueryFailure>()(
+export class RegistrationQueryFailure extends Schema.TaggedError<RegistrationQueryFailure>()(
   "RegistrationQueryFailure",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
     operation: Schema.Literal("list"),
     reason: StoreFailureReason,
   }
 ) {}
 
-export class RegistrationQueryInvalidCursor extends Schema.TaggedErrorClass<RegistrationQueryInvalidCursor>()(
+export class RegistrationQueryInvalidCursor extends Schema.TaggedError<RegistrationQueryInvalidCursor>()(
   "RegistrationQueryInvalidCursor",
   {
     cursor: Schema.String,

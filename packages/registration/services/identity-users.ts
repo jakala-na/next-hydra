@@ -10,10 +10,10 @@ export const IdentityProviderFailureReason = Schema.Literals([
 export type IdentityProviderFailureReason =
   typeof IdentityProviderFailureReason.Type;
 
-export class IdentityUserLookupFailure extends Schema.TaggedErrorClass<IdentityUserLookupFailure>()(
+export class IdentityUserLookupFailure extends Schema.TaggedError<IdentityUserLookupFailure>()(
   "IdentityUserLookupFailure",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
     operation: Schema.Literals(["getById", "hasUserWithEmail"]),
     reason: IdentityProviderFailureReason,
@@ -24,7 +24,7 @@ export const isRecoverableIdentityUserLookupFailure = (
   error: IdentityUserLookupFailure
 ) => error.reason === "unavailable";
 
-export class IdentityUserNotFound extends Schema.TaggedErrorClass<IdentityUserNotFound>()(
+export class IdentityUserNotFound extends Schema.TaggedError<IdentityUserNotFound>()(
   "IdentityUserNotFound",
   {
     authUserId: AuthUserId,

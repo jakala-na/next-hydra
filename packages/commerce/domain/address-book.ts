@@ -90,7 +90,7 @@ export class SaveAddressBookEntryInput extends Schema.Class<SaveAddressBookEntry
 export const AddressBookOperation = Schema.Literals(["list", "get", "save"]);
 export type AddressBookOperation = typeof AddressBookOperation.Type;
 
-export class AddressBookAccessDenied extends Schema.TaggedErrorClass<AddressBookAccessDenied>()(
+export class AddressBookAccessDenied extends Schema.TaggedError<AddressBookAccessDenied>()(
   "AddressBookAccessDenied",
   {
     message: Schema.String,
@@ -98,7 +98,7 @@ export class AddressBookAccessDenied extends Schema.TaggedErrorClass<AddressBook
   }
 ) {}
 
-export class AddressBookEntryNotFound extends Schema.TaggedErrorClass<AddressBookEntryNotFound>()(
+export class AddressBookEntryNotFound extends Schema.TaggedError<AddressBookEntryNotFound>()(
   "AddressBookEntryNotFound",
   {
     message: Schema.String,
@@ -106,20 +106,20 @@ export class AddressBookEntryNotFound extends Schema.TaggedErrorClass<AddressBoo
   }
 ) {}
 
-export class AddressBookProviderFailure extends Schema.TaggedErrorClass<AddressBookProviderFailure>()(
+export class AddressBookProviderFailure extends Schema.TaggedError<AddressBookProviderFailure>()(
   "AddressBookProviderFailure",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
     operation: AddressBookOperation,
     reason: ProviderFailureReason,
   }
 ) {}
 
-export class AddressBookWriteOutcomeUnknown extends Schema.TaggedErrorClass<AddressBookWriteOutcomeUnknown>()(
+export class AddressBookWriteOutcomeUnknown extends Schema.TaggedError<AddressBookWriteOutcomeUnknown>()(
   "AddressBookWriteOutcomeUnknown",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
     reference: AddressBookReference,
   }

@@ -16,7 +16,7 @@
     "@types/react-dom": "catalog:",
     "typescript": "catalog:",
     "effect": "catalog:",
-    "vitest": "^3.1.4"
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

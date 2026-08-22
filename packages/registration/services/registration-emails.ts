@@ -7,10 +7,10 @@ import type {
   RejectedRegistration,
 } from "../domain/registration";
 
-export class RegistrationEmailFailure extends Schema.TaggedErrorClass<RegistrationEmailFailure>()(
+export class RegistrationEmailFailure extends Schema.TaggedError<RegistrationEmailFailure>()(
   "RegistrationEmailFailure",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
     notification: Schema.Literals([
       "registrant_awaiting_approval",

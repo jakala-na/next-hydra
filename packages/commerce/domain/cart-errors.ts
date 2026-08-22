@@ -17,7 +17,7 @@ export const CartOperation = Schema.Literals([
 ]);
 export type CartOperation = typeof CartOperation.Type;
 
-export class CartNotFound extends Schema.TaggedErrorClass<CartNotFound>()(
+export class CartNotFound extends Schema.TaggedError<CartNotFound>()(
   "CartNotFound",
   {
     cartId: CartId,
@@ -25,7 +25,7 @@ export class CartNotFound extends Schema.TaggedErrorClass<CartNotFound>()(
   }
 ) {}
 
-export class CartLineItemNotFound extends Schema.TaggedErrorClass<CartLineItemNotFound>()(
+export class CartLineItemNotFound extends Schema.TaggedError<CartLineItemNotFound>()(
   "CartLineItemNotFound",
   {
     cartId: CartId,
@@ -34,7 +34,7 @@ export class CartLineItemNotFound extends Schema.TaggedErrorClass<CartLineItemNo
   }
 ) {}
 
-export class CartMerchandiseUnavailable extends Schema.TaggedErrorClass<CartMerchandiseUnavailable>()(
+export class CartMerchandiseUnavailable extends Schema.TaggedError<CartMerchandiseUnavailable>()(
   "CartMerchandiseUnavailable",
   {
     productId: ProductId,
@@ -42,7 +42,7 @@ export class CartMerchandiseUnavailable extends Schema.TaggedErrorClass<CartMerc
   }
 ) {}
 
-export class CartAccessDenied extends Schema.TaggedErrorClass<CartAccessDenied>()(
+export class CartAccessDenied extends Schema.TaggedError<CartAccessDenied>()(
   "CartAccessDenied",
   {
     cartId: Schema.optional(CartId),
@@ -50,7 +50,7 @@ export class CartAccessDenied extends Schema.TaggedErrorClass<CartAccessDenied>(
   }
 ) {}
 
-export class CartWriteConflict extends Schema.TaggedErrorClass<CartWriteConflict>()(
+export class CartWriteConflict extends Schema.TaggedError<CartWriteConflict>()(
   "CartWriteConflict",
   {
     cartId: CartId,
@@ -58,7 +58,7 @@ export class CartWriteConflict extends Schema.TaggedErrorClass<CartWriteConflict
   }
 ) {}
 
-export class CartWriteOutcomeUnknown extends Schema.TaggedErrorClass<CartWriteOutcomeUnknown>()(
+export class CartWriteOutcomeUnknown extends Schema.TaggedError<CartWriteOutcomeUnknown>()(
   "CartWriteOutcomeUnknown",
   {
     cartId: Schema.optional(CartId),
@@ -66,16 +66,16 @@ export class CartWriteOutcomeUnknown extends Schema.TaggedErrorClass<CartWriteOu
   }
 ) {}
 
-export class CartProviderFailure extends Schema.TaggedErrorClass<CartProviderFailure>()(
+export class CartProviderFailure extends Schema.TaggedError<CartProviderFailure>()(
   "CartProviderFailure",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     operation: CartOperation,
     reason: ProviderFailureReason,
   }
 ) {}
 
-export class CurrentCartSelectionConflict extends Schema.TaggedErrorClass<CurrentCartSelectionConflict>()(
+export class CurrentCartSelectionConflict extends Schema.TaggedError<CurrentCartSelectionConflict>()(
   "CurrentCartSelectionConflict",
   {
     businessUnitId: CommerceBusinessUnitId,
@@ -83,10 +83,10 @@ export class CurrentCartSelectionConflict extends Schema.TaggedErrorClass<Curren
   }
 ) {}
 
-export class CurrentCartOperationFailure extends Schema.TaggedErrorClass<CurrentCartOperationFailure>()(
+export class CurrentCartOperationFailure extends Schema.TaggedError<CurrentCartOperationFailure>()(
   "CurrentCartOperationFailure",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     operation: Schema.Literal("set"),
   }
 ) {}
@@ -94,16 +94,16 @@ export class CurrentCartOperationFailure extends Schema.TaggedErrorClass<Current
 export const currentCartOperationFailure = (cause: unknown) =>
   new CurrentCartOperationFailure({ cause, operation: "set" });
 
-export class CurrentCartUnavailable extends Schema.TaggedErrorClass<CurrentCartUnavailable>()(
+export class CurrentCartUnavailable extends Schema.TaggedError<CurrentCartUnavailable>()(
   "CurrentCartUnavailable",
   {
     reason: Schema.Literals(["noCart", "inaccessibleCart"]),
   }
 ) {}
 
-export class CartPolicyFailure extends Schema.TaggedErrorClass<CartPolicyFailure>()(
+export class CartPolicyFailure extends Schema.TaggedError<CartPolicyFailure>()(
   "CartPolicyFailure",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
   }
 ) {}

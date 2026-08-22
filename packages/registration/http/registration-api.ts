@@ -131,7 +131,7 @@ export class CreateRegistrationResponse extends Schema.Class<CreateRegistrationR
 export class RegistrationDecisionRequest extends Schema.Class<RegistrationDecisionRequest>(
   "RegistrationDecisionRequest"
 )({
-  reason: Schema.optional(Schema.String),
+  reason: Schema.optionalKey(Schema.String),
 }) {}
 
 export class RegistrationDecisionAcceptedResponse extends Schema.Class<RegistrationDecisionAcceptedResponse>(

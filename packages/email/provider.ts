@@ -1,10 +1,10 @@
 import { Context, Effect, Layer, Ref, Schema } from "effect";
 import type { ReactNode } from "react";
 
-export class EmailProviderFailure extends Schema.TaggedErrorClass<EmailProviderFailure>()(
+export class EmailProviderFailure extends Schema.TaggedError<EmailProviderFailure>()(
   "EmailProviderFailure",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
     operation: Schema.Literal("send"),
   }

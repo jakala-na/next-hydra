@@ -10,10 +10,12 @@
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project apps/cli/tsconfig.json"
   },
   "dependencies": {
+    "@effect/platform-node": "catalog:",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
     "@t3-oss/env-nextjs": "catalog:",
     "commander": "^14.0.2",
     "dotenv": "^17.0.0",
+    "effect": "catalog:",
     "jiti": "^2.6.1",
     "zod": "^3.25.28"
   },
@@ -21,6 +23,6 @@
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "^3.2.4"
+    "vitest": "catalog:"
   }
 }

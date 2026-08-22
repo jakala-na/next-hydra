@@ -28,7 +28,7 @@
     "@types/react-dom": "catalog:",
     "effect": "catalog:",
     "typescript": "catalog:",
-    "vitest": "^3.1.4"
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "effect": "catalog:",

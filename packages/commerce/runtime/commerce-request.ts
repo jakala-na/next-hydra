@@ -9,10 +9,10 @@ export interface CommerceRequestInput {
   readonly currentCartCookie: CurrentCartCookie;
 }
 
-export class CommerceRequestFailure extends Schema.TaggedErrorClass<CommerceRequestFailure>()(
+export class CommerceRequestFailure extends Schema.TaggedError<CommerceRequestFailure>()(
   "CommerceRequestFailure",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     operation: Schema.Literal("decodeAuthUserId"),
   }
 ) {}

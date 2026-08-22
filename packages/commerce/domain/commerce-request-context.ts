@@ -59,7 +59,7 @@ export const CommercePrincipal = Schema.Union([
 ]);
 export type CommercePrincipal = typeof CommercePrincipal.Type;
 
-export class CommerceRequestContextNotFound extends Schema.TaggedErrorClass<CommerceRequestContextNotFound>()(
+export class CommerceRequestContextNotFound extends Schema.TaggedError<CommerceRequestContextNotFound>()(
   "CommerceRequestContextNotFound",
   {
     message: Schema.String,

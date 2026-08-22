@@ -257,7 +257,7 @@ export const CheckoutBuyerContext = Schema.Struct({
 });
 export type CheckoutBuyerContext = typeof CheckoutBuyerContext.Type;
 
-export class CheckoutUnavailable extends Schema.TaggedErrorClass<CheckoutUnavailable>()(
+export class CheckoutUnavailable extends Schema.TaggedError<CheckoutUnavailable>()(
   "CheckoutUnavailable",
   {
     message: Schema.String,
@@ -265,10 +265,10 @@ export class CheckoutUnavailable extends Schema.TaggedErrorClass<CheckoutUnavail
   }
 ) {}
 
-export class CheckoutProviderFailure extends Schema.TaggedErrorClass<CheckoutProviderFailure>()(
+export class CheckoutProviderFailure extends Schema.TaggedError<CheckoutProviderFailure>()(
   "CheckoutProviderFailure",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
     operation: Schema.String,
     reason: ProviderFailureReason,
@@ -302,7 +302,7 @@ export class CheckoutMutationIssue extends Schema.Class<CheckoutMutationIssue>(
   path: CheckoutMutationIssuePath,
 }) {}
 
-export class CheckoutMutationSchemaFailure extends Schema.TaggedErrorClass<CheckoutMutationSchemaFailure>()(
+export class CheckoutMutationSchemaFailure extends Schema.TaggedError<CheckoutMutationSchemaFailure>()(
   "CheckoutMutationSchemaFailure",
   {
     issues: Schema.NonEmptyArray(CheckoutMutationIssue),
@@ -310,7 +310,7 @@ export class CheckoutMutationSchemaFailure extends Schema.TaggedErrorClass<Check
   }
 ) {}
 
-export class CheckoutMutationSourceUnavailable extends Schema.TaggedErrorClass<CheckoutMutationSourceUnavailable>()(
+export class CheckoutMutationSourceUnavailable extends Schema.TaggedError<CheckoutMutationSourceUnavailable>()(
   "CheckoutMutationSourceUnavailable",
   {
     message: Schema.String,
@@ -326,7 +326,7 @@ export const CheckoutCustomerProfileField = Schema.Literals([
 export type CheckoutCustomerProfileField =
   typeof CheckoutCustomerProfileField.Type;
 
-export class CheckoutCustomerProfileIncomplete extends Schema.TaggedErrorClass<CheckoutCustomerProfileIncomplete>()(
+export class CheckoutCustomerProfileIncomplete extends Schema.TaggedError<CheckoutCustomerProfileIncomplete>()(
   "CheckoutCustomerProfileIncomplete",
   {
     message: Schema.String,
@@ -336,7 +336,7 @@ export class CheckoutCustomerProfileIncomplete extends Schema.TaggedErrorClass<C
   }
 ) {}
 
-export class CheckoutMutationAddressBookEntryUnavailable extends Schema.TaggedErrorClass<CheckoutMutationAddressBookEntryUnavailable>()(
+export class CheckoutMutationAddressBookEntryUnavailable extends Schema.TaggedError<CheckoutMutationAddressBookEntryUnavailable>()(
   "CheckoutMutationAddressBookEntryUnavailable",
   {
     addressBookReference: AddressBookReference,
@@ -344,7 +344,7 @@ export class CheckoutMutationAddressBookEntryUnavailable extends Schema.TaggedEr
   }
 ) {}
 
-export class CheckoutCartMismatch extends Schema.TaggedErrorClass<CheckoutCartMismatch>()(
+export class CheckoutCartMismatch extends Schema.TaggedError<CheckoutCartMismatch>()(
   "CheckoutCartMismatch",
   {
     currentCartId: CartId,
@@ -353,7 +353,7 @@ export class CheckoutCartMismatch extends Schema.TaggedErrorClass<CheckoutCartMi
   }
 ) {}
 
-export class CheckoutVersionConflict extends Schema.TaggedErrorClass<CheckoutVersionConflict>()(
+export class CheckoutVersionConflict extends Schema.TaggedError<CheckoutVersionConflict>()(
   "CheckoutVersionConflict",
   {
     addressBookReference: Schema.optional(AddressBookReference),
@@ -362,7 +362,7 @@ export class CheckoutVersionConflict extends Schema.TaggedErrorClass<CheckoutVer
   }
 ) {}
 
-export class CheckoutMutationOutcomeUnknown extends Schema.TaggedErrorClass<CheckoutMutationOutcomeUnknown>()(
+export class CheckoutMutationOutcomeUnknown extends Schema.TaggedError<CheckoutMutationOutcomeUnknown>()(
   "CheckoutMutationOutcomeUnknown",
   {
     addressBookReference: Schema.optional(AddressBookReference),
@@ -372,18 +372,18 @@ export class CheckoutMutationOutcomeUnknown extends Schema.TaggedErrorClass<Chec
   }
 ) {}
 
-export class CheckoutMutationProviderFailure extends Schema.TaggedErrorClass<CheckoutMutationProviderFailure>()(
+export class CheckoutMutationProviderFailure extends Schema.TaggedError<CheckoutMutationProviderFailure>()(
   "CheckoutMutationProviderFailure",
   {
     addressBookReference: Schema.optional(AddressBookReference),
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
     operation: Schema.String,
     reason: ProviderFailureReason,
   }
 ) {}
 
-export class CheckoutMutationUnsupported extends Schema.TaggedErrorClass<CheckoutMutationUnsupported>()(
+export class CheckoutMutationUnsupported extends Schema.TaggedError<CheckoutMutationUnsupported>()(
   "CheckoutMutationUnsupported",
   {
     message: Schema.String,

@@ -30,7 +30,7 @@
     "react-dom": "catalog:",
     "require-in-the-middle": "8.0.1",
     "svix": "^1.66.0",
-    "vitest": "^3.1.4",
+    "vitest": "catalog:",
     "workflow": "4.8.0",
     "zod": "^3.25.28"
   },
