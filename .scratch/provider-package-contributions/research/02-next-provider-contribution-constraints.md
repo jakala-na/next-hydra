@@ -1,7 +1,7 @@
 # Next.js provider contribution constraints
 
 Research snapshot: 2026-08-10. The checkout uses Next.js 16.3.0, pnpm 10.11.0,
-Node.js >=22, TypeScript 5.9, and Turbopack for both `dev` and `build`.
+Node.js 24, TypeScript 5.9, and Turbopack for both `dev` and `build`.
 
 ## Conclusions bounded by the evidence
 

@@ -10,6 +10,7 @@
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/testing/tsconfig.json"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "@vitejs/plugin-react": "^4.5.0",
     "typescript": "catalog:",
     "vitest": "^3.1.4"
