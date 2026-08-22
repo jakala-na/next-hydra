@@ -20,10 +20,6 @@ Cover Product Discovery and Catalog, Store catalog resolution, pricing and inven
 
 Use current repository source as the primary evidence. Produce a concise dependency graph and ranked list of candidate extraction slices without designing the final interfaces or implementing changes.
 
-## Research note
-
-[Remaining provider leakage and dependency graph](../research/01-remaining-provider-leakage-and-dependency-graph.md)
-
 ## Answer
 
 The remaining provider leakage forms six ordered clusters rather than one Product-only problem:

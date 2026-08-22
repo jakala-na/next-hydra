@@ -18,10 +18,6 @@ For every caller and operation, record:
 
 Use repository source and history as primary evidence. Produce a concise current-state flow and behavior inventory without proposing the replacement design or implementing it.
 
-## Research note
-
-[Existing Cart behavior and provider leakage](../research/01-existing-cart-behavior-and-provider-leakage.md)
-
 ## Answer
 
 The current Cart lifecycle is split across transport, Promise-based Cart helpers, and Checkout's Effect Layer rather than owned by one Effect Service.

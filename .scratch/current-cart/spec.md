@@ -1,6 +1,6 @@
 # Current Cart Service and Provider Layers
 
-Status: implementation in progress
+Status: historical implementation plan
 
 ## Goal
 

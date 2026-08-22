@@ -1,6 +1,6 @@
 # Provider-Agnostic Commerce
 
-Status: ready for implementation
+Status: historical implementation plan
 
 ## Goal
 

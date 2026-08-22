@@ -16,10 +16,6 @@ Trace the current repository code to determine:
 
 Capture a concise current-state flow and identify the smallest compatible extension points without implementing them.
 
-## Research seed
-
-Consumed from `../research/02-current-address-book-and-checkout-seams.md` during resolution.
-
 ## Answer
 
 Reuse the existing trusted commerce path rather than creating another identity or Cart boundary:

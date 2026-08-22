@@ -1,6 +1,6 @@
 # Checkout Effect Slice PRD
 
-Status: ready-for-agent
+Status: historical implementation plan
 
 ## Problem Statement
 

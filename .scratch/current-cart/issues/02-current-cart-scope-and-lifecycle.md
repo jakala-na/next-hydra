@@ -12,10 +12,6 @@ Cover anonymous possession with and without an existing Cart reference, authenti
 
 Keep cookies, headers, authentication SDKs, and Commercetools query mechanics outside the domain rules and Effect Service contracts.
 
-## Research note
-
-[Effect request context and Current Cart cookie handling](../research/02-effect-request-context-and-cart-association.md)
-
 ## Answer
 
 Provide `CurrentCart` itself as a request-bound `Context.Service`. Storefront, Checkout, and HTTP endpoint programs use `CurrentCart` without accepting a public scope value or arbitrary Cart identifier. A process-level commerce Layer provides `Carts`; each request boundary resolves trusted request facts, constructs the `CurrentCart` implementation for that request, and provides it lexically around one use-case program.
