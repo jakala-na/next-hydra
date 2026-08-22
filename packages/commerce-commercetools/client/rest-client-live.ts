@@ -1,4 +1,3 @@
-import "server-only";
 import { createApiBuilderFromCtpClient } from "@commercetools/platform-sdk";
 import { ClientBuilder } from "@commercetools/ts-client";
 import type {

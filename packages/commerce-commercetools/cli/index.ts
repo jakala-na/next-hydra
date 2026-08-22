@@ -1,20 +1,18 @@
-import { Command } from "commander";
+import { Effect } from "effect";
+import { Command } from "effect/unstable/cli";
 
 import { createMigrateCommand } from "./commands/migrate";
 import { createSchemaCommand } from "./commands/schema";
 import { createTypesCommand } from "./commands/types";
-import type { CommerceCliEnvironmentProvider } from "./environment";
 
-export const createCommerceCommand = (
-  environment: CommerceCliEnvironmentProvider
-): Command => {
-  const commerce = new Command("commerce").description(
-    "Commercetools administration commands"
+export { createCommerceCliLayer } from "./layer";
+
+export const createCommerceCommand = () =>
+  Command.make("commerce", {}, () => Effect.void).pipe(
+    Command.withDescription("Commercetools administration commands"),
+    Command.withSubcommands([
+      createMigrateCommand(),
+      createSchemaCommand(),
+      createTypesCommand(),
+    ])
   );
-
-  commerce.addCommand(createMigrateCommand(environment));
-  commerce.addCommand(createSchemaCommand(environment));
-  commerce.addCommand(createTypesCommand());
-
-  return commerce;
-};

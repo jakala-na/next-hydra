@@ -127,11 +127,6 @@
           "type": "registry:file"
         },
         {
-          "path": "cli/client.ts",
-          "target": "~/packages/commerce-commercetools/cli/client.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "cli/commands/migrate.ts",
           "target": "~/packages/commerce-commercetools/cli/commands/migrate.ts",
           "type": "registry:file"
@@ -152,13 +147,13 @@
           "type": "registry:file"
         },
         {
-          "path": "cli/environment.ts",
-          "target": "~/packages/commerce-commercetools/cli/environment.ts",
+          "path": "cli/index.ts",
+          "target": "~/packages/commerce-commercetools/cli/index.ts",
           "type": "registry:file"
         },
         {
-          "path": "cli/index.ts",
-          "target": "~/packages/commerce-commercetools/cli/index.ts",
+          "path": "cli/layer.ts",
+          "target": "~/packages/commerce-commercetools/cli/layer.ts",
           "type": "registry:file"
         },
         {

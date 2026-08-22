@@ -12,12 +12,8 @@
   "dependencies": {
     "@effect/platform-node": "catalog:",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
-    "@t3-oss/env-nextjs": "catalog:",
-    "commander": "^14.0.2",
-    "dotenv": "^17.0.0",
     "effect": "catalog:",
-    "jiti": "^2.6.1",
-    "zod": "^3.25.28"
+    "jiti": "^2.6.1"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

@@ -1,9 +1,8 @@
-/* oxlint-disable no-console -- CLI commands write user-facing output. */
-
 import { fileURLToPath } from "node:url";
 
 import chalk from "chalk";
-import { Command } from "commander";
+import { Console, Effect } from "effect";
+import { CliError, Command } from "effect/unstable/cli";
 import ora from "ora";
 
 import { generateCustomTypes, generateProductTypes } from "../typegen";
@@ -21,18 +20,16 @@ const CORE_PRODUCT_ATTRIBUTE_OUTPUT_DIRECTORY = fileURLToPath(
   new URL("../../../commerce/product/generated", import.meta.url)
 );
 
-export const createTypesCommand = (): Command => {
-  const types = new Command("types").description(
-    "Commercetools schema type-generation commands"
-  );
+export const createTypesCommand = () => {
+  const generate = Command.make("generate", {}, () => {
+    const spinner = ora("Generating schema types").start();
 
-  types
-    .command("generate")
-    .description("Generate TypeScript helpers from exported schema files")
-    .action(async () => {
-      const spinner = ora("Generating schema types").start();
-
-      try {
+    return Effect.tryPromise({
+      catch: (cause) => {
+        spinner.fail("Type generation failed");
+        return new CliError.UserError({ cause });
+      },
+      try: async () => {
         await Promise.all([
           generateCustomTypes(
             CUSTOM_TYPE_SCHEMA_DIRECTORY,
@@ -45,17 +42,24 @@ export const createTypesCommand = (): Command => {
         ]);
 
         spinner.succeed("Schema types generated");
-        console.log(
+      },
+    }).pipe(
+      Effect.andThen(
+        Console.log(
           chalk.green(
             "Generated custom-field and product-attribute TypeScript definitions"
           )
-        );
-      } catch (error) {
-        spinner.fail("Type generation failed");
-        console.error(error);
-        process.exitCode = 1;
-      }
-    });
+        )
+      )
+    );
+  }).pipe(
+    Command.withDescription(
+      "Generate TypeScript helpers from exported schema files"
+    )
+  );
 
-  return types;
+  return Command.make("types", {}, () => Effect.void).pipe(
+    Command.withDescription("Commercetools schema type-generation commands"),
+    Command.withSubcommands([generate])
+  );
 };

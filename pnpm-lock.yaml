@@ -215,24 +215,12 @@ importers:
       '@repo/commerce-provider':
         specifier: workspace:@repo/commerce-commercetools@*
         version: link:../../packages/commerce-commercetools
-      '@t3-oss/env-nextjs':
-        specifier: 'catalog:'
-        version: 0.13.10(@typescript/typescript6@6.0.2)(arktype@2.1.20)(zod@3.25.76)
-      commander:
-        specifier: ^14.0.2
-        version: 14.0.2
-      dotenv:
-        specifier: ^17.0.0
-        version: 17.4.2
       effect:
         specifier: 'catalog:'
         version: 4.0.0-rc.111
       jiti:
         specifier: ^2.6.1
         version: 2.7.0
-      zod:
-        specifier: ^3.25.28
-        version: 3.25.76
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*
@@ -1042,9 +1030,6 @@ importers:
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
-      commander:
-        specifier: ^14.0.2
-        version: 14.0.2
       dotenv:
         specifier: ^17.0.0
         version: 17.4.2

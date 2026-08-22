@@ -1,3 +1,4 @@
+import "server-only";
 import { Layer } from "effect";
 
 import { CommercetoolsConfig } from "../config/config";
