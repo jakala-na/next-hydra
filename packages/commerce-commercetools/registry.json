@@ -132,6 +132,11 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/commands/project.ts",
+          "target": "~/packages/commerce-commercetools/cli/commands/project.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/commands/schema.test.ts",
           "target": "~/packages/commerce-commercetools/cli/commands/schema.test.ts",
           "type": "registry:file"
@@ -169,6 +174,76 @@
         {
           "path": "cli/migrations.ts",
           "target": "~/packages/commerce-commercetools/cli/migrations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/administration-live.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/administration-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/administration.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/administration.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/bootstrap-config.test.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/bootstrap-config.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/bootstrap-config.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/bootstrap-config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/credential-handoff-live.test.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/credential-handoff-live.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/credential-handoff-live.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/credential-handoff-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/credential-handoff.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/credential-handoff.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/model.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/provision.test.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/provision.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/provision.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/provision.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/runtime-project-setup.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/runtime-project-setup.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/scopes.test.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/scopes.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/scopes.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/scopes.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/seed.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/seed.ts",
           "type": "registry:file"
         },
         {

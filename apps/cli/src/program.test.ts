@@ -77,6 +77,38 @@ describe("workspace CLI program", () => {
     expect(loadConfigProvider).not.toHaveBeenCalled();
   });
 
+  it("exposes project provision and seed without loading credentials for help", async () => {
+    const loadConfigProvider = makeConfigProviderLoader();
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "commerce",
+      "project",
+      "--help",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain("provision");
+    expect(result.stdout).toContain("seed");
+    expect(result.stdout).toContain("Commercetools project setup commands");
+    expect(loadConfigProvider).not.toHaveBeenCalled();
+  });
+
+  it("documents the explicit credential output without resolving config", async () => {
+    const loadConfigProvider = makeConfigProviderLoader();
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "commerce",
+      "project",
+      "provision",
+      "--help",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain("--output");
+    expect(result.stdout).toContain("runtime credentials");
+    expect(loadConfigProvider).not.toHaveBeenCalled();
+  });
+
   it("keeps the CLI UIless by excluding the wizard built-in", async () => {
     const loadConfigProvider = makeConfigProviderLoader();
 

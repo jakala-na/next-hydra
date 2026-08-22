@@ -35,11 +35,15 @@ Raw clients, schemas, migrations, and generators are intentionally not package e
 Run the commands through the workspace CLI:
 
 ```bash
+pnpm cli --env-file apps/cli/.env.bootstrap.local commerce project provision --output apps/cli/.env.runtime.local
+pnpm cli --env-file apps/cli/.env.runtime.local commerce project seed
 pnpm cli commerce schema export
 pnpm cli commerce types generate
 pnpm cli commerce migrate plan
 pnpm cli commerce migrate
 ```
+
+Project provisioning expects a manually-created bootstrap API Client with only `manage_project_settings` and `manage_api_clients`. It creates the versioned application runtime scopes, applies pending migrations, and publishes a new dotenv file using exclusive creation and `0600` permissions. The bootstrap client is deleted only after the runtime credentials have been verified from disk. Existing output files are never overwritten.
 
 Schema export writes raw Product Types and Custom Types under `schema/`. Type generation writes provider-private Custom Field helpers under `custom-fields/` and intentionally regenerates the provider-neutral Product Attribute Effect Schemas at `packages/commerce/product/generated/attributes.ts`.
 

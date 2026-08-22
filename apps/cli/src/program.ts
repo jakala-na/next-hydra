@@ -1,7 +1,4 @@
-import {
-  createCommerceCliLayer,
-  createCommerceCommand,
-} from "@repo/commerce-provider/cli";
+import { createCommerceCommand } from "@repo/commerce-provider/cli";
 import { Effect, Option } from "effect";
 import { CliConfig, Command, Flag, GlobalFlag } from "effect/unstable/cli";
 
@@ -30,9 +27,7 @@ export const createProgram = (
     const { envFile } = yield* root;
     return yield* loadConfigProvider(Option.getOrUndefined(envFile));
   });
-  const commerce = createCommerceCommand().pipe(
-    Command.provide(createCommerceCliLayer(configProvider))
-  );
+  const commerce = createCommerceCommand(configProvider);
 
   return root.pipe(Command.withSubcommands([commerce]));
 };
