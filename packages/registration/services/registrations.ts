@@ -18,7 +18,7 @@ import {
 } from "../domain/registration";
 import type { CompanyRegistrationDetails } from "../domain/registration";
 
-export class RegistrationNotFound extends new Schema.TaggedError<RegistrationNotFound>()(
+export class RegistrationNotFound extends Schema.TaggedError<RegistrationNotFound>()(
   "RegistrationNotFound",
   {
     message: Schema.String,
@@ -26,7 +26,7 @@ export class RegistrationNotFound extends new Schema.TaggedError<RegistrationNot
   }
 ) {}
 
-export class RegistrationNotFoundByInvitationId extends new Schema.TaggedError<RegistrationNotFoundByInvitationId>()(
+export class RegistrationNotFoundByInvitationId extends Schema.TaggedError<RegistrationNotFoundByInvitationId>()(
   "RegistrationNotFoundByInvitationId",
   {
     invitationId: InvitationId,
@@ -34,7 +34,7 @@ export class RegistrationNotFoundByInvitationId extends new Schema.TaggedError<R
   }
 ) {}
 
-export class RegistrationTransitionConflict extends new Schema.TaggedError<RegistrationTransitionConflict>()(
+export class RegistrationTransitionConflict extends Schema.TaggedError<RegistrationTransitionConflict>()(
   "RegistrationTransitionConflict",
   {
     attemptedDecision: Schema.Literals(["approved", "rejected"]),
@@ -44,7 +44,7 @@ export class RegistrationTransitionConflict extends new Schema.TaggedError<Regis
   }
 ) {}
 
-export class RegistrationConcurrentModification extends new Schema.TaggedError<RegistrationConcurrentModification>()(
+export class RegistrationConcurrentModification extends Schema.TaggedError<RegistrationConcurrentModification>()(
   "RegistrationConcurrentModification",
   {
     message: Schema.String,
@@ -52,7 +52,7 @@ export class RegistrationConcurrentModification extends new Schema.TaggedError<R
   }
 ) {}
 
-export class RegistrationDiscardConflict extends new Schema.TaggedError<RegistrationDiscardConflict>()(
+export class RegistrationDiscardConflict extends Schema.TaggedError<RegistrationDiscardConflict>()(
   "RegistrationDiscardConflict",
   {
     currentState: Schema.String,
@@ -61,7 +61,7 @@ export class RegistrationDiscardConflict extends new Schema.TaggedError<Registra
   }
 ) {}
 
-export class RegistrationPersistenceFailure extends new Schema.TaggedError<RegistrationPersistenceFailure>()(
+export class RegistrationPersistenceFailure extends Schema.TaggedError<RegistrationPersistenceFailure>()(
   "RegistrationPersistenceFailure",
   {
     cause: Schema.Defect(),

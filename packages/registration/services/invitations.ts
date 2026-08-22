@@ -24,7 +24,7 @@ import type {
   RegistrationApprovalIntent,
 } from "../domain/invitations";
 
-export class InvitationNotFound extends new Schema.TaggedError<InvitationNotFound>()(
+export class InvitationNotFound extends Schema.TaggedError<InvitationNotFound>()(
   "InvitationNotFound",
   {
     invitationId: InvitationId,
@@ -32,14 +32,14 @@ export class InvitationNotFound extends new Schema.TaggedError<InvitationNotFoun
   }
 ) {}
 
-export class InvitationConflict extends new Schema.TaggedError<InvitationConflict>()(
+export class InvitationConflict extends Schema.TaggedError<InvitationConflict>()(
   "InvitationConflict",
   {
     message: Schema.String,
   }
 ) {}
 
-export class InvitationProviderFailure extends new Schema.TaggedError<InvitationProviderFailure>()(
+export class InvitationProviderFailure extends Schema.TaggedError<InvitationProviderFailure>()(
   "InvitationProviderFailure",
   {
     cause: Schema.Defect(),
