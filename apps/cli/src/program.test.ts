@@ -53,8 +53,22 @@ describe("workspace CLI program", () => {
     ]);
 
     expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain("cms");
     expect(result.stdout).toContain("commerce");
     expect(result.stdout).toContain("Commercetools administration commands");
+    expect(loadConfigProvider).not.toHaveBeenCalled();
+  });
+
+  it("lists the selected CMS provisioning command without loading credentials", async () => {
+    const loadConfigProvider = makeConfigProviderLoader();
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "cms",
+      "--help",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain("provision");
     expect(loadConfigProvider).not.toHaveBeenCalled();
   });
 

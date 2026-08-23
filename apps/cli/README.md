@@ -2,7 +2,7 @@
 
 `apps/cli` is the executable composition root for administration commands owned by workspace packages. It defines the root `cli` program, composes package environment fragments in `env.ts`, and adds the commands exported by those packages.
 
-The Commercetools project provisioning, migration, schema export, and type-generation commands are implemented by `packages/commerce-commercetools/cli`.
+The Commercetools project provisioning, migration, schema export, and type-generation commands are implemented by `packages/commerce-commercetools/cli`. CMS provisioning is implemented behind the selected provider's `@repo/cms/cli` export.
 
 Copy `.env.example` to `.env` and provide the environment required by the composed package schemas. Environment validation is lazy: help and commands that do not use Commercetools can run without Commercetools credentials. To target a different environment without changing `.env`, pass the global option before the command:
 
@@ -13,6 +13,9 @@ pnpm cli --env-file /absolute/path/to/project.env commerce migrate plan
 Common commands:
 
 ```bash
+# Inspect and run the selected CMS provider's setup workflow.
+pnpm cli cms provision --help
+
 # Provision a manually-created project using a one-time bootstrap API Client.
 # The output path must not exist.
 pnpm cli --env-file apps/cli/.env.bootstrap.local commerce project provision \
@@ -41,6 +44,7 @@ Package composition:
 - `apps/cli/src/program.ts` adds the `Command` objects declared by packages.
 - `packages/commerce-commercetools/keys.ts` owns the Commercetools environment schema.
 - `packages/commerce-commercetools/cli` owns the Commercetools commands and implementation.
+- The selected CMS package's `cli` export owns its provider-specific provisioning workflow.
 
 To add commands from another package:
 

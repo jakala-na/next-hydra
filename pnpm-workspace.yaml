@@ -25,6 +25,7 @@ overrides:
   react: 19.2.8
   react-dom: 19.2.8
 patchedDependencies:
+  "@contentstack/cli-cm-import@2.0.0": patches/@contentstack__cli-cm-import@2.0.0.patch
   "@drupal-canvas/workbench@0.10.0": patches/@drupal-canvas__workbench@0.10.0.patch
 ignoredBuiltDependencies:
   - "@clerk/shared"
@@ -35,6 +36,7 @@ ignoredBuiltDependencies:
   - core-js-pure
   - msgpackr-extract
   - msw
+  - yarn
 onlyBuiltDependencies:
   - "@parcel/watcher"
   - "@sentry/cli"

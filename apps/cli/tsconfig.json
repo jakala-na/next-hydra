@@ -8,6 +8,8 @@
     "paths": {
       "@repo/commerce-provider": ["./node_modules/@repo/commerce-provider"],
       "@repo/commerce-provider/*": ["./node_modules/@repo/commerce-provider/*"],
+      "@repo/cms": ["./node_modules/@repo/cms"],
+      "@repo/cms/*": ["./node_modules/@repo/cms/*"],
       "@repo/*": ["../../packages/*"]
     }
   },

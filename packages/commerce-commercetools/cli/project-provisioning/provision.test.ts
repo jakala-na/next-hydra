@@ -1,4 +1,8 @@
 import { describe, expect, it } from "@effect/vitest";
+import {
+  PrivateDotEnvFileError,
+  PrivateDotEnvFileReceipt,
+} from "@repo/cli-core/private-dotenv";
 import { Effect, Exit, Layer, Redacted } from "effect";
 
 import { CommercetoolsProjectAdministration } from "./administration";
@@ -7,8 +11,6 @@ import { RuntimeCredentialHandoff } from "./credential-handoff";
 import {
   ApiClientId,
   CommercetoolsRegion,
-  CredentialFileError,
-  CredentialFileReceipt,
   PreparedProject,
   ProjectAdministrationError,
   ProjectKey,
@@ -37,7 +39,7 @@ const preparedProject = new PreparedProject({
 const seedReceipt = new ProjectSeedReceipt({
   migrationsApplied: 2,
 });
-const credentialFileReceipt = new CredentialFileReceipt({
+const credentialFileReceipt = new PrivateDotEnvFileReceipt({
   mode: 0o600,
   path: "/tmp/runtime.env",
 });
@@ -107,7 +109,7 @@ const layersFor = (options: {
           options.events.push("save");
           return options.handoffFailure
             ? Effect.fail(
-                new CredentialFileError({
+                new PrivateDotEnvFileError({
                   cause: new Error("handoff failed"),
                   message: "handoff failed",
                   operation: "publish",

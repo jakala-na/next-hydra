@@ -13,7 +13,25 @@
           "id": "next-hydra/cms/contentstack",
           "kind": "provider",
           "slot": "cms",
+          "assets": [
+            {
+              "source": "patches/@contentstack__cli-cm-import@2.0.0.patch",
+              "target": "patches/@contentstack__cli-cm-import@2.0.0.patch"
+            }
+          ],
+          "pnpmPatches": [
+            {
+              "dependency": "@contentstack/cli-cm-import@2.0.0",
+              "path": "patches/@contentstack__cli-cm-import@2.0.0.patch"
+            }
+          ],
           "packages": [
+            {
+              "cwd": "apps/cli",
+              "section": "dependencies",
+              "name": "@repo/cms",
+              "specifier": "workspace:@repo/cms-contentstack@*"
+            },
             {
               "cwd": "apps/web",
               "section": "dependencies",
@@ -27,6 +45,76 @@
         {
           "path": ".env.example",
           "target": "~/packages/cms-contentstack/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/index.test.ts",
+          "target": "~/packages/cms-contentstack/cli/index.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/index.ts",
+          "target": "~/packages/cms-contentstack/cli/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/layer.ts",
+          "target": "~/packages/cms-contentstack/cli/layer.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/contentstack-cli-live.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/contentstack-cli-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/contentstack-cli.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/contentstack-cli.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/model.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/provision.test.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/provision.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/provision.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/provision.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/recipe-live.test.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/recipe-live.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/recipe-live.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/recipe-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/recipe.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/recipe.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/runtime-credentials-live.test.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/runtime-credentials-live.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/runtime-credentials-live.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/runtime-credentials-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/runtime-credentials.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/runtime-credentials.ts",
           "type": "registry:file"
         },
         {
@@ -167,6 +255,51 @@
         {
           "path": "README.md",
           "target": "~/packages/cms-contentstack/README.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/content_types/landing_page.json",
+          "target": "~/packages/cms-contentstack/recipe/content_types/landing_page.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/content_types/navigation.json",
+          "target": "~/packages/cms-contentstack/recipe/content_types/navigation.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/entries/landing_page/en-us/1-entries.json",
+          "target": "~/packages/cms-contentstack/recipe/entries/landing_page/en-us/1-entries.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/entries/landing_page/en-us/index.json",
+          "target": "~/packages/cms-contentstack/recipe/entries/landing_page/en-us/index.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/entries/navigation/en-us/1-entries.json",
+          "target": "~/packages/cms-contentstack/recipe/entries/navigation/en-us/1-entries.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/entries/navigation/en-us/index.json",
+          "target": "~/packages/cms-contentstack/recipe/entries/navigation/en-us/index.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/environments/environments.json",
+          "target": "~/packages/cms-contentstack/recipe/environments/environments.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/locales/locales.json",
+          "target": "~/packages/cms-contentstack/recipe/locales/locales.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/locales/master-locale.json",
+          "target": "~/packages/cms-contentstack/recipe/locales/master-locale.json",
           "type": "registry:file"
         },
         {

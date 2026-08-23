@@ -12,6 +12,7 @@
   "dependencies": {
     "@effect/platform-node": "catalog:",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
+    "@repo/cms": "workspace:@repo/cms-contentstack@*",
     "effect": "catalog:",
     "jiti": "^2.6.1"
   },

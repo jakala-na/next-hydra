@@ -21,6 +21,7 @@ import type {
 import { PROVIDER_ALIASES, PROVIDER_SLOTS } from "./types.js";
 
 function uniqueSorted(values: Iterable<string>): string[] {
+  // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
@@ -150,6 +151,7 @@ function resolveAddOns(
     enqueueRequiredAddOns(candidate);
   }
 
+  // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
   return [...selected.values()].sort((left, right) =>
     left.id.localeCompare(right.id)
   );
@@ -183,22 +185,25 @@ function validateCompatibility(selections: CatalogSelection[]): void {
 function validateProviderAliasRequirements(
   providers: CatalogSelection[]
 ): void {
-  const requiredLocations: Record<
-    ProviderSlot,
-    { cwd: string; section: PackageRequirement["section"] }[]
-  > = {
+  const requiredLocations = {
     auth: [
       { cwd: "apps/api", section: "dependencies" },
       { cwd: "apps/web", section: "dependencies" },
       { cwd: "packages/feature-flags", section: "dependencies" },
     ],
-    cms: [{ cwd: "apps/web", section: "dependencies" }],
+    cms: [
+      { cwd: "apps/cli", section: "dependencies" },
+      { cwd: "apps/web", section: "dependencies" },
+    ],
     commerce: [
       { cwd: "apps/api", section: "dependencies" },
       { cwd: "apps/cli", section: "dependencies" },
       { cwd: "apps/web", section: "dependencies" },
     ],
-  };
+  } satisfies Record<
+    ProviderSlot,
+    readonly { cwd: string; section: PackageRequirement["section"] }[]
+  >;
   const issues: string[] = [];
 
   for (const provider of providers) {
@@ -250,6 +255,7 @@ function catalogPackageRequirements(
     }
   }
 
+  // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
   return [...requirements.values()].sort((left, right) =>
     `${left.cwd}/${left.section}/${left.name}`.localeCompare(
       `${right.cwd}/${right.section}/${right.name}`
@@ -285,6 +291,7 @@ function resolvePnpmPatches(selections: CatalogSelection[]): PnpmPatch[] {
     throw new CompositionValidationError("pnpm patches conflict.", issues);
   }
 
+  // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
   return [...patches.values()].sort((left, right) =>
     left.dependency.localeCompare(right.dependency)
   );
@@ -308,6 +315,7 @@ function catalogPnpmPatches(catalog: SourceRegistryCatalog): PnpmPatch[] {
     }
   }
 
+  // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
   return [...patches.values()].sort((left, right) =>
     left.dependency.localeCompare(right.dependency)
   );
@@ -400,6 +408,7 @@ export function planComposition(
         ),
       }))
     )
+    // eslint-disable-next-line unicorn/no-array-sort -- flatMap creates a fresh array.
     .sort((left, right) => left.target.localeCompare(right.target));
   const pnpmPatches = resolvePnpmPatches(selections);
   const assetTargets = new Set(assets.map((asset) => asset.target));

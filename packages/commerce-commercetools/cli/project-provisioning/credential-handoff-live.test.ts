@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { NodeServices } from "@effect/platform-node";
+import { PrivateDotEnvFileError } from "@repo/cli-core/private-dotenv";
 import { Effect, Layer, Redacted, Schema } from "effect";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -11,7 +12,6 @@ import { runtimeCredentialHandoffLayer } from "./credential-handoff-live";
 import {
   ApiClientId,
   CommercetoolsRegion,
-  CredentialFileError,
   ProjectKey,
   RuntimeCredentials,
 } from "./model";
@@ -78,7 +78,7 @@ describe("runtime credential file handoff", () => {
       Effect.runPromise
     );
 
-    expect(Schema.is(CredentialFileError)(error)).toBeTruthy();
+    expect(Schema.is(PrivateDotEnvFileError)(error)).toBeTruthy();
     expect(error.cause).toBeDefined();
     await expect(readFile(destination, "utf-8")).resolves.toBe("keep-me");
   });

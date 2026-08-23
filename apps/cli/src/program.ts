@@ -1,3 +1,4 @@
+import { createCmsCommand } from "@repo/cms/cli";
 import { createCommerceCommand } from "@repo/commerce-provider/cli";
 import { Effect, Option } from "effect";
 import { CliConfig, Command, Flag, GlobalFlag } from "effect/unstable/cli";
@@ -28,6 +29,7 @@ export const createProgram = (
     return yield* loadConfigProvider(Option.getOrUndefined(envFile));
   });
   const commerce = createCommerceCommand(configProvider);
+  const cms = createCmsCommand(configProvider);
 
-  return root.pipe(Command.withSubcommands([commerce]));
+  return root.pipe(Command.withSubcommands([cms, commerce]));
 };

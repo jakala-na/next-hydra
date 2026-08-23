@@ -1,0 +1,69 @@
+{
+  "bltnexthydrahome01": {
+    "components": [
+      {
+        "hero_section": {
+          "cta": [
+            {
+              "external_url": "/products",
+              "label": "Browse equipment"
+            }
+          ],
+          "description": {
+            "children": [
+              {
+                "children": [
+                  {
+                    "text": "Explore durable equipment for construction, agriculture, and material handling.",
+                    "type": "text"
+                  }
+                ],
+                "type": "p"
+              }
+            ],
+            "type": "doc"
+          },
+          "image_alt": "",
+          "tagline": "Next Hydra B2B starter",
+          "title": "Heavy machinery for every job"
+        }
+      },
+      {
+        "dynamic_product_collection": {
+          "description": {
+            "children": [
+              {
+                "children": [
+                  {
+                    "text": "Connect this block to a Commercetools category to feature a curated collection.",
+                    "type": "text"
+                  }
+                ],
+                "type": "p"
+              }
+            ],
+            "type": "doc"
+          },
+          "heading": "Featured equipment",
+          "product_category": null
+        }
+      }
+    ],
+    "display_title": "",
+    "hide_display_title": true,
+    "locale": "en-us",
+    "publish_details": [
+      {
+        "environment": "bltnexthydradev01",
+        "locale": "en-us"
+      },
+      {
+        "environment": "bltnexthydraprd01",
+        "locale": "en-us"
+      }
+    ],
+    "title": "Home",
+    "uid": "bltnexthydrahome01",
+    "url": "/"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "bltnexthydradev01": {
+    "name": "development",
+    "uid": "bltnexthydradev01",
+    "urls": [
+      {
+        "locale": "en-us",
+        "url": "__NEXT_HYDRA_LOCAL_URL__"
+      }
+    ]
+  },
+  "bltnexthydraprd01": {
+    "name": "production",
+    "uid": "bltnexthydraprd01",
+    "urls": [
+      {
+        "locale": "en-us",
+        "url": "__NEXT_HYDRA_PRODUCTION_URL__"
+      }
+    ]
+  }
+}

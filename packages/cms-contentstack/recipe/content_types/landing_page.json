@@ -1,0 +1,234 @@
+{
+  "description": "A page composed from Next Hydra starter blocks.",
+  "field_rules": [],
+  "options": {
+    "is_page": true,
+    "singleton": false,
+    "sub_title": [],
+    "title": "title",
+    "url_pattern": "/:title"
+  },
+  "schema": [
+    {
+      "data_type": "text",
+      "display_name": "Title",
+      "field_metadata": {
+        "_default": true,
+        "version": 3
+      },
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": false,
+      "uid": "title",
+      "unique": false
+    },
+    {
+      "data_type": "text",
+      "display_name": "URL",
+      "field_metadata": {
+        "_default": true,
+        "version": 3
+      },
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": false,
+      "uid": "url",
+      "unique": true
+    },
+    {
+      "data_type": "text",
+      "display_name": "Display title",
+      "field_metadata": {
+        "description": "Optional heading rendered by the page shell."
+      },
+      "mandatory": false,
+      "multiple": false,
+      "non_localizable": false,
+      "uid": "display_title",
+      "unique": false
+    },
+    {
+      "data_type": "boolean",
+      "display_name": "Hide display title",
+      "field_metadata": {
+        "default_value": false,
+        "description": "Hide the page-shell heading when a hero supplies it."
+      },
+      "mandatory": false,
+      "multiple": false,
+      "non_localizable": false,
+      "uid": "hide_display_title",
+      "unique": false
+    },
+    {
+      "blocks": [
+        {
+          "schema": [
+            {
+              "data_type": "text",
+              "display_name": "Tagline",
+              "field_metadata": {},
+              "mandatory": false,
+              "multiple": false,
+              "non_localizable": false,
+              "uid": "tagline",
+              "unique": false
+            },
+            {
+              "data_type": "text",
+              "display_name": "Title",
+              "field_metadata": {},
+              "mandatory": true,
+              "multiple": false,
+              "non_localizable": false,
+              "uid": "title",
+              "unique": false
+            },
+            {
+              "data_type": "json",
+              "display_name": "Description",
+              "field_metadata": {
+                "allow_json_rte": true,
+                "embed_entry": false,
+                "multiline": false,
+                "rich_text_type": "advanced"
+              },
+              "mandatory": false,
+              "multiple": false,
+              "non_localizable": false,
+              "reference_to": [],
+              "uid": "description",
+              "unique": false
+            },
+            {
+              "data_type": "file",
+              "display_name": "Image",
+              "field_metadata": {
+                "description": "Optional hero image."
+              },
+              "mandatory": false,
+              "multiple": false,
+              "non_localizable": false,
+              "uid": "image",
+              "unique": false
+            },
+            {
+              "data_type": "text",
+              "display_name": "Image alt text",
+              "field_metadata": {},
+              "mandatory": false,
+              "multiple": false,
+              "non_localizable": false,
+              "uid": "image_alt",
+              "unique": false
+            },
+            {
+              "data_type": "group",
+              "display_name": "Calls to action",
+              "field_metadata": {},
+              "mandatory": false,
+              "multiple": true,
+              "non_localizable": false,
+              "schema": [
+                {
+                  "data_type": "text",
+                  "display_name": "Label",
+                  "field_metadata": {},
+                  "mandatory": true,
+                  "multiple": false,
+                  "non_localizable": false,
+                  "uid": "label",
+                  "unique": false
+                },
+                {
+                  "data_type": "reference",
+                  "display_name": "Internal content",
+                  "field_metadata": {
+                    "ref_multiple": false,
+                    "ref_multiple_content_types": false
+                  },
+                  "mandatory": false,
+                  "multiple": false,
+                  "non_localizable": false,
+                  "reference_to": ["landing_page"],
+                  "uid": "internal_content",
+                  "unique": false
+                },
+                {
+                  "data_type": "text",
+                  "display_name": "External URL",
+                  "field_metadata": {},
+                  "mandatory": false,
+                  "multiple": false,
+                  "non_localizable": false,
+                  "uid": "external_url",
+                  "unique": false
+                }
+              ],
+              "uid": "cta",
+              "unique": false
+            }
+          ],
+          "title": "Hero section",
+          "uid": "hero_section"
+        },
+        {
+          "schema": [
+            {
+              "data_type": "text",
+              "display_name": "Heading",
+              "field_metadata": {},
+              "mandatory": false,
+              "multiple": false,
+              "non_localizable": false,
+              "uid": "heading",
+              "unique": false
+            },
+            {
+              "data_type": "json",
+              "display_name": "Description",
+              "field_metadata": {
+                "allow_json_rte": true,
+                "embed_entry": false,
+                "multiline": false,
+                "rich_text_type": "advanced"
+              },
+              "mandatory": false,
+              "multiple": false,
+              "non_localizable": false,
+              "reference_to": [],
+              "uid": "description",
+              "unique": false
+            },
+            {
+              "data_type": "json",
+              "display_name": "Commerce category",
+              "field_metadata": {
+                "allow_json_rte": false,
+                "description": "A Commercetools category resource identifier."
+              },
+              "mandatory": false,
+              "multiple": false,
+              "non_localizable": true,
+              "reference_to": [],
+              "uid": "product_category",
+              "unique": false
+            }
+          ],
+          "title": "Dynamic product collection",
+          "uid": "dynamic_product_collection"
+        }
+      ],
+      "data_type": "blocks",
+      "display_name": "Components",
+      "field_metadata": {},
+      "mandatory": false,
+      "multiple": true,
+      "non_localizable": false,
+      "uid": "components",
+      "unique": false
+    }
+  ],
+  "title": "Landing Page",
+  "uid": "landing_page"
+}

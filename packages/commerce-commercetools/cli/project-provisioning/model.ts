@@ -1,5 +1,6 @@
 /* oxlint-disable max-classes-per-file, unicorn/throw-new-error -- Effect Schema classes keep the provisioning wire model and its typed errors together. */
 
+import { PrivateDotEnvFileReceipt } from "@repo/cli-core/private-dotenv";
 import { Schema } from "effect";
 
 const NonNegativeInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
@@ -44,18 +45,11 @@ export class ProjectSeedReceipt extends Schema.Class<ProjectSeedReceipt>(
   migrationsApplied: NonNegativeInt,
 }) {}
 
-export class CredentialFileReceipt extends Schema.Class<CredentialFileReceipt>(
-  "CredentialFileReceipt"
-)({
-  mode: Schema.Int,
-  path: Schema.NonEmptyString,
-}) {}
-
 export class ProvisioningReceipt extends Schema.Class<ProvisioningReceipt>(
   "ProvisioningReceipt"
 )({
   bootstrapClientRevoked: Schema.Boolean,
-  credentialFile: CredentialFileReceipt,
+  credentialFile: PrivateDotEnvFileReceipt,
   project: PreparedProject,
   runtimeClientId: ApiClientId,
   scope: Schema.NonEmptyString,
@@ -99,15 +93,5 @@ export class RuntimeProjectSetupError extends Schema.TaggedError<RuntimeProjectS
     cause: Schema.Defect(),
     message: Schema.String,
     phase: Schema.Literal("migrations"),
-  }
-) {}
-
-export class CredentialFileError extends Schema.TaggedError<CredentialFileError>()(
-  "CredentialFileError",
-  {
-    cause: Schema.Defect(),
-    message: Schema.String,
-    operation: Schema.Literals(["cleanup", "publish", "verify"]),
-    path: Schema.String,
   }
 ) {}
