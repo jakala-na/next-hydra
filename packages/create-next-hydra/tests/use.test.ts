@@ -46,6 +46,8 @@ async function maintainerFixture(): Promise<string> {
     path.join(fixture, "pnpm-workspace.yaml")
   );
   const sourceRoots = [
+    "packages/auth-clerk",
+    "packages/auth-contract",
     "packages/auth-workos",
     "packages/cms-contentstack",
     "packages/cms-drupal",

@@ -8,11 +8,6 @@ export {
   REGISTRATION_READ_PERMISSION as ADMIN_REGISTRATION_READ_PERMISSION,
 } from "@repo/registration/http/registration-api";
 
-const hasPermission = (
-  permissions: readonly string[] | undefined,
-  permission: string
-) => permissions?.includes(permission) ?? false;
-
 export async function requireAdminPermission(permission: string) {
   const session = await withAuth();
 
@@ -21,7 +16,7 @@ export async function requireAdminPermission(permission: string) {
     redirect(signInUrl as Route);
   }
 
-  if (!hasPermission(session.permissions, permission)) {
+  if (!session.permissions.has(permission)) {
     notFound();
   }
 

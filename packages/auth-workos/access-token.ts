@@ -1,44 +1,27 @@
+import {
+  AccessTokenInvalid,
+  AccessTokenVerificationFailure,
+  AccessTokenVerifier,
+  AuthUserId,
+  VerifiedAccessToken,
+  authPermissionsFrom,
+  validateRequiredAccessTokenPermissions,
+} from "@repo/auth-contract/access-token";
 import { hasTransientTransportCode } from "@repo/errors/transport";
 import { WorkOS } from "@workos-inc/node";
-import { Config, Context, Effect, Layer, Option, Schema } from "effect";
+import { Config, Effect, Layer, Option, Schema } from "effect";
 import type { FetchImplementation } from "jose";
 import { createRemoteJWKSet, customFetch, jwtVerify } from "jose";
 
-export const AuthUserId = Schema.NonEmptyString.pipe(
-  Schema.brand("AuthUserId")
-);
-export type AuthUserId = typeof AuthUserId.Type;
-
-export class VerifiedAccessToken extends Schema.Class<VerifiedAccessToken>(
-  "VerifiedAccessToken"
-)({
-  authUserId: AuthUserId,
-  permissions: Schema.optional(Schema.Array(Schema.String)),
-  sessionId: Schema.optional(Schema.NonEmptyString),
-}) {}
-
-export class AccessTokenInvalid extends Schema.TaggedError<AccessTokenInvalid>()(
-  "AccessTokenInvalid",
-  {
-    message: Schema.String,
-    reason: Schema.Literals([
-      "invalidToken",
-      "invalidClaims",
-      "invalidIssuer",
-      "invalidAudience",
-      "missingRequiredPermission",
-    ]),
-  }
-) {}
-
-export class AccessTokenVerificationFailure extends Schema.TaggedError<AccessTokenVerificationFailure>()(
-  "AccessTokenVerificationFailure",
-  {
-    cause: Schema.optional(Schema.Defect()),
-    message: Schema.String,
-    reason: Schema.Literals(["unavailable", "unexpected"]),
-  }
-) {}
+export {
+  AccessTokenInvalid,
+  AccessTokenVerificationFailure,
+  AccessTokenVerifier,
+  AuthUserId,
+  VerifiedAccessToken,
+  authPermissionsFrom,
+  validateRequiredAccessTokenPermissions,
+} from "@repo/auth-contract/access-token";
 
 const DEFAULT_WORKOS_API_HOSTNAME = "api.workos.com";
 const WORKOS_JWKS_COOLDOWN_DURATION_MS = 300_000;
@@ -46,7 +29,7 @@ const HTTP_REQUEST_TIMEOUT = 408;
 const HTTP_TOO_MANY_REQUESTS = 429;
 const HTTP_SERVER_ERROR_MINIMUM = 500;
 const WORKOS_JWKS_UNAVAILABLE_CODE = "WORKOS_JWKS_UNAVAILABLE";
-const trailingSlashesPattern = /\/+$/;
+const trailingSlashesPattern = /\/+$/u;
 const INVALID_TOKEN_JOSE_CODES = new Set([
   "ERR_JWKS_MULTIPLE_MATCHING_KEYS",
   "ERR_JWKS_NO_MATCHING_KEY",
@@ -66,6 +49,7 @@ const WorkosAccessTokenPayload = Schema.Struct({
   sub: AuthUserId,
 });
 
+// oxlint-disable-next-line anti-slop/no-unknown-returns -- The provider result is decoded by WorkosAccessTokenPayload immediately after verification.
 export type AccessTokenJwtVerifier = (token: string) => Promise<unknown>;
 
 export interface AccessTokenVerifierOptions {
@@ -75,6 +59,7 @@ export interface AccessTokenVerifierOptions {
   readonly verifyAccessToken: AccessTokenJwtVerifier;
 }
 
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This function is the Schema decoding boundary for the external verifier result.
 const decodeVerifiedPayload = (payload: unknown) =>
   Schema.decodeUnknownEffect(WorkosAccessTokenPayload)(payload).pipe(
     Effect.mapError(
@@ -85,27 +70,6 @@ const decodeVerifiedPayload = (payload: unknown) =>
         })
     )
   );
-
-const validateRequiredPermissions = (
-  token: VerifiedAccessToken,
-  requiredPermissions: readonly string[]
-) => {
-  const grantedPermissions = token.permissions ?? [];
-  const missingPermission = requiredPermissions.find(
-    (permission) => !grantedPermissions.includes(permission)
-  );
-
-  if (missingPermission) {
-    return Effect.fail(
-      new AccessTokenInvalid({
-        message: `WorkOS access token is missing required permission ${missingPermission}`,
-        reason: "missingRequiredPermission",
-      })
-    );
-  }
-
-  return Effect.succeed(token);
-};
 
 const invalidToken = () =>
   new AccessTokenInvalid({
@@ -143,7 +107,7 @@ const isInvalidTokenJoseError = (
 ): cause is Error & { readonly code: string } =>
   cause instanceof Error &&
   "code" in cause &&
-  typeof cause.code === "string" &&
+  Schema.is(Schema.String)(cause.code) &&
   (cause.code.startsWith("ERR_JWT_") ||
     cause.code.startsWith("ERR_JWS_") ||
     INVALID_TOKEN_JOSE_CODES.has(cause.code));
@@ -185,7 +149,7 @@ const hasExpectedAudience = (
     return payload.client_id === expectedClientId;
   }
 
-  if (typeof payload.aud === "string") {
+  if (Schema.is(Schema.String)(payload.aud)) {
     return payload.aud === expectedClientId;
   }
 
@@ -236,18 +200,24 @@ const makeWorkosAccessTokenVerifier = ({
             expectedIssuer,
           })
         ),
-        Effect.map(
-          (payload) =>
-            new VerifiedAccessToken({
-              authUserId: payload.sub,
-              ...(payload.sid === undefined ? {} : { sessionId: payload.sid }),
-              ...(payload.permissions === undefined
-                ? {}
-                : { permissions: payload.permissions }),
-            })
-        ),
+        Effect.map((payload) => {
+          const verifiedTokenFields = {
+            authUserId: payload.sub,
+            permissions: authPermissionsFrom(payload.permissions ?? []),
+          };
+
+          return payload.sid === undefined
+            ? Schema.decodeSync(VerifiedAccessToken)(verifiedTokenFields)
+            : Schema.decodeSync(VerifiedAccessToken)({
+                ...verifiedTokenFields,
+                sessionId: payload.sid,
+              });
+        }),
         Effect.flatMap((verifiedToken) =>
-          validateRequiredPermissions(verifiedToken, requiredPermissions)
+          validateRequiredAccessTokenPermissions(
+            verifiedToken,
+            requiredPermissions
+          )
         )
       )
     ),
@@ -278,10 +248,9 @@ export const accessTokenVerifierLayer = ({
           )
         )
       );
-      const workos = new WorkOS({
-        clientId,
-        ...(apiHostname ? { apiHostname } : {}),
-      });
+      const workos = apiHostname
+        ? new WorkOS({ apiHostname, clientId })
+        : new WorkOS({ clientId });
       const jwks = createRemoteJWKSet(
         new URL(workos.userManagement.getJwksUrl(clientId)),
         {
@@ -299,20 +268,3 @@ export const accessTokenVerifierLayer = ({
       });
     })
   );
-
-export class AccessTokenVerifier extends Context.Service<
-  AccessTokenVerifier,
-  {
-    readonly verify: (
-      token: string
-    ) => Effect.Effect<
-      VerifiedAccessToken,
-      AccessTokenInvalid | AccessTokenVerificationFailure
-    >;
-  }
->()("@repo/auth/AccessTokenVerifier") {
-  static readonly verify = Effect.fn("AccessTokenVerifier.verify")(
-    (token: string) =>
-      Effect.flatMap(AccessTokenVerifier, (verifier) => verifier.verify(token))
-  );
-}

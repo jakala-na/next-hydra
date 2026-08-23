@@ -8,6 +8,7 @@
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/auth-workos/tsconfig.json"
   },
   "dependencies": {
+    "@repo/auth-contract": "workspace:*",
     "@repo/errors": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/observability": "workspace:*",

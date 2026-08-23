@@ -8,6 +8,9 @@
       "title": "Next Hydra WorkOS Auth provider",
       "description": "Installs the WorkOS AuthKit provider package.",
       "docs": "Configure the WorkOS environment variables described by packages/auth-workos before starting the applications.",
+      "registryDependencies": [
+        "jakala-na/next-hydra/auth-contract"
+      ],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/auth/workos",
@@ -54,6 +57,11 @@
         {
           "path": "admin.ts",
           "target": "~/packages/auth-workos/admin.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "capabilities.ts",
+          "target": "~/packages/auth-workos/capabilities.ts",
           "type": "registry:file"
         },
         {
@@ -154,6 +162,16 @@
         {
           "path": "server.ts",
           "target": "~/packages/auth-workos/server.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "session.test.ts",
+          "target": "~/packages/auth-workos/session.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "session.ts",
+          "target": "~/packages/auth-workos/session.ts",
           "type": "registry:file"
         },
         {

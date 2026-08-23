@@ -38,9 +38,11 @@ describe(AccessTokenVerifier, () => {
     expect(verifiedToken).toBe("jwt-1");
     expect(result).toMatchObject({
       authUserId: "user-1",
-      permissions: ["checkout:read", "checkout:write"],
       sessionId: "session-1",
     });
+    expect(result.permissions.has("checkout:read")).toBeTruthy();
+    expect(result.permissions.has("checkout:write")).toBeTruthy();
+    expect(result.permissions.has("checkout:delete")).toBeFalsy();
   });
 
   it("rejects invalid WorkOS access tokens", async () => {

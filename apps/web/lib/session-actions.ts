@@ -4,7 +4,7 @@ import { Effect } from "effect";
 
 import { Actions } from "./actions";
 import type { WebActionContext } from "./actions";
-import { CurrentAuth } from "./current-auth";
+import { CurrentAuth, terminateAuthSessionReadFailure } from "./current-auth";
 import type { CurrentAuthSnapshot } from "./current-auth";
 
 export interface WebSessionActionContext extends WebActionContext {
@@ -18,7 +18,8 @@ export const currentSessionContext = ActionMiddleware.context<
 >(() =>
   CurrentAuth.pipe(
     Effect.flatMap((currentAuth) => currentAuth.snapshot),
-    Effect.map((session) => ({ session }))
+    Effect.map((session) => ({ session })),
+    Effect.catchTag("AuthSessionReadFailure", terminateAuthSessionReadFailure)
   )
 );
 

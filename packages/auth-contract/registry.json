@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "name": "auth-contract",
+      "type": "registry:item",
+      "title": "Next Hydra Auth contract",
+      "description": "Installs the provider-neutral authentication domain contract.",
+      "files": [
+        {
+          "path": "access-token.ts",
+          "target": "~/packages/auth-contract/access-token.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "capabilities.ts",
+          "target": "~/packages/auth-contract/capabilities.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "index.ts",
+          "target": "~/packages/auth-contract/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/auth-contract/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "session.test.ts",
+          "target": "~/packages/auth-contract/session.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "session.ts",
+          "target": "~/packages/auth-contract/session.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/auth-contract/tsconfig.json",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

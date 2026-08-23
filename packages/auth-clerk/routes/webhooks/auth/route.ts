@@ -1,5 +1,5 @@
 import { analytics } from "@repo/analytics/posthog/server";
-import { keys } from "@repo/auth-clerk/keys";
+import { webhookKeys } from "@repo/auth-clerk/keys";
 import type {
   DeletedObjectJSON,
   OrganizationJSON,
@@ -145,8 +145,13 @@ const handleOrganizationMembershipDeleted = (
 };
 
 export const POST = async (request: Request): Promise<Response> => {
-  if (!keys().CLERK_WEBHOOK_SECRET) {
-    return NextResponse.json({ message: "Not configured", ok: false });
+  const webhookSecret = webhookKeys().CLERK_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    return NextResponse.json(
+      { message: "Not configured", ok: false },
+      { status: 503 }
+    );
   }
 
   // Get the headers
@@ -167,7 +172,7 @@ export const POST = async (request: Request): Promise<Response> => {
   const body = JSON.stringify(payload);
 
   // Create a new SVIX instance with your secret.
-  const webhook = new Webhook(keys().CLERK_WEBHOOK_SECRET);
+  const webhook = new Webhook(webhookSecret);
 
   let event: WebhookEvent | undefined;
 

@@ -7,6 +7,16 @@ const checkOnly = process.argv.includes("--check");
 const managedSourceDirectory = "registry";
 const manifests = [
   {
+    item: "auth-clerk",
+    manifest: "packages/auth-clerk/registry.json",
+    sourceRoot: "packages/auth-clerk",
+  },
+  {
+    item: "auth-contract",
+    manifest: "packages/auth-contract/registry.json",
+    sourceRoot: "packages/auth-contract",
+  },
+  {
     item: "auth-workos",
     manifest: "packages/auth-workos/registry.json",
     sourceRoot: "packages/auth-workos",

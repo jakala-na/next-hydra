@@ -31,6 +31,7 @@ const GITHUB_HOMEPAGE_PATTERN =
   /^https:\/\/github\.com\/([^/]+\/[^/]+?)(?:\.git)?\/?$/;
 
 const OFFICIAL_REFERENCES: Record<string, string> = {
+  clerk: "next-hydra/auth/clerk",
   commercetools: "next-hydra/commerce/commercetools",
   contentstack: "next-hydra/cms/contentstack",
   drupal: "next-hydra/cms/drupal",
@@ -39,6 +40,8 @@ const OFFICIAL_REFERENCES: Record<string, string> = {
 };
 
 const OFFICIAL_ITEM_NAMES = [
+  "auth-clerk",
+  "auth-contract",
   "auth-workos",
   "cms-contentstack",
   "cms-drupal",

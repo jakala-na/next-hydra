@@ -1,4 +1,4 @@
-import { keys as authWorkos } from "@repo/auth/keys";
+import { keys as auth } from "@repo/auth/keys";
 import { keys as cms } from "@repo/cms/keys";
 import { keys as commerce } from "@repo/commerce-provider/keys";
 import { keys as email } from "@repo/email/keys";
@@ -14,7 +14,7 @@ import { webClientEnvFields, webCmsServerEnvFields } from "./env-schema";
 export const env = createEnv({
   client: webClientEnvFields,
   extends: [
-    authWorkos(),
+    auth(),
     cms(),
     commerce(),
     core(),

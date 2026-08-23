@@ -3,6 +3,7 @@ import {
   AccessTokenVerifier,
   AuthUserId as AccessTokenAuthUserId,
   VerifiedAccessToken,
+  authPermissionsFrom,
 } from "@repo/auth/access-token";
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import {
@@ -385,14 +386,14 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
         const permissions =
           token === "read-token"
             ? ["registration.read"]
-            : (token === "decide-token"
+            : token === "decide-token"
               ? ["registration.decide"]
-              : ["registration.read", "registration.decide"]);
+              : ["registration.read", "registration.decide"];
 
         return Effect.succeed(
           new VerifiedAccessToken({
             authUserId: AccessTokenAuthUserId.make("auth-reviewer-1"),
-            permissions,
+            permissions: authPermissionsFrom(permissions),
           })
         );
       },

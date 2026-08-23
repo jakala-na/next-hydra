@@ -70,6 +70,10 @@ const KNOWN_PROVIDERS = new Map<
   { dependency: string; packageName: string }
 >([
   [
+    "next-hydra/auth/clerk",
+    { dependency: "@repo/auth", packageName: "@repo/auth-clerk" },
+  ],
+  [
     "next-hydra/auth/workos",
     { dependency: "@repo/auth", packageName: "@repo/auth-workos" },
   ],

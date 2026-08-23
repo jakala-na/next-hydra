@@ -35,7 +35,7 @@ export type AccountMenuProps = {
   readonly labels: AccountMenuLabels;
   readonly loading?: boolean;
   readonly signInHref?: string;
-  readonly signOutAction?: (formData: FormData) => void | Promise<void>;
+  readonly signOutHref?: string;
   readonly signUpHref?: string;
   readonly user?: AccountMenuUser | null;
 };
@@ -48,6 +48,7 @@ function AuthLink({
   readonly children: React.ReactNode;
   readonly href: string;
 }) {
+  // SAFETY: Provider auth routes are validated before crossing into this client component.
   return (
     <Link
       href={href as Route}
@@ -61,21 +62,21 @@ function AuthLink({
 
 function UserButton({
   labels,
-  signOutAction,
+  signOutHref,
   user,
 }: {
   readonly labels: AccountMenuLabels;
-  readonly signOutAction?: (formData: FormData) => void | Promise<void>;
+  readonly signOutHref: string;
   readonly user: AccountMenuUser;
 }) {
   const displayName =
     user.firstName && user.lastName
       ? `${user.firstName} ${user.lastName}`
-      : user.email || labels.user;
+      : (user.email ?? labels.user);
   const initials =
     user.firstName && user.lastName
       ? `${user.firstName[0]}${user.lastName[0]}`
-      : user.email?.[0]?.toUpperCase() || "U";
+      : (user.email?.[0]?.toUpperCase() ?? "U");
 
   return (
     <DropdownMenu>
@@ -105,15 +106,12 @@ function UserButton({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <form action={signOutAction}>
-          <button
-            type="submit"
-            className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-          >
+        <AuthLink href={signOutHref}>
+          <span className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
             <LogOut className="mr-2 size-4" />
             <span>{labels.signOut}</span>
-          </button>
-        </form>
+          </span>
+        </AuthLink>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -123,8 +121,8 @@ export function AccountMenu({
   labels,
   loading,
   signInHref = "/api/auth/signin",
-  signOutAction,
-  signUpHref = "/api/auth/signup",
+  signOutHref = "/api/auth/signout",
+  signUpHref,
   user,
 }: AccountMenuProps) {
   if (loading) {
@@ -135,11 +133,7 @@ export function AccountMenu({
     <div className="flex items-center gap-3 text-xs sm:text-sm">
       {user ? (
         <div className="flex items-center">
-          <UserButton
-            labels={labels}
-            signOutAction={signOutAction}
-            user={user}
-          />
+          <UserButton labels={labels} signOutHref={signOutHref} user={user} />
         </div>
       ) : (
         <div className="flex items-center gap-2">
@@ -152,18 +146,22 @@ export function AccountMenu({
               {labels.signIn}
             </Button>
           </AuthLink>
-          <span aria-hidden="true" className="hidden sm:inline">
-            /
-          </span>
-          <AuthLink href={signUpHref}>
-            <Button
-              variant="link"
-              size="sm"
-              className="px-0 text-[inherit] hover:text-[inherit] hover:underline"
-            >
-              {labels.signUp}
-            </Button>
-          </AuthLink>
+          {signUpHref ? (
+            <>
+              <span aria-hidden="true" className="hidden sm:inline">
+                /
+              </span>
+              <AuthLink href={signUpHref}>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="px-0 text-[inherit] hover:text-[inherit] hover:underline"
+                >
+                  {labels.signUp}
+                </Button>
+              </AuthLink>
+            </>
+          ) : null}
         </div>
       )}
     </div>

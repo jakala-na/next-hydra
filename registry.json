@@ -31,6 +31,8 @@
     }
   ],
   "include": [
+    "packages/auth-clerk/registry.json",
+    "packages/auth-contract/registry.json",
     "packages/auth-workos/registry.json",
     "packages/cms-contentstack/registry.json",
     "packages/cms-drupal/registry.json",

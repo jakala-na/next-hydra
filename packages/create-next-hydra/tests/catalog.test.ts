@@ -43,6 +43,8 @@ describe("Next Hydra source registry", () => {
     const catalog = await loadSourceRegistryCatalog(repoRoot);
 
     expect([...catalog.items.keys()].sort()).toStrictEqual([
+      "auth-clerk",
+      "auth-contract",
       "auth-workos",
       "cms-contentstack",
       "cms-drupal",
@@ -95,6 +97,65 @@ describe("Next Hydra source registry", () => {
     });
   });
 
+  it("plans Clerk with component routes and auth package aliases", async () => {
+    const catalog = await loadSourceRegistryCatalog(repoRoot);
+    const clerkRegistry = await loadRegistryItem("auth-clerk", {
+      cwd: repoRoot,
+    });
+    const clerk = planComposition(catalog, {
+      addOns: [],
+      providers: {
+        auth: "clerk",
+        cms: "drupal",
+        commerce: "commercetools",
+      },
+    });
+
+    expect(clerk.registryItems).toStrictEqual([
+      "auth-clerk",
+      "auth-contract",
+      "cms-drupal",
+      "commerce-commercetools",
+      "drupal",
+    ]);
+    expect(clerk.managedTargets).toEqual(
+      expect.arrayContaining([
+        "apps/web/app/sign-in/[[...sign-in]]/page.tsx",
+        "apps/web/app/sign-out/page.tsx",
+      ])
+    );
+    expect(clerkRegistry.files?.map((file) => file.target)).toEqual(
+      expect.arrayContaining([
+        "~/packages/auth-clerk/access-token.ts",
+        "~/packages/auth-clerk/identity-users.ts",
+        "~/packages/auth-clerk/invitations.ts",
+      ])
+    );
+    expect(
+      clerk.managedTargets.some(
+        (target) =>
+          target === "apps/api/app/api/webhooks/clerk/route.ts" ||
+          target === "apps/web/app/sign-up/[[...sign-up]]/page.tsx"
+      )
+    ).toBeFalsy();
+    expect(clerk.packageRequirements).toEqual(
+      expect.arrayContaining([
+        {
+          cwd: "apps/api",
+          name: "@repo/auth",
+          section: "dependencies",
+          specifier: "workspace:@repo/auth-clerk@*",
+        },
+        {
+          cwd: "apps/web",
+          name: "@repo/auth",
+          section: "dependencies",
+          specifier: "workspace:@repo/auth-clerk@*",
+        },
+      ])
+    );
+  });
+
   it("plans both supported CMS compositions deterministically", async () => {
     const catalog = await loadSourceRegistryCatalog(repoRoot);
     const base = {
@@ -111,12 +172,14 @@ describe("Next Hydra source registry", () => {
     });
 
     expect(drupal.registryItems).toStrictEqual([
+      "auth-contract",
       "auth-workos",
       "cms-drupal",
       "commerce-commercetools",
       "drupal",
     ]);
     expect(contentstack.registryItems).toStrictEqual([
+      "auth-contract",
       "auth-workos",
       "cms-contentstack",
       "commerce-commercetools",

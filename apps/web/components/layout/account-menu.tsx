@@ -1,5 +1,5 @@
 import "server-only";
-import { withAuth } from "@repo/auth/server";
+import { getAuthRoutes, withAuth } from "@repo/auth/server";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import type { AccountMenuUser } from "@repo/design-system/components/layout/account-menu";
 import { connection } from "next/server";
@@ -20,20 +20,27 @@ const toAccountMenuUser = (
 
 export async function AccountMenu() {
   await connection();
-  const session = await withAuth();
+  const [routes, session] = await Promise.all([getAuthRoutes(), withAuth()]);
 
   return (
     <ArchitectureBoundary
       component="server"
-      description="Reads the request-bound WorkOS session and streams the appropriate account controls into the static header."
+      description="Reads the request-bound auth session and streams provider-owned account routes into the static header."
       layer="orchestration"
       layerLabel="Authentication orchestration"
       name="AccountSession"
       rendering="streamed"
       source="app"
-      sourceLabel="WorkOS authentication"
+      sourceLabel="Authentication provider"
     >
-      <AccountMenuClient user={toAccountMenuUser(session.user)} />
+      <AccountMenuClient
+        signInHref={routes.signInHref}
+        signOutHref={routes.signOutHref}
+        {...(routes.signUpHref === undefined
+          ? {}
+          : { signUpHref: routes.signUpHref })}
+        user={toAccountMenuUser(session.user)}
+      />
     </ArchitectureBoundary>
   );
 }
@@ -42,13 +49,13 @@ export function AccountMenuSkeleton() {
   return (
     <ArchitectureBoundary
       component="server"
-      description="The static header fallback shown while the WorkOS session resolves."
+      description="The static header fallback shown while the authentication session resolves."
       layer="orchestration"
       layerLabel="Suspense stream fallback"
       name="AccountSession (pending)"
       rendering="streamed"
       source="app"
-      sourceLabel="WorkOS authentication"
+      sourceLabel="Authentication provider"
     >
       <div
         aria-label="Loading account controls"

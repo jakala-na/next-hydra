@@ -168,7 +168,7 @@ const verifyRegistrationAccess = (
           ),
       }),
       Effect.flatMap((verifiedToken) =>
-        verifiedToken.permissions?.includes(requiredPermission)
+        verifiedToken.permissions.has(requiredPermission)
           ? Effect.succeed(verifiedToken)
           : Effect.fail(forbidden())
       )

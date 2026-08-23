@@ -1,0 +1,170 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "auth-clerk",
+      "type": "registry:item",
+      "title": "Next Hydra Clerk Auth provider",
+      "description": "Installs the Clerk Auth provider package and component-backed authentication routes.",
+      "docs": "Configure Clerk and CLERK_AUTHORIZED_PARTIES before starting the applications. Registration onboarding returns 501 because identity lookup and invitations remain deferred; webhook mounting is also deferred.",
+      "registryDependencies": [
+        "jakala-na/next-hydra/auth-contract"
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/auth/clerk",
+          "kind": "provider",
+          "slot": "auth",
+          "packages": [
+            {
+              "cwd": "apps/api",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-clerk@*"
+            },
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-clerk@*"
+            },
+            {
+              "cwd": "packages/feature-flags",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-clerk@*"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "access-token.test.ts",
+          "target": "~/packages/auth-clerk/access-token.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "access-token.ts",
+          "target": "~/packages/auth-clerk/access-token.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "capabilities.ts",
+          "target": "~/packages/auth-clerk/capabilities.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client.ts",
+          "target": "~/packages/auth-clerk/client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/sign-in.tsx",
+          "target": "~/packages/auth-clerk/components/sign-in.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/sign-out.tsx",
+          "target": "~/packages/auth-clerk/components/sign-out.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/sign-up.tsx",
+          "target": "~/packages/auth-clerk/components/sign-up.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "deferred-onboarding.test.ts",
+          "target": "~/packages/auth-clerk/deferred-onboarding.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "identity-users.ts",
+          "target": "~/packages/auth-clerk/identity-users.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.ts",
+          "target": "~/packages/auth-clerk/invitations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "keys.test.ts",
+          "target": "~/packages/auth-clerk/keys.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "keys.ts",
+          "target": "~/packages/auth-clerk/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/auth-clerk/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "provider.tsx",
+          "target": "~/packages/auth-clerk/provider.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "proxy.ts",
+          "target": "~/packages/auth-clerk/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/sign-in/[[...sign-in]]/page.tsx",
+          "target": "~/apps/web/app/sign-in/[[...sign-in]]/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/sign-out/page.tsx",
+          "target": "~/apps/web/app/sign-out/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/webhooks/auth/route.ts",
+          "target": "~/packages/auth-clerk/routes/webhooks/auth/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "server.ts",
+          "target": "~/packages/auth-clerk/server.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "session.test.ts",
+          "target": "~/packages/auth-clerk/session.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "session.ts",
+          "target": "~/packages/auth-clerk/session.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.api.json",
+          "target": "~/packages/auth-clerk/tsconfig.api.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.feature-flags.json",
+          "target": "~/packages/auth-clerk/tsconfig.feature-flags.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/auth-clerk/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.web.json",
+          "target": "~/packages/auth-clerk/tsconfig.web.json",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

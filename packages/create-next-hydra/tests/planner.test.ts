@@ -203,6 +203,7 @@ describe("composition planner failures", () => {
 
     expect(plan.selection.addOns).toStrictEqual(["drupal-commerce-dam"]);
     expect(plan.registryItems).toStrictEqual([
+      "auth-contract",
       "auth-workos",
       "cms-drupal",
       "commerce-commercetools",

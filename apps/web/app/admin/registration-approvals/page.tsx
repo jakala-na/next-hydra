@@ -154,9 +154,9 @@ export default async function AdminRegistrationsPage({
       .filter((value) => value.length > 0) ?? [];
   const status = isStatus(rawStatus) ? rawStatus : "awaiting_approval";
   const search = rawSearch && rawSearch.length > 0 ? rawSearch : undefined;
-  const canDecide =
-    session.permissions?.includes(ADMIN_REGISTRATION_DECIDE_PERMISSION) ??
-    false;
+  const canDecide = session.permissions.has(
+    ADMIN_REGISTRATION_DECIDE_PERMISSION
+  );
 
   const [listResult, selectedRegistration] = await Promise.all([
     listAdminRegistrations({

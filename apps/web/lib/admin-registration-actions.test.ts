@@ -14,7 +14,10 @@ import { describe, expect, it } from "vitest";
 
 import { makeAdminRegistrationProcedures } from "./admin-registration-procedures";
 import type { CurrentAuthSnapshot } from "./current-auth-api";
-import { CurrentAuth } from "./current-auth-api";
+import {
+  CurrentAuth,
+  terminateAuthSessionReadFailure,
+} from "./current-auth-api";
 import type { NextCookieStore } from "./next-request-api";
 import { NextRequestApi } from "./next-request-api";
 import type { DecideRegistration } from "./registration-reviewers-api";
@@ -28,7 +31,9 @@ const makeHarness = (options: {
   const revalidated: string[] = [];
   const session: CurrentAuthSnapshot = options.session ?? {
     accessToken: Redacted.make("access-token"),
-    permissions: ["registration.decide"],
+    permissions: {
+      has: (permission) => permission === "registration.decide",
+    },
     userId: "user-1",
   };
 
@@ -72,7 +77,11 @@ const makeHarness = (options: {
       >(() =>
         CurrentAuth.pipe(
           Effect.flatMap((currentAuth) => currentAuth.snapshot),
-          Effect.map((currentSession) => ({ session: currentSession }))
+          Effect.map((currentSession) => ({ session: currentSession })),
+          Effect.catchTag(
+            "AuthSessionReadFailure",
+            terminateAuthSessionReadFailure
+          )
         )
       )
     )
@@ -153,7 +162,9 @@ describe("admin registration actions", () => {
         return Effect.die("should not decide");
       },
       session: {
-        permissions: ["registration.decide"],
+        permissions: {
+          has: (permission) => permission === "registration.decide",
+        },
       },
     });
 

@@ -47,7 +47,7 @@ export const registrationReviewersLayerFrom = (
         return yield* Effect.fail(registrationUnauthorized());
       }
 
-      if (!session.permissions.includes(REGISTRATION_DECIDE_PERMISSION)) {
+      if (!session.permissions.has(REGISTRATION_DECIDE_PERMISSION)) {
         return yield* Effect.fail(registrationForbidden());
       }
 
