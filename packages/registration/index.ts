@@ -76,10 +76,11 @@ export {
   AcceptedRegistrationInvitation,
   CompanyMemberIntent,
   type Invitation,
+  InvitationDelivery,
+  InvitationDeliveryStatus,
   type InvitationIntent,
   PendingInvitation,
   PendingRegistrationInvitation,
-  ProviderInvitationIntent,
   RegistrationApprovalIntent,
   type RegistrationInvitation,
   RevokedInvitation,
@@ -153,6 +154,7 @@ export {
 export {
   type AcceptCompanyMemberInvitationInput,
   acceptCompanyMemberInvitation,
+  CompanyMemberInvitationContextUnavailable,
   type IssueCompanyMemberInviteInput,
   issueCompanyMemberInvite,
   type RevokeCompanyMemberInviteInput,
@@ -170,12 +172,18 @@ export {
   notifyRegistrationRejected,
 } from "./programs/registration-notifications";
 export {
+  type ResumeRegistrationInvitationForRegistrationInput,
+  resumeRegistrationInvitationForRegistration,
+} from "./programs/registration-invitation-events";
+export {
   type AcceptRegistrationInvitationInput,
   type ApproveRegistrationInput,
   acceptRegistrationInvitation,
   approveRegistration,
   type RejectRegistrationInput,
   rejectRegistration,
+  type RevokeRegistrationInvitationInput,
+  revokeRegistrationInvitation,
 } from "./programs/registration-onboarding";
 export {
   type AcceptRegistrationReviewDecisionInput,
@@ -197,17 +205,24 @@ export {
   normalizedIdentityEmail,
 } from "./services/identity-users";
 export {
-  type AcceptInvitationInput,
+  type CompanyMemberInvitationIssueInput,
+  CompanyMemberInvitations,
+  invitationCapabilitiesLayerMemory,
   type InvitationAcceptError,
   InvitationConflict,
+  InvitationDeliveries,
   type InvitationIssueError,
   InvitationNotFound,
   InvitationProviderFailure,
   type InvitationReadError,
   type InvitationRevokeError,
-  Invitations,
-  type IssueInvitationInput,
-  type RevokeInvitationInput,
+  type RegistrationInvitationAcceptanceInput,
+  type RegistrationInvitationIssueInput,
+  type RegistrationInvitationRevocationInput,
+  RegistrationInvitationRevocationEvents,
+  RegistrationInvitationRevocationEventSource,
+  type RegistrationInvitationRevocationEventSource as RegistrationInvitationRevocationEventSourceType,
+  RegistrationInvitations,
 } from "./services/invitations";
 export {
   RegistrationInvitationEvent,

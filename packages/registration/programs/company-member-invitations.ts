@@ -1,28 +1,24 @@
-import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
-import type { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import type { CompanyActor } from "../domain/actors";
-import type {
-  AcceptedAuthIdentity,
-  InvitationId,
-  RedactedEmail,
-} from "../domain/identity";
+import { InvitationId } from "../domain/identity";
+import type { AcceptedAuthIdentity, RedactedEmail } from "../domain/identity";
 import { CompanyMemberIntent } from "../domain/invitations";
-import type {
-  AcceptedInvitation,
-  PendingInvitation,
-  RevokedInvitation,
-} from "../domain/invitations";
+import type { PendingInvitation } from "../domain/invitations";
 import type { CompanyMemberInvitationRole } from "../domain/roles";
 import { CompanyInvitationPolicy } from "../services/company-invitation-policy";
 import type { InvitationPolicyError } from "../services/company-invitation-policy";
-import { InvitationConflict, Invitations } from "../services/invitations";
-import type {
-  InvitationAcceptError,
-  InvitationIssueError,
-  InvitationRevokeError,
-} from "../services/invitations";
+import { CompanyMemberInvitations } from "../services/invitations";
+import type { InvitationIssueError } from "../services/invitations";
+
+export class CompanyMemberInvitationContextUnavailable extends Schema.TaggedError<CompanyMemberInvitationContextUnavailable>()(
+  "CompanyMemberInvitationContextUnavailable",
+  {
+    invitationId: InvitationId,
+    message: Schema.String,
+    operation: Schema.Literals(["accept", "revoke"]),
+  }
+) {}
 
 export interface IssueCompanyMemberInviteInput {
   readonly actor: CompanyActor;
@@ -36,8 +32,8 @@ export interface RevokeCompanyMemberInviteInput {
 }
 
 export interface AcceptCompanyMemberInvitationInput {
-  readonly invitationId: InvitationId;
   readonly acceptedIdentity: AcceptedAuthIdentity;
+  readonly invitationId: InvitationId;
 }
 
 export const issueCompanyMemberInvite = (
@@ -45,11 +41,11 @@ export const issueCompanyMemberInvite = (
 ): Effect.Effect<
   PendingInvitation,
   InvitationPolicyError | InvitationIssueError,
-  CompanyInvitationPolicy | Invitations
+  CompanyInvitationPolicy | CompanyMemberInvitations
 > =>
   Effect.gen(function* () {
     const policy = yield* CompanyInvitationPolicy;
-    const invitations = yield* Invitations;
+    const invitations = yield* CompanyMemberInvitations;
 
     yield* policy.authorizeIssueInvite({
       actor: input.actor,
@@ -71,56 +67,31 @@ export const issueCompanyMemberInvite = (
 export const revokeCompanyMemberInvite = (
   input: RevokeCompanyMemberInviteInput
 ): Effect.Effect<
-  RevokedInvitation,
-  InvitationPolicyError | InvitationRevokeError,
-  CompanyInvitationPolicy | Invitations
+  never,
+  InvitationPolicyError | CompanyMemberInvitationContextUnavailable,
+  CompanyInvitationPolicy
 > =>
   Effect.gen(function* () {
     const policy = yield* CompanyInvitationPolicy;
-    const invitations = yield* Invitations;
 
     yield* policy.authorizeRevokeInvite({ actor: input.actor });
 
-    return yield* invitations.revoke({
+    return yield* new CompanyMemberInvitationContextUnavailable({
       invitationId: input.invitationId,
-      revokedBy: input.actor,
+      message:
+        "Company-member invitation revocation requires durable domain context",
+      operation: "revoke",
     });
   });
 
 export const acceptCompanyMemberInvitation = (
   input: AcceptCompanyMemberInvitationInput
-): Effect.Effect<
-  AcceptedInvitation,
-  InvitationAcceptError | CommerceAccountUnavailable,
-  Invitations | CommerceAccounts
-> =>
-  Effect.gen(function* () {
-    const invitations = yield* Invitations;
-    const commerceAccounts = yield* CommerceAccounts;
-
-    const invitation = yield* invitations.accept({
-      acceptedIdentity: input.acceptedIdentity,
-      expectedIntent: "company_member",
+): Effect.Effect<never, CompanyMemberInvitationContextUnavailable> =>
+  Effect.fail(
+    new CompanyMemberInvitationContextUnavailable({
       invitationId: input.invitationId,
-    });
-
-    if (invitation.intent.intent !== "company_member") {
-      return yield* new InvitationConflict({
-        message: "Invitation is not for company membership",
-      });
-    }
-
-    if (invitation.intent.role !== "associate") {
-      return yield* new InvitationConflict({
-        message: "Company member invitations can only grant associate access",
-      });
-    }
-
-    yield* commerceAccounts.addAssociate({
-      acceptedIdentity: input.acceptedIdentity,
-      businessUnitId: invitation.intent.businessUnitId,
-      role: invitation.intent.role,
-    });
-
-    return invitation;
-  });
+      message:
+        "Company-member invitation acceptance requires durable domain context",
+      operation: "accept",
+    })
+  );

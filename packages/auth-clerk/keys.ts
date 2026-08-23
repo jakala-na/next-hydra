@@ -50,6 +50,6 @@ export const webhookKeys = () =>
       CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
     },
     server: {
-      CLERK_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
+      CLERK_WEBHOOK_SECRET: z.string().startsWith("whsec_"),
     },
   });

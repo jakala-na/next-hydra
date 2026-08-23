@@ -1,40 +1,483 @@
-import type { InvitationId } from "@repo/registration/domain/identity";
+import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
+import { clerkClient } from "@clerk/nextjs/server";
+import { Email, InvitationId } from "@repo/registration/domain/identity";
 import {
+  AcceptedInvitation,
+  InvitationDelivery,
+  PendingInvitation,
+  RevokedInvitation,
+} from "@repo/registration/domain/invitations";
+import {
+  CompanyMemberInvitations,
+  InvitationConflict,
+  InvitationDeliveries,
+  InvitationNotFound,
   InvitationProviderFailure,
-  Invitations,
+  RegistrationInvitationRevocationEvents,
+  RegistrationInvitations,
 } from "@repo/registration/services/invitations";
 import type {
-  AcceptInvitationInput,
-  IssueInvitationInput,
-  RevokeInvitationInput,
+  CompanyMemberInvitationIssueInput,
+  RegistrationInvitationAcceptanceInput,
+  RegistrationInvitationIssueInput,
+  RegistrationInvitationRevocationInput,
 } from "@repo/registration/services/invitations";
-import { Effect, Layer } from "effect";
+import {
+  Config,
+  Context,
+  Data,
+  Effect,
+  Layer,
+  Option,
+  Redacted,
+  Schema,
+} from "effect";
 
-const deferredInvitation = (
-  operation: "issue" | "read" | "accept" | "revoke"
+import {
+  ClerkInvitationMetadata,
+  clerkInvitationMetadataFromIntent,
+} from "./invitation-metadata";
+
+type ClerkInvitationIssueInput =
+  | RegistrationInvitationIssueInput
+  | CompanyMemberInvitationIssueInput;
+
+const ClerkInvitation = Schema.Struct({
+  createdAt: Schema.Finite,
+  emailAddress: Schema.String,
+  id: Schema.NonEmptyString,
+  publicMetadata: Schema.Unknown,
+  status: Schema.Literals(["pending", "accepted", "revoked", "expired"]),
+  updatedAt: Schema.Finite,
+  url: Schema.optional(Schema.String),
+});
+
+const ClerkInvitationList = Schema.Struct({
+  data: Schema.Array(ClerkInvitation),
+});
+
+export interface ClerkInvitationsApi {
+  readonly createInvitation: (input: {
+    readonly emailAddress: string;
+    readonly publicMetadata: ClerkInvitationMetadata;
+    readonly redirectUrl: string;
+  }) => Promise<typeof ClerkInvitation.Type>;
+  readonly getInvitationList: (input: {
+    readonly limit: number;
+    readonly query: string;
+    readonly status?: "accepted" | "expired" | "pending" | "revoked";
+  }) => Promise<typeof ClerkInvitationList.Type>;
+  readonly revokeInvitation: (
+    invitationId: string
+  ) => Promise<typeof ClerkInvitation.Type>;
+}
+
+const toDate = (value: number) => new Date(value);
+
+const toRedactedEmail = (email: string) =>
+  Redacted.make(Email.make(email), { label: "email" });
+
+const deliveryFromClerk = (invitation: typeof ClerkInvitation.Type) => {
+  const delivery = {
+    createdAt: toDate(invitation.createdAt),
+    id: InvitationId.make(invitation.id),
+    inviteeEmail: toRedactedEmail(invitation.emailAddress),
+    status: invitation.status,
+    updatedAt: toDate(invitation.updatedAt),
+  };
+
+  return invitation.url === undefined
+    ? new InvitationDelivery(delivery)
+    : new InvitationDelivery({
+        ...delivery,
+        acceptInvitationUrl: invitation.url,
+      });
+};
+
+const providerFailure = (
+  operation: "issue" | "read" | "accept" | "revoke",
+  cause: unknown
 ) =>
   new InvitationProviderFailure({
-    cause: new Error("Clerk onboarding is deferred"),
-    message: `Clerk invitation ${operation} is not available in the current auth slice`,
+    cause,
+    message: `Failed to ${operation} Clerk invitation: ${
+      cause instanceof Error ? cause.message : String(cause)
+    }`,
     operation,
   });
 
-export const invitationsLayer = Layer.succeed(
-  Invitations,
-  Invitations.of({
-    accept: Effect.fn("Invitations.Clerk.deferred")(
-      (_input: AcceptInvitationInput) =>
-        Effect.fail(deferredInvitation("accept"))
+const readFailure = (
+  invitationId: InvitationId,
+  operation: "accept" | "read" | "revoke",
+  cause: unknown
+) =>
+  isClerkAPIResponseError(cause) && cause.status === 404
+    ? new InvitationNotFound({
+        invitationId,
+        message: `Invitation ${invitationId} was not found`,
+      })
+    : providerFailure(operation, cause);
+
+const revokeFailure = (invitationId: InvitationId, cause: unknown) =>
+  isClerkAPIResponseError(cause) && cause.status === 404
+    ? new InvitationNotFound({
+        invitationId,
+        message: `Invitation ${invitationId} was not found`,
+      })
+    : providerFailure("revoke", cause);
+
+const issueFailure = (cause: unknown) =>
+  isClerkAPIResponseError(cause) &&
+  cause.errors.some((error) => error.code === "form_identifier_exists")
+    ? new InvitationConflict({
+        message: "Clerk already has a user for this email",
+      })
+    : providerFailure("issue", cause);
+
+const isDuplicateInvitationFailure = (cause: unknown) =>
+  isClerkAPIResponseError(cause) &&
+  cause.errors.some((error) => error.code === "duplicate_record");
+
+const findInvitation = (
+  invitations: ClerkInvitationsApi,
+  invitationId: InvitationId,
+  operation: "accept" | "read" | "revoke"
+) =>
+  Effect.gen(function* () {
+    const readList = (
+      status?: "accepted" | "expired" | "pending" | "revoked"
+    ) =>
+      Effect.tryPromise({
+        catch: (cause) => readFailure(invitationId, operation, cause),
+        try: async () =>
+          await invitations.getInvitationList(
+            status === undefined
+              ? { limit: 10, query: String(invitationId) }
+              : { limit: 10, query: String(invitationId), status }
+          ),
+      }).pipe(
+        Effect.flatMap((response) =>
+          Schema.decodeEffect(ClerkInvitationList)(response).pipe(Effect.orDie)
+        )
+      );
+
+    const current = yield* readList();
+    const invitation = current.data.find(
+      (candidate) => candidate.id === invitationId
+    );
+    if (invitation) {
+      return invitation;
+    }
+
+    const revoked = yield* readList("revoked");
+    const revokedInvitation = revoked.data.find(
+      (candidate) => candidate.id === invitationId
+    );
+    if (revokedInvitation) {
+      return revokedInvitation;
+    }
+
+    return yield* new InvitationNotFound({
+      invitationId,
+      message: `Invitation ${invitationId} was not found`,
+    });
+  });
+
+const normalizedEmail = (email: string) => email.trim().toLowerCase();
+
+class ClerkInvitationRequestFailure extends Data.TaggedError(
+  "ClerkInvitationRequestFailure"
+)<{
+  readonly cause: unknown;
+}> {}
+
+const metadataMatchesIntent = (
+  metadata: ClerkInvitationMetadata,
+  intent: ClerkInvitationIssueInput["intent"]
+) => {
+  const metadataIntent = metadata.nextHydra.invitation;
+
+  if (intent.intent === "registration_approval") {
+    return (
+      metadataIntent.intent === "registration_approval" &&
+      metadataIntent.registrationId === intent.registrationId &&
+      metadataIntent.role === intent.role
+    );
+  }
+
+  return (
+    metadataIntent.intent === "company_member" &&
+    metadataIntent.businessUnitId === intent.businessUnitId &&
+    metadataIntent.role === intent.role
+  );
+};
+
+const pendingFromClerk = (
+  invitation: typeof ClerkInvitation.Type,
+  input: ClerkInvitationIssueInput
+) => {
+  const properties = {
+    _tag: "PendingInvitation",
+    createdAt: toDate(invitation.createdAt),
+    id: InvitationId.make(invitation.id),
+    intent: input.intent,
+    issuedBy: input.issuedBy,
+  } as const;
+
+  return invitation.url === undefined
+    ? new PendingInvitation(properties)
+    : new PendingInvitation({
+        ...properties,
+        acceptInvitationUrl: invitation.url,
+      });
+};
+
+const revokedFromClerk = (
+  invitation: typeof ClerkInvitation.Type,
+  input: RegistrationInvitationRevocationInput
+) =>
+  new RevokedInvitation({
+    _tag: "RevokedInvitation",
+    createdAt: toDate(invitation.createdAt),
+    id: InvitationId.make(invitation.id),
+    intent: input.intent,
+    issuedBy: input.issuedBy,
+    revokedAt: toDate(invitation.updatedAt),
+    revokedBy: input.revokedBy,
+  });
+
+const findIssuedInvitation = (
+  invitations: ClerkInvitationsApi,
+  input: ClerkInvitationIssueInput
+) =>
+  Effect.tryPromise({
+    catch: (cause) => providerFailure("issue", cause),
+    try: async () =>
+      await invitations.getInvitationList({
+        limit: 10,
+        query: normalizedEmail(Redacted.value(input.intent.inviteeEmail)),
+      }),
+  }).pipe(
+    Effect.flatMap((response) =>
+      Schema.decodeEffect(ClerkInvitationList)(response).pipe(Effect.orDie)
     ),
-    get: Effect.fn("Invitations.Clerk.deferred")(
-      (_invitationId: InvitationId) => Effect.fail(deferredInvitation("read"))
-    ),
-    issue: Effect.fn("Invitations.Clerk.deferred")(
-      (_input: IssueInvitationInput) => Effect.fail(deferredInvitation("issue"))
-    ),
-    revoke: Effect.fn("Invitations.Clerk.deferred")(
-      (_input: RevokeInvitationInput) =>
-        Effect.fail(deferredInvitation("revoke"))
-    ),
-  })
+    Effect.map((response) =>
+      response.data.find((candidate) => {
+        const metadata = Schema.decodeUnknownOption(ClerkInvitationMetadata)(
+          candidate.publicMetadata
+        );
+
+        return (
+          (candidate.status === "pending" || candidate.status === "accepted") &&
+          normalizedEmail(candidate.emailAddress) ===
+            normalizedEmail(Redacted.value(input.intent.inviteeEmail)) &&
+          Option.isSome(metadata) &&
+          metadataMatchesIntent(metadata.value, input.intent)
+        );
+      })
+    )
+  );
+
+const issueClerkInvitation = Effect.fn("InvitationCapabilities.Clerk.issue")(
+  function* (
+    invitations: ClerkInvitationsApi,
+    redirectUrl: string,
+    input: ClerkInvitationIssueInput
+  ) {
+    const existing = yield* findIssuedInvitation(invitations, input);
+    if (existing !== undefined) {
+      return pendingFromClerk(existing, input);
+    }
+
+    const invitation = yield* Effect.tryPromise({
+      catch: (cause) => new ClerkInvitationRequestFailure({ cause }),
+      try: async () =>
+        await invitations.createInvitation({
+          emailAddress: normalizedEmail(
+            Redacted.value(input.intent.inviteeEmail)
+          ),
+          publicMetadata: clerkInvitationMetadataFromIntent(input.intent),
+          redirectUrl,
+        }),
+    }).pipe(
+      Effect.catch((error) => {
+        if (!isDuplicateInvitationFailure(error.cause)) {
+          return Effect.fail(issueFailure(error.cause));
+        }
+
+        return findIssuedInvitation(invitations, input).pipe(
+          Effect.flatMap((recovered) =>
+            recovered === undefined
+              ? Effect.fail(
+                  new InvitationConflict({
+                    message:
+                      "Clerk has another invitation for this email address",
+                  })
+                )
+              : Effect.succeed(recovered)
+          )
+        );
+      }),
+      Effect.flatMap((response) =>
+        Schema.decodeEffect(ClerkInvitation)(response).pipe(Effect.orDie)
+      )
+    );
+
+    return pendingFromClerk(invitation, input);
+  }
+);
+
+export const makeClerkInvitationCapabilities = (
+  invitations: ClerkInvitationsApi,
+  redirectUrl: string
+) => {
+  const issueCompanyMember = Effect.fn("CompanyMemberInvitations.Clerk.issue")(
+    (input: CompanyMemberInvitationIssueInput) =>
+      issueClerkInvitation(invitations, redirectUrl, input)
+  );
+
+  const get = Effect.fn("InvitationDeliveries.Clerk.get")(
+    (invitationId: InvitationId) =>
+      findInvitation(invitations, invitationId, "read").pipe(
+        Effect.map(deliveryFromClerk)
+      )
+  );
+
+  const acceptRegistration = Effect.fn("RegistrationInvitations.Clerk.accept")(
+    function* (input: RegistrationInvitationAcceptanceInput) {
+      const invitation = yield* findInvitation(
+        invitations,
+        input.invitationId,
+        "accept"
+      );
+
+      if (invitation.status === "revoked" || invitation.status === "expired") {
+        return yield* new InvitationConflict({
+          message: "Invitation can no longer be accepted by Clerk",
+        });
+      }
+
+      const inviteeEmail = Redacted.value(input.intent.inviteeEmail);
+      const acceptedEmail = Redacted.value(input.acceptedIdentity.email);
+      if (
+        normalizedEmail(invitation.emailAddress) !==
+          normalizedEmail(inviteeEmail) ||
+        normalizedEmail(acceptedEmail) !== normalizedEmail(inviteeEmail)
+      ) {
+        return yield* new InvitationConflict({
+          message: "Invitation was accepted by a different email address",
+        });
+      }
+
+      return new AcceptedInvitation({
+        _tag: "AcceptedInvitation",
+        acceptedAt: toDate(invitation.updatedAt),
+        acceptedBy: input.acceptedIdentity,
+        createdAt: toDate(invitation.createdAt),
+        id: InvitationId.make(invitation.id),
+        intent: input.intent,
+        issuedBy: input.issuedBy,
+      });
+    }
+  );
+
+  const issueRegistration = Effect.fn("RegistrationInvitations.Clerk.issue")(
+    (input: RegistrationInvitationIssueInput) =>
+      issueClerkInvitation(invitations, redirectUrl, input)
+  );
+
+  const revokeRegistration = Effect.fn("RegistrationInvitations.Clerk.revoke")(
+    function* (input: RegistrationInvitationRevocationInput) {
+      const current = yield* findInvitation(
+        invitations,
+        input.invitationId,
+        "revoke"
+      );
+
+      if (current.status === "revoked") {
+        return revokedFromClerk(current, input);
+      }
+
+      if (current.status === "accepted" || current.status === "expired") {
+        return yield* new InvitationConflict({
+          message: "Invitation can no longer be revoked by Clerk",
+        });
+      }
+
+      const invitation = yield* Effect.tryPromise({
+        catch: (cause) => revokeFailure(input.invitationId, cause),
+        try: async () =>
+          await invitations.revokeInvitation(String(input.invitationId)),
+      }).pipe(
+        Effect.flatMap((response) =>
+          Schema.decodeEffect(ClerkInvitation)(response).pipe(Effect.orDie)
+        )
+      );
+
+      if (invitation.status !== "revoked") {
+        return yield* new InvitationConflict({
+          message: "Invitation was not revoked by Clerk",
+        });
+      }
+
+      return revokedFromClerk(invitation, input);
+    }
+  );
+
+  return {
+    companyMemberInvitations: CompanyMemberInvitations.of({
+      issue: issueCompanyMember,
+    }),
+    invitationDeliveries: InvitationDeliveries.of({ get }),
+    registrationInvitationRevocationEvents:
+      RegistrationInvitationRevocationEvents.of({
+        source: "application_command",
+      }),
+    registrationInvitations: RegistrationInvitations.of({
+      accept: acceptRegistration,
+      issue: issueRegistration,
+      revoke: revokeRegistration,
+    }),
+  } as const;
+};
+
+const clerkInvitationsApi: ClerkInvitationsApi = {
+  createInvitation: async (input) => {
+    const client = await clerkClient();
+    return await client.invitations.createInvitation(input);
+  },
+  getInvitationList: async (input) => {
+    const client = await clerkClient();
+    return await client.invitations.getInvitationList(input);
+  },
+  revokeInvitation: async (invitationId) => {
+    const client = await clerkClient();
+    return await client.invitations.revokeInvitation(invitationId);
+  },
+};
+
+export const invitationsLayer = Layer.effectContext(
+  Config.url("NEXT_PUBLIC_WEB_URL").pipe(
+    Effect.map((webUrl) => {
+      const capabilities = makeClerkInvitationCapabilities(
+        clerkInvitationsApi,
+        new URL("/accept-invitation", webUrl).toString()
+      );
+
+      return Context.make(
+        RegistrationInvitations,
+        capabilities.registrationInvitations
+      ).pipe(
+        Context.add(
+          CompanyMemberInvitations,
+          capabilities.companyMemberInvitations
+        ),
+        Context.add(InvitationDeliveries, capabilities.invitationDeliveries),
+        Context.add(
+          RegistrationInvitationRevocationEvents,
+          capabilities.registrationInvitationRevocationEvents
+        )
+      );
+    })
+  )
 );

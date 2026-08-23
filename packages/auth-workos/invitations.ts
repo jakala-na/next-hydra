@@ -1,35 +1,31 @@
-import { registrationSystemActor } from "@repo/registration/domain/actors";
-import {
-  AcceptedAuthIdentity,
-  AuthUserId,
-  Email,
-  InvitationId,
-  PersonName,
-} from "@repo/registration/domain/identity";
+import { Email, InvitationId } from "@repo/registration/domain/identity";
 import {
   AcceptedInvitation,
+  InvitationDelivery,
   PendingInvitation,
-  ProviderInvitationIntent,
   RevokedInvitation,
 } from "@repo/registration/domain/invitations";
-import type { Invitation } from "@repo/registration/domain/invitations";
 import {
+  CompanyMemberInvitations,
   InvitationConflict,
+  InvitationDeliveries,
   InvitationNotFound,
   InvitationProviderFailure,
-  Invitations,
+  RegistrationInvitationRevocationEvents,
+  RegistrationInvitations,
 } from "@repo/registration/services/invitations";
 import type {
-  AcceptInvitationInput,
-  IssueInvitationInput,
-  RevokeInvitationInput,
+  CompanyMemberInvitationIssueInput,
+  RegistrationInvitationAcceptanceInput,
+  RegistrationInvitationIssueInput,
+  RegistrationInvitationRevocationInput,
 } from "@repo/registration/services/invitations";
 import { NotFoundException, WorkOS } from "@workos-inc/node";
 import type {
   Invitation as WorkosInvitation,
   SendInvitationOptions as WorkosSendInvitationOptions,
 } from "@workos-inc/node";
-import { Config, Effect, Layer, Option, Redacted } from "effect";
+import { Config, Context, Effect, Layer, Option, Redacted } from "effect";
 
 export type {
   Invitation as WorkosInvitation,
@@ -37,6 +33,9 @@ export type {
 } from "@workos-inc/node";
 
 type WorkosSdk = Pick<WorkOS, "userManagement">;
+type WorkosInvitationIssueInput =
+  | RegistrationInvitationIssueInput
+  | CompanyMemberInvitationIssueInput;
 
 export type WorkosInvitationUserManagement = Pick<
   WorkosSdk["userManagement"],
@@ -49,33 +48,8 @@ const toDate = (value: string | null | undefined) =>
 const invitationIdFromWorkos = (invitation: WorkosInvitation) =>
   InvitationId.make(invitation.id);
 
-const providerIntentFromWorkos = (invitation: WorkosInvitation) =>
-  new ProviderInvitationIntent({
-    intent: "provider_managed",
-    inviteeEmail: Redacted.make(Email.make(invitation.email), {
-      label: "email",
-    }),
-    role: "provider",
-  });
-
-const acceptedIdentityFromWorkos = (
-  invitation: WorkosInvitation,
-  fallback?: AcceptedAuthIdentity
-) =>
-  fallback ??
-  new AcceptedAuthIdentity({
-    authUserId: AuthUserId.make(invitation.acceptedUserId ?? "provider-user"),
-    email: Redacted.make(Email.make(invitation.email), { label: "email" }),
-    firstName: Redacted.make(PersonName.make("Provider"), {
-      label: "personName",
-    }),
-    lastName: Redacted.make(PersonName.make("Managed"), {
-      label: "personName",
-    }),
-  });
-
 const workosIssueInputFromIntent = (
-  input: IssueInvitationInput
+  input: WorkosInvitationIssueInput
 ): WorkosSendInvitationOptions => {
   const inviterUserId =
     "authUserId" in input.issuedBy ? input.issuedBy.authUserId : undefined;
@@ -89,7 +63,7 @@ const workosIssueInputFromIntent = (
 
 const pendingFromWorkos = (
   invitation: WorkosInvitation,
-  input: IssueInvitationInput
+  input: WorkosInvitationIssueInput
 ) =>
   new PendingInvitation({
     _tag: "PendingInvitation",
@@ -100,51 +74,22 @@ const pendingFromWorkos = (
     issuedBy: input.issuedBy,
   });
 
-const invitationFromWorkos = (
-  invitation: WorkosInvitation,
-  acceptedIdentity?: AcceptedAuthIdentity
-): Invitation => {
-  const base = {
+const deliveryFromWorkos = (invitation: WorkosInvitation) =>
+  new InvitationDelivery({
+    ...(invitation.acceptInvitationUrl
+      ? { acceptInvitationUrl: invitation.acceptInvitationUrl }
+      : {}),
     createdAt: toDate(invitation.createdAt),
+    ...(invitation.expiresAt
+      ? { expiresAt: toDate(invitation.expiresAt) }
+      : {}),
     id: invitationIdFromWorkos(invitation),
-    intent: providerIntentFromWorkos(invitation),
-    issuedBy: registrationSystemActor,
-  };
-
-  switch (invitation.state) {
-    case "accepted": {
-      return new AcceptedInvitation({
-        _tag: "AcceptedInvitation",
-        ...base,
-        acceptedAt: toDate(invitation.acceptedAt),
-        acceptedBy: acceptedIdentityFromWorkos(invitation, acceptedIdentity),
-      });
-    }
-    case "revoked":
-    case "expired": {
-      return new RevokedInvitation({
-        _tag: "RevokedInvitation",
-        ...base,
-        revokedAt: toDate(invitation.revokedAt ?? invitation.expiresAt),
-        revokedBy: registrationSystemActor,
-      });
-    }
-    case "pending": {
-      return new PendingInvitation({
-        _tag: "PendingInvitation",
-        ...base,
-        acceptInvitationUrl: invitation.acceptInvitationUrl,
-      });
-    }
-    default: {
-      return new PendingInvitation({
-        _tag: "PendingInvitation",
-        ...base,
-        acceptInvitationUrl: invitation.acceptInvitationUrl,
-      });
-    }
-  }
-};
+    inviteeEmail: Redacted.make(Email.make(invitation.email), {
+      label: "email",
+    }),
+    status: invitation.state,
+    updatedAt: toDate(invitation.updatedAt),
+  });
 
 const providerFailure = (
   operation: "issue" | "read" | "accept" | "revoke",
@@ -174,11 +119,13 @@ const revokeFailure = (invitationId: InvitationId, cause: unknown) =>
       })
     : providerFailure("revoke", cause);
 
-export const makeWorkosInvitations = (
+const normalizedEmail = (email: string) => email.trim().toLowerCase();
+
+export const makeWorkosInvitationCapabilities = (
   userManagement: WorkosInvitationUserManagement
 ) => {
-  const issue = Effect.fn("Invitations.Workos.issue")(function* (
-    input: IssueInvitationInput
+  const issue = Effect.fn("InvitationCapabilities.Workos.issue")(function* (
+    input: WorkosInvitationIssueInput
   ) {
     const invitation = yield* Effect.tryPromise({
       catch: (cause) => providerFailure("issue", cause),
@@ -189,16 +136,16 @@ export const makeWorkosInvitations = (
     return pendingFromWorkos(invitation, input);
   });
 
-  const get = Effect.fn("Invitations.Workos.get")(
+  const get = Effect.fn("InvitationDeliveries.Workos.get")(
     (invitationId: InvitationId) =>
       Effect.tryPromise({
         catch: (cause) => readFailure(invitationId, cause),
         try: async () => await userManagement.getInvitation(invitationId),
-      }).pipe(Effect.map(invitationFromWorkos))
+      }).pipe(Effect.map(deliveryFromWorkos))
   );
 
-  const accept = Effect.fn("Invitations.Workos.accept")(function* (
-    input: AcceptInvitationInput
+  const accept = Effect.fn("RegistrationInvitations.Workos.accept")(function* (
+    input: RegistrationInvitationAcceptanceInput
   ) {
     const invitation = yield* Effect.tryPromise({
       catch: (cause) => readFailure(input.invitationId, cause),
@@ -208,6 +155,19 @@ export const makeWorkosInvitations = (
     if (invitation.state === "revoked" || invitation.state === "expired") {
       return yield* new InvitationConflict({
         message: "Invitation can no longer be accepted by the provider",
+      });
+    }
+
+    const inviteeEmail = Redacted.value(input.intent.inviteeEmail);
+    const acceptedEmail = Redacted.value(input.acceptedIdentity.email);
+    if (
+      normalizedEmail(invitation.email) !== normalizedEmail(inviteeEmail) ||
+      normalizedEmail(acceptedEmail) !== normalizedEmail(inviteeEmail) ||
+      (invitation.acceptedUserId !== null &&
+        invitation.acceptedUserId !== input.acceptedIdentity.authUserId)
+    ) {
+      return yield* new InvitationConflict({
+        message: "Invitation was accepted by a different identity",
       });
     }
 
@@ -222,22 +182,20 @@ export const makeWorkosInvitations = (
       acceptedBy: input.acceptedIdentity,
       createdAt: toDate(invitation.createdAt),
       id: invitationIdFromWorkos(invitation),
-      intent: providerIntentFromWorkos(invitation),
-      issuedBy: registrationSystemActor,
+      intent: input.intent,
+      issuedBy: input.issuedBy,
     });
   });
 
-  const revoke = Effect.fn("Invitations.Workos.revoke")(function* (
-    input: RevokeInvitationInput
+  const revoke = Effect.fn("RegistrationInvitations.Workos.revoke")(function* (
+    input: RegistrationInvitationRevocationInput
   ) {
     const invitation = yield* Effect.tryPromise({
       catch: (cause) => revokeFailure(input.invitationId, cause),
       try: async () =>
         await userManagement.revokeInvitation(input.invitationId),
     });
-    const revoked = invitationFromWorkos(invitation);
-
-    if (revoked._tag !== "RevokedInvitation") {
+    if (invitation.state !== "revoked") {
       return yield* new InvitationConflict({
         message: "Invitation was not revoked by the provider",
       });
@@ -245,25 +203,31 @@ export const makeWorkosInvitations = (
 
     return new RevokedInvitation({
       _tag: "RevokedInvitation",
-      createdAt: revoked.createdAt,
-      id: revoked.id,
-      intent: revoked.intent,
-      issuedBy: revoked.issuedBy,
-      revokedAt: revoked.revokedAt,
+      createdAt: toDate(invitation.createdAt),
+      id: invitationIdFromWorkos(invitation),
+      intent: input.intent,
+      issuedBy: input.issuedBy,
+      revokedAt: toDate(invitation.revokedAt),
       revokedBy: input.revokedBy,
     });
   });
 
-  return Invitations.of({
-    accept,
-    get,
-    issue,
-    revoke,
-  });
+  return {
+    companyMemberInvitations: CompanyMemberInvitations.of({ issue }),
+    invitationDeliveries: InvitationDeliveries.of({ get }),
+    registrationInvitationRevocationEvents:
+      RegistrationInvitationRevocationEvents.of({
+        source: "provider_webhook",
+      }),
+    registrationInvitations: RegistrationInvitations.of({
+      accept,
+      issue,
+      revoke,
+    }),
+  };
 };
 
-export const invitationsLayer = Layer.effect(
-  Invitations,
+export const invitationsLayer = Layer.effectContext(
   Effect.gen(function* () {
     const apiKey = yield* Config.redacted("WORKOS_API_KEY");
     const clientId = yield* Config.option(Config.string("WORKOS_CLIENT_ID"));
@@ -273,6 +237,23 @@ export const invitationsLayer = Layer.effect(
       ...(clientIdValue ? { clientId: clientIdValue } : {}),
     });
 
-    return makeWorkosInvitations(workos.userManagement);
+    const capabilities = makeWorkosInvitationCapabilities(
+      workos.userManagement
+    );
+
+    return Context.make(
+      RegistrationInvitations,
+      capabilities.registrationInvitations
+    ).pipe(
+      Context.add(
+        CompanyMemberInvitations,
+        capabilities.companyMemberInvitations
+      ),
+      Context.add(InvitationDeliveries, capabilities.invitationDeliveries),
+      Context.add(
+        RegistrationInvitationRevocationEvents,
+        capabilities.registrationInvitationRevocationEvents
+      )
+    );
   })
 );

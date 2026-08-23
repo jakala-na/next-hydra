@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Ref, Schema } from "effect";
 
-import type { PendingInvitation } from "../domain/invitations";
+import type { InvitationDelivery } from "../domain/invitations";
 import type {
   ApprovedRegistration,
   AwaitingApprovalRegistration,
@@ -31,7 +31,7 @@ export interface SendAwaitingApprovalApproverEmailInput {
 
 export interface SendApprovedRegistrantEmailInput {
   readonly registration: ApprovedRegistration;
-  readonly invitation: PendingInvitation;
+  readonly invitation: InvitationDelivery;
 }
 
 export interface SendRejectedRegistrantEmailInput {

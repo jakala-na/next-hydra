@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { keys } from "./keys";
+import { keys, webhookKeys } from "./keys";
 
 const configureRequiredClerkEnvironment = () => {
   vi.stubEnv("CLERK_SECRET_KEY", "sk_test_secret");
@@ -31,5 +31,23 @@ describe(keys, () => {
     expect(keys().CLERK_AUTHORIZED_PARTIES).toContain(
       "https://shop.example.com"
     );
+  });
+});
+
+describe(webhookKeys, () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("requires the webhook secret used to finish registration onboarding", () => {
+    vi.stubEnv("CLERK_WEBHOOK_SECRET", "");
+
+    expect(() => webhookKeys()).toThrow("Invalid environment variables");
+  });
+
+  it("accepts a Clerk webhook signing secret", () => {
+    vi.stubEnv("CLERK_WEBHOOK_SECRET", "whsec_test");
+
+    expect(webhookKeys().CLERK_WEBHOOK_SECRET).toBe("whsec_test");
   });
 });

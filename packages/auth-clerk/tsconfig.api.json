@@ -20,7 +20,8 @@
     "../../apps/api/next.config.ts",
     "../../apps/api/**/*.d.ts",
     "../../apps/api/**/*.ts",
-    "../../apps/api/**/*.tsx"
+    "../../apps/api/**/*.tsx",
+    "registry/apps/api/**/*.ts"
   ],
   "exclude": [
     "../../apps/api/.next",

@@ -1,0 +1,23 @@
+# Separate Invitation Intent from Provider Delivery
+
+Status: Accepted
+
+## Context
+
+Registration approval uses an identity-provider invitation to establish the company's initial owner. WorkOS and Clerk expose different correlation data: WorkOS acceptance webhooks identify the provider invitation but do not retain application metadata, while Clerk application invitations can copy public metadata to the accepted user but do not emit an application-invitation acceptance webhook. Treating either provider resource as the complete Registration Invitation forces adapters to invent missing business intent.
+
+## Decision
+
+Registration owns Invitation intent, including the Registration correlation, owner role, and issuer. Authentication adapters own Invitation Delivery, including the provider ID, recipient, acceptance URL, timestamps, and provider lifecycle state.
+
+Provider capabilities are split by domain intent. `RegistrationInvitations` exposes registration invitation issuance, acceptance, and revocation. `CompanyMemberInvitations` exposes company-member issuance only until durable company-owned invitation context exists. `InvitationDeliveries` provides the intent-independent provider lifecycle projection. No callable provider capability accepts the union of both intents.
+
+Provider adapters may carry correlation metadata when supported, but that metadata is an adapter mechanism rather than the source of Registration meaning. Verified provider events are translated into Invitation Acceptance evidence before the Registration workflow resumes. WorkOS correlation starts from its invitation ID; Clerk correlation starts from namespaced metadata copied to the created user.
+
+The acceptance interaction remains provider-owned. WorkOS uses its hosted acceptance flow. Clerk redirects to an application route that embeds Clerk's `SignIn` component and consumes the invitation ticket.
+
+## Consequences
+
+Registration programs no longer ask providers to reconstruct intent or issuer data they may not store. Adapter reads return delivery state only. Registration acceptance supplies the known Registration intent while the adapter validates provider state and accepted identity.
+
+Adding another provider requires mapping only the intent-specific capabilities it supports plus invitation delivery and acceptance evidence, not changing Registration lifecycle policy. Company-member issuance can be supported independently, while company-member acceptance and revocation require their own durable domain context before live provider adapters expose those operations.

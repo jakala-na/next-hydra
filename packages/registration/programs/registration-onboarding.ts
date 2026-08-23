@@ -10,16 +10,24 @@ import type {
   InvitationId,
   RegistrationId,
 } from "../domain/identity";
-import { ProviderInvitationIntent } from "../domain/invitations";
+import { RegistrationApprovalIntent } from "../domain/invitations";
+import type { RevokedInvitation } from "../domain/invitations";
 import type {
   ApprovedRegistration,
   RejectedRegistration,
 } from "../domain/registration";
-import { Invitations } from "../services/invitations";
+import {
+  InvitationConflict,
+  RegistrationInvitationRevocationEvents,
+  RegistrationInvitations,
+} from "../services/invitations";
 import type {
   InvitationAcceptError,
   InvitationIssueError,
+  InvitationRevokeError,
 } from "../services/invitations";
+import { RegistrationWorkflow } from "../services/registration-workflow";
+import type { RegistrationWorkflowInvitationResumeOutcomeUnknown } from "../services/registration-workflow";
 import {
   RegistrationNotFoundByInvitationId,
   Registrations,
@@ -51,6 +59,11 @@ export interface AcceptRegistrationInvitationInput {
   readonly acceptedIdentity: AcceptedAuthIdentity;
 }
 
+export interface RevokeRegistrationInvitationInput {
+  readonly actor: RegistrationReviewerActor;
+  readonly registrationId: RegistrationId;
+}
+
 export const approveRegistration = (
   input: ApproveRegistrationInput
 ): Effect.Effect<
@@ -58,12 +71,12 @@ export const approveRegistration = (
   | RegistrationTransitionError
   | CommerceAccountUnavailable
   | InvitationIssueError,
-  Registrations | CommerceAccounts | Invitations
+  Registrations | CommerceAccounts | RegistrationInvitations
 > =>
   Effect.gen(function* () {
     const registrations = yield* Registrations;
     const commerceAccounts = yield* CommerceAccounts;
-    const invitations = yield* Invitations;
+    const invitations = yield* RegistrationInvitations;
 
     const registration = yield* registrations.get(input.registrationId);
 
@@ -81,9 +94,10 @@ export const approveRegistration = (
 
     const commerceAccount =
       yield* commerceAccounts.createFromRegistration(registration);
-    const intent = new ProviderInvitationIntent({
-      intent: "provider_managed",
+    const intent = new RegistrationApprovalIntent({
+      intent: "registration_approval",
       inviteeEmail: registration.details.email,
+      registrationId: registration.id,
       role: "owner",
     });
     const invitation = yield* invitations.issue({
@@ -136,10 +150,10 @@ export const acceptRegistrationInvitation = (
   | CommerceAccountUnavailable
   | RegistrationReadError
   | RegistrationNotFoundByInvitationId,
-  Invitations | CommerceAccounts | Registrations
+  RegistrationInvitations | CommerceAccounts | Registrations
 > =>
   Effect.gen(function* () {
-    const invitations = yield* Invitations;
+    const invitations = yield* RegistrationInvitations;
     const commerceAccounts = yield* CommerceAccounts;
     const registrations = yield* Registrations;
 
@@ -159,8 +173,14 @@ export const acceptRegistrationInvitation = (
 
     yield* invitations.accept({
       acceptedIdentity: input.acceptedIdentity,
-      expectedIntent: "provider_managed",
+      intent: new RegistrationApprovalIntent({
+        intent: "registration_approval",
+        inviteeEmail: registration.details.email,
+        registrationId: registration.id,
+        role: "owner",
+      }),
       invitationId: input.invitationId,
+      issuedBy: registrationSystemActor,
     });
 
     yield* commerceAccounts.linkRegistrantIdentity({
@@ -169,4 +189,48 @@ export const acceptRegistrationInvitation = (
     });
 
     return registration;
+  });
+
+export const revokeRegistrationInvitation = (
+  input: RevokeRegistrationInvitationInput
+): Effect.Effect<
+  RevokedInvitation,
+  | InvitationRevokeError
+  | RegistrationReadError
+  | RegistrationWorkflowInvitationResumeOutcomeUnknown,
+  | RegistrationInvitations
+  | RegistrationInvitationRevocationEvents
+  | RegistrationWorkflow
+  | Registrations
+> =>
+  Effect.gen(function* () {
+    const invitations = yield* RegistrationInvitations;
+    const revocationEvents = yield* RegistrationInvitationRevocationEvents;
+    const registrations = yield* Registrations;
+    const registration = yield* registrations.get(input.registrationId);
+
+    if (registration._tag !== "ApprovedRegistration") {
+      return yield* new InvitationConflict({
+        message: `Registration ${input.registrationId} has no invitation to revoke`,
+      });
+    }
+
+    const revoked = yield* invitations.revoke({
+      intent: new RegistrationApprovalIntent({
+        intent: "registration_approval",
+        inviteeEmail: registration.details.email,
+        registrationId: registration.id,
+        role: "owner",
+      }),
+      invitationId: registration.invitationId,
+      issuedBy: registrationSystemActor,
+      revokedBy: input.actor,
+    });
+
+    if (revocationEvents.source === "application_command") {
+      const workflow = yield* RegistrationWorkflow;
+      yield* workflow.resumeInvitation(revoked.id, { event: "revoked" });
+    }
+
+    return revoked;
   });

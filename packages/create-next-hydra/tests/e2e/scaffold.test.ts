@@ -161,37 +161,58 @@ async function installWebWorkspace(cwd: string): Promise<void> {
   await run("pnpm", ["install", "--filter", "web..."], { cwd });
 }
 
-async function typecheckWeb(cwd: string): Promise<void> {
-  const env = {
-    ...process.env,
-    COMMERCETOOLS_CLIENT_ID: "test-client",
-    COMMERCETOOLS_CLIENT_SECRET: "test-secret",
-    COMMERCETOOLS_PROJECT_KEY: "test-project",
-    COMMERCETOOLS_REGION: "test-region",
-    COMMERCETOOLS_SCOPE: "test-scope",
-    CONTENTSTACK_API_KEY: "test-api-key",
-    CONTENTSTACK_DELIVERY_TOKEN: "cs-test-delivery",
-    CONTENTSTACK_ENVIRONMENT: "test",
-    CONTENTSTACK_PREVIEW_TOKEN: "cs-test-preview",
-    CONTENTSTACK_WEBHOOK_SECRET: "test-webhook-secret",
-    DRUPAL_BASE_URL: "https://drupal.example.com",
-    DRUPAL_PREVIEWER_CLIENT_ID: "test-preview-client",
-    DRUPAL_PREVIEWER_CLIENT_SECRET: "test-preview-secret",
-    DRUPAL_VIEWER_CLIENT_ID: "test-viewer-client",
-    DRUPAL_VIEWER_CLIENT_SECRET: "test-viewer-secret",
-    NEXT_PUBLIC_CONTENTSTACK_API_KEY: "test-api-key",
-    NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT: "test",
-    NEXT_PUBLIC_WEB_URL: "http://localhost:3001",
-    NEXT_PUBLIC_WORKOS_REDIRECT_URI: "http://localhost:3001/api/auth/callback",
-    RESEND_FROM: "test@example.com",
-    RESEND_TOKEN: "re_test",
-    WORKOS_API_KEY: "sk_test",
-    WORKOS_CLIENT_ID: "client_test",
-    WORKOS_COOKIE_PASSWORD: "test-cookie-password-at-least-32-characters",
-  };
+const installApplicationWorkspaces = async (cwd: string): Promise<void> => {
+  await run("pnpm", ["install", "--filter", "web...", "--filter", "api..."], {
+    cwd,
+  });
+};
+
+const typecheckEnvironment = () => ({
+  ...process.env,
+  CLERK_AUTHORIZED_PARTIES: "http://localhost:3001",
+  CLERK_SECRET_KEY: "sk_test_secret",
+  CLERK_WEBHOOK_SECRET: "whsec_test",
+  COMMERCETOOLS_CLIENT_ID: "test-client",
+  COMMERCETOOLS_CLIENT_SECRET: "test-secret",
+  COMMERCETOOLS_PROJECT_KEY: "test-project",
+  COMMERCETOOLS_REGION: "test-region",
+  COMMERCETOOLS_SCOPE: "test-scope",
+  CONTENTSTACK_API_KEY: "test-api-key",
+  CONTENTSTACK_DELIVERY_TOKEN: "cs-test-delivery",
+  CONTENTSTACK_ENVIRONMENT: "test",
+  CONTENTSTACK_PREVIEW_TOKEN: "cs-test-preview",
+  CONTENTSTACK_WEBHOOK_SECRET: "test-webhook-secret",
+  DRUPAL_BASE_URL: "https://drupal.example.com",
+  DRUPAL_PREVIEWER_CLIENT_ID: "test-preview-client",
+  DRUPAL_PREVIEWER_CLIENT_SECRET: "test-preview-secret",
+  DRUPAL_VIEWER_CLIENT_ID: "test-viewer-client",
+  DRUPAL_VIEWER_CLIENT_SECRET: "test-viewer-secret",
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_publishable",
+  NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: "/",
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in",
+  NEXT_PUBLIC_CONTENTSTACK_API_KEY: "test-api-key",
+  NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT: "test",
+  NEXT_PUBLIC_POSTHOG_HOST: "https://posthog.example.com",
+  NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+  NEXT_PUBLIC_WEB_URL: "http://localhost:3001",
+  NEXT_PUBLIC_WORKOS_REDIRECT_URI: "http://localhost:3001/api/auth/callback",
+  REGISTRATION_APPROVER_EMAIL: "approver@example.com",
+  RESEND_FROM: "test@example.com",
+  RESEND_TOKEN: "re_test",
+  WORKOS_API_KEY: "sk_test",
+  WORKOS_CLIENT_ID: "client_test",
+  WORKOS_COOKIE_PASSWORD: "test-cookie-password-at-least-32-characters",
+});
+
+const runTypecheck = async (
+  cwd: string,
+  args: readonly string[],
+  description: string
+): Promise<void> => {
+  const env = typecheckEnvironment();
 
   try {
-    await run("pnpm", ["--filter", "web", "typecheck"], { cwd, env });
+    await run("pnpm", [...args], { cwd, env });
   } catch (error) {
     const failure = error as {
       code?: number;
@@ -201,7 +222,7 @@ async function typecheckWeb(cwd: string): Promise<void> {
     };
     throw new Error(
       [
-        `web typecheck failed with code ${failure.code ?? "unknown"}${failure.signal ? ` and signal ${failure.signal}` : ""}`,
+        `${description} failed with code ${failure.code ?? "unknown"}${failure.signal ? ` and signal ${failure.signal}` : ""}`,
         failure.stdout?.trim(),
         failure.stderr?.trim(),
       ]
@@ -210,11 +231,27 @@ async function typecheckWeb(cwd: string): Promise<void> {
       { cause: error }
     );
   }
-}
+};
 
-function options(targetDir: string, cms: "drupal" | "contentstack") {
+const typecheckWeb = async (cwd: string) => {
+  await runTypecheck(cwd, ["--filter", "web", "typecheck"], "web typecheck");
+};
+
+const typecheckApplications = async (cwd: string) => {
+  await runTypecheck(
+    cwd,
+    ["exec", "turbo", "run", "typecheck", "--filter=web", "--filter=api"],
+    "application typecheck"
+  );
+};
+
+function options(
+  targetDir: string,
+  cms: "drupal" | "contentstack",
+  auth: "clerk" | "workos" = "workos"
+) {
   return {
-    auth: "workos",
+    auth,
     cms,
     commerce: "commercetools",
     commit: false,
@@ -451,6 +488,43 @@ describe("scaffold composition", () => {
       await expect(
         pathExists(path.join(presetTarget, "packages/cms-drupal/package.json"))
       ).resolves.toBeTruthy();
+    },
+    E2E_TIMEOUT
+  );
+
+  it(
+    "installs and typechecks the generated Clerk application composition",
+    async () => {
+      const target = path.join(testRoot, "clerk-project");
+      await scaffoldProject(options(target, "contentstack", "clerk"), {
+        install: installApplicationWorkspaces,
+      });
+      await typecheckApplications(target);
+
+      await expect(
+        Promise.all([
+          pathExists(path.join(target, "packages/auth-clerk/package.json")),
+          pathExists(path.join(target, "packages/auth-workos")),
+          pathExists(
+            path.join(target, "apps/api/app/api/webhooks/clerk/route.ts")
+          ),
+          pathExists(
+            path.join(
+              target,
+              "apps/web/app/accept-invitation/[[...accept-invitation]]/page.tsx"
+            )
+          ),
+        ])
+      ).resolves.toStrictEqual([true, false, true, true]);
+
+      await expect(
+        readFile(path.join(target, "apps/web/package.json"), "utf-8")
+      ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');
+      await expect(
+        readFile(path.join(target, "apps/api/package.json"), "utf-8")
+      ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');
+
+      await rm(target, { force: true, recursive: true });
     },
     E2E_TIMEOUT
   );

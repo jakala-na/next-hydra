@@ -46,7 +46,11 @@ import {
   IdentityUsers,
   isRecoverableIdentityUserLookupFailure,
 } from "@repo/registration/services/identity-users";
-import type { Invitations } from "@repo/registration/services/invitations";
+import type {
+  CompanyMemberInvitations,
+  InvitationDeliveries,
+  RegistrationInvitations,
+} from "@repo/registration/services/invitations";
 import type { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
 import { RegistrationQueries } from "@repo/registration/services/registration-queries";
 import type { RegistrationQueryFailure } from "@repo/registration/services/registration-queries";
@@ -72,7 +76,9 @@ type RegistrationRuntimeLayer = Layer.Layer<
   | IdentityUsers
   | RegistrationMarketPolicy
   | VatValidator
-  | Invitations
+  | RegistrationInvitations
+  | CompanyMemberInvitations
+  | InvitationDeliveries
   | RegistrationWorkflow,
   unknown
 >;

@@ -120,6 +120,8 @@ describe("Next Hydra source registry", () => {
     ]);
     expect(clerk.managedTargets).toEqual(
       expect.arrayContaining([
+        "apps/api/app/api/webhooks/clerk/route.ts",
+        "apps/web/app/accept-invitation/[[...accept-invitation]]/page.tsx",
         "apps/web/app/sign-in/[[...sign-in]]/page.tsx",
         "apps/web/app/sign-out/page.tsx",
       ])
@@ -132,10 +134,8 @@ describe("Next Hydra source registry", () => {
       ])
     );
     expect(
-      clerk.managedTargets.some(
-        (target) =>
-          target === "apps/api/app/api/webhooks/clerk/route.ts" ||
-          target === "apps/web/app/sign-up/[[...sign-up]]/page.tsx"
+      clerk.managedTargets.includes(
+        "apps/web/app/sign-up/[[...sign-up]]/page.tsx"
       )
     ).toBeFalsy();
     expect(clerk.packageRequirements).toEqual(

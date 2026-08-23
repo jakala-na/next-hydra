@@ -11,7 +11,11 @@ import type { AcceptedCommerceIdentity } from "@repo/commerce/services/commerce-
 import { StoreKey } from "@repo/commerce/store";
 import { Effect, Exit, Layer, Redacted } from "effect";
 
-import { RegistrationReviewerActor } from "../domain/actors";
+import {
+  CompanyActor,
+  RegistrationReviewerActor,
+  registrationSystemActor,
+} from "../domain/actors";
 import {
   AcceptedAuthIdentity,
   AddressLine,
@@ -29,31 +33,41 @@ import {
   Region,
   VatId,
 } from "../domain/identity";
-import { CompanyMemberIntent, PendingInvitation } from "../domain/invitations";
+import {
+  CompanyMemberIntent,
+  PendingInvitation,
+  RegistrationApprovalIntent,
+} from "../domain/invitations";
 import {
   CompanyAddress,
   CompanyRegistrationDetails,
 } from "../domain/registration";
 import {
+  CompanyMemberInvitations,
+  invitationCapabilitiesLayerMemory,
   InvitationConflict,
-  InvitationNotFound,
-  Invitations,
+  InvitationDeliveries,
+  RegistrationInvitations,
 } from "../services/invitations";
-import type { IssueInvitationInput } from "../services/invitations";
+import type { RegistrationInvitationIssueInput } from "../services/invitations";
+import { RegistrationWorkflow } from "../services/registration-workflow";
+import type { RegistrationInvitationEvent } from "../services/registration-workflow";
 import {
   Registrations,
   RegistrationTransitionConflict,
 } from "../services/registrations";
+import { resumeRegistrationInvitationForRegistration } from "./registration-invitation-events";
 import {
   acceptRegistrationInvitation,
   approveRegistration,
   rejectRegistration,
+  revokeRegistrationInvitation,
 } from "./registration-onboarding";
 
 const layerMemory = Layer.mergeAll(
   Registrations.layerMemory,
   CommerceAccounts.layerMemory,
-  Invitations.layerMemory
+  invitationCapabilitiesLayerMemory
 );
 
 const reviewer = new RegistrationReviewerActor({
@@ -63,6 +77,14 @@ const reviewer = new RegistrationReviewerActor({
     label: "email",
   }),
   name: "Registration Reviewer",
+});
+
+const companyOwner = new CompanyActor({
+  actorType: "company",
+  authUserId: AuthUserId.make("auth-company-owner-1"),
+  businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+  email: Redacted.make(Email.make("owner@example.com"), { label: "email" }),
+  role: "owner",
 });
 
 const details = new CompanyRegistrationDetails({
@@ -123,14 +145,13 @@ describe("registration onboarding", () => {
           reason: "Looks good",
           registrationId: registration.id,
         });
-        const invitations = yield* Invitations;
+        const invitations = yield* InvitationDeliveries;
         const invitation = yield* invitations.get(approved.invitationId);
 
         expect(approved._tag).toBe("ApprovedRegistration");
         expect(approved.decision.decision).toBe("approved");
         expect(approved.commerceAccount.registrationId).toBe(registration.id);
-        expect(invitation._tag).toBe("PendingInvitation");
-        expect(invitation.intent.intent).toBe("provider_managed");
+        expect(invitation.status).toBe("pending");
         expect(String(approved.details.vatId)).toBe("<redacted:vatId>");
         expect(String(approved.details.email)).toBe("<redacted:email>");
         expect(String(approved.details.address.streetName)).toBe(
@@ -139,9 +160,7 @@ describe("registration onboarding", () => {
         expect(String(approved.details.address.postalCode)).toBe(
           "<redacted:postalCode>"
         );
-        expect(String(invitation.intent.inviteeEmail)).toBe("<redacted:email>");
-        expect(invitation.intent.role).toBe("owner");
-        expect(invitation.issuedBy.actorType).toBe("system");
+        expect(String(invitation.inviteeEmail)).toBe("<redacted:email>");
       }).pipe(Effect.provide(layerMemory))
   );
 
@@ -261,7 +280,7 @@ describe("registration onboarding", () => {
       const layer = Layer.mergeAll(
         Registrations.layerMemory,
         commerceFailureLayer,
-        Invitations.layerMemory
+        invitationCapabilitiesLayerMemory
       );
 
       return Effect.gen(function* () {
@@ -283,19 +302,9 @@ describe("registration onboarding", () => {
     "reuses commerce state when invitation issuance fails and approval is retried",
     () => {
       let issueAttempts = 0;
-      const flakyInvitationsLayer = Layer.succeed(Invitations)({
-        accept: () =>
-          Effect.fail(
-            new InvitationConflict({ message: "not used in this test" })
-          ),
-        get: () =>
-          Effect.fail(
-            new InvitationNotFound({
-              invitationId: InvitationId.make("not-used"),
-              message: "Invitation not-used was not found",
-            })
-          ),
-        issue: (input: IssueInvitationInput) =>
+      const flakyInvitationsLayer = Layer.succeed(RegistrationInvitations)({
+        accept: () => Effect.die("not used in this test"),
+        issue: (input: RegistrationInvitationIssueInput) =>
           Effect.suspend(() => {
             issueAttempts += 1;
             if (issueAttempts === 1) {
@@ -316,10 +325,7 @@ describe("registration onboarding", () => {
               })
             );
           }),
-        revoke: () =>
-          Effect.fail(
-            new InvitationConflict({ message: "not used in this test" })
-          ),
+        revoke: () => Effect.die("not used in this test"),
       });
       const failingLayer = Layer.mergeAll(
         Registrations.layerMemory,
@@ -424,7 +430,7 @@ describe("registration onboarding", () => {
     const layer = Layer.mergeAll(
       Registrations.layerMemory,
       commerceLayer,
-      Invitations.layerMemory
+      invitationCapabilitiesLayerMemory
     );
 
     return Effect.gen(function* () {
@@ -487,7 +493,7 @@ describe("registration onboarding", () => {
     "does not accept company member invitations through the registration program",
     () =>
       Effect.gen(function* () {
-        const invitations = yield* Invitations;
+        const invitations = yield* CompanyMemberInvitations;
         const registration = yield* createRegistration;
         const approved = yield* approveRegistration({
           actor: reviewer,
@@ -500,7 +506,7 @@ describe("registration onboarding", () => {
             inviteeEmail: details.email,
             role: "associate",
           }),
-          issuedBy: reviewer,
+          issuedBy: companyOwner,
         });
 
         const wrongProgramExit = yield* acceptRegistrationInvitation({
@@ -511,14 +517,7 @@ describe("registration onboarding", () => {
 
         expect(Exit.isFailure(wrongProgramExit)).toBeTruthy();
 
-        const accepted = yield* invitations.accept({
-          acceptedIdentity,
-          expectedIntent: "company_member",
-          invitationId: companyInvitation.id,
-        });
-
-        expect(accepted._tag).toBe("AcceptedInvitation");
-        expect(accepted.intent.intent).toBe("company_member");
+        expect(invitations).not.toHaveProperty("accept");
       }).pipe(Effect.provide(layerMemory))
   );
 
@@ -535,15 +534,91 @@ describe("registration onboarding", () => {
         registrationId: approved.id,
       });
 
-      const invitations = yield* Invitations;
+      const invitations = yield* RegistrationInvitations;
       const exit = yield* invitations
         .revoke({
+          intent: new RegistrationApprovalIntent({
+            intent: "registration_approval",
+            inviteeEmail: approved.details.email,
+            registrationId: approved.id,
+            role: "owner",
+          }),
           invitationId: approved.invitationId,
+          issuedBy: registrationSystemActor,
           revokedBy: reviewer,
         })
         .pipe(Effect.exit);
 
       expect(Exit.isFailure(exit)).toBeTruthy();
     }).pipe(Effect.provide(layerMemory))
+  );
+
+  it.effect(
+    "publishes a revoked event after the application revokes an invitation",
+    () => {
+      const resumed: (readonly [InvitationId, RegistrationInvitationEvent])[] =
+        [];
+      const workflowLayer = Layer.succeed(RegistrationWorkflow, {
+        resumeInvitation: (invitationId, event) =>
+          Effect.sync(() => {
+            resumed.push([invitationId, event]);
+          }),
+        resumeReview: () => Effect.void,
+        start: () => Effect.void,
+      });
+      const layer = Layer.mergeAll(layerMemory, workflowLayer);
+
+      return Effect.gen(function* () {
+        const registration = yield* createRegistration;
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+
+        const revoked = yield* revokeRegistrationInvitation({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+        const deliveries = yield* InvitationDeliveries;
+        const delivery = yield* deliveries.get(approved.invitationId);
+
+        expect(revoked._tag).toBe("RevokedInvitation");
+        expect(delivery.status).toBe("revoked");
+        expect(resumed).toStrictEqual([
+          [approved.invitationId, { event: "revoked" }],
+        ]);
+      }).pipe(Effect.provide(layer));
+    }
+  );
+
+  it.effect(
+    "resumes invitation workflow from the approved registration's stored invitation",
+    () => {
+      const resumedInvitationIds: InvitationId[] = [];
+      const workflowLayer = Layer.succeed(RegistrationWorkflow, {
+        resumeInvitation: (invitationId) =>
+          Effect.sync(() => {
+            resumedInvitationIds.push(invitationId);
+          }),
+        resumeReview: () => Effect.void,
+        start: () => Effect.void,
+      });
+      const layer = Layer.mergeAll(layerMemory, workflowLayer);
+
+      return Effect.gen(function* () {
+        const registration = yield* createRegistration;
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+
+        yield* resumeRegistrationInvitationForRegistration({
+          event: { event: "revoked" },
+          registrationId: registration.id,
+        });
+
+        expect(resumedInvitationIds).toStrictEqual([approved.invitationId]);
+      }).pipe(Effect.provide(layer));
+    }
   );
 });

@@ -1,4 +1,7 @@
-import { CompanyActor } from "@repo/registration/domain/actors";
+import {
+  CompanyActor,
+  registrationSystemActor,
+} from "@repo/registration/domain/actors";
 import {
   AcceptedAuthIdentity,
   AuthUserId,
@@ -6,20 +9,26 @@ import {
   Email,
   InvitationId,
   PersonName,
+  RegistrationId,
 } from "@repo/registration/domain/identity";
-import { CompanyMemberIntent } from "@repo/registration/domain/invitations";
 import {
+  CompanyMemberIntent,
+  RegistrationApprovalIntent,
+} from "@repo/registration/domain/invitations";
+import {
+  CompanyMemberInvitations,
   InvitationConflict,
+  InvitationDeliveries,
   InvitationNotFound,
   InvitationProviderFailure,
-  Invitations,
+  RegistrationInvitations,
 } from "@repo/registration/services/invitations";
 import { NotFoundException } from "@workos-inc/node";
 import type { Invitation as WorkosInvitation } from "@workos-inc/node";
 import { Effect, Exit, Layer, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { makeWorkosInvitations } from "./invitations";
+import { makeWorkosInvitationCapabilities } from "./invitations";
 import type { WorkosInvitationUserManagement } from "./invitations";
 
 type WorkosInvitationState = "pending" | "accepted" | "expired" | "revoked";
@@ -45,11 +54,18 @@ const acceptedIdentity = new AcceptedAuthIdentity({
   lastName: Redacted.make(PersonName.make("User"), { label: "personName" }),
 });
 
-const intent = new CompanyMemberIntent({
+const companyMemberIntent = new CompanyMemberIntent({
   businessUnitId: actor.businessUnitId,
   intent: "company_member",
   inviteeEmail,
   role: "associate",
+});
+
+const registrationIntent = new RegistrationApprovalIntent({
+  intent: "registration_approval",
+  inviteeEmail,
+  registrationId: RegistrationId.make("registration-1"),
+  role: "owner",
 });
 
 const makeWorkosInvitation = (
@@ -88,10 +104,28 @@ const makeUserManagement = (
   ...overrides,
 });
 
-const makeLayer = (userManagement: WorkosInvitationUserManagement) =>
-  Layer.succeed(Invitations, makeWorkosInvitations(userManagement));
+const makeLayer = (userManagement: WorkosInvitationUserManagement) => {
+  const capabilities = makeWorkosInvitationCapabilities(userManagement);
 
-describe(makeWorkosInvitations, () => {
+  return Layer.mergeAll(
+    Layer.succeed(
+      CompanyMemberInvitations,
+      capabilities.companyMemberInvitations
+    ),
+    Layer.succeed(InvitationDeliveries, capabilities.invitationDeliveries),
+    Layer.succeed(RegistrationInvitations, capabilities.registrationInvitations)
+  );
+};
+
+describe(makeWorkosInvitationCapabilities, () => {
+  it("delegates revocation events to the verified provider webhook", () => {
+    const capabilities = makeWorkosInvitationCapabilities(makeUserManagement());
+
+    expect(capabilities.registrationInvitationRevocationEvents.source).toBe(
+      "provider_webhook"
+    );
+  });
+
   it("issues invitations through the WorkOS SDK and returns the domain issue context", async () => {
     let sentInput:
       | Parameters<WorkosInvitationUserManagement["sendInvitation"]>[0]
@@ -106,9 +140,9 @@ describe(makeWorkosInvitations, () => {
 
     await Effect.runPromise(
       Effect.gen(function* () {
-        const invitations = yield* Invitations;
+        const invitations = yield* CompanyMemberInvitations;
         const invitation = yield* invitations.issue({
-          intent,
+          intent: companyMemberIntent,
           issuedBy: actor,
         });
 
@@ -118,22 +152,24 @@ describe(makeWorkosInvitations, () => {
           roleSlug: "associate",
         });
         expect(invitation.id).toBe(InvitationId.make("invitation-1"));
-        expect(invitation.intent).toBe(intent);
+        expect(invitation.intent).toBe(companyMemberIntent);
         expect(invitation.issuedBy).toBe(actor);
       }).pipe(Effect.provide(layer))
     );
   });
 
-  it("maps provider reads to provider-managed invitation context", async () => {
+  it("maps provider reads to invitation delivery state", async () => {
     await Effect.runPromise(
       Effect.gen(function* () {
-        const invitations = yield* Invitations;
+        const invitations = yield* InvitationDeliveries;
         const invitation = yield* invitations.get(
           InvitationId.make("invitation-1")
         );
 
-        expect(invitation._tag).toBe("AcceptedInvitation");
-        expect(invitation.intent.intent).toBe("provider_managed");
+        expect(invitation.status).toBe("accepted");
+        expect(Redacted.value(invitation.inviteeEmail)).toBe(
+          Redacted.value(inviteeEmail)
+        );
       }).pipe(Effect.provide(makeLayer(makeUserManagement())))
     );
   });
@@ -143,16 +179,18 @@ describe(makeWorkosInvitations, () => {
 
     await Effect.runPromise(
       Effect.gen(function* () {
-        const invitations = yield* Invitations;
+        const invitations = yield* RegistrationInvitations;
         const accepted = yield* invitations.accept({
           acceptedIdentity,
-          expectedIntent: "company_member",
+          intent: registrationIntent,
           invitationId: InvitationId.make("invitation-1"),
+          issuedBy: registrationSystemActor,
         });
 
         expect(accepted._tag).toBe("AcceptedInvitation");
         expect(accepted.acceptedBy).toStrictEqual(acceptedIdentity);
-        expect(accepted.intent.intent).toBe("provider_managed");
+        expect(accepted.intent).toBe(registrationIntent);
+        expect(accepted.issuedBy).toBe(registrationSystemActor);
       }).pipe(
         Effect.provide(
           makeLayer(
@@ -173,11 +211,12 @@ describe(makeWorkosInvitations, () => {
   it("trusts accepted identity from the webhook while WorkOS is eventually consistent", async () => {
     await Effect.runPromise(
       Effect.gen(function* () {
-        const invitations = yield* Invitations;
+        const invitations = yield* RegistrationInvitations;
         const accepted = yield* invitations.accept({
           acceptedIdentity,
-          expectedIntent: "company_member",
+          intent: registrationIntent,
           invitationId: InvitationId.make("invitation-1"),
+          issuedBy: registrationSystemActor,
         });
 
         expect(accepted._tag).toBe("AcceptedInvitation");
@@ -194,15 +233,44 @@ describe(makeWorkosInvitations, () => {
     );
   });
 
+  it("rejects acceptance evidence for a different WorkOS identity", async () => {
+    const differentIdentity = new AcceptedAuthIdentity({
+      authUserId: AuthUserId.make("auth-other-1"),
+      email: Redacted.make(Email.make("other@example.com"), {
+        label: "email",
+      }),
+      firstName: acceptedIdentity.firstName,
+      lastName: acceptedIdentity.lastName,
+    });
+
+    const failure = await Effect.runPromise(
+      RegistrationInvitations.pipe(
+        Effect.flatMap((invitations) =>
+          invitations.accept({
+            acceptedIdentity: differentIdentity,
+            intent: registrationIntent,
+            invitationId: InvitationId.make("invitation-1"),
+            issuedBy: registrationSystemActor,
+          })
+        ),
+        Effect.flip,
+        Effect.provide(makeLayer(makeUserManagement()))
+      )
+    );
+
+    expect(failure._tag).toBe("InvitationConflict");
+  });
+
   it("rejects revoked or expired invitations", async () => {
     await Effect.runPromise(
       Effect.gen(function* () {
-        const invitations = yield* Invitations;
+        const invitations = yield* RegistrationInvitations;
         const exit = yield* invitations
           .accept({
             acceptedIdentity,
-            expectedIntent: "company_member",
+            intent: registrationIntent,
             invitationId: InvitationId.make("invitation-1"),
+            issuedBy: registrationSystemActor,
           })
           .pipe(Effect.exit);
 
@@ -226,7 +294,7 @@ describe(makeWorkosInvitations, () => {
     await Effect.runPromise(
       Effect.gen(function* () {
         const invitationId = InvitationId.make("missing");
-        const invitations = yield* Invitations;
+        const invitations = yield* InvitationDeliveries;
         const exit = yield* invitations.get(invitationId).pipe(Effect.exit);
 
         expect(Exit.isFailure(exit)).toBeTruthy();
@@ -253,12 +321,13 @@ describe(makeWorkosInvitations, () => {
   it("maps WorkOS SDK failures to InvitationProviderFailure", async () => {
     await Effect.runPromise(
       Effect.gen(function* () {
-        const invitations = yield* Invitations;
+        const invitations = yield* RegistrationInvitations;
         const exit = yield* invitations
           .accept({
             acceptedIdentity,
-            expectedIntent: "company_member",
+            intent: registrationIntent,
             invitationId: InvitationId.make("invitation-1"),
+            issuedBy: registrationSystemActor,
           })
           .pipe(Effect.exit);
 

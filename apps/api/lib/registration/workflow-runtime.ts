@@ -1,7 +1,13 @@
-import { RegistrationWorkflow } from "@repo/registration";
-import type { InvitationId } from "@repo/registration/domain/identity";
+import {
+  RegistrationWorkflow,
+  resumeRegistrationInvitationForRegistration as resumeRegistrationInvitationForRegistrationProgram,
+} from "@repo/registration";
+import type {
+  InvitationId,
+  RegistrationId,
+} from "@repo/registration/domain/identity";
 import type { RegistrationInvitationEvent } from "@repo/registration/services/registration-workflow";
-import { Effect, ManagedRuntime } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 import { start } from "workflow/api";
 
 import {
@@ -10,6 +16,7 @@ import {
   resumeRegistrationInvitationHook,
 } from "@/workflows/register-company";
 
+import { registrationRepositoryLayer } from "./repository-runtime";
 import { isRegistrationWorkflowHookPayloadValidationError } from "./workflow-hook-validation";
 import { registrationWorkflowLayerFrom } from "./workflow-runtime-api";
 
@@ -31,6 +38,10 @@ const registrationWorkflowRuntime = ManagedRuntime.make(
   registrationWorkflowLayer
 );
 
+const registrationInvitationRuntime = ManagedRuntime.make(
+  Layer.merge(registrationWorkflowLayer, registrationRepositoryLayer)
+);
+
 export const resumeRegistrationInvitation = async (input: {
   readonly event: RegistrationInvitationEvent;
   readonly invitationId: InvitationId;
@@ -41,5 +52,14 @@ export const resumeRegistrationInvitation = async (input: {
         workflow.resumeInvitation(input.invitationId, input.event)
       )
     )
+  );
+};
+
+export const resumeRegistrationInvitationForRegistration = async (input: {
+  readonly event: RegistrationInvitationEvent;
+  readonly registrationId: RegistrationId;
+}): Promise<void> => {
+  await registrationInvitationRuntime.runPromise(
+    resumeRegistrationInvitationForRegistrationProgram(input)
   );
 };

@@ -38,7 +38,7 @@ import {
   IdentityUserNotFound,
   IdentityUsers,
 } from "@repo/registration/services/identity-users";
-import { Invitations } from "@repo/registration/services/invitations";
+import { invitationCapabilitiesLayerMemory } from "@repo/registration/services/invitations";
 import { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
 import {
   listRegistrationRecords,
@@ -360,7 +360,7 @@ const makeApiLayer = (
       identityUsersLayer,
       registrationMarketPolicyLayer,
       vatValidatorLayer,
-      Invitations.layerMemory
+      invitationCapabilitiesLayerMemory
     ),
     list,
     registrations,
@@ -386,9 +386,9 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
         const permissions =
           token === "read-token"
             ? ["registration.read"]
-            : token === "decide-token"
+            : (token === "decide-token"
               ? ["registration.decide"]
-              : ["registration.read", "registration.decide"];
+              : ["registration.read", "registration.decide"]);
 
         return Effect.succeed(
           new VerifiedAccessToken({

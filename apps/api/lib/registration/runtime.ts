@@ -2,31 +2,28 @@ import { identityUsersLayer } from "@repo/auth/identity-users";
 import { invitationsLayer } from "@repo/auth/invitations";
 import { commerceAccountsLayer } from "@repo/commerce-provider/commerce-accounts";
 import { registrationQueriesLayer } from "@repo/commerce-provider/registration";
-import { versionedKeyValueStoreLayer } from "@repo/commerce-provider/versioned-store";
 import { layerResendEmailProvider } from "@repo/email/resend-provider";
 import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import { layerRegistrationEmails } from "@repo/registration";
 import { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
-import { Registrations } from "@repo/registration/services/registrations";
 import { VatValidator } from "@repo/registration/services/vat-validator";
 import { Layer } from "effect";
 
 import { env } from "@/env";
 
-export const REGISTRATION_CONTAINER =
-  process.env.REGISTRATION_CONTAINER ?? "b2b-registration-by-id";
+import {
+  REGISTRATION_CONTAINER,
+  registrationRepositoryLayer,
+} from "./repository-runtime";
 
-const registrationStorageLayer = versionedKeyValueStoreLayer({
-  container: REGISTRATION_CONTAINER,
-});
+export { REGISTRATION_CONTAINER } from "./repository-runtime";
 
 const registrationEmailsLayer = layerRegistrationEmails({
   approverEmail: env.REGISTRATION_APPROVER_EMAIL,
   webUrl: env.NEXT_PUBLIC_WEB_URL,
 }).pipe(Layer.provide(layerResendEmailProvider));
 
-export const registrationLayer = Registrations.layerStorage.pipe(
-  Layer.provide(registrationStorageLayer),
+export const registrationLayer = registrationRepositoryLayer.pipe(
   Layer.provideMerge(
     registrationQueriesLayer({
       container: REGISTRATION_CONTAINER,

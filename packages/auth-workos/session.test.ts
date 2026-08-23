@@ -5,6 +5,7 @@ import { workosSessionToAuthSession } from "./session";
 
 describe(workosSessionToAuthSession, () => {
   it("advertises registration onboarding as supported", () => {
+    expect(authCapabilities.companyMemberInvitationIssuance).toBeTruthy();
     expect(authCapabilities.registrationOnboarding).toBeTruthy();
   });
 

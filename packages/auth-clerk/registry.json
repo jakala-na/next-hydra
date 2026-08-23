@@ -7,7 +7,7 @@
       "type": "registry:item",
       "title": "Next Hydra Clerk Auth provider",
       "description": "Installs the Clerk Auth provider package and component-backed authentication routes.",
-      "docs": "Configure Clerk and CLERK_AUTHORIZED_PARTIES before starting the applications. Registration onboarding returns 501 because identity lookup and invitations remain deferred; webhook mounting is also deferred.",
+      "docs": "Configure Clerk, CLERK_AUTHORIZED_PARTIES, and CLERK_WEBHOOK_SECRET before starting the applications. In Clerk, register the generated /api/webhooks/clerk endpoint for user.created events. Registration approvals issue application invitations that redirect to /accept-invitation, where Clerk's SignIn component consumes the invitation ticket. Application-initiated revocations publish the registration workflow event after Clerk confirms the invitation is revoked.",
       "registryDependencies": [
         "jakala-na/next-hydra/auth-contract"
       ],
@@ -75,13 +75,23 @@
           "type": "registry:file"
         },
         {
-          "path": "deferred-onboarding.test.ts",
-          "target": "~/packages/auth-clerk/deferred-onboarding.test.ts",
+          "path": "identity-users.test.ts",
+          "target": "~/packages/auth-clerk/identity-users.test.ts",
           "type": "registry:file"
         },
         {
           "path": "identity-users.ts",
           "target": "~/packages/auth-clerk/identity-users.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitation-metadata.ts",
+          "target": "~/packages/auth-clerk/invitation-metadata.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.test.ts",
+          "target": "~/packages/auth-clerk/invitations.test.ts",
           "type": "registry:file"
         },
         {
@@ -115,6 +125,16 @@
           "type": "registry:file"
         },
         {
+          "path": "registry/apps/api/app/api/webhooks/clerk/route.ts",
+          "target": "~/apps/api/app/api/webhooks/clerk/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/accept-invitation/[[...accept-invitation]]/page.tsx",
+          "target": "~/apps/web/app/accept-invitation/[[...accept-invitation]]/page.tsx",
+          "type": "registry:file"
+        },
+        {
           "path": "registry/apps/web/app/sign-in/[[...sign-in]]/page.tsx",
           "target": "~/apps/web/app/sign-in/[[...sign-in]]/page.tsx",
           "type": "registry:file"
@@ -122,6 +142,11 @@
         {
           "path": "registry/apps/web/app/sign-out/page.tsx",
           "target": "~/apps/web/app/sign-out/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/webhooks/auth/route.test.ts",
+          "target": "~/packages/auth-clerk/routes/webhooks/auth/route.test.ts",
           "type": "registry:file"
         },
         {

@@ -28,20 +28,33 @@ export class CompanyMemberIntent extends Schema.Class<CompanyMemberIntent>(
   role: CompanyMemberInvitationRole,
 }) {}
 
-export class ProviderInvitationIntent extends Schema.Class<ProviderInvitationIntent>(
-  "ProviderInvitationIntent"
-)({
-  intent: Schema.Literal("provider_managed"),
-  inviteeEmail: RedactedEmail,
-  role: Schema.String,
-}) {}
-
 export const InvitationIntent = Schema.Union([
   RegistrationApprovalIntent,
   CompanyMemberIntent,
-  ProviderInvitationIntent,
 ]);
 export type InvitationIntent = typeof InvitationIntent.Type;
+
+export const InvitationDeliveryStatus = Schema.Literals([
+  "pending",
+  "accepted",
+  "revoked",
+  "expired",
+]);
+export type InvitationDeliveryStatus = typeof InvitationDeliveryStatus.Type;
+
+/** The identity provider's lifecycle projection. Providers are not required to
+ * retain the Registration context or actor that caused the invitation. */
+export class InvitationDelivery extends Schema.Class<InvitationDelivery>(
+  "InvitationDelivery"
+)({
+  acceptInvitationUrl: Schema.optional(Schema.String),
+  createdAt: Schema.Date,
+  expiresAt: Schema.optional(Schema.Date),
+  id: InvitationId,
+  inviteeEmail: RedactedEmail,
+  status: InvitationDeliveryStatus,
+  updatedAt: Schema.Date,
+}) {}
 
 export class PendingInvitation extends Schema.TaggedClass<PendingInvitation>()(
   "PendingInvitation",
