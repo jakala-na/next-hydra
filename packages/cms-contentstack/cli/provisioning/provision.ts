@@ -1,13 +1,11 @@
 import { Console, Effect } from "effect";
 
+import { applyContentstackMigrations } from "../migrations/migrate";
 import { ContentstackCli } from "./contentstack-cli";
-import { CONTENTSTACK_CLI_VERSION } from "./contentstack-cli-live";
-import {
-  ContentstackCliVersionError,
-  ContentstackProvisioningReceipt,
-} from "./model";
+import { ContentstackProvisioningReceipt } from "./model";
 import type { ContentstackEnvironment } from "./model";
 import { ContentstackRecipe } from "./recipe";
+import { requireSupportedContentstackCliVersion } from "./require-cli-version";
 import {
   ContentstackRuntimeCredentialHandoff,
   ContentstackRuntimeCredentialInput,
@@ -22,27 +20,6 @@ export interface ProvisionContentstackOptions {
   readonly stackMasterLocale: string;
 }
 
-const requireSupportedCliVersion = Effect.fn(
-  "ContentstackProvisioning.requireSupportedCliVersion"
-)(function* () {
-  const cli = yield* ContentstackCli;
-  const actual = yield* cli.version();
-  const expectedPrefix = `@contentstack/cli/${CONTENTSTACK_CLI_VERSION} `;
-
-  if (actual.startsWith(expectedPrefix)) {
-    return yield* Effect.void;
-  }
-
-  return yield* new ContentstackCliVersionError({
-    actual,
-    cause: new Error(
-      `Expected Contentstack CLI output to start with ${expectedPrefix}`
-    ),
-    expected: CONTENTSTACK_CLI_VERSION,
-    message: "The installed Contentstack CLI version does not match the recipe",
-  });
-});
-
 export const provisionContentstack = Effect.fn(
   "ContentstackProvisioning.provision"
 )(function* (options: ProvisionContentstackOptions) {
@@ -51,7 +28,7 @@ export const provisionContentstack = Effect.fn(
   const credentialInput = yield* ContentstackRuntimeCredentialInput;
   const handoff = yield* ContentstackRuntimeCredentialHandoff;
 
-  yield* requireSupportedCliVersion();
+  yield* requireSupportedContentstackCliVersion();
   const endpoints = yield* cli.runtimeEndpoints();
   const stack = yield* cli.resolveStack(options.managementTokenAlias);
   const recipeReceipt = yield* Effect.scoped(
@@ -68,6 +45,10 @@ export const provisionContentstack = Effect.fn(
       return materialized;
     })
   );
+  const migrationReceipt = yield* applyContentstackMigrations({
+    region: endpoints.region,
+    stack,
+  });
 
   yield* Console.log(
     `Create Delivery and Preview Tokens for the ${options.environment} environment if they are not already present.`
@@ -85,6 +66,7 @@ export const provisionContentstack = Effect.fn(
     environments: [...recipeReceipt.environments],
     imported: true,
     livePreviewConfigurationRequired: true,
+    migrationsApplied: migrationReceipt.applied.length,
     recipeVersion: recipeReceipt.version,
     region: endpoints.region,
   });

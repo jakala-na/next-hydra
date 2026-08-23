@@ -17,12 +17,20 @@
             {
               "source": "patches/@contentstack__cli-cm-import@2.0.0.patch",
               "target": "patches/@contentstack__cli-cm-import@2.0.0.patch"
+            },
+            {
+              "source": "patches/@contentstack__cli-migration@2.0.0.patch",
+              "target": "patches/@contentstack__cli-migration@2.0.0.patch"
             }
           ],
           "pnpmPatches": [
             {
               "dependency": "@contentstack/cli-cm-import@2.0.0",
               "path": "patches/@contentstack__cli-cm-import@2.0.0.patch"
+            },
+            {
+              "dependency": "@contentstack/cli-migration@2.0.0",
+              "path": "patches/@contentstack__cli-migration@2.0.0.patch"
             }
           ],
           "packages": [
@@ -63,6 +71,41 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/migrations/ledger-live.ts",
+          "target": "~/packages/cms-contentstack/cli/migrations/ledger-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/ledger.ts",
+          "target": "~/packages/cms-contentstack/cli/migrations/ledger.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/migrate.test.ts",
+          "target": "~/packages/cms-contentstack/cli/migrations/migrate.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/migrate.ts",
+          "target": "~/packages/cms-contentstack/cli/migrations/migrate.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/migration-script.test.ts",
+          "target": "~/packages/cms-contentstack/cli/migrations/migration-script.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/model.ts",
+          "target": "~/packages/cms-contentstack/cli/migrations/model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/contentstack-cli-live.test.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/contentstack-cli-live.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/provisioning/contentstack-cli-live.ts",
           "target": "~/packages/cms-contentstack/cli/provisioning/contentstack-cli-live.ts",
           "type": "registry:file"
@@ -100,6 +143,11 @@
         {
           "path": "cli/provisioning/recipe.ts",
           "target": "~/packages/cms-contentstack/cli/provisioning/recipe.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/require-cli-version.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/require-cli-version.ts",
           "type": "registry:file"
         },
         {
@@ -238,6 +286,21 @@
           "type": "registry:file"
         },
         {
+          "path": "migrations/2026-08-23-120000-add-landing-page-seo-fields.js",
+          "target": "~/packages/cms-contentstack/migrations/2026-08-23-120000-add-landing-page-seo-fields.js",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/package.json",
+          "target": "~/packages/cms-contentstack/migrations/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/README.md",
+          "target": "~/packages/cms-contentstack/migrations/README.md",
+          "type": "registry:file"
+        },
+        {
           "path": "next-config.ts",
           "target": "~/packages/cms-contentstack/next-config.ts",
           "type": "registry:file"
@@ -265,6 +328,11 @@
         {
           "path": "recipe/content_types/navigation.json",
           "target": "~/packages/cms-contentstack/recipe/content_types/navigation.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/content_types/migrations.json",
+          "target": "~/packages/cms-contentstack/recipe/content_types/migrations.json",
           "type": "registry:file"
         },
         {

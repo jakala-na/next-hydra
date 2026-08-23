@@ -137,6 +137,10 @@ describe("Next Hydra source registry", () => {
         dependency: "@contentstack/cli-cm-import@2.0.0",
         path: "patches/@contentstack__cli-cm-import@2.0.0.patch",
       },
+      {
+        dependency: "@contentstack/cli-migration@2.0.0",
+        path: "patches/@contentstack__cli-migration@2.0.0.patch",
+      },
     ]);
     expect(drupal.instructions).toStrictEqual([
       "Configure the WorkOS environment variables described by packages/auth-workos before starting the applications.",

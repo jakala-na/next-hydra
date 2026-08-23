@@ -1,7 +1,9 @@
+import { NodeServices } from "@effect/platform-node";
 import { describe, expect, it } from "@effect/vitest";
 import { PrivateDotEnvFileReceipt } from "@repo/cli-core/private-dotenv";
 import { Effect, Layer, Redacted, Schema } from "effect";
 
+import { ContentstackMigrationLedger } from "../migrations/ledger";
 import { ContentstackCli } from "./contentstack-cli";
 import { CONTENTSTACK_CLI_VERSION } from "./contentstack-cli-live";
 import {
@@ -61,8 +63,13 @@ const layersFor = (events: string[], version = CONTENTSTACK_CLI_VERSION) =>
           events.push(`resolve:${managementTokenAlias}`);
           return new ContentstackStack({
             apiKey,
+            managementToken: Redacted.make("management-token"),
             managementTokenAlias,
           });
+        }),
+      runMigration: ({ file }) =>
+        Effect.sync(() => {
+          events.push(`migrate:${file}`);
         }),
       runtimeEndpoints: () =>
         Effect.sync(() => {
@@ -83,7 +90,7 @@ const layersFor = (events: string[], version = CONTENTSTACK_CLI_VERSION) =>
           return new ContentstackRecipeReceipt({
             directory: "/tmp/recipe",
             environments: ["development", "production"],
-            version: "1",
+            version: "2",
           });
         }),
     }),
@@ -101,7 +108,18 @@ const layersFor = (events: string[], version = CONTENTSTACK_CLI_VERSION) =>
           events.push(`save:${destination}`);
           return credentialFile;
         }),
-    })
+    }),
+    ContentstackMigrationLedger.layerFrom({
+      open: () =>
+        Effect.succeed({
+          applied: () => Effect.succeed([]),
+          record: (migration) =>
+            Effect.sync(() => {
+              events.push(`record:${migration.key}`);
+            }),
+        }),
+    }),
+    NodeServices.layer
   );
 
 describe(provisionContentstack, () => {
@@ -119,6 +137,8 @@ describe(provisionContentstack, () => {
         "resolve:next-hydra-bootstrap",
         "recipe:http://localhost:3001:https://store.example.com",
         "import:/tmp/recipe",
+        expect.stringMatching(/migrate:.*seo-fields\.js$/u),
+        "record:2026-08-23-120000-add-landing-page-seo-fields",
         "credentials:development",
         "save:/tmp/contentstack.env",
       ]);
@@ -128,6 +148,7 @@ describe(provisionContentstack, () => {
         environments: ["development", "production"],
         imported: true,
         livePreviewConfigurationRequired: true,
+        migrationsApplied: 1,
         region: "EU",
       });
     });

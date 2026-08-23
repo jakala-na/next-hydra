@@ -1,10 +1,13 @@
 import { getContentstackEndpoint } from "@contentstack/utils";
-import { Effect, Layer, Path, Schema, Stream } from "effect";
+import { Effect, Layer, Path, Schema, Stdio, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 import packageManifest from "../../package.json" with { type: "json" };
 import { ContentstackCli } from "./contentstack-cli";
-import type { ImportContentstackRecipeOptions } from "./contentstack-cli";
+import type {
+  ImportContentstackRecipeOptions,
+  RunContentstackMigrationOptions,
+} from "./contentstack-cli";
 import {
   ContentstackCliError,
   ContentstackRuntimeEndpoints,
@@ -17,13 +20,22 @@ export const CONTENTSTACK_CLI_VERSION =
 const TokenAlias = Schema.Struct({
   alias: Schema.NonEmptyString,
   apiKey: Schema.NonEmptyString,
+  token: Schema.RedactedFromValue(Schema.NonEmptyString, {
+    label: "Contentstack Management Token",
+  }),
   type: Schema.NonEmptyString,
 });
 
 const TokenAliases = Schema.Array(TokenAlias);
 const CONFIGURED_REGION_PATTERN =
   /Currently using the '(?<region>[^']+)' region\./u;
+const DIAGNOSTIC_TAIL_SIZE = 16_384;
 const decodeEndpoint = Schema.decodeUnknownSync(Schema.NonEmptyString);
+
+interface RunCommandOptions {
+  readonly includeStdoutInFailure?: boolean;
+  readonly output: "collect" | "stream";
+}
 
 const cliError = (
   operation: ContentstackCliError["operation"],
@@ -47,29 +59,63 @@ const subprocessCause = (exitCode: number, stdout: string, stderr: string) => {
   );
 };
 
-const collectOutput = Effect.fn("ContentstackCli.collectOutput")(function* (
+export const retainDiagnosticTail = (output: string, chunk: string) =>
+  `${output}${chunk}`.slice(-DIAGNOSTIC_TAIL_SIZE);
+
+const runCommand = Effect.fn("ContentstackCli.runCommand")(function* (
   spawner: ChildProcessSpawner.ChildProcessSpawner["Service"],
+  stdio: Stdio.Stdio,
   command: ChildProcess.Command,
   operation: ContentstackCliError["operation"],
-  message: string
+  message: string,
+  options: RunCommandOptions
 ) {
-  const handle = yield* spawner
-    .spawn(command)
-    .pipe(Effect.mapError((cause) => cliError(operation, message, cause)));
-  const result = yield* Effect.all(
-    {
-      exitCode: handle.exitCode,
-      stderr: Stream.decodeText(handle.stderr).pipe(Stream.mkString),
-      stdout: Stream.decodeText(handle.stdout).pipe(Stream.mkString),
-    },
-    { concurrency: "unbounded" }
+  const result = yield* Effect.scoped(
+    Effect.gen(function* () {
+      const handle = yield* spawner.spawn(command);
+      const drain = (
+        stream: typeof handle.stdout,
+        channel: "stderr" | "stdout"
+      ) => {
+        const decoded = Stream.decodeText(stream);
+        const forwarded =
+          options.output === "stream"
+            ? Stream.tapSink(
+                decoded,
+                channel === "stdout" ? stdio.stdout() : stdio.stderr()
+              )
+            : decoded;
+
+        return forwarded.pipe(
+          options.output === "stream"
+            ? Stream.runFold(
+                () => "",
+                (output, chunk) => retainDiagnosticTail(output, chunk)
+              )
+            : Stream.mkString
+        );
+      };
+
+      return yield* Effect.all(
+        {
+          exitCode: handle.exitCode,
+          stderr: drain(handle.stderr, "stderr"),
+          stdout: drain(handle.stdout, "stdout"),
+        },
+        { concurrency: "unbounded" }
+      );
+    })
   ).pipe(Effect.mapError((cause) => cliError(operation, message, cause)));
 
   if (result.exitCode !== 0) {
     return yield* cliError(
       operation,
       message,
-      subprocessCause(result.exitCode, result.stdout, result.stderr)
+      subprocessCause(
+        result.exitCode,
+        options.includeStdoutInFailure === false ? "" : result.stdout,
+        result.stderr
+      )
     );
   }
 
@@ -78,6 +124,7 @@ const collectOutput = Effect.fn("ContentstackCli.collectOutput")(function* (
 
 const importRecipe = Effect.fn("ContentstackCli.importRecipe")(function* (
   spawner: ChildProcessSpawner.ChildProcessSpawner["Service"],
+  stdio: Stdio.Stdio,
   executable: string,
   options: ImportContentstackRecipeOptions
 ) {
@@ -98,61 +145,50 @@ const importRecipe = Effect.fn("ContentstackCli.importRecipe")(function* (
     stdin: "inherit",
     stdout: "pipe",
   });
-  const result = yield* Effect.scoped(
-    Effect.gen(function* () {
-      const handle = yield* spawner.spawn(command);
-      return yield* Effect.all(
-        {
-          exitCode: handle.exitCode,
-          stderr: handle.stderr.pipe(
-            Stream.decodeText,
-            Stream.tap((chunk) =>
-              Effect.sync(() => {
-                process.stderr.write(chunk);
-              })
-            ),
-            Stream.runFold(
-              () => "",
-              (output, chunk) => output + chunk
-            )
-          ),
-          stdout: handle.stdout.pipe(
-            Stream.decodeText,
-            Stream.tap((chunk) =>
-              Effect.sync(() => {
-                process.stdout.write(chunk);
-              })
-            ),
-            Stream.runFold(
-              () => "",
-              (output, chunk) => output + chunk
-            )
-          ),
-        },
-        { concurrency: "unbounded" }
-      );
-    })
-  ).pipe(
-    Effect.mapError((cause) =>
-      cliError(
-        "import",
-        "Contentstack could not import the starter recipe",
-        cause
-      )
-    )
-  );
-
   // The provider-owned pnpm patch makes CSDX set a nonzero exit code when its
   // import command catches and reports an importer exception.
-  if (result.exitCode !== 0) {
-    return yield* cliError(
-      "import",
-      "Contentstack could not import the starter recipe",
-      subprocessCause(result.exitCode, result.stdout, result.stderr)
-    );
-  }
+  yield* runCommand(
+    spawner,
+    stdio,
+    command,
+    "import",
+    "Contentstack could not import the starter recipe",
+    { output: "stream" }
+  );
+});
 
-  return yield* Effect.void;
+const runMigration = Effect.fn("ContentstackCli.runMigration")(function* (
+  spawner: ChildProcessSpawner.ChildProcessSpawner["Service"],
+  stdio: Stdio.Stdio,
+  executable: string,
+  options: RunContentstackMigrationOptions
+) {
+  const command = ChildProcess.make(
+    process.execPath,
+    [
+      executable,
+      "cm:stacks:migration",
+      "--alias",
+      options.managementTokenAlias,
+      "--file-path",
+      options.file,
+    ],
+    {
+      stderr: "pipe",
+      stdin: "inherit",
+      stdout: "pipe",
+    }
+  );
+  // The provider-owned pnpm patch makes CSDX preserve a nonzero exit status
+  // for validation, script, and Content Management API failures.
+  yield* runCommand(
+    spawner,
+    stdio,
+    command,
+    "migrate",
+    `Contentstack could not apply migration ${options.file}`,
+    { output: "stream" }
+  );
 });
 
 const contentstackEndpoint = Effect.fn("ContentstackCli.endpoint")(function* (
@@ -175,6 +211,7 @@ export const contentstackCliLayer = Layer.effect(
   Effect.gen(function* () {
     const path = yield* Path.Path;
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+    const stdio = yield* Stdio.Stdio;
     const executableUrl = yield* Effect.try({
       catch: (cause) =>
         cliError(
@@ -196,26 +233,26 @@ export const contentstackCliLayer = Layer.effect(
     return ContentstackCli.of({
       importRecipe: Effect.fn("ContentstackCli.importRecipeLive")(
         function* (options) {
-          return yield* importRecipe(spawner, executable, options);
+          return yield* importRecipe(spawner, stdio, executable, options);
         }
       ),
       resolveStack: Effect.fn("ContentstackCli.resolveStack")(
         function* (managementTokenAlias) {
-          return yield* Effect.scoped(
-            collectOutput(
-              spawner,
-              command(
-                "auth:tokens:list",
-                "--columns",
-                "alias,type,apiKey",
-                "--filter",
-                `alias=${managementTokenAlias}`,
-                "--output",
-                "json"
-              ),
-              "resolveAlias",
-              `Could not resolve Contentstack Management Token alias ${managementTokenAlias}`
-            )
+          return yield* runCommand(
+            spawner,
+            stdio,
+            command(
+              "auth:tokens:list",
+              "--columns",
+              "alias,type,apiKey,token",
+              "--filter",
+              `alias=${managementTokenAlias}`,
+              "--output",
+              "json"
+            ),
+            "resolveAlias",
+            `Could not resolve Contentstack Management Token alias ${managementTokenAlias}`,
+            { includeStdoutInFailure: false, output: "collect" }
           ).pipe(
             Effect.flatMap(({ stdout }) =>
               Schema.decodeEffect(Schema.fromJsonString(TokenAliases))(stdout)
@@ -251,6 +288,7 @@ export const contentstackCliLayer = Layer.effect(
 
               return Schema.decodeEffect(ContentstackStack)({
                 apiKey: match.apiKey,
+                managementToken: match.token,
                 managementTokenAlias,
               }).pipe(
                 Effect.mapError((cause) =>
@@ -274,15 +312,20 @@ export const contentstackCliLayer = Layer.effect(
           );
         }
       ),
+      runMigration: Effect.fn("ContentstackCli.runMigrationLive")(
+        function* (options) {
+          return yield* runMigration(spawner, stdio, executable, options);
+        }
+      ),
       runtimeEndpoints: Effect.fn("ContentstackCli.runtimeEndpoints")(
         function* () {
-          const output = yield* Effect.scoped(
-            collectOutput(
-              spawner,
-              command("config:get:region"),
-              "region",
-              "Could not read the configured Contentstack CLI region"
-            )
+          const output = yield* runCommand(
+            spawner,
+            stdio,
+            command("config:get:region"),
+            "region",
+            "Could not read the configured Contentstack CLI region",
+            { output: "collect" }
           );
           const region = CONFIGURED_REGION_PATTERN.exec(output.stdout)?.groups
             ?.region;
@@ -314,13 +357,13 @@ export const contentstackCliLayer = Layer.effect(
         }
       ),
       version: Effect.fn("ContentstackCli.version")(function* () {
-        const output = yield* Effect.scoped(
-          collectOutput(
-            spawner,
-            command("--version"),
-            "version",
-            "Could not run the pinned Contentstack CLI"
-          )
+        const output = yield* runCommand(
+          spawner,
+          stdio,
+          command("--version"),
+          "version",
+          "Could not run the pinned Contentstack CLI",
+          { output: "collect" }
         );
         return output.stdout.trim();
       }),

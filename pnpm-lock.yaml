@@ -61,6 +61,9 @@ patchedDependencies:
   '@contentstack/cli-cm-import@2.0.0':
     hash: 29eaa8c420b86ce8cd3be73dc2f4e5c038a61f0c8f14a02d611f2e0354e15111
     path: patches/@contentstack__cli-cm-import@2.0.0.patch
+  '@contentstack/cli-migration@2.0.0':
+    hash: 344566fb10da40cb917fa4f2cd718ce83c55ee337ab4fb3df71bac8233fd1a78
+    path: patches/@contentstack__cli-migration@2.0.0.patch
   '@drupal-canvas/workbench@0.10.0':
     hash: 888fd4ae64d567a4db437314cdd3018d26a4cf4469b24123564334c31c8f7029
     path: patches/@drupal-canvas__workbench@0.10.0.patch
@@ -820,6 +823,9 @@ importers:
       '@contentstack/live-preview-utils':
         specifier: ^3.2.3
         version: 3.4.0(@preact/signals-core@1.10.0)(csstype@3.2.3)
+      '@contentstack/management':
+        specifier: 1.30.4
+        version: 1.30.4(debug@4.4.3)
       '@contentstack/utils':
         specifier: ~1.9.1
         version: 1.9.1
@@ -15662,7 +15668,7 @@ snapshots:
       - debug
       - supports-color
 
-  '@contentstack/cli-migration@2.0.0(@types/node@24.13.3)(debug@4.4.3)':
+  '@contentstack/cli-migration@2.0.0(patch_hash=344566fb10da40cb917fa4f2cd718ce83c55ee337ab4fb3df71bac8233fd1a78)(@types/node@24.13.3)(debug@4.4.3)':
     dependencies:
       '@contentstack/cli-command': 2.0.0(@types/node@24.13.3)(debug@4.4.3)
       '@contentstack/cli-utilities': 2.0.0(@types/node@24.13.3)(debug@4.4.3)
@@ -15747,7 +15753,7 @@ snapshots:
       '@contentstack/cli-cm-seed': 2.0.0(@types/node@24.13.3)(debug@4.4.3)
       '@contentstack/cli-command': 2.0.0(@types/node@24.13.3)(debug@4.4.3)
       '@contentstack/cli-config': 2.0.0(@types/node@24.13.3)(debug@4.4.3)
-      '@contentstack/cli-migration': 2.0.0(@types/node@24.13.3)(debug@4.4.3)
+      '@contentstack/cli-migration': 2.0.0(patch_hash=344566fb10da40cb917fa4f2cd718ce83c55ee337ab4fb3df71bac8233fd1a78)(@types/node@24.13.3)(debug@4.4.3)
       '@contentstack/cli-utilities': 2.0.0(@types/node@24.13.3)(debug@4.4.3)
       '@contentstack/cli-variants': 2.0.0(@types/node@24.13.3)(debug@4.4.3)
       '@contentstack/management': 1.30.4(debug@4.4.3)

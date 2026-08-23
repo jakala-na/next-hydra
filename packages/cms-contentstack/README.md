@@ -35,7 +35,7 @@ pnpm cli cms provision \
   --output apps/cli/.env.contentstack.local
 ```
 
-The command verifies the pinned Contentstack CLI, resolves the target Stack API Key from the alias, reads the region already configured in `csdx`, and imports the checked-in recipe. The recipe creates the `landing_page` and `navigation` content types, English starter entries, and the `development` and `production` environments. Environment URLs default to `http://localhost:3001` and the supplied production URL. Runtime credential output can target either of those environments with `--environment` and defaults to `development`.
+The command verifies the pinned Contentstack CLI, resolves the target Stack API Key from the alias, reads the region already configured in `csdx`, and imports the checked-in recipe. The recipe creates the baseline `landing_page`, `navigation`, and administrative `migrations` content types, English starter entries, and the `development` and `production` environments. Provisioning then applies every pending migration before collecting runtime credentials. Environment URLs default to `http://localhost:3001` and the supplied production URL. Runtime credential output can target either of those environments with `--environment` and defaults to `development`.
 
 The target stack master locale defaults to `en-us`. If the stack uses another master locale, declare it so the materialized import includes English as an additional locale instead of silently skipping the starter entries:
 
@@ -59,6 +59,25 @@ pnpm --filter @repo/cms-contentstack exec csdx auth:tokens:remove \
 ```
 
 The import is intentionally a one-shot empty-stack operation. It does not pass `--replace-existing`; update and reconciliation policy belongs in a later command.
+
+## Migrate an existing stack
+
+Content-model changes after the baseline import live as timestamped CommonJS files in `migrations/`. Preview or apply them with the same local Management Token alias:
+
+```bash
+pnpm cli cms migrate plan \
+  --management-token-alias next-hydra-bootstrap
+
+pnpm cli cms migrate \
+  --management-token-alias next-hydra-bootstrap
+
+pnpm cli cms migrate status \
+  --management-token-alias next-hydra-bootstrap
+```
+
+The workspace sorts the checked-in files, reads the durable `migrations` ledger from the target stack, and invokes the pinned `csdx cm:stacks:migration` command once for each pending file. CSDX output is streamed directly. A provider-owned patch makes validation, script, and Content Management API failures return a nonzero status; the ledger entry is created only after that process succeeds.
+
+The baseline recipe owns the ledger content type; migration commands never create it. Its entries are administration metadata and are not published. There is no cross-request transaction between a schema change and its ledger write, so an interrupted process can require manual inspection before repair. Applied migration files are immutable; add a later migration rather than editing one.
 
 ## Validation
 

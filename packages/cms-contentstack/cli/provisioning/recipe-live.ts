@@ -7,7 +7,7 @@ import {
 } from "./model";
 import { ContentstackRecipe } from "./recipe";
 
-export const CONTENTSTACK_RECIPE_VERSION = "1";
+export const CONTENTSTACK_RECIPE_VERSION = "2";
 
 const LOCAL_URL_PLACEHOLDER = "__NEXT_HYDRA_LOCAL_URL__";
 const PRODUCTION_URL_PLACEHOLDER = "__NEXT_HYDRA_PRODUCTION_URL__";

@@ -29,6 +29,7 @@
     "@contentstack/delivery-sdk": "^4.7.1",
     "@contentstack/json-rte-serializer": "^3.0.4",
     "@contentstack/live-preview-utils": "^3.2.3",
+    "@contentstack/management": "1.30.4",
     "@contentstack/utils": "~1.9.1",
     "@gql.tada/cli-utils": "^1.6.3",
     "@repo/commerce": "workspace:*",

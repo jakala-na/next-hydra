@@ -2,7 +2,7 @@
 
 `apps/cli` is the executable composition root for administration commands owned by workspace packages. It defines the root `cli` program, composes package environment fragments in `env.ts`, and adds the commands exported by those packages.
 
-The Commercetools project provisioning, migration, schema export, and type-generation commands are implemented by `packages/commerce-commercetools/cli`. CMS provisioning is implemented behind the selected provider's `@repo/cms/cli` export.
+The Commercetools project provisioning, migration, schema export, and type-generation commands are implemented by `packages/commerce-commercetools/cli`. CMS provisioning and migrations are implemented behind the selected provider's `@repo/cms/cli` export.
 
 Copy `.env.example` to `.env` and provide the environment required by the composed package schemas. Environment validation is lazy: help and commands that do not use Commercetools can run without Commercetools credentials. To target a different environment without changing `.env`, pass the global option before the command:
 
@@ -15,6 +15,10 @@ Common commands:
 ```bash
 # Inspect and run the selected CMS provider's setup workflow.
 pnpm cli cms provision --help
+
+# Preview and apply Contentstack migrations when that provider is selected.
+pnpm cli cms migrate plan --management-token-alias next-hydra-bootstrap
+pnpm cli cms migrate --management-token-alias next-hydra-bootstrap
 
 # Provision a manually-created project using a one-time bootstrap API Client.
 # The output path must not exist.

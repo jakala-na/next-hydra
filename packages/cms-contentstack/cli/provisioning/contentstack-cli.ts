@@ -12,6 +12,11 @@ export interface ImportContentstackRecipeOptions {
   readonly managementTokenAlias: string;
 }
 
+export interface RunContentstackMigrationOptions {
+  readonly file: string;
+  readonly managementTokenAlias: string;
+}
+
 interface ContentstackCliValue {
   readonly importRecipe: (
     options: ImportContentstackRecipeOptions
@@ -19,6 +24,9 @@ interface ContentstackCliValue {
   readonly resolveStack: (
     managementTokenAlias: string
   ) => Effect.Effect<ContentstackStack, ContentstackCliError>;
+  readonly runMigration: (
+    options: RunContentstackMigrationOptions
+  ) => Effect.Effect<void, ContentstackCliError>;
   readonly runtimeEndpoints: () => Effect.Effect<
     ContentstackRuntimeEndpoints,
     ContentstackCliError

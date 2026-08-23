@@ -3,6 +3,8 @@
 import { PrivateDotEnvFileReceipt } from "@repo/cli-core/private-dotenv";
 import { Schema } from "effect";
 
+const NonNegativeInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
+
 export const ContentstackApiKey = Schema.NonEmptyString.pipe(
   Schema.brand("ContentstackApiKey")
 );
@@ -39,6 +41,7 @@ export class ContentstackStack extends Schema.Class<ContentstackStack>(
   "ContentstackStack"
 )({
   apiKey: ContentstackApiKey,
+  managementToken: Schema.Redacted(Schema.NonEmptyString),
   managementTokenAlias: Schema.NonEmptyString,
 }) {}
 
@@ -58,6 +61,7 @@ export class ContentstackProvisioningReceipt extends Schema.Class<ContentstackPr
   environments: Schema.Array(ContentstackEnvironment),
   imported: Schema.Boolean,
   livePreviewConfigurationRequired: Schema.Boolean,
+  migrationsApplied: NonNegativeInt,
   recipeVersion: Schema.NonEmptyString,
   region: Schema.NonEmptyString,
 }) {}
@@ -67,7 +71,13 @@ export class ContentstackCliError extends Schema.TaggedError<ContentstackCliErro
   {
     cause: Schema.Defect(),
     message: Schema.String,
-    operation: Schema.Literals(["import", "region", "resolveAlias", "version"]),
+    operation: Schema.Literals([
+      "import",
+      "migrate",
+      "region",
+      "resolveAlias",
+      "version",
+    ]),
   }
 ) {}
 
