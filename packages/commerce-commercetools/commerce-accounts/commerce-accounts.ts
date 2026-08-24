@@ -790,15 +790,13 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     linkRegistrantIdentity: Effect.fn(
       "CommercetoolsCommerceAccounts.linkRegistrantIdentity"
     )(function* (input) {
-      const customer = yield* getCustomerById(
-        input.registration.commerceAccount.customerId
-      );
+      const customer = yield* getCustomerById(input.commerceAccount.customerId);
 
       const linkedCustomer = yield* syncCustomerIdentity(customer, {
         acceptedIdentity: input.acceptedIdentity,
       });
       const businessUnit = yield* getBusinessUnitById(
-        input.registration.commerceAccount.businessUnitId
+        input.commerceAccount.businessUnitId
       );
 
       yield* ensureBusinessUnitAssociate({
@@ -807,7 +805,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
         role: "owner",
       });
 
-      return input.registration.commerceAccount;
+      return input.commerceAccount;
     }),
     listBusinessUnitMembershipsForCustomerInStore,
   });

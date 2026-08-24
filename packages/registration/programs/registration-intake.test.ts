@@ -8,21 +8,27 @@ import { StoreKey } from "@repo/commerce/store";
 import type { Context } from "effect";
 import { Effect, Exit, Layer, Redacted } from "effect";
 
+import { RegistrationReviewerActor } from "../domain/actors";
+import { ApprovedDecision } from "../domain/approval";
 import {
   AddressLine,
+  AuthUserId,
   City,
   CompanyName,
   CountryCode,
   Email,
+  InvitationId,
   PersonName,
   PostalCode,
   VatId,
 } from "../domain/identity";
 import {
+  ApprovedRegistration,
   AwaitingApprovalRegistration,
   CompanyAddress,
   CompanyRegistrationDetails,
 } from "../domain/registration";
+import type { Registration } from "../domain/registration";
 import { IdentityUsers } from "../services/identity-users";
 import { RegistrationMarketPolicy } from "../services/registration-market-policy";
 import { RegistrationQueries } from "../services/registration-queries";
@@ -78,9 +84,7 @@ const details = ({
     }),
   });
 
-const record = (
-  registration: AwaitingApprovalRegistration
-): RegistrationQueryRecord => ({
+const record = (registration: Registration): RegistrationQueryRecord => ({
   createdAt: registration.createdAt,
   id: String(registration.id),
   lastModifiedAt: registration.updatedAt,
@@ -97,6 +101,43 @@ const makeAwaiting = (email: string) =>
     storeKey: StoreKey.make("default-store"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   });
+
+const makeApproved = (
+  email: string,
+  onboardingStatus: "invited" | "accepted" | "expired" | "revoked"
+) => {
+  const registration = makeAwaiting(email);
+
+  return new ApprovedRegistration({
+    _tag: "ApprovedRegistration",
+    createdAt: registration.createdAt,
+    decision: new ApprovedDecision({
+      actor: new RegistrationReviewerActor({
+        actorType: "registration_reviewer",
+        authUserId: AuthUserId.make("reviewer-1"),
+        email: Redacted.make(Email.make("reviewer@example.com"), {
+          label: "email",
+        }),
+        name: "Reviewer",
+      }),
+      decidedAt: new Date("2026-01-02T00:00:00.000Z"),
+      decision: "approved",
+    }),
+    details: registration.details,
+    id: registration.id,
+    invitationId: InvitationId.make(`${onboardingStatus}-invitation`),
+    onboarding:
+      onboardingStatus === "accepted"
+        ? {
+            acceptedAuthUserId: AuthUserId.make("accepted-user-1"),
+            status: onboardingStatus,
+          }
+        : { status: onboardingStatus },
+    status: "approved",
+    storeKey: registration.storeKey,
+    updatedAt: new Date("2026-02-02T00:00:00.000Z"),
+  });
+};
 
 const commerceAccountsLayer = ({
   failure,
@@ -276,6 +317,43 @@ describe(submitRegistrationForReview, () => {
       }).pipe(
         Effect.provide(
           layerWithRecords([record(makeAwaiting("ada@example.com"))])
+        )
+      )
+  );
+
+  it.effect(
+    "rejects duplicate emails while an approved invitation is active",
+    () =>
+      Effect.gen(function* () {
+        const error = yield* submitRegistrationForReview({
+          details: details({ email: " ADA@example.com " }),
+          storeKey: StoreKey.make("default-store"),
+        }).pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(RegistrationIntakeValidationError);
+        if (error instanceof RegistrationIntakeValidationError) {
+          expect(error.reasons[0]).toBeInstanceOf(DuplicateRegistrationEmail);
+        }
+      }).pipe(
+        Effect.provide(
+          layerWithRecords([record(makeApproved("ada@example.com", "invited"))])
+        )
+      )
+  );
+
+  it.effect(
+    "allows a new Registration after the prior invitation expires without provisioning",
+    () =>
+      Effect.gen(function* () {
+        const registration = yield* submitRegistrationForReview({
+          details: details({ email: " ADA@example.com " }),
+          storeKey: StoreKey.make("default-store"),
+        });
+
+        expect(registration._tag).toBe("AwaitingApprovalRegistration");
+      }).pipe(
+        Effect.provide(
+          layerWithRecords([record(makeApproved("ada@example.com", "expired"))])
         )
       )
   );

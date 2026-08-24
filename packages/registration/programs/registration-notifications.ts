@@ -79,3 +79,22 @@ export const notifyRegistrationRejected = (
 
     yield* emails.sendRejectedToRegistrant({ registration });
   });
+
+export const notifyRegistrationInvitationExpired = (
+  input: NotifyRegistrationInput
+): Effect.Effect<
+  void,
+  RegistrationReadError | RegistrationEmailFailure,
+  Registrations | RegistrationEmails
+> =>
+  Effect.gen(function* () {
+    const registrations = yield* Registrations;
+    const emails = yield* RegistrationEmails;
+    const registration = yield* registrations.get(input.registrationId);
+
+    if (registration._tag !== "ApprovedRegistration") {
+      return;
+    }
+
+    yield* emails.sendInvitationExpiredToRegistrant({ registration });
+  });

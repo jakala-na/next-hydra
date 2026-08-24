@@ -23,6 +23,10 @@ const registrationEmailsLayer = layerRegistrationEmails({
   webUrl: env.NEXT_PUBLIC_WEB_URL,
 }).pipe(Layer.provide(layerResendEmailProvider));
 
+const registrationInvitationsLayer = invitationsLayer.pipe(
+  Layer.provide(registrationRepositoryLayer)
+);
+
 export const registrationLayer = registrationRepositoryLayer.pipe(
   Layer.provideMerge(
     registrationQueriesLayer({
@@ -31,7 +35,7 @@ export const registrationLayer = registrationRepositoryLayer.pipe(
   ),
   Layer.provideMerge(commerceAccountsLayer),
   Layer.provideMerge(identityUsersLayer),
-  Layer.provideMerge(invitationsLayer),
+  Layer.provideMerge(registrationInvitationsLayer),
   Layer.provideMerge(RegistrationMarketPolicy.layerDefault),
   Layer.provideMerge(
     VatValidator.layerMemoryFrom({

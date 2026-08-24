@@ -10,14 +10,20 @@ Registration approval uses an identity-provider invitation to establish the comp
 
 Registration owns Invitation intent, including the Registration correlation, owner role, and issuer. Authentication adapters own Invitation Delivery, including the provider ID, recipient, acceptance URL, timestamps, and provider lifecycle state.
 
+Every issued Invitation exposes a concrete expiration deadline through the provider-neutral delivery model. Authentication adapters translate provider expiry into `expiresAt`; when an SDK accepts an explicit lifetime but does not expose the resulting deadline, the adapter sets that lifetime explicitly and derives the deadline from the provider creation timestamp.
+
 Provider capabilities are split by domain intent. `RegistrationInvitations` exposes registration invitation issuance, acceptance, and revocation. `CompanyMemberInvitations` exposes company-member issuance only until durable company-owned invitation context exists. `InvitationDeliveries` provides the intent-independent provider lifecycle projection. No callable provider capability accepts the union of both intents.
 
 Provider adapters may carry correlation metadata when supported, but that metadata is an adapter mechanism rather than the source of Registration meaning. Verified provider events are translated into Invitation Acceptance evidence before the Registration workflow resumes. WorkOS correlation starts from its invitation ID; Clerk correlation starts from namespaced metadata copied to the created user.
 
 The acceptance interaction remains provider-owned. WorkOS uses its hosted acceptance flow. Clerk redirects to an application route that embeds Clerk's `SignIn` component and consumes the invitation ticket.
 
+Registration Invitation expiration is application-owned orchestration because providers do not guarantee an expiration webhook. The durable Registration workflow races its invitation hook against `expiresAt`, confirms that the provider has not already accepted or revoked the delivery, persists the Registration onboarding outcome as expired, notifies the registrant to submit a new Registration, and then fails with `InvitationExpired`. Expiration does not change the approved Registration decision and does not resend its Invitation. Company Member Invitation resend policy remains separate and can be added with durable company-owned context.
+
 ## Consequences
 
 Registration programs no longer ask providers to reconstruct intent or issuer data they may not store. Adapter reads return delivery state only. Registration acceptance supplies the known Registration intent while the adapter validates provider state and accepted identity.
 
 Adding another provider requires mapping only the intent-specific capabilities it supports plus invitation delivery and acceptance evidence, not changing Registration lifecycle policy. Company-member issuance can be supported independently, while company-member acceptance and revocation require their own durable domain context before live provider adapters expose those operations.
+
+Expired invitation acceptance and revocation fail with a typed `InvitationExpired` error rather than a generic conflict or provider outage. Registration workflows terminate unsuccessfully only after the expiration notification step succeeds, so notification retries do not become invitation resends.

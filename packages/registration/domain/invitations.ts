@@ -49,7 +49,7 @@ export class InvitationDelivery extends Schema.Class<InvitationDelivery>(
 )({
   acceptInvitationUrl: Schema.optional(Schema.String),
   createdAt: Schema.Date,
-  expiresAt: Schema.optional(Schema.Date),
+  expiresAt: Schema.Date,
   id: InvitationId,
   inviteeEmail: RedactedEmail,
   status: InvitationDeliveryStatus,
@@ -61,6 +61,7 @@ export class PendingInvitation extends Schema.TaggedClass<PendingInvitation>()(
   {
     acceptInvitationUrl: Schema.optional(Schema.String),
     createdAt: Schema.Date,
+    expiresAt: Schema.Date,
     id: InvitationId,
     intent: InvitationIntent,
     issuedBy: Actor,
@@ -73,6 +74,7 @@ export class AcceptedInvitation extends Schema.TaggedClass<AcceptedInvitation>()
     acceptedAt: Schema.Date,
     acceptedBy: AcceptedAuthIdentity,
     createdAt: Schema.Date,
+    expiresAt: Schema.Date,
     id: InvitationId,
     intent: InvitationIntent,
     issuedBy: Actor,
@@ -83,6 +85,7 @@ export class RevokedInvitation extends Schema.TaggedClass<RevokedInvitation>()(
   "RevokedInvitation",
   {
     createdAt: Schema.Date,
+    expiresAt: Schema.Date,
     id: InvitationId,
     intent: InvitationIntent,
     issuedBy: Actor,
@@ -91,10 +94,23 @@ export class RevokedInvitation extends Schema.TaggedClass<RevokedInvitation>()(
   }
 ) {}
 
+export class ExpiredInvitation extends Schema.TaggedClass<ExpiredInvitation>()(
+  "ExpiredInvitation",
+  {
+    createdAt: Schema.Date,
+    expiredAt: Schema.Date,
+    expiresAt: Schema.Date,
+    id: InvitationId,
+    intent: InvitationIntent,
+    issuedBy: Actor,
+  }
+) {}
+
 export const Invitation = Schema.Union([
   PendingInvitation,
   AcceptedInvitation,
   RevokedInvitation,
+  ExpiredInvitation,
 ]);
 export type Invitation = typeof Invitation.Type;
 
@@ -103,6 +119,7 @@ export class PendingRegistrationInvitation extends Schema.TaggedClass<PendingReg
   {
     acceptInvitationUrl: Schema.optional(Schema.String),
     createdAt: Schema.Date,
+    expiresAt: Schema.Date,
     id: InvitationId,
     intent: RegistrationApprovalIntent,
     issuedBy: Actor,
@@ -115,6 +132,7 @@ export class AcceptedRegistrationInvitation extends Schema.TaggedClass<AcceptedR
     acceptedAt: Schema.Date,
     acceptedBy: AcceptedAuthIdentity,
     createdAt: Schema.Date,
+    expiresAt: Schema.Date,
     id: InvitationId,
     intent: RegistrationApprovalIntent,
     issuedBy: Actor,
@@ -125,6 +143,7 @@ export class RevokedRegistrationInvitation extends Schema.TaggedClass<RevokedReg
   "RevokedInvitation",
   {
     createdAt: Schema.Date,
+    expiresAt: Schema.Date,
     id: InvitationId,
     intent: RegistrationApprovalIntent,
     issuedBy: Actor,
@@ -133,9 +152,22 @@ export class RevokedRegistrationInvitation extends Schema.TaggedClass<RevokedReg
   }
 ) {}
 
+export class ExpiredRegistrationInvitation extends Schema.TaggedClass<ExpiredRegistrationInvitation>()(
+  "ExpiredInvitation",
+  {
+    createdAt: Schema.Date,
+    expiredAt: Schema.Date,
+    expiresAt: Schema.Date,
+    id: InvitationId,
+    intent: RegistrationApprovalIntent,
+    issuedBy: Actor,
+  }
+) {}
+
 export const RegistrationInvitation = Schema.Union([
   PendingRegistrationInvitation,
   AcceptedRegistrationInvitation,
   RevokedRegistrationInvitation,
+  ExpiredRegistrationInvitation,
 ]);
 export type RegistrationInvitation = typeof RegistrationInvitation.Type;

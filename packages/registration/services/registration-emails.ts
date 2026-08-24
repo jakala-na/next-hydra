@@ -16,6 +16,7 @@ export class RegistrationEmailFailure extends Schema.TaggedError<RegistrationEma
       "registrant_awaiting_approval",
       "approver_awaiting_approval",
       "registrant_approved",
+      "registrant_invitation_expired",
       "registrant_rejected",
     ]),
   }
@@ -38,6 +39,10 @@ export interface SendRejectedRegistrantEmailInput {
   readonly registration: RejectedRegistration;
 }
 
+export interface SendInvitationExpiredRegistrantEmailInput {
+  readonly registration: ApprovedRegistration;
+}
+
 export type RegistrationEmailNotification =
   | {
       readonly notification: "registrant_awaiting_approval";
@@ -49,6 +54,10 @@ export type RegistrationEmailNotification =
     }
   | {
       readonly notification: "registrant_approved";
+      readonly registrationId: string;
+    }
+  | {
+      readonly notification: "registrant_invitation_expired";
       readonly registrationId: string;
     }
   | {
@@ -67,6 +76,9 @@ export class RegistrationEmails extends Context.Service<
     ) => Effect.Effect<void, RegistrationEmailFailure>;
     readonly sendApprovedToRegistrant: (
       input: SendApprovedRegistrantEmailInput
+    ) => Effect.Effect<void, RegistrationEmailFailure>;
+    readonly sendInvitationExpiredToRegistrant: (
+      input: SendInvitationExpiredRegistrantEmailInput
     ) => Effect.Effect<void, RegistrationEmailFailure>;
     readonly sendRejectedToRegistrant: (
       input: SendRejectedRegistrantEmailInput
@@ -97,6 +109,11 @@ export class RegistrationEmails extends Context.Service<
         sendAwaitingApprovalToRegistrant: ({ registration }) =>
           record({
             notification: "registrant_awaiting_approval",
+            registrationId: String(registration.id),
+          }),
+        sendInvitationExpiredToRegistrant: ({ registration }) =>
+          record({
+            notification: "registrant_invitation_expired",
             registrationId: String(registration.id),
           }),
         sendRejectedToRegistrant: ({ registration }) =>

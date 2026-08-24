@@ -66,11 +66,13 @@ const hasIdentityUserWithEmail = (details: CompanyRegistrationDetails) =>
     return yield* identityUsers.hasUserWithEmail(details.email);
   });
 
-const hasPendingRegistrationWithEmail = (details: CompanyRegistrationDetails) =>
+const hasBlockingRegistrationWithEmail = (
+  details: CompanyRegistrationDetails
+) =>
   Effect.gen(function* () {
     const queries = yield* RegistrationQueries;
     return yield* queries
-      .hasPendingEmail(details.email)
+      .hasBlockingEmail(details.email)
       .pipe(Effect.catchTag("RegistrationQueryInvalidCursor", Effect.die));
   });
 
@@ -112,21 +114,21 @@ export const checkRegistrationEligibility = Effect.fn(
   const [
     hasCustomer,
     hasIdentityUser,
-    hasPendingEmailRegistration,
+    hasBlockingEmailRegistration,
     unsupportedRegistrationCountry,
     invalidVatId,
   ] = yield* Effect.all(
     [
       hasCustomerWithEmail(details),
       hasIdentityUserWithEmail(details),
-      hasPendingRegistrationWithEmail(details),
+      hasBlockingRegistrationWithEmail(details),
       isUnsupportedRegistrationCountry(details),
       isInvalidVatId(details),
     ],
     { concurrency: "unbounded" }
   );
   const validationReasons = toNonEmptyValidationReasons([
-    ...(hasCustomer || hasIdentityUser || hasPendingEmailRegistration
+    ...(hasCustomer || hasIdentityUser || hasBlockingEmailRegistration
       ? [
           new DuplicateRegistrationEmail({
             code: "duplicateEmail",

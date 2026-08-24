@@ -14,6 +14,7 @@ import { InvitationId } from "../domain/identity";
 import type { AcceptedAuthIdentity, RegistrationId } from "../domain/identity";
 import {
   AcceptedInvitation,
+  ExpiredInvitation,
   InvitationDelivery,
   PendingInvitation,
   RevokedInvitation,
@@ -23,6 +24,7 @@ import type {
   Invitation,
   RegistrationApprovalIntent,
 } from "../domain/invitations";
+import type { RegistrationInvitationIssueAttemptFailure } from "./registration-invitation-issue-attempt-failure";
 
 export class InvitationNotFound extends Schema.TaggedError<InvitationNotFound>()(
   "InvitationNotFound",
@@ -39,6 +41,15 @@ export class InvitationConflict extends Schema.TaggedError<InvitationConflict>()
   }
 ) {}
 
+export class InvitationExpired extends Schema.TaggedError<InvitationExpired>()(
+  "InvitationExpired",
+  {
+    expiredAt: Schema.Date,
+    invitationId: InvitationId,
+    message: Schema.String,
+  }
+) {}
+
 export class InvitationProviderFailure extends Schema.TaggedError<InvitationProviderFailure>()(
   "InvitationProviderFailure",
   {
@@ -48,27 +59,33 @@ export class InvitationProviderFailure extends Schema.TaggedError<InvitationProv
   }
 ) {}
 
+export class InvitationIssueOutcomeUnknown extends Schema.TaggedError<InvitationIssueOutcomeUnknown>()(
+  "InvitationIssueOutcomeUnknown",
+  {
+    cause: Schema.Defect(),
+    message: Schema.String,
+  }
+) {}
+
 export type InvitationIssueError =
   | InvitationConflict
-  | InvitationProviderFailure;
+  | InvitationExpired
+  | InvitationIssueOutcomeUnknown
+  | InvitationProviderFailure
+  | RegistrationInvitationIssueAttemptFailure;
 export type InvitationReadError =
   | InvitationNotFound
   | InvitationProviderFailure;
 export type InvitationAcceptError =
   | InvitationNotFound
   | InvitationConflict
+  | InvitationExpired
   | InvitationProviderFailure;
 export type InvitationRevokeError =
   | InvitationNotFound
   | InvitationConflict
+  | InvitationExpired
   | InvitationProviderFailure;
-
-export const RegistrationInvitationRevocationEventSource = Schema.Literals([
-  "application_command",
-  "provider_webhook",
-]);
-export type RegistrationInvitationRevocationEventSource =
-  typeof RegistrationInvitationRevocationEventSource.Type;
 
 export interface RegistrationInvitationIssueInput {
   readonly intent: RegistrationApprovalIntent;
@@ -118,15 +135,6 @@ export class RegistrationInvitations extends Context.Service<
   }
 >()("@repo/registration/RegistrationInvitations") {}
 
-/** Describes which trusted boundary publishes a confirmed registration
- * invitation revocation to the durable workflow. */
-export class RegistrationInvitationRevocationEvents extends Context.Service<
-  RegistrationInvitationRevocationEvents,
-  {
-    readonly source: RegistrationInvitationRevocationEventSource;
-  }
->()("@repo/registration/RegistrationInvitationRevocationEvents") {}
-
 export class CompanyMemberInvitations extends Context.Service<
   CompanyMemberInvitations,
   {
@@ -144,6 +152,7 @@ type InvitationIssueInput =
 const nowDate = Clock.currentTimeMillis.pipe(
   Effect.map((time) => new Date(time))
 );
+const memoryInvitationLifetimeMilliseconds = 30 * 24 * 60 * 60 * 1000;
 
 const findRegistrationApprovalInvitation = (
   invitations: Iterable<Invitation>,
@@ -179,6 +188,12 @@ const deliveryStatusFromInvitation = (invitation: Invitation) => {
     case "RevokedInvitation": {
       return "revoked" as const;
     }
+    case "ExpiredInvitation": {
+      return "expired" as const;
+    }
+    default: {
+      return invitation satisfies never;
+    }
   }
 };
 
@@ -193,12 +208,19 @@ const deliveryUpdatedAtFromInvitation = (invitation: Invitation) => {
     case "RevokedInvitation": {
       return invitation.revokedAt;
     }
+    case "ExpiredInvitation": {
+      return invitation.expiredAt;
+    }
+    default: {
+      return invitation satisfies never;
+    }
   }
 };
 
 const deliveryFromInvitation = (invitation: Invitation) => {
   const delivery = {
     createdAt: invitation.createdAt,
+    expiresAt: invitation.expiresAt,
     id: invitation.id,
     inviteeEmail: invitation.intent.inviteeEmail,
     status: deliveryStatusFromInvitation(invitation),
@@ -225,9 +247,13 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
         yield* Effect.sync(() => crypto.randomUUID())
       );
       const createdAt = yield* nowDate;
+      const expiresAt = new Date(
+        createdAt.getTime() + memoryInvitationLifetimeMilliseconds
+      );
       const invitation = new PendingInvitation({
         _tag: "PendingInvitation",
         createdAt,
+        expiresAt,
         id,
         intent: input.intent,
         issuedBy: input.issuedBy,
@@ -240,15 +266,55 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
       return invitation;
     });
 
+    const materializeExpiration = Effect.fn(
+      "InvitationCapabilities.materializeExpiration"
+    )(function* (invitation: Invitation) {
+      if (invitation._tag !== "PendingInvitation") {
+        return invitation;
+      }
+
+      const observedAt = yield* nowDate;
+      if (observedAt < invitation.expiresAt) {
+        return invitation;
+      }
+
+      const expired = new ExpiredInvitation({
+        _tag: "ExpiredInvitation",
+        createdAt: invitation.createdAt,
+        expiredAt: invitation.expiresAt,
+        expiresAt: invitation.expiresAt,
+        id: invitation.id,
+        intent: invitation.intent,
+        issuedBy: invitation.issuedBy,
+      });
+
+      yield* Ref.update(store, (current) =>
+        new Map(current).set(invitation.id, expired)
+      );
+
+      return expired;
+    });
+
     const issueRegistration = Effect.fn("RegistrationInvitations.issue")(
       function* (input: RegistrationInvitationIssueInput) {
         const invitations = yield* Ref.get(store);
-        const existing = findRegistrationApprovalInvitation(
+        const candidate = findRegistrationApprovalInvitation(
           invitations.values(),
           input.intent.registrationId
         );
+        const existing = candidate
+          ? yield* materializeExpiration(candidate)
+          : undefined;
 
         if (existing) {
+          if (existing._tag === "ExpiredInvitation") {
+            return yield* new InvitationExpired({
+              expiredAt: existing.expiredAt,
+              invitationId: existing.id,
+              message: `Registration invitation ${existing.id} has expired`,
+            });
+          }
+
           if (existing._tag !== "PendingInvitation") {
             return yield* new InvitationConflict({
               message: "Registration approval invitation already progressed",
@@ -265,12 +331,15 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
     const issueCompanyMember = Effect.fn("CompanyMemberInvitations.issue")(
       function* (input: CompanyMemberInvitationIssueInput) {
         const invitations = yield* Ref.get(store);
-        const existing = findPendingCompanyMemberInvitation(
+        const candidate = findPendingCompanyMemberInvitation(
           invitations.values(),
           input.intent
         );
+        const existing = candidate
+          ? yield* materializeExpiration(candidate)
+          : undefined;
 
-        if (existing) {
+        if (existing?._tag === "PendingInvitation") {
           if (
             existing.intent.intent === "company_member" &&
             existing.intent.role !== input.intent.role
@@ -292,7 +361,9 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
       invitationId: InvitationId
     ) {
       const invitations = yield* Ref.get(store);
-      return yield* Option.fromNullishOr(invitations.get(invitationId)).pipe(
+      const current = yield* Option.fromNullishOr(
+        invitations.get(invitationId)
+      ).pipe(
         Effect.fromOption,
         Effect.mapError(
           () =>
@@ -300,15 +371,16 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
               invitationId,
               message: `Invitation ${invitationId} was not found`,
             })
-        ),
-        Effect.map(deliveryFromInvitation)
+        )
       );
+      const invitation = yield* materializeExpiration(current);
+      return deliveryFromInvitation(invitation);
     });
 
     const acceptRegistration = Effect.fn("RegistrationInvitations.accept")(
       function* (input: RegistrationInvitationAcceptanceInput) {
         const invitations = yield* Ref.get(store);
-        const current = yield* Option.fromNullishOr(
+        const stored = yield* Option.fromNullishOr(
           invitations.get(input.invitationId)
         ).pipe(
           Effect.fromOption,
@@ -320,6 +392,7 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
               })
           )
         );
+        const current = yield* materializeExpiration(stored);
 
         if (
           current.intent.intent !== "registration_approval" ||
@@ -348,12 +421,21 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
           });
         }
 
+        if (current._tag === "ExpiredInvitation") {
+          return yield* new InvitationExpired({
+            expiredAt: current.expiredAt,
+            invitationId: current.id,
+            message: `Invitation ${current.id} has expired`,
+          });
+        }
+
         const acceptedAt = yield* nowDate;
         const accepted = new AcceptedInvitation({
           _tag: "AcceptedInvitation",
           acceptedAt,
           acceptedBy: input.acceptedIdentity,
           createdAt: current.createdAt,
+          expiresAt: current.expiresAt,
           id: current.id,
           intent: current.intent,
           issuedBy: current.issuedBy,
@@ -370,7 +452,7 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
     const revokeRegistration = Effect.fn("RegistrationInvitations.revoke")(
       function* (input: RegistrationInvitationRevocationInput) {
         const invitations = yield* Ref.get(store);
-        const current = yield* Option.fromNullishOr(
+        const stored = yield* Option.fromNullishOr(
           invitations.get(input.invitationId)
         ).pipe(
           Effect.fromOption,
@@ -382,6 +464,7 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
               })
           )
         );
+        const current = yield* materializeExpiration(stored);
 
         if (
           current.intent.intent !== "registration_approval" ||
@@ -402,10 +485,19 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
           return current;
         }
 
+        if (current._tag === "ExpiredInvitation") {
+          return yield* new InvitationExpired({
+            expiredAt: current.expiredAt,
+            invitationId: current.id,
+            message: `Invitation ${current.id} has expired`,
+          });
+        }
+
         const revokedAt = yield* nowDate;
         const revoked = new RevokedInvitation({
           _tag: "RevokedInvitation",
           createdAt: current.createdAt,
+          expiresAt: current.expiresAt,
           id: current.id,
           intent: current.intent,
           issuedBy: current.issuedBy,
@@ -433,13 +525,7 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
         CompanyMemberInvitations,
         CompanyMemberInvitations.of({ issue: issueCompanyMember })
       ),
-      Context.add(InvitationDeliveries, InvitationDeliveries.of({ get })),
-      Context.add(
-        RegistrationInvitationRevocationEvents,
-        RegistrationInvitationRevocationEvents.of({
-          source: "application_command",
-        })
-      )
+      Context.add(InvitationDeliveries, InvitationDeliveries.of({ get }))
     );
   })
 );

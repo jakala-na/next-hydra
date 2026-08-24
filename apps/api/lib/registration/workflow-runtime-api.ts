@@ -95,6 +95,18 @@ const withRegistrationWorkflowResumeOutcome =
       )
     );
 
+const withIdempotentInvitationResume = (
+  program: Effect.Effect<void, RegistrationWorkflowRejection>
+): Effect.Effect<void, RegistrationWorkflowRejection> =>
+  program.pipe(
+    // oxlint-disable-next-line promise/prefer-await-to-callbacks promise/prefer-await-to-then -- Effect.catch handles the typed Effect error channel.
+    Effect.catch(
+      // oxlint-disable-next-line promise/prefer-await-to-callbacks -- Effect.catch handles the typed Effect error channel.
+      (error) =>
+        HookNotFoundError.is(error.cause) ? Effect.void : Effect.fail(error)
+    )
+  );
+
 const workflowFailureAnnotations = (
   isHookPayloadValidationError: (
     cause: unknown
@@ -143,13 +155,21 @@ export const registrationWorkflowLayerFrom = (
   Layer.succeed(
     RegistrationWorkflow,
     RegistrationWorkflow.of({
-      resumeInvitation: (invitationId, event) =>
-        Effect.tryPromise({
+      resumeInvitation: (invitationId, event) => {
+        const resume = Effect.tryPromise({
           catch: (cause) => new RegistrationWorkflowRejection({ cause }),
           try: async () => {
             await adapters.resumeInvitation(String(invitationId), event);
           },
-        }).pipe(
+        });
+        // Revocation is already durable in InvitationDeliveries, so a missing
+        // hook means either a duplicate or a workflow that will reconcile it.
+        const idempotentResume =
+          event.event === "revoked"
+            ? resume.pipe(withIdempotentInvitationResume)
+            : resume;
+
+        return idempotentResume.pipe(
           logWorkflowFailure(
             adapters.isHookPayloadValidationError,
             "resumeInvitation"
@@ -163,7 +183,8 @@ export const registrationWorkflowLayerFrom = (
                 message: "Registration invitation resume outcome is unknown",
               })
           )
-        ),
+        );
+      },
       resumeReview: (registrationId, decision) =>
         Effect.tryPromise({
           catch: (cause) => new RegistrationWorkflowRejection({ cause }),

@@ -18,7 +18,6 @@ import type {
 } from "../domain/registration";
 import {
   InvitationConflict,
-  RegistrationInvitationRevocationEvents,
   RegistrationInvitations,
 } from "../services/invitations";
 import type {
@@ -26,15 +25,14 @@ import type {
   InvitationIssueError,
   InvitationRevokeError,
 } from "../services/invitations";
+import { RegistrationNotFoundByInvitationId } from "../services/registration-queries";
 import { RegistrationWorkflow } from "../services/registration-workflow";
 import type { RegistrationWorkflowInvitationResumeOutcomeUnknown } from "../services/registration-workflow";
-import {
-  RegistrationNotFoundByInvitationId,
-  Registrations,
-} from "../services/registrations";
+import { Registrations } from "../services/registrations";
 import type {
+  RegistrationDecisionTransitionError,
+  RegistrationOnboardingTransitionError,
   RegistrationReadError,
-  RegistrationTransitionError,
 } from "../services/registrations";
 
 const nowDate = Clock.currentTimeMillis.pipe(
@@ -64,18 +62,25 @@ export interface RevokeRegistrationInvitationInput {
   readonly registrationId: RegistrationId;
 }
 
+export interface ExpireRegistrationInvitationInput {
+  readonly registrationId: RegistrationId;
+  readonly invitationId: InvitationId;
+}
+
+export interface RecordRegistrationInvitationRevokedInput {
+  readonly registrationId: RegistrationId;
+  readonly invitationId: InvitationId;
+}
+
 export const approveRegistration = (
   input: ApproveRegistrationInput
 ): Effect.Effect<
   ApprovedRegistration,
-  | RegistrationTransitionError
-  | CommerceAccountUnavailable
-  | InvitationIssueError,
-  Registrations | CommerceAccounts | RegistrationInvitations
+  RegistrationDecisionTransitionError | InvitationIssueError,
+  Registrations | RegistrationInvitations
 > =>
   Effect.gen(function* () {
     const registrations = yield* Registrations;
-    const commerceAccounts = yield* CommerceAccounts;
     const invitations = yield* RegistrationInvitations;
 
     const registration = yield* registrations.get(input.registrationId);
@@ -92,8 +97,6 @@ export const approveRegistration = (
       reason: input.reason,
     });
 
-    const commerceAccount =
-      yield* commerceAccounts.createFromRegistration(registration);
     const intent = new RegistrationApprovalIntent({
       intent: "registration_approval",
       inviteeEmail: registration.details.email,
@@ -106,7 +109,6 @@ export const approveRegistration = (
     });
 
     return yield* registrations.markApproved({
-      commerceAccount,
       decision,
       invitationId: invitation.id,
       registrationId: input.registrationId,
@@ -117,7 +119,7 @@ export const rejectRegistration = (
   input: RejectRegistrationInput
 ): Effect.Effect<
   RejectedRegistration,
-  RegistrationTransitionError,
+  RegistrationDecisionTransitionError,
   Registrations
 > =>
   Effect.gen(function* () {
@@ -149,6 +151,7 @@ export const acceptRegistrationInvitation = (
   | InvitationAcceptError
   | CommerceAccountUnavailable
   | RegistrationReadError
+  | RegistrationOnboardingTransitionError
   | RegistrationNotFoundByInvitationId,
   RegistrationInvitations | CommerceAccounts | Registrations
 > =>
@@ -183,12 +186,79 @@ export const acceptRegistrationInvitation = (
       issuedBy: registrationSystemActor,
     });
 
-    yield* commerceAccounts.linkRegistrantIdentity({
-      acceptedIdentity: input.acceptedIdentity,
-      registration,
+    const acceptedRegistration = yield* registrations.markOnboardingStatus({
+      acceptedAuthUserId: input.acceptedIdentity.authUserId,
+      registrationId: registration.id,
+      status: "accepted",
     });
 
-    return registration;
+    const commerceAccount =
+      yield* commerceAccounts.createFromRegistration(acceptedRegistration);
+
+    yield* commerceAccounts.linkRegistrantIdentity({
+      acceptedIdentity: input.acceptedIdentity,
+      commerceAccount,
+    });
+
+    return acceptedRegistration;
+  });
+
+export const expireRegistrationInvitation = (
+  input: ExpireRegistrationInvitationInput
+): Effect.Effect<
+  ApprovedRegistration,
+  RegistrationOnboardingTransitionError | RegistrationNotFoundByInvitationId,
+  Registrations
+> =>
+  Effect.gen(function* () {
+    const registrations = yield* Registrations;
+    const registration = yield* registrations.get(input.registrationId);
+
+    if (
+      registration._tag !== "ApprovedRegistration" ||
+      registration.invitationId !== input.invitationId
+    ) {
+      return yield* new RegistrationNotFoundByInvitationId({
+        invitationId: input.invitationId,
+        message: `Registration for invitation ${input.invitationId} was not found`,
+      });
+    }
+
+    const expiredRegistration = yield* registrations.markOnboardingStatus({
+      registrationId: registration.id,
+      status: "expired",
+    });
+
+    return expiredRegistration;
+  });
+
+export const recordRegistrationInvitationRevoked = (
+  input: RecordRegistrationInvitationRevokedInput
+): Effect.Effect<
+  ApprovedRegistration,
+  RegistrationOnboardingTransitionError | RegistrationNotFoundByInvitationId,
+  Registrations
+> =>
+  Effect.gen(function* () {
+    const registrations = yield* Registrations;
+    const registration = yield* registrations.get(input.registrationId);
+
+    if (
+      registration._tag !== "ApprovedRegistration" ||
+      registration.invitationId !== input.invitationId
+    ) {
+      return yield* new RegistrationNotFoundByInvitationId({
+        invitationId: input.invitationId,
+        message: `Registration for invitation ${input.invitationId} was not found`,
+      });
+    }
+
+    const revokedRegistration = yield* registrations.markOnboardingStatus({
+      registrationId: registration.id,
+      status: "revoked",
+    });
+
+    return revokedRegistration;
   });
 
 export const revokeRegistrationInvitation = (
@@ -197,15 +267,12 @@ export const revokeRegistrationInvitation = (
   RevokedInvitation,
   | InvitationRevokeError
   | RegistrationReadError
+  | RegistrationOnboardingTransitionError
   | RegistrationWorkflowInvitationResumeOutcomeUnknown,
-  | RegistrationInvitations
-  | RegistrationInvitationRevocationEvents
-  | RegistrationWorkflow
-  | Registrations
+  RegistrationInvitations | RegistrationWorkflow | Registrations
 > =>
   Effect.gen(function* () {
     const invitations = yield* RegistrationInvitations;
-    const revocationEvents = yield* RegistrationInvitationRevocationEvents;
     const registrations = yield* Registrations;
     const registration = yield* registrations.get(input.registrationId);
 
@@ -227,10 +294,13 @@ export const revokeRegistrationInvitation = (
       revokedBy: input.actor,
     });
 
-    if (revocationEvents.source === "application_command") {
-      const workflow = yield* RegistrationWorkflow;
-      yield* workflow.resumeInvitation(revoked.id, { event: "revoked" });
-    }
+    yield* registrations.markOnboardingStatus({
+      registrationId: registration.id,
+      status: "revoked",
+    });
+
+    const workflow = yield* RegistrationWorkflow;
+    yield* workflow.resumeInvitation(revoked.id, { event: "revoked" });
 
     return revoked;
   });

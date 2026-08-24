@@ -659,7 +659,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       const commerceAccounts = yield* CommerceAccounts;
       yield* commerceAccounts.linkRegistrantIdentity({
         acceptedIdentity,
-        registration,
+        commerceAccount: registration.commerceAccount,
       });
 
       expect(mocks.customerPost).toHaveBeenCalledWith({
@@ -771,7 +771,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         const commerceAccounts = yield* CommerceAccounts;
         yield* commerceAccounts.linkRegistrantIdentity({
           acceptedIdentity,
-          registration,
+          commerceAccount: registration.commerceAccount,
         });
 
         expect(mocks.customerPost).toHaveBeenCalledOnce();
@@ -842,7 +842,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       const commerceAccounts = yield* CommerceAccounts;
       yield* commerceAccounts.linkRegistrantIdentity({
         acceptedIdentity,
-        registration,
+        commerceAccount: registration.commerceAccount,
       });
 
       expect(mocks.businessUnitPost).toHaveBeenCalledOnce();
@@ -894,7 +894,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       const commerceAccounts = yield* CommerceAccounts;
       yield* commerceAccounts.linkRegistrantIdentity({
         acceptedIdentity,
-        registration,
+        commerceAccount: registration.commerceAccount,
       });
 
       expect(mocks.businessUnitPost).toHaveBeenCalledWith({
@@ -975,7 +975,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         const commerceAccounts = yield* CommerceAccounts;
         yield* commerceAccounts.linkRegistrantIdentity({
           acceptedIdentity,
-          registration,
+          commerceAccount: registration.commerceAccount,
         });
 
         expect(mocks.customerPost).not.toHaveBeenCalled();
@@ -1020,7 +1020,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       const exit = yield* commerceAccounts
         .linkRegistrantIdentity({
           acceptedIdentity,
-          registration,
+          commerceAccount: registration.commerceAccount,
         })
         .pipe(Effect.exit);
 

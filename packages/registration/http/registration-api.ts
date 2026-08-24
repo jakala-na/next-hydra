@@ -51,18 +51,31 @@ import {
   RegistrationDecisionAlreadyProcessingFailure,
   RegistrationDecisionOutcomeUnknown,
   RegistrationTransitionConflictFailure,
+  PublicInvitationConflict,
+  PublicInvitationConflictFailure,
+  PublicInvitationExpired,
+  PublicInvitationExpiredFailure,
+  PublicInvitationNotFound,
+  PublicInvitationNotFoundFailure,
   PublicRegistrationConcurrentModification,
   PublicRegistrationConcurrentModificationFailure,
   PublicRegistrationNotFound,
   PublicRegistrationNotFoundFailure,
+  PublicRegistrationOnboardingTransitionConflict,
+  PublicRegistrationOnboardingTransitionConflictFailure,
   PublicRegistrationQueryInvalidCursor,
   PublicRegistrationQueryInvalidCursorFailure,
+  PublicRegistrationWorkflowInvitationResumeOutcomeUnknown,
+  PublicRegistrationWorkflowInvitationResumeOutcomeUnknownFailure,
 } from "../public-errors";
+import type { InvitationRevokeError } from "../services/invitations";
 import type { RegistrationQueryError } from "../services/registration-queries";
+import type { RegistrationWorkflowInvitationResumeOutcomeUnknown as InternalRegistrationWorkflowInvitationResumeOutcomeUnknown } from "../services/registration-workflow";
 import type {
   RegistrationCreateError,
+  RegistrationDecisionTransitionError,
+  RegistrationOnboardingTransitionError,
   RegistrationReadError,
-  RegistrationTransitionError,
 } from "../services/registrations";
 
 export {
@@ -75,8 +88,13 @@ export {
   RegistrationApiValidationError,
   RegistrationDecisionAlreadyProcessing,
   RegistrationDecisionOutcomeUnknown,
+  PublicRegistrationWorkflowInvitationResumeOutcomeUnknown,
+  PublicInvitationConflict,
+  PublicInvitationExpired,
+  PublicInvitationNotFound,
   PublicRegistrationConcurrentModification,
   PublicRegistrationNotFound,
+  PublicRegistrationOnboardingTransitionConflict,
   PublicRegistrationQueryInvalidCursor,
 } from "../public-errors";
 
@@ -139,6 +157,13 @@ export class RegistrationDecisionAcceptedResponse extends Schema.Class<Registrat
 )({
   registrationId: RegistrationId,
   status: Schema.Literal("approval_processing"),
+}) {}
+
+export class RegistrationInvitationRevokedResponse extends Schema.Class<RegistrationInvitationRevokedResponse>(
+  "RegistrationInvitationRevokedResponse"
+)({
+  onboardingStatus: Schema.Literal("revoked"),
+  registrationId: RegistrationId,
 }) {}
 
 export const RegistrationDecisionResponse =
@@ -259,6 +284,17 @@ const RegistrationDecisionErrors = [
   RegistrationDecisionOutcomeUnknown,
 ] as const;
 
+const RegistrationInvitationRevocationErrors = [
+  RegistrationApiError,
+  PublicInvitationConflict,
+  PublicInvitationExpired,
+  PublicInvitationNotFound,
+  PublicRegistrationConcurrentModification,
+  PublicRegistrationNotFound,
+  PublicRegistrationOnboardingTransitionConflict,
+  PublicRegistrationWorkflowInvitationResumeOutcomeUnknown,
+] as const;
+
 export class RegistrationApiGroup extends HttpApiGroup.make("registrations")
   .add(
     HttpApiEndpoint.post("create", "/registrations", {
@@ -296,7 +332,18 @@ export class RegistrationApiGroup extends HttpApiGroup.make("registrations")
       },
       payload: RegistrationDecisionRequest,
       success: RegistrationDecisionAcceptedResponse,
-    }).middleware(RegistrationDecisionAccessMiddleware)
+    }).middleware(RegistrationDecisionAccessMiddleware),
+    HttpApiEndpoint.post(
+      "revokeInvitation",
+      "/registrations/:registrationId/invitation/revoke",
+      {
+        error: RegistrationInvitationRevocationErrors,
+        params: {
+          registrationId: RegistrationId,
+        },
+        success: RegistrationInvitationRevokedResponse,
+      }
+    ).middleware(RegistrationDecisionAccessMiddleware)
   )
   .middleware(RegistrationSchemaErrorMiddleware)
   .annotateMerge(
@@ -489,7 +536,7 @@ export const toRegistrationQueryApiError = (
 };
 
 export const toRegistrationTransitionApiError = (
-  error: RegistrationTransitionError
+  error: RegistrationDecisionTransitionError
 ):
   | RegistrationAlreadyApproved
   | RegistrationAlreadyRejected
@@ -530,6 +577,79 @@ export const toRegistrationTransitionApiError = (
           });
         }
       }
+    }
+    case "RegistrationPersistenceFailure": {
+      if (error.reason !== "unavailable") {
+        throw error;
+      }
+      return internalRegistrationError();
+    }
+    default: {
+      return error satisfies never;
+    }
+  }
+};
+
+export const toRegistrationInvitationRevocationApiError = (
+  error:
+    | InvitationRevokeError
+    | RegistrationReadError
+    | RegistrationOnboardingTransitionError
+    | InternalRegistrationWorkflowInvitationResumeOutcomeUnknown
+):
+  | PublicRegistrationConcurrentModification
+  | RegistrationApiError
+  | PublicInvitationConflict
+  | PublicInvitationExpired
+  | PublicInvitationNotFound
+  | PublicRegistrationNotFound
+  | PublicRegistrationOnboardingTransitionConflict
+  | PublicRegistrationWorkflowInvitationResumeOutcomeUnknown => {
+  switch (error._tag) {
+    case "InvitationExpired": {
+      return PublicInvitationExpiredFailure.make({
+        expiredAt: error.expiredAt.toISOString(),
+        invitationId: error.invitationId,
+        message: error.message,
+      });
+    }
+    case "InvitationNotFound": {
+      return PublicInvitationNotFoundFailure.make({
+        invitationId: error.invitationId,
+        message: error.message,
+      });
+    }
+    case "InvitationConflict": {
+      return PublicInvitationConflictFailure.make({
+        message: error.message,
+      });
+    }
+    case "InvitationProviderFailure": {
+      return internalRegistrationError();
+    }
+    case "RegistrationWorkflowInvitationResumeOutcomeUnknown": {
+      return PublicRegistrationWorkflowInvitationResumeOutcomeUnknownFailure.make(
+        {
+          invitationId: error.invitationId,
+          message: error.message,
+        }
+      );
+    }
+    case "RegistrationConcurrentModification":
+    case "RegistrationNotFound": {
+      return error._tag === "RegistrationConcurrentModification"
+        ? PublicRegistrationConcurrentModificationFailure.make({
+            message: error.message,
+          })
+        : PublicRegistrationNotFoundFailure.make({ message: error.message });
+    }
+    case "RegistrationOnboardingTransitionConflict": {
+      return PublicRegistrationOnboardingTransitionConflictFailure.make({
+        attemptedStatus: error.attemptedStatus,
+        currentState: error.currentState,
+        message: error.message,
+        registrationId: error.registrationId,
+      });
     }
     case "RegistrationPersistenceFailure": {
       if (error.reason !== "unavailable") {

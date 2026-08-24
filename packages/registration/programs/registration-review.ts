@@ -9,7 +9,7 @@ import type {
   RegistrationWorkflowResumeOutcomeUnknown,
 } from "../services/registration-workflow";
 import { Registrations } from "../services/registrations";
-import type { RegistrationTransitionError } from "../services/registrations";
+import type { RegistrationDecisionTransitionError } from "../services/registrations";
 
 export {
   RegistrationReviewWorkflowDecision,
@@ -47,15 +47,21 @@ export const acceptRegistrationReviewDecision = Effect.fn(
   input: AcceptRegistrationReviewDecisionInput
 ): Effect.fn.Return<
   Registration,
-  RegistrationTransitionError | RegistrationWorkflowResumeOutcomeUnknown,
+  | RegistrationDecisionTransitionError
+  | RegistrationWorkflowResumeOutcomeUnknown,
   Registrations | RegistrationWorkflow
 > {
   const registrations = yield* Registrations;
   const workflow = yield* RegistrationWorkflow;
-  const processing = yield* registrations.markApprovalProcessing({
-    decision: input.decision,
-    registrationId: input.registrationId,
-  });
+  const { registration, transitioned } =
+    yield* registrations.markApprovalProcessing({
+      decision: input.decision,
+      registrationId: input.registrationId,
+    });
+
+  if (!transitioned) {
+    return registration;
+  }
 
   yield* workflow.resumeReview(input.registrationId, {
     decision: input.decision,
@@ -63,5 +69,5 @@ export const acceptRegistrationReviewDecision = Effect.fn(
     ...(input.reason === undefined ? {} : { reason: input.reason }),
   });
 
-  return processing;
+  return registration;
 });

@@ -16,14 +16,25 @@ The Registration context describes how a company asks for access and how that re
 
 **Invitation Delivery**: An identity provider's delivery and lifecycle projection for an Invitation, including its provider ID, recipient, acceptance URL, and state. It does not define why the Invitation exists or who issued it. _Avoid_: Invitation intent
 
-**Invitation Acceptance**: Verified evidence that the invited person established an authentication identity. It links that identity to the approved company's Commerce account; it does not change the Registration's approved decision. _Avoid_: Sign-in callback
+**Registration Onboarding Status**: The Registration-owned lifecycle of its initial-owner invitation: invited, accepted, expired, or revoked. It is separate from both the approval decision and the identity provider's Invitation Delivery status. _Avoid_: Registration status, Provider invitation status
+
+**Invitation Acceptance**: Verified evidence that the invited person established an authentication identity. It completes the Registration invitation and permits creation of the company's Commerce account; it does not change the Registration's approved decision. _Avoid_: Sign-in callback
+
+**Company Provisioning**: Creation of the Commerce customer and business unit after Registration Invitation Acceptance. Approval alone does not provision a company. _Avoid_: Registration approval
+
+**Registration Invitation Expiration**: The terminal end of a Registration Invitation after its provider-owned acceptance deadline passes. It ends that onboarding attempt before Company Provisioning and requires the registrant to submit a new Registration; it does not reverse the prior approval or authorize resending the invitation. _Avoid_: Registration rejection, Invitation resend
 
 ## Relationships
 
 - A **Registration** is either awaiting approval, approved, or rejected.
 - A **Registration** has exactly one **Registration ID**.
 - An approved **Registration** has exactly one **Registration Invitation**.
+- An approved **Registration** has one **Registration Onboarding Status**.
 - A **Registration Invitation** has one provider-owned **Invitation Delivery**.
+- An invited **Registration** prevents another Registration for the same email; an expired or revoked Registration does not.
+- **Invitation Acceptance** precedes **Company Provisioning**.
+- An accepted **Registration** is permanently associated with the first verified authentication user; another user cannot replay acceptance for the same email.
+- **Registration Invitation Expiration** ends the onboarding workflow unsuccessfully while the **Registration** remains approved and unprovisioned.
 - A **Company Member Invitation** has one provider-owned **Invitation Delivery**.
 
 ## Example Dialogue

@@ -19,6 +19,7 @@ import {
   RegistrationDecisionAccessMiddleware,
   RegistrationDecisionAcceptedResponse,
   RegistrationHttpApi,
+  RegistrationInvitationRevokedResponse,
   RegistrationReadAccessMiddleware,
   RegistrationReviewerContext,
   RegistrationSchemaErrorMiddleware,
@@ -26,12 +27,14 @@ import {
   toRegistrationDetailResponse,
   toRegistrationCreateApiError,
   toRegistrationInternalApiError,
+  toRegistrationInvitationRevocationApiError,
   toRegistrationQueryApiError,
   toRegistrationReadApiError,
   toRegistrationTransitionApiError,
 } from "@repo/registration/http/registration-api";
 import { submitRegistrationForReview } from "@repo/registration/programs/registration-intake";
 import type { RegistrationEligibilityProviderError } from "@repo/registration/programs/registration-intake";
+import { revokeRegistrationInvitation } from "@repo/registration/programs/registration-onboarding";
 import { acceptRegistrationReviewDecision } from "@repo/registration/programs/registration-review";
 import {
   projectRegistrationIntakeValidation,
@@ -447,6 +450,36 @@ const makeRegistrationHttpHandlers = () =>
             registrationId: params.registrationId,
             ...(payload.reason === undefined ? {} : { reason: payload.reason }),
           })
+        )
+        .handle("revokeInvitation", ({ params }) =>
+          Effect.gen(function* revokeInvitation() {
+            const reviewer = yield* RegistrationReviewerContext;
+            yield* revokeRegistrationInvitation({
+              actor: reviewer,
+              registrationId: params.registrationId,
+            });
+
+            return new RegistrationInvitationRevokedResponse({
+              onboardingStatus: "revoked",
+              registrationId: params.registrationId,
+            });
+          }).pipe(
+            Effect.catchTag(
+              "RegistrationPersistenceFailure",
+              retainRecoverableRegistrationInfrastructureFailure
+            ),
+            Effect.tapCause((cause) =>
+              Effect.logError("Failed to revoke registration invitation", cause)
+            ),
+            Effect.annotateLogs({
+              operation: "registration.api.invitation.revoke",
+              "registration.id": String(params.registrationId),
+              service: "registration-api",
+            }),
+            Effect.withSpan("registration.api.invitation.revoke"),
+            Effect.withLogSpan("registration.api.invitation.revoke"),
+            Effect.mapError(toRegistrationInvitationRevocationApiError)
+          )
         );
     })
   );

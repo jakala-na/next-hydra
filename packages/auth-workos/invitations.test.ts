@@ -15,14 +15,18 @@ import {
   CompanyMemberIntent,
   RegistrationApprovalIntent,
 } from "@repo/registration/domain/invitations";
+import type { InvitationExpired } from "@repo/registration/services/invitations";
 import {
   CompanyMemberInvitations,
   InvitationConflict,
   InvitationDeliveries,
+  InvitationIssueOutcomeUnknown,
   InvitationNotFound,
   InvitationProviderFailure,
   RegistrationInvitations,
 } from "@repo/registration/services/invitations";
+import { RegistrationInvitationIssueAttempt } from "@repo/registration/services/registration-invitation-issue-attempts";
+import type { RegistrationInvitationIssueAttemptsService } from "@repo/registration/services/registration-invitation-issue-attempts";
 import { NotFoundException } from "@workos-inc/node";
 import type { Invitation as WorkosInvitation } from "@workos-inc/node";
 import { Effect, Exit, Layer, Redacted } from "effect";
@@ -70,7 +74,8 @@ const registrationIntent = new RegistrationApprovalIntent({
 
 const makeWorkosInvitation = (
   state: WorkosInvitationState,
-  id = "invitation-1"
+  id = "invitation-1",
+  overrides: Partial<WorkosInvitation> = {}
 ): WorkosInvitation => ({
   acceptInvitationUrl: "https://example.com/invite/token-1",
   acceptedAt: state === "accepted" ? "2026-01-03T00:00:00.000Z" : null,
@@ -86,6 +91,7 @@ const makeWorkosInvitation = (
   state,
   token: "token-1",
   updatedAt: "2026-01-02T00:00:00.000Z",
+  ...overrides,
 });
 
 const makeUserManagement = (
@@ -96,6 +102,7 @@ const makeUserManagement = (
   } = {}
 ): WorkosInvitationUserManagement => ({
   getInvitation: async () => makeWorkosInvitation("accepted"),
+  listInvitations: async () => ({ data: [] }),
   revokeInvitation: async () => makeWorkosInvitation("revoked"),
   sendInvitation: async (input) => {
     overrides.sent?.(input);
@@ -104,8 +111,47 @@ const makeUserManagement = (
   ...overrides,
 });
 
+const makeIssueAttempts = (): RegistrationInvitationIssueAttemptsService => {
+  const attempts = new Map<
+    RegistrationId,
+    RegistrationInvitationIssueAttempt
+  >();
+
+  return {
+    recordIssued: (input) =>
+      Effect.sync(() => {
+        const current = attempts.get(input.registrationId);
+        if (!current) {
+          throw new Error("Invitation issue attempt was not started");
+        }
+
+        const recorded = new RegistrationInvitationIssueAttempt({
+          excludedProviderInvitationIds: current.excludedProviderInvitationIds,
+          providerInvitationId: input.providerInvitationId,
+          registrationId: input.registrationId,
+        });
+        attempts.set(input.registrationId, recorded);
+        return recorded;
+      }),
+    start: (input) =>
+      Effect.sync(() => {
+        const existing = attempts.get(input.registrationId);
+        if (existing) {
+          return { attempt: existing, started: false };
+        }
+
+        const attempt = new RegistrationInvitationIssueAttempt(input);
+        attempts.set(input.registrationId, attempt);
+        return { attempt, started: true };
+      }),
+  };
+};
+
 const makeLayer = (userManagement: WorkosInvitationUserManagement) => {
-  const capabilities = makeWorkosInvitationCapabilities(userManagement);
+  const capabilities = makeWorkosInvitationCapabilities(
+    userManagement,
+    makeIssueAttempts()
+  );
 
   return Layer.mergeAll(
     Layer.succeed(
@@ -118,14 +164,6 @@ const makeLayer = (userManagement: WorkosInvitationUserManagement) => {
 };
 
 describe(makeWorkosInvitationCapabilities, () => {
-  it("delegates revocation events to the verified provider webhook", () => {
-    const capabilities = makeWorkosInvitationCapabilities(makeUserManagement());
-
-    expect(capabilities.registrationInvitationRevocationEvents.source).toBe(
-      "provider_webhook"
-    );
-  });
-
   it("issues invitations through the WorkOS SDK and returns the domain issue context", async () => {
     let sentInput:
       | Parameters<WorkosInvitationUserManagement["sendInvitation"]>[0]
@@ -156,6 +194,147 @@ describe(makeWorkosInvitationCapabilities, () => {
         expect(invitation.issuedBy).toBe(actor);
       }).pipe(Effect.provide(layer))
     );
+  });
+
+  it("does not bind a pre-existing system invitation to a registration", async () => {
+    let sendCalls = 0;
+    const existing = makeWorkosInvitation("pending", "invitation-retry", {
+      inviterUserId: null,
+    });
+    const capabilities = makeWorkosInvitationCapabilities(
+      makeUserManagement({
+        listInvitations: async () => ({ data: [existing] }),
+        sendInvitation: async () => {
+          sendCalls += 1;
+          return makeWorkosInvitation("pending");
+        },
+      }),
+      makeIssueAttempts()
+    );
+
+    const failure = await Effect.runPromise(
+      capabilities.registrationInvitations
+        .issue({
+          intent: registrationIntent,
+          issuedBy: registrationSystemActor,
+        })
+        .pipe(Effect.flip)
+    );
+
+    expect(failure._tag).toBe("InvitationConflict");
+    expect(sendCalls).toBe(0);
+  });
+
+  it("checks every WorkOS invitation page before starting an issue attempt", async () => {
+    let sendCalls = 0;
+    const existing = makeWorkosInvitation("pending", "invitation-page-two", {
+      inviterUserId: null,
+    });
+    const capabilities = makeWorkosInvitationCapabilities(
+      makeUserManagement({
+        listInvitations: async () => ({
+          autoPagination: async () => [existing],
+          data: [],
+        }),
+        sendInvitation: async () => {
+          sendCalls += 1;
+          return makeWorkosInvitation("pending");
+        },
+      }),
+      makeIssueAttempts()
+    );
+
+    const failure = await Effect.runPromise(
+      capabilities.registrationInvitations
+        .issue({
+          intent: registrationIntent,
+          issuedBy: registrationSystemActor,
+        })
+        .pipe(Effect.flip)
+    );
+
+    expect(failure._tag).toBe("InvitationConflict");
+    expect(sendCalls).toBe(0);
+  });
+
+  it("recovers only the exact invitation recorded by the durable issue checkpoint", async () => {
+    const issued = makeWorkosInvitation("pending", "invitation-retry", {
+      inviterUserId: null,
+    });
+    const attempts = makeIssueAttempts();
+    let invitationCreated = false;
+    let sendCalls = 0;
+    const capabilities = makeWorkosInvitationCapabilities(
+      makeUserManagement({
+        getInvitation: async () => issued,
+        listInvitations: async () => ({
+          data: invitationCreated ? [issued] : [],
+        }),
+        sendInvitation: async () => {
+          sendCalls += 1;
+          invitationCreated = true;
+          return issued;
+        },
+      }),
+      attempts
+    );
+
+    const first = await Effect.runPromise(
+      capabilities.registrationInvitations.issue({
+        intent: registrationIntent,
+        issuedBy: registrationSystemActor,
+      })
+    );
+    const retry = await Effect.runPromise(
+      capabilities.registrationInvitations.issue({
+        intent: registrationIntent,
+        issuedBy: registrationSystemActor,
+      })
+    );
+
+    expect(first.id).toBe(InvitationId.make("invitation-retry"));
+    expect(retry.id).toBe(first.id);
+    expect(sendCalls).toBe(1);
+  });
+
+  it("reports outcome unknown instead of binding an email-only invitation", async () => {
+    const issued = makeWorkosInvitation("pending", "invitation-recovered", {
+      inviterUserId: null,
+    });
+    let listCalls = 0;
+    const capabilities = makeWorkosInvitationCapabilities(
+      makeUserManagement({
+        listInvitations: async () => {
+          listCalls += 1;
+          return { data: listCalls === 1 ? [] : [issued] };
+        },
+        sendInvitation: async () => {
+          throw new Error("response lost");
+        },
+      }),
+      makeIssueAttempts()
+    );
+
+    const firstFailure = await Effect.runPromise(
+      capabilities.registrationInvitations
+        .issue({
+          intent: registrationIntent,
+          issuedBy: registrationSystemActor,
+        })
+        .pipe(Effect.flip)
+    );
+    const retryFailure = await Effect.runPromise(
+      capabilities.registrationInvitations
+        .issue({
+          intent: registrationIntent,
+          issuedBy: registrationSystemActor,
+        })
+        .pipe(Effect.flip)
+    );
+
+    expect(firstFailure._tag).toBe("InvitationProviderFailure");
+    expect(retryFailure).toBeInstanceOf(InvitationIssueOutcomeUnknown);
+    expect(listCalls).toBe(2);
   });
 
   it("maps provider reads to invitation delivery state", async () => {
@@ -261,7 +440,7 @@ describe(makeWorkosInvitationCapabilities, () => {
     expect(failure._tag).toBe("InvitationConflict");
   });
 
-  it("rejects revoked or expired invitations", async () => {
+  it("rejects revoked invitations as conflicts", async () => {
     await Effect.runPromise(
       Effect.gen(function* () {
         const invitations = yield* RegistrationInvitations;
@@ -288,6 +467,34 @@ describe(makeWorkosInvitationCapabilities, () => {
         )
       )
     );
+  });
+
+  it("returns a typed expiration error for expired invitations", async () => {
+    const failure = await Effect.runPromise(
+      RegistrationInvitations.pipe(
+        Effect.flatMap((invitations) =>
+          invitations.accept({
+            acceptedIdentity,
+            intent: registrationIntent,
+            invitationId: InvitationId.make("invitation-1"),
+            issuedBy: registrationSystemActor,
+          })
+        ),
+        Effect.flip,
+        Effect.provide(
+          makeLayer(
+            makeUserManagement({
+              getInvitation: async () => makeWorkosInvitation("expired"),
+            })
+          )
+        )
+      )
+    );
+
+    expect(failure).toMatchObject({
+      _tag: "InvitationExpired",
+      expiredAt: new Date("2026-01-10T00:00:00.000Z"),
+    } satisfies Partial<InvitationExpired>);
   });
 
   it("maps WorkOS not found failures to InvitationNotFound", async () => {

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "@effect/vitest";
-import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import { StoreKey } from "@repo/commerce/store";
 import { Effect, Redacted } from "effect";
 
@@ -9,8 +8,6 @@ import {
   AddressLine,
   AuthUserId,
   City,
-  CommerceBusinessUnitId,
-  CommerceCustomerId,
   CompanyName,
   CountryCode,
   Email,
@@ -26,7 +23,10 @@ import {
   CompanyRegistrationDetails,
   RejectedRegistration,
 } from "../domain/registration";
-import type { Registration } from "../domain/registration";
+import type {
+  Registration,
+  RegistrationOnboardingStatus,
+} from "../domain/registration";
 import {
   RegistrationQueries,
   RegistrationQueryInvalidCursor,
@@ -99,16 +99,12 @@ const makeAwaiting = ({
     updatedAt: new Date(updatedAt),
   });
 
-const makeApproved = (registration: AwaitingApprovalRegistration) =>
+const makeApproved = (
+  registration: AwaitingApprovalRegistration,
+  onboardingStatus: RegistrationOnboardingStatus = "invited"
+) =>
   new ApprovedRegistration({
     _tag: "ApprovedRegistration",
-    commerceAccount: new CommerceAccount({
-      businessUnitId: CommerceBusinessUnitId.make(
-        `business-unit-${registration.id}`
-      ),
-      customerId: CommerceCustomerId.make(`customer-${registration.id}`),
-      registrationId: registration.id,
-    }),
     createdAt: registration.createdAt,
     decision: new ApprovedDecision({
       actor: reviewer,
@@ -118,6 +114,13 @@ const makeApproved = (registration: AwaitingApprovalRegistration) =>
     details: registration.details,
     id: registration.id,
     invitationId: InvitationId.make(`invitation-${registration.id}`),
+    onboarding:
+      onboardingStatus === "accepted"
+        ? {
+            acceptedAuthUserId: AuthUserId.make("accepted-user-1"),
+            status: onboardingStatus,
+          }
+        : { status: onboardingStatus },
     status: "approved",
     storeKey: registration.storeKey,
     updatedAt: registration.updatedAt,
@@ -163,6 +166,24 @@ const listWith = (records: readonly RegistrationQueryRecord[]) =>
   );
 
 describe("RegistrationQueries.layerMemoryFrom", () => {
+  it.effect("finds an approved registration by invitation id", () =>
+    Effect.gen(function* () {
+      const registration = makeApproved(
+        makeAwaiting({
+          id: "registration-by-invitation",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+        })
+      );
+      const queries = yield* listWith([record(registration)]);
+
+      const found = yield* queries.findByInvitationId(
+        registration.invitationId
+      );
+
+      expect(found.id).toBe(registration.id);
+    })
+  );
+
   it.effect("searches registrations before paginating results", () =>
     Effect.gen(function* () {
       const queries = yield* listWith([
@@ -201,31 +222,62 @@ describe("RegistrationQueries.layerMemoryFrom", () => {
     })
   );
 
-  it.effect("finds pending registrations by normalized email", () =>
+  it.effect("finds active registrations by normalized email", () =>
     Effect.gen(function* () {
       const awaiting = makeAwaiting({
         email: "Ada@Example.com",
         id: "registration-awaiting",
         updatedAt: "2026-01-03T00:00:00.000Z",
       });
-      const approved = makeApproved(
+      const invited = makeApproved(
         makeAwaiting({
           email: "grace@example.com",
-          id: "registration-approved",
+          id: "registration-invited",
           updatedAt: "2026-01-02T00:00:00.000Z",
         })
       );
-      const queries = yield* listWith([record(awaiting), record(approved)]);
+      const expired = makeApproved(
+        makeAwaiting({
+          email: "expired@example.com",
+          id: "registration-expired",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        }),
+        "expired"
+      );
+      const accepted = makeApproved(
+        makeAwaiting({
+          email: "accepted@example.com",
+          id: "registration-accepted",
+          updatedAt: "2026-01-01T12:00:00.000Z",
+        }),
+        "accepted"
+      );
+      const queries = yield* listWith([
+        record(awaiting),
+        record(invited),
+        record(accepted),
+        record(expired),
+      ]);
 
-      const hasPendingEmail = yield* queries.hasPendingEmail(
+      const hasAwaitingEmail = yield* queries.hasBlockingEmail(
         Redacted.make(Email.make(" ada@example.com "), { label: "email" })
       );
-      const hasApprovedEmailOnly = yield* queries.hasPendingEmail(
+      const hasInvitedEmail = yield* queries.hasBlockingEmail(
         Redacted.make(Email.make("grace@example.com"), { label: "email" })
       );
+      const hasExpiredEmail = yield* queries.hasBlockingEmail(
+        Redacted.make(Email.make("expired@example.com"), { label: "email" })
+      );
+      const hasAcceptedEmail = yield* queries.hasBlockingEmail(
+        Redacted.make(Email.make("accepted@example.com"), {
+          label: "email",
+        })
+      );
 
-      expect(hasPendingEmail).toBeTruthy();
-      expect(hasApprovedEmailOnly).toBeFalsy();
+      expect(hasAwaitingEmail).toBeTruthy();
+      expect(hasInvitedEmail).toBeTruthy();
+      expect(hasAcceptedEmail).toBeTruthy();
+      expect(hasExpiredEmail).toBeFalsy();
     })
   );
 

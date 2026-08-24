@@ -1,8 +1,14 @@
 import { StoreFailureReason } from "@repo/versioned-store";
 import { Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 
+import { InvitationId } from "../domain/identity";
 import type { RedactedEmail } from "../domain/identity";
-import type { Registration, RegistrationStatus } from "../domain/registration";
+import { registrationBlocksEmail } from "../domain/registration";
+import type {
+  Registration,
+  RegistrationStatus,
+  ApprovedRegistration,
+} from "../domain/registration";
 
 export const RegistrationQuerySortField = Schema.Literals([
   "lastModifiedAt",
@@ -37,7 +43,7 @@ export class RegistrationQueryFailure extends Schema.TaggedError<RegistrationQue
   {
     cause: Schema.Defect(),
     message: Schema.String,
-    operation: Schema.Literal("list"),
+    operation: Schema.Literals(["findByInvitationId", "list"]),
     reason: StoreFailureReason,
   }
 ) {}
@@ -54,6 +60,18 @@ export class RegistrationQueryInvalidCursor extends Schema.TaggedError<Registrat
 export type RegistrationQueryError =
   | RegistrationQueryFailure
   | RegistrationQueryInvalidCursor;
+
+export class RegistrationNotFoundByInvitationId extends Schema.TaggedError<RegistrationNotFoundByInvitationId>()(
+  "RegistrationNotFoundByInvitationId",
+  {
+    invitationId: InvitationId,
+    message: Schema.String,
+  }
+) {}
+
+export type RegistrationFindByInvitationError =
+  | RegistrationNotFoundByInvitationId
+  | RegistrationQueryFailure;
 
 export const RegistrationQueryCursorSchema = Schema.Struct({
   id: Schema.String,
@@ -80,16 +98,6 @@ export interface RegistrationQueryRecord {
   readonly lastModifiedAt: Date;
 }
 
-const pendingRegistrationStatuses = [
-  "awaiting_approval",
-  "approval_processing",
-] as const satisfies readonly RegistrationStatus[];
-
-const normalizedEmail = (email: RedactedEmail | string) =>
-  (typeof email === "string" ? email : Redacted.value(email))
-    .trim()
-    .toLowerCase();
-
 const normalizedSearch = (search: string | undefined) => {
   const trimmed = search?.trim().toLowerCase();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
@@ -115,14 +123,6 @@ const registrationMatchesSearch = (
     details.vatId ? Redacted.value(details.vatId) : "",
   ].some((value) => value.toLowerCase().includes(normalized));
 };
-
-const isPendingRegistrationWithEmail = (
-  registration: Registration,
-  email: RedactedEmail
-) =>
-  pendingRegistrationStatuses.some(
-    (status) => status === registration.status
-  ) && normalizedEmail(registration.details.email) === normalizedEmail(email);
 
 const normalizeLimit = (limit: number | undefined) => {
   if (limit === undefined) {
@@ -353,9 +353,12 @@ export class RegistrationQueries extends Context.Service<
     readonly list: (
       input: ListRegistrationsInput
     ) => Effect.Effect<ListRegistrationsResult, RegistrationQueryError>;
-    readonly hasPendingEmail: (
+    readonly hasBlockingEmail: (
       email: RedactedEmail
     ) => Effect.Effect<boolean, RegistrationQueryError>;
+    readonly findByInvitationId: (
+      invitationId: InvitationId
+    ) => Effect.Effect<ApprovedRegistration, RegistrationFindByInvitationError>;
   }
 >()("@repo/registration/RegistrationQueries") {
   static readonly layerMemoryFrom = (
@@ -364,7 +367,27 @@ export class RegistrationQueries extends Context.Service<
     Layer.succeed(
       RegistrationQueries,
       RegistrationQueries.of({
-        hasPendingEmail: Effect.fn("RegistrationQueries.hasPendingEmail")(
+        findByInvitationId: Effect.fn("RegistrationQueries.findByInvitationId")(
+          function* (invitationId) {
+            const registration = [...records]
+              .map((record) => record.registration)
+              .find(
+                (candidate): candidate is ApprovedRegistration =>
+                  candidate._tag === "ApprovedRegistration" &&
+                  candidate.invitationId === invitationId
+              );
+
+            if (!registration) {
+              return yield* new RegistrationNotFoundByInvitationId({
+                invitationId,
+                message: `Registration for invitation ${invitationId} was not found`,
+              });
+            }
+
+            return registration;
+          }
+        ),
+        hasBlockingEmail: Effect.fn("RegistrationQueries.hasBlockingEmail")(
           (email) =>
             Effect.try({
               catch: (cause) =>
@@ -378,7 +401,7 @@ export class RegistrationQueries extends Context.Service<
                 }),
               try: () =>
                 [...records].some((record) =>
-                  isPendingRegistrationWithEmail(record.registration, email)
+                  registrationBlocksEmail(record.registration, email)
                 ),
             })
         ),

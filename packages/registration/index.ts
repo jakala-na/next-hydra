@@ -75,6 +75,8 @@ export {
   AcceptedInvitation,
   AcceptedRegistrationInvitation,
   CompanyMemberIntent,
+  ExpiredInvitation,
+  ExpiredRegistrationInvitation,
   type Invitation,
   InvitationDelivery,
   InvitationDeliveryStatus,
@@ -112,6 +114,11 @@ export {
   RedactedVatId,
   type RedactedVatId as RedactedVatIdType,
   type Registration,
+  RegistrationOnboarding,
+  type RegistrationOnboarding as RegistrationOnboardingType,
+  RegistrationOnboardingStatus,
+  type RegistrationOnboardingStatus as RegistrationOnboardingStatusType,
+  registrationBlocksEmail,
   RegistrationStatus,
   type RegistrationStatus as RegistrationStatusType,
   RejectedRegistration,
@@ -129,6 +136,9 @@ export {
   ListRegistrationsResponse,
   REGISTRATION_DECIDE_PERMISSION,
   REGISTRATION_READ_PERMISSION,
+  PublicInvitationConflict,
+  PublicInvitationExpired,
+  PublicInvitationNotFound,
   RegistrationAddressInput,
   RegistrationAlreadyApproved,
   RegistrationAlreadyRejected,
@@ -142,6 +152,7 @@ export {
   RegistrationDecisionAlreadyProcessing,
   RegistrationDecisionRequest,
   RegistrationDecisionResponse,
+  RegistrationInvitationRevokedResponse,
   RegistrationDetailResponse,
   RegistrationHttpApi,
   RegistrationReadAccessMiddleware,
@@ -149,7 +160,9 @@ export {
   RegistrationSchemaErrorMiddleware,
   PublicRegistrationConcurrentModification,
   PublicRegistrationNotFound,
+  PublicRegistrationOnboardingTransitionConflict,
   PublicRegistrationQueryInvalidCursor,
+  PublicRegistrationWorkflowInvitationResumeOutcomeUnknown,
 } from "./http/registration-api";
 export {
   type AcceptCompanyMemberInvitationInput,
@@ -169,10 +182,13 @@ export {
   type NotifyRegistrationInput,
   notifyRegistrationApproved,
   notifyRegistrationAwaitingApproval,
+  notifyRegistrationInvitationExpired,
   notifyRegistrationRejected,
 } from "./programs/registration-notifications";
 export {
+  type ResumeRegistrationInvitationForInvitationInput,
   type ResumeRegistrationInvitationForRegistrationInput,
+  resumeRegistrationInvitationForInvitation,
   resumeRegistrationInvitationForRegistration,
 } from "./programs/registration-invitation-events";
 export {
@@ -180,7 +196,11 @@ export {
   type ApproveRegistrationInput,
   acceptRegistrationInvitation,
   approveRegistration,
+  type ExpireRegistrationInvitationInput,
+  expireRegistrationInvitation,
   type RejectRegistrationInput,
+  type RecordRegistrationInvitationRevokedInput,
+  recordRegistrationInvitationRevoked,
   rejectRegistration,
   type RevokeRegistrationInvitationInput,
   revokeRegistrationInvitation,
@@ -211,7 +231,9 @@ export {
   type InvitationAcceptError,
   InvitationConflict,
   InvitationDeliveries,
+  InvitationExpired,
   type InvitationIssueError,
+  InvitationIssueOutcomeUnknown,
   InvitationNotFound,
   InvitationProviderFailure,
   type InvitationReadError,
@@ -219,9 +241,6 @@ export {
   type RegistrationInvitationAcceptanceInput,
   type RegistrationInvitationIssueInput,
   type RegistrationInvitationRevocationInput,
-  RegistrationInvitationRevocationEvents,
-  RegistrationInvitationRevocationEventSource,
-  type RegistrationInvitationRevocationEventSource as RegistrationInvitationRevocationEventSourceType,
   RegistrationInvitations,
 } from "./services/invitations";
 export {
@@ -238,6 +257,7 @@ export {
   type SendApprovedRegistrantEmailInput,
   type SendAwaitingApprovalApproverEmailInput,
   type SendAwaitingApprovalRegistrantEmailInput,
+  type SendInvitationExpiredRegistrantEmailInput,
   type SendRejectedRegistrantEmailInput,
 } from "./services/registration-emails";
 export {
@@ -245,6 +265,15 @@ export {
   type RegistrationEmailsLayerOptions,
 } from "./services/registration-emails-live";
 export { RegistrationMarketPolicy } from "./services/registration-market-policy";
+export {
+  RegistrationInvitationIssueAttempt,
+  RegistrationInvitationIssueAttemptFailure,
+  RegistrationInvitationIssueAttempts,
+  type RecordRegistrationInvitationIssuedInput,
+  type RegistrationInvitationIssueAttemptsService,
+  type StartRegistrationInvitationIssueAttemptInput,
+  type StartRegistrationInvitationIssueAttemptResult,
+} from "./services/registration-invitation-issue-attempts";
 export {
   decodeRegistrationQueryCursor,
   encodeRegistrationQueryCursor,
@@ -254,6 +283,8 @@ export {
   normalizeRegistrationQuerySort,
   parseRegistrationQueryCursor,
   RegistrationQueries,
+  type RegistrationFindByInvitationError,
+  RegistrationNotFoundByInvitationId,
   type RegistrationQueryCursor,
   type RegistrationQueryError,
   RegistrationQueryFailure,
@@ -268,15 +299,19 @@ export {
 } from "./services/registration-queries";
 export {
   type CreateAwaitingApprovalRegistrationInput,
+  type MarkRegistrationApprovalProcessingInput,
+  type MarkRegistrationApprovalProcessingResult,
   type MarkRegistrationApprovedInput,
+  type MarkRegistrationOnboardingStatusInput,
   type MarkRegistrationRejectedInput,
   RegistrationConcurrentModification,
   type RegistrationCreateError,
+  type RegistrationDecisionTransitionError,
   RegistrationDiscardConflict,
   type RegistrationDiscardError,
-  type RegistrationFindByInvitationError,
   RegistrationNotFound,
-  RegistrationNotFoundByInvitationId,
+  RegistrationOnboardingTransitionConflict,
+  type RegistrationOnboardingTransitionError,
   RegistrationPersistenceFailure,
   type RegistrationReadError,
   Registrations,

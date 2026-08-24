@@ -1,5 +1,6 @@
+import { registrationQueriesLayer } from "@repo/commerce-provider/registration";
 import {
-  RegistrationWorkflow,
+  resumeRegistrationInvitationForInvitation as resumeRegistrationInvitationForInvitationProgram,
   resumeRegistrationInvitationForRegistration as resumeRegistrationInvitationForRegistrationProgram,
 } from "@repo/registration";
 import type {
@@ -7,7 +8,7 @@ import type {
   RegistrationId,
 } from "@repo/registration/domain/identity";
 import type { RegistrationInvitationEvent } from "@repo/registration/services/registration-workflow";
-import { Effect, Layer, ManagedRuntime } from "effect";
+import { Layer, ManagedRuntime } from "effect";
 import { start } from "workflow/api";
 
 import {
@@ -16,7 +17,10 @@ import {
   resumeRegistrationInvitationHook,
 } from "@/workflows/register-company";
 
-import { registrationRepositoryLayer } from "./repository-runtime";
+import {
+  REGISTRATION_CONTAINER,
+  registrationRepositoryLayer,
+} from "./repository-runtime";
 import { isRegistrationWorkflowHookPayloadValidationError } from "./workflow-hook-validation";
 import { registrationWorkflowLayerFrom } from "./workflow-runtime-api";
 
@@ -34,24 +38,20 @@ export const registrationWorkflowLayer = registrationWorkflowLayerFrom({
     ]),
 });
 
-const registrationWorkflowRuntime = ManagedRuntime.make(
-  registrationWorkflowLayer
-);
-
 const registrationInvitationRuntime = ManagedRuntime.make(
-  Layer.merge(registrationWorkflowLayer, registrationRepositoryLayer)
+  Layer.mergeAll(
+    registrationWorkflowLayer,
+    registrationRepositoryLayer,
+    registrationQueriesLayer({ container: REGISTRATION_CONTAINER })
+  )
 );
 
 export const resumeRegistrationInvitation = async (input: {
   readonly event: RegistrationInvitationEvent;
   readonly invitationId: InvitationId;
 }): Promise<void> => {
-  await registrationWorkflowRuntime.runPromise(
-    RegistrationWorkflow.pipe(
-      Effect.flatMap((workflow) =>
-        workflow.resumeInvitation(input.invitationId, input.event)
-      )
-    )
+  await registrationInvitationRuntime.runPromise(
+    resumeRegistrationInvitationForInvitationProgram(input)
   );
 };
 

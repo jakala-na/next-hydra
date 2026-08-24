@@ -90,10 +90,7 @@ export interface CommerceAccountsMemoryInput {
 }
 
 export interface LinkRegistrantIdentityInput {
-  readonly registration: {
-    readonly id: string;
-    readonly commerceAccount: CommerceAccount;
-  };
+  readonly commerceAccount: CommerceAccount;
   readonly acceptedIdentity: AcceptedCommerceIdentity;
 }
 
@@ -223,7 +220,7 @@ export class CommerceAccounts extends Context.Service<
         Effect.gen(function* () {
           const current = yield* Ref.get(state);
 
-          const registrationId = input.registration.id;
+          const registrationId = input.commerceAccount.registrationId;
           const account = current.accountsByRegistration.get(registrationId);
 
           if (!account) {
@@ -239,7 +236,7 @@ export class CommerceAccounts extends Context.Service<
             ).set(registrationId, input.acceptedIdentity),
           }));
 
-          return account;
+          return input.commerceAccount;
         })
       );
 

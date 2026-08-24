@@ -15,6 +15,13 @@ import {
   CompanyMemberIntent,
   RegistrationApprovalIntent,
 } from "@repo/registration/domain/invitations";
+import type {
+  InvitationExpired} from "@repo/registration/services/invitations";
+import {
+  InvitationIssueOutcomeUnknown,
+} from "@repo/registration/services/invitations";
+import { RegistrationInvitationIssueAttempt } from "@repo/registration/services/registration-invitation-issue-attempts";
+import type { RegistrationInvitationIssueAttemptsService } from "@repo/registration/services/registration-invitation-issue-attempts";
 import { Effect, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 
@@ -102,6 +109,42 @@ const makeApi = (
   ...overrides,
 });
 
+const makeIssueAttempts = (): RegistrationInvitationIssueAttemptsService => {
+  const attempts = new Map<
+    RegistrationId,
+    RegistrationInvitationIssueAttempt
+  >();
+
+  return {
+    recordIssued: (input) =>
+      Effect.sync(() => {
+        const current = attempts.get(input.registrationId);
+        if (!current) {
+          throw new Error("Invitation issue attempt was not started");
+        }
+
+        const recorded = new RegistrationInvitationIssueAttempt({
+          excludedProviderInvitationIds: current.excludedProviderInvitationIds,
+          providerInvitationId: input.providerInvitationId,
+          registrationId: input.registrationId,
+        });
+        attempts.set(input.registrationId, recorded);
+        return recorded;
+      }),
+    start: (input) =>
+      Effect.sync(() => {
+        const existing = attempts.get(input.registrationId);
+        if (existing) {
+          return { attempt: existing, started: false };
+        }
+
+        const attempt = new RegistrationInvitationIssueAttempt(input);
+        attempts.set(input.registrationId, attempt);
+        return { attempt, started: true };
+      }),
+  };
+};
+
 describe(makeClerkInvitationCapabilities, () => {
   it("issues a Clerk invitation with namespaced domain correlation metadata", async () => {
     let createInput:
@@ -115,7 +158,8 @@ describe(makeClerkInvitationCapabilities, () => {
           return invitation();
         },
       }),
-      "https://shop.example.com/accept-invitation"
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
     );
 
     const issued = await Effect.runPromise(
@@ -127,6 +171,7 @@ describe(makeClerkInvitationCapabilities, () => {
 
     expect(createInput).toStrictEqual({
       emailAddress: "invitee@example.com",
+      expiresInDays: 30,
       publicMetadata: {
         nextHydra: {
           invitation: {
@@ -141,6 +186,9 @@ describe(makeClerkInvitationCapabilities, () => {
     });
     expect(issued.intent).toBe(intent);
     expect(issued.id).toBe(InvitationId.make("invitation-1"));
+    expect(issued.expiresAt).toStrictEqual(
+      new Date("2026-01-31T00:00:00.000Z")
+    );
   });
 
   it("issues a company-member invitation through Clerk", async () => {
@@ -157,7 +205,8 @@ describe(makeClerkInvitationCapabilities, () => {
           });
         },
       }),
-      "https://shop.example.com/accept-invitation"
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
     );
 
     const issued = await Effect.runPromise(
@@ -169,6 +218,7 @@ describe(makeClerkInvitationCapabilities, () => {
 
     expect(createInput).toStrictEqual({
       emailAddress: "invitee@example.com",
+      expiresInDays: 30,
       publicMetadata: companyMemberPublicMetadata,
       redirectUrl: "https://shop.example.com/accept-invitation",
     });
@@ -182,7 +232,8 @@ describe(makeClerkInvitationCapabilities, () => {
         getInvitationList: async () =>
           await Promise.resolve({ data: [invitation()] }),
       }),
-      "https://shop.example.com/accept-invitation"
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
     );
 
     const delivery = await Effect.runPromise(
@@ -190,6 +241,9 @@ describe(makeClerkInvitationCapabilities, () => {
     );
 
     expect(delivery.status).toBe("pending");
+    expect(delivery.expiresAt).toStrictEqual(
+      new Date("2026-01-31T00:00:00.000Z")
+    );
     expect(Redacted.value(delivery.inviteeEmail)).toBe("invitee@example.com");
   });
 
@@ -199,7 +253,8 @@ describe(makeClerkInvitationCapabilities, () => {
         getInvitationList: async () =>
           await Promise.resolve({ data: [invitation()] }),
       }),
-      "https://shop.example.com/accept-invitation"
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
     );
 
     const accepted = await Effect.runPromise(
@@ -215,20 +270,31 @@ describe(makeClerkInvitationCapabilities, () => {
     expect(accepted.intent).toBe(intent);
   });
 
-  it("reuses a matching Clerk invitation when approval is retried", async () => {
+  it("recovers only the exact Clerk invitation recorded by id", async () => {
     let createCalls = 0;
+    const queries: string[] = [];
     const capabilities = makeClerkInvitationCapabilities(
       makeApi({
         createInvitation: async () => {
           createCalls += 1;
           return await Promise.resolve(invitation());
         },
-        getInvitationList: async () =>
-          await Promise.resolve({ data: [invitation()] }),
+        getInvitationList: async ({ query }) => {
+          await Promise.resolve();
+          queries.push(query);
+          return { data: [invitation()] };
+        },
       }),
-      "https://shop.example.com/accept-invitation"
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
     );
 
+    const issued = await Effect.runPromise(
+      capabilities.registrationInvitations.issue({
+        intent,
+        issuedBy: registrationSystemActor,
+      })
+    );
     const recovered = await Effect.runPromise(
       capabilities.registrationInvitations.issue({
         intent,
@@ -236,28 +302,38 @@ describe(makeClerkInvitationCapabilities, () => {
       })
     );
 
-    expect(recovered.id).toBe(InvitationId.make("invitation-1"));
-    expect(createCalls).toBe(0);
+    expect(recovered.id).toBe(issued.id);
+    expect(createCalls).toBe(1);
+    expect(queries).toStrictEqual(["invitation-1"]);
   });
 
-  it("reuses a matching Clerk company-member invitation", async () => {
+  it("never recovers a Clerk company-member invitation by email", async () => {
     let createCalls = 0;
+    let listCalls = 0;
     const capabilities = makeClerkInvitationCapabilities(
       makeApi({
         createInvitation: async () => {
           createCalls += 1;
-          return await Promise.resolve(invitation());
+          return await Promise.resolve(
+            invitation("pending", {
+              id: "invitation-2",
+              publicMetadata: companyMemberPublicMetadata,
+            })
+          );
         },
-        getInvitationList: async () =>
-          await Promise.resolve({
+        getInvitationList: async () => {
+          listCalls += 1;
+          return await Promise.resolve({
             data: [
               invitation("pending", {
                 publicMetadata: companyMemberPublicMetadata,
               }),
             ],
-          }),
+          });
+        },
       }),
-      "https://shop.example.com/accept-invitation"
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
     );
 
     const recovered = await Effect.runPromise(
@@ -267,8 +343,42 @@ describe(makeClerkInvitationCapabilities, () => {
       })
     );
 
-    expect(recovered.id).toBe(InvitationId.make("invitation-1"));
-    expect(createCalls).toBe(0);
+    expect(recovered.id).toBe(InvitationId.make("invitation-2"));
+    expect(createCalls).toBe(1);
+    expect(listCalls).toBe(0);
+  });
+
+  it("reports outcome unknown without searching by email after a lost response", async () => {
+    let listCalls = 0;
+    const capabilities = makeClerkInvitationCapabilities(
+      makeApi({
+        createInvitation: async () => {
+          await Promise.resolve();
+          throw new Error("response lost");
+        },
+        getInvitationList: async () => {
+          await Promise.resolve();
+          listCalls += 1;
+          return { data: [invitation()] };
+        },
+      }),
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
+    );
+
+    await Effect.runPromise(
+      capabilities.registrationInvitations
+        .issue({ intent, issuedBy: registrationSystemActor })
+        .pipe(Effect.flip)
+    );
+    const retryFailure = await Effect.runPromise(
+      capabilities.registrationInvitations
+        .issue({ intent, issuedBy: registrationSystemActor })
+        .pipe(Effect.flip)
+    );
+
+    expect(retryFailure).toBeInstanceOf(InvitationIssueOutcomeUnknown);
+    expect(listCalls).toBe(0);
   });
 
   it("does not fabricate an acceptance link when Clerk omits its ticket URL", async () => {
@@ -279,7 +389,8 @@ describe(makeClerkInvitationCapabilities, () => {
           return await Promise.resolve(withoutUrl);
         },
       }),
-      "https://shop.example.com/accept-invitation"
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
     );
 
     const issued = await Effect.runPromise(
@@ -304,7 +415,8 @@ describe(makeClerkInvitationCapabilities, () => {
           };
         },
       }),
-      "https://shop.example.com/accept-invitation"
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
     );
 
     const failure = await Effect.runPromise(
@@ -320,6 +432,33 @@ describe(makeClerkInvitationCapabilities, () => {
 
     expect(failure._tag).toBe("InvitationConflict");
     expect(requestedStatuses).toStrictEqual([undefined, "revoked"]);
+  });
+
+  it("returns a typed expiration error for an expired Clerk invitation", async () => {
+    const capabilities = makeClerkInvitationCapabilities(
+      makeApi({
+        getInvitationList: async () =>
+          await Promise.resolve({ data: [invitation("expired")] }),
+      }),
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
+    );
+
+    const failure = await Effect.runPromise(
+      capabilities.registrationInvitations
+        .accept({
+          acceptedIdentity,
+          intent,
+          invitationId: InvitationId.make("invitation-1"),
+          issuedBy: registrationSystemActor,
+        })
+        .pipe(Effect.flip)
+    );
+
+    expect(failure).toMatchObject({
+      _tag: "InvitationExpired",
+      expiredAt: new Date("2026-01-31T00:00:00.000Z"),
+    } satisfies Partial<InvitationExpired>);
   });
 
   it("revokes once and lets the application publish the workflow event", async () => {
@@ -340,7 +479,8 @@ describe(makeClerkInvitationCapabilities, () => {
           return await Promise.resolve(invitation(status));
         },
       }),
-      "https://shop.example.com/accept-invitation"
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
     );
     const revoke = async () =>
       await Effect.runPromise(
@@ -360,8 +500,5 @@ describe(makeClerkInvitationCapabilities, () => {
       "RevokedInvitation",
     ]);
     expect(revokeCalls).toBe(1);
-    expect(capabilities.registrationInvitationRevocationEvents.source).toBe(
-      "application_command"
-    );
   });
 });

@@ -3,6 +3,7 @@ import { EmailProvider } from "@repo/email";
 import RegistrationApprovedTemplate from "@repo/email/templates/registration-approved";
 import RegistrationAwaitingApprovalTemplate from "@repo/email/templates/registration-awaiting-approval";
 import RegistrationAwaitingApproverTemplate from "@repo/email/templates/registration-awaiting-approver";
+import RegistrationInvitationExpiredTemplate from "@repo/email/templates/registration-invitation-expired";
 import RegistrationRejectedTemplate from "@repo/email/templates/registration-rejected";
 import { Effect, Layer, Redacted } from "effect";
 
@@ -104,6 +105,22 @@ export const layerRegistrationEmails = ({
             subject: `${getCompanyName(registration)} registration received`,
             to: getRegistrationEmail(registration),
           }),
+        sendInvitationExpiredToRegistrant: ({ registration }) =>
+          sendRegistrationEmail(
+            emailProvider,
+            "registrant_invitation_expired",
+            {
+              react: (
+                <RegistrationInvitationExpiredTemplate
+                  companyName={getCompanyName(registration)}
+                  contactName={getContactName(registration)}
+                  registrationUrl={new URL("/register", webUrl).toString()}
+                />
+              ),
+              subject: `${getCompanyName(registration)} invitation expired`,
+              to: getRegistrationEmail(registration),
+            }
+          ),
         sendRejectedToRegistrant: ({ registration }) =>
           sendRegistrationEmail(emailProvider, "registrant_rejected", {
             react: (

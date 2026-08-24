@@ -1,4 +1,5 @@
 import { versionedKeyValueStoreLayer } from "@repo/commerce-provider/versioned-store";
+import { RegistrationInvitationIssueAttempts } from "@repo/registration/services/registration-invitation-issue-attempts";
 import { Registrations } from "@repo/registration/services/registrations";
 import { Layer } from "effect";
 
@@ -9,6 +10,7 @@ const registrationStorageLayer = versionedKeyValueStoreLayer({
   container: REGISTRATION_CONTAINER,
 });
 
-export const registrationRepositoryLayer = Registrations.layerStorage.pipe(
-  Layer.provide(registrationStorageLayer)
-);
+export const registrationRepositoryLayer = Layer.merge(
+  Registrations.layerStorage,
+  RegistrationInvitationIssueAttempts.layerStorage
+).pipe(Layer.provide(registrationStorageLayer));

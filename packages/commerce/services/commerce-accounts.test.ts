@@ -38,10 +38,7 @@ describe(CommerceAccounts, () => {
         yield* accounts.createFromRegistration(registration);
       yield* accounts.linkRegistrantIdentity({
         acceptedIdentity,
-        registration: {
-          commerceAccount,
-          id: registration.id,
-        },
+        commerceAccount,
       });
 
       const customerId = yield* accounts.getCustomerIdByAuthUserId(

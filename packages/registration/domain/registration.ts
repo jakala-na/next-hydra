@@ -1,10 +1,10 @@
-import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import { StoreKey } from "@repo/commerce/store";
-import { Schema } from "effect";
+import { Redacted, Schema } from "effect";
 
 import { ApprovedDecision, RejectedDecision } from "./approval";
 import {
   AddressLine,
+  AuthUserId,
   City,
   CompanyName,
   CountryCode,
@@ -77,6 +77,26 @@ export const RegistrationStatus = Schema.Literals([
 ]);
 export type RegistrationStatus = typeof RegistrationStatus.Type;
 
+export const RegistrationOnboardingStatus = Schema.Literals([
+  "invited",
+  "accepted",
+  "expired",
+  "revoked",
+]);
+export type RegistrationOnboardingStatus =
+  typeof RegistrationOnboardingStatus.Type;
+
+export const RegistrationOnboarding = Schema.Union([
+  Schema.Struct({ status: Schema.Literal("invited") }),
+  Schema.Struct({
+    acceptedAuthUserId: AuthUserId,
+    status: Schema.Literal("accepted"),
+  }),
+  Schema.Struct({ status: Schema.Literal("expired") }),
+  Schema.Struct({ status: Schema.Literal("revoked") }),
+]);
+export type RegistrationOnboarding = typeof RegistrationOnboarding.Type;
+
 export class AwaitingApprovalRegistration extends Schema.TaggedClass<AwaitingApprovalRegistration>()(
   "AwaitingApprovalRegistration",
   {
@@ -105,17 +125,27 @@ export class ApprovalProcessingRegistration extends Schema.TaggedClass<ApprovalP
 export class ApprovedRegistration extends Schema.TaggedClass<ApprovedRegistration>()(
   "ApprovedRegistration",
   {
-    commerceAccount: CommerceAccount,
     createdAt: Schema.Date,
     decision: ApprovedDecision,
     details: CompanyRegistrationDetails,
     id: RegistrationId,
     invitationId: InvitationId,
+    onboarding: RegistrationOnboarding,
     status: Schema.Literal(RegistrationStatus.literals[2]),
     storeKey: StoreKey,
     updatedAt: Schema.Date,
   }
-) {}
+) {
+  get acceptedAuthUserId(): AuthUserId | undefined {
+    return this.onboarding.status === "accepted"
+      ? this.onboarding.acceptedAuthUserId
+      : undefined;
+  }
+
+  get onboardingStatus(): RegistrationOnboardingStatus {
+    return this.onboarding.status;
+  }
+}
 
 export class RejectedRegistration extends Schema.TaggedClass<RejectedRegistration>()(
   "RejectedRegistration",
@@ -137,3 +167,17 @@ export const Registration = Schema.Union([
   RejectedRegistration,
 ]);
 export type Registration = typeof Registration.Type;
+
+const normalizedEmail = (email: RedactedEmail) =>
+  Redacted.value(email).trim().toLowerCase();
+
+export const registrationBlocksEmail = (
+  registration: Registration,
+  email: RedactedEmail
+) =>
+  (registration.status === "awaiting_approval" ||
+    registration.status === "approval_processing" ||
+    (registration._tag === "ApprovedRegistration" &&
+      (registration.onboardingStatus === "invited" ||
+        registration.onboardingStatus === "accepted"))) &&
+  normalizedEmail(registration.details.email) === normalizedEmail(email);

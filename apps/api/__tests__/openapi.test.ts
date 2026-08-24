@@ -48,6 +48,11 @@ const documentedOperations = [
   },
   {
     method: "post",
+    operationId: "registrations.revokeInvitation",
+    path: "/registrations/{registrationId}/invitation/revoke",
+  },
+  {
+    method: "post",
     operationId: "registrations.reject",
     path: "/registrations/{registrationId}/reject",
   },

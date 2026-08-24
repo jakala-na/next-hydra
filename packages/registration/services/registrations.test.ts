@@ -1,12 +1,11 @@
 import { describe, expect, it } from "@effect/vitest";
-import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import { StoreKey } from "@repo/commerce/store";
 import {
   StoreConflict,
   StoreError,
   VersionedKeyValueStore,
 } from "@repo/versioned-store";
-import { Effect, Exit, Layer, Redacted } from "effect";
+import { Effect, Exit, Layer, Redacted, Schema } from "effect";
 import { vi } from "vitest";
 
 import { RegistrationReviewerActor } from "../domain/actors";
@@ -15,8 +14,6 @@ import {
   AddressLine,
   AuthUserId,
   City,
-  CommerceBusinessUnitId,
-  CommerceCustomerId,
   CompanyName,
   CountryCode,
   Email,
@@ -29,12 +26,14 @@ import {
   VatId,
 } from "../domain/identity";
 import {
+  ApprovedRegistration,
   CompanyAddress,
   CompanyRegistrationDetails,
 } from "../domain/registration";
 import {
   RegistrationConcurrentModification,
   RegistrationNotFound,
+  RegistrationOnboardingTransitionConflict,
   RegistrationPersistenceFailure,
   Registrations,
   RegistrationTransitionConflict,
@@ -92,13 +91,6 @@ const makeRejectedDecision = () =>
     actor: reviewer,
     decidedAt: new Date(1),
     decision: "rejected",
-  });
-
-const makeCommerceAccount = (registrationId: RegistrationId) =>
-  new CommerceAccount({
-    businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-    customerId: CommerceCustomerId.make("customer-1"),
-    registrationId,
   });
 
 const makeInvitationId = (_registrationId: RegistrationId) =>
@@ -305,7 +297,6 @@ describe("Registrations over versioned storage", () => {
       });
 
       const approved = yield* registrations.markApproved({
-        commerceAccount: makeCommerceAccount(created.id),
         decision: makeDecision(),
         invitationId: makeInvitationId(created.id),
         registrationId: created.id,
@@ -325,16 +316,139 @@ describe("Registrations over versioned storage", () => {
         storeKey,
       });
 
-      const processing = yield* registrations.markApprovalProcessing({
+      const result = yield* registrations.markApprovalProcessing({
         decision: "approved",
         registrationId: created.id,
       });
+      const processing = result.registration;
 
+      expect(result.transitioned).toBeTruthy();
       expect(processing._tag).toBe("ApprovalProcessingRegistration");
       expect(processing.status).toBe("approval_processing");
       if (processing._tag === "ApprovalProcessingRegistration") {
         expect(processing.requestedDecision).toBe("approved");
       }
+    }).pipe(Effect.provide(Registrations.layerMemory))
+  );
+
+  it.effect("keeps Registration onboarding outcomes terminal", () =>
+    Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
+      const approved = yield* registrations.markApproved({
+        decision: makeDecision(),
+        invitationId: makeInvitationId(created.id),
+        registrationId: created.id,
+      });
+
+      const expired = yield* registrations.markOnboardingStatus({
+        registrationId: approved.id,
+        status: "expired",
+      });
+      const repeated = yield* registrations.markOnboardingStatus({
+        registrationId: approved.id,
+        status: "expired",
+      });
+      const accepted = yield* registrations
+        .markOnboardingStatus({
+          acceptedAuthUserId: AuthUserId.make("auth-user-1"),
+          registrationId: approved.id,
+          status: "accepted",
+        })
+        .pipe(Effect.flip);
+
+      expect(expired.onboardingStatus).toBe("expired");
+      expect(repeated.onboardingStatus).toBe("expired");
+      expect(accepted).toBeInstanceOf(RegistrationOnboardingTransitionConflict);
+    }).pipe(Effect.provide(Registrations.layerMemory))
+  );
+
+  it.effect("does not let an accepted Registration change auth users", () =>
+    Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
+      const approved = yield* registrations.markApproved({
+        decision: makeDecision(),
+        invitationId: makeInvitationId(created.id),
+        registrationId: created.id,
+      });
+      const acceptedAuthUserId = AuthUserId.make("auth-user-1");
+
+      const accepted = yield* registrations.markOnboardingStatus({
+        acceptedAuthUserId,
+        registrationId: approved.id,
+        status: "accepted",
+      });
+      const repeated = yield* registrations.markOnboardingStatus({
+        acceptedAuthUserId,
+        registrationId: approved.id,
+        status: "accepted",
+      });
+      const conflicting = yield* registrations
+        .markOnboardingStatus({
+          acceptedAuthUserId: AuthUserId.make("auth-user-2"),
+          registrationId: approved.id,
+          status: "accepted",
+        })
+        .pipe(Effect.flip);
+
+      expect(accepted.acceptedAuthUserId).toBe(acceptedAuthUserId);
+      expect(repeated.acceptedAuthUserId).toBe(acceptedAuthUserId);
+      expect(conflicting).toBeInstanceOf(
+        RegistrationOnboardingTransitionConflict
+      );
+    }).pipe(Effect.provide(Registrations.layerMemory))
+  );
+
+  it.effect("rejects an accepted Registration without an auth user", () =>
+    Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
+      const approved = yield* registrations.markApproved({
+        decision: makeDecision(),
+        invitationId: makeInvitationId(created.id),
+        registrationId: created.id,
+      });
+      const encoded =
+        yield* Schema.encodeUnknownEffect(ApprovedRegistration)(approved);
+      const decoded = yield* Schema.decodeUnknownEffect(ApprovedRegistration)({
+        ...encoded,
+        onboarding: { status: "accepted" },
+      }).pipe(Effect.exit);
+
+      expect(Exit.isFailure(decoded)).toBeTruthy();
+    }).pipe(Effect.provide(Registrations.layerMemory))
+  );
+
+  it.effect("rejects approved persisted data without onboarding state", () =>
+    Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+      });
+      const approved = yield* registrations.markApproved({
+        decision: makeDecision(),
+        invitationId: makeInvitationId(created.id),
+        registrationId: created.id,
+      });
+      const encoded =
+        yield* Schema.encodeUnknownEffect(ApprovedRegistration)(approved);
+      const { onboarding: _onboarding, ...legacyApproved } = encoded;
+      const decoded = yield* Schema.decodeUnknownEffect(ApprovedRegistration)(
+        legacyApproved
+      ).pipe(Effect.exit);
+
+      expect(Exit.isFailure(decoded)).toBeTruthy();
     }).pipe(Effect.provide(Registrations.layerMemory))
   );
 
@@ -351,36 +465,12 @@ describe("Registrations over versioned storage", () => {
       });
 
       const approved = yield* registrations.markApproved({
-        commerceAccount: makeCommerceAccount(created.id),
         decision: makeDecision(),
         invitationId: makeInvitationId(created.id),
         registrationId: created.id,
       });
 
       expect(approved._tag).toBe("ApprovedRegistration");
-    }).pipe(Effect.provide(Registrations.layerMemory))
-  );
-
-  it.effect("finds approved registrations by invitation id", () =>
-    Effect.gen(function* () {
-      const registrations = yield* Registrations;
-      const created = yield* registrations.createAwaitingApproval({
-        details,
-        storeKey,
-      });
-      const invitationId = makeInvitationId(created.id);
-
-      yield* registrations.markApproved({
-        commerceAccount: makeCommerceAccount(created.id),
-        decision: makeDecision(),
-        invitationId,
-        registrationId: created.id,
-      });
-
-      const found = yield* registrations.findByInvitationId(invitationId);
-
-      expect(found.id).toBe(created.id);
-      expect(found.invitationId).toBe(invitationId);
     }).pipe(Effect.provide(Registrations.layerMemory))
   );
 
@@ -410,7 +500,6 @@ describe("Registrations over versioned storage", () => {
         storeKey,
       });
       yield* registrations.markApproved({
-        commerceAccount: makeCommerceAccount(created.id),
         decision: makeDecision(),
         invitationId: makeInvitationId(created.id),
         registrationId: created.id,
@@ -467,7 +556,6 @@ describe("Registrations over versioned storage", () => {
 
       const exit = yield* registrations
         .markApproved({
-          commerceAccount: makeCommerceAccount(created.id),
           decision: makeDecision(),
           invitationId: makeInvitationId(created.id),
           registrationId: created.id,
@@ -525,7 +613,6 @@ describe("Registrations over versioned storage", () => {
 
         const exit = yield* registrations
           .markApproved({
-            commerceAccount: makeCommerceAccount(created.id),
             decision: makeDecision(),
             invitationId: makeInvitationId(created.id),
             registrationId: created.id,
