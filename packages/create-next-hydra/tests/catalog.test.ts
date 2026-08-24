@@ -19,8 +19,8 @@ import {
 import { NEXT_HYDRA_SELECTION_SCHEMA_URL } from "../src/composition/schema.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
-const CONTENTSTACK_MANAGED_FILE_COUNT = 7;
-const DRUPAL_MANAGED_FILE_COUNT = 11;
+const CONTENTSTACK_MANAGED_FILE_COUNT = 10;
+const DRUPAL_MANAGED_FILE_COUNT = 14;
 const DRUPAL_PNPM_PATCH_COUNT = 3;
 
 describe("Next Hydra source registry", () => {
@@ -120,9 +120,11 @@ describe("Next Hydra source registry", () => {
     ]);
     expect(clerk.managedTargets).toEqual(
       expect.arrayContaining([
+        "apps/admin/app/sign-in/page.tsx",
+        "apps/admin/app/sign-out/page.tsx",
         "apps/api/app/api/webhooks/clerk/route.ts",
         "apps/web/app/accept-invitation/[[...accept-invitation]]/page.tsx",
-        "apps/web/app/sign-in/[[...sign-in]]/page.tsx",
+        "apps/web/app/sign-in/page.tsx",
         "apps/web/app/sign-out/page.tsx",
       ])
     );
@@ -140,6 +142,12 @@ describe("Next Hydra source registry", () => {
     ).toBeFalsy();
     expect(clerk.packageRequirements).toEqual(
       expect.arrayContaining([
+        {
+          cwd: "apps/admin",
+          name: "@repo/auth",
+          section: "dependencies",
+          specifier: "workspace:@repo/auth-clerk@*",
+        },
         {
           cwd: "apps/api",
           name: "@repo/auth",
@@ -191,6 +199,19 @@ describe("Next Hydra source registry", () => {
     expect(drupal.managedTargets).toContain(
       "apps/web/app/api/canvas/components/route.ts"
     );
+    expect(drupal.managedTargets).toEqual(
+      expect.arrayContaining([
+        "apps/admin/app/api/auth/callback/route.ts",
+        "apps/admin/app/api/auth/signout/route.ts",
+        "apps/admin/app/sign-in/route.ts",
+      ])
+    );
+    expect(drupal.packageRequirements).toContainEqual({
+      cwd: "apps/admin",
+      name: "@repo/auth",
+      section: "dependencies",
+      specifier: "workspace:@repo/auth-workos@*",
+    });
     expect(contentstack.managedTargets).not.toContain(
       "apps/web/app/api/canvas/components/route.ts"
     );
@@ -206,7 +227,7 @@ describe("Next Hydra source registry", () => {
       },
     ]);
     expect(drupal.instructions).toStrictEqual([
-      "Configure the WorkOS environment variables described by packages/auth-workos before starting the applications.",
+      "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project.",
       "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
       "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
     ]);

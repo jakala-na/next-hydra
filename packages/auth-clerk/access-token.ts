@@ -61,6 +61,19 @@ export interface ClerkAccessTokenVerifierOptions {
   readonly requiredPermissions?: readonly string[];
 }
 
+export interface AccessTokenVerifierLayerOptions {
+  readonly configPrefix?: string;
+  readonly requiredPermissions?: readonly string[];
+}
+
+const configKey = (prefix: string | undefined, key: string) => {
+  if (prefix === undefined || prefix === "") {
+    return key;
+  }
+
+  return `${prefix}_${key.replace(/^NEXT_PUBLIC_/u, "")}`;
+};
+
 const invalidToken = () =>
   new AccessTokenInvalid({
     message: "Invalid Clerk access token",
@@ -168,23 +181,24 @@ const parseAuthorizedParties = (value: string) =>
   value.split(",").map((party) => party.trim());
 
 export const accessTokenVerifierLayer = ({
+  configPrefix,
   requiredPermissions = [],
-}: {
-  readonly requiredPermissions?: readonly string[];
-} = {}) =>
+}: AccessTokenVerifierLayerOptions = {}) =>
   Layer.effect(
     AccessTokenVerifier,
     Effect.gen(function* () {
       const publishableKey = yield* Config.string(
-        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"
+        configKey(configPrefix, "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY")
       );
-      const secretKey = yield* Config.string("CLERK_SECRET_KEY");
-      const jwtKey = yield* Config.option(Config.string("CLERK_JWT_KEY")).pipe(
-        Effect.map(Option.getOrUndefined)
+      const secretKey = yield* Config.string(
+        configKey(configPrefix, "CLERK_SECRET_KEY")
       );
+      const jwtKey = yield* Config.option(
+        Config.string(configKey(configPrefix, "CLERK_JWT_KEY"))
+      ).pipe(Effect.map(Option.getOrUndefined));
       const authorizedParties = yield* Config.schema(
         Schema.NonEmptyString,
-        "CLERK_AUTHORIZED_PARTIES"
+        configKey(configPrefix, "CLERK_AUTHORIZED_PARTIES")
       ).pipe(Effect.map(parseAuthorizedParties));
       const clerk =
         jwtKey === undefined

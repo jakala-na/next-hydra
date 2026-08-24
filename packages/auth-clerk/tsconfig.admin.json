@@ -1,0 +1,23 @@
+{
+  "extends": "@repo/typescript-config/effect-nextjs.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["../../apps/admin/*"],
+      "@repo/auth": ["./"],
+      "@repo/auth/*": ["./*"],
+      "@repo/*": ["../*"]
+    }
+  },
+  "include": [
+    "../../apps/admin/next-env.d.ts",
+    "../../apps/admin/next.config.ts",
+    "../../apps/admin/**/*.ts",
+    "../../apps/admin/**/*.tsx",
+    "registry/apps/admin/**/*.tsx"
+  ],
+  "exclude": [
+    "../../apps/admin/.next",
+    "../../apps/admin/app/api/auth",
+    "../../apps/admin/node_modules"
+  ]
+}

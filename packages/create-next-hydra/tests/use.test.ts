@@ -15,6 +15,7 @@ import {
   installCompositionDependencies,
   useComposition,
 } from "../src/composition/use.js";
+import { pathExists } from "../src/fs-utils.js";
 import { CommandExecutionError } from "../src/git.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
@@ -72,10 +73,15 @@ async function maintainerFixture(): Promise<string> {
       .split("\n")
       .filter(Boolean)
       .map(async (relative) => {
+        const source = path.join(repoRoot, relative);
+        if (!(await pathExists(source))) {
+          return;
+        }
+
         await mkdir(path.dirname(path.join(fixture, relative)), {
           recursive: true,
         });
-        await cp(path.join(repoRoot, relative), path.join(fixture, relative));
+        await cp(source, path.join(fixture, relative));
       })
   );
   await cp(
@@ -83,15 +89,19 @@ async function maintainerFixture(): Promise<string> {
     path.join(fixture, "package.json")
   );
   await Promise.all(
-    ["apps/api", "apps/cli", "apps/web", "packages/feature-flags"].map(
-      async (relative) => {
-        await mkdir(path.join(fixture, relative), { recursive: true });
-        await writeFile(
-          path.join(fixture, relative, "package.json"),
-          `${JSON.stringify({ dependencies: {}, name: path.basename(relative) }, null, 2)}\n`
-        );
-      }
-    )
+    [
+      "apps/admin",
+      "apps/api",
+      "apps/cli",
+      "apps/web",
+      "packages/feature-flags",
+    ].map(async (relative) => {
+      await mkdir(path.join(fixture, relative), { recursive: true });
+      await writeFile(
+        path.join(fixture, relative, "package.json"),
+        `${JSON.stringify({ dependencies: {}, name: path.basename(relative) }, null, 2)}\n`
+      );
+    })
   );
   return fixture;
 }

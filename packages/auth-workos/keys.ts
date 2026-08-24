@@ -32,3 +32,16 @@ export const webhookKeys = () =>
       WORKOS_WEBHOOK_SECRET: z.string().min(1),
     },
   });
+
+export const adminKeys = () =>
+  createEnv({
+    client: {},
+    runtimeEnv: {
+      ADMIN_WORKOS_API_KEY: process.env.ADMIN_WORKOS_API_KEY,
+      ADMIN_WORKOS_CLIENT_ID: process.env.ADMIN_WORKOS_CLIENT_ID,
+    },
+    server: {
+      ADMIN_WORKOS_API_KEY: z.string().startsWith("sk_"),
+      ADMIN_WORKOS_CLIENT_ID: z.string().startsWith("client_"),
+    },
+  });

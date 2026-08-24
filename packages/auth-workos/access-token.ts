@@ -59,6 +59,14 @@ export interface AccessTokenVerifierOptions {
   readonly verifyAccessToken: AccessTokenJwtVerifier;
 }
 
+export interface AccessTokenVerifierLayerOptions {
+  readonly configPrefix?: string;
+  readonly requiredPermissions?: readonly string[];
+}
+
+const configKey = (prefix: string | undefined, key: string) =>
+  prefix === undefined || prefix === "" ? key : `${prefix}_${key}`;
+
 // oxlint-disable-next-line anti-slop/no-unknown-parameters -- This function is the Schema decoding boundary for the external verifier result.
 const decodeVerifiedPayload = (payload: unknown) =>
   Schema.decodeUnknownEffect(WorkosAccessTokenPayload)(payload).pipe(
@@ -228,19 +236,20 @@ export const accessTokenVerifierLayerFromJwtVerifier = (
 ) => Layer.succeed(AccessTokenVerifier, makeWorkosAccessTokenVerifier(options));
 
 export const accessTokenVerifierLayer = ({
+  configPrefix,
   requiredPermissions = [],
-}: {
-  readonly requiredPermissions?: readonly string[];
-} = {}) =>
+}: AccessTokenVerifierLayerOptions = {}) =>
   Layer.effect(
     AccessTokenVerifier,
     Effect.gen(function* () {
-      const clientId = yield* Config.string("WORKOS_CLIENT_ID");
+      const clientId = yield* Config.string(
+        configKey(configPrefix, "WORKOS_CLIENT_ID")
+      );
       const apiHostname = yield* Config.option(
-        Config.string("WORKOS_API_HOSTNAME")
+        Config.string(configKey(configPrefix, "WORKOS_API_HOSTNAME"))
       ).pipe(Effect.map(Option.getOrUndefined));
       const expectedIssuer = yield* Config.option(
-        Config.string("WORKOS_ACCESS_TOKEN_ISSUER")
+        Config.string(configKey(configPrefix, "WORKOS_ACCESS_TOKEN_ISSUER"))
       ).pipe(
         Effect.map(
           Option.getOrElse(

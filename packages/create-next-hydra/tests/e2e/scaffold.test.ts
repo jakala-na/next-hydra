@@ -25,7 +25,7 @@ const INCOMPATIBLE_DRUPAL_ADD_ON = /requires next-hydra\/cms\/drupal/;
 const PARTIAL_PROJECT_PRESERVED =
   /partial project has been left exactly as it stands/;
 const WORKOS_SETUP_INSTRUCTION_PREFIX =
-  "Configure the WorkOS environment variables described by packages/auth-workos";
+  "Configure separate WorkOS projects for the customer web app and admin app";
 let testRoot: string;
 let sourceRepository: string;
 
@@ -157,18 +157,30 @@ const fakeRootInstall = async (cwd: string) => {
   await writeFile(path.join(cwd, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
 };
 
-async function installWebWorkspace(cwd: string): Promise<void> {
-  await run("pnpm", ["install", "--filter", "web..."], { cwd });
-}
-
 const installApplicationWorkspaces = async (cwd: string): Promise<void> => {
-  await run("pnpm", ["install", "--filter", "web...", "--filter", "api..."], {
-    cwd,
-  });
+  await run(
+    "pnpm",
+    [
+      "install",
+      "--filter",
+      "admin...",
+      "--filter",
+      "web...",
+      "--filter",
+      "api...",
+    ],
+    { cwd }
+  );
 };
 
 const typecheckEnvironment = () => ({
   ...process.env,
+  ADMIN_CLERK_AUTHORIZED_PARTIES: "http://localhost:3005",
+  ADMIN_CLERK_PUBLISHABLE_KEY: "pk_test_admin_publishable",
+  ADMIN_CLERK_SECRET_KEY: "sk_test_admin_secret",
+  ADMIN_URL: "http://localhost:3005",
+  ADMIN_WORKOS_API_KEY: "sk_test_admin",
+  ADMIN_WORKOS_CLIENT_ID: "client_test_admin",
   CLERK_AUTHORIZED_PARTIES: "http://localhost:3001",
   CLERK_SECRET_KEY: "sk_test_secret",
   CLERK_WEBHOOK_SECRET: "whsec_test",
@@ -202,6 +214,7 @@ const typecheckEnvironment = () => ({
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "test-cookie-password-at-least-32-characters",
+  WORKOS_WEBHOOK_SECRET: "whsec_test",
 });
 
 const runTypecheck = async (
@@ -222,7 +235,9 @@ const runTypecheck = async (
     };
     throw new Error(
       [
-        `${description} failed with code ${failure.code ?? "unknown"}${failure.signal ? ` and signal ${failure.signal}` : ""}`,
+        `${description} failed with code ${failure.code ?? "unknown"}${
+          failure.signal ? ` and signal ${failure.signal}` : ""
+        }`,
         failure.stdout?.trim(),
         failure.stderr?.trim(),
       ]
@@ -233,14 +248,18 @@ const runTypecheck = async (
   }
 };
 
-const typecheckWeb = async (cwd: string) => {
-  await runTypecheck(cwd, ["--filter", "web", "typecheck"], "web typecheck");
-};
-
 const typecheckApplications = async (cwd: string) => {
   await runTypecheck(
     cwd,
-    ["exec", "turbo", "run", "typecheck", "--filter=web", "--filter=api"],
+    [
+      "exec",
+      "turbo",
+      "run",
+      "typecheck",
+      "--filter=admin",
+      "--filter=web",
+      "--filter=api",
+    ],
     "application typecheck"
   );
 };
@@ -327,9 +346,9 @@ describe("scaffold composition", () => {
     async () => {
       const contentstackTarget = path.join(testRoot, "contentstack-project");
       await scaffoldProject(options(contentstackTarget, "contentstack"), {
-        install: installWebWorkspace,
+        install: installApplicationWorkspaces,
       });
-      await typecheckWeb(contentstackTarget);
+      await typecheckApplications(contentstackTarget);
 
       await expect(
         pathExists(
@@ -425,9 +444,9 @@ describe("scaffold composition", () => {
 
       const drupalTarget = path.join(testRoot, "drupal-project");
       await scaffoldProject(options(drupalTarget, "drupal"), {
-        install: installWebWorkspace,
+        install: installApplicationWorkspaces,
       });
-      await typecheckWeb(drupalTarget);
+      await typecheckApplications(drupalTarget);
       await expect(
         pathExists(path.join(drupalTarget, "packages/cms-drupal/package.json"))
       ).resolves.toBeTruthy();
@@ -505,6 +524,8 @@ describe("scaffold composition", () => {
         Promise.all([
           pathExists(path.join(target, "packages/auth-clerk/package.json")),
           pathExists(path.join(target, "packages/auth-workos")),
+          pathExists(path.join(target, "apps/admin/app/sign-in/page.tsx")),
+          pathExists(path.join(target, "apps/admin/app/sign-out/page.tsx")),
           pathExists(
             path.join(target, "apps/api/app/api/webhooks/clerk/route.ts")
           ),
@@ -515,8 +536,11 @@ describe("scaffold composition", () => {
             )
           ),
         ])
-      ).resolves.toStrictEqual([true, false, true, true]);
+      ).resolves.toStrictEqual([true, false, true, true, true, true]);
 
+      await expect(
+        readFile(path.join(target, "apps/admin/package.json"), "utf-8")
+      ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');
       await expect(
         readFile(path.join(target, "apps/web/package.json"), "utf-8")
       ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');

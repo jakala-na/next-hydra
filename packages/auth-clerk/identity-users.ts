@@ -1,5 +1,5 @@
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
-import { clerkClient } from "@clerk/nextjs/server";
+import { clerkClient, createClerkClient } from "@clerk/nextjs/server";
 import { hasTransientTransportCode } from "@repo/errors/transport";
 import { Email } from "@repo/registration/domain/identity";
 import type {
@@ -14,7 +14,7 @@ import {
   normalizedIdentityEmail,
 } from "@repo/registration/services/identity-users";
 import type { IdentityProviderFailureReason } from "@repo/registration/services/identity-users";
-import { Effect, Layer, Redacted, Schema } from "effect";
+import { Config, Effect, Layer, Redacted, Schema } from "effect";
 
 const ClerkEmailAddress = Schema.Struct({
   emailAddress: Schema.String,
@@ -168,3 +168,32 @@ export const identityUsersLayer = Layer.succeed(
   IdentityUsers,
   makeClerkIdentityUsers(clerkIdentityUsersApi)
 );
+
+const configKey = (prefix: string | undefined, key: string) =>
+  prefix === undefined || prefix === "" ? key : `${prefix}_${key}`;
+
+export const identityUsersLayerFromConfig = ({
+  configPrefix,
+}: {
+  readonly configPrefix?: string;
+} = {}) =>
+  Layer.effect(
+    IdentityUsers,
+    Effect.gen(function* identityUsersLayerFromConfigEffect() {
+      const secretKey = yield* Config.redacted(
+        configKey(configPrefix, "CLERK_SECRET_KEY")
+      );
+      const client = createClerkClient({
+        secretKey: Redacted.value(secretKey),
+      });
+
+      return makeClerkIdentityUsers({
+        getUser: async (authUserId) => await client.users.getUser(authUserId),
+        getUserList: async (input) =>
+          await client.users.getUserList({
+            emailAddress: [...input.emailAddress],
+            limit: input.limit,
+          }),
+      });
+    })
+  );

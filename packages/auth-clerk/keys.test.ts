@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { keys, webhookKeys } from "./keys";
+import { adminKeys, keys, webhookKeys } from "./keys";
 
 const configureRequiredClerkEnvironment = () => {
   vi.stubEnv("CLERK_SECRET_KEY", "sk_test_secret");
@@ -49,5 +49,31 @@ describe(webhookKeys, () => {
     vi.stubEnv("CLERK_WEBHOOK_SECRET", "whsec_test");
 
     expect(webhookKeys().CLERK_WEBHOOK_SECRET).toBe("whsec_test");
+  });
+});
+
+describe(adminKeys, () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("validates the isolated Clerk application credentials used by the API", () => {
+    vi.stubEnv("ADMIN_CLERK_AUTHORIZED_PARTIES", "https://admin.example.com");
+    vi.stubEnv("ADMIN_CLERK_PUBLISHABLE_KEY", "pk_test_admin");
+    vi.stubEnv("ADMIN_CLERK_SECRET_KEY", "sk_test_admin");
+
+    expect(adminKeys()).toMatchObject({
+      ADMIN_CLERK_AUTHORIZED_PARTIES: "https://admin.example.com",
+      ADMIN_CLERK_PUBLISHABLE_KEY: "pk_test_admin",
+      ADMIN_CLERK_SECRET_KEY: "sk_test_admin",
+    });
+  });
+
+  it("does not accept an empty admin authorized-party list", () => {
+    vi.stubEnv("ADMIN_CLERK_AUTHORIZED_PARTIES", " , ");
+    vi.stubEnv("ADMIN_CLERK_PUBLISHABLE_KEY", "pk_test_admin");
+    vi.stubEnv("ADMIN_CLERK_SECRET_KEY", "sk_test_admin");
+
+    expect(() => adminKeys()).toThrow("Invalid environment variables");
   });
 });

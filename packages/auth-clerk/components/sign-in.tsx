@@ -11,6 +11,6 @@ export const SignIn = ({ path }: SignInProps) => (
         header: "hidden",
       },
     }}
-    {...(path ? { path, routing: "path" } : {})}
+    {...(path ? { path, routing: "path" } : { routing: "hash" })}
   />
 );

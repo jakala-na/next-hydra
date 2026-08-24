@@ -7,10 +7,8 @@
       "type": "registry:item",
       "title": "Next Hydra WorkOS Auth provider",
       "description": "Installs the WorkOS AuthKit provider package.",
-      "docs": "Configure the WorkOS environment variables described by packages/auth-workos before starting the applications.",
-      "registryDependencies": [
-        "jakala-na/next-hydra/auth-contract"
-      ],
+      "docs": "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project.",
+      "registryDependencies": ["jakala-na/next-hydra/auth-contract"],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/auth/workos",
@@ -25,6 +23,12 @@
             },
             {
               "cwd": "apps/web",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-workos@*"
+            },
+            {
+              "cwd": "apps/admin",
               "section": "dependencies",
               "name": "@repo/auth",
               "specifier": "workspace:@repo/auth-workos@*"
@@ -90,6 +94,11 @@
           "type": "registry:file"
         },
         {
+          "path": "keys.test.ts",
+          "target": "~/packages/auth-workos/keys.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "keys.ts",
           "target": "~/packages/auth-workos/keys.ts",
           "type": "registry:file"
@@ -112,6 +121,21 @@
         {
           "path": "registry/apps/api/app/api/webhooks/workos/route.ts",
           "target": "~/apps/api/app/api/webhooks/workos/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/admin/app/api/auth/callback/route.ts",
+          "target": "~/apps/admin/app/api/auth/callback/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/admin/app/sign-in/route.ts",
+          "target": "~/apps/admin/app/sign-in/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/admin/app/api/auth/signout/route.ts",
+          "target": "~/apps/admin/app/api/auth/signout/route.ts",
           "type": "registry:file"
         },
         {

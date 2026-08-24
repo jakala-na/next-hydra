@@ -89,10 +89,15 @@ type RegistrationAuthenticationLayer = Layer.Layer<
   AccessTokenVerifier,
   Config.ConfigError
 >;
+type RegistrationReviewerIdentityLayer = Layer.Layer<
+  IdentityUsers,
+  Config.ConfigError
+>;
 
 export interface RegistrationHttpDependencies {
   readonly authenticationLayer: RegistrationAuthenticationLayer;
   readonly layer: RegistrationRuntimeLayer;
+  readonly reviewerIdentityLayer: RegistrationReviewerIdentityLayer;
 }
 
 const unauthorized = registrationUnauthorized;
@@ -486,17 +491,27 @@ const makeRegistrationHttpHandlers = () =>
 
 const makeRegistrationHttpApiLayer = (
   dependencies: RegistrationHttpDependencies
-) =>
-  HttpApiBuilder.layer(RegistrationHttpApi).pipe(
+) => {
+  const registrationReadAccessLayer =
+    registrationReadAccessMiddlewareLayer.pipe(
+      Layer.provide(dependencies.authenticationLayer)
+    );
+  const registrationDecisionAccessLayer =
+    registrationDecisionAccessMiddlewareLayer.pipe(
+      Layer.provide(dependencies.authenticationLayer),
+      Layer.provide(dependencies.reviewerIdentityLayer)
+    );
+
+  return HttpApiBuilder.layer(RegistrationHttpApi).pipe(
     Layer.provide(makeRegistrationHttpHandlers()),
     Layer.provide(registrationSchemaErrorMiddlewareLayer),
-    Layer.provide(registrationReadAccessMiddlewareLayer),
-    Layer.provide(registrationDecisionAccessMiddlewareLayer),
+    Layer.provide(registrationReadAccessLayer),
+    Layer.provide(registrationDecisionAccessLayer),
     Layer.provide(unexpectedHttpErrorsLayer),
-    Layer.provideMerge(dependencies.authenticationLayer),
     Layer.provideMerge(dependencies.layer),
     Layer.provide(HttpServer.layerServices)
   );
+};
 
 export const makeRegistrationHttpHandler = (
   dependencies: RegistrationHttpDependencies

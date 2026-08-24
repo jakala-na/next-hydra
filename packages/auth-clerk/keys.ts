@@ -53,3 +53,29 @@ export const webhookKeys = () =>
       CLERK_WEBHOOK_SECRET: z.string().startsWith("whsec_"),
     },
   });
+
+export const adminKeys = () =>
+  createEnv({
+    client: {},
+    runtimeEnv: {
+      ADMIN_CLERK_AUTHORIZED_PARTIES:
+        process.env.ADMIN_CLERK_AUTHORIZED_PARTIES,
+      ADMIN_CLERK_JWT_KEY: process.env.ADMIN_CLERK_JWT_KEY,
+      ADMIN_CLERK_PUBLISHABLE_KEY: process.env.ADMIN_CLERK_PUBLISHABLE_KEY,
+      ADMIN_CLERK_SECRET_KEY: process.env.ADMIN_CLERK_SECRET_KEY,
+    },
+    server: {
+      ADMIN_CLERK_AUTHORIZED_PARTIES: z
+        .string()
+        .refine(
+          (value) =>
+            value
+              .split(",")
+              .some((authorizedParty) => authorizedParty.trim().length > 0),
+          "ADMIN_CLERK_AUTHORIZED_PARTIES must contain at least one admin application origin"
+        ),
+      ADMIN_CLERK_JWT_KEY: z.string().optional(),
+      ADMIN_CLERK_PUBLISHABLE_KEY: z.string().startsWith("pk_"),
+      ADMIN_CLERK_SECRET_KEY: z.string().startsWith("sk_"),
+    },
+  });

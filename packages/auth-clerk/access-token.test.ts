@@ -1,11 +1,12 @@
 /* oxlint-disable require-await -- Authenticator test doubles implement an async provider boundary. */
-import { Effect } from "effect";
+import { ConfigProvider, Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
   AccessTokenInvalid,
   AccessTokenVerificationFailure,
   AccessTokenVerifier,
+  accessTokenVerifierLayer,
   accessTokenVerifierLayerFromAuthenticator,
   classifyClerkAccessTokenFailure,
 } from "./access-token";
@@ -20,6 +21,23 @@ const clerkRequestFailureLayer = (reason: string) =>
   });
 
 describe(AccessTokenVerifier, () => {
+  it("loads verifier credentials from the isolated admin namespace", async () => {
+    const configProvider = ConfigProvider.fromUnknown({
+      ADMIN_CLERK_AUTHORIZED_PARTIES: "https://admin.example.com",
+      ADMIN_CLERK_PUBLISHABLE_KEY: "pk_test_admin",
+      ADMIN_CLERK_SECRET_KEY: "sk_test_admin",
+    });
+
+    const verifier = await Effect.runPromise(
+      AccessTokenVerifier.pipe(
+        Effect.provide(accessTokenVerifierLayer({ configPrefix: "ADMIN" })),
+        Effect.provideService(ConfigProvider.ConfigProvider, configProvider)
+      )
+    );
+
+    expect(verifier.verify).toBeTypeOf("function");
+  });
+
   it("validates a Clerk access token and adapts organization permissions", async () => {
     let verifiedToken: string | undefined;
     const layer = accessTokenVerifierLayerFromAuthenticator({

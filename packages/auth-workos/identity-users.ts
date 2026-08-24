@@ -129,17 +129,32 @@ export const makeWorkosIdentityUsers = (
     ),
   });
 
-export const identityUsersLayer = Layer.effect(
-  IdentityUsers,
-  Effect.gen(function* identityUsersLayerEffect() {
-    const apiKey = yield* Config.redacted("WORKOS_API_KEY");
-    const clientId = yield* Config.option(Config.string("WORKOS_CLIENT_ID"));
-    const clientIdValue = Option.getOrUndefined(clientId);
-    const workos = new WorkOS({
-      apiKey: Redacted.value(apiKey),
-      ...(clientIdValue === undefined ? {} : { clientId: clientIdValue }),
-    });
+const configKey = (prefix: string | undefined, key: string) =>
+  prefix === undefined || prefix === "" ? key : `${prefix}_${key}`;
 
-    return makeWorkosIdentityUsers(workos.userManagement);
-  })
-);
+export const identityUsersLayerFromConfig = ({
+  configPrefix,
+}: {
+  readonly configPrefix?: string;
+} = {}) =>
+  Layer.effect(
+    IdentityUsers,
+    Effect.gen(function* identityUsersLayerEffect() {
+      const apiKey = yield* Config.redacted(
+        configKey(configPrefix, "WORKOS_API_KEY")
+      );
+      const clientId = yield* Config.option(
+        Config.string(configKey(configPrefix, "WORKOS_CLIENT_ID"))
+      );
+      const clientIdValue = Option.getOrUndefined(clientId);
+      const workos = new WorkOS(
+        clientIdValue === undefined
+          ? { apiKey: Redacted.value(apiKey) }
+          : { apiKey: Redacted.value(apiKey), clientId: clientIdValue }
+      );
+
+      return makeWorkosIdentityUsers(workos.userManagement);
+    })
+  );
+
+export const identityUsersLayer = identityUsersLayerFromConfig();

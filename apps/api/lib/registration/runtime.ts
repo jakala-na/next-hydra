@@ -19,6 +19,7 @@ import {
 export { REGISTRATION_CONTAINER } from "./repository-runtime";
 
 const registrationEmailsLayer = layerRegistrationEmails({
+  adminUrl: env.ADMIN_URL,
   approverEmail: env.REGISTRATION_APPROVER_EMAIL,
   webUrl: env.NEXT_PUBLIC_WEB_URL,
 }).pipe(Layer.provide(layerResendEmailProvider));

@@ -450,7 +450,10 @@ const makeApiLayer = (
   };
 };
 
-const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
+const makeHandler = async (
+  layer: ReturnType<typeof makeApiLayer>["layer"],
+  reviewerIdentityLayer: Layer.Layer<IdentityUsers> = layer
+) => {
   const { makeRegistrationHttpHandler } =
     await import("../lib/registration/http");
   const authenticationLayer = Layer.succeed(
@@ -522,6 +525,7 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
   return makeRegistrationHttpHandler({
     authenticationLayer,
     layer: layer.pipe(Layer.provideMerge(workflowLayer)),
+    reviewerIdentityLayer,
   });
 };
 
@@ -1090,6 +1094,57 @@ test("POST /registrations/:id/approve resumes the deterministic workflow hook", 
     expect(api.registrations.get(String(registration.id))?.status).toBe(
       "approval_processing"
     );
+  } finally {
+    await dispose();
+  }
+});
+
+test("registration decisions resolve reviewers from the isolated admin identity pool", async () => {
+  workflowMocks.resumeReview.mockResolvedValue(undefined);
+  const registration = makeAwaitingRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration]);
+  const adminIdentityUsers = IdentityUsers.of({
+    getById: vi.fn((authUserId) =>
+      Effect.succeed({
+        authUserId,
+        email: Redacted.make(Email.make("admin-reviewer@example.com"), {
+          label: "email",
+        }),
+        name: "Admin Reviewer",
+      })
+    ),
+    hasUserWithEmail: vi.fn(() =>
+      Effect.die("admin identity preflight must not be used")
+    ),
+  });
+  const { dispose, handler } = await makeHandler(
+    api.layer,
+    Layer.succeed(IdentityUsers, adminIdentityUsers)
+  );
+
+  try {
+    const response = await handler(
+      request(
+        "POST",
+        `/registrations/${registration.id}/approve`,
+        reviewerPayload
+      ),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(adminIdentityUsers.getById).toHaveBeenCalledWith(
+      AuthUserId.make("auth-reviewer-1")
+    );
+    expect(workflowMocks.resumeReview).toHaveBeenCalledWith(registration.id, {
+      decision: "approved",
+      reason: "Looks good",
+      reviewer: {
+        authUserId: "auth-reviewer-1",
+        email: "admin-reviewer@example.com",
+        name: "Admin Reviewer",
+      },
+    });
   } finally {
     await dispose();
   }

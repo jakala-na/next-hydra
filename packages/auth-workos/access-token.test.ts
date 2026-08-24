@@ -1,15 +1,31 @@
-import { Effect } from "effect";
+import { ConfigProvider, Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
   AccessTokenInvalid,
   AccessTokenVerificationFailure,
   AccessTokenVerifier,
+  accessTokenVerifierLayer,
   accessTokenVerifierLayerFromJwtVerifier,
   fetchWorkosJwks,
 } from "./access-token";
 
 describe(AccessTokenVerifier, () => {
+  it("loads verifier credentials from the isolated admin namespace", async () => {
+    const configProvider = ConfigProvider.fromUnknown({
+      ADMIN_WORKOS_CLIENT_ID: "client_test_admin",
+    });
+
+    const verifier = await Effect.runPromise(
+      AccessTokenVerifier.pipe(
+        Effect.provide(accessTokenVerifierLayer({ configPrefix: "ADMIN" })),
+        Effect.provideService(ConfigProvider.ConfigProvider, configProvider)
+      )
+    );
+
+    expect(verifier.verify).toBeTypeOf("function");
+  });
+
   it("verifies a WorkOS access token and returns the auth user id", async () => {
     let verifiedToken: string | undefined;
     const layer = accessTokenVerifierLayerFromJwtVerifier({

@@ -187,6 +187,7 @@ function validateProviderAliasRequirements(
 ): void {
   const requiredLocations = {
     auth: [
+      { cwd: "apps/admin", section: "dependencies" },
       { cwd: "apps/api", section: "dependencies" },
       { cwd: "apps/web", section: "dependencies" },
       { cwd: "packages/feature-flags", section: "dependencies" },

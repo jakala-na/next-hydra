@@ -1,7 +1,10 @@
 import { authCapabilities } from "@repo/auth/capabilities";
 import { Layer } from "effect";
 
-import { apiAuthenticationLayer } from "../auth/runtime";
+import {
+  adminAuthenticationLayer,
+  adminIdentityUsersLayer,
+} from "../auth/admin-runtime";
 // oxlint-disable-next-line anti-slop-effect/no-service-constructor-imports -- This application composition root owns provider-gated HTTP handler construction.
 import { makeRegistrationHttpHandler } from "./http";
 import { registrationLayer } from "./runtime";
@@ -9,10 +12,11 @@ import { registrationWorkflowLayer } from "./workflow-runtime";
 
 const registrationHttp = authCapabilities.registrationOnboarding
   ? makeRegistrationHttpHandler({
-      authenticationLayer: apiAuthenticationLayer,
+      authenticationLayer: adminAuthenticationLayer,
       layer: registrationLayer.pipe(
         Layer.provideMerge(registrationWorkflowLayer)
       ),
+      reviewerIdentityLayer: adminIdentityUsersLayer,
     })
   : undefined;
 
