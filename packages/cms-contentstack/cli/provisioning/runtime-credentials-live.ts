@@ -1,8 +1,4 @@
 import {
-  PrivateDotEnvFile,
-  privateDotEnvFileLayer,
-} from "@repo/cli-core/private-dotenv";
-import {
   Config,
   ConfigProvider,
   Effect,
@@ -20,23 +16,7 @@ import {
   ContentstackCredentialInputError,
   ContentstackRuntimeCredentials,
 } from "./model";
-import {
-  ContentstackRuntimeCredentialHandoff,
-  ContentstackRuntimeCredentialInput,
-} from "./runtime-credentials";
-
-const runtimeEnvironment = (credentials: ContentstackRuntimeCredentials) => ({
-  CONTENTSTACK_API_KEY: credentials.apiKey,
-  CONTENTSTACK_DELIVERY_TOKEN: Redacted.value(credentials.deliveryToken),
-  CONTENTSTACK_ENVIRONMENT: credentials.environment,
-  CONTENTSTACK_GRAPHQL_HOST_NAME: credentials.graphqlHost,
-  CONTENTSTACK_LIVE_PREVIEW_HOST_NAME: credentials.graphqlPreviewHost,
-  CONTENTSTACK_PREVIEW_TOKEN: Redacted.value(credentials.previewToken),
-  CONTENTSTACK_REGION: credentials.region,
-  CONTENTSTACK_WEBHOOK_SECRET: Redacted.value(credentials.webhookSecret),
-  NEXT_PUBLIC_CONTENTSTACK_API_KEY: credentials.apiKey,
-  NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT: credentials.environment,
-});
+import { ContentstackRuntimeCredentialInput } from "./runtime-credentials";
 
 export const createContentstackRuntimeCredentialInputLayer = <E, R>(
   configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>
@@ -142,21 +122,3 @@ export const createContentstackRuntimeCredentialInputLayer = <E, R>(
       });
     })
   ).pipe(Layer.provide(ConfigProvider.layer(configProvider)));
-
-export const contentstackRuntimeCredentialHandoffLayer = Layer.effect(
-  ContentstackRuntimeCredentialHandoff,
-  Effect.gen(function* () {
-    const privateDotEnvFile = yield* PrivateDotEnvFile;
-
-    return ContentstackRuntimeCredentialHandoff.of({
-      save: Effect.fn("ContentstackCredentialHandoff.save")(
-        function* (credentials, destination) {
-          return yield* privateDotEnvFile.publish(
-            runtimeEnvironment(credentials),
-            destination
-          );
-        }
-      ),
-    });
-  })
-).pipe(Layer.provide(privateDotEnvFileLayer));

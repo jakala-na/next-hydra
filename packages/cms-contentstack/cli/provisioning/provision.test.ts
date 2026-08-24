@@ -1,6 +1,9 @@
 import { NodeServices } from "@effect/platform-node";
 import { describe, expect, it } from "@effect/vitest";
-import { PrivateDotEnvFileReceipt } from "@repo/cli-core/private-dotenv";
+import {
+  LocalRuntimeEnvironmentPublicationReceipt,
+  RuntimeEnvironmentPublisher,
+} from "@repo/cli-core/runtime-environment";
 import { Effect, Layer, Redacted, Schema } from "effect";
 
 import { ContentstackMigrationLedger } from "../migrations/ledger";
@@ -16,10 +19,7 @@ import {
 } from "./model";
 import { provisionContentstack } from "./provision";
 import { ContentstackRecipe } from "./recipe";
-import {
-  ContentstackRuntimeCredentialHandoff,
-  ContentstackRuntimeCredentialInput,
-} from "./runtime-credentials";
+import { ContentstackRuntimeCredentialInput } from "./runtime-credentials";
 
 const apiKey = ContentstackApiKey.make("blt-api-key");
 const endpoints = new ContentstackRuntimeEndpoints({
@@ -37,16 +37,22 @@ const credentials = new ContentstackRuntimeCredentials({
   region: endpoints.region,
   webhookSecret: Redacted.make("webhook-secret"),
 });
-const credentialFile = new PrivateDotEnvFileReceipt({
+const credentialReceipt = new LocalRuntimeEnvironmentPublicationReceipt({
+  destination: "local",
   mode: 0o600,
   path: "/tmp/contentstack.env",
 });
 
 const options = {
+  destination: {
+    destination: "local",
+    output: "/tmp/contentstack.env",
+    publicationMode: "create",
+    yes: true,
+  },
   environment: "development",
   localUrl: "http://localhost:3001",
   managementTokenAlias: "next-hydra-bootstrap",
-  output: "/tmp/contentstack.env",
   productionUrl: "https://store.example.com",
   stackMasterLocale: "en-us",
 } as const;
@@ -102,11 +108,26 @@ const layersFor = (events: string[], version = CONTENTSTACK_CLI_VERSION) =>
           return credentials;
         }),
     }),
-    ContentstackRuntimeCredentialHandoff.layerFrom({
-      save: (_credentials, destination) =>
+    RuntimeEnvironmentPublisher.layerFrom({
+      prepare: ({ manifest }) =>
         Effect.sync(() => {
-          events.push(`save:${destination}`);
-          return credentialFile;
+          events.push("preflight");
+          expect(
+            manifest.every(
+              ({ applications }) =>
+                applications.length === 1 && applications[0] === "web"
+            )
+          ).toBeTruthy();
+          return {
+            destination: "local" as const,
+            manifest,
+            path: "/tmp/contentstack.env",
+          };
+        }),
+      publish: () =>
+        Effect.sync(() => {
+          events.push("save:/tmp/contentstack.env");
+          return credentialReceipt;
         }),
     }),
     ContentstackMigrationLedger.layerFrom({
@@ -132,6 +153,7 @@ describe(provisionContentstack, () => {
       );
 
       expect(events).toStrictEqual([
+        "preflight",
         "version",
         "region",
         "resolve:next-hydra-bootstrap",
@@ -144,7 +166,7 @@ describe(provisionContentstack, () => {
       ]);
       expect(receipt).toMatchObject({
         apiKey,
-        credentialFile,
+        credentials: credentialReceipt,
         environments: ["development", "production"],
         imported: true,
         livePreviewConfigurationRequired: true,
@@ -165,7 +187,7 @@ describe(provisionContentstack, () => {
 
       expect(Schema.is(ContentstackCliVersionError)(error)).toBeTruthy();
       expect(error.cause).toBeDefined();
-      expect(events).toStrictEqual(["version"]);
+      expect(events).toStrictEqual(["preflight", "version"]);
     });
   });
 });

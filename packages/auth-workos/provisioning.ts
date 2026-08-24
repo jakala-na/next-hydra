@@ -5,6 +5,7 @@ import {
   AuthProvisioningProviderFailure,
   AuthWebhookProvisioner,
   ProvisionedAuthWebhook,
+  authWebhookRuntimeEnvironment,
   authWebhookUrl,
   sameEventSet,
 } from "@repo/auth-contract/provisioning";
@@ -299,6 +300,7 @@ export const makeWorkosAuthWebhookProvisioner = (
         signingSecretEnvironmentVariable: "WORKOS_WEBHOOK_SECRET",
       });
     }),
+    runtimeEnvironment: authWebhookRuntimeEnvironment("WORKOS_WEBHOOK_SECRET"),
   });
 
 export const createWorkosAuthProvisioningLayer = <E, R>(

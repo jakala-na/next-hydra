@@ -21,6 +21,25 @@ pnpm cli auth provision \
   --api-url https://api.example.com \
   --output apps/cli/.env.auth-webhook.local
 
+# Publish the signing secret directly to every required linked Vercel project.
+# Providers select apps/web, apps/api, or both. Preflight verifies every link,
+# local Vercel login, access, custom target, and key conflict before mutation.
+pnpm cli auth provision \
+  --api-url https://api.example.com \
+  --store vercel \
+  --environment preview \
+  --environment preview:feature/auth \
+  --environment staging \
+  --environment production
+
+# Re-provision the exact provider manifest into an existing demo environment.
+# This upserts only the selected keys in the selected linked projects/targets.
+pnpm cli auth provision \
+  --api-url https://api.example.com \
+  --store vercel \
+  --environment demo-replacement \
+  --overwrite
+
 # Inspect and run the selected CMS provider's setup workflow.
 pnpm cli cms provision --help
 
@@ -48,7 +67,7 @@ pnpm cli commerce schema export
 pnpm cli commerce types generate
 ```
 
-The gitignored `.env.bootstrap.local` contains `COMMERCETOOLS_PROJECT_KEY`, `COMMERCETOOLS_REGION`, `COMMERCETOOLS_BOOTSTRAP_CLIENT_ID`, and `COMMERCETOOLS_BOOTSTRAP_CLIENT_SECRET`. Provisioning enables Product Projection Search, creates an exact-scoped runtime API Client, applies pending migrations, writes and reads back `.env.runtime.local` with `0600` permissions, and only then revokes the bootstrap API Client. It never invokes the Vercel CLI and never prints either secret.
+The gitignored `.env.bootstrap.local` contains `COMMERCETOOLS_PROJECT_KEY`, `COMMERCETOOLS_REGION`, `COMMERCETOOLS_BOOTSTRAP_CLIENT_ID`, and `COMMERCETOOLS_BOOTSTRAP_CLIENT_SECRET`. Provisioning enables Product Projection Search, creates an exact-scoped runtime API Client, applies pending migrations, publishes the runtime environment, and only then revokes the bootstrap API Client. Local publication creates and verifies a `0600` file. Vercel publication uses the links in each provider-selected `apps/web` or `apps/api` project and local Vercel CLI credentials, refuses existing keys by default, and requires a new deployment before the variables take effect. Operators may pass `--overwrite` to upsert only the provider manifest's exact keys in the selected projects and environments; `--yes` only skips confirmation and does not authorize replacement. Ambiguous overwrite responses are retried in-process with the same values. After a partial or unknown publication failure, the runtime client is preserved because a Vercel project may reference it; a fresh `--overwrite` provisioning run creates replacement credentials and converges every selected target, potentially leaving the earlier client for manual cleanup. Supported selectors are `production`, `preview`, `preview:<branch>`, and existing custom-environment slugs; Development intentionally remains local. Provisioning never prints secrets.
 
 Package composition:
 

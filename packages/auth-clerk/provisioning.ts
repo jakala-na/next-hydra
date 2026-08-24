@@ -4,6 +4,7 @@ import {
   AuthProvisioningProviderFailure,
   AuthWebhookProvisioner,
   ProvisionedAuthWebhook,
+  authWebhookRuntimeEnvironment,
   authWebhookUrl,
   sameEventSet,
 } from "@repo/auth-contract/provisioning";
@@ -477,6 +478,7 @@ export const makeClerkAuthWebhookProvisioner = (
         signingSecretEnvironmentVariable: "CLERK_WEBHOOK_SECRET",
       });
     }),
+    runtimeEnvironment: authWebhookRuntimeEnvironment("CLERK_WEBHOOK_SECRET"),
   });
 
 const liveSvixClient = (token: string, serverUrl: string): ClerkSvixClient => {

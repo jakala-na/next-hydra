@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./private-dotenv": "./private-dotenv.ts"
+    "./private-dotenv": "./private-dotenv.ts",
+    "./runtime-environment": "./runtime-environment.ts",
+    "./runtime-environment-cli": "./runtime-environment-cli.ts"
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",

@@ -1,4 +1,11 @@
-import { privateDotEnvFileLayer } from "@repo/cli-core/private-dotenv";
+import {
+  runtimeEnvironmentPublisherLayer,
+  runtimeEnvironmentReceiptDescription,
+} from "@repo/cli-core/runtime-environment";
+import {
+  runtimeEnvironmentDestinationFlags,
+  runtimeEnvironmentDestinationFromFlags,
+} from "@repo/cli-core/runtime-environment-cli";
 import type { Effect as EffectType } from "effect";
 import { Console, Effect, Layer } from "effect";
 import { CliError, Command, Flag } from "effect/unstable/cli";
@@ -20,12 +27,15 @@ export const makeAuthCommand = <E, R>(
           "Public HTTPS base URL of the customer API application"
         )
       ),
-      output: Flag.string("output").pipe(
-        Flag.withDescription("New dotenv file for the webhook signing secret")
-      ),
+      ...runtimeEnvironmentDestinationFlags(),
     },
-    ({ apiUrl, output }) =>
-      asUserError(provisionAuth({ apiUrl, output })).pipe(
+    ({ apiUrl, ...destinationFlags }) =>
+      asUserError(
+        provisionAuth({
+          apiUrl,
+          destination: runtimeEnvironmentDestinationFromFlags(destinationFlags),
+        })
+      ).pipe(
         Effect.flatMap((receipt) =>
           Console.log(`✓ ${receipt.provider} customer auth provisioned`).pipe(
             Effect.andThen(
@@ -38,7 +48,9 @@ export const makeAuthCommand = <E, R>(
               Console.log(`  Events: ${receipt.events.join(", ")}`)
             ),
             Effect.andThen(
-              Console.log(`  Signing secret: ${receipt.credentialFile.path}`)
+              Console.log(
+                `  Signing secret: ${runtimeEnvironmentReceiptDescription(receipt.credentials)}`
+              )
             )
           )
         )
@@ -47,7 +59,9 @@ export const makeAuthCommand = <E, R>(
     Command.withDescription(
       "Create the selected customer identity provider webhook once"
     ),
-    Command.provide(Layer.merge(providerLayer, privateDotEnvFileLayer))
+    Command.provide(
+      Layer.merge(providerLayer, runtimeEnvironmentPublisherLayer)
+    )
   );
 
   return Command.make("auth", {}, () => Effect.void).pipe(

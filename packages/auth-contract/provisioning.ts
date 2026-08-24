@@ -1,11 +1,16 @@
 /* oxlint-disable max-classes-per-file, unicorn/throw-new-error -- Effect Schema classes define the auth provisioning boundary. */
 
 import {
-  PrivateDotEnvFile,
-  PrivateDotEnvFileReceipt,
-} from "@repo/cli-core/private-dotenv";
-import type { PrivateDotEnvFileError } from "@repo/cli-core/private-dotenv";
-import { Context, Effect, Redacted, Schema } from "effect";
+  RuntimeEnvironmentPublicationReceipt,
+  RuntimeEnvironmentPublisher,
+  runtimeEnvironmentManifestFromSchema,
+} from "@repo/cli-core/runtime-environment";
+import type {
+  RuntimeEnvironmentDestination,
+  RuntimeEnvironmentPublisherError,
+  RuntimeEnvironmentVariable,
+} from "@repo/cli-core/runtime-environment";
+import { Context, Effect, Schema } from "effect";
 
 export const AuthProviderName = Schema.Literals(["clerk", "workos"]);
 export type AuthProviderName = typeof AuthProviderName.Type;
@@ -38,7 +43,7 @@ export class AuthProvisioningReceipt extends Schema.Class<AuthProvisioningReceip
   "AuthProvisioningReceipt"
 )({
   action: AuthWebhookAction,
-  credentialFile: PrivateDotEnvFileReceipt,
+  credentials: RuntimeEnvironmentPublicationReceipt,
   endpointId: Schema.NonEmptyString,
   endpointUrl: Schema.NonEmptyString,
   events: Schema.Array(Schema.NonEmptyString),
@@ -104,6 +109,7 @@ export interface ProvisionAuthWebhookOptions {
 }
 
 export interface AuthWebhookProvisionerValue {
+  readonly runtimeEnvironment: readonly RuntimeEnvironmentVariable[];
   readonly provision: (
     options: ProvisionAuthWebhookOptions
   ) => Effect.Effect<ProvisionedAuthWebhook, AuthProvisioningError>;
@@ -115,27 +121,26 @@ export class AuthWebhookProvisioner extends Context.Service<
 >()("@repo/auth-contract/AuthWebhookProvisioner") {}
 
 export interface ProvisionAuthOptions extends ProvisionAuthWebhookOptions {
-  readonly output: string;
+  readonly destination: RuntimeEnvironmentDestination;
 }
 
 export const provisionAuth = Effect.fn("AuthProvisioning.provision")(function* (
   options: ProvisionAuthOptions
 ) {
   const provisioner = yield* AuthWebhookProvisioner;
-  const privateDotEnvFile = yield* PrivateDotEnvFile;
+  const publisher = yield* RuntimeEnvironmentPublisher;
+  const prepared = yield* publisher.prepare({
+    destination: options.destination,
+    manifest: provisioner.runtimeEnvironment,
+  });
   const webhook = yield* provisioner.provision({ apiUrl: options.apiUrl });
-  const credentialFile = yield* privateDotEnvFile.publish(
-    {
-      [webhook.signingSecretEnvironmentVariable]: Redacted.value(
-        webhook.signingSecret
-      ),
-    },
-    options.output
-  );
+  const credentials = yield* publisher.publish(prepared, {
+    [webhook.signingSecretEnvironmentVariable]: webhook.signingSecret,
+  });
 
   return new AuthProvisioningReceipt({
     action: webhook.action,
-    credentialFile,
+    credentials,
     endpointId: webhook.endpointId,
     endpointUrl: webhook.endpointUrl,
     events: [...webhook.events],
@@ -145,7 +150,17 @@ export const provisionAuth = Effect.fn("AuthProvisioning.provision")(function* (
 
 export type ProvisionAuthFailure =
   | AuthProvisioningError
-  | PrivateDotEnvFileError;
+  | RuntimeEnvironmentPublisherError;
+
+export const authWebhookRuntimeEnvironment = (
+  key: AuthWebhookSecretEnvironmentVariable
+) =>
+  runtimeEnvironmentManifestFromSchema(
+    {
+      [key]: Schema.Redacted(Schema.NonEmptyString),
+    },
+    ["api"]
+  );
 
 export const authWebhookUrl = (
   apiUrl: string,

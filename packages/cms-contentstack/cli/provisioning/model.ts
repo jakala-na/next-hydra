@@ -1,6 +1,6 @@
 /* oxlint-disable max-classes-per-file, unicorn/throw-new-error -- Effect Schema classes keep the provisioning model and its typed errors together. */
 
-import { PrivateDotEnvFileReceipt } from "@repo/cli-core/private-dotenv";
+import { RuntimeEnvironmentPublicationReceipt } from "@repo/cli-core/runtime-environment";
 import { Schema } from "effect";
 
 const NonNegativeInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
@@ -57,7 +57,7 @@ export class ContentstackProvisioningReceipt extends Schema.Class<ContentstackPr
   "ContentstackProvisioningReceipt"
 )({
   apiKey: ContentstackApiKey,
-  credentialFile: PrivateDotEnvFileReceipt,
+  credentials: RuntimeEnvironmentPublicationReceipt,
   environments: Schema.Array(ContentstackEnvironment),
   imported: Schema.Boolean,
   livePreviewConfigurationRequired: Schema.Boolean,

@@ -1,23 +1,32 @@
+import { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
+import type { RuntimeEnvironmentDestination } from "@repo/cli-core/runtime-environment";
 import { Effect, Random, Ref } from "effect";
 
 import { CommercetoolsProjectAdministration } from "./administration";
 import { BootstrapCommercetoolsConfig } from "./bootstrap-config";
-import { RuntimeCredentialHandoff } from "./credential-handoff";
+import {
+  commerceRuntimeEnvironment,
+  commerceRuntimeEnvironmentManifest,
+} from "./credential-handoff";
 import { ProvisioningReceipt } from "./model";
 import { RuntimeProjectSetup } from "./runtime-project-setup";
 import { runtimeScopeFor } from "./scopes";
 
 export interface ProvisionCommerceProjectOptions {
   readonly clientName?: string;
-  readonly output: string;
+  readonly destination: RuntimeEnvironmentDestination;
 }
 
 export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
   function* (options: ProvisionCommerceProjectOptions) {
     const administration = yield* CommercetoolsProjectAdministration;
     const bootstrapConfig = yield* BootstrapCommercetoolsConfig;
-    const credentialHandoff = yield* RuntimeCredentialHandoff;
+    const publisher = yield* RuntimeEnvironmentPublisher;
     const runtimeSetup = yield* RuntimeProjectSetup;
+    const preparedDestination = yield* publisher.prepare({
+      destination: options.destination,
+      manifest: commerceRuntimeEnvironmentManifest,
+    });
     const clientName =
       options.clientName ??
       `Next Hydra runtime (${Math.abs(yield* Random.nextInt)})`;
@@ -31,9 +40,16 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
 
     const finishProvisioning = Effect.gen(function* () {
       const seed = yield* runtimeSetup.setup(credentials);
-      const credentialFile = yield* credentialHandoff
-        .save(credentials, options.output)
+      const publishedCredentials = yield* publisher
+        .publish(preparedDestination, commerceRuntimeEnvironment(credentials))
         .pipe(
+          Effect.tapErrorTag(
+            [
+              "RuntimeEnvironmentPublicationIncomplete",
+              "RuntimeEnvironmentPublicationOutcomeUnknown",
+            ],
+            () => Ref.set(committed, true)
+          ),
           Effect.tap(() => Ref.set(committed, true)),
           Effect.uninterruptible
         );
@@ -41,7 +57,7 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
 
       return new ProvisioningReceipt({
         bootstrapClientRevoked: true,
-        credentialFile,
+        credentials: publishedCredentials,
         project,
         runtimeClientId: credentials.clientId,
         scope: credentials.scope,

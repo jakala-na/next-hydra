@@ -197,16 +197,6 @@
           "type": "registry:file"
         },
         {
-          "path": "cli/project-provisioning/credential-handoff-live.test.ts",
-          "target": "~/packages/commerce-commercetools/cli/project-provisioning/credential-handoff-live.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "cli/project-provisioning/credential-handoff-live.ts",
-          "target": "~/packages/commerce-commercetools/cli/project-provisioning/credential-handoff-live.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "cli/project-provisioning/credential-handoff.ts",
           "target": "~/packages/commerce-commercetools/cli/project-provisioning/credential-handoff.ts",
           "type": "registry:file"

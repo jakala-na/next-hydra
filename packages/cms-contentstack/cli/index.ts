@@ -1,3 +1,8 @@
+import { runtimeEnvironmentReceiptDescription } from "@repo/cli-core/runtime-environment";
+import {
+  runtimeEnvironmentDestinationFlags,
+  runtimeEnvironmentDestinationFromFlags,
+} from "@repo/cli-core/runtime-environment-cli";
 import type { ConfigProvider, Effect as EffectType } from "effect";
 import { Console, Effect } from "effect";
 import { CliError, Command, Flag, Prompt } from "effect/unstable/cli";
@@ -35,7 +40,10 @@ export const createCmsCommand = <E, R>(
   const provision = Command.make(
     "provision",
     {
-      environment: Flag.choice("environment", CONTENTSTACK_ENVIRONMENTS).pipe(
+      contentstackEnvironment: Flag.choice(
+        "contentstack-environment",
+        CONTENTSTACK_ENVIRONMENTS
+      ).pipe(
         Flag.withDescription("Environment used by the generated runtime file"),
         Flag.withDefault("development")
       ),
@@ -44,11 +52,7 @@ export const createCmsCommand = <E, R>(
         Flag.withDefault("http://localhost:3001")
       ),
       managementTokenAlias: managementTokenAliasFlag(),
-      output: Flag.string("output").pipe(
-        Flag.withDescription(
-          "New dotenv file for Contentstack runtime credentials"
-        )
-      ),
+      ...runtimeEnvironmentDestinationFlags(),
       productionUrl: Flag.string("production-url").pipe(
         Flag.withDescription(
           "Production application URL for Contentstack previews"
@@ -65,18 +69,28 @@ export const createCmsCommand = <E, R>(
       ),
     },
     ({
+      contentstackEnvironment,
       environment,
       localUrl,
       managementTokenAlias,
       output,
+      overwrite,
       productionUrl,
       stackMasterLocale,
+      store,
+      yes,
     }) => {
       const provisioningOptions = {
-        environment,
+        destination: runtimeEnvironmentDestinationFromFlags({
+          environment,
+          output,
+          overwrite,
+          store,
+          yes,
+        }),
+        environment: contentstackEnvironment,
         localUrl,
         managementTokenAlias,
-        output,
         productionUrl,
         stackMasterLocale,
       };
@@ -90,7 +104,9 @@ export const createCmsCommand = <E, R>(
             ),
             Effect.andThen(Console.log(`  Region: ${receipt.region}`)),
             Effect.andThen(
-              Console.log(`  Credentials: ${receipt.credentialFile.path}`)
+              Console.log(
+                `  Credentials: ${runtimeEnvironmentReceiptDescription(receipt.credentials)}`
+              )
             ),
             Effect.andThen(
               Console.log(

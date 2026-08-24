@@ -1,7 +1,8 @@
 import {
-  PrivateDotEnvFile,
-  PrivateDotEnvFileReceipt,
-} from "@repo/cli-core/private-dotenv";
+  LocalRuntimeEnvironmentPublicationReceipt,
+  RuntimeEnvironmentPublisher,
+  RuntimeEnvironmentVariable,
+} from "@repo/cli-core/runtime-environment";
 import { Effect, Layer, Redacted, Schema } from "effect";
 import { describe, expect, it, vi } from "vitest";
 
@@ -9,16 +10,32 @@ import {
   AuthProvisioningInputError,
   AuthWebhookProvisioner,
   ProvisionedAuthWebhook,
+  authWebhookRuntimeEnvironment,
   authWebhookUrl,
   provisionAuth,
 } from "./provisioning";
 
 describe("auth provisioning contract", () => {
+  it("routes webhook signing secrets to the API application", () => {
+    expect(authWebhookRuntimeEnvironment("CLERK_WEBHOOK_SECRET")).toMatchObject(
+      [
+        {
+          applications: ["api"],
+          key: "CLERK_WEBHOOK_SECRET",
+          sensitive: true,
+        },
+      ]
+    );
+  });
+
   it("publishes only the provider-owned signing secret and returns a safe receipt", async () => {
-    type Publish = Parameters<typeof PrivateDotEnvFile.of>[0]["publish"];
+    type Publish = Parameters<
+      typeof RuntimeEnvironmentPublisher.of
+    >[0]["publish"];
     const publish = vi.fn<Publish>(() =>
       Effect.succeed(
-        new PrivateDotEnvFileReceipt({
+        new LocalRuntimeEnvironmentPublicationReceipt({
+          destination: "local",
           mode: 0o600,
           path: "/workspace/auth.env",
         })
@@ -42,20 +59,43 @@ describe("auth provisioning contract", () => {
                 signingSecretEnvironmentVariable: "CLERK_WEBHOOK_SECRET",
               })
             ),
+          runtimeEnvironment: [
+            new RuntimeEnvironmentVariable({
+              applications: ["api"],
+              key: "CLERK_WEBHOOK_SECRET",
+              sensitive: true,
+            }),
+          ],
         })
       ),
-      Layer.succeed(PrivateDotEnvFile, PrivateDotEnvFile.of({ publish }))
+      RuntimeEnvironmentPublisher.layerFrom({
+        prepare: ({ manifest }) =>
+          Effect.succeed({
+            destination: "local" as const,
+            manifest,
+            path: "/workspace/auth.env",
+          }),
+        publish,
+      })
     );
 
     const receipt = await provisionAuth({
       apiUrl: "https://api.example.com",
-      output: "auth.env",
+      destination: {
+        destination: "local",
+        output: "auth.env",
+        publicationMode: "create",
+        yes: true,
+      },
     }).pipe(Effect.provide(layer), Effect.runPromise);
 
-    expect(publish).toHaveBeenCalledExactlyOnceWith(
-      { CLERK_WEBHOOK_SECRET: "whsec_secret" },
-      "auth.env"
-    );
+    const publishedValues = publish.mock.calls[0]?.[1];
+    const signingSecret = publishedValues?.CLERK_WEBHOOK_SECRET;
+    expect(Redacted.isRedacted(signingSecret)).toBeTruthy();
+    if (!Redacted.isRedacted(signingSecret)) {
+      throw new Error("Expected a redacted signing secret");
+    }
+    expect(Redacted.value(signingSecret)).toBe("whsec_secret");
     expect(receipt).toMatchObject({
       action: "created",
       endpointId: "ep_123",

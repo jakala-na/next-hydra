@@ -88,8 +88,16 @@ describe("workspace CLI program", () => {
     ]);
 
     expect(Exit.isSuccess(result.exit)).toBeTruthy();
-    expect(result.stdout).toContain("--api-url");
-    expect(result.stdout).toContain("--output");
+    expect(
+      [
+        "--api-url",
+        "--environment",
+        "--output",
+        "--overwrite",
+        "--store",
+        "--yes",
+      ].every((flag) => result.stdout.includes(flag))
+    ).toBeTruthy();
     expect(loadConfigProvider).not.toHaveBeenCalled();
   });
 
@@ -141,7 +149,7 @@ describe("workspace CLI program", () => {
     expect(loadConfigProvider).not.toHaveBeenCalled();
   });
 
-  it("documents the explicit credential output without resolving config", async () => {
+  it("documents local and Vercel config stores without resolving config", async () => {
     const loadConfigProvider = makeConfigProviderLoader();
 
     const result = await runProgram(createProgram(loadConfigProvider), [
@@ -152,8 +160,12 @@ describe("workspace CLI program", () => {
     ]);
 
     expect(Exit.isSuccess(result.exit)).toBeTruthy();
-    expect(result.stdout).toContain("--output");
-    expect(result.stdout).toContain("runtime credentials");
+    expect(
+      ["--output", "--overwrite", "--store", "--environment"].every((flag) =>
+        result.stdout.includes(flag)
+      )
+    ).toBeTruthy();
+    expect(result.stdout).toContain("runtime configuration");
     expect(loadConfigProvider).not.toHaveBeenCalled();
   });
 
