@@ -168,6 +168,8 @@ const installApplicationWorkspaces = async (cwd: string): Promise<void> => {
       "web...",
       "--filter",
       "api...",
+      "--filter",
+      "cli...",
     ],
     { cwd }
   );
@@ -259,6 +261,7 @@ const typecheckApplications = async (cwd: string) => {
       "--filter=admin",
       "--filter=web",
       "--filter=api",
+      "--filter=cli",
     ],
     "application typecheck"
   );
@@ -546,6 +549,9 @@ describe("scaffold composition", () => {
       ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');
       await expect(
         readFile(path.join(target, "apps/api/package.json"), "utf-8")
+      ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');
+      await expect(
+        readFile(path.join(target, "apps/cli/package.json"), "utf-8")
       ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');
 
       await rm(target, { force: true, recursive: true });

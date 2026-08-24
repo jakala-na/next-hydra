@@ -18,6 +18,11 @@
           "type": "registry:file"
         },
         {
+          "path": "cli.ts",
+          "target": "~/packages/auth-contract/cli.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "index.ts",
           "target": "~/packages/auth-contract/index.ts",
           "type": "registry:file"
@@ -25,6 +30,16 @@
         {
           "path": "package.json",
           "target": "~/packages/auth-contract/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "provisioning.test.ts",
+          "target": "~/packages/auth-contract/provisioning.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "provisioning.ts",
+          "target": "~/packages/auth-contract/provisioning.ts",
           "type": "registry:file"
         },
         {

@@ -7,12 +7,17 @@
     ".": "./index.ts",
     "./access-token": "./access-token.ts",
     "./capabilities": "./capabilities.ts",
+    "./cli": "./cli.ts",
+    "./provisioning": "./provisioning.ts",
     "./session": "./session.ts"
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "test": "vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/auth-contract/tsconfig.json"
+  },
+  "dependencies": {
+    "@repo/cli-core": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

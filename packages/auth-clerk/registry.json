@@ -7,8 +7,10 @@
       "type": "registry:item",
       "title": "Next Hydra Clerk Auth provider",
       "description": "Installs the Clerk Auth provider package and component-backed authentication routes.",
-      "docs": "Configure separate Clerk applications for the customer web app and admin app. The admin app uses its own Clerk credentials and host-only cookies; the API uses ADMIN_CLERK_* credentials to verify reviewer tokens and resolve reviewer identities from that admin application. Configure CLERK_AUTHORIZED_PARTIES and CLERK_WEBHOOK_SECRET for customer onboarding, and ADMIN_CLERK_AUTHORIZED_PARTIES for the admin origin. Do not configure the admin subdomain as a Clerk satellite of the customer application. In the customer Clerk application, register the generated /api/webhooks/clerk endpoint for user.created events. Registration approvals issue application invitations that redirect to /accept-invitation, where Clerk's SignIn component consumes the invitation ticket.",
-      "registryDependencies": ["jakala-na/next-hydra/auth-contract"],
+      "docs": "Configure separate Clerk applications for the customer web app and admin app. The admin app uses its own Clerk credentials and host-only cookies; the API uses ADMIN_CLERK_* credentials to verify reviewer tokens and resolve reviewer identities from that admin application. Configure CLERK_AUTHORIZED_PARTIES for the customer origin and ADMIN_CLERK_AUTHORIZED_PARTIES for the admin origin. Do not configure the admin subdomain as a Clerk satellite of the customer application. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output clerk-webhook.env` once with the customer CLERK_SECRET_KEY to create the customer webhook and signing-secret file. This create-only command never updates or deletes an existing endpoint; an exact managed endpoint can only be read on rerun to recover its secret. Registration approvals issue application invitations that redirect to /accept-invitation, where Clerk's SignIn component consumes the invitation ticket.",
+      "registryDependencies": [
+        "jakala-na/next-hydra/auth-contract"
+      ],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/auth/clerk",
@@ -29,6 +31,12 @@
             },
             {
               "cwd": "apps/admin",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-clerk@*"
+            },
+            {
+              "cwd": "apps/cli",
               "section": "dependencies",
               "name": "@repo/auth",
               "specifier": "workspace:@repo/auth-clerk@*"
@@ -56,6 +64,11 @@
         {
           "path": "capabilities.ts",
           "target": "~/packages/auth-clerk/capabilities.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli.ts",
+          "target": "~/packages/auth-clerk/cli.ts",
           "type": "registry:file"
         },
         {
@@ -124,13 +137,18 @@
           "type": "registry:file"
         },
         {
-          "path": "proxy.ts",
-          "target": "~/packages/auth-clerk/proxy.ts",
+          "path": "provisioning.test.ts",
+          "target": "~/packages/auth-clerk/provisioning.test.ts",
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/api/app/api/webhooks/clerk/route.ts",
-          "target": "~/apps/api/app/api/webhooks/clerk/route.ts",
+          "path": "provisioning.ts",
+          "target": "~/packages/auth-clerk/provisioning.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "proxy.ts",
+          "target": "~/packages/auth-clerk/proxy.ts",
           "type": "registry:file"
         },
         {
@@ -141,6 +159,11 @@
         {
           "path": "registry/apps/admin/app/sign-out/page.tsx",
           "target": "~/apps/admin/app/sign-out/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/api/app/api/webhooks/clerk/route.ts",
+          "target": "~/apps/api/app/api/webhooks/clerk/route.ts",
           "type": "registry:file"
         },
         {

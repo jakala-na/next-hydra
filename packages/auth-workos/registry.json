@@ -7,8 +7,10 @@
       "type": "registry:item",
       "title": "Next Hydra WorkOS Auth provider",
       "description": "Installs the WorkOS AuthKit provider package.",
-      "docs": "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project.",
-      "registryDependencies": ["jakala-na/next-hydra/auth-contract"],
+      "docs": "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output workos-webhook.env` once with the customer WORKOS_API_KEY to create the customer webhook and signing-secret file. This create-only command never updates or deletes an existing endpoint; an exact endpoint can only be read on rerun to recover its secret.",
+      "registryDependencies": [
+        "jakala-na/next-hydra/auth-contract"
+      ],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/auth/workos",
@@ -29,6 +31,12 @@
             },
             {
               "cwd": "apps/admin",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-workos@*"
+            },
+            {
+              "cwd": "apps/cli",
               "section": "dependencies",
               "name": "@repo/auth",
               "specifier": "workspace:@repo/auth-workos@*"
@@ -66,6 +74,11 @@
         {
           "path": "capabilities.ts",
           "target": "~/packages/auth-workos/capabilities.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli.ts",
+          "target": "~/packages/auth-workos/cli.ts",
           "type": "registry:file"
         },
         {
@@ -114,13 +127,18 @@
           "type": "registry:file"
         },
         {
-          "path": "proxy.ts",
-          "target": "~/packages/auth-workos/proxy.ts",
+          "path": "provisioning.test.ts",
+          "target": "~/packages/auth-workos/provisioning.test.ts",
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/api/app/api/webhooks/workos/route.ts",
-          "target": "~/apps/api/app/api/webhooks/workos/route.ts",
+          "path": "provisioning.ts",
+          "target": "~/packages/auth-workos/provisioning.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "proxy.ts",
+          "target": "~/packages/auth-workos/proxy.ts",
           "type": "registry:file"
         },
         {
@@ -129,13 +147,18 @@
           "type": "registry:file"
         },
         {
+          "path": "registry/apps/admin/app/api/auth/signout/route.ts",
+          "target": "~/apps/admin/app/api/auth/signout/route.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "registry/apps/admin/app/sign-in/route.ts",
           "target": "~/apps/admin/app/sign-in/route.ts",
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/admin/app/api/auth/signout/route.ts",
-          "target": "~/apps/admin/app/api/auth/signout/route.ts",
+          "path": "registry/apps/api/app/api/webhooks/workos/route.ts",
+          "target": "~/apps/api/app/api/webhooks/workos/route.ts",
           "type": "registry:file"
         },
         {

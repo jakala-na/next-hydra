@@ -13,6 +13,14 @@ pnpm cli --env-file /absolute/path/to/project.env commerce migrate plan
 Common commands:
 
 ```bash
+# Create the selected customer identity provider's webhook once. The command
+# never updates or deletes an existing endpoint. An exact managed endpoint can
+# be read on rerun to recover its secret; any drift is reported as a conflict.
+# The output path must not exist and receives only the signing secret.
+pnpm cli auth provision \
+  --api-url https://api.example.com \
+  --output apps/cli/.env.auth-webhook.local
+
 # Inspect and run the selected CMS provider's setup workflow.
 pnpm cli cms provision --help
 
@@ -48,6 +56,7 @@ Package composition:
 - `apps/cli/src/program.ts` adds the `Command` objects declared by packages.
 - `packages/commerce-commercetools/keys.ts` owns the Commercetools environment schema.
 - `packages/commerce-commercetools/cli` owns the Commercetools commands and implementation.
+- The selected auth package's `cli` export owns its customer webhook manifest and provider API integration.
 - The selected CMS package's `cli` export owns its provider-specific provisioning workflow.
 
 To add commands from another package:

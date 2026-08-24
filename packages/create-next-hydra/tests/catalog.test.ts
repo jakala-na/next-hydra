@@ -155,6 +155,12 @@ describe("Next Hydra source registry", () => {
           specifier: "workspace:@repo/auth-clerk@*",
         },
         {
+          cwd: "apps/cli",
+          name: "@repo/auth",
+          section: "dependencies",
+          specifier: "workspace:@repo/auth-clerk@*",
+        },
+        {
           cwd: "apps/web",
           name: "@repo/auth",
           section: "dependencies",
@@ -212,6 +218,12 @@ describe("Next Hydra source registry", () => {
       section: "dependencies",
       specifier: "workspace:@repo/auth-workos@*",
     });
+    expect(drupal.packageRequirements).toContainEqual({
+      cwd: "apps/cli",
+      name: "@repo/auth",
+      section: "dependencies",
+      specifier: "workspace:@repo/auth-workos@*",
+    });
     expect(contentstack.managedTargets).not.toContain(
       "apps/web/app/api/canvas/components/route.ts"
     );
@@ -227,7 +239,7 @@ describe("Next Hydra source registry", () => {
       },
     ]);
     expect(drupal.instructions).toStrictEqual([
-      "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project.",
+      "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output workos-webhook.env` once with the customer WORKOS_API_KEY to create the customer webhook and signing-secret file. This create-only command never updates or deletes an existing endpoint; an exact endpoint can only be read on rerun to recover its secret.",
       "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
       "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
     ]);
