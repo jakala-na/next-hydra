@@ -31,6 +31,9 @@
       "products": "Produkte",
       "categoryFallback": "Kategorie"
     },
+    "article": {
+      "readGuide": "Ratgeber lesen"
+    },
     "cart": {
       "addedToCartAlert": "Hinzufügt {quantity} {variantLabel} zum Warenkorb zu je {price}.\nLagerbestand: {stockStatus}",
       "stockIn": "Auf Lager",
@@ -144,7 +147,8 @@
         "errors": {
           "invalidSubmission": "Bitte prüfen Sie die markierten Felder und versuchen Sie es erneut.",
           "unsupportedRegistrationCountry": "Wir können Unternehmensregistrierungen aus diesem Land derzeit nicht annehmen.",
-          "submitFailed": "Ihre Registrierung konnte derzeit nicht gesendet werden. Bitte versuchen Sie es erneut."
+          "submitFailed": "Ihre Registrierung konnte derzeit nicht gesendet werden. Bitte versuchen Sie es erneut.",
+          "submissionOutcomeUnknown": "Wir konnten nicht bestätigen, ob Ihre Registrierung eingegangen ist. Wenden Sie sich an den Support, bevor Sie sie erneut senden."
         },
         "validation": {
           "companyName": "Geben Sie den Unternehmensnamen ein.",
@@ -190,6 +194,120 @@
           "title": "Ihre Unternehmensregistrierung wird noch geprüft.",
           "description": "Wir senden Ihnen die nächsten Schritte per E-Mail, sobald Ihr Unternehmen genehmigt wurde."
         }
+      }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Kontakt",
+        "deliveryDetails": "Lieferdetails",
+        "shippingOptions": "Versandoptionen",
+        "paymentOptions": "Zahlungsoptionen",
+        "reviewOrder": "Bestellung prüfen"
+      },
+      "status": {
+        "complete": "Vollständig",
+        "incomplete": "Unvollständig"
+      },
+      "activeStep": "Aktiver Schritt",
+      "attention": "Dieser Schritt erfordert Ihre Aufmerksamkeit",
+      "errorBoundary": {
+        "tryAgain": "Erneut versuchen"
+      },
+      "cart": {
+        "title": "Warenkorb",
+        "items": "{count, plural, one {# Artikel} other {# Artikel}}",
+        "quantity": "Menge {quantity}",
+        "violations": "Probleme beim Checkout",
+        "subtotal": "Zwischensumme"
+      },
+      "contact": {
+        "fields": {
+          "email": "E-Mail",
+          "firstName": "Vorname",
+          "lastName": "Nachname",
+          "phone": "Telefon"
+        },
+        "actions": {
+          "save": "Kontaktdaten speichern",
+          "saving": "Wird gespeichert...",
+          "useCustomerProfile": "Kundenprofil verwenden"
+        }
+      },
+      "deliveryDetails": {
+        "addressBook": {
+          "chooseShippingAddress": "Lieferadresse auswählen",
+          "defaultShipping": "Standard-Lieferadresse",
+          "makeDefaultShipping": "Als Standard-Lieferadresse festlegen",
+          "saveShippingAddress": "Diese Lieferadresse speichern",
+          "useNewAddress": "Neue Adresse verwenden"
+        },
+        "fields": {
+          "addressLine1": "Adresszeile 1",
+          "addressLine2": "Adresszeile 2",
+          "city": "Stadt",
+          "postalCode": "Postleitzahl",
+          "region": "Region",
+          "country": "Land"
+        },
+        "actions": {
+          "save": "Lieferdetails speichern",
+          "saving": "Wird gespeichert..."
+        }
+      },
+      "errors": {
+        "addressBook": {
+          "accessDenied": "Das Adressbuch ist für diesen Checkout nicht verfügbar.",
+          "providerFailure": "Gespeicherte Adressen konnten nicht geladen werden. Versuchen Sie es erneut."
+        },
+        "badRequest": "Die Checkout-Anfrage ist ungültig.",
+        "cartMismatch": "Dieser Checkout ist nicht mehr aktuell. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
+        "internal": "Der Checkout konnte nicht abgeschlossen werden. Versuchen Sie es erneut.",
+        "deliveryDetails": {
+          "addressBookEntryUnavailable": "Diese gespeicherte Adresse ist nicht mehr verfügbar.",
+          "invalidInput": "Geben Sie Adresszeile 1, Postleitzahl, Stadt und Land ein.",
+          "sourceUnavailable": "Diese Lieferquelle ist für diesen Checkout nicht verfügbar.",
+          "providerFailure": "Die Lieferdetails konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "unsupported": "Diese Lieferquelle wird noch nicht unterstützt."
+        },
+        "notFound": "Der Checkout wurde für diese Anfrage nicht gefunden.",
+        "versionConflict": "Der Checkout wurde vor dem Speichern geändert. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
+        "saveContact": {
+          "CheckoutCartMismatch": "Dieser Checkout ist nicht mehr aktuell. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
+          "CheckoutCustomerProfileIncomplete": "In Ihrem Kundenprofil fehlen erforderliche Kontaktdaten. Geben Sie sie unten ein, um fortzufahren.",
+          "CheckoutMutationSchemaFailure": "Geben Sie E-Mail-Adresse, Vorname und Nachname ein.",
+          "CheckoutMutationOutcomeUnknown": "Wir konnten nicht bestätigen, ob Ihre Kontaktdaten gespeichert wurden. Aktualisieren Sie die Seite, bevor Sie es erneut versuchen.",
+          "CheckoutMutationSourceUnavailable": "Diese Kontaktquelle ist für diesen Checkout nicht verfügbar.",
+          "CheckoutMutationProviderFailure": "Die Kontaktdaten konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CommerceAccountUnavailable": "Die Kontaktdaten konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CommerceRequestFailure": "Die Kontaktdaten konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CheckoutMutationUnsupported": "Diese Kontaktquelle wird noch nicht unterstützt.",
+          "CheckoutUnavailable": "Der Checkout wurde für diese Anfrage nicht gefunden.",
+          "CommerceRequestContextNotFound": "Der Checkout wurde für diese Anfrage nicht gefunden.",
+          "CheckoutVersionConflict": "Der Checkout wurde vor dem Speichern geändert. Aktualisieren Sie die Seite und versuchen Sie es erneut."
+        },
+        "saveDeliveryDetails": {
+          "CheckoutCartMismatch": "Dieser Checkout ist nicht mehr aktuell. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
+          "CheckoutMutationAddressBookEntryUnavailable": "Diese gespeicherte Adresse ist nicht mehr verfügbar.",
+          "CheckoutMutationSchemaFailure": "Geben Sie Adresszeile 1, Postleitzahl, Stadt und Land ein.",
+          "CheckoutMutationOutcomeUnknown": "Wir konnten nicht bestätigen, ob Ihre Lieferdaten gespeichert wurden. Aktualisieren Sie die Seite, bevor Sie es erneut versuchen.",
+          "CheckoutMutationSourceUnavailable": "Diese Lieferquelle ist für diesen Checkout nicht verfügbar.",
+          "CheckoutMutationProviderFailure": "Die Lieferdetails konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CommerceAccountUnavailable": "Die Lieferdetails konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CommerceRequestFailure": "Die Lieferdetails konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+          "CheckoutMutationUnsupported": "Diese Lieferquelle wird noch nicht unterstützt.",
+          "CheckoutUnavailable": "Der Checkout wurde für diese Anfrage nicht gefunden.",
+          "CommerceRequestContextNotFound": "Der Checkout wurde für diese Anfrage nicht gefunden.",
+          "CheckoutVersionConflict": "Der Checkout wurde vor dem Speichern geändert. Aktualisieren Sie die Seite und versuchen Sie es erneut."
+        }
+      },
+      "violations": {
+        "unknownCountry": "dieses Ziel",
+        "shippingCountryUnavailable": "Der Versand nach {country} ist nicht verfügbar.",
+        "guestItemLimit": "Gastwarenkörbe sind auf {maxQuantity} Artikel begrenzt. Entfernen Sie mindestens {excessQuantity, plural, one {# Artikel} other {# Artikel}}.",
+        "incompatibleCartItems": "Diese Artikel können nicht zusammen gekauft werden.",
+        "shippingAddressRestricted": "Ein oder mehrere Artikel können nicht an diese Adresse geliefert werden.",
+        "policyUnavailable": "Die Checkout-Verfügbarkeit konnte nicht geprüft werden.",
+        "generic": "Der Checkout kann erst fortgesetzt werden, wenn dieses Problem behoben ist."
       }
     }
   }

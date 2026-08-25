@@ -1,0 +1,235 @@
+diff --git a/README.md b/README.md
+index 8afba0b93b6a4fbc3765bf014054c71214997c86..105c9138eb4caa8f53c22f10e611aeefcfbbbb04 100644
+--- a/README.md
++++ b/README.md
+@@ -44,7 +44,10 @@ need:
+   "pagesDir": "pages",
+   "contentTemplatesDir": "content-templates",
+   "aliasBaseDir": "src",
+-  "globalCssPath": "src/global.css"
++  "globalCssPath": "src/global.css",
++  "workbench": {
++    "hiddenComponents": ["server-only-component"]
++  }
+ }
+ ```
+ 
+@@ -57,6 +60,7 @@ Workbench reads these options:
+ | `contentTemplatesDir` | `"content-templates"` | Directory Workbench scans for content template specs such as `content-templates/node.article.full.json`.                          |
+ | `aliasBaseDir`        | `"src"`               | Base directory for resolving `@/` imports inside component source files.                                                          |
+ | `globalCssPath`       | `"src/global.css"`    | Global CSS entrypoint loaded into the preview iframe. This is where Workbench picks up shared styles and Tailwind setup.          |
++| `workbench.hiddenComponents` | `[]` | Component machine names omitted from the Workbench sidebar and initial selection. Hidden components remain available to page, content-template, and region previews. |
+ 
+ If `canvas.config.json` is not present, Workbench uses those defaults. For
+ existing projects, if `globalCssPath` is not set and `src/global.css` is
+@@ -65,6 +69,10 @@ that file exists. Move the file to `src/global.css`, or set `globalCssPath`
+ explicitly to keep the legacy location. `outputDir` is part of the wider Canvas
+ config surface, but Workbench does not use it.
+ 
++`workbench.hiddenComponents` affects only Workbench navigation. It does not
++remove components from Canvas discovery or from the preview registry, so page
++and template previews can continue to render compositions that reference them.
++
+ ## Preview build command
+ 
+ Workbench can export target-based standalone preview artifacts into the output
+diff --git a/dist/client/src/client/App.tsx b/dist/client/src/client/App.tsx
+index cba82b407e54a31180c92b36a7aa14a0f0e2e318..f6891d1d2ba879b462f2d4a16161cb730f8a3a9e 100644
+--- a/dist/client/src/client/App.tsx
++++ b/dist/client/src/client/App.tsx
+@@ -116,13 +116,13 @@ function getSidebarDefaultOpen(): boolean {
+ 
+ function pickInitialSelection(manifest: PreviewManifest): string | null {
+   const firstPreviewable = manifest.components.find(
+-    (component) => component.previewable,
++    (component) => !component.hidden && component.previewable,
+   );
+   if (firstPreviewable) {
+     return firstPreviewable.id;
+   }
+ 
+-  return manifest.components[0]?.id ?? null;
++  return manifest.components.find((component) => !component.hidden)?.id ?? null;
+ }
+ 
+ function pickInitialPage(pages: DiscoveredPage[]): DiscoveredPage | null {
+@@ -261,9 +261,11 @@ export function App() {
+       return [];
+     }
+ 
+-    return [...previewManifest.components].sort((componentA, componentB) =>
+-      componentA.label.localeCompare(componentB.label),
+-    );
++    return previewManifest.components
++      .filter((component) => !component.hidden)
++      .sort((componentA, componentB) =>
++        componentA.label.localeCompare(componentB.label),
++      );
+   }, [previewManifest]);
+ 
+   const sortedPages = useMemo<DiscoveredPage[]>(() => {
+@@ -365,6 +367,20 @@ export function App() {
+       return [];
+     }
+ 
++    const mockVariants = selectedComponent.mocks.map((mock, index) => ({
++      id: mock.id,
++      label: mock.label,
++      mockIndex: index,
++      source: 'mock' as const,
++      mock,
++    }));
++    const hasContentEntityReferenceProps =
++      Object.keys(selectedComponent.dataDependencies.entityFields ?? {}).length >
++      0;
++    if (!hasContentEntityReferenceProps && mockVariants.length > 0) {
++      return mockVariants;
++    }
++
+     return [
+       {
+         id: DEFAULT_COMPONENT_VARIANT_ID,
+@@ -373,13 +389,6 @@ export function App() {
+         source: 'default',
+         mock: null,
+       },
+-      ...selectedComponent.mocks.map((mock, index) => ({
+-        id: mock.id,
+-        label: mock.label,
+-        mockIndex: index,
+-        source: 'mock' as const,
+-        mock,
+-      })),
+     ];
+   }, [selectedComponent]);
+ 
+diff --git a/dist/client/src/lib/preview-contract.ts b/dist/client/src/lib/preview-contract.ts
+index 64c4251ef0ac47830957fee07a18f3a53ae5a259..70cf7e89dbfda90fc506c6b273e67640e424f63c 100644
+--- a/dist/client/src/lib/preview-contract.ts
++++ b/dist/client/src/lib/preview-contract.ts
+@@ -29,6 +29,7 @@ export interface PreviewManifestComponent {
+   dataDependencies: {
+     entityFields?: Record<string, string[]>;
+   };
++  hidden: boolean;
+   mocks: PreviewManifestComponentMock[];
+ }
+ 
+@@ -160,6 +161,7 @@ export function toPreviewManifestComponent(component: {
+       exampleProps: {},
+       props: {},
+       dataDependencies: {},
++      hidden: false,
+       mocks: [],
+     };
+   }
+@@ -185,6 +187,7 @@ export function toPreviewManifestComponent(component: {
+       exampleProps: {},
+       props: {},
+       dataDependencies: {},
++      hidden: false,
+       mocks: [],
+     };
+   }
+@@ -209,6 +212,7 @@ export function toPreviewManifestComponent(component: {
+     exampleProps: {},
+     props: {},
+     dataDependencies: {},
++    hidden: false,
+     mocks: [],
+   };
+ }
+diff --git a/dist/client/src/lib/preview-content-entity-reference.ts b/dist/client/src/lib/preview-content-entity-reference.ts
+index d74e313d6b93f972d9f9799e466fbf59955fead8..cdc3c6daccb342f1ce24105e688cd8b1c2351f31 100644
+--- a/dist/client/src/lib/preview-content-entity-reference.ts
++++ b/dist/client/src/lib/preview-content-entity-reference.ts
+@@ -32,6 +32,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
+   return typeof value === 'object' && value !== null && !Array.isArray(value);
+ }
+ 
++/**
++ * Mirrors CustomElementNormalizer's recursive key conversion so local previews
++ * receive the same nested prop shape as Canvas Headless.
++ */
++export function canonicalizeCanvasHeadlessPropValue(value: unknown): unknown {
++  if (Array.isArray(value)) {
++    return value.map(canonicalizeCanvasHeadlessPropValue);
++  }
++  if (!isRecord(value)) {
++    return value;
++  }
++  return Object.fromEntries(
++    Object.entries(value).map(([key, nestedValue]) => [
++      key.replace(/[_-]([a-z])/g, (_, letter: string) =>
++        letter.toUpperCase(),
++      ),
++      canonicalizeCanvasHeadlessPropValue(nestedValue),
++    ]),
++  );
++}
++
+ function getContentEntityReferencePropTarget(
+   prop: unknown,
+ ): ContentEntityReferenceTarget | null {
+@@ -268,5 +289,10 @@ export async function fetchResolvedContentEntityReferenceFields(
+   }
+   const result =
+     (await response.json()) as ResolvedContentEntityReferenceFieldsResponse;
+-  return result.data;
++  return Object.fromEntries(
++    Object.entries(result.data).map(([propName, value]) => [
++      propName,
++      canonicalizeCanvasHeadlessPropValue(value),
++    ]),
++  );
+ }
+diff --git a/dist/server/system-ca-6_AeIDUU.mjs b/dist/server/system-ca-6_AeIDUU.mjs
+index ce5c43ef948f328ef8210cb00194e5e2703ef902..751322e945e52afdd8b42e31cb33a3575eb5dee9 100644
+--- a/dist/server/system-ca-6_AeIDUU.mjs
++++ b/dist/server/system-ca-6_AeIDUU.mjs
+@@ -6396,8 +6396,15 @@ const DEFAULT_CANVAS_CONFIG = {
+ 		pages: true,
+ 		contentTemplates: true,
+ 		regions: true
++	},
++	workbench: {
++		hiddenComponents: []
+ 	}
+ };
++function resolveHiddenComponents(value) {
++	if (!Array.isArray(value)) return [];
++	return [...new Set(value.filter((componentName) => typeof componentName === "string").map((componentName) => componentName.trim()).filter(Boolean))];
++}
+ function resolveDefaultGlobalCssPath(options) {
+ 	const defaultGlobalCssPath = resolve(options.hostRoot, DEFAULT_CANVAS_CONFIG.globalCssPath);
+ 	const legacyGlobalCssPath = resolve(options.hostRoot, LEGACY_GLOBAL_CSS_PATH);
+@@ -6433,6 +6440,9 @@ function resolveCanvasConfig(options) {
+ 				pages: parsed.sync?.pages ?? DEFAULT_CANVAS_CONFIG.sync.pages,
+ 				contentTemplates: parsed.sync?.contentTemplates ?? DEFAULT_CANVAS_CONFIG.sync.contentTemplates,
+ 				regions: parsed.sync?.regions ?? DEFAULT_CANVAS_CONFIG.sync.regions
++			},
++			workbench: {
++				hiddenComponents: resolveHiddenComponents(parsed.workbench?.hiddenComponents)
+ 			}
+ 		};
+ 	} catch {
+diff --git a/dist/server/vite.published.config.mjs b/dist/server/vite.published.config.mjs
+index 91147f8380b553bfa080cddcc054562698da4473..c43de7eee8a4be9a3e5e28f091e35120554f7e5b 100644
+--- a/dist/server/vite.published.config.mjs
++++ b/dist/server/vite.published.config.mjs
+@@ -901,6 +901,7 @@ function createWorkbenchPlugin(paths) {
+ 								exampleProps,
+ 								props: metadata?.props.properties ?? {},
+ 								dataDependencies: metadata?.dataDependencies ?? {},
++								hidden: paths.hiddenComponentNames.includes(metadata?.machineName ?? component.name),
+ 								mocks
+ 							},
+ 							warnings
+@@ -1089,6 +1090,7 @@ function resolveWorkbenchPaths(options) {
+ 		clientRoot,
+ 		componentDiscoveryRoot,
+ 		contentTemplatesDiscoveryRoot,
++		hiddenComponentNames: canvasConfig.workbench.hiddenComponents,
+ 		siteUrl: loadEnv("development", hostProjectRoot, "CANVAS_").CANVAS_SITE_URL?.trim() || null,
+ 		hostProjectRoot,
+ 		packageRoot,

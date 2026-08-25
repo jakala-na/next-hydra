@@ -1,0 +1,55 @@
+uuid: 52f66fac-a113-4d16-9b5d-8e2cb5b4417d
+langcode: en
+status: true
+dependencies: {}
+machineName: hero
+name: Hero
+type: external
+required:
+  - title
+props:
+  title:
+    type: string
+    title: Title
+    examples:
+      - "Build composable experiences without the integration tax"
+  tagline:
+    type: string
+    title: Tagline
+    examples:
+      - "Next Hydra"
+  description:
+    type: string
+    title: Description
+    examples:
+      - "Connect content and commerce while keeping every provider replaceable."
+  image:
+    type: object
+    $ref: "json-schema-definitions://canvas.module/image"
+    title: Image
+  primaryCtaLabel:
+    type: string
+    title: "Primary CTA label"
+    examples:
+      - "Get started"
+  primaryCtaUrl:
+    type: string
+    format: uri-reference
+    title: "Primary CTA URL"
+    examples:
+      - /get-started
+  secondaryCtaLabel:
+    type: string
+    title: "Secondary CTA label"
+    examples:
+      - "Learn more"
+  secondaryCtaUrl:
+    type: string
+    format: uri-reference
+    title: "Secondary CTA URL"
+    examples:
+      - /about
+slots:
+  content:
+    title: Content
+dataDependencies: {}

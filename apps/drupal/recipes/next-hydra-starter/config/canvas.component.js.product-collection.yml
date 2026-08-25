@@ -1,0 +1,63 @@
+uuid: ae462f84-fd87-4bbe-8eb7-ccb0cc6e12e5
+langcode: en
+status: true
+dependencies:
+  config:
+    - canvas.js_component.product-collection
+  module:
+    - options
+active_version: 4febf13a92ba3824
+versioned_properties:
+  active:
+    settings:
+      prop_field_definitions:
+        title:
+          required: true
+          field_type: string
+          field_storage_settings: {}
+          field_instance_settings: {}
+          field_widget: string_textfield
+          default_value:
+            - value: "Featured products"
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {}
+        description:
+          required: false
+          field_type: string
+          field_storage_settings: {}
+          field_instance_settings: {}
+          field_widget: string_textfield
+          default_value:
+            - value: "Explore a selection of products chosen for this collection."
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {}
+        categoryId:
+          required: false
+          field_type: string
+          field_storage_settings: {}
+          field_instance_settings: {}
+          field_widget: string_textfield
+          default_value: null
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {}
+        limit:
+          required: false
+          field_type: list_integer
+          field_storage_settings:
+            allowed_values_function: canvas_load_allowed_values_for_component_prop
+          field_instance_settings: {}
+          field_widget: options_select
+          default_value:
+            - value: 3
+          expression: ℹ︎list_integer␟value
+          derived_schema_metadata: {}
+    fallback_metadata:
+      slot_definitions: {}
+label: "Product Collection"
+id: js.product-collection
+provider: null
+source: js
+source_local_id: product-collection

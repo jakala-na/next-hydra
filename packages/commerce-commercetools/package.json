@@ -1,0 +1,58 @@
+{
+  "name": "@repo/commerce-commercetools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "generate": "node scripts/gql-sync.ts",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/commerce-commercetools/tsconfig.json"
+  },
+  "exports": {
+    "./provider": "./provider.ts",
+    "./cart": "./cart/index.ts",
+    "./commerce-accounts": "./commerce-accounts/index.ts",
+    "./address-book": "./address-book/index.ts",
+    "./product": "./product/index.ts",
+    "./versioned-store": "./versioned-store/index.ts",
+    "./registration": "./registration/index.ts",
+    "./config": "./config/index.ts",
+    "./keys": "./keys.ts",
+    "./cli": "./cli/index.ts"
+  },
+  "dependencies": {
+    "@commercetools/platform-sdk": "^8.16.0",
+    "@commercetools/ts-client": "^4.2.1",
+    "@gql.tada/cli-utils": "^1.6.3",
+    "@repo/commerce": "workspace:*",
+    "@repo/errors": "workspace:*",
+    "@repo/i18n": "workspace:*",
+    "@repo/observability": "workspace:*",
+    "@repo/registration": "workspace:*",
+    "@repo/versioned-store": "workspace:*",
+    "@t3-oss/env-nextjs": "catalog:",
+    "@urql/core": "^5.1.2",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.2",
+    "dotenv": "^17.0.0",
+    "gql.tada": "^1.8.10",
+    "ora": "^8.2.0",
+    "server-only": "catalog:",
+    "urql": "^4.2.2",
+    "wonka": "^6.3.5",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@repo/testing": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "effect": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

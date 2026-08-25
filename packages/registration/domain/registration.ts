@@ -1,5 +1,7 @@
 import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
+import { StoreKey } from "@repo/commerce/store";
 import { Schema } from "effect";
+
 import { ApprovedDecision, RejectedDecision } from "./approval";
 import {
   AddressLine,
@@ -47,24 +49,24 @@ export type RedactedRegion = typeof RedactedRegion.Type;
 export class CompanyAddress extends Schema.Class<CompanyAddress>(
   "CompanyAddress"
 )({
-  streetName: RedactedAddressLine,
   additionalStreetInfo: Schema.optional(RedactedAddressLine),
-  postalCode: RedactedPostalCode,
   city: RedactedCity,
-  region: Schema.optional(RedactedRegion),
   country: CountryCode,
+  postalCode: RedactedPostalCode,
+  region: Schema.optional(RedactedRegion),
+  streetName: RedactedAddressLine,
 }) {}
 
 export class CompanyRegistrationDetails extends Schema.Class<CompanyRegistrationDetails>(
   "CompanyRegistrationDetails"
 )({
+  address: CompanyAddress,
   companyName: CompanyName,
   companyPhone: Schema.optional(RedactedCompanyPhone),
-  vatId: Schema.optional(RedactedVatId),
   contactFirstName: RedactedPersonName,
   contactLastName: RedactedPersonName,
   email: RedactedEmail,
-  address: CompanyAddress,
+  vatId: Schema.optional(RedactedVatId),
 }) {}
 
 export const RegistrationStatus = Schema.Literals([
@@ -78,10 +80,11 @@ export type RegistrationStatus = typeof RegistrationStatus.Type;
 export class AwaitingApprovalRegistration extends Schema.TaggedClass<AwaitingApprovalRegistration>()(
   "AwaitingApprovalRegistration",
   {
-    status: Schema.Literal(RegistrationStatus.literals[0]),
-    id: RegistrationId,
-    details: CompanyRegistrationDetails,
     createdAt: Schema.Date,
+    details: CompanyRegistrationDetails,
+    id: RegistrationId,
+    status: Schema.Literal(RegistrationStatus.literals[0]),
+    storeKey: StoreKey,
     updatedAt: Schema.Date,
   }
 ) {}
@@ -89,11 +92,12 @@ export class AwaitingApprovalRegistration extends Schema.TaggedClass<AwaitingApp
 export class ApprovalProcessingRegistration extends Schema.TaggedClass<ApprovalProcessingRegistration>()(
   "ApprovalProcessingRegistration",
   {
-    status: Schema.Literal(RegistrationStatus.literals[1]),
-    id: RegistrationId,
-    details: CompanyRegistrationDetails,
-    requestedDecision: Schema.Literals(["approved", "rejected"]),
     createdAt: Schema.Date,
+    details: CompanyRegistrationDetails,
+    id: RegistrationId,
+    requestedDecision: Schema.Literals(["approved", "rejected"]),
+    status: Schema.Literal(RegistrationStatus.literals[1]),
+    storeKey: StoreKey,
     updatedAt: Schema.Date,
   }
 ) {}
@@ -101,13 +105,14 @@ export class ApprovalProcessingRegistration extends Schema.TaggedClass<ApprovalP
 export class ApprovedRegistration extends Schema.TaggedClass<ApprovedRegistration>()(
   "ApprovedRegistration",
   {
-    status: Schema.Literal(RegistrationStatus.literals[2]),
-    id: RegistrationId,
-    details: CompanyRegistrationDetails,
-    decision: ApprovedDecision,
     commerceAccount: CommerceAccount,
-    invitationId: InvitationId,
     createdAt: Schema.Date,
+    decision: ApprovedDecision,
+    details: CompanyRegistrationDetails,
+    id: RegistrationId,
+    invitationId: InvitationId,
+    status: Schema.Literal(RegistrationStatus.literals[2]),
+    storeKey: StoreKey,
     updatedAt: Schema.Date,
   }
 ) {}
@@ -115,11 +120,12 @@ export class ApprovedRegistration extends Schema.TaggedClass<ApprovedRegistratio
 export class RejectedRegistration extends Schema.TaggedClass<RejectedRegistration>()(
   "RejectedRegistration",
   {
-    status: Schema.Literal(RegistrationStatus.literals[3]),
-    id: RegistrationId,
-    details: CompanyRegistrationDetails,
-    decision: RejectedDecision,
     createdAt: Schema.Date,
+    decision: RejectedDecision,
+    details: CompanyRegistrationDetails,
+    id: RegistrationId,
+    status: Schema.Literal(RegistrationStatus.literals[3]),
+    storeKey: StoreKey,
     updatedAt: Schema.Date,
   }
 ) {}

@@ -1,0 +1,25 @@
+_meta:
+  version: "1.0"
+  entity_type: media
+  uuid: 43b667b9-c3c0-4938-a896-1e19b59244da
+  bundle: image
+  default_langcode: en
+  depends:
+    187f65b5-5811-4554-9378-a8f9f8f1c493: file
+default:
+  status:
+    - value: true
+  uid:
+    - target_id: 1
+  name:
+    - value: "Ground pressure article"
+  created:
+    - value: 1754352000
+  revision_translation_affected:
+    - value: true
+  field_media_image:
+    - entity: 187f65b5-5811-4554-9378-a8f9f8f1c493
+      alt: "Large tracked industrial excavator displayed outdoors"
+      title: ""
+      width: 1600
+      height: 1000

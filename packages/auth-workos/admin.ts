@@ -1,5 +1,4 @@
 import "server-only";
-
 import { keys } from "./keys";
 
 type CreateWorkosInvitationInput = {
@@ -40,10 +39,10 @@ export type WorkosUser = {
 type WorkosErrorBody = {
   message?: string;
   code?: string;
-  errors?: Array<{
+  errors?: {
     code?: string;
     message?: string;
-  }>;
+  }[];
 };
 
 export class WorkosAdminError extends Error {
@@ -75,14 +74,14 @@ export async function createWorkosInvitation(
   const response = await fetch(
     "https://api.workos.com/user_management/invitations",
     {
-      method: "POST",
+      body: JSON.stringify({
+        email: input.email,
+      }),
       headers: {
         authorization: `Bearer ${keys().WORKOS_API_KEY}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({
-        email: input.email,
-      }),
+      method: "POST",
     }
   );
 
@@ -101,10 +100,10 @@ export async function createWorkosInvitation(
   }
 
   return {
-    id: invitation.id,
-    email: invitation.email,
-    state: invitation.state,
     acceptInvitationUrl,
+    email: invitation.email,
+    id: invitation.id,
+    state: invitation.state,
   };
 }
 
@@ -125,9 +124,9 @@ export async function getWorkosUser(userId: string): Promise<WorkosUser> {
   const user: WorkosUserResponse = await response.json();
 
   return {
-    id: user.id,
     email: user.email,
     firstName: user.firstName ?? user.first_name ?? undefined,
+    id: user.id,
     lastName: user.lastName ?? user.last_name ?? undefined,
   };
 }
@@ -138,10 +137,10 @@ export async function revokeWorkosInvitation(
   const response = await fetch(
     `https://api.workos.com/user_management/invitations/${invitationId}`,
     {
-      method: "DELETE",
       headers: {
         authorization: `Bearer ${keys().WORKOS_API_KEY}`,
       },
+      method: "DELETE",
     }
   );
 

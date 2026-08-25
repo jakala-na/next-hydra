@@ -25,22 +25,22 @@ import { usePathname } from "next/navigation";
 
 const navigationItems = [
   {
-    href: "/admin",
-    label: "Overview",
     description: "Start here",
+    href: "/admin",
     icon: LayoutGridIcon,
+    label: "Overview",
   },
   {
-    href: "/admin/registration-approvals",
-    label: "Registration approvals",
     description: "Review requests",
+    href: "/admin/registration-approvals",
     icon: ShieldCheckIcon,
+    label: "Registration approvals",
   },
   {
-    href: "/admin/user-impersonation",
-    label: "User impersonation",
     description: "Support tools",
+    href: "/admin/user-impersonation",
     icon: UserRoundCogIcon,
+    label: "User impersonation",
   },
 ] as const;
 

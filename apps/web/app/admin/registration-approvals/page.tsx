@@ -32,6 +32,7 @@ import { RegistrationStatusBadge } from "@repo/registration/components/admin/reg
 import type { RegistrationDetailStatus } from "@repo/registration/components/admin/registration-view-models";
 import type { Route } from "next";
 import Link from "next/link";
+
 import {
   ADMIN_REGISTRATION_DECIDE_PERMISSION,
   ADMIN_REGISTRATION_READ_PERMISSION,
@@ -54,9 +55,9 @@ const isStatus = (
 ): value is (typeof registrationStatusFilters)[number] =>
   Boolean(
     value &&
-      registrationStatusFilters.includes(
-        value as (typeof registrationStatusFilters)[number]
-      )
+    registrationStatusFilters.includes(
+      value as (typeof registrationStatusFilters)[number]
+    )
   );
 
 const getSingleParam = (
@@ -102,7 +103,7 @@ const buildAdminHref = ({
   cursorStack?: string[];
   registrationId?: string;
 }) => {
-  const params = getBaseParams({ status, search });
+  const params = getBaseParams({ search, status });
 
   if (cursor) {
     params.set("cursor", cursor);
@@ -159,10 +160,10 @@ export default async function AdminRegistrationsPage({
 
   const [listResult, selectedRegistration] = await Promise.all([
     listAdminRegistrations({
-      status,
-      search,
       cursor: currentCursor,
       limit: PAGE_SIZE,
+      search,
+      status,
     }),
     registrationId
       ? getAdminRegistration({ registrationId })
@@ -171,27 +172,27 @@ export default async function AdminRegistrationsPage({
 
   const previousHref = currentCursor
     ? buildAdminHref({
-        status,
-        search,
         cursor: cursorStack.at(-1),
         cursorStack: cursorStack.slice(0, -1),
+        search,
+        status,
       })
     : undefined;
   const nextHref = listResult.nextCursor
     ? buildAdminHref({
-        status,
-        search,
         cursor: listResult.nextCursor,
         cursorStack: currentCursor
           ? [...cursorStack, currentCursor]
           : cursorStack,
+        search,
+        status,
       })
     : undefined;
   const closeHref = buildAdminHref({
-    status,
-    search,
     cursor: currentCursor,
     cursorStack,
+    search,
+    status,
   });
 
   return (
@@ -241,8 +242,8 @@ export default async function AdminRegistrationsPage({
           <div className="flex flex-wrap gap-2">
             {registrationStatusFilters.map((option) => {
               const href = buildAdminHref({
-                status: option,
                 search,
+                status: option,
               });
 
               return (
@@ -284,11 +285,11 @@ export default async function AdminRegistrationsPage({
               ) : (
                 listResult.items.map((registration) => {
                   const rowHref = buildAdminHref({
-                    status,
-                    search,
                     cursor: currentCursor,
                     cursorStack,
                     registrationId: registration.registrationId,
+                    search,
+                    status,
                   });
 
                   return (

@@ -1,5 +1,6 @@
 import { Effect, Layer } from "effect";
 import { Resend } from "resend";
+
 import { keys } from "./keys";
 import { EmailProvider, EmailProviderFailure } from "./provider";
 
@@ -13,13 +14,21 @@ export const layerResendEmailProvider = Layer.sync(EmailProvider, () => {
   return EmailProvider.of({
     send: (message) =>
       Effect.tryPromise({
+        catch: (cause: unknown) =>
+          new EmailProviderFailure({
+            cause: getErrorCause(cause),
+            message: `Failed to send email: ${getErrorCause(cause).message}`,
+            operation: "send",
+          }),
         try: async () => {
           const result = await resend.emails.send({
             from: emailKeys.RESEND_FROM,
-            to: message.to,
-            subject: message.subject,
             react: message.react,
-            ...(message.replyTo ? { replyTo: message.replyTo } : {}),
+            subject: message.subject,
+            to: message.to,
+            ...(message.replyTo !== undefined
+              ? { replyTo: message.replyTo }
+              : {}),
           });
 
           if (result.error) {
@@ -28,12 +37,6 @@ export const layerResendEmailProvider = Layer.sync(EmailProvider, () => {
 
           return { providerMessageId: result.data.id };
         },
-        catch: (cause: unknown) =>
-          new EmailProviderFailure({
-            message: `Failed to send email: ${getErrorCause(cause).message}`,
-            operation: "send",
-            cause: getErrorCause(cause),
-          }),
       }),
   });
 });

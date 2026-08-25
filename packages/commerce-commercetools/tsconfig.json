@@ -1,0 +1,27 @@
+{
+  "$schema": "../../node_modules/@effect/tsgo/schema.json",
+  "extends": "@repo/typescript-config/effect.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noUnusedLocals": true,
+    "plugins": [
+      {
+        "name": "gql.tada/ts-plugin",
+        "schema": "./gql/schema.graphql",
+        "tadaOutputLocation": "./gql/graphql-env.d.ts",
+        "tadaTurboLocation": "./gql/graphql-cache.d.ts"
+      },
+      {
+        "name": "@effect/language-service",
+        "diagnostics": false,
+        "includeSuggestionsInTsc": false
+      }
+    ],
+    "paths": {
+      "@repo/commerce-commercetools/*": ["./*"],
+      "@repo/commerce/*": ["../commerce/*"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

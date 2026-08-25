@@ -1,0 +1,1 @@
+export { CommercetoolsConfig } from "./config";

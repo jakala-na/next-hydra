@@ -1,0 +1,20 @@
+_meta:
+  version: "1.0"
+  entity_type: file
+  uuid: 3f30269c-bd99-43e8-bcd3-60912acf00ac
+  default_langcode: en
+default:
+  uid:
+    - target_id: 1
+  filename:
+    - value: article-excavator-selection.jpg
+  uri:
+    - value: "public://next-hydra/article-excavator-selection.jpg"
+  filemime:
+    - value: image/jpeg
+  filesize:
+    - value: 416052
+  status:
+    - value: true
+  created:
+    - value: 1754352000

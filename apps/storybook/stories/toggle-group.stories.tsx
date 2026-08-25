@@ -9,20 +9,21 @@ import { Bold, Italic, Underline } from "lucide-react";
  * A set of two-state buttons that can be toggled on or off.
  */
 const meta = {
-  title: "ui/ToggleGroup",
-  component: ToggleGroup,
-  tags: ["autodocs"],
   argTypes: {
     type: {
-      options: ["multiple", "single"],
       control: { type: "radio" },
+      options: ["multiple", "single"],
     },
   },
   args: {
-    variant: "default",
+    disabled: false,
     size: "default",
     type: "multiple",
-    disabled: false,
+    variant: "default",
+  },
+  component: ToggleGroup,
+  parameters: {
+    layout: "centered",
   },
   render: (args) => (
     <ToggleGroup {...args}>
@@ -37,9 +38,8 @@ const meta = {
       </ToggleGroupItem>
     </ToggleGroup>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/ToggleGroup",
 } satisfies Meta<typeof ToggleGroup>;
 
 export default meta;

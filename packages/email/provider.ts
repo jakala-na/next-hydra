@@ -4,9 +4,9 @@ import type { ReactNode } from "react";
 export class EmailProviderFailure extends Schema.TaggedErrorClass<EmailProviderFailure>()(
   "EmailProviderFailure",
   {
+    cause: Schema.Defect,
     message: Schema.String,
     operation: Schema.Literal("send"),
-    cause: Schema.Defect,
   }
 ) {}
 

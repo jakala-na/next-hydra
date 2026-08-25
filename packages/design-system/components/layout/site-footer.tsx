@@ -1,4 +1,5 @@
 import { Facebook, Linkedin, Twitter, Youtube } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 
 export function SiteFooter() {
@@ -202,13 +203,13 @@ export function SiteFooter() {
           </p>
           <div className="flex gap-6 text-sm">
             <Link
-              href="/privacy"
+              href={"/privacy" as Route}
               className="text-muted-foreground transition-colors hover:text-primary"
             >
               Privacy Policy
             </Link>
             <Link
-              href="/terms"
+              href={"/terms" as Route}
               className="text-muted-foreground transition-colors hover:text-primary"
             >
               Terms of Service

@@ -1,13 +1,19 @@
-import { captureException } from "@sentry/nextjs";
+import { captureException as captureSentryException } from "@sentry/nextjs";
+
 import { log } from "./log";
+
+export const captureException = (error: unknown): void => {
+  captureSentryException(error);
+};
 
 export const parseError = (error: unknown): string => {
   let message = "An error occurred";
 
   if (error instanceof Error) {
-    message = error.message;
-  } else if (error && typeof error === "object" && "message" in error) {
-    message = error.message as string;
+    ({ message } = error);
+  } else if (error !== null && typeof error === "object" && "message" in error) {
+    const { message: errorMessage } = error;
+    message = errorMessage as string;
   } else {
     message = String(error);
   }
@@ -15,9 +21,11 @@ export const parseError = (error: unknown): string => {
   try {
     captureException(error);
     log.error(`Parsing error: ${message}`);
-  } catch (newError) {
-    // biome-ignore lint/suspicious/noConsole: Need console here
-    console.error("Error parsing error:", newError);
+    // Shadows parseError's `error` param; catch bindings stay named `error`.
+    // oxlint-disable-next-line eslint/no-shadow
+  } catch (error) {
+    // oxlint-disable-next-line no-console -- This fallback must report through the console.
+    console.error("Error parsing error:", error);
   }
 
   return message;

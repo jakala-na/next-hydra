@@ -1,20 +1,21 @@
 import { Schema } from "effect";
+
 import { RegistrationReviewerActor } from "./actors";
 
 export class ApprovedDecision extends Schema.Class<ApprovedDecision>(
   "ApprovedDecision"
 )({
-  decision: Schema.Literal("approved"),
   actor: RegistrationReviewerActor,
-  reason: Schema.optional(Schema.String),
   decidedAt: Schema.Date,
+  decision: Schema.Literal("approved"),
+  reason: Schema.optional(Schema.String),
 }) {}
 
 export class RejectedDecision extends Schema.Class<RejectedDecision>(
   "RejectedDecision"
 )({
-  decision: Schema.Literal("rejected"),
   actor: RegistrationReviewerActor,
-  reason: Schema.optional(Schema.String),
   decidedAt: Schema.Date,
+  decision: Schema.Literal("rejected"),
+  reason: Schema.optional(Schema.String),
 }) {}

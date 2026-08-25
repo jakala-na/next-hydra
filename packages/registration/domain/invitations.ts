@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+
 import { Actor } from "./actors";
 import {
   AcceptedAuthIdentity,
@@ -13,16 +14,16 @@ export class RegistrationApprovalIntent extends Schema.Class<RegistrationApprova
   "RegistrationApprovalIntent"
 )({
   intent: Schema.Literal("registration_approval"),
-  registrationId: RegistrationId,
   inviteeEmail: RedactedEmail,
+  registrationId: RegistrationId,
   role: Schema.Literal("owner"),
 }) {}
 
 export class CompanyMemberIntent extends Schema.Class<CompanyMemberIntent>(
   "CompanyMemberIntent"
 )({
-  intent: Schema.Literal("company_member"),
   businessUnitId: CommerceBusinessUnitId,
+  intent: Schema.Literal("company_member"),
   inviteeEmail: RedactedEmail,
   role: CompanyMemberInvitationRole,
 }) {}
@@ -45,35 +46,35 @@ export type InvitationIntent = typeof InvitationIntent.Type;
 export class PendingInvitation extends Schema.TaggedClass<PendingInvitation>()(
   "PendingInvitation",
   {
+    acceptInvitationUrl: Schema.optional(Schema.String),
+    createdAt: Schema.Date,
     id: InvitationId,
     intent: InvitationIntent,
     issuedBy: Actor,
-    createdAt: Schema.Date,
-    acceptInvitationUrl: Schema.optional(Schema.String),
   }
 ) {}
 
 export class AcceptedInvitation extends Schema.TaggedClass<AcceptedInvitation>()(
   "AcceptedInvitation",
   {
+    acceptedAt: Schema.Date,
+    acceptedBy: AcceptedAuthIdentity,
+    createdAt: Schema.Date,
     id: InvitationId,
     intent: InvitationIntent,
     issuedBy: Actor,
-    acceptedBy: AcceptedAuthIdentity,
-    createdAt: Schema.Date,
-    acceptedAt: Schema.Date,
   }
 ) {}
 
 export class RevokedInvitation extends Schema.TaggedClass<RevokedInvitation>()(
   "RevokedInvitation",
   {
+    createdAt: Schema.Date,
     id: InvitationId,
     intent: InvitationIntent,
     issuedBy: Actor,
-    revokedBy: Actor,
-    createdAt: Schema.Date,
     revokedAt: Schema.Date,
+    revokedBy: Actor,
   }
 ) {}
 
@@ -87,35 +88,35 @@ export type Invitation = typeof Invitation.Type;
 export class PendingRegistrationInvitation extends Schema.TaggedClass<PendingRegistrationInvitation>()(
   "PendingInvitation",
   {
+    acceptInvitationUrl: Schema.optional(Schema.String),
+    createdAt: Schema.Date,
     id: InvitationId,
     intent: RegistrationApprovalIntent,
     issuedBy: Actor,
-    createdAt: Schema.Date,
-    acceptInvitationUrl: Schema.optional(Schema.String),
   }
 ) {}
 
 export class AcceptedRegistrationInvitation extends Schema.TaggedClass<AcceptedRegistrationInvitation>()(
   "AcceptedInvitation",
   {
+    acceptedAt: Schema.Date,
+    acceptedBy: AcceptedAuthIdentity,
+    createdAt: Schema.Date,
     id: InvitationId,
     intent: RegistrationApprovalIntent,
     issuedBy: Actor,
-    acceptedBy: AcceptedAuthIdentity,
-    createdAt: Schema.Date,
-    acceptedAt: Schema.Date,
   }
 ) {}
 
 export class RevokedRegistrationInvitation extends Schema.TaggedClass<RevokedRegistrationInvitation>()(
   "RevokedInvitation",
   {
+    createdAt: Schema.Date,
     id: InvitationId,
     intent: RegistrationApprovalIntent,
     issuedBy: Actor,
-    revokedBy: Actor,
-    createdAt: Schema.Date,
     revokedAt: Schema.Date,
+    revokedBy: Actor,
   }
 ) {}
 

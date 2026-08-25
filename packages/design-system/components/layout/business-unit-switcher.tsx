@@ -13,8 +13,8 @@ import { Building2, Check, ChevronDown } from "lucide-react";
 
 export type BusinessUnitSwitcherItem = {
   readonly id: string;
-  readonly name: string;
-  readonly role: string;
+  readonly label: string;
+  readonly role?: string;
 };
 
 export type BusinessUnitSwitcherProps = {
@@ -30,11 +30,25 @@ export function BusinessUnitSwitcher({
   label = "Switch Business Unit",
   onSwitchBusinessUnit,
 }: BusinessUnitSwitcherProps) {
-  const currentBusinessUnit =
-    items.find((unit) => unit.id === currentBusinessUnitId) ?? items[0];
+  const currentBusinessUnit = items.find(
+    (unit) => unit.id === currentBusinessUnitId
+  );
 
-  if (items.length <= 1) {
+  if (items.length === 0) {
     return null;
+  }
+
+  if (items.length === 1 && currentBusinessUnit) {
+    return (
+      <div
+        className="flex h-8 max-w-[200px] items-center gap-2 rounded-md border bg-background px-2.5 font-medium text-sm shadow-xs"
+        title={`Operating as ${currentBusinessUnit.label}`}
+      >
+        <Building2 className="h-4 w-4 shrink-0" />
+        <span className="sr-only">Operating as </span>
+        <span className="truncate">{currentBusinessUnit.label}</span>
+      </div>
+    );
   }
 
   return (
@@ -46,7 +60,9 @@ export function BusinessUnitSwitcher({
           className="max-w-[200px] gap-2 bg-transparent"
         >
           <Building2 className="h-4 w-4 shrink-0" />
-          <span className="truncate">{currentBusinessUnit?.name}</span>
+          <span className="truncate">
+            {currentBusinessUnit?.label ?? label}
+          </span>
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
@@ -67,8 +83,12 @@ export function BusinessUnitSwitcher({
               }`}
             />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate font-medium">{unit.name}</span>
-              <span className="text-muted-foreground text-xs">{unit.role}</span>
+              <span className="truncate font-medium">{unit.label}</span>
+              {unit.role ? (
+                <span className="text-muted-foreground text-xs">
+                  {unit.role}
+                </span>
+              ) : null}
             </div>
           </DropdownMenuItem>
         ))}

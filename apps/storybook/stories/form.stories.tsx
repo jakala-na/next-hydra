@@ -17,11 +17,11 @@ import * as z from "zod";
  * Building forms with React Hook Form and Zod.
  */
 const meta: Meta<typeof Form> = {
-  title: "ui/Form",
-  component: Form,
-  tags: ["autodocs"],
   argTypes: {},
+  component: Form,
   render: (args) => <ProfileForm {...args} />,
+  tags: ["autodocs"],
+  title: "ui/Form",
 } satisfies Meta<typeof Form>;
 
 export default meta;
@@ -36,10 +36,10 @@ const formSchema = z.object({
 
 const ProfileForm = (args: Story["args"]) => {
   const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
     defaultValues: {
       username: "",
     },
+    resolver: zodResolver(formSchema),
   });
   function onSubmit(values: z.infer<typeof formSchema>) {
     action("onSubmit")(values);

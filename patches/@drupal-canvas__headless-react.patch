@@ -1,0 +1,55 @@
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -44,6 +44,18 @@ import HelloCard from './components/canvas/hello-card';
+ />;
+ ```
+
++`regionId` identifies the Canvas region represented by the tree's draft
++geometry markers. It defaults to `content`; pass a PageRegion machine name when
++rendering a global region:
++
++```tsx
++<CanvasComponentTree
++  tree={regions.pre_header}
++  components={components}
++  regionId="pre_header"
++/>;
++```
++
+ Named Canvas slots become React props with rendered `ReactNode` values; a
+ `default` slot becomes `children`. Drupal markup strings are inserted as trusted
+ HTML. Because React does not natively support rendering comment nodes, draft
+diff --git a/src/canvas-component-tree.tsx b/src/canvas-component-tree.tsx
+--- a/src/canvas-component-tree.tsx
++++ b/src/canvas-component-tree.tsx
+@@ -24,6 +24,8 @@ export type CanvasComponentRegistry = Record<string, ElementType>;
+ export interface CanvasComponentTreeProps {
+   tree: CanvasComponentTreeElement | null;
+   components: CanvasComponentRegistry;
++  /** Canvas region identifier used by draft-preview geometry markers. */
++  regionId?: string;
+ }
+
+ interface CanvasElementProps {
+@@ -42,6 +44,7 @@ interface CanvasElementProps {
+ export function CanvasComponentTree({
+   tree,
+   components,
++  regionId = 'content',
+ }: CanvasComponentTreeProps) {
+   const editor = isCanvasComponentTreeDraft(tree);
+   const emptyRegion = editor && isCanvasComponentTreeEmpty(tree);
+@@ -59,10 +62,10 @@ export function CanvasComponentTree({
+
+   return editor ? (
+     <>
+-      <CanvasMarker position="start" type="region" id="content" />
++      <CanvasMarker position="start" type="region" id={regionId} />
+       {emptyRegion && <CanvasEmptyRegionPlaceholder />}
+       {content}
+-      <CanvasMarker position="end" type="region" id="content" />
++      <CanvasMarker position="end" type="region" id={regionId} />
+     </>
+   ) : (
+     content

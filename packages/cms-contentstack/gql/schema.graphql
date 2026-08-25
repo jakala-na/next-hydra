@@ -1,0 +1,1040 @@
+type Query {
+  assets(uid: String!, locale: String = "en-us", fallback_locale: Boolean = false): SysAsset
+  all_assets(where: SysAssetWhere, locale: String = "en-us", order_by: [SysAssetOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllSysAsset
+  landing_page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): LandingPage
+  all_landing_page(where: LandingPageWhere, locale: String! = "en-us", order_by: [LandingPageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): AllLandingPage
+  navigation(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): Navigation
+  all_navigation(where: NavigationWhere, locale: String! = "en-us", order_by: [NavigationOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): AllNavigation
+  all_sys_taxonomies(locale: String, all_locales: Boolean = false, where: SysTaxonomiesWhere, order_by: [SysTaxonomyOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25): AllSysTaxonomyType
+  sys_taxonomy(uid: String!, locale: String): SysTaxonomyType
+  all_sys_taxonomy_terms(taxonomy_uid: String!, locale: String, all_locales: Boolean = false, where: SysTaxonomyTermsWhere, order_by: [SysTaxonomyTermOrderBy] = [order_ASC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = null): AllSysTaxonomyTerm
+  sys_taxonomy_term(taxonomy_uid: String!, uid: String!, locale: String, fallback_locale: Boolean = null): SysTaxonomyTerm
+}
+
+type SysAsset {
+  title: String
+  url(
+    """
+    Contentstack Image Delivery API is used to retrieve, manipulate and/or convert image files of your Contentstack account and deliver it to your web or mobile properties
+    """
+    transform: SysAssetTransformUrl
+  ): String
+  permanent_url: String
+  content_type: String
+  filename: String
+  file_size: Int
+  description: String
+  dimension: SysAssetDimension
+  metadata: JSON
+  unique_identifier: String
+  parent_uid: String
+  visual_markups: [SysVisualMarkups!]
+  user_defined_fields: SysUserDefinedFields
+  system: SysAssetSystemField
+}
+
+input SysAssetTransformUrl {
+  height: String
+  width: String
+
+  """
+  Format parameter lets you converts a given image from one format to another
+  """
+  format: SysAssetImageFormats
+
+  """
+  The disable parameter disables the functionality that is enabled by default
+  """
+  disable: SysAssetDisableValues
+
+  """
+  Fit parameter enables you to fit the given image properly within the specified height and width
+  """
+  fit: SysAssetFitValues
+  quality: Int
+  crop: String
+  trim: String
+
+  """
+  The orient parameter lets you control the cardinal orientation of the given image
+  """
+  orient: SysAssetOrientValues
+  overlay: String
+  overlay_align: SysAssetOverlayAlignValues
+
+  """
+  The overlay_repeat parameter lets you define how the overlay image will be repeated on the given image
+  """
+  overlay_repeat: SysAssetOverlayRepeatValues
+
+  """
+  When the auto parameter is set to webp, it enables WebP image support. WebP images have higher compression rate with minimum loss of quality.
+  """
+  auto: SysAssetAutoValues
+
+  """The disposition parameter lets you allow image to download or render. """
+  disposition: SysAssetDispositionValues
+
+  """
+  The dpr parameter lets you deliver images with appropriate size to devices that come with a defined device pixel ratio. The device pixel ratio of any device determines the screen resolution that its CSS would interpret
+  """
+  dpr: String
+
+  """
+  The bg-color parameter lets you set a background color for the given image. This is useful when applying padding or for replacing the transparent pixels of an image
+  """
+  bg_color: String
+
+  """
+  This parameter lets you add extra pixels to the edges of an image. You can specify values for top, right, bottom, and left padding for an image
+  """
+  pad: String
+
+  """
+  The value for this parameter can be set in pixels or percentage. For pixel value, use any whole number between 1 and 8192. For percentage value, use any decimal number between 0.0 and 0.99. When height is defined in percentage, it relative to the output image
+  """
+  overlay_height: String
+
+  """
+  The value for this parameter can be set in pixels or percentage. For pixel value, use any whole number between 1 and 8192. For percentage value, use any decimal number between 0.0 and 0.99. When width is defined in percentage, it is relative to the output image
+  """
+  overlay_width: String
+}
+
+enum SysAssetImageFormats {
+  """Convert an image to GIF format"""
+  GIF
+
+  """Convert an image to PNG format"""
+  PNG
+
+  """Convert an image to JPEG format"""
+  JPG
+
+  """
+  A Progressive JPEG is an image file created using a compression method that displays higher detail in progression
+  """
+  PJPG
+
+  """WEBP images are usually lower in size and have good quality"""
+  WEBP
+
+  """WEBP Lossless format"""
+  WEBPLL
+
+  """WEBP Lossy format"""
+  WEBPLY
+}
+
+enum SysAssetDisableValues {
+  """
+  UPSCALE is always enabled, in which the image is upscaled if the output image (by specifying the width or height) is bigger than the source image
+  """
+  UPSCALE
+}
+
+enum SysAssetFitValues {
+  BOUNDS
+  CROP
+}
+
+enum SysAssetOrientValues {
+  """Set image to default"""
+  DEFAULT
+
+  """Flip image horizontally"""
+  HORIZONTALLY
+
+  """Flip image horizontally and vertically"""
+  BOTH
+
+  """Flip image vertically"""
+  VERTICALLY
+
+  """Flip image horizontally and then rotate 90 degrees towards left"""
+  ROTATE90LEFT
+
+  """Rotate image 90 degrees towards right"""
+  ROTATE90RIGHT
+}
+
+"""
+The overlay_align parameter allows you to put one image on top of another
+"""
+enum SysAssetOverlayAlignValues {
+  """Align the overlay image to the top of the actual image"""
+  TOP
+
+  """Align the overlay image to the bottom of the actual image"""
+  BOTTOM
+
+  """Align the overlay image to the left of the actual image"""
+  LEFT
+
+  """Align the overlay image to the right of the actual image"""
+  RIGHT
+
+  """Align the overlay image to the middle (vertically) of the actual image"""
+  MIDDLE
+
+  """
+  Align the overlay image to the center (horizontally) of the actual image
+  """
+  CENTER
+}
+
+enum SysAssetOverlayRepeatValues {
+  """Horizontal repetition"""
+  X
+
+  """Vertical repetition"""
+  Y
+
+  """Horizontal and vertical repetition"""
+  BOTH
+}
+
+"""WEBP images are usually lower in size and have good quality."""
+enum SysAssetAutoValues {
+  WEBP
+}
+
+"""This parameter allows an image to be downloaded or rendered on page"""
+enum SysAssetDispositionValues {
+  """Allows to download an image"""
+  ATTACHMENT
+
+  """Allows an image to be rendered on page"""
+  INLINE
+}
+
+type SysAssetDimension {
+  width: Int
+  height: Int
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
+type SysVisualMarkups {
+  id: String!
+  type: String!
+  title: String
+  description: String
+  url: String
+  coordinates: SysVisualMarkupsCoordinates
+}
+
+type SysVisualMarkupsCoordinates {
+  x: Float
+  y: Float
+  width: Int
+  height: Int
+}
+
+type SysUserDefinedFields {
+  json: JSON
+}
+
+type SysAssetSystemField {
+  branch: String
+  created_at: DateTime
+  updated_at: DateTime
+  created_by: String
+  updated_by: String
+  uid: String
+  tags: [String]
+  version: Int
+  content_type_uid: String
+  publish_details: SystemPublishDetails
+  extensionConnection(skip: Int = 0, limit: Int = 25): SysExtensionConnection
+}
+
+"""
+This field accepts both ISODateString and ISODateTimeStringexample: 1992-08-14 or 1992-08-14T03:42:00.000Z
+"""
+scalar DateTime
+
+type SystemPublishDetails {
+  environment: String
+  locale: String
+  time: DateTime
+  user: String
+  variants: [SysVariants]
+}
+
+type SysVariants {
+  variant_uid: String
+  environment: String
+  locale: String
+  time: DateTime
+  user: String
+  alias: String
+}
+
+type SysExtensionConnection {
+  totalCount: Int
+  edges: [SysExtensionEdge]
+}
+
+type SysExtensionEdge {
+  node: SysMetadata
+}
+
+type SysMetadata {
+  metadata: [JSON]
+  extension_uid: String
+}
+
+type AllSysAsset {
+  total: Int
+  items: [SysAsset]
+}
+
+input SysAssetWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  url: String
+  url_ne: String
+  url_in: [String]
+  url_nin: [String]
+  url_exists: Boolean
+  filename: String
+  filename_ne: String
+  filename_in: [String]
+  filename_nin: [String]
+  filename_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  file_size: Int
+  file_size_ne: Int
+  file_size_in: [Int]
+  file_size_nin: [Int]
+  file_size_exists: Boolean
+  file_size_lt: Int
+  file_size_lte: Int
+  file_size_gt: Int
+  file_size_gte: Int
+  dimension_exists: Boolean
+  dimension: SysAssetDimensionWhere
+  tags: String
+  tags_in: [String]
+  tags_nin: [String]
+  parent_uid: String
+  parent_uid_ne: String
+  parent_uid_in: [String]
+  parent_uid_nin: [String]
+  parent_uid_exists: Boolean
+  visual_markups: SysVisualMarkupsWhere
+  visual_markups_exists: Boolean
+  user_defined_fields: JSON
+  user_defined_fields_exists: Boolean
+  AND: [SysAssetWhere]
+  OR: [SysAssetWhere]
+}
+
+input SysAssetDimensionWhere {
+  width: Int
+  width_ne: Int
+  width_in: [Int]
+  width_nin: [Int]
+  width_exists: Boolean
+  width_lt: Int
+  width_lte: Int
+  width_gt: Int
+  width_gte: Int
+  height: Int
+  height_ne: Int
+  height_in: [Int]
+  height_nin: [Int]
+  height_exists: Boolean
+  height_lt: Int
+  height_lte: Int
+  height_gt: Int
+  height_gte: Int
+}
+
+input SysVisualMarkupsWhere {
+  id: String
+  id_ne: String
+  id_in: [String]
+  id_nin: [String]
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  type: String
+  type_ne: String
+  type_in: [String]
+  type_nin: [String]
+  coordinates: SysVisualMarkupsCoordinatesWhere
+}
+
+input SysVisualMarkupsCoordinatesWhere {
+  x: Float
+  x_ne: Float
+  x_in: [Float]
+  x_nin: [Float]
+  x_lt: Float
+  x_lte: Float
+  x_gt: Float
+  x_gte: Float
+  y: Float
+  y_ne: Float
+  y_in: [Float]
+  y_nin: [Float]
+  y_lt: Float
+  y_lte: Float
+  y_gt: Float
+  y_gte: Float
+  width: Int
+  width_ne: Int
+  width_in: [Int]
+  width_nin: [Int]
+  width_lt: Int
+  width_lte: Int
+  width_gt: Int
+  width_gte: Int
+  height: Int
+  height_ne: Int
+  height_in: [Int]
+  height_nin: [Int]
+  height_lt: Int
+  height_lte: Int
+  height_gt: Int
+  height_gte: Int
+}
+
+enum SysAssetOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type LandingPage {
+  title: String
+  url: String
+  display_title: String
+  hide_display_title: Boolean
+  components: [LandingPageComponents]
+  system: EntrySystemField
+}
+
+union LandingPageComponents = LandingPageComponentsHeroSection | LandingPageComponentsDynamicProductCollection
+
+type LandingPageComponentsHeroSection {
+  hero_section: HeroSection
+}
+
+type HeroSection {
+  tagline: String
+  title: String
+  description: HeroSectionDescription
+  imageConnection: SysAssetConnection
+  image_alt: String
+  cta: [HeroSectionCta]
+  _metadata: SysModularBlockMetadata
+}
+
+type HeroSectionDescription {
+  json: JSON
+  embedded_itemsConnection(skip: Int = 0, limit: Int = 100): HeroSectionDescriptionEmbeddedItemsConnection
+}
+
+type HeroSectionDescriptionEmbeddedItemsConnection {
+  totalCount: Int
+  edges: [HeroSectionDescriptionEmbeddedItemsEdge]
+}
+
+type HeroSectionDescriptionEmbeddedItemsEdge {
+  node: HeroSectionDescriptionEmbeddedItemsNode
+}
+
+union HeroSectionDescriptionEmbeddedItemsNode = SysAsset
+
+type SysAssetConnection {
+  totalCount: Int
+  edges: [SysAssetEdge]
+}
+
+type SysAssetEdge {
+  node: SysAsset
+}
+
+type HeroSectionCta {
+  label: String
+  internal_contentConnection: HeroSectionCtaInternalContentConnection
+  external_url: String
+}
+
+type HeroSectionCtaInternalContentConnection {
+  totalCount: Int
+  edges: [HeroSectionCtaInternalContentEdge]
+}
+
+type HeroSectionCtaInternalContentEdge {
+  node: HeroSectionCtaInternalContentNode
+}
+
+union HeroSectionCtaInternalContentNode = LandingPage
+
+type SysModularBlockMetadata {
+  uid: String
+}
+
+type LandingPageComponentsDynamicProductCollection {
+  dynamic_product_collection: DynamicProductCollection
+}
+
+type DynamicProductCollection {
+  heading: String
+  description: DynamicProductCollectionDescription
+  product_category: JSON
+  _metadata: SysModularBlockMetadata
+}
+
+type DynamicProductCollectionDescription {
+  json: JSON
+  embedded_itemsConnection(skip: Int = 0, limit: Int = 100): DynamicProductCollectionDescriptionEmbeddedItemsConnection
+}
+
+type DynamicProductCollectionDescriptionEmbeddedItemsConnection {
+  totalCount: Int
+  edges: [DynamicProductCollectionDescriptionEmbeddedItemsEdge]
+}
+
+type DynamicProductCollectionDescriptionEmbeddedItemsEdge {
+  node: DynamicProductCollectionDescriptionEmbeddedItemsNode
+}
+
+union DynamicProductCollectionDescriptionEmbeddedItemsNode = SysAsset
+
+type EntrySystemField {
+  branch: String
+  created_at: DateTime
+  publish_details: SystemPublishDetails
+  updated_at: DateTime
+  created_by: String
+  updated_by: String
+  uid: String
+  tags: [String]
+  version: Int
+  content_type_uid: String
+  locale: String
+  extensionConnection(skip: Int = 0, limit: Int = 25): SysExtensionConnection
+}
+
+type AllLandingPage {
+  total: Int
+  items: [LandingPage]
+}
+
+input LandingPageWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  url: String
+  url_ne: String
+  url_in: [String]
+  url_nin: [String]
+  url_exists: Boolean
+  display_title: String
+  display_title_ne: String
+  display_title_in: [String]
+  display_title_nin: [String]
+  display_title_exists: Boolean
+  hide_display_title: Boolean
+  hide_display_title_exists: Boolean
+  hide_display_title_ne: Boolean
+  components: LandingPageComponentsWhere
+  components_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [LandingPageWhere]
+  OR: [LandingPageWhere]
+}
+
+input LandingPageComponentsWhere {
+  hero_section: LandingPageComponentsHeroSectionWhere
+  hero_section_exists: Boolean
+  dynamic_product_collection: LandingPageComponentsDynamicProductCollectionWhere
+  dynamic_product_collection_exists: Boolean
+}
+
+input LandingPageComponentsHeroSectionWhere {
+  tagline: String
+  tagline_ne: String
+  tagline_in: [String]
+  tagline_nin: [String]
+  tagline_exists: Boolean
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  description: JSON
+  description_exists: Boolean
+  image: SysAssetWhere
+  image_exists: Boolean
+  image_alt: String
+  image_alt_ne: String
+  image_alt_in: [String]
+  image_alt_nin: [String]
+  image_alt_exists: Boolean
+  cta: HeroSectionCtaWhere
+  cta_exists: Boolean
+}
+
+input HeroSectionCtaWhere {
+  label: String
+  label_ne: String
+  label_in: [String]
+  label_nin: [String]
+  label_exists: Boolean
+  internal_content: HeroSectionCtaInternalContentWhere
+  internal_content_exists: Boolean
+  external_url: String
+  external_url_ne: String
+  external_url_in: [String]
+  external_url_nin: [String]
+  external_url_exists: Boolean
+}
+
+input HeroSectionCtaInternalContentWhere {
+  landing_page: LandingPageWhere
+  MATCH: EvalReferenceEnum
+}
+
+enum EvalReferenceEnum {
+  ANY
+  ALL
+}
+
+input LandingPageComponentsDynamicProductCollectionWhere {
+  heading: String
+  heading_ne: String
+  heading_in: [String]
+  heading_nin: [String]
+  heading_exists: Boolean
+  description: JSON
+  description_exists: Boolean
+  product_category: JSON
+  product_category_exists: Boolean
+}
+
+input SystemPublishDetailsWhere {
+  time: DateTime
+  time_ne: DateTime
+  time_in: [DateTime]
+  time_nin: [DateTime]
+  time_lt: DateTime
+  time_lte: DateTime
+  time_gt: DateTime
+  time_gte: DateTime
+  user: String
+  user_ne: String
+  user_in: [String]
+  user_nin: [String]
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+}
+
+enum LandingPageOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type Navigation {
+  title: String
+  main_navigation: NavigationMainNavigation
+  system: EntrySystemField
+}
+
+type NavigationMainNavigation {
+  items: [NavigationMainNavigationItems]
+}
+
+type NavigationMainNavigationItems {
+  label: String
+  external_url: String
+  internal_contentConnection: NavigationMainNavigationItemsInternalContentConnection
+  children: [NavigationMainNavigationItemsChildren]
+}
+
+type NavigationMainNavigationItemsInternalContentConnection {
+  totalCount: Int
+  edges: [NavigationMainNavigationItemsInternalContentEdge]
+}
+
+type NavigationMainNavigationItemsInternalContentEdge {
+  node: NavigationMainNavigationItemsInternalContentNode
+}
+
+union NavigationMainNavigationItemsInternalContentNode = LandingPage
+
+type NavigationMainNavigationItemsChildren {
+  label: String
+  internal_contentConnection: NavigationMainNavigationItemsChildrenInternalContentConnection
+  external_url: String
+  description: String
+  icon: String
+}
+
+type NavigationMainNavigationItemsChildrenInternalContentConnection {
+  totalCount: Int
+  edges: [NavigationMainNavigationItemsChildrenInternalContentEdge]
+}
+
+type NavigationMainNavigationItemsChildrenInternalContentEdge {
+  node: NavigationMainNavigationItemsChildrenInternalContentNode
+}
+
+union NavigationMainNavigationItemsChildrenInternalContentNode = LandingPage
+
+type AllNavigation {
+  total: Int
+  items: [Navigation]
+}
+
+input NavigationWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  main_navigation: NavigationMainNavigationWhere
+  main_navigation_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [NavigationWhere]
+  OR: [NavigationWhere]
+}
+
+input NavigationMainNavigationWhere {
+  items: NavigationMainNavigationItemsWhere
+  items_exists: Boolean
+}
+
+input NavigationMainNavigationItemsWhere {
+  label: String
+  label_ne: String
+  label_in: [String]
+  label_nin: [String]
+  label_exists: Boolean
+  external_url: String
+  external_url_ne: String
+  external_url_in: [String]
+  external_url_nin: [String]
+  external_url_exists: Boolean
+  internal_content: NavigationMainNavigationItemsInternalContentWhere
+  internal_content_exists: Boolean
+  children: NavigationMainNavigationItemsChildrenWhere
+  children_exists: Boolean
+}
+
+input NavigationMainNavigationItemsInternalContentWhere {
+  landing_page: LandingPageWhere
+  MATCH: EvalReferenceEnum
+}
+
+input NavigationMainNavigationItemsChildrenWhere {
+  label: String
+  label_ne: String
+  label_in: [String]
+  label_nin: [String]
+  label_exists: Boolean
+  internal_content: NavigationMainNavigationItemsChildrenInternalContentWhere
+  internal_content_exists: Boolean
+  external_url: String
+  external_url_ne: String
+  external_url_in: [String]
+  external_url_nin: [String]
+  external_url_exists: Boolean
+  description: String
+  description_ne: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  icon: String
+  icon_ne: String
+  icon_in: [String]
+  icon_nin: [String]
+  icon_exists: Boolean
+}
+
+input NavigationMainNavigationItemsChildrenInternalContentWhere {
+  landing_page: LandingPageWhere
+  MATCH: EvalReferenceEnum
+}
+
+enum NavigationOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
+type AllSysTaxonomyType {
+  total: Int
+  items: [SysTaxonomyType]
+}
+
+type SysTaxonomyType {
+  uid: String
+  name: String
+  description: String
+  terms_count: Int
+  system: SysTaxonomySystemField
+}
+
+type SysTaxonomySystemField {
+  uid: String
+  content_type_uid: String
+  locale: String
+  branch: String
+  created_at: DateTime
+  updated_at: DateTime
+  created_by: String
+  updated_by: String
+  publish_details: SystemPublishDetails
+}
+
+input SysTaxonomiesWhere {
+  uid: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  name: String
+  name_in: [String]
+  name_nin: [String]
+  name_exists: Boolean
+  description: String
+  description_in: [String]
+  description_nin: [String]
+  description_exists: Boolean
+  publish_details: SysTaxonomyPublishDetailsWhere
+  AND: [SysTaxonomiesWhere!]
+  OR: [SysTaxonomiesWhere!]
+}
+
+input SysTaxonomyPublishDetailsWhere {
+  time: DateTime
+  user: String
+  environment: String
+  locale: String
+}
+
+enum SysTaxonomyOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+  name_ASC
+  name_DESC
+}
+
+type AllSysTaxonomyTerm {
+  total: Int
+  items: [SysTaxonomyTerm]
+}
+
+type SysTaxonomyTerm {
+  uid: String
+  name: String
+  taxonomy_uid: String
+  depth: Int
+  order: Int
+  ancestors: [SysTaxonomyTermAncestor]
+  system: SysTaxonomySystemField
+}
+
+type SysTaxonomyTermAncestor {
+  uid: String
+  name: String
+  type: String
+}
+
+input SysTaxonomyTermsWhere {
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  name: String
+  name_ne: String
+  name_in: [String]
+  name_nin: [String]
+  name_exists: Boolean
+  taxonomy_uid: String
+  taxonomy_uid_in: [String]
+  taxonomy_uid_nin: [String]
+  taxonomy_uid_exists: Boolean
+  term_above: SysTaxonomyTermAboveWhere
+  term_below: SysTaxonomyTermBelowWhere
+  term_eq_above: SysTaxonomyTermEqAboveWhere
+  term_eq_below: SysTaxonomyTermEqBelowWhere
+  publish_details: SysTaxonomyPublishDetailsWhere
+  AND: [SysTaxonomyTermsWhere!]
+  OR: [SysTaxonomyTermsWhere!]
+}
+
+input SysTaxonomyTermAboveWhere {
+  uid: String!
+  levels: Int
+}
+
+input SysTaxonomyTermBelowWhere {
+  uid: String!
+  levels: Int
+}
+
+input SysTaxonomyTermEqAboveWhere {
+  uid: String!
+  levels: Int
+}
+
+input SysTaxonomyTermEqBelowWhere {
+  uid: String!
+  levels: Int
+}
+
+enum SysTaxonomyTermOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+  name_ASC
+  name_DESC
+  order_ASC
+  order_DESC
+  depth_ASC
+  depth_DESC
+}

@@ -1,70 +1,47 @@
-import {
-  type CommerceAccountError,
-  CommerceAccounts,
-} from "@repo/commerce/services/commerce-accounts";
-import { Effect, Schema } from "effect";
-import { CountryCode } from "../domain/identity";
+import type { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import type { StoreKey } from "@repo/commerce/store";
+import { Effect } from "effect";
+
 import type {
   AwaitingApprovalRegistration,
   CompanyRegistrationDetails,
 } from "../domain/registration";
+import {
+  DuplicateRegistrationEmail,
+  InvalidRegistrationVatId,
+  RegistrationIntakeValidationError,
+  UnsupportedRegistrationCountry,
+} from "../domain/registration-intake-validation";
+import type { RegistrationIntakeValidationReason } from "../domain/registration-intake-validation";
 import type { IdentityUserLookupFailure } from "../services/identity-users";
 import { IdentityUsers } from "../services/identity-users";
 import { RegistrationMarketPolicy } from "../services/registration-market-policy";
-import type { RegistrationQueryError } from "../services/registration-queries";
+import type { RegistrationQueryFailure } from "../services/registration-queries";
 import { RegistrationQueries } from "../services/registration-queries";
-import {
-  type RegistrationCreateError,
-  Registrations,
-} from "../services/registrations";
+import type { RegistrationWorkflowStartUnavailable } from "../services/registration-workflow";
+import { RegistrationWorkflow } from "../services/registration-workflow";
+import type { RegistrationCreateError } from "../services/registrations";
+import { Registrations } from "../services/registrations";
 import { VatValidator } from "../services/vat-validator";
 
-export const RegistrationIntakeFieldPath = Schema.Literals(["email", "vatId"]);
-export type RegistrationIntakeFieldPath =
-  typeof RegistrationIntakeFieldPath.Type;
+export type RegistrationEligibilityProviderError =
+  | CommerceAccountUnavailable
+  | IdentityUserLookupFailure
+  | RegistrationQueryFailure;
 
-export class DuplicateRegistrationEmail extends Schema.TaggedClass<DuplicateRegistrationEmail>()(
-  "DuplicateRegistrationEmail",
-  {
-    path: RegistrationIntakeFieldPath,
-    code: Schema.Literal("duplicateEmail"),
-  }
-) {}
-
-export class InvalidRegistrationVatId extends Schema.TaggedClass<InvalidRegistrationVatId>()(
-  "InvalidRegistrationVatId",
-  {
-    path: RegistrationIntakeFieldPath,
-    code: Schema.Literal("invalidVatId"),
-  }
-) {}
-
-export class UnsupportedRegistrationCountry extends Schema.TaggedClass<UnsupportedRegistrationCountry>()(
-  "UnsupportedRegistrationCountry",
-  {
-    code: Schema.Literal("unsupportedRegistrationCountry"),
-    country: CountryCode,
-  }
-) {}
-
-export const RegistrationIntakeValidationReason = Schema.Union([
+export {
   DuplicateRegistrationEmail,
   InvalidRegistrationVatId,
+  RegistrationIntakeFieldPath,
+  RegistrationIntakeValidationError,
+  RegistrationIntakeValidationReason,
   UnsupportedRegistrationCountry,
-]);
-export type RegistrationIntakeValidationReason =
-  typeof RegistrationIntakeValidationReason.Type;
-
-export class RegistrationIntakeValidationError extends Schema.TaggedErrorClass<RegistrationIntakeValidationError>()(
-  "RegistrationIntakeValidationError",
-  {
-    message: Schema.String,
-    reasons: Schema.NonEmptyArray(RegistrationIntakeValidationReason),
-  }
-) {}
+} from "../domain/registration-intake-validation";
 
 export interface SubmitRegistrationForReviewInput {
   readonly details: CompanyRegistrationDetails;
+  readonly storeKey: StoreKey;
 }
 
 const toNonEmptyValidationReasons = (
@@ -92,7 +69,9 @@ const hasIdentityUserWithEmail = (details: CompanyRegistrationDetails) =>
 const hasPendingRegistrationWithEmail = (details: CompanyRegistrationDetails) =>
   Effect.gen(function* () {
     const queries = yield* RegistrationQueries;
-    return yield* queries.hasPendingEmail(details.email);
+    return yield* queries
+      .hasPendingEmail(details.email)
+      .pipe(Effect.catchTag("RegistrationQueryInvalidCursor", Effect.die));
   });
 
 const isUnsupportedRegistrationCountry = (
@@ -123,7 +102,7 @@ export const checkRegistrationEligibility = Effect.fn(
   details: CompanyRegistrationDetails
 ): Effect.fn.Return<
   void,
-  RegistrationIntakeValidationError,
+  RegistrationEligibilityProviderError | RegistrationIntakeValidationError,
   | CommerceAccounts
   | IdentityUsers
   | RegistrationMarketPolicy
@@ -138,9 +117,9 @@ export const checkRegistrationEligibility = Effect.fn(
     invalidVatId,
   ] = yield* Effect.all(
     [
-      hasCustomerWithEmail(details).pipe(Effect.orDie),
-      hasIdentityUserWithEmail(details).pipe(Effect.orDie),
-      hasPendingRegistrationWithEmail(details).pipe(Effect.orDie),
+      hasCustomerWithEmail(details),
+      hasIdentityUserWithEmail(details),
+      hasPendingRegistrationWithEmail(details),
       isUnsupportedRegistrationCountry(details),
       isInvalidVatId(details),
     ],
@@ -150,16 +129,16 @@ export const checkRegistrationEligibility = Effect.fn(
     ...(hasCustomer || hasIdentityUser || hasPendingEmailRegistration
       ? [
           new DuplicateRegistrationEmail({
-            path: "email",
             code: "duplicateEmail",
+            path: "email",
           }),
         ]
       : []),
     ...(invalidVatId
       ? [
           new InvalidRegistrationVatId({
-            path: "vatId",
             code: "invalidVatId",
+            path: "vatId",
           }),
         ]
       : []),
@@ -187,22 +166,30 @@ export const submitRegistrationForReview = Effect.fn(
   input: SubmitRegistrationForReviewInput
 ): Effect.fn.Return<
   AwaitingApprovalRegistration,
-  RegistrationIntakeValidationError | RegistrationCreateError,
+  | RegistrationEligibilityProviderError
+  | RegistrationIntakeValidationError
+  | RegistrationCreateError
+  | RegistrationWorkflowStartUnavailable,
   | CommerceAccounts
   | IdentityUsers
   | RegistrationMarketPolicy
   | RegistrationQueries
+  | RegistrationWorkflow
   | Registrations
   | VatValidator
 > {
   yield* checkRegistrationEligibility(input.details);
   const registrations = yield* Registrations;
-  return yield* registrations.createAwaitingApproval({
+  const workflow = yield* RegistrationWorkflow;
+  const registration = yield* registrations.createAwaitingApproval({
     details: input.details,
+    storeKey: input.storeKey,
   });
-});
 
-export type RegistrationEligibilityProviderError =
-  | CommerceAccountError
-  | IdentityUserLookupFailure
-  | RegistrationQueryError;
+  return yield* workflow.start(registration.id).pipe(
+    Effect.as(registration),
+    Effect.onError(() =>
+      registrations.discardAwaitingApproval(registration.id).pipe(Effect.orDie)
+    )
+  );
+});

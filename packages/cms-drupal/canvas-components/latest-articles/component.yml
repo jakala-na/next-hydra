@@ -1,0 +1,31 @@
+name: Latest Articles
+machineName: latest-articles
+status: true
+required:
+  - title
+props:
+  properties:
+    title:
+      title: Title
+      type: string
+      examples:
+        - Latest articles
+    description:
+      title: Description
+      type: string
+      examples:
+        - Read the newest guides and insights from our team.
+    limit:
+      title: Limit
+      type: integer
+      enum:
+        - 3
+        - 6
+        - 9
+      meta:enum:
+        3: 3 articles
+        6: 6 articles
+        9: 9 articles
+      examples:
+        - 3
+slots: []

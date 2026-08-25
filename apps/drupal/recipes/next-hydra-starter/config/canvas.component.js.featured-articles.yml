@@ -1,0 +1,42 @@
+uuid: 505433af-dce0-4ec9-a885-ca5ac8d2fed7
+langcode: en
+status: true
+dependencies:
+  config:
+    - canvas.js_component.featured-articles
+active_version: 801bcbc8a0b7c6ea
+versioned_properties:
+  active:
+    settings:
+      prop_field_definitions:
+        title:
+          required: true
+          field_type: string
+          field_storage_settings: {}
+          field_instance_settings: {}
+          field_widget: string_textfield
+          default_value:
+            - value: "Equipment guides"
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {}
+        description:
+          required: false
+          field_type: string
+          field_storage_settings: {}
+          field_instance_settings: {}
+          field_widget: string_textfield
+          default_value:
+            - value: "Practical guidance for selecting, operating, and maintaining heavy equipment."
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {}
+    fallback_metadata:
+      slot_definitions:
+        articles:
+          title: Articles
+label: "Featured Articles"
+id: js.featured-articles
+provider: null
+source: js
+source_local_id: featured-articles

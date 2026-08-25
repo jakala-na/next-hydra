@@ -1,8 +1,7 @@
-import {
-  type CommerceAccountError,
-  CommerceAccounts,
-} from "@repo/commerce/services/commerce-accounts";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import type { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
 import { Clock, Effect } from "effect";
+
 import type { RegistrationReviewerActor } from "../domain/actors";
 import { registrationSystemActor } from "../domain/actors";
 import { ApprovedDecision, RejectedDecision } from "../domain/approval";
@@ -16,16 +15,18 @@ import type {
   ApprovedRegistration,
   RejectedRegistration,
 } from "../domain/registration";
-import {
-  type InvitationAcceptError,
-  type InvitationIssueError,
-  Invitations,
+import { Invitations } from "../services/invitations";
+import type {
+  InvitationAcceptError,
+  InvitationIssueError,
 } from "../services/invitations";
 import {
   RegistrationNotFoundByInvitationId,
-  type RegistrationReadError,
   Registrations,
-  type RegistrationTransitionError,
+} from "../services/registrations";
+import type {
+  RegistrationReadError,
+  RegistrationTransitionError,
 } from "../services/registrations";
 
 const nowDate = Clock.currentTimeMillis.pipe(
@@ -54,7 +55,9 @@ export const approveRegistration = (
   input: ApproveRegistrationInput
 ): Effect.Effect<
   ApprovedRegistration,
-  RegistrationTransitionError | CommerceAccountError | InvitationIssueError,
+  | RegistrationTransitionError
+  | CommerceAccountUnavailable
+  | InvitationIssueError,
   Registrations | CommerceAccounts | Invitations
 > =>
   Effect.gen(function* () {
@@ -70,10 +73,10 @@ export const approveRegistration = (
 
     const decidedAt = yield* nowDate;
     const decision = new ApprovedDecision({
-      decision: "approved",
       actor: input.actor,
-      reason: input.reason,
       decidedAt,
+      decision: "approved",
+      reason: input.reason,
     });
 
     const commerceAccount =
@@ -89,10 +92,10 @@ export const approveRegistration = (
     });
 
     return yield* registrations.markApproved({
-      registrationId: input.registrationId,
-      decision,
       commerceAccount,
+      decision,
       invitationId: invitation.id,
+      registrationId: input.registrationId,
     });
   });
 
@@ -113,15 +116,15 @@ export const rejectRegistration = (
 
     const decidedAt = yield* nowDate;
     const decision = new RejectedDecision({
-      decision: "rejected",
       actor: input.actor,
-      reason: input.reason,
       decidedAt,
+      decision: "rejected",
+      reason: input.reason,
     });
 
     return yield* registrations.markRejected({
-      registrationId: input.registrationId,
       decision,
+      registrationId: input.registrationId,
     });
   });
 
@@ -130,7 +133,7 @@ export const acceptRegistrationInvitation = (
 ): Effect.Effect<
   ApprovedRegistration,
   | InvitationAcceptError
-  | CommerceAccountError
+  | CommerceAccountUnavailable
   | RegistrationReadError
   | RegistrationNotFoundByInvitationId,
   Invitations | CommerceAccounts | Registrations
@@ -147,22 +150,22 @@ export const acceptRegistrationInvitation = (
           ? Effect.succeed(candidate)
           : Effect.fail(
               new RegistrationNotFoundByInvitationId({
-                message: `Registration for invitation ${input.invitationId} was not found`,
                 invitationId: input.invitationId,
+                message: `Registration for invitation ${input.invitationId} was not found`,
               })
             )
       )
     );
 
     yield* invitations.accept({
-      invitationId: input.invitationId,
       acceptedIdentity: input.acceptedIdentity,
       expectedIntent: "provider_managed",
+      invitationId: input.invitationId,
     });
 
     yield* commerceAccounts.linkRegistrantIdentity({
-      registration,
       acceptedIdentity: input.acceptedIdentity,
+      registration,
     });
 
     return registration;

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "@effect/vitest";
 import {
-  CommerceAccountError,
-  type CommerceAccountRegistrationInput,
+  CommerceAccountUnavailable,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
+import type { CommerceAccountRegistrationInput } from "@repo/commerce/services/commerce-accounts";
+import { StoreKey } from "@repo/commerce/store";
+import type { Context } from "effect";
 import { Effect, Exit, Layer, Redacted } from "effect";
+
 import {
   AddressLine,
   City,
@@ -22,10 +25,12 @@ import {
 } from "../domain/registration";
 import { IdentityUsers } from "../services/identity-users";
 import { RegistrationMarketPolicy } from "../services/registration-market-policy";
+import { RegistrationQueries } from "../services/registration-queries";
+import type { RegistrationQueryRecord } from "../services/registration-queries";
 import {
-  RegistrationQueries,
-  type RegistrationQueryRecord,
-} from "../services/registration-queries";
+  RegistrationWorkflow,
+  RegistrationWorkflowStartUnavailable,
+} from "../services/registration-workflow";
 import { Registrations } from "../services/registrations";
 import { VatValidator } from "../services/vat-validator";
 import {
@@ -62,33 +67,34 @@ const details = ({
     }),
     email: Redacted.make(Email.make(email), { label: "email" }),
     address: new CompanyAddress({
-      streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
-        label: "addressLine",
-      }),
+      city: Redacted.make(City.make("New York"), { label: "city" }),
+      country: CountryCode.make(country),
       postalCode: Redacted.make(PostalCode.make("10001"), {
         label: "postalCode",
       }),
-      city: Redacted.make(City.make("New York"), { label: "city" }),
-      country: CountryCode.make(country),
+      streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
+        label: "addressLine",
+      }),
     }),
   });
 
 const record = (
   registration: AwaitingApprovalRegistration
 ): RegistrationQueryRecord => ({
-  id: String(registration.id),
-  registration,
   createdAt: registration.createdAt,
+  id: String(registration.id),
   lastModifiedAt: registration.updatedAt,
+  registration,
 });
 
 const makeAwaiting = (email: string) =>
   new AwaitingApprovalRegistration({
     _tag: "AwaitingApprovalRegistration",
-    status: "awaiting_approval",
-    id: "registration-existing" as AwaitingApprovalRegistration["id"],
-    details: details({ email }),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    details: details({ email }),
+    id: "registration-existing" as AwaitingApprovalRegistration["id"],
+    status: "awaiting_approval",
+    storeKey: StoreKey.make("default-store"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   });
 
@@ -96,7 +102,7 @@ const commerceAccountsLayer = ({
   failure,
   hasCustomerWithEmail = false,
 }: {
-  readonly failure?: CommerceAccountError;
+  readonly failure?: CommerceAccountUnavailable;
   readonly hasCustomerWithEmail?: boolean;
 } = {}) =>
   Layer.succeed(
@@ -106,9 +112,13 @@ const commerceAccountsLayer = ({
       createFromRegistration: (
         _registration: CommerceAccountRegistrationInput
       ) => Effect.die("not used"),
+      getCustomerIdByAuthUserId: () => Effect.die("not used"),
+      getCustomerProfile: () => Effect.die("not used"),
       hasCustomerWithEmail: () =>
         failure ? Effect.fail(failure) : Effect.succeed(hasCustomerWithEmail),
       linkRegistrantIdentity: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
     })
   );
 
@@ -120,16 +130,23 @@ const layerWithRecords = (
     identityEmails = [],
     invalidVatIds = [],
     supportedCountries = ["US"],
+    workflow = RegistrationWorkflow.of({
+      resumeInvitation: () => Effect.die("not used"),
+      resumeReview: () => Effect.die("not used"),
+      start: () => Effect.void,
+    }),
   }: {
-    readonly commerceFailure?: CommerceAccountError;
+    readonly commerceFailure?: CommerceAccountUnavailable;
     readonly hasCustomerWithEmail?: boolean;
     readonly identityEmails?: readonly string[];
     readonly invalidVatIds?: readonly string[];
     readonly supportedCountries?: readonly string[];
+    readonly workflow?: Context.Service.Shape<typeof RegistrationWorkflow>;
   } = {}
 ) =>
   Layer.mergeAll(
     Registrations.layerMemory,
+    Layer.succeed(RegistrationWorkflow, workflow),
     RegistrationQueries.layerMemoryFrom(records),
     commerceAccountsLayer({
       hasCustomerWithEmail,
@@ -148,21 +165,94 @@ const layerWithRecords = (
     VatValidator.layerMemoryFrom({ invalidVatIds })
   );
 
-describe("submitRegistrationForReview", () => {
+describe(submitRegistrationForReview, () => {
   it.effect(
     "creates an awaiting approval Registration when eligibility passes",
     () =>
       Effect.gen(function* () {
         const registration = yield* submitRegistrationForReview({
           details: details(),
+          storeKey: StoreKey.make("de-fr-uk"),
         });
 
         expect(registration._tag).toBe("AwaitingApprovalRegistration");
         expect(registration.details.companyName).toBe(
           CompanyName.make("Hydra Supplies")
         );
+        expect(registration.storeKey).toBe("de-fr-uk");
       }).pipe(Effect.provide(layerWithRecords([])))
   );
+
+  it.effect(
+    "discards the registration when the workflow cannot be started",
+    () => {
+      const workflowFailure = new RegistrationWorkflowStartUnavailable({
+        cause: new Error("workflow queue unavailable"),
+        message: "Registration workflow could not be started",
+        registrationId:
+          "registration-pending" as AwaitingApprovalRegistration["id"],
+      });
+      const workflow = RegistrationWorkflow.of({
+        resumeInvitation: () => Effect.die("not used"),
+        resumeReview: () => Effect.die("not used"),
+        start: (registrationId) =>
+          Effect.fail(
+            new RegistrationWorkflowStartUnavailable({
+              cause: workflowFailure.cause,
+              message: workflowFailure.message,
+              registrationId,
+            })
+          ),
+      });
+
+      return Effect.gen(function* () {
+        const error = yield* submitRegistrationForReview({
+          details: details(),
+          storeKey: StoreKey.make("default-store"),
+        }).pipe(Effect.flip);
+        const registrations = yield* Registrations;
+
+        expect(error).toBeInstanceOf(RegistrationWorkflowStartUnavailable);
+        if (!(error instanceof RegistrationWorkflowStartUnavailable)) {
+          return yield* Effect.die("Expected workflow start failure");
+        }
+        const persisted = yield* registrations
+          .get(error.registrationId)
+          .pipe(Effect.exit);
+        expect(Exit.isFailure(persisted)).toBeTruthy();
+      }).pipe(Effect.provide(layerWithRecords([], { workflow })));
+    }
+  );
+
+  it.effect("discards the registration when workflow start defects", () => {
+    let startedRegistrationId: AwaitingApprovalRegistration["id"] | undefined;
+    const workflow = RegistrationWorkflow.of({
+      resumeInvitation: () => Effect.die("not used"),
+      resumeReview: () => Effect.die("not used"),
+      start: (registrationId) => {
+        startedRegistrationId = registrationId;
+        return Effect.die("invalid workflow function");
+      },
+    });
+
+    return Effect.gen(function* () {
+      const exit = yield* submitRegistrationForReview({
+        details: details(),
+        storeKey: StoreKey.make("default-store"),
+      }).pipe(Effect.exit);
+      const registrations = yield* Registrations;
+
+      expect(Exit.isFailure(exit)).toBeTruthy();
+      if (startedRegistrationId === undefined) {
+        return yield* Effect.die("Expected workflow start to be attempted");
+      }
+
+      const persisted = yield* registrations
+        .get(startedRegistrationId)
+        .pipe(Effect.exit);
+      expect(Exit.isFailure(persisted)).toBeTruthy();
+    }).pipe(Effect.provide(layerWithRecords([], { workflow })));
+  });
 
   it.effect(
     "rejects duplicate pending Registration emails before creating",
@@ -170,6 +260,7 @@ describe("submitRegistrationForReview", () => {
       Effect.gen(function* () {
         const error = yield* submitRegistrationForReview({
           details: details({ email: " ADA@example.com " }),
+          storeKey: StoreKey.make("default-store"),
         }).pipe(Effect.flip);
         const registrations = yield* Registrations;
 
@@ -181,7 +272,7 @@ describe("submitRegistrationForReview", () => {
         const missing = yield* registrations
           .get("registration-existing" as AwaitingApprovalRegistration["id"])
           .pipe(Effect.exit);
-        expect(Exit.isFailure(missing)).toBe(true);
+        expect(Exit.isFailure(missing)).toBeTruthy();
       }).pipe(
         Effect.provide(
           layerWithRecords([record(makeAwaiting("ada@example.com"))])
@@ -195,11 +286,12 @@ describe("submitRegistrationForReview", () => {
       Effect.gen(function* () {
         const error = yield* submitRegistrationForReview({
           details: details({ country: "US", vatId: "VAT-INVALID" }),
+          storeKey: StoreKey.make("default-store"),
         }).pipe(Effect.flip);
 
         expect(error).toBeInstanceOf(RegistrationIntakeValidationError);
         if (error instanceof RegistrationIntakeValidationError) {
-          expect(error.reasons.map((reason) => reason._tag)).toEqual([
+          expect(error.reasons.map((reason) => reason._tag)).toStrictEqual([
             "DuplicateRegistrationEmail",
             "InvalidRegistrationVatId",
             "UnsupportedRegistrationCountry",
@@ -221,20 +313,21 @@ describe("submitRegistrationForReview", () => {
       )
   );
 
-  it.effect("treats provider lookup failures as defects", () =>
+  it.effect("keeps provider lookup failures in the typed error channel", () =>
     Effect.gen(function* () {
-      const exit = yield* submitRegistrationForReview({
+      const error = yield* submitRegistrationForReview({
         details: details(),
-      }).pipe(Effect.exit);
+        storeKey: StoreKey.make("default-store"),
+      }).pipe(Effect.flip);
 
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        expect(exit.cause.toString()).toContain("CommerceAccountError");
-      }
+      expect(error).toMatchObject({
+        _tag: "CommerceAccountUnavailable",
+        message: "commerce unavailable",
+      });
     }).pipe(
       Effect.provide(
         layerWithRecords([], {
-          commerceFailure: new CommerceAccountError({
+          commerceFailure: new CommerceAccountUnavailable({
             message: "commerce unavailable",
           }),
         })

@@ -1,0 +1,42 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.paragraph.featured_articles.field_articles
+    - field.field.paragraph.featured_articles.field_description
+    - field.field.paragraph.featured_articles.field_heading
+    - paragraphs.paragraphs_type.featured_articles
+id: paragraph.featured_articles.default
+targetEntityType: paragraph
+bundle: featured_articles
+mode: default
+content:
+  field_articles:
+    type: entity_reference_autocomplete
+    weight: 2
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: ""
+    third_party_settings: {}
+  field_description:
+    type: string_textarea
+    weight: 1
+    region: content
+    settings:
+      rows: 3
+      placeholder: ""
+    third_party_settings: {}
+  field_heading:
+    type: string_textfield
+    weight: 0
+    region: content
+    settings:
+      size: 60
+      placeholder: ""
+    third_party_settings: {}
+hidden:
+  created: true
+  status: true

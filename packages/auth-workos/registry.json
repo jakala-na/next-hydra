@@ -1,0 +1,167 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "auth-workos",
+      "type": "registry:item",
+      "title": "Next Hydra WorkOS Auth provider",
+      "description": "Installs the WorkOS AuthKit provider package.",
+      "docs": "Configure the WorkOS environment variables described by packages/auth-workos before starting the applications.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/auth/workos",
+          "kind": "provider",
+          "slot": "auth",
+          "packages": [
+            {
+              "cwd": "apps/api",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-workos@*"
+            },
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-workos@*"
+            },
+            {
+              "cwd": "packages/feature-flags",
+              "section": "dependencies",
+              "name": "@repo/auth",
+              "specifier": "workspace:@repo/auth-workos@*"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "access-token.test.ts",
+          "target": "~/packages/auth-workos/access-token.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "access-token.ts",
+          "target": "~/packages/auth-workos/access-token.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "actions.ts",
+          "target": "~/packages/auth-workos/actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "admin.ts",
+          "target": "~/packages/auth-workos/admin.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client.ts",
+          "target": "~/packages/auth-workos/client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "identity-users.test.ts",
+          "target": "~/packages/auth-workos/identity-users.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "identity-users.ts",
+          "target": "~/packages/auth-workos/identity-users.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.test.ts",
+          "target": "~/packages/auth-workos/invitations.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.ts",
+          "target": "~/packages/auth-workos/invitations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "keys.ts",
+          "target": "~/packages/auth-workos/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/auth-workos/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "provider.tsx",
+          "target": "~/packages/auth-workos/provider.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "proxy.ts",
+          "target": "~/packages/auth-workos/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/api/app/api/webhooks/workos/route.ts",
+          "target": "~/apps/api/app/api/webhooks/workos/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/auth/callback/route.ts",
+          "target": "~/apps/web/app/api/auth/callback/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/auth/signin/route.ts",
+          "target": "~/apps/web/app/api/auth/signin/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/auth/signout/route.ts",
+          "target": "~/apps/web/app/api/auth/signout/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/auth/signup/route.ts",
+          "target": "~/apps/web/app/api/auth/signup/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/callback.ts",
+          "target": "~/packages/auth-workos/route-handlers/callback.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/signin.ts",
+          "target": "~/packages/auth-workos/route-handlers/signin.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/signout.ts",
+          "target": "~/packages/auth-workos/route-handlers/signout.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/signup.ts",
+          "target": "~/packages/auth-workos/route-handlers/signup.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/webhook.ts",
+          "target": "~/packages/auth-workos/route-handlers/webhook.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "server.ts",
+          "target": "~/packages/auth-workos/server.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/auth-workos/tsconfig.json",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

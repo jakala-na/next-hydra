@@ -11,13 +11,14 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * one at a time.
  */
 const meta = {
-  title: "ui/Tabs",
-  component: Tabs,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
-    defaultValue: "account",
     className: "w-96",
+    defaultValue: "account",
+  },
+  component: Tabs,
+  parameters: {
+    layout: "centered",
   },
   render: (args) => (
     <Tabs {...args}>
@@ -31,9 +32,8 @@ const meta = {
       <TabsContent value="password">Change your password here.</TabsContent>
     </Tabs>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/Tabs",
 } satisfies Meta<typeof Tabs>;
 
 export default meta;

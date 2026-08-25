@@ -5,14 +5,14 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * Displays a form textarea or a component that looks like a textarea.
  */
 const meta = {
-  title: "ui/Textarea",
-  component: Textarea,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
-    placeholder: "Type your message here.",
     disabled: false,
+    placeholder: "Type your message here.",
   },
+  component: Textarea,
+  tags: ["autodocs"],
+  title: "ui/Textarea",
 } satisfies Meta<typeof Textarea>;
 
 export default meta;

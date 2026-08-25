@@ -1,35 +1,37 @@
-import { LivePreview } from "@repo/cms/components/live-preview";
-import { getNavigation } from "@repo/cms/lib/navigation";
-import { addToCart } from "@repo/commerce/actions/add-to-cart";
-import { changeCartItemsQuantity } from "@repo/commerce/actions/change-cart-items-quantity";
-import { removeCartItem } from "@repo/commerce/actions/remove-cart-item";
-import { getCartForContext } from "@repo/commerce/lib/cart/utils/get-cart";
-import { storeService } from "@repo/commerce/lib/store/store.service";
-import { CartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
+import "./styles.css";
+import {
+  CmsGlobalRegion,
+  CmsLayoutIntegration,
+  getNavigation,
+} from "@repo/cms/layout";
+import { CommerceCartProvider } from "@repo/commerce/cart";
+import { BusinessUnitSwitcher } from "@repo/commerce/commerce-context";
 import { CartButtonClient } from "@repo/design-system/components/layout/cart-button";
 import { MobileMenu } from "@repo/design-system/components/layout/mobile-menu";
 import { Navigation } from "@repo/design-system/components/layout/navigation";
 import { RegionSelector } from "@repo/design-system/components/layout/region-selector";
 import { SearchAutocomplete } from "@repo/design-system/components/layout/search-autocomplete";
+import { SiteFooter } from "@repo/design-system/components/layout/site-footer";
 import { SiteHeader } from "@repo/design-system/components/layout/site-header";
-import {
-  hasLocale,
-  NextIntlClientProvider,
-  setRequestLocale,
-} from "@repo/i18n";
+import { hasLocale, NextIntlClientProvider } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
-import type { Locale } from "@repo/i18n/types";
 import { ShoppingCart } from "lucide-react";
-import { draftMode, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { AccountMenuClient } from "@/components/layout/account-menu-client";
-import { BusinessUnitSwitcher } from "@/components/layout/business-unit-switcher";
 
-async function getCart(locale: Locale) {
-  const context = await storeService.getStoreContextByLocale(locale);
-  return getCartForContext(context);
-}
+import {
+  AccountMenu,
+  AccountMenuSkeleton,
+} from "@/components/layout/account-menu";
+import { DocumentShell } from "@/components/layout/document-shell";
+import {
+  addToCart,
+  changeCartItemsQuantity,
+  removeCartItem,
+} from "@/lib/commerce-actions";
+import { selectBusinessUnit } from "@/lib/commerce-context-actions";
+
+export const instant = false;
 
 function CartButtonSkeleton() {
   return (
@@ -52,56 +54,66 @@ export default async function RootLayout({
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
-  setRequestLocale(locale);
-  const { isEnabled: isDraftModeEnabled } = await draftMode();
-  const livePreviewHash = isDraftModeEnabled
-    ? ((await headers()).get("x-live-preview") ?? "")
-    : "";
-  const navigation = await getNavigation(locale, livePreviewHash);
-  // Start cart loading here and pass the promise down so leaf nodes can resolve it later.
-  const cartPromise = getCart(locale);
-
+  const navigation = await getNavigation(locale);
   return (
-    <NextIntlClientProvider>
-      <CartProvider
-        cartPromise={cartPromise}
-        actions={{
-          addToCart,
-          changeCartItemsQuantity,
-          removeCartItem,
-        }}
-      >
-        <SiteHeader
-          MainNavigation={
-            <Navigation navigationItems={navigation.navigationItems} />
-          }
-          RegionSelectorSlot={
-            <Suspense fallback={<div className="skeleton h-8 w-16" />}>
-              <RegionSelector />
-            </Suspense>
-          }
-          Search={<SearchAutocomplete />}
-          BusinessUnitSwitcher={
-            <Suspense fallback={<div className="skeleton h-8 w-16" />}>
-              <BusinessUnitSwitcher />
-            </Suspense>
-          }
-          MobileMenuSlot={
-            <MobileMenu
-              key="menu-slot"
-              navigationItems={navigation.navigationItems}
-            />
-          }
-          CartSlot={
-            <Suspense fallback={<CartButtonSkeleton />}>
-              <CartButtonClient />
-            </Suspense>
-          }
-          AccountSlot={<AccountMenuClient />}
-        />
-        {children}
-        <LivePreview isEnabled={isDraftModeEnabled} />
-      </CartProvider>
-    </NextIntlClientProvider>
+    <DocumentShell lang={locale}>
+      <NextIntlClientProvider>
+        <CommerceCartProvider
+          actions={{ addToCart, changeCartItemsQuantity, removeCartItem }}
+          locale={locale}
+        >
+          <CmsGlobalRegion locale={locale} name="pre-header" />
+          <SiteHeader
+            MainNavigation={
+              <Navigation navigationItems={navigation.navigationItems} />
+            }
+            RegionSelectorSlot={
+              <Suspense
+                fallback={
+                  <div className="h-8 w-16 animate-pulse rounded bg-accent-foreground/15" />
+                }
+              >
+                <RegionSelector />
+              </Suspense>
+            }
+            Search={<SearchAutocomplete />}
+            BusinessUnitSwitcher={
+              <Suspense
+                fallback={
+                  <div className="h-8 w-16 animate-pulse rounded bg-accent-foreground/15" />
+                }
+              >
+                <BusinessUnitSwitcher
+                  locale={locale}
+                  onSwitchBusinessUnit={selectBusinessUnit}
+                />
+              </Suspense>
+            }
+            MobileMenuSlot={
+              <MobileMenu
+                key="menu-slot"
+                navigationItems={navigation.navigationItems}
+              />
+            }
+            CartSlot={
+              <Suspense fallback={<CartButtonSkeleton />}>
+                <CartButtonClient />
+              </Suspense>
+            }
+            AccountSlot={
+              <Suspense fallback={<AccountMenuSkeleton />}>
+                <AccountMenu />
+              </Suspense>
+            }
+          />
+          <CmsGlobalRegion locale={locale} name="post-header" />
+          {children}
+          <CmsGlobalRegion locale={locale} name="pre-footer" />
+          <SiteFooter />
+          <CmsGlobalRegion locale={locale} name="post-footer" />
+          <CmsLayoutIntegration />
+        </CommerceCartProvider>
+      </NextIntlClientProvider>
+    </DocumentShell>
   );
 }

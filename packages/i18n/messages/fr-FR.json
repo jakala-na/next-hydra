@@ -31,6 +31,9 @@
       "products": "Produits",
       "categoryFallback": "Catégorie"
     },
+    "article": {
+      "readGuide": "Lire le guide"
+    },
     "cart": {
       "addedToCartAlert": "Ajouté {quantity} {variantLabel} au panier à {price} chacun.\nÉtat du stock : {stockStatus}",
       "stockIn": "En Stock",
@@ -144,7 +147,8 @@
         "errors": {
           "invalidSubmission": "Veuillez vérifier les champs indiqués et réessayer.",
           "unsupportedRegistrationCountry": "Nous ne pouvons pas encore accepter les inscriptions d’entreprises depuis ce pays.",
-          "submitFailed": "Nous n’avons pas pu envoyer votre inscription pour le moment. Veuillez réessayer."
+          "submitFailed": "Nous n’avons pas pu envoyer votre inscription pour le moment. Veuillez réessayer.",
+          "submissionOutcomeUnknown": "Nous n’avons pas pu confirmer la réception de votre inscription. Contactez l’assistance avant de la soumettre à nouveau."
         },
         "validation": {
           "companyName": "Saisissez le nom de l'entreprise.",
@@ -190,6 +194,120 @@
           "title": "L’inscription de votre entreprise est toujours en cours d’examen.",
           "description": "Nous vous enverrons la suite par e-mail dès que votre entreprise aura été approuvée."
         }
+      }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Coordonnées",
+        "deliveryDetails": "Détails de livraison",
+        "shippingOptions": "Options de livraison",
+        "paymentOptions": "Options de paiement",
+        "reviewOrder": "Vérification de la commande"
+      },
+      "status": {
+        "complete": "Terminé",
+        "incomplete": "Incomplet"
+      },
+      "activeStep": "Étape active",
+      "attention": "Cette étape nécessite votre attention",
+      "errorBoundary": {
+        "tryAgain": "Réessayer"
+      },
+      "cart": {
+        "title": "Panier",
+        "items": "{count, plural, one {# article} other {# articles}}",
+        "quantity": "Qté {quantity}",
+        "violations": "Problèmes de paiement",
+        "subtotal": "Sous-total"
+      },
+      "contact": {
+        "fields": {
+          "email": "E-mail",
+          "firstName": "Prénom",
+          "lastName": "Nom",
+          "phone": "Téléphone"
+        },
+        "actions": {
+          "save": "Enregistrer les coordonnées",
+          "saving": "Enregistrement...",
+          "useCustomerProfile": "Utiliser le profil client"
+        }
+      },
+      "deliveryDetails": {
+        "addressBook": {
+          "chooseShippingAddress": "Choisir une adresse de livraison",
+          "defaultShipping": "Adresse de livraison par défaut",
+          "makeDefaultShipping": "Définir comme adresse de livraison par défaut",
+          "saveShippingAddress": "Enregistrer cette adresse de livraison",
+          "useNewAddress": "Utiliser une nouvelle adresse"
+        },
+        "fields": {
+          "addressLine1": "Adresse ligne 1",
+          "addressLine2": "Adresse ligne 2",
+          "city": "Ville",
+          "postalCode": "Code postal",
+          "region": "Région",
+          "country": "Pays"
+        },
+        "actions": {
+          "save": "Enregistrer les détails de livraison",
+          "saving": "Enregistrement..."
+        }
+      },
+      "errors": {
+        "addressBook": {
+          "accessDenied": "Le carnet d’adresses n’est pas disponible pour ce paiement.",
+          "providerFailure": "Les adresses enregistrées n’ont pas pu être chargées. Réessayez."
+        },
+        "badRequest": "La requête de paiement n’est pas valide.",
+        "cartMismatch": "Ce paiement n’est plus à jour. Actualisez la page et réessayez.",
+        "internal": "Le paiement n’a pas pu être effectué. Réessayez.",
+        "deliveryDetails": {
+          "addressBookEntryUnavailable": "Cette adresse enregistrée n’est plus disponible.",
+          "invalidInput": "Saisissez l’adresse ligne 1, le code postal, la ville et le pays.",
+          "sourceUnavailable": "Cette source de livraison n’est pas disponible pour ce paiement.",
+          "providerFailure": "Les détails de livraison n’ont pas pu être enregistrés. Réessayez.",
+          "unsupported": "Cette source de livraison n’est pas encore prise en charge."
+        },
+        "notFound": "Le paiement est introuvable pour cette requête.",
+        "versionConflict": "Le paiement a changé avant l’enregistrement. Actualisez la page et réessayez.",
+        "saveContact": {
+          "CheckoutCartMismatch": "Ce paiement n’est plus à jour. Actualisez la page et réessayez.",
+          "CheckoutCustomerProfileIncomplete": "Des coordonnées obligatoires manquent dans votre profil client. Saisissez-les ci-dessous pour continuer.",
+          "CheckoutMutationSchemaFailure": "Saisissez une adresse e-mail, un prénom et un nom.",
+          "CheckoutMutationOutcomeUnknown": "Nous n’avons pas pu confirmer l’enregistrement de vos coordonnées. Actualisez la page avant de réessayer.",
+          "CheckoutMutationSourceUnavailable": "Cette source de coordonnées n’est pas disponible pour ce paiement.",
+          "CheckoutMutationProviderFailure": "Les coordonnées n’ont pas pu être enregistrées. Réessayez.",
+          "CommerceAccountUnavailable": "Les coordonnées n’ont pas pu être enregistrées. Réessayez.",
+          "CommerceRequestFailure": "Les coordonnées n’ont pas pu être enregistrées. Réessayez.",
+          "CheckoutMutationUnsupported": "Cette source de coordonnées n’est pas encore prise en charge.",
+          "CheckoutUnavailable": "Le paiement est introuvable pour cette requête.",
+          "CommerceRequestContextNotFound": "Le paiement est introuvable pour cette requête.",
+          "CheckoutVersionConflict": "Le paiement a changé avant l’enregistrement. Actualisez la page et réessayez."
+        },
+        "saveDeliveryDetails": {
+          "CheckoutCartMismatch": "Ce paiement n’est plus à jour. Actualisez la page et réessayez.",
+          "CheckoutMutationAddressBookEntryUnavailable": "Cette adresse enregistrée n’est plus disponible.",
+          "CheckoutMutationSchemaFailure": "Saisissez l’adresse ligne 1, le code postal, la ville et le pays.",
+          "CheckoutMutationOutcomeUnknown": "Nous n’avons pas pu confirmer l’enregistrement de vos informations de livraison. Actualisez la page avant de réessayer.",
+          "CheckoutMutationSourceUnavailable": "Cette source de livraison n’est pas disponible pour ce paiement.",
+          "CheckoutMutationProviderFailure": "Les détails de livraison n’ont pas pu être enregistrés. Réessayez.",
+          "CommerceAccountUnavailable": "Les détails de livraison n’ont pas pu être enregistrés. Réessayez.",
+          "CommerceRequestFailure": "Les détails de livraison n’ont pas pu être enregistrés. Réessayez.",
+          "CheckoutMutationUnsupported": "Cette source de livraison n’est pas encore prise en charge.",
+          "CheckoutUnavailable": "Le paiement est introuvable pour cette requête.",
+          "CommerceRequestContextNotFound": "Le paiement est introuvable pour cette requête.",
+          "CheckoutVersionConflict": "Le paiement a changé avant l’enregistrement. Actualisez la page et réessayez."
+        }
+      },
+      "violations": {
+        "unknownCountry": "cette destination",
+        "shippingCountryUnavailable": "La livraison vers {country} n’est pas disponible.",
+        "guestItemLimit": "Les paniers invités sont limités à {maxQuantity} articles. Retirez au moins {excessQuantity, plural, one {# article} other {# articles}}.",
+        "incompatibleCartItems": "Ces articles ne peuvent pas être achetés ensemble.",
+        "shippingAddressRestricted": "Cette adresse ne peut pas recevoir un ou plusieurs articles du panier.",
+        "policyUnavailable": "La disponibilité du paiement n’a pas pu être vérifiée.",
+        "generic": "Le paiement ne peut pas continuer tant que ce problème n’est pas résolu."
       }
     }
   }

@@ -1,0 +1,26 @@
+{
+  "mocks": [
+    {
+      "name": "Selected article",
+      "props": {
+        "article": {
+          "_Type": "article",
+          "created": 1767225600,
+          "fieldImage": {
+            "_Type": "image",
+            "fieldMediaImage": {
+              "alt": "Compact excavators at a work site",
+              "height": 1000,
+              "src": "/article-excavator-selection.jpg",
+              "width": 1600
+            }
+          },
+          "fieldSummary": "Practical guidance for selecting the right equipment for the work.",
+          "id": 1,
+          "label": "How to choose the right equipment",
+          "path": "/articles/how-to-choose-the-right-equipment"
+        }
+      }
+    }
+  ]
+}

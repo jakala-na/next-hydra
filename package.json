@@ -1,53 +1,58 @@
 {
   "name": "next-hydra",
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "lint": "ultracite lint",
-    "format": "ultracite format",
-    "typecheck": "turbo typecheck",
-    "test": "turbo test",
     "analyze": "turbo analyze",
-    "translate": "turbo translate",
-    "boundaries": "turbo boundaries",
+    "boundaries": "turbo run boundaries",
+    "build": "turbo build",
     "bump-deps": "npx npm-check-updates --deep -u -x react-day-picker",
     "bump-ui": "npx shadcn@latest add --all --overwrite -c packages/design-system",
     "changeset": "pnpm dlx @changesets/cli",
     "changeset:status": "pnpm dlx @changesets/cli status --verbose",
-    "version:cli": "pnpm dlx @changesets/cli version",
-    "release:create-next-hydra:dry-run": "node scripts/release-create-next-hydra.mjs --dry-run",
-    "release:create-next-hydra": "node scripts/release-create-next-hydra.mjs --version",
     "clean": "git clean -xdf node_modules",
-    "prepare": "husky && effect-language-service patch && effect-tsgo patch"
+    "cli": "pnpm --filter cli cli",
+    "dev": "turbo dev",
+    "format": "ultracite fix",
+    "lint": "ultracite check",
+    "prepare": "husky && effect-tsgo patch --typescript --oxlint",
+    "registry:check": "node scripts/sync-registry-files.ts --check",
+    "registry:sync": "node scripts/sync-registry-files.ts",
+    "release:create-next-hydra": "node scripts/release-create-next-hydra.mjs --version",
+    "release:create-next-hydra:dry-run": "node scripts/release-create-next-hydra.mjs --dry-run",
+    "test": "turbo test",
+    "translate": "turbo translate",
+    "typecheck": "turbo typecheck",
+    "version:cli": "pnpm dlx @changesets/cli version"
   },
-  "devDependencies": {
-    "@biomejs/biome": "2.3.11",
-    "@effect/language-service": "^0.86.1",
-    "@effect/tsgo": "^0.13.0",
-    "@repo/typescript-config": "workspace:*",
-    "@turbo/gen": "^2.5.3",
-    "@types/node": "catalog:",
-    "@typescript/native-preview": "7.0.0-dev.20260527.2",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
-    "turbo": "^2.5.5",
-    "typescript": "catalog:",
-    "ultracite": "^7.0.12",
-    "vitest": "^3.1.4"
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
+      "ultracite fix"
+    ]
   },
-  "engines": {
-    "node": ">=22"
-  },
-  "packageManager": "pnpm@10.11.0",
   "dependencies": {
     "@clack/prompts": "^0.11.0",
     "commander": "^14.0.0"
   },
-  "type": "module",
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
-      "pnpm dlx ultracite fix"
-    ]
+  "devDependencies": {
+    "@effect/tsgo": "0.36.5",
+    "@oxlint/plugins": "1.78.0",
+    "@repo/typescript-config": "workspace:*",
+    "@turbo/gen": "^2.5.3",
+    "@types/node": "catalog:",
+    "@typescript/native": "catalog:typescript7",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "oxfmt": "0.61.0",
+    "oxlint": "1.78.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "turbo": "2.6.3",
+    "typescript": "catalog:",
+    "ultracite": "7.10.0",
+    "vitest": "^3.1.4"
+  },
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": "24.x"
   }
 }

@@ -1,0 +1,18 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_description
+    - paragraphs.paragraphs_type.featured_articles
+id: paragraph.featured_articles.field_description
+field_name: field_description
+entity_type: paragraph
+bundle: featured_articles
+label: Description
+description: ""
+required: false
+translatable: true
+default_value: {}
+default_value_callback: ""
+settings: {}
+field_type: string_long

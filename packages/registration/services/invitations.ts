@@ -9,27 +9,27 @@ import {
   Ref,
   Schema,
 } from "effect";
+
 import type { Actor } from "../domain/actors";
-import {
-  type AcceptedAuthIdentity,
-  InvitationId,
-  type RegistrationId,
-} from "../domain/identity";
+import { InvitationId } from "../domain/identity";
+import type { AcceptedAuthIdentity, RegistrationId } from "../domain/identity";
 import {
   AcceptedInvitation,
-  type CompanyMemberIntent,
-  type Invitation,
-  type InvitationIntent,
   PendingInvitation,
-  type RegistrationApprovalIntent,
   RevokedInvitation,
+} from "../domain/invitations";
+import type {
+  CompanyMemberIntent,
+  Invitation,
+  InvitationIntent,
+  RegistrationApprovalIntent,
 } from "../domain/invitations";
 
 export class InvitationNotFound extends Schema.TaggedErrorClass<InvitationNotFound>()(
   "InvitationNotFound",
   {
-    message: Schema.String,
     invitationId: InvitationId,
+    message: Schema.String,
   }
 ) {}
 
@@ -43,9 +43,9 @@ export class InvitationConflict extends Schema.TaggedErrorClass<InvitationConfli
 export class InvitationProviderFailure extends Schema.TaggedErrorClass<InvitationProviderFailure>()(
   "InvitationProviderFailure",
   {
+    cause: Schema.Defect,
     message: Schema.String,
     operation: Schema.Literals(["issue", "read", "accept", "revoke"]),
-    cause: Schema.Defect,
   }
 ) {}
 
@@ -187,10 +187,10 @@ export class Invitations extends Context.Service<
         const createdAt = yield* nowDate;
         const invitation = new PendingInvitation({
           _tag: "PendingInvitation",
+          createdAt,
           id,
           intent: input.intent,
           issuedBy: input.issuedBy,
-          createdAt,
         });
 
         yield* Ref.update(store, (current) =>
@@ -209,8 +209,8 @@ export class Invitations extends Context.Service<
           Effect.mapError(
             () =>
               new InvitationNotFound({
-                message: `Invitation ${invitationId} was not found`,
                 invitationId,
+                message: `Invitation ${invitationId} was not found`,
               })
           )
         );
@@ -227,8 +227,8 @@ export class Invitations extends Context.Service<
           Effect.mapError(
             () =>
               new InvitationNotFound({
-                message: `Invitation ${input.invitationId} was not found`,
                 invitationId: input.invitationId,
+                message: `Invitation ${input.invitationId} was not found`,
               })
           )
         );
@@ -260,12 +260,12 @@ export class Invitations extends Context.Service<
         const acceptedAt = yield* nowDate;
         const accepted = new AcceptedInvitation({
           _tag: "AcceptedInvitation",
+          acceptedAt,
+          acceptedBy: input.acceptedIdentity,
+          createdAt: current.createdAt,
           id: current.id,
           intent: current.intent,
           issuedBy: current.issuedBy,
-          acceptedBy: input.acceptedIdentity,
-          createdAt: current.createdAt,
-          acceptedAt,
         });
 
         yield* Ref.update(store, (existing) =>
@@ -286,8 +286,8 @@ export class Invitations extends Context.Service<
           Effect.mapError(
             () =>
               new InvitationNotFound({
-                message: `Invitation ${input.invitationId} was not found`,
                 invitationId: input.invitationId,
+                message: `Invitation ${input.invitationId} was not found`,
               })
           )
         );
@@ -305,12 +305,12 @@ export class Invitations extends Context.Service<
         const revokedAt = yield* nowDate;
         const revoked = new RevokedInvitation({
           _tag: "RevokedInvitation",
+          createdAt: current.createdAt,
           id: current.id,
           intent: current.intent,
           issuedBy: current.issuedBy,
-          revokedBy: input.revokedBy,
-          createdAt: current.createdAt,
           revokedAt,
+          revokedBy: input.revokedBy,
         });
 
         yield* Ref.update(store, (existing) =>
@@ -321,9 +321,9 @@ export class Invitations extends Context.Service<
       });
 
       return {
-        issue,
-        get,
         accept,
+        get,
+        issue,
         revoke,
       };
     })

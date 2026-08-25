@@ -4,9 +4,9 @@ import { useCopyButton } from "fumadocs-ui/utils/use-copy-button";
 import { Check, Copy } from "lucide-react";
 
 export function TerminalCommand({ command }: { command: string }) {
-  const [checked, onCopy] = useCopyButton(() =>
-    navigator.clipboard.writeText(command)
-  );
+  const [checked, onCopy] = useCopyButton(async () => {
+    await navigator.clipboard.writeText(command);
+  });
 
   return (
     <div className="mx-auto max-w-xl overflow-hidden rounded-lg border border-fd-border bg-fd-card">

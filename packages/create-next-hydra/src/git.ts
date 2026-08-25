@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+
 import { DEFAULT_COMMIT_MESSAGE } from "./constants.js";
 import { formatCommand } from "./logger.js";
 import type { GitInitResult, RunCommandResult } from "./types.js";
@@ -69,32 +70,32 @@ export async function runCommand(
     child.on("close", resolve);
   }).catch((error: unknown) => {
     throw new CommandExecutionError({
-      command: formatCommand(command, args),
       code: null,
-      stdout,
-      stderr,
+      command: formatCommand(command, args),
       message:
         error instanceof Error ? error.message : "Failed to start command",
+      stderr,
+      stdout,
     });
   });
 
   if (exitCode !== 0) {
     throw new CommandExecutionError({
-      command: formatCommand(command, args),
       code: exitCode,
-      stdout,
+      command: formatCommand(command, args),
       stderr,
+      stdout,
     });
   }
 
-  return { stdout, stderr };
+  return { stderr, stdout };
 }
 
-export function runGit(
+export async function runGit(
   args: string[],
   options: RunCommandOptions = {}
 ): Promise<RunCommandResult> {
-  return runCommand("git", args, {
+  return await runCommand("git", args, {
     ...options,
     env: {
       GIT_TERMINAL_PROMPT: "0",
@@ -117,8 +118,8 @@ export async function initializeGitRepository(
 
   if (!options.commit) {
     return {
-      gitInitialized: true,
       committed: false,
+      gitInitialized: true,
     };
   }
 
@@ -131,16 +132,16 @@ export async function initializeGitRepository(
     });
 
     return {
-      gitInitialized: true,
       committed: true,
+      gitInitialized: true,
     };
   } catch (error) {
     if (error instanceof CommandExecutionError) {
       return {
-        gitInitialized: true,
-        committed: false,
         commitError:
           error.stderr.trim() || error.stdout.trim() || error.message,
+        committed: false,
+        gitInitialized: true,
       };
     }
 

@@ -89,7 +89,7 @@ export function CartFlyout() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 shrink-0"
-                        onClick={() => removeItem(item.id)}
+                        onClick={async () => removeItem(item.id)}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -101,7 +101,7 @@ export function CartFlyout() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8 bg-transparent"
-                          onClick={() =>
+                          onClick={async () =>
                             updateQuantity(item.id, item.quantity - 1)
                           }
                         >
@@ -114,7 +114,7 @@ export function CartFlyout() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8 bg-transparent"
-                          onClick={() =>
+                          onClick={async () =>
                             updateQuantity(item.id, item.quantity + 1)
                           }
                         >
@@ -155,7 +155,7 @@ export function CartFlyout() {
               <div className="space-y-2">
                 <Button className="h-12 w-full" size="lg" asChild>
                   {/* @todo: implement checkout page and remove type assertion */}
-                  <Link href={"/checkout" as Route}>
+                  <Link href={"/checkout" as Route} onClick={closeCart}>
                     {t("actions.checkout")}
                   </Link>
                 </Button>

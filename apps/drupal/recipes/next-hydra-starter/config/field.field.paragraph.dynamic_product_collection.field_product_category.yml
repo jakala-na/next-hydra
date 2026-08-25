@@ -1,0 +1,18 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_product_category
+    - paragraphs.paragraphs_type.dynamic_product_collection
+id: paragraph.dynamic_product_collection.field_product_category
+field_name: field_product_category
+entity_type: paragraph
+bundle: dynamic_product_collection
+label: "Commerce category ID"
+description: "Optional external category ID resolved by the active commerce provider. Leave empty to show products without a category filter."
+required: false
+translatable: false
+default_value: {}
+default_value_callback: ""
+settings: {}
+field_type: string

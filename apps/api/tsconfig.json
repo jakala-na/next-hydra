@@ -1,8 +1,13 @@
 {
   "extends": "@repo/typescript-config/effect-nextjs.json",
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./*"],
+      "@repo/auth": ["./node_modules/@repo/auth"],
+      "@repo/auth/*": ["./node_modules/@repo/auth/*"],
+      "@repo/commerce-provider": ["./node_modules/@repo/commerce-provider"],
+      "@repo/commerce-provider/*": ["./node_modules/@repo/commerce-provider/*"],
       "@repo/*": ["../../packages/*"]
     }
   },

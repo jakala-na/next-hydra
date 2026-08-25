@@ -1,0 +1,101 @@
+name: Deploy Drupal to Acquia
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Drupal when affected
+    runs-on: ubuntu-latest
+    environment: acquia-drupal
+    concurrency:
+      group: acquia-drupal-${{ vars.ACQUIA_ENVIRONMENT_ALIAS }}
+      cancel-in-progress: false
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+
+      - name: Install Acquia CLI
+        env:
+          ACLI_SHA256: 0522f31557b3cc72b9c422423fbdbf50990d2bc2943e13872cd2861747679eb8
+          ACLI_VERSION: 3.0.1
+        run: |
+          set -euo pipefail
+          acli_path="$RUNNER_TEMP/acli"
+          curl --fail --silent --show-error --location \
+            --output "$acli_path" \
+            "https://github.com/acquia/cli/releases/download/${ACLI_VERSION}/acli.phar"
+          echo "${ACLI_SHA256}  ${acli_path}" | sha256sum --check
+          chmod 0755 "$acli_path"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Start the Acquia SSH agent
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.ACQUIA_SSH_PRIVATE_KEY }}
+
+      - name: Trust the configured Acquia SSH hosts
+        env:
+          ACQUIA_SSH_KNOWN_HOSTS: ${{ secrets.ACQUIA_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 0700 "$HOME/.ssh"
+          printf '%s\n' "$ACQUIA_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 0600 "$HOME/.ssh/known_hosts"
+
+      - name: Authenticate Acquia CLI
+        env:
+          ACQUIA_API_KEY_ID: ${{ secrets.ACQUIA_API_KEY_ID }}
+          ACQUIA_API_KEY_SECRET: ${{ secrets.ACQUIA_API_KEY_SECRET }}
+        run: |
+          acli auth:login \
+            --key="$ACQUIA_API_KEY_ID" \
+            --secret="$ACQUIA_API_KEY_SECRET" \
+            --no-interaction
+
+      - name: Configure artifact commit author
+        run: |
+          git config --global user.email "acquia-deploy@users.noreply.github.com"
+          git config --global user.name "Next Hydra Acquia deployment"
+
+      - name: Deploy affected Drupal app
+        if: github.event_name == 'push'
+        env:
+          ACQUIA_ENVIRONMENT_ALIAS: ${{ vars.ACQUIA_ENVIRONMENT_ALIAS }}
+          COMPOSER_MEMORY_LIMIT: -1
+          TURBO_SCM_BASE: ${{ github.event.before }}
+          TURBO_SCM_HEAD: ${{ github.sha }}
+        run: pnpm exec turbo run deploy:acquia --affected --filter=@repo/drupal
+
+      - name: Deploy Drupal app manually
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ACQUIA_ENVIRONMENT_ALIAS: ${{ vars.ACQUIA_ENVIRONMENT_ALIAS }}
+          COMPOSER_MEMORY_LIMIT: -1
+        run: pnpm exec turbo run deploy:acquia --filter=@repo/drupal

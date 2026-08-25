@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+  "title": "Next Hydra Selection Definition",
+  "description": "A ShadCN registry item containing strict Next Hydra composition metadata.",
+  "allOf": [
+    {
+      "$ref": "https://ui.shadcn.com/schema/registry-item.json"
+    },
+    {
+      "type": "object",
+      "required": ["$schema", "meta"],
+      "properties": {
+        "$schema": {
+          "const": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json"
+        },
+        "meta": {
+          "type": "object",
+          "required": ["nextHydra"],
+          "properties": {
+            "nextHydra": {
+              "$ref": "#/$defs/nextHydra"
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "workspacePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))(?!.*\\\\).+$"
+    },
+    "workspaceFilePath": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/workspacePath"
+        },
+        {
+          "not": {
+            "pattern": "^\\.(?:/+\\.)*/*$"
+          }
+        }
+      ]
+    },
+    "nextHydra": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": ["provider", "add-on", "preset"]
+        },
+        "slot": {
+          "enum": ["auth", "cms", "commerce"]
+        },
+        "compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "requires": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "conflicts": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            }
+          }
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cwd", "section", "name", "specifier"],
+            "properties": {
+              "cwd": {
+                "$ref": "#/$defs/workspacePath"
+              },
+              "section": {
+                "enum": [
+                  "dependencies",
+                  "devDependencies",
+                  "optionalDependencies"
+                ]
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "specifier": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "pnpmPatches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["dependency", "path"],
+            "properties": {
+              "dependency": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "$ref": "#/$defs/workspaceFilePath"
+              }
+            }
+          }
+        },
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "target"],
+            "properties": {
+              "source": {
+                "$ref": "#/$defs/workspaceFilePath"
+              },
+              "target": {
+                "$ref": "#/$defs/workspaceFilePath"
+              }
+            }
+          }
+        },
+        "selections": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "providers": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "auth": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "cms": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "commerce": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "addOns": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "provider"
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["slot"],
+            "not": {
+              "required": ["selections"]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "add-on"
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["slot"]
+                },
+                {
+                  "required": ["selections"]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "preset"
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["selections"],
+            "not": {
+              "required": ["slot"]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

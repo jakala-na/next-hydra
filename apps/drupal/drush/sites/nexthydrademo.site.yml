@@ -1,0 +1,44 @@
+# Application 'nexthydrademo', environment 'dev'.
+dev:
+  root: /var/www/html/nexthydrademo.dev/docroot
+  ac-site: nexthydrademo
+  ac-env: dev
+  ac-realm: devcloud
+  uri: nexthydrademoogrnyaxrvn.devcloud.acquia-sites.com
+  dev.livedev:
+    parent: "@nexthydrademo.dev"
+    root: /mnt/gfs/nexthydrademo.dev/livedev/docroot
+  host: nexthydrademoogrnyaxrvn.ssh.devcloud.acquia-sites.com
+  user: nexthydrademo.dev
+  paths:
+    drush-script: drush9
+
+# Application 'nexthydrademo', environment 'prod'.
+prod:
+  root: /var/www/html/nexthydrademo.prod/docroot
+  ac-site: nexthydrademo
+  ac-env: prod
+  ac-realm: devcloud
+  uri: nexthydrademoblzfqnc2db.devcloud.acquia-sites.com
+  prod.livedev:
+    parent: "@nexthydrademo.prod"
+    root: /mnt/gfs/nexthydrademo.prod/livedev/docroot
+  host: nexthydrademoblzfqnc2db.ssh.devcloud.acquia-sites.com
+  user: nexthydrademo.prod
+  paths:
+    drush-script: drush9
+
+# Application 'nexthydrademo', environment 'test'.
+test:
+  root: /var/www/html/nexthydrademo.test/docroot
+  ac-site: nexthydrademo
+  ac-env: test
+  ac-realm: devcloud
+  uri: nexthydrademoejtbbcdejf.devcloud.acquia-sites.com
+  test.livedev:
+    parent: "@nexthydrademo.test"
+    root: /mnt/gfs/nexthydrademo.test/livedev/docroot
+  host: nexthydrademoejtbbcdejf.ssh.devcloud.acquia-sites.com
+  user: nexthydrademo.test
+  paths:
+    drush-script: drush9

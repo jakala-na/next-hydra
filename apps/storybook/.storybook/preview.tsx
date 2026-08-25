@@ -7,33 +7,13 @@ import type { Preview } from "@storybook/nextjs-vite";
 import "@repo/design-system/styles/globals.css";
 
 const preview: Preview = {
-  parameters: {
-    controls: {
-      matchers: {
-        color: /(background|color)$/i,
-        date: /Date$/i,
-      },
-    },
-    chromatic: {
-      modes: {
-        light: {
-          theme: "light",
-          className: "light",
-        },
-        dark: {
-          theme: "dark",
-          className: "dark",
-        },
-      },
-    },
-  },
   decorators: [
     withThemeByClassName({
-      themes: {
-        light: "light",
-        dark: "dark",
-      },
       defaultTheme: "light",
+      themes: {
+        dark: "dark",
+        light: "light",
+      },
     }),
     (Story) => (
       <div className="bg-background">
@@ -46,6 +26,26 @@ const preview: Preview = {
       </div>
     ),
   ],
+  parameters: {
+    chromatic: {
+      modes: {
+        dark: {
+          className: "dark",
+          theme: "dark",
+        },
+        light: {
+          className: "light",
+          theme: "light",
+        },
+      },
+    },
+    controls: {
+      matchers: {
+        color: /(background|color)$/i,
+        date: /Date$/i,
+      },
+    },
+  },
 };
 
 export default preview;

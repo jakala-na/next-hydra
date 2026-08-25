@@ -2,6 +2,7 @@
 
 import { Button } from "@repo/design-system/components/ui/button";
 import { ShoppingCart } from "lucide-react";
+
 import { CartFlyout } from "../commerce/blocks/cart-flyout";
 import { useCartData, useCartState } from "../commerce/providers/cart-context";
 
@@ -26,7 +27,9 @@ export function CartButtonClient() {
         variant="ghost"
         size="icon"
         className="relative"
-        onClick={() => openCart()}
+        onClick={() => {
+          openCart();
+        }}
       >
         <ShoppingCart className="h-5 w-5" />
         {totalItems > 0 && (

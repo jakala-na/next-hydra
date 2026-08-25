@@ -7,16 +7,16 @@ import { action } from "storybook/actions";
  * An opinionated toast component for React.
  */
 const meta: Meta<typeof Toaster> = {
-  title: "ui/Sonner",
-  component: Toaster,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
     position: "bottom-right",
   },
+  component: Toaster,
   parameters: {
     layout: "fullscreen",
   },
+  tags: ["autodocs"],
+  title: "ui/Sonner",
 } satisfies Meta<typeof Toaster>;
 
 export default meta;
@@ -32,11 +32,11 @@ export const Default: Story = {
       <button
         onClick={() =>
           toast("Event has been created", {
-            description: new Date().toLocaleString(),
             action: {
               label: "Undo",
               onClick: action("Undo clicked"),
             },
+            description: new Date().toLocaleString(),
           })
         }
         type="button"

@@ -5,7 +5,7 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "test": "vitest run",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/email/tsconfig.json"
   },
   "dependencies": {
     "@react-email/components": "0.4.0",

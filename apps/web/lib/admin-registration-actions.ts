@@ -1,38 +1,65 @@
 "use server";
 
-import type {
-  ApproveRegistrationInput,
-  RegistrationDecisionResult,
-  RejectRegistrationInput,
-} from "@repo/registration/components/admin/registration-view-models";
-import { revalidatePath } from "next/cache";
+import { NextServer } from "@repo/actions/next-server";
 import {
-  approveRegistration as approveRegistrationService,
-  rejectRegistration as rejectRegistrationService,
-} from "./admin-registration";
+  ApproveRegistrationInputSchema,
+  RegistrationDecisionActionError,
+  RegistrationDecisionSuccess,
+  RejectRegistrationInputSchema,
+} from "@repo/registration/components/admin/registration-view-models";
+import { Effect } from "effect";
 
-const revalidateRegistrationApprovals = (
-  result: RegistrationDecisionResult
-) => {
-  if (result.status === "accepted") {
-    revalidatePath("/admin/registration-approvals");
-  }
+import { AppRuntime } from "./app-runtime";
+import { registrationReviewersLayer } from "./registration-reviewers";
+import { RegistrationReviewers } from "./registration-reviewers-api";
+import { SessionActions } from "./session-actions";
 
-  return result;
+const RegistrationReviewerActions = SessionActions.provide(({ session }) =>
+  registrationReviewersLayer(session)
+);
+
+const approveRegistrationProcedure = RegistrationReviewerActions.procedure(
+  "AdminRegistration.approve"
+)
+  .input(ApproveRegistrationInputSchema)
+  .output(RegistrationDecisionSuccess)
+  .error(RegistrationDecisionActionError)
+  .handle((input) =>
+    RegistrationReviewers.pipe(
+      Effect.flatMap((reviewers) =>
+        reviewers.decide({ ...input, decision: "approved" })
+      )
+    )
+  );
+
+const rejectRegistrationProcedure = RegistrationReviewerActions.procedure(
+  "AdminRegistration.reject"
+)
+  .input(RejectRegistrationInputSchema)
+  .output(RegistrationDecisionSuccess)
+  .error(RegistrationDecisionActionError)
+  .handle((input) =>
+    RegistrationReviewers.pipe(
+      Effect.flatMap((reviewers) =>
+        reviewers.decide({ ...input, decision: "rejected" })
+      )
+    )
+  );
+
+const revalidateRegistrationApprovals = async () => {
+  await AppRuntime.runPromise(
+    NextServer.pipe(
+      Effect.flatMap((next) =>
+        next.revalidatePath("/admin/registration-approvals")
+      )
+    )
+  );
 };
 
-export async function approveRegistration(
-  input: ApproveRegistrationInput
-): Promise<RegistrationDecisionResult> {
-  return revalidateRegistrationApprovals(
-    await approveRegistrationService(input)
-  );
-}
+export const approveRegistration = approveRegistrationProcedure.toAction({
+  onSuccess: revalidateRegistrationApprovals,
+});
 
-export async function rejectRegistration(
-  input: RejectRegistrationInput
-): Promise<RegistrationDecisionResult> {
-  return revalidateRegistrationApprovals(
-    await rejectRegistrationService(input)
-  );
-}
+export const rejectRegistration = rejectRegistrationProcedure.toAction({
+  onSuccess: revalidateRegistrationApprovals,
+});

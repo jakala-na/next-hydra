@@ -1,0 +1,34 @@
+_meta:
+  version: "1.0"
+  entity_type: node
+  uuid: b883487a-71fa-424a-9881-1b6ac99cd98d
+  bundle: article
+  default_langcode: en
+  depends:
+    0dd07a58-07fa-4c54-addc-1ef23420b75d: media
+default:
+  revision_uid:
+    - target_id: 1
+  status:
+    - value: true
+  uid:
+    - target_id: 1
+  title:
+    - value: "A practical preventive maintenance checklist"
+  promote:
+    - value: false
+  sticky:
+    - value: false
+  revision_translation_affected:
+    - value: true
+  path:
+    - alias: /resources/preventive-maintenance-checklist
+      langcode: en
+  body:
+    - value: "<p>Preventive maintenance works when every inspection has an owner, a frequency, and a clear escalation path.</p><h2>Before every shift</h2><p>Inspect fluid levels, hoses, undercarriage components, work lights, alarms, and visible fasteners. Record leaks and abnormal wear before the machine starts work.</p><h2>Track operating conditions</h2><p>Dust, heat, cold, and prolonged idling can shorten service intervals. Use telematics and operator notes to adjust the plan to actual conditions.</p><h2>Close the loop</h2><p>A checklist is only useful when findings become work orders. Review recurring defects monthly and correct the underlying operating or maintenance issue.</p>"
+      format: basic_html
+      summary: ""
+  field_image:
+    - entity: 0dd07a58-07fa-4c54-addc-1ef23420b75d
+  field_summary:
+    - value: "Turn daily inspections and service intervals into a repeatable routine that reduces avoidable downtime."

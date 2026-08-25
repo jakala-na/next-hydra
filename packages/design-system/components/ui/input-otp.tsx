@@ -68,7 +68,6 @@ function InputOTPSlot({
 function InputOTPSeparator({ ...props }: React.ComponentProps<"div">) {
   return (
     <>
-      {/* biome-ignore lint: IN PROGRESS */}
       <div data-slot="input-otp-separator" role="separator" {...props}>
         <MinusIcon />
       </div>

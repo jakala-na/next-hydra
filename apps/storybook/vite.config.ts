@@ -1,16 +1,17 @@
 import { resolve } from "node:path";
+
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      "@repo": resolve(__dirname, "../../packages"),
-    },
+  define: {
+    global: "globalThis",
   },
   json: {
     stringify: true,
   },
-  define: {
-    global: "globalThis",
+  resolve: {
+    alias: {
+      "@repo": resolve(__dirname, "../../packages"),
+    },
   },
 });

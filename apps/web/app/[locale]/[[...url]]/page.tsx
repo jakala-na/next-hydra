@@ -1,7 +1,12 @@
-import { LandingPage } from "@repo/cms/components/pages/landing-page";
+import { Page as CmsPage } from "@repo/cms/components/page";
 import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import { notFound } from "next/navigation";
+
+import { env } from "@/env";
+import { resolveCmsPagePath } from "@/lib/cms-routing";
+
+export const instant = false;
 
 export default async function Page({
   params,
@@ -11,6 +16,6 @@ export default async function Page({
     notFound();
   }
   setRequestLocale(locale);
-  const urlStr = url?.join("/") ?? "/";
-  return <LandingPage url={urlStr} locale={locale} />;
+  const urlStr = resolveCmsPagePath(url, env.CMS_HOMEPAGE_SLUG);
+  return <CmsPage url={urlStr} locale={locale} />;
 }

@@ -3,6 +3,7 @@ import {
   CommerceCustomerId as CommerceCustomerIdSchema,
 } from "@repo/commerce/domain/commerce-account";
 import { Redacted, Schema, SchemaGetter } from "effect";
+
 export const CommerceBusinessUnitId = CommerceBusinessUnitIdSchema;
 export const CommerceCustomerId = CommerceCustomerIdSchema;
 export type CommerceBusinessUnitId = typeof CommerceBusinessUnitId.Type;
@@ -72,6 +73,13 @@ export type RegistrationId = typeof RegistrationId.Type;
 
 export const InvitationId = Schema.String.pipe(Schema.brand("InvitationId"));
 export type InvitationId = typeof InvitationId.Type;
+
+export const IdentityUserProfile = Schema.Struct({
+  authUserId: AuthUserId,
+  email: RedactedEmail,
+  name: Schema.String,
+});
+export type IdentityUserProfile = typeof IdentityUserProfile.Type;
 
 export class AcceptedAuthIdentity extends Schema.Class<AcceptedAuthIdentity>(
   "AcceptedAuthIdentity"

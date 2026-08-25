@@ -31,6 +31,9 @@
       "products": "Produtos",
       "categoryFallback": "Categoria"
     },
+    "article": {
+      "readGuide": "Ler o guia"
+    },
     "cart": {
       "addedToCartAlert": "Adicionado {quantity} {variantLabel} ao carrinho a {price} cada.\nEstado do Stock: {stockStatus}",
       "stockIn": "Em Estoque",
@@ -144,7 +147,8 @@
         "errors": {
           "invalidSubmission": "Reveja os campos assinalados e tente novamente.",
           "unsupportedRegistrationCountry": "Ainda não podemos aceitar registos de empresas deste país.",
-          "submitFailed": "Não foi possível enviar o seu registo neste momento. Tente novamente."
+          "submitFailed": "Não foi possível enviar o seu registo neste momento. Tente novamente.",
+          "submissionOutcomeUnknown": "Não foi possível confirmar se o seu registo foi recebido. Contacte o suporte antes de o enviar novamente."
         },
         "validation": {
           "companyName": "Introduza o nome da empresa.",
@@ -190,6 +194,120 @@
           "title": "O registo da sua empresa continua em análise.",
           "description": "Enviaremos os próximos passos por e-mail assim que a sua empresa for aprovada."
         }
+      }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Contacto",
+        "deliveryDetails": "Detalhes de entrega",
+        "shippingOptions": "Opções de envio",
+        "paymentOptions": "Opções de pagamento",
+        "reviewOrder": "Rever encomenda"
+      },
+      "status": {
+        "complete": "Concluído",
+        "incomplete": "Incompleto"
+      },
+      "activeStep": "Passo ativo",
+      "attention": "Este passo requer atenção",
+      "errorBoundary": {
+        "tryAgain": "Tentar novamente"
+      },
+      "cart": {
+        "title": "Carrinho",
+        "items": "{count, plural, one {# artigo} other {# artigos}}",
+        "quantity": "Qtd. {quantity}",
+        "violations": "Problemas no checkout",
+        "subtotal": "Subtotal"
+      },
+      "contact": {
+        "fields": {
+          "email": "E-mail",
+          "firstName": "Nome",
+          "lastName": "Apelido",
+          "phone": "Telefone"
+        },
+        "actions": {
+          "save": "Guardar contacto",
+          "saving": "A guardar...",
+          "useCustomerProfile": "Usar perfil de cliente"
+        }
+      },
+      "deliveryDetails": {
+        "addressBook": {
+          "chooseShippingAddress": "Escolher uma morada de entrega",
+          "defaultShipping": "Morada de entrega predefinida",
+          "makeDefaultShipping": "Definir como morada de entrega predefinida",
+          "saveShippingAddress": "Guardar esta morada de entrega",
+          "useNewAddress": "Usar uma nova morada"
+        },
+        "fields": {
+          "addressLine1": "Morada, linha 1",
+          "addressLine2": "Morada, linha 2",
+          "city": "Cidade",
+          "postalCode": "Código postal",
+          "region": "Região",
+          "country": "País"
+        },
+        "actions": {
+          "save": "Guardar detalhes de entrega",
+          "saving": "A guardar..."
+        }
+      },
+      "errors": {
+        "addressBook": {
+          "accessDenied": "O livro de endereços não está disponível para este checkout.",
+          "providerFailure": "Não foi possível carregar as moradas guardadas. Tente novamente."
+        },
+        "badRequest": "O pedido de checkout não é válido.",
+        "cartMismatch": "Este checkout já não está atualizado. Atualize a página e tente novamente.",
+        "internal": "Não foi possível concluir o checkout. Tente novamente.",
+        "deliveryDetails": {
+          "addressBookEntryUnavailable": "Esta morada guardada já não está disponível.",
+          "invalidInput": "Introduza a morada, o código postal, a cidade e o país.",
+          "sourceUnavailable": "Esta origem de entrega não está disponível para este checkout.",
+          "providerFailure": "Não foi possível guardar os detalhes de entrega. Tente novamente.",
+          "unsupported": "Esta origem de entrega ainda não é suportada."
+        },
+        "notFound": "O checkout não foi encontrado para este pedido.",
+        "versionConflict": "O checkout foi alterado antes de guardar. Atualize a página e tente novamente.",
+        "saveContact": {
+          "CheckoutCartMismatch": "Este checkout já não está atualizado. Atualize a página e tente novamente.",
+          "CheckoutCustomerProfileIncomplete": "Faltam informações de contacto obrigatórias no seu perfil de cliente. Introduza-as abaixo para continuar.",
+          "CheckoutMutationSchemaFailure": "Introduza um e-mail, nome e apelido.",
+          "CheckoutMutationOutcomeUnknown": "Não foi possível confirmar se os dados de contacto foram guardados. Atualize a página antes de tentar novamente.",
+          "CheckoutMutationSourceUnavailable": "Esta origem de contacto não está disponível para este checkout.",
+          "CheckoutMutationProviderFailure": "Não foi possível guardar o contacto. Tente novamente.",
+          "CommerceAccountUnavailable": "Não foi possível guardar o contacto. Tente novamente.",
+          "CommerceRequestFailure": "Não foi possível guardar o contacto. Tente novamente.",
+          "CheckoutMutationUnsupported": "Esta origem de contacto ainda não é suportada.",
+          "CheckoutUnavailable": "O checkout não foi encontrado para este pedido.",
+          "CommerceRequestContextNotFound": "O checkout não foi encontrado para este pedido.",
+          "CheckoutVersionConflict": "O checkout foi alterado antes de guardar. Atualize a página e tente novamente."
+        },
+        "saveDeliveryDetails": {
+          "CheckoutCartMismatch": "Este checkout já não está atualizado. Atualize a página e tente novamente.",
+          "CheckoutMutationAddressBookEntryUnavailable": "Esta morada guardada já não está disponível.",
+          "CheckoutMutationSchemaFailure": "Introduza a morada, o código postal, a cidade e o país.",
+          "CheckoutMutationOutcomeUnknown": "Não foi possível confirmar se os dados de entrega foram guardados. Atualize a página antes de tentar novamente.",
+          "CheckoutMutationSourceUnavailable": "Esta origem de entrega não está disponível para este checkout.",
+          "CheckoutMutationProviderFailure": "Não foi possível guardar os detalhes de entrega. Tente novamente.",
+          "CommerceAccountUnavailable": "Não foi possível guardar os detalhes de entrega. Tente novamente.",
+          "CommerceRequestFailure": "Não foi possível guardar os detalhes de entrega. Tente novamente.",
+          "CheckoutMutationUnsupported": "Esta origem de entrega ainda não é suportada.",
+          "CheckoutUnavailable": "O checkout não foi encontrado para este pedido.",
+          "CommerceRequestContextNotFound": "O checkout não foi encontrado para este pedido.",
+          "CheckoutVersionConflict": "O checkout foi alterado antes de guardar. Atualize a página e tente novamente."
+        }
+      },
+      "violations": {
+        "unknownCountry": "este destino",
+        "shippingCountryUnavailable": "O envio para {country} não está disponível.",
+        "guestItemLimit": "Os carrinhos de convidado estão limitados a {maxQuantity} artigos. Remova pelo menos {excessQuantity, plural, one {# artigo} other {# artigos}}.",
+        "incompatibleCartItems": "Estes artigos não podem ser comprados em conjunto.",
+        "shippingAddressRestricted": "Um ou mais artigos não podem ser enviados para esta morada.",
+        "policyUnavailable": "Não foi possível verificar a disponibilidade do checkout.",
+        "generic": "O checkout não pode continuar até este problema ser resolvido."
       }
     }
   }

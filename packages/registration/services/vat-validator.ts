@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Redacted } from "effect";
+
 import type { RedactedVatId } from "../domain/registration";
 
 export interface VatValidatorMemoryInput {

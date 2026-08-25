@@ -1,0 +1,215 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "cms-contentstack",
+      "type": "registry:item",
+      "title": "Next Hydra Contentstack CMS provider",
+      "description": "Installs the Contentstack CMS provider package.",
+      "docs": "Configure the Contentstack environment variables described by packages/cms-contentstack before starting the web application.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/cms/contentstack",
+          "kind": "provider",
+          "slot": "cms",
+          "packages": [
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "name": "@repo/cms",
+              "specifier": "workspace:@repo/cms-contentstack@*"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": ".env.example",
+          "target": "~/packages/cms-contentstack/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "client.ts",
+          "target": "~/packages/cms-contentstack/client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/blocks/dynamic-product-collection.tsx",
+          "target": "~/packages/cms-contentstack/components/blocks/dynamic-product-collection.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/blocks/hero-section.tsx",
+          "target": "~/packages/cms-contentstack/components/blocks/hero-section.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/blocks/tabs.tsx",
+          "target": "~/packages/cms-contentstack/components/blocks/tabs.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/component-renderer.tsx",
+          "target": "~/packages/cms-contentstack/components/component-renderer.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/global-region.tsx",
+          "target": "~/packages/cms-contentstack/components/global-region.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/link.tsx",
+          "target": "~/packages/cms-contentstack/components/link.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/live-preview.tsx",
+          "target": "~/packages/cms-contentstack/components/live-preview.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/page.tsx",
+          "target": "~/packages/cms-contentstack/components/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/pages/landing-page.tsx",
+          "target": "~/packages/cms-contentstack/components/pages/landing-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "constants.ts",
+          "target": "~/packages/cms-contentstack/constants.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "gql/graphql-cache.d.ts",
+          "target": "~/packages/cms-contentstack/gql/graphql-cache.d.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "gql/graphql-env.d.ts",
+          "target": "~/packages/cms-contentstack/gql/graphql-env.d.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "gql/schema.graphql",
+          "target": "~/packages/cms-contentstack/gql/schema.graphql",
+          "type": "registry:file"
+        },
+        {
+          "path": "graphql.ts",
+          "target": "~/packages/cms-contentstack/graphql.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "keys.ts",
+          "target": "~/packages/cms-contentstack/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "layout.tsx",
+          "target": "~/packages/cms-contentstack/layout.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-category.test.ts",
+          "target": "~/packages/cms-contentstack/lib/commerce-category.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-category.ts",
+          "target": "~/packages/cms-contentstack/lib/commerce-category.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/navigation/index.tsx",
+          "target": "~/packages/cms-contentstack/lib/navigation/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/utils/connection.ts",
+          "target": "~/packages/cms-contentstack/lib/utils/connection.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/utils/live-preview-helper.ts",
+          "target": "~/packages/cms-contentstack/lib/utils/live-preview-helper.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/utils/rich-text-utils.tsx",
+          "target": "~/packages/cms-contentstack/lib/utils/rich-text-utils.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/utils/transform-locale.ts",
+          "target": "~/packages/cms-contentstack/lib/utils/transform-locale.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "next-config.ts",
+          "target": "~/packages/cms-contentstack/next-config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/cms-contentstack/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "proxy.ts",
+          "target": "~/packages/cms-contentstack/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "README.md",
+          "target": "~/packages/cms-contentstack/README.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/disable-draft/route.ts",
+          "target": "~/apps/web/app/api/disable-draft/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/draft/route.ts",
+          "target": "~/apps/web/app/api/draft/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/disable-draft.ts",
+          "target": "~/packages/cms-contentstack/routes/disable-draft.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/draft.ts",
+          "target": "~/packages/cms-contentstack/routes/draft.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/gql-sync.ts",
+          "target": "~/packages/cms-contentstack/scripts/gql-sync.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/cms-contentstack/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "types.ts",
+          "target": "~/packages/cms-contentstack/types.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "typescript-config.json",
+          "target": "~/packages/cms-contentstack/typescript-config.json",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

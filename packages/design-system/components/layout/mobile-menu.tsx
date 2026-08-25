@@ -19,6 +19,7 @@ import { Menu } from "lucide-react";
 import { DynamicIcon } from "lucide-react/dynamic";
 import type { Route } from "next";
 import Link from "next/link";
+
 import type { NavigationItem } from "./navigation";
 
 type MobileMenuProps = {

@@ -1,4 +1,6 @@
+import { StoreFailureReason } from "@repo/versioned-store";
 import { Context, Effect, Layer, Option, Redacted, Schema } from "effect";
+
 import type { RedactedEmail } from "../domain/identity";
 import type { Registration, RegistrationStatus } from "../domain/registration";
 
@@ -33,18 +35,19 @@ export interface ListRegistrationsResult {
 export class RegistrationQueryFailure extends Schema.TaggedErrorClass<RegistrationQueryFailure>()(
   "RegistrationQueryFailure",
   {
+    cause: Schema.Defect,
     message: Schema.String,
     operation: Schema.Literal("list"),
-    cause: Schema.Defect,
+    reason: StoreFailureReason,
   }
 ) {}
 
 export class RegistrationQueryInvalidCursor extends Schema.TaggedErrorClass<RegistrationQueryInvalidCursor>()(
   "RegistrationQueryInvalidCursor",
   {
+    cursor: Schema.String,
     message: Schema.String,
     operation: Schema.Literal("list"),
-    cursor: Schema.String,
   }
 ) {}
 
@@ -55,8 +58,8 @@ export type RegistrationQueryError =
 export const RegistrationQueryCursorSchema = Schema.Struct({
   id: Schema.String,
   sort: Schema.Struct({
-    field: RegistrationQuerySortField,
     direction: RegistrationQuerySortDirection,
+    field: RegistrationQuerySortField,
     value: Schema.String,
   }),
 });
@@ -66,8 +69,8 @@ const DEFAULT_LIST_LIMIT = 20;
 const MIN_LIST_LIMIT = 1;
 const MAX_LIST_LIMIT = 100;
 const DEFAULT_SORT = {
-  field: "lastModifiedAt",
   direction: "desc",
+  field: "lastModifiedAt",
 } as const satisfies Required<RegistrationQuerySort>;
 
 export interface RegistrationQueryRecord {
@@ -102,7 +105,7 @@ const registrationMatchesSearch = (
     return true;
   }
 
-  const details = registration.details;
+  const { details } = registration;
 
   return [
     String(details.companyName),
@@ -132,8 +135,8 @@ const normalizeLimit = (limit: number | undefined) => {
 export const normalizeRegistrationQuerySort = (
   sort: RegistrationQuerySort | undefined
 ): Required<RegistrationQuerySort> => ({
-  field: sort?.field ?? DEFAULT_SORT.field,
   direction: sort?.direction ?? DEFAULT_SORT.direction,
+  field: sort?.field ?? DEFAULT_SORT.field,
 });
 
 const sortValueForRecord = (
@@ -141,12 +144,15 @@ const sortValueForRecord = (
   sort: Required<RegistrationQuerySort>
 ) => {
   switch (sort.field) {
-    case "lastModifiedAt":
+    case "lastModifiedAt": {
       return record.lastModifiedAt.toISOString();
-    case "createdAt":
+    }
+    case "createdAt": {
       return record.createdAt.toISOString();
-    default:
+    }
+    default: {
       return sort.field satisfies never;
+    }
   }
 };
 
@@ -186,8 +192,8 @@ export const registrationQueryCursorFromRecord = (
 ): RegistrationQueryCursor => ({
   id: record.id,
   sort: {
-    field: sort.field,
     direction: sort.direction,
+    field: sort.field,
     value: sortValueForRecord(record, sort),
   },
 });
@@ -203,8 +209,8 @@ const isAfterCursor = (
   cursor: RegistrationQueryCursor
 ) => {
   const sort: Required<RegistrationQuerySort> = {
-    field: cursor.sort.field,
     direction: cursor.sort.direction,
+    field: cursor.sort.field,
   };
   const recordCursor = registrationQueryCursorFromRecord(record, sort);
   const bySortValue = compareSortValues(
@@ -237,7 +243,7 @@ export const decodeRegistrationQueryCursor = (
   try {
     const decoded = Option.getOrUndefined(
       Schema.decodeUnknownOption(RegistrationQueryCursorSchema)(
-        JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"))
+        JSON.parse(Buffer.from(cursor, "base64url").toString("utf-8"))
       )
     );
 
@@ -275,9 +281,9 @@ export const parseRegistrationQueryCursor = (
   if (!decoded) {
     return Effect.fail(
       new RegistrationQueryInvalidCursor({
+        cursor,
         message: `Invalid registration query cursor for list: ${cursor}`,
         operation: "list",
-        cursor,
       })
     );
   }
@@ -285,9 +291,9 @@ export const parseRegistrationQueryCursor = (
   if (!cursorMatchesSort(decoded, sort)) {
     return Effect.fail(
       new RegistrationQueryInvalidCursor({
+        cursor,
         message: `Invalid registration query cursor for list: ${cursor}`,
         operation: "list",
-        cursor,
       })
     );
   }
@@ -304,10 +310,17 @@ export const listRegistrationRecords = (
     const sort = normalizeRegistrationQuerySort(input.sort);
     const cursor = yield* parseRegistrationQueryCursor(input.cursor, sort);
     return yield* Effect.try({
+      catch: (cause) =>
+        new RegistrationQueryFailure({
+          cause,
+          message: `Failed to list registrations: ${
+            cause instanceof Error ? cause.message : String(cause)
+          }`,
+          operation: "list",
+          reason: "unexpectedResponse",
+        }),
       try: () => {
-        const sorted = Array.from(records).sort(
-          compareRegistrationQueryRecords(sort)
-        );
+        const sorted = [...records].sort(compareRegistrationQueryRecords(sort));
         const filtered = sorted
           .filter((record) =>
             input.status ? record.registration.status === input.status : true
@@ -331,14 +344,6 @@ export const listRegistrationRecords = (
 
         return nextCursor ? { items, nextCursor } : { items };
       },
-      catch: (cause) =>
-        new RegistrationQueryFailure({
-          message: `Failed to list registrations: ${
-            cause instanceof Error ? cause.message : String(cause)
-          }`,
-          operation: "list",
-          cause,
-        }),
     });
   });
 
@@ -359,25 +364,26 @@ export class RegistrationQueries extends Context.Service<
     Layer.succeed(
       RegistrationQueries,
       RegistrationQueries.of({
-        list: Effect.fn("RegistrationQueries.list")((input) =>
-          listRegistrationRecords(records, input)
-        ),
         hasPendingEmail: Effect.fn("RegistrationQueries.hasPendingEmail")(
           (email) =>
             Effect.try({
-              try: () =>
-                Array.from(records).some((record) =>
-                  isPendingRegistrationWithEmail(record.registration, email)
-                ),
               catch: (cause) =>
                 new RegistrationQueryFailure({
+                  cause,
                   message: `Failed to list registrations: ${
                     cause instanceof Error ? cause.message : String(cause)
                   }`,
                   operation: "list",
-                  cause,
+                  reason: "unexpectedResponse",
                 }),
+              try: () =>
+                [...records].some((record) =>
+                  isPendingRegistrationWithEmail(record.registration, email)
+                ),
             })
+        ),
+        list: Effect.fn("RegistrationQueries.list")((input) =>
+          listRegistrationRecords(records, input)
         ),
       })
     );

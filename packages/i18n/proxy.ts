@@ -1,4 +1,5 @@
 import createMiddleware from "next-intl/middleware";
+
 import { routing } from "./routing";
 
 // Create middleware to handle i18n routing

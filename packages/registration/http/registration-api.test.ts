@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
+import { StoreKey } from "@repo/commerce/store";
 import { Effect, Redacted, Schema } from "effect";
-import { RegistrationReviewerActor } from "../domain/actors";
+
 import {
   AddressLine,
   City,
@@ -24,37 +25,45 @@ import {
   ListRegistrationsQuery,
   RegistrationApiError,
   RegistrationDecisionAcceptedResponse,
+  RegistrationDecisionRequest,
   RegistrationDecisionResponse,
-  RegistrationReviewerInput,
-  toApiError,
   toCompanyRegistrationDetails,
+  toRegistrationQueryApiError,
   toRegistrationDetailResponse,
-  toReviewerActor,
 } from "./registration-api";
 
 const registrationPayload = {
+  address: {
+    additionalStreetInfo: "Suite 42",
+    city: "New York",
+    country: "US",
+    postalCode: "10001",
+    region: "NY",
+    streetName: "1 Computation Way",
+  },
   companyName: "Hydra Supplies",
   companyPhone: "+1 555 0100",
-  vatId: "VAT-123",
   contactFirstName: "Ada",
   contactLastName: "Lovelace",
   email: "ada@example.com",
-  address: {
-    streetName: "1 Computation Way",
-    additionalStreetInfo: "Suite 42",
-    postalCode: "10001",
-    city: "New York",
-    region: "NY",
-    country: "US",
-  },
+  vatId: "VAT-123",
 };
 
 const details = new CompanyRegistrationDetails({
+  address: new CompanyAddress({
+    city: Redacted.make(City.make("New York"), { label: "city" }),
+    country: CountryCode.make("US"),
+    postalCode: Redacted.make(PostalCode.make("10001"), {
+      label: "postalCode",
+    }),
+    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
+      label: "addressLine",
+    }),
+  }),
   companyName: CompanyName.make("Hydra Supplies"),
   companyPhone: Redacted.make(PhoneNumber.make("+1 555 0100"), {
     label: "companyPhone",
   }),
-  vatId: Redacted.make(VatId.make("VAT-123"), { label: "vatId" }),
   contactFirstName: Redacted.make(PersonName.make("Ada"), {
     label: "personName",
   }),
@@ -62,16 +71,7 @@ const details = new CompanyRegistrationDetails({
     label: "personName",
   }),
   email: Redacted.make(Email.make("ada@example.com"), { label: "email" }),
-  address: new CompanyAddress({
-    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
-      label: "addressLine",
-    }),
-    postalCode: Redacted.make(PostalCode.make("10001"), {
-      label: "postalCode",
-    }),
-    city: Redacted.make(City.make("New York"), { label: "city" }),
-    country: CountryCode.make("US"),
-  }),
+  vatId: Redacted.make(VatId.make("VAT-123"), { label: "vatId" }),
 });
 
 describe("Registration REST contract mappers", () => {
@@ -85,36 +85,24 @@ describe("Registration REST contract mappers", () => {
     expect(Redacted.value(mapped.address.streetName)).toBe("1 Computation Way");
   });
 
-  it("maps reviewer payloads to registration reviewer actors", () => {
-    const actor = toReviewerActor(
-      new RegistrationReviewerInput({
-        authUserId: "auth-reviewer-1",
-        email: "reviewer@example.com",
-        name: "Registration Reviewer",
-      })
-    );
-
-    expect(actor).toBeInstanceOf(RegistrationReviewerActor);
-    expect(actor.actorType).toBe("registration_reviewer");
-    expect(Redacted.value(actor.email)).toBe("reviewer@example.com");
-  });
-
   it("maps domain registrations to REST detail responses", () => {
     const registration = new AwaitingApprovalRegistration({
       _tag: "AwaitingApprovalRegistration",
-      status: "awaiting_approval",
-      id: RegistrationId.make("registration-1"),
-      details,
       createdAt: new Date("2026-03-22T00:00:00.000Z"),
+      details,
+      id: RegistrationId.make("registration-1"),
+      status: "awaiting_approval",
+      storeKey: StoreKey.make("default-store"),
       updatedAt: new Date("2026-03-22T00:00:01.000Z"),
     });
 
     expect(toRegistrationDetailResponse(registration)).toMatchObject({
+      companyName: "Hydra Supplies",
+      createdAt: "2026-03-22T00:00:00.000Z",
+      email: "ada@example.com",
       registrationId: "registration-1",
       status: "awaiting_approval",
-      companyName: "Hydra Supplies",
-      email: "ada@example.com",
-      createdAt: "2026-03-22T00:00:00.000Z",
+      storeKey: "default-store",
       updatedAt: "2026-03-22T00:00:01.000Z",
     });
   });
@@ -132,37 +120,48 @@ describe("Registration REST contract mappers", () => {
     })
   );
 
+  it.effect("encodes decisions without caller-supplied reviewer identity", () =>
+    Effect.gen(function* () {
+      const encoded = yield* Schema.encodeUnknownEffect(
+        RegistrationDecisionRequest
+      )(new RegistrationDecisionRequest({ reason: "Looks good" }));
+
+      expect(encoded).toStrictEqual({ reason: "Looks good" });
+    })
+  );
+
   it.effect("encodes list query values for generated REST clients", () =>
     Effect.gen(function* () {
       const query = new ListRegistrationsQuery({
-        status: "awaiting_approval",
         limit: 20,
+        status: "awaiting_approval",
       });
 
       const encoded = yield* Schema.encodeUnknownEffect(ListRegistrationsQuery)(
         query
       );
 
-      expect(encoded).toEqual({
-        status: "awaiting_approval",
+      expect(encoded).toStrictEqual({
         limit: "20",
+        status: "awaiting_approval",
       });
     })
   );
 
-  it("preserves internal registration error messages in API errors", () => {
-    const error = toApiError(
+  it("sanitizes internal registration error messages in API errors", () => {
+    const error = toRegistrationQueryApiError(
       new RegistrationQueryFailure({
+        cause: new Error('SchemaError(Missing key at ["id"])'),
         message:
           'Failed to list registrations: SchemaError(Missing key at ["id"])',
         operation: "list",
-        cause: new Error('SchemaError(Missing key at ["id"])'),
+        reason: "unavailable",
       })
     );
 
-    expect(error).toBeInstanceOf(RegistrationApiError);
+    expect(Schema.is(RegistrationApiError)(error)).toBeTruthy();
     expect(error.message).toBe(
-      'Failed to list registrations: SchemaError(Missing key at ["id"])'
+      "The registration service is temporarily unavailable."
     );
   });
 });

@@ -28,24 +28,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/design-system/components/ui/select";
-import {
-  type ReactHookFormActionErrorMessages,
-  setReactHookFormActionErrors,
-  setReactHookFormRootError,
-} from "@repo/form/react-hook-form";
+import { setReactHookFormRootError } from "@repo/form/react-hook-form";
 import { useLocale, useTranslations } from "@repo/i18n";
-import { Schema } from "effect";
-import { unstable_rethrow } from "next/navigation";
+import { Result, Schema } from "effect";
 import type { FieldPath } from "react-hook-form";
 import { useForm } from "react-hook-form";
+
 import {
   getCountryOptions,
   makeRegistrationFormInputSchema,
-  type RegistrationFormError,
-  type RegistrationFormFieldError,
-  type RegistrationFormResult,
-  type RegistrationFormValues,
+  RegistrationFormResultSchema,
+  RegistrationFormIssuePath,
   requiresRegion,
+} from "./registration-form-schema";
+import type {
+  RegistrationFormResult,
+  RegistrationFormValues,
 } from "./registration-form-schema";
 
 type RegistrationFormProps = {
@@ -55,20 +53,30 @@ type RegistrationFormProps = {
 };
 
 const defaultValues: RegistrationFormValues = {
+  address: {
+    additionalStreetInfo: "",
+    city: "",
+    country: "US",
+    postalCode: "",
+    region: "",
+    streetName: "",
+  },
   companyName: "",
   companyPhone: "",
-  vatId: "",
   contactFirstName: "",
   contactLastName: "",
   email: "",
-  address: {
-    streetName: "",
-    additionalStreetInfo: "",
-    postalCode: "",
-    city: "",
-    region: "",
-    country: "US",
-  },
+  vatId: "",
+};
+
+type RegistrationActionFailure = Extract<
+  typeof RegistrationFormResultSchema.Type,
+  { readonly _tag: "Failure" }
+>["failure"];
+
+type RegistrationDisplayIssue = {
+  readonly path: typeof RegistrationFormIssuePath.Type;
+  readonly message: string;
 };
 
 function TranslatedFormMessage({ className }: { readonly className?: string }) {
@@ -91,36 +99,62 @@ export function RegistrationForm({ submit }: RegistrationFormProps) {
   const locale = useLocale();
   const registrationFormSchema = makeRegistrationFormInputSchema(t);
   const form = useForm<RegistrationFormValues>({
+    defaultValues,
+    mode: "onBlur",
     resolver: standardSchemaResolver(
       Schema.toStandardSchemaV1(registrationFormSchema)
     ),
-    defaultValues,
-    mode: "onBlur",
   });
   const selectedCountry = form.watch("address.country");
   const isRegionRequired = requiresRegion(selectedCountry);
   const countryOptions = getCountryOptions(locale);
-  const actionErrorMessages = {
-    field: {
-      duplicateEmail: t("validation.duplicateEmail"),
-      invalidVatId: t("validation.invalidVatId"),
-    },
-    form: {
-      invalidSubmission: t("errors.invalidSubmission"),
-      unsupportedRegistrationCountry: t(
-        "errors.unsupportedRegistrationCountry"
-      ),
-    },
-  } satisfies ReactHookFormActionErrorMessages<
-    RegistrationFormFieldError["code"],
-    RegistrationFormError["code"]
-  >;
   const formError = form.formState.errors.root?.serverError?.message;
-  const isSubmitting = form.formState.isSubmitting;
+  const { isSubmitting } = form.formState;
   const renderRowFieldMessage = (name: FieldPath<RegistrationFormValues>) => {
     const message = form.getFieldState(name, form.formState).error?.message;
 
     return <p className="min-h-5 text-destructive text-sm">{message ?? ""}</p>;
+  };
+  const getRootFailureMessage = (failure: RegistrationActionFailure) => {
+    if (failure.code === "registration.unavailable") {
+      return t("errors.submitFailed");
+    }
+
+    return failure.code === "registration.submissionOutcomeUnknown"
+      ? t("errors.submissionOutcomeUnknown")
+      : failure.message;
+  };
+  const applyRegistrationFailure = (failure: RegistrationActionFailure) => {
+    const publicIssues =
+      "issues" in failure && failure.issues !== undefined
+        ? failure.issues
+        : [{ message: getRootFailureMessage(failure), path: [] }];
+    const issues: readonly RegistrationDisplayIssue[] = publicIssues.map(
+      (issue) => {
+        const candidate =
+          issue.path.length === 0 ? "root" : issue.path.join(".");
+        return {
+          message: issue.message,
+          path: Schema.is(RegistrationFormIssuePath)(candidate)
+            ? candidate
+            : "root",
+        };
+      }
+    );
+    const rootIssue = issues.find((issue) => issue.path === "root");
+
+    for (const issue of issues) {
+      if (issue.path !== "root") {
+        form.setError(issue.path, {
+          message: issue.message,
+          type: "server",
+        });
+      }
+    }
+
+    if (rootIssue) {
+      setReactHookFormRootError(form, rootIssue.message);
+    }
   };
 
   return (
@@ -129,34 +163,15 @@ export function RegistrationForm({ submit }: RegistrationFormProps) {
         className="grid gap-6"
         onSubmit={form.handleSubmit(async (values) => {
           form.clearErrors("root");
+          const encodedResult = await submit(values);
+          const result = Schema.decodeUnknownSync(RegistrationFormResultSchema)(
+            encodedResult
+          );
 
-          if (
-            requiresRegion(values.address.country) &&
-            !values.address.region
-          ) {
-            form.setError("address.region", {
-              message: t("validation.region"),
-              type: "manual",
-            });
-            return;
-          }
-
-          try {
-            const result = await submit(values);
-
-            switch (result.status) {
-              case "submitted":
-                return;
-              case "invalid":
-                setReactHookFormActionErrors(form, result, actionErrorMessages);
-                return;
-              default:
-                result satisfies never;
-            }
-          } catch (error) {
-            unstable_rethrow(error);
-            setReactHookFormRootError(form, t("errors.submitFailed"));
-          }
+          Result.match(result, {
+            onFailure: applyRegistrationFailure,
+            onSuccess: () => {},
+          });
         })}
       >
         {formError ? (

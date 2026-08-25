@@ -4,17 +4,11 @@ The Registration context describes how a company asks for access and how that re
 
 ## Language
 
-**Registration**:
-A company access request and its lifecycle state.
-_Avoid_: Registration record, storage record, workflow record
+**Registration**: A company access request and its lifecycle state. _Avoid_: Registration record, storage record, workflow record
 
-**Registration ID**:
-The identity assigned to a Registration by the Registration context.
-_Avoid_: Workflow ID, submission key
+**Registration ID**: The identity assigned to a Registration by the Registration context. _Avoid_: Workflow ID, submission key
 
-**Submission Key**:
-A caller-provided key used to recognize repeated attempts to submit the same Registration.
-_Avoid_: Registration ID
+**Submission Key**: A caller-provided key used to recognize repeated attempts to submit the same Registration. _Avoid_: Registration ID
 
 ## Relationships
 
@@ -23,11 +17,9 @@ _Avoid_: Registration ID
 
 ## Example Dialogue
 
-> **Dev:** "Should the **Registration** include workflow retry details?"
-> **Domain expert:** "No — the **Registration** only describes the company access request and its domain state."
+> **Dev:** "Should the **Registration** include workflow retry details?" **Domain expert:** "No — the **Registration** only describes the company access request and its domain state."
 
-> **Dev:** "Can the workflow choose the **Registration ID**?"
-> **Domain expert:** "No — the Registration context assigns the **Registration ID**; callers use a **Submission Key** for idempotency."
+> **Dev:** "Can the workflow choose the **Registration ID**?" **Domain expert:** "No — the Registration context assigns the **Registration ID**; callers use a **Submission Key** for idempotency."
 
 ## Flagged Ambiguities
 

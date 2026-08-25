@@ -13,6 +13,7 @@
     "@react-email/preview-server": "^4.2.7",
     "@repo/email": "workspace:*",
     "react": "catalog:",
+    "react-dom": "catalog:",
     "react-email": "4.2.7",
     "effect": "catalog:"
   },

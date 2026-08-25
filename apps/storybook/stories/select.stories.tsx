@@ -14,10 +14,11 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * Displays a list of options for the user to pick from—triggered by a button.
  */
 const meta: Meta<typeof Select> = {
-  title: "ui/Select",
-  component: Select,
-  tags: ["autodocs"],
   argTypes: {},
+  component: Select,
+  parameters: {
+    layout: "centered",
+  },
   render: (args) => (
     <Select {...args}>
       <SelectTrigger className="w-96">
@@ -54,9 +55,8 @@ const meta: Meta<typeof Select> = {
       </SelectContent>
     </Select>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/Select",
 } satisfies Meta<typeof Select>;
 
 export default meta;

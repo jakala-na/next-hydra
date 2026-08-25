@@ -3,6 +3,7 @@
 This repo uses Changesets for **starter releases**, not for every merge.
 
 Current scope:
+
 - Publishable package: `create-next-hydra` only
 - Version tracks the public `next-hydra` starter release
 - Multiple merges may be batched into one release
@@ -10,6 +11,7 @@ Current scope:
 ## When to add a changeset
 
 Add a changeset only when a change affects:
+
 - CLI behavior (`create-next-hydra` flags, prompts, clone/sanitize behavior)
 - The generated starter output users receive after scaffolding
 - Breaking setup assumptions or migration steps
@@ -19,6 +21,7 @@ Do not add a changeset for internal-only refactors that don't affect scaffolded 
 ## Changeset summary style (hybrid)
 
 Summaries should describe user-visible impact:
+
 - CLI changes (if any)
 - Generated starter changes (if any)
 - Breaking changes / migration notes (if any)

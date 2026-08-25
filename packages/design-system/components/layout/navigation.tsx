@@ -1,8 +1,10 @@
 "use client";
 
-import { DynamicIcon, type IconName } from "lucide-react/dynamic";
+import { DynamicIcon } from "lucide-react/dynamic";
+import type { IconName } from "lucide-react/dynamic";
 import type { Route } from "next";
 import Link from "next/link";
+
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -11,6 +13,7 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "../ui/navigation-menu";
+
 export type NavigationItem = {
   title: string;
   href?: string;

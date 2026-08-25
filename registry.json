@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "name": "next-hydra",
+  "homepage": "https://github.com/jakala-na/next-hydra",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "next-hydra-standard",
+      "type": "registry:item",
+      "title": "Next Hydra standard stack",
+      "description": "WorkOS, Drupal, and Commercetools.",
+      "registryDependencies": [
+        "jakala-na/next-hydra/auth-workos",
+        "jakala-na/next-hydra/cms-drupal",
+        "jakala-na/next-hydra/commerce-commercetools"
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/preset/standard",
+          "kind": "preset",
+          "selections": {
+            "providers": {
+              "auth": "workos",
+              "cms": "drupal",
+              "commerce": "commercetools"
+            },
+            "addOns": []
+          }
+        }
+      }
+    }
+  ],
+  "include": [
+    "packages/auth-workos/registry.json",
+    "packages/cms-contentstack/registry.json",
+    "packages/cms-drupal/registry.json",
+    "packages/commerce-commercetools/registry.json",
+    "apps/drupal/registry.json"
+  ]
+}

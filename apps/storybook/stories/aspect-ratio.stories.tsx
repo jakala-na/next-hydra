@@ -6,10 +6,15 @@ import Image from "next/image";
  * Displays content within a desired ratio.
  */
 const meta: Meta<typeof AspectRatio> = {
-  title: "ui/AspectRatio",
-  component: AspectRatio,
-  tags: ["autodocs"],
   argTypes: {},
+  component: AspectRatio,
+  decorators: [
+    (Story) => (
+      <div className="w-1/2">
+        <Story />
+      </div>
+    ),
+  ],
   render: (args) => (
     <AspectRatio {...args} className="bg-slate-50 dark:bg-slate-800">
       <Image
@@ -20,13 +25,8 @@ const meta: Meta<typeof AspectRatio> = {
       />
     </AspectRatio>
   ),
-  decorators: [
-    (Story) => (
-      <div className="w-1/2">
-        <Story />
-      </div>
-    ),
-  ],
+  tags: ["autodocs"],
+  title: "ui/AspectRatio",
 } satisfies Meta<typeof AspectRatio>;
 
 export default meta;

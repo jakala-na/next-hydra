@@ -1,0 +1,495 @@
+import {
+  resolveCatalogSelection,
+  resolveRegistryItemGraph,
+} from "./catalog.js";
+import { CompositionValidationError } from "./errors.js";
+import { mergePackageRequirements } from "./packages.js";
+import {
+  isManagedApplicationSource,
+  resolveRegistryTarget,
+  resolveWorkspacePath,
+} from "./paths.js";
+import type {
+  CatalogSelection,
+  CompositionPlan,
+  PackageRequirement,
+  PnpmPatch,
+  ProviderSlot,
+  SourceRegistryCatalog,
+  WorkspaceSelection,
+} from "./types.js";
+import { PROVIDER_ALIASES, PROVIDER_SLOTS } from "./types.js";
+
+function uniqueSorted(values: Iterable<string>): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+
+function itemTargets(
+  catalog: SourceRegistryCatalog,
+  itemName: string
+): string[] {
+  const item = catalog.items.get(itemName);
+  if (!item) {
+    throw new CompositionValidationError("Missing registry item.", [
+      `${itemName} is not in the source registry`,
+    ]);
+  }
+
+  return uniqueSorted(
+    (item.files ?? []).map((file) => {
+      if (!file.target) {
+        throw new CompositionValidationError(
+          "Registry items require explicit targets.",
+          [`${itemName}:${file.path} does not declare files[].target`]
+        );
+      }
+
+      return resolveRegistryTarget(file.target);
+    })
+  );
+}
+
+function itemManagedTargets(
+  catalog: SourceRegistryCatalog,
+  itemName: string
+): string[] {
+  const item = catalog.items.get(itemName);
+  if (!item) {
+    throw new CompositionValidationError("Missing registry item.", [
+      `${itemName} is not in the source registry`,
+    ]);
+  }
+
+  return uniqueSorted(
+    (item.files ?? [])
+      .filter((file) => isManagedApplicationSource(file.path, file.target))
+      .map((file) => {
+        if (!file.target) {
+          throw new CompositionValidationError(
+            "Managed application files require explicit targets.",
+            [`${itemName}:${file.path} does not declare files[].target`]
+          );
+        }
+        return resolveRegistryTarget(file.target);
+      })
+  );
+}
+
+function resolveProviders(
+  catalog: SourceRegistryCatalog,
+  selection: WorkspaceSelection
+): Map<ProviderSlot, CatalogSelection> {
+  const providers = new Map<ProviderSlot, CatalogSelection>();
+  const issues: string[] = [];
+
+  for (const slot of PROVIDER_SLOTS) {
+    const candidate = resolveCatalogSelection(
+      catalog,
+      selection.providers[slot]
+    );
+    if (candidate.kind !== "provider" || candidate.slot !== slot) {
+      issues.push(
+        `${selection.providers[slot]} is ${candidate.kind}${candidate.slot ? ` for ${candidate.slot}` : ""}, not a ${slot} provider`
+      );
+      continue;
+    }
+    providers.set(slot, candidate);
+  }
+
+  if (issues.length > 0) {
+    throw new CompositionValidationError(
+      "Provider Slot cardinality is invalid.",
+      issues
+    );
+  }
+
+  return providers;
+}
+
+function resolveAddOns(
+  catalog: SourceRegistryCatalog,
+  references: string[],
+  providers: CatalogSelection[]
+): CatalogSelection[] {
+  const selected = new Map<string, CatalogSelection>();
+  const queue = references.map((reference) =>
+    resolveCatalogSelection(catalog, reference)
+  );
+  const selectedProviderIds = new Set(providers.map((provider) => provider.id));
+
+  const enqueueRequiredAddOns = (selection: CatalogSelection) => {
+    for (const requiredId of selection.compatibility.requires) {
+      if (selectedProviderIds.has(requiredId) || selected.has(requiredId)) {
+        continue;
+      }
+      const required = catalog.byId.get(requiredId);
+      if (required?.kind === "add-on") {
+        queue.push(required);
+      }
+    }
+  };
+
+  for (const provider of providers) {
+    enqueueRequiredAddOns(provider);
+  }
+
+  while (queue.length > 0) {
+    const candidate = queue.shift();
+    if (!candidate) {
+      continue;
+    }
+    if (candidate.kind !== "add-on") {
+      throw new CompositionValidationError("Invalid Add-on selection.", [
+        `${candidate.id} is ${candidate.kind}, not an add-on`,
+      ]);
+    }
+    if (selected.has(candidate.id)) {
+      continue;
+    }
+    selected.set(candidate.id, candidate);
+    enqueueRequiredAddOns(candidate);
+  }
+
+  return [...selected.values()].sort((left, right) =>
+    left.id.localeCompare(right.id)
+  );
+}
+
+function validateCompatibility(selections: CatalogSelection[]): void {
+  const selectedIds = new Set(selections.map((selection) => selection.id));
+  const issues: string[] = [];
+
+  for (const selection of selections) {
+    for (const requiredId of selection.compatibility.requires) {
+      if (!selectedIds.has(requiredId)) {
+        issues.push(`${selection.id} requires ${requiredId}`);
+      }
+    }
+    for (const conflictingId of selection.compatibility.conflicts) {
+      if (selectedIds.has(conflictingId)) {
+        issues.push(`${selection.id} conflicts with ${conflictingId}`);
+      }
+    }
+  }
+
+  if (issues.length > 0) {
+    throw new CompositionValidationError(
+      "The requested selections are incompatible.",
+      uniqueSorted(issues)
+    );
+  }
+}
+
+function validateProviderAliasRequirements(
+  providers: CatalogSelection[]
+): void {
+  const requiredLocations: Record<
+    ProviderSlot,
+    { cwd: string; section: PackageRequirement["section"] }[]
+  > = {
+    auth: [
+      { cwd: "apps/api", section: "dependencies" },
+      { cwd: "apps/web", section: "dependencies" },
+      { cwd: "packages/feature-flags", section: "dependencies" },
+    ],
+    cms: [{ cwd: "apps/web", section: "dependencies" }],
+    commerce: [
+      { cwd: "apps/api", section: "dependencies" },
+      { cwd: "apps/cli", section: "dependencies" },
+      { cwd: "apps/web", section: "dependencies" },
+    ],
+  };
+  const issues: string[] = [];
+
+  for (const provider of providers) {
+    if (!provider.slot) {
+      continue;
+    }
+    const alias = PROVIDER_ALIASES[provider.slot];
+    const requiredClaims = new Set(
+      requiredLocations[provider.slot].map(
+        (requirement) => `${requirement.cwd}\0${requirement.section}\0${alias}`
+      )
+    );
+    const actualClaims = new Set(
+      provider.packages.map(
+        (requirement) =>
+          `${requirement.cwd}\0${requirement.section}\0${requirement.name}`
+      )
+    );
+
+    for (const claim of requiredClaims) {
+      if (!actualClaims.has(claim)) {
+        const [cwd, section, name] = claim.split("\0");
+        issues.push(
+          `${provider.id} must declare ${cwd}/${section}.${name} for the ${provider.slot} Provider Slot`
+        );
+      }
+    }
+  }
+
+  if (issues.length > 0) {
+    throw new CompositionValidationError(
+      "Providers do not supply all stable Provider aliases required by the Baseline.",
+      uniqueSorted(issues)
+    );
+  }
+}
+
+function catalogPackageRequirements(
+  catalog: SourceRegistryCatalog
+): PackageRequirement[] {
+  const requirements = new Map<string, PackageRequirement>();
+
+  for (const selection of catalog.selections) {
+    for (const requirement of selection.packages) {
+      const key = `${requirement.cwd}\0${requirement.section}\0${requirement.name}`;
+      if (!requirements.has(key)) {
+        requirements.set(key, requirement);
+      }
+    }
+  }
+
+  return [...requirements.values()].sort((left, right) =>
+    `${left.cwd}/${left.section}/${left.name}`.localeCompare(
+      `${right.cwd}/${right.section}/${right.name}`
+    )
+  );
+}
+
+function resolvePnpmPatches(selections: CatalogSelection[]): PnpmPatch[] {
+  const patches = new Map<string, PnpmPatch>();
+  const issues: string[] = [];
+
+  for (const selection of selections) {
+    for (const patch of selection.pnpmPatches) {
+      const normalized = {
+        ...patch,
+        path: resolveWorkspacePath(
+          patch.path,
+          `${selection.id} pnpm patch path`
+        ),
+      };
+      const existing = patches.get(normalized.dependency);
+      if (existing && existing.path !== normalized.path) {
+        issues.push(
+          `${normalized.dependency} is patched by both ${existing.path} and ${normalized.path}`
+        );
+      } else {
+        patches.set(normalized.dependency, normalized);
+      }
+    }
+  }
+
+  if (issues.length > 0) {
+    throw new CompositionValidationError("pnpm patches conflict.", issues);
+  }
+
+  return [...patches.values()].sort((left, right) =>
+    left.dependency.localeCompare(right.dependency)
+  );
+}
+
+function catalogPnpmPatches(catalog: SourceRegistryCatalog): PnpmPatch[] {
+  const patches = new Map<string, PnpmPatch>();
+
+  for (const selection of catalog.selections) {
+    for (const patch of selection.pnpmPatches) {
+      const normalized = {
+        ...patch,
+        path: resolveWorkspacePath(
+          patch.path,
+          `${selection.id} pnpm patch path`
+        ),
+      };
+      if (!patches.has(normalized.dependency)) {
+        patches.set(normalized.dependency, normalized);
+      }
+    }
+  }
+
+  return [...patches.values()].sort((left, right) =>
+    left.dependency.localeCompare(right.dependency)
+  );
+}
+
+function catalogVariableTargets(catalog: SourceRegistryCatalog): string[] {
+  return uniqueSorted(
+    [...catalog.items.values()].flatMap(
+      (item) =>
+        item.files?.map((file) => {
+          if (!file.target) {
+            throw new CompositionValidationError(
+              "Registry items require explicit targets.",
+              [`${item.name}:${file.path} does not declare files[].target`]
+            );
+          }
+          return resolveRegistryTarget(file.target);
+        }) ?? []
+    )
+  );
+}
+
+function validateMaterializationTargets(options: {
+  catalog: SourceRegistryCatalog;
+  registryItems: string[];
+  assets: CatalogSelection["assets"];
+}): void {
+  const claims = new Map<string, string>();
+  const issues: string[] = [];
+  const claim = (target: string, owner: string) => {
+    const existing = claims.get(target);
+    if (existing && existing !== owner) {
+      issues.push(`${target} is claimed by both ${existing} and ${owner}`);
+      return;
+    }
+    claims.set(target, owner);
+  };
+
+  for (const item of options.registryItems) {
+    for (const target of itemTargets(options.catalog, item)) {
+      claim(target, `registry item ${item}`);
+    }
+  }
+  for (const asset of options.assets) {
+    claim(asset.target, `asset ${asset.source}`);
+  }
+  if (issues.length > 0) {
+    throw new CompositionValidationError(
+      "Materialization targets conflict.",
+      uniqueSorted(issues)
+    );
+  }
+}
+
+export function planComposition(
+  catalog: SourceRegistryCatalog,
+  selection: WorkspaceSelection
+): CompositionPlan {
+  const providers = resolveProviders(catalog, selection);
+  const providerSelections = PROVIDER_SLOTS.map((slot) => {
+    const provider = providers.get(slot);
+    if (!provider) {
+      throw new CompositionValidationError(
+        "Provider Slot cardinality is invalid.",
+        [`${slot} requires exactly one provider`]
+      );
+    }
+    return provider;
+  });
+  const addOns = resolveAddOns(catalog, selection.addOns, providerSelections);
+  const selections = [...providerSelections, ...addOns];
+
+  validateProviderAliasRequirements(providerSelections);
+  validateCompatibility(selections);
+
+  const entryItems = uniqueSorted(
+    selections.map((selected) => selected.itemName)
+  );
+  const registryItems = resolveRegistryItemGraph(catalog, entryItems);
+  const assets = selections
+    .flatMap((selected) =>
+      selected.assets.map((asset) => ({
+        source: resolveWorkspacePath(
+          asset.source,
+          `${selected.id} asset source`
+        ),
+        target: resolveWorkspacePath(
+          asset.target,
+          `${selected.id} asset target`
+        ),
+      }))
+    )
+    .sort((left, right) => left.target.localeCompare(right.target));
+  const pnpmPatches = resolvePnpmPatches(selections);
+  const assetTargets = new Set(assets.map((asset) => asset.target));
+  const missingPatchAssets = pnpmPatches
+    .filter((patch) => !assetTargets.has(patch.path))
+    .map(
+      (patch) =>
+        `${patch.dependency} references ${patch.path}, which is not a selected asset target`
+    );
+  if (missingPatchAssets.length > 0) {
+    throw new CompositionValidationError(
+      "pnpm patch files are missing.",
+      missingPatchAssets
+    );
+  }
+  validateMaterializationTargets({
+    assets,
+    catalog,
+    registryItems,
+  });
+  const managedTargets = uniqueSorted(
+    registryItems.flatMap((item) => itemManagedTargets(catalog, item))
+  );
+  const directlySelectedAddOnIds = new Set(
+    selection.addOns.map(
+      (reference) => resolveCatalogSelection(catalog, reference).id
+    )
+  );
+  const requiredAddOnIds = addOns
+    .filter((addOn) => !directlySelectedAddOnIds.has(addOn.id))
+    .map((addOn) => addOn.id);
+
+  return {
+    assets,
+    catalogManagedTargets: catalog.managedTargets,
+    catalogPackageRequirements: catalogPackageRequirements(catalog),
+    catalogPnpmPatches: catalogPnpmPatches(catalog),
+    entryItems,
+    instructions: [
+      ...new Set(
+        selections
+          .map((selected) => catalog.items.get(selected.itemName)?.docs)
+          .filter((value): value is string => Boolean(value))
+      ),
+    ],
+    managedTargets,
+    packageRequirements: mergePackageRequirements(selections),
+    pnpmPatches,
+    registryItems,
+    selection: {
+      ...selection,
+      addOns: uniqueSorted([...selection.addOns, ...requiredAddOnIds]),
+      providers: { ...selection.providers },
+    },
+    selections,
+    variableTargets: uniqueSorted([
+      ...catalogVariableTargets(catalog),
+      ...catalog.selections.flatMap((selected) =>
+        selected.assets.map((asset) =>
+          resolveWorkspacePath(asset.target, `${selected.id} asset target`)
+        )
+      ),
+    ]),
+  };
+}
+
+export function selectionFromPreset(
+  catalog: SourceRegistryCatalog,
+  reference: string
+): WorkspaceSelection {
+  const preset = resolveCatalogSelection(catalog, reference);
+  if (preset.kind !== "preset" || !preset.selections?.providers) {
+    throw new CompositionValidationError("Invalid Preset selection.", [
+      `${reference} is not a complete Next Hydra preset`,
+    ]);
+  }
+
+  const { addOns, providers } = preset.selections;
+  if (!(providers.auth && providers.cms && providers.commerce)) {
+    throw new CompositionValidationError("Preset is incomplete.", [
+      `${preset.id} must select auth, cms, and commerce providers`,
+    ]);
+  }
+
+  return {
+    addOns,
+    providers: {
+      auth: providers.auth,
+      cms: providers.cms,
+      commerce: providers.commerce,
+    },
+  };
+}

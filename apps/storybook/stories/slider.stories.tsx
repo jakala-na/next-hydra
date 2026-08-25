@@ -5,15 +5,15 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * An input where the user selects a value from within a given range.
  */
 const meta = {
-  title: "ui/Slider",
-  component: Slider,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
     defaultValue: [33],
     max: 100,
     step: 1,
   },
+  component: Slider,
+  tags: ["autodocs"],
+  title: "ui/Slider",
 } satisfies Meta<typeof Slider>;
 
 export default meta;

@@ -1,50 +1,92 @@
-import type { Locale, LocaleCountry } from "@repo/i18n/types";
-import { cookies } from "next/headers";
+import { Option, Schema } from "effect";
 
-export const ANONYMOUS_CART_COOKIE_NAME = "cart_id";
+import { CartId } from "../../../domain/cart";
+import { CurrencyCode } from "../../../domain/money";
+import { CommerceLocale, StoreKey } from "../../../store";
+import type { Store } from "../../../store";
 
-export const getCountryCodeFromLocale = (locale: Locale) =>
-  locale.split("-")[1] as LocaleCountry;
+export const ANONYMOUS_CART_COOKIE_NAME = "cart";
+const CART_COOKIE_MAX_AGE_DAYS = 90;
 
-const getCookieName = (locale: Locale) => {
-  const localeCountry = getCountryCodeFromLocale(locale).toLowerCase();
-  return `${localeCountry}:${ANONYMOUS_CART_COOKIE_NAME}`;
+export class AnonymousCartCookie extends Schema.Class<AnonymousCartCookie>(
+  "AnonymousCartCookie"
+)({
+  cartId: CartId,
+  currency: CurrencyCode,
+  locale: CommerceLocale,
+  storeKey: StoreKey,
+}) {}
+
+const AnonymousCartCookieJson = Schema.fromJsonString(AnonymousCartCookie);
+const decodeCookieWireValue = (value: string) => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 };
 
-const CART_COOKIE_OPTIONS = {
+export const makeAnonymousCartCookie = ({
+  cartId,
+  store,
+}: {
+  readonly cartId: string;
+  readonly store: Store;
+}) =>
+  new AnonymousCartCookie({
+    cartId: CartId.make(cartId),
+    currency: store.currency,
+    locale: store.locale,
+    storeKey: store.storeKey,
+  });
+
+export const encodeAnonymousCartCookie = (
+  cookie: AnonymousCartCookie
+): string =>
+  encodeURIComponent(Schema.encodeSync(AnonymousCartCookieJson)(cookie));
+
+export const decodeAnonymousCartCookie = (
+  value: string | undefined
+): AnonymousCartCookie | null => {
+  if (value === undefined || value.length === 0) {
+    return null;
+  }
+
+  const result = Schema.decodeUnknownOption(AnonymousCartCookieJson)(
+    decodeCookieWireValue(value)
+  );
+
+  return Option.getOrNull(result);
+};
+
+const anonymousCartCookieMatchesContext = (
+  cookie: AnonymousCartCookie,
+  store: Store
+) =>
+  cookie.currency === store.currency &&
+  cookie.locale === store.locale &&
+  cookie.storeKey === store.storeKey;
+
+export const getAnonymousCartIdFromCookieValue = (
+  value: string | undefined,
+  store: Store
+): string | null => {
+  const cartCookie = decodeAnonymousCartCookie(value);
+
+  if (
+    cartCookie === null ||
+    !anonymousCartCookieMatchesContext(cartCookie, store)
+  ) {
+    return null;
+  }
+
+  return cartCookie.cartId;
+};
+
+export const ANONYMOUS_CART_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
+  maxAge: 60 * 60 * 24 * CART_COOKIE_MAX_AGE_DAYS,
   path: "/",
-  maxAge: 60 * 60 * 24 * 90, // 90 days
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
 };
-
-/**
- * Get the anonymous cart ID from cookies
- */
-export async function getAnonymousCartId(
-  locale: Locale
-): Promise<string | null> {
-  const cookieStore = await cookies();
-  const cartCookie = cookieStore.get(getCookieName(locale));
-  return cartCookie?.value || null;
-}
-
-/**
- * Set the anonymous cart ID in cookies
- */
-export async function setAnonymousCartId(
-  cartId: string,
-  locale: Locale
-): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(getCookieName(locale), cartId, CART_COOKIE_OPTIONS);
-}
-
-/**
- * Clear the anonymous cart ID from cookies
- */
-export async function clearAnonymousCartId(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(ANONYMOUS_CART_COOKIE_NAME);
-}

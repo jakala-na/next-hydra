@@ -1,0 +1,672 @@
+"""The schema's entry-point for queries."""
+type Query {
+  """Load a Menu by name."""
+  menu(
+    """Internal menu name. Eg MAIN"""
+    name: MenuAvailable!
+
+    """
+    Optionally set the response language. Eg en, ja, fr. Setting this langcode
+    will change the current language of the entire response.
+    """
+    langcode: String
+  ): Menu
+
+  """Schema information."""
+  info: SchemaInformation!
+
+  """Load a content preview."""
+  preview(
+    """The content UUID."""
+    id: ID!
+
+    """A preview access token."""
+    token: String
+
+    """
+    Optionally set the response language. Eg en, ja, fr. Setting this langcode
+    will change the current language of the entire response.
+    """
+    langcode: String
+  ): NodeUnion
+
+  """Load a Route by path."""
+  route(
+    """Internal path to load. Eg /about"""
+    path: String!
+
+    """
+    Optionally set the revision of the entity. Eg current, latest, or an ID.
+    """
+    revision: ID
+
+    """
+    Optionally set the response language. Eg en, ja, fr. Setting this langcode
+    will change the current language of the entire response.
+    """
+    langcode: String
+  ): RouteUnion
+}
+
+"""List of menus available to load."""
+enum MenuAvailable {
+  """Main navigation"""
+  MAIN
+}
+
+"""Entity type menu."""
+type Menu implements MenuInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The menu items."""
+  items: [MenuItem!]!
+
+  """The menu name."""
+  name: String!
+}
+
+"""Entity type menu."""
+interface MenuInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The menu items."""
+  items: [MenuItem!]!
+
+  """The menu name."""
+  name: String!
+}
+
+"""A menu item defined in the CMS."""
+type MenuItem {
+  """The Universally Unique IDentifier (UUID)."""
+  id: ID!
+
+  """The title of the menu item."""
+  title: String!
+
+  """The description of the menu item."""
+  description: String
+
+  """The URL of the menu item."""
+  url: String
+
+  """The language of the menu item."""
+  langcode: Language!
+
+  """Whether this menu item links to an internal route."""
+  internal: Boolean!
+
+  """Whether this menu item is intended to be expanded."""
+  expanded: Boolean!
+
+  """Attributes of this menu item."""
+  attributes: MenuItemAttributes!
+
+  """Child menu items of this menu item."""
+  children: [MenuItem!]!
+
+  """
+  The route this menu item uses. Route loading can be disabled per menu type.
+  """
+  route: RouteUnion
+}
+
+"""A language definition provided by the CMS."""
+type Language {
+  """The language code."""
+  id: ID
+
+  """The language name."""
+  name: String
+
+  """The language direction."""
+  direction: String
+}
+
+"""Menu item options set within the CMS."""
+type MenuItemAttributes {
+  """Menu item attribute class."""
+  class: String
+}
+
+"""Route types that can exist in the system."""
+union RouteUnion = RouteInternal | RouteExternal
+
+"""Route within this website."""
+type RouteInternal implements Route {
+  """URL of this route."""
+  url: String!
+
+  """Whether this route is internal or external."""
+  internal: Boolean!
+
+  """Breadcrumb links for this route."""
+  breadcrumbs: [Link!]
+
+  """Content assigned to this route."""
+  entity: RouteEntityUnion
+}
+
+"""Routes represent incoming requests that resolve to content."""
+interface Route {
+  """URL of this route."""
+  url: String!
+
+  """Whether this route is internal or external."""
+  internal: Boolean!
+}
+
+"""A link."""
+type Link {
+  """The title of the link."""
+  title: String
+
+  """The URL of the link."""
+  url: String
+
+  """Whether the link is internal to this website."""
+  internal: Boolean!
+}
+
+"""A list of possible entities that can be returned by URL."""
+union RouteEntityUnion = NodeArticle | NodeLandingPage
+
+"""Editorial equipment guides rendered by the Next Hydra frontend."""
+type NodeArticle implements NodeInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """Body"""
+  body: TextSummary!
+
+  """The time that the node was last edited."""
+  changed: DateTime!
+
+  """The date and time that the content was created."""
+  created: DateTime!
+
+  """Image"""
+  image: MediaUnion!
+
+  """Language"""
+  langcode: Language!
+
+  """URL alias"""
+  path: String
+
+  """Promoted to front page"""
+  promote: Boolean!
+
+  """Published"""
+  status: Boolean!
+
+  """Sticky at top of lists"""
+  sticky: Boolean!
+
+  """Short teaser shown in article collections and page headers."""
+  summary: String!
+
+  """Title"""
+  title: String!
+
+  """Available translations for content."""
+  translations: [Translation!]!
+}
+
+"""Entity type node."""
+interface NodeInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The time that the node was last edited."""
+  changed: DateTime!
+
+  """The date and time that the content was created."""
+  created: DateTime!
+
+  """Language"""
+  langcode: Language!
+
+  """URL alias"""
+  path: String
+
+  """Promoted to front page"""
+  promote: Boolean!
+
+  """Published"""
+  status: Boolean!
+
+  """Sticky at top of lists"""
+  sticky: Boolean!
+
+  """Title"""
+  title: String!
+}
+
+"""A DateTime object."""
+type DateTime {
+  """
+  Type represents date and time as number of milliseconds from start of the UNIX epoch.
+  """
+  timestamp: Timestamp!
+
+  """A field whose value exists in the standard IANA Time Zone Database."""
+  timezone: TimeZone!
+
+  """A string that will have a value of format ±hh:mm"""
+  offset: UtcOffset!
+
+  """RFC 3339 compliant time string."""
+  time: Time!
+}
+
+"""
+Type represents date and time as number of milliseconds from start of the UNIX epoch.
+"""
+scalar Timestamp
+
+"""A field whose value exists in the standard IANA Time Zone Database."""
+scalar TimeZone
+
+"""A string that will have a value of format ±hh:mm"""
+scalar UtcOffset
+
+"""RFC 3339 compliant time string."""
+scalar Time
+
+"""A processed text format with summary defined by the CMS."""
+type TextSummary {
+  """The raw text value."""
+  value: String
+
+  """The processed text value."""
+  processed: Html
+
+  """The text format used to process the text value."""
+  format: String
+
+  """The processed text summary."""
+  summary: Html
+}
+
+"""
+An HTML string
+
+Content of this type is deemed safe by the server for raw output given the
+origin and the context of its usage. The HTML can still contain scripts or style
+tags where the creating user had permission to input these.
+"""
+scalar Html
+
+"""Entity type media."""
+union MediaUnion = MediaImage
+
+"""A locally hosted image file."""
+type MediaImage implements MediaInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The time the media item was last edited."""
+  changed: DateTime!
+
+  """The time the media item was created."""
+  created: DateTime!
+
+  """Language"""
+  langcode: Language!
+
+  """Image"""
+  mediaImage: Image!
+
+  """Name"""
+  name: String!
+
+  """URL alias"""
+  path: String
+
+  """Published"""
+  status: Boolean!
+
+  """Available translations for content."""
+  translations: [Translation!]!
+}
+
+"""Entity type media."""
+interface MediaInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The time the media item was last edited."""
+  changed: DateTime!
+
+  """The time the media item was created."""
+  created: DateTime!
+
+  """Language"""
+  langcode: Language!
+
+  """Name"""
+  name: String!
+
+  """URL alias"""
+  path: String
+
+  """Published"""
+  status: Boolean!
+}
+
+"""A image object to represent an managed file."""
+type Image {
+  """The URL of the image."""
+  url: String!
+
+  """The width of the image."""
+  width: Int!
+
+  """The height of the image."""
+  height: Int!
+
+  """The alt text of the image."""
+  alt: String
+
+  """The title text of the image."""
+  title: String
+
+  """The size of the image in bytes."""
+  size: Int!
+
+  """The mime type of the image."""
+  mime: String
+}
+
+"""Available translations for content."""
+type Translation {
+  """The title of the translation."""
+  title: String
+
+  """The language of the translation."""
+  langcode: Language!
+
+  """The path to the translated content."""
+  path: String
+}
+
+"""Routeable pages composed from Hydra CMS blocks."""
+type NodeLandingPage implements NodeInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The time that the node was last edited."""
+  changed: DateTime!
+
+  """Ordered Hydra content blocks."""
+  components: [ParagraphUnion!]
+
+  """The date and time that the content was created."""
+  created: DateTime!
+
+  """Optional public heading; the node title remains the editorial name."""
+  displayTitle: String
+
+  """Keep the display title available to metadata while hiding it visually."""
+  hideDisplayTitle: Boolean
+
+  """Language"""
+  langcode: Language!
+
+  """URL alias"""
+  path: String
+
+  """Promoted to front page"""
+  promote: Boolean!
+
+  """Published"""
+  status: Boolean!
+
+  """Sticky at top of lists"""
+  sticky: Boolean!
+
+  """Title"""
+  title: String!
+
+  """Available translations for content."""
+  translations: [Translation!]!
+}
+
+"""Entity type paragraph."""
+union ParagraphUnion = ParagraphDynamicProductCollection | ParagraphFeaturedArticle | ParagraphHero
+
+"""Renders products selected by an external commerce category ID."""
+type ParagraphDynamicProductCollection implements ParagraphInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The time that the Paragraph was created."""
+  created: DateTime!
+
+  """Description"""
+  description: String
+
+  """Heading"""
+  heading: String
+
+  """The paragraphs entity language code."""
+  langcode: Language!
+
+  """
+  Optional external category ID resolved by the active commerce provider. Leave
+  empty to show products without a category filter.
+  """
+  productCategory: String
+
+  """Published"""
+  status: Boolean!
+}
+
+"""Entity type paragraph."""
+interface ParagraphInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """The time that the Paragraph was created."""
+  created: DateTime!
+
+  """The paragraphs entity language code."""
+  langcode: Language!
+
+  """Published"""
+  status: Boolean!
+}
+
+"""A curated collection of article teasers."""
+type ParagraphFeaturedArticle implements ParagraphInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """Select up to three articles to feature."""
+  articles: [NodeUnion!]!
+
+  """The time that the Paragraph was created."""
+  created: DateTime!
+
+  """Description"""
+  description: String
+
+  """Heading"""
+  heading: String!
+
+  """The paragraphs entity language code."""
+  langcode: Language!
+
+  """Published"""
+  status: Boolean!
+}
+
+"""Entity type node."""
+union NodeUnion = NodeArticle | NodeLandingPage
+
+"""
+Hydra hero with tagline, heading, description, image, and up to two actions.
+"""
+type ParagraphHero implements ParagraphInterface {
+  """The entity ID."""
+  id: ID!
+
+  """The Universally Unique IDentifier (UUID)."""
+  uuid: ID!
+
+  """Actions"""
+  actions: [Link!]
+
+  """The time that the Paragraph was created."""
+  created: DateTime!
+
+  """Description"""
+  description: String!
+
+  """Heading"""
+  heading: String!
+
+  """Image"""
+  image: MediaUnion!
+
+  """The paragraphs entity language code."""
+  langcode: Language!
+
+  """Published"""
+  status: Boolean!
+
+  """Optional short label above the hero heading."""
+  tagline: String
+}
+
+"""Route outside of this website."""
+type RouteExternal implements Route {
+  """URL of this route."""
+  url: String!
+
+  """Whether this route is internal or external."""
+  internal: Boolean!
+}
+
+"""Schema information provided by the system."""
+type SchemaInformation {
+  """The schema description."""
+  description: String
+
+  """The schema version."""
+  version: String
+
+  """List of languages available."""
+  languages: [Language!]!
+}
+
+"""The schema's entry-point for mutations."""
+type Mutation {
+  """Placeholder for mutation extension."""
+  _: Boolean!
+}
+
+"""The schema's entry-point for subscriptions."""
+type Subscription {
+  """Placeholder for subscription extension."""
+  _: Boolean!
+}
+
+"""An email address."""
+scalar Email
+
+"""A file object to represent an managed file."""
+type File {
+  """The name of the file."""
+  name: String
+
+  """The URL of the file."""
+  url: String!
+
+  """The size of the file in bytes."""
+  size: Int!
+
+  """The mime type of the file."""
+  mime: String
+
+  """The description of the file."""
+  description: String
+}
+
+"""Generic input for key-value pairs."""
+input KeyValueInput {
+  key: String!
+  value: String
+}
+
+"""Entity type menu."""
+union MenuUnion = Menu
+
+"""A field whose value conforms to the standard E.164"""
+scalar PhoneNumber
+
+"""Sort direction."""
+enum SortDirection {
+  """Ascending"""
+  ASC
+
+  """Descending"""
+  DESC
+}
+
+"""A processed text format defined by the CMS."""
+type Text {
+  """The raw text value."""
+  value: String
+
+  """The processed text value."""
+  processed: Html
+
+  """The text format used to process the text value."""
+  format: String
+}
+
+"""
+Unsupported entity or field type in the schema.
+This entity may not have been enabled in the schema yet and is being referenced via entity reference.
+"""
+type UnsupportedType {
+  """Unsupported type, always TRUE."""
+  unsupported: Boolean
+}
+
+"""Untyped structured data. Eg JSON, configuration, settings, attributes."""
+scalar UntypedStructuredData

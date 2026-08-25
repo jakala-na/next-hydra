@@ -5,10 +5,10 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * Visually or semantically separates content.
  */
 const meta = {
-  title: "ui/Separator",
+  argTypes: {},
   component: Separator,
   tags: ["autodocs"],
-  argTypes: {},
+  title: "ui/Separator",
 } satisfies Meta<typeof Separator>;
 
 export default meta;

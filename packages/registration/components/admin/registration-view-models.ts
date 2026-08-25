@@ -1,15 +1,14 @@
-import type { InvalidFormActionResult } from "@repo/form";
+import { makeActionResultSchema } from "@repo/actions";
 import { Redacted, Schema } from "effect";
+
 import type { RegistrationReviewerActor } from "../../domain/actors";
+import { RegistrationId } from "../../domain/identity";
 import type {
   ApprovedRegistration,
   RegistrationStatus as DomainRegistrationStatus,
   Registration,
 } from "../../domain/registration";
-import type {
-  ApproveRegistrationInput as ApproveRegistrationProgramInput,
-  RejectRegistrationInput as RejectRegistrationProgramInput,
-} from "../../programs/registration-onboarding";
+import { RegistrationDecisionPublicError } from "../../public-errors";
 import { REGISTRATION_FIELD_LIMITS } from "../registration-form-schema";
 
 export type RegistrationDetailStatus =
@@ -47,9 +46,9 @@ export const registrationStatusLabels: Record<
   RegistrationDetailStatus,
   string
 > = {
-  awaiting_approval: "Awaiting approval",
   approval_processing: "Approval processing",
   approved: "Approved",
+  awaiting_approval: "Awaiting approval",
   rejected: "Rejected",
 };
 
@@ -71,36 +70,37 @@ export const DecisionFormSchema = Schema.Struct({
 
 export type DecisionFormValues = typeof DecisionFormSchema.Type;
 
-export type ApproveRegistrationInput = Pick<
-  ApproveRegistrationProgramInput,
-  "reason"
-> & {
-  readonly registrationId: string;
-};
+const RegistrationDecisionInput = Schema.Struct({
+  reason: Schema.optional(DecisionFormSchema.fields.reason),
+  registrationId: RegistrationId,
+});
 
-export type RejectRegistrationInput = Pick<
-  RejectRegistrationProgramInput,
-  "reason"
-> & {
-  readonly registrationId: string;
-};
+export const ApproveRegistrationInputSchema = RegistrationDecisionInput;
+export type ApproveRegistrationInput =
+  typeof ApproveRegistrationInputSchema.Encoded;
+export const RejectRegistrationInputSchema = RegistrationDecisionInput;
+export type RejectRegistrationInput =
+  typeof RejectRegistrationInputSchema.Encoded;
 
+export const RegistrationDecisionSuccess = Schema.Struct({
+  registrationId: RegistrationId,
+  registrationStatus: Schema.Literal("approval_processing"),
+});
+
+export const RegistrationDecisionActionError = RegistrationDecisionPublicError;
+export type RegistrationDecisionActionError =
+  typeof RegistrationDecisionActionError.Type;
+
+export const RegistrationDecisionResult = makeActionResultSchema(
+  RegistrationDecisionSuccess,
+  RegistrationDecisionActionError
+);
 export type RegistrationDecisionResult =
-  | {
-      readonly status: "accepted";
-      readonly registrationId: string;
-      readonly registrationStatus: Extract<
-        RegistrationDetailStatus,
-        "approval_processing" | "approved" | "rejected"
-      >;
-    }
-  | InvalidFormActionResult<never, never, RegistrationDecisionFormErrorCode>;
-
-export type RegistrationDecisionFormErrorCode =
-  | "registrationAlreadyApproved"
-  | "registrationAlreadyRejected"
-  | "registrationDecisionAlreadyProcessing"
-  | "registrationNotFound";
+  typeof RegistrationDecisionResult.Encoded;
+export type RegistrationDecisionActionFailure = Extract<
+  RegistrationDecisionResult,
+  { readonly _tag: "Failure" }
+>["failure"];
 
 const reviewerEmail = (actor: RegistrationReviewerActor) =>
   String(Redacted.value(actor.email));
@@ -110,7 +110,7 @@ const decisionFields = (
     | ApprovedRegistration
     | Extract<Registration, { status: "rejected" }>
 ) => {
-  const decision = registration.decision;
+  const { decision } = registration;
   const decidedAt = decision.decidedAt.toISOString();
 
   return {
@@ -126,7 +126,7 @@ const decisionFields = (
 export const toRegistrationDetailView = (
   registration: Registration
 ): RegistrationDetailView => {
-  const details = registration.details;
+  const { details } = registration;
 
   return {
     registrationId: String(registration.id),
@@ -140,16 +140,16 @@ export const toRegistrationDetailView = (
     contactLastName: Redacted.value(details.contactLastName),
     email: Redacted.value(details.email),
     address: {
-      streetName: Redacted.value(details.address.streetName),
       additionalStreetInfo: details.address.additionalStreetInfo
         ? Redacted.value(details.address.additionalStreetInfo)
         : "",
-      postalCode: Redacted.value(details.address.postalCode),
       city: Redacted.value(details.address.city),
+      country: String(details.address.country),
+      postalCode: Redacted.value(details.address.postalCode),
       region: details.address.region
         ? Redacted.value(details.address.region)
         : "",
-      country: String(details.address.country),
+      streetName: Redacted.value(details.address.streetName),
     },
     ...(registration._tag === "ApprovedRegistration"
       ? {
@@ -172,14 +172,18 @@ export const getRegistrationDecisionUnavailableMessage = (
   status: RegistrationDetailStatus
 ) => {
   switch (status) {
-    case "approval_processing":
+    case "approval_processing": {
       return "This registration decision is already being processed.";
+    }
     case "approved":
-    case "rejected":
+    case "rejected": {
       return "This registration is finalized and cannot be updated from the dashboard.";
-    case "awaiting_approval":
-      return undefined;
-    default:
+    }
+    case "awaiting_approval": {
+      return;
+    }
+    default: {
       return status satisfies never;
+    }
   }
 };

@@ -1,0 +1,13 @@
+diff --git a/src/Normalizer/JsonBlueprintDenormalizer.php b/src/Normalizer/JsonBlueprintDenormalizer.php
+index 6611514..c1cc038 100644
+--- a/src/Normalizer/JsonBlueprintDenormalizer.php
++++ b/src/Normalizer/JsonBlueprintDenormalizer.php
+@@ -53,7 +53,7 @@ class JsonBlueprintDenormalizer implements DenormalizerInterface, SerializerAwar
+   /**
+    * Sets the validator service if available.
+    */
+-  public function setValidator(Validator $validator = NULL) {
++  public function setValidator(?Validator $validator = NULL) {
+     if ($validator) {
+       $this->validator = $validator;
+     }

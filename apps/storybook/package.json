@@ -7,7 +7,7 @@
     "build": "storybook build",
     "chromatic": "chromatic --exit-zero-on-changes",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project apps/storybook/tsconfig.json"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",

@@ -1,4 +1,5 @@
 <!-- effect-solutions:start -->
+
 ## Effect Best Practices
 
 **IMPORTANT:** Always consult effect-solutions before writing Effect code.
@@ -13,16 +14,14 @@ Never guess at Effect patterns - check the guide first.
 
 ## Local Effect Source
 
-The Effect v4 repository is cloned to `~/.local/share/effect-solutions/effect` for reference.
-Use this to explore APIs, find usage examples, and understand implementation
-details when the documentation isn't enough.
+The Effect v4 repository is cloned to `~/.local/share/effect-solutions/effect` for reference. Use this to explore APIs, find usage examples, and understand implementation details when the documentation isn't enough.
 <!-- effect-solutions:end -->
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues and PRDs are tracked as local markdown under `.scratch/`. See `docs/agents/issue-tracker.md`.
+Issues and specs are tracked as local markdown under `.scratch/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

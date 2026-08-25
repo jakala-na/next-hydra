@@ -7,19 +7,19 @@ import { action } from "storybook/actions";
  * A date field component that allows users to enter and edit date.
  */
 const meta = {
-  title: "ui/Calendar",
-  component: Calendar,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
-    mode: "single",
-    selected: new Date(),
-    onSelect: action("onDayClick"),
     className: "rounded-md border w-fit",
+    mode: "single",
+    onSelect: action("onDayClick"),
+    selected: new Date(),
   },
+  component: Calendar,
   parameters: {
     layout: "centered",
   },
+  tags: ["autodocs"],
+  title: "ui/Calendar",
 } satisfies Meta<typeof Calendar>;
 
 export default meta;
@@ -37,8 +37,8 @@ export const Default: Story = {};
 export const Multiple: Story = {
   args: {
     min: 1,
-    selected: [new Date(), addDays(new Date(), 2), addDays(new Date(), 8)],
     mode: "multiple",
+    selected: [new Date(), addDays(new Date(), 2), addDays(new Date(), 8)],
   },
 };
 
@@ -47,11 +47,11 @@ export const Multiple: Story = {
  */
 export const Range: Story = {
   args: {
+    mode: "range",
     selected: {
       from: new Date(),
       to: addDays(new Date(), 7),
     },
-    mode: "range",
   },
 };
 

@@ -1,0 +1,34 @@
+uuid: 2a484412-ba8d-4716-ae1f-4730ce1744f6
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.media.image.field_media_image
+    - field.field.node.article.field_image
+    - field.field.node.article.field_summary
+    - image.style.canvas_parametrized_width
+    - media.type.image
+    - node.type.article
+  module:
+    - file
+    - media
+    - node
+machineName: article-card
+name: "Article Card"
+type: external
+required: {}
+props:
+  article:
+    type: object
+    $ref: "json-schema-definitions://canvas.module/content-entity-reference"
+    title: Article
+slots: {}
+dataDependencies:
+  entityFields:
+    article:
+      - "ℹ︎␜entity:node:article␝nid␞␟value"
+      - "ℹ︎␜entity:node:article␝title␞␟value"
+      - "ℹ︎␜entity:node:article␝field_summary␞␟value"
+      - "ℹ︎␜entity:node:article␝path␞␟alias"
+      - "ℹ︎␜entity:node:article␝created␞␟value"
+      - "ℹ︎␜entity:node:article␝field_image␞␟entity␜␜entity:media:image␝field_media_image␞␟{alt↠alt,height↠height,src↠src,width↠width}"

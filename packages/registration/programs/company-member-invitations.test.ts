@@ -5,6 +5,7 @@ import {
 } from "@repo/commerce/domain/commerce-account";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { Effect, Exit, Layer, Redacted } from "effect";
+
 import { CompanyActor } from "../domain/actors";
 import {
   AcceptedAuthIdentity,
@@ -27,15 +28,12 @@ import {
 const acceptedMemberships: CommerceAssociateMembership[] = [];
 
 const commerceAccount = new CommerceAccount({
-  registrationId: RegistrationId.make("registration-1"),
-  customerId: CommerceCustomerId.make("customer-1"),
   businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+  customerId: CommerceCustomerId.make("customer-1"),
+  registrationId: RegistrationId.make("registration-1"),
 });
 
 const commerceAccountsLayer = Layer.succeed(CommerceAccounts, {
-  createFromRegistration: () => Effect.succeed(commerceAccount),
-  linkRegistrantIdentity: () => Effect.succeed(commerceAccount),
-  hasCustomerWithEmail: () => Effect.succeed(false),
   addAssociate: (input) =>
     Effect.sync(() => {
       const alreadyAccepted = acceptedMemberships.some(
@@ -55,16 +53,22 @@ const commerceAccountsLayer = Layer.succeed(CommerceAccounts, {
       }
 
       const membership = new CommerceAssociateMembership({
+        authUserId: input.acceptedIdentity.authUserId,
         businessUnitId: input.businessUnitId,
         customerId: CommerceCustomerId.make(
           `customer-${input.acceptedIdentity.authUserId}`
         ),
-        authUserId: input.acceptedIdentity.authUserId,
         role: input.role,
       });
       acceptedMemberships.push(membership);
       return membership;
     }),
+  createFromRegistration: () => Effect.succeed(commerceAccount),
+  getCustomerIdByAuthUserId: () => Effect.die("not used"),
+  getCustomerProfile: () => Effect.die("not used"),
+  hasCustomerWithEmail: () => Effect.succeed(false),
+  linkRegistrantIdentity: () => Effect.succeed(commerceAccount),
+  listBusinessUnitMembershipsForCustomerInStore: () => Effect.die("not used"),
 });
 
 const layerMemory = Layer.mergeAll(
@@ -81,18 +85,18 @@ const inviteeEmail = Redacted.make(Email.make("associate@example.com"), {
 const owner = new CompanyActor({
   actorType: "company",
   authUserId: AuthUserId.make("auth-owner-1"),
-  email: Redacted.make(Email.make("owner@example.com"), { label: "email" }),
   businessUnitId,
+  email: Redacted.make(Email.make("owner@example.com"), { label: "email" }),
   role: "owner",
 });
 
 const associate = new CompanyActor({
   actorType: "company",
   authUserId: AuthUserId.make("auth-associate-1"),
+  businessUnitId,
   email: Redacted.make(Email.make("existing-associate@example.com"), {
     label: "email",
   }),
-  businessUnitId,
   role: "associate",
 });
 
@@ -138,7 +142,7 @@ describe("company member invitations", () => {
         role: "associate",
       }).pipe(Effect.exit);
 
-      expect(Exit.isFailure(exit)).toBe(true);
+      expect(Exit.isFailure(exit)).toBeTruthy();
       if (Exit.isFailure(exit)) {
         expect(exit.cause.toString()).toContain("InvitationPolicyError");
       }
@@ -196,7 +200,7 @@ describe("company member invitations", () => {
         invitationId: invitation.id,
       }).pipe(Effect.exit);
 
-      expect(Exit.isFailure(exit)).toBe(true);
+      expect(Exit.isFailure(exit)).toBeTruthy();
       if (Exit.isFailure(exit)) {
         expect(exit.cause.toString()).toContain("InvitationPolicyError");
       }
@@ -211,8 +215,8 @@ describe("company member invitations", () => {
         role: "associate",
       });
       yield* acceptCompanyMemberInvitation({
-        invitationId: invitation.id,
         acceptedIdentity,
+        invitationId: invitation.id,
       });
 
       const exit = yield* revokeCompanyMemberInvite({
@@ -220,7 +224,7 @@ describe("company member invitations", () => {
         invitationId: invitation.id,
       }).pipe(Effect.exit);
 
-      expect(Exit.isFailure(exit)).toBe(true);
+      expect(Exit.isFailure(exit)).toBeTruthy();
     }).pipe(Effect.provide(layerMemory))
   );
 
@@ -246,12 +250,12 @@ describe("company member invitations", () => {
         });
 
         const first = yield* acceptCompanyMemberInvitation({
-          invitationId: invitation.id,
           acceptedIdentity: retryIdentity,
+          invitationId: invitation.id,
         });
         const second = yield* acceptCompanyMemberInvitation({
-          invitationId: invitation.id,
           acceptedIdentity: retryIdentity,
+          invitationId: invitation.id,
         });
 
         expect(first._tag).toBe("AcceptedInvitation");
@@ -259,8 +263,8 @@ describe("company member invitations", () => {
         expect(second.acceptedBy.authUserId).toBe(retryIdentity.authUserId);
         expect(acceptedMemberships).toHaveLength(acceptedMembershipCount + 1);
         expect(acceptedMemberships.at(-1)).toMatchObject({
-          businessUnitId,
           authUserId: retryIdentity.authUserId,
+          businessUnitId,
           customerId: CommerceCustomerId.make(
             `customer-${retryIdentity.authUserId}`
           ),
@@ -279,8 +283,8 @@ describe("company member invitations", () => {
           role: "associate",
         });
         yield* acceptCompanyMemberInvitation({
-          invitationId: invitation.id,
           acceptedIdentity,
+          invitationId: invitation.id,
         });
 
         const differentIdentity = new AcceptedAuthIdentity({
@@ -295,11 +299,11 @@ describe("company member invitations", () => {
         });
 
         const exit = yield* acceptCompanyMemberInvitation({
-          invitationId: invitation.id,
           acceptedIdentity: differentIdentity,
+          invitationId: invitation.id,
         }).pipe(Effect.exit);
 
-        expect(Exit.isFailure(exit)).toBe(true);
+        expect(Exit.isFailure(exit)).toBeTruthy();
       }).pipe(Effect.provide(layerMemory))
   );
 
@@ -309,26 +313,26 @@ describe("company member invitations", () => {
       Effect.gen(function* () {
         const invitations = yield* Invitations;
         const registrationInvitation = yield* invitations.issue({
-          issuedBy: owner,
           intent: new RegistrationApprovalIntent({
             intent: "registration_approval",
-            registrationId: RegistrationId.make("registration-1"),
             inviteeEmail,
+            registrationId: RegistrationId.make("registration-1"),
             role: "owner",
           }),
+          issuedBy: owner,
         });
 
         const wrongProgramExit = yield* acceptCompanyMemberInvitation({
-          invitationId: registrationInvitation.id,
           acceptedIdentity,
+          invitationId: registrationInvitation.id,
         }).pipe(Effect.exit);
 
-        expect(Exit.isFailure(wrongProgramExit)).toBe(true);
+        expect(Exit.isFailure(wrongProgramExit)).toBeTruthy();
 
         const accepted = yield* invitations.accept({
-          invitationId: registrationInvitation.id,
           acceptedIdentity,
           expectedIntent: "registration_approval",
+          invitationId: registrationInvitation.id,
         });
 
         expect(accepted._tag).toBe("AcceptedInvitation");

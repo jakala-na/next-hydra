@@ -1,5 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Exit, Redacted } from "effect";
+import { StoreKey } from "@repo/commerce/store";
+import { Effect, Exit, Layer, Redacted } from "effect";
+
 import { RegistrationReviewerActor } from "../domain/actors";
 import {
   AddressLine,
@@ -15,6 +17,7 @@ import {
   CompanyAddress,
   CompanyRegistrationDetails,
 } from "../domain/registration";
+import { RegistrationWorkflow } from "../services/registration-workflow";
 import {
   Registrations,
   RegistrationTransitionConflict,
@@ -31,6 +34,16 @@ const reviewer = new RegistrationReviewerActor({
 });
 
 const details = new CompanyRegistrationDetails({
+  address: new CompanyAddress({
+    city: Redacted.make(City.make("New York"), { label: "city" }),
+    country: CountryCode.make("US"),
+    postalCode: Redacted.make(PostalCode.make("10001"), {
+      label: "postalCode",
+    }),
+    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
+      label: "addressLine",
+    }),
+  }),
   companyName: CompanyName.make("Hydra Supplies"),
   contactFirstName: Redacted.make(PersonName.make("Ada"), {
     label: "personName",
@@ -39,35 +52,27 @@ const details = new CompanyRegistrationDetails({
     label: "personName",
   }),
   email: Redacted.make(Email.make("ada@example.com"), { label: "email" }),
-  address: new CompanyAddress({
-    streetName: Redacted.make(AddressLine.make("1 Computation Way"), {
-      label: "addressLine",
-    }),
-    postalCode: Redacted.make(PostalCode.make("10001"), {
-      label: "postalCode",
-    }),
-    city: Redacted.make(City.make("New York"), { label: "city" }),
-    country: CountryCode.make("US"),
-  }),
 });
 
 const createRegistration = Effect.gen(function* () {
   const registrations = yield* Registrations;
-  return yield* registrations.createAwaitingApproval({ details });
+  return yield* registrations.createAwaitingApproval({
+    details,
+    storeKey: StoreKey.make("default-store"),
+  });
 });
 
-describe("acceptRegistrationReviewDecision", () => {
-  it.effect("marks approval processing before resuming workflow", () =>
-    Effect.gen(function* () {
+describe(acceptRegistrationReviewDecision, () => {
+  it.effect("marks approval processing before resuming workflow", () => {
+    const resumed: unknown[] = [];
+
+    return Effect.gen(function* () {
       const registration = yield* createRegistration;
-      const resumed: unknown[] = [];
 
       const accepted = yield* acceptRegistrationReviewDecision({
         decision: "approved",
         reason: "Looks good",
         registrationId: registration.id,
-        resumeWorkflow: (registrationId, decision) =>
-          Effect.sync(() => resumed.push({ decision, registrationId })),
         reviewer,
       });
       const current = yield* Registrations.pipe(
@@ -76,9 +81,8 @@ describe("acceptRegistrationReviewDecision", () => {
 
       expect(accepted.status).toBe("approval_processing");
       expect(current.status).toBe("approval_processing");
-      expect(resumed).toEqual([
+      expect(resumed).toStrictEqual([
         {
-          registrationId: registration.id,
           decision: {
             decision: "approved",
             reason: "Looks good",
@@ -88,36 +92,65 @@ describe("acceptRegistrationReviewDecision", () => {
               name: "Registration Reviewer",
             },
           },
+          registrationId: registration.id,
         },
       ]);
-    }).pipe(Effect.provide(Registrations.layerMemory))
-  );
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          Registrations.layerMemory,
+          Layer.succeed(
+            RegistrationWorkflow,
+            RegistrationWorkflow.of({
+              resumeInvitation: () => Effect.die("not used"),
+              resumeReview: (registrationId, decision) =>
+                Effect.sync(() => resumed.push({ decision, registrationId })),
+              start: () => Effect.die("not used"),
+            })
+          )
+        )
+      )
+    );
+  });
 
-  it.effect("does not resume workflow when the transition conflicts", () =>
-    Effect.gen(function* () {
+  it.effect("does not resume workflow when the transition conflicts", () => {
+    const resumed: unknown[] = [];
+
+    return Effect.gen(function* () {
       const registrations = yield* Registrations;
       const registration = yield* createRegistration;
       yield* registrations.markApprovalProcessing({
         decision: "approved",
         registrationId: registration.id,
       });
-      const resumed: unknown[] = [];
-
       const exit = yield* acceptRegistrationReviewDecision({
         decision: "rejected",
         registrationId: registration.id,
-        resumeWorkflow: (registrationId, decision) =>
-          Effect.sync(() => resumed.push({ decision, registrationId })),
         reviewer,
       }).pipe(Effect.exit);
 
-      expect(Exit.isFailure(exit)).toBe(true);
+      expect(Exit.isFailure(exit)).toBeTruthy();
       if (Exit.isFailure(exit)) {
         expect(exit.cause.toString()).toContain(
           RegistrationTransitionConflict.name
         );
       }
-      expect(resumed).toEqual([]);
-    }).pipe(Effect.provide(Registrations.layerMemory))
-  );
+      expect(resumed).toStrictEqual([]);
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          Registrations.layerMemory,
+          Layer.succeed(
+            RegistrationWorkflow,
+            RegistrationWorkflow.of({
+              resumeInvitation: () => Effect.die("not used"),
+              resumeReview: (registrationId, decision) =>
+                Effect.sync(() => resumed.push({ decision, registrationId })),
+              start: () => Effect.die("not used"),
+            })
+          )
+        )
+      )
+    );
+  });
 });

@@ -1,16 +1,21 @@
-import type { CommerceAccountError } from "@repo/commerce/services/commerce-accounts";
-import { Redacted, Schema } from "effect";
+import { StoreKey } from "@repo/commerce/store";
+import { InputInvalid } from "@repo/errors";
+import { UnexpectedHttpErrors } from "@repo/errors/http";
+import { locales } from "@repo/i18n/config";
+import { Context, Redacted, Schema } from "effect";
 import {
   HttpApi,
   HttpApiEndpoint,
   HttpApiGroup,
+  HttpApiMiddleware,
   HttpApiSchema,
+  HttpApiSecurity,
   OpenApi,
 } from "effect/unstable/httpapi";
-import { RegistrationReviewerActor } from "../domain/actors";
+
+import type { RegistrationReviewerActor } from "../domain/actors";
 import {
   AddressLine,
-  AuthUserId,
   City,
   CompanyName,
   CountryCode,
@@ -26,12 +31,33 @@ import {
 import {
   CompanyAddress,
   CompanyRegistrationDetails,
-  type Registration,
   RegistrationStatus,
 } from "../domain/registration";
-import { RegistrationIntakeValidationReason } from "../programs/registration-intake";
-import type { IdentityUserLookupFailure } from "../services/identity-users";
-import type { InvitationIssueError } from "../services/invitations";
+import type { Registration } from "../domain/registration";
+import { RegistrationIntakeValidationReason } from "../domain/registration-intake-validation";
+import {
+  PublicRegistrationTransitionConflict,
+  RegistrationAlreadyApproved,
+  RegistrationAlreadyApprovedFailure,
+  RegistrationAlreadyRejected,
+  RegistrationAlreadyRejectedFailure,
+  RegistrationApiAuthenticationUnavailable,
+  RegistrationApiError,
+  RegistrationApiErrorFailure,
+  RegistrationApiForbidden,
+  RegistrationApiUnauthorized,
+  RegistrationApiValidationError,
+  RegistrationDecisionAlreadyProcessing,
+  RegistrationDecisionAlreadyProcessingFailure,
+  RegistrationDecisionOutcomeUnknown,
+  RegistrationTransitionConflictFailure,
+  PublicRegistrationConcurrentModification,
+  PublicRegistrationConcurrentModificationFailure,
+  PublicRegistrationNotFound,
+  PublicRegistrationNotFoundFailure,
+  PublicRegistrationQueryInvalidCursor,
+  PublicRegistrationQueryInvalidCursorFailure,
+} from "../public-errors";
 import type { RegistrationQueryError } from "../services/registration-queries";
 import type {
   RegistrationCreateError,
@@ -39,61 +65,23 @@ import type {
   RegistrationTransitionError,
 } from "../services/registrations";
 
-export class RegistrationApiError extends Schema.TaggedErrorClass<RegistrationApiError>()(
-  "RegistrationApiError",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 500 }
-) {}
+export {
+  RegistrationAlreadyApproved,
+  RegistrationAlreadyRejected,
+  RegistrationApiAuthenticationUnavailable,
+  RegistrationApiError,
+  RegistrationApiForbidden,
+  RegistrationApiUnauthorized,
+  RegistrationApiValidationError,
+  RegistrationDecisionAlreadyProcessing,
+  RegistrationDecisionOutcomeUnknown,
+  PublicRegistrationConcurrentModification,
+  PublicRegistrationNotFound,
+  PublicRegistrationQueryInvalidCursor,
+} from "../public-errors";
 
-export class RegistrationApiConflict extends Schema.TaggedErrorClass<RegistrationApiConflict>()(
-  "RegistrationApiConflict",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 409 }
-) {}
-
-export class RegistrationAlreadyApproved extends Schema.TaggedErrorClass<RegistrationAlreadyApproved>()(
-  "RegistrationAlreadyApproved",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 409 }
-) {}
-
-export class RegistrationAlreadyRejected extends Schema.TaggedErrorClass<RegistrationAlreadyRejected>()(
-  "RegistrationAlreadyRejected",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 409 }
-) {}
-
-export class RegistrationDecisionAlreadyProcessing extends Schema.TaggedErrorClass<RegistrationDecisionAlreadyProcessing>()(
-  "RegistrationDecisionAlreadyProcessing",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 409 }
-) {}
-
-export class RegistrationApiNotFound extends Schema.TaggedErrorClass<RegistrationApiNotFound>()(
-  "RegistrationApiNotFound",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 404 }
-) {}
-
-export class RegistrationApiUnauthorized extends Schema.TaggedErrorClass<RegistrationApiUnauthorized>()(
-  "RegistrationApiUnauthorized",
-  {
-    message: Schema.String,
-  },
-  { httpApiStatus: 401 }
-) {}
+export const REGISTRATION_READ_PERMISSION = "registration.read";
+export const REGISTRATION_DECIDE_PERMISSION = "registration.decide";
 
 export const RegistrationApiValidationReason =
   RegistrationIntakeValidationReason;
@@ -104,59 +92,45 @@ export {
   DuplicateRegistrationEmail,
   InvalidRegistrationVatId,
   UnsupportedRegistrationCountry,
-} from "../programs/registration-intake";
-
-export class RegistrationApiValidationError extends Schema.TaggedErrorClass<RegistrationApiValidationError>()(
-  "RegistrationApiValidationError",
-  {
-    message: Schema.String,
-    reasons: Schema.NonEmptyArray(RegistrationApiValidationReason),
-  },
-  { httpApiStatus: 422 }
-) {}
+} from "../domain/registration-intake-validation";
 
 export class RegistrationAddressInput extends Schema.Class<RegistrationAddressInput>(
   "RegistrationAddressInput"
 )({
-  streetName: Schema.String,
   additionalStreetInfo: Schema.optional(Schema.String),
-  postalCode: Schema.String,
   city: Schema.String,
-  region: Schema.optional(Schema.String),
   country: Schema.String,
+  postalCode: Schema.String,
+  region: Schema.optional(Schema.String),
+  streetName: Schema.String,
 }) {}
 
 export class CreateRegistrationRequest extends Schema.Class<CreateRegistrationRequest>(
   "CreateRegistrationRequest"
 )({
+  address: RegistrationAddressInput,
   companyName: Schema.String,
   companyPhone: Schema.optional(Schema.String),
-  vatId: Schema.optional(Schema.String),
   contactFirstName: Schema.String,
   contactLastName: Schema.String,
   email: Schema.String,
-  address: RegistrationAddressInput,
+  vatId: Schema.optional(Schema.String),
 }) {}
+
+export const RegistrationLocale = Schema.Literals(locales);
+export type RegistrationLocale = typeof RegistrationLocale.Type;
 
 export class CreateRegistrationResponse extends Schema.Class<CreateRegistrationResponse>(
   "CreateRegistrationResponse"
 )({
   registrationId: RegistrationId,
   status: Schema.Literal("awaiting_approval"),
-}) {}
-
-export class RegistrationReviewerInput extends Schema.Class<RegistrationReviewerInput>(
-  "RegistrationReviewerInput"
-)({
-  authUserId: Schema.String,
-  email: Schema.String,
-  name: Schema.String,
+  storeKey: StoreKey,
 }) {}
 
 export class RegistrationDecisionRequest extends Schema.Class<RegistrationDecisionRequest>(
   "RegistrationDecisionRequest"
 )({
-  reviewer: RegistrationReviewerInput,
   reason: Schema.optional(Schema.String),
 }) {}
 
@@ -175,30 +149,31 @@ export type RegistrationDecisionResponse =
 export class RegistrationDetailResponse extends Schema.Class<RegistrationDetailResponse>(
   "RegistrationDetailResponse"
 )({
-  registrationId: RegistrationId,
-  status: RegistrationStatus,
-  companyName: Schema.String,
-  companyPhone: Schema.String,
-  vatId: Schema.String,
-  contactFirstName: Schema.String,
-  contactLastName: Schema.String,
-  email: Schema.String,
-  address: Schema.Struct({
-    streetName: Schema.String,
-    additionalStreetInfo: Schema.String,
-    postalCode: Schema.String,
-    city: Schema.String,
-    region: Schema.String,
-    country: Schema.String,
-  }),
-  invitationId: Schema.optional(InvitationId),
-  createdAt: Schema.String,
-  updatedAt: Schema.String,
-  approvedAt: Schema.optional(Schema.String),
-  rejectedAt: Schema.optional(Schema.String),
-  approvalReason: Schema.optional(Schema.String),
   actorEmail: Schema.optional(Schema.String),
   actorName: Schema.optional(Schema.String),
+  address: Schema.Struct({
+    additionalStreetInfo: Schema.String,
+    city: Schema.String,
+    country: Schema.String,
+    postalCode: Schema.String,
+    region: Schema.String,
+    streetName: Schema.String,
+  }),
+  approvalReason: Schema.optional(Schema.String),
+  approvedAt: Schema.optional(Schema.String),
+  companyName: Schema.String,
+  companyPhone: Schema.String,
+  contactFirstName: Schema.String,
+  contactLastName: Schema.String,
+  createdAt: Schema.String,
+  email: Schema.String,
+  invitationId: Schema.optional(InvitationId),
+  registrationId: RegistrationId,
+  rejectedAt: Schema.optional(Schema.String),
+  status: RegistrationStatus,
+  storeKey: StoreKey,
+  updatedAt: Schema.String,
+  vatId: Schema.String,
 }) {}
 
 export class ListRegistrationsResponse extends Schema.Class<ListRegistrationsResponse>(
@@ -211,74 +186,129 @@ export class ListRegistrationsResponse extends Schema.Class<ListRegistrationsRes
 export class ListRegistrationsQuery extends Schema.Class<ListRegistrationsQuery>(
   "ListRegistrationsQuery"
 )({
-  status: Schema.optional(RegistrationStatus),
-  search: Schema.optional(Schema.String),
   cursor: Schema.optional(Schema.String),
   limit: Schema.optional(Schema.NumberFromString),
+  search: Schema.optional(Schema.String),
+  status: Schema.optional(RegistrationStatus),
 }) {}
 
-const RegistrationApiErrors = [
+export class RegistrationReviewerContext extends Context.Service<
+  RegistrationReviewerContext,
+  RegistrationReviewerActor
+>()("@repo/registration/http/RegistrationReviewerContext") {}
+
+export class RegistrationSchemaErrorMiddleware extends HttpApiMiddleware.Service<
+  RegistrationSchemaErrorMiddleware,
+  { readonly requires: never }
+>()("@repo/registration/http/RegistrationSchemaErrorMiddleware", {
+  error: InputInvalid,
+}) {}
+
+const RegistrationAccessErrors = [
+  RegistrationApiAuthenticationUnavailable,
+  RegistrationApiForbidden,
+  RegistrationApiUnauthorized,
+] as const;
+
+export class RegistrationReadAccessMiddleware extends HttpApiMiddleware.Service<
+  RegistrationReadAccessMiddleware,
+  { readonly requires: never }
+>()("@repo/registration/http/RegistrationReadAccessMiddleware", {
+  error: RegistrationAccessErrors,
+  security: {
+    accessToken: HttpApiSecurity.bearer,
+  },
+}) {}
+
+export class RegistrationDecisionAccessMiddleware extends HttpApiMiddleware.Service<
+  RegistrationDecisionAccessMiddleware,
+  {
+    readonly provides: RegistrationReviewerContext;
+    readonly requires: never;
+  }
+>()("@repo/registration/http/RegistrationDecisionAccessMiddleware", {
+  error: RegistrationAccessErrors,
+  security: {
+    accessToken: HttpApiSecurity.bearer,
+  },
+}) {}
+
+const RegistrationCreateErrors = [
+  RegistrationApiError,
+  RegistrationApiValidationError,
+] as const;
+
+const RegistrationReadErrors = [
+  RegistrationApiError,
+  PublicRegistrationQueryInvalidCursor,
+] as const;
+
+const RegistrationGetErrors = [
+  RegistrationApiError,
+  PublicRegistrationNotFound,
+] as const;
+
+const RegistrationDecisionErrors = [
   RegistrationApiError,
   RegistrationAlreadyApproved,
   RegistrationAlreadyRejected,
-  RegistrationApiConflict,
+  PublicRegistrationConcurrentModification,
+  PublicRegistrationTransitionConflict,
   RegistrationDecisionAlreadyProcessing,
-  RegistrationApiNotFound,
-  RegistrationApiUnauthorized,
-  RegistrationApiValidationError,
+  PublicRegistrationNotFound,
+  RegistrationDecisionOutcomeUnknown,
 ] as const;
 
 export class RegistrationApiGroup extends HttpApiGroup.make("registrations")
   .add(
     HttpApiEndpoint.post("create", "/registrations", {
+      error: RegistrationCreateErrors,
+      headers: {
+        "x-context-locale": RegistrationLocale,
+      },
       payload: CreateRegistrationRequest,
       success: CreateRegistrationResponse.pipe(HttpApiSchema.status("Created")),
-      error: RegistrationApiErrors,
     }),
     HttpApiEndpoint.get("list", "/registrations", {
+      error: RegistrationReadErrors,
       query: ListRegistrationsQuery,
       success: ListRegistrationsResponse,
-      error: RegistrationApiErrors,
-    }),
+    }).middleware(RegistrationReadAccessMiddleware),
     HttpApiEndpoint.get("get", "/registrations/:registrationId", {
+      error: RegistrationGetErrors,
       params: {
         registrationId: RegistrationId,
       },
       success: RegistrationDetailResponse,
-      error: RegistrationApiErrors,
-    }),
+    }).middleware(RegistrationReadAccessMiddleware),
     HttpApiEndpoint.post("approve", "/registrations/:registrationId/approve", {
+      error: RegistrationDecisionErrors,
       params: {
         registrationId: RegistrationId,
       },
-      headers: {
-        "x-registration-approval-secret": Schema.optional(Schema.String),
-      },
       payload: RegistrationDecisionRequest,
       success: RegistrationDecisionAcceptedResponse,
-      error: RegistrationApiErrors,
-    }),
+    }).middleware(RegistrationDecisionAccessMiddleware),
     HttpApiEndpoint.post("reject", "/registrations/:registrationId/reject", {
+      error: RegistrationDecisionErrors,
       params: {
         registrationId: RegistrationId,
       },
-      headers: {
-        "x-registration-approval-secret": Schema.optional(Schema.String),
-      },
       payload: RegistrationDecisionRequest,
       success: RegistrationDecisionAcceptedResponse,
-      error: RegistrationApiErrors,
-    })
+    }).middleware(RegistrationDecisionAccessMiddleware)
   )
+  .middleware(RegistrationSchemaErrorMiddleware)
   .annotateMerge(
     OpenApi.annotations({
-      title: "Registrations",
       description: "Effect registration submission and approval endpoints",
+      title: "Registrations",
     })
   ) {}
 
 export class RegistrationHttpApi extends HttpApi.make("registration-http-api")
   .add(RegistrationApiGroup)
+  .middleware(UnexpectedHttpErrors)
   .annotateMerge(
     OpenApi.annotations({
       title: "Registration HTTP API",
@@ -340,14 +370,6 @@ export const toCompanyRegistrationDetails = (
     }),
   });
 
-export const toReviewerActor = (input: RegistrationReviewerInput) =>
-  new RegistrationReviewerActor({
-    actorType: "registration_reviewer",
-    authUserId: AuthUserId.make(input.authUserId),
-    email: Redacted.make(Email.make(input.email), { label: "email" }),
-    name: input.name,
-  });
-
 const reviewerEmail = (actor: RegistrationReviewerActor) =>
   String(Redacted.value(actor.email));
 
@@ -371,11 +393,12 @@ const decisionFields = (
 export const toRegistrationDetailResponse = (
   registration: Registration
 ): RegistrationDetailResponse => {
-  const details = registration.details;
+  const { details } = registration;
 
   return new RegistrationDetailResponse({
     registrationId: registration.id,
     status: registration.status,
+    storeKey: registration.storeKey,
     companyName: String(details.companyName),
     companyPhone: details.companyPhone
       ? Redacted.value(details.companyPhone)
@@ -385,16 +408,16 @@ export const toRegistrationDetailResponse = (
     contactLastName: Redacted.value(details.contactLastName),
     email: Redacted.value(details.email),
     address: {
-      streetName: Redacted.value(details.address.streetName),
       additionalStreetInfo: details.address.additionalStreetInfo
         ? Redacted.value(details.address.additionalStreetInfo)
         : "",
-      postalCode: Redacted.value(details.address.postalCode),
       city: Redacted.value(details.address.city),
+      country: String(details.address.country),
+      postalCode: Redacted.value(details.address.postalCode),
       region: details.address.region
         ? Redacted.value(details.address.region)
         : "",
-      country: String(details.address.country),
+      streetName: Redacted.value(details.address.streetName),
     },
     ...(registration._tag === "ApprovedRegistration"
       ? {
@@ -410,50 +433,114 @@ export const toRegistrationDetailResponse = (
   });
 };
 
-export const toApiError = (
-  error:
-    | RegistrationCreateError
-    | RegistrationReadError
-    | RegistrationTransitionError
-    | RegistrationQueryError
-    | CommerceAccountError
-    | IdentityUserLookupFailure
-    | InvitationIssueError
-) => {
+const internalRegistrationError = () =>
+  RegistrationApiErrorFailure.make({
+    message: "The registration service is temporarily unavailable.",
+  });
+
+export const toRegistrationCreateApiError = (
+  error: RegistrationCreateError
+): RegistrationApiError => {
+  if (error.reason !== "unavailable") {
+    throw error;
+  }
+
+  return internalRegistrationError();
+};
+
+export const toRegistrationReadApiError = (
+  error: RegistrationReadError
+): PublicRegistrationNotFound | RegistrationApiError => {
   switch (error._tag) {
-    case "RegistrationNotFound":
-      return new RegistrationApiNotFound({
-        message: error.message,
-      });
-    case "RegistrationAlreadyExists":
-    case "RegistrationConcurrentModification":
-    case "RegistrationQueryInvalidCursor":
-    case "InvitationConflict":
-      return new RegistrationApiConflict({
-        message: error.message,
-      });
-    case "RegistrationTransitionConflict":
-      switch (error.currentState) {
-        case "ApprovedRegistration":
-          return new RegistrationAlreadyApproved({
-            message: error.message,
-          });
-        case "RejectedRegistration":
-          return new RegistrationAlreadyRejected({
-            message: error.message,
-          });
-        case "ApprovalProcessingRegistration":
-          return new RegistrationDecisionAlreadyProcessing({
-            message: error.message,
-          });
-        default:
-          return new RegistrationApiConflict({
-            message: error.message,
-          });
+    case "RegistrationNotFound": {
+      return PublicRegistrationNotFoundFailure.make({ message: error.message });
+    }
+    case "RegistrationPersistenceFailure": {
+      if (error.reason !== "unavailable") {
+        throw error;
       }
-    default:
-      return new RegistrationApiError({
-        message: error.message,
-      });
+      return internalRegistrationError();
+    }
+    default: {
+      return error satisfies never;
+    }
   }
 };
+
+export const toRegistrationQueryApiError = (
+  error: RegistrationQueryError
+): PublicRegistrationQueryInvalidCursor | RegistrationApiError => {
+  switch (error._tag) {
+    case "RegistrationQueryInvalidCursor": {
+      return PublicRegistrationQueryInvalidCursorFailure.make({
+        message: "The registration cursor is invalid.",
+      });
+    }
+    case "RegistrationQueryFailure": {
+      if (error.reason !== "unavailable") {
+        throw error;
+      }
+      return internalRegistrationError();
+    }
+    default: {
+      return error satisfies never;
+    }
+  }
+};
+
+export const toRegistrationTransitionApiError = (
+  error: RegistrationTransitionError
+):
+  | RegistrationAlreadyApproved
+  | RegistrationAlreadyRejected
+  | PublicRegistrationConcurrentModification
+  | RegistrationApiError
+  | PublicRegistrationNotFound
+  | RegistrationDecisionAlreadyProcessing
+  | PublicRegistrationTransitionConflict => {
+  switch (error._tag) {
+    case "RegistrationNotFound": {
+      return PublicRegistrationNotFoundFailure.make({ message: error.message });
+    }
+    case "RegistrationConcurrentModification": {
+      return PublicRegistrationConcurrentModificationFailure.make({
+        message: error.message,
+      });
+    }
+    case "RegistrationTransitionConflict": {
+      switch (error.currentState) {
+        case "ApprovedRegistration": {
+          return RegistrationAlreadyApprovedFailure.make({
+            message: error.message,
+          });
+        }
+        case "RejectedRegistration": {
+          return RegistrationAlreadyRejectedFailure.make({
+            message: error.message,
+          });
+        }
+        case "ApprovalProcessingRegistration": {
+          return RegistrationDecisionAlreadyProcessingFailure.make({
+            message: error.message,
+          });
+        }
+        default: {
+          return RegistrationTransitionConflictFailure.make({
+            message: error.message,
+          });
+        }
+      }
+    }
+    case "RegistrationPersistenceFailure": {
+      if (error.reason !== "unavailable") {
+        throw error;
+      }
+      return internalRegistrationError();
+    }
+    default: {
+      return error satisfies never;
+    }
+  }
+};
+
+export const toRegistrationInternalApiError = internalRegistrationError;

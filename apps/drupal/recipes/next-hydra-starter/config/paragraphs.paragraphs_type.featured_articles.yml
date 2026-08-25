@@ -1,0 +1,9 @@
+langcode: en
+status: true
+dependencies: {}
+id: featured_articles
+label: "Featured Articles"
+icon_uuid: null
+icon_default: null
+description: "A curated collection of article teasers."
+behavior_plugins: {}

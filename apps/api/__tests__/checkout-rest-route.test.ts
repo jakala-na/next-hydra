@@ -1,0 +1,2049 @@
+import {
+  AuthUserId as AccessTokenAuthUserId,
+  AccessTokenInvalid,
+  AccessTokenVerificationFailure,
+  AccessTokenVerifier,
+  VerifiedAccessToken,
+} from "@repo/auth/access-token";
+import {
+  AddressBookEntry,
+  AddressBookEntryNotFound,
+  AddressBookReference,
+  normalizeAddressTypes,
+} from "@repo/commerce/domain/address-book";
+import {
+  CartId,
+  LineItemId,
+  ProductId,
+  Sku,
+  VariantId,
+} from "@repo/commerce/domain/cart";
+import {
+  CartProviderFailure,
+  CartWriteOutcomeUnknown,
+} from "@repo/commerce/domain/cart-errors";
+import type {
+  CartPolicyViolation,
+  CartSnapshot,
+} from "@repo/commerce/domain/cart-snapshot";
+import {
+  CheckoutMutationProviderFailure,
+  CheckoutProviderFailure,
+  CountryCode,
+} from "@repo/commerce/domain/checkout";
+import type {
+  CartOnlyCheckoutDeliveryDetailsInput,
+  CheckoutContact,
+  CheckoutContactInput,
+  CheckoutDeliveryDetails,
+  CheckoutDeliveryDetailsInput,
+} from "@repo/commerce/domain/checkout";
+import {
+  CommerceBusinessUnitId,
+  CommerceBusinessUnitKey,
+  CommerceBusinessUnitLabel,
+  CommerceBusinessUnitMembership,
+  CommerceCustomerId,
+  CommerceCustomerProfile,
+} from "@repo/commerce/domain/commerce-account";
+import { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
+import type { CustomerCommercePrincipal } from "@repo/commerce/domain/commerce-request-context";
+import type { ProviderFailureReason } from "@repo/commerce/domain/provider-failure";
+import {
+  ANONYMOUS_CART_COOKIE_NAME,
+  encodeAnonymousCartCookie,
+  makeAnonymousCartCookie,
+} from "@repo/commerce/lib/cart/utils/anonymous-cart-cookies";
+import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
+import { ProductDiscovery } from "@repo/commerce/product";
+import { makeCommerceApp } from "@repo/commerce/runtime/make-commerce-app";
+import { AddressBook } from "@repo/commerce/services/address-book";
+import { CartPolicies } from "@repo/commerce/services/cart-policies";
+import { Carts } from "@repo/commerce/services/carts";
+import {
+  CommerceAccountUnavailable,
+  CommerceAccounts,
+  CommerceCustomerIdNotFound,
+} from "@repo/commerce/services/commerce-accounts";
+import { CommerceContext } from "@repo/commerce/services/commerce-context";
+import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
+import type { CurrencyCode, Locale } from "@repo/i18n/types";
+import { Context, Effect, Layer, Option, Redacted } from "effect";
+import { expect, test } from "vitest";
+
+const HTTP_OK = 200;
+const HTTP_BAD_REQUEST = 400;
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_NOT_FOUND = 404;
+const HTTP_CONFLICT = 409;
+const HTTP_UNPROCESSABLE_CONTENT = 422;
+const HTTP_INTERNAL_SERVER_ERROR = 500;
+const HTTP_SERVICE_UNAVAILABLE = 503;
+const ADDRESS_BOOK_REFERENCE_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+const money = {
+  centAmount: 2500,
+  currencyCode: "USD",
+} as const;
+
+type TestLineItem = CartSnapshot["lineItems"][number];
+
+const defaultLineItems: TestLineItem[] = [
+  {
+    id: LineItemId.make("line-1"),
+    quantity: 1,
+    totalPrice: money,
+    unitPrice: money,
+    variant: {
+      attributes: {},
+      id: VariantId.make("1"),
+      images: [],
+      name: "Hydra Wrench",
+      productId: ProductId.make("product-1"),
+      sku: Sku.make("HYDRA-WRENCH"),
+    },
+  },
+];
+
+const cart = ({
+  lineItems,
+  totalLineItemQuantity,
+}: {
+  readonly lineItems?: TestLineItem[];
+  readonly totalLineItemQuantity?: number;
+} = {}): CartSnapshot => {
+  const resolvedLineItems = lineItems ?? defaultLineItems;
+
+  return {
+    checkoutDetails: {},
+    id: CartId.make("cart-1"),
+    lineItems: resolvedLineItems,
+    status: "active" as const,
+    storeKey: StoreKey.make("default-store"),
+    totalLineItemQuantity:
+      totalLineItemQuantity ??
+      resolvedLineItems.reduce(
+        (total, lineItem) => total + lineItem.quantity,
+        0
+      ),
+    totalPrice: money,
+  };
+};
+
+const anonymousCartCookieHeader = ({
+  cartId = "cart-1",
+  currency = "USD",
+  locale = "en-US",
+  storeKey = "default-store",
+}: {
+  readonly cartId?: string;
+  readonly currency?: CurrencyCode;
+  readonly locale?: Locale;
+  readonly storeKey?: string;
+} = {}) => {
+  const cookie = makeAnonymousCartCookie({
+    cartId,
+    store: new Store({
+      currency,
+      locale: CommerceLocale.make(locale),
+      storeKey: StoreKey.make(storeKey),
+    }),
+  });
+
+  return `${ANONYMOUS_CART_COOKIE_NAME}=${encodeAnonymousCartCookie(cookie)}`;
+};
+
+const request = (headers?: Record<string, string>) =>
+  new Request("http://api.test/checkout/current", {
+    headers: {
+      cookie: anonymousCartCookieHeader(),
+      "x-context-locale": "en-US",
+      ...headers,
+    },
+    method: "GET",
+  });
+
+const requestWithoutAnonymousCart = (headers?: Record<string, string>) =>
+  new Request("http://api.test/checkout/current", {
+    headers: {
+      "x-context-locale": "en-US",
+      ...headers,
+    },
+    method: "GET",
+  });
+
+const manualContact: CheckoutContact = {
+  buyerContact: {
+    email: "ada@example.com",
+    firstName: "Ada",
+    lastName: "Lovelace",
+    phoneNumber: "+15551234567",
+  },
+  source: "manual",
+};
+
+const customerProfile = new CommerceCustomerProfile({
+  customerId: CommerceCustomerId.make("customer-1"),
+  email: Redacted.make("profile@example.com", { label: "email" }),
+  firstName: Redacted.make("Profile", { label: "personName" }),
+  lastName: Redacted.make("Buyer", { label: "personName" }),
+});
+
+const saveContactPayload = ({
+  cartId = "cart-1",
+  contact = manualContact,
+}: {
+  readonly cartId?: string;
+  readonly contact?: CheckoutContactInput;
+} = {}) => ({
+  cart: {
+    id: cartId,
+  },
+  contact,
+});
+
+const saveContactRequest = (
+  payload: unknown = saveContactPayload(),
+  headers?: Record<string, string>
+) =>
+  new Request("http://api.test/checkout/contact", {
+    body: JSON.stringify(payload),
+    headers: {
+      "content-type": "application/json",
+      cookie: anonymousCartCookieHeader(),
+      "x-context-locale": "en-US",
+      ...headers,
+    },
+    method: "POST",
+  });
+
+const manualDeliveryDetails: CheckoutDeliveryDetails = {
+  shippingAddress: {
+    addressLine1: "123 Analytical Engine Way",
+    addressLine2: "Suite 42",
+    city: "London",
+    country: CountryCode.make("GB"),
+    postalCode: "SW1A 1AA",
+    region: "Greater London",
+  },
+  source: "manual",
+};
+
+const cartOnlyDeliveryDetailsInput: CartOnlyCheckoutDeliveryDetailsInput = {
+  saveToAddressBook: false,
+  shippingAddress: manualDeliveryDetails.shippingAddress,
+  type: "manual",
+};
+
+const saveDeliveryDetailsPayload = ({
+  cartId = "cart-1",
+  deliveryDetails = cartOnlyDeliveryDetailsInput,
+}: {
+  readonly cartId?: string;
+  readonly deliveryDetails?: CheckoutDeliveryDetailsInput;
+} = {}) => ({
+  cart: {
+    id: cartId,
+  },
+  deliveryDetails,
+});
+
+const saveDeliveryDetailsRequest = (
+  payload: unknown = saveDeliveryDetailsPayload(),
+  headers?: Record<string, string>
+) =>
+  new Request("http://api.test/checkout/delivery-details", {
+    body: JSON.stringify(payload),
+    headers: {
+      "content-type": "application/json",
+      cookie: anonymousCartCookieHeader(),
+      "x-context-locale": "en-US",
+      ...headers,
+    },
+    method: "POST",
+  });
+
+const makeCheckoutLayer = (
+  input: {
+    readonly currentCart?: ReturnType<typeof cart> | undefined;
+    readonly allowedContactSources?: readonly string[];
+    readonly cartPolicyViolations?: readonly CartPolicyViolation[];
+    readonly saveContactFailure?:
+      | CartWriteOutcomeUnknown
+      | CheckoutMutationProviderFailure;
+    readonly saveDeliveryDetailsFailure?:
+      | CartWriteOutcomeUnknown
+      | CheckoutMutationProviderFailure;
+    readonly getCurrentFailure?: CheckoutProviderFailure;
+    readonly customerProfiles?: readonly CommerceCustomerProfile[];
+    readonly providerFailureReason?: ProviderFailureReason;
+  } = {}
+) => {
+  const {
+    cartPolicyViolations = [],
+    saveContactFailure,
+    saveDeliveryDetailsFailure,
+    getCurrentFailure,
+    customerProfiles = [],
+    providerFailureReason = "unavailable",
+  } = input;
+  const currentCart = "currentCart" in input ? input.currentCart : cart();
+  const providerFailure = (
+    operation: "findById" | "saveContact" | "saveDeliveryDetails",
+    cause: unknown
+  ) =>
+    new CartProviderFailure({
+      cause,
+      operation,
+      reason: providerFailureReason,
+    });
+  const saveFailure = (
+    operation: "saveContact" | "saveDeliveryDetails",
+    failure: CartWriteOutcomeUnknown | CheckoutMutationProviderFailure
+  ) =>
+    failure._tag === "CartWriteOutcomeUnknown"
+      ? failure
+      : providerFailure(operation, failure);
+  let activeCart = currentCart;
+  const forAnonymous = (value: NonNullable<typeof activeCart>) => {
+    const { buyingContext: _buyingContext, ...anonymous } = value;
+    return anonymous;
+  };
+  const forBusinessUnit = (value: NonNullable<typeof activeCart>) => ({
+    ...value,
+    buyingContext: {
+      businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+    },
+  });
+  const cartsLayer = Layer.succeed(
+    Carts,
+    Carts.of({
+      addItem: () => Effect.die("not used"),
+      createAnonymous: () => Effect.die("not used"),
+      createForBusinessUnit: () => Effect.die("not used"),
+      findActiveForBusinessUnit: ({ store }) => {
+        if (getCurrentFailure !== undefined) {
+          return Effect.fail(providerFailure("findById", getCurrentFailure));
+        }
+        return Effect.succeed(
+          activeCart?.storeKey === store.storeKey
+            ? [forBusinessUnit(activeCart)]
+            : []
+        );
+      },
+      findById: ({ id, store }) => {
+        if (getCurrentFailure !== undefined) {
+          return Effect.fail(providerFailure("findById", getCurrentFailure));
+        }
+        return Effect.succeed(
+          activeCart?.id === id && activeCart.storeKey === store.storeKey
+            ? Option.some(forAnonymous(activeCart))
+            : Option.none()
+        );
+      },
+      removeLineItem: () => Effect.die("not used"),
+      saveContact: ({ target, contact }) => {
+        if (saveContactFailure !== undefined) {
+          return Effect.fail(saveFailure("saveContact", saveContactFailure));
+        }
+        if (activeCart === undefined) {
+          return Effect.die("Cart missing");
+        }
+        activeCart = {
+          ...activeCart,
+          checkoutDetails: { ...activeCart.checkoutDetails, contact },
+        };
+        return Effect.succeed(
+          target._tag === "AnonymousCartTarget"
+            ? forAnonymous(activeCart)
+            : forBusinessUnit(activeCart)
+        );
+      },
+      saveDeliveryDetails: ({ target, deliveryDetails }) => {
+        if (saveDeliveryDetailsFailure !== undefined) {
+          return Effect.fail(
+            saveFailure("saveDeliveryDetails", saveDeliveryDetailsFailure)
+          );
+        }
+        if (activeCart === undefined) {
+          return Effect.die("Cart missing");
+        }
+        activeCart = {
+          ...activeCart,
+          checkoutDetails: {
+            ...activeCart.checkoutDetails,
+            deliveryDetails,
+          },
+        };
+        return Effect.succeed(
+          target._tag === "AnonymousCartTarget"
+            ? forAnonymous(activeCart)
+            : forBusinessUnit(activeCart)
+        );
+      },
+      setLineItemQuantity: () => Effect.die("not used"),
+    })
+  );
+  const cartPoliciesLayer = Layer.succeed(
+    CartPolicies,
+    CartPolicies.of({
+      evaluate: () => Effect.succeed(cartPolicyViolations),
+    })
+  );
+
+  return Layer.mergeAll(
+    cartsLayer,
+    cartPoliciesLayer,
+    CheckoutPolicies.layer,
+    CommerceAccounts.layerMemoryFrom({ customerProfiles }),
+    makeJwtVerifierLayer()
+  );
+};
+
+const makeAddressBookLayer = (
+  initialEntries: readonly AddressBookEntry[] = [],
+  onPrincipal?: (principal: CustomerCommercePrincipal) => void
+) => {
+  let entries = [...initialEntries];
+
+  return Layer.effect(
+    AddressBook,
+    Effect.gen(function* makeAddressBookLayer() {
+      const commerceContext = yield* CommerceContext;
+      const withPrincipal = <A, E>(
+        effect: (principal: CustomerCommercePrincipal) => Effect.Effect<A, E>
+      ) => commerceContext.customerPrincipal().pipe(Effect.flatMap(effect));
+
+      return AddressBook.of({
+        get: (reference) =>
+          withPrincipal((principal) =>
+            Effect.gen(function* get() {
+              onPrincipal?.(principal);
+              const entry = entries.find(
+                (candidate) => candidate.reference === reference
+              );
+
+              if (!entry) {
+                return yield* new AddressBookEntryNotFound({
+                  message: "Address Book entry does not exist",
+                  reference,
+                });
+              }
+
+              return entry;
+            })
+          ),
+        list: () =>
+          withPrincipal((principal) =>
+            Effect.sync(() => {
+              onPrincipal?.(principal);
+              return entries;
+            })
+          ),
+        save: (input) =>
+          withPrincipal((principal) =>
+            Effect.sync(() => {
+              onPrincipal?.(principal);
+              const existing = entries.find(
+                (candidate) => candidate.reference === input.reference
+              );
+
+              if (existing) {
+                return existing;
+              }
+
+              const entry = new AddressBookEntry({
+                ...input,
+                types: normalizeAddressTypes(input.types, input),
+              });
+              entries = [...entries, entry];
+              return entry;
+            })
+          ),
+      });
+    })
+  );
+};
+
+const makeCommerceAccountsLayer = (
+  customerId = CommerceCustomerId.make("customer-1"),
+  profile = customerProfile
+) =>
+  Layer.succeed(
+    CommerceAccounts,
+    CommerceAccounts.of({
+      addAssociate: () => Effect.die("not used"),
+      createFromRegistration: () => Effect.die("not used"),
+      getCustomerIdByAuthUserId: () => Effect.succeed(customerId),
+      getCustomerProfile: () => Effect.succeed(profile),
+      hasCustomerWithEmail: () => Effect.die("not used"),
+      linkRegistrantIdentity: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.succeed([
+          new CommerceBusinessUnitMembership({
+            businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+            businessUnitKey: CommerceBusinessUnitKey.make(
+              "business-unit-key-1"
+            ),
+            businessUnitLabel:
+              CommerceBusinessUnitLabel.make("Business Unit One"),
+          }),
+        ]),
+    })
+  );
+
+const makeCommerceAccountsWithoutCustomerLayer = (
+  authUserId = AuthUserId.make("auth-user-1")
+) =>
+  Layer.succeed(
+    CommerceAccounts,
+    CommerceAccounts.of({
+      addAssociate: () => Effect.die("not used"),
+      createFromRegistration: () => Effect.die("not used"),
+      getCustomerIdByAuthUserId: () =>
+        Effect.fail(
+          new CommerceCustomerIdNotFound({
+            authUserId,
+            message: "Commerce customer id does not exist for auth user",
+          })
+        ),
+      getCustomerProfile: () => Effect.die("not used"),
+      hasCustomerWithEmail: () => Effect.die("not used"),
+      linkRegistrantIdentity: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
+    })
+  );
+
+const makeCommerceAccountsWithoutBusinessUnitLayer = (
+  customerId = CommerceCustomerId.make("customer-1")
+) =>
+  Layer.succeed(
+    CommerceAccounts,
+    CommerceAccounts.of({
+      addAssociate: () => Effect.die("not used"),
+      createFromRegistration: () => Effect.die("not used"),
+      getCustomerIdByAuthUserId: () => Effect.succeed(customerId),
+      getCustomerProfile: () => Effect.die("not used"),
+      hasCustomerWithEmail: () => Effect.die("not used"),
+      linkRegistrantIdentity: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () => Effect.succeed([]),
+    })
+  );
+
+const makeFailingCommerceAccountsLayer = () =>
+  Layer.succeed(
+    CommerceAccounts,
+    CommerceAccounts.of({
+      addAssociate: () => Effect.die("not used"),
+      createFromRegistration: () => Effect.die("not used"),
+      getCustomerIdByAuthUserId: () =>
+        Effect.fail(
+          new CommerceAccountUnavailable({
+            message: "Commerce account lookup failed",
+          })
+        ),
+      getCustomerProfile: () => Effect.die("not used"),
+      hasCustomerWithEmail: () => Effect.die("not used"),
+      linkRegistrantIdentity: () => Effect.die("not used"),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.die("not used"),
+    })
+  );
+
+const makeJwtVerifierLayer = (authUserId = AuthUserId.make("auth-user-1")) =>
+  Layer.succeed(
+    AccessTokenVerifier,
+    AccessTokenVerifier.of({
+      verify: (token) =>
+        token === "valid-token"
+          ? Effect.succeed(
+              new VerifiedAccessToken({
+                authUserId: AccessTokenAuthUserId.make(authUserId),
+              })
+            )
+          : Effect.fail(
+              new AccessTokenInvalid({
+                message: "Invalid commerce customer JWT",
+                reason: "invalidToken",
+              })
+            ),
+    })
+  );
+
+const makeFailingJwtVerifierLayer = () =>
+  Layer.succeed(
+    AccessTokenVerifier,
+    AccessTokenVerifier.of({
+      verify: () =>
+        Effect.fail(
+          new AccessTokenVerificationFailure({
+            message: "JWT verifier unavailable",
+            reason: "unavailable",
+          })
+        ),
+    })
+  );
+
+const makeUnexpectedJwtVerifierLayer = () =>
+  Layer.succeed(
+    AccessTokenVerifier,
+    AccessTokenVerifier.of({
+      verify: () =>
+        Effect.fail(
+          new AccessTokenVerificationFailure({
+            cause: new Error("invalid JWKS configuration"),
+            message: "Private verifier diagnostic",
+            reason: "unexpected",
+          })
+        ),
+    })
+  );
+
+const makeTestCommerceApp = (
+  layer: Layer.Layer<any, any>,
+  addressBookLayer: Layer.Layer<
+    AddressBook,
+    never,
+    CommerceContext
+  > = AddressBook.layerMemory()
+) =>
+  makeCommerceApp({
+    addressBookLayer,
+    cartPoliciesLayer: Layer.effect(CartPolicies, CartPolicies).pipe(
+      Layer.provide(layer)
+    ),
+    cartsLayer: Layer.effect(Carts, Carts).pipe(Layer.provide(layer)),
+    checkoutPoliciesLayer: Layer.effect(
+      CheckoutPolicies,
+      CheckoutPolicies
+    ).pipe(Layer.provide(layer)),
+    commerceAccountsLayer: Layer.effect(
+      CommerceAccounts,
+      CommerceAccounts
+    ).pipe(Layer.provide(layer)),
+    productDiscoveryLayer: ProductDiscovery.testLayer(),
+  });
+
+const makeAuthenticationLayer = (layer: Layer.Layer<any, any>) =>
+  Layer.effect(AccessTokenVerifier, AccessTokenVerifier).pipe(
+    Layer.provide(layer)
+  );
+
+const makeHandler = async (
+  layer: Layer.Layer<any, any>,
+  addressBookLayer: Layer.Layer<
+    AddressBook,
+    never,
+    CommerceContext
+  > = AddressBook.layerMemory()
+) => {
+  const { makeCheckoutHttpHandler } = await import("../lib/checkout/http");
+  const commerceApp = makeTestCommerceApp(layer, addressBookLayer);
+  const authenticationLayer = makeAuthenticationLayer(layer);
+
+  return makeCheckoutHttpHandler({ authenticationLayer, commerceApp });
+};
+
+const emptyContext = () => Context.empty() as Context.Context<unknown>;
+
+test("GET /checkout/current reads current checkout state through CheckoutSession", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(request(), emptyContext());
+    const body = await response.json();
+    expect(response.status).toBe(HTTP_OK);
+    expect(body).toMatchObject({
+      activeStep: "contact",
+      cart: {
+        id: "cart-1",
+        lineItems: [{ id: "line-1" }],
+      },
+      details: {},
+      scope: {
+        channel: "storefrontAnonymous",
+        locale: "en-US",
+      },
+      steps: [
+        { id: "contact", status: "incomplete" },
+        { id: "deliveryDetails", status: "incomplete" },
+        { id: "shippingOptions", status: "incomplete" },
+        { id: "paymentOptions", status: "incomplete" },
+        { id: "reviewOrder", status: "incomplete" },
+      ],
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current adds localized fallback messages to public violations", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      cartPolicyViolations: [
+        {
+          code: "INCOMPATIBLE_CART_ITEMS",
+          targets: [{ type: "cart" }],
+        },
+      ],
+      currentCart: {
+        ...cart(),
+        storeKey: StoreKey.make("de-fr-uk"),
+      },
+    })
+  );
+
+  try {
+    const response = await handler(
+      request({
+        cookie: anonymousCartCookieHeader({
+          currency: "EUR",
+          locale: "de-DE",
+          storeKey: "de-fr-uk",
+        }),
+        "x-context-locale": "de-DE",
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.violations).toStrictEqual([
+      expect.objectContaining({
+        code: "INCOMPATIBLE_CART_ITEMS",
+        message: "Diese Artikel können nicht zusammen gekauft werden.",
+        source: "cartPolicy",
+      }),
+    ]);
+    expect(body.violations[0].message).not.toContain("Internal diagnostic");
+  } finally {
+    await dispose();
+  }
+});
+
+test.each(["en-CA", "toString"])(
+  "GET /checkout/current rejects unsupported locale %s with a typed bad request",
+  async (locale) => {
+    const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+    try {
+      const response = await handler(
+        request({ "x-context-locale": locale }),
+        emptyContext()
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(HTTP_BAD_REQUEST);
+      expect(body).toMatchObject({
+        _tag: "InputInvalid",
+        code: "input.invalid",
+        issues: [{ path: ["x-context-locale"] }],
+        message: "The checkout request is invalid.",
+      });
+    } finally {
+      await dispose();
+    }
+  }
+);
+
+test("POST /checkout/delivery-details preserves HTTP payload schema paths", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest({
+        deliveryDetails: cartOnlyDeliveryDetailsInput,
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "InputInvalid",
+      issues: [{ path: ["cart"] }],
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact saves Manual Contact and returns recomputed checkout state", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body).toMatchObject({
+      activeStep: "deliveryDetails",
+      details: {
+        contact: manualContact,
+      },
+    });
+    expect(body.steps[0]).toMatchObject({
+      id: "contact",
+      status: "complete",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact resolves Customer Profile from verified bearer context and ignores spoofed customer headers", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      allowedContactSources: ["customerProfile"],
+      customerProfiles: [customerProfile],
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      saveContactRequest(
+        saveContactPayload({ contact: { source: "customerProfile" } }),
+        {
+          authorization: "Bearer valid-token",
+          "x-context-customer-id": "customer-spoof",
+        }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontCustomer",
+      locale: "en-US",
+    });
+    expect(body.details.contact).toStrictEqual({
+      buyerContact: {
+        email: "profile@example.com",
+        firstName: "Profile",
+        lastName: "Buyer",
+      },
+      source: "customerProfile",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact reports an incomplete Customer Profile as unprocessable content", async () => {
+  const incompleteProfile = new CommerceCustomerProfile({
+    customerId: CommerceCustomerId.make("customer-1"),
+    firstName: Redacted.make("Profile", { label: "personName" }),
+    lastName: Redacted.make("Buyer", { label: "personName" }),
+  });
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      allowedContactSources: ["customerProfile"],
+      customerProfiles: [incompleteProfile],
+    }),
+    makeCommerceAccountsLayer(incompleteProfile.customerId, incompleteProfile),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      saveContactRequest(
+        saveContactPayload({ contact: { source: "customerProfile" } }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_UNPROCESSABLE_CONTENT);
+    expect(body).toStrictEqual({
+      _tag: "CheckoutCustomerProfileIncomplete",
+      category: "bad_input",
+      code: "checkout.contact.customerProfileIncomplete",
+      message:
+        "Your customer profile is missing required contact information. Enter it below to continue.",
+      missingFields: ["email"],
+      recovery: "fix_input",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact cannot save Customer Profile from a spoofed customer header", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({ customerProfiles: [customerProfile] })
+  );
+
+  try {
+    const response = await handler(
+      saveContactRequest(
+        saveContactPayload({ contact: { source: "customerProfile" } }),
+        { "x-context-customer-id": "customer-1" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationSourceUnavailable",
+      category: "bad_input",
+      code: "checkout.contact.sourceUnavailable",
+      message: "This contact source is unavailable for this checkout.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact obtains Checkout Scope from request context, not payload cart id", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveContactRequest(saveContactPayload({ cartId: "cart-from-payload" })),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_CONFLICT);
+    expect(body).toMatchObject({
+      _tag: "CheckoutCartMismatch",
+      category: "conflict",
+      code: "checkout.cartMismatch",
+      message: "This checkout is no longer current. Refresh and try again.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact maps invalid Manual Contact input to bad request", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveContactRequest(
+        saveContactPayload({
+          contact: {
+            ...manualContact,
+            buyerContact: {
+              ...manualContact.buyerContact,
+              firstName: "",
+            },
+          },
+        })
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationSchemaFailure",
+      category: "bad_input",
+      code: "checkout.contact.invalidInput",
+      issues: [{ path: ["firstName"] }],
+      message: "Enter an email, first name, and last name.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact allows Manual Contact for a signed-in customer", async () => {
+  const { dispose, handler } = await makeHandler(
+    Layer.mergeAll(
+      makeCheckoutLayer(),
+      makeCommerceAccountsLayer(),
+      makeJwtVerifierLayer()
+    )
+  );
+
+  try {
+    const response = await handler(
+      saveContactRequest(undefined, { authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body).toMatchObject({
+      activeStep: "deliveryDetails",
+      details: {
+        contact: manualContact,
+      },
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact maps provider failures to internal errors", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      saveContactFailure: new CheckoutMutationProviderFailure({
+        message: "Commercetools update failed",
+        operation: "checkout.contact.save",
+        reason: "unavailable",
+      }),
+    })
+  );
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationProviderFailure",
+      category: "unavailable",
+      code: "checkout.internal",
+      message: "Checkout could not be completed. Try again.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact preserves an ambiguous Cart write outcome", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      saveContactFailure: new CartWriteOutcomeUnknown({
+        cartId: CartId.make("cart-1"),
+        operation: "saveContact",
+      }),
+    })
+  );
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationOutcomeUnknown",
+      cartId: "cart-1",
+      category: "unavailable",
+      code: "checkout.contact.outcomeUnknown",
+      recovery: "refresh",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact sanitizes invalid provider data as an unexpected defect", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      providerFailureReason: "invalidData",
+      saveContactFailure: new CheckoutMutationProviderFailure({
+        message: "Provider returned invalid Cart data",
+        operation: "checkout.contact.save",
+        reason: "invalidData",
+      }),
+    })
+  );
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).toMatchObject({
+      _tag: "Unexpected",
+      code: "unexpected",
+      message: "Something went wrong.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/contact maps an unavailable Cart to checkout not found", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({ currentCart: undefined })
+  );
+
+  try {
+    const response = await handler(saveContactRequest(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CheckoutUnavailable",
+      category: "not_found",
+      code: "checkout.notFound",
+      message: "Checkout was not found for the current request.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details saves a Manual Shipping Address and returns recomputed checkout state", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.details.deliveryDetails).toStrictEqual(manualDeliveryDetails);
+    expect(body.steps[1]).toMatchObject({
+      id: "deliveryDetails",
+      status: "complete",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details is idempotent for the same Manual Shipping Address", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const firstResponse = await handler(
+      saveDeliveryDetailsRequest(),
+      emptyContext()
+    );
+    const firstBody = await firstResponse.json();
+    const secondResponse = await handler(
+      saveDeliveryDetailsRequest(),
+      emptyContext()
+    );
+    const secondBody = await secondResponse.json();
+
+    expect(firstResponse.status).toBe(HTTP_OK);
+    expect(secondResponse.status).toBe(HTTP_OK);
+    expect(firstBody.cart).not.toHaveProperty("version");
+    expect(secondBody.cart).not.toHaveProperty("version");
+    expect(secondBody.details.deliveryDetails).toStrictEqual(
+      manualDeliveryDetails
+    );
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details copies an existing Address Book Entry to the Cart", async () => {
+  const reference = AddressBookReference.make("london-office");
+  const entry = new AddressBookEntry({
+    address: {
+      ...manualDeliveryDetails.shippingAddress,
+      addressLine1: "10 Canonical Way",
+    },
+    defaultBilling: false,
+    defaultShipping: false,
+    reference,
+    types: ["shipping"],
+  });
+  const addressBookLayer = makeAddressBookLayer([entry]);
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer, addressBookLayer);
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            addressBookReference: reference,
+            type: "addressBook",
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.details.deliveryDetails).toStrictEqual({
+      addressBookReference: reference,
+      shippingAddress: entry.address,
+      source: "addressBook",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details returns a stable unavailable-entry error", async () => {
+  const reference = AddressBookReference.make("missing-office");
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer, makeAddressBookLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            addressBookReference: reference,
+            type: "addressBook",
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_CONFLICT);
+    expect(body).toStrictEqual({
+      _tag: "CheckoutMutationAddressBookEntryUnavailable",
+      addressBookReference: reference,
+      category: "conflict",
+      code: "checkout.deliveryDetails.addressBookEntryUnavailable",
+      message: "This saved address is no longer available.",
+      recovery: "refresh",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details saves a new address with an internally generated reference", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer, makeAddressBookLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            makeDefaultShipping: true,
+            saveToAddressBook: true,
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            type: "manual",
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.details.deliveryDetails).toMatchObject({
+      shippingAddress: manualDeliveryDetails.shippingAddress,
+      source: "addressBook",
+    });
+    expect(body.details.deliveryDetails.addressBookReference).toMatch(
+      ADDRESS_BOOK_REFERENCE_PATTERN
+    );
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details saves only for the verified Business Unit principal", async () => {
+  let savingPrincipal: CustomerCommercePrincipal | undefined;
+  const addressBookLayer = makeAddressBookLayer([], (principal) => {
+    savingPrincipal = principal;
+  });
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer, addressBookLayer);
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            makeDefaultShipping: false,
+            saveToAddressBook: true,
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            type: "manual",
+          },
+        }),
+        {
+          authorization: "Bearer valid-token",
+          "x-context-business-unit-id": "business-unit-1",
+          "x-context-customer-id": "customer-spoof",
+        }
+      ),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(savingPrincipal?.customerId).toBe("customer-1");
+    expect(savingPrincipal?.businessUnitId).toBe("business-unit-1");
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details returns saved state without a response reread", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer, makeAddressBookLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            makeDefaultShipping: false,
+            saveToAddressBook: true,
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            type: "manual",
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body).toMatchObject({
+      details: {
+        deliveryDetails: {
+          addressBookReference: expect.stringMatching(
+            ADDRESS_BOOK_REFERENCE_PATTERN
+          ),
+        },
+      },
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details returns the saved reference after a Cart-phase failure", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      saveDeliveryDetailsFailure: new CheckoutMutationProviderFailure({
+        message: "Commercetools update failed",
+        operation: "checkout.deliveryDetails.save",
+        reason: "unavailable",
+      }),
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer, makeAddressBookLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            makeDefaultShipping: false,
+            saveToAddressBook: true,
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            type: "manual",
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationProviderFailure",
+      addressBookReference: expect.stringMatching(
+        ADDRESS_BOOK_REFERENCE_PATTERN
+      ),
+      category: "unavailable",
+      code: "checkout.deliveryDetails.providerFailure",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details preserves the saved reference when the Cart write outcome is unknown", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer({
+      saveDeliveryDetailsFailure: new CartWriteOutcomeUnknown({
+        cartId: CartId.make("cart-1"),
+        operation: "saveDeliveryDetails",
+      }),
+    }),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer, makeAddressBookLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            makeDefaultShipping: false,
+            saveToAddressBook: true,
+            shippingAddress: manualDeliveryDetails.shippingAddress,
+            type: "manual",
+          },
+        }),
+        { authorization: "Bearer valid-token" }
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationOutcomeUnknown",
+      addressBookReference: expect.stringMatching(
+        ADDRESS_BOOK_REFERENCE_PATTERN
+      ),
+      cartId: "cart-1",
+      category: "unavailable",
+      code: "checkout.deliveryDetails.outcomeUnknown",
+      recovery: "refresh",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details obtains Checkout Scope from request context, not payload cart id", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({ cartId: "cart-from-payload" })
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_CONFLICT);
+    expect(body).toMatchObject({
+      _tag: "CheckoutCartMismatch",
+      category: "conflict",
+      code: "checkout.cartMismatch",
+      message: "This checkout is no longer current. Refresh and try again.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details ignores caller-supplied customer id headers", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(undefined, {
+        "x-context-customer-id": "customer-spoof",
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontAnonymous",
+      locale: "en-US",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details maps invalid Manual Shipping Address input to bad request", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(
+        saveDeliveryDetailsPayload({
+          deliveryDetails: {
+            ...cartOnlyDeliveryDetailsInput,
+            shippingAddress: {
+              ...cartOnlyDeliveryDetailsInput.shippingAddress,
+              city: "",
+            },
+          },
+        })
+      ),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationSchemaFailure",
+      category: "bad_input",
+      code: "checkout.deliveryDetails.invalidInput",
+      message: "Enter address line 1, postal code, city, and country.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details rejects invalid ISO country codes at the schema boundary", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest({
+        cart: { id: "cart-1" },
+        deliveryDetails: {
+          ...cartOnlyDeliveryDetailsInput,
+          shippingAddress: {
+            ...cartOnlyDeliveryDetailsInput.shippingAddress,
+            country: "ZZ",
+          },
+        },
+      }),
+      emptyContext()
+    );
+
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(body).toMatchObject({
+      _tag: "InputInvalid",
+      code: "input.invalid",
+      message: "The checkout request is invalid.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /checkout/delivery-details maps provider failures to internal errors", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      saveDeliveryDetailsFailure: new CheckoutMutationProviderFailure({
+        message: "Commercetools update failed",
+        operation: "checkout.deliveryDetails.save",
+        reason: "unavailable",
+      }),
+    })
+  );
+
+  try {
+    const response = await handler(
+      saveDeliveryDetailsRequest(),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CheckoutMutationProviderFailure",
+      category: "unavailable",
+      code: "checkout.deliveryDetails.providerFailure",
+      message: "Delivery details could not be saved. Try again.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current ignores caller-supplied customer id headers", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      request({ "x-context-customer-id": "customer-spoof" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontAnonymous",
+      locale: "en-US",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current accepts anonymous cart possession from the cart cookie", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      requestWithoutAnonymousCart({ cookie: anonymousCartCookieHeader() }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontAnonymous",
+      locale: "en-US",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current expires a confirmed missing anonymous Cart cookie", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({ currentCart: undefined })
+  );
+
+  try {
+    const response = await handler(
+      requestWithoutAnonymousCart({ cookie: anonymousCartCookieHeader() }),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(response.headers.get("set-cookie")).toContain(
+      `${ANONYMOUS_CART_COOKIE_NAME}=;`
+    );
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current ignores a caller-supplied anonymous cart id header", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      requestWithoutAnonymousCart({
+        "x-context-anonymous-cart-id": "cart-from-header",
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CheckoutUnavailable",
+      code: "checkout.notFound",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current ignores anonymous cart cookies for a different store context", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      requestWithoutAnonymousCart({
+        cookie: anonymousCartCookieHeader({
+          currency: "GBP",
+          locale: "en-GB",
+          storeKey: "de-fr-uk",
+        }),
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CheckoutUnavailable",
+      code: "checkout.notFound",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current resolves customer scope from bearer JWT before anonymous cart", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontCustomer",
+      locale: "en-US",
+    });
+    expect(JSON.stringify(body)).not.toContain("businessUnitId");
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current ignores on-behalf-of customer id headers when a valid bearer JWT is present", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({
+        authorization: "Bearer valid-token",
+        "x-context-customer-id": "customer-spoof",
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontCustomer",
+      locale: "en-US",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current falls back when the Business Unit selector is outside the verified memberships", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({
+        authorization: "Bearer valid-token",
+        "x-context-business-unit-id": "business-unit-spoof",
+      }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body.scope).toStrictEqual({
+      channel: "storefrontCustomer",
+      locale: "en-US",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current does not fall back to anonymous checkout for invalid bearer JWT", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "Bearer invalid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_UNAUTHORIZED);
+    expect(body).toMatchObject({
+      _tag: "CheckoutUnauthenticated",
+      category: "unauthenticated",
+      code: "checkout.unauthenticated",
+      recovery: "reauthenticate",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current rejects malformed bearer authorization", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "1234567valid-token" }),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_UNAUTHORIZED);
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current treats machine bearer tokens as unsupported for checkout", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "Bearer machine-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_UNAUTHORIZED);
+    expect(body).toMatchObject({
+      _tag: "CheckoutUnauthenticated",
+      code: "checkout.unauthenticated",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current maps missing customer account for valid bearer JWT to not found", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsWithoutCustomerLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CommerceRequestContextNotFound",
+      code: "checkout.notFound",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current maps missing Business Unit context for valid bearer JWT to not found", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsWithoutBusinessUnitLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CommerceRequestContextNotFound",
+      code: "checkout.notFound",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current maps JWT verifier runtime failures to an internal error", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeFailingJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CheckoutAuthenticationUnavailable",
+      code: "checkout.internal",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current defects on unclassified JWT verifier failures", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeCommerceAccountsLayer(),
+    makeUnexpectedJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).toStrictEqual({
+      _tag: "Unexpected",
+      category: "unexpected",
+      code: "unexpected",
+      message: "Something went wrong.",
+      recovery: "none",
+    });
+    expect(JSON.stringify(body)).not.toContain("Private verifier diagnostic");
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current maps Commerce customer lookup runtime failures to an internal error", async () => {
+  const layer = Layer.mergeAll(
+    makeCheckoutLayer(),
+    makeFailingCommerceAccountsLayer(),
+    makeJwtVerifierLayer()
+  );
+  const { dispose, handler } = await makeHandler(layer);
+
+  try {
+    const response = await handler(
+      request({ authorization: "Bearer valid-token" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toMatchObject({
+      _tag: "CommerceAccountUnavailable",
+      code: "checkout.internal",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current sanitizes invalid provider data as an unexpected defect", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      getCurrentFailure: new CheckoutProviderFailure({
+        message: "Provider returned invalid Cart data",
+        operation: "checkout.current",
+        reason: "invalidData",
+      }),
+      providerFailureReason: "invalidData",
+    })
+  );
+
+  try {
+    const response = await handler(request(), emptyContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+    expect(body).toMatchObject({
+      _tag: "Unexpected",
+      code: "unexpected",
+      message: "Something went wrong.",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current maps an empty Cart to a checkout not-found response", async () => {
+  const { dispose, handler } = await makeHandler(
+    makeCheckoutLayer({
+      currentCart: cart({ lineItems: [], totalLineItemQuantity: 0 }),
+    })
+  );
+
+  try {
+    const response = await handler(request(), emptyContext());
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    const body = await response.json();
+
+    expect(body).toMatchObject({
+      _tag: "CheckoutUnavailable",
+      code: "checkout.notFound",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current maps missing checkout context to not found", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      requestWithoutAnonymousCart(),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CheckoutUnavailable",
+      code: "checkout.notFound",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("GET /checkout/current localizes the fallback error message from request context", async () => {
+  const { dispose, handler } = await makeHandler(makeCheckoutLayer());
+
+  try {
+    const response = await handler(
+      requestWithoutAnonymousCart({ "x-context-locale": "de-DE" }),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "CheckoutUnavailable",
+      code: "checkout.notFound",
+      message: "Der Checkout wurde für diese Anfrage nicht gefunden.",
+    });
+  } finally {
+    await dispose();
+  }
+});

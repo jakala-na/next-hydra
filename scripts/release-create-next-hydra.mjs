@@ -5,8 +5,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = import.meta.filename;
+const __dirname = import.meta.dirname;
 const repoRoot = path.resolve(__dirname, "..");
 const packageDir = path.join(repoRoot, "packages", "create-next-hydra");
 const packageJsonPath = path.join(packageDir, "package.json");
@@ -32,14 +32,14 @@ async function run(command, args, options = {}) {
   return await new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
-      stdio: "inherit",
       env: process.env,
+      stdio: "inherit",
     });
 
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) {
-        resolve(undefined);
+        resolve();
         return;
       }
 
@@ -51,7 +51,7 @@ async function run(command, args, options = {}) {
 }
 
 async function getPackageInfo() {
-  const raw = await readFile(packageJsonPath, "utf8");
+  const raw = await readFile(packageJsonPath, "utf-8");
   const parsed = JSON.parse(raw);
   return {
     name: parsed.name,
@@ -65,8 +65,8 @@ async function ensureCleanWorktree() {
   await new Promise((resolve, reject) => {
     const child = spawn("git", ["status", "--porcelain"], {
       cwd: repoRoot,
-      stdio: ["ignore", "pipe", "pipe"],
       env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
     });
 
     child.stdout.on("data", (chunk) => {
@@ -80,7 +80,7 @@ async function ensureCleanWorktree() {
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) {
-        resolve(undefined);
+        resolve();
         return;
       }
 

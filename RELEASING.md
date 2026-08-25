@@ -5,6 +5,7 @@
 ## What goes in release notes
 
 Use a hybrid changelog style:
+
 - CLI behavior changes (`create-next-hydra`)
 - Notable changes in the generated starter output
 - Breaking changes / migration notes

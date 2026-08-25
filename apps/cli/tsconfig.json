@@ -1,0 +1,16 @@
+{
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "paths": {
+      "@repo/commerce-provider": ["./node_modules/@repo/commerce-provider"],
+      "@repo/commerce-provider/*": ["./node_modules/@repo/commerce-provider/*"],
+      "@repo/*": ["../../packages/*"]
+    }
+  },
+  "include": ["env.ts", "src/**/*.ts"],
+  "exclude": ["node_modules"]
+}

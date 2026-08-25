@@ -2,6 +2,7 @@
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import type { StorybookConfig } from "@storybook/nextjs-vite";
 
 const require = createRequire(import.meta.url);
@@ -14,13 +15,12 @@ const getAbsolutePath = (value: string) =>
   dirname(require.resolve(join(value, "package.json")));
 
 const logtailShimPath = fileURLToPath(
-  new URL("./shims/logtail.ts", import.meta.url)
+  new URL("shims/logtail.ts", import.meta.url)
+);
+const repoPackagesPath = fileURLToPath(
+  new URL("../../../packages", import.meta.url)
 );
 const config: StorybookConfig = {
-  stories: [
-    "../stories/**/*.mdx",
-    "../stories/**/*.stories.@(js|jsx|mjs|ts|tsx)",
-  ],
   addons: [
     getAbsolutePath("@storybook/addon-onboarding"),
     getAbsolutePath("@chromatic-com/storybook"),
@@ -32,12 +32,16 @@ const config: StorybookConfig = {
     options: {},
   },
   staticDirs: ["../public"],
+  stories: [
+    "../stories/**/*.mdx",
+    "../stories/**/*.stories.@(js|jsx|mjs|ts|tsx)",
+  ],
   viteFinal: (config) => {
     if (config.resolve) {
       config.resolve.alias = {
         ...config.resolve.alias,
-        "@repo": "../../packages",
         "@logtail/next": logtailShimPath,
+        "@repo": repoPackagesPath,
       };
     }
     return config;

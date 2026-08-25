@@ -2,28 +2,27 @@
   "name": "api",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3002 --turbopack",
-    "build": "next build",
-    "start": "next start",
     "analyze": "ANALYZE=true npm run build",
-    "test": "NODE_ENV=test vitest run",
+    "build": "next build",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "typecheck": "next typegen && tsgo --noEmit"
+    "dev": "next dev -p 3002 --turbopack",
+    "start": "next start",
+    "test": "NODE_ENV=test vitest run",
+    "typecheck": "next typegen && pnpm --workspace-root exec tsc --noEmit --project apps/api/tsconfig.json"
   },
   "dependencies": {
     "@repo/analytics": "workspace:*",
-    "@repo/auth-workos": "workspace:*",
+    "@repo/auth": "workspace:@repo/auth-workos@*",
     "@repo/commerce": "workspace:*",
+    "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
     "@repo/design-system": "workspace:*",
     "@repo/email": "workspace:*",
+    "@repo/errors": "workspace:*",
     "@repo/next-config": "workspace:*",
     "@repo/observability": "workspace:*",
     "@repo/registration": "workspace:*",
     "@repo/testing": "workspace:*",
-    "@repo/versioned-store": "workspace:*",
-    "@sentry/nextjs": "^10.22.0",
     "@t3-oss/env-nextjs": "catalog:",
-    "@workos-inc/node": "^8.12.1",
     "effect": "catalog:",
     "import-in-the-middle": "2.0.0",
     "next": "catalog:",
@@ -32,7 +31,7 @@
     "require-in-the-middle": "8.0.1",
     "svix": "^1.66.0",
     "vitest": "^3.1.4",
-    "workflow": "4.2.0-beta.67",
+    "workflow": "4.8.0",
     "zod": "^3.25.28"
   },
   "devDependencies": {
@@ -41,6 +40,6 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "concurrently": "^9.1.2",
-    "typescript": "catalog:"
+    "typescript": "catalog:typescript7"
   }
 }

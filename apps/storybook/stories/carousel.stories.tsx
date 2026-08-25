@@ -11,12 +11,13 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * A carousel with motion and swipe built using Embla.
  */
 const meta: Meta<typeof Carousel> = {
-  title: "ui/Carousel",
-  component: Carousel,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
     className: "w-full max-w-xs",
+  },
+  component: Carousel,
+  parameters: {
+    layout: "centered",
   },
   render: (args) => (
     <Carousel {...args}>
@@ -33,9 +34,8 @@ const meta: Meta<typeof Carousel> = {
       <CarouselNext />
     </Carousel>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/Carousel",
 } satisfies Meta<typeof Carousel>;
 
 export default meta;
@@ -51,6 +51,9 @@ export const Default: Story = {};
  * Use the `basis` utility class to change the size of the carousel.
  */
 export const Size: Story = {
+  args: {
+    className: "mx-12 w-full max-w-xs",
+  },
   render: (args) => (
     <Carousel {...args} className="mx-12 w-full max-w-xs">
       <CarouselContent>
@@ -66,7 +69,4 @@ export const Size: Story = {
       <CarouselNext />
     </Carousel>
   ),
-  args: {
-    className: "mx-12 w-full max-w-xs",
-  },
 };

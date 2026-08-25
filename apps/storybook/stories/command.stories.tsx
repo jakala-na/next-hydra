@@ -13,12 +13,13 @@ import { CommandSeparator } from "cmdk";
  * Fast, composable, unstyled command menu for React.
  */
 const meta = {
-  title: "ui/Command",
-  component: Command,
-  tags: ["autodocs"],
   argTypes: {},
   args: {
     className: "rounded-lg w-96 border shadow-md",
+  },
+  component: Command,
+  parameters: {
+    layout: "centered",
   },
   render: (args) => (
     <Command {...args}>
@@ -39,9 +40,8 @@ const meta = {
       </CommandList>
     </Command>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/Command",
 } satisfies Meta<typeof Command>;
 
 export default meta;

@@ -1,14 +1,12 @@
 import { Effect } from "effect";
+
 import type { RegistrationId } from "../domain/identity";
-import { type InvitationReadError, Invitations } from "../services/invitations";
-import {
-  type RegistrationEmailFailure,
-  RegistrationEmails,
-} from "../services/registration-emails";
-import {
-  type RegistrationReadError,
-  Registrations,
-} from "../services/registrations";
+import { Invitations } from "../services/invitations";
+import type { InvitationReadError } from "../services/invitations";
+import { RegistrationEmails } from "../services/registration-emails";
+import type { RegistrationEmailFailure } from "../services/registration-emails";
+import { Registrations } from "../services/registrations";
+import type { RegistrationReadError } from "../services/registrations";
 
 export interface NotifyRegistrationInput {
   readonly registrationId: RegistrationId;
@@ -57,7 +55,7 @@ export const notifyRegistrationApproved = (
       return;
     }
 
-    yield* emails.sendApprovedToRegistrant({ registration, invitation });
+    yield* emails.sendApprovedToRegistrant({ invitation, registration });
   });
 
 export const notifyRegistrationRejected = (

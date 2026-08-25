@@ -1,0 +1,14 @@
+{
+  "componentDir": "canvas-components",
+  "pagesDir": "pages",
+  "aliasBaseDir": "../..",
+  "globalCssPath": "../design-system/styles/canvas-globals.css",
+  "workbench": {
+    "hiddenComponents": ["latest-articles", "product-collection"]
+  },
+  "sync": {
+    "pages": false,
+    "contentTemplates": false,
+    "regions": false
+  }
+}

@@ -12,6 +12,22 @@ export const DEFAULT_STARTER: StarterDefinition = {
 
 export const SANITIZE_REMOVE_PATHS = [
   ".git",
+  ".scratch",
   "apps/docs",
-  "pnpm-lock.yaml",
+  "next-hydra.json",
+  "packages/create-next-hydra",
+  "scripts/release-create-next-hydra.mjs",
+  "scripts/sync-registry-files.ts",
+] as const;
+
+export const SANITIZE_REMOVE_SCRIPTS = [
+  "registry:check",
+  "registry:sync",
+  "release:create-next-hydra",
+  "release:create-next-hydra:dry-run",
+] as const;
+
+export const SANITIZE_REMOVE_ROOT_DEPENDENCIES = [
+  "@clack/prompts",
+  "commander",
 ] as const;

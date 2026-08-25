@@ -1,12 +1,17 @@
 export {
   type ApproveRegistrationInput as ApproveRegistrationViewInput,
+  ApproveRegistrationInputSchema,
   canDecideRegistration,
   DecisionFormSchema,
   type DecisionFormValues,
   getRegistrationDecisionUnavailableMessage,
-  type RegistrationDecisionResult,
+  type RegistrationDecisionActionFailure,
+  RegistrationDecisionActionError,
+  RegistrationDecisionResult,
+  RegistrationDecisionSuccess,
   type RegistrationDetailView,
   type RejectRegistrationInput as RejectRegistrationViewInput,
+  RejectRegistrationInputSchema,
   registrationStatusFilters,
   registrationStatusLabels,
   toRegistrationDetailView,
@@ -15,12 +20,15 @@ export { registrationFormInputToDetails } from "./components/registration-form-d
 export {
   getCountryOptions,
   makeRegistrationFormInputSchema,
-  type RegistrationFormError,
-  type RegistrationFormFieldError,
+  REGISTRATION_FORM_FIELD_PATHS,
   type RegistrationFormInput,
   RegistrationFormInputSchema,
+  RegistrationFormIssuePath,
+  RegistrationFormMessageKey,
   type RegistrationFormResult,
-  type RegistrationFormValidationErrorCode,
+  RegistrationFormResultSchema,
+  RegistrationFormSuccess,
+  type RegistrationFormTranslator,
   type RegistrationFormValues,
   requiresRegion,
 } from "./components/registration-form-schema";
@@ -28,6 +36,7 @@ export {
   type Actor,
   CompanyActor,
   RegistrationReviewerActor,
+  registrationReviewerActorFromIdentityUser,
   registrationSystemActor,
   SystemActor,
 } from "./domain/actors";
@@ -44,6 +53,7 @@ export {
   CountryCode,
   type CountryCode as CountryCodeType,
   Email,
+  IdentityUserProfile,
   InvitationId,
   PersonName,
   type PersonName as PersonNameType,
@@ -76,6 +86,14 @@ export {
   RevokedRegistrationInvitation,
 } from "./domain/invitations";
 export {
+  DuplicateRegistrationEmail,
+  InvalidRegistrationVatId,
+  RegistrationIntakeFieldPath,
+  RegistrationIntakeValidationError,
+  RegistrationIntakeValidationReason,
+  UnsupportedRegistrationCountry,
+} from "./domain/registration-intake-validation";
+export {
   ApprovedRegistration,
   AwaitingApprovalRegistration,
   CompanyAddress,
@@ -104,29 +122,33 @@ export {
   type CompanyRole as CompanyRoleType,
 } from "./domain/roles";
 export {
-  getRegistrationApprovalHookToken,
-  getRegistrationInvitationHookToken,
-} from "./domain/workflow";
-export {
   CreateRegistrationRequest,
   CreateRegistrationResponse,
   ListRegistrationsQuery,
   ListRegistrationsResponse,
+  REGISTRATION_DECIDE_PERMISSION,
+  REGISTRATION_READ_PERMISSION,
   RegistrationAddressInput,
   RegistrationAlreadyApproved,
   RegistrationAlreadyRejected,
-  RegistrationApiConflict,
+  RegistrationApiAuthenticationUnavailable,
   RegistrationApiError,
+  RegistrationApiForbidden,
   RegistrationApiGroup,
-  RegistrationApiNotFound,
   RegistrationApiUnauthorized,
+  RegistrationDecisionAccessMiddleware,
   RegistrationDecisionAcceptedResponse,
   RegistrationDecisionAlreadyProcessing,
   RegistrationDecisionRequest,
   RegistrationDecisionResponse,
   RegistrationDetailResponse,
   RegistrationHttpApi,
-  RegistrationReviewerInput,
+  RegistrationReadAccessMiddleware,
+  RegistrationReviewerContext,
+  RegistrationSchemaErrorMiddleware,
+  PublicRegistrationConcurrentModification,
+  PublicRegistrationNotFound,
+  PublicRegistrationQueryInvalidCursor,
 } from "./http/registration-api";
 export {
   type AcceptCompanyMemberInvitationInput,
@@ -138,13 +160,8 @@ export {
 } from "./programs/company-member-invitations";
 export {
   checkRegistrationEligibility,
-  DuplicateRegistrationEmail,
-  InvalidRegistrationVatId,
-  RegistrationIntakeValidationError,
-  RegistrationIntakeValidationReason,
   type SubmitRegistrationForReviewInput,
   submitRegistrationForReview,
-  UnsupportedRegistrationCountry,
 } from "./programs/registration-intake";
 export {
   type NotifyRegistrationInput,
@@ -163,8 +180,9 @@ export {
 export {
   type AcceptRegistrationReviewDecisionInput,
   acceptRegistrationReviewDecision,
-  type RegistrationReviewWorkflowDecision,
-  type RegistrationReviewWorkflowReviewer,
+  RegistrationReviewWorkflowDecision,
+  RegistrationReviewWorkflowReviewer,
+  registrationReviewerActorFromWorkflow,
 } from "./programs/registration-review";
 export {
   type AuthorizeIssueInviteInput,
@@ -174,6 +192,7 @@ export {
 } from "./services/company-invitation-policy";
 export {
   IdentityUserLookupFailure,
+  IdentityUserNotFound,
   IdentityUsers,
   normalizedIdentityEmail,
 } from "./services/identity-users";
@@ -190,6 +209,13 @@ export {
   type IssueInvitationInput,
   type RevokeInvitationInput,
 } from "./services/invitations";
+export {
+  RegistrationInvitationEvent,
+  RegistrationWorkflow,
+  RegistrationWorkflowInvitationResumeOutcomeUnknown,
+  RegistrationWorkflowResumeOutcomeUnknown,
+  RegistrationWorkflowStartUnavailable,
+} from "./services/registration-workflow";
 export {
   RegistrationEmailFailure,
   type RegistrationEmailNotification,
@@ -229,9 +255,10 @@ export {
   type CreateAwaitingApprovalRegistrationInput,
   type MarkRegistrationApprovedInput,
   type MarkRegistrationRejectedInput,
-  RegistrationAlreadyExists,
   RegistrationConcurrentModification,
   type RegistrationCreateError,
+  RegistrationDiscardConflict,
+  type RegistrationDiscardError,
   type RegistrationFindByInvitationError,
   RegistrationNotFound,
   RegistrationNotFoundByInvitationId,

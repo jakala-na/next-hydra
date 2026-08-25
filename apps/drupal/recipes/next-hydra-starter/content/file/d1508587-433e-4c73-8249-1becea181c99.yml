@@ -1,0 +1,20 @@
+_meta:
+  version: "1.0"
+  entity_type: file
+  uuid: d1508587-433e-4c73-8249-1becea181c99
+  default_langcode: en
+default:
+  uid:
+    - target_id: 1
+  filename:
+    - value: next-hydra-hero.webp
+  uri:
+    - value: "public://next-hydra/next-hydra-hero.webp"
+  filemime:
+    - value: image/webp
+  filesize:
+    - value: 129774
+  status:
+    - value: true
+  created:
+    - value: 1754352000

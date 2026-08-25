@@ -1,4 +1,5 @@
 import { captureRequestError, init } from "@sentry/nextjs";
+
 import { keys } from "./keys";
 
 const isDevelopment = process.env.NODE_ENV === "development";

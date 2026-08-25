@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/next-config/tsconfig.json"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "next": "catalog:"
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:"
   },
   "dependencies": {
     "@next/bundle-analyzer": "catalog:",

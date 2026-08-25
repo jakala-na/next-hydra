@@ -1,0 +1,497 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "cms-drupal",
+      "type": "registry:item",
+      "title": "Next Hydra Drupal CMS provider",
+      "description": "Installs the Drupal CMS provider package and its Drupal backend app.",
+      "docs": "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
+      "registryDependencies": [
+        "jakala-na/next-hydra/drupal"
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/cms/drupal",
+          "kind": "provider",
+          "slot": "cms",
+          "packages": [
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "name": "@repo/cms",
+              "specifier": "workspace:@repo/cms-drupal@*"
+            }
+          ],
+          "assets": [
+            {
+              "source": "patches/@drupal-canvas__headless-next.patch",
+              "target": "patches/@drupal-canvas__headless-next.patch"
+            },
+            {
+              "source": "patches/@drupal-canvas__headless-react.patch",
+              "target": "patches/@drupal-canvas__headless-react.patch"
+            },
+            {
+              "source": "patches/@drupal-canvas__headless.patch",
+              "target": "patches/@drupal-canvas__headless.patch"
+            },
+            {
+              "source": "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
+              "target": "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp"
+            },
+            {
+              "source": "apps/drupal/recipes/next-hydra-starter/content/file/article-excavator-selection.jpg",
+              "target": "apps/drupal/recipes/next-hydra-starter/content/file/article-excavator-selection.jpg"
+            },
+            {
+              "source": "apps/drupal/recipes/next-hydra-starter/content/file/article-ground-pressure.jpg",
+              "target": "apps/drupal/recipes/next-hydra-starter/content/file/article-ground-pressure.jpg"
+            },
+            {
+              "source": "apps/drupal/recipes/next-hydra-starter/content/file/article-preventive-maintenance.jpg",
+              "target": "apps/drupal/recipes/next-hydra-starter/content/file/article-preventive-maintenance.jpg"
+            }
+          ],
+          "pnpmPatches": [
+            {
+              "dependency": "@drupal-canvas/headless",
+              "path": "patches/@drupal-canvas__headless.patch"
+            },
+            {
+              "dependency": "@drupal-canvas/headless-next",
+              "path": "patches/@drupal-canvas__headless-next.patch"
+            },
+            {
+              "dependency": "@drupal-canvas/headless-react",
+              "path": "patches/@drupal-canvas__headless-react.patch"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": ".env.example",
+          "target": "~/packages/cms-drupal/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "auth.test.ts",
+          "target": "~/packages/cms-drupal/auth.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "auth.ts",
+          "target": "~/packages/cms-drupal/auth.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/article-card/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/article-card/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/article-card/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/article-card/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/article-card/mocks.json",
+          "target": "~/packages/cms-drupal/canvas-components/article-card/mocks.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/article-card/next.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/article-card/next.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/featured-articles/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/featured-articles/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/featured-articles/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/featured-articles/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/featured-articles/mocks.json",
+          "target": "~/packages/cms-drupal/canvas-components/featured-articles/mocks.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/hero/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/hero/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/hero/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/hero/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/hero/mocks.json",
+          "target": "~/packages/cms-drupal/canvas-components/hero/mocks.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/latest-articles/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/latest-articles/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/latest-articles/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/latest-articles/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/product-collection/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/product-collection/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/product-collection/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/product-collection/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/text/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/text/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/text/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/text/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-project.ts",
+          "target": "~/packages/cms-drupal/canvas-project.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas.config.json",
+          "target": "~/packages/cms-drupal/canvas.config.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "client.ts",
+          "target": "~/packages/cms-drupal/client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/blocks/dynamic-product-collection.tsx",
+          "target": "~/packages/cms-drupal/components/blocks/dynamic-product-collection.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/blocks/featured-articles.tsx",
+          "target": "~/packages/cms-drupal/components/blocks/featured-articles.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/blocks/hero-section.tsx",
+          "target": "~/packages/cms-drupal/components/blocks/hero-section.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/canvas-component-tree.tsx",
+          "target": "~/packages/cms-drupal/components/canvas-component-tree.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/canvas-draft-banner.tsx",
+          "target": "~/packages/cms-drupal/components/canvas-draft-banner.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/component-renderer.tsx",
+          "target": "~/packages/cms-drupal/components/component-renderer.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/global-region.tsx",
+          "target": "~/packages/cms-drupal/components/global-region.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/live-preview.tsx",
+          "target": "~/packages/cms-drupal/components/live-preview.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/page-renderer.tsx",
+          "target": "~/packages/cms-drupal/components/page-renderer.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/page.tsx",
+          "target": "~/packages/cms-drupal/components/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/pages/article.tsx",
+          "target": "~/packages/cms-drupal/components/pages/article.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/pages/landing-page.tsx",
+          "target": "~/packages/cms-drupal/components/pages/landing-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "generated/canvas-component-props.ts",
+          "target": "~/packages/cms-drupal/generated/canvas-component-props.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "gql/graphql-cache.d.ts",
+          "target": "~/packages/cms-drupal/gql/graphql-cache.d.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "gql/graphql-env.d.ts",
+          "target": "~/packages/cms-drupal/gql/graphql-env.d.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "gql/schema.graphql",
+          "target": "~/packages/cms-drupal/gql/schema.graphql",
+          "type": "registry:file"
+        },
+        {
+          "path": "graphql.ts",
+          "target": "~/packages/cms-drupal/graphql.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "keys.ts",
+          "target": "~/packages/cms-drupal/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "layout.tsx",
+          "target": "~/packages/cms-drupal/layout.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/cache-tags.test.ts",
+          "target": "~/packages/cms-drupal/lib/cache-tags.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/cache-tags.ts",
+          "target": "~/packages/cms-drupal/lib/cache-tags.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/canvas-cacheability.test.ts",
+          "target": "~/packages/cms-drupal/lib/canvas-cacheability.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/canvas-cacheability.ts",
+          "target": "~/packages/cms-drupal/lib/canvas-cacheability.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/canvas-global-region.test.ts",
+          "target": "~/packages/cms-drupal/lib/canvas-global-region.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/canvas-global-region.ts",
+          "target": "~/packages/cms-drupal/lib/canvas-global-region.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-category.test.ts",
+          "target": "~/packages/cms-drupal/lib/commerce-category.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-category.ts",
+          "target": "~/packages/cms-drupal/lib/commerce-category.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/latest-articles.ts",
+          "target": "~/packages/cms-drupal/lib/latest-articles.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/locale.test.ts",
+          "target": "~/packages/cms-drupal/lib/locale.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/locale.ts",
+          "target": "~/packages/cms-drupal/lib/locale.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/navigation/index.ts",
+          "target": "~/packages/cms-drupal/lib/navigation/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/next-preview.ts",
+          "target": "~/packages/cms-drupal/lib/next-preview.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/preview-context.test.ts",
+          "target": "~/packages/cms-drupal/lib/preview-context.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/preview-context.ts",
+          "target": "~/packages/cms-drupal/lib/preview-context.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/preview-session.ts",
+          "target": "~/packages/cms-drupal/lib/preview-session.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/preview.ts",
+          "target": "~/packages/cms-drupal/lib/preview.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "next-config.ts",
+          "target": "~/packages/cms-drupal/next-config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/cms-drupal/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "pages/home-page.json",
+          "target": "~/packages/cms-drupal/pages/home-page.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "proxy.ts",
+          "target": "~/packages/cms-drupal/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "README.md",
+          "target": "~/packages/cms-drupal/README.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/canvas/components/route.ts",
+          "target": "~/apps/web/app/api/canvas/components/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/disable-draft/route.ts",
+          "target": "~/apps/web/app/api/disable-draft/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/disable-drupal-preview/route.ts",
+          "target": "~/apps/web/app/api/disable-drupal-preview/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/draft/renew/route.ts",
+          "target": "~/apps/web/app/api/draft/renew/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/draft/route.ts",
+          "target": "~/apps/web/app/api/draft/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/drupal-preview/route.ts",
+          "target": "~/apps/web/app/api/drupal-preview/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/canvas.ts",
+          "target": "~/packages/cms-drupal/routes/canvas.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/disable-draft.ts",
+          "target": "~/packages/cms-drupal/routes/disable-draft.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/draft.ts",
+          "target": "~/packages/cms-drupal/routes/draft.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/build-canvas-css.mjs",
+          "target": "~/packages/cms-drupal/scripts/build-canvas-css.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/canvas-workbench-headless-props.test.mjs",
+          "target": "~/packages/cms-drupal/scripts/canvas-workbench-headless-props.test.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/canvas-workbench.config.mjs",
+          "target": "~/packages/cms-drupal/scripts/canvas-workbench.config.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/generate-canvas-component-registry.mjs",
+          "target": "~/packages/cms-drupal/scripts/generate-canvas-component-registry.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/generate-canvas-component-types.mjs",
+          "target": "~/packages/cms-drupal/scripts/generate-canvas-component-types.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/generate-canvas-component-types.test.mjs",
+          "target": "~/packages/cms-drupal/scripts/generate-canvas-component-types.test.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/gql-sync.ts",
+          "target": "~/packages/cms-drupal/scripts/gql-sync.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/workbench-shims/server-only.mjs",
+          "target": "~/packages/cms-drupal/scripts/workbench-shims/server-only.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/cms-drupal/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "turbo.json",
+          "target": "~/packages/cms-drupal/turbo.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "typescript-config.json",
+          "target": "~/packages/cms-drupal/typescript-config.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/cms-drupal/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

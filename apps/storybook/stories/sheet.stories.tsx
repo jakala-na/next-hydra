@@ -15,19 +15,20 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * content of the screen.
  */
 const meta: Meta<typeof SheetContent> = {
-  title: "ui/Sheet",
-  component: Sheet,
-  tags: ["autodocs"],
   argTypes: {
     side: {
-      options: ["top", "bottom", "left", "right"],
       control: {
         type: "radio",
       },
+      options: ["top", "bottom", "left", "right"],
     },
   },
   args: {
     side: "right",
+  },
+  component: Sheet,
+  parameters: {
+    layout: "centered",
   },
   render: (args) => (
     <Sheet>
@@ -56,9 +57,8 @@ const meta: Meta<typeof SheetContent> = {
       </SheetContent>
     </Sheet>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/Sheet",
 } satisfies Meta<typeof SheetContent>;
 
 export default meta;

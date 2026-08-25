@@ -1,0 +1,34 @@
+_meta:
+  version: "1.0"
+  entity_type: node
+  uuid: d128b08b-22c0-4603-8d90-4595df7e6853
+  bundle: article
+  default_langcode: en
+  depends:
+    8ca9c299-9626-4435-87db-27924e2400c3: media
+default:
+  revision_uid:
+    - target_id: 1
+  status:
+    - value: true
+  uid:
+    - target_id: 1
+  title:
+    - value: "Choosing the right excavator for the job"
+  promote:
+    - value: false
+  sticky:
+    - value: false
+  revision_translation_affected:
+    - value: true
+  path:
+    - alias: /resources/choosing-the-right-excavator
+      langcode: en
+  body:
+    - value: "<p>Excavator selection starts with the work envelope: dig depth, lift radius, ground conditions, and access to the site.</p><h2>Start with the work, not the machine</h2><p>Document the heaviest expected lift, the furthest safe working radius, and the narrowest access point. Those constraints quickly narrow the viable operating-weight class.</p><h2>Account for attachments</h2><p>Hydraulic demand, attachment weight, and coupler geometry all affect real capacity. Validate the complete configuration rather than relying on the base machine specification.</p><h2>Plan for transport</h2><p>Transport permits and trailer availability can outweigh a small productivity gain. The best machine is one that can reach the site and work safely throughout the project.</p>"
+      format: basic_html
+      summary: ""
+  field_image:
+    - entity: 8ca9c299-9626-4435-87db-27924e2400c3
+  field_summary:
+    - value: "Match operating weight, reach, and site constraints to the work instead of selecting equipment by bucket size alone."

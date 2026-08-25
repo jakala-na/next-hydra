@@ -1,50 +1,68 @@
+export const locales = [
+  "en-US",
+  "en-GB",
+  "es-ES",
+  "fr-FR",
+  "de-DE",
+  "it-IT",
+  "pt-PT",
+  "nl-NL",
+] as const;
+
+export type SupportedLocale = (typeof locales)[number];
+
 export const regions = [
   {
+    currency: "USD",
     displayCode: "US",
     displayName: "United States (English)",
-    currency: "USD",
     localeCode: "en-US",
   },
   {
+    currency: "GBP",
     displayCode: "GB",
     displayName: "United Kingdom (English)",
-    currency: "GBP",
     localeCode: "en-GB",
   },
   {
+    currency: "EUR",
     displayCode: "ES",
     displayName: "Spain (Spanish)",
-    currency: "EUR",
     localeCode: "es-ES",
   },
   {
+    currency: "EUR",
     displayCode: "FR",
     displayName: "France (French)",
-    currency: "EUR",
     localeCode: "fr-FR",
   },
   {
+    currency: "EUR",
     displayCode: "DE",
     displayName: "Germany (German)",
-    currency: "EUR",
     localeCode: "de-DE",
   },
   {
+    currency: "EUR",
     displayCode: "IT",
     displayName: "Italy (Italian)",
-    currency: "EUR",
     localeCode: "it-IT",
   },
   {
+    currency: "EUR",
     displayCode: "PT",
     displayName: "Portugal (Portuguese)",
-    currency: "EUR",
     localeCode: "pt-PT",
   },
   {
+    currency: "EUR",
     displayCode: "NL",
     displayName: "Netherlands (Dutch)",
-    currency: "EUR",
     localeCode: "nl-NL",
   },
-] as const;
+] as const satisfies readonly {
+  readonly displayCode: string;
+  readonly displayName: string;
+  readonly currency: string;
+  readonly localeCode: SupportedLocale;
+}[];

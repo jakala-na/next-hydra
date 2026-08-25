@@ -3,17 +3,17 @@
 import type {
   AddToCartAction,
   AddToCartInput,
-} from "@repo/commerce/contracts/actions/add-to-cart";
-import type { ChangeCartItemsQuantityAction } from "@repo/commerce/contracts/actions/change-cart-items-quantity";
-import type { RemoveCartItemAction } from "@repo/commerce/contracts/actions/remove-cart-item";
-import type { CartWithIssues } from "@repo/commerce/lib/cart/types";
-import type { Cart, LineItem } from "@repo/commerce/lib/types";
-import type { ActionResult } from "@repo/commerce/lib/utils/errors";
+} from "@repo/commerce/cart/add-to-cart";
+import type { ChangeCartItemsQuantityAction } from "@repo/commerce/cart/change-cart-items-quantity";
+import type { RemoveCartItemAction } from "@repo/commerce/cart/remove-cart-item";
+import type {
+  CartLineItemEncoded,
+  CurrentCartStateEncoded,
+} from "@repo/commerce/domain/cart-snapshot";
 import { useTranslations } from "@repo/i18n";
 import type { CurrencyCode } from "@repo/i18n/types";
 import {
   createContext,
-  type ReactNode,
   use,
   useCallback,
   useContext,
@@ -21,6 +21,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 const CENTS_PER_UNIT = 100 as const;
@@ -32,9 +33,9 @@ type CartActions = {
 };
 
 type CartContextType = {
-  cartPromise: Promise<ActionResult<CartWithIssues>>;
-  cart: CartWithIssues | null;
-  setCart: (cart: CartWithIssues | null) => void;
+  cartPromise: Promise<CurrentCartStateEncoded | null>;
+  cart: CurrentCartStateEncoded | null;
+  setCart: (cart: CurrentCartStateEncoded | null) => void;
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -45,7 +46,7 @@ const CartContext = createContext<CartContextType | null>(null);
 
 type CartProviderProps = {
   children: ReactNode;
-  cartPromise: Promise<ActionResult<CartWithIssues>>;
+  cartPromise: Promise<CurrentCartStateEncoded | null>;
   actions: CartActions;
 };
 
@@ -60,21 +61,25 @@ export function CartProvider({
   cartPromise,
   actions,
 }: CartProviderProps) {
-  const [cart, setCart] = useState<CartWithIssues | null>(null);
+  const [cart, setCart] = useState<CurrentCartStateEncoded | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  const openCart = useCallback(() => setIsOpen(true), []);
-  const closeCart = useCallback(() => setIsOpen(false), []);
+  const openCart = useCallback(() => {
+    setIsOpen(true);
+  }, []);
+  const closeCart = useCallback(() => {
+    setIsOpen(false);
+  }, []);
 
   const value = useMemo(
     () => ({
-      cartPromise,
+      actions,
       cart,
-      setCart,
+      cartPromise,
+      closeCart,
       isOpen,
       openCart,
-      closeCart,
-      actions,
+      setCart,
     }),
     [cartPromise, cart, isOpen, openCart, closeCart, actions]
   );
@@ -97,8 +102,7 @@ export function useCartData() {
   const { cartPromise, cart, setCart } = ctx;
 
   // Resolve promise - this causes suspension!
-  const result = use(cartPromise);
-  const resolvedCart = result?.ok ? (result.data ?? null) : null;
+  const resolvedCart = use(cartPromise);
 
   // Sync resolved cart to shared state on first resolve
   useEffect(() => {
@@ -123,9 +127,9 @@ export function useCartState() {
   }
 
   return {
+    closeCart: ctx.closeCart,
     isOpen: ctx.isOpen,
     openCart: ctx.openCart,
-    closeCart: ctx.closeCart,
   };
 }
 
@@ -143,29 +147,31 @@ export function useCart() {
   }
 
   const {
-    cart: cartWithIssues,
+    cart: currentCart,
     setCart,
     isOpen,
     openCart,
     closeCart,
     actions,
   } = ctx;
-  const cart: Cart | null = cartWithIssues?.cart ?? null;
-  const currencyCode: CurrencyCode = cartWithIssues?.currency ?? "USD";
+  const cart = currentCart?.cart ?? null;
+  const currencyCode: CurrencyCode =
+    (cart?.totalPrice.currencyCode as CurrencyCode | undefined) ?? "USD";
+  const violations = currentCart?.violations ?? [];
 
   const items = useMemo(() => {
     const lineItems = cart?.lineItems ?? [];
-    return lineItems.map((li: LineItem) => {
-      const { id, name, quantity, price, variant } = li;
-      const image = variant?.images?.[0]?.url ?? "";
+    return lineItems.map((lineItem: CartLineItemEncoded) => {
+      const { id, quantity, unitPrice, variant } = lineItem;
+      const image = variant.images[0]?.url ?? "";
 
       return {
         id,
-        name: name || "",
-        variant: "",
-        price: price.value.centAmount / CENTS_PER_UNIT,
-        quantity,
         image,
+        name: variant.name ?? "",
+        price: unitPrice.centAmount / CENTS_PER_UNIT,
+        quantity,
+        variant: "",
       };
     });
   }, [cart]);
@@ -189,13 +195,13 @@ export function useCart() {
   const addItem = useCallback(
     async (input: AddToCartInput) => {
       const result = await actions.addToCart(input);
-      if (result?.data?.ok && result.data.data) {
-        setCart(result.data.data);
-        openCart();
-        toast.success(t("toast.addedToCart"));
-      } else {
+      if (result._tag === "Failure") {
         toast.error(t("toast.failedToAdd"));
+        return;
       }
+      setCart(result.success);
+      openCart();
+      toast.success(t("toast.addedToCart"));
     },
     [actions, setCart, openCart, t]
   );
@@ -203,12 +209,12 @@ export function useCart() {
   const removeItem = useCallback(
     async (id: string) => {
       const result = await actions.removeCartItem({ lineItemId: id });
-      if (result?.data?.ok && result.data.data) {
-        setCart(result.data.data);
-        toast.success(t("toast.removedFromCart"));
-      } else {
+      if (result._tag === "Failure") {
         toast.error(t("toast.failedToRemove"));
+        return;
       }
+      setCart(result.success);
+      toast.success(t("toast.removedFromCart"));
     },
     [actions, setCart, t]
   );
@@ -219,27 +225,28 @@ export function useCart() {
         lineItemId: id,
         quantity,
       });
-      if (result?.data?.ok && result.data.data) {
-        setCart(result.data.data);
-        toast.success(t("toast.updatedQuantity"));
-      } else {
+      if (result._tag === "Failure") {
         toast.error(t("toast.failedToUpdate"));
+        return;
       }
+      setCart(result.success);
+      toast.success(t("toast.updatedQuantity"));
     },
     [actions, setCart, t]
   );
 
   return {
+    addItem,
+    closeCart,
+    currencyCode,
+    isOpen,
     items,
+    openCart,
+    removeItem,
     totalItems,
     totalPrice,
-    currencyCode,
-    addItem,
-    removeItem,
     updateQuantity,
-    isOpen,
-    openCart,
-    closeCart,
+    violations,
   };
 }
 
@@ -261,16 +268,16 @@ export function useCartActions() {
   const addItem = useCallback(
     async (input: AddToCartInput) => {
       const result = await actions.addToCart(input);
-      if (result?.data?.ok && result.data.data) {
-        setCart(result.data.data);
-        openCart();
-        toast.success(t("toast.addedToCart"));
-      } else {
+      if (result._tag === "Failure") {
         toast.error(t("toast.failedToAdd"));
+        return;
       }
+      setCart(result.success);
+      openCart();
+      toast.success(t("toast.addedToCart"));
     },
     [actions, setCart, openCart, t]
   );
 
-  return { isOpen, openCart, closeCart, addItem };
+  return { addItem, closeCart, isOpen, openCart };
 }

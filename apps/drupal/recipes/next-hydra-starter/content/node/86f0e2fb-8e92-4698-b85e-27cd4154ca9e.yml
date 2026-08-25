@@ -1,0 +1,58 @@
+_meta:
+  version: "1.0"
+  entity_type: node
+  uuid: 86f0e2fb-8e92-4698-b85e-27cd4154ca9e
+  bundle: landing_page
+  default_langcode: en
+  depends:
+    d128b08b-22c0-4603-8d90-4595df7e6853: node
+    b883487a-71fa-424a-9881-1b6ac99cd98d: node
+    823f1c6c-ed43-4d95-8632-fb983ee89030: node
+default:
+  revision_uid:
+    - target_id: 1
+  status:
+    - value: true
+  uid:
+    - target_id: 1
+  title:
+    - value: Resources
+  created:
+    - value: 1754697600
+  promote:
+    - value: false
+  sticky:
+    - value: false
+  revision_translation_affected:
+    - value: true
+  path:
+    - alias: /resources
+      langcode: en
+      pathauto: 0
+  field_display_title:
+    - value: "Equipment resources"
+  field_hide_display_title:
+    - value: true
+  field_components:
+    - entity:
+        _meta:
+          version: "1.0"
+          entity_type: paragraph
+          uuid: c184ef8a-268c-4ae7-b1b8-4747139d0ccf
+          bundle: featured_articles
+          default_langcode: en
+        default:
+          status:
+            - value: true
+          created:
+            - value: 1754697600
+          behavior_settings:
+            - value: {}
+          field_heading:
+            - value: "Latest equipment guides"
+          field_description:
+            - value: "Field-ready guidance from the Next Hydra editorial team."
+          field_articles:
+            - entity: d128b08b-22c0-4603-8d90-4595df7e6853
+            - entity: b883487a-71fa-424a-9881-1b6ac99cd98d
+            - entity: 823f1c6c-ed43-4d95-8632-fb983ee89030

@@ -1,132 +1,83 @@
 "use server";
 
-import { getLocale } from "@repo/i18n";
+import { ActionMiddleware } from "@repo/actions";
+import { getTranslations } from "@repo/i18n";
 import { redirect } from "@repo/i18n/navigation";
-import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
-import {
-  type RegistrationFormError,
-  type RegistrationFormFieldError,
-  type RegistrationFormInput,
-  RegistrationFormInputSchema,
-  type RegistrationFormResult,
-  type RegistrationFormValues,
+import type {
+  RegistrationFormResult,
+  RegistrationFormTranslator,
+  RegistrationFormValues,
 } from "@repo/registration";
 import {
-  CreateRegistrationRequest,
-  type RegistrationApiValidationError,
-} from "@repo/registration/http/registration-api";
-import { Effect, Schema } from "effect";
-import { makeRegistrationRestClient } from "./registration-rest-client";
+  RegistrationFormInputSchema,
+  RegistrationFormSuccess,
+} from "@repo/registration";
+import { RegistrationSubmissionPublicError } from "@repo/registration/public-errors";
+import { Effect } from "effect";
 
-const toRegistrationInput = (
-  input: RegistrationFormInput
-): CreateRegistrationRequest =>
-  new CreateRegistrationRequest({
-    companyName: input.companyName,
-    companyPhone: input.companyPhone,
-    vatId: input.vatId,
-    contactFirstName: input.contactFirstName,
-    contactLastName: input.contactLastName,
-    email: input.email,
-    address: {
-      streetName: input.address.streetName,
-      additionalStreetInfo: input.address.additionalStreetInfo,
-      postalCode: input.address.postalCode,
-      city: input.address.city,
-      region: input.address.region,
-      country: input.address.country,
-    },
-  });
+import { Actions } from "./actions";
+import type { WebActionContext } from "./actions";
+import type { RegistrationActionContext } from "./registration-procedures";
+import {
+  submitRegistrationProgram,
+  toRegistrationInputIssues,
+} from "./registration-procedures";
+import { registrationClientLayer } from "./registration-rest-client";
 
-const toValidationErrors = (
-  error: RegistrationApiValidationError
-): RegistrationFormResult => {
-  const fieldErrors: RegistrationFormFieldError[] = [];
-  const formErrors: RegistrationFormError[] = [];
+const AWAITING_APPROVAL_HREF = "/register/awaiting-approval";
 
-  for (const reason of error.reasons) {
-    switch (reason._tag) {
-      case "DuplicateRegistrationEmail":
-        fieldErrors.push({
-          path: reason.path,
-          code: reason.code,
-        });
-        break;
-      case "InvalidRegistrationVatId":
-        fieldErrors.push({
-          path: reason.path,
-          code: reason.code,
-        });
-        break;
-      case "UnsupportedRegistrationCountry":
-        formErrors.push({
-          code: reason.code,
-        });
-        break;
-      default:
-        reason satisfies never;
-    }
-  }
-
-  return {
-    status: "invalid",
-    fieldErrors,
-    formErrors,
-  };
-};
-
-const submitRegistrationProgram = (input: RegistrationFormValues) =>
-  Effect.gen(function* () {
-    const decoded = yield* Schema.decodeUnknownEffect(
-      RegistrationFormInputSchema
-    )(input);
-
-    const client = yield* makeRegistrationRestClient();
-    const registration = yield* client.registrations.create({
-      payload: toRegistrationInput(decoded),
+const registrationTranslations = ActionMiddleware.context<
+  WebActionContext,
+  { readonly t: RegistrationFormTranslator }
+>(({ locale }) =>
+  Effect.promise(async () => {
+    const translate = await getTranslations({
+      locale,
+      namespace: "web.registration.form",
     });
 
     return {
-      status: "submitted",
-      registrationId: registration.registrationId,
-    } satisfies RegistrationFormResult;
-  }).pipe(
-    Effect.catchTags({
-      RegistrationApiValidationError: (error) =>
-        Effect.succeed(toValidationErrors(error)),
-      SchemaError: () =>
-        Effect.succeed({
-          status: "invalid",
-          fieldErrors: [],
-          formErrors: [{ code: "invalidSubmission" }],
-        } satisfies RegistrationFormResult),
-    }),
-    Effect.tapCause((cause) =>
-      Effect.logError("Failed to submit registration form", cause).pipe(
-        Effect.withLogSpan("registration.form.submit.failure")
-      )
-    ),
-    Effect.withSpan("registration.form.submit"),
-    Effect.annotateSpans({
-      "registration.operation": "form.submit",
-    }),
-    Effect.annotateLogs({
-      operation: "registration.form.submit",
-      service: "web",
-    }),
-    Effect.provide(sentryEffectTelemetryLayer)
+      t: (key) => translate(key),
+    };
+  })
+);
+
+// oxlint-disable-next-line react-hooks/rules-of-hooks -- ActionClient.use composes action middleware; it is not a React Hook.
+const RegistrationActions = Actions.use(registrationTranslations).provide(
+  (_context: RegistrationActionContext) => registrationClientLayer()
+);
+
+const submitRegistrationProcedure = RegistrationActions.procedure(
+  "RegistrationForm.submit"
+)
+  .input(RegistrationFormInputSchema)
+  .output(RegistrationFormSuccess)
+  .error(RegistrationSubmissionPublicError)
+  // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect action input mapper, not Promise control flow.
+  .mapInputIssues((error, { t }) => toRegistrationInputIssues(error, t))
+  .handle((decoded, { locale }) =>
+    submitRegistrationProgram(decoded, locale).pipe(
+      // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect combinator, not Promise control flow.
+      Effect.tapDefect((defect) =>
+        Effect.logError("Registration submission defect", defect).pipe(
+          Effect.withLogSpan("registration.form.submit.failure")
+        )
+      ),
+      Effect.annotateSpans({
+        "registration.operation": "form.submit",
+      }),
+      Effect.annotateLogs({
+        operation: "registration.form.submit",
+        service: "web",
+      })
+    )
   );
 
-export async function submitRegistration(
-  awaitingApprovalHref: string,
+const submitRegistrationAction = submitRegistrationProcedure.toAction({
+  onSuccess: (_registration, { locale }) =>
+    redirect({ href: AWAITING_APPROVAL_HREF, locale }),
+});
+
+export const submitRegistration = async (
   input: RegistrationFormValues
-): Promise<RegistrationFormResult> {
-  const result = await Effect.runPromise(submitRegistrationProgram(input));
-
-  if (result.status === "submitted") {
-    const locale = await getLocale();
-    redirect({ href: awaitingApprovalHref, locale });
-  }
-
-  return result;
-}
+): Promise<RegistrationFormResult> => await submitRegistrationAction(input);

@@ -1,20 +1,22 @@
 import type { CommerceAccount } from "@repo/commerce/domain/commerce-account";
+import type { StoreKey } from "@repo/commerce/store";
 import {
-  type StoreConflict,
-  type StoreError,
+  StoreFailureReason,
   VersionedKeyValueStore,
 } from "@repo/versioned-store";
+import type { StoreConflict, StoreError } from "@repo/versioned-store";
 import { Clock, Context, Effect, Layer, Option, Random, Schema } from "effect";
+
 import type { ApprovedDecision, RejectedDecision } from "../domain/approval";
 import { InvitationId, RegistrationId } from "../domain/identity";
 import {
   ApprovalProcessingRegistration,
   ApprovedRegistration,
   AwaitingApprovalRegistration,
-  type CompanyRegistrationDetails,
   Registration,
   RejectedRegistration,
 } from "../domain/registration";
+import type { CompanyRegistrationDetails } from "../domain/registration";
 
 export class RegistrationNotFound extends Schema.TaggedErrorClass<RegistrationNotFound>()(
   "RegistrationNotFound",
@@ -27,18 +29,18 @@ export class RegistrationNotFound extends Schema.TaggedErrorClass<RegistrationNo
 export class RegistrationNotFoundByInvitationId extends Schema.TaggedErrorClass<RegistrationNotFoundByInvitationId>()(
   "RegistrationNotFoundByInvitationId",
   {
-    message: Schema.String,
     invitationId: InvitationId,
+    message: Schema.String,
   }
 ) {}
 
 export class RegistrationTransitionConflict extends Schema.TaggedErrorClass<RegistrationTransitionConflict>()(
   "RegistrationTransitionConflict",
   {
+    attemptedDecision: Schema.Literals(["approved", "rejected"]),
+    currentState: Schema.String,
     message: Schema.String,
     registrationId: RegistrationId,
-    currentState: Schema.String,
-    attemptedDecision: Schema.Literals(["approved", "rejected"]),
   }
 ) {}
 
@@ -50,9 +52,10 @@ export class RegistrationConcurrentModification extends Schema.TaggedErrorClass<
   }
 ) {}
 
-export class RegistrationAlreadyExists extends Schema.TaggedErrorClass<RegistrationAlreadyExists>()(
-  "RegistrationAlreadyExists",
+export class RegistrationDiscardConflict extends Schema.TaggedErrorClass<RegistrationDiscardConflict>()(
+  "RegistrationDiscardConflict",
   {
+    currentState: Schema.String,
     message: Schema.String,
     registrationId: RegistrationId,
   }
@@ -61,10 +64,11 @@ export class RegistrationAlreadyExists extends Schema.TaggedErrorClass<Registrat
 export class RegistrationPersistenceFailure extends Schema.TaggedErrorClass<RegistrationPersistenceFailure>()(
   "RegistrationPersistenceFailure",
   {
-    message: Schema.String,
-    registrationId: RegistrationId,
-    operation: Schema.Literals(["read", "create", "update"]),
     cause: Schema.Defect,
+    message: Schema.String,
+    operation: Schema.Literals(["read", "create", "delete", "update"]),
+    reason: StoreFailureReason,
+    registrationId: RegistrationId,
   }
 ) {}
 
@@ -74,8 +78,10 @@ export type RegistrationReadError =
 export type RegistrationFindByInvitationError =
   | RegistrationNotFoundByInvitationId
   | RegistrationPersistenceFailure;
-export type RegistrationCreateError =
-  | RegistrationAlreadyExists
+export type RegistrationCreateError = RegistrationPersistenceFailure;
+export type RegistrationDiscardError =
+  | RegistrationDiscardConflict
+  | RegistrationConcurrentModification
   | RegistrationPersistenceFailure;
 export type RegistrationTransitionError =
   | RegistrationNotFound
@@ -85,6 +91,7 @@ export type RegistrationTransitionError =
 
 export interface CreateAwaitingApprovalRegistrationInput {
   readonly details: CompanyRegistrationDetails;
+  readonly storeKey: StoreKey;
 }
 
 export interface MarkRegistrationApprovedInput {
@@ -124,10 +131,11 @@ const mapStoreError =
   ) =>
   (error: StoreError) =>
     new RegistrationPersistenceFailure({
-      message: `Failed to ${operation} registration ${registrationId}: ${error.message}`,
-      registrationId,
-      operation,
       cause: error.cause,
+      message: `Failed to ${operation} registration ${registrationId}: ${error.message}`,
+      operation,
+      reason: error.reason,
+      registrationId,
     });
 
 export class Registrations extends Context.Service<
@@ -136,6 +144,9 @@ export class Registrations extends Context.Service<
     readonly createAwaitingApproval: (
       input: CreateAwaitingApprovalRegistrationInput
     ) => Effect.Effect<AwaitingApprovalRegistration, RegistrationCreateError>;
+    readonly discardAwaitingApproval: (
+      id: RegistrationId
+    ) => Effect.Effect<void, RegistrationDiscardError>;
     readonly get: (
       id: RegistrationId
     ) => Effect.Effect<Registration, RegistrationReadError>;
@@ -180,35 +191,83 @@ export class Registrations extends Context.Service<
 
       const createAwaitingApproval = Effect.fn(
         "Registrations.createAwaitingApproval"
-      )(function* (input: CreateAwaitingApprovalRegistrationInput) {
-        const id = RegistrationId.make(yield* Random.nextUUIDv4);
-        const createdAt = yield* nowDate;
-        const registration = new AwaitingApprovalRegistration({
-          _tag: "AwaitingApprovalRegistration",
-          status: "awaiting_approval",
-          id,
-          details: input.details,
-          createdAt,
-          updatedAt: createdAt,
-        });
+      )((input: CreateAwaitingApprovalRegistrationInput) => {
+        const insertWithFreshId = (
+          remainingAttempts: number
+        ): Effect.Effect<
+          AwaitingApprovalRegistration,
+          RegistrationPersistenceFailure
+        > =>
+          Effect.gen(function* () {
+            const id = RegistrationId.make(yield* Random.nextUUIDv4);
+            const createdAt = yield* nowDate;
+            const registration = new AwaitingApprovalRegistration({
+              _tag: "AwaitingApprovalRegistration",
+              createdAt,
+              details: input.details,
+              id,
+              status: "awaiting_approval",
+              storeKey: input.storeKey,
+              updatedAt: createdAt,
+            });
 
-        yield* store
-          .insert(registrationKey(id), Registration, registration)
-          .pipe(
+            yield* store.insert(
+              registrationKey(id),
+              Registration,
+              registration
+            );
+
+            return registration;
+          }).pipe(
             Effect.catchTags({
-              StoreConflict: () =>
-                Effect.fail(
-                  new RegistrationAlreadyExists({
-                    message: `Registration ${id} already exists`,
-                    registrationId: id,
-                  })
-                ),
+              StoreConflict: (error) =>
+                remainingAttempts > 1
+                  ? Effect.suspend(() =>
+                      insertWithFreshId(remainingAttempts - 1)
+                    )
+                  : Effect.die(error),
               StoreError: (error) =>
-                Effect.fail(mapStoreError(id, "create")(error)),
+                Effect.fail(
+                  mapStoreError(RegistrationId.make(error.key), "create")(error)
+                ),
             })
           );
 
-        return registration;
+        return insertWithFreshId(3);
+      });
+
+      const discardAwaitingApproval = Effect.fn(
+        "Registrations.discardAwaitingApproval"
+      )(function* (id: RegistrationId) {
+        const key = registrationKey(id);
+        const current = yield* store
+          .get(key, Registration)
+          .pipe(
+            Effect.catchTag("StoreError", (error) =>
+              Effect.fail(mapStoreError(id, "read")(error))
+            )
+          );
+
+        if (Option.isNone(current)) {
+          return;
+        }
+
+        if (current.value.value._tag !== "AwaitingApprovalRegistration") {
+          return yield* new RegistrationDiscardConflict({
+            currentState: current.value.value._tag,
+            message: `Cannot discard registration ${id} from ${current.value.value._tag}`,
+            registrationId: id,
+          });
+        }
+
+        yield* store.remove(key, current.value).pipe(
+          Effect.catchTags({
+            StoreConflict: (error) =>
+              Effect.fail(mapStoreUpdateConflict(id)(error)),
+            StoreError: (error) =>
+              Effect.fail(mapStoreError(id, "delete")(error)),
+          })
+        );
       });
 
       const findByInvitationId = Effect.fn("Registrations.findByInvitationId")(
@@ -226,8 +285,8 @@ export class Registrations extends Context.Service<
               if (!registration) {
                 return Effect.fail(
                   new RegistrationNotFoundByInvitationId({
-                    message: `Registration for invitation ${invitationId} was not found`,
                     invitationId,
+                    message: `Registration for invitation ${invitationId} was not found`,
                   })
                 );
               }
@@ -273,32 +332,33 @@ export class Registrations extends Context.Service<
           current.value.requestedDecision !== "approved"
         ) {
           return yield* new RegistrationTransitionConflict({
+            attemptedDecision: "approved",
+            currentState: current.value._tag,
             message: `Cannot mark registration ${input.registrationId} as approved from ${current.value._tag}`,
             registrationId: input.registrationId,
-            currentState: current.value._tag,
-            attemptedDecision: "approved",
           });
         }
 
         if (current.value._tag === "RejectedRegistration") {
           return yield* new RegistrationTransitionConflict({
+            attemptedDecision: "approved",
+            currentState: current.value._tag,
             message: `Cannot mark registration ${input.registrationId} as approved from ${current.value._tag}`,
             registrationId: input.registrationId,
-            currentState: current.value._tag,
-            attemptedDecision: "approved",
           });
         }
 
         const updatedAt = yield* nowDate;
         const approved = new ApprovedRegistration({
           _tag: "ApprovedRegistration",
-          status: "approved",
-          id: current.value.id,
-          details: current.value.details,
-          decision: input.decision,
           commerceAccount: input.commerceAccount,
-          invitationId: input.invitationId,
           createdAt: current.value.createdAt,
+          decision: input.decision,
+          details: current.value.details,
+          id: current.value.id,
+          invitationId: input.invitationId,
+          status: "approved",
+          storeKey: current.value.storeKey,
           updatedAt,
         });
 
@@ -354,21 +414,22 @@ export class Registrations extends Context.Service<
 
         if (current.value._tag !== "AwaitingApprovalRegistration") {
           return yield* new RegistrationTransitionConflict({
+            attemptedDecision: input.decision,
+            currentState: current.value._tag,
             message: `Cannot mark registration ${input.registrationId} as ${input.decision} from ${current.value._tag}`,
             registrationId: input.registrationId,
-            currentState: current.value._tag,
-            attemptedDecision: input.decision,
           });
         }
 
         const updatedAt = yield* nowDate;
         const processing = new ApprovalProcessingRegistration({
           _tag: "ApprovalProcessingRegistration",
-          status: "approval_processing",
-          id: current.value.id,
-          details: current.value.details,
-          requestedDecision: input.decision,
           createdAt: current.value.createdAt,
+          details: current.value.details,
+          id: current.value.id,
+          requestedDecision: input.decision,
+          status: "approval_processing",
+          storeKey: current.value.storeKey,
           updatedAt,
         });
 
@@ -415,30 +476,31 @@ export class Registrations extends Context.Service<
           current.value.requestedDecision !== "rejected"
         ) {
           return yield* new RegistrationTransitionConflict({
+            attemptedDecision: "rejected",
+            currentState: current.value._tag,
             message: `Cannot mark registration ${input.registrationId} as rejected from ${current.value._tag}`,
             registrationId: input.registrationId,
-            currentState: current.value._tag,
-            attemptedDecision: "rejected",
           });
         }
 
         if (current.value._tag === "ApprovedRegistration") {
           return yield* new RegistrationTransitionConflict({
+            attemptedDecision: "rejected",
+            currentState: current.value._tag,
             message: `Cannot mark registration ${input.registrationId} as rejected from ${current.value._tag}`,
             registrationId: input.registrationId,
-            currentState: current.value._tag,
-            attemptedDecision: "rejected",
           });
         }
 
         const updatedAt = yield* nowDate;
         const rejected = new RejectedRegistration({
           _tag: "RejectedRegistration",
-          status: "rejected",
-          id: current.value.id,
-          details: current.value.details,
-          decision: input.decision,
           createdAt: current.value.createdAt,
+          decision: input.decision,
+          details: current.value.details,
+          id: current.value.id,
+          status: "rejected",
+          storeKey: current.value.storeKey,
           updatedAt,
         });
 
@@ -456,9 +518,10 @@ export class Registrations extends Context.Service<
 
       return {
         createAwaitingApproval,
+        discardAwaitingApproval,
         findByInvitationId,
-        markApprovalProcessing,
         get,
+        markApprovalProcessing,
         markApproved,
         markRejected,
       };

@@ -22,11 +22,11 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
  * quick access to a consistent set of commands.
  */
 const meta = {
-  title: "ui/Menubar",
-  component: Menubar,
-  tags: ["autodocs"],
   argTypes: {},
-
+  component: Menubar,
+  parameters: {
+    layout: "centered",
+  },
   render: (args) => (
     <Menubar {...args}>
       <MenubarMenu>
@@ -44,9 +44,8 @@ const meta = {
       </MenubarMenu>
     </Menubar>
   ),
-  parameters: {
-    layout: "centered",
-  },
+  tags: ["autodocs"],
+  title: "ui/Menubar",
 } satisfies Meta<typeof Menubar>;
 
 export default meta;

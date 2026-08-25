@@ -18,11 +18,7 @@ import {
   SheetTitle,
 } from "@repo/design-system/components/ui/sheet";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
-import {
-  type ReactHookFormActionErrorMessages,
-  setReactHookFormActionErrors,
-  setReactHookFormRootError,
-} from "@repo/form/react-hook-form";
+import { setReactHookFormRootError } from "@repo/form/react-hook-form";
 import { Schema } from "effect";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
@@ -30,20 +26,21 @@ import { useEffect, useState } from "react";
 import type { SubmitHandler } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+
 import {
   canDecideRegistration,
   getRegistrationDecisionUnavailableMessage,
   registrationStatusLabels,
 } from "./registration-lifecycle";
 import { RegistrationStatusBadge } from "./registration-status-badge";
-import {
-  type ApproveRegistrationInput,
-  DecisionFormSchema,
-  type DecisionFormValues,
-  type RegistrationDecisionFormErrorCode,
-  type RegistrationDecisionResult,
-  type RegistrationDetailView,
-  type RejectRegistrationInput,
+import { DecisionFormSchema } from "./registration-view-models";
+import type {
+  ApproveRegistrationInput,
+  DecisionFormValues,
+  RegistrationDecisionActionFailure,
+  RegistrationDecisionResult,
+  RegistrationDetailView,
+  RejectRegistrationInput,
 } from "./registration-view-models";
 
 type RegistrationDecisionSheetProps = {
@@ -82,6 +79,46 @@ const getAddress = (registration: RegistrationDetailView) =>
     .filter((value): value is string => Boolean(value))
     .join(", ");
 
+const getDecisionErrorMessage = (error: RegistrationDecisionActionFailure) => {
+  switch (error._tag) {
+    case "RegistrationNotFound": {
+      return "This registration could not be found anymore.";
+    }
+    case "RegistrationAlreadyApproved": {
+      return "This registration has already been approved.";
+    }
+    case "RegistrationAlreadyRejected": {
+      return "This registration has already been rejected.";
+    }
+    case "RegistrationConcurrentModification":
+    case "RegistrationTransitionConflict": {
+      return "This registration changed while you were reviewing it. Refresh and try again.";
+    }
+    case "RegistrationDecisionAlreadyProcessing": {
+      return "This registration decision is already being processed.";
+    }
+    case "RegistrationApiUnauthorized": {
+      return "Sign in again before saving this decision.";
+    }
+    case "RegistrationApiForbidden": {
+      return "You no longer have permission to save registration decisions.";
+    }
+    case "InputInvalid": {
+      return "Review the decision and try again.";
+    }
+    case "RegistrationApiAuthenticationUnavailable":
+    case "RegistrationApiError": {
+      return "The decision could not be saved. Please try again.";
+    }
+    case "RegistrationDecisionOutcomeUnknown": {
+      return error.message;
+    }
+    default: {
+      return error satisfies never;
+    }
+  }
+};
+
 export function RegistrationDecisionSheet({
   approve,
   closeHref,
@@ -93,31 +130,15 @@ export function RegistrationDecisionSheet({
   const [isOpen, setIsOpen] = useState(Boolean(registration));
   const registrationId = registration?.registrationId;
   const form = useForm<DecisionFormValues>({
-    resolver: standardSchemaResolver(
-      Schema.toStandardSchemaV1(DecisionFormSchema)
-    ),
     defaultValues: {
       reason: registration?.approvalReason ?? "",
     },
+    resolver: standardSchemaResolver(
+      Schema.toStandardSchemaV1(DecisionFormSchema)
+    ),
   });
   const submitError = form.formState.errors.root?.serverError?.message;
-  const isSubmitting = form.formState.isSubmitting;
-  const actionErrorMessages = {
-    field: {},
-    form: {
-      registrationAlreadyApproved:
-        "This registration has already been approved.",
-      registrationAlreadyRejected:
-        "This registration has already been rejected.",
-      registrationDecisionAlreadyProcessing:
-        "This registration decision is already being processed.",
-      registrationNotFound: "This registration could not be found anymore.",
-    },
-  } satisfies ReactHookFormActionErrorMessages<
-    never,
-    RegistrationDecisionFormErrorCode
-  >;
-
+  const { isSubmitting } = form.formState;
   useEffect(() => {
     setIsOpen(Boolean(registrationId));
     form.clearErrors("root");
@@ -141,47 +162,46 @@ export function RegistrationDecisionSheet({
     async (values) => {
       form.clearErrors("root");
 
-      try {
-        const action = decision === "approved" ? approve : reject;
+      const action = decision === "approved" ? approve : reject;
 
-        if (!action) {
-          setReactHookFormRootError(form, "This decision is not available.");
+      if (!action) {
+        setReactHookFormRootError(form, "This decision is not available.");
+        return;
+      }
+
+      const result = await action({
+        registrationId: registration.registrationId,
+        ...(values.reason ? { reason: values.reason } : {}),
+      });
+
+      switch (result._tag) {
+        case "Success": {
+          form.clearErrors("root");
+          form.reset({ reason: "" });
+          setIsOpen(false);
+          toast.success(
+            `Registration ${registrationStatusLabels[
+              result.success.registrationStatus
+            ].toLowerCase()}.`
+          );
+          router.replace(closeHref as Route);
+          router.refresh();
           return;
         }
-
-        const result = await action({
-          registrationId: registration.registrationId,
-          ...(values.reason ? { reason: values.reason } : {}),
-        });
-
-        switch (result.status) {
-          case "accepted":
-            form.clearErrors("root");
-            form.reset({ reason: "" });
-            setIsOpen(false);
-            toast.success(
-              `Registration ${registrationStatusLabels[
-                result.registrationStatus
-              ].toLowerCase()}.`
-            );
-            router.replace(closeHref as Route);
-            router.refresh();
-            return;
-          case "invalid":
-            setReactHookFormActionErrors(form, result, actionErrorMessages);
-            return;
-          default:
-            result satisfies never;
+        case "Failure": {
+          setReactHookFormRootError(
+            form,
+            getDecisionErrorMessage(result.failure)
+          );
+          return;
         }
-      } catch {
-        setReactHookFormRootError(
-          form,
-          "The decision could not be saved. Please try again."
-        );
+        default: {
+          result satisfies never;
+        }
       }
     };
 
-  const submitDecision = (decision: "approved" | "rejected") =>
+  const submitDecision = async (decision: "approved" | "rejected") =>
     form.handleSubmit(handleSubmitDecision(decision))();
 
   const reviewer =
@@ -322,7 +342,9 @@ export function RegistrationDecisionSheet({
             <Form {...form}>
               <form
                 className="grid gap-4"
-                onSubmit={(event) => event.preventDefault()}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                }}
               >
                 <FormField
                   control={form.control}
@@ -352,7 +374,7 @@ export function RegistrationDecisionSheet({
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                   <Button
                     disabled={!canSubmitDecision || isSubmitting}
-                    onClick={() => submitDecision("rejected")}
+                    onClick={async () => submitDecision("rejected")}
                     type="button"
                     variant="outline"
                   >
@@ -360,7 +382,7 @@ export function RegistrationDecisionSheet({
                   </Button>
                   <Button
                     disabled={!canSubmitDecision || isSubmitting}
-                    onClick={() => submitDecision("approved")}
+                    onClick={async () => submitDecision("approved")}
                     type="button"
                   >
                     {isSubmitting ? "Saving..." : "Approve registration"}

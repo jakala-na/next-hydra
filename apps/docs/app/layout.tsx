@@ -1,7 +1,9 @@
 import { VercelAnalytics } from "@repo/analytics/vercel";
 import { RootProvider } from "fumadocs-ui/provider/next";
+
 import "./global.css";
 import { Inter, JetBrains_Mono } from "next/font/google";
+
 import { cn } from "@/lib/utils";
 
 const jetbrainsMono = JetBrains_Mono({

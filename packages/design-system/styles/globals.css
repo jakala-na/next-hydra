@@ -217,3 +217,159 @@
   --tw-prose-invert-th-borders: var(--color-border);
   --tw-prose-invert-td-borders: var(--color-border);
 }
+
+/* Opt-in educational overlays for the Next Hydra architecture demo. */
+@layer components {
+  .architecture-boundary {
+    display: contents;
+  }
+
+  .architecture-boundary__label {
+    display: none;
+  }
+
+  html[data-architecture-overlay-mode]:not(
+      [data-architecture-overlay-mode="off"]
+    )
+    .architecture-boundary {
+    --architecture-color: var(--color-muted-foreground);
+    --architecture-tint: color-mix(
+      in oklab,
+      var(--architecture-color) 7%,
+      transparent
+    );
+    position: relative;
+    display: block;
+    padding: 2rem 0.5rem 0.5rem;
+    margin-block: 0.5rem;
+    background: var(--architecture-tint);
+    border: 2px dashed var(--architecture-color);
+    border-radius: var(--radius-lg);
+  }
+
+  html[data-architecture-overlay-mode]:not(
+      [data-architecture-overlay-mode="off"]
+    )
+    .architecture-boundary__label {
+    position: absolute;
+    top: 0.35rem;
+    left: 0.5rem;
+    z-index: 40;
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    max-width: calc(100% - 1rem);
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1rem;
+    color: var(--architecture-color);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .architecture-boundary__name,
+  .architecture-boundary__dimension {
+    padding: 0.1rem 0.35rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: var(--color-background);
+    border: 1px solid color-mix(in oklab, var(--architecture-color) 55%, white);
+    border-radius: 0.25rem;
+  }
+
+  .architecture-boundary__dimension {
+    display: none;
+  }
+
+  html[data-architecture-overlay-mode="rendering"]
+    [data-architecture-label="rendering"],
+  html[data-architecture-overlay-mode="components"]
+    [data-architecture-label="components"],
+  html[data-architecture-overlay-mode="sources"]
+    [data-architecture-label="sources"],
+  html[data-architecture-overlay-mode="layers"]
+    [data-architecture-label="layers"] {
+    display: inline-block;
+  }
+
+  html[data-architecture-overlay-mode="rendering"]
+    [data-architecture-rendering="static"] {
+    --architecture-color: oklch(0.58 0.16 58);
+  }
+
+  html[data-architecture-overlay-mode="rendering"]
+    [data-architecture-rendering="cached"] {
+    --architecture-color: oklch(0.53 0.15 158);
+  }
+
+  html[data-architecture-overlay-mode="rendering"]
+    [data-architecture-rendering="streamed"] {
+    --architecture-color: oklch(0.58 0.2 285);
+  }
+
+  html[data-architecture-overlay-mode="rendering"]
+    [data-architecture-rendering="dynamic"] {
+    --architecture-color: oklch(0.58 0.2 250);
+  }
+
+  html[data-architecture-overlay-mode="components"]
+    [data-architecture-component="server"] {
+    --architecture-color: oklch(0.58 0.22 28);
+  }
+
+  html[data-architecture-overlay-mode="components"]
+    [data-architecture-component="client"] {
+    --architecture-color: oklch(0.58 0.2 250);
+  }
+
+  html[data-architecture-overlay-mode="sources"]
+    [data-architecture-source="app"] {
+    --architecture-color: oklch(0.5 0.03 250);
+  }
+
+  html[data-architecture-overlay-mode="sources"]
+    [data-architecture-source="cms"] {
+    --architecture-color: oklch(0.58 0.2 305);
+  }
+
+  html[data-architecture-overlay-mode="sources"]
+    [data-architecture-source="commerce"] {
+    --architecture-color: oklch(0.62 0.18 55);
+  }
+
+  html[data-architecture-overlay-mode="sources"]
+    [data-architecture-source="design-system"] {
+    --architecture-color: oklch(0.54 0.13 190);
+  }
+
+  html[data-architecture-overlay-mode="layers"]
+    [data-architecture-layer="shell"] {
+    --architecture-color: oklch(0.5 0.03 250);
+  }
+
+  html[data-architecture-overlay-mode="layers"]
+    [data-architecture-layer="route"] {
+    --architecture-color: oklch(0.58 0.2 330);
+  }
+
+  html[data-architecture-overlay-mode="layers"]
+    [data-architecture-layer="block"] {
+    --architecture-color: oklch(0.58 0.2 305);
+  }
+
+  html[data-architecture-overlay-mode="layers"]
+    [data-architecture-layer="orchestration"] {
+    --architecture-color: oklch(0.62 0.18 55);
+  }
+
+  html[data-architecture-overlay-mode="layers"]
+    [data-architecture-layer="presentation"] {
+    --architecture-color: oklch(0.54 0.13 190);
+  }
+
+  html[data-architecture-overlay-mode="layers"]
+    [data-architecture-layer="interactive"] {
+    --architecture-color: oklch(0.58 0.2 250);
+  }
+}

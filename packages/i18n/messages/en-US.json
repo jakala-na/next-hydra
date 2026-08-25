@@ -27,6 +27,9 @@
       "products": "Products",
       "categoryFallback": "Category"
     },
+    "article": {
+      "readGuide": "Read guide"
+    },
     "cart": {
       "title": "Shopping Cart ({count})",
       "empty": {
@@ -140,7 +143,8 @@
         "errors": {
           "invalidSubmission": "Please review the highlighted fields and try again.",
           "unsupportedRegistrationCountry": "We cannot accept company registrations from this country yet.",
-          "submitFailed": "We could not submit your registration right now. Please try again."
+          "submitFailed": "We could not submit your registration right now. Please try again.",
+          "submissionOutcomeUnknown": "We could not confirm whether your registration was received. Contact support before submitting it again."
         },
         "validation": {
           "companyName": "Enter your company name.",
@@ -186,6 +190,120 @@
           "title": "Your company registration is still under review.",
           "description": "We will email next steps once your company has been approved."
         }
+      }
+    },
+    "checkout": {
+      "steps": {
+        "contact": "Contact",
+        "deliveryDetails": "Delivery details",
+        "shippingOptions": "Shipping options",
+        "paymentOptions": "Payment options",
+        "reviewOrder": "Review order"
+      },
+      "status": {
+        "complete": "Complete",
+        "incomplete": "Incomplete"
+      },
+      "activeStep": "Active step",
+      "attention": "This step needs attention",
+      "errorBoundary": {
+        "tryAgain": "Try again"
+      },
+      "cart": {
+        "title": "Cart",
+        "items": "{count, plural, one {# item} other {# items}}",
+        "quantity": "Qty {quantity}",
+        "violations": "Checkout issues",
+        "subtotal": "Subtotal"
+      },
+      "contact": {
+        "fields": {
+          "email": "Email",
+          "firstName": "First name",
+          "lastName": "Last name",
+          "phone": "Phone"
+        },
+        "actions": {
+          "save": "Save contact",
+          "saving": "Saving...",
+          "useCustomerProfile": "Use customer profile"
+        }
+      },
+      "deliveryDetails": {
+        "addressBook": {
+          "chooseShippingAddress": "Choose a shipping address",
+          "defaultShipping": "Default shipping address",
+          "makeDefaultShipping": "Make default shipping address",
+          "saveShippingAddress": "Save this shipping address",
+          "useNewAddress": "Use a new address"
+        },
+        "fields": {
+          "addressLine1": "Address line 1",
+          "addressLine2": "Address line 2",
+          "city": "City",
+          "postalCode": "Postal code",
+          "region": "Region",
+          "country": "Country"
+        },
+        "actions": {
+          "save": "Save delivery details",
+          "saving": "Saving..."
+        }
+      },
+      "errors": {
+        "addressBook": {
+          "accessDenied": "The address book is unavailable for this checkout.",
+          "providerFailure": "Saved addresses could not be loaded. Try again."
+        },
+        "badRequest": "The checkout request is invalid.",
+        "cartMismatch": "This checkout is no longer current. Refresh and try again.",
+        "internal": "Checkout could not be completed. Try again.",
+        "deliveryDetails": {
+          "addressBookEntryUnavailable": "This saved address is no longer available.",
+          "invalidInput": "Enter address line 1, postal code, city, and country.",
+          "sourceUnavailable": "This delivery details source is unavailable for this checkout.",
+          "providerFailure": "Delivery details could not be saved. Try again.",
+          "unsupported": "This delivery details source is not supported yet."
+        },
+        "notFound": "Checkout was not found for the current request.",
+        "versionConflict": "Checkout changed before your details could be saved. Refresh and try again.",
+        "saveContact": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "CheckoutCustomerProfileIncomplete": "Your customer profile is missing required contact information. Enter it below to continue.",
+          "CheckoutMutationSchemaFailure": "Enter an email, first name, and last name.",
+          "CheckoutMutationOutcomeUnknown": "We could not confirm whether your contact details were saved. Refresh before trying again.",
+          "CheckoutMutationSourceUnavailable": "This contact source is unavailable for this checkout.",
+          "CheckoutMutationProviderFailure": "Contact could not be saved. Try again.",
+          "CommerceAccountUnavailable": "Contact could not be saved. Try again.",
+          "CommerceRequestFailure": "Contact could not be saved. Try again.",
+          "CheckoutMutationUnsupported": "This contact source is not supported yet.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your details could be saved. Refresh and try again."
+        },
+        "saveDeliveryDetails": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "CheckoutMutationAddressBookEntryUnavailable": "This saved address is no longer available.",
+          "CheckoutMutationSchemaFailure": "Enter address line 1, postal code, city, and country.",
+          "CheckoutMutationOutcomeUnknown": "We could not confirm whether your delivery details were saved. Refresh before trying again.",
+          "CheckoutMutationSourceUnavailable": "This delivery details source is unavailable for this checkout.",
+          "CheckoutMutationProviderFailure": "Delivery details could not be saved. Try again.",
+          "CommerceAccountUnavailable": "Delivery details could not be saved. Try again.",
+          "CommerceRequestFailure": "Delivery details could not be saved. Try again.",
+          "CheckoutMutationUnsupported": "This delivery details source is not supported yet.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your details could be saved. Refresh and try again."
+        }
+      },
+      "violations": {
+        "unknownCountry": "this destination",
+        "shippingCountryUnavailable": "Shipping to {country} is unavailable.",
+        "guestItemLimit": "Guest carts are limited to {maxQuantity} items. Remove at least {excessQuantity, plural, one {# item} other {# items}}.",
+        "incompatibleCartItems": "These cart items cannot be purchased together.",
+        "shippingAddressRestricted": "This address cannot receive one or more cart items.",
+        "policyUnavailable": "Checkout availability could not be verified.",
+        "generic": "Checkout cannot continue until this issue is resolved."
       }
     }
   }
