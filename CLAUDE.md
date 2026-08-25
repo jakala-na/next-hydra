@@ -23,6 +23,8 @@ The Effect v4 repository is cloned to `~/.local/share/effect-solutions/effect` f
 
 Issues and specs are tracked as local markdown under `.scratch/`. See `docs/agents/issue-tracker.md`.
 
+Put ad hoc research in the gitignored `.scratch/research/` directory. Only keep research under a tracked `.scratch/<effort>/research/` directory when resolving a claimed Wayfinder ticket and the artifact needs a durable link from that ticket or its map. Never create loose research notes directly under `.scratch/`.
+
 ### Triage labels
 
 Triage uses the default five-role vocabulary. See `docs/agents/triage-labels.md`.

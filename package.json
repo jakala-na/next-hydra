@@ -26,8 +26,11 @@
     "version:cli": "pnpm dlx @changesets/cli version"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
+    "*.{js,jsx,ts,tsx}": [
       "ultracite fix"
+    ],
+    "*.{json,jsonc,css,scss,md,mdx}": [
+      "oxfmt --write"
     ]
   },
   "dependencies": {
