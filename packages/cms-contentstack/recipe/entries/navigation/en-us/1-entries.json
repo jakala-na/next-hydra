@@ -1,0 +1,43 @@
+{
+  "bltnexthydranav001": {
+    "locale": "en-us",
+    "main_navigation": {
+      "items": [
+        {
+          "children": [],
+          "internal_content": [
+            {
+              "_content_type_uid": "landing_page",
+              "uid": "bltnexthydrahome01"
+            }
+          ],
+          "label": "Home"
+        },
+        {
+          "children": [
+            {
+              "description": "Explore the full heavy machinery catalog.",
+              "external_url": "/products",
+              "icon": "Truck",
+              "label": "All equipment"
+            }
+          ],
+          "external_url": "/products",
+          "label": "Equipment"
+        }
+      ]
+    },
+    "publish_details": [
+      {
+        "environment": "bltnexthydradev01",
+        "locale": "en-us"
+      },
+      {
+        "environment": "bltnexthydraprd01",
+        "locale": "en-us"
+      }
+    ],
+    "title": "Main navigation",
+    "uid": "bltnexthydranav001"
+  }
+}

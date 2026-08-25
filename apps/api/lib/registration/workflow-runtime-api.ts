@@ -12,10 +12,10 @@ import type {
 import { Effect, Layer, Schema } from "effect";
 import { HookNotFoundError, WorkflowRuntimeError } from "workflow/errors";
 
-class RegistrationWorkflowRejection extends Schema.TaggedErrorClass<RegistrationWorkflowRejection>()(
+class RegistrationWorkflowRejection extends Schema.TaggedError<RegistrationWorkflowRejection>()(
   "RegistrationWorkflowRejection",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
   }
 ) {}
 

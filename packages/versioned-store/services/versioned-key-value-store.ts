@@ -15,7 +15,7 @@ export interface Versioned<A> {
   readonly version: StoreVersion;
 }
 
-export class StoreConflict extends Schema.TaggedErrorClass<StoreConflict>()(
+export class StoreConflict extends Schema.TaggedError<StoreConflict>()(
   "StoreConflict",
   {
     key: Schema.String,
@@ -31,10 +31,10 @@ export const StoreFailureReason = Schema.Literals([
 ]);
 export type StoreFailureReason = typeof StoreFailureReason.Type;
 
-export class StoreError extends Schema.TaggedErrorClass<StoreError>()(
+export class StoreError extends Schema.TaggedError<StoreError>()(
   "StoreError",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     key: Schema.String,
     message: Schema.String,
     operation: Schema.Literals(["read", "insert", "remove", "update"]),

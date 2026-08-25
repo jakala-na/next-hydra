@@ -41,6 +41,14 @@ NODE_OPTIONS=--use-system-ca pnpm --filter web dev
 
 The Drupal installer prints the prefixed previewer and viewer variables after creating the OAuth consumers. It also prints `CMS_REVALIDATION_SECRET` for the consuming web application. Keep those values out of version control.
 
+Run the installer through the provider-neutral workspace command:
+
+```bash
+pnpm cli cms provision
+```
+
+The command delegates to `ddev install` in `apps/drupal` by default and inherits stdin, stdout, and stderr, so the DDEV recipe output and prompts remain visible in the current terminal. Pass `--app-directory` to target another DDEV project.
+
 ## Cache revalidation
 
 Published non-Canvas pages use one cached Drupal `route(path:)` query with the `hours` Cache Components profile. The returned entity's `__typename` selects its Hydra page template, and the page template's component renderer maps its Paragraphs. A successful page is tagged with its Drupal entity cache tag, such as `node:1`. Page components can contribute additional dependencies: Featured Articles adds the `node:{id}` tag of every referenced Article. Editing an Article therefore invalidates its own cached route and any cached landing page that renders it, without evicting every landing page or Article. Missing or unsupported routes use a zero-expiry cache life, so they remain dynamic instead of becoming a persistent 404 cache entry. Published main-menu queries use the `days` profile and the `menu` tag. Preview reads bypass shared caches.

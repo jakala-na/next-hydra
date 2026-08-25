@@ -1,15 +1,14 @@
 #!/usr/bin/env jiti
 
-import {
-  environmentFileFromArguments,
-  loadEnvironmentFile,
-} from "./environment";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
+import { Effect } from "effect";
+import { CliConfig, Command } from "effect/unstable/cli";
 
-loadEnvironmentFile(environmentFileFromArguments(process.argv));
+import { createProgram, workspaceCliConfig } from "./program";
 
-const [{ env }, { createProgram }] = await Promise.all([
-  import("../env"),
-  import("./program"),
-]);
-const program = createProgram(env);
-await program.parseAsync();
+const main = Command.run(createProgram(), { version: "0.0.0" }).pipe(
+  Effect.provideService(CliConfig.CliConfig, workspaceCliConfig),
+  Effect.provide(NodeServices.layer)
+);
+
+NodeRuntime.runMain(main);

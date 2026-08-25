@@ -132,7 +132,16 @@ describe("Next Hydra source registry", () => {
       "apps/web/app/api/canvas/components/route.ts"
     );
     expect(drupal.pnpmPatches).toHaveLength(DRUPAL_PNPM_PATCH_COUNT);
-    expect(contentstack.pnpmPatches).toStrictEqual([]);
+    expect(contentstack.pnpmPatches).toStrictEqual([
+      {
+        dependency: "@contentstack/cli-cm-import@2.0.0",
+        path: "patches/@contentstack__cli-cm-import@2.0.0.patch",
+      },
+      {
+        dependency: "@contentstack/cli-migration@2.0.0",
+        path: "patches/@contentstack__cli-migration@2.0.0.patch",
+      },
+    ]);
     expect(drupal.instructions).toStrictEqual([
       "Configure the WorkOS environment variables described by packages/auth-workos before starting the applications.",
       "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",

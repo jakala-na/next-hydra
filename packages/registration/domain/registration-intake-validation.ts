@@ -38,7 +38,7 @@ export const RegistrationIntakeValidationReason = Schema.Union([
 export type RegistrationIntakeValidationReason =
   typeof RegistrationIntakeValidationReason.Type;
 
-export class RegistrationIntakeValidationError extends Schema.TaggedErrorClass<RegistrationIntakeValidationError>()(
+export class RegistrationIntakeValidationError extends Schema.TaggedError<RegistrationIntakeValidationError>()(
   "RegistrationIntakeValidationError",
   {
     message: Schema.String,

@@ -4,10 +4,10 @@ import type { CategoryId, ProductSlug } from "@repo/commerce/product";
 import type { CommerceLocale, StoreKey } from "@repo/commerce/store";
 import { Context, Effect, Layer, Schema } from "effect";
 
-export class CommercetoolsProductRequestFailure extends Schema.TaggedErrorClass<CommercetoolsProductRequestFailure>()(
+export class CommercetoolsProductRequestFailure extends Schema.TaggedError<CommercetoolsProductRequestFailure>()(
   "CommercetoolsProductRequestFailure",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   }
 ) {}

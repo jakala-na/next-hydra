@@ -7,7 +7,7 @@ export const RegistrationWorkflowHookName = Schema.Literals([
 export type RegistrationWorkflowHookName =
   typeof RegistrationWorkflowHookName.Type;
 
-export class RegistrationWorkflowHookPayloadValidationError extends Schema.TaggedErrorClass<RegistrationWorkflowHookPayloadValidationError>()(
+export class RegistrationWorkflowHookPayloadValidationError extends Schema.TaggedError<RegistrationWorkflowHookPayloadValidationError>()(
   "RegistrationWorkflowHookPayloadValidationError",
   {
     hook: RegistrationWorkflowHookName,

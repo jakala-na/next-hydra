@@ -1,14 +1,15 @@
-/* oxlint-disable no-console -- CLI commands write user-facing output. */
+/* oxlint-disable no-await-in-loop -- Migrations are ordered and must be applied serially. */
 
 import { fileURLToPath } from "node:url";
 
 import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import chalk from "chalk";
-import { Command } from "commander";
+import { Console, Effect, Option } from "effect";
+import { Argument, CliError, Command, Flag } from "effect/unstable/cli";
 import ora from "ora";
+import type { Ora } from "ora";
 
-import { createCommercetoolsClient } from "../client";
-import type { CommerceCliEnvironmentProvider } from "../environment";
+import { CommercetoolsRestClient } from "../../client/rest-client";
 import { createMigration } from "../migration-generator";
 import {
   getAppliedMigrations,
@@ -20,10 +21,6 @@ import {
 const MIGRATIONS_DIRECTORY = fileURLToPath(
   new URL("../../migrations/scripts", import.meta.url)
 );
-
-type MigrateOptions = {
-  readonly dryRun?: boolean;
-};
 
 const pendingMigrations = async (apiRoot: ByProjectKeyRequestBuilder) => {
   const migrations = await loadMigrations(MIGRATIONS_DIRECTORY);
@@ -41,133 +38,160 @@ const printPendingMigrations = (
     readonly description: string;
     readonly fileName: string;
   }[]
-) => {
-  for (const migration of pending) {
-    console.log(`  - ${migration.fileName}`);
-    console.log(`    ${chalk.dim(migration.description)}`);
-  }
-};
+) =>
+  Effect.forEach(
+    pending,
+    (migration) =>
+      Console.log(`  - ${migration.fileName}`).pipe(
+        Effect.andThen(Console.log(`    ${chalk.dim(migration.description)}`))
+      ),
+    { discard: true }
+  );
 
-export const createMigrateCommand = (
-  environment: CommerceCliEnvironmentProvider
-): Command => {
-  const migrateCommand = new Command("migrate")
-    .description("Apply pending Commercetools schema migrations")
-    .option("--dry-run", "Show pending migrations without applying them")
-    .action(async (options: MigrateOptions) => {
-      const spinner = ora("Loading migrations").start();
+const tryCommandPromise = <A>(
+  spinner: Ora,
+  failureMessage: string,
+  evaluate: () => Promise<A>
+) =>
+  Effect.tryPromise({
+    catch: (cause) => {
+      spinner.fail(failureMessage);
+      return new CliError.UserError({ cause });
+    },
+    try: evaluate,
+  });
 
-      try {
-        const apiRoot = createCommercetoolsClient(environment());
-        const result = await pendingMigrations(apiRoot);
+// oxlint-disable-next-line max-lines-per-function -- Keeps the command tree and its handlers discoverable together.
+export const createMigrateCommand = () => {
+  const migrate = Command.make(
+    "migrate",
+    {
+      dryRun: Flag.boolean("dry-run").pipe(
+        Flag.withDescription("Show pending migrations without applying them"),
+        Flag.withDefault(false)
+      ),
+    },
+    ({ dryRun }) =>
+      Effect.gen(function* () {
+        const { apiRoot } = yield* CommercetoolsRestClient;
+        const spinner = ora("Loading migrations").start();
+
+        const result = yield* tryCommandPromise(
+          spinner,
+          "Migration failed",
+          async () => await pendingMigrations(apiRoot)
+        );
         spinner.stop();
 
         if (result.pending.length === 0) {
-          console.log(chalk.green("✓ No pending migrations"));
+          yield* Console.log(chalk.green("✓ No pending migrations"));
           return;
         }
 
-        console.log(
+        yield* Console.log(
           chalk.yellow(`${result.pending.length} pending migration(s):`)
         );
-        printPendingMigrations(result.pending);
+        yield* printPendingMigrations(result.pending);
 
-        if (options.dryRun) {
-          console.log(chalk.blue("\n[DRY RUN] No migrations were applied"));
+        if (dryRun) {
+          yield* Console.log(
+            chalk.blue("\n[DRY RUN] No migrations were applied")
+          );
           return;
         }
 
         for (const migration of result.pending) {
           spinner.start(`Applying ${migration.fileName}`);
-          await migration.up(apiRoot);
-          await recordMigration(apiRoot, migration.key);
+          yield* tryCommandPromise(spinner, "Migration failed", async () => {
+            await migration.up(apiRoot);
+            await recordMigration(apiRoot, migration.key);
+          });
           spinner.succeed(`Applied ${migration.fileName}`);
         }
-      } catch (error) {
-        spinner.fail("Migration failed");
-        console.error(error);
-        process.exitCode = 1;
-      }
-    });
+      })
+  ).pipe(
+    Command.withDescription("Apply pending Commercetools schema migrations")
+  );
 
-  migrateCommand
-    .command("status")
-    .description("Show applied and pending migrations")
-    .action(async () => {
+  const status = Command.make("status", {}, () =>
+    Effect.gen(function* () {
+      const { apiRoot } = yield* CommercetoolsRestClient;
       const spinner = ora("Loading migration status").start();
 
-      try {
-        const result = await pendingMigrations(
-          createCommercetoolsClient(environment())
-        );
-        spinner.stop();
+      const result = yield* tryCommandPromise(
+        spinner,
+        "Failed to load migration status",
+        async () => await pendingMigrations(apiRoot)
+      );
+      spinner.stop();
 
-        console.log(chalk.blue("Migration status:"));
-        console.log(`  Total: ${result.migrations.length}`);
-        console.log(`  Applied: ${result.applied.length}`);
-        console.log(`  Pending: ${result.pending.length}`);
+      yield* Console.log(chalk.blue("Migration status:"));
+      yield* Console.log(`  Total: ${result.migrations.length}`);
+      yield* Console.log(`  Applied: ${result.applied.length}`);
+      yield* Console.log(`  Pending: ${result.pending.length}`);
 
-        if (result.pending.length > 0) {
-          console.log(chalk.yellow("\nPending migrations:"));
-          printPendingMigrations(result.pending);
-        }
-      } catch (error) {
-        spinner.fail("Failed to load migration status");
-        console.error(error);
-        process.exitCode = 1;
+      if (result.pending.length > 0) {
+        yield* Console.log(chalk.yellow("\nPending migrations:"));
+        yield* printPendingMigrations(result.pending);
       }
-    });
+    })
+  ).pipe(Command.withDescription("Show applied and pending migrations"));
 
-  migrateCommand
-    .command("plan")
-    .description("Show pending migrations without applying them")
-    .action(async () => {
+  const plan = Command.make("plan", {}, () =>
+    Effect.gen(function* () {
+      const { apiRoot } = yield* CommercetoolsRestClient;
       const spinner = ora("Planning migrations").start();
 
-      try {
-        const result = await pendingMigrations(
-          createCommercetoolsClient(environment())
-        );
-        spinner.stop();
+      const result = yield* tryCommandPromise(
+        spinner,
+        "Failed to plan migrations",
+        async () => await pendingMigrations(apiRoot)
+      );
+      spinner.stop();
 
-        if (result.pending.length === 0) {
-          console.log(chalk.green("✓ No pending migrations"));
-          return;
-        }
-
-        console.log(
-          chalk.blue(`Would apply ${result.pending.length} migration(s):`)
-        );
-        printPendingMigrations(result.pending);
-      } catch (error) {
-        spinner.fail("Failed to plan migrations");
-        console.error(error);
-        process.exitCode = 1;
+      if (result.pending.length === 0) {
+        yield* Console.log(chalk.green("✓ No pending migrations"));
+        return;
       }
-    });
 
-  migrateCommand
-    .command("create <name>")
-    .description("Create a timestamped migration file")
-    .option("-d, --description <description>", "Migration description")
-    .action(
-      async (name: string, options: { readonly description?: string }) => {
-        const spinner = ora("Creating migration").start();
+      yield* Console.log(
+        chalk.blue(`Would apply ${result.pending.length} migration(s):`)
+      );
+      yield* printPendingMigrations(result.pending);
+    })
+  ).pipe(
+    Command.withDescription("Show pending migrations without applying them")
+  );
 
-        try {
+  const create = Command.make(
+    "create",
+    {
+      description: Flag.string("description").pipe(
+        Flag.withAlias("d"),
+        Flag.withDescription("Migration description"),
+        Flag.optional
+      ),
+      name: Argument.string("name"),
+    },
+    ({ description, name }) => {
+      const spinner = ora("Creating migration").start();
+
+      return Effect.tryPromise({
+        catch: (cause) => {
+          spinner.fail("Failed to create migration");
+          return new CliError.UserError({ cause });
+        },
+        try: async () => {
           const fileName = await createMigration(
             MIGRATIONS_DIRECTORY,
             name,
-            options.description ?? `Migration: ${name}`
+            Option.getOrElse(description, () => `Migration: ${name}`)
           );
           spinner.succeed(`Created ${fileName}`);
-        } catch (error) {
-          spinner.fail("Failed to create migration");
-          console.error(error);
-          process.exitCode = 1;
-        }
-      }
-    );
+        },
+      });
+    }
+  ).pipe(Command.withDescription("Create a timestamped migration file"));
 
-  return migrateCommand;
+  return migrate.pipe(Command.withSubcommands([status, plan, create]));
 };

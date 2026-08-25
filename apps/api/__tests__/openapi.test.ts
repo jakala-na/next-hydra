@@ -203,7 +203,7 @@ test("documents registration permissions and operation-specific errors", () => {
 
 test("keeps registration reviewer identity out of the public decision request", () => {
   const decisionSchema = applicationOpenApi.components?.schemas
-    ?.RegistrationDecisionRequest as
+    ?.RegistrationDecisionRequestEncoded as
     | { properties?: Record<string, unknown> }
     | undefined;
 

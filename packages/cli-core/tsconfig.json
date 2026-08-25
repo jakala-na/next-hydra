@@ -1,0 +1,12 @@
+{
+  "$schema": "../../node_modules/@effect/tsgo/schema.json",
+  "extends": "@repo/typescript-config/effect.json",
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "paths": {
+      "@repo/cli-core/*": ["./*"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,67 @@
+{
+  "description": "Records successfully applied schema migrations.",
+  "field_rules": [],
+  "options": {
+    "is_page": false,
+    "singleton": false,
+    "sub_title": ["applied_at"],
+    "title": "title"
+  },
+  "schema": [
+    {
+      "data_type": "text",
+      "display_name": "Title",
+      "field_metadata": {
+        "_default": true,
+        "version": 3
+      },
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": true,
+      "uid": "title",
+      "unique": false
+    },
+    {
+      "data_type": "text",
+      "display_name": "Migration key",
+      "field_metadata": {},
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": true,
+      "uid": "migration_key",
+      "unique": true
+    },
+    {
+      "data_type": "isodate",
+      "display_name": "Applied at",
+      "field_metadata": {},
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": true,
+      "uid": "applied_at",
+      "unique": false
+    },
+    {
+      "data_type": "text",
+      "display_name": "Applied by",
+      "field_metadata": {},
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": true,
+      "uid": "applied_by",
+      "unique": false
+    },
+    {
+      "data_type": "number",
+      "display_name": "Version",
+      "field_metadata": {},
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": true,
+      "uid": "version",
+      "unique": false
+    }
+  ],
+  "title": "Migrations",
+  "uid": "migrations"
+}

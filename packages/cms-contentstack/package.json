@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./cli": "./cli/index.ts",
     "./components/global-region": "./components/global-region.tsx",
     "./components/live-preview": "./components/live-preview.tsx",
     "./components/page": "./components/page.tsx",
@@ -24,11 +25,15 @@
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/cms-contentstack/tsconfig.json"
   },
   "dependencies": {
+    "@contentstack/cli": "2.0.0",
     "@contentstack/delivery-sdk": "^4.7.1",
     "@contentstack/json-rte-serializer": "^3.0.4",
     "@contentstack/live-preview-utils": "^3.2.3",
+    "@contentstack/management": "1.30.4",
+    "@contentstack/utils": "~1.9.1",
     "@gql.tada/cli-utils": "^1.6.3",
     "@repo/commerce": "workspace:*",
+    "@repo/cli-core": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
@@ -44,6 +49,8 @@
     "zod": "^3.25.28"
   },
   "devDependencies": {
+    "@effect/platform-node": "catalog:",
+    "@effect/vitest": "catalog:",
     "@repo/typescript-config": "workspace:*",
     "@types/lodash.memoize": "^4.1.9",
     "@types/node": "catalog:",
@@ -51,6 +58,9 @@
     "@types/react-dom": "catalog:",
     "next": "catalog:",
     "typescript": "catalog:",
-    "vitest": "^3.1.4"
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
   }
 }

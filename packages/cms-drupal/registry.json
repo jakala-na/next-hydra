@@ -18,6 +18,12 @@
           "slot": "cms",
           "packages": [
             {
+              "cwd": "apps/cli",
+              "section": "dependencies",
+              "name": "@repo/cms",
+              "specifier": "workspace:@repo/cms-drupal@*"
+            },
+            {
               "cwd": "apps/web",
               "section": "dependencies",
               "name": "@repo/cms",
@@ -174,6 +180,11 @@
         {
           "path": "canvas.config.json",
           "target": "~/packages/cms-drupal/canvas.config.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/index.ts",
+          "target": "~/packages/cms-drupal/cli/index.ts",
           "type": "registry:file"
         },
         {

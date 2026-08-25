@@ -1,0 +1,34 @@
+diff --git a/lib/commands/cm/stacks/migration.js b/lib/commands/cm/stacks/migration.js
+index 53774ca..2254e45 100644
+--- a/lib/commands/cm/stacks/migration.js
++++ b/lib/commands/cm/stacks/migration.js
+@@ -34,11 +34,11 @@ class MigrationCommand extends cli_command_1.Command {
+         const config = migrationCommandFlags['inline-config'];
+         if (!authtoken && !alias) {
+             this.log("AuthToken is not present in local drive, Hence use 'csdx auth:login' command for login or provide management token alias");
+-            this.exit();
++            this.exit(1);
+         }
+         if (!filePath || !fs_1.default.existsSync(filePath)) {
+             this.log('Please provide the migration script file path, use --file-path flag');
+-            this.exit();
++            this.exit(1);
+         }
+         // Reset map instance
+         const mapInstance = getMapInstance();
+@@ -137,6 +137,7 @@ class MigrationCommand extends cli_command_1.Command {
+             (0, index_1.errorHelper)(error, filePath);
+             if (process.send)
+                 process.send({ errorOccurred: true });
++            process.exitCode = 1;
+         }
+     }
+     async execMultiFiles(filePath, mapInstance) {
+@@ -155,6 +156,7 @@ class MigrationCommand extends cli_command_1.Command {
+         }
+         catch (error) {
+             (0, index_1.errorHelper)(error);
++            process.exitCode = 1;
+         }
+     }
+     getTasks(requests) {

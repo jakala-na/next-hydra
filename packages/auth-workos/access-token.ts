@@ -17,7 +17,7 @@ export class VerifiedAccessToken extends Schema.Class<VerifiedAccessToken>(
   sessionId: Schema.optional(Schema.NonEmptyString),
 }) {}
 
-export class AccessTokenInvalid extends Schema.TaggedErrorClass<AccessTokenInvalid>()(
+export class AccessTokenInvalid extends Schema.TaggedError<AccessTokenInvalid>()(
   "AccessTokenInvalid",
   {
     message: Schema.String,
@@ -31,10 +31,10 @@ export class AccessTokenInvalid extends Schema.TaggedErrorClass<AccessTokenInval
   }
 ) {}
 
-export class AccessTokenVerificationFailure extends Schema.TaggedErrorClass<AccessTokenVerificationFailure>()(
+export class AccessTokenVerificationFailure extends Schema.TaggedError<AccessTokenVerificationFailure>()(
   "AccessTokenVerificationFailure",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
     reason: Schema.Literals(["unavailable", "unexpected"]),
   }

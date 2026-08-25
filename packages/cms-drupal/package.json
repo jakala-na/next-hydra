@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./cli": "./cli/index.ts",
     "./canvas-component-props": "./generated/canvas-component-props.ts",
     "./client": "./client.ts",
     "./components/live-preview": "./components/live-preview.tsx",
@@ -65,6 +66,6 @@
     "@types/react-dom": "catalog:",
     "dotenv": "^17.0.0",
     "typescript": "catalog:",
-    "vitest": "^3.1.4"
+    "vitest": "catalog:"
   }
 }

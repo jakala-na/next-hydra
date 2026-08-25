@@ -13,22 +13,25 @@ import type {
 } from "../src/composition/types.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
-const MATERIALIZATION_CONFLICT = /Materialization targets conflict/;
-const STABLE_PROVIDER_ALIASES = /stable Provider aliases/;
+const MATERIALIZATION_CONFLICT = /Materialization targets conflict/u;
+const STABLE_PROVIDER_ALIASES = /stable Provider aliases/u;
 
 function withSelection(
   catalog: SourceRegistryCatalog,
   selection: CatalogSelection,
   item: RegistryItem
 ): SourceRegistryCatalog {
-  const items = new Map(catalog.items);
+  const items = new Map<string, RegistryItem>([
+    ...catalog.items,
+    [item.name, item],
+  ]);
   const selections = [...catalog.selections, selection];
-  const byId = new Map(catalog.byId);
-  const byReference = new Map(catalog.byReference);
-  items.set(item.name, item);
-  byId.set(selection.id, selection);
-  byReference.set(selection.id, selection);
-  byReference.set(selection.itemName, selection);
+  const byId = new Map([...catalog.byId, [selection.id, selection]]);
+  const byReference = new Map([
+    ...catalog.byReference,
+    [selection.id, selection],
+    [selection.itemName, selection],
+  ]);
   return { ...catalog, byId, byReference, items, selections };
 }
 
@@ -36,8 +39,7 @@ function replaceSelection(
   catalog: SourceRegistryCatalog,
   replacement: CatalogSelection
 ): SourceRegistryCatalog {
-  const byId = new Map(catalog.byId);
-  byId.set(replacement.id, replacement);
+  const byId = new Map([...catalog.byId, [replacement.id, replacement]]);
   const byReference = new Map(
     [...catalog.byReference].map(([reference, selection]) => [
       reference,
@@ -153,6 +155,34 @@ describe("composition planner failures", () => {
         },
       })
     ).toThrow(STABLE_PROVIDER_ALIASES);
+  });
+
+  it("requires CMS Providers to supply the CLI alias", async () => {
+    const catalog = await loadSourceRegistryCatalog(repoRoot);
+    const contentstack = catalog.byReference.get("contentstack");
+
+    if (contentstack === undefined) {
+      throw new Error("Contentstack provider is missing from the catalog");
+    }
+
+    const withoutCliAlias = {
+      ...contentstack,
+      packages: contentstack.packages.filter(
+        (requirement) =>
+          !(requirement.cwd === "apps/cli" && requirement.name === "@repo/cms")
+      ),
+    };
+
+    expect(() =>
+      planComposition(replaceSelection(catalog, withoutCliAlias), {
+        addOns: [],
+        providers: {
+          auth: "workos",
+          cms: "contentstack",
+          commerce: "commercetools",
+        },
+      })
+    ).toThrow(/apps\/cli\/dependencies\.@repo\/cms/u);
   });
 
   it("materializes a compatible cross-provider Add-on", async () => {

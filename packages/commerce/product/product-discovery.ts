@@ -19,10 +19,10 @@ export const ProductDiscoveryOperation = Schema.Literals([
 ]);
 export type ProductDiscoveryOperation = typeof ProductDiscoveryOperation.Type;
 
-export class ProductDiscoveryFailure extends Schema.TaggedErrorClass<ProductDiscoveryFailure>()(
+export class ProductDiscoveryFailure extends Schema.TaggedError<ProductDiscoveryFailure>()(
   "ProductDiscoveryFailure",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
     operation: ProductDiscoveryOperation,
   }

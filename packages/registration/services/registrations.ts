@@ -5,7 +5,7 @@ import {
   VersionedKeyValueStore,
 } from "@repo/versioned-store";
 import type { StoreConflict, StoreError } from "@repo/versioned-store";
-import { Clock, Context, Effect, Layer, Option, Random, Schema } from "effect";
+import { Clock, Context, Effect, Layer, Option, Schema } from "effect";
 
 import type { ApprovedDecision, RejectedDecision } from "../domain/approval";
 import { InvitationId, RegistrationId } from "../domain/identity";
@@ -18,7 +18,7 @@ import {
 } from "../domain/registration";
 import type { CompanyRegistrationDetails } from "../domain/registration";
 
-export class RegistrationNotFound extends Schema.TaggedErrorClass<RegistrationNotFound>()(
+export class RegistrationNotFound extends Schema.TaggedError<RegistrationNotFound>()(
   "RegistrationNotFound",
   {
     message: Schema.String,
@@ -26,7 +26,7 @@ export class RegistrationNotFound extends Schema.TaggedErrorClass<RegistrationNo
   }
 ) {}
 
-export class RegistrationNotFoundByInvitationId extends Schema.TaggedErrorClass<RegistrationNotFoundByInvitationId>()(
+export class RegistrationNotFoundByInvitationId extends Schema.TaggedError<RegistrationNotFoundByInvitationId>()(
   "RegistrationNotFoundByInvitationId",
   {
     invitationId: InvitationId,
@@ -34,7 +34,7 @@ export class RegistrationNotFoundByInvitationId extends Schema.TaggedErrorClass<
   }
 ) {}
 
-export class RegistrationTransitionConflict extends Schema.TaggedErrorClass<RegistrationTransitionConflict>()(
+export class RegistrationTransitionConflict extends Schema.TaggedError<RegistrationTransitionConflict>()(
   "RegistrationTransitionConflict",
   {
     attemptedDecision: Schema.Literals(["approved", "rejected"]),
@@ -44,7 +44,7 @@ export class RegistrationTransitionConflict extends Schema.TaggedErrorClass<Regi
   }
 ) {}
 
-export class RegistrationConcurrentModification extends Schema.TaggedErrorClass<RegistrationConcurrentModification>()(
+export class RegistrationConcurrentModification extends Schema.TaggedError<RegistrationConcurrentModification>()(
   "RegistrationConcurrentModification",
   {
     message: Schema.String,
@@ -52,7 +52,7 @@ export class RegistrationConcurrentModification extends Schema.TaggedErrorClass<
   }
 ) {}
 
-export class RegistrationDiscardConflict extends Schema.TaggedErrorClass<RegistrationDiscardConflict>()(
+export class RegistrationDiscardConflict extends Schema.TaggedError<RegistrationDiscardConflict>()(
   "RegistrationDiscardConflict",
   {
     currentState: Schema.String,
@@ -61,10 +61,10 @@ export class RegistrationDiscardConflict extends Schema.TaggedErrorClass<Registr
   }
 ) {}
 
-export class RegistrationPersistenceFailure extends Schema.TaggedErrorClass<RegistrationPersistenceFailure>()(
+export class RegistrationPersistenceFailure extends Schema.TaggedError<RegistrationPersistenceFailure>()(
   "RegistrationPersistenceFailure",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
     operation: Schema.Literals(["read", "create", "delete", "update"]),
     reason: StoreFailureReason,
@@ -199,7 +199,9 @@ export class Registrations extends Context.Service<
           RegistrationPersistenceFailure
         > =>
           Effect.gen(function* () {
-            const id = RegistrationId.make(yield* Random.nextUUIDv4);
+            const id = RegistrationId.make(
+              yield* Effect.sync(() => crypto.randomUUID())
+            );
             const createdAt = yield* nowDate;
             const registration = new AwaitingApprovalRegistration({
               _tag: "AwaitingApprovalRegistration",

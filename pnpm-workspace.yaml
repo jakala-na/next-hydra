@@ -2,19 +2,21 @@ packages:
   - apps/*
   - packages/*
 catalog:
-  "@effect/vitest": 4.0.0-beta.67
+  "@effect/platform-node": 4.0.0-rc.111
+  "@effect/vitest": 4.0.0-rc.111
   "@next/bundle-analyzer": 16.3.1
   "@next/third-parties": 16.3.1
   "@t3-oss/env-nextjs": ^0.13.4
   "@types/node": 24.13.3
   "@types/react": 19.2.10
   "@types/react-dom": 19.2.3
-  effect: 4.0.0-beta.67
+  effect: 4.0.0-rc.111
   next: 16.3.1
   react: 19.2.8
   react-dom: 19.2.8
   server-only: ^0.0.1
   typescript: npm:@typescript/typescript6@6.0.2
+  vitest: 4.1.11
 catalogs:
   typescript7:
     "@typescript/native": npm:typescript@7.0.2
@@ -23,6 +25,8 @@ overrides:
   react: 19.2.8
   react-dom: 19.2.8
 patchedDependencies:
+  "@contentstack/cli-cm-import@2.0.0": patches/@contentstack__cli-cm-import@2.0.0.patch
+  "@contentstack/cli-migration@2.0.0": patches/@contentstack__cli-migration@2.0.0.patch
   "@drupal-canvas/workbench@0.10.0": patches/@drupal-canvas__workbench@0.10.0.patch
 ignoredBuiltDependencies:
   - "@clerk/shared"
@@ -33,6 +37,7 @@ ignoredBuiltDependencies:
   - core-js-pure
   - msgpackr-extract
   - msw
+  - yarn
 onlyBuiltDependencies:
   - "@parcel/watcher"
   - "@sentry/cli"

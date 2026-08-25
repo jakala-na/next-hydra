@@ -1,0 +1,24 @@
+diff --git a/lib/commands/cm/stacks/import.js b/lib/commands/cm/stacks/import.js
+index 5b39ad8..b065dbd 100644
+--- a/lib/commands/cm/stacks/import.js
++++ b/lib/commands/cm/stacks/import.js
+@@ -40,6 +40,11 @@ class ImportCommand extends cli_command_1.Command {
+             backupDir = importConfig.backupDir;
+             //Note: Final summary is now handled by summary manager
+             cli_utilities_1.CLIProgressManager.printGlobalSummary();
++            if ((result === null || result === void 0 ? void 0 : result.noSuccessMsg) || cli_utilities_1.CLIProgressManager.hasFailures()) {
++                (0, cli_utilities_1.clearProgressModuleSetting)();
++                process.exitCode = 1;
++                return;
++            }
+             // Closing reminder: only relevant when assets were actually part of this
+             // run and scanning is why they're unpublished — assetScanningEnabled is an
+             // org-plan flag and isn't scoped to which modules this run touched.
+@@ -61,6 +61,7 @@ class ImportCommand extends cli_command_1.Command {
+             (0, cli_utilities_1.clearProgressModuleSetting)();
+             (0, cli_utilities_1.handleAndLogError)(error);
+             this.logAndPrintErrorDetails(error, importConfig);
++            process.exitCode = 1;
+         }
+     }
+     logAndPrintErrorDetails(error, importConfig) {

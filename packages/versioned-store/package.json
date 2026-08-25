@@ -11,7 +11,7 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
-    "vitest": "^3.1.4",
+    "vitest": "catalog:",
     "typescript": "catalog:",
     "effect": "catalog:"
   },

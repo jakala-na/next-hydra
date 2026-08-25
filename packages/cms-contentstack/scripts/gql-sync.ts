@@ -9,12 +9,10 @@ import {
 import { keys } from "../keys.ts";
 import "dotenv/config";
 
-(async () => {
+void (async () => {
   try {
     console.log("\n🚀 Generating GraphQL Schema");
-    const graphqlHostName = "graphql.contentstack.com";
-
-    const graphqlEndpoint = `https://${graphqlHostName}/stacks/${keys().CONTENTSTACK_API_KEY}?environment=${keys().CONTENTSTACK_ENVIRONMENT}`;
+    const graphqlEndpoint = `https://${keys().CONTENTSTACK_GRAPHQL_HOST_NAME}/stacks/${keys().CONTENTSTACK_API_KEY}?environment=${keys().CONTENTSTACK_ENVIRONMENT}`;
     await generateSchema({
       headers: {
         access_token: keys().CONTENTSTACK_DELIVERY_TOKEN,

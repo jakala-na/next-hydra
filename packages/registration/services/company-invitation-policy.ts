@@ -4,7 +4,7 @@ import type { CompanyActor } from "../domain/actors";
 import type { RedactedEmail } from "../domain/identity";
 import type { CompanyMemberInvitationRole } from "../domain/roles";
 
-export class InvitationPolicyError extends Schema.TaggedErrorClass<InvitationPolicyError>()(
+export class InvitationPolicyError extends Schema.TaggedError<InvitationPolicyError>()(
   "InvitationPolicyError",
   {
     message: Schema.String,

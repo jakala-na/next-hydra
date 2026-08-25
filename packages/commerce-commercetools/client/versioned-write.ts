@@ -41,18 +41,18 @@ const CommercetoolsErrorEnvelope = Schema.Struct({
 type CommercetoolsErrorEnvelope = typeof CommercetoolsErrorEnvelope.Type;
 type CommercetoolsErrorDetail = typeof CommercetoolsErrorDetail.Type;
 
-export class CommercetoolsRequestFailure extends Schema.TaggedErrorClass<CommercetoolsRequestFailure>()(
+export class CommercetoolsRequestFailure extends Schema.TaggedError<CommercetoolsRequestFailure>()(
   "CommercetoolsRequestFailure",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
   }
 ) {}
 
-export class CommercetoolsConcurrentModification extends Schema.TaggedErrorClass<CommercetoolsConcurrentModification>()(
+export class CommercetoolsConcurrentModification extends Schema.TaggedError<CommercetoolsConcurrentModification>()(
   "CommercetoolsConcurrentModification",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     currentVersion: Schema.Number,
   }
 ) {}

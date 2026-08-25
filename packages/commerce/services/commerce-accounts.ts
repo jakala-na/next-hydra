@@ -52,15 +52,15 @@ export interface AcceptedCommerceIdentity {
   readonly lastName: RedactedString;
 }
 
-export class CommerceAccountUnavailable extends Schema.TaggedErrorClass<CommerceAccountUnavailable>()(
+export class CommerceAccountUnavailable extends Schema.TaggedError<CommerceAccountUnavailable>()(
   "CommerceAccountUnavailable",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   }
 ) {}
 
-export class CommerceCustomerIdNotFound extends Schema.TaggedErrorClass<CommerceCustomerIdNotFound>()(
+export class CommerceCustomerIdNotFound extends Schema.TaggedError<CommerceCustomerIdNotFound>()(
   "CommerceCustomerIdNotFound",
   {
     authUserId: AuthUserId,
@@ -68,7 +68,7 @@ export class CommerceCustomerIdNotFound extends Schema.TaggedErrorClass<Commerce
   }
 ) {}
 
-export class CommerceCustomerProfileNotFound extends Schema.TaggedErrorClass<CommerceCustomerProfileNotFound>()(
+export class CommerceCustomerProfileNotFound extends Schema.TaggedError<CommerceCustomerProfileNotFound>()(
   "CommerceCustomerProfileNotFound",
   {
     customerId: CommerceCustomerId,

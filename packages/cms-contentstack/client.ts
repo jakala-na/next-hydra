@@ -10,11 +10,21 @@ import { mapExchange } from "urql";
 
 import { keys } from "./keys";
 
-const makeClient = (livePreviewHash?: string) => {
-  const graphqlHostName = "graphql.contentstack.com";
-  const graphqlLivePreviewHostName = "graphql-preview.contentstack.com";
+interface ContentstackHeaders extends Record<string, string> {
+  readonly access_token: string;
+}
 
-  const graphqlEndpoint = `https://${livePreviewHash ? graphqlLivePreviewHostName : graphqlHostName}/stacks/${keys().CONTENTSTACK_API_KEY}?environment=${keys().CONTENTSTACK_ENVIRONMENT}`;
+const makeClient = (livePreviewHash?: string) => {
+  const graphqlEndpoint = `https://${livePreviewHash ? keys().CONTENTSTACK_LIVE_PREVIEW_HOST_NAME : keys().CONTENTSTACK_GRAPHQL_HOST_NAME}/stacks/${keys().CONTENTSTACK_API_KEY}?environment=${keys().CONTENTSTACK_ENVIRONMENT}`;
+
+  const headers: ContentstackHeaders = {
+    access_token: keys().CONTENTSTACK_DELIVERY_TOKEN,
+  };
+
+  if (livePreviewHash !== undefined) {
+    headers.live_preview = livePreviewHash;
+    headers.preview_token = keys().CONTENTSTACK_PREVIEW_TOKEN;
+  }
 
   return createClient({
     exchanges: [
@@ -33,7 +43,7 @@ const makeClient = (livePreviewHash?: string) => {
           );
 
           if (errors.length > 0) {
-            // TODO: Add Sentry or similar error reporting.
+            // A future observability integration should capture these errors.
             // eslint-disable-next-line no-console -- logging errors to node.js console
             console.error("GraphQL Errors:", JSON.stringify(errors, null, 2));
 
@@ -50,18 +60,7 @@ const makeClient = (livePreviewHash?: string) => {
       fetchExchange,
     ],
     fetchOptions: {
-      headers: {
-        access_token: keys().CONTENTSTACK_DELIVERY_TOKEN,
-        ...(livePreviewHash
-          ? {
-              live_preview: livePreviewHash,
-              preview_token: keys().CONTENTSTACK_PREVIEW_TOKEN,
-              // TODO: This currently breaks the query in a transformation layer outside of our control,
-              // report a bug to Contentstack and uncomment when it's fixed.
-              // include_applied_variants: 'true'
-            }
-          : {}),
-      },
+      headers,
     },
     url: graphqlEndpoint,
   });
