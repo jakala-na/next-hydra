@@ -417,6 +417,11 @@
           "type": "registry:file"
         },
         {
+          "path": "migrations/ensure-company-role-address-book-permissions.test.ts",
+          "target": "~/packages/commerce-commercetools/migrations/ensure-company-role-address-book-permissions.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "migrations/migration-client.ts",
           "target": "~/packages/commerce-commercetools/migrations/migration-client.ts",
           "type": "registry:file"
@@ -434,6 +439,11 @@
         {
           "path": "migrations/scripts/2026-07-31-120000-ensure-address-book-associate-role-permissions.ts",
           "target": "~/packages/commerce-commercetools/migrations/scripts/2026-07-31-120000-ensure-address-book-associate-role-permissions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/scripts/2026-08-25-180000-ensure-company-role-address-book-permissions.ts",
+          "target": "~/packages/commerce-commercetools/migrations/scripts/2026-08-25-180000-ensure-company-role-address-book-permissions.ts",
           "type": "registry:file"
         },
         {

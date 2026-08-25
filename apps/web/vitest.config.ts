@@ -9,6 +9,13 @@ export default mergeConfig(
     resolve: {
       alias: [
         {
+          find: /^@repo\/commerce\/runtime$/u,
+          replacement: path.resolve(
+            import.meta.dirname,
+            "lib/commerce-runtime.ts"
+          ),
+        },
+        {
           find: "server-only",
           replacement: serverOnlyShim,
         },

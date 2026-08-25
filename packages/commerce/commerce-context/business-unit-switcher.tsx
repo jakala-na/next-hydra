@@ -42,10 +42,13 @@ async function loadBusinessUnitSwitcherData(
 
         return {
           currentBusinessUnitId: context.principal.businessUnitId,
-          items: memberships.map(({ businessUnitId, businessUnitLabel }) => ({
-            id: businessUnitId,
-            label: businessUnitLabel,
-          })),
+          items: memberships.map(
+            ({ businessUnitId, businessUnitLabel, roles }) => ({
+              id: businessUnitId,
+              label: businessUnitLabel,
+              roles,
+            })
+          ),
         };
       }).pipe(
         NextCommerce.provide(locale),

@@ -7,6 +7,7 @@ import {
   PendingInvitation,
   RevokedInvitation,
 } from "@repo/registration/domain/invitations";
+import { sameCompanyRoles } from "@repo/registration/domain/roles";
 import {
   CompanyMemberInvitations,
   InvitationConflict,
@@ -119,12 +120,15 @@ const providerFailure = (
   });
 
 const issueOutcomeUnknown = (
-  input: RegistrationInvitationIssueInput,
+  input: ClerkInvitationIssueInput,
   cause: unknown
 ) =>
   new InvitationIssueOutcomeUnknown({
     cause,
-    message: `Clerk invitation issuance outcome is unknown for registration ${input.intent.registrationId}`,
+    message:
+      input.intent.intent === "registration_approval"
+        ? `Clerk invitation issuance outcome is unknown for registration ${input.intent.registrationId}`
+        : `Clerk invitation issuance outcome is unknown for business unit ${input.intent.businessUnitId}`,
   });
 
 const readFailure = (
@@ -147,13 +151,21 @@ const revokeFailure = (invitationId: InvitationId, cause: unknown) =>
       })
     : providerFailure("revoke", cause);
 
-const issueFailure = (cause: unknown) =>
-  isClerkAPIResponseError(cause) &&
-  cause.errors.some((error) => error.code === "form_identifier_exists")
-    ? new InvitationConflict({
-        message: "Clerk already has a user for this email",
-      })
-    : providerFailure("issue", cause);
+const issueFailure = (input: ClerkInvitationIssueInput, cause: unknown) => {
+  if (!isClerkAPIResponseError(cause)) {
+    return issueOutcomeUnknown(input, cause);
+  }
+
+  if (cause.errors.some((error) => error.code === "form_identifier_exists")) {
+    return new InvitationConflict({
+      message: "Clerk already has a user for this email",
+    });
+  }
+
+  return cause.status >= 400 && cause.status < 500 && cause.status !== 408
+    ? providerFailure("issue", cause)
+    : issueOutcomeUnknown(input, cause);
+};
 
 const isDuplicateInvitationFailure = (cause: unknown) =>
   isClerkAPIResponseError(cause) &&
@@ -216,20 +228,20 @@ const metadataMatchesIntent = (
   metadata: ClerkInvitationMetadata,
   intent: ClerkInvitationIssueInput["intent"]
 ) => {
-  const metadataIntent = metadata.nextHydra.invitation;
+  const metadataIntent = metadata.invitation;
 
   if (intent.intent === "registration_approval") {
     return (
       metadataIntent.intent === "registration_approval" &&
       metadataIntent.registrationId === intent.registrationId &&
-      metadataIntent.role === intent.role
+      sameCompanyRoles(metadataIntent.roles, intent.roles)
     );
   }
 
   return (
     metadataIntent.intent === "company_member" &&
     metadataIntent.businessUnitId === intent.businessUnitId &&
-    metadataIntent.role === intent.role
+    sameCompanyRoles(metadataIntent.roles, intent.roles)
   );
 };
 
@@ -289,7 +301,7 @@ const issueClerkInvitation = Effect.fn("InvitationCapabilities.Clerk.issue")(
     }).pipe(
       Effect.catch((error) => {
         if (!isDuplicateInvitationFailure(error.cause)) {
-          return Effect.fail(issueFailure(error.cause));
+          return Effect.fail(issueFailure(input, error.cause));
         }
 
         return Effect.fail(
@@ -299,7 +311,9 @@ const issueClerkInvitation = Effect.fn("InvitationCapabilities.Clerk.issue")(
         );
       }),
       Effect.flatMap((response) =>
-        Schema.decodeEffect(ClerkInvitation)(response).pipe(Effect.orDie)
+        Schema.decodeEffect(ClerkInvitation)(response).pipe(
+          Effect.mapError((cause) => issueOutcomeUnknown(input, cause))
+        )
       )
     );
 
@@ -307,14 +321,25 @@ const issueClerkInvitation = Effect.fn("InvitationCapabilities.Clerk.issue")(
   }
 );
 
+export const makeClerkCompanyMemberInvitations = (
+  invitations: ClerkInvitationsApi,
+  redirectUrl: string
+) =>
+  CompanyMemberInvitations.of({
+    issue: Effect.fn("CompanyMemberInvitations.Clerk.issue")(
+      (input: CompanyMemberInvitationIssueInput) =>
+        issueClerkInvitation(invitations, redirectUrl, input)
+    ),
+  });
+
 export const makeClerkInvitationCapabilities = (
   invitations: ClerkInvitationsApi,
   redirectUrl: string,
   issueAttempts: RegistrationInvitationIssueAttemptsService
 ) => {
-  const issueCompanyMember = Effect.fn("CompanyMemberInvitations.Clerk.issue")(
-    (input: CompanyMemberInvitationIssueInput) =>
-      issueClerkInvitation(invitations, redirectUrl, input)
+  const companyMemberInvitations = makeClerkCompanyMemberInvitations(
+    invitations,
+    redirectUrl
   );
 
   const get = Effect.fn("InvitationDeliveries.Clerk.get")(
@@ -485,9 +510,7 @@ export const makeClerkInvitationCapabilities = (
   );
 
   return {
-    companyMemberInvitations: CompanyMemberInvitations.of({
-      issue: issueCompanyMember,
-    }),
+    companyMemberInvitations,
     invitationDeliveries: InvitationDeliveries.of({ get }),
     registrationInvitations: RegistrationInvitations.of({
       accept: acceptRegistration,
@@ -511,6 +534,18 @@ const clerkInvitationsApi: ClerkInvitationsApi = {
     return await client.invitations.revokeInvitation(invitationId);
   },
 };
+
+export const companyMemberInvitationsLayer = Layer.effect(
+  CompanyMemberInvitations,
+  Config.url("NEXT_PUBLIC_WEB_URL").pipe(
+    Effect.map((webUrl) =>
+      makeClerkCompanyMemberInvitations(
+        clerkInvitationsApi,
+        new URL("/accept-invitation", webUrl).toString()
+      )
+    )
+  )
+);
 
 export const invitationsLayer = Layer.effectContext(
   Effect.gen(function* () {

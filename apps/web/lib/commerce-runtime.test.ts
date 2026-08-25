@@ -60,6 +60,7 @@ const makeTestCommerceApp = (options?: {
           businessUnitId: CommerceBusinessUnitId.make(id),
           businessUnitKey: CommerceBusinessUnitKey.make(`${id}-key`),
           businessUnitLabel: CommerceBusinessUnitLabel.make(id),
+          roles: ["admin", "buyer"],
         }),
         storeKey: StoreKey.make("default-store"),
       })

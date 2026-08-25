@@ -16,6 +16,7 @@ import type {
   ApprovedRegistration,
   RejectedRegistration,
 } from "../domain/registration";
+import { INITIAL_COMPANY_ROLES } from "../domain/roles";
 import {
   InvitationConflict,
   RegistrationInvitations,
@@ -101,7 +102,7 @@ export const approveRegistration = (
       intent: "registration_approval",
       inviteeEmail: registration.details.email,
       registrationId: registration.id,
-      role: "owner",
+      roles: INITIAL_COMPANY_ROLES,
     });
     const invitation = yield* invitations.issue({
       intent,
@@ -180,7 +181,7 @@ export const acceptRegistrationInvitation = (
         intent: "registration_approval",
         inviteeEmail: registration.details.email,
         registrationId: registration.id,
-        role: "owner",
+        roles: INITIAL_COMPANY_ROLES,
       }),
       invitationId: input.invitationId,
       issuedBy: registrationSystemActor,
@@ -287,7 +288,7 @@ export const revokeRegistrationInvitation = (
         intent: "registration_approval",
         inviteeEmail: registration.details.email,
         registrationId: registration.id,
-        role: "owner",
+        roles: INITIAL_COMPANY_ROLES,
       }),
       invitationId: registration.invitationId,
       issuedBy: registrationSystemActor,

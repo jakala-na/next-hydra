@@ -74,6 +74,7 @@ const businessUnitMembership = new CommerceBusinessUnitMembership({
   businessUnitId,
   businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
   businessUnitLabel: CommerceBusinessUnitLabel.make("Business Unit One"),
+  roles: ["admin", "buyer"],
 });
 
 const businessUnitRequest = (): TestCurrentCartBoundary => ({

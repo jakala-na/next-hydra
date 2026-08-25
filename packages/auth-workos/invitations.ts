@@ -1,10 +1,15 @@
-import { Email, InvitationId } from "@repo/registration/domain/identity";
+import {
+  Email,
+  InvitationId,
+  RegistrationId,
+} from "@repo/registration/domain/identity";
 import {
   AcceptedInvitation,
   InvitationDelivery,
   PendingInvitation,
   RevokedInvitation,
 } from "@repo/registration/domain/invitations";
+import { CompanyRoles } from "@repo/registration/domain/roles";
 import {
   CompanyMemberInvitations,
   InvitationConflict,
@@ -23,12 +28,30 @@ import type {
 } from "@repo/registration/services/invitations";
 import { RegistrationInvitationIssueAttempts } from "@repo/registration/services/registration-invitation-issue-attempts";
 import type { RegistrationInvitationIssueAttemptsService } from "@repo/registration/services/registration-invitation-issue-attempts";
-import { NotFoundException, WorkOS } from "@workos-inc/node";
+import {
+  ApiKeyRequiredException,
+  BadRequestException,
+  NoApiKeyProvidedException,
+  NotFoundException,
+  RateLimitExceededException,
+  UnauthorizedException,
+  UnprocessableEntityException,
+  WorkOS,
+} from "@workos-inc/node";
 import type {
   Invitation as WorkosInvitation,
   SendInvitationOptions as WorkosSendInvitationOptions,
 } from "@workos-inc/node";
-import { Config, Context, Effect, Layer, Option, Redacted } from "effect";
+import {
+  Config,
+  Context,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  Redacted,
+  Schema,
+} from "effect";
 
 export type {
   Invitation as WorkosInvitation,
@@ -40,18 +63,24 @@ type WorkosInvitationIssueInput =
   | RegistrationInvitationIssueInput
   | CompanyMemberInvitationIssueInput;
 
-export type WorkosInvitationUserManagement = Pick<
+export type WorkosInvitationSender = Pick<
   WorkosSdk["userManagement"],
-  "sendInvitation" | "getInvitation" | "revokeInvitation"
-> & {
-  readonly listInvitations: (input: { readonly email: string }) => Promise<{
-    readonly autoPagination?: (() => Promise<WorkosInvitation[]>) | undefined;
-    readonly data: readonly WorkosInvitation[];
-  }>;
-};
+  "sendInvitation"
+>;
+
+export type WorkosInvitationUserManagement = WorkosInvitationSender &
+  Pick<
+    WorkosSdk["userManagement"],
+    "getInvitation" | "revokeInvitation" | "updateUser"
+  > & {
+    readonly listInvitations: (input: { readonly email: string }) => Promise<{
+      readonly autoPagination?: (() => Promise<WorkosInvitation[]>) | undefined;
+      readonly data: readonly WorkosInvitation[];
+    }>;
+  };
 
 const toDate = (value: string | null | undefined) =>
-  value ? new Date(value) : new Date(0);
+  DateTime.toDateUtc(DateTime.makeUnsafe(value ?? 0));
 
 const invitationIdFromWorkos = (invitation: WorkosInvitation) =>
   InvitationId.make(invitation.id);
@@ -66,15 +95,32 @@ const workosIssueInputFromIntent = (
     return {
       email: Redacted.value(input.intent.inviteeEmail),
       inviterUserId,
-      roleSlug: input.intent.role,
     };
   }
 
   return {
     email: Redacted.value(input.intent.inviteeEmail),
-    roleSlug: input.intent.role,
   };
 };
+
+const WorkosRegistrationInvitationMetadata = Schema.Struct({
+  intent: Schema.Literal("registration_approval"),
+  registrationId: RegistrationId,
+  roles: CompanyRoles,
+});
+
+const WorkosRegistrationInvitationMetadataJson = Schema.fromJsonString(
+  Schema.toCodecJson(WorkosRegistrationInvitationMetadata)
+);
+
+const workosRegistrationInvitationMetadata = (
+  input: RegistrationInvitationAcceptanceInput
+) =>
+  Schema.encodeSync(WorkosRegistrationInvitationMetadataJson)({
+    intent: input.intent.intent,
+    registrationId: input.intent.registrationId,
+    roles: input.intent.roles,
+  });
 
 const pendingFromWorkos = (
   invitation: WorkosInvitation,
@@ -116,13 +162,41 @@ const providerFailure = (
   });
 
 const issueOutcomeUnknown = (
-  input: RegistrationInvitationIssueInput,
+  input: WorkosInvitationIssueInput,
   cause: unknown
 ) =>
   new InvitationIssueOutcomeUnknown({
     cause,
-    message: `WorkOS invitation issuance outcome is unknown for registration ${input.intent.registrationId}`,
+    message:
+      input.intent.intent === "registration_approval"
+        ? `WorkOS invitation issuance outcome is unknown for registration ${input.intent.registrationId}`
+        : `WorkOS invitation issuance outcome is unknown for business unit ${input.intent.businessUnitId}`,
   });
+
+const isWorkosRejectedRequest = (cause: unknown) =>
+  cause instanceof ApiKeyRequiredException ||
+  cause instanceof BadRequestException ||
+  cause instanceof NoApiKeyProvidedException ||
+  cause instanceof NotFoundException ||
+  cause instanceof RateLimitExceededException ||
+  cause instanceof UnauthorizedException ||
+  cause instanceof UnprocessableEntityException;
+
+const WorkosConflictException = Schema.Struct({
+  status: Schema.Literal(409),
+});
+
+const issueFailure = (input: WorkosInvitationIssueInput, cause: unknown) => {
+  if (Schema.is(WorkosConflictException)(cause)) {
+    return new InvitationConflict({
+      message: "WorkOS already has a conflicting invitation",
+    });
+  }
+
+  return isWorkosRejectedRequest(cause)
+    ? providerFailure("issue", cause)
+    : issueOutcomeUnknown(input, cause);
+};
 
 const readFailure = (invitationId: InvitationId, cause: unknown) =>
   cause instanceof NotFoundException
@@ -151,23 +225,41 @@ const isActiveRegistrationInvitation = (
   normalizedEmail(invitation.email) ===
     normalizedEmail(Redacted.value(input.intent.inviteeEmail));
 
+const makeWorkosInvitationSender = (userManagement: WorkosInvitationSender) =>
+  Effect.fn("InvitationCapabilities.Workos.send")(function* (
+    input: WorkosInvitationIssueInput
+  ) {
+    const invitation = yield* Effect.tryPromise({
+      catch: (cause) => issueFailure(input, cause),
+      try: async () =>
+        await userManagement.sendInvitation(workosIssueInputFromIntent(input)),
+    });
+
+    return yield* Effect.try({
+      catch: (cause) => issueOutcomeUnknown(input, cause),
+      try: () => pendingFromWorkos(invitation, input),
+    });
+  });
+
+export const makeWorkosCompanyMemberInvitations = (
+  userManagement: WorkosInvitationSender
+) => {
+  const sendInvitation = makeWorkosInvitationSender(userManagement);
+
+  return CompanyMemberInvitations.of({
+    issue: Effect.fn("CompanyMemberInvitations.Workos.issue")(
+      (input: CompanyMemberInvitationIssueInput) => sendInvitation(input)
+    ),
+  });
+};
+
 export const makeWorkosInvitationCapabilities = (
   userManagement: WorkosInvitationUserManagement,
   issueAttempts: RegistrationInvitationIssueAttemptsService
 ) => {
-  const sendInvitation = Effect.fn("InvitationCapabilities.Workos.send")(
-    function* (input: WorkosInvitationIssueInput) {
-      const invitation = yield* Effect.tryPromise({
-        catch: (cause) => providerFailure("issue", cause),
-        try: async () =>
-          await userManagement.sendInvitation(
-            workosIssueInputFromIntent(input)
-          ),
-      });
-
-      return pendingFromWorkos(invitation, input);
-    }
-  );
+  const sendInvitation = makeWorkosInvitationSender(userManagement);
+  const companyMemberInvitations =
+    makeWorkosCompanyMemberInvitations(userManagement);
 
   const listActiveRegistrationInvitations = Effect.fn(
     "RegistrationInvitations.Workos.listActive"
@@ -252,10 +344,6 @@ export const makeWorkosInvitationCapabilities = (
     }
   );
 
-  const issueCompanyMember = Effect.fn("CompanyMemberInvitations.Workos.issue")(
-    (input: CompanyMemberInvitationIssueInput) => sendInvitation(input)
-  );
-
   const get = Effect.fn("InvitationDeliveries.Workos.get")(
     (invitationId: InvitationId) =>
       Effect.tryPromise({
@@ -302,7 +390,18 @@ export const makeWorkosInvitationCapabilities = (
     const acceptedAt =
       invitation.state === "accepted"
         ? toDate(invitation.acceptedAt)
-        : new Date();
+        : DateTime.toDateUtc(yield* DateTime.now);
+
+    yield* Effect.tryPromise({
+      catch: (cause) => providerFailure("accept", cause),
+      try: async () =>
+        await userManagement.updateUser({
+          metadata: {
+            invitation: workosRegistrationInvitationMetadata(input),
+          },
+          userId: input.acceptedIdentity.authUserId,
+        }),
+    });
 
     return new AcceptedInvitation({
       _tag: "AcceptedInvitation",
@@ -383,9 +482,7 @@ export const makeWorkosInvitationCapabilities = (
   });
 
   return {
-    companyMemberInvitations: CompanyMemberInvitations.of({
-      issue: issueCompanyMember,
-    }),
+    companyMemberInvitations,
     invitationDeliveries: InvitationDeliveries.of({ get }),
     registrationInvitations: RegistrationInvitations.of({
       accept,
@@ -395,19 +492,30 @@ export const makeWorkosInvitationCapabilities = (
   };
 };
 
+const configuredWorkosUserManagement = Effect.gen(function* () {
+  const apiKey = yield* Config.redacted("WORKOS_API_KEY");
+  const clientId = yield* Config.option(Config.string("WORKOS_CLIENT_ID"));
+
+  return new WorkOS({
+    apiKey: Redacted.value(apiKey),
+    clientId: Option.getOrUndefined(clientId),
+  }).userManagement;
+});
+
+export const companyMemberInvitationsLayer = Layer.effect(
+  CompanyMemberInvitations,
+  configuredWorkosUserManagement.pipe(
+    Effect.map(makeWorkosCompanyMemberInvitations)
+  )
+);
+
 export const invitationsLayer = Layer.effectContext(
   Effect.gen(function* () {
-    const apiKey = yield* Config.redacted("WORKOS_API_KEY");
-    const clientId = yield* Config.option(Config.string("WORKOS_CLIENT_ID"));
-    const clientIdValue = Option.getOrUndefined(clientId);
-    const workos = new WorkOS({
-      apiKey: Redacted.value(apiKey),
-      clientId: clientIdValue,
-    });
+    const userManagement = yield* configuredWorkosUserManagement;
     const issueAttempts = yield* RegistrationInvitationIssueAttempts;
 
     const capabilities = makeWorkosInvitationCapabilities(
-      workos.userManagement,
+      userManagement,
       issueAttempts
     );
 

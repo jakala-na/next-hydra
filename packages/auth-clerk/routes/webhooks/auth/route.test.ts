@@ -85,13 +85,10 @@ describe(makeClerkWebhookHandler, () => {
     });
     const request = signedRequest(
       userCreatedEvent({
-        nextHydra: {
-          invitation: {
-            intent: "registration_approval",
-            registrationId: RegistrationId.make("registration-1"),
-            role: "owner",
-          },
-          version: 1,
+        invitation: {
+          intent: "registration_approval",
+          registrationId: RegistrationId.make("registration-1"),
+          roles: ["admin", "buyer"],
         },
       })
     );
@@ -144,13 +141,10 @@ describe(makeClerkWebhookHandler, () => {
     });
     const request = signedRequest(
       userCreatedEvent({
-        nextHydra: {
-          invitation: {
-            businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-            intent: "company_member",
-            role: "associate",
-          },
-          version: 1,
+        invitation: {
+          businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+          intent: "company_member",
+          roles: ["buyer", "approver"],
         },
       })
     );

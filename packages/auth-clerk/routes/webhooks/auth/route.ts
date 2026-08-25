@@ -163,7 +163,7 @@ export const registrationInvitationEventFromUser = (
   const metadata = Option.getOrUndefined(
     Schema.decodeUnknownOption(ClerkInvitationMetadata)(user.public_metadata)
   );
-  const invitation = metadata?.nextHydra.invitation;
+  const invitation = metadata?.invitation;
 
   if (invitation?.intent !== "registration_approval") {
     return undefined;

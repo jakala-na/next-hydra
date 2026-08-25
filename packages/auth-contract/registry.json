@@ -28,6 +28,11 @@
           "type": "registry:file"
         },
         {
+          "path": "invitations.ts",
+          "target": "~/packages/auth-contract/invitations.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "package.json",
           "target": "~/packages/auth-contract/package.json",
           "type": "registry:file"

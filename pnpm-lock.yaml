@@ -1106,6 +1106,9 @@ importers:
       '@repo/actions':
         specifier: workspace:*
         version: link:../actions
+      '@repo/auth-contract':
+        specifier: workspace:*
+        version: link:../auth-contract
       '@repo/design-system':
         specifier: workspace:*
         version: link:../design-system
@@ -1259,12 +1262,30 @@ importers:
         specifier: ^3.25.28
         version: 3.25.76
     devDependencies:
+      '@repo/actions':
+        specifier: workspace:*
+        version: link:../actions
+      '@repo/auth-clerk':
+        specifier: workspace:*
+        version: link:../auth-clerk
+      '@repo/auth-workos':
+        specifier: workspace:*
+        version: link:../auth-workos
+      '@repo/commerce':
+        specifier: workspace:*
+        version: link:../commerce
+      '@repo/registration':
+        specifier: workspace:*
+        version: link:../registration
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-rc.111
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
@@ -1744,6 +1765,9 @@ importers:
       '@repo/actions':
         specifier: workspace:*
         version: link:../actions
+      '@repo/auth-contract':
+        specifier: workspace:*
+        version: link:../auth-contract
       '@repo/commerce':
         specifier: workspace:*
         version: link:../commerce

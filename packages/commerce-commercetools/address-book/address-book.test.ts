@@ -41,6 +41,7 @@ const buyer = new CustomerCommercePrincipal({
   businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
   businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
   customerId: CommerceCustomerId.make("customer-1"),
+  roles: ["admin", "buyer"],
 });
 const store = new Store({
   currency: "USD",
@@ -65,6 +66,7 @@ const commerceContext = CommerceContext.layer(
             businessUnitKey: buyer.businessUnitKey,
             businessUnitLabel:
               CommerceBusinessUnitLabel.make("Business Unit One"),
+            roles: ["admin", "buyer"],
           }),
           storeKey: store.storeKey,
         },

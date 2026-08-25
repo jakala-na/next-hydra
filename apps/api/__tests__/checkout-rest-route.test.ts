@@ -487,6 +487,7 @@ const makeCommerceAccountsLayer = (
             ),
             businessUnitLabel:
               CommerceBusinessUnitLabel.make("Business Unit One"),
+            roles: ["admin", "buyer"],
           }),
         ]),
     })

@@ -8,7 +8,7 @@ The Workspace Composition context describes the selectable parts of a Next Hydra
 
 **Maintainer Workspace**: The canonical Next Hydra source workspace in which Contribution Sources are authored and a selected stack can be recomposed for development. _Avoid_: Customer project, disposable clone
 
-**Customer Workspace**: A scaffolded workspace after ownership of all materialized code has transferred to its customer. It is inspected as it exists and is not treated as a managed composition. _Avoid_: Maintainer Workspace, managed project
+**Customer Workspace**: A product-neutral scaffolded workspace after ownership of all materialized code has transferred to its customer. It does not retain the maintainer product name in application-facing identifiers or content, is inspected as it exists, and is not treated as a managed composition. _Avoid_: Maintainer Workspace, managed project
 
 **Reference Composition**: The selected stack that keeps the canonical Maintainer Workspace runnable and reviewable. It is not an endorsement or automatic scaffold default. _Avoid_: Preferred stack, default Provider
 

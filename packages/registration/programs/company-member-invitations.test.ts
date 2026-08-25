@@ -2,21 +2,10 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Exit, Layer, Redacted } from "effect";
 
 import { CompanyActor } from "../domain/actors";
-import {
-  AcceptedAuthIdentity,
-  AuthUserId,
-  CommerceBusinessUnitId,
-  Email,
-  PersonName,
-} from "../domain/identity";
+import { AuthUserId, CommerceBusinessUnitId, Email } from "../domain/identity";
 import { CompanyInvitationPolicy } from "../services/company-invitation-policy";
 import { invitationCapabilitiesLayerMemory } from "../services/invitations";
-import {
-  acceptCompanyMemberInvitation,
-  CompanyMemberInvitationContextUnavailable,
-  issueCompanyMemberInvite,
-  revokeCompanyMemberInvite,
-} from "./company-member-invitations";
+import { issueCompanyMemberInvite } from "./company-member-invitations";
 
 const layerMemory = Layer.mergeAll(
   invitationCapabilitiesLayerMemory,
@@ -24,51 +13,40 @@ const layerMemory = Layer.mergeAll(
 );
 
 const businessUnitId = CommerceBusinessUnitId.make("business-unit-1");
-const inviteeEmail = Redacted.make(Email.make("associate@example.com"), {
+const inviteeEmail = Redacted.make(Email.make("member@example.com"), {
   label: "email",
 });
 
-const owner = new CompanyActor({
+const administrator = new CompanyActor({
   actorType: "company",
-  authUserId: AuthUserId.make("auth-owner-1"),
+  authUserId: AuthUserId.make("auth-admin-1"),
   businessUnitId,
-  email: Redacted.make(Email.make("owner@example.com"), { label: "email" }),
-  role: "owner",
+  email: Redacted.make(Email.make("admin@example.com"), { label: "email" }),
+  roles: ["admin", "buyer"],
 });
 
-const associate = new CompanyActor({
+const buyer = new CompanyActor({
   actorType: "company",
-  authUserId: AuthUserId.make("auth-associate-1"),
+  authUserId: AuthUserId.make("auth-buyer-1"),
   businessUnitId,
-  email: Redacted.make(Email.make("existing-associate@example.com"), {
+  email: Redacted.make(Email.make("existing-member@example.com"), {
     label: "email",
   }),
-  role: "associate",
-});
-
-const acceptedIdentity = new AcceptedAuthIdentity({
-  authUserId: AuthUserId.make("auth-invitee-1"),
-  email: inviteeEmail,
-  firstName: Redacted.make(PersonName.make("Invited"), {
-    label: "personName",
-  }),
-  lastName: Redacted.make(PersonName.make("Associate"), {
-    label: "personName",
-  }),
+  roles: ["buyer"],
 });
 
 describe("company member invitations", () => {
-  it.effect("allows an owner to issue an associate invitation", () =>
+  it.effect("allows an administrator to issue a multi-role invitation", () =>
     Effect.gen(function* () {
       const invitation = yield* issueCompanyMemberInvite({
-        actor: owner,
+        actor: administrator,
         inviteeEmail,
-        role: "associate",
+        roles: ["buyer", "approver"],
       });
 
       expect(invitation).toMatchObject({
         _tag: "PendingInvitation",
-        issuedBy: owner,
+        issuedBy: administrator,
       });
       expect(invitation.intent.intent).toBe("company_member");
       if (invitation.intent.intent !== "company_member") {
@@ -78,16 +56,16 @@ describe("company member invitations", () => {
       expect(Redacted.value(invitation.intent.inviteeEmail)).toBe(
         Redacted.value(inviteeEmail)
       );
-      expect(invitation.intent.role).toBe("associate");
+      expect(invitation.intent.roles).toStrictEqual(["buyer", "approver"]);
     }).pipe(Effect.provide(layerMemory))
   );
 
-  it.effect("rejects associates attempting to issue invitations", () =>
+  it.effect("rejects non-administrators attempting to issue invitations", () =>
     Effect.gen(function* () {
       const exit = yield* issueCompanyMemberInvite({
-        actor: associate,
+        actor: buyer,
         inviteeEmail,
-        role: "associate",
+        roles: ["buyer"],
       }).pipe(Effect.exit);
 
       expect(Exit.isFailure(exit)).toBeTruthy();
@@ -97,88 +75,52 @@ describe("company member invitations", () => {
     }).pipe(Effect.provide(layerMemory))
   );
 
-  it.effect(
-    "returns the existing pending invitation for duplicate associate invites",
-    () =>
-      Effect.gen(function* () {
-        const first = yield* issueCompanyMemberInvite({
-          actor: owner,
-          inviteeEmail,
-          role: "associate",
-        });
-        const second = yield* issueCompanyMemberInvite({
-          actor: owner,
-          inviteeEmail,
-          role: "associate",
-        });
-
-        expect(second.id).toBe(first.id);
-      }).pipe(Effect.provide(layerMemory))
-  );
-
-  it.effect(
-    "keeps company-member revocation deferred without trusted context",
-    () =>
-      Effect.gen(function* () {
-        const invitation = yield* issueCompanyMemberInvite({
-          actor: owner,
-          inviteeEmail,
-          role: "associate",
-        });
-
-        const failure = yield* revokeCompanyMemberInvite({
-          actor: owner,
-          invitationId: invitation.id,
-        }).pipe(Effect.flip);
-
-        expect(failure).toBeInstanceOf(
-          CompanyMemberInvitationContextUnavailable
-        );
-        if (failure._tag === "CompanyMemberInvitationContextUnavailable") {
-          expect(failure.invitationId).toBe(invitation.id);
-        }
-      }).pipe(Effect.provide(layerMemory))
-  );
-
-  it.effect("authorizes revocation before reporting deferred context", () =>
+  it.effect("rejects invitations to the administrator's own email", () =>
     Effect.gen(function* () {
-      const invitation = yield* issueCompanyMemberInvite({
-        actor: owner,
+      const failure = yield* issueCompanyMemberInvite({
+        actor: administrator,
+        inviteeEmail: Redacted.make(Email.make("ADMIN@example.com"), {
+          label: "email",
+        }),
+        roles: ["buyer"],
+      }).pipe(Effect.flip);
+
+      expect(failure._tag).toBe("InvitationConflict");
+    }).pipe(Effect.provide(layerMemory))
+  );
+
+  it.effect("rejects a duplicate invitation with the same role set", () =>
+    Effect.gen(function* () {
+      yield* issueCompanyMemberInvite({
+        actor: administrator,
         inviteeEmail,
-        role: "associate",
+        roles: ["buyer", "approver"],
+      });
+      const failure = yield* issueCompanyMemberInvite({
+        actor: administrator,
+        inviteeEmail,
+        roles: ["approver", "buyer"],
+      }).pipe(Effect.flip);
+
+      expect(failure._tag).toBe("InvitationConflict");
+    }).pipe(Effect.provide(layerMemory))
+  );
+
+  it.effect("rejects a duplicate invitation with a different role set", () =>
+    Effect.gen(function* () {
+      yield* issueCompanyMemberInvite({
+        actor: administrator,
+        inviteeEmail,
+        roles: ["buyer"],
       });
 
-      const exit = yield* revokeCompanyMemberInvite({
-        actor: associate,
-        invitationId: invitation.id,
-      }).pipe(Effect.exit);
+      const failure = yield* issueCompanyMemberInvite({
+        actor: administrator,
+        inviteeEmail,
+        roles: ["approver"],
+      }).pipe(Effect.flip);
 
-      expect(Exit.isFailure(exit)).toBeTruthy();
-      if (Exit.isFailure(exit)) {
-        expect(exit.cause.toString()).toContain("InvitationPolicyError");
-      }
+      expect(failure._tag).toBe("InvitationConflict");
     }).pipe(Effect.provide(layerMemory))
-  );
-
-  it.effect(
-    "keeps company-member acceptance deferred without trusted context",
-    () =>
-      Effect.gen(function* () {
-        const invitation = yield* issueCompanyMemberInvite({
-          actor: owner,
-          inviteeEmail,
-          role: "associate",
-        });
-
-        const failure = yield* acceptCompanyMemberInvitation({
-          acceptedIdentity,
-          invitationId: invitation.id,
-        }).pipe(Effect.flip);
-
-        expect(failure).toBeInstanceOf(
-          CompanyMemberInvitationContextUnavailable
-        );
-        expect(failure.invitationId).toBe(invitation.id);
-      }).pipe(Effect.provide(layerMemory))
   );
 });

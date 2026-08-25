@@ -24,6 +24,7 @@ import { commerceAccountsLayerFrom } from "./commerce-accounts";
 type BusinessUnitResponse = { body: Partial<BusinessUnit> };
 type BusinessUnitPageResponse = { body: { results: Partial<BusinessUnit>[] } };
 type CustomerResponse = { body: Partial<Customer> };
+type CustomerPageResponse = { body: { results: Partial<Customer>[] } };
 type CustomerSignInResponse = { body: { customer: Partial<Customer> } };
 
 const mocks = vi.hoisted(() => {
@@ -93,6 +94,12 @@ const mocks = vi.hoisted(() => {
     })
   );
   const customerGetExecute = vi.fn<() => Promise<CustomerResponse>>();
+  const customerQueryGetExecute = vi.fn<() => Promise<CustomerPageResponse>>();
+  const customerQueryGet = vi.fn<
+    (request: {
+      readonly queryArgs: { readonly limit: number; readonly where: string };
+    }) => { execute: typeof customerQueryGetExecute }
+  >(() => ({ execute: customerQueryGetExecute }));
   const customerPostExecute = vi.fn<() => Promise<CustomerResponse>>();
   const customerCreateExecute = vi.fn<() => Promise<CustomerSignInResponse>>();
   const customerCreate = vi.fn<() => { execute: typeof customerCreateExecute }>(
@@ -121,11 +128,13 @@ const mocks = vi.hoisted(() => {
   }));
   const customers = vi.fn<
     () => {
+      get: typeof customerQueryGet;
       withId: typeof customerWithId;
       withKey: typeof customerWithKey;
       post: typeof customerCreate;
     }
   >(() => ({
+    get: customerQueryGet,
     post: customerCreate,
     withId: customerWithId,
     withKey: customerWithKey,
@@ -149,6 +158,8 @@ const mocks = vi.hoisted(() => {
     customerGetExecute,
     customerPost,
     customerPostExecute,
+    customerQueryGet,
+    customerQueryGetExecute,
     customerWithId,
     customerWithKey,
     customerWithKeyGet,
@@ -195,6 +206,8 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     mocks.customerCreateExecute.mockReset();
     mocks.customerGet.mockClear();
     mocks.customerGetExecute.mockReset();
+    mocks.customerQueryGet.mockClear();
+    mocks.customerQueryGetExecute.mockReset();
     mocks.customerPost.mockClear();
     mocks.customerPostExecute.mockReset();
     mocks.customerWithId.mockClear();
@@ -548,6 +561,20 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         body: {
           results: [
             {
+              associates: [
+                {
+                  associateRoleAssignments: [
+                    {
+                      associateRole: {
+                        key: "admin",
+                        typeId: "associate-role",
+                      },
+                      inheritance: "Enabled",
+                    },
+                  ],
+                  customer: { id: "customer-1", typeId: "customer" },
+                },
+              ],
               id: "business-unit-1",
               key: "business-unit-key-1",
               name: "Hydra Supply",
@@ -580,6 +607,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
           businessUnitId: "business-unit-1",
           businessUnitKey: "business-unit-key-1",
           businessUnitLabel: "Hydra Supply",
+          roles: ["admin"],
         }),
       ]);
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
@@ -593,11 +621,39 @@ describe("layerCommercetoolsCommerceAccounts", () => {
           body: {
             results: [
               {
+                associates: [
+                  {
+                    associateRoleAssignments: [
+                      {
+                        associateRole: {
+                          key: "buyer",
+                          typeId: "associate-role",
+                        },
+                        inheritance: "Enabled",
+                      },
+                    ],
+                    customer: { id: "customer-1", typeId: "customer" },
+                  },
+                ],
                 id: "business-unit-1",
                 key: "business-unit-key-1",
                 name: "Hydra Supply",
               },
               {
+                associates: [
+                  {
+                    associateRoleAssignments: [
+                      {
+                        associateRole: {
+                          key: "approver",
+                          typeId: "associate-role",
+                        },
+                        inheritance: "Enabled",
+                      },
+                    ],
+                    customer: { id: "customer-1", typeId: "customer" },
+                  },
+                ],
                 id: "business-unit-2",
                 key: "business-unit-key-2",
                 name: "Hydra Distribution",
@@ -614,12 +670,90 @@ describe("layerCommercetoolsCommerceAccounts", () => {
           );
 
         expect(
-          memberships.map(({ businessUnitId }) => businessUnitId)
-        ).toStrictEqual(["business-unit-1", "business-unit-2"]);
+          memberships.map(({ businessUnitId, roles }) => ({
+            businessUnitId,
+            roles,
+          }))
+        ).toStrictEqual([
+          { businessUnitId: "business-unit-1", roles: ["buyer"] },
+          { businessUnitId: "business-unit-2", roles: ["approver"] },
+        ]);
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
-  it.effect("maps the owner role to Commercetools admin and buyer roles", () =>
+  it.effect("adds every requested domain role to a company member", () =>
+    Effect.gen(function* () {
+      mocks.customerQueryGetExecute.mockResolvedValueOnce({
+        body: {
+          results: [
+            {
+              email: "ada@example.com",
+              externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+              firstName: "Ada",
+              id: "customer-1",
+              lastName: "Lovelace",
+              version: 8,
+            },
+          ],
+        },
+      });
+      mocks.businessUnitGetExecute.mockResolvedValueOnce({
+        body: {
+          associates: [],
+          id: "business-unit-1",
+          status: "Active",
+          version: 3,
+        },
+      });
+      mocks.businessUnitPostExecute.mockResolvedValueOnce({
+        body: {
+          id: "business-unit-1",
+          status: "Active",
+          version: 4,
+        },
+      });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      const membership = yield* commerceAccounts.addAssociate({
+        acceptedIdentity,
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+        roles: ["buyer", "approver"],
+      });
+
+      expect(mocks.businessUnitPost).toHaveBeenCalledWith({
+        body: {
+          actions: [
+            {
+              action: "addAssociate",
+              associate: {
+                associateRoleAssignments: [
+                  {
+                    associateRole: {
+                      key: "buyer",
+                      typeId: "associate-role",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      key: "approver",
+                      typeId: "associate-role",
+                    },
+                    inheritance: "Enabled",
+                  },
+                ],
+                customer: { id: "customer-1", typeId: "customer" },
+              },
+            },
+          ],
+          version: 3,
+        },
+      });
+      expect(membership.roles).toStrictEqual(["buyer", "approver"]);
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect("maps initial company roles to Commercetools admin and buyer", () =>
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
         body: {
@@ -850,7 +984,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
-  it.effect("adds the buyer role to an existing admin owner", () =>
+  it.effect("adds the buyer role without removing existing roles", () =>
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
         body: {
@@ -870,6 +1004,13 @@ describe("layerCommercetoolsCommerceAccounts", () => {
                 {
                   associateRole: {
                     key: "admin",
+                    typeId: "associate-role",
+                  },
+                  inheritance: "Enabled",
+                },
+                {
+                  associateRole: {
+                    key: "approver",
                     typeId: "associate-role",
                   },
                   inheritance: "Enabled",
@@ -907,6 +1048,13 @@ describe("layerCommercetoolsCommerceAccounts", () => {
                   {
                     associateRole: {
                       key: "admin",
+                      typeId: "associate-role",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      key: "approver",
                       typeId: "associate-role",
                     },
                     inheritance: "Enabled",

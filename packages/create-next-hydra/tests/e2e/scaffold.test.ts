@@ -267,6 +267,21 @@ const typecheckApplications = async (cwd: string) => {
   );
 };
 
+const testCustomerInvitationComposition = async (target: string) => {
+  await runTypecheck(
+    target,
+    [
+      "--filter",
+      "web",
+      "exec",
+      "vitest",
+      "run",
+      "lib/customer-account-invitation-composition.test.ts",
+    ],
+    "customer-account invitation composition test"
+  );
+};
+
 function options(
   targetDir: string,
   cms: "drupal" | "contentstack",
@@ -352,6 +367,7 @@ describe("scaffold composition", () => {
         install: installApplicationWorkspaces,
       });
       await typecheckApplications(contentstackTarget);
+      await testCustomerInvitationComposition(contentstackTarget);
 
       await expect(
         pathExists(
@@ -522,6 +538,7 @@ describe("scaffold composition", () => {
         install: installApplicationWorkspaces,
       });
       await typecheckApplications(target);
+      await testCustomerInvitationComposition(target);
 
       await expect(
         Promise.all([

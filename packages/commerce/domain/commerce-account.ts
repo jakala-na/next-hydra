@@ -20,12 +20,35 @@ export const CommerceBusinessUnitLabel = Schema.NonEmptyString.pipe(
 );
 export type CommerceBusinessUnitLabel = typeof CommerceBusinessUnitLabel.Type;
 
+export const COMPANY_ROLES = ["admin", "buyer", "approver"] as const;
+
+export const CompanyRole = Schema.Literals(COMPANY_ROLES);
+export type CompanyRole = typeof CompanyRole.Type;
+
+export const CompanyRoles = Schema.NonEmptyArray(CompanyRole).check(
+  Schema.isUnique()
+);
+export type CompanyRoles = typeof CompanyRoles.Type;
+
+export const INITIAL_COMPANY_ROLES: CompanyRoles = ["admin", "buyer"];
+
+export const hasCompanyRole = (
+  roles: readonly CompanyRole[],
+  role: CompanyRole
+) => roles.includes(role);
+
+export const sameCompanyRoles = (
+  left: readonly CompanyRole[],
+  right: readonly CompanyRole[]
+) => left.length === right.length && left.every((role) => right.includes(role));
+
 export class CommerceBusinessUnitMembership extends Schema.Class<CommerceBusinessUnitMembership>(
   "CommerceBusinessUnitMembership"
 )({
   businessUnitId: CommerceBusinessUnitId,
   businessUnitKey: CommerceBusinessUnitKey,
   businessUnitLabel: CommerceBusinessUnitLabel,
+  roles: CompanyRoles,
 }) {}
 
 export class CommerceAccount extends Schema.Class<CommerceAccount>(
@@ -59,14 +82,11 @@ export class CommerceCustomerProfile extends Schema.Class<CommerceCustomerProfil
   ),
 }) {}
 
-export const CommerceCompanyRole = Schema.Literals(["owner", "associate"]);
-export type CommerceCompanyRole = typeof CommerceCompanyRole.Type;
-
 export class CommerceAssociateMembership extends Schema.Class<CommerceAssociateMembership>(
   "CommerceAssociateMembership"
 )({
   authUserId: Schema.String,
   businessUnitId: CommerceBusinessUnitId,
   customerId: CommerceCustomerId,
-  role: CommerceCompanyRole,
+  roles: CompanyRoles,
 }) {}

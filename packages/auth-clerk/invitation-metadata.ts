@@ -3,28 +3,26 @@ import {
   RegistrationId,
 } from "@repo/registration/domain/identity";
 import type { InvitationIntent } from "@repo/registration/domain/invitations";
+import { CompanyRoles } from "@repo/registration/domain/roles";
 import { Schema } from "effect";
 
 const ClerkCompanyMemberMetadata = Schema.Struct({
   businessUnitId: CommerceBusinessUnitId,
   intent: Schema.Literal("company_member"),
-  role: Schema.Literal("associate"),
+  roles: CompanyRoles,
 });
 
 const ClerkRegistrationApprovalMetadata = Schema.Struct({
   intent: Schema.Literal("registration_approval"),
   registrationId: RegistrationId,
-  role: Schema.Literal("owner"),
+  roles: CompanyRoles,
 });
 
 export const ClerkInvitationMetadata = Schema.Struct({
-  nextHydra: Schema.Struct({
-    invitation: Schema.Union([
-      ClerkRegistrationApprovalMetadata,
-      ClerkCompanyMemberMetadata,
-    ]),
-    version: Schema.Literal(1),
-  }),
+  invitation: Schema.Union([
+    ClerkRegistrationApprovalMetadata,
+    ClerkCompanyMemberMetadata,
+  ]),
 });
 export type ClerkInvitationMetadata = typeof ClerkInvitationMetadata.Type;
 
@@ -36,18 +34,13 @@ export const clerkInvitationMetadataFromIntent = (
       ? {
           intent: intent.intent,
           registrationId: intent.registrationId,
-          role: intent.role,
+          roles: intent.roles,
         }
       : {
           businessUnitId: intent.businessUnitId,
           intent: intent.intent,
-          role: intent.role,
+          roles: intent.roles,
         };
 
-  return {
-    nextHydra: {
-      invitation,
-      version: 1,
-    },
-  };
+  return { invitation };
 };

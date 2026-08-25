@@ -1,3 +1,9 @@
+/* oxlint-disable max-classes-per-file, typescript/no-unsafe-call, typescript/no-unsafe-return, unicorn/throw-new-error -- This cohesive invitation capability owns related Schema error classes; the lint analyzer loses tagged-error types across Effect generators. */
+import type {
+  InvitationIssueOutcomeUnknown,
+  InvitationProviderFailure,
+} from "@repo/auth-contract/invitations";
+import { InvitationConflict } from "@repo/auth-contract/invitations";
 import {
   Clock,
   Context,
@@ -26,17 +32,16 @@ import type {
 } from "../domain/invitations";
 import type { RegistrationInvitationIssueAttemptFailure } from "./registration-invitation-issue-attempt-failure";
 
+export {
+  InvitationConflict,
+  InvitationIssueOutcomeUnknown,
+  InvitationProviderFailure,
+} from "@repo/auth-contract/invitations";
+
 export class InvitationNotFound extends Schema.TaggedError<InvitationNotFound>()(
   "InvitationNotFound",
   {
     invitationId: InvitationId,
-    message: Schema.String,
-  }
-) {}
-
-export class InvitationConflict extends Schema.TaggedError<InvitationConflict>()(
-  "InvitationConflict",
-  {
     message: Schema.String,
   }
 ) {}
@@ -50,29 +55,16 @@ export class InvitationExpired extends Schema.TaggedError<InvitationExpired>()(
   }
 ) {}
 
-export class InvitationProviderFailure extends Schema.TaggedError<InvitationProviderFailure>()(
-  "InvitationProviderFailure",
-  {
-    cause: Schema.Defect(),
-    message: Schema.String,
-    operation: Schema.Literals(["issue", "read", "accept", "revoke"]),
-  }
-) {}
-
-export class InvitationIssueOutcomeUnknown extends Schema.TaggedError<InvitationIssueOutcomeUnknown>()(
-  "InvitationIssueOutcomeUnknown",
-  {
-    cause: Schema.Defect(),
-    message: Schema.String,
-  }
-) {}
-
 export type InvitationIssueError =
   | InvitationConflict
   | InvitationExpired
   | InvitationIssueOutcomeUnknown
   | InvitationProviderFailure
   | RegistrationInvitationIssueAttemptFailure;
+export type CompanyMemberInvitationIssueError =
+  | InvitationConflict
+  | InvitationIssueOutcomeUnknown
+  | InvitationProviderFailure;
 export type InvitationReadError =
   | InvitationNotFound
   | InvitationProviderFailure;
@@ -140,7 +132,7 @@ export class CompanyMemberInvitations extends Context.Service<
   {
     readonly issue: (
       input: CompanyMemberInvitationIssueInput
-    ) => Effect.Effect<PendingInvitation, InvitationIssueError>;
+    ) => Effect.Effect<PendingInvitation, CompanyMemberInvitationIssueError>;
   }
 >()("@repo/registration/CompanyMemberInvitations") {}
 
@@ -340,17 +332,9 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
           : undefined;
 
         if (existing?._tag === "PendingInvitation") {
-          if (
-            existing.intent.intent === "company_member" &&
-            existing.intent.role !== input.intent.role
-          ) {
-            return yield* new InvitationConflict({
-              message:
-                "Pending company invitation already exists with a different role",
-            });
-          }
-
-          return existing;
+          return yield* new InvitationConflict({
+            message: "Pending company invitation already exists",
+          });
         }
 
         return yield* persistPendingInvitation(input);

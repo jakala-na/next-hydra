@@ -112,6 +112,8 @@ The Checkout context describes how a buyer completes the information and choices
 
 **Business Unit Membership**: A provider-reported relationship showing that a Customer may act in a Business Unit within a Store, directly or through an inherited hierarchy. _Avoid_: Current Buying Context, selected Business Unit
 
+**Company Role**: A business authorization assigned to a Customer within a Business Unit: Admin, Buyer, or Approver. A Customer can hold a non-empty set of Company Roles whose permissions combine. _Avoid_: Owner, Associate, Identity provider role
+
 **Buying Context**: The verified Business Unit in which an authenticated Customer is currently acting for commerce operations in a Store. _Avoid_: Account, unverified company selection
 
 **Buyer Contact**: The contact details used for communicating with the buyer during Checkout, whether entered by the buyer or derived from a known buyer. _Avoid_: Contact information
@@ -180,6 +182,7 @@ The Checkout context describes how a buyer completes the information and choices
 - An HTTP request proves possession of an anonymous **Current Cart** only with the HttpOnly `cart` cookie; a caller-supplied Cart ID header is neither accepted nor documented.
 - `CommerceContext.layer(request)` resolves the verified **Commerce Context** once for the request. For authenticated requests it derives Customer ID from Auth User ID, obtains Store-scoped **Business Unit Memberships** through **Commerce Accounts**, and uses the requested verified Business Unit or the first verified membership as the **Buying Context**.
 - **Commerce Accounts** reports provider-backed customer mappings, profiles, and Business Unit Memberships; it does not decide which Business Unit is current for a request.
+- A **Business Unit Membership** carries every recognized **Company Role** assigned directly or through inheritance; it is not collapsed to one role.
 - A caller-provided Business Unit ID selects among verified memberships; it does not grant membership. A missing, stale, or invalid selector falls back to the first verified membership, and resolution fails only when the Customer has no eligible membership in the Store. Customer ID is resolved from verified authentication and is never accepted as request authority.
 - The provider-selected **Address Book** Layer depends on `CommerceContext`; its `list`, `get`, and `save` methods accept no Customer or Business Unit identity.
 - The **Address Book** HTTP API is an authenticated capability boundary with its own contract and errors; it does not expose Checkout endpoints, anonymous Cart inputs, or Checkout errors.

@@ -1,14 +1,21 @@
 import "server-only";
-import type { ActionClient } from "@repo/actions";
+import { ActionClient, ActionMiddleware } from "@repo/actions";
+import type { EmptyActionContext } from "@repo/actions";
 import type { Locale } from "@repo/i18n/types";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 
+import { CheckoutPolicies } from "./lib/checkout/checkout-policy";
 import type {
   CommerceApplication,
   CommerceRequestProvisionError,
+  CommerceRequestLayerServices,
   CommerceRequestServices,
   CommerceStableServices,
 } from "./runtime/make-commerce-app";
+import { CartPolicies } from "./services/cart-policies";
+import { Carts } from "./services/carts";
+import { CommerceAccounts } from "./services/commerce-accounts";
+import { CustomerAccountMembers } from "./services/customer-account-members";
 import type { StoreKey } from "./store";
 
 export type {
@@ -76,3 +83,42 @@ export const NextCommerce: NextCommerceRuntime = {
   runPromise: async () =>
     await Promise.reject(new CommerceRuntimeNotConfigured()),
 };
+
+interface CommerceActionContext {
+  readonly locale: Locale;
+}
+
+const unconfiguredRuntime = ManagedRuntime.make(
+  Layer.mergeAll(
+    Layer.effect(CartPolicies, Effect.die(new CommerceRuntimeNotConfigured())),
+    Layer.effect(Carts, Effect.die(new CommerceRuntimeNotConfigured())),
+    Layer.effect(
+      CheckoutPolicies,
+      Effect.die(new CommerceRuntimeNotConfigured())
+    ),
+    Layer.effect(
+      CommerceAccounts,
+      Effect.die(new CommerceRuntimeNotConfigured())
+    ),
+    Layer.effect(
+      CustomerAccountMembers,
+      Effect.die(new CommerceRuntimeNotConfigured())
+    )
+  )
+);
+
+const unconfiguredActionContext = ActionMiddleware.context<
+  EmptyActionContext,
+  CommerceActionContext
+>(() => Effect.succeed({ locale: "en-US" }));
+
+const unconfiguredRequestLayer = (): Layer.Layer<
+  CommerceRequestLayerServices,
+  CommerceRequestProvisionError,
+  CommerceStableServices
+> => Layer.effectContext(Effect.die(new CommerceRuntimeNotConfigured()));
+
+/** The application replaces this binding through its exact runtime alias. */
+export const CommerceActions = ActionClient.make(unconfiguredRuntime)
+  .use(unconfiguredActionContext)
+  .provide(unconfiguredRequestLayer);

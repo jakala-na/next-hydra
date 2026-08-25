@@ -1,3 +1,4 @@
+/* oxlint-disable eslint/require-await -- WorkOS SDK test doubles intentionally implement asynchronous provider interfaces without network I/O. */
 import {
   CompanyActor,
   registrationSystemActor,
@@ -27,12 +28,22 @@ import {
 } from "@repo/registration/services/invitations";
 import { RegistrationInvitationIssueAttempt } from "@repo/registration/services/registration-invitation-issue-attempts";
 import type { RegistrationInvitationIssueAttemptsService } from "@repo/registration/services/registration-invitation-issue-attempts";
-import { NotFoundException } from "@workos-inc/node";
-import type { Invitation as WorkosInvitation } from "@workos-inc/node";
-import { Effect, Exit, Layer, Redacted } from "effect";
+import {
+  BadRequestException,
+  NotFoundException,
+  WorkOS,
+} from "@workos-inc/node";
+import type {
+  Invitation as WorkosInvitation,
+  User as WorkosUser,
+} from "@workos-inc/node";
+import { DateTime, Effect, Exit, Layer, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { makeWorkosInvitationCapabilities } from "./invitations";
+import {
+  makeWorkosCompanyMemberInvitations,
+  makeWorkosInvitationCapabilities,
+} from "./invitations";
 import type { WorkosInvitationUserManagement } from "./invitations";
 
 type WorkosInvitationState = "pending" | "accepted" | "expired" | "revoked";
@@ -43,10 +54,10 @@ const inviteeEmail = Redacted.make(Email.make("invitee@example.com"), {
 
 const actor = new CompanyActor({
   actorType: "company",
-  authUserId: AuthUserId.make("auth-owner-1"),
+  authUserId: AuthUserId.make("auth-admin-1"),
   businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-  email: Redacted.make(Email.make("owner@example.com"), { label: "email" }),
-  role: "owner",
+  email: Redacted.make(Email.make("admin@example.com"), { label: "email" }),
+  roles: ["admin", "buyer"],
 });
 
 const acceptedIdentity = new AcceptedAuthIdentity({
@@ -62,14 +73,14 @@ const companyMemberIntent = new CompanyMemberIntent({
   businessUnitId: actor.businessUnitId,
   intent: "company_member",
   inviteeEmail,
-  role: "associate",
+  roles: ["buyer", "approver"],
 });
 
 const registrationIntent = new RegistrationApprovalIntent({
   intent: "registration_approval",
   inviteeEmail,
   registrationId: RegistrationId.make("registration-1"),
-  role: "owner",
+  roles: ["admin", "buyer"],
 });
 
 const makeWorkosInvitation = (
@@ -94,6 +105,22 @@ const makeWorkosInvitation = (
   ...overrides,
 });
 
+const makeWorkosUser = (metadata: Record<string, string> = {}): WorkosUser => ({
+  createdAt: "2026-01-01T00:00:00.000Z",
+  email: Redacted.value(inviteeEmail),
+  emailVerified: true,
+  externalId: null,
+  firstName: "Invited",
+  id: acceptedIdentity.authUserId,
+  lastName: "User",
+  lastSignInAt: "2026-01-03T00:00:00.000Z",
+  locale: null,
+  metadata,
+  object: "user",
+  profilePictureUrl: null,
+  updatedAt: "2026-01-03T00:00:00.000Z",
+});
+
 const makeUserManagement = (
   overrides: Partial<WorkosInvitationUserManagement> & {
     readonly sent?: (
@@ -108,6 +135,16 @@ const makeUserManagement = (
     overrides.sent?.(input);
     return makeWorkosInvitation("pending");
   },
+  updateUser: async (input) =>
+    await Promise.resolve(
+      makeWorkosUser(
+        Object.fromEntries(
+          Object.entries(input.metadata ?? {}).filter(
+            (entry): entry is [string, string] => entry[1] !== null
+          )
+        )
+      )
+    ),
   ...overrides,
 });
 
@@ -187,8 +224,8 @@ describe(makeWorkosInvitationCapabilities, () => {
         expect(sentInput).toMatchObject({
           email: Redacted.value(inviteeEmail),
           inviterUserId: actor.authUserId,
-          roleSlug: "associate",
         });
+        expect(sentInput).not.toHaveProperty("roleSlug");
         expect(invitation.id).toBe(InvitationId.make("invitation-1"));
         expect(invitation.intent).toBe(companyMemberIntent);
         expect(invitation.issuedBy).toBe(actor);
@@ -264,14 +301,18 @@ describe(makeWorkosInvitationCapabilities, () => {
     const attempts = makeIssueAttempts();
     let invitationCreated = false;
     let sendCalls = 0;
+    let sentInput:
+      | Parameters<WorkosInvitationUserManagement["sendInvitation"]>[0]
+      | undefined;
     const capabilities = makeWorkosInvitationCapabilities(
       makeUserManagement({
         getInvitation: async () => issued,
         listInvitations: async () => ({
           data: invitationCreated ? [issued] : [],
         }),
-        sendInvitation: async () => {
+        sendInvitation: async (input) => {
           sendCalls += 1;
+          sentInput = input;
           invitationCreated = true;
           return issued;
         },
@@ -295,6 +336,7 @@ describe(makeWorkosInvitationCapabilities, () => {
     expect(first.id).toBe(InvitationId.make("invitation-retry"));
     expect(retry.id).toBe(first.id);
     expect(sendCalls).toBe(1);
+    expect(sentInput).not.toHaveProperty("roleSlug");
   });
 
   it("reports outcome unknown instead of binding an email-only invitation", async () => {
@@ -332,9 +374,98 @@ describe(makeWorkosInvitationCapabilities, () => {
         .pipe(Effect.flip)
     );
 
-    expect(firstFailure._tag).toBe("InvitationProviderFailure");
+    expect(firstFailure).toBeInstanceOf(InvitationIssueOutcomeUnknown);
     expect(retryFailure).toBeInstanceOf(InvitationIssueOutcomeUnknown);
     expect(listCalls).toBe(2);
+  });
+
+  it("reports an ambiguous company-member write as outcome unknown", async () => {
+    const capabilities = makeWorkosInvitationCapabilities(
+      makeUserManagement({
+        sendInvitation: async () => {
+          throw new Error("response lost");
+        },
+      }),
+      makeIssueAttempts()
+    );
+
+    const failure = await Effect.runPromise(
+      capabilities.companyMemberInvitations
+        .issue({ intent: companyMemberIntent, issuedBy: actor })
+        .pipe(Effect.flip)
+    );
+
+    expect(failure).toBeInstanceOf(InvitationIssueOutcomeUnknown);
+  });
+
+  it("keeps a provider-confirmed issue rejection distinct from an ambiguous write", async () => {
+    const capabilities = makeWorkosInvitationCapabilities(
+      makeUserManagement({
+        sendInvitation: async () => {
+          await Promise.resolve();
+          throw new BadRequestException({
+            message: "invalid invitation",
+            requestID: "request-1",
+          });
+        },
+      }),
+      makeIssueAttempts()
+    );
+
+    const failure = await Effect.runPromise(
+      capabilities.companyMemberInvitations
+        .issue({ intent: companyMemberIntent, issuedBy: actor })
+        .pipe(Effect.flip)
+    );
+
+    expect(failure).toBeInstanceOf(InvitationProviderFailure);
+  });
+
+  it("maps the SDK's production 409 response to an invitation conflict", async () => {
+    const workos = new WorkOS({
+      apiKey: "sk_test_invitation",
+      fetchFn: async () =>
+        await Promise.resolve(
+          Response.json(
+            { message: "Invitation already exists" },
+            {
+              headers: { "X-Request-ID": "request-conflict-1" },
+              status: 409,
+            }
+          )
+        ),
+    });
+    const invitations = makeWorkosCompanyMemberInvitations(
+      workos.userManagement
+    );
+
+    const failure = await Effect.runPromise(
+      invitations
+        .issue({ intent: companyMemberIntent, issuedBy: actor })
+        .pipe(Effect.flip)
+    );
+
+    expect(failure).toBeInstanceOf(InvitationConflict);
+  });
+
+  it("reports an invalid successful issue response as outcome unknown", async () => {
+    const capabilities = makeWorkosInvitationCapabilities(
+      makeUserManagement({
+        sendInvitation: async () =>
+          await Promise.resolve(
+            makeWorkosInvitation("pending", "", { expiresAt: "invalid" })
+          ),
+      }),
+      makeIssueAttempts()
+    );
+
+    const failure = await Effect.runPromise(
+      capabilities.companyMemberInvitations
+        .issue({ intent: companyMemberIntent, issuedBy: actor })
+        .pipe(Effect.flip)
+    );
+
+    expect(failure).toBeInstanceOf(InvitationIssueOutcomeUnknown);
   });
 
   it("maps provider reads to invitation delivery state", async () => {
@@ -355,6 +486,9 @@ describe(makeWorkosInvitationCapabilities, () => {
 
   it("accepts webhook-confirmed invitations without mutating WorkOS state", async () => {
     let readInvitationId: string | undefined;
+    let updatedUser:
+      | Parameters<WorkosInvitationUserManagement["updateUser"]>[0]
+      | undefined;
 
     await Effect.runPromise(
       Effect.gen(function* () {
@@ -378,6 +512,10 @@ describe(makeWorkosInvitationCapabilities, () => {
                 readInvitationId = invitationId;
                 return makeWorkosInvitation("accepted");
               },
+              updateUser: async (input) => {
+                updatedUser = input;
+                return await Promise.resolve(makeWorkosUser());
+              },
             })
           )
         )
@@ -385,6 +523,13 @@ describe(makeWorkosInvitationCapabilities, () => {
     );
 
     expect(readInvitationId).toBe("invitation-1");
+    expect(updatedUser).toStrictEqual({
+      metadata: {
+        invitation:
+          '{"intent":"registration_approval","registrationId":"registration-1","roles":["admin","buyer"]}',
+      },
+      userId: acceptedIdentity.authUserId,
+    });
   });
 
   it("trusts accepted identity from the webhook while WorkOS is eventually consistent", async () => {
@@ -493,7 +638,9 @@ describe(makeWorkosInvitationCapabilities, () => {
 
     expect(failure).toMatchObject({
       _tag: "InvitationExpired",
-      expiredAt: new Date("2026-01-10T00:00:00.000Z"),
+      expiredAt: DateTime.toDateUtc(
+        DateTime.makeUnsafe("2026-01-10T00:00:00.000Z")
+      ),
     } satisfies Partial<InvitationExpired>);
   });
 

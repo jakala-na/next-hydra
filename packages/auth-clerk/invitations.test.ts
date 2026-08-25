@@ -15,11 +15,8 @@ import {
   CompanyMemberIntent,
   RegistrationApprovalIntent,
 } from "@repo/registration/domain/invitations";
-import type {
-  InvitationExpired} from "@repo/registration/services/invitations";
-import {
-  InvitationIssueOutcomeUnknown,
-} from "@repo/registration/services/invitations";
+import type { InvitationExpired } from "@repo/registration/services/invitations";
+import { InvitationIssueOutcomeUnknown } from "@repo/registration/services/invitations";
 import { RegistrationInvitationIssueAttempt } from "@repo/registration/services/registration-invitation-issue-attempts";
 import type { RegistrationInvitationIssueAttemptsService } from "@repo/registration/services/registration-invitation-issue-attempts";
 import { Effect, Redacted } from "effect";
@@ -35,20 +32,20 @@ const intent = new RegistrationApprovalIntent({
   intent: "registration_approval",
   inviteeEmail,
   registrationId: RegistrationId.make("registration-1"),
-  role: "owner",
+  roles: ["admin", "buyer"],
 });
 const companyActor = new CompanyActor({
   actorType: "company",
-  authUserId: AuthUserId.make("company-owner-1"),
+  authUserId: AuthUserId.make("company-admin-1"),
   businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-  email: Redacted.make(Email.make("owner@example.com"), { label: "email" }),
-  role: "owner",
+  email: Redacted.make(Email.make("admin@example.com"), { label: "email" }),
+  roles: ["admin", "buyer"],
 });
 const companyMemberIntent = new CompanyMemberIntent({
   businessUnitId: companyActor.businessUnitId,
   intent: "company_member",
   inviteeEmail,
-  role: "associate",
+  roles: ["buyer", "approver"],
 });
 const acceptedIdentity = new AcceptedAuthIdentity({
   authUserId: AuthUserId.make("user-1"),
@@ -56,29 +53,23 @@ const acceptedIdentity = new AcceptedAuthIdentity({
   firstName: Redacted.make(PersonName.make("Invited"), {
     label: "personName",
   }),
-  lastName: Redacted.make(PersonName.make("Owner"), {
+  lastName: Redacted.make(PersonName.make("Member"), {
     label: "personName",
   }),
 });
 
 const publicMetadata = {
-  nextHydra: {
-    invitation: {
-      intent: "registration_approval" as const,
-      registrationId: RegistrationId.make("registration-1"),
-      role: "owner" as const,
-    },
-    version: 1 as const,
+  invitation: {
+    intent: "registration_approval" as const,
+    registrationId: RegistrationId.make("registration-1"),
+    roles: ["admin", "buyer"] as const,
   },
 };
 const companyMemberPublicMetadata = {
-  nextHydra: {
-    invitation: {
-      businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-      intent: "company_member" as const,
-      role: "associate" as const,
-    },
-    version: 1 as const,
+  invitation: {
+    businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+    intent: "company_member" as const,
+    roles: ["buyer", "approver"] as const,
   },
 };
 
@@ -146,7 +137,7 @@ const makeIssueAttempts = (): RegistrationInvitationIssueAttemptsService => {
 };
 
 describe(makeClerkInvitationCapabilities, () => {
-  it("issues a Clerk invitation with namespaced domain correlation metadata", async () => {
+  it("issues a Clerk invitation with domain correlation metadata", async () => {
     let createInput:
       | Parameters<ClerkInvitationsApi["createInvitation"]>[0]
       | undefined;
@@ -173,13 +164,10 @@ describe(makeClerkInvitationCapabilities, () => {
       emailAddress: "invitee@example.com",
       expiresInDays: 30,
       publicMetadata: {
-        nextHydra: {
-          invitation: {
-            intent: "registration_approval",
-            registrationId: "registration-1",
-            role: "owner",
-          },
-          version: 1,
+        invitation: {
+          intent: "registration_approval",
+          registrationId: "registration-1",
+          roles: ["admin", "buyer"],
         },
       },
       redirectUrl: "https://shop.example.com/accept-invitation",
@@ -346,6 +334,27 @@ describe(makeClerkInvitationCapabilities, () => {
     expect(recovered.id).toBe(InvitationId.make("invitation-2"));
     expect(createCalls).toBe(1);
     expect(listCalls).toBe(0);
+  });
+
+  it("reports an ambiguous company-member write as outcome unknown", async () => {
+    const capabilities = makeClerkInvitationCapabilities(
+      makeApi({
+        createInvitation: async () => {
+          await Promise.resolve();
+          throw new Error("response lost");
+        },
+      }),
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
+    );
+
+    const failure = await Effect.runPromise(
+      capabilities.companyMemberInvitations
+        .issue({ intent: companyMemberIntent, issuedBy: companyActor })
+        .pipe(Effect.flip)
+    );
+
+    expect(failure).toBeInstanceOf(InvitationIssueOutcomeUnknown);
   });
 
   it("reports outcome unknown without searching by email after a lost response", async () => {

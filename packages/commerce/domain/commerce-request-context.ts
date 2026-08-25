@@ -5,6 +5,7 @@ import { CartId } from "./cart";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
+  CompanyRoles,
   CommerceCustomerId,
 } from "./commerce-account";
 
@@ -50,6 +51,7 @@ export class CustomerCommercePrincipal extends Schema.TaggedClass<CustomerCommer
     businessUnitId: CommerceBusinessUnitId,
     businessUnitKey: CommerceBusinessUnitKey,
     customerId: CommerceCustomerId,
+    roles: CompanyRoles,
   }
 ) {}
 

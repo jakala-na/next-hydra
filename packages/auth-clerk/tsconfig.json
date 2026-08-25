@@ -7,5 +7,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "registry"]
+  "exclude": ["node_modules", "prototypes", "registry"]
 }

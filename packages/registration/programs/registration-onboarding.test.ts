@@ -1,3 +1,4 @@
+/* oxlint-disable typescript/no-base-to-string -- Redacted domain values deliberately stringify to their protected representation in assertions. */
 import { describe, expect, it } from "@effect/vitest";
 import {
   CommerceAccount,
@@ -99,12 +100,12 @@ const reviewer = new RegistrationReviewerActor({
   name: "Registration Reviewer",
 });
 
-const companyOwner = new CompanyActor({
+const companyAdministrator = new CompanyActor({
   actorType: "company",
-  authUserId: AuthUserId.make("auth-company-owner-1"),
+  authUserId: AuthUserId.make("auth-company-admin-1"),
   businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-  email: Redacted.make(Email.make("owner@example.com"), { label: "email" }),
-  role: "owner",
+  email: Redacted.make(Email.make("admin@example.com"), { label: "email" }),
+  roles: ["admin", "buyer"],
 });
 
 const details = new CompanyRegistrationDetails({
@@ -155,7 +156,7 @@ const createRegistration = Effect.gen(function* () {
 
 describe("registration onboarding", () => {
   it.effect(
-    "approves a registration and issues an owner invitation before commerce provisioning",
+    "approves a registration and issues an administrator invitation before commerce provisioning",
     () =>
       Effect.gen(function* () {
         const registration = yield* createRegistration;
@@ -476,69 +477,72 @@ describe("registration onboarding", () => {
       }).pipe(Effect.provide(layerMemory))
   );
 
-  it.effect("adds the accepted registrant as the business unit owner", () => {
-    const linkedIdentities: AcceptedCommerceIdentity[] = [];
-    const commerceLayer = Layer.succeed(
-      CommerceAccounts,
-      CommerceAccounts.of({
-        addAssociate: (input) =>
-          Effect.sync(
-            () =>
-              new CommerceAssociateMembership({
-                authUserId: input.acceptedIdentity.authUserId,
-                businessUnitId: input.businessUnitId,
-                customerId: CommerceCustomerId.make(
-                  `customer-${input.acceptedIdentity.authUserId}`
+  it.effect(
+    "adds the accepted registrant as the business unit administrator",
+    () => {
+      const linkedIdentities: AcceptedCommerceIdentity[] = [];
+      const commerceLayer = Layer.succeed(
+        CommerceAccounts,
+        CommerceAccounts.of({
+          addAssociate: (input) =>
+            Effect.sync(
+              () =>
+                new CommerceAssociateMembership({
+                  authUserId: input.acceptedIdentity.authUserId,
+                  businessUnitId: input.businessUnitId,
+                  customerId: CommerceCustomerId.make(
+                    `customer-${input.acceptedIdentity.authUserId}`
+                  ),
+                  roles: input.roles,
+                })
+            ),
+          createFromRegistration: (registration) =>
+            Effect.succeed(
+              new CommerceAccount({
+                businessUnitId: CommerceBusinessUnitId.make(
+                  `business-unit-${registration.id}`
                 ),
-                role: input.role,
+                customerId: CommerceCustomerId.make(
+                  `customer-${registration.id}`
+                ),
+                registrationId: registration.id,
               })
-          ),
-        createFromRegistration: (registration) =>
-          Effect.succeed(
-            new CommerceAccount({
-              businessUnitId: CommerceBusinessUnitId.make(
-                `business-unit-${registration.id}`
-              ),
-              customerId: CommerceCustomerId.make(
-                `customer-${registration.id}`
-              ),
-              registrationId: registration.id,
-            })
-          ),
-        getCustomerIdByAuthUserId: () => Effect.die("not used"),
-        getCustomerProfile: () => Effect.die("not used"),
-        hasCustomerWithEmail: () => Effect.succeed(false),
-        linkRegistrantIdentity: (input) =>
-          Effect.sync(() => {
-            linkedIdentities.push(input.acceptedIdentity);
-            return input.commerceAccount;
-          }),
-        listBusinessUnitMembershipsForCustomerInStore: () =>
-          Effect.die("not used"),
-      })
-    );
-    const layer = Layer.mergeAll(
-      Registrations.layerMemory,
-      commerceLayer,
-      invitationCapabilitiesLayerMemory
-    );
+            ),
+          getCustomerIdByAuthUserId: () => Effect.die("not used"),
+          getCustomerProfile: () => Effect.die("not used"),
+          hasCustomerWithEmail: () => Effect.succeed(false),
+          linkRegistrantIdentity: (input) =>
+            Effect.sync(() => {
+              linkedIdentities.push(input.acceptedIdentity);
+              return input.commerceAccount;
+            }),
+          listBusinessUnitMembershipsForCustomerInStore: () =>
+            Effect.die("not used"),
+        })
+      );
+      const layer = Layer.mergeAll(
+        Registrations.layerMemory,
+        commerceLayer,
+        invitationCapabilitiesLayerMemory
+      );
 
-    return Effect.gen(function* () {
-      const registration = yield* createRegistration;
-      const approved = yield* approveRegistration({
-        actor: reviewer,
-        registrationId: registration.id,
-      });
+      return Effect.gen(function* () {
+        const registration = yield* createRegistration;
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
 
-      yield* acceptRegistrationInvitation({
-        acceptedIdentity,
-        invitationId: approved.invitationId,
-        registrationId: approved.id,
-      });
+        yield* acceptRegistrationInvitation({
+          acceptedIdentity,
+          invitationId: approved.invitationId,
+          registrationId: approved.id,
+        });
 
-      expect(linkedIdentities).toStrictEqual([acceptedIdentity]);
-    }).pipe(Effect.provide(layer));
-  });
+        expect(linkedIdentities).toStrictEqual([acceptedIdentity]);
+      }).pipe(Effect.provide(layer));
+    }
+  );
 
   it.effect(
     "fails registration invitation acceptance by a different auth user",
@@ -594,9 +598,9 @@ describe("registration onboarding", () => {
             businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
             intent: "company_member",
             inviteeEmail: details.email,
-            role: "associate",
+            roles: ["buyer"],
           }),
-          issuedBy: companyOwner,
+          issuedBy: companyAdministrator,
         });
 
         const wrongProgramExit = yield* acceptRegistrationInvitation({
@@ -631,7 +635,7 @@ describe("registration onboarding", () => {
             intent: "registration_approval",
             inviteeEmail: approved.details.email,
             registrationId: approved.id,
-            role: "owner",
+            roles: ["admin", "buyer"],
           }),
           invitationId: approved.invitationId,
           issuedBy: registrationSystemActor,

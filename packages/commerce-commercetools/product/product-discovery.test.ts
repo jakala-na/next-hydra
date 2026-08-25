@@ -51,6 +51,7 @@ const commerceContextLayer = (authenticated = false) =>
               "business-unit-key-1"
             ),
             customerId: CommerceCustomerId.make("customer-1"),
+            roles: ["admin", "buyer"],
           })
         : new AnonymousCommercePrincipal({}),
       store,

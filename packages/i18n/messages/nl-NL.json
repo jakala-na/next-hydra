@@ -1,6 +1,7 @@
 {
   "web": {
     "header": {
+      "account": "Klantenzone",
       "signUp": "Aanmelden",
       "signIn": "Aanmelden",
       "signOut": "Afmelden",
@@ -194,6 +195,61 @@
           "title": "Uw bedrijfsregistratie wordt nog beoordeeld.",
           "description": "We sturen de volgende stappen per e-mail zodra uw bedrijf is goedgekeurd."
         }
+      }
+    },
+    "customerArea": {
+      "title": "Klantenzone",
+      "description": "Beheer je bedrijfsaccount en de mensen die namens het bedrijf mogen inkopen.",
+      "navigation": {
+        "accountManagement": "Accountbeheer",
+        "orders": "Bestellingen",
+        "addresses": "Adressen",
+        "comingSoon": "Binnenkort"
+      },
+      "users": {
+        "adminOnly": {
+          "title": "Beheerderstoegang vereist",
+          "description": "Alleen een bedrijfsbeheerder kan gebruikers uitnodigen."
+        },
+        "invite": {
+          "title": "Gebruiker toevoegen",
+          "description": "Nodig iemand uit en kies wat die persoon voor je bedrijf mag doen.",
+          "emailLabel": "E-mailadres",
+          "emailPlaceholder": "naam@bedrijf.nl",
+          "rolesLabel": "Bedrijfsrollen",
+          "rolesDescription": "Selecteer een of meer rollen. De rechten worden gecombineerd.",
+          "roles": {
+            "admin": {
+              "label": "Beheerder",
+              "description": "Gebruikers en toegang beheren."
+            },
+            "buyer": {
+              "label": "Inkoper",
+              "description": "Bestellingen voor het bedrijf plaatsen."
+            },
+            "approver": {
+              "label": "Goedkeurder",
+              "description": "Bestellingen beoordelen en goedkeuren."
+            }
+          },
+          "send": "Uitnodiging versturen",
+          "sending": "Versturen...",
+          "successTitle": "Uitnodiging verstuurd",
+          "successDescription": "Er is een uitnodiging verstuurd naar {email}.",
+          "failureTitle": "Uitnodiging niet verstuurd"
+        }
+      },
+      "errors": {
+        "InputInvalid": "Voer een geldig e-mailadres in.",
+        "InputInvalidRoles": "Selecteer ten minste één bedrijfsrol.",
+        "InvitationPolicyError": "Alleen een bedrijfsbeheerder kan gebruikers uitnodigen.",
+        "InvitationConflict": "Deze gebruiker kan niet worden uitgenodigd.",
+        "InvitationProviderFailure": "De uitnodiging kon niet worden verstuurd. Probeer opnieuw.",
+        "InvitationIssueOutcomeUnknown": "De uitnodiging is mogelijk verstuurd, maar het resultaat kon niet worden bevestigd. Verstuur de uitnodiging niet opnieuw.",
+        "CustomerAccountProfileIncomplete": "Je profiel heeft een e-mailadres nodig.",
+        "CommerceRequestContextNotFound": "Het huidige bedrijfsaccount is niet beschikbaar.",
+        "CommerceAccountUnavailable": "Het bedrijfsaccount is tijdelijk niet beschikbaar.",
+        "CommerceCustomerProfileNotFound": "Je klantprofiel is niet gevonden."
       }
     },
     "checkout": {

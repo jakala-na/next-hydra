@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "prototype:svix": "node --env-file-if-exists=.env.local --experimental-strip-types prototypes/svix-provisioning/cli.ts",
     "test": "vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/auth-clerk/tsconfig.json",
     "typecheck:composition": "pnpm --workspace-root exec tsc --noEmit --project packages/auth-clerk/tsconfig.web.json && pnpm --workspace-root exec tsc --noEmit --project packages/auth-clerk/tsconfig.admin.json && pnpm --workspace-root exec tsc --noEmit --project packages/auth-clerk/tsconfig.api.json && pnpm --workspace-root exec tsc --noEmit --project packages/auth-clerk/tsconfig.feature-flags.json"

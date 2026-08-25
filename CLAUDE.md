@@ -30,3 +30,7 @@ Triage uses the default five-role vocabulary. See `docs/agents/triage-labels.md`
 ### Domain docs
 
 This repo uses a multi-context layout routed by `CONTEXT-MAP.md`; shared agent guidance belongs in this file. See `docs/agents/domain.md`.
+
+## Scaffold naming
+
+"Next Hydra" identifies the maintainer tooling and repository, not the application being scaffolded. Keep customer workspaces, demo application behavior, seeded content, runtime metadata, public APIs, and provisioned external resources product-neutral. Do not introduce `Next Hydra`, `NextHydra`, `nextHydra`, `next-hydra`, or `next_hydra` into those customer-owned surfaces. Maintainer-only composition protocols and documentation may use the repository name when they are not materialized into a Customer Workspace.

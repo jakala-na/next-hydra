@@ -9,6 +9,11 @@ export {
 } from "./access-token.js";
 export { AuthProviderCapabilities } from "./capabilities.js";
 export {
+  InvitationConflict,
+  InvitationIssueOutcomeUnknown,
+  InvitationProviderFailure,
+} from "./invitations.js";
+export {
   AuthPermissionAdapterSchema,
   AuthSession,
   AuthSessionAdapter,

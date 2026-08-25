@@ -13,6 +13,8 @@
     "./checkout": "./checkout/index.ts",
     "./checkout/procedures": "./checkout/procedures.ts",
     "./checkout/public-errors": "./checkout/public-errors.ts",
+    "./customer-account": "./customer-account/index.ts",
+    "./customer-account/procedures": "./customer-account/procedures.ts",
     "./commerce-context": "./commerce-context/index.ts",
     "./commerce-context/business-unit-cookie": "./commerce-context/business-unit-cookie.ts",
     "./domain/address": "./domain/address.ts",
@@ -46,6 +48,7 @@
     "./services/carts": "./services/carts.ts",
     "./services/commerce-accounts": "./services/commerce-accounts.ts",
     "./services/commerce-context": "./services/commerce-context.ts",
+    "./services/customer-account-members": "./services/customer-account-members.ts",
     "./services/current-cart": "./services/current-cart.ts",
     "./store": "./store/index.ts"
   },
@@ -57,6 +60,7 @@
   },
   "dependencies": {
     "@repo/actions": "workspace:*",
+    "@repo/auth-contract": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/errors": "workspace:*",
     "@repo/i18n": "workspace:*",

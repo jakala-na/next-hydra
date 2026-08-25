@@ -73,9 +73,11 @@ describe("Clerk auth webhook provisioning", () => {
     expect(createEndpoint).toHaveBeenCalledWith(
       "app_123",
       expect.objectContaining({
+        description: "Customer authentication webhook",
         disabled: false,
         filterTypes: [...CLERK_WEBHOOK_EVENTS],
-        uid: "next-hydra-customer-auth-webhook",
+        metadata: { owner: "auth-provisioner", pool: "customer" },
+        uid: "customer-auth-webhook",
         url: "https://api.example.com/api/webhooks/clerk",
       })
     );
@@ -102,7 +104,7 @@ describe("Clerk auth webhook provisioning", () => {
                   disabled: true,
                   filterTypes: ["user.created"],
                   id: "ep_existing",
-                  uid: "next-hydra-customer-auth-webhook",
+                  uid: "customer-auth-webhook",
                   url: "https://old.example.com/api/webhooks/clerk",
                 },
               ],
@@ -200,7 +202,7 @@ describe("Clerk auth webhook provisioning", () => {
                   disabled: false,
                   filterTypes: [...CLERK_WEBHOOK_EVENTS],
                   id: "ep_existing",
-                  uid: "next-hydra-customer-auth-webhook",
+                  uid: "customer-auth-webhook",
                   url: "https://api.example.com/api/webhooks/clerk",
                 },
               ],

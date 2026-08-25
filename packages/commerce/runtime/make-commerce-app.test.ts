@@ -46,6 +46,7 @@ const membership = (id: string, label: string) =>
     businessUnitId: CommerceBusinessUnitId.make(id),
     businessUnitKey: CommerceBusinessUnitKey.make(`${id}-key`),
     businessUnitLabel: CommerceBusinessUnitLabel.make(label),
+    roles: ["admin", "buyer"],
   });
 const cart = (id: string, businessUnitId: string) => ({
   buyingContext: {

@@ -8,7 +8,7 @@ import {
   RedactedEmail,
   RegistrationId,
 } from "./identity";
-import { CompanyMemberInvitationRole } from "./roles";
+import { CompanyRoles } from "./roles";
 
 export class RegistrationApprovalIntent extends Schema.Class<RegistrationApprovalIntent>(
   "RegistrationApprovalIntent"
@@ -16,7 +16,7 @@ export class RegistrationApprovalIntent extends Schema.Class<RegistrationApprova
   intent: Schema.Literal("registration_approval"),
   inviteeEmail: RedactedEmail,
   registrationId: RegistrationId,
-  role: Schema.Literal("owner"),
+  roles: CompanyRoles,
 }) {}
 
 export class CompanyMemberIntent extends Schema.Class<CompanyMemberIntent>(
@@ -25,7 +25,7 @@ export class CompanyMemberIntent extends Schema.Class<CompanyMemberIntent>(
   businessUnitId: CommerceBusinessUnitId,
   intent: Schema.Literal("company_member"),
   inviteeEmail: RedactedEmail,
-  role: CompanyMemberInvitationRole,
+  roles: CompanyRoles,
 }) {}
 
 export const InvitationIntent = Schema.Union([

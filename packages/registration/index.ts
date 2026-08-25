@@ -1,3 +1,4 @@
+export { customerAccountMembersLayer } from "./services/customer-account-members";
 export {
   type ApproveRegistrationInput as ApproveRegistrationViewInput,
   ApproveRegistrationInputSchema,
@@ -124,10 +125,14 @@ export {
   RejectedRegistration,
 } from "./domain/registration";
 export {
-  CompanyMemberInvitationRole,
-  type CompanyMemberInvitationRole as CompanyMemberInvitationRoleType,
+  COMPANY_ROLES,
   CompanyRole,
   type CompanyRole as CompanyRoleType,
+  CompanyRoles,
+  type CompanyRoles as CompanyRolesType,
+  hasCompanyRole,
+  INITIAL_COMPANY_ROLES,
+  sameCompanyRoles,
 } from "./domain/roles";
 export {
   CreateRegistrationRequest,
@@ -165,13 +170,8 @@ export {
   PublicRegistrationWorkflowInvitationResumeOutcomeUnknown,
 } from "./http/registration-api";
 export {
-  type AcceptCompanyMemberInvitationInput,
-  acceptCompanyMemberInvitation,
-  CompanyMemberInvitationContextUnavailable,
   type IssueCompanyMemberInviteInput,
   issueCompanyMemberInvite,
-  type RevokeCompanyMemberInviteInput,
-  revokeCompanyMemberInvite,
 } from "./programs/company-member-invitations";
 export {
   checkRegistrationEligibility,
@@ -214,7 +214,6 @@ export {
 } from "./programs/registration-review";
 export {
   type AuthorizeIssueInviteInput,
-  type AuthorizeRevokeInviteInput,
   CompanyInvitationPolicy,
   InvitationPolicyError,
 } from "./services/company-invitation-policy";

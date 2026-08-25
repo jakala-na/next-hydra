@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/design-system/components/ui/dropdown-menu";
-import { LogOut } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 
@@ -25,6 +25,7 @@ export type AccountMenuUser = {
 };
 
 export type AccountMenuLabels = {
+  readonly account: string;
   readonly user: string;
   readonly signIn: string;
   readonly signOut: string;
@@ -32,6 +33,7 @@ export type AccountMenuLabels = {
 };
 
 export type AccountMenuProps = {
+  readonly accountHref?: string;
   readonly labels: AccountMenuLabels;
   readonly loading?: boolean;
   readonly signInHref?: string;
@@ -40,15 +42,15 @@ export type AccountMenuProps = {
   readonly user?: AccountMenuUser | null;
 };
 
-// Use prefetch=false to avoid RSC fetch issues when redirecting to external auth
-function AuthLink({
+// Avoid speculative RSC requests for menu destinations that may redirect.
+function MenuLink({
   children,
   href,
 }: {
   readonly children: React.ReactNode;
   readonly href: string;
 }) {
-  // SAFETY: Provider auth routes are validated before crossing into this client component.
+  // SAFETY: Menu routes are server-authored application or provider paths.
   return (
     <Link
       href={href as Route}
@@ -61,10 +63,12 @@ function AuthLink({
 }
 
 function UserButton({
+  accountHref,
   labels,
   signOutHref,
   user,
 }: {
+  readonly accountHref?: string;
   readonly labels: AccountMenuLabels;
   readonly signOutHref: string;
   readonly user: AccountMenuUser;
@@ -106,18 +110,28 @@ function UserButton({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <AuthLink href={signOutHref}>
+        {accountHref === undefined ? null : (
+          <MenuLink href={accountHref}>
+            <span className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
+              <UserRound className="mr-2 size-4" />
+              <span>{labels.account}</span>
+            </span>
+          </MenuLink>
+        )}
+        {accountHref === undefined ? null : <DropdownMenuSeparator />}
+        <MenuLink href={signOutHref}>
           <span className="relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
             <LogOut className="mr-2 size-4" />
             <span>{labels.signOut}</span>
           </span>
-        </AuthLink>
+        </MenuLink>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
 export function AccountMenu({
+  accountHref,
   labels,
   loading,
   signInHref = "/api/auth/signin",
@@ -133,11 +147,16 @@ export function AccountMenu({
     <div className="flex items-center gap-3 text-xs sm:text-sm">
       {user ? (
         <div className="flex items-center">
-          <UserButton labels={labels} signOutHref={signOutHref} user={user} />
+          <UserButton
+            accountHref={accountHref}
+            labels={labels}
+            signOutHref={signOutHref}
+            user={user}
+          />
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          <AuthLink href={signInHref}>
+          <MenuLink href={signInHref}>
             <Button
               variant="link"
               size="sm"
@@ -145,13 +164,13 @@ export function AccountMenu({
             >
               {labels.signIn}
             </Button>
-          </AuthLink>
+          </MenuLink>
           {signUpHref ? (
             <>
               <span aria-hidden="true" className="hidden sm:inline">
                 /
               </span>
-              <AuthLink href={signUpHref}>
+              <MenuLink href={signUpHref}>
                 <Button
                   variant="link"
                   size="sm"
@@ -159,7 +178,7 @@ export function AccountMenu({
                 >
                   {labels.signUp}
                 </Button>
-              </AuthLink>
+              </MenuLink>
             </>
           ) : null}
         </div>

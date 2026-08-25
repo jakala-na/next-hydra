@@ -50,8 +50,14 @@
     "zod": "^3.25.28"
   },
   "devDependencies": {
+    "@repo/actions": "workspace:*",
+    "@repo/auth-clerk": "workspace:*",
+    "@repo/auth-workos": "workspace:*",
+    "@repo/commerce": "workspace:*",
+    "@repo/registration": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "effect": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

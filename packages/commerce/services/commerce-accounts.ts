@@ -10,8 +10,9 @@ import {
   CommerceCustomer,
   CommerceCustomerId,
   CommerceCustomerProfile,
+  INITIAL_COMPANY_ROLES,
 } from "../domain/commerce-account";
-import type { CommerceCompanyRole } from "../domain/commerce-account";
+import type { CompanyRoles } from "../domain/commerce-account";
 import { AuthUserId } from "../domain/commerce-request-context";
 import type { StoreKey } from "../store";
 
@@ -97,7 +98,7 @@ export interface LinkRegistrantIdentityInput {
 export interface AddAssociateInput {
   readonly businessUnitId: CommerceBusinessUnitId;
   readonly acceptedIdentity: AcceptedCommerceIdentity;
-  readonly role: Extract<CommerceCompanyRole, "associate">;
+  readonly roles: CompanyRoles;
 }
 
 const normalizedEmail = (email: RedactedString) =>
@@ -282,7 +283,7 @@ export class CommerceAccounts extends Context.Service<
               authUserId: input.acceptedIdentity.authUserId,
               businessUnitId: input.businessUnitId,
               customerId: customer.customerId,
-              role: input.role,
+              roles: input.roles,
             });
 
             yield* Ref.update(state, (latest) => ({
@@ -441,6 +442,17 @@ export class CommerceAccounts extends Context.Service<
               return [];
             }
 
+            const roles =
+              account.customerId === customerId
+                ? INITIAL_COMPANY_ROLES
+                : current.associatesByBusinessUnit
+                    .get(businessUnitId)
+                    ?.find((associate) => associate.customerId === customerId)
+                    ?.roles;
+            if (roles === undefined) {
+              return [];
+            }
+
             return [
               new CommerceBusinessUnitMembership({
                 businessUnitId,
@@ -448,6 +460,7 @@ export class CommerceAccounts extends Context.Service<
                   `registration-business-unit-${account.registrationId}`
                 ),
                 businessUnitLabel,
+                roles,
               }),
             ];
           });

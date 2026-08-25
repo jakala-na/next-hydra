@@ -18,8 +18,11 @@ import {
   CommerceBusinessUnitMembership,
   CommerceCustomerId,
   CommerceCustomerProfile,
+  CompanyRole,
+  CompanyRoles,
+  INITIAL_COMPANY_ROLES,
 } from "@repo/commerce/domain/commerce-account";
-import type { CommerceCompanyRole } from "@repo/commerce/domain/commerce-account";
+import type { CompanyRoles as CompanyRolesType } from "@repo/commerce/domain/commerce-account";
 import type { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
 import {
   CommerceAccountUnavailable,
@@ -96,13 +99,32 @@ const customerKey = (registration: CommerceAccountRegistrationInput) =>
 const businessUnitKey = (registration: CommerceAccountRegistrationInput) =>
   `registration-business-unit-${registration.id}`;
 
-const COMMERCETOOLS_ASSOCIATE_ROLE_KEYS = {
-  associate: ["buyer"],
-  owner: ["admin", "buyer"],
-} as const satisfies Record<CommerceCompanyRole, readonly string[]>;
+const companyRolesForCustomer = (
+  businessUnit: BusinessUnit,
+  customerId: CommerceCustomerId
+): CompanyRolesType => {
+  const customer = customerId;
+  const directRoleKeys = (businessUnit.associates ?? [])
+    .filter((associate) => associate.customer.id === customer)
+    .flatMap((associate) =>
+      associate.associateRoleAssignments.map(
+        (assignment) => assignment.associateRole.key
+      )
+    );
+  const inheritedRoleKeys = (businessUnit.inheritedAssociates ?? [])
+    .filter((associate) => associate.customer.id === customer)
+    .flatMap((associate) =>
+      associate.associateRoleAssignments.map(
+        (assignment) => assignment.associateRole.key
+      )
+    );
 
-const associateRoleKeys = (role: CommerceCompanyRole) =>
-  COMMERCETOOLS_ASSOCIATE_ROLE_KEYS[role];
+  return Schema.decodeUnknownSync(CompanyRoles)(
+    [...new Set([...directRoleKeys, ...inheritedRoleKeys])].filter(
+      Schema.is(CompanyRole)
+    )
+  );
+};
 
 const customerKeyFromAcceptedIdentity = (identity: AcceptedCommerceIdentity) =>
   `auth-customer-${authUserId(identity)}`;
@@ -328,6 +350,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           businessUnitId: CommerceBusinessUnitId.make(businessUnit.id),
           businessUnitKey: CommerceBusinessUnitKey.make(businessUnit.key),
           businessUnitLabel: CommerceBusinessUnitLabel.make(businessUnit.name),
+          roles: companyRolesForCustomer(businessUnit, customerId),
         })
     );
   });
@@ -612,9 +635,9 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
 
   const associateDraft = (
     customer: Customer,
-    role: CommerceCompanyRole
+    roleKeys: readonly string[]
   ): AssociateDraft => ({
-    associateRoleAssignments: associateRoleKeys(role).map((key) => ({
+    associateRoleAssignments: roleKeys.map((key) => ({
       associateRole: {
         key,
         typeId: "associate-role",
@@ -627,7 +650,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
   const hasAssociateRoles = (
     businessUnit: BusinessUnit,
     customer: Customer,
-    role: CommerceCompanyRole
+    roles: CompanyRolesType
   ) => {
     const associate = businessUnit.associates?.find(
       (candidate) => candidate.customer.id === customer.id
@@ -636,7 +659,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
       return false;
     }
 
-    return associateRoleKeys(role).every((roleKey) =>
+    return roles.every((roleKey) =>
       associate.associateRoleAssignments.some(
         (assignment) => assignment.associateRole.key === roleKey
       )
@@ -646,11 +669,11 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
   const ensureBusinessUnitAssociate = (input: {
     readonly businessUnit: BusinessUnit;
     readonly customer: Customer;
-    readonly role: CommerceCompanyRole;
+    readonly roles: CompanyRolesType;
   }) => {
     const attempt = (current: typeof input) => {
       if (
-        hasAssociateRoles(current.businessUnit, current.customer, current.role)
+        hasAssociateRoles(current.businessUnit, current.customer, current.roles)
       ) {
         return Effect.succeed(current.businessUnit);
       }
@@ -658,14 +681,22 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
       const existingAssociate = current.businessUnit.associates?.find(
         (associate) => associate.customer.id === current.customer.id
       );
+      const roleKeys = [
+        ...new Set([
+          ...(existingAssociate?.associateRoleAssignments.map(
+            (assignment) => assignment.associateRole.key
+          ) ?? []),
+          ...current.roles,
+        ]),
+      ];
       const action: BusinessUnitUpdateAction = existingAssociate
         ? {
             action: "changeAssociate",
-            associate: associateDraft(current.customer, current.role),
+            associate: associateDraft(current.customer, roleKeys),
           }
         : {
             action: "addAssociate",
-            associate: associateDraft(current.customer, current.role),
+            associate: associateDraft(current.customer, roleKeys),
           };
 
       return commercetoolsRequest(
@@ -748,14 +779,14 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
         yield* ensureBusinessUnitAssociate({
           businessUnit,
           customer,
-          role: input.role,
+          roles: input.roles,
         });
 
         return new CommerceAssociateMembership({
           authUserId: input.acceptedIdentity.authUserId,
           businessUnitId: input.businessUnitId,
           customerId: toCommerceCustomerId(customer),
-          role: input.role,
+          roles: input.roles,
         });
       }
     ),
@@ -802,7 +833,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
       yield* ensureBusinessUnitAssociate({
         businessUnit,
         customer: linkedCustomer,
-        role: "owner",
+        roles: INITIAL_COMPANY_ROLES,
       });
 
       return input.commerceAccount;

@@ -1,6 +1,7 @@
 {
   "web": {
     "header": {
+      "account": "Área de cliente",
       "signUp": "Inscrever-se",
       "signIn": "Iniciar sessão",
       "signOut": "Terminar sessão",
@@ -194,6 +195,61 @@
           "title": "O registo da sua empresa continua em análise.",
           "description": "Enviaremos os próximos passos por e-mail assim que a sua empresa for aprovada."
         }
+      }
+    },
+    "customerArea": {
+      "title": "Área de cliente",
+      "description": "Gira a conta da empresa e as pessoas autorizadas a comprar em seu nome.",
+      "navigation": {
+        "accountManagement": "Gestão da conta",
+        "orders": "Encomendas",
+        "addresses": "Moradas",
+        "comingSoon": "Em breve"
+      },
+      "users": {
+        "adminOnly": {
+          "title": "Acesso de administrador necessário",
+          "description": "Apenas um administrador da empresa pode convidar utilizadores."
+        },
+        "invite": {
+          "title": "Adicionar utilizador",
+          "description": "Convide alguém e escolha o que pode fazer pela sua empresa.",
+          "emailLabel": "Endereço de e-mail",
+          "emailPlaceholder": "nome@empresa.pt",
+          "rolesLabel": "Funções da empresa",
+          "rolesDescription": "Selecione uma ou mais funções. As permissões são combinadas.",
+          "roles": {
+            "admin": {
+              "label": "Administrador",
+              "description": "Gerir utilizadores e acessos."
+            },
+            "buyer": {
+              "label": "Comprador",
+              "description": "Efetuar encomendas para a empresa."
+            },
+            "approver": {
+              "label": "Aprovador",
+              "description": "Rever e aprovar encomendas."
+            }
+          },
+          "send": "Enviar convite",
+          "sending": "A enviar...",
+          "successTitle": "Convite enviado",
+          "successDescription": "Foi enviado um convite para {email}.",
+          "failureTitle": "Convite não enviado"
+        }
+      },
+      "errors": {
+        "InputInvalid": "Introduza um endereço de e-mail válido.",
+        "InputInvalidRoles": "Selecione pelo menos uma função da empresa.",
+        "InvitationPolicyError": "Apenas um administrador pode convidar utilizadores.",
+        "InvitationConflict": "Este utilizador não pode ser convidado.",
+        "InvitationProviderFailure": "Não foi possível enviar o convite. Tente novamente.",
+        "InvitationIssueOutcomeUnknown": "O convite pode ter sido enviado, mas não foi possível confirmar o resultado. Não o envie novamente.",
+        "CustomerAccountProfileIncomplete": "O seu perfil precisa de um endereço de e-mail.",
+        "CommerceRequestContextNotFound": "A conta da empresa atual não está disponível.",
+        "CommerceAccountUnavailable": "A conta da empresa está temporariamente indisponível.",
+        "CommerceCustomerProfileNotFound": "O seu perfil de cliente não foi encontrado."
       }
     },
     "checkout": {

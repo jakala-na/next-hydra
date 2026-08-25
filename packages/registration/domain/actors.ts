@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 import { AuthUserId, CommerceBusinessUnitId, RedactedEmail } from "./identity";
 import type { IdentityUserProfile } from "./identity";
-import { CompanyRole } from "./roles";
+import { CompanyRoles } from "./roles";
 
 export class RegistrationReviewerActor extends Schema.Class<RegistrationReviewerActor>(
   "RegistrationReviewerActor"
@@ -28,7 +28,7 @@ export class CompanyActor extends Schema.Class<CompanyActor>("CompanyActor")({
   authUserId: AuthUserId,
   businessUnitId: CommerceBusinessUnitId,
   email: RedactedEmail,
-  role: CompanyRole,
+  roles: CompanyRoles,
 }) {}
 
 export class SystemActor extends Schema.Class<SystemActor>("SystemActor")({

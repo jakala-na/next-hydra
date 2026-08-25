@@ -1,6 +1,7 @@
 {
   "web": {
     "header": {
+      "account": "Área de clientes",
       "signUp": "Registrarse",
       "signIn": "Iniciar sesión",
       "signOut": "Cerrar sesión",
@@ -194,6 +195,61 @@
           "title": "El registro de tu empresa sigue en revisión.",
           "description": "Te enviaremos los siguientes pasos por correo cuando tu empresa haya sido aprobada."
         }
+      }
+    },
+    "customerArea": {
+      "title": "Área de clientes",
+      "description": "Gestiona la cuenta de tu empresa y las personas que pueden comprar en su nombre.",
+      "navigation": {
+        "accountManagement": "Gestión de la cuenta",
+        "orders": "Pedidos",
+        "addresses": "Direcciones",
+        "comingSoon": "Próximamente"
+      },
+      "users": {
+        "adminOnly": {
+          "title": "Se requiere acceso de administrador",
+          "description": "Solo un administrador de la empresa puede invitar usuarios."
+        },
+        "invite": {
+          "title": "Añadir un usuario",
+          "description": "Envía una invitación y elige lo que la persona puede hacer para tu empresa.",
+          "emailLabel": "Correo electrónico",
+          "emailPlaceholder": "nombre@empresa.com",
+          "rolesLabel": "Roles de empresa",
+          "rolesDescription": "Selecciona uno o más roles. Sus permisos se combinarán.",
+          "roles": {
+            "admin": {
+              "label": "Administrador",
+              "description": "Gestionar usuarios y accesos."
+            },
+            "buyer": {
+              "label": "Comprador",
+              "description": "Realizar pedidos para la empresa."
+            },
+            "approver": {
+              "label": "Aprobador",
+              "description": "Revisar y aprobar pedidos."
+            }
+          },
+          "send": "Enviar invitación",
+          "sending": "Enviando...",
+          "successTitle": "Invitación enviada",
+          "successDescription": "Se envió una invitación a {email}.",
+          "failureTitle": "Invitación no enviada"
+        }
+      },
+      "errors": {
+        "InputInvalid": "Introduce un correo electrónico válido.",
+        "InputInvalidRoles": "Selecciona al menos un rol de empresa.",
+        "InvitationPolicyError": "Solo un administrador de la empresa puede invitar usuarios.",
+        "InvitationConflict": "No se puede invitar a este usuario.",
+        "InvitationProviderFailure": "No se pudo enviar la invitación. Inténtalo de nuevo.",
+        "InvitationIssueOutcomeUnknown": "Es posible que se haya enviado la invitación, pero no se pudo confirmar el resultado. No vuelvas a enviarla.",
+        "CustomerAccountProfileIncomplete": "Tu perfil necesita un correo electrónico.",
+        "CommerceRequestContextNotFound": "La cuenta de empresa actual no está disponible.",
+        "CommerceAccountUnavailable": "La cuenta de empresa no está disponible temporalmente.",
+        "CommerceCustomerProfileNotFound": "No se encontró tu perfil de cliente."
       }
     },
     "checkout": {

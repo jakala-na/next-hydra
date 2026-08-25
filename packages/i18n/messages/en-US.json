@@ -1,6 +1,7 @@
 {
   "web": {
     "header": {
+      "account": "Customer area",
       "signIn": "Sign in",
       "signUp": "Sign Up",
       "signOut": "Sign out",
@@ -190,6 +191,61 @@
           "title": "Your company registration is still under review.",
           "description": "We will email next steps once your company has been approved."
         }
+      }
+    },
+    "customerArea": {
+      "title": "Customer area",
+      "description": "Manage your company account and the people who can buy on its behalf.",
+      "navigation": {
+        "accountManagement": "Account management",
+        "orders": "Orders",
+        "addresses": "Addresses",
+        "comingSoon": "Coming soon"
+      },
+      "users": {
+        "adminOnly": {
+          "title": "Administrator access required",
+          "description": "Only a company administrator can invite users to this company."
+        },
+        "invite": {
+          "title": "Add a user",
+          "description": "Send an invitation and choose what the user can do for your company.",
+          "emailLabel": "Email address",
+          "emailPlaceholder": "name@company.com",
+          "rolesLabel": "Company roles",
+          "rolesDescription": "Select one or more roles. Permissions from selected roles are combined.",
+          "roles": {
+            "admin": {
+              "label": "Admin",
+              "description": "Manage company users and access."
+            },
+            "buyer": {
+              "label": "Buyer",
+              "description": "Place orders for the company."
+            },
+            "approver": {
+              "label": "Approver",
+              "description": "Review and approve company orders."
+            }
+          },
+          "send": "Send invitation",
+          "sending": "Sending...",
+          "successTitle": "Invitation sent",
+          "successDescription": "An invitation was sent to {email}.",
+          "failureTitle": "Invitation not sent"
+        }
+      },
+      "errors": {
+        "InputInvalid": "Enter a valid email address.",
+        "InputInvalidRoles": "Select at least one company role.",
+        "InvitationPolicyError": "Only a company administrator can invite users.",
+        "InvitationConflict": "This user cannot be invited.",
+        "InvitationProviderFailure": "The invitation could not be sent right now. Try again.",
+        "InvitationIssueOutcomeUnknown": "The invitation may have been sent, but its result could not be confirmed. Do not send it again.",
+        "CustomerAccountProfileIncomplete": "Your profile needs an email address before you can invite users.",
+        "CommerceRequestContextNotFound": "The current company account is unavailable. Refresh and try again.",
+        "CommerceAccountUnavailable": "The current company account is temporarily unavailable.",
+        "CommerceCustomerProfileNotFound": "Your customer profile could not be found."
       }
     },
     "checkout": {

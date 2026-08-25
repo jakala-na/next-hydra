@@ -21,6 +21,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@repo/actions": "workspace:*",
+    "@repo/auth-contract": "workspace:*",
     "@repo/commerce": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/email": "workspace:*",

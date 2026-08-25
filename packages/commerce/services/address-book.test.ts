@@ -27,6 +27,7 @@ const principal = (businessUnitId: string, businessUnitKey = businessUnitId) =>
     businessUnitId: CommerceBusinessUnitId.make(businessUnitId),
     businessUnitKey: CommerceBusinessUnitKey.make(businessUnitKey),
     customerId: CommerceCustomerId.make(`customer-${businessUnitId}`),
+    roles: ["admin", "buyer"],
   });
 
 const officeAddress = {
@@ -65,6 +66,7 @@ const provideAddressBook = <A, E>(
               businessUnitKey: buyer.businessUnitKey,
               businessUnitLabel:
                 CommerceBusinessUnitLabel.make("Business Unit One"),
+              roles: ["admin", "buyer"],
             }),
             storeKey: store.storeKey,
           },

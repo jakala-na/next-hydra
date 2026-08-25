@@ -1,6 +1,7 @@
 {
   "web": {
     "header": {
+      "account": "Kundenbereich",
       "signUp": "Anmelden",
       "signIn": "Anmelden",
       "signOut": "Abmelden",
@@ -194,6 +195,61 @@
           "title": "Ihre Unternehmensregistrierung wird noch geprüft.",
           "description": "Wir senden Ihnen die nächsten Schritte per E-Mail, sobald Ihr Unternehmen genehmigt wurde."
         }
+      }
+    },
+    "customerArea": {
+      "title": "Kundenbereich",
+      "description": "Verwalten Sie Ihr Unternehmenskonto und die Personen, die dafür einkaufen dürfen.",
+      "navigation": {
+        "accountManagement": "Kontoverwaltung",
+        "orders": "Bestellungen",
+        "addresses": "Adressen",
+        "comingSoon": "Demnächst"
+      },
+      "users": {
+        "adminOnly": {
+          "title": "Administratorzugriff erforderlich",
+          "description": "Nur ein Unternehmensadministrator kann Benutzer einladen."
+        },
+        "invite": {
+          "title": "Benutzer hinzufügen",
+          "description": "Senden Sie eine Einladung und wählen Sie die Aufgaben der Person im Unternehmen.",
+          "emailLabel": "E-Mail-Adresse",
+          "emailPlaceholder": "name@firma.de",
+          "rolesLabel": "Unternehmensrollen",
+          "rolesDescription": "Wählen Sie eine oder mehrere Rollen. Ihre Berechtigungen werden kombiniert.",
+          "roles": {
+            "admin": {
+              "label": "Admin",
+              "description": "Benutzer und Zugriffe verwalten."
+            },
+            "buyer": {
+              "label": "Einkäufer",
+              "description": "Bestellungen für das Unternehmen aufgeben."
+            },
+            "approver": {
+              "label": "Genehmiger",
+              "description": "Bestellungen prüfen und genehmigen."
+            }
+          },
+          "send": "Einladung senden",
+          "sending": "Wird gesendet...",
+          "successTitle": "Einladung gesendet",
+          "successDescription": "Eine Einladung wurde an {email} gesendet.",
+          "failureTitle": "Einladung nicht gesendet"
+        }
+      },
+      "errors": {
+        "InputInvalid": "Geben Sie eine gültige E-Mail-Adresse ein.",
+        "InputInvalidRoles": "Wählen Sie mindestens eine Unternehmensrolle aus.",
+        "InvitationPolicyError": "Nur ein Unternehmensadministrator kann Benutzer einladen.",
+        "InvitationConflict": "Dieser Benutzer kann nicht eingeladen werden.",
+        "InvitationProviderFailure": "Die Einladung konnte gerade nicht gesendet werden. Versuchen Sie es erneut.",
+        "InvitationIssueOutcomeUnknown": "Die Einladung wurde möglicherweise gesendet, aber das Ergebnis konnte nicht bestätigt werden. Senden Sie sie nicht erneut.",
+        "CustomerAccountProfileIncomplete": "Ihr Profil benötigt eine E-Mail-Adresse.",
+        "CommerceRequestContextNotFound": "Das aktuelle Unternehmenskonto ist nicht verfügbar.",
+        "CommerceAccountUnavailable": "Das aktuelle Unternehmenskonto ist vorübergehend nicht verfügbar.",
+        "CommerceCustomerProfileNotFound": "Ihr Kundenprofil wurde nicht gefunden."
       }
     },
     "checkout": {

@@ -22,8 +22,8 @@ import { Svix } from "svix";
 
 const CLERK_API_BASE_URL = "https://api.clerk.com/v1";
 const CLERK_WEBHOOK_PATH = "/api/webhooks/clerk";
-const CLERK_ENDPOINT_UID = "next-hydra-customer-auth-webhook";
-const CLERK_ENDPOINT_DESCRIPTION = "Next Hydra customer authentication webhook";
+const CLERK_ENDPOINT_UID = "customer-auth-webhook";
+const CLERK_ENDPOINT_DESCRIPTION = "Customer authentication webhook";
 
 export const CLERK_WEBHOOK_EVENTS = [
   "organization.created",
@@ -385,7 +385,7 @@ const endpointInput = (webhookUrl: string) => ({
   description: CLERK_ENDPOINT_DESCRIPTION,
   disabled: false,
   filterTypes: [...CLERK_WEBHOOK_EVENTS],
-  metadata: { owner: "next-hydra", pool: "customer" },
+  metadata: { owner: "auth-provisioner", pool: "customer" },
   uid: CLERK_ENDPOINT_UID,
   url: webhookUrl,
 });

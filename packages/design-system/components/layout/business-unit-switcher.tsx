@@ -14,7 +14,7 @@ import { Building2, Check, ChevronDown } from "lucide-react";
 export type BusinessUnitSwitcherItem = {
   readonly id: string;
   readonly label: string;
-  readonly role?: string;
+  readonly roles?: readonly string[];
 };
 
 export type BusinessUnitSwitcherProps = {
@@ -84,9 +84,9 @@ export function BusinessUnitSwitcher({
             />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="truncate font-medium">{unit.label}</span>
-              {unit.role ? (
+              {unit.roles && unit.roles.length > 0 ? (
                 <span className="text-muted-foreground text-xs">
-                  {unit.role}
+                  {unit.roles.join(", ")}
                 </span>
               ) : null}
             </div>
