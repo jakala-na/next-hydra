@@ -361,6 +361,19 @@ export const makeWorkosCompanyMemberInvitations = (
   });
 };
 
+export const makeWorkosInvitationDeliveries = (
+  userManagement: Pick<WorkosInvitationUserManagement, "getInvitation">
+) =>
+  InvitationDeliveries.of({
+    get: Effect.fn("InvitationDeliveries.Workos.get")(
+      (invitationId: InvitationId) =>
+        Effect.tryPromise({
+          catch: (cause) => readFailure(invitationId, cause),
+          try: async () => await userManagement.getInvitation(invitationId),
+        }).pipe(Effect.map(deliveryFromWorkos))
+    ),
+  });
+
 export const makeWorkosInvitationCapabilities = (
   userManagement: WorkosInvitationUserManagement,
   issueAttempts: RegistrationInvitationIssueAttemptsService
@@ -452,14 +465,6 @@ export const makeWorkosInvitationCapabilities = (
     }
   );
 
-  const get = Effect.fn("InvitationDeliveries.Workos.get")(
-    (invitationId: InvitationId) =>
-      Effect.tryPromise({
-        catch: (cause) => readFailure(invitationId, cause),
-        try: async () => await userManagement.getInvitation(invitationId),
-      }).pipe(Effect.map(deliveryFromWorkos))
-  );
-
   const accept = Effect.fn("RegistrationInvitations.Workos.accept")(function* (
     input: RegistrationInvitationAcceptanceInput
   ) {
@@ -531,7 +536,7 @@ export const makeWorkosInvitationCapabilities = (
 
   return {
     companyMemberInvitations,
-    invitationDeliveries: InvitationDeliveries.of({ get }),
+    invitationDeliveries: makeWorkosInvitationDeliveries(userManagement),
     registrationInvitations: RegistrationInvitations.of({
       accept,
       issue: issueRegistration,
@@ -550,10 +555,19 @@ const configuredWorkosUserManagement = Effect.gen(function* () {
   }).userManagement;
 });
 
-export const companyMemberInvitationsLayer = Layer.effect(
-  CompanyMemberInvitations,
+export const companyMemberInvitationsLayer = Layer.effectContext(
   configuredWorkosUserManagement.pipe(
-    Effect.map(makeWorkosCompanyMemberInvitations)
+    Effect.map((userManagement) =>
+      Context.make(
+        CompanyMemberInvitations,
+        makeWorkosCompanyMemberInvitations(userManagement)
+      ).pipe(
+        Context.add(
+          InvitationDeliveries,
+          makeWorkosInvitationDeliveries(userManagement)
+        )
+      )
+    )
   )
 );
 

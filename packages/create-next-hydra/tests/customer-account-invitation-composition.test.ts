@@ -1,9 +1,15 @@
 /* oxlint-disable typescript/no-unsafe-argument, typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access, typescript/no-unsafe-return -- The maintainer-only matrix crosses package-local TypeScript projects; every value is constructed through the providers' exported types and independently typechecked in its owning package. */
 import { ActionClient, ActionMiddleware } from "@repo/actions";
 import type { EmptyActionContext } from "@repo/actions";
-import { makeClerkCompanyMemberInvitations } from "@repo/auth-clerk/invitations";
+import {
+  makeClerkCompanyMemberInvitations,
+  makeClerkInvitationDeliveries,
+} from "@repo/auth-clerk/invitations";
 import type { ClerkInvitationsApi } from "@repo/auth-clerk/invitations";
-import { makeWorkosCompanyMemberInvitations } from "@repo/auth-workos/invitations";
+import {
+  makeWorkosCompanyMemberInvitations,
+  makeWorkosInvitationDeliveries,
+} from "@repo/auth-workos/invitations";
 import type {
   WorkosCompanyMemberInvitationUserManagement,
   WorkosInvitationSender,
@@ -12,6 +18,7 @@ import { makeCustomerAccountProcedures } from "@repo/commerce/customer-account/p
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
+  CommerceCompanyMember,
   CommerceCustomerId,
   CommerceCustomerProfile,
 } from "@repo/commerce/domain/commerce-account";
@@ -20,12 +27,18 @@ import {
   CustomerCommercePrincipal,
 } from "@repo/commerce/domain/commerce-request-context";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import {
+  CommerceCompanyMembershipRevision,
+  CommerceCompanyMembershipRoster,
+  CommerceCompanyMemberships,
+} from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CommerceLocale, resolveStore } from "@repo/commerce/store";
 import {
   CompanyInvitationPolicy,
   CompanyMemberInvitationRecords,
   CompanyMemberInvitations,
+  InvitationDeliveries,
   customerAccountMembersLayer,
 } from "@repo/registration";
 import { Effect, Layer, ManagedRuntime, Redacted } from "effect";
@@ -34,22 +47,48 @@ import { describe, expect, it, vi } from "vitest";
 const inviteeEmail = "new.user@example.com";
 
 const clerkProvider = () => {
+  const invitations = new Map<
+    string,
+    Awaited<ReturnType<ClerkInvitationsApi["createInvitation"]>>
+  >();
   const createInvitation = vi.fn<ClerkInvitationsApi["createInvitation"]>(
-    async (input) =>
-      await Promise.resolve({
+    async (input) => {
+      const id = `clerk-invitation-${invitations.size + 1}`;
+      const invitation = {
         createdAt: Date.parse("2026-08-25T12:00:00.000Z"),
         emailAddress: input.emailAddress,
-        id: "clerk-invitation-1",
+        id,
         publicMetadata: input.publicMetadata,
         status: "pending",
         updatedAt: Date.parse("2026-08-25T12:00:00.000Z"),
         url: "https://clerk.example.test/invitations/accept",
-      })
+      } as const;
+      invitations.set(id, invitation);
+      return await Promise.resolve(invitation);
+    }
+  );
+  const revokeInvitation = vi.fn<ClerkInvitationsApi["revokeInvitation"]>(
+    async (id) => {
+      const current = invitations.get(id);
+      if (current === undefined) {
+        throw new Error(`Unknown Clerk invitation ${id}`);
+      }
+      const revoked = { ...current, status: "revoked" as const };
+      invitations.set(id, revoked);
+      return await Promise.resolve(revoked);
+    }
   );
   const api: ClerkInvitationsApi = {
     createInvitation,
-    getInvitationList: async () => await Promise.resolve({ data: [] }),
-    revokeInvitation: async () => await Promise.reject(new Error("not used")),
+    getInvitationList: async ({ query, status }) =>
+      await Promise.resolve({
+        data: [...invitations.values()].filter(
+          (invitation) =>
+            invitation.id === query &&
+            (status === undefined || invitation.status === status)
+        ),
+      }),
+    revokeInvitation,
   };
 
   return {
@@ -70,6 +109,11 @@ const clerkProvider = () => {
         })
       );
     },
+    assertLifecycle: () => {
+      expect(createInvitation).toHaveBeenCalledTimes(2);
+      expect(revokeInvitation).toHaveBeenCalledWith("clerk-invitation-1");
+    },
+    deliveries: makeClerkInvitationDeliveries(api),
     invitationId: "clerk-invitation-1",
     invitations: makeClerkCompanyMemberInvitations(
       api,
@@ -79,16 +123,36 @@ const clerkProvider = () => {
 };
 
 const workosProvider = () => {
+  const invitations = new Map<
+    string,
+    {
+      acceptInvitationUrl: string;
+      acceptedAt: null;
+      acceptedUserId: null;
+      createdAt: string;
+      email: string;
+      expiresAt: string;
+      id: string;
+      inviterUserId: string | null;
+      object: "invitation";
+      organizationId: null;
+      revokedAt: string | null;
+      state: "pending" | "revoked";
+      token: string;
+      updatedAt: string;
+    }
+  >();
   const sendInvitation = vi.fn<WorkosInvitationSender["sendInvitation"]>(
-    async (input) =>
-      await Promise.resolve({
+    async (input) => {
+      const id = `workos-invitation-${invitations.size + 1}`;
+      const invitation = {
         acceptInvitationUrl: "https://workos.example.test/invitations/accept",
         acceptedAt: null,
         acceptedUserId: null,
         createdAt: "2026-08-25T12:00:00.000Z",
         email: input.email,
         expiresAt: "2026-09-24T12:00:00.000Z",
-        id: "workos-invitation-1",
+        id,
         inviterUserId: input.inviterUserId ?? null,
         object: "invitation",
         organizationId: null,
@@ -96,13 +160,34 @@ const workosProvider = () => {
         state: "pending",
         token: "token-1",
         updatedAt: "2026-08-25T12:00:00.000Z",
-      })
+      } as const;
+      invitations.set(id, invitation);
+      return await Promise.resolve(invitation);
+    }
   );
+  const revokeInvitation = vi.fn<
+    WorkosCompanyMemberInvitationUserManagement["revokeInvitation"]
+  >(async (id) => {
+    const current = invitations.get(id);
+    if (current === undefined) {
+      throw new Error(`Unknown WorkOS invitation ${id}`);
+    }
+    const revoked = {
+      ...current,
+      revokedAt: "2026-08-26T12:00:00.000Z",
+      state: "revoked" as const,
+    };
+    invitations.set(id, revoked);
+    return await Promise.resolve(revoked);
+  });
   const userManagement: WorkosCompanyMemberInvitationUserManagement = {
-    getInvitation: async () =>
-      await Promise.reject(new Error("not used in this test")),
-    revokeInvitation: async () =>
-      await Promise.reject(new Error("not used in this test")),
+    getInvitation: async (id) => {
+      const invitation = invitations.get(id);
+      return invitation === undefined
+        ? await Promise.reject(new Error(`Unknown WorkOS invitation ${id}`))
+        : await Promise.resolve(invitation);
+    },
+    revokeInvitation,
     sendInvitation,
   };
 
@@ -113,13 +198,20 @@ const workosProvider = () => {
         inviterUserId: "auth-admin-1",
       });
     },
+    assertLifecycle: () => {
+      expect(sendInvitation).toHaveBeenCalledTimes(2);
+      expect(revokeInvitation).toHaveBeenCalledWith("workos-invitation-1");
+    },
+    deliveries: makeWorkosInvitationDeliveries(userManagement),
     invitationId: "workos-invitation-1",
     invitations: makeWorkosCompanyMemberInvitations(userManagement),
   };
 };
 
 interface ProviderHarness {
+  readonly assertLifecycle: () => void;
   readonly assertIssued: () => void;
+  readonly deliveries: InvitationDeliveries["Service"];
   readonly invitationId: string;
   readonly invitations: CompanyMemberInvitations["Service"];
 }
@@ -141,6 +233,18 @@ const invitationForm = () => {
   formData.set("email", inviteeEmail);
   formData.append("roles[buyer]", "buyer");
   formData.append("roles[approver]", "approver");
+  return formData;
+};
+
+const managementForm = (companyMemberInvitationId: string) => {
+  const formData = new FormData();
+  formData.set("companyMemberInvitationId", companyMemberInvitationId);
+  return formData;
+};
+
+const removalForm = (customerId: string) => {
+  const formData = new FormData();
+  formData.set("customerId", customerId);
   return formData;
 };
 
@@ -171,17 +275,52 @@ describe("customer-account provider composition", () => {
     "composes the $name factory through the customer action",
     async (providerCase) => {
       const provider = providerCase.make();
+      const recordsLayer = CompanyMemberInvitationRecords.layerMemory;
+      const memberId = CommerceCustomerId.make("customer-member-1");
+      const membershipLayer = CommerceCompanyMemberships.layerMemoryFrom({
+        rosters: [
+          new CommerceCompanyMembershipRoster({
+            businessUnitId: principal.businessUnitId,
+            members: [
+              new CommerceCompanyMember({
+                authUserId: principal.authUserId,
+                businessUnitId: principal.businessUnitId,
+                customerId: principal.customerId,
+                directlyAssociated: true,
+                email: Redacted.make("administrator@example.com", {
+                  label: "email",
+                }),
+                inheritedRoles: [],
+                roles: principal.roles,
+              }),
+              new CommerceCompanyMember({
+                authUserId: "auth-member-1",
+                businessUnitId: principal.businessUnitId,
+                customerId: memberId,
+                directlyAssociated: true,
+                email: Redacted.make("member@example.com", { label: "email" }),
+                inheritedRoles: [],
+                roles: ["buyer"],
+              }),
+            ],
+            revision: CommerceCompanyMembershipRevision.make("1"),
+          }),
+        ],
+      });
       const membersLayer = customerAccountMembersLayer.pipe(
         Layer.provide(
           Layer.mergeAll(
             Layer.succeed(CompanyMemberInvitations, provider.invitations),
-            CompanyMemberInvitationRecords.layerMemory,
+            Layer.succeed(InvitationDeliveries, provider.deliveries),
+            recordsLayer,
             CommerceAccounts.layerMemory
           )
         ),
         Layer.provide(CompanyInvitationPolicy.layer)
       );
-      const runtime = ManagedRuntime.make(membersLayer);
+      const runtime = ManagedRuntime.make(
+        Layer.mergeAll(membersLayer, recordsLayer, membershipLayer)
+      );
       const actions = ActionClient.make(runtime)
         .use(
           ActionMiddleware.context<
@@ -190,8 +329,12 @@ describe("customer-account provider composition", () => {
           >(() => Effect.succeed({ locale: "en-US" }))
         )
         .provide(() => Layer.succeed(CommerceContext, commerceContext));
-      const { inviteCompanyMemberProcedure } =
-        makeCustomerAccountProcedures(actions);
+      const {
+        cancelCompanyMemberInvitationProcedure,
+        inviteCompanyMemberProcedure,
+        reissueCompanyMemberInvitationProcedure,
+        removeCompanyMemberProcedure,
+      } = makeCustomerAccountProcedures(actions);
 
       const result = await inviteCompanyMemberProcedure.toFormAction({
         getFailureMessage: (error) => error._tag,
@@ -205,6 +348,53 @@ describe("customer-account provider composition", () => {
         },
       });
       provider.assertIssued();
+
+      const [stored] = await runtime.runPromise(
+        CompanyMemberInvitationRecords.pipe(
+          Effect.flatMap((records) =>
+            records.listByBusinessUnit(principal.businessUnitId)
+          )
+        )
+      );
+      if (stored === undefined) {
+        throw new Error("Expected a durable company member invitation");
+      }
+      const { companyMemberInvitationId } = stored.intent;
+      const cancelResult =
+        await cancelCompanyMemberInvitationProcedure.toFormAction({
+          getFailureMessage: (error) => error._tag,
+        })(null, managementForm(companyMemberInvitationId));
+      const reissueResult =
+        await reissueCompanyMemberInvitationProcedure.toFormAction({
+          getFailureMessage: (error) => error._tag,
+        })(null, managementForm(companyMemberInvitationId));
+      const removeResult = await removeCompanyMemberProcedure.toFormAction({
+        getFailureMessage: (error) => error._tag,
+      })(null, removalForm(memberId));
+
+      expect(cancelResult).toMatchObject({
+        _tag: "Success",
+        success: { operation: "cancel" },
+      });
+      expect(reissueResult).toMatchObject({
+        _tag: "Success",
+        success: { operation: "reissue" },
+      });
+      expect(removeResult).toMatchObject({
+        _tag: "Success",
+        success: { operation: "remove" },
+      });
+      const roster = await runtime.runPromise(
+        CommerceCompanyMemberships.pipe(
+          Effect.flatMap((memberships) =>
+            memberships.getRoster(principal.businessUnitId)
+          )
+        )
+      );
+      expect(roster.members.map(({ customerId }) => customerId)).toStrictEqual([
+        principal.customerId,
+      ]);
+      provider.assertLifecycle();
     }
   );
 });

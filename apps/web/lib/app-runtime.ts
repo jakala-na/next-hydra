@@ -5,6 +5,7 @@ import {
   cartsLayer,
   commercetoolsClientsLayer,
   commerceAccountsLayer,
+  commerceCompanyMembershipsLayer,
   productDiscoveryLayer,
 } from "@repo/commerce-provider/provider";
 import { versionedKeyValueStoreLayer } from "@repo/commerce-provider/versioned-store";
@@ -33,6 +34,7 @@ export const CommerceApp = makeCommerceApp({
   ),
   checkoutPoliciesLayer: CheckoutPolicies.layer,
   commerceAccountsLayer: commerceAccounts,
+  commerceCompanyMembershipsLayer: Layer.orDie(commerceCompanyMembershipsLayer),
   productDiscoveryLayer: Layer.orDie(productDiscoveryLayer),
 });
 

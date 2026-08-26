@@ -1,6 +1,7 @@
 import "server-only";
 import { ActionClient, ActionMiddleware } from "@repo/actions";
 import type { EmptyActionContext } from "@repo/actions";
+import { NextServer } from "@repo/actions/next-server";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer, ManagedRuntime } from "effect";
 
@@ -15,6 +16,7 @@ import type {
 import { CartPolicies } from "./services/cart-policies";
 import { Carts } from "./services/carts";
 import { CommerceAccounts } from "./services/commerce-accounts";
+import { CommerceCompanyMemberships } from "./services/commerce-company-memberships";
 import { CustomerAccountMembers } from "./services/customer-account-members";
 import type { StoreKey } from "./store";
 
@@ -50,10 +52,22 @@ export interface NextCommerceRuntime {
     locale: Locale,
     options?: CommerceRequestOptions
   ) => <A, E>(
-    program: Effect.Effect<A, E, CommerceRequestServices>
-  ) => Effect.Effect<A, E | NextCommerceRequestError, CommerceStableServices>;
+    program: Effect.Effect<
+      A,
+      E,
+      CommerceRequestServices | CommerceStableServices | CustomerAccountMembers
+    >
+  ) => Effect.Effect<
+    A,
+    E | NextCommerceRequestError,
+    CommerceStableServices | CustomerAccountMembers | NextServer
+  >;
   readonly runPromise: <A, E>(
-    program: Effect.Effect<A, E, CommerceStableServices>
+    program: Effect.Effect<
+      A,
+      E,
+      CommerceStableServices | CustomerAccountMembers | NextServer
+    >
   ) => Promise<A>;
 }
 
@@ -101,9 +115,14 @@ const unconfiguredRuntime = ManagedRuntime.make(
       Effect.die(new CommerceRuntimeNotConfigured())
     ),
     Layer.effect(
+      CommerceCompanyMemberships,
+      Effect.die(new CommerceRuntimeNotConfigured())
+    ),
+    Layer.effect(
       CustomerAccountMembers,
       Effect.die(new CommerceRuntimeNotConfigured())
-    )
+    ),
+    Layer.effect(NextServer, Effect.die(new CommerceRuntimeNotConfigured()))
   )
 );
 

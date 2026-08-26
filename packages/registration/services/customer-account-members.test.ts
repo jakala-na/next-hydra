@@ -1,23 +1,50 @@
 import { describe, expect, it } from "@effect/vitest";
-import { CommerceBusinessUnitId } from "@repo/commerce/domain/commerce-account";
+import {
+  CommerceBusinessUnitId,
+  CommerceCustomerId,
+} from "@repo/commerce/domain/commerce-account";
 import type { CompanyRoles } from "@repo/commerce/domain/commerce-account";
 import { AuthUserId as CommerceAuthUserId } from "@repo/commerce/domain/commerce-request-context";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import {
+  CompanyMemberInvitationNotFound,
   CustomerAccountCompanyActor,
+  CustomerAccountCompanyMemberInvitationId,
   CustomerAccountMembers,
   InvitationPolicyError as CustomerAccountInvitationPolicyError,
   InvitationProviderFailure,
 } from "@repo/commerce/services/customer-account-members";
 import { DateTime, Effect, Layer, Redacted, Ref } from "effect";
+import { TestClock } from "effect/testing";
 
-import { InvitationId } from "../domain/identity";
+import {
+  AcceptedAuthIdentity,
+  AuthUserId,
+  Email,
+  InvitationId,
+  PersonName,
+} from "../domain/identity";
 import { PendingInvitation } from "../domain/invitations";
 import { CompanyInvitationPolicy } from "./company-invitation-policy";
 import { CompanyMemberInvitationRecords } from "./company-member-invitation-records";
 import { customerAccountMembersLayer } from "./customer-account-members";
 import type { CompanyMemberInvitationIssueInput } from "./invitations";
-import { CompanyMemberInvitations } from "./invitations";
+import {
+  CompanyMemberInvitations,
+  InvitationDeliveries,
+  invitationCapabilitiesLayerMemory,
+} from "./invitations";
+
+const unusedDeliveriesLayer = Layer.succeed(
+  InvitationDeliveries,
+  InvitationDeliveries.of({
+    get: () => Effect.die("not used in this test"),
+  })
+);
+
+const withUnusedDeliveries = (
+  providerLayer: Layer.Layer<CompanyMemberInvitations>
+) => Layer.merge(providerLayer, unusedDeliveriesLayer);
 
 const actor = (roles: CompanyRoles) => {
   const isAdministrator = roles.some((role) => role === "admin");
@@ -35,14 +62,17 @@ const actor = (roles: CompanyRoles) => {
   });
 };
 
-const provideAdapter = (providerLayer: Layer.Layer<CompanyMemberInvitations>) =>
+const provideAdapter = (
+  providerLayer: Layer.Layer<CompanyMemberInvitations | InvitationDeliveries>,
+  commerceLayer: Layer.Layer<CommerceAccounts> = CommerceAccounts.layerMemory
+) =>
   customerAccountMembersLayer.pipe(
     Layer.provide(
       Layer.mergeAll(
         providerLayer,
         CompanyInvitationPolicy.layer,
         CompanyMemberInvitationRecords.layerMemory,
-        CommerceAccounts.layerMemory
+        commerceLayer
       )
     )
   );
@@ -89,7 +119,9 @@ describe("customer account members adapter", () => {
           inviteeName,
           roles: ["buyer", "approver"],
         });
-      }).pipe(Effect.provide(provideAdapter(providerLayer)));
+      }).pipe(
+        Effect.provide(provideAdapter(withUnusedDeliveries(providerLayer)))
+      );
       const providerInput = yield* Ref.get(captured).pipe(
         Effect.flatMap((input) =>
           input === undefined
@@ -147,7 +179,10 @@ describe("customer account members adapter", () => {
           inviteeName,
           roles: ["buyer"],
         });
-      }).pipe(Effect.provide(provideAdapter(providerLayer)), Effect.flip);
+      }).pipe(
+        Effect.provide(provideAdapter(withUnusedDeliveries(providerLayer))),
+        Effect.flip
+      );
 
       expect(failure).toBeInstanceOf(CustomerAccountInvitationPolicyError);
       expect(failure._tag).toBe("InvitationPolicyError");
@@ -180,6 +215,123 @@ describe("customer account members adapter", () => {
         .pipe(Effect.flip);
 
       expect(failure).toBe(providerFailure);
-    }).pipe(Effect.provide(provideAdapter(providerLayer)));
+    }).pipe(
+      Effect.provide(provideAdapter(withUnusedDeliveries(providerLayer)))
+    );
   });
+
+  it.effect("preserves durable invitation failure identity", () =>
+    Effect.gen(function* () {
+      const members = yield* CustomerAccountMembers;
+      const failure = yield* members
+        .cancelInvitation({
+          actor: actor(["admin", "buyer"]),
+          companyMemberInvitationId:
+            CustomerAccountCompanyMemberInvitationId.make("missing"),
+        })
+        .pipe(Effect.flip);
+
+      expect(failure).toBeInstanceOf(CompanyMemberInvitationNotFound);
+    }).pipe(Effect.provide(provideAdapter(invitationCapabilitiesLayerMemory)))
+  );
+
+  it.effect("projects only the fresh pending invitation after reissue", () =>
+    Effect.gen(function* () {
+      const members = yield* CustomerAccountMembers;
+      yield* members.invite({
+        actor: actor(["admin", "buyer"]),
+        inviteeEmail: Redacted.make("member@example.com", { label: "email" }),
+        inviteeName,
+        roles: ["buyer"],
+      });
+
+      yield* TestClock.adjust("31 days");
+      const expired = yield* members.listInvitations(actor(["admin", "buyer"]));
+      const [expiredInvitation] = expired;
+      if (expiredInvitation === undefined) {
+        throw new Error("Expected the expired invitation");
+      }
+      yield* members.reissueInvitation({
+        actor: actor(["admin", "buyer"]),
+        companyMemberInvitationId: expiredInvitation.companyMemberInvitationId,
+      });
+      const current = yield* members.listInvitations(actor(["admin", "buyer"]));
+
+      expect(expiredInvitation.status).toBe("expired");
+      expect(current).toHaveLength(1);
+      expect(current[0]?.status).toBe("pending");
+      expect(current[0]?.companyMemberInvitationId).not.toBe(
+        expiredInvitation.companyMemberInvitationId
+      );
+    }).pipe(Effect.provide(provideAdapter(invitationCapabilitiesLayerMemory)))
+  );
+
+  it.effect(
+    "shows accepted invitations only until Commerce provisioning completes",
+    () => {
+      const recordsLayer = CompanyMemberInvitationRecords.layerMemory;
+      const adapterLayer = customerAccountMembersLayer.pipe(
+        Layer.provide(
+          Layer.mergeAll(
+            invitationCapabilitiesLayerMemory,
+            CompanyInvitationPolicy.layer,
+            recordsLayer,
+            CommerceAccounts.layerMemory
+          )
+        )
+      );
+
+      return Effect.gen(function* () {
+        const members = yield* CustomerAccountMembers;
+        yield* members.invite({
+          actor: actor(["admin", "buyer"]),
+          inviteeEmail: Redacted.make("member@example.com", { label: "email" }),
+          inviteeName,
+          roles: ["buyer"],
+        });
+        const records = yield* CompanyMemberInvitationRecords;
+        const [issued] = yield* records.listByBusinessUnit(
+          CommerceBusinessUnitId.make("business-unit-1")
+        );
+        if (issued === undefined) {
+          throw new Error("Expected a durable invitation");
+        }
+        yield* records.markAccepted({
+          acceptedAt: issued.createdAt,
+          acceptedIdentity: new AcceptedAuthIdentity({
+            authUserId: AuthUserId.make("auth-member-1"),
+            email: Redacted.make(Email.make("member@example.com"), {
+              label: "email",
+            }),
+            firstName: Redacted.make(PersonName.make("Invited"), {
+              label: "personName",
+            }),
+            lastName: Redacted.make(PersonName.make("Member"), {
+              label: "personName",
+            }),
+          }),
+          companyMemberInvitationId: issued.intent.companyMemberInvitationId,
+        });
+
+        expect(
+          yield* members.listInvitations(actor(["admin", "buyer"]))
+        ).toMatchObject([
+          {
+            acceptedAuthUserId: "auth-member-1",
+            status: "accepted",
+          },
+        ]);
+
+        yield* records.markProvisioned({
+          companyMemberInvitationId: issued.intent.companyMemberInvitationId,
+          customerId: CommerceCustomerId.make("customer-member-1"),
+          provisionedAt: issued.createdAt,
+        });
+
+        expect(
+          yield* members.listInvitations(actor(["admin", "buyer"]))
+        ).toStrictEqual([]);
+      }).pipe(Effect.provide(Layer.mergeAll(adapterLayer, recordsLayer)));
+    }
+  );
 });

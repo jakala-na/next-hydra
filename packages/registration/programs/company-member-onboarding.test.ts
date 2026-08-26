@@ -226,6 +226,9 @@ describe("company member onboarding", () => {
             "Invitation"
           );
           expect(Redacted.value(accepted.acceptedBy.lastName)).toBe("Default");
+          expect(accepted.provisionedMembership).toMatchObject({
+            customerId: membership.customerId,
+          });
         }
       }).pipe(Effect.provide(layer))
   );
@@ -265,6 +268,7 @@ describe("company member onboarding", () => {
             referenceType: "company_member_invitation" as const,
           },
         });
+        const accounts = yield* CommerceAccounts;
         const replay = yield* acceptCompanyMemberInvitation({
           acceptedAt: new Date(59_500),
           acceptedIdentity: acceptedIdentityEvidenceWithoutNames,
@@ -272,10 +276,20 @@ describe("company member onboarding", () => {
             companyMemberInvitationId,
             referenceType: "company_member_invitation" as const,
           },
-        });
+        }).pipe(
+          Effect.provideService(
+            CommerceAccounts,
+            CommerceAccounts.of({
+              ...accounts,
+              addAssociate: () =>
+                Effect.die(
+                  "A completed invitation replay must not restore a removed membership"
+                ),
+            })
+          )
+        );
 
         expect(replay).toStrictEqual(first);
-        const accounts = yield* CommerceAccounts;
         const customerId = yield* accounts.getCustomerIdByAuthUserId(
           acceptedIdentity.authUserId
         );
@@ -334,6 +348,32 @@ describe("company member onboarding", () => {
       }).pipe(Effect.provide(layer))
   );
 
+  it.effect(
+    "accepts timely provider evidence after local expiration was observed",
+    () =>
+      Effect.gen(function* () {
+        yield* prepareInvitation;
+        const records = yield* CompanyMemberInvitationRecords;
+        yield* records.markExpired({
+          companyMemberInvitationId,
+          expiredAt: new Date(60_000),
+        });
+
+        const membership = yield* acceptCompanyMemberInvitation({
+          acceptedAt: new Date(59_999),
+          acceptedIdentity: acceptedIdentityEvidence,
+          reference: {
+            companyMemberInvitationId,
+            referenceType: "company_member_invitation",
+          },
+        });
+        const accepted = yield* records.getById(companyMemberInvitationId);
+
+        expect(membership.authUserId).toBe(acceptedIdentity.authUserId);
+        expect(accepted._tag).toBe("AcceptedInvitation");
+      }).pipe(Effect.provide(layer))
+  );
+
   it.effect("rejects provider acceptance after expiration", () =>
     Effect.gen(function* () {
       yield* prepareInvitation;
@@ -348,6 +388,9 @@ describe("company member onboarding", () => {
       }).pipe(Effect.flip);
 
       expect(failure._tag).toBe("InvitationExpired");
+      const records = yield* CompanyMemberInvitationRecords;
+      const expired = yield* records.getById(companyMemberInvitationId);
+      expect(expired._tag).toBe("ExpiredInvitation");
     }).pipe(Effect.provide(layer))
   );
 

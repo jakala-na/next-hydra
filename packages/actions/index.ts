@@ -158,6 +158,13 @@ export interface ActionSuccessHandler<Output extends Schema.Top, Context> {
   ) => void | PromiseLike<void>;
 }
 
+export type ActionPresentationAdapter<
+  Output extends Schema.Top,
+  Error extends Schema.Top,
+  Context,
+> = ActionFailureMessage<Error, Context> &
+  ActionSuccessHandler<Output, Context>;
+
 type ContextMiddlewareOperation<ContextIn, ContextOut, Requires> = {
   readonly _tag: "Context";
   readonly resolve: (
@@ -266,7 +273,9 @@ export interface ActionProcedure<
   ) => Promise<EncodedActionResult<Output, Error>>;
   readonly toAction: {
     (
-      options: ActionFailureMessage<Error, Context>
+      options:
+        | ActionFailureMessage<Error, Context>
+        | ActionPresentationAdapter<Output, Error, Context>
     ): (input: Input["Encoded"]) => Promise<DisplayActionResult<Output, Error>>;
     (
       options?: ActionSuccessHandler<Output, Context>
@@ -274,7 +283,9 @@ export interface ActionProcedure<
   };
   readonly toFormAction: {
     (
-      options: ActionFailureMessage<Error, Context>
+      options:
+        | ActionFailureMessage<Error, Context>
+        | ActionPresentationAdapter<Output, Error, Context>
     ): (
       previousResult: DisplayActionResult<Output, Error> | null,
       input: Input["Encoded"]
@@ -689,7 +700,7 @@ const makeProcedure = <
       )
     );
 
-  const displayEffect = (
+  const displayedResultEffect = (
     message: ActionFailureMessage<Error, Context>,
     input: Input["Encoded"]
   ) =>
@@ -716,9 +727,18 @@ const makeProcedure = <
 
       return displayed.pipe(
         Effect.flatMap(Schema.encodeEffect(displayResultSchema)),
-        Effect.orDie
+        Effect.orDie,
+        Effect.map((encoded) => ({ context, encoded, result }))
       );
     });
+
+  const displayEffect = (
+    message: ActionFailureMessage<Error, Context>,
+    input: Input["Encoded"]
+  ) =>
+    displayedResultEffect(message, input).pipe(
+      Effect.map(({ encoded }) => encoded)
+    );
 
   const execute = async (input: Input["Encoded"]) =>
     await options.runtime.runPromise(effect(input));
@@ -746,11 +766,26 @@ const makeProcedure = <
     return execution.encoded;
   };
 
+  const executeDisplaySuccess = async (
+    adapter: ActionPresentationAdapter<Output, Error, Context>,
+    input: Input["Encoded"]
+  ) => {
+    const execution = await options.runtime.runPromise(
+      displayedResultEffect(adapter, input)
+    );
+    if (Result.isSuccess(execution.result)) {
+      await adapter.onSuccess(execution.result.success, execution.context);
+    }
+    return execution.encoded;
+  };
+
   function toAction(): (
     input: Input["Encoded"]
   ) => Promise<EncodedActionResult<Output, Error>>;
   function toAction(
-    message: ActionFailureMessage<Error, Context>
+    adapter:
+      | ActionFailureMessage<Error, Context>
+      | ActionPresentationAdapter<Output, Error, Context>
   ): (input: Input["Encoded"]) => Promise<DisplayActionResult<Output, Error>>;
   function toAction(
     success: ActionSuccessHandler<Output, Context>
@@ -758,15 +793,23 @@ const makeProcedure = <
   function toAction(
     adapter?:
       | ActionFailureMessage<Error, Context>
+      | ActionPresentationAdapter<Output, Error, Context>
       | ActionSuccessHandler<Output, Context>
   ) {
     if (adapter === undefined) {
       return execute;
     }
 
-    return "getFailureMessage" in adapter
-      ? async (input: Input["Encoded"]) => await executeDisplay(adapter, input)
-      : async (input: Input["Encoded"]) => await executeSuccess(adapter, input);
+    if ("getFailureMessage" in adapter) {
+      if ("onSuccess" in adapter) {
+        return async (input: Input["Encoded"]) =>
+          await executeDisplaySuccess(adapter, input);
+      }
+      return async (input: Input["Encoded"]) =>
+        await executeDisplay(adapter, input);
+    }
+    return async (input: Input["Encoded"]) =>
+      await executeSuccess(adapter, input);
   }
 
   function toFormAction(): (
@@ -774,7 +817,9 @@ const makeProcedure = <
     input: Input["Encoded"]
   ) => Promise<EncodedActionResult<Output, Error>>;
   function toFormAction(
-    message: ActionFailureMessage<Error, Context>
+    adapter:
+      | ActionFailureMessage<Error, Context>
+      | ActionPresentationAdapter<Output, Error, Context>
   ): (
     previousResult: DisplayActionResult<Output, Error> | null,
     input: Input["Encoded"]
@@ -788,6 +833,7 @@ const makeProcedure = <
   function toFormAction(
     adapter?:
       | ActionFailureMessage<Error, Context>
+      | ActionPresentationAdapter<Output, Error, Context>
       | ActionSuccessHandler<Output, Context>
   ) {
     if (adapter === undefined) {
@@ -797,15 +843,22 @@ const makeProcedure = <
       ) => await execute(input);
     }
 
-    return "getFailureMessage" in adapter
-      ? async (
+    if ("getFailureMessage" in adapter) {
+      if ("onSuccess" in adapter) {
+        return async (
           _previousResult: DisplayActionResult<Output, Error> | null,
           input: Input["Encoded"]
-        ) => await executeDisplay(adapter, input)
-      : async (
-          _previousResult: EncodedActionResult<Output, Error> | null,
-          input: Input["Encoded"]
-        ) => await executeSuccess(adapter, input);
+        ) => await executeDisplaySuccess(adapter, input);
+      }
+      return async (
+        _previousResult: DisplayActionResult<Output, Error> | null,
+        input: Input["Encoded"]
+      ) => await executeDisplay(adapter, input);
+    }
+    return async (
+      _previousResult: EncodedActionResult<Output, Error> | null,
+      input: Input["Encoded"]
+    ) => await executeSuccess(adapter, input);
   }
 
   return {

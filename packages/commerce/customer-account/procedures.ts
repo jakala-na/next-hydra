@@ -8,17 +8,31 @@ import {
   COMPANY_ROLES,
   CompanyRole,
   CompanyRoles,
+  CommerceCustomerId,
 } from "../domain/commerce-account";
 import type { CommerceActionClient } from "../runtime";
+import type { CommerceCompanyMemberships } from "../services/commerce-company-memberships";
 import type { CommerceContext } from "../services/commerce-context";
 import type { CustomerAccountMembers } from "../services/customer-account-members";
-import type { IssueCompanyMemberExpectedFailure } from "./action-contract";
+import { CustomerAccountCompanyMemberInvitationId } from "../services/customer-account-members";
+import type {
+  IssueCompanyMemberExpectedFailure,
+  ManageCompanyMemberExpectedFailure,
+} from "./action-contract";
 import {
+  CompanyMemberManagementActionError,
+  CompanyMemberManagementSuccess,
   InviteCompanyMemberActionError,
   InviteCompanyMemberSuccess,
   projectCompanyMemberInvitationFailure,
+  projectCompanyMemberManagementFailure,
 } from "./action-contract";
-import { issueCompanyMemberInvitation } from "./programs";
+import {
+  cancelCompanyMemberInvitation,
+  issueCompanyMemberInvitation,
+  reissueCompanyMemberInvitation,
+  removeCompanyMember,
+} from "./programs";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const MAX_EMAIL_LENGTH = 320;
@@ -81,6 +95,16 @@ const InviteCompanyMemberForm = Schema.fromFormData(
   })
 );
 
+const ManageCompanyMemberInvitationForm = Schema.fromFormData(
+  Schema.Struct({
+    companyMemberInvitationId: CustomerAccountCompanyMemberInvitationId,
+  })
+);
+
+const RemoveCompanyMemberForm = Schema.fromFormData(
+  Schema.Struct({ customerId: CommerceCustomerId })
+);
+
 const invitationIssueMessage = (
   path: "email" | "firstName" | "lastName" | "roles" | "root"
 ) => {
@@ -114,26 +138,47 @@ const inviteInputIssues = (error: Schema.SchemaError) => {
   ];
 };
 
+const managementInputIssues = () => [
+  new ErrorIssue({
+    message: "The company member request is invalid.",
+    path: [],
+  }),
+];
+
+const projectExpectedFailure = (error: IssueCompanyMemberExpectedFailure) =>
+  projectCompanyMemberInvitationFailure(error);
+const projectManagementFailure = (error: ManageCompanyMemberExpectedFailure) =>
+  projectCompanyMemberManagementFailure(error);
+
 export const makeCustomerAccountProcedures = <
   RuntimeServices,
   Context extends { readonly locale: string },
 >(
   actions: CommerceActionClient<
     CommerceContext,
-    RuntimeServices | CustomerAccountMembers,
+    CommerceCompanyMemberships | RuntimeServices | CustomerAccountMembers,
     Context
   >
 ) => ({
+  cancelCompanyMemberInvitationProcedure: actions
+    .procedure("CustomerAccount.cancelCompanyMemberInvitation")
+    .input(ManageCompanyMemberInvitationForm)
+    .output(CompanyMemberManagementSuccess)
+    .error(CompanyMemberManagementActionError)
+    .mapInputIssues(managementInputIssues)
+    .mapError<ManageCompanyMemberExpectedFailure>(projectManagementFailure)
+    .handle(({ companyMemberInvitationId }) =>
+      cancelCompanyMemberInvitation(companyMemberInvitationId).pipe(
+        Effect.as({ operation: "cancel" as const })
+      )
+    ),
   inviteCompanyMemberProcedure: actions
     .procedure("CustomerAccount.inviteCompanyMember")
     .input(InviteCompanyMemberForm)
     .output(InviteCompanyMemberSuccess)
     .error(InviteCompanyMemberActionError)
     .mapInputIssues(inviteInputIssues)
-    // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect action error mapper, not Promise control flow.
-    .mapError<IssueCompanyMemberExpectedFailure>((error) =>
-      projectCompanyMemberInvitationFailure(error)
-    )
+    .mapError<IssueCompanyMemberExpectedFailure>(projectExpectedFailure)
     .handle((input) =>
       issueCompanyMemberInvitation(input).pipe(
         Effect.map(
@@ -143,6 +188,30 @@ export const makeCustomerAccountProcedures = <
               inviteeEmail: Redacted.value(invitation.inviteeEmail),
             })
         )
+      )
+    ),
+  reissueCompanyMemberInvitationProcedure: actions
+    .procedure("CustomerAccount.reissueCompanyMemberInvitation")
+    .input(ManageCompanyMemberInvitationForm)
+    .output(CompanyMemberManagementSuccess)
+    .error(CompanyMemberManagementActionError)
+    .mapInputIssues(managementInputIssues)
+    .mapError<ManageCompanyMemberExpectedFailure>(projectManagementFailure)
+    .handle(({ companyMemberInvitationId }) =>
+      reissueCompanyMemberInvitation(companyMemberInvitationId).pipe(
+        Effect.as({ operation: "reissue" as const })
+      )
+    ),
+  removeCompanyMemberProcedure: actions
+    .procedure("CustomerAccount.removeCompanyMember")
+    .input(RemoveCompanyMemberForm)
+    .output(CompanyMemberManagementSuccess)
+    .error(CompanyMemberManagementActionError)
+    .mapInputIssues(managementInputIssues)
+    .mapError<ManageCompanyMemberExpectedFailure>(projectManagementFailure)
+    .handle(({ customerId }) =>
+      removeCompanyMember(customerId).pipe(
+        Effect.as({ operation: "remove" as const })
       )
     ),
 });

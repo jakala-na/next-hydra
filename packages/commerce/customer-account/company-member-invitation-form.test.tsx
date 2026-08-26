@@ -55,7 +55,12 @@ const makeInvitationAction = () => {
       })
     )
   );
-  const members = CustomerAccountMembers.of({ invite });
+  const members = CustomerAccountMembers.of({
+    cancelInvitation: () => Effect.die("not used"),
+    invite,
+    listInvitations: () => Effect.die("not used"),
+    reissueInvitation: () => Effect.die("not used"),
+  });
   const runtime = ManagedRuntime.make(
     Layer.succeed(CustomerAccountMembers, members)
   );
@@ -185,13 +190,11 @@ describe(CompanyMemberInvitationForm, () => {
     expect(
       input === undefined
         ? undefined
-        : Redacted.value(input.inviteeName.firstName)
-    ).toBe("Ada");
-    expect(
-      input === undefined
-        ? undefined
-        : Redacted.value(input.inviteeName.lastName)
-    ).toBe("Lovelace");
+        : {
+            firstName: Redacted.value(input.inviteeName.firstName),
+            lastName: Redacted.value(input.inviteeName.lastName),
+          }
+    ).toStrictEqual({ firstName: "Ada", lastName: "Lovelace" });
   });
 
   it("shows role-specific guidance when no company role is selected", async () => {

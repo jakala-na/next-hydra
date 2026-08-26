@@ -8,10 +8,9 @@ import {
   normalizeActionSchemaIssuePath,
 } from "./index";
 
-class TestFailure extends Schema.TaggedError<TestFailure>()(
-  "TestFailure",
-  { reason: Schema.String }
-) {}
+class TestFailure extends Schema.TaggedError<TestFailure>()("TestFailure", {
+  reason: Schema.String,
+}) {}
 
 class TestRuntimeFailure extends Schema.TaggedError<TestRuntimeFailure>()(
   "TestRuntimeFailure",
@@ -249,7 +248,8 @@ describe("ActionClient", () => {
 
   it("runs a success adapter with the same resolved action context", async () => {
     const getLocale = vi.fn(() => "fr-FR");
-    const onSuccess = vi.fn();
+    const onSuccess =
+      vi.fn<(success: string, context: { readonly locale: string }) => void>();
     const ContextualActions = ActionClient.make(
       ManagedRuntime.make(Layer.empty)
     ).use(
@@ -272,6 +272,29 @@ describe("ActionClient", () => {
     expect(onSuccess).toHaveBeenCalledExactlyOnceWith("Hello, Ada", {
       locale: "fr-FR",
     });
+  });
+
+  it("combines failure presentation with a post-Effect success hook", async () => {
+    const onSuccess =
+      vi.fn<
+        (success: string, context: Readonly<Record<never, never>>) => void
+      >();
+    const action = ActionClient.make(ManagedRuntime.make(Layer.empty))
+      .procedure("Test.displaySuccessAdapter")
+      .input(TestInput)
+      .output(Schema.String)
+      .error(TestFailure)
+      .handle(({ name }) => Effect.succeed(`Hello, ${name}`))
+      .toFormAction({
+        getFailureMessage: (error) => error._tag,
+        onSuccess,
+      });
+
+    await expect(action(null, { name: "Ada" })).resolves.toStrictEqual({
+      _tag: "Success",
+      success: "Hello, Ada",
+    });
+    expect(onSuccess).toHaveBeenCalledExactlyOnceWith("Hello, Ada", {});
   });
 
   it("shares one resolved invocation with runtime provision and failure presentation", async () => {

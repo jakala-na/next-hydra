@@ -9,8 +9,13 @@ export {
 } from "./access-token.js";
 export { AuthProviderCapabilities } from "./capabilities.js";
 export {
+  CompanyMemberInvitationNotFound,
+  CompanyMemberInvitationPersistenceFailure,
+  CompanyMemberInvitationRecordConflict,
   InvitationConflict,
+  InvitationExpired,
   InvitationIssueOutcomeUnknown,
+  InvitationNotFound,
   InvitationProviderFailure,
 } from "./invitations.js";
 export {

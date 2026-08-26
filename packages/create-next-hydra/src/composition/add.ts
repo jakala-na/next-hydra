@@ -481,9 +481,7 @@ function describeShadcnEffects(
     );
   }
   if (
-    [...items].some(
-      (item) => "config" in item && item.config !== undefined
-    )
+    [...items].some((item) => "config" in item && item.config !== undefined)
   ) {
     effects.push("ShadCN project configuration will be updated");
   }
@@ -567,9 +565,7 @@ export async function addRegistryItem(
     references: [resolvedReference],
   });
   const primaryName = graph.itemByReference.get(resolvedReference);
-  const primary = primaryName
-    ? graph.items.get(primaryName)
-    : undefined;
+  const primary = primaryName ? graph.items.get(primaryName) : undefined;
   if (!primary) {
     throw new Error(`The registry returned no item for ${reference}.`);
   }

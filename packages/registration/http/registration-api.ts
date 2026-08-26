@@ -609,13 +609,13 @@ export const toRegistrationInvitationRevocationApiError = (
     case "InvitationExpired": {
       return PublicInvitationExpiredFailure.make({
         expiredAt: error.expiredAt.toISOString(),
-        invitationId: error.invitationId,
+        invitationId: InvitationId.make(error.invitationId),
         message: error.message,
       });
     }
     case "InvitationNotFound": {
       return PublicInvitationNotFoundFailure.make({
-        invitationId: error.invitationId,
+        invitationId: InvitationId.make(error.invitationId),
         message: error.message,
       });
     }

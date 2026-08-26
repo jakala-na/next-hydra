@@ -1,6 +1,6 @@
 import type { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
-import { Clock, Effect, Random } from "effect";
+import { Clock, DateTime, Effect, Random, Redacted } from "effect";
 
 import type { CompanyActor } from "../domain/actors";
 import { CompanyMemberInvitationId } from "../domain/identity";
@@ -13,7 +13,10 @@ import {
   CompanyMemberIntent,
   PendingCompanyMemberInvitation,
 } from "../domain/invitations";
-import type { RevokedCompanyMemberInvitation } from "../domain/invitations";
+import type {
+  CompanyMemberInvitation as CompanyMemberInvitationType,
+  RevokedCompanyMemberInvitation,
+} from "../domain/invitations";
 import type { CompanyRoles } from "../domain/roles";
 import { CompanyInvitationPolicy } from "../services/company-invitation-policy";
 import type { InvitationPolicyError } from "../services/company-invitation-policy";
@@ -26,6 +29,7 @@ import type {
 import {
   CompanyMemberInvitations,
   InvitationConflict,
+  InvitationDeliveries,
   InvitationIssueOutcomeUnknown,
 } from "../services/invitations";
 import type {
@@ -48,6 +52,29 @@ export interface RevokeCompanyMemberInviteInput {
   readonly companyMemberInvitationId: CompanyMemberInvitationIdType;
 }
 
+export interface ListCompanyMemberInvitationsInput {
+  readonly actor: CompanyActor;
+}
+
+export interface ReissueCompanyMemberInviteInput {
+  readonly actor: CompanyActor;
+  readonly companyMemberInvitationId: CompanyMemberInvitationIdType;
+}
+
+export type ListCompanyMemberInvitationsError =
+  | CompanyMemberInvitationNotFound
+  | CompanyMemberInvitationPersistenceFailure
+  | CompanyMemberInvitationRecordConflict
+  | InvitationPolicyError;
+
+export type ReissueCompanyMemberInviteError =
+  | CommerceAccountUnavailable
+  | CompanyMemberInvitationNotFound
+  | CompanyMemberInvitationPersistenceFailure
+  | CompanyMemberInvitationRecordConflict
+  | CompanyMemberInvitationIssueError
+  | InvitationPolicyError;
+
 export type RevokeCompanyMemberInviteError =
   | CompanyMemberInvitationNotFound
   | CompanyMemberInvitationPersistenceFailure
@@ -55,18 +82,32 @@ export type RevokeCompanyMemberInviteError =
   | CompanyMemberInvitationRevokeError
   | InvitationPolicyError;
 
-export const issueCompanyMemberInvite = (
-  input: IssueCompanyMemberInviteInput
-): Effect.Effect<
-  PendingCompanyMemberInvitation,
-  | CommerceAccountUnavailable
-  | InvitationPolicyError
-  | CompanyMemberInvitationIssueError,
-  | CompanyInvitationPolicy
-  | CompanyMemberInvitationRecords
-  | CompanyMemberInvitations
-  | CommerceAccounts
-> =>
+const materializeExpiration = (
+  records: CompanyMemberInvitationRecords["Service"],
+  invitation: CompanyMemberInvitationType,
+  now: Date
+) =>
+  invitation._tag === "PendingInvitation" &&
+  invitation.expiresAt.getTime() <= now.getTime()
+    ? records.markExpired({
+        companyMemberInvitationId: invitation.intent.companyMemberInvitationId,
+        expiredAt: invitation.expiresAt,
+      })
+    : Effect.succeed(invitation);
+
+const makeCompanyMemberInvitationId = Effect.gen(function* () {
+  const issuedAt = yield* Clock.currentTimeMillis;
+  const entropy = Math.abs(yield* Random.nextInt);
+  return CompanyMemberInvitationId.make(
+    `company-member-invitation-${issuedAt}-${entropy}`
+  );
+});
+
+const issueCompanyMemberInviteWithId = (
+  input: IssueCompanyMemberInviteInput,
+  companyMemberInvitationId: CompanyMemberInvitationIdType,
+  replacesInvitationId?: CompanyMemberInvitationType["id"]
+) =>
   Effect.gen(function* () {
     const commerceAccounts = yield* CommerceAccounts;
     const policy = yield* CompanyInvitationPolicy;
@@ -85,11 +126,6 @@ export const issueCompanyMemberInvite = (
       });
     }
 
-    const issuedAt = yield* Clock.currentTimeMillis;
-    const entropy = Math.abs(yield* Random.nextInt);
-    const companyMemberInvitationId = CompanyMemberInvitationId.make(
-      `company-member-invitation-${issuedAt}-${entropy}`
-    );
     const intent = new CompanyMemberIntent({
       businessUnitId: input.actor.businessUnitId,
       companyMemberInvitationId,
@@ -98,10 +134,11 @@ export const issueCompanyMemberInvite = (
       inviteeName: input.inviteeName,
       roles: input.roles,
     });
-    const delivered = yield* invitations.issue({
-      intent,
-      issuedBy: input.actor,
-    });
+    const issueInput =
+      replacesInvitationId === undefined
+        ? { intent, issuedBy: input.actor }
+        : { intent, issuedBy: input.actor, replacesInvitationId };
+    const delivered = yield* invitations.issue(issueInput);
     const invitation = new PendingCompanyMemberInvitation({
       _tag: "PendingInvitation",
       acceptInvitationUrl: delivered.acceptInvitationUrl,
@@ -123,6 +160,25 @@ export const issueCompanyMemberInvite = (
     );
   });
 
+export const issueCompanyMemberInvite = (
+  input: IssueCompanyMemberInviteInput
+): Effect.Effect<
+  PendingCompanyMemberInvitation,
+  | CommerceAccountUnavailable
+  | InvitationPolicyError
+  | CompanyMemberInvitationIssueError,
+  | CompanyInvitationPolicy
+  | CompanyMemberInvitationRecords
+  | CompanyMemberInvitations
+  | CommerceAccounts
+> =>
+  Effect.gen(function* () {
+    return yield* issueCompanyMemberInviteWithId(
+      input,
+      yield* makeCompanyMemberInvitationId
+    );
+  });
+
 export const revokeCompanyMemberInvite = (
   input: RevokeCompanyMemberInviteInput
 ): Effect.Effect<
@@ -136,7 +192,12 @@ export const revokeCompanyMemberInvite = (
     const policy = yield* CompanyInvitationPolicy;
     const records = yield* CompanyMemberInvitationRecords;
     const invitations = yield* CompanyMemberInvitations;
-    const current = yield* records.getById(input.companyMemberInvitationId);
+    const stored = yield* records.getById(input.companyMemberInvitationId);
+    const current = yield* materializeExpiration(
+      records,
+      stored,
+      DateTime.toDateUtc(yield* DateTime.now)
+    );
 
     yield* policy.authorizeRevokeInvite({
       actor: input.actor,
@@ -153,6 +214,13 @@ export const revokeCompanyMemberInvite = (
       });
     }
 
+    if (current._tag === "ExpiredInvitation") {
+      return yield* new InvitationConflict({
+        message:
+          "An expired company member invitation cannot be cancelled; send a new invitation instead",
+      });
+    }
+
     const revoked = yield* invitations.revoke({
       intent: current.intent,
       invitationId: current.id,
@@ -164,4 +232,210 @@ export const revokeCompanyMemberInvite = (
       companyMemberInvitationId: current.intent.companyMemberInvitationId,
       revokedAt: revoked.revokedAt,
     });
+  });
+
+export const listCompanyMemberInvitations = (
+  input: ListCompanyMemberInvitationsInput
+): Effect.Effect<
+  readonly CompanyMemberInvitationType[],
+  ListCompanyMemberInvitationsError,
+  CompanyInvitationPolicy | CompanyMemberInvitationRecords
+> =>
+  Effect.gen(function* () {
+    const policy = yield* CompanyInvitationPolicy;
+    const records = yield* CompanyMemberInvitationRecords;
+
+    yield* policy.authorizeManageCompany({
+      actor: input.actor,
+      businessUnitId: input.actor.businessUnitId,
+    });
+
+    const now = DateTime.toDateUtc(yield* DateTime.now);
+    const invitations = yield* records.listByBusinessUnit(
+      input.actor.businessUnitId
+    );
+
+    return yield* Effect.all(
+      invitations.map((invitation) =>
+        materializeExpiration(records, invitation, now)
+      )
+    );
+  });
+
+const currentInvitationsByEmail = (
+  invitations: readonly CompanyMemberInvitationType[]
+) => {
+  const invitationIds = new Set(
+    invitations.map(({ intent }) => String(intent.companyMemberInvitationId))
+  );
+  const candidates = invitations.filter(
+    (invitation) =>
+      !(
+        invitation._tag === "AcceptedInvitation" &&
+        invitation.provisionedMembership !== undefined
+      ) &&
+      ((invitation._tag !== "ExpiredInvitation" &&
+        invitation._tag !== "RevokedInvitation") ||
+        invitation.replacementCompanyMemberInvitationId === undefined ||
+        !invitationIds.has(
+          String(invitation.replacementCompanyMemberInvitationId)
+        ))
+  );
+  const latest = new Map<string, CompanyMemberInvitationType>();
+
+  for (const invitation of candidates) {
+    const email = Redacted.value(invitation.intent.inviteeEmail)
+      .trim()
+      .toLowerCase();
+    const current = latest.get(email);
+    if (
+      current === undefined ||
+      invitation.createdAt.getTime() > current.createdAt.getTime() ||
+      (invitation.createdAt.getTime() === current.createdAt.getTime() &&
+        String(invitation.intent.companyMemberInvitationId) >
+          String(current.intent.companyMemberInvitationId))
+    ) {
+      latest.set(email, invitation);
+    }
+  }
+
+  return [...latest.values()];
+};
+
+export const listCurrentCompanyMemberInvitations = (
+  input: ListCompanyMemberInvitationsInput
+): Effect.Effect<
+  readonly CompanyMemberInvitationType[],
+  ListCompanyMemberInvitationsError,
+  CompanyInvitationPolicy | CompanyMemberInvitationRecords
+> =>
+  listCompanyMemberInvitations(input).pipe(
+    Effect.map(currentInvitationsByEmail)
+  );
+
+export const reissueCompanyMemberInvite = (
+  input: ReissueCompanyMemberInviteInput
+): Effect.Effect<
+  PendingCompanyMemberInvitation,
+  ReissueCompanyMemberInviteError,
+  | CommerceAccounts
+  | CompanyInvitationPolicy
+  | CompanyMemberInvitationRecords
+  | CompanyMemberInvitations
+  | InvitationDeliveries
+> =>
+  Effect.gen(function* () {
+    const policy = yield* CompanyInvitationPolicy;
+    const records = yield* CompanyMemberInvitationRecords;
+    const deliveries = yield* InvitationDeliveries;
+    const stored = yield* records.getById(input.companyMemberInvitationId);
+    const current = yield* materializeExpiration(
+      records,
+      stored,
+      DateTime.toDateUtc(yield* DateTime.now)
+    );
+
+    yield* policy.authorizeManageCompany({
+      actor: input.actor,
+      businessUnitId: current.intent.businessUnitId,
+    });
+
+    if (
+      current._tag !== "ExpiredInvitation" &&
+      current._tag !== "RevokedInvitation"
+    ) {
+      return yield* new InvitationConflict({
+        message:
+          current._tag === "AcceptedInvitation"
+            ? "An accepted company member invitation cannot be reissued"
+            : "A pending company member invitation cannot be reissued",
+      });
+    }
+
+    if (current._tag === "ExpiredInvitation") {
+      const delivery = yield* deliveries.get(current.id).pipe(
+        Effect.map((value) => ({ found: true as const, value })),
+        Effect.catchTag("InvitationNotFound", () =>
+          Effect.succeed({ found: false as const })
+        )
+      );
+      if (
+        delivery.found &&
+        delivery.value.status !== "expired" &&
+        delivery.value.status !== "revoked"
+      ) {
+        return yield* new InvitationConflict({
+          message:
+            delivery.value.status === "accepted"
+              ? "The invitation was accepted and is awaiting company provisioning"
+              : "The invitation is still active at the identity provider",
+        });
+      }
+    }
+
+    const requestedReplacementId = yield* makeCompanyMemberInvitationId;
+    const claimed = yield* records.claimReissue({
+      companyMemberInvitationId: current.intent.companyMemberInvitationId,
+      replacementCompanyMemberInvitationId: requestedReplacementId,
+    });
+    const replacementId = claimed.replacementCompanyMemberInvitationId;
+    if (replacementId === undefined) {
+      return yield* Effect.die(
+        new Error("Reissue claim did not retain its replacement invitation ID")
+      );
+    }
+
+    if (replacementId !== requestedReplacementId) {
+      const replacement = yield* records.getById(replacementId).pipe(
+        Effect.catchTag("CompanyMemberInvitationNotFound", (error) =>
+          Effect.fail(
+            new InvitationIssueOutcomeUnknown({
+              cause: error,
+              message:
+                "A company member invitation reissue is already in progress",
+            })
+          )
+        )
+      );
+      if (replacement._tag === "PendingInvitation") {
+        return replacement;
+      }
+      return yield* new InvitationConflict({
+        message: "The replacement invitation is no longer pending",
+      });
+    }
+
+    return yield* issueCompanyMemberInviteWithId(
+      {
+        actor: input.actor,
+        inviteeEmail: current.intent.inviteeEmail,
+        inviteeName: current.intent.inviteeName,
+        roles: current.intent.roles,
+      },
+      replacementId,
+      current.id
+    ).pipe(
+      Effect.catch((error) => {
+        if (error._tag === "InvitationIssueOutcomeUnknown") {
+          return Effect.fail(error);
+        }
+
+        return records
+          .releaseReissueClaim({
+            companyMemberInvitationId: current.intent.companyMemberInvitationId,
+            replacementCompanyMemberInvitationId: replacementId,
+          })
+          .pipe(
+            Effect.mapError(
+              (releaseError) =>
+                new InvitationIssueOutcomeUnknown({
+                  cause: releaseError,
+                  message:
+                    "The invitation was not issued, but its reissue claim could not be released",
+                })
+            ),
+            Effect.andThen(Effect.fail(error))
+          );
+      })
+    );
   });

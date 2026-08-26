@@ -1,1 +1,4 @@
-export { commerceAccountsLayer } from "./commerce-accounts";
+export {
+  commerceAccountsLayer,
+  commerceCompanyMembershipsLayer,
+} from "./commerce-accounts";

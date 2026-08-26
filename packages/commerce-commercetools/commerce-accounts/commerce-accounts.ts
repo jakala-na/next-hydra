@@ -12,6 +12,7 @@ import { AddressBookReference } from "@repo/commerce/domain/address-book";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
+  CommerceCompanyMember,
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
   CommerceBusinessUnitLabel,
@@ -19,10 +20,14 @@ import {
   CommerceCustomerId,
   CommerceCustomerProfile,
   CompanyRole,
+  CompanyRoleList,
   CompanyRoles,
   INITIAL_COMPANY_ROLES,
 } from "@repo/commerce/domain/commerce-account";
-import type { CompanyRoles as CompanyRolesType } from "@repo/commerce/domain/commerce-account";
+import type {
+  CompanyRoleList as CompanyRoleListType,
+  CompanyRoles as CompanyRolesType,
+} from "@repo/commerce/domain/commerce-account";
 import type { AuthUserId } from "@repo/commerce/domain/commerce-request-context";
 import {
   CommerceAccountUnavailable,
@@ -36,6 +41,12 @@ import type {
   CommerceAccountRegistrationInput,
   RedactedString,
 } from "@repo/commerce/services/commerce-accounts";
+import {
+  CommerceCompanyMembershipChanged,
+  CommerceCompanyMembershipRevision,
+  CommerceCompanyMembershipRoster,
+  CommerceCompanyMemberships,
+} from "@repo/commerce/services/commerce-company-memberships";
 import type { StoreKey } from "@repo/commerce/store";
 import { Effect, Layer, Redacted, Schema } from "effect";
 
@@ -47,6 +58,7 @@ import {
   CommercetoolsRequestFailure,
   commercetoolsFailureCause,
   hasCommercetoolsErrorCode,
+  isConcurrentModification,
   commercetoolsRequest,
   RetryVersionedWrite,
   retryVersionedWrite,
@@ -71,6 +83,30 @@ const failAccountRequest = (message: string, cause: unknown) =>
   commercetoolsProviderFailureReason(cause) === "unavailable"
     ? Effect.fail(new CommerceAccountUnavailable({ cause, message }))
     : Effect.die(new Error(message, { cause }));
+
+const commerceCompanyMemberNames = (
+  customer: Customer
+): Pick<CommerceCompanyMember, "firstName" | "lastName"> => {
+  const firstName =
+    customer.firstName === undefined
+      ? undefined
+      : Redacted.make(customer.firstName, { label: "personName" });
+  const lastName =
+    customer.lastName === undefined
+      ? undefined
+      : Redacted.make(customer.lastName, { label: "personName" });
+
+  if (firstName !== undefined && lastName !== undefined) {
+    return { firstName, lastName };
+  }
+  if (firstName !== undefined) {
+    return { firstName };
+  }
+  if (lastName !== undefined) {
+    return { lastName };
+  }
+  return {};
+};
 
 interface CommercetoolsAccountRequestFailure {
   readonly _tag: "CommercetoolsAccountRequestFailure";
@@ -101,31 +137,59 @@ const customerKey = (registration: CommerceAccountRegistrationInput) =>
 const businessUnitKey = (registration: CommerceAccountRegistrationInput) =>
   `registration-business-unit-${registration.id}`;
 
-const companyRolesForCustomer = (
-  businessUnit: BusinessUnit,
+const roleKeysForCustomer = (
+  associates:
+    | readonly {
+        readonly associateRoleAssignments: readonly {
+          readonly associateRole: { readonly key: string };
+        }[];
+        readonly customer: { readonly id: string };
+      }[]
+    | undefined,
   customerId: CommerceCustomerId
-): CompanyRolesType => {
-  const customer = customerId;
-  const directRoleKeys = (businessUnit.associates ?? [])
-    .filter((associate) => associate.customer.id === customer)
-    .flatMap((associate) =>
-      associate.associateRoleAssignments.map(
-        (assignment) => assignment.associateRole.key
-      )
-    );
-  const inheritedRoleKeys = (businessUnit.inheritedAssociates ?? [])
-    .filter((associate) => associate.customer.id === customer)
+) =>
+  (associates ?? [])
+    .filter((associate) => associate.customer.id === customerId)
     .flatMap((associate) =>
       associate.associateRoleAssignments.map(
         (assignment) => assignment.associateRole.key
       )
     );
 
-  return Schema.decodeUnknownSync(CompanyRoles)(
-    [...new Set([...directRoleKeys, ...inheritedRoleKeys])].filter(
-      Schema.is(CompanyRole)
-    )
+const decodeCompanyRoleList = (roleKeys: readonly string[]) =>
+  Schema.decodeSync(CompanyRoleList)(
+    [...new Set(roleKeys)].filter(Schema.is(CompanyRole))
   );
+
+const directCompanyRolesForCustomer = (
+  businessUnit: BusinessUnit,
+  customerId: CommerceCustomerId
+): CompanyRoleListType =>
+  decodeCompanyRoleList(
+    roleKeysForCustomer(businessUnit.associates, customerId)
+  );
+
+const inheritedCompanyRolesForCustomer = (
+  businessUnit: BusinessUnit,
+  customerId: CommerceCustomerId
+): CompanyRoleListType =>
+  decodeCompanyRoleList(
+    roleKeysForCustomer(businessUnit.inheritedAssociates, customerId)
+  );
+
+const companyRolesForCustomer = (
+  businessUnit: BusinessUnit,
+  customerId: CommerceCustomerId
+): CompanyRolesType => {
+  const directRoles = directCompanyRolesForCustomer(businessUnit, customerId);
+  const inheritedRoles = inheritedCompanyRolesForCustomer(
+    businessUnit,
+    customerId
+  );
+
+  return Schema.decodeUnknownSync(CompanyRoles)([
+    ...new Set([...directRoles, ...inheritedRoles]),
+  ]);
 };
 
 const authUserId = (identity: AcceptedCommerceIdentity) => identity.authUserId;
@@ -155,7 +219,7 @@ const registrationStore = (registration: CommerceAccountRegistrationInput) => ({
   typeId: "store" as const,
 });
 
-const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
+const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
   const getCustomerByKey = (key: string) =>
     Effect.tryPromise({
       catch: (cause) =>
@@ -856,7 +920,7 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     )
   );
 
-  return CommerceAccounts.of({
+  const accounts = CommerceAccounts.of({
     addAssociate: Effect.fn("CommercetoolsCommerceAccounts.addAssociate")(
       function* (input) {
         const customer = yield* ensureAcceptedIdentityCustomer(
@@ -928,20 +992,155 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     }),
     listBusinessUnitMembershipsForCustomerInStore,
   });
+
+  const companyMemberships = CommerceCompanyMemberships.of({
+    getRoster: Effect.fn("CommercetoolsCommerceCompanyMemberships.getRoster")(
+      function* (businessUnitId) {
+        const businessUnit = yield* getBusinessUnitById(businessUnitId);
+
+        const customerIds = [
+          ...new Set(
+            [
+              ...(businessUnit.associates ?? []),
+              ...(businessUnit.inheritedAssociates ?? []),
+            ].map((associate) => associate.customer.id)
+          ),
+        ];
+        const members = yield* Effect.forEach(
+          customerIds,
+          (customerId) =>
+            getCustomerById(CommerceCustomerId.make(customerId)).pipe(
+              Effect.flatMap((customer) => {
+                if (customer.externalId === undefined) {
+                  return Effect.die(
+                    new Error(
+                      `Commercetools customer ${customer.id} has no authentication identity`
+                    )
+                  );
+                }
+
+                return Effect.succeed(
+                  new CommerceCompanyMember({
+                    authUserId: customer.externalId,
+                    businessUnitId,
+                    customerId: CommerceCustomerId.make(customer.id),
+                    directlyAssociated: (businessUnit.associates ?? []).some(
+                      (associate) => associate.customer.id === customer.id
+                    ),
+                    email: Redacted.make(customer.email, { label: "email" }),
+                    ...commerceCompanyMemberNames(customer),
+                    inheritedRoles: inheritedCompanyRolesForCustomer(
+                      businessUnit,
+                      CommerceCustomerId.make(customer.id)
+                    ),
+                    roles: companyRolesForCustomer(
+                      businessUnit,
+                      CommerceCustomerId.make(customer.id)
+                    ),
+                  })
+                );
+              })
+            ),
+          { concurrency: 8 }
+        );
+
+        return new CommerceCompanyMembershipRoster({
+          businessUnitId,
+          members,
+          revision: CommerceCompanyMembershipRevision.make(
+            String(businessUnit.version)
+          ),
+        });
+      }
+    ),
+    removeMember: Effect.fn(
+      "CommercetoolsCommerceCompanyMemberships.removeMember"
+    )(function* (input) {
+      yield* commercetoolsRequest(
+        "Failed to remove Commercetools business unit associate",
+        async () => {
+          await apiRoot
+            .businessUnits()
+            .withId({ ID: String(input.businessUnitId) })
+            .post({
+              body: {
+                actions: [
+                  {
+                    action: "removeAssociate",
+                    customer: {
+                      id: String(input.customerId),
+                      typeId: "customer",
+                    },
+                  },
+                ],
+                version: Schema.decodeUnknownSync(Schema.NumberFromString)(
+                  input.expectedRevision
+                ),
+              },
+            })
+            .execute();
+        }
+      ).pipe(
+        Effect.catchTag(
+          "CommercetoolsRequestFailure",
+          (
+            failure
+          ): Effect.Effect<
+            never,
+            CommerceAccountUnavailable | CommerceCompanyMembershipChanged
+          > => {
+            if (isConcurrentModification(failure.cause)) {
+              return Effect.fail(
+                new CommerceCompanyMembershipChanged({
+                  businessUnitId: input.businessUnitId,
+                  message: "Company membership changed during removal",
+                })
+              );
+            }
+            return failAccountRequest(failure.message, failure.cause);
+          }
+        )
+      );
+    }),
+  });
+
+  return { accounts, companyMemberships };
 };
 
 export const commerceAccountsLayerFrom = (
   apiRoot: ByProjectKeyRequestBuilder
-) => Layer.succeed(CommerceAccounts, makeCommerceAccounts(apiRoot));
+) =>
+  Layer.succeed(CommerceAccounts, makeCommerceCapabilities(apiRoot).accounts);
+
+export const commerceCompanyMembershipsLayerFrom = (
+  apiRoot: ByProjectKeyRequestBuilder
+) =>
+  Layer.succeed(
+    CommerceCompanyMemberships,
+    makeCommerceCapabilities(apiRoot).companyMemberships
+  );
 
 const commerceAccountsImplementationLayer = Layer.effect(
   CommerceAccounts,
   Effect.gen(function* () {
     const { apiRoot } = yield* CommercetoolsRestClient;
-    return makeCommerceAccounts(apiRoot);
+    return makeCommerceCapabilities(apiRoot).accounts;
+  })
+);
+
+const commerceCompanyMembershipsImplementationLayer = Layer.effect(
+  CommerceCompanyMemberships,
+  Effect.gen(function* () {
+    const { apiRoot } = yield* CommercetoolsRestClient;
+    return makeCommerceCapabilities(apiRoot).companyMemberships;
   })
 );
 
 export const commerceAccountsLayer = commerceAccountsImplementationLayer.pipe(
   Layer.provide(commercetoolsClientsLayer)
 );
+
+export const commerceCompanyMembershipsLayer =
+  commerceCompanyMembershipsImplementationLayer.pipe(
+    Layer.provide(commercetoolsClientsLayer)
+  );

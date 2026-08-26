@@ -241,6 +241,29 @@
           "successTitle": "Einladung gesendet",
           "successDescription": "Eine Einladung wurde an {email} gesendet.",
           "failureTitle": "Einladung nicht gesendet"
+        },
+        "management": {
+          "title": "Unternehmensbenutzer",
+          "description": "Aktive Benutzer und offene Einladungen verwalten.",
+          "empty": "Noch keine Benutzer oder Einladungen vorhanden.",
+          "person": "Benutzer",
+          "roles": "Rollen",
+          "status": "Status",
+          "expiry": "Läuft ab",
+          "actions": "Aktionen",
+          "cancel": "Einladung stornieren",
+          "reissue": "Erneut senden",
+          "remove": "Entfernen",
+          "currentUser": "Sie",
+          "inheritedMembership": "Von übergeordneter Firma verwaltet",
+          "noAction": "Wird bereitgestellt",
+          "statuses": {
+            "active": "Aktiv",
+            "pending": "Ausstehend",
+            "accepted": "Angenommen",
+            "expired": "Abgelaufen",
+            "revoked": "Storniert"
+          }
         }
       },
       "errors": {
@@ -249,12 +272,19 @@
         "InputInvalidRoles": "Wählen Sie mindestens eine Unternehmensrolle aus.",
         "InvitationPolicyError": "Nur ein Unternehmensadministrator kann Benutzer einladen.",
         "InvitationConflict": "Dieser Benutzer kann nicht eingeladen werden.",
-        "InvitationProviderFailure": "Die Einladung konnte gerade nicht gesendet werden. Versuchen Sie es erneut.",
+        "InvitationProviderFailure": "Der Einladungsvorgang konnte gerade nicht abgeschlossen werden. Versuchen Sie es erneut.",
         "InvitationIssueOutcomeUnknown": "Die Einladung wurde möglicherweise gesendet, aber das Ergebnis konnte nicht bestätigt werden. Senden Sie sie nicht erneut.",
         "CustomerAccountProfileIncomplete": "Ihr Profil benötigt eine E-Mail-Adresse.",
         "CommerceRequestContextNotFound": "Das aktuelle Unternehmenskonto ist nicht verfügbar.",
         "CommerceAccountUnavailable": "Das aktuelle Unternehmenskonto ist vorübergehend nicht verfügbar.",
-        "CommerceCustomerProfileNotFound": "Ihr Kundenprofil wurde nicht gefunden."
+        "CommerceCustomerProfileNotFound": "Ihr Kundenprofil wurde nicht gefunden.",
+        "CompanyMemberInvitationNotFound": "Diese Einladung wurde nicht gefunden. Aktualisieren Sie die Mitgliederliste.",
+        "CompanyMemberInvitationPersistenceFailure": "Unternehmenseinladungen sind vorübergehend nicht verfügbar. Versuchen Sie es erneut.",
+        "CompanyMemberInvitationRecordConflict": "Diese Einladung wurde inzwischen geändert. Aktualisieren Sie die Mitgliederliste.",
+        "InvitationExpired": "Diese Einladung ist abgelaufen. Aktualisieren Sie die Mitgliederliste, um sie erneut auszustellen.",
+        "InvitationNotFound": "Der Identitätsanbieter hat diese Einladung nicht mehr. Aktualisieren Sie die Mitgliederliste.",
+        "CompanyMemberRemovalConflict": "Dieses Mitglied kann im aktuellen Unternehmensstatus nicht entfernt werden. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
+        "CompanyMemberManagementForbidden": "Nur Unternehmensadministratoren können Mitglieder verwalten."
       }
     },
     "checkout": {

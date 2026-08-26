@@ -25,6 +25,11 @@ export const COMPANY_ROLES = ["admin", "buyer", "approver"] as const;
 export const CompanyRole = Schema.Literals(COMPANY_ROLES);
 export type CompanyRole = typeof CompanyRole.Type;
 
+export const CompanyRoleList = Schema.Array(CompanyRole).check(
+  Schema.isUnique()
+);
+export type CompanyRoleList = typeof CompanyRoleList.Type;
+
 export const CompanyRoles = Schema.NonEmptyArray(CompanyRole).check(
   Schema.isUnique()
 );
@@ -88,5 +93,23 @@ export class CommerceAssociateMembership extends Schema.Class<CommerceAssociateM
   authUserId: Schema.String,
   businessUnitId: CommerceBusinessUnitId,
   customerId: CommerceCustomerId,
+  roles: CompanyRoles,
+}) {}
+
+export class CommerceCompanyMember extends Schema.Class<CommerceCompanyMember>(
+  "CommerceCompanyMember"
+)({
+  authUserId: Schema.String,
+  businessUnitId: CommerceBusinessUnitId,
+  customerId: CommerceCustomerId,
+  directlyAssociated: Schema.Boolean,
+  email: Schema.Redacted(Schema.String, { label: "email" }),
+  firstName: Schema.optional(
+    Schema.Redacted(Schema.String, { label: "personName" })
+  ),
+  lastName: Schema.optional(
+    Schema.Redacted(Schema.String, { label: "personName" })
+  ),
+  inheritedRoles: CompanyRoleList,
   roles: CompanyRoles,
 }) {}

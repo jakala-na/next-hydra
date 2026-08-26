@@ -279,7 +279,7 @@ const testCustomerInvitationComposition = async (target: string) => {
         "run",
         "lib/customer-account-invitation-composition.test.ts",
       ],
-      "customer-account invitation issuance composition test"
+      "customer-account invitation lifecycle composition test"
     ),
     runTypecheck(
       target,

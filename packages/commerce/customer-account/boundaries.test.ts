@@ -14,10 +14,11 @@ import {
 } from "../domain/commerce-request-context";
 import { CommerceContext } from "../services/commerce-context";
 import type {
-  CustomerAccountMemberInvitationFailure,
+  InviteCustomerAccountMemberFailure,
   InviteCustomerAccountMemberInput,
 } from "../services/customer-account-members";
 import {
+  CompanyMemberInvitationNotFound,
   CustomerAccountMemberInvitation,
   CustomerAccountMembers,
   CustomerAccountInvitationId,
@@ -38,10 +39,11 @@ type InvitationIssue = (
   input: InviteCustomerAccountMemberInput
 ) => Effect.Effect<
   CustomerAccountMemberInvitation,
-  CustomerAccountMemberInvitationFailure
+  InviteCustomerAccountMemberFailure
 >;
 
 interface HarnessOptions {
+  readonly cancel?: CustomerAccountMembers["Service"]["cancelInvitation"];
   readonly issue?: InvitationIssue;
 }
 
@@ -59,9 +61,14 @@ const defaultIssue: InvitationIssue = (input) =>
 const makeHarness = (options: HarnessOptions = {}) => {
   const issue = options.issue ?? defaultIssue;
   const issueInvitation = vi.fn<InvitationIssue>(issue);
-  const members = CustomerAccountMembers.of({ invite: issueInvitation });
+  const members = CustomerAccountMembers.of({
+    cancelInvitation: options.cancel ?? (() => Effect.die("not used")),
+    invite: issueInvitation,
+    listInvitations: () => Effect.die("not used"),
+    reissueInvitation: () => Effect.die("not used"),
+  });
   const runtime = ManagedRuntime.make(
-    Layer.succeed(CustomerAccountMembers, members)
+    Layer.mergeAll(Layer.succeed(CustomerAccountMembers, members))
   );
   const principal = new CustomerCommercePrincipal({
     authUserId: AuthUserId.make("auth-user-1"),
@@ -86,11 +93,17 @@ const makeHarness = (options: HarnessOptions = {}) => {
       )
     )
     .provide(() => Layer.succeed(CommerceContext, commerceContext));
-  const { inviteCompanyMemberProcedure } =
-    makeCustomerAccountProcedures(actions);
+  const {
+    cancelCompanyMemberInvitationProcedure,
+    inviteCompanyMemberProcedure,
+  } = makeCustomerAccountProcedures(actions);
 
   return {
     action: inviteCompanyMemberProcedure.toFormAction({
+      getFailureMessage: (error) =>
+        `Localized ${inviteCompanyMemberFailureMessageKey(error)}`,
+    }),
+    cancelAction: cancelCompanyMemberInvitationProcedure.toFormAction({
       getFailureMessage: (error) =>
         `Localized ${inviteCompanyMemberFailureMessageKey(error)}`,
     }),
@@ -266,5 +279,31 @@ describe("Customer account invitation boundaries", () => {
       },
     });
     expect(JSON.stringify(result)).not.toContain("connection closed");
+  });
+
+  it("preserves an exact durable invitation not-found failure", async () => {
+    const harness = makeHarness({
+      cancel: () =>
+        Effect.fail(
+          new CompanyMemberInvitationNotFound({
+            message: "Invitation does not exist",
+          })
+        ),
+    });
+    const formData = new FormData();
+    formData.set("companyMemberInvitationId", "missing-invitation");
+
+    const result = await harness.cancelAction(null, formData);
+
+    expect(result).toMatchObject({
+      _tag: "Failure",
+      failure: {
+        displayMessage: "Localized CompanyMemberInvitationNotFound",
+        error: {
+          _tag: "CompanyMemberInvitationNotFound",
+          recovery: "refresh",
+        },
+      },
+    });
   });
 });

@@ -24,3 +24,54 @@ export class InvitationIssueOutcomeUnknown extends Schema.TaggedError<Invitation
     message: Schema.String,
   }
 ) {}
+
+/** Durable company-member invitation failures cross Registration and Commerce
+ * composition without changing their runtime or schema identity. */
+export class CompanyMemberInvitationNotFound extends Schema.TaggedError<CompanyMemberInvitationNotFound>()(
+  "CompanyMemberInvitationNotFound",
+  {
+    companyMemberInvitationId: Schema.optional(Schema.NonEmptyString),
+    message: Schema.String,
+    providerInvitationId: Schema.optional(Schema.NonEmptyString),
+  }
+) {}
+
+export class CompanyMemberInvitationPersistenceFailure extends Schema.TaggedError<CompanyMemberInvitationPersistenceFailure>()(
+  "CompanyMemberInvitationPersistenceFailure",
+  {
+    cause: Schema.Defect(),
+    message: Schema.String,
+    operation: Schema.Literals([
+      "read",
+      "record",
+      "accept",
+      "expire",
+      "provision",
+      "reissue",
+      "revoke",
+    ]),
+    reason: Schema.Literal("unavailable"),
+  }
+) {}
+
+export class CompanyMemberInvitationRecordConflict extends Schema.TaggedError<CompanyMemberInvitationRecordConflict>()(
+  "CompanyMemberInvitationRecordConflict",
+  { message: Schema.String }
+) {}
+
+export class InvitationExpired extends Schema.TaggedError<InvitationExpired>()(
+  "InvitationExpired",
+  {
+    expiredAt: Schema.Date,
+    invitationId: Schema.NonEmptyString,
+    message: Schema.String,
+  }
+) {}
+
+export class InvitationNotFound extends Schema.TaggedError<InvitationNotFound>()(
+  "InvitationNotFound",
+  {
+    invitationId: Schema.NonEmptyString,
+    message: Schema.String,
+  }
+) {}

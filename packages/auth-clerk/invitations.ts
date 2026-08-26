@@ -69,6 +69,7 @@ export interface ClerkInvitationsApi {
   readonly createInvitation: (input: {
     readonly emailAddress: string;
     readonly expiresInDays: number;
+    readonly ignoreExisting?: boolean;
     readonly publicMetadata: ClerkInvitationMetadata;
     readonly redirectUrl: string;
   }) => Promise<typeof ClerkInvitation.Type>;
@@ -218,6 +219,18 @@ const findInvitation = (
     });
   });
 
+export const makeClerkInvitationDeliveries = (
+  invitations: ClerkInvitationsApi
+) =>
+  InvitationDeliveries.of({
+    get: Effect.fn("InvitationDeliveries.Clerk.get")(
+      (invitationId: InvitationId) =>
+        findInvitation(invitations, invitationId, "read").pipe(
+          Effect.map(deliveryFromClerk)
+        )
+    ),
+  });
+
 const normalizedEmail = (email: string) => email.trim().toLowerCase();
 
 class ClerkInvitationRequestFailure extends Data.TaggedError(
@@ -293,17 +306,24 @@ const issueClerkInvitation = Effect.fn("InvitationCapabilities.Clerk.issue")(
     redirectUrl: string,
     input: ClerkInvitationIssueInput
   ) {
+    const createInput: Parameters<ClerkInvitationsApi["createInvitation"]>[0] =
+      {
+        emailAddress: normalizedEmail(
+          Redacted.value(input.intent.inviteeEmail)
+        ),
+        expiresInDays: clerkInvitationExpirationDays,
+        publicMetadata: clerkInvitationMetadataFromIntent(input.intent),
+        redirectUrl,
+      };
+    const isReplacement =
+      "replacesInvitationId" in input &&
+      input.replacesInvitationId !== undefined;
     const invitation = yield* Effect.tryPromise({
       catch: (cause) => new ClerkInvitationRequestFailure({ cause }),
       try: async () =>
-        await invitations.createInvitation({
-          emailAddress: normalizedEmail(
-            Redacted.value(input.intent.inviteeEmail)
-          ),
-          expiresInDays: clerkInvitationExpirationDays,
-          publicMetadata: clerkInvitationMetadataFromIntent(input.intent),
-          redirectUrl,
-        }),
+        await invitations.createInvitation(
+          isReplacement ? { ...createInput, ignoreExisting: true } : createInput
+        ),
     }).pipe(
       Effect.catch((error) => {
         if (!isDuplicateInvitationFailure(error.cause)) {
@@ -401,13 +421,6 @@ export const makeClerkInvitationCapabilities = (
   const companyMemberInvitations = makeClerkCompanyMemberInvitations(
     invitations,
     redirectUrl
-  );
-
-  const get = Effect.fn("InvitationDeliveries.Clerk.get")(
-    (invitationId: InvitationId) =>
-      findInvitation(invitations, invitationId, "read").pipe(
-        Effect.map(deliveryFromClerk)
-      )
   );
 
   const acceptRegistration = Effect.fn("RegistrationInvitations.Clerk.accept")(
@@ -531,7 +544,7 @@ export const makeClerkInvitationCapabilities = (
 
   return {
     companyMemberInvitations,
-    invitationDeliveries: InvitationDeliveries.of({ get }),
+    invitationDeliveries: makeClerkInvitationDeliveries(invitations),
     registrationInvitations: RegistrationInvitations.of({
       accept: acceptRegistration,
       issue: issueRegistration,
@@ -555,15 +568,24 @@ const clerkInvitationsApi: ClerkInvitationsApi = {
   },
 };
 
-export const companyMemberInvitationsLayer = Layer.effect(
-  CompanyMemberInvitations,
+export const companyMemberInvitationsLayer = Layer.effectContext(
   Config.url("NEXT_PUBLIC_WEB_URL").pipe(
-    Effect.map((webUrl) =>
-      makeClerkCompanyMemberInvitations(
+    Effect.map((webUrl) => {
+      const companyMemberInvitations = makeClerkCompanyMemberInvitations(
         clerkInvitationsApi,
         new URL("/accept-invitation", webUrl).toString()
-      )
-    )
+      );
+
+      return Context.make(
+        CompanyMemberInvitations,
+        companyMemberInvitations
+      ).pipe(
+        Context.add(
+          InvitationDeliveries,
+          makeClerkInvitationDeliveries(clerkInvitationsApi)
+        )
+      );
+    })
   )
 );
 

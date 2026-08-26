@@ -241,6 +241,29 @@
           "successTitle": "Uitnodiging verstuurd",
           "successDescription": "Er is een uitnodiging verstuurd naar {email}.",
           "failureTitle": "Uitnodiging niet verstuurd"
+        },
+        "management": {
+          "title": "Bedrijfsgebruikers",
+          "description": "Beheer actieve gebruikers en openstaande uitnodigingen.",
+          "empty": "Er zijn nog geen gebruikers of uitnodigingen.",
+          "person": "Gebruiker",
+          "roles": "Rollen",
+          "status": "Status",
+          "expiry": "Verloopt",
+          "actions": "Acties",
+          "cancel": "Uitnodiging annuleren",
+          "reissue": "Opnieuw verzenden",
+          "remove": "Verwijderen",
+          "currentUser": "U",
+          "inheritedMembership": "Beheerd door moederbedrijf",
+          "noAction": "Wordt ingericht",
+          "statuses": {
+            "active": "Actief",
+            "pending": "In afwachting",
+            "accepted": "Geaccepteerd",
+            "expired": "Verlopen",
+            "revoked": "Geannuleerd"
+          }
         }
       },
       "errors": {
@@ -249,12 +272,19 @@
         "InputInvalidRoles": "Selecteer ten minste één bedrijfsrol.",
         "InvitationPolicyError": "Alleen een bedrijfsbeheerder kan gebruikers uitnodigen.",
         "InvitationConflict": "Deze gebruiker kan niet worden uitgenodigd.",
-        "InvitationProviderFailure": "De uitnodiging kon niet worden verstuurd. Probeer opnieuw.",
+        "InvitationProviderFailure": "De uitnodigingsactie kon niet worden voltooid. Probeer opnieuw.",
         "InvitationIssueOutcomeUnknown": "De uitnodiging is mogelijk verstuurd, maar het resultaat kon niet worden bevestigd. Verstuur de uitnodiging niet opnieuw.",
         "CustomerAccountProfileIncomplete": "Je profiel heeft een e-mailadres nodig.",
         "CommerceRequestContextNotFound": "Het huidige bedrijfsaccount is niet beschikbaar.",
         "CommerceAccountUnavailable": "Het bedrijfsaccount is tijdelijk niet beschikbaar.",
-        "CommerceCustomerProfileNotFound": "Je klantprofiel is niet gevonden."
+        "CommerceCustomerProfileNotFound": "Je klantprofiel is niet gevonden.",
+        "CompanyMemberInvitationNotFound": "Deze uitnodiging is niet gevonden. Vernieuw de ledenlijst.",
+        "CompanyMemberInvitationPersistenceFailure": "Bedrijfsuitnodigingen zijn tijdelijk niet beschikbaar. Probeer het opnieuw.",
+        "CompanyMemberInvitationRecordConflict": "Deze uitnodiging is ondertussen gewijzigd. Vernieuw de ledenlijst.",
+        "InvitationExpired": "Deze uitnodiging is verlopen. Vernieuw de ledenlijst om deze opnieuw te versturen.",
+        "InvitationNotFound": "De identiteitsprovider heeft deze uitnodiging niet meer. Vernieuw de ledenlijst.",
+        "CompanyMemberRemovalConflict": "Dit lid kan in de huidige bedrijfstoestand niet worden verwijderd. Vernieuw en probeer opnieuw.",
+        "CompanyMemberManagementForbidden": "Alleen een bedrijfsbeheerder kan leden beheren."
       }
     },
     "checkout": {

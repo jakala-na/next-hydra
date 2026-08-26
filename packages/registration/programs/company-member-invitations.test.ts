@@ -1,22 +1,33 @@
 import { describe, expect, it } from "@effect/vitest";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
-import { Effect, Exit, Layer, Redacted } from "effect";
+import { StoreConflict, VersionedKeyValueStore } from "@repo/versioned-store";
+import { DateTime, Effect, Exit, Layer, Redacted, Ref } from "effect";
+import { TestClock } from "effect/testing";
 
 import { CompanyActor } from "../domain/actors";
 import {
   AuthUserId,
+  CompanyMemberInvitationId,
   CommerceBusinessUnitId,
   Email,
+  InvitationId,
   PersonName,
 } from "../domain/identity";
+import { InvitationDelivery, PendingInvitation } from "../domain/invitations";
 import { CompanyInvitationPolicy } from "../services/company-invitation-policy";
 import { CompanyMemberInvitationRecords } from "../services/company-member-invitation-records";
 import {
+  CompanyMemberInvitations,
   InvitationDeliveries,
+  InvitationNotFound,
+  InvitationProviderFailure,
   invitationCapabilitiesLayerMemory,
 } from "../services/invitations";
+import type { CompanyMemberInvitationIssueInput } from "../services/invitations";
 import {
   issueCompanyMemberInvite,
+  listCompanyMemberInvitations,
+  reissueCompanyMemberInvite,
   revokeCompanyMemberInvite,
 } from "./company-member-invitations";
 
@@ -46,10 +57,200 @@ const existingCustomerInvitationLayer = Layer.mergeAll(
   existingCustomerLayer
 );
 
-const businessUnitId = CommerceBusinessUnitId.make("business-unit-1");
 const inviteeEmail = Redacted.make(Email.make("member@example.com"), {
   label: "email",
 });
+
+const retryableReissueInvitationsLayer = Layer.effect(
+  CompanyMemberInvitations,
+  Effect.gen(function* () {
+    const attempts = yield* Ref.make(0);
+
+    return CompanyMemberInvitations.of({
+      issue: Effect.fn("TestCompanyMemberInvitations.issue")(function* (input) {
+        const attempt = yield* Ref.getAndUpdate(attempts, (count) => count + 1);
+        if (attempt === 1) {
+          return yield* new InvitationProviderFailure({
+            cause: new Error("provider rejected this attempt"),
+            message: "Provider rejected this invitation attempt",
+            operation: "issue",
+          });
+        }
+
+        const createdAtDateTime = yield* DateTime.now;
+        const createdAt = DateTime.toDateUtc(createdAtDateTime);
+        return new PendingInvitation({
+          _tag: "PendingInvitation",
+          createdAt,
+          expiresAt: DateTime.toDateUtc(
+            DateTime.add(createdAtDateTime, { days: 30 })
+          ),
+          id: InvitationId.make(`provider-invitation-${attempt}`),
+          intent: input.intent,
+          issuedBy: input.issuedBy,
+        });
+      }),
+      revoke: () => Effect.die("not used"),
+    });
+  })
+);
+
+const retryableReissueLayer = Layer.mergeAll(
+  retryableReissueInvitationsLayer,
+  Layer.succeed(
+    InvitationDeliveries,
+    InvitationDeliveries.of({
+      get: (invitationId) =>
+        DateTime.now.pipe(
+          Effect.map(
+            (now) =>
+              new InvitationDelivery({
+                createdAt: DateTime.toDateUtc(
+                  DateTime.subtract(now, { days: 31 })
+                ),
+                expiresAt: DateTime.toDateUtc(now),
+                id: invitationId,
+                inviteeEmail,
+                status: "expired",
+                updatedAt: DateTime.toDateUtc(now),
+              })
+          )
+        ),
+    })
+  ),
+  CompanyInvitationPolicy.layer,
+  CompanyMemberInvitationRecords.layerMemory,
+  CommerceAccounts.layerMemory
+);
+
+const missingExpiredDeliveryLayer = Layer.mergeAll(
+  Layer.succeed(
+    CompanyMemberInvitations,
+    CompanyMemberInvitations.of({
+      issue: (input) =>
+        DateTime.now.pipe(
+          Effect.map(
+            (now) =>
+              new PendingInvitation({
+                _tag: "PendingInvitation",
+                createdAt: DateTime.toDateUtc(now),
+                expiresAt: DateTime.toDateUtc(DateTime.add(now, { days: 30 })),
+                id: InvitationId.make(
+                  `provider-${input.intent.companyMemberInvitationId}`
+                ),
+                intent: input.intent,
+                issuedBy: input.issuedBy,
+              })
+          )
+        ),
+      revoke: () => Effect.die("not used"),
+    })
+  ),
+  Layer.succeed(
+    InvitationDeliveries,
+    InvitationDeliveries.of({
+      get: (invitationId) =>
+        Effect.fail(
+          new InvitationNotFound({
+            invitationId,
+            message: `Invitation ${invitationId} was purged by the provider`,
+          })
+        ),
+    })
+  ),
+  CompanyInvitationPolicy.layer,
+  CompanyMemberInvitationRecords.layerMemory,
+  CommerceAccounts.layerMemory
+);
+
+const acceptedBeforeReissueLayer = Layer.mergeAll(
+  Layer.succeed(
+    CompanyMemberInvitations,
+    CompanyMemberInvitations.of({
+      issue: (input) =>
+        DateTime.now.pipe(
+          Effect.map(
+            (now) =>
+              new PendingInvitation({
+                _tag: "PendingInvitation",
+                createdAt: DateTime.toDateUtc(now),
+                expiresAt: DateTime.toDateUtc(DateTime.add(now, { days: 30 })),
+                id: InvitationId.make("provider-invitation-accepted"),
+                intent: input.intent,
+                issuedBy: input.issuedBy,
+              })
+          )
+        ),
+      revoke: () => Effect.die("not used"),
+    })
+  ),
+  Layer.succeed(
+    InvitationDeliveries,
+    InvitationDeliveries.of({
+      get: (invitationId) =>
+        DateTime.now.pipe(
+          Effect.map(
+            (now) =>
+              new InvitationDelivery({
+                createdAt: DateTime.toDateUtc(
+                  DateTime.subtract(now, { days: 31 })
+                ),
+                expiresAt: DateTime.toDateUtc(
+                  DateTime.subtract(now, { days: 1 })
+                ),
+                id: invitationId,
+                inviteeEmail,
+                status: "accepted",
+                updatedAt: DateTime.toDateUtc(now),
+              })
+          )
+        ),
+    })
+  ),
+  CompanyInvitationPolicy.layer,
+  CompanyMemberInvitationRecords.layerMemory,
+  CommerceAccounts.layerMemory
+);
+
+const releaseConflictStoreLayer = Layer.effect(
+  VersionedKeyValueStore,
+  Effect.gen(function* () {
+    const store = yield* VersionedKeyValueStore;
+    const updateCount = yield* Ref.make(0);
+
+    return VersionedKeyValueStore.of({
+      get: store.get,
+      insert: store.insert,
+      remove: store.remove,
+      update: (key, schema, current, next) =>
+        Ref.getAndUpdate(updateCount, (count) => count + 1).pipe(
+          Effect.flatMap((count) =>
+            count === 2
+              ? Effect.fail(
+                  new StoreConflict({
+                    key,
+                    message: "Forced release contention",
+                    operation: "update",
+                  })
+                )
+              : store.update(key, schema, current, next)
+          )
+        ),
+      values: store.values,
+    });
+  }).pipe(Effect.provide(VersionedKeyValueStore.layerMemory))
+);
+
+const releaseConflictLayer = Layer.mergeAll(
+  invitationCapabilitiesLayerMemory,
+  CompanyInvitationPolicy.layer,
+  CompanyMemberInvitationRecords.layerStorage.pipe(
+    Layer.provide(releaseConflictStoreLayer)
+  ),
+  CommerceAccounts.layerMemory
+);
+
+const businessUnitId = CommerceBusinessUnitId.make("business-unit-1");
 const inviteeName = {
   firstName: Redacted.make(PersonName.make("Invited"), {
     label: "personName",
@@ -237,5 +438,228 @@ describe("company member invitations", () => {
       expect(failure._tag).toBe("InvitationPolicyError");
       expect(durable._tag).toBe("PendingInvitation");
     }).pipe(Effect.provide(layerMemory))
+  );
+
+  it.effect(
+    "materializes expiration and reissues as a fresh durable invitation",
+    () =>
+      Effect.gen(function* () {
+        const issued = yield* issueCompanyMemberInvite({
+          actor: administrator,
+          inviteeEmail,
+          inviteeName,
+          roles: ["buyer", "approver"],
+        });
+
+        yield* TestClock.adjust("31 days");
+        const [expired] = yield* listCompanyMemberInvitations({
+          actor: administrator,
+        });
+        if (expired === undefined) {
+          throw new Error("Expected the expired invitation");
+        }
+        const invitations = yield* CompanyMemberInvitations;
+        const issuedInputs = yield* Ref.make<
+          readonly CompanyMemberInvitationIssueInput[]
+        >([]);
+        const recordingInvitations = CompanyMemberInvitations.of({
+          ...invitations,
+          issue: (input) =>
+            Ref.update(issuedInputs, (inputs) => [...inputs, input]).pipe(
+              Effect.andThen(invitations.issue(input))
+            ),
+        });
+        const reissued = yield* reissueCompanyMemberInvite({
+          actor: administrator,
+          companyMemberInvitationId: issued.intent.companyMemberInvitationId,
+        }).pipe(
+          Effect.provideService(CompanyMemberInvitations, recordingInvitations)
+        );
+        const replay = yield* reissueCompanyMemberInvite({
+          actor: administrator,
+          companyMemberInvitationId: issued.intent.companyMemberInvitationId,
+        });
+        const records = yield* CompanyMemberInvitationRecords;
+        const original = yield* records.getById(
+          issued.intent.companyMemberInvitationId
+        );
+        const all = yield* records.listByBusinessUnit(businessUnitId);
+        const [providerInput] = yield* Ref.get(issuedInputs);
+
+        expect({
+          expired: expired._tag,
+          original: original._tag,
+          reissued: reissued._tag,
+          replacementFor: providerInput?.replacesInvitationId,
+        }).toStrictEqual({
+          expired: "ExpiredInvitation",
+          original: "ExpiredInvitation",
+          reissued: "PendingInvitation",
+          replacementFor: issued.id,
+        });
+        expect(reissued.id).not.toBe(issued.id);
+        expect(replay).toStrictEqual(reissued);
+        expect(reissued.intent.companyMemberInvitationId).not.toBe(
+          issued.intent.companyMemberInvitationId
+        );
+        expect(all).toHaveLength(2);
+      }).pipe(Effect.provide(layerMemory))
+  );
+
+  it.effect("claims one replacement across concurrent reissue requests", () =>
+    Effect.gen(function* () {
+      const issued = yield* issueCompanyMemberInvite({
+        actor: administrator,
+        inviteeEmail,
+        inviteeName,
+        roles: ["buyer"],
+      });
+      yield* TestClock.adjust("31 days");
+      yield* listCompanyMemberInvitations({ actor: administrator });
+      const input = {
+        actor: administrator,
+        companyMemberInvitationId: issued.intent.companyMemberInvitationId,
+      };
+
+      const results = yield* Effect.all(
+        [
+          reissueCompanyMemberInvite(input).pipe(Effect.exit),
+          reissueCompanyMemberInvite(input).pipe(Effect.exit),
+        ],
+        { concurrency: "unbounded" }
+      );
+      const records = yield* CompanyMemberInvitationRecords;
+      const stored = yield* records.listByBusinessUnit(businessUnitId);
+
+      expect(stored).toHaveLength(2);
+      expect(results.some(Exit.isSuccess)).toBeTruthy();
+      for (const result of results) {
+        if (Exit.isFailure(result)) {
+          expect(result.cause.toString()).toContain(
+            "InvitationIssueOutcomeUnknown"
+          );
+        }
+      }
+    }).pipe(Effect.provide(layerMemory))
+  );
+
+  it.effect(
+    "does not reissue an invitation accepted before a delayed webhook",
+    () =>
+      Effect.gen(function* () {
+        const issued = yield* issueCompanyMemberInvite({
+          actor: administrator,
+          inviteeEmail,
+          inviteeName,
+          roles: ["buyer"],
+        });
+        yield* TestClock.adjust("31 days");
+        yield* listCompanyMemberInvitations({ actor: administrator });
+
+        const failure = yield* reissueCompanyMemberInvite({
+          actor: administrator,
+          companyMemberInvitationId: issued.intent.companyMemberInvitationId,
+        }).pipe(Effect.flip);
+        const records = yield* CompanyMemberInvitationRecords;
+
+        expect(failure._tag).toBe("InvitationConflict");
+        expect(failure.message).toContain("accepted");
+        expect(
+          yield* records.listByBusinessUnit(administrator.businessUnitId)
+        ).toHaveLength(1);
+      }).pipe(Effect.provide(acceptedBeforeReissueLayer))
+  );
+
+  it.effect("reissues an expired invitation purged by the provider", () =>
+    Effect.gen(function* () {
+      const issued = yield* issueCompanyMemberInvite({
+        actor: administrator,
+        inviteeEmail,
+        inviteeName,
+        roles: ["buyer"],
+      });
+      yield* TestClock.adjust("31 days");
+      yield* listCompanyMemberInvitations({ actor: administrator });
+
+      const replacement = yield* reissueCompanyMemberInvite({
+        actor: administrator,
+        companyMemberInvitationId: issued.intent.companyMemberInvitationId,
+      });
+
+      expect(replacement._tag).toBe("PendingInvitation");
+      expect(replacement.intent.companyMemberInvitationId).not.toBe(
+        issued.intent.companyMemberInvitationId
+      );
+    }).pipe(Effect.provide(missingExpiredDeliveryLayer))
+  );
+
+  it.effect("releases a reissue claim after proven provider rejection", () =>
+    Effect.gen(function* () {
+      const issued = yield* issueCompanyMemberInvite({
+        actor: administrator,
+        inviteeEmail,
+        inviteeName,
+        roles: ["buyer"],
+      });
+      yield* TestClock.adjust("31 days");
+      yield* listCompanyMemberInvitations({ actor: administrator });
+      const input = {
+        actor: administrator,
+        companyMemberInvitationId: issued.intent.companyMemberInvitationId,
+      };
+
+      const rejected = yield* reissueCompanyMemberInvite(input).pipe(
+        Effect.flip
+      );
+      const retried = yield* reissueCompanyMemberInvite(input);
+      const records = yield* CompanyMemberInvitationRecords;
+      const original = yield* records.getById(
+        issued.intent.companyMemberInvitationId
+      );
+      const expiredOriginal = yield* original._tag === "ExpiredInvitation"
+        ? Effect.succeed(original)
+        : Effect.die(
+            new Error("Expected the original invitation to remain expired")
+          );
+
+      expect(rejected._tag).toBe("InvitationProviderFailure");
+      expect(retried._tag).toBe("PendingInvitation");
+      expect(expiredOriginal.replacementCompanyMemberInvitationId).toBe(
+        retried.intent.companyMemberInvitationId
+      );
+    }).pipe(Effect.provide(retryableReissueLayer))
+  );
+
+  it.effect("retries a contended reissue claim release", () =>
+    Effect.gen(function* () {
+      const issued = yield* issueCompanyMemberInvite({
+        actor: administrator,
+        inviteeEmail,
+        inviteeName,
+        roles: ["buyer"],
+      });
+      yield* TestClock.adjust("31 days");
+      yield* listCompanyMemberInvitations({ actor: administrator });
+      const records = yield* CompanyMemberInvitationRecords;
+      const replacementCompanyMemberInvitationId =
+        CompanyMemberInvitationId.make("replacement-after-contention");
+
+      yield* records.claimReissue({
+        companyMemberInvitationId: issued.intent.companyMemberInvitationId,
+        replacementCompanyMemberInvitationId,
+      });
+      yield* records.releaseReissueClaim({
+        companyMemberInvitationId: issued.intent.companyMemberInvitationId,
+        replacementCompanyMemberInvitationId,
+      });
+
+      const original = yield* records.getById(
+        issued.intent.companyMemberInvitationId
+      );
+      expect(original._tag).toBe("ExpiredInvitation");
+      if (original._tag === "ExpiredInvitation") {
+        expect(original.replacementCompanyMemberInvitationId).toBeUndefined();
+      }
+    }).pipe(Effect.provide(releaseConflictLayer))
   );
 });

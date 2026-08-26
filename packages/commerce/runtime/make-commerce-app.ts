@@ -14,6 +14,7 @@ import type {
   CommerceAccountUnavailable,
   CommerceAccounts,
 } from "../services/commerce-accounts";
+import type { CommerceCompanyMemberships } from "../services/commerce-company-memberships";
 import { CommerceContext } from "../services/commerce-context";
 import { CurrentCart } from "../services/current-cart";
 import type { CommerceRequestInput } from "./commerce-request";
@@ -37,7 +38,12 @@ export type CommerceStableServices =
   | CartPolicies
   | Carts
   | CheckoutPolicies
-  | CommerceAccounts;
+  | CommerceAccounts
+  | CommerceCompanyMemberships;
+
+export type CommerceApplicationServices =
+  | CommerceRequestServices
+  | CommerceStableServices;
 
 export type CommerceRequestProvisionError =
   | CommerceAccountUnavailable
@@ -49,6 +55,7 @@ export interface CommerceAppBindings<
   CartsError,
   CheckoutPoliciesError,
   CommerceAccountsError,
+  CommerceCompanyMembershipsError,
   ProductDiscoveryError,
 > {
   readonly addressBookLayer: Layer.Layer<
@@ -65,6 +72,10 @@ export interface CommerceAppBindings<
   readonly commerceAccountsLayer: Layer.Layer<
     CommerceAccounts,
     CommerceAccountsError
+  >;
+  readonly commerceCompanyMembershipsLayer: Layer.Layer<
+    CommerceCompanyMemberships,
+    CommerceCompanyMembershipsError
   >;
   readonly productDiscoveryLayer: Layer.Layer<
     ProductDiscovery,
@@ -89,7 +100,7 @@ export interface CommerceApplication<
   readonly provide: (
     request: CommerceRequestInput
   ) => <A, E>(
-    program: Effect.Effect<A, E, CommerceRequestServices>
+    program: Effect.Effect<A, E, CommerceApplicationServices>
   ) => Effect.Effect<A, E | ProvisionError, CommerceStableServices>;
   readonly provideAddressBook: (
     request: CommerceContextRequest
@@ -104,6 +115,7 @@ const makeRequestLayer = <
   CartsError,
   CheckoutPoliciesError,
   CommerceAccountsError,
+  CommerceCompanyMembershipsError,
   ProductDiscoveryError,
 >(
   bindings: CommerceAppBindings<
@@ -112,6 +124,7 @@ const makeRequestLayer = <
     CartsError,
     CheckoutPoliciesError,
     CommerceAccountsError,
+    CommerceCompanyMembershipsError,
     ProductDiscoveryError
   >,
   request: CommerceRequestInput
@@ -147,6 +160,7 @@ const makeAddressBookRequestLayer = <
   CartsError,
   CheckoutPoliciesError,
   CommerceAccountsError,
+  CommerceCompanyMembershipsError,
   ProductDiscoveryError,
 >(
   bindings: CommerceAppBindings<
@@ -155,6 +169,7 @@ const makeAddressBookRequestLayer = <
     CartsError,
     CheckoutPoliciesError,
     CommerceAccountsError,
+    CommerceCompanyMembershipsError,
     ProductDiscoveryError
   >,
   request: CommerceContextRequest
@@ -173,6 +188,7 @@ export const makeCommerceApp = <
   CartsError,
   CheckoutPoliciesError,
   CommerceAccountsError,
+  CommerceCompanyMembershipsError,
   ProductDiscoveryError,
 >(
   bindings: CommerceAppBindings<
@@ -181,13 +197,15 @@ export const makeCommerceApp = <
     CartsError,
     CheckoutPoliciesError,
     CommerceAccountsError,
+    CommerceCompanyMembershipsError,
     ProductDiscoveryError
   >
 ): CommerceApplication<
   | CartPoliciesError
   | CartsError
   | CheckoutPoliciesError
-  | CommerceAccountsError,
+  | CommerceAccountsError
+  | CommerceCompanyMembershipsError,
   AddressBookError | ProductDiscoveryError | CommerceRequestProvisionError,
   AddressBookError | CommerceRequestProvisionError
 > => {
@@ -195,7 +213,8 @@ export const makeCommerceApp = <
     bindings.cartPoliciesLayer,
     bindings.cartsLayer,
     bindings.checkoutPoliciesLayer,
-    bindings.commerceAccountsLayer
+    bindings.commerceAccountsLayer,
+    bindings.commerceCompanyMembershipsLayer
   );
 
   return {

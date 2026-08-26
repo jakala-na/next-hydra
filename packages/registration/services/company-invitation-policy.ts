@@ -2,7 +2,7 @@
 import { Context, Effect, Layer, Redacted, Schema } from "effect";
 
 import type { CompanyActor } from "../domain/actors";
-import type { RedactedEmail } from "../domain/identity";
+import type { CommerceBusinessUnitId, RedactedEmail } from "../domain/identity";
 import type { CompanyMemberIntent } from "../domain/invitations";
 import type { CompanyRoles } from "../domain/roles";
 import { hasCompanyRole } from "../domain/roles";
@@ -24,6 +24,11 @@ export interface AuthorizeRevokeInviteInput {
   readonly intent: CompanyMemberIntent;
 }
 
+export interface AuthorizeManageCompanyInput {
+  readonly actor: CompanyActor;
+  readonly businessUnitId: CommerceBusinessUnitId;
+}
+
 const requireAdministrator = (actor: CompanyActor, message: string) =>
   hasCompanyRole(actor.roles, "admin")
     ? Effect.void
@@ -41,6 +46,9 @@ export class CompanyInvitationPolicy extends Context.Service<
     ) => Effect.Effect<void, InvitationConflict | InvitationPolicyError>;
     readonly authorizeRevokeInvite: (
       input: AuthorizeRevokeInviteInput
+    ) => Effect.Effect<void, InvitationPolicyError>;
+    readonly authorizeManageCompany: (
+      input: AuthorizeManageCompanyInput
     ) => Effect.Effect<void, InvitationPolicyError>;
   }
 >()("@repo/registration/CompanyInvitationPolicy") {
@@ -69,6 +77,22 @@ export class CompanyInvitationPolicy extends Context.Service<
         )
       );
     },
+    authorizeManageCompany: (input) =>
+      requireAdministrator(
+        input.actor,
+        "Only company administrators can manage company members"
+      ).pipe(
+        Effect.andThen(
+          input.actor.businessUnitId === input.businessUnitId
+            ? Effect.void
+            : Effect.fail(
+                new InvitationPolicyError({
+                  message:
+                    "Company administrators can manage only their own business unit",
+                })
+              )
+        )
+      ),
     authorizeRevokeInvite: (input) =>
       requireAdministrator(
         input.actor,

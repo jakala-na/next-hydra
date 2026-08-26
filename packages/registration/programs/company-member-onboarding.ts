@@ -1,11 +1,11 @@
 import type { InvitationProviderFailure } from "@repo/auth-contract/invitations";
-import type { CommerceAssociateMembership } from "@repo/commerce/domain/commerce-account";
+import { CommerceAssociateMembership } from "@repo/commerce/domain/commerce-account";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import type {
   CommerceAccountUnavailable,
   CommerceCustomerEmailConflict,
 } from "@repo/commerce/services/commerce-accounts";
-import { Effect, Redacted, Schema } from "effect";
+import { DateTime, Effect, Redacted, Schema } from "effect";
 
 import {
   AcceptedAuthIdentity,
@@ -112,9 +112,18 @@ export const acceptCompanyMemberInvitation = (
     }
 
     if (
-      invitation._tag === "PendingInvitation" &&
+      (invitation._tag === "PendingInvitation" ||
+        invitation._tag === "ExpiredInvitation") &&
       invitation.expiresAt.getTime() <= input.acceptedAt.getTime()
     ) {
+      if (invitation._tag === "PendingInvitation") {
+        yield* records.markExpired({
+          companyMemberInvitationId:
+            invitation.intent.companyMemberInvitationId,
+          expiredAt: invitation.expiresAt,
+        });
+      }
+
       return yield* new InvitationExpired({
         expiredAt: invitation.expiresAt,
         invitationId: invitation.id,
@@ -123,7 +132,8 @@ export const acceptCompanyMemberInvitation = (
     }
 
     if (
-      invitation._tag === "PendingInvitation" &&
+      (invitation._tag === "PendingInvitation" ||
+        invitation._tag === "ExpiredInvitation") &&
       (yield* commerceAccounts.hasCustomerWithEmail(
         invitation.intent.inviteeEmail
       ))
@@ -139,6 +149,15 @@ export const acceptCompanyMemberInvitation = (
       companyMemberInvitationId: invitation.intent.companyMemberInvitationId,
     });
 
+    if (accepted.provisionedMembership !== undefined) {
+      return new CommerceAssociateMembership({
+        authUserId: accepted.acceptedBy.authUserId,
+        businessUnitId: accepted.intent.businessUnitId,
+        customerId: accepted.provisionedMembership.customerId,
+        roles: accepted.intent.roles,
+      });
+    }
+
     yield* identityProjection.projectAcceptedInvitation({
       acceptedIdentity: accepted.acceptedBy,
       intent: invitation.intent,
@@ -148,6 +167,12 @@ export const acceptCompanyMemberInvitation = (
       acceptedIdentity: accepted.acceptedBy,
       businessUnitId: invitation.intent.businessUnitId,
       roles: invitation.intent.roles,
+    });
+
+    yield* records.markProvisioned({
+      companyMemberInvitationId: invitation.intent.companyMemberInvitationId,
+      customerId: membership.customerId,
+      provisionedAt: DateTime.toDateUtc(yield* DateTime.now),
     });
 
     return membership;

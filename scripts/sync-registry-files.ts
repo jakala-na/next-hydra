@@ -82,7 +82,9 @@ function sourceFiles(sourceRoot) {
     .split("\n")
     .filter(Boolean)
     .filter((file) => existsSync(path.join(workspaceRoot, file)))
-    .filter((file) => path.posix.basename(file) !== "registry.json");
+    .filter((file) => path.posix.basename(file) !== "registry.json")
+    // Prototypes are maintainer references, not generated workspace source.
+    .filter((file) => !file.startsWith(`${sourceRoot}/prototypes/`));
 
   for (const file of files) {
     if (

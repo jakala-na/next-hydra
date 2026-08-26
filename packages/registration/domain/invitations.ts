@@ -7,6 +7,7 @@ import {
   AuthUserId,
   CompanyMemberInvitationId,
   CommerceBusinessUnitId,
+  CommerceCustomerId,
   Email,
   InvitationId,
   PersonName,
@@ -155,6 +156,13 @@ export class PendingCompanyMemberInvitation extends Schema.TaggedClass<PendingCo
   }
 ) {}
 
+export class CompanyMemberProvisionedMembership extends Schema.Class<CompanyMemberProvisionedMembership>(
+  "CompanyMemberProvisionedMembership"
+)({
+  customerId: CommerceCustomerId,
+  provisionedAt: Schema.Date,
+}) {}
+
 export class AcceptedCompanyMemberInvitation extends Schema.TaggedClass<AcceptedCompanyMemberInvitation>()(
   "AcceptedInvitation",
   {
@@ -165,6 +173,7 @@ export class AcceptedCompanyMemberInvitation extends Schema.TaggedClass<Accepted
     id: InvitationId,
     intent: CompanyMemberIntent,
     issuedBy: Actor,
+    provisionedMembership: Schema.optional(CompanyMemberProvisionedMembership),
   }
 ) {}
 
@@ -176,7 +185,25 @@ export class RevokedCompanyMemberInvitation extends Schema.TaggedClass<RevokedCo
     id: InvitationId,
     intent: CompanyMemberIntent,
     issuedBy: Actor,
+    replacementCompanyMemberInvitationId: Schema.optional(
+      CompanyMemberInvitationId
+    ),
     revokedAt: Schema.Date,
+  }
+) {}
+
+export class ExpiredCompanyMemberInvitation extends Schema.TaggedClass<ExpiredCompanyMemberInvitation>()(
+  "ExpiredInvitation",
+  {
+    createdAt: Schema.Date,
+    expiredAt: Schema.Date,
+    expiresAt: Schema.Date,
+    id: InvitationId,
+    intent: CompanyMemberIntent,
+    issuedBy: Actor,
+    replacementCompanyMemberInvitationId: Schema.optional(
+      CompanyMemberInvitationId
+    ),
   }
 ) {}
 
@@ -184,6 +211,7 @@ export const CompanyMemberInvitation = Schema.Union([
   PendingCompanyMemberInvitation,
   AcceptedCompanyMemberInvitation,
   RevokedCompanyMemberInvitation,
+  ExpiredCompanyMemberInvitation,
 ]);
 export type CompanyMemberInvitation = typeof CompanyMemberInvitation.Type;
 

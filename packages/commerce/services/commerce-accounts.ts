@@ -231,7 +231,7 @@ export class CommerceAccounts extends Context.Service<
         Effect.gen(function* () {
           const current = yield* Ref.get(state);
 
-          const registrationId = input.commerceAccount.registrationId;
+          const { registrationId } = input.commerceAccount;
           const account = current.accountsByRegistration.get(registrationId);
 
           if (!account) {
@@ -265,7 +265,7 @@ export class CommerceAccounts extends Context.Service<
               );
             }
 
-            const authUserId = input.acceptedIdentity.authUserId;
+            const { authUserId } = input.acceptedIdentity;
             const expectedCustomerId = CommerceCustomerId.make(
               `customer-${authUserId}`
             );

@@ -27,6 +27,7 @@ import {
   CommerceAccountUnavailable,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
+import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
 import { StoreKey } from "@repo/commerce/store";
@@ -92,6 +93,7 @@ const makeTestCommerceApp = (options?: {
         )
       )
     ).pipe(Layer.provide(memoryAccountsLayer)),
+    commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 };

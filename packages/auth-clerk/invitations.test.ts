@@ -229,6 +229,42 @@ describe(makeClerkInvitationCapabilities, () => {
     expect(issued.issuedBy).toBe(companyActor);
   });
 
+  it("allows a verified company-member replacement for an invited email", async () => {
+    let createInput:
+      | Parameters<ClerkInvitationsApi["createInvitation"]>[0]
+      | undefined;
+    const capabilities = makeClerkInvitationCapabilities(
+      makeApi({
+        createInvitation: async (input) => {
+          await Promise.resolve();
+          createInput = input;
+          return invitation("pending", {
+            id: "replacement-invitation-1",
+            publicMetadata: companyMemberPublicMetadata,
+          });
+        },
+      }),
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
+    );
+
+    await Effect.runPromise(
+      capabilities.companyMemberInvitations.issue({
+        intent: companyMemberIntent,
+        issuedBy: companyActor,
+        replacesInvitationId: InvitationId.make("expired-invitation-1"),
+      })
+    );
+
+    expect(createInput).toStrictEqual({
+      emailAddress: "invitee@example.com",
+      expiresInDays: 30,
+      ignoreExisting: true,
+      publicMetadata: companyMemberPublicMetadata,
+      redirectUrl: "https://shop.example.com/accept-invitation",
+    });
+  });
+
   it("revokes a company-member invitation through Clerk", async () => {
     let revokeCalls = 0;
     const capabilities = makeClerkInvitationCapabilities(

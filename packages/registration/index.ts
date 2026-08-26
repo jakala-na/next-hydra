@@ -78,7 +78,9 @@ export {
   AcceptedInvitation,
   AcceptedRegistrationInvitation,
   CompanyMemberIntent,
+  CompanyMemberProvisionedMembership,
   CompanyMemberInvitation,
+  ExpiredCompanyMemberInvitation,
   ExpiredInvitation,
   ExpiredRegistrationInvitation,
   type Invitation,
@@ -179,6 +181,13 @@ export {
 export {
   type IssueCompanyMemberInviteInput,
   issueCompanyMemberInvite,
+  type ListCompanyMemberInvitationsError,
+  type ListCompanyMemberInvitationsInput,
+  listCurrentCompanyMemberInvitations,
+  listCompanyMemberInvitations,
+  type ReissueCompanyMemberInviteError,
+  type ReissueCompanyMemberInviteInput,
+  reissueCompanyMemberInvite,
   type RevokeCompanyMemberInviteError,
   type RevokeCompanyMemberInviteInput,
   revokeCompanyMemberInvite,
@@ -235,6 +244,7 @@ export {
 } from "./programs/registration-review";
 export {
   type AuthorizeIssueInviteInput,
+  type AuthorizeManageCompanyInput,
   type AuthorizeRevokeInviteInput,
   CompanyInvitationPolicy,
   InvitationPolicyError,
@@ -250,6 +260,8 @@ export {
   CompanyMemberInvitationRecordConflict,
   type CompanyMemberInvitationRecordReadError,
   CompanyMemberInvitationRecords,
+  type ExpireCompanyMemberInvitationRecordInput,
+  type MarkCompanyMemberInvitationProvisionedInput,
   type RevokeCompanyMemberInvitationRecordInput,
 } from "./services/company-member-invitation-records";
 export {

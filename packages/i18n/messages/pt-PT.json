@@ -241,6 +241,29 @@
           "successTitle": "Convite enviado",
           "successDescription": "Foi enviado um convite para {email}.",
           "failureTitle": "Convite não enviado"
+        },
+        "management": {
+          "title": "Utilizadores da empresa",
+          "description": "Gerir utilizadores ativos e convites pendentes.",
+          "empty": "Ainda não existem utilizadores ou convites.",
+          "person": "Utilizador",
+          "roles": "Funções",
+          "status": "Estado",
+          "expiry": "Expira",
+          "actions": "Ações",
+          "cancel": "Cancelar convite",
+          "reissue": "Enviar novamente",
+          "remove": "Remover",
+          "currentUser": "Você",
+          "inheritedMembership": "Gerido pela empresa-mãe",
+          "noAction": "A provisionar",
+          "statuses": {
+            "active": "Ativo",
+            "pending": "Pendente",
+            "accepted": "Aceite",
+            "expired": "Expirado",
+            "revoked": "Cancelado"
+          }
         }
       },
       "errors": {
@@ -249,12 +272,19 @@
         "InputInvalidRoles": "Selecione pelo menos uma função da empresa.",
         "InvitationPolicyError": "Apenas um administrador pode convidar utilizadores.",
         "InvitationConflict": "Este utilizador não pode ser convidado.",
-        "InvitationProviderFailure": "Não foi possível enviar o convite. Tente novamente.",
+        "InvitationProviderFailure": "Não foi possível concluir a operação do convite. Tente novamente.",
         "InvitationIssueOutcomeUnknown": "O convite pode ter sido enviado, mas não foi possível confirmar o resultado. Não o envie novamente.",
         "CustomerAccountProfileIncomplete": "O seu perfil precisa de um endereço de e-mail.",
         "CommerceRequestContextNotFound": "A conta da empresa atual não está disponível.",
         "CommerceAccountUnavailable": "A conta da empresa está temporariamente indisponível.",
-        "CommerceCustomerProfileNotFound": "O seu perfil de cliente não foi encontrado."
+        "CommerceCustomerProfileNotFound": "O seu perfil de cliente não foi encontrado.",
+        "CompanyMemberInvitationNotFound": "Este convite não foi encontrado. Atualize a lista de membros.",
+        "CompanyMemberInvitationPersistenceFailure": "Os convites da empresa estão temporariamente indisponíveis. Tente novamente.",
+        "CompanyMemberInvitationRecordConflict": "Este convite foi alterado durante a operação. Atualize a lista de membros.",
+        "InvitationExpired": "Este convite expirou. Atualize a lista de membros para o voltar a emitir.",
+        "InvitationNotFound": "O fornecedor de identidade já não tem este convite. Atualize a lista de membros.",
+        "CompanyMemberRemovalConflict": "Este membro não pode ser removido no estado atual da empresa. Atualize e tente novamente.",
+        "CompanyMemberManagementForbidden": "Apenas um administrador da empresa pode gerir membros."
       }
     },
     "checkout": {

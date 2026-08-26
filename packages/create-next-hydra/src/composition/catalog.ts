@@ -445,7 +445,10 @@ export async function addCatalogReferences(
 
   for (const itemName of graph.fetchedItemNames) {
     const externalSelection = current.byReference.get(itemName);
-    if (externalSelection !== undefined && externalSelection.assets.length > 0) {
+    if (
+      externalSelection !== undefined &&
+      externalSelection.assets.length > 0
+    ) {
       throw new CompositionValidationError(
         "External selections cannot declare separate binary assets in v1.",
         [

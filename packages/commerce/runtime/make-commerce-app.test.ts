@@ -28,6 +28,7 @@ import { AddressBook } from "../services/address-book";
 import { CartPolicies } from "../services/cart-policies";
 import { Carts } from "../services/carts";
 import { CommerceAccounts } from "../services/commerce-accounts";
+import { CommerceCompanyMemberships } from "../services/commerce-company-memberships";
 import { CommerceContext } from "../services/commerce-context";
 import { CurrentCart } from "../services/current-cart";
 import { CommerceLocale, resolveStore, StoreKey } from "../store";
@@ -148,6 +149,7 @@ const makeApp = (
       ],
       customers: [{ authUserId, customerId }],
     }),
+    commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 };
@@ -194,6 +196,20 @@ describe("CommerceApp composition", () => {
     expect(constructed).not.toHaveBeenCalled();
     await Effect.runPromise(program);
     expect(constructed).toHaveBeenCalledOnce();
+  });
+
+  it("provides company memberships through the stable Commerce composition", async () => {
+    const app = makeApp();
+    const roster = await Effect.runPromise(
+      CommerceCompanyMemberships.pipe(
+        Effect.flatMap((memberships) =>
+          memberships.getRoster(CommerceBusinessUnitId.make("business-unit-1"))
+        ),
+        Effect.provide(app.layer)
+      )
+    );
+
+    expect(roster.revision).toBe("0");
   });
 
   it("uses the Business Unit selected by the request adapter", async () => {

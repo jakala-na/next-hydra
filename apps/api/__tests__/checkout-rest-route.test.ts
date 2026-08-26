@@ -65,6 +65,7 @@ import {
   CommerceAccounts,
   CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
+import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
@@ -623,6 +624,7 @@ const makeTestCommerceApp = (
       CommerceAccounts,
       CommerceAccounts
     ).pipe(Layer.provide(layer)),
+    commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 

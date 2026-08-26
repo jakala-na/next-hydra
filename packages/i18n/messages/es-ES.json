@@ -241,6 +241,29 @@
           "successTitle": "Invitación enviada",
           "successDescription": "Se envió una invitación a {email}.",
           "failureTitle": "Invitación no enviada"
+        },
+        "management": {
+          "title": "Usuarios de la empresa",
+          "description": "Gestiona usuarios activos e invitaciones pendientes.",
+          "empty": "Todavía no hay usuarios ni invitaciones.",
+          "person": "Usuario",
+          "roles": "Roles",
+          "status": "Estado",
+          "expiry": "Caduca",
+          "actions": "Acciones",
+          "cancel": "Cancelar invitación",
+          "reissue": "Enviar de nuevo",
+          "remove": "Eliminar",
+          "currentUser": "Tú",
+          "inheritedMembership": "Gestionado por la empresa matriz",
+          "noAction": "Aprovisionando",
+          "statuses": {
+            "active": "Activo",
+            "pending": "Pendiente",
+            "accepted": "Aceptada",
+            "expired": "Caducada",
+            "revoked": "Cancelada"
+          }
         }
       },
       "errors": {
@@ -249,12 +272,19 @@
         "InputInvalidRoles": "Selecciona al menos un rol de empresa.",
         "InvitationPolicyError": "Solo un administrador de la empresa puede invitar usuarios.",
         "InvitationConflict": "No se puede invitar a este usuario.",
-        "InvitationProviderFailure": "No se pudo enviar la invitación. Inténtalo de nuevo.",
+        "InvitationProviderFailure": "No se pudo completar la operación de invitación. Inténtalo de nuevo.",
         "InvitationIssueOutcomeUnknown": "Es posible que se haya enviado la invitación, pero no se pudo confirmar el resultado. No vuelvas a enviarla.",
         "CustomerAccountProfileIncomplete": "Tu perfil necesita un correo electrónico.",
         "CommerceRequestContextNotFound": "La cuenta de empresa actual no está disponible.",
         "CommerceAccountUnavailable": "La cuenta de empresa no está disponible temporalmente.",
-        "CommerceCustomerProfileNotFound": "No se encontró tu perfil de cliente."
+        "CommerceCustomerProfileNotFound": "No se encontró tu perfil de cliente.",
+        "CompanyMemberInvitationNotFound": "No se encontró esta invitación. Actualiza la lista de miembros.",
+        "CompanyMemberInvitationPersistenceFailure": "Las invitaciones de la empresa no están disponibles temporalmente. Inténtalo de nuevo.",
+        "CompanyMemberInvitationRecordConflict": "Esta invitación cambió mientras trabajabas. Actualiza la lista de miembros.",
+        "InvitationExpired": "Esta invitación ha caducado. Actualiza la lista de miembros para volver a emitirla.",
+        "InvitationNotFound": "El proveedor de identidad ya no tiene esta invitación. Actualiza la lista de miembros.",
+        "CompanyMemberRemovalConflict": "Este miembro no se puede eliminar en el estado actual de la empresa. Actualiza e inténtalo de nuevo.",
+        "CompanyMemberManagementForbidden": "Solo un administrador de la empresa puede gestionar miembros."
       }
     },
     "checkout": {

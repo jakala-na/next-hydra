@@ -9,9 +9,16 @@ import type {
   CommerceCustomerProfileNotFound,
 } from "../services/commerce-accounts";
 import type {
+  CompanyMemberInvitationNotFound,
+  CompanyMemberInvitationPersistenceFailure,
+  CompanyMemberInvitationRecordConflict,
+  CompanyMemberManagementForbidden,
+  CompanyMemberRemovalConflict,
   CustomerAccountProfileIncomplete,
   InvitationConflict,
+  InvitationExpired,
   InvitationIssueOutcomeUnknown,
+  InvitationNotFound,
   InvitationPolicyError,
   InvitationProviderFailure,
 } from "../services/customer-account-members";
@@ -50,6 +57,69 @@ const InvitationIssueOutcomeUnknownDefinition = definePublicError({
   recovery: "refresh",
   status: 503,
   tag: "InvitationIssueOutcomeUnknown",
+});
+
+const CompanyMemberInvitationNotFoundDefinition = definePublicError({
+  category: "not_found",
+  code: "customerAccount.invitation.notFound",
+  fields: {},
+  recovery: "refresh",
+  status: 404,
+  tag: "CompanyMemberInvitationNotFound",
+});
+
+const CompanyMemberInvitationPersistenceFailureDefinition = definePublicError({
+  category: "unavailable",
+  code: "customerAccount.invitation.persistenceUnavailable",
+  fields: {},
+  recovery: "retry",
+  status: 503,
+  tag: "CompanyMemberInvitationPersistenceFailure",
+});
+
+const CompanyMemberInvitationRecordConflictDefinition = definePublicError({
+  category: "conflict",
+  code: "customerAccount.invitation.stateConflict",
+  fields: {},
+  recovery: "refresh",
+  status: 409,
+  tag: "CompanyMemberInvitationRecordConflict",
+});
+
+const InvitationExpiredDefinition = definePublicError({
+  category: "conflict",
+  code: "customerAccount.invitation.expired",
+  fields: {},
+  recovery: "refresh",
+  status: 409,
+  tag: "InvitationExpired",
+});
+
+const InvitationNotFoundDefinition = definePublicError({
+  category: "not_found",
+  code: "customerAccount.invitation.providerNotFound",
+  fields: {},
+  recovery: "refresh",
+  status: 404,
+  tag: "InvitationNotFound",
+});
+
+const CompanyMemberRemovalConflictDefinition = definePublicError({
+  category: "conflict",
+  code: "customerAccount.member.removalConflict",
+  fields: {},
+  recovery: "refresh",
+  status: 409,
+  tag: "CompanyMemberRemovalConflict",
+});
+
+const CompanyMemberManagementForbiddenDefinition = definePublicError({
+  category: "forbidden",
+  code: "customerAccount.member.forbidden",
+  fields: {},
+  recovery: "request_access",
+  status: 403,
+  tag: "CompanyMemberManagementForbidden",
 });
 
 const CustomerAccountProfileIncompleteDefinition = definePublicError({
@@ -121,8 +191,33 @@ export const InviteCompanyMemberActionResult = makeDisplayActionResultSchema(
 export type InviteCompanyMemberActionResult =
   typeof InviteCompanyMemberActionResult.Encoded;
 
+export const CompanyMemberManagementActionError = Schema.Union([
+  ...InviteCompanyMemberActionError.members,
+  CompanyMemberInvitationNotFoundDefinition.schema,
+  CompanyMemberInvitationPersistenceFailureDefinition.schema,
+  CompanyMemberInvitationRecordConflictDefinition.schema,
+  InvitationExpiredDefinition.schema,
+  InvitationNotFoundDefinition.schema,
+  CompanyMemberRemovalConflictDefinition.schema,
+  CompanyMemberManagementForbiddenDefinition.schema,
+]);
+export type CompanyMemberManagementActionError =
+  typeof CompanyMemberManagementActionError.Type;
+
+export const CompanyMemberManagementSuccess = Schema.Struct({
+  operation: Schema.Literals(["cancel", "reissue", "remove"]),
+});
+
+export const CompanyMemberManagementActionResult =
+  makeDisplayActionResultSchema(
+    CompanyMemberManagementSuccess,
+    CompanyMemberManagementActionError
+  );
+export type CompanyMemberManagementActionResult =
+  typeof CompanyMemberManagementActionResult.Encoded;
+
 export const inviteCompanyMemberFailureMessageKey = (
-  error: InputInvalid | InviteCompanyMemberActionError
+  error: InputInvalid | CompanyMemberManagementActionError
 ) => {
   if (error._tag !== "InputInvalid") {
     return error._tag;
@@ -145,6 +240,11 @@ export type InviteCompanyMemberAction = (
   formData: FormData
 ) => Promise<InviteCompanyMemberActionResult>;
 
+export type CompanyMemberManagementAction = (
+  previousResult: CompanyMemberManagementActionResult | null,
+  formData: FormData
+) => Promise<CompanyMemberManagementActionResult>;
+
 export type IssueCompanyMemberExpectedFailure =
   | CommerceAccountUnavailable
   | CommerceCustomerProfileNotFound
@@ -154,6 +254,16 @@ export type IssueCompanyMemberExpectedFailure =
   | InvitationIssueOutcomeUnknown
   | InvitationPolicyError
   | InvitationProviderFailure;
+
+export type ManageCompanyMemberExpectedFailure =
+  | IssueCompanyMemberExpectedFailure
+  | CompanyMemberInvitationNotFound
+  | CompanyMemberInvitationPersistenceFailure
+  | CompanyMemberInvitationRecordConflict
+  | CompanyMemberManagementForbidden
+  | CompanyMemberRemovalConflict
+  | InvitationExpired
+  | InvitationNotFound;
 
 export const projectCompanyMemberInvitationFailure = (
   error: IssueCompanyMemberExpectedFailure
@@ -171,7 +281,7 @@ export const projectCompanyMemberInvitationFailure = (
     }
     case "InvitationProviderFailure": {
       return InvitationProviderFailureDefinition.make({
-        message: "The invitation could not be sent right now.",
+        message: "The invitation operation could not be completed right now.",
       });
     }
     case "InvitationIssueOutcomeUnknown": {
@@ -200,6 +310,57 @@ export const projectCompanyMemberInvitationFailure = (
       return CustomerProfileNotFoundDefinition.make({
         message: "The current customer profile could not be found.",
       });
+    }
+    default: {
+      return error satisfies never;
+    }
+  }
+};
+
+export const projectCompanyMemberManagementFailure = (
+  error: ManageCompanyMemberExpectedFailure
+): CompanyMemberManagementActionError => {
+  switch (error._tag) {
+    case "CompanyMemberInvitationNotFound": {
+      return CompanyMemberInvitationNotFoundDefinition.make({
+        message: error.message,
+      });
+    }
+    case "CompanyMemberInvitationPersistenceFailure": {
+      return CompanyMemberInvitationPersistenceFailureDefinition.make({
+        message: "Company invitations are temporarily unavailable.",
+      });
+    }
+    case "CompanyMemberInvitationRecordConflict": {
+      return CompanyMemberInvitationRecordConflictDefinition.make({
+        message: error.message,
+      });
+    }
+    case "InvitationExpired": {
+      return InvitationExpiredDefinition.make({ message: error.message });
+    }
+    case "InvitationNotFound": {
+      return InvitationNotFoundDefinition.make({ message: error.message });
+    }
+    case "CompanyMemberRemovalConflict": {
+      return CompanyMemberRemovalConflictDefinition.make({
+        message: error.message,
+      });
+    }
+    case "CompanyMemberManagementForbidden": {
+      return CompanyMemberManagementForbiddenDefinition.make({
+        message: error.message,
+      });
+    }
+    case "CommerceAccountUnavailable":
+    case "CommerceCustomerProfileNotFound":
+    case "CommerceRequestContextNotFound":
+    case "CustomerAccountProfileIncomplete":
+    case "InvitationConflict":
+    case "InvitationIssueOutcomeUnknown":
+    case "InvitationPolicyError":
+    case "InvitationProviderFailure": {
+      return projectCompanyMemberInvitationFailure(error);
     }
     default: {
       return error satisfies never;

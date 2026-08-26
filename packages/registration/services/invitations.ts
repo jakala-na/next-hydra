@@ -3,17 +3,12 @@ import type {
   InvitationIssueOutcomeUnknown,
   InvitationProviderFailure,
 } from "@repo/auth-contract/invitations";
-import { InvitationConflict } from "@repo/auth-contract/invitations";
 import {
-  Clock,
-  Context,
-  Effect,
-  Layer,
-  Option,
-  Redacted,
-  Ref,
-  Schema,
-} from "effect";
+  InvitationConflict,
+  InvitationExpired,
+  InvitationNotFound,
+} from "@repo/auth-contract/invitations";
+import { Clock, Context, Effect, Layer, Option, Redacted, Ref } from "effect";
 
 import type { Actor, CompanyActor } from "../domain/actors";
 import { InvitationId } from "../domain/identity";
@@ -34,26 +29,11 @@ import type { RegistrationInvitationIssueAttemptFailure } from "./registration-i
 
 export {
   InvitationConflict,
+  InvitationExpired,
   InvitationIssueOutcomeUnknown,
+  InvitationNotFound,
   InvitationProviderFailure,
 } from "@repo/auth-contract/invitations";
-
-export class InvitationNotFound extends Schema.TaggedError<InvitationNotFound>()(
-  "InvitationNotFound",
-  {
-    invitationId: InvitationId,
-    message: Schema.String,
-  }
-) {}
-
-export class InvitationExpired extends Schema.TaggedError<InvitationExpired>()(
-  "InvitationExpired",
-  {
-    expiredAt: Schema.Date,
-    invitationId: InvitationId,
-    message: Schema.String,
-  }
-) {}
 
 export type InvitationIssueError =
   | InvitationConflict
@@ -106,6 +86,7 @@ export interface RegistrationInvitationRevocationInput {
 export interface CompanyMemberInvitationIssueInput {
   readonly intent: CompanyMemberIntent;
   readonly issuedBy: CompanyActor;
+  readonly replacesInvitationId?: InvitationId;
 }
 
 export interface CompanyMemberInvitationRevocationInput {

@@ -1,4 +1,5 @@
 import "server-only";
+import type { NextServer } from "@repo/actions/next-server";
 /* oxlint-disable promise/prefer-await-to-callbacks, promise/prefer-await-to-then -- Effect combinators use callback APIs to transform Effect values. */
 import type {
   CommerceRequestProvisionError,
@@ -7,6 +8,7 @@ import type {
   CommerceStableServices,
 } from "@repo/commerce/runtime/make-commerce-app";
 import { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
+import { CustomerAccountMembers } from "@repo/commerce/services/customer-account-members";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer, Schema } from "effect";
 
@@ -26,7 +28,9 @@ export {
 
 type CommerceRuntimeServices =
   | CommerceStableServices
+  | CustomerAccountMembers
   | CurrentAuth
+  | NextServer
   | NextRequestApi;
 
 export type NextCommerceRequestError = CommerceRequestProvisionError;
@@ -41,14 +45,25 @@ const logCommerceRequestCause = (error: CommerceAccountUnavailable) =>
 const provide =
   (locale: Locale, options?: NextCommerceRequestOptions) =>
   <A, E>(
-    program: Effect.Effect<A, E, CommerceRequestServices>
+    program: Effect.Effect<
+      A,
+      E,
+      CommerceRequestServices | CommerceStableServices | CustomerAccountMembers
+    >
   ): Effect.Effect<
     A,
     E | CommerceRequestProvisionError,
     CommerceRuntimeServices
   > =>
-    nextCommerceRequest(locale, options).pipe(
-      Effect.flatMap((request) => program.pipe(CommerceApp.provide(request))),
+    Effect.gen(function* () {
+      const customerAccountMembers = yield* CustomerAccountMembers;
+      const request = yield* nextCommerceRequest(locale, options);
+
+      return yield* program.pipe(
+        Effect.provideService(CustomerAccountMembers, customerAccountMembers),
+        CommerceApp.provide(request)
+      );
+    }).pipe(
       Effect.tapError((error) =>
         Schema.is(CommerceAccountUnavailable)(error)
           ? logCommerceRequestCause(error)
