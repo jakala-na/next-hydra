@@ -2,6 +2,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+import { format } from "oxfmt";
+
+import oxfmtConfig from "../oxfmt.config.ts";
+
 const workspaceRoot = path.resolve(import.meta.dirname, "..");
 const checkOnly = process.argv.includes("--check");
 const managedSourceDirectory = "registry";
@@ -90,36 +94,69 @@ function sourceFiles(sourceRoot) {
     .sort((left, right) => left.localeCompare(right));
 }
 
-let hasDrift = false;
+const formatRegistryJson = async (
+  manifest: string,
+  registryJson: string
+): Promise<string> => {
+  const result = await format(manifest, registryJson, oxfmtConfig);
 
-for (const definition of manifests) {
-  const manifestPath = path.join(workspaceRoot, definition.manifest);
-  const registry = JSON.parse(readFileSync(manifestPath, "utf-8"));
-  const item = registry.items.find(
-    (candidate) => candidate.name === definition.item
-  );
-  if (item === undefined) {
+  if (result.errors.length > 0) {
     throw new Error(
-      `${definition.manifest} does not define ${definition.item}.`
+      `Could not format ${manifest}: ${result.errors
+        .map((error) => error.message)
+        .join("; ")}`
     );
   }
 
-  item.files = sourceFiles(definition.sourceRoot).map((repoPath) => {
-    const relativePath = path.posix.relative(definition.sourceRoot, repoPath);
-    const managedPrefix = `${managedSourceDirectory}/`;
-    const target = relativePath.startsWith(managedPrefix)
-      ? relativePath.slice(managedPrefix.length)
-      : repoPath;
+  return result.code;
+};
+
+let hasDrift = false;
+
+const generatedManifests = await Promise.all(
+  manifests.map(async (definition) => {
+    const manifestPath = path.join(workspaceRoot, definition.manifest);
+    const registry = JSON.parse(readFileSync(manifestPath, "utf-8"));
+    const item = registry.items.find(
+      (candidate) => candidate.name === definition.item
+    );
+    if (item === undefined) {
+      throw new Error(
+        `${definition.manifest} does not define ${definition.item}.`
+      );
+    }
+
+    item.files = sourceFiles(definition.sourceRoot).map((repoPath) => {
+      const relativePath = path.posix.relative(definition.sourceRoot, repoPath);
+      const managedPrefix = `${managedSourceDirectory}/`;
+      const target = relativePath.startsWith(managedPrefix)
+        ? relativePath.slice(managedPrefix.length)
+        : repoPath;
+      return {
+        path: relativePath,
+        target: `~/${target}`,
+        type: "registry:file",
+      };
+    });
+
     return {
-      path: relativePath,
-      target: `~/${target}`,
-      type: "registry:file",
+      current: readFileSync(manifestPath, "utf-8"),
+      definition,
+      expected: await formatRegistryJson(
+        definition.manifest,
+        JSON.stringify(registry)
+      ),
+      manifestPath,
     };
-  });
+  })
+);
 
-  const expected = `${JSON.stringify(registry, null, 2)}\n`;
-  const current = readFileSync(manifestPath, "utf-8");
-
+for (const {
+  current,
+  definition,
+  expected,
+  manifestPath,
+} of generatedManifests) {
   if (current === expected) {
     continue;
   }

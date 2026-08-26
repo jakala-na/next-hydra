@@ -326,13 +326,13 @@
           "type": "registry:file"
         },
         {
-          "path": "recipe/content_types/navigation.json",
-          "target": "~/packages/cms-contentstack/recipe/content_types/navigation.json",
+          "path": "recipe/content_types/migrations.json",
+          "target": "~/packages/cms-contentstack/recipe/content_types/migrations.json",
           "type": "registry:file"
         },
         {
-          "path": "recipe/content_types/migrations.json",
-          "target": "~/packages/cms-contentstack/recipe/content_types/migrations.json",
+          "path": "recipe/content_types/navigation.json",
+          "target": "~/packages/cms-contentstack/recipe/content_types/navigation.json",
           "type": "registry:file"
         },
         {

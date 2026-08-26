@@ -21,7 +21,6 @@ import { NEXT_HYDRA_SELECTION_SCHEMA_URL } from "../src/composition/schema.js";
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const CONTENTSTACK_MANAGED_FILE_COUNT = 7;
 const DRUPAL_MANAGED_FILE_COUNT = 11;
-const DRUPAL_PNPM_PATCH_COUNT = 3;
 
 describe("Next Hydra source registry", () => {
   it("distinguishes registry-owned application files from ordinary registry-named source folders", () => {
@@ -131,7 +130,24 @@ describe("Next Hydra source registry", () => {
     expect(contentstack.managedTargets).not.toContain(
       "apps/web/app/api/canvas/components/route.ts"
     );
-    expect(drupal.pnpmPatches).toHaveLength(DRUPAL_PNPM_PATCH_COUNT);
+    expect(drupal.pnpmPatches).toStrictEqual([
+      {
+        dependency: "@drupal-canvas/headless",
+        path: "patches/@drupal-canvas__headless.patch",
+      },
+      {
+        dependency: "@drupal-canvas/headless-next",
+        path: "patches/@drupal-canvas__headless-next.patch",
+      },
+      {
+        dependency: "@drupal-canvas/headless-react",
+        path: "patches/@drupal-canvas__headless-react.patch",
+      },
+      {
+        dependency: "@drupal-canvas/workbench@0.10.0",
+        path: "patches/@drupal-canvas__workbench@0.10.0.patch",
+      },
+    ]);
     expect(contentstack.pnpmPatches).toStrictEqual([
       {
         dependency: "@contentstack/cli-cm-import@2.0.0",

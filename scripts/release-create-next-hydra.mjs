@@ -3,8 +3,6 @@
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
 const repoRoot = path.resolve(__dirname, "..");
@@ -20,8 +18,7 @@ function printHelp() {
 
 Options:
   --dry-run       Run npm publish in dry-run mode
-  --version       Run changeset version before build/publish
-  --allow-dirty   Do not fail on a dirty git worktree
+  --allow-dirty   Allow a dirty worktree during a dry run
   --help          Show this help message
 `);
 }
@@ -90,7 +87,7 @@ async function ensureCleanWorktree() {
 
   if (output.trim()) {
     throw new Error(
-      "Refusing to publish from a dirty worktree. Commit/stash changes or re-run with --allow-dirty."
+      "Refusing to release from a dirty worktree. Commit/stash changes, or use --dry-run --allow-dirty for local testing."
     );
   }
 }
@@ -102,8 +99,11 @@ async function main() {
   }
 
   const dryRun = hasFlag("--dry-run");
-  const runVersionStep = hasFlag("--version");
   const allowDirty = hasFlag("--allow-dirty");
+
+  if (allowDirty && !dryRun) {
+    throw new Error("`--allow-dirty` can only be used with `--dry-run`.");
+  }
 
   if (!allowDirty) {
     await ensureCleanWorktree();
@@ -114,23 +114,17 @@ async function main() {
     `Releasing ${before.name}@${before.version}${dryRun ? " (dry-run)" : ""}`
   );
 
-  if (runVersionStep) {
-    console.log("\n==> Running changeset version");
-    await run("pnpm", ["dlx", "@changesets/cli", "version"], { cwd: repoRoot });
-  }
-
-  const afterVersion = await getPackageInfo();
-  console.log(`\n==> Building ${afterVersion.name}@${afterVersion.version}`);
+  console.log(`\n==> Building ${before.name}@${before.version}`);
   await run("pnpm", ["--filter", "create-next-hydra", "build"], {
     cwd: repoRoot,
   });
 
-  console.log(`\n==> Packing ${afterVersion.name}@${afterVersion.version}`);
+  console.log(`\n==> Packing ${before.name}@${before.version}`);
   await run("npm", ["pack"], { cwd: packageDir });
 
   if (dryRun) {
     console.log(
-      `\n==> npm publish --dry-run (${afterVersion.name}@${afterVersion.version})`
+      `\n==> npm publish --dry-run (${before.name}@${before.version})`
     );
     await run("npm", ["publish", "--access", "public", "--dry-run"], {
       cwd: packageDir,
@@ -138,10 +132,7 @@ async function main() {
     return;
   }
 
-  console.log("\n==> Verifying npm authentication");
-  await run("npm", ["whoami"], { cwd: repoRoot });
-
-  console.log(`\n==> Publishing ${afterVersion.name}@${afterVersion.version}`);
+  console.log(`\n==> Publishing ${before.name}@${before.version}`);
   await run("npm", ["publish", "--access", "public"], { cwd: packageDir });
 }
 

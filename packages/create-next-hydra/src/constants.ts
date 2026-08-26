@@ -11,8 +11,12 @@ export const DEFAULT_STARTER: StarterDefinition = {
 };
 
 export const SANITIZE_REMOVE_PATHS = [
+  ".changeset",
   ".git",
+  ".github/workflows/registry-integrity.yml",
+  ".github/workflows/release-create-next-hydra.yml",
   ".scratch",
+  "RELEASING.md",
   "apps/docs",
   "next-hydra.json",
   "packages/create-next-hydra",
@@ -21,13 +25,21 @@ export const SANITIZE_REMOVE_PATHS = [
 ] as const;
 
 export const SANITIZE_REMOVE_SCRIPTS = [
+  "changeset",
+  "changeset:status",
+  "publish:cli",
   "registry:check",
   "registry:sync",
   "release:create-next-hydra",
   "release:create-next-hydra:dry-run",
+  "version:cli",
 ] as const;
 
 export const SANITIZE_REMOVE_ROOT_DEPENDENCIES = [
   "@clack/prompts",
   "commander",
+] as const;
+
+export const SANITIZE_REMOVE_ROOT_DEV_DEPENDENCIES = [
+  "@changesets/cli",
 ] as const;

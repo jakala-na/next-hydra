@@ -1,0 +1,113 @@
+---
+title: August 26, 2026
+description: Compose new next-hydra projects with presets, provider choices, add-ons, and ShadCN registry items.
+---
+
+`create-next-hydra` 0.2.0 introduces a composable way to create and maintain next-hydra projects. Instead of receiving one fixed provider stack, you can start from a preset, choose each provider yourself, and include compatible add-ons as the project is created.
+
+The same composition system also gives maintainers a controlled way to change the selected stack and lets teams install additive registry items into projects they already own.
+
+## What's new
+
+- **Guided project creation.** Run one command and answer prompts for the destination and each required provider.
+- **Ready-made presets.** Select a complete, compatible stack without choosing every provider individually.
+- **Individual provider choices.** Choose one auth, CMS, and commerce provider for the project.
+- **Add-ons during scaffolding.** Include one or more compatible additions while the workspace is being created.
+- **Maintainer composition changes.** Preview, apply, or verify a provider or preset change in a next-hydra Maintainer Workspace.
+- **Registry items for existing projects.** Inspect and install ordinary ShadCN registry items or next-hydra add-ons without giving up ownership of the generated code.
+- **Compatibility and conflict checks.** The CLI validates provider slots, add-on requirements, package changes, and file targets before it installs the selected composition.
+
+## Create a project interactively
+
+Start with the guided flow:
+
+```bash
+pnpm dlx create-next-hydra@latest my-project
+```
+
+The CLI asks you to choose a provider for every required slot and then creates the workspace with the selected code, application routes, package aliases, patches, and setup instructions.
+
+The provider catalog currently includes:
+
+| Area     | Available providers    |
+| -------- | ---------------------- |
+| Auth     | WorkOS                 |
+| CMS      | Contentstack or Drupal |
+| Commerce | commercetools          |
+
+Choosing Drupal also includes the Drupal backend application and its starter recipe. Choosing Contentstack includes the Contentstack integration and its project tooling.
+
+## Start from a preset
+
+Presets are named, reusable combinations of compatible providers and add-ons. They are useful when a team wants an approved stack to be easy to reproduce.
+
+The initial `standard` preset combines WorkOS, Drupal, and commercetools:
+
+```bash
+pnpm dlx create-next-hydra@latest my-project --yes --preset standard
+```
+
+A preset supplies the complete provider selection. You can add compatible add-ons to it, but you do not combine it with individual `--auth`, `--cms`, or `--commerce` flags.
+
+## Choose providers individually
+
+For automation or a deliberate one-off composition, provide every required provider directly:
+
+```bash
+pnpm dlx create-next-hydra@latest my-project --yes \
+  --auth workos \
+  --cms contentstack \
+  --commerce commercetools
+```
+
+Replace `contentstack` with `drupal` to scaffold the Drupal composition. The application continues to use stable internal provider aliases, while `create-next-hydra` installs the selected implementation and the files it owns.
+
+## Include add-ons
+
+Add-ons extend a compatible provider stack without becoming another required provider. Pass `--add-on` more than once to include multiple additions:
+
+```bash
+pnpm dlx create-next-hydra@latest my-project --yes \
+  --preset standard \
+  --add-on owner/repository/item#ref
+```
+
+An add-on can declare which providers or other add-ons it requires, what it conflicts with, which files it contributes, and whether it adds package entries or pnpm patches. The CLI resolves the complete dependency graph and rejects incompatible selections or duplicate file targets before changing the workspace.
+
+Selections can come from an official shorthand, a local registry-item JSON file, a URL, a public GitHub reference such as `owner/repository/item#ref`, or a ShadCN registry configured by the project.
+
+## Change a Maintainer Workspace
+
+Teams maintaining next-hydra itself or a distributable variant can use the `use` command in a Maintainer Workspace that contains `next-hydra.json` and the Source Registry.
+
+Preview a provider change before writing anything:
+
+```bash
+pnpm dlx create-next-hydra@latest use --cms drupal --dry-run
+```
+
+Apply the change after reviewing the plan:
+
+```bash
+pnpm dlx create-next-hydra@latest use --cms drupal --yes
+```
+
+You can also apply a preset, select add-ons, or run `use --check` to verify that the Maintainer Workspace matches the Workspace Selection in `next-hydra.json`. A composition change updates the Workspace Selection, governed package entries, provider-owned application files, patches, and the lockfile. The resulting Git diff remains available for review.
+
+## Add registry items to an existing project
+
+The new `add` command brings the ShadCN copy-and-own workflow to an existing Customer Workspace:
+
+```bash
+pnpm dlx create-next-hydra@latest add owner/repository/item#ref
+```
+
+Before installation, the CLI shows the files and package entries the item will affect. It creates missing files, skips equivalent files, and asks before replacing changed code or dependencies. Use `--yes` to skip confirmation prompts and `--overwrite` only when replacing changed targets is intentional.
+
+`add` accepts ordinary ShadCN registry items as well as compatible next-hydra add-ons. It is additive: it does not switch providers, apply presets, or delete files from the project.
+
+## You still own the result
+
+next-hydra copies the selected source into your workspace. Once created or installed, that code belongs to the project and can be changed like any other application code.
+
+Projects created before this update are not rewritten automatically. They can adopt additive registry items with `add`; provider changes in an existing customer-owned project still require manual reconciliation or a newly scaffolded composition.
