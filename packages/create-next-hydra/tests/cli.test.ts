@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import packageManifest from "../package.json" with { type: "json" };
 import { runCli } from "../src/index.js";
+import { CLI_VERSION } from "../src/version.js";
 
 describe("CLI", () => {
+  it("reports the version from the published package manifest", () => {
+    expect(CLI_VERSION).toBe(packageManifest.version);
+  });
+
   it("passes provider options after use to the composition command", async () => {
     let received: unknown;
 
@@ -11,7 +17,7 @@ describe("CLI", () => {
       {
         useComposition: async (options) => {
           received = options;
-          return;
+          await Promise.resolve();
         },
       }
     );
@@ -35,7 +41,7 @@ describe("CLI", () => {
       {
         useComposition: async (options) => {
           received = options;
-          return;
+          await Promise.resolve();
         },
       }
     );

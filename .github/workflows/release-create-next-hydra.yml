@@ -1,0 +1,97 @@
+name: Release create-next-hydra
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate create-next-hydra
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Typecheck create-next-hydra
+        run: pnpm --filter create-next-hydra typecheck
+
+      - name: Test create-next-hydra
+        run: pnpm --filter create-next-hydra test
+
+      - name: Build create-next-hydra
+        run: pnpm --filter create-next-hydra build
+
+  release:
+    name: Version or publish create-next-hydra
+    if: github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build create-next-hydra
+        run: pnpm --filter create-next-hydra build
+
+      - name: Create release PR or publish create-next-hydra
+        id: changesets
+        uses: changesets/action@v2
+        with:
+          version-script: pnpm version:cli
+          publish-script: pnpm publish:cli
+          commit-message: "chore(create-next-hydra): version package"
+          pr-title: "chore(create-next-hydra): version package"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          NPM_CONFIG_IGNORE_SCRIPTS: "true"
+          NPM_CONFIG_PROVENANCE: "true"
