@@ -313,7 +313,7 @@ describe("scaffold composition", () => {
   );
 
   it(
-    "strips CLI release management from generated projects",
+    "strips maintainer release and registry tooling from generated projects",
     async () => {
       const target = path.join(testRoot, "customer-release-project");
       await scaffoldProject(options(target, "contentstack"), {
@@ -327,20 +327,25 @@ describe("scaffold composition", () => {
           pathExists(
             path.join(target, ".github/workflows/release-create-next-hydra.yml")
           ),
+          pathExists(
+            path.join(target, ".github/workflows/registry-integrity.yml")
+          ),
         ])
-      ).resolves.toStrictEqual([false, false, false]);
+      ).resolves.toStrictEqual([false, false, false, false]);
 
       const packageJson = await readJsonFile<{
         scripts?: Record<string, string>;
         devDependencies?: Record<string, string>;
       }>(path.join(target, "package.json"));
-      const releaseScripts = [
+      const maintainerScripts = [
         "changeset",
         "changeset:status",
         "publish:cli",
+        "registry:check",
+        "registry:sync",
         "version:cli",
       ].filter((name) => packageJson.scripts?.[name] !== undefined);
-      expect(releaseScripts).toStrictEqual([]);
+      expect(maintainerScripts).toStrictEqual([]);
       expect(packageJson.devDependencies?.["@changesets/cli"]).toBeUndefined();
 
       await rm(target, { force: true, recursive: true });

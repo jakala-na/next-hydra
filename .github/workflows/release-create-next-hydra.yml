@@ -40,6 +40,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Check registry integrity
+        run: pnpm registry:check
+
       - name: Typecheck create-next-hydra
         run: pnpm --filter create-next-hydra typecheck
 

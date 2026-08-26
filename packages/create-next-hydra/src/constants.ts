@@ -13,6 +13,7 @@ export const DEFAULT_STARTER: StarterDefinition = {
 export const SANITIZE_REMOVE_PATHS = [
   ".changeset",
   ".git",
+  ".github/workflows/registry-integrity.yml",
   ".github/workflows/release-create-next-hydra.yml",
   ".scratch",
   "RELEASING.md",
