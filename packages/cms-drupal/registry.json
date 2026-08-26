@@ -44,6 +44,10 @@
               "target": "patches/@drupal-canvas__headless.patch"
             },
             {
+              "source": "patches/@drupal-canvas__workbench@0.10.0.patch",
+              "target": "patches/@drupal-canvas__workbench@0.10.0.patch"
+            },
+            {
               "source": "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
               "target": "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp"
             },
@@ -72,6 +76,10 @@
             {
               "dependency": "@drupal-canvas/headless-react",
               "path": "patches/@drupal-canvas__headless-react.patch"
+            },
+            {
+              "dependency": "@drupal-canvas/workbench@0.10.0",
+              "path": "patches/@drupal-canvas__workbench@0.10.0.patch"
             }
           ]
         }

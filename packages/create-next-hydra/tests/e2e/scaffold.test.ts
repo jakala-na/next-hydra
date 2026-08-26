@@ -15,7 +15,7 @@ import { promisify } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { pathExists } from "../../src/fs-utils.js";
+import { pathExists, readJsonFile } from "../../src/fs-utils.js";
 import { scaffoldProject } from "../../src/scaffold.js";
 
 const run = promisify(execFile);
@@ -280,6 +280,69 @@ describe("scaffold composition", () => {
           WORKOS_SETUP_INSTRUCTION_PREFIX
         )
       ).toBe(1);
+      await rm(target, { force: true, recursive: true });
+    },
+    E2E_TIMEOUT
+  );
+
+  it(
+    "drops unselected provider patches before installing dependencies",
+    async () => {
+      const target = path.join(testRoot, "contentstack-patches-project");
+
+      await scaffoldProject(options(target, "contentstack"), {
+        install: async (cwd) => {
+          const workspaceConfig = await readFile(
+            path.join(cwd, "pnpm-workspace.yaml"),
+            "utf-8"
+          );
+
+          expect(workspaceConfig).not.toContain(
+            '"@drupal-canvas/workbench@0.10.0"'
+          );
+          expect(workspaceConfig).toContain(
+            '"@contentstack/cli-cm-import@2.0.0"'
+          );
+          await fakeRootInstall(cwd);
+        },
+      });
+
+      await rm(target, { force: true, recursive: true });
+    },
+    E2E_TIMEOUT
+  );
+
+  it(
+    "strips CLI release management from generated projects",
+    async () => {
+      const target = path.join(testRoot, "customer-release-project");
+      await scaffoldProject(options(target, "contentstack"), {
+        install: fakeRootInstall,
+      });
+
+      await expect(
+        Promise.all([
+          pathExists(path.join(target, ".changeset")),
+          pathExists(path.join(target, "RELEASING.md")),
+          pathExists(
+            path.join(target, ".github/workflows/release-create-next-hydra.yml")
+          ),
+        ])
+      ).resolves.toStrictEqual([false, false, false]);
+
+      const packageJson = await readJsonFile<{
+        scripts?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      }>(path.join(target, "package.json"));
+      const releaseScripts = [
+        "changeset",
+        "changeset:status",
+        "publish:cli",
+        "version:cli",
+      ].filter((name) => packageJson.scripts?.[name] !== undefined);
+      expect(releaseScripts).toStrictEqual([]);
+      expect(packageJson.devDependencies?.["@changesets/cli"]).toBeUndefined();
+
       await rm(target, { force: true, recursive: true });
     },
     E2E_TIMEOUT

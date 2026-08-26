@@ -64,9 +64,6 @@ patchedDependencies:
   '@contentstack/cli-migration@2.0.0':
     hash: 344566fb10da40cb917fa4f2cd718ce83c55ee337ab4fb3df71bac8233fd1a78
     path: patches/@contentstack__cli-migration@2.0.0.patch
-  '@drupal-canvas/workbench@0.10.0':
-    hash: 888fd4ae64d567a4db437314cdd3018d26a4cf4469b24123564334c31c8f7029
-    path: patches/@drupal-canvas__workbench@0.10.0.patch
 
 importers:
 
@@ -965,7 +962,7 @@ importers:
         version: 0.22.0(@types/node@24.13.3)(@typescript/typescript6@6.0.2)(jiti@2.7.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rollup@4.60.4)(terser@5.44.0)(yaml@2.9.0)
       '@drupal-canvas/workbench':
         specifier: ^0.10.0
-        version: 0.10.0(patch_hash=888fd4ae64d567a4db437314cdd3018d26a4cf4469b24123564334c31c8f7029)(@types/node@24.13.3)(@types/react@19.2.10)(@typescript/typescript6@6.0.2)(date-fns@4.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.60.4)(terser@5.44.0)(yaml@2.9.0)
+        version: 0.10.0(@types/node@24.13.3)(@types/react@19.2.10)(@typescript/typescript6@6.0.2)(date-fns@4.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.60.4)(terser@5.44.0)(yaml@2.9.0)
       '@gql.tada/cli-utils':
         specifier: ^1.6.3
         version: 1.7.2(@0no-co/graphqlsp@1.12.16(@typescript/typescript6@6.0.2)(graphql@16.12.0))(@typescript/typescript6@6.0.2)(graphql@16.12.0)
@@ -16239,7 +16236,7 @@ snapshots:
     dependencies:
       '@drupal-api-client/json-api-client': 1.5.0
 
-  '@drupal-canvas/workbench@0.10.0(patch_hash=888fd4ae64d567a4db437314cdd3018d26a4cf4469b24123564334c31c8f7029)(@types/node@24.13.3)(@types/react@19.2.10)(@typescript/typescript6@6.0.2)(date-fns@4.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.60.4)(terser@5.44.0)(yaml@2.9.0)':
+  '@drupal-canvas/workbench@0.10.0(@types/node@24.13.3)(@types/react@19.2.10)(@typescript/typescript6@6.0.2)(date-fns@4.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.60.4)(terser@5.44.0)(yaml@2.9.0)':
     dependencies:
       '@base-ui/react': 1.7.0(@types/react@19.2.10)(date-fns@4.1.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@fontsource-variable/geist': 5.3.0

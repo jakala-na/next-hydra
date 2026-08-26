@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   SANITIZE_REMOVE_PATHS,
   SANITIZE_REMOVE_ROOT_DEPENDENCIES,
+  SANITIZE_REMOVE_ROOT_DEV_DEPENDENCIES,
   SANITIZE_REMOVE_SCRIPTS,
 } from "./constants.js";
 import {
@@ -22,6 +23,7 @@ type RootPackageJson = {
   name?: string;
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
   [key: string]: unknown;
 };
 
@@ -49,6 +51,9 @@ export async function sanitizeStarter({
   }
   for (const dependency of SANITIZE_REMOVE_ROOT_DEPENDENCIES) {
     delete packageJson.dependencies?.[dependency];
+  }
+  for (const dependency of SANITIZE_REMOVE_ROOT_DEV_DEPENDENCIES) {
+    delete packageJson.devDependencies?.[dependency];
   }
 
   await writeJsonFile(packageJsonPath, packageJson);
