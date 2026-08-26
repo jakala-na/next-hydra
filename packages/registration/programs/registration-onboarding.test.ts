@@ -25,6 +25,7 @@ import {
   City,
   CommerceBusinessUnitId,
   CommerceCustomerId,
+  CompanyMemberInvitationId,
   CompanyName,
   CountryCode,
   Email,
@@ -596,8 +597,15 @@ describe("registration onboarding", () => {
         const companyInvitation = yield* invitations.issue({
           intent: new CompanyMemberIntent({
             businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+            companyMemberInvitationId: CompanyMemberInvitationId.make(
+              "company-invitation-1"
+            ),
             intent: "company_member",
             inviteeEmail: details.email,
+            inviteeName: {
+              firstName: details.contactFirstName,
+              lastName: details.contactLastName,
+            },
             roles: ["buyer"],
           }),
           issuedBy: companyAdministrator,

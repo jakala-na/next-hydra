@@ -214,6 +214,10 @@
         "invite": {
           "title": "Añadir un usuario",
           "description": "Envía una invitación y elige lo que la persona puede hacer para tu empresa.",
+          "firstNameLabel": "Nombre",
+          "firstNamePlaceholder": "Ada",
+          "lastNameLabel": "Apellidos",
+          "lastNamePlaceholder": "Lovelace",
           "emailLabel": "Correo electrónico",
           "emailPlaceholder": "nombre@empresa.com",
           "rolesLabel": "Roles de empresa",
@@ -241,6 +245,7 @@
       },
       "errors": {
         "InputInvalid": "Introduce un correo electrónico válido.",
+        "InputInvalidName": "Introduce el nombre y los apellidos de la persona.",
         "InputInvalidRoles": "Selecciona al menos un rol de empresa.",
         "InvitationPolicyError": "Solo un administrador de la empresa puede invitar usuarios.",
         "InvitationConflict": "No se puede invitar a este usuario.",

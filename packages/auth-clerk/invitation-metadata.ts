@@ -1,4 +1,5 @@
 import {
+  CompanyMemberInvitationId,
   CommerceBusinessUnitId,
   RegistrationId,
 } from "@repo/registration/domain/identity";
@@ -8,6 +9,7 @@ import { Schema } from "effect";
 
 const ClerkCompanyMemberMetadata = Schema.Struct({
   businessUnitId: CommerceBusinessUnitId,
+  companyMemberInvitationId: CompanyMemberInvitationId,
   intent: Schema.Literal("company_member"),
   roles: CompanyRoles,
 });
@@ -38,6 +40,7 @@ export const clerkInvitationMetadataFromIntent = (
         }
       : {
           businessUnitId: intent.businessUnitId,
+          companyMemberInvitationId: intent.companyMemberInvitationId,
           intent: intent.intent,
           roles: intent.roles,
         };

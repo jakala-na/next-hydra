@@ -8,6 +8,7 @@ import {
   RevokedInvitation,
 } from "@repo/registration/domain/invitations";
 import { sameCompanyRoles } from "@repo/registration/domain/roles";
+import { CompanyMemberIdentityProjection } from "@repo/registration/services/company-member-identity-projection";
 import {
   CompanyMemberInvitations,
   InvitationConflict,
@@ -20,6 +21,7 @@ import {
 } from "@repo/registration/services/invitations";
 import type {
   CompanyMemberInvitationIssueInput,
+  CompanyMemberInvitationRevocationInput,
   RegistrationInvitationAcceptanceInput,
   RegistrationInvitationIssueInput,
   RegistrationInvitationRevocationInput,
@@ -241,6 +243,8 @@ const metadataMatchesIntent = (
   return (
     metadataIntent.intent === "company_member" &&
     metadataIntent.businessUnitId === intent.businessUnitId &&
+    metadataIntent.companyMemberInvitationId ===
+      intent.companyMemberInvitationId &&
     sameCompanyRoles(metadataIntent.roles, intent.roles)
   );
 };
@@ -268,7 +272,9 @@ const pendingFromClerk = (
 
 const revokedFromClerk = (
   invitation: typeof ClerkInvitation.Type,
-  input: RegistrationInvitationRevocationInput
+  input:
+    | CompanyMemberInvitationRevocationInput
+    | RegistrationInvitationRevocationInput
 ) =>
   new RevokedInvitation({
     _tag: "RevokedInvitation",
@@ -321,6 +327,57 @@ const issueClerkInvitation = Effect.fn("InvitationCapabilities.Clerk.issue")(
   }
 );
 
+const revokeClerkInvitation = Effect.fn("InvitationCapabilities.Clerk.revoke")(
+  function* (
+    invitations: ClerkInvitationsApi,
+    input:
+      | CompanyMemberInvitationRevocationInput
+      | RegistrationInvitationRevocationInput
+  ) {
+    const current = yield* findInvitation(
+      invitations,
+      input.invitationId,
+      "revoke"
+    );
+
+    if (current.status === "revoked") {
+      return revokedFromClerk(current, input);
+    }
+
+    if (current.status === "expired") {
+      return yield* new InvitationExpired({
+        expiredAt: expiresAtFromClerk(current),
+        invitationId: input.invitationId,
+        message: `Invitation ${input.invitationId} has expired`,
+      });
+    }
+
+    if (current.status === "accepted") {
+      return yield* new InvitationConflict({
+        message: "Invitation can no longer be revoked by Clerk",
+      });
+    }
+
+    const invitation = yield* Effect.tryPromise({
+      catch: (cause) => revokeFailure(input.invitationId, cause),
+      try: async () =>
+        await invitations.revokeInvitation(String(input.invitationId)),
+    }).pipe(
+      Effect.flatMap((response) =>
+        Schema.decodeEffect(ClerkInvitation)(response).pipe(Effect.orDie)
+      )
+    );
+
+    if (invitation.status !== "revoked") {
+      return yield* new InvitationConflict({
+        message: "Invitation was not revoked by Clerk",
+      });
+    }
+
+    return revokedFromClerk(invitation, input);
+  }
+);
+
 export const makeClerkCompanyMemberInvitations = (
   invitations: ClerkInvitationsApi,
   redirectUrl: string
@@ -329,6 +386,10 @@ export const makeClerkCompanyMemberInvitations = (
     issue: Effect.fn("CompanyMemberInvitations.Clerk.issue")(
       (input: CompanyMemberInvitationIssueInput) =>
         issueClerkInvitation(invitations, redirectUrl, input)
+    ),
+    revoke: Effect.fn("CompanyMemberInvitations.Clerk.revoke")(
+      (input: CompanyMemberInvitationRevocationInput) =>
+        revokeClerkInvitation(invitations, input)
     ),
   });
 
@@ -464,49 +525,8 @@ export const makeClerkInvitationCapabilities = (
   );
 
   const revokeRegistration = Effect.fn("RegistrationInvitations.Clerk.revoke")(
-    function* (input: RegistrationInvitationRevocationInput) {
-      const current = yield* findInvitation(
-        invitations,
-        input.invitationId,
-        "revoke"
-      );
-
-      if (current.status === "revoked") {
-        return revokedFromClerk(current, input);
-      }
-
-      if (current.status === "expired") {
-        return yield* new InvitationExpired({
-          expiredAt: expiresAtFromClerk(current),
-          invitationId: input.invitationId,
-          message: `Invitation ${input.invitationId} has expired`,
-        });
-      }
-
-      if (current.status === "accepted") {
-        return yield* new InvitationConflict({
-          message: "Invitation can no longer be revoked by Clerk",
-        });
-      }
-
-      const invitation = yield* Effect.tryPromise({
-        catch: (cause) => revokeFailure(input.invitationId, cause),
-        try: async () =>
-          await invitations.revokeInvitation(String(input.invitationId)),
-      }).pipe(
-        Effect.flatMap((response) =>
-          Schema.decodeEffect(ClerkInvitation)(response).pipe(Effect.orDie)
-        )
-      );
-
-      if (invitation.status !== "revoked") {
-        return yield* new InvitationConflict({
-          message: "Invitation was not revoked by Clerk",
-        });
-      }
-
-      return revokedFromClerk(invitation, input);
-    }
+    (input: RegistrationInvitationRevocationInput) =>
+      revokeClerkInvitation(invitations, input)
   );
 
   return {
@@ -545,6 +565,13 @@ export const companyMemberInvitationsLayer = Layer.effect(
       )
     )
   )
+);
+
+export const companyMemberIdentityProjectionLayer = Layer.succeed(
+  CompanyMemberIdentityProjection,
+  CompanyMemberIdentityProjection.of({
+    projectAcceptedInvitation: () => Effect.void,
+  })
 );
 
 export const invitationsLayer = Layer.effectContext(

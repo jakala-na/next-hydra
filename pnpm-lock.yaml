@@ -655,6 +655,9 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
+      '@repo/versioned-store':
+        specifier: workspace:*
+        version: link:../../packages/versioned-store
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3

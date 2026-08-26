@@ -12,6 +12,8 @@ import {
 
 export interface IssueCompanyMemberInvitationInput {
   readonly email: string;
+  readonly firstName: string;
+  readonly lastName: string;
   readonly roles: CompanyRoles;
 }
 
@@ -38,6 +40,10 @@ export const issueCompanyMemberInvitation = Effect.fn(
         roles: principal.roles,
       }),
       inviteeEmail: Redacted.make(input.email, { label: "email" }),
+      inviteeName: {
+        firstName: Redacted.make(input.firstName, { label: "personName" }),
+        lastName: Redacted.make(input.lastName, { label: "personName" }),
+      },
       roles: input.roles,
     })
     .pipe(

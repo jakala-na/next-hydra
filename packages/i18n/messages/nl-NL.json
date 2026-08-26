@@ -214,6 +214,10 @@
         "invite": {
           "title": "Gebruiker toevoegen",
           "description": "Nodig iemand uit en kies wat die persoon voor je bedrijf mag doen.",
+          "firstNameLabel": "Voornaam",
+          "firstNamePlaceholder": "Ada",
+          "lastNameLabel": "Achternaam",
+          "lastNamePlaceholder": "Lovelace",
           "emailLabel": "E-mailadres",
           "emailPlaceholder": "naam@bedrijf.nl",
           "rolesLabel": "Bedrijfsrollen",
@@ -241,6 +245,7 @@
       },
       "errors": {
         "InputInvalid": "Voer een geldig e-mailadres in.",
+        "InputInvalidName": "Voer de voor- en achternaam van de persoon in.",
         "InputInvalidRoles": "Selecteer ten minste één bedrijfsrol.",
         "InvitationPolicyError": "Alleen een bedrijfsbeheerder kan gebruikers uitnodigen.",
         "InvitationConflict": "Deze gebruiker kan niet worden uitgenodigd.",

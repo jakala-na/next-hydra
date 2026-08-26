@@ -1,11 +1,17 @@
+/* oxlint-disable max-classes-per-file -- Invitation lifecycle variants share one discriminated domain contract and must remain schema-visible together. */
 import { Schema } from "effect";
 
 import { Actor } from "./actors";
 import {
   AcceptedAuthIdentity,
+  AuthUserId,
+  CompanyMemberInvitationId,
   CommerceBusinessUnitId,
+  Email,
   InvitationId,
+  PersonName,
   RedactedEmail,
+  RedactedPersonName,
   RegistrationId,
 } from "./identity";
 import { CompanyRoles } from "./roles";
@@ -23,8 +29,13 @@ export class CompanyMemberIntent extends Schema.Class<CompanyMemberIntent>(
   "CompanyMemberIntent"
 )({
   businessUnitId: CommerceBusinessUnitId,
+  companyMemberInvitationId: CompanyMemberInvitationId,
   intent: Schema.Literal("company_member"),
   inviteeEmail: RedactedEmail,
+  inviteeName: Schema.Struct({
+    firstName: RedactedPersonName,
+    lastName: RedactedPersonName,
+  }),
   roles: CompanyRoles,
 }) {}
 
@@ -41,6 +52,24 @@ export const InvitationDeliveryStatus = Schema.Literals([
   "expired",
 ]);
 export type InvitationDeliveryStatus = typeof InvitationDeliveryStatus.Type;
+
+export const InvitationLifecycleEvent = Schema.Union([
+  Schema.Struct({
+    acceptedAt: Schema.Date,
+    acceptedIdentity: Schema.Struct({
+      authUserId: AuthUserId,
+      email: Email,
+      firstName: Schema.optional(PersonName),
+      lastName: Schema.optional(PersonName),
+    }),
+    event: Schema.Literal("accepted"),
+  }),
+  Schema.Struct({
+    event: Schema.Literal("revoked"),
+    revokedAt: Schema.Date,
+  }),
+]);
+export type InvitationLifecycleEvent = typeof InvitationLifecycleEvent.Type;
 
 /** The identity provider's lifecycle projection. Providers are not required to
  * retain the Registration context or actor that caused the invitation. */
@@ -113,6 +142,50 @@ export const Invitation = Schema.Union([
   ExpiredInvitation,
 ]);
 export type Invitation = typeof Invitation.Type;
+
+export class PendingCompanyMemberInvitation extends Schema.TaggedClass<PendingCompanyMemberInvitation>()(
+  "PendingInvitation",
+  {
+    acceptInvitationUrl: Schema.optional(Schema.String),
+    createdAt: Schema.Date,
+    expiresAt: Schema.Date,
+    id: InvitationId,
+    intent: CompanyMemberIntent,
+    issuedBy: Actor,
+  }
+) {}
+
+export class AcceptedCompanyMemberInvitation extends Schema.TaggedClass<AcceptedCompanyMemberInvitation>()(
+  "AcceptedInvitation",
+  {
+    acceptedAt: Schema.Date,
+    acceptedBy: AcceptedAuthIdentity,
+    createdAt: Schema.Date,
+    expiresAt: Schema.Date,
+    id: InvitationId,
+    intent: CompanyMemberIntent,
+    issuedBy: Actor,
+  }
+) {}
+
+export class RevokedCompanyMemberInvitation extends Schema.TaggedClass<RevokedCompanyMemberInvitation>()(
+  "RevokedInvitation",
+  {
+    createdAt: Schema.Date,
+    expiresAt: Schema.Date,
+    id: InvitationId,
+    intent: CompanyMemberIntent,
+    issuedBy: Actor,
+    revokedAt: Schema.Date,
+  }
+) {}
+
+export const CompanyMemberInvitation = Schema.Union([
+  PendingCompanyMemberInvitation,
+  AcceptedCompanyMemberInvitation,
+  RevokedCompanyMemberInvitation,
+]);
+export type CompanyMemberInvitation = typeof CompanyMemberInvitation.Type;
 
 export class PendingRegistrationInvitation extends Schema.TaggedClass<PendingRegistrationInvitation>()(
   "PendingInvitation",

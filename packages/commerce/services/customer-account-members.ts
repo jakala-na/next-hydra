@@ -12,6 +12,7 @@ import {
   CommerceBusinessUnitId,
 } from "../domain/commerce-account";
 import { AuthUserId } from "../domain/commerce-request-context";
+import type { CommerceAccountUnavailable } from "./commerce-accounts";
 
 export const CustomerAccountInvitationId = Schema.NonEmptyString.pipe(
   Schema.brand("InvitationId")
@@ -55,6 +56,7 @@ export class CustomerAccountProfileIncomplete extends Schema.TaggedError<Custome
 ) {}
 
 export type CustomerAccountMemberInvitationFailure =
+  | CommerceAccountUnavailable
   | InvitationConflict
   | InvitationIssueOutcomeUnknown
   | InvitationPolicyError
@@ -63,6 +65,10 @@ export type CustomerAccountMemberInvitationFailure =
 export interface InviteCustomerAccountMemberInput {
   readonly actor: CustomerAccountCompanyActor;
   readonly inviteeEmail: Redacted.Redacted;
+  readonly inviteeName: {
+    readonly firstName: Redacted.Redacted;
+    readonly lastName: Redacted.Redacted;
+  };
   readonly roles: CompanyRoles;
 }
 

@@ -268,18 +268,32 @@ const typecheckApplications = async (cwd: string) => {
 };
 
 const testCustomerInvitationComposition = async (target: string) => {
-  await runTypecheck(
-    target,
-    [
-      "--filter",
-      "web",
-      "exec",
-      "vitest",
-      "run",
-      "lib/customer-account-invitation-composition.test.ts",
-    ],
-    "customer-account invitation composition test"
-  );
+  await Promise.all([
+    runTypecheck(
+      target,
+      [
+        "--filter",
+        "web",
+        "exec",
+        "vitest",
+        "run",
+        "lib/customer-account-invitation-composition.test.ts",
+      ],
+      "customer-account invitation issuance composition test"
+    ),
+    runTypecheck(
+      target,
+      [
+        "--filter",
+        "api",
+        "exec",
+        "vitest",
+        "run",
+        "lib/company-member-invitation-composition.test.ts",
+      ],
+      "company-member invitation acceptance composition test"
+    ),
+  ]);
 };
 
 function options(

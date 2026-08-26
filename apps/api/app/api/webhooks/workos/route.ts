@@ -1,7 +1,7 @@
 import { makeWorkosWebhookHandler } from "@repo/auth/route-handlers/webhook";
 
-import { resumeRegistrationInvitation } from "@/lib/registration/workflow-runtime";
+import { dispatchWorkosInvitationEvent } from "@/lib/company-member-invitations/runtime";
 
 export const POST = makeWorkosWebhookHandler({
-  onInvitationEvent: resumeRegistrationInvitation,
+  onInvitationEvent: dispatchWorkosInvitationEvent,
 });

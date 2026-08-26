@@ -5,15 +5,16 @@ import {
   InvitationId,
   PersonName,
 } from "@repo/registration/domain/identity";
-import type { RegistrationInvitationEvent } from "@repo/registration/services/registration-workflow";
+import type { InvitationLifecycleEvent } from "@repo/registration/domain/invitations";
 import { WorkOS } from "@workos-inc/node";
+import { DateTime } from "effect";
 
 import { getWorkosUser } from "../admin";
 import { keys, webhookKeys } from "../keys";
 
 export interface WorkosWebhookHandlerOptions {
   readonly onInvitationEvent: (input: {
-    readonly event: RegistrationInvitationEvent;
+    readonly event: InvitationLifecycleEvent;
     readonly invitationId: InvitationId;
   }) => Promise<void>;
 }
@@ -83,8 +84,19 @@ export const makeWorkosWebhookHandler = (
     try {
       switch (payload.event) {
         case "invitation.revoked": {
+          if (payload.data.revokedAt === null) {
+            return Response.json(
+              { error: "Invitation revoked event missing revocation time" },
+              { status: 400 }
+            );
+          }
           await options.onInvitationEvent({
-            event: { event: "revoked" },
+            event: {
+              event: "revoked",
+              revokedAt: DateTime.toDateUtc(
+                DateTime.makeUnsafe(payload.data.revokedAt)
+              ),
+            },
             invitationId: InvitationId.make(payload.data.id),
           });
           return Response.json({ ok: true });
@@ -103,10 +115,19 @@ export const makeWorkosWebhookHandler = (
               { status: 400 }
             );
           }
+          if (payload.data.acceptedAt === null) {
+            return Response.json(
+              { error: "Invitation accepted event missing acceptance time" },
+              { status: 400 }
+            );
+          }
 
           const user = await getWorkosUser(acceptedUserId);
           await options.onInvitationEvent({
             event: {
+              acceptedAt: DateTime.toDateUtc(
+                DateTime.makeUnsafe(payload.data.acceptedAt)
+              ),
               acceptedIdentity: {
                 authUserId: AuthUserId.make(user.id),
                 email: Email.make(user.email),

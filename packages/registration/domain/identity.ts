@@ -74,6 +74,11 @@ export type RegistrationId = typeof RegistrationId.Type;
 export const InvitationId = Schema.String.pipe(Schema.brand("InvitationId"));
 export type InvitationId = typeof InvitationId.Type;
 
+export const CompanyMemberInvitationId = Schema.NonEmptyString.pipe(
+  Schema.brand("CompanyMemberInvitationId")
+);
+export type CompanyMemberInvitationId = typeof CompanyMemberInvitationId.Type;
+
 export const IdentityUserProfile = Schema.Struct({
   authUserId: AuthUserId,
   email: RedactedEmail,

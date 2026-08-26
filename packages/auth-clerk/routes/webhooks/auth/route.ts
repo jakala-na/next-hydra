@@ -6,7 +6,10 @@ import {
   Email,
   PersonName,
 } from "@repo/registration/domain/identity";
-import type { RegistrationId } from "@repo/registration/domain/identity";
+import type {
+  CompanyMemberInvitationId,
+  RegistrationId,
+} from "@repo/registration/domain/identity";
 import type { RegistrationInvitationEvent } from "@repo/registration/services/registration-workflow";
 import { Option, Schema } from "effect";
 import type { NextRequest } from "next/server";
@@ -68,6 +71,17 @@ export interface ClerkRegistrationInvitationEventInput {
   readonly registrationId: RegistrationId;
 }
 
+export interface ClerkCompanyMemberInvitationAcceptedInput {
+  readonly acceptedAt: Date;
+  readonly acceptedIdentity: {
+    readonly authUserId: AuthUserId;
+    readonly email: Email;
+    readonly firstName?: PersonName;
+    readonly lastName?: PersonName;
+  };
+  readonly companyMemberInvitationId: CompanyMemberInvitationId;
+}
+
 export interface ClerkWebhookAnalytics {
   readonly capture: typeof posthogAnalytics.capture;
   readonly groupIdentify: typeof posthogAnalytics.groupIdentify;
@@ -77,6 +91,9 @@ export interface ClerkWebhookAnalytics {
 
 export interface ClerkWebhookHandlerOptions {
   readonly analytics?: ClerkWebhookAnalytics;
+  readonly onCompanyMemberInvitationAccepted?: (
+    input: ClerkCompanyMemberInvitationAcceptedInput
+  ) => Promise<void>;
   readonly onRegistrationInvitationEvent?: (
     input: ClerkRegistrationInvitationEventInput
   ) => Promise<void>;
@@ -185,6 +202,32 @@ export const registrationInvitationEventFromUser = (
   };
 };
 
+export const companyMemberInvitationAcceptanceFromUser = (
+  user: ClerkWebhookUser
+): ClerkCompanyMemberInvitationAcceptedInput | undefined => {
+  const metadata = Option.getOrUndefined(
+    Schema.decodeUnknownOption(ClerkInvitationMetadata)(user.public_metadata)
+  );
+  const invitation = metadata?.invitation;
+
+  if (invitation?.intent !== "company_member") {
+    return undefined;
+  }
+
+  const email = primaryEmail(user);
+  if (email === undefined) {
+    throw new Error(
+      `Clerk user ${user.id} accepted a company invitation without an email address`
+    );
+  }
+
+  return {
+    acceptedAt: new Date(user.created_at),
+    acceptedIdentity: acceptedIdentityFromUser(user, email),
+    companyMemberInvitationId: invitation.companyMemberInvitationId,
+  };
+};
+
 const handleEvent = async (
   event: ClerkWebhookEvent,
   options: ClerkWebhookHandlerOptions,
@@ -197,6 +240,16 @@ const handleEvent = async (
       const registrationInvitation = registrationInvitationEventFromUser(user);
       if (registrationInvitation && options.onRegistrationInvitationEvent) {
         await options.onRegistrationInvitationEvent(registrationInvitation);
+      }
+      const companyMemberInvitation =
+        companyMemberInvitationAcceptanceFromUser(user);
+      if (
+        companyMemberInvitation &&
+        options.onCompanyMemberInvitationAccepted
+      ) {
+        await options.onCompanyMemberInvitationAccepted(
+          companyMemberInvitation
+        );
       }
       break;
     }

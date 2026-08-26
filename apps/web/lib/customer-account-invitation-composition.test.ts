@@ -1,4 +1,4 @@
-/* oxlint-disable anti-slop/no-chained-type-assertions, anti-slop/no-module-mocking, anti-slop/require-safety-comment-for-type-assertion, eslint/require-await, typescript/no-unsafe-argument, typescript/no-unsafe-type-assertion, vitest/no-conditional-expect -- This application-composition test must replace fixed external application bindings while preserving the real generated action, app runtime, Registration adapter, and selected auth-provider factory. The selected @repo/auth package is validated against the two supported factory shapes before use, and the conditional expected value asserts the provider-specific SDK call without conditionally skipping an assertion. */
+/* oxlint-disable anti-slop/no-chained-type-assertions, anti-slop/no-module-mocking, anti-slop/require-safety-comment-for-type-assertion, eslint/require-await, typescript/no-unsafe-argument, typescript/no-unsafe-assignment, typescript/no-unsafe-type-assertion, vitest/no-conditional-expect -- This application-composition test must replace fixed external application bindings while preserving the real generated action, app runtime, Registration adapter, and selected auth-provider factory. The selected @repo/auth package is validated against the two supported factory shapes before use, and the conditional expected value asserts the provider-specific SDK call without conditionally skipping an assertion. */
 import type { CompanyMemberInvitations } from "@repo/registration";
 import { describe, expect, it, vi } from "vitest";
 
@@ -111,6 +111,8 @@ interface SelectedAuthInvitationFactories {
     redirectUrl: string
   ) => CompanyMemberInvitations["Service"];
   readonly makeWorkosCompanyMemberInvitations?: (api: {
+    readonly getInvitation: () => Promise<never>;
+    readonly revokeInvitation: () => Promise<never>;
     readonly sendInvitation: typeof provider.sendInvitation;
   }) => CompanyMemberInvitations["Service"];
 }
@@ -153,6 +155,10 @@ vi.mock(import("@repo/auth/invitations"), async (importOriginal) => {
     companyMemberInvitationsLayer: Layer.succeed(
       CompanyMemberInvitations,
       selected.makeWorkosCompanyMemberInvitations({
+        getInvitation: async () =>
+          await Promise.reject(new Error("not used in this test")),
+        revokeInvitation: async () =>
+          await Promise.reject(new Error("not used in this test")),
         sendInvitation: provider.sendInvitation,
       })
     ),
@@ -216,6 +222,13 @@ vi.mock(import("@repo/commerce-provider/provider"), async (importOriginal) => {
   };
 });
 
+vi.mock(import("@repo/commerce-provider/versioned-store"), async () => {
+  const { VersionedKeyValueStore } = await import("@repo/versioned-store");
+  return {
+    versionedKeyValueStoreLayer: () => VersionedKeyValueStore.layerMemory,
+  };
+});
+
 vi.mock(import("@repo/observability/effect"), async () => {
   const { Layer } = await import("effect");
   return { sentryEffectTelemetryLayer: Layer.empty };
@@ -268,6 +281,8 @@ vi.mock(import("./next-server"), async () => {
 
 const invitationForm = () => {
   const formData = new FormData();
+  formData.set("firstName", "Invited");
+  formData.set("lastName", "Member");
   formData.set("email", "member@example.com");
   formData.append("roles[buyer]", "buyer");
   formData.append("roles[approver]", "approver");
@@ -309,6 +324,9 @@ describe("generated customer-account invitation composition", () => {
                   publicMetadata: {
                     invitation: {
                       businessUnitId: "business-unit-1",
+                      companyMemberInvitationId: expect.stringMatching(
+                        /^company-member-invitation-/u
+                      ),
                       intent: "company_member",
                       roles: ["buyer", "approver"],
                     },

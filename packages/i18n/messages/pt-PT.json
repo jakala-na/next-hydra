@@ -214,6 +214,10 @@
         "invite": {
           "title": "Adicionar utilizador",
           "description": "Convide alguém e escolha o que pode fazer pela sua empresa.",
+          "firstNameLabel": "Nome",
+          "firstNamePlaceholder": "Ada",
+          "lastNameLabel": "Apelido",
+          "lastNamePlaceholder": "Lovelace",
           "emailLabel": "Endereço de e-mail",
           "emailPlaceholder": "nome@empresa.pt",
           "rolesLabel": "Funções da empresa",
@@ -241,6 +245,7 @@
       },
       "errors": {
         "InputInvalid": "Introduza um endereço de e-mail válido.",
+        "InputInvalidName": "Introduza o nome e o apelido da pessoa.",
         "InputInvalidRoles": "Selecione pelo menos uma função da empresa.",
         "InvitationPolicyError": "Apenas um administrador pode convidar utilizadores.",
         "InvitationConflict": "Este utilizador não pode ser convidado.",

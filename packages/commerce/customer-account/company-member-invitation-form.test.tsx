@@ -115,15 +115,19 @@ const renderForm = (action: InviteCompanyMemberAction) => {
   });
 
   const email = container.querySelector("#company-member-email");
+  const firstName = container.querySelector("#company-member-first-name");
   const form = container.querySelector("form");
+  const lastName = container.querySelector("#company-member-last-name");
   if (
     !(email instanceof HTMLInputElement) ||
+    !(firstName instanceof HTMLInputElement) ||
+    !(lastName instanceof HTMLInputElement) ||
     !(form instanceof HTMLFormElement)
   ) {
     throw new Error("Expected the customer invitation form to render");
   }
 
-  return { container, email, form };
+  return { container, email, firstName, form, lastName };
 };
 
 describe(CompanyMemberInvitationForm, () => {
@@ -154,7 +158,9 @@ describe(CompanyMemberInvitationForm, () => {
 
   it("submits the rendered role controls through the customer invitation procedure", async () => {
     const { action, invite } = makeInvitationAction();
-    const { container, email, form } = renderForm(action);
+    const { container, email, firstName, form, lastName } = renderForm(action);
+    firstName.value = "Ada";
+    lastName.value = "Lovelace";
     email.value = "new.member@example.com";
     const approver = container.querySelector("#company-member-role-approver");
     if (!(approver instanceof HTMLButtonElement)) {
@@ -176,11 +182,23 @@ describe(CompanyMemberInvitationForm, () => {
     });
     const [input] = invite.mock.calls[0] ?? [];
     expect(input?.roles).toStrictEqual(["buyer", "approver"]);
+    expect(
+      input === undefined
+        ? undefined
+        : Redacted.value(input.inviteeName.firstName)
+    ).toBe("Ada");
+    expect(
+      input === undefined
+        ? undefined
+        : Redacted.value(input.inviteeName.lastName)
+    ).toBe("Lovelace");
   });
 
   it("shows role-specific guidance when no company role is selected", async () => {
     const { action, invite } = makeInvitationAction();
-    const { container, email, form } = renderForm(action);
+    const { container, email, firstName, form, lastName } = renderForm(action);
+    firstName.value = "Ada";
+    lastName.value = "Lovelace";
     email.value = "new.member@example.com";
     const buyer = container.querySelector("#company-member-role-buyer");
     if (!(buyer instanceof HTMLButtonElement)) {

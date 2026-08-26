@@ -61,6 +61,13 @@ export class CommerceAccountUnavailable extends Schema.TaggedError<CommerceAccou
   }
 ) {}
 
+export class CommerceCustomerEmailConflict extends Schema.TaggedError<CommerceCustomerEmailConflict>()(
+  "CommerceCustomerEmailConflict",
+  {
+    message: Schema.String,
+  }
+) {}
+
 export class CommerceCustomerIdNotFound extends Schema.TaggedError<CommerceCustomerIdNotFound>()(
   "CommerceCustomerIdNotFound",
   {
@@ -142,7 +149,10 @@ export class CommerceAccounts extends Context.Service<
     ) => Effect.Effect<CommerceAccount, CommerceAccountUnavailable>;
     readonly addAssociate: (
       input: AddAssociateInput
-    ) => Effect.Effect<CommerceAssociateMembership, CommerceAccountUnavailable>;
+    ) => Effect.Effect<
+      CommerceAssociateMembership,
+      CommerceAccountUnavailable | CommerceCustomerEmailConflict
+    >;
     readonly hasCustomerWithEmail: (
       email: RedactedString
     ) => Effect.Effect<boolean, CommerceAccountUnavailable>;
@@ -255,15 +265,45 @@ export class CommerceAccounts extends Context.Service<
               );
             }
 
+            const authUserId = input.acceptedIdentity.authUserId;
+            const expectedCustomerId = CommerceCustomerId.make(
+              `customer-${authUserId}`
+            );
+            const existingCustomer =
+              current.customersByAuthUserId.get(authUserId);
+            const targetEmail = normalizedEmail(input.acceptedIdentity.email);
+            const customerWithEmail = [
+              ...current.customersByAuthUserId.values(),
+            ].find(
+              (candidate) => normalizedEmail(candidate.email) === targetEmail
+            );
+            const linkedRegistrant = [
+              ...current.linkedRegistrantIdentities.values(),
+            ].find(
+              (identity) =>
+                identity.authUserId === authUserId ||
+                normalizedEmail(identity.email) === targetEmail
+            );
+
+            if (
+              linkedRegistrant !== undefined ||
+              (existingCustomer !== undefined &&
+                (existingCustomer.customerId !== expectedCustomerId ||
+                  normalizedEmail(existingCustomer.email) !== targetEmail)) ||
+              (customerWithEmail !== undefined &&
+                customerWithEmail.customerId !== expectedCustomerId)
+            ) {
+              return yield* new CommerceCustomerEmailConflict({
+                message:
+                  "A Commerce customer already owns the invited identity or email",
+              });
+            }
+
             const customer =
-              current.customersByAuthUserId.get(
-                input.acceptedIdentity.authUserId
-              ) ??
+              existingCustomer ??
               new CommerceCustomer({
                 authUserId: input.acceptedIdentity.authUserId,
-                customerId: CommerceCustomerId.make(
-                  `customer-${input.acceptedIdentity.authUserId}`
-                ),
+                customerId: expectedCustomerId,
                 email: input.acceptedIdentity.email,
                 firstName: input.acceptedIdentity.firstName,
                 lastName: input.acceptedIdentity.lastName,
@@ -308,8 +348,13 @@ export class CommerceAccounts extends Context.Service<
           Effect.map((current) => {
             const targetEmail = normalizedEmail(email);
 
-            return [...current.customersByAuthUserId.values()].some(
-              (customer) => normalizedEmail(customer.email) === targetEmail
+            return (
+              [...current.customersByAuthUserId.values()].some(
+                (customer) => normalizedEmail(customer.email) === targetEmail
+              ) ||
+              [...current.linkedRegistrantIdentities.values()].some(
+                (identity) => normalizedEmail(identity.email) === targetEmail
+              )
             );
           })
         )

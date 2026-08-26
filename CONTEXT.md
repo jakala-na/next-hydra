@@ -39,6 +39,9 @@ The Registration context describes how a company asks for access and how that re
 - **Registration Invitation Expiration** ends the onboarding workflow unsuccessfully while the **Registration** remains approved and unprovisioned.
 - A **Company Member Invitation** has one provider-owned **Invitation Delivery**.
 - A **Company Member Invitation** carries a non-empty set of **Company Roles**.
+- A **Company Member Invitation** records the invitee name supplied by the company administrator as profile defaults. Identity-provider profile values supersede those defaults after acceptance; neither source establishes authorization.
+- A **Company Member Invitation** can be issued only when its email does not belong to an existing Commerce customer.
+- A revoked **Company Member Invitation** no longer offers company access and may be replaced by a new invitation.
 - The initial company member receives the Admin and Buyer **Company Roles**.
 - Identity providers preserve the complete **Company Role** set in business metadata; provider-native authorization does not narrow the Invitation's business intent.
 

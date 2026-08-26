@@ -210,6 +210,10 @@
         "invite": {
           "title": "Add a user",
           "description": "Send an invitation and choose what the user can do for your company.",
+          "firstNameLabel": "First name",
+          "firstNamePlaceholder": "Ada",
+          "lastNameLabel": "Last name",
+          "lastNamePlaceholder": "Lovelace",
           "emailLabel": "Email address",
           "emailPlaceholder": "name@company.com",
           "rolesLabel": "Company roles",
@@ -237,6 +241,7 @@
       },
       "errors": {
         "InputInvalid": "Enter a valid email address.",
+        "InputInvalidName": "Enter the user's first and last name.",
         "InputInvalidRoles": "Select at least one company role.",
         "InvitationPolicyError": "Only a company administrator can invite users.",
         "InvitationConflict": "This user cannot be invited.",

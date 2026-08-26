@@ -4,7 +4,10 @@ import type { EmptyActionContext } from "@repo/actions";
 import { makeClerkCompanyMemberInvitations } from "@repo/auth-clerk/invitations";
 import type { ClerkInvitationsApi } from "@repo/auth-clerk/invitations";
 import { makeWorkosCompanyMemberInvitations } from "@repo/auth-workos/invitations";
-import type { WorkosInvitationSender } from "@repo/auth-workos/invitations";
+import type {
+  WorkosCompanyMemberInvitationUserManagement,
+  WorkosInvitationSender,
+} from "@repo/auth-workos/invitations";
 import { makeCustomerAccountProcedures } from "@repo/commerce/customer-account/procedures";
 import {
   CommerceBusinessUnitId,
@@ -16,10 +19,12 @@ import {
   AuthUserId,
   CustomerCommercePrincipal,
 } from "@repo/commerce/domain/commerce-request-context";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CommerceLocale, resolveStore } from "@repo/commerce/store";
 import {
   CompanyInvitationPolicy,
+  CompanyMemberInvitationRecords,
   CompanyMemberInvitations,
   customerAccountMembersLayer,
 } from "@repo/registration";
@@ -55,6 +60,9 @@ const clerkProvider = () => {
           publicMetadata: {
             invitation: {
               businessUnitId: "business-unit-1",
+              companyMemberInvitationId: expect.stringMatching(
+                /^company-member-invitation-/u
+              ),
               intent: "company_member",
               roles: ["buyer", "approver"],
             },
@@ -90,7 +98,11 @@ const workosProvider = () => {
         updatedAt: "2026-08-25T12:00:00.000Z",
       })
   );
-  const userManagement: WorkosInvitationSender = {
+  const userManagement: WorkosCompanyMemberInvitationUserManagement = {
+    getInvitation: async () =>
+      await Promise.reject(new Error("not used in this test")),
+    revokeInvitation: async () =>
+      await Promise.reject(new Error("not used in this test")),
     sendInvitation,
   };
 
@@ -124,6 +136,8 @@ const providers: readonly ProviderCase[] = [
 
 const invitationForm = () => {
   const formData = new FormData();
+  formData.set("firstName", "Invited");
+  formData.set("lastName", "Member");
   formData.set("email", inviteeEmail);
   formData.append("roles[buyer]", "buyer");
   formData.append("roles[approver]", "approver");
@@ -159,7 +173,11 @@ describe("customer-account provider composition", () => {
       const provider = providerCase.make();
       const membersLayer = customerAccountMembersLayer.pipe(
         Layer.provide(
-          Layer.succeed(CompanyMemberInvitations, provider.invitations)
+          Layer.mergeAll(
+            Layer.succeed(CompanyMemberInvitations, provider.invitations),
+            CompanyMemberInvitationRecords.layerMemory,
+            CommerceAccounts.layerMemory
+          )
         ),
         Layer.provide(CompanyInvitationPolicy.layer)
       );

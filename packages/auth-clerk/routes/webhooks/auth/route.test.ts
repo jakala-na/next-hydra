@@ -1,5 +1,6 @@
 import {
   CommerceBusinessUnitId,
+  CompanyMemberInvitationId,
   RegistrationId,
 } from "@repo/registration/domain/identity";
 import { NextRequest } from "next/server";
@@ -8,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ClerkInvitationMetadata } from "../../../invitation-metadata";
 import type {
+  ClerkCompanyMemberInvitationAcceptedInput,
   ClerkRegistrationInvitationEventInput,
   ClerkWebhookAnalytics,
 } from "./route";
@@ -26,7 +28,13 @@ const webhookSecret = "whsec_dGVzdC1zZWNyZXQ=";
 
 type TestPublicMetadata = ClerkInvitationMetadata | Record<string, never>;
 
-const userCreatedEvent = (publicMetadata: TestPublicMetadata) => ({
+const userCreatedEvent = (
+  publicMetadata: TestPublicMetadata,
+  profile: {
+    readonly firstName?: string | null;
+    readonly lastName?: string | null;
+  } = {}
+) => ({
   data: {
     created_at: Date.parse("2026-01-01T00:00:00.000Z"),
     email_addresses: [
@@ -35,10 +43,10 @@ const userCreatedEvent = (publicMetadata: TestPublicMetadata) => ({
         id: "email-primary",
       },
     ],
-    first_name: "Invited",
+    first_name: profile.firstName === undefined ? "Invited" : profile.firstName,
     id: "user-1",
     image_url: "https://img.example.com/user-1",
-    last_name: "Owner",
+    last_name: profile.lastName === undefined ? "Owner" : profile.lastName,
     phone_numbers: [],
     primary_email_address_id: "email-primary",
     public_metadata: publicMetadata,
@@ -128,7 +136,12 @@ describe(makeClerkWebhookHandler, () => {
     expect(onRegistrationInvitationEvent).not.toHaveBeenCalled();
   });
 
-  it("does not resume registration for a company-member invitation", async () => {
+  it("translates company-member metadata into acceptance without resuming registration", async () => {
+    const onCompanyMemberInvitationAccepted = vi.fn<
+      (input: ClerkCompanyMemberInvitationAcceptedInput) => Promise<void>
+    >(async () => {
+      await Promise.resolve();
+    });
     const onRegistrationInvitationEvent = vi.fn<
       (input: ClerkRegistrationInvitationEventInput) => Promise<void>
     >(async () => {
@@ -136,6 +149,7 @@ describe(makeClerkWebhookHandler, () => {
     });
     const handler = makeClerkWebhookHandler({
       analytics: eventAnalytics,
+      onCompanyMemberInvitationAccepted,
       onRegistrationInvitationEvent,
       webhookSecret,
     });
@@ -143,6 +157,9 @@ describe(makeClerkWebhookHandler, () => {
       userCreatedEvent({
         invitation: {
           businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+          companyMemberInvitationId: CompanyMemberInvitationId.make(
+            "company-invitation-1"
+          ),
           intent: "company_member",
           roles: ["buyer", "approver"],
         },
@@ -153,6 +170,56 @@ describe(makeClerkWebhookHandler, () => {
 
     expect(response.status).toBe(201);
     expect(onRegistrationInvitationEvent).not.toHaveBeenCalled();
+    expect(onCompanyMemberInvitationAccepted).toHaveBeenCalledWith({
+      acceptedAt: new Date("2026-01-01T00:00:00.000Z"),
+      acceptedIdentity: {
+        authUserId: "user-1",
+        email: "invitee@example.com",
+        firstName: "Invited",
+        lastName: "Owner",
+      },
+      companyMemberInvitationId: "company-invitation-1",
+    });
+  });
+
+  it("accepts a company-member event without provider profile names", async () => {
+    const onCompanyMemberInvitationAccepted = vi.fn<
+      (input: ClerkCompanyMemberInvitationAcceptedInput) => Promise<void>
+    >(async () => {
+      await Promise.resolve();
+    });
+    const handler = makeClerkWebhookHandler({
+      analytics: eventAnalytics,
+      onCompanyMemberInvitationAccepted,
+      webhookSecret,
+    });
+    const request = signedRequest(
+      userCreatedEvent(
+        {
+          invitation: {
+            businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+            companyMemberInvitationId: CompanyMemberInvitationId.make(
+              "company-invitation-1"
+            ),
+            intent: "company_member",
+            roles: ["buyer"],
+          },
+        },
+        { firstName: null, lastName: null }
+      )
+    );
+
+    const response = await handler(request);
+
+    expect(response.status).toBe(201);
+    expect(onCompanyMemberInvitationAccepted).toHaveBeenCalledWith({
+      acceptedAt: new Date("2026-01-01T00:00:00.000Z"),
+      acceptedIdentity: {
+        authUserId: "user-1",
+        email: "invitee@example.com",
+      },
+      companyMemberInvitationId: "company-invitation-1",
+    });
   });
 
   it("rejects an invalid signature before invoking the workflow", async () => {

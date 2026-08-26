@@ -65,6 +65,11 @@ export type CompanyMemberInvitationIssueError =
   | InvitationConflict
   | InvitationIssueOutcomeUnknown
   | InvitationProviderFailure;
+export type CompanyMemberInvitationRevokeError =
+  | InvitationNotFound
+  | InvitationConflict
+  | InvitationExpired
+  | InvitationProviderFailure;
 export type InvitationReadError =
   | InvitationNotFound
   | InvitationProviderFailure;
@@ -103,6 +108,13 @@ export interface CompanyMemberInvitationIssueInput {
   readonly issuedBy: CompanyActor;
 }
 
+export interface CompanyMemberInvitationRevocationInput {
+  readonly invitationId: InvitationId;
+  readonly intent: CompanyMemberIntent;
+  readonly issuedBy: Actor;
+  readonly revokedBy: CompanyActor;
+}
+
 export class InvitationDeliveries extends Context.Service<
   InvitationDeliveries,
   {
@@ -133,6 +145,9 @@ export class CompanyMemberInvitations extends Context.Service<
     readonly issue: (
       input: CompanyMemberInvitationIssueInput
     ) => Effect.Effect<PendingInvitation, CompanyMemberInvitationIssueError>;
+    readonly revoke: (
+      input: CompanyMemberInvitationRevocationInput
+    ) => Effect.Effect<RevokedInvitation, CompanyMemberInvitationRevokeError>;
   }
 >()("@repo/registration/CompanyMemberInvitations") {}
 
@@ -341,6 +356,71 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
       }
     );
 
+    const revokeCompanyMember = Effect.fn("CompanyMemberInvitations.revoke")(
+      function* (input: CompanyMemberInvitationRevocationInput) {
+        const invitations = yield* Ref.get(store);
+        const stored = yield* Option.fromNullishOr(
+          invitations.get(input.invitationId)
+        ).pipe(
+          Effect.fromOption,
+          Effect.mapError(
+            () =>
+              new InvitationNotFound({
+                invitationId: input.invitationId,
+                message: `Invitation ${input.invitationId} was not found`,
+              })
+          )
+        );
+        const current = yield* materializeExpiration(stored);
+
+        if (
+          current.intent.intent !== "company_member" ||
+          current.intent.companyMemberInvitationId !==
+            input.intent.companyMemberInvitationId
+        ) {
+          return yield* new InvitationConflict({
+            message: "Invitation is not for this company member",
+          });
+        }
+
+        if (current._tag === "AcceptedInvitation") {
+          return yield* new InvitationConflict({
+            message: "Accepted invitations cannot be revoked",
+          });
+        }
+
+        if (current._tag === "RevokedInvitation") {
+          return current;
+        }
+
+        if (current._tag === "ExpiredInvitation") {
+          return yield* new InvitationExpired({
+            expiredAt: current.expiredAt,
+            invitationId: current.id,
+            message: `Invitation ${current.id} has expired`,
+          });
+        }
+
+        const revokedAt = yield* nowDate;
+        const revoked = new RevokedInvitation({
+          _tag: "RevokedInvitation",
+          createdAt: current.createdAt,
+          expiresAt: current.expiresAt,
+          id: current.id,
+          intent: current.intent,
+          issuedBy: current.issuedBy,
+          revokedAt,
+          revokedBy: input.revokedBy,
+        });
+
+        yield* Ref.update(store, (existing) =>
+          new Map(existing).set(input.invitationId, revoked)
+        );
+
+        return revoked;
+      }
+    );
+
     const get = Effect.fn("InvitationDeliveries.get")(function* (
       invitationId: InvitationId
     ) {
@@ -507,7 +587,10 @@ export const invitationCapabilitiesLayerMemory = Layer.effectContext(
     ).pipe(
       Context.add(
         CompanyMemberInvitations,
-        CompanyMemberInvitations.of({ issue: issueCompanyMember })
+        CompanyMemberInvitations.of({
+          issue: issueCompanyMember,
+          revoke: revokeCompanyMember,
+        })
       ),
       Context.add(InvitationDeliveries, InvitationDeliveries.of({ get }))
     );

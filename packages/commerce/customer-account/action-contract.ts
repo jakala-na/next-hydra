@@ -123,11 +123,22 @@ export type InviteCompanyMemberActionResult =
 
 export const inviteCompanyMemberFailureMessageKey = (
   error: InputInvalid | InviteCompanyMemberActionError
-) =>
-  error._tag === "InputInvalid" &&
-  error.issues.some((issue) => issue.path[0] === "roles")
-    ? ("InputInvalidRoles" as const)
-    : error._tag;
+) => {
+  if (error._tag !== "InputInvalid") {
+    return error._tag;
+  }
+  if (error.issues.some((issue) => issue.path[0] === "roles")) {
+    return "InputInvalidRoles" as const;
+  }
+  if (
+    error.issues.some(
+      (issue) => issue.path[0] === "firstName" || issue.path[0] === "lastName"
+    )
+  ) {
+    return "InputInvalidName" as const;
+  }
+  return error._tag;
+};
 
 export type InviteCompanyMemberAction = (
   previousResult: InviteCompanyMemberActionResult | null,

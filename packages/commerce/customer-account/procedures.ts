@@ -22,6 +22,7 @@ import { issueCompanyMemberInvitation } from "./programs";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 const MAX_EMAIL_LENGTH = 320;
+const MAX_PERSON_NAME_LENGTH = 100;
 
 interface CompanyRoleSelection {
   admin?: "admin";
@@ -64,13 +65,30 @@ const InviteCompanyMemberForm = Schema.fromFormData(
         Schema.isPattern(EMAIL_PATTERN)
       )
     ),
+    firstName: Schema.Trim.pipe(
+      Schema.check(
+        Schema.isMinLength(1),
+        Schema.isMaxLength(MAX_PERSON_NAME_LENGTH)
+      )
+    ),
+    lastName: Schema.Trim.pipe(
+      Schema.check(
+        Schema.isMinLength(1),
+        Schema.isMaxLength(MAX_PERSON_NAME_LENGTH)
+      )
+    ),
     roles: CompanyRoleSelections,
   })
 );
 
-const invitationIssueMessage = (path: "email" | "roles" | "root") => {
+const invitationIssueMessage = (
+  path: "email" | "firstName" | "lastName" | "roles" | "root"
+) => {
   if (path === "email") {
     return "Enter a valid email address.";
+  }
+  if (path === "firstName" || path === "lastName") {
+    return "Enter the invited user's first and last name.";
   }
   if (path === "roles") {
     return "Select at least one company role.";
@@ -83,7 +101,7 @@ const inviteInputIssues = (error: Schema.SchemaError) => {
     error.issue
   ).issues;
   const path = normalizeActionSchemaIssuePath(
-    Schema.Literals(["root", "email", "roles"]),
+    Schema.Literals(["root", "email", "firstName", "lastName", "roles"]),
     issue?.path,
     "root"
   );

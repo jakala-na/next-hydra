@@ -38,12 +38,15 @@ export const registrationWorkflowLayer = registrationWorkflowLayerFrom({
     ]),
 });
 
-const registrationInvitationRuntime = ManagedRuntime.make(
+export const registrationInvitationLayer =
   Layer.mergeAll(
     registrationWorkflowLayer,
     registrationRepositoryLayer,
     registrationQueriesLayer({ container: REGISTRATION_CONTAINER })
-  )
+  );
+
+const registrationInvitationRuntime = ManagedRuntime.make(
+  registrationInvitationLayer
 );
 
 export const resumeRegistrationInvitation = async (input: {

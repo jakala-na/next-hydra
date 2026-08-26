@@ -37,6 +37,12 @@ export const CompanyMemberInvitationForm = ({
   const emailInvalid =
     failure?.error._tag === "InputInvalid" &&
     failure.error.issues.some((issue) => issue.path[0] === "email");
+  const firstNameInvalid =
+    failure?.error._tag === "InputInvalid" &&
+    failure.error.issues.some((issue) => issue.path[0] === "firstName");
+  const lastNameInvalid =
+    failure?.error._tag === "InputInvalid" &&
+    failure.error.issues.some((issue) => issue.path[0] === "lastName");
   const rolesInvalid =
     failure?.error._tag === "InputInvalid" &&
     failure.error.issues.some((issue) => issue.path[0] === "roles");
@@ -76,6 +82,34 @@ export const CompanyMemberInvitationForm = ({
               </AlertDescription>
             </Alert>
           ) : null}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="company-member-first-name">
+                {t("users.invite.firstNameLabel")}
+              </Label>
+              <Input
+                aria-invalid={firstNameInvalid || undefined}
+                autoComplete="given-name"
+                id="company-member-first-name"
+                name="firstName"
+                placeholder={t("users.invite.firstNamePlaceholder")}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="company-member-last-name">
+                {t("users.invite.lastNameLabel")}
+              </Label>
+              <Input
+                aria-invalid={lastNameInvalid || undefined}
+                autoComplete="family-name"
+                id="company-member-last-name"
+                name="lastName"
+                placeholder={t("users.invite.lastNamePlaceholder")}
+                required
+              />
+            </div>
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="company-member-email">
               {t("users.invite.emailLabel")}

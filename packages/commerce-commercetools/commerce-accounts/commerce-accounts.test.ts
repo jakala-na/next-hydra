@@ -14,6 +14,7 @@ import type { AcceptedCommerceIdentity } from "@repo/commerce/services/commerce-
 import {
   CommerceAccountUnavailable,
   CommerceAccounts,
+  CommerceCustomerEmailConflict,
 } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
 import { Cause, Effect, Redacted } from "effect";
@@ -683,18 +684,23 @@ describe("layerCommercetoolsCommerceAccounts", () => {
 
   it.effect("adds every requested domain role to a company member", () =>
     Effect.gen(function* () {
-      mocks.customerQueryGetExecute.mockResolvedValueOnce({
+      mocks.customerWithKeyGetExecute.mockRejectedValueOnce({
+        statusCode: 404,
+      });
+      mocks.customerQueryGetExecute.mockResolvedValue({
+        body: { results: [] },
+      });
+      mocks.customerCreateExecute.mockResolvedValueOnce({
         body: {
-          results: [
-            {
-              email: "ada@example.com",
-              externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
-              firstName: "Ada",
-              id: "customer-1",
-              lastName: "Lovelace",
-              version: 8,
-            },
-          ],
+          customer: {
+            email: "ada@example.com",
+            externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+            firstName: "Ada",
+            id: "customer-1",
+            key: "auth-customer-user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+            lastName: "Lovelace",
+            version: 1,
+          },
         },
       });
       mocks.businessUnitGetExecute.mockResolvedValueOnce({
@@ -720,6 +726,12 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         roles: ["buyer", "approver"],
       });
 
+      expect(mocks.customerQueryGet).toHaveBeenCalledWith({
+        queryArgs: {
+          limit: 1,
+          where: 'lowercaseEmail = "ada@example.com"',
+        },
+      });
       expect(mocks.businessUnitPost).toHaveBeenCalledWith({
         body: {
           actions: [
@@ -751,6 +763,75 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       });
       expect(membership.roles).toStrictEqual(["buyer", "approver"]);
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect("queries lowercaseEmail when checking an existing customer", () =>
+    Effect.gen(function* () {
+      mocks.customerQueryGetExecute.mockResolvedValueOnce({
+        body: { results: [{ id: "customer-1" }] },
+      });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      const exists = yield* commerceAccounts.hasCustomerWithEmail(
+        Redacted.make("Member@Example.com", { label: "email" })
+      );
+
+      expect(exists).toBe(true);
+      expect(mocks.customerQueryGet).toHaveBeenCalledWith({
+        queryArgs: {
+          limit: 1,
+          "var.email": "member@example.com",
+          where: "lowercaseEmail = :email",
+        },
+      });
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect(
+    "reports a typed conflict when another customer wins the email claim",
+    () =>
+      Effect.gen(function* () {
+        mocks.customerWithKeyGetExecute.mockRejectedValue({ statusCode: 404 });
+        mocks.customerQueryGetExecute
+          .mockResolvedValueOnce({ body: { results: [] } })
+          .mockResolvedValueOnce({ body: { results: [] } })
+          .mockResolvedValueOnce({ body: { results: [] } })
+          .mockResolvedValueOnce({
+            body: {
+              results: [
+                {
+                  email: "ADA@EXAMPLE.COM",
+                  externalId: "another-auth-user",
+                  id: "customer-other",
+                  key: "another-customer",
+                },
+              ],
+            },
+          });
+        mocks.customerCreateExecute.mockRejectedValueOnce({
+          body: {
+            errors: [
+              {
+                code: "DuplicateField",
+                duplicateValue: "ada@example.com",
+                field: "email",
+              },
+            ],
+          },
+          statusCode: 400,
+        });
+
+        const commerceAccounts = yield* CommerceAccounts;
+        const failure = yield* commerceAccounts
+          .addAssociate({
+            acceptedIdentity,
+            businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+            roles: ["buyer"],
+          })
+          .pipe(Effect.flip);
+
+        expect(failure).toBeInstanceOf(CommerceCustomerEmailConflict);
+      }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
   it.effect("maps initial company roles to Commercetools admin and buyer", () =>

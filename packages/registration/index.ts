@@ -50,6 +50,7 @@ export {
   City,
   type City as CityType,
   CompanyName,
+  CompanyMemberInvitationId,
   type CompanyName as CompanyNameType,
   CountryCode,
   type CountryCode as CountryCodeType,
@@ -73,18 +74,24 @@ export {
   type VatId as VatIdType,
 } from "./domain/identity";
 export {
+  AcceptedCompanyMemberInvitation,
   AcceptedInvitation,
   AcceptedRegistrationInvitation,
   CompanyMemberIntent,
+  CompanyMemberInvitation,
   ExpiredInvitation,
   ExpiredRegistrationInvitation,
   type Invitation,
   InvitationDelivery,
   InvitationDeliveryStatus,
+  InvitationLifecycleEvent,
+  type InvitationLifecycleEvent as InvitationLifecycleEventType,
   type InvitationIntent,
   PendingInvitation,
+  PendingCompanyMemberInvitation,
   PendingRegistrationInvitation,
   RegistrationApprovalIntent,
+  RevokedCompanyMemberInvitation,
   type RegistrationInvitation,
   RevokedInvitation,
   RevokedRegistrationInvitation,
@@ -172,7 +179,21 @@ export {
 export {
   type IssueCompanyMemberInviteInput,
   issueCompanyMemberInvite,
+  type RevokeCompanyMemberInviteError,
+  type RevokeCompanyMemberInviteInput,
+  revokeCompanyMemberInvite,
 } from "./programs/company-member-invitations";
+export {
+  type AcceptCompanyMemberInvitationError,
+  type AcceptCompanyMemberInvitationInput,
+  acceptCompanyMemberInvitation,
+  CompanyMemberInvitationAcceptanceReference,
+} from "./programs/company-member-onboarding";
+export {
+  type DispatchInvitationLifecycleEventInput,
+  dispatchInvitationLifecycleEvent,
+  type InvitationLifecycleEventRequirements,
+} from "./programs/invitation-lifecycle-events";
 export {
   checkRegistrationEligibility,
   type SubmitRegistrationForReviewInput,
@@ -214,9 +235,23 @@ export {
 } from "./programs/registration-review";
 export {
   type AuthorizeIssueInviteInput,
+  type AuthorizeRevokeInviteInput,
   CompanyInvitationPolicy,
   InvitationPolicyError,
 } from "./services/company-invitation-policy";
+export {
+  CompanyMemberIdentityProjection,
+  type ProjectAcceptedCompanyMemberIdentityInput,
+} from "./services/company-member-identity-projection";
+export {
+  type AcceptCompanyMemberInvitationRecordInput,
+  CompanyMemberInvitationNotFound,
+  CompanyMemberInvitationPersistenceFailure,
+  CompanyMemberInvitationRecordConflict,
+  type CompanyMemberInvitationRecordReadError,
+  CompanyMemberInvitationRecords,
+  type RevokeCompanyMemberInvitationRecordInput,
+} from "./services/company-member-invitation-records";
 export {
   IdentityUserLookupFailure,
   IdentityUserNotFound,
@@ -225,7 +260,9 @@ export {
 } from "./services/identity-users";
 export {
   type CompanyMemberInvitationIssueInput,
+  type CompanyMemberInvitationRevocationInput,
   CompanyMemberInvitations,
+  type CompanyMemberInvitationRevokeError,
   invitationCapabilitiesLayerMemory,
   type InvitationAcceptError,
   InvitationConflict,

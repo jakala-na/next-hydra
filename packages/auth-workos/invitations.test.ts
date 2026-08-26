@@ -6,6 +6,7 @@ import {
 import {
   AcceptedAuthIdentity,
   AuthUserId,
+  CompanyMemberInvitationId,
   CommerceBusinessUnitId,
   Email,
   InvitationId,
@@ -42,6 +43,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   makeWorkosCompanyMemberInvitations,
+  makeWorkosCompanyMemberIdentityProjection,
   makeWorkosInvitationCapabilities,
 } from "./invitations";
 import type { WorkosInvitationUserManagement } from "./invitations";
@@ -71,8 +73,19 @@ const acceptedIdentity = new AcceptedAuthIdentity({
 
 const companyMemberIntent = new CompanyMemberIntent({
   businessUnitId: actor.businessUnitId,
+  companyMemberInvitationId: CompanyMemberInvitationId.make(
+    "company-invitation-1"
+  ),
   intent: "company_member",
   inviteeEmail,
+  inviteeName: {
+    firstName: Redacted.make(PersonName.make("Invited"), {
+      label: "personName",
+    }),
+    lastName: Redacted.make(PersonName.make("User"), {
+      label: "personName",
+    }),
+  },
   roles: ["buyer", "approver"],
 });
 
@@ -201,6 +214,35 @@ const makeLayer = (userManagement: WorkosInvitationUserManagement) => {
 };
 
 describe(makeWorkosInvitationCapabilities, () => {
+  it("projects every accepted company role into WorkOS user metadata", async () => {
+    let updatedUser:
+      | Parameters<WorkosInvitationUserManagement["updateUser"]>[0]
+      | undefined;
+    const projection = makeWorkosCompanyMemberIdentityProjection(
+      makeUserManagement({
+        updateUser: async (input) => {
+          updatedUser = input;
+          return await Promise.resolve(makeWorkosUser());
+        },
+      })
+    );
+
+    await Effect.runPromise(
+      projection.projectAcceptedInvitation({
+        acceptedIdentity,
+        intent: companyMemberIntent,
+      })
+    );
+
+    expect(updatedUser).toStrictEqual({
+      metadata: {
+        invitation:
+          '{"businessUnitId":"business-unit-1","companyMemberInvitationId":"company-invitation-1","intent":"company_member","roles":["buyer","approver"]}',
+      },
+      userId: acceptedIdentity.authUserId,
+    });
+  });
+
   it("issues invitations through the WorkOS SDK and returns the domain issue context", async () => {
     let sentInput:
       | Parameters<WorkosInvitationUserManagement["sendInvitation"]>[0]
@@ -231,6 +273,46 @@ describe(makeWorkosInvitationCapabilities, () => {
         expect(invitation.issuedBy).toBe(actor);
       }).pipe(Effect.provide(layer))
     );
+  });
+
+  it("revokes a company-member invitation through the WorkOS SDK", async () => {
+    let revokeCalls = 0;
+    let invitationState: WorkosInvitationState = "pending";
+    const capabilities = makeWorkosInvitationCapabilities(
+      makeUserManagement({
+        getInvitation: async () => makeWorkosInvitation(invitationState),
+        revokeInvitation: async () => {
+          revokeCalls += 1;
+          invitationState = "revoked";
+          return makeWorkosInvitation("revoked");
+        },
+      }),
+      makeIssueAttempts()
+    );
+
+    const input = {
+      intent: companyMemberIntent,
+      invitationId: InvitationId.make("invitation-1"),
+      issuedBy: actor,
+      revokedBy: actor,
+    } as const;
+    const [revoked, repeated] = await Effect.runPromise(
+      Effect.all(
+        [
+          capabilities.companyMemberInvitations.revoke(input),
+          capabilities.companyMemberInvitations.revoke(input),
+        ],
+        { concurrency: 1 }
+      )
+    );
+
+    expect(revoked).toMatchObject({
+      _tag: "RevokedInvitation",
+      intent: companyMemberIntent,
+      revokedBy: actor,
+    });
+    expect(repeated).toEqual(revoked);
+    expect(revokeCalls).toBe(1);
   });
 
   it("does not bind a pre-existing system invitation to a registration", async () => {

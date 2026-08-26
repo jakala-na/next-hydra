@@ -202,6 +202,11 @@
           "type": "registry:file"
         },
         {
+          "path": "route-handlers/webhook.test.ts",
+          "target": "~/packages/auth-workos/route-handlers/webhook.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "route-handlers/webhook.ts",
           "target": "~/packages/auth-workos/route-handlers/webhook.ts",
           "type": "registry:file"

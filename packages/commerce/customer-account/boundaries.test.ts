@@ -103,6 +103,8 @@ const invitationForm = (
   roles: readonly ("admin" | "approver" | "buyer")[] = ["buyer"]
 ) => {
   const formData = new FormData();
+  formData.set("firstName", "Ada");
+  formData.set("lastName", "Lovelace");
   formData.set("email", email);
   for (const role of roles) {
     formData.append(`roles[${role}]`, role);
@@ -127,18 +129,27 @@ describe("Customer account invitation boundaries", () => {
       },
     });
     const [invitationInput] = harness.issueInvitation.mock.calls[0] ?? [];
-    expect(harness.issueInvitation).toHaveBeenCalledOnce();
-    expect(invitationInput?.actor).toMatchObject({
-      authUserId: "auth-user-1",
-      businessUnitId: "business-unit-1",
-      roles: ["admin", "buyer"],
-    });
-    expect(invitationInput?.roles).toStrictEqual(["buyer", "approver"]);
     expect(
       invitationInput === undefined
         ? undefined
-        : Redacted.value(invitationInput.inviteeEmail)
-    ).toBe("new.user@example.com");
+        : {
+            actor: invitationInput.actor,
+            email: Redacted.value(invitationInput.inviteeEmail),
+            firstName: Redacted.value(invitationInput.inviteeName.firstName),
+            lastName: Redacted.value(invitationInput.inviteeName.lastName),
+            roles: invitationInput.roles,
+          }
+    ).toMatchObject({
+      actor: {
+        authUserId: "auth-user-1",
+        businessUnitId: "business-unit-1",
+        roles: ["admin", "buyer"],
+      },
+      email: "new.user@example.com",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      roles: ["buyer", "approver"],
+    });
   });
 
   it("requires at least one company role", async () => {
@@ -178,6 +189,26 @@ describe("Customer account invitation boundaries", () => {
       },
     });
     expect(invalidHarness.issueInvitation).not.toHaveBeenCalled();
+  });
+
+  it("requires the invitee's first and last name", async () => {
+    const harness = makeHarness();
+    const formData = invitationForm("new.user@example.com");
+    formData.set("firstName", "");
+
+    const result = await harness.action(null, formData);
+
+    expect(result).toMatchObject({
+      _tag: "Failure",
+      failure: {
+        displayMessage: "Localized InputInvalidName",
+        error: {
+          _tag: "InputInvalid",
+          issues: [{ path: ["firstName"] }],
+        },
+      },
+    });
+    expect(harness.issueInvitation).not.toHaveBeenCalled();
   });
 
   it("does not expose provider failure causes through the action", async () => {

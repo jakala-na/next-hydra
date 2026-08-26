@@ -1,4 +1,6 @@
 import {
+  CompanyMemberInvitationId,
+  CommerceBusinessUnitId,
   Email,
   InvitationId,
   RegistrationId,
@@ -10,6 +12,8 @@ import {
   RevokedInvitation,
 } from "@repo/registration/domain/invitations";
 import { CompanyRoles } from "@repo/registration/domain/roles";
+import { CompanyMemberIdentityProjection } from "@repo/registration/services/company-member-identity-projection";
+import type { ProjectAcceptedCompanyMemberIdentityInput } from "@repo/registration/services/company-member-identity-projection";
 import {
   CompanyMemberInvitations,
   InvitationConflict,
@@ -22,6 +26,7 @@ import {
 } from "@repo/registration/services/invitations";
 import type {
   CompanyMemberInvitationIssueInput,
+  CompanyMemberInvitationRevocationInput,
   RegistrationInvitationAcceptanceInput,
   RegistrationInvitationIssueInput,
   RegistrationInvitationRevocationInput,
@@ -68,6 +73,11 @@ export type WorkosInvitationSender = Pick<
   "sendInvitation"
 >;
 
+export type WorkosCompanyMemberInvitationUserManagement = Pick<
+  WorkosSdk["userManagement"],
+  "getInvitation" | "revokeInvitation" | "sendInvitation"
+>;
+
 export type WorkosInvitationUserManagement = WorkosInvitationSender &
   Pick<
     WorkosSdk["userManagement"],
@@ -112,6 +122,27 @@ const WorkosRegistrationInvitationMetadata = Schema.Struct({
 const WorkosRegistrationInvitationMetadataJson = Schema.fromJsonString(
   Schema.toCodecJson(WorkosRegistrationInvitationMetadata)
 );
+
+const WorkosCompanyMemberInvitationMetadata = Schema.Struct({
+  businessUnitId: CommerceBusinessUnitId,
+  companyMemberInvitationId: CompanyMemberInvitationId,
+  intent: Schema.Literal("company_member"),
+  roles: CompanyRoles,
+});
+
+const WorkosCompanyMemberInvitationMetadataJson = Schema.fromJsonString(
+  Schema.toCodecJson(WorkosCompanyMemberInvitationMetadata)
+);
+
+const workosCompanyMemberInvitationMetadata = (
+  input: ProjectAcceptedCompanyMemberIdentityInput
+) =>
+  Schema.encodeSync(WorkosCompanyMemberInvitationMetadataJson)({
+    businessUnitId: input.intent.businessUnitId,
+    companyMemberInvitationId: input.intent.companyMemberInvitationId,
+    intent: input.intent.intent,
+    roles: input.intent.roles,
+  });
 
 const workosRegistrationInvitationMetadata = (
   input: RegistrationInvitationAcceptanceInput
@@ -241,14 +272,91 @@ const makeWorkosInvitationSender = (userManagement: WorkosInvitationSender) =>
     });
   });
 
+const revokeWorkosInvitation = Effect.fn(
+  "InvitationCapabilities.Workos.revoke"
+)(function* (
+  userManagement: Pick<
+    WorkosInvitationUserManagement,
+    "getInvitation" | "revokeInvitation"
+  >,
+  input:
+    | CompanyMemberInvitationRevocationInput
+    | RegistrationInvitationRevocationInput
+) {
+  const current = yield* Effect.tryPromise({
+    catch: (cause) => revokeFailure(input.invitationId, cause),
+    try: async () => await userManagement.getInvitation(input.invitationId),
+  });
+
+  if (current.state === "expired") {
+    return yield* new InvitationExpired({
+      expiredAt: toDate(current.expiresAt),
+      invitationId: input.invitationId,
+      message: `Invitation ${input.invitationId} has expired`,
+    });
+  }
+
+  if (current.state === "accepted") {
+    return yield* new InvitationConflict({
+      message: "Invitation can no longer be revoked by the provider",
+    });
+  }
+
+  if (current.state === "revoked") {
+    return new RevokedInvitation({
+      _tag: "RevokedInvitation",
+      createdAt: toDate(current.createdAt),
+      expiresAt: toDate(current.expiresAt),
+      id: invitationIdFromWorkos(current),
+      intent: input.intent,
+      issuedBy: input.issuedBy,
+      revokedAt: toDate(current.revokedAt),
+      revokedBy: input.revokedBy,
+    });
+  }
+
+  const invitation = yield* Effect.tryPromise({
+    catch: (cause) => revokeFailure(input.invitationId, cause),
+    try: async () => await userManagement.revokeInvitation(input.invitationId),
+  });
+  if (invitation.state === "expired") {
+    return yield* new InvitationExpired({
+      expiredAt: toDate(invitation.expiresAt),
+      invitationId: input.invitationId,
+      message: `Invitation ${input.invitationId} has expired`,
+    });
+  }
+
+  if (invitation.state !== "revoked") {
+    return yield* new InvitationConflict({
+      message: "Invitation was not revoked by the provider",
+    });
+  }
+
+  return new RevokedInvitation({
+    _tag: "RevokedInvitation",
+    createdAt: toDate(invitation.createdAt),
+    expiresAt: toDate(invitation.expiresAt),
+    id: invitationIdFromWorkos(invitation),
+    intent: input.intent,
+    issuedBy: input.issuedBy,
+    revokedAt: toDate(invitation.revokedAt),
+    revokedBy: input.revokedBy,
+  });
+});
+
 export const makeWorkosCompanyMemberInvitations = (
-  userManagement: WorkosInvitationSender
+  userManagement: WorkosCompanyMemberInvitationUserManagement
 ) => {
   const sendInvitation = makeWorkosInvitationSender(userManagement);
 
   return CompanyMemberInvitations.of({
     issue: Effect.fn("CompanyMemberInvitations.Workos.issue")(
       (input: CompanyMemberInvitationIssueInput) => sendInvitation(input)
+    ),
+    revoke: Effect.fn("CompanyMemberInvitations.Workos.revoke")(
+      (input: CompanyMemberInvitationRevocationInput) =>
+        revokeWorkosInvitation(userManagement, input)
     ),
   });
 };
@@ -418,67 +526,7 @@ export const makeWorkosInvitationCapabilities = (
   const revoke = Effect.fn("RegistrationInvitations.Workos.revoke")(function* (
     input: RegistrationInvitationRevocationInput
   ) {
-    const current = yield* Effect.tryPromise({
-      catch: (cause) => revokeFailure(input.invitationId, cause),
-      try: async () => await userManagement.getInvitation(input.invitationId),
-    });
-
-    if (current.state === "expired") {
-      return yield* new InvitationExpired({
-        expiredAt: toDate(current.expiresAt),
-        invitationId: input.invitationId,
-        message: `Invitation ${input.invitationId} has expired`,
-      });
-    }
-
-    if (current.state === "accepted") {
-      return yield* new InvitationConflict({
-        message: "Invitation can no longer be revoked by the provider",
-      });
-    }
-
-    if (current.state === "revoked") {
-      return new RevokedInvitation({
-        _tag: "RevokedInvitation",
-        createdAt: toDate(current.createdAt),
-        expiresAt: toDate(current.expiresAt),
-        id: invitationIdFromWorkos(current),
-        intent: input.intent,
-        issuedBy: input.issuedBy,
-        revokedAt: toDate(current.revokedAt),
-        revokedBy: input.revokedBy,
-      });
-    }
-
-    const invitation = yield* Effect.tryPromise({
-      catch: (cause) => revokeFailure(input.invitationId, cause),
-      try: async () =>
-        await userManagement.revokeInvitation(input.invitationId),
-    });
-    if (invitation.state === "expired") {
-      return yield* new InvitationExpired({
-        expiredAt: toDate(invitation.expiresAt),
-        invitationId: input.invitationId,
-        message: `Invitation ${input.invitationId} has expired`,
-      });
-    }
-
-    if (invitation.state !== "revoked") {
-      return yield* new InvitationConflict({
-        message: "Invitation was not revoked by the provider",
-      });
-    }
-
-    return new RevokedInvitation({
-      _tag: "RevokedInvitation",
-      createdAt: toDate(invitation.createdAt),
-      expiresAt: toDate(invitation.expiresAt),
-      id: invitationIdFromWorkos(invitation),
-      intent: input.intent,
-      issuedBy: input.issuedBy,
-      revokedAt: toDate(invitation.revokedAt),
-      revokedBy: input.revokedBy,
-    });
+    return yield* revokeWorkosInvitation(userManagement, input);
   });
 
   return {
@@ -506,6 +554,34 @@ export const companyMemberInvitationsLayer = Layer.effect(
   CompanyMemberInvitations,
   configuredWorkosUserManagement.pipe(
     Effect.map(makeWorkosCompanyMemberInvitations)
+  )
+);
+
+export const makeWorkosCompanyMemberIdentityProjection = (
+  userManagement: Pick<WorkosInvitationUserManagement, "updateUser">
+) =>
+  CompanyMemberIdentityProjection.of({
+    projectAcceptedInvitation: Effect.fn(
+      "CompanyMemberIdentityProjection.Workos.projectAcceptedInvitation"
+    )((input) =>
+      Effect.tryPromise({
+        catch: (cause) => providerFailure("accept", cause),
+        try: async () => {
+          await userManagement.updateUser({
+            metadata: {
+              invitation: workosCompanyMemberInvitationMetadata(input),
+            },
+            userId: input.acceptedIdentity.authUserId,
+          });
+        },
+      })
+    ),
+  });
+
+export const companyMemberIdentityProjectionLayer = Layer.effect(
+  CompanyMemberIdentityProjection,
+  configuredWorkosUserManagement.pipe(
+    Effect.map(makeWorkosCompanyMemberIdentityProjection)
   )
 );
 

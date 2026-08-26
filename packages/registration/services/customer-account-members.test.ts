@@ -2,6 +2,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { CommerceBusinessUnitId } from "@repo/commerce/domain/commerce-account";
 import type { CompanyRoles } from "@repo/commerce/domain/commerce-account";
 import { AuthUserId as CommerceAuthUserId } from "@repo/commerce/domain/commerce-request-context";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import {
   CustomerAccountCompanyActor,
   CustomerAccountMembers,
@@ -13,6 +14,7 @@ import { DateTime, Effect, Layer, Redacted, Ref } from "effect";
 import { InvitationId } from "../domain/identity";
 import { PendingInvitation } from "../domain/invitations";
 import { CompanyInvitationPolicy } from "./company-invitation-policy";
+import { CompanyMemberInvitationRecords } from "./company-member-invitation-records";
 import { customerAccountMembersLayer } from "./customer-account-members";
 import type { CompanyMemberInvitationIssueInput } from "./invitations";
 import { CompanyMemberInvitations } from "./invitations";
@@ -35,8 +37,20 @@ const actor = (roles: CompanyRoles) => {
 
 const provideAdapter = (providerLayer: Layer.Layer<CompanyMemberInvitations>) =>
   customerAccountMembersLayer.pipe(
-    Layer.provide(Layer.mergeAll(providerLayer, CompanyInvitationPolicy.layer))
+    Layer.provide(
+      Layer.mergeAll(
+        providerLayer,
+        CompanyInvitationPolicy.layer,
+        CompanyMemberInvitationRecords.layerMemory,
+        CommerceAccounts.layerMemory
+      )
+    )
   );
+
+const inviteeName = {
+  firstName: Redacted.make("Invited", { label: "personName" }),
+  lastName: Redacted.make("Member", { label: "personName" }),
+};
 
 describe("customer account members adapter", () => {
   it.effect("maps a verified administrator invitation into Registration", () =>
@@ -62,6 +76,7 @@ describe("customer account members adapter", () => {
               })
             )
           ),
+        revoke: () => Effect.die("not used in this test"),
       });
 
       const receipt = yield* Effect.gen(function* () {
@@ -71,6 +86,7 @@ describe("customer account members adapter", () => {
           inviteeEmail: Redacted.make("member@example.com", {
             label: "email",
           }),
+          inviteeName,
           roles: ["buyer", "approver"],
         });
       }).pipe(Effect.provide(provideAdapter(providerLayer)));
@@ -82,8 +98,13 @@ describe("customer account members adapter", () => {
         )
       );
 
-      expect(receipt.invitationId).toBe("invitation-1");
-      expect(Redacted.value(receipt.inviteeEmail)).toBe("member@example.com");
+      expect({
+        invitationId: receipt.invitationId,
+        inviteeEmail: Redacted.value(receipt.inviteeEmail),
+      }).toStrictEqual({
+        invitationId: "invitation-1",
+        inviteeEmail: "member@example.com",
+      });
       expect(providerInput.issuedBy).toMatchObject({
         actorType: "company",
         authUserId: "auth-admin-1",
@@ -98,6 +119,10 @@ describe("customer account members adapter", () => {
       expect(Redacted.value(providerInput.intent.inviteeEmail)).toBe(
         "member@example.com"
       );
+      expect({
+        firstName: Redacted.value(providerInput.intent.inviteeName.firstName),
+        lastName: Redacted.value(providerInput.intent.inviteeName.lastName),
+      }).toStrictEqual({ firstName: "Invited", lastName: "Member" });
     })
   );
 
@@ -109,6 +134,7 @@ describe("customer account members adapter", () => {
           Ref.update(calls, (count) => count + 1).pipe(
             Effect.andThen(Effect.die("not expected"))
           ),
+        revoke: () => Effect.die("not used in this test"),
       });
 
       const failure = yield* Effect.gen(function* () {
@@ -118,6 +144,7 @@ describe("customer account members adapter", () => {
           inviteeEmail: Redacted.make("invitee@example.com", {
             label: "email",
           }),
+          inviteeName,
           roles: ["buyer"],
         });
       }).pipe(Effect.provide(provideAdapter(providerLayer)), Effect.flip);
@@ -136,6 +163,7 @@ describe("customer account members adapter", () => {
     });
     const providerLayer = Layer.succeed(CompanyMemberInvitations)({
       issue: () => Effect.fail(providerFailure),
+      revoke: () => Effect.die("not used in this test"),
     });
 
     return Effect.gen(function* () {
@@ -146,6 +174,7 @@ describe("customer account members adapter", () => {
           inviteeEmail: Redacted.make("member@example.com", {
             label: "email",
           }),
+          inviteeName,
           roles: ["buyer"],
         })
         .pipe(Effect.flip);

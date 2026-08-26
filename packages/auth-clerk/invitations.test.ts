@@ -5,6 +5,7 @@ import {
 import {
   AcceptedAuthIdentity,
   AuthUserId,
+  CompanyMemberInvitationId,
   CommerceBusinessUnitId,
   Email,
   InvitationId,
@@ -43,8 +44,19 @@ const companyActor = new CompanyActor({
 });
 const companyMemberIntent = new CompanyMemberIntent({
   businessUnitId: companyActor.businessUnitId,
+  companyMemberInvitationId: CompanyMemberInvitationId.make(
+    "company-invitation-1"
+  ),
   intent: "company_member",
   inviteeEmail,
+  inviteeName: {
+    firstName: Redacted.make(PersonName.make("Invited"), {
+      label: "personName",
+    }),
+    lastName: Redacted.make(PersonName.make("Member"), {
+      label: "personName",
+    }),
+  },
   roles: ["buyer", "approver"],
 });
 const acceptedIdentity = new AcceptedAuthIdentity({
@@ -68,6 +80,9 @@ const publicMetadata = {
 const companyMemberPublicMetadata = {
   invitation: {
     businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+    companyMemberInvitationId: CompanyMemberInvitationId.make(
+      "company-invitation-1"
+    ),
     intent: "company_member" as const,
     roles: ["buyer", "approver"] as const,
   },
@@ -212,6 +227,48 @@ describe(makeClerkInvitationCapabilities, () => {
     });
     expect(issued.intent).toBe(companyMemberIntent);
     expect(issued.issuedBy).toBe(companyActor);
+  });
+
+  it("revokes a company-member invitation through Clerk", async () => {
+    let revokeCalls = 0;
+    const capabilities = makeClerkInvitationCapabilities(
+      makeApi({
+        getInvitationList: async () =>
+          await Promise.resolve({
+            data: [
+              invitation("pending", {
+                publicMetadata: companyMemberPublicMetadata,
+              }),
+            ],
+          }),
+        revokeInvitation: async () => {
+          revokeCalls += 1;
+          return await Promise.resolve(
+            invitation("revoked", {
+              publicMetadata: companyMemberPublicMetadata,
+            })
+          );
+        },
+      }),
+      "https://shop.example.com/accept-invitation",
+      makeIssueAttempts()
+    );
+
+    const revoked = await Effect.runPromise(
+      capabilities.companyMemberInvitations.revoke({
+        intent: companyMemberIntent,
+        invitationId: InvitationId.make("invitation-1"),
+        issuedBy: companyActor,
+        revokedBy: companyActor,
+      })
+    );
+
+    expect(revoked).toMatchObject({
+      _tag: "RevokedInvitation",
+      intent: companyMemberIntent,
+      revokedBy: companyActor,
+    });
+    expect(revokeCalls).toBe(1);
   });
 
   it("projects Clerk state as provider-neutral invitation delivery", async () => {

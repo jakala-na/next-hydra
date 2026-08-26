@@ -27,6 +27,7 @@ import type { AuthUserId } from "@repo/commerce/domain/commerce-request-context"
 import {
   CommerceAccountUnavailable,
   CommerceAccounts,
+  CommerceCustomerEmailConflict,
   CommerceCustomerIdNotFound,
   CommerceCustomerProfileNotFound,
 } from "@repo/commerce/services/commerce-accounts";
@@ -45,6 +46,7 @@ import {
   commercetoolsProviderFailureReason,
   CommercetoolsRequestFailure,
   commercetoolsFailureCause,
+  hasCommercetoolsErrorCode,
   commercetoolsRequest,
   RetryVersionedWrite,
   retryVersionedWrite,
@@ -126,14 +128,21 @@ const companyRolesForCustomer = (
   );
 };
 
+const authUserId = (identity: AcceptedCommerceIdentity) => identity.authUserId;
+
 const customerKeyFromAcceptedIdentity = (identity: AcceptedCommerceIdentity) =>
   `auth-customer-${authUserId(identity)}`;
 
-const authUserId = (identity: AcceptedCommerceIdentity) =>
-  String(identity.authUserId);
-
 const customerEmail = (identity: AcceptedCommerceIdentity) =>
   Redacted.value(identity.email);
+
+const normalizedCustomerEmail = (email: RedactedString | string) => {
+  const value = Redacted.isRedacted(email)
+    ? String(Redacted.value(email))
+    : email;
+
+  return value.trim().toLowerCase();
+};
 
 const customerFirstName = (identity: AcceptedCommerceIdentity) =>
   Redacted.value(identity.firstName);
@@ -225,9 +234,14 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
       }
     );
 
-  const getCustomerByAcceptedIdentity = (identity: AcceptedCommerceIdentity) =>
+  const findCustomerByAuthUserId = (identity: AcceptedCommerceIdentity) =>
+    queryFirstCustomer(`externalId = ${JSON.stringify(authUserId(identity))}`);
+
+  const findCustomerByEmail = (identity: AcceptedCommerceIdentity) =>
     queryFirstCustomer(
-      `externalId = ${JSON.stringify(authUserId(identity))} or email = ${JSON.stringify(customerEmail(identity))}`
+      `lowercaseEmail = ${JSON.stringify(
+        normalizedCustomerEmail(identity.email)
+      )}`
     );
 
   const getCustomerIdByAuthUserId = Effect.fn(
@@ -451,9 +465,13 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
   const createCustomerFromAcceptedIdentity = (
     identity: AcceptedCommerceIdentity
   ) =>
-    commerceAccountRequest(
-      "Failed to create Commercetools customer",
-      async () => {
+    Effect.tryPromise({
+      catch: (cause) =>
+        new CommercetoolsRequestFailure({
+          cause,
+          message: "Failed to create Commercetools customer",
+        }),
+      try: async () => {
         const response = await apiRoot
           .customers()
           .post({
@@ -470,8 +488,8 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           .execute();
 
         return response.body.customer;
-      }
-    );
+      },
+    });
 
   const createBusinessUnit = (
     registration: CommerceAccountRegistrationInput,
@@ -622,13 +640,83 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
     );
   };
 
+  const claimedCustomerConflict = () =>
+    new CommerceCustomerEmailConflict({
+      message: "A Commerce customer already owns the invited identity or email",
+    });
+
+  const isAcceptedIdentityCustomer = (
+    customer: Customer,
+    identity: AcceptedCommerceIdentity
+  ) =>
+    customer.key === customerKeyFromAcceptedIdentity(identity) &&
+    customer.externalId === authUserId(identity) &&
+    normalizedCustomerEmail(customer.email) ===
+      normalizedCustomerEmail(identity.email);
+
+  const validateAcceptedIdentityCustomer = (
+    customer: Customer,
+    identity: AcceptedCommerceIdentity
+  ) =>
+    isAcceptedIdentityCustomer(customer, identity)
+      ? Effect.succeed(customer)
+      : Effect.fail(claimedCustomerConflict());
+
+  const findAcceptedIdentityCustomer = (identity: AcceptedCommerceIdentity) =>
+    Effect.gen(function* () {
+      const byKey = yield* getCustomerByKey(
+        customerKeyFromAcceptedIdentity(identity)
+      );
+      if (byKey !== null) {
+        return yield* validateAcceptedIdentityCustomer(byKey, identity);
+      }
+
+      const byAuthUserId = yield* findCustomerByAuthUserId(identity);
+      if (byAuthUserId !== null) {
+        return yield* validateAcceptedIdentityCustomer(byAuthUserId, identity);
+      }
+
+      const byEmail = yield* findCustomerByEmail(identity);
+      if (byEmail !== null) {
+        return yield* validateAcceptedIdentityCustomer(byEmail, identity);
+      }
+
+      return null;
+    });
+
   const ensureAcceptedIdentityCustomer = (identity: AcceptedCommerceIdentity) =>
     Effect.gen(function* () {
-      const existing =
-        (yield* getCustomerByAcceptedIdentity(identity)) ??
-        (yield* createCustomerFromAcceptedIdentity(identity));
+      const existing = yield* findAcceptedIdentityCustomer(identity);
+      const customer =
+        existing ??
+        (yield* createCustomerFromAcceptedIdentity(identity).pipe(
+          Effect.catchTag("CommercetoolsRequestFailure", (failure) => {
+            if (
+              hasCommercetoolsErrorCode(
+                failure.cause,
+                "DuplicateField",
+                "DuplicateFieldWithConflictingResource"
+              )
+            ) {
+              return findAcceptedIdentityCustomer(identity).pipe(
+                Effect.flatMap((recovered) =>
+                  recovered === null
+                    ? Effect.die(
+                        new Error(
+                          "Commercetools reported a duplicate customer without exposing the conflicting customer",
+                          { cause: failure.cause }
+                        )
+                      )
+                    : Effect.succeed(recovered)
+                )
+              );
+            }
 
-      return yield* syncCustomerIdentity(existing, {
+            return failAccountRequest(failure.message, failure.cause);
+          })
+        ));
+
+      return yield* syncCustomerIdentity(customer, {
         acceptedIdentity: identity,
       });
     });
@@ -757,8 +845,8 @@ const makeCommerceAccounts = (apiRoot: ByProjectKeyRequestBuilder) => {
           .get({
             queryArgs: {
               limit: 1,
-              "var.email": Redacted.value(email),
-              where: "email = :email",
+              "var.email": normalizedCustomerEmail(email),
+              where: "lowercaseEmail = :email",
             },
           })
           .execute();
