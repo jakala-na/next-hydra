@@ -1,17 +1,52 @@
 import chalk from "chalk";
 import type { ConfigProvider, Effect as EffectType } from "effect";
-import { Console, Effect, Option } from "effect";
+import { Console, Effect, Option, Schema } from "effect";
 import { CliError, Command, Flag } from "effect/unstable/cli";
 
 import {
   createCommerceCliLayer,
   createProjectProvisioningCliLayer,
 } from "../layer";
+import {
+  decodeErrorDetails,
+  decodedErrorMessage,
+  providerErrorSummary,
+} from "../project-provisioning/error-details";
+import { RuntimeClientCreationOutcomeUnknown } from "../project-provisioning/model";
 import { provisionCommerceProject } from "../project-provisioning/provision";
 import { seedCommerceProject } from "../project-provisioning/seed";
 
+export const projectUserMessage = (cause: unknown): string | undefined => {
+  const message = decodedErrorMessage(cause);
+  const providerSummary = providerErrorSummary(
+    decodeErrorDetails(cause)?.cause
+  );
+  const lines = message === undefined ? [] : [message];
+
+  if (providerSummary !== undefined && providerSummary !== message) {
+    lines.push(`Commercetools response: ${providerSummary}`);
+  }
+
+  if (Schema.is(RuntimeClientCreationOutcomeUnknown)(cause)) {
+    lines.push(
+      `Runtime API Client: ${cause.clientName}`,
+      "Creation may have succeeded; check API Clients before retrying"
+    );
+  }
+
+  return lines.length === 0 ? undefined : lines.join("\n  ");
+};
+
 const asUserError = <A, E, R>(effect: EffectType.Effect<A, E, R>) =>
-  effect.pipe(Effect.mapError((cause) => new CliError.UserError({ cause })));
+  effect.pipe(
+    Effect.mapError(
+      (cause) =>
+        new CliError.UserError({
+          cause,
+          userMessage: projectUserMessage(cause),
+        })
+    )
+  );
 
 export const createProjectCommand = <E, R>(
   configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>

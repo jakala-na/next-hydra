@@ -1,5 +1,3 @@
-#!/usr/bin/env jiti
-
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
 import { Effect } from "effect";
 import { CliConfig, Command } from "effect/unstable/cli";
