@@ -1,11 +1,17 @@
 {
   "name": "api",
   "private": true,
+  "portless": {
+    "name": "api.next-hydra",
+    "script": "dev:app"
+  },
   "scripts": {
     "analyze": "ANALYZE=true npm run build",
     "build": "next build",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "dev": "next dev -p 3002 --turbopack",
+    "dev": "portless",
+    "dev:app": "next dev --turbopack",
+    "dev:public": "portless --ngrok",
     "start": "next start",
     "test": "NODE_ENV=test vitest run",
     "typecheck": "next typegen && pnpm --workspace-root exec tsc --noEmit --project apps/api/tsconfig.json"

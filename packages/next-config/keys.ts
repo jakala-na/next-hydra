@@ -5,7 +5,7 @@ import { z } from "zod";
 export const keys = () =>
   createEnv({
     client: {
-      NEXT_PUBLIC_API_URL: z.string().url().optional(),
+      NEXT_PUBLIC_API_URL: z.string().url(),
       NEXT_PUBLIC_WEB_URL: z.string().url(),
     },
     extends: [vercel()],

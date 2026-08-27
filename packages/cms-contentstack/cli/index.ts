@@ -49,7 +49,7 @@ export const createCmsCommand = <E, R>(
       ),
       localUrl: Flag.string("local-url").pipe(
         Flag.withDescription("Local application URL for Contentstack previews"),
-        Flag.withDefault("http://localhost:3001")
+        Flag.withDefault("https://web.next-hydra.localhost")
       ),
       managementTokenAlias: managementTokenAliasFlag(),
       ...runtimeEnvironmentDestinationFlags(),

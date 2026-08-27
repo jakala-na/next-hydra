@@ -177,13 +177,13 @@ const installApplicationWorkspaces = async (cwd: string): Promise<void> => {
 
 const typecheckEnvironment = () => ({
   ...process.env,
-  ADMIN_CLERK_AUTHORIZED_PARTIES: "http://localhost:3005",
+  ADMIN_CLERK_AUTHORIZED_PARTIES: "https://admin.customer-project.localhost",
   ADMIN_CLERK_PUBLISHABLE_KEY: "pk_test_admin_publishable",
   ADMIN_CLERK_SECRET_KEY: "sk_test_admin_secret",
-  ADMIN_URL: "http://localhost:3005",
+  ADMIN_URL: "https://admin.customer-project.localhost",
   ADMIN_WORKOS_API_KEY: "sk_test_admin",
   ADMIN_WORKOS_CLIENT_ID: "client_test_admin",
-  CLERK_AUTHORIZED_PARTIES: "http://localhost:3001",
+  CLERK_AUTHORIZED_PARTIES: "https://web.customer-project.localhost",
   CLERK_SECRET_KEY: "sk_test_secret",
   CLERK_WEBHOOK_SECRET: "whsec_test",
   COMMERCETOOLS_CLIENT_ID: "test-client",
@@ -201,6 +201,7 @@ const typecheckEnvironment = () => ({
   DRUPAL_PREVIEWER_CLIENT_SECRET: "test-preview-secret",
   DRUPAL_VIEWER_CLIENT_ID: "test-viewer-client",
   DRUPAL_VIEWER_CLIENT_SECRET: "test-viewer-secret",
+  NEXT_PUBLIC_API_URL: "https://api.customer-project.localhost",
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_publishable",
   NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: "/",
   NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in",
@@ -208,8 +209,9 @@ const typecheckEnvironment = () => ({
   NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT: "test",
   NEXT_PUBLIC_POSTHOG_HOST: "https://posthog.example.com",
   NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
-  NEXT_PUBLIC_WEB_URL: "http://localhost:3001",
-  NEXT_PUBLIC_WORKOS_REDIRECT_URI: "http://localhost:3001/api/auth/callback",
+  NEXT_PUBLIC_WEB_URL: "https://web.customer-project.localhost",
+  NEXT_PUBLIC_WORKOS_REDIRECT_URI:
+    "https://web.customer-project.localhost/api/auth/callback",
   REGISTRATION_APPROVER_EMAIL: "approver@example.com",
   RESEND_FROM: "test@example.com",
   RESEND_TOKEN: "re_test",
@@ -434,7 +436,49 @@ describe("scaffold composition", () => {
         "version:cli",
       ].filter((name) => packageJson.scripts?.[name] !== undefined);
       expect(maintainerScripts).toStrictEqual([]);
-      expect(packageJson.devDependencies?.["@changesets/cli"]).toBeUndefined();
+
+      const [
+        apiPackageJson,
+        rootPortlessConfigExists,
+        webEnvironment,
+        webPackageJson,
+      ] = await Promise.all([
+        readJsonFile<{
+          portless?: { name?: string; script?: string };
+        }>(path.join(target, "apps/api/package.json")),
+        pathExists(path.join(target, "portless.json")),
+        readFile(path.join(target, "apps/web/.env.example"), "utf-8"),
+        readJsonFile<{
+          portless?: { name?: string; script?: string };
+        }>(path.join(target, "apps/web/package.json")),
+      ]);
+      expect({
+        apiPackagePortless: apiPackageJson.portless,
+        changesetsDependency: packageJson.devDependencies?.["@changesets/cli"],
+        portlessDependency: packageJson.devDependencies?.portless,
+        rootPortlessConfigExists,
+        webEnvironmentHasMaintainerHostname: webEnvironment.includes(
+          "next-hydra.localhost"
+        ),
+        webEnvironmentHasProjectHostname: webEnvironment.includes(
+          'NEXT_PUBLIC_WEB_URL="https://web.customer-release-project.localhost"'
+        ),
+        webPackagePortless: webPackageJson.portless,
+      }).toStrictEqual({
+        apiPackagePortless: {
+          name: "api.customer-release-project",
+          script: "dev:app",
+        },
+        changesetsDependency: undefined,
+        portlessDependency: "0.15.6",
+        rootPortlessConfigExists: false,
+        webEnvironmentHasMaintainerHostname: false,
+        webEnvironmentHasProjectHostname: true,
+        webPackagePortless: {
+          name: "web.customer-release-project",
+          script: "dev:app",
+        },
+      });
 
       await rm(target, { force: true, recursive: true });
     },

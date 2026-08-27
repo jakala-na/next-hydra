@@ -12,7 +12,7 @@ pnpm dev
 yarn dev
 ```
 
-Open http://localhost:3000 with your browser to see the result.
+Open https://docs.next-hydra.localhost with your browser to see the result.
 
 ## Explore
 

@@ -92,5 +92,8 @@ packages/
 
 ```bash
 pnpm install
+pnpm exec portless trust
 pnpm dev
 ```
+
+Local HTTP applications run through Portless with stable HTTPS origins and worktree-aware routing. See [Portless local development](docs/development/portless.md) for application URLs, certificate setup, direct package fallbacks, auth callback handling, and the API-only ngrok workflow.

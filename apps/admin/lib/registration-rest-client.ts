@@ -22,10 +22,7 @@ const resolveApiBaseUrl = (baseUrl?: string) => {
 
   return Effect.promise(async () => {
     const { env } = await import("@/env");
-    return (env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002").replace(
-      TRAILING_SLASH_PATTERN,
-      ""
-    );
+    return env.NEXT_PUBLIC_API_URL.replace(TRAILING_SLASH_PATTERN, "");
   });
 };
 

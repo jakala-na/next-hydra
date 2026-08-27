@@ -1,11 +1,16 @@
 {
   "name": "admin",
   "private": true,
+  "portless": {
+    "name": "admin.next-hydra",
+    "script": "dev:app"
+  },
   "scripts": {
     "analyze": "ANALYZE=true npm run build",
     "build": "NODE_USE_SYSTEM_CA=1 next build --turbopack",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "dev": "NODE_USE_SYSTEM_CA=1 next dev -p 3005 --turbopack",
+    "dev": "portless",
+    "dev:app": "NODE_USE_SYSTEM_CA=1 next dev --turbopack",
     "start": "NODE_USE_SYSTEM_CA=1 next start",
     "test": "vitest run",
     "typecheck": "next typegen && pnpm --workspace-root exec tsc --noEmit --project apps/admin/tsconfig.json"
