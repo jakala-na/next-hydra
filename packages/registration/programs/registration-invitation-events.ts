@@ -41,11 +41,15 @@ const resumeApprovedRegistrationInvitation = Effect.fn(
       registrationId: registration.id,
       status: "accepted",
     });
-    return;
+  } else {
+    const workflow = yield* RegistrationWorkflow;
+    const { invitationId } = registration;
+    yield* invitationId === undefined
+      ? Effect.die(
+          new Error(`Registration ${registration.id} has no issued invitation`)
+        )
+      : workflow.resumeInvitation(invitationId, event);
   }
-
-  const workflow = yield* RegistrationWorkflow;
-  yield* workflow.resumeInvitation(registration.invitationId, event);
 });
 
 export const resumeRegistrationInvitationForRegistration = Effect.fn(

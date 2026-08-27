@@ -39,6 +39,51 @@ export interface RemoveCommerceCompanyMemberInput {
   readonly expectedRevision: CommerceCompanyMembershipRevision;
 }
 
+export class CommerceCompanyMemberRemainingMembership extends Schema.Class<CommerceCompanyMemberRemainingMembership>(
+  "CommerceCompanyMemberRemainingMembership"
+)({
+  businessUnitId: CommerceBusinessUnitId,
+  roles: CompanyRoles,
+}) {}
+
+export class DeletedCommerceCompanyMemberRemoval extends Schema.Class<DeletedCommerceCompanyMemberRemoval>(
+  "DeletedCommerceCompanyMemberRemoval"
+)({
+  customerDisposition: Schema.Literal("deleted"),
+}) {}
+
+export class RetainedCommerceCompanyMemberRemoval extends Schema.Class<RetainedCommerceCompanyMemberRemoval>(
+  "RetainedCommerceCompanyMemberRemoval"
+)({
+  customerDisposition: Schema.Literal("retained"),
+  remainingMembership: CommerceCompanyMemberRemainingMembership,
+}) {}
+
+export const CommerceCompanyMemberRemoval = Schema.Union([
+  DeletedCommerceCompanyMemberRemoval,
+  RetainedCommerceCompanyMemberRemoval,
+]);
+export type CommerceCompanyMemberRemoval =
+  typeof CommerceCompanyMemberRemoval.Type;
+
+const removalForRemainingMember = (
+  member: CommerceCompanyMember | undefined
+) => {
+  if (member === undefined) {
+    return new DeletedCommerceCompanyMemberRemoval({
+      customerDisposition: "deleted",
+    });
+  }
+
+  return new RetainedCommerceCompanyMemberRemoval({
+    customerDisposition: "retained",
+    remainingMembership: new CommerceCompanyMemberRemainingMembership({
+      businessUnitId: member.businessUnitId,
+      roles: member.roles,
+    }),
+  });
+};
+
 export interface CommerceCompanyMembershipsMemoryInput {
   readonly rosters?: readonly CommerceCompanyMembershipRoster[];
 }
@@ -55,8 +100,14 @@ export class CommerceCompanyMemberships extends Context.Service<
     readonly removeMember: (
       input: RemoveCommerceCompanyMemberInput
     ) => Effect.Effect<
-      void,
+      CommerceCompanyMemberRemoval,
       CommerceAccountUnavailable | CommerceCompanyMembershipChanged
+    >;
+    readonly reconcileCustomerDisposition: (
+      customerId: CommerceCustomerId
+    ) => Effect.Effect<
+      CommerceCompanyMemberRemoval,
+      CommerceAccountUnavailable
     >;
   }
 >()("@repo/commerce/CommerceCompanyMemberships") {
@@ -83,8 +134,18 @@ export class CommerceCompanyMemberships extends Context.Service<
                   })
               )
             ),
+          reconcileCustomerDisposition: (customerId) =>
+            SynchronizedRef.get(state).pipe(
+              Effect.map((current) => {
+                const remainingMember = [...current.values()]
+                  .flatMap((candidate) => candidate.members)
+                  .find((member) => member.customerId === customerId);
+
+                return removalForRemainingMember(remainingMember);
+              })
+            ),
           removeMember: (input) =>
-            SynchronizedRef.updateEffect(state, (current) => {
+            SynchronizedRef.modifyEffect(state, (current) => {
               const roster =
                 current.get(input.businessUnitId) ??
                 new CommerceCompanyMembershipRoster({
@@ -128,9 +189,15 @@ export class CommerceCompanyMemberships extends Context.Service<
                   `${roster.revision}:next`
                 ),
               });
-              return Effect.succeed(
-                new Map(current).set(input.businessUnitId, next)
-              );
+              const updated = new Map(current).set(input.businessUnitId, next);
+              const remainingMember = [...updated.values()]
+                .flatMap((candidate) => candidate.members)
+                .find(({ customerId }) => customerId === input.customerId);
+
+              return Effect.succeed([
+                removalForRemainingMember(remainingMember),
+                updated,
+              ] as const);
             }),
         });
       })

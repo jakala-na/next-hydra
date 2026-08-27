@@ -240,6 +240,8 @@
           "sending": "Enviando...",
           "successTitle": "Invitación enviada",
           "successDescription": "Se envió una invitación a {email}.",
+          "memberAddedTitle": "Usuario añadido",
+          "memberAddedDescription": "{email} ya tenía una cuenta y se añadió a tu empresa.",
           "failureTitle": "Invitación no enviada"
         },
         "management": {
@@ -272,7 +274,10 @@
         "InputInvalidRoles": "Selecciona al menos un rol de empresa.",
         "InvitationPolicyError": "Solo un administrador de la empresa puede invitar usuarios.",
         "InvitationConflict": "No se puede invitar a este usuario.",
+        "CommerceCustomerEmailConflict": "Ese correo pertenece a otro cliente de comercio.",
+        "CustomerAccountIdentityLookupFailure": "El directorio de identidades no está disponible temporalmente. Inténtalo de nuevo.",
         "InvitationProviderFailure": "No se pudo completar la operación de invitación. Inténtalo de nuevo.",
+        "IdentityMembershipProjectionFailure": "No se pudo sincronizar la membresía de la empresa. Inténtalo de nuevo.",
         "InvitationIssueOutcomeUnknown": "Es posible que se haya enviado la invitación, pero no se pudo confirmar el resultado. No vuelvas a enviarla.",
         "CustomerAccountProfileIncomplete": "Tu perfil necesita un correo electrónico.",
         "CommerceRequestContextNotFound": "La cuenta de empresa actual no está disponible.",
@@ -284,7 +289,8 @@
         "InvitationExpired": "Esta invitación ha caducado. Actualiza la lista de miembros para volver a emitirla.",
         "InvitationNotFound": "El proveedor de identidad ya no tiene esta invitación. Actualiza la lista de miembros.",
         "CompanyMemberRemovalConflict": "Este miembro no se puede eliminar en el estado actual de la empresa. Actualiza e inténtalo de nuevo.",
-        "CompanyMemberManagementForbidden": "Solo un administrador de la empresa puede gestionar miembros."
+        "CompanyMemberManagementForbidden": "Solo un administrador de la empresa puede gestionar miembros.",
+        "CompanyMemberRemovalPersistenceFailure": "No se pudo guardar la eliminación del miembro de la empresa. Inténtalo de nuevo."
       }
     },
     "checkout": {

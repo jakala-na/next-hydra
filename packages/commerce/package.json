@@ -49,6 +49,7 @@
     "./services/carts": "./services/carts.ts",
     "./services/commerce-accounts": "./services/commerce-accounts.ts",
     "./services/commerce-company-memberships": "./services/commerce-company-memberships.ts",
+    "./services/company-member-removal-records": "./services/company-member-removal-records.ts",
     "./services/commerce-context": "./services/commerce-context.ts",
     "./services/customer-account-members": "./services/customer-account-members.ts",
     "./services/current-cart": "./services/current-cart.ts",

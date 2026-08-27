@@ -21,12 +21,15 @@ import {
   CommerceCompanyMembershipRevision,
   CommerceCompanyMembershipRoster,
   CommerceCompanyMemberships,
+  DeletedCommerceCompanyMemberRemoval,
 } from "../services/commerce-company-memberships";
 import { CommerceContext } from "../services/commerce-context";
+import { CompanyMemberRemovalRecords } from "../services/company-member-removal-records";
 import {
   CustomerAccountCompanyMemberInvitationId,
   CustomerAccountInvitationListItem,
   CustomerAccountMembers,
+  IdentityMembershipProjectionFailure,
   InvitationIssueOutcomeUnknown,
   InvitationProviderFailure,
 } from "../services/customer-account-members";
@@ -51,7 +54,9 @@ const layer = (
     cancelInvitation: () => Effect.die("not used"),
     invite: () => Effect.die("not used"),
     listInvitations: () => Effect.succeed([]),
+    projectMemberIdentity: () => Effect.void,
     reissueInvitation: () => Effect.die("not used"),
+    removeMemberIdentity: () => Effect.void,
   })
 ) => {
   const principal = new CustomerCommercePrincipal({
@@ -95,6 +100,7 @@ const layer = (
   return Layer.mergeAll(
     Layer.succeed(CommerceContext, context),
     Layer.succeed(CommerceAccounts, accounts),
+    CompanyMemberRemovalRecords.layerMemory,
     membershipsLayer,
     Layer.succeed(CustomerAccountMembers, members)
   );
@@ -147,7 +153,9 @@ describe("customer account programs", () => {
               status: "accepted",
             }),
           ]),
+        projectMemberIdentity: () => Effect.void,
         reissueInvitation: () => Effect.die("not used"),
+        removeMemberIdentity: () => Effect.void,
       });
 
       return Effect.gen(function* () {
@@ -220,7 +228,9 @@ describe("customer account programs", () => {
               status: "accepted",
             }),
           ]),
+        projectMemberIdentity: () => Effect.void,
         reissueInvitation: () => Effect.die("not used"),
+        removeMemberIdentity: () => Effect.void,
       });
 
       return Effect.gen(function* () {
@@ -293,8 +303,203 @@ describe("customer account programs", () => {
   });
 
   it.effect(
+    "retries final customer retirement after the membership is already absent",
+    () =>
+      Effect.gen(function* () {
+        const retiredCustomerId = CommerceCustomerId.make("customer-member-1");
+        const reconciliations = yield* Ref.make<CommerceCustomerId[]>([]);
+        const memberships = CommerceCompanyMemberships.of({
+          getRoster: () =>
+            Effect.succeed(
+              new CommerceCompanyMembershipRoster({
+                businessUnitId,
+                members: [],
+                revision: CommerceCompanyMembershipRevision.make("2"),
+              })
+            ),
+          reconcileCustomerDisposition: (candidateCustomerId) =>
+            Ref.update(reconciliations, (current) => [
+              ...current,
+              candidateCustomerId,
+            ]).pipe(
+              Effect.as(
+                new DeletedCommerceCompanyMemberRemoval({
+                  customerDisposition: "deleted",
+                })
+              )
+            ),
+          removeMember: () => Effect.die("membership is already absent"),
+        });
+
+        yield* Effect.gen(function* () {
+          const removalRecords = yield* CompanyMemberRemovalRecords;
+          yield* removalRecords.begin({
+            authUserId: AuthUserId.make("auth-member-1"),
+            businessUnitId,
+            customerId: retiredCustomerId,
+          });
+          yield* removeCompanyMember(retiredCustomerId);
+        }).pipe(
+          Effect.provide(
+            layer(
+              ["admin", "buyer"],
+              Layer.succeed(CommerceCompanyMemberships, memberships)
+            )
+          )
+        );
+
+        expect(yield* Ref.get(reconciliations)).toStrictEqual([
+          retiredCustomerId,
+        ]);
+      })
+  );
+
+  it.effect(
+    "does not reconcile an absent member without a removal receipt",
+    () =>
+      Effect.gen(function* () {
+        const reconciliations = yield* Ref.make(0);
+        const memberships = CommerceCompanyMemberships.of({
+          getRoster: () =>
+            Effect.succeed(
+              new CommerceCompanyMembershipRoster({
+                businessUnitId,
+                members: [],
+                revision: CommerceCompanyMembershipRevision.make("2"),
+              })
+            ),
+          reconcileCustomerDisposition: () =>
+            Ref.update(reconciliations, (count) => count + 1).pipe(
+              Effect.as(
+                new DeletedCommerceCompanyMemberRemoval({
+                  customerDisposition: "deleted",
+                })
+              )
+            ),
+          removeMember: () => Effect.die("member is absent"),
+        });
+
+        const failure = yield* removeCompanyMember(
+          CommerceCustomerId.make("unrelated-customer")
+        ).pipe(
+          Effect.flip,
+          Effect.provide(
+            layer(
+              ["admin", "buyer"],
+              Layer.succeed(CommerceCompanyMemberships, memberships)
+            )
+          )
+        );
+
+        expect(failure._tag).toBe("CompanyMemberRemovalConflict");
+        expect(yield* Ref.get(reconciliations)).toBe(0);
+      })
+  );
+
+  it.effect(
+    "retries final identity cleanup from the durable removal receipt",
+    () =>
+      Effect.gen(function* () {
+        const target = new CommerceCompanyMember({
+          authUserId: "auth-member-1",
+          businessUnitId,
+          customerId: CommerceCustomerId.make("customer-member-1"),
+          directlyAssociated: true,
+          email: Redacted.make("member@example.com", { label: "email" }),
+          inheritedRoles: [],
+          roles: ["buyer"],
+        });
+        const administrator = new CommerceCompanyMember({
+          authUserId: "auth-user-1",
+          businessUnitId,
+          customerId,
+          directlyAssociated: true,
+          email: Redacted.make("administrator@example.com", { label: "email" }),
+          inheritedRoles: [],
+          roles: ["admin"],
+        });
+        const removed = yield* Ref.make(false);
+        const projectionAttempts = yield* Ref.make(0);
+        const memberships = CommerceCompanyMemberships.of({
+          getRoster: () =>
+            Ref.get(removed).pipe(
+              Effect.map(
+                (isRemoved) =>
+                  new CommerceCompanyMembershipRoster({
+                    businessUnitId,
+                    members: isRemoved
+                      ? [administrator]
+                      : [administrator, target],
+                    revision: CommerceCompanyMembershipRevision.make(
+                      isRemoved ? "2" : "1"
+                    ),
+                  })
+              )
+            ),
+          reconcileCustomerDisposition: () =>
+            Effect.succeed(
+              new DeletedCommerceCompanyMemberRemoval({
+                customerDisposition: "deleted",
+              })
+            ),
+          removeMember: () =>
+            Ref.set(removed, true).pipe(
+              Effect.as(
+                new DeletedCommerceCompanyMemberRemoval({
+                  customerDisposition: "deleted",
+                })
+              )
+            ),
+        });
+        const members = CustomerAccountMembers.of({
+          cancelInvitation: () => Effect.die("not used"),
+          invite: () => Effect.die("not used"),
+          listInvitations: () => Effect.succeed([]),
+          projectMemberIdentity: () => Effect.void,
+          reissueInvitation: () => Effect.die("not used"),
+          removeMemberIdentity: () =>
+            Ref.getAndUpdate(projectionAttempts, (count) => count + 1).pipe(
+              Effect.flatMap((count) =>
+                count === 0
+                  ? Effect.fail(
+                      new IdentityMembershipProjectionFailure({
+                        cause: new Error("provider unavailable"),
+                        message: "Identity membership projection unavailable",
+                        operation: "remove",
+                        reason: "unavailable",
+                      })
+                    )
+                  : Effect.void
+              )
+            ),
+        });
+        const retryLayer = layer(
+          ["admin"],
+          Layer.succeed(CommerceCompanyMemberships, memberships),
+          members
+        );
+
+        const firstFailure = yield* Effect.gen(function* () {
+          const failure = yield* removeCompanyMember(target.customerId).pipe(
+            Effect.flip
+          );
+          yield* removeCompanyMember(target.customerId);
+          return failure;
+        }).pipe(Effect.provide(retryLayer));
+
+        expect(firstFailure._tag).toBe("IdentityMembershipProjectionFailure");
+        expect(yield* Ref.get(projectionAttempts)).toBe(2);
+      })
+  );
+
+  it.effect(
     "retains inherited membership after removing the direct association",
     () => {
+      const projectedMemberships: {
+        readonly authUserId: AuthUserId;
+        readonly businessUnitId: CommerceBusinessUnitId;
+        readonly roles: CompanyRoles;
+      }[] = [];
       const member = new CommerceCompanyMember({
         authUserId: "auth-member-1",
         businessUnitId,
@@ -322,6 +527,17 @@ describe("customer account programs", () => {
           }),
         ],
       });
+      const members = CustomerAccountMembers.of({
+        cancelInvitation: () => Effect.die("not used"),
+        invite: () => Effect.die("not used"),
+        listInvitations: () => Effect.succeed([]),
+        projectMemberIdentity: (input) =>
+          Effect.sync(() => {
+            projectedMemberships.push(input);
+          }),
+        reissueInvitation: () => Effect.die("not used"),
+        removeMemberIdentity: () => Effect.die("not used"),
+      });
 
       return Effect.gen(function* () {
         yield* removeCompanyMember(member.customerId);
@@ -335,7 +551,14 @@ describe("customer account programs", () => {
           inheritedRoles: ["approver"],
           roles: ["approver"],
         });
-      }).pipe(Effect.provide(layer(["admin"], membershipsLayer)));
+        expect(projectedMemberships).toStrictEqual([
+          {
+            authUserId: member.authUserId,
+            businessUnitId,
+            roles: ["approver"],
+          },
+        ]);
+      }).pipe(Effect.provide(layer(["admin"], membershipsLayer, members)));
     }
   );
 
@@ -416,6 +639,7 @@ describe("customer account programs", () => {
                   })
               )
             ),
+          reconcileCustomerDisposition: () => Effect.die("not used"),
           removeMember: () =>
             Ref.update(removals, (count) => count + 1).pipe(
               Effect.andThen(
@@ -467,6 +691,7 @@ describe("customer account programs", () => {
           ),
         invite: () => Effect.die("not used"),
         listInvitations: () => Effect.succeed([]),
+        projectMemberIdentity: () => Effect.void,
         reissueInvitation: () =>
           Effect.fail(
             new InvitationIssueOutcomeUnknown({
@@ -474,6 +699,7 @@ describe("customer account programs", () => {
               message: "Provider response was lost",
             })
           ),
+        removeMemberIdentity: () => Effect.void,
       });
 
       return Effect.gen(function* () {

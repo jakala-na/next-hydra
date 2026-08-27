@@ -33,16 +33,28 @@ import {
   CommerceCompanyMemberships,
 } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
+import { CompanyMemberRemovalRecords } from "@repo/commerce/services/company-member-removal-records";
 import { CommerceLocale, resolveStore } from "@repo/commerce/store";
 import {
   CompanyInvitationPolicy,
+  CompanyMemberIdentityProjection,
   CompanyMemberInvitationRecords,
   CompanyMemberInvitations,
   InvitationDeliveries,
+  IdentityUsers,
   customerAccountMembersLayer,
 } from "@repo/registration";
 import { Effect, Layer, ManagedRuntime, Redacted } from "effect";
 import { describe, expect, it, vi } from "vitest";
+
+const identityProjectionLayer = Layer.succeed(
+  CompanyMemberIdentityProjection,
+  CompanyMemberIdentityProjection.of({
+    projectAcceptedInvitation: () => Effect.void,
+    projectMembership: () => Effect.void,
+    removeMembership: () => Effect.void,
+  })
+);
 
 const inviteeEmail = "new.user@example.com";
 
@@ -313,13 +325,20 @@ describe("customer-account provider composition", () => {
             Layer.succeed(CompanyMemberInvitations, provider.invitations),
             Layer.succeed(InvitationDeliveries, provider.deliveries),
             recordsLayer,
-            CommerceAccounts.layerMemory
+            CommerceAccounts.layerMemory,
+            identityProjectionLayer,
+            IdentityUsers.layerMemory
           )
         ),
         Layer.provide(CompanyInvitationPolicy.layer)
       );
       const runtime = ManagedRuntime.make(
-        Layer.mergeAll(membersLayer, recordsLayer, membershipLayer)
+        Layer.mergeAll(
+          membersLayer,
+          recordsLayer,
+          membershipLayer,
+          CompanyMemberRemovalRecords.layerMemory
+        )
       );
       const actions = ActionClient.make(runtime)
         .use(
@@ -345,6 +364,7 @@ describe("customer-account provider composition", () => {
         success: {
           invitationId: provider.invitationId,
           inviteeEmail,
+          outcome: "invitation_sent",
         },
       });
       provider.assertIssued();

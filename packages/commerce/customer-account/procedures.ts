@@ -13,8 +13,12 @@ import {
 import type { CommerceActionClient } from "../runtime";
 import type { CommerceCompanyMemberships } from "../services/commerce-company-memberships";
 import type { CommerceContext } from "../services/commerce-context";
+import type { CompanyMemberRemovalRecords } from "../services/company-member-removal-records";
 import type { CustomerAccountMembers } from "../services/customer-account-members";
-import { CustomerAccountCompanyMemberInvitationId } from "../services/customer-account-members";
+import {
+  CustomerAccountCompanyMemberInvitationId,
+  CustomerAccountMemberInvitation,
+} from "../services/customer-account-members";
 import type {
   IssueCompanyMemberExpectedFailure,
   ManageCompanyMemberExpectedFailure,
@@ -156,7 +160,10 @@ export const makeCustomerAccountProcedures = <
 >(
   actions: CommerceActionClient<
     CommerceContext,
-    CommerceCompanyMemberships | RuntimeServices | CustomerAccountMembers,
+    | CommerceCompanyMemberships
+    | CompanyMemberRemovalRecords
+    | RuntimeServices
+    | CustomerAccountMembers,
     Context
   >
 ) => ({
@@ -181,13 +188,20 @@ export const makeCustomerAccountProcedures = <
     .mapError<IssueCompanyMemberExpectedFailure>(projectExpectedFailure)
     .handle((input) =>
       issueCompanyMemberInvitation(input).pipe(
-        Effect.map(
-          (invitation) =>
-            new InviteCompanyMemberSuccess({
-              invitationId: invitation.invitationId,
-              inviteeEmail: Redacted.value(invitation.inviteeEmail),
-            })
-        )
+        Effect.map((result) => {
+          if (Schema.is(CustomerAccountMemberInvitation)(result)) {
+            return new InviteCompanyMemberSuccess({
+              invitationId: result.invitationId,
+              inviteeEmail: Redacted.value(result.inviteeEmail),
+              outcome: "invitation_sent",
+            });
+          }
+
+          return new InviteCompanyMemberSuccess({
+            inviteeEmail: Redacted.value(result.inviteeEmail),
+            outcome: "member_added",
+          });
+        })
       )
     ),
   reissueCompanyMemberInvitationProcedure: actions

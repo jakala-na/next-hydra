@@ -43,9 +43,12 @@ import type {
 } from "@repo/commerce/services/commerce-accounts";
 import {
   CommerceCompanyMembershipChanged,
+  CommerceCompanyMemberRemainingMembership,
   CommerceCompanyMembershipRevision,
   CommerceCompanyMembershipRoster,
   CommerceCompanyMemberships,
+  DeletedCommerceCompanyMemberRemoval,
+  RetainedCommerceCompanyMemberRemoval,
 } from "@repo/commerce/services/commerce-company-memberships";
 import type { StoreKey } from "@repo/commerce/store";
 import { Effect, Layer, Redacted, Schema } from "effect";
@@ -214,6 +217,12 @@ const customerFirstName = (identity: AcceptedCommerceIdentity) =>
 const customerLastName = (identity: AcceptedCommerceIdentity) =>
   Redacted.value(identity.lastName);
 
+const toCommerceCustomerId = (customer: Customer) =>
+  CommerceCustomerId.make(customer.id);
+
+const toCommerceBusinessUnitId = (businessUnit: BusinessUnit) =>
+  CommerceBusinessUnitId.make(businessUnit.id);
+
 const registrationStore = (registration: CommerceAccountRegistrationInput) => ({
   key: String(registration.storeKey),
   typeId: "store" as const,
@@ -283,6 +292,32 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
           .execute();
         return response.body;
       }
+    );
+
+  const findCustomerById = (commerceCustomerId: CommerceCustomerId) =>
+    Effect.tryPromise({
+      catch: (cause) =>
+        new CommercetoolsRequestFailure({
+          cause,
+          message: "Failed to read Commercetools customer",
+        }),
+      try: async () => {
+        const response = await apiRoot
+          .customers()
+          .withId({ ID: String(commerceCustomerId) })
+          .get()
+          .execute();
+        return response.body;
+      },
+    }).pipe(
+      Effect.catch((error) =>
+        isNotFoundError(error)
+          ? Effect.succeed(null)
+          : failAccountRequest(
+              "Failed to read Commercetools customer",
+              commercetoolsFailureCause(error)
+            )
+      )
     );
 
   const queryFirstCustomer = (where: string) =>
@@ -388,6 +423,27 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
     `associates(customer(id=${JSON.stringify(String(customerId))})) or inheritedAssociates(customer(id=${JSON.stringify(String(customerId))}))`;
 
   const BUSINESS_UNIT_PAGE_SIZE = 500;
+
+  const findAnyBusinessUnitMembership = Effect.fn(
+    "CommercetoolsCommerceAccounts.findAnyBusinessUnitMembership"
+  )((customerId: CommerceCustomerId) =>
+    commerceAccountRequest(
+      "Failed to check Commercetools Business Unit memberships",
+      async () => {
+        const response = await apiRoot
+          .businessUnits()
+          .get({
+            queryArgs: {
+              limit: 1,
+              where: businessUnitForCustomerPredicate(customerId),
+            },
+          })
+          .execute();
+
+        return response.body.results[0] ?? null;
+      }
+    )
+  );
 
   const listBusinessUnitMembershipsForCustomerInStore = Effect.fn(
     "CommercetoolsCommerceAccounts.listBusinessUnitMembershipsForCustomerInStore"
@@ -629,12 +685,6 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
     );
   };
 
-  const toCommerceCustomerId = (customer: Customer) =>
-    CommerceCustomerId.make(customer.id);
-
-  const toCommerceBusinessUnitId = (businessUnit: BusinessUnit) =>
-    CommerceBusinessUnitId.make(businessUnit.id);
-
   const syncCustomerIdentity = (
     customer: Customer,
     input: {
@@ -712,11 +762,7 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
   const isAcceptedIdentityCustomer = (
     customer: Customer,
     identity: AcceptedCommerceIdentity
-  ) =>
-    customer.key === customerKeyFromAcceptedIdentity(identity) &&
-    customer.externalId === authUserId(identity) &&
-    normalizedCustomerEmail(customer.email) ===
-      normalizedCustomerEmail(identity.email);
+  ) => customer.externalId === authUserId(identity);
 
   const validateAcceptedIdentityCustomer = (
     customer: Customer,
@@ -748,9 +794,15 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
       return null;
     });
 
-  const ensureAcceptedIdentityCustomer = (identity: AcceptedCommerceIdentity) =>
+  const ensureAcceptedIdentityCustomer = (
+    identity: AcceptedCommerceIdentity,
+    knownCustomer?: Customer | null
+  ) =>
     Effect.gen(function* () {
-      const existing = yield* findAcceptedIdentityCustomer(identity);
+      const existing =
+        knownCustomer === undefined
+          ? yield* findAcceptedIdentityCustomer(identity)
+          : knownCustomer;
       const customer =
         existing ??
         (yield* createCustomerFromAcceptedIdentity(identity).pipe(
@@ -781,6 +833,90 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
         ));
 
       return yield* syncCustomerIdentity(customer, {
+        acceptedIdentity: identity,
+      });
+    });
+
+  const deleteCustomer = (customer: Customer) =>
+    retryVersionedWrite({
+      attempt: (current: Customer) =>
+        commercetoolsRequest(
+          "Failed to delete orphaned Commercetools customer",
+          async () => {
+            await apiRoot
+              .customers()
+              .withId({ ID: current.id })
+              .delete({ queryArgs: { version: current.version } })
+              .execute();
+          }
+        ),
+      input: customer,
+      operation: "commerceAccount.customer.deleteOrphan",
+      resolveConflict: (conflict, current) =>
+        Effect.succeed(
+          new RetryVersionedWrite({
+            ...current,
+            version: conflict.currentVersion,
+          })
+        ),
+    }).pipe(
+      Effect.catch((error) =>
+        isNotFoundError(error)
+          ? Effect.void
+          : failAccountRequest(
+              "Failed to delete orphaned Commercetools customer",
+              commercetoolsFailureCause(error)
+            )
+      )
+    );
+
+  const replaceOrphanedCustomer = (
+    customer: Customer,
+    identity: AcceptedCommerceIdentity
+  ) =>
+    Effect.gen(function* () {
+      yield* deleteCustomer(customer);
+
+      const replacement = yield* createCustomerFromAcceptedIdentity(
+        identity
+      ).pipe(
+        Effect.catchTag("CommercetoolsRequestFailure", (failure) => {
+          if (
+            hasCommercetoolsErrorCode(
+              failure.cause,
+              "DuplicateField",
+              "DuplicateFieldWithConflictingResource"
+            )
+          ) {
+            return findAcceptedIdentityCustomer(identity).pipe(
+              Effect.flatMap((recovered) =>
+                recovered === null
+                  ? Effect.die(
+                      new Error(
+                        "Commercetools reported a duplicate replacement customer without exposing it",
+                        { cause: failure.cause }
+                      )
+                    )
+                  : Effect.succeed(recovered)
+              )
+            );
+          }
+
+          return failAccountRequest(failure.message, failure.cause);
+        })
+      );
+
+      if (replacement.id === customer.id) {
+        return yield* new CommerceAccountUnavailable({
+          cause: new Error(
+            "The retired Commercetools customer is still visible to identity lookup"
+          ),
+          message:
+            "Commercetools has not made the replacement customer available yet",
+        });
+      }
+
+      return yield* syncCustomerIdentity(replacement, {
         acceptedIdentity: identity,
       });
     });
@@ -923,12 +1059,46 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
   const accounts = CommerceAccounts.of({
     addAssociate: Effect.fn("CommercetoolsCommerceAccounts.addAssociate")(
       function* (input) {
-        const customer = yield* ensureAcceptedIdentityCustomer(
+        const existingCustomer = yield* findAcceptedIdentityCustomer(
           input.acceptedIdentity
         );
+        const discoveredCustomer =
+          existingCustomer ??
+          (yield* ensureAcceptedIdentityCustomer(
+            input.acceptedIdentity,
+            existingCustomer
+          ));
         const businessUnit = yield* getBusinessUnitById(input.businessUnitId);
+        const directlyAssociated =
+          existingCustomer !== null &&
+          businessUnit.associates?.some(
+            (associate) => associate.customer.id === existingCustomer.id
+          );
 
-        yield* ensureBusinessUnitAssociate({
+        const customer = yield* Effect.gen(function* () {
+          if (existingCustomer === null) {
+            return discoveredCustomer;
+          }
+          if (directlyAssociated) {
+            return yield* syncCustomerIdentity(existingCustomer, {
+              acceptedIdentity: input.acceptedIdentity,
+            });
+          }
+
+          const remainingMembership = yield* findAnyBusinessUnitMembership(
+            toCommerceCustomerId(existingCustomer)
+          );
+          if (remainingMembership !== null) {
+            return yield* claimedCustomerConflict();
+          }
+
+          return yield* replaceOrphanedCustomer(
+            existingCustomer,
+            input.acceptedIdentity
+          );
+        });
+
+        const associatedBusinessUnit = yield* ensureBusinessUnitAssociate({
           businessUnit,
           customer,
           roles: input.roles,
@@ -938,7 +1108,27 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
           authUserId: input.acceptedIdentity.authUserId,
           businessUnitId: input.businessUnitId,
           customerId: toCommerceCustomerId(customer),
-          roles: input.roles,
+          roles: Schema.decodeUnknownSync(CompanyRoles)([
+            ...new Set([
+              ...directCompanyRolesForCustomer(
+                businessUnit,
+                toCommerceCustomerId(customer)
+              ),
+              ...inheritedCompanyRolesForCustomer(
+                businessUnit,
+                toCommerceCustomerId(customer)
+              ),
+              ...directCompanyRolesForCustomer(
+                associatedBusinessUnit,
+                toCommerceCustomerId(customer)
+              ),
+              ...inheritedCompanyRolesForCustomer(
+                associatedBusinessUnit,
+                toCommerceCustomerId(customer)
+              ),
+              ...input.roles,
+            ]),
+          ]),
         });
       }
     ),
@@ -991,6 +1181,35 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
       return input.commerceAccount;
     }),
     listBusinessUnitMembershipsForCustomerInStore,
+  });
+
+  const reconcileCustomerDisposition = Effect.fn(
+    "CommercetoolsCommerceCompanyMemberships.reconcileCustomerDisposition"
+  )(function* (customerId: CommerceCustomerId) {
+    const remainingBusinessUnit =
+      yield* findAnyBusinessUnitMembership(customerId);
+    if (remainingBusinessUnit !== null) {
+      return new RetainedCommerceCompanyMemberRemoval({
+        customerDisposition: "retained",
+        remainingMembership: new CommerceCompanyMemberRemainingMembership({
+          businessUnitId: toCommerceBusinessUnitId(remainingBusinessUnit),
+          roles: companyRolesForCustomer(remainingBusinessUnit, customerId),
+        }),
+      });
+    }
+
+    const customer = yield* findCustomerById(customerId);
+    if (customer === null) {
+      return new DeletedCommerceCompanyMemberRemoval({
+        customerDisposition: "deleted",
+      });
+    }
+
+    yield* deleteCustomer(customer);
+
+    return new DeletedCommerceCompanyMemberRemoval({
+      customerDisposition: "deleted",
+    });
   });
 
   const companyMemberships = CommerceCompanyMemberships.of({
@@ -1053,6 +1272,7 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
         });
       }
     ),
+    reconcileCustomerDisposition,
     removeMember: Effect.fn(
       "CommercetoolsCommerceCompanyMemberships.removeMember"
     )(function* (input) {
@@ -1101,6 +1321,8 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
           }
         )
       );
+
+      return yield* reconcileCustomerDisposition(input.customerId);
     }),
   });
 

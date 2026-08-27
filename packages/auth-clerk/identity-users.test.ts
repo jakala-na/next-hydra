@@ -1,5 +1,5 @@
 import { AuthUserId, Email } from "@repo/registration/domain/identity";
-import { Effect, Redacted } from "effect";
+import { Effect, Option, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { authCapabilities } from "./capabilities";
@@ -34,6 +34,11 @@ describe(makeClerkIdentityUsers, () => {
     );
 
     expect(Redacted.value(profile.email)).toBe("ada@example.com");
+    if (profile.firstName === undefined || profile.lastName === undefined) {
+      throw new Error("Expected Clerk profile names");
+    }
+    expect(Redacted.value(profile.firstName)).toBe("Ada");
+    expect(Redacted.value(profile.lastName)).toBe("Lovelace");
     expect(profile.name).toBe("Ada Lovelace");
   });
 
@@ -53,8 +58,13 @@ describe(makeClerkIdentityUsers, () => {
     });
 
     const found = await Effect.runPromise(users.hasUserWithEmail(email));
+    const profile = await Effect.runPromise(users.findByEmail(email));
 
     expect(found).toBeTruthy();
+    expect(Option.getOrUndefined(profile)).toMatchObject({
+      authUserId: "user-1",
+      name: "Ada Lovelace",
+    });
     expect(listInput).toStrictEqual({
       emailAddress: ["ada@example.com"],
       limit: 1,

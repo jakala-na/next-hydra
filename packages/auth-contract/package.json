@@ -8,6 +8,7 @@
     "./access-token": "./access-token.ts",
     "./capabilities": "./capabilities.ts",
     "./cli": "./cli.ts",
+    "./identity-memberships": "./identity-memberships.ts",
     "./invitations": "./invitations.ts",
     "./provisioning": "./provisioning.ts",
     "./session": "./session.ts"

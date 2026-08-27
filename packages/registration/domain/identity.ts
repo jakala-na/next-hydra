@@ -82,6 +82,8 @@ export type CompanyMemberInvitationId = typeof CompanyMemberInvitationId.Type;
 export const IdentityUserProfile = Schema.Struct({
   authUserId: AuthUserId,
   email: RedactedEmail,
+  firstName: Schema.optional(RedactedPersonName),
+  lastName: Schema.optional(RedactedPersonName),
   name: Schema.String,
 });
 export type IdentityUserProfile = typeof IdentityUserProfile.Type;

@@ -252,7 +252,9 @@ export {
 export {
   CompanyMemberIdentityProjection,
   type ProjectAcceptedCompanyMemberIdentityInput,
+  type ProjectCompanyMembershipIdentityInput,
 } from "./services/company-member-identity-projection";
+export { companyMemberRemovalRecordsLayerStorage } from "./services/company-member-removal-records";
 export {
   type AcceptCompanyMemberInvitationRecordInput,
   CompanyMemberInvitationNotFound,

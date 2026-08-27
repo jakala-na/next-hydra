@@ -9,7 +9,7 @@ import {
   RateLimitExceededException,
   UnauthorizedException,
 } from "@workos-inc/node";
-import { Cause, Effect, Layer, Redacted } from "effect";
+import { Cause, Effect, Layer, Option, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { makeWorkosIdentityUsers } from "./identity-users";
@@ -52,8 +52,13 @@ describe(makeWorkosIdentityUsers, () => {
       Effect.gen(function* () {
         const identityUsers = yield* IdentityUsers;
         const exists = yield* identityUsers.hasUserWithEmail(email);
+        const profile = yield* identityUsers.findByEmail(email);
 
         expect(exists).toBeTruthy();
+        expect(Option.getOrUndefined(profile)).toMatchObject({
+          authUserId: "user-1",
+          name: "ada@example.com",
+        });
         expect(listInput).toStrictEqual({
           email: "ada@example.com",
           limit: 1,
@@ -87,6 +92,11 @@ describe(makeWorkosIdentityUsers, () => {
     expect(requestedAuthUserId).toBe("user-1");
     expect(profile.authUserId).toBe("user-1");
     expect(Redacted.value(profile.email)).toBe("reviewer@example.com");
+    if (profile.firstName === undefined || profile.lastName === undefined) {
+      throw new Error("Expected WorkOS profile names");
+    }
+    expect(Redacted.value(profile.firstName)).toBe("Grace");
+    expect(Redacted.value(profile.lastName)).toBe("Hopper");
     expect(profile.name).toBe("Grace Hopper");
   });
 
@@ -164,7 +174,7 @@ describe(makeWorkosIdentityUsers, () => {
     );
 
     expect(failure).toMatchObject({
-      operation: "hasUserWithEmail",
+      operation: "findByEmail",
       reason: "unavailable",
     });
   });
@@ -254,7 +264,7 @@ describe(makeWorkosIdentityUsers, () => {
 
     expect(failure).toBeInstanceOf(IdentityUserLookupFailure);
     expect(failure).toMatchObject({
-      operation: "hasUserWithEmail",
+      operation: "findByEmail",
       reason: "unexpectedResponse",
     });
   });

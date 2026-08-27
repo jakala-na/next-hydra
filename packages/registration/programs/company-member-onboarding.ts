@@ -1,3 +1,4 @@
+import type { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
 import type { InvitationProviderFailure } from "@repo/auth-contract/invitations";
 import { CommerceAssociateMembership } from "@repo/commerce/domain/commerce-account";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
@@ -54,6 +55,7 @@ export type AcceptCompanyMemberInvitationError =
   | CompanyMemberInvitationRecordConflict
   | InvitationConflict
   | InvitationExpired
+  | IdentityMembershipProjectionFailure
   | InvitationProviderFailure;
 
 const normalizedEmail = (email: Redacted.Redacted) =>
@@ -167,6 +169,12 @@ export const acceptCompanyMemberInvitation = (
       acceptedIdentity: accepted.acceptedBy,
       businessUnitId: invitation.intent.businessUnitId,
       roles: invitation.intent.roles,
+    });
+
+    yield* identityProjection.projectMembership({
+      authUserId: accepted.acceptedBy.authUserId,
+      businessUnitId: membership.businessUnitId,
+      roles: membership.roles,
     });
 
     yield* records.markProvisioned({

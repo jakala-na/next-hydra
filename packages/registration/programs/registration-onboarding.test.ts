@@ -1,5 +1,6 @@
 /* oxlint-disable typescript/no-base-to-string -- Redacted domain values deliberately stringify to their protected representation in assertions. */
 import { describe, expect, it } from "@effect/vitest";
+import { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
@@ -46,6 +47,9 @@ import {
   CompanyRegistrationDetails,
 } from "../domain/registration";
 import type { ApprovedRegistration } from "../domain/registration";
+import { CompanyMemberIdentityProjection } from "../services/company-member-identity-projection";
+import type { ProjectCompanyMembershipIdentityInput } from "../services/company-member-identity-projection";
+import { IdentityUsers } from "../services/identity-users";
 import {
   CompanyMemberInvitations,
   invitationCapabilitiesLayerMemory,
@@ -67,7 +71,10 @@ import {
   resumeRegistrationInvitationForInvitation,
   resumeRegistrationInvitationForRegistration,
 } from "./registration-invitation-events";
-import { notifyRegistrationInvitationExpired } from "./registration-notifications";
+import {
+  notifyRegistrationApproved,
+  notifyRegistrationInvitationExpired,
+} from "./registration-notifications";
 import {
   acceptRegistrationInvitation,
   approveRegistration,
@@ -76,11 +83,29 @@ import {
   revokeRegistrationInvitation,
 } from "./registration-onboarding";
 
+const identityProjectionLayer = Layer.succeed(
+  CompanyMemberIdentityProjection,
+  CompanyMemberIdentityProjection.of({
+    projectAcceptedInvitation: () => Effect.void,
+    projectMembership: () => Effect.void,
+    removeMembership: () => Effect.void,
+  })
+);
+
 const layerMemory = Layer.mergeAll(
   Registrations.layerMemory,
   CommerceAccounts.layerMemory,
-  invitationCapabilitiesLayerMemory
+  invitationCapabilitiesLayerMemory,
+  identityProjectionLayer,
+  IdentityUsers.layerMemory
 );
+
+const requiredInvitationId = (registration: ApprovedRegistration) => {
+  if (registration.invitationId === undefined) {
+    throw new Error("Expected registration invitation id");
+  }
+  return registration.invitationId;
+};
 
 const queryLayerFor = (registration: ApprovedRegistration) =>
   RegistrationQueries.layerMemoryFrom([
@@ -157,6 +182,190 @@ const createRegistration = Effect.gen(function* () {
 
 describe("registration onboarding", () => {
   it.effect(
+    "provisions a verified existing identity without an invitation",
+    () => {
+      const submittedAuthUserId = AuthUserId.make("auth-existing-1");
+      const projected: AuthUserId[] = [];
+      const directProjectionLayer = Layer.succeed(
+        CompanyMemberIdentityProjection,
+        CompanyMemberIdentityProjection.of({
+          projectAcceptedInvitation: () => Effect.void,
+          projectMembership: (input) =>
+            Effect.sync(() => {
+              projected.push(input.authUserId);
+            }),
+          removeMembership: () => Effect.void,
+        })
+      );
+      const directLayer = Layer.mergeAll(
+        Registrations.layerMemory,
+        CommerceAccounts.layerMemory,
+        invitationCapabilitiesLayerMemory,
+        directProjectionLayer,
+        IdentityUsers.layerMemoryFrom(
+          [],
+          [
+            {
+              authUserId: submittedAuthUserId,
+              email: details.email,
+              firstName: Redacted.make(PersonName.make("Grace"), {
+                label: "personName",
+              }),
+              lastName: Redacted.make(PersonName.make("Hopper"), {
+                label: "personName",
+              }),
+              name: "Grace Hopper",
+            },
+          ]
+        )
+      );
+
+      return Effect.gen(function* () {
+        const registrations = yield* Registrations;
+        const registration = yield* registrations.createAwaitingApproval({
+          details,
+          storeKey: StoreKey.make("default-store"),
+          submittedByAuthUserId: AuthUserId.make("auth-existing-1"),
+        });
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+        const accounts = yield* CommerceAccounts;
+        const customerId = yield* accounts.getCustomerIdByAuthUserId(
+          AuthUserId.make("auth-existing-1")
+        );
+
+        expect(approved.onboardingStatus).toBe("accepted");
+        expect(approved.acceptedAuthUserId).toBe(submittedAuthUserId);
+        expect(approved.invitationId).toBeUndefined();
+        expect(customerId).toBe(`customer-${registration.id}`);
+        expect(projected).toStrictEqual([submittedAuthUserId]);
+      }).pipe(Effect.provide(directLayer));
+    }
+  );
+
+  it.effect(
+    "notifies a directly approved registrant with sign-in access",
+    () => {
+      const submittedAuthUserId = AuthUserId.make("auth-existing-1");
+      const notified: string[] = [];
+      const directLayer = Layer.mergeAll(
+        layerMemory,
+        IdentityUsers.layerMemoryFrom(
+          [],
+          [
+            {
+              authUserId: submittedAuthUserId,
+              email: details.email,
+              name: "Ada Lovelace",
+            },
+          ]
+        ),
+        Layer.succeed(
+          RegistrationEmails,
+          RegistrationEmails.of({
+            sendApprovedToRegistrant: ({ invitation, registration }) =>
+              Effect.sync(() => {
+                expect(invitation).toBeUndefined();
+                notified.push(String(registration.id));
+              }),
+            sendAwaitingApprovalToApprover: () => Effect.void,
+            sendAwaitingApprovalToRegistrant: () => Effect.void,
+            sendInvitationExpiredToRegistrant: () => Effect.void,
+            sendRejectedToRegistrant: () => Effect.void,
+          })
+        )
+      );
+
+      return Effect.gen(function* () {
+        const registrations = yield* Registrations;
+        const registration = yield* registrations.createAwaitingApproval({
+          details,
+          storeKey: StoreKey.make("default-store"),
+          submittedByAuthUserId: submittedAuthUserId,
+        });
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+
+        yield* notifyRegistrationApproved({ registrationId: approved.id });
+
+        expect(notified).toStrictEqual([String(approved.id)]);
+      }).pipe(Effect.provide(directLayer));
+    }
+  );
+
+  it.effect(
+    "resumes direct provisioning after identity projection fails",
+    () => {
+      const submittedAuthUserId = AuthUserId.make("auth-existing-1");
+      let projectionAttempts = 0;
+      const retryingProjectionLayer = Layer.succeed(
+        CompanyMemberIdentityProjection,
+        CompanyMemberIdentityProjection.of({
+          projectAcceptedInvitation: () => Effect.void,
+          projectMembership: () =>
+            Effect.suspend(() => {
+              projectionAttempts += 1;
+              return projectionAttempts === 1
+                ? Effect.fail(
+                    new IdentityMembershipProjectionFailure({
+                      cause: new Error("metadata unavailable"),
+                      message: "Identity metadata projection failed",
+                      operation: "project",
+                      reason: "unavailable",
+                    })
+                  )
+                : Effect.void;
+            }),
+          removeMembership: () => Effect.void,
+        })
+      );
+      const directLayer = Layer.mergeAll(
+        Registrations.layerMemory,
+        CommerceAccounts.layerMemory,
+        invitationCapabilitiesLayerMemory,
+        retryingProjectionLayer,
+        IdentityUsers.layerMemoryFrom(
+          [],
+          [
+            {
+              authUserId: submittedAuthUserId,
+              email: details.email,
+              name: "Ada Lovelace",
+            },
+          ]
+        )
+      );
+
+      return Effect.gen(function* () {
+        const registrations = yield* Registrations;
+        const registration = yield* registrations.createAwaitingApproval({
+          details,
+          storeKey: StoreKey.make("default-store"),
+          submittedByAuthUserId: submittedAuthUserId,
+        });
+        const first = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        }).pipe(Effect.exit);
+        const durable = yield* registrations.get(registration.id);
+        const retried = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+
+        expect(Exit.isFailure(first)).toBeTruthy();
+        expect(durable._tag).toBe("ApprovedRegistration");
+        expect(retried.onboardingStatus).toBe("accepted");
+        expect(projectionAttempts).toBe(2);
+      }).pipe(Effect.provide(directLayer));
+    }
+  );
+
+  it.effect(
     "approves a registration and issues an administrator invitation before commerce provisioning",
     () =>
       Effect.gen(function* () {
@@ -168,7 +377,9 @@ describe("registration onboarding", () => {
           registrationId: registration.id,
         });
         const invitations = yield* InvitationDeliveries;
-        const invitation = yield* invitations.get(approved.invitationId);
+        const invitation = yield* invitations.get(
+          requiredInvitationId(approved)
+        );
 
         expect(approved._tag).toBe("ApprovedRegistration");
         expect(approved.decision.decision).toBe("approved");
@@ -302,7 +513,9 @@ describe("registration onboarding", () => {
     const layer = Layer.mergeAll(
       Registrations.layerMemory,
       commerceFailureLayer,
-      invitationCapabilitiesLayerMemory
+      invitationCapabilitiesLayerMemory,
+      identityProjectionLayer,
+      IdentityUsers.layerMemory
     );
 
     return Effect.gen(function* () {
@@ -350,7 +563,9 @@ describe("registration onboarding", () => {
     const failingLayer = Layer.mergeAll(
       Registrations.layerMemory,
       CommerceAccounts.layerMemory,
-      flakyInvitationsLayer
+      flakyInvitationsLayer,
+      identityProjectionLayer,
+      IdentityUsers.layerMemory
     );
 
     return Effect.gen(function* () {
@@ -385,18 +600,18 @@ describe("registration onboarding", () => {
           registrationId: registration.id,
         });
         const deliveries = yield* InvitationDeliveries;
-        const pending = yield* deliveries.get(approved.invitationId);
+        const pending = yield* deliveries.get(requiredInvitationId(approved));
 
         yield* TestClock.adjust("31 days");
 
-        const expired = yield* deliveries.get(approved.invitationId);
+        const expired = yield* deliveries.get(requiredInvitationId(approved));
         const acceptanceFailure = yield* acceptRegistrationInvitation({
           acceptedIdentity,
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         }).pipe(Effect.flip);
         yield* expireRegistrationInvitation({
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         });
         const registrations = yield* Registrations;
@@ -458,12 +673,12 @@ describe("registration onboarding", () => {
 
         const first = yield* acceptRegistrationInvitation({
           acceptedIdentity,
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         });
         const second = yield* acceptRegistrationInvitation({
           acceptedIdentity,
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         });
 
@@ -482,6 +697,7 @@ describe("registration onboarding", () => {
     "adds the accepted registrant as the business unit administrator",
     () => {
       const linkedIdentities: AcceptedCommerceIdentity[] = [];
+      const projectedMemberships: ProjectCompanyMembershipIdentityInput[] = [];
       const commerceLayer = Layer.succeed(
         CommerceAccounts,
         CommerceAccounts.of({
@@ -521,10 +737,23 @@ describe("registration onboarding", () => {
             Effect.die("not used"),
         })
       );
+      const projectionLayer = Layer.succeed(
+        CompanyMemberIdentityProjection,
+        CompanyMemberIdentityProjection.of({
+          projectAcceptedInvitation: () => Effect.void,
+          projectMembership: (input) =>
+            Effect.sync(() => {
+              projectedMemberships.push(input);
+            }),
+          removeMembership: () => Effect.void,
+        })
+      );
       const layer = Layer.mergeAll(
         Registrations.layerMemory,
         commerceLayer,
-        invitationCapabilitiesLayerMemory
+        invitationCapabilitiesLayerMemory,
+        projectionLayer,
+        IdentityUsers.layerMemory
       );
 
       return Effect.gen(function* () {
@@ -536,11 +765,18 @@ describe("registration onboarding", () => {
 
         yield* acceptRegistrationInvitation({
           acceptedIdentity,
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         });
 
         expect(linkedIdentities).toStrictEqual([acceptedIdentity]);
+        expect(projectedMemberships).toStrictEqual([
+          {
+            authUserId: acceptedIdentity.authUserId,
+            businessUnitId: `business-unit-${registration.id}`,
+            roles: ["admin", "buyer"],
+          },
+        ]);
       }).pipe(Effect.provide(layer));
     }
   );
@@ -557,7 +793,7 @@ describe("registration onboarding", () => {
 
         yield* acceptRegistrationInvitation({
           acceptedIdentity,
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         });
 
@@ -576,7 +812,7 @@ describe("registration onboarding", () => {
 
         const exit = yield* acceptRegistrationInvitation({
           acceptedIdentity: differentIdentity,
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         }).pipe(Effect.exit);
 
@@ -632,7 +868,7 @@ describe("registration onboarding", () => {
       });
       yield* acceptRegistrationInvitation({
         acceptedIdentity,
-        invitationId: approved.invitationId,
+        invitationId: requiredInvitationId(approved),
         registrationId: approved.id,
       });
 
@@ -645,7 +881,7 @@ describe("registration onboarding", () => {
             registrationId: approved.id,
             roles: ["admin", "buyer"],
           }),
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           issuedBy: registrationSystemActor,
           revokedBy: reviewer,
         })
@@ -682,11 +918,11 @@ describe("registration onboarding", () => {
           registrationId: registration.id,
         });
         const deliveries = yield* InvitationDeliveries;
-        const delivery = yield* deliveries.get(approved.invitationId);
+        const delivery = yield* deliveries.get(requiredInvitationId(approved));
 
         yield* resumeRegistrationInvitationForInvitation({
           event: { event: "revoked" },
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
         }).pipe(Effect.provide(queryLayerFor(approved)));
 
         expect(revoked._tag).toBe("RevokedInvitation");
@@ -757,7 +993,7 @@ describe("registration onboarding", () => {
 
         yield* resumeRegistrationInvitationForInvitation({
           event: { event: "revoked" },
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
         }).pipe(Effect.provide(queryLayerFor(approved)));
         const current = yield* Registrations.pipe(
           Effect.flatMap((registrations) => registrations.get(registration.id))

@@ -240,6 +240,8 @@
           "sending": "Versturen...",
           "successTitle": "Uitnodiging verstuurd",
           "successDescription": "Er is een uitnodiging verstuurd naar {email}.",
+          "memberAddedTitle": "Gebruiker toegevoegd",
+          "memberAddedDescription": "{email} had al een account en is aan uw bedrijf toegevoegd.",
           "failureTitle": "Uitnodiging niet verstuurd"
         },
         "management": {
@@ -272,7 +274,10 @@
         "InputInvalidRoles": "Selecteer ten minste één bedrijfsrol.",
         "InvitationPolicyError": "Alleen een bedrijfsbeheerder kan gebruikers uitnodigen.",
         "InvitationConflict": "Deze gebruiker kan niet worden uitgenodigd.",
+        "CommerceCustomerEmailConflict": "Dit e-mailadres hoort bij een andere commerce-klant.",
+        "CustomerAccountIdentityLookupFailure": "De identiteitsdirectory is tijdelijk niet beschikbaar. Probeer het opnieuw.",
         "InvitationProviderFailure": "De uitnodigingsactie kon niet worden voltooid. Probeer opnieuw.",
+        "IdentityMembershipProjectionFailure": "Het bedrijfslidmaatschap kon niet worden gesynchroniseerd. Probeer opnieuw.",
         "InvitationIssueOutcomeUnknown": "De uitnodiging is mogelijk verstuurd, maar het resultaat kon niet worden bevestigd. Verstuur de uitnodiging niet opnieuw.",
         "CustomerAccountProfileIncomplete": "Je profiel heeft een e-mailadres nodig.",
         "CommerceRequestContextNotFound": "Het huidige bedrijfsaccount is niet beschikbaar.",
@@ -284,7 +289,8 @@
         "InvitationExpired": "Deze uitnodiging is verlopen. Vernieuw de ledenlijst om deze opnieuw te versturen.",
         "InvitationNotFound": "De identiteitsprovider heeft deze uitnodiging niet meer. Vernieuw de ledenlijst.",
         "CompanyMemberRemovalConflict": "Dit lid kan in de huidige bedrijfstoestand niet worden verwijderd. Vernieuw en probeer opnieuw.",
-        "CompanyMemberManagementForbidden": "Alleen een bedrijfsbeheerder kan leden beheren."
+        "CompanyMemberManagementForbidden": "Alleen een bedrijfsbeheerder kan leden beheren.",
+        "CompanyMemberRemovalPersistenceFailure": "De verwijdering van het bedrijfslid kon niet worden opgeslagen. Probeer opnieuw."
       }
     },
     "checkout": {

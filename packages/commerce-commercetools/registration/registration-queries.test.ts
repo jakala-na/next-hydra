@@ -192,6 +192,9 @@ describe("registrationQueriesLayer", () => {
         },
       });
       const queries = yield* RegistrationQueries;
+      if (registration.invitationId === undefined) {
+        return yield* Effect.die("Expected registration invitation id");
+      }
 
       const found = yield* queries.findByInvitationId(
         registration.invitationId
@@ -559,6 +562,49 @@ describe("registrationQueriesLayer", () => {
         },
       });
     }).pipe(Effect.provide(layer))
+  );
+
+  it.effect(
+    "eligibility lookup excludes an accepted registration for the same verified identity",
+    () =>
+      Effect.gen(function* () {
+        const accepted = makeApproved(
+          makeAwaiting("accepted-registration"),
+          "accepted"
+        );
+        const acceptedCustomObject = yield* customObject(
+          "accepted-custom-object",
+          "2026-01-02T00:00:00.000Z",
+          accepted
+        );
+
+        get
+          .mockReturnValueOnce({
+            execute: vi
+              .fn<() => Promise<CustomObjectsResponse>>()
+              .mockResolvedValue({ body: { results: [] } }),
+          })
+          .mockReturnValueOnce({
+            execute: vi
+              .fn<() => Promise<CustomObjectsResponse>>()
+              .mockResolvedValue({ body: { results: [] } }),
+          })
+          .mockReturnValueOnce({
+            execute: vi
+              .fn<() => Promise<CustomObjectsResponse>>()
+              .mockResolvedValue({
+                body: { results: [acceptedCustomObject] },
+              }),
+          });
+        const queries = yield* RegistrationQueries;
+
+        const hasBlockingEmail = yield* queries.hasBlockingEmail(
+          Redacted.make(Email.make("ada@example.com"), { label: "email" }),
+          AuthUserId.make("accepted-user-1")
+        );
+
+        expect(hasBlockingEmail).toBeFalsy();
+      }).pipe(Effect.provide(layer))
   );
 
   it.effect(

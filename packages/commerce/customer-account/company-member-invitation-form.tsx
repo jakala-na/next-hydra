@@ -74,11 +74,20 @@ export const CompanyMemberInvitationForm = ({
           )}
           {result?._tag === "Success" ? (
             <Alert aria-live="polite">
-              <AlertTitle>{t("users.invite.successTitle")}</AlertTitle>
+              <AlertTitle>
+                {t(
+                  result.success.outcome === "member_added"
+                    ? "users.invite.memberAddedTitle"
+                    : "users.invite.successTitle"
+                )}
+              </AlertTitle>
               <AlertDescription>
-                {t("users.invite.successDescription", {
-                  email: result.success.inviteeEmail,
-                })}
+                {t(
+                  result.success.outcome === "member_added"
+                    ? "users.invite.memberAddedDescription"
+                    : "users.invite.successDescription",
+                  { email: result.success.inviteeEmail }
+                )}
               </AlertDescription>
             </Alert>
           ) : null}

@@ -45,6 +45,7 @@ import {
   registrationUnavailable,
   registrationUnauthorized,
 } from "@repo/registration/public-errors";
+import type { CompanyMemberIdentityProjection } from "@repo/registration/services/company-member-identity-projection";
 import {
   IdentityUsers,
   isRecoverableIdentityUserLookupFailure,
@@ -61,8 +62,8 @@ import type { RegistrationWorkflow } from "@repo/registration/services/registrat
 import { Registrations } from "@repo/registration/services/registrations";
 import type { RegistrationPersistenceFailure } from "@repo/registration/services/registrations";
 import type { VatValidator } from "@repo/registration/services/vat-validator";
-import { Cause, Effect, Layer } from "effect";
-import type { Config, Redacted } from "effect";
+import { Cause, Effect, Layer, Option, Redacted } from "effect";
+import type { Config } from "effect";
 import {
   HttpRouter,
   HttpServer,
@@ -70,12 +71,16 @@ import {
 } from "effect/unstable/http";
 import { HttpApiBuilder, HttpApiMiddleware } from "effect/unstable/httpapi";
 
-import { parseBearerAuthorization } from "../auth/bearer-token";
+import {
+  parseBearerAuthorization,
+  readBearerAuthorization,
+} from "../auth/bearer-token";
 
 type RegistrationRuntimeLayer = Layer.Layer<
   | Registrations
   | RegistrationQueries
   | CommerceAccounts
+  | CompanyMemberIdentityProjection
   | IdentityUsers
   | RegistrationMarketPolicy
   | VatValidator
@@ -95,8 +100,9 @@ type RegistrationReviewerIdentityLayer = Layer.Layer<
 >;
 
 export interface RegistrationHttpDependencies {
-  readonly authenticationLayer: RegistrationAuthenticationLayer;
+  readonly customerAuthenticationLayer: RegistrationAuthenticationLayer;
   readonly layer: RegistrationRuntimeLayer;
+  readonly reviewerAuthenticationLayer: RegistrationAuthenticationLayer;
   readonly reviewerIdentityLayer: RegistrationReviewerIdentityLayer;
 }
 
@@ -270,6 +276,40 @@ const makeRegistrationHttpHandlers = () =>
     Effect.fn(function* buildRegistrationHttpHandlers(handlers) {
       const registrations = yield* Registrations;
       const queries = yield* RegistrationQueries;
+      const accessTokenVerifier = yield* AccessTokenVerifier;
+      const identityUsers = yield* IdentityUsers;
+
+      const submittedByAuthUserId = Effect.fn(
+        "RegistrationHttp.submittedByAuthUserId"
+      )(function* (details: ReturnType<typeof toCompanyRegistrationDetails>) {
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        const authorization = readBearerAuthorization(
+          request.headers.authorization
+        );
+        if (authorization._tag !== "Token") {
+          return undefined;
+        }
+
+        const verified = yield* accessTokenVerifier
+          .verify(authorization.token)
+          .pipe(
+            Effect.map(Option.some),
+            Effect.catchTag("AccessTokenInvalid", () =>
+              Effect.succeed(Option.none())
+            )
+          );
+        if (Option.isNone(verified)) {
+          return undefined;
+        }
+
+        const identity = yield* identityUsers.getById(
+          AuthUserId.make(verified.value.authUserId)
+        );
+        return Redacted.value(identity.email).trim().toLowerCase() ===
+          Redacted.value(details.email).trim().toLowerCase()
+          ? identity.authUserId
+          : undefined;
+      });
 
       const acceptDecision = (input: {
         readonly decision: "approved" | "rejected";
@@ -323,12 +363,17 @@ const makeRegistrationHttpHandlers = () =>
         .handle("create", ({ headers, payload }) =>
           Effect.gen(function* createRegistration() {
             const details = toCompanyRegistrationDetails(payload);
-            const registration = yield* submitRegistrationForReview({
-              details,
-              storeKey: resolveStore({
-                locale: CommerceLocale.make(headers["x-context-locale"]),
-              }).storeKey,
-            }).pipe(Effect.withSpan("registration.api.create.submit"));
+            const submittedBy = yield* submittedByAuthUserId(details).pipe(
+              Effect.catchTag("IdentityUserNotFound", () => Effect.void)
+            );
+            const { storeKey } = resolveStore({
+              locale: CommerceLocale.make(headers["x-context-locale"]),
+            });
+            const registration = yield* submitRegistrationForReview(
+              submittedBy === undefined
+                ? { details, storeKey }
+                : { details, storeKey, submittedByAuthUserId: submittedBy }
+            ).pipe(Effect.withSpan("registration.api.create.submit"));
             yield* Effect.annotateCurrentSpan({
               "registration.id": String(registration.id),
             });
@@ -339,6 +384,18 @@ const makeRegistrationHttpHandlers = () =>
               storeKey: registration.storeKey,
             });
           }).pipe(
+            // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect error-channel handler, not Promise control flow.
+            Effect.catchTag("AccessTokenVerificationFailure", (error) =>
+              logRegistrationAuthenticationFailure(error).pipe(
+                Effect.andThen(
+                  error.reason === "unavailable"
+                    ? Effect.fail(
+                        registrationUnavailable(headers["x-context-locale"])
+                      )
+                    : Effect.die(error)
+                )
+              )
+            ),
             Effect.catchTag("IdentityUserLookupFailure", (error) =>
               isRecoverableIdentityUserLookupFailure(error)
                 ? Effect.fail(error)
@@ -372,6 +429,9 @@ const makeRegistrationHttpHandlers = () =>
             Effect.withLogSpan("registration.api.create"),
             Effect.mapError((error) => {
               switch (error._tag) {
+                case "RegistrationApiError": {
+                  return error;
+                }
                 case "RegistrationIntakeValidationError": {
                   return projectRegistrationIntakeValidation(
                     error,
@@ -494,16 +554,20 @@ const makeRegistrationHttpApiLayer = (
 ) => {
   const registrationReadAccessLayer =
     registrationReadAccessMiddlewareLayer.pipe(
-      Layer.provide(dependencies.authenticationLayer)
+      Layer.provide(dependencies.reviewerAuthenticationLayer)
     );
   const registrationDecisionAccessLayer =
     registrationDecisionAccessMiddlewareLayer.pipe(
-      Layer.provide(dependencies.authenticationLayer),
+      Layer.provide(dependencies.reviewerAuthenticationLayer),
       Layer.provide(dependencies.reviewerIdentityLayer)
     );
 
   return HttpApiBuilder.layer(RegistrationHttpApi).pipe(
-    Layer.provide(makeRegistrationHttpHandlers()),
+    Layer.provide(
+      makeRegistrationHttpHandlers().pipe(
+        Layer.provide(dependencies.customerAuthenticationLayer)
+      )
+    ),
     Layer.provide(registrationSchemaErrorMiddlewareLayer),
     Layer.provide(registrationReadAccessLayer),
     Layer.provide(registrationDecisionAccessLayer),

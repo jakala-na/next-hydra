@@ -2,9 +2,11 @@
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import {
   CustomerAccountCompanyMemberInvitationId,
+  CustomerAccountIdentityLookupFailure,
   CustomerAccountInvitationId,
   CustomerAccountInvitationListItem,
   CustomerAccountMemberInvitation,
+  CustomerAccountMemberProvisioned,
   CustomerAccountMembers,
   InvitationPolicyError as CustomerAccountInvitationPolicyError,
 } from "@repo/commerce/services/customer-account-members";
@@ -21,13 +23,18 @@ import {
 import type { CompanyMemberInvitation } from "../domain/invitations";
 import { CompanyRoles } from "../domain/roles";
 import {
-  issueCompanyMemberInvite,
+  addCompanyMember,
   listCurrentCompanyMemberInvitations,
   reissueCompanyMemberInvite,
   revokeCompanyMemberInvite,
 } from "../programs/company-member-invitations";
 import { CompanyInvitationPolicy } from "./company-invitation-policy";
+import { CompanyMemberIdentityProjection } from "./company-member-identity-projection";
 import { CompanyMemberInvitationRecords } from "./company-member-invitation-records";
+import {
+  IdentityUsers,
+  isRecoverableIdentityUserLookupFailure,
+} from "./identity-users";
 import { CompanyMemberInvitations, InvitationDeliveries } from "./invitations";
 
 const toRegistrationCompanyRoles = Schema.decodeUnknownSync(CompanyRoles);
@@ -107,6 +114,8 @@ export const customerAccountMembersLayer = Layer.effect(
     const commerceAccounts = yield* CommerceAccounts;
     const deliveries = yield* InvitationDeliveries;
     const invitations = yield* CompanyMemberInvitations;
+    const identityUsers = yield* IdentityUsers;
+    const identityProjection = yield* CompanyMemberIdentityProjection;
     const policy = yield* CompanyInvitationPolicy;
     const records = yield* CompanyMemberInvitationRecords;
 
@@ -118,7 +127,12 @@ export const customerAccountMembersLayer = Layer.effect(
         Effect.provideService(InvitationDeliveries, deliveries),
         Effect.provideService(CompanyMemberInvitationRecords, records),
         Effect.provideService(CompanyInvitationPolicy, policy),
-        Effect.provideService(CommerceAccounts, commerceAccounts)
+        Effect.provideService(CommerceAccounts, commerceAccounts),
+        Effect.provideService(IdentityUsers, identityUsers),
+        Effect.provideService(
+          CompanyMemberIdentityProjection,
+          identityProjection
+        )
       );
 
     return CustomerAccountMembers.of({
@@ -140,7 +154,7 @@ export const customerAccountMembersLayer = Layer.effect(
       ),
       invite: Effect.fn("CustomerAccountMembers.invite")(function* (input) {
         const invitation = yield* provideInvitationServices(
-          issueCompanyMemberInvite({
+          addCompanyMember({
             actor: toCompanyActor(input.actor),
             inviteeEmail: Redacted.make(
               Email.make(Redacted.value(input.inviteeEmail)),
@@ -159,12 +173,28 @@ export const customerAccountMembersLayer = Layer.effect(
             roles: toRegistrationCompanyRoles(input.roles),
           })
         ).pipe(
+          Effect.catchTag("IdentityUserLookupFailure", (error) =>
+            isRecoverableIdentityUserLookupFailure(error)
+              ? Effect.fail(
+                  new CustomerAccountIdentityLookupFailure({
+                    cause: error.cause,
+                    message: error.message,
+                    reason: "unavailable",
+                  })
+                )
+              : Effect.die(error)
+          ),
           Effect.catchTag("InvitationPolicyError", (error) =>
             Effect.fail(policyFailure(error))
           )
         );
 
-        return invitationReceipt(invitation, input.inviteeEmail);
+        return invitation._tag === "CompanyMemberProvisioned"
+          ? new CustomerAccountMemberProvisioned({
+              customerId: invitation.membership.customerId,
+              inviteeEmail: invitation.inviteeEmail,
+            })
+          : invitationReceipt(invitation, input.inviteeEmail);
       }),
       listInvitations: Effect.fn("CustomerAccountMembers.listInvitations")(
         function* (actor) {
@@ -179,6 +209,15 @@ export const customerAccountMembersLayer = Layer.effect(
 
           return storedInvitations.map(invitationListItem);
         }
+      ),
+      projectMemberIdentity: Effect.fn(
+        "CustomerAccountMembers.projectMemberIdentity"
+      )((input) =>
+        identityProjection.projectMembership({
+          authUserId: AuthUserId.make(input.authUserId),
+          businessUnitId: input.businessUnitId,
+          roles: input.roles,
+        })
       ),
       reissueInvitation: Effect.fn("CustomerAccountMembers.reissueInvitation")(
         function* (input) {
@@ -197,6 +236,14 @@ export const customerAccountMembersLayer = Layer.effect(
 
           return invitationReceipt(invitation, invitation.intent.inviteeEmail);
         }
+      ),
+      removeMemberIdentity: Effect.fn(
+        "CustomerAccountMembers.removeMemberIdentity"
+      )((input) =>
+        identityProjection.removeMembership({
+          authUserId: AuthUserId.make(input.authUserId),
+          businessUnitId: input.businessUnitId,
+        })
       ),
     });
   })

@@ -2,7 +2,7 @@ import { StoreFailureReason } from "@repo/versioned-store";
 import { Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 
 import { InvitationId } from "../domain/identity";
-import type { RedactedEmail } from "../domain/identity";
+import type { AuthUserId, RedactedEmail } from "../domain/identity";
 import { registrationBlocksEmail } from "../domain/registration";
 import type {
   Registration,
@@ -354,7 +354,8 @@ export class RegistrationQueries extends Context.Service<
       input: ListRegistrationsInput
     ) => Effect.Effect<ListRegistrationsResult, RegistrationQueryError>;
     readonly hasBlockingEmail: (
-      email: RedactedEmail
+      email: RedactedEmail,
+      verifiedAuthUserId?: AuthUserId
     ) => Effect.Effect<boolean, RegistrationQueryError>;
     readonly findByInvitationId: (
       invitationId: InvitationId
@@ -388,7 +389,7 @@ export class RegistrationQueries extends Context.Service<
           }
         ),
         hasBlockingEmail: Effect.fn("RegistrationQueries.hasBlockingEmail")(
-          (email) =>
+          (email, verifiedAuthUserId) =>
             Effect.try({
               catch: (cause) =>
                 new RegistrationQueryFailure({
@@ -401,7 +402,11 @@ export class RegistrationQueries extends Context.Service<
                 }),
               try: () =>
                 [...records].some((record) =>
-                  registrationBlocksEmail(record.registration, email)
+                  registrationBlocksEmail(
+                    record.registration,
+                    email,
+                    verifiedAuthUserId
+                  )
                 ),
             })
         ),

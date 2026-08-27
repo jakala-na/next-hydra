@@ -1,9 +1,12 @@
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { clerkClient, createClerkClient } from "@clerk/nextjs/server";
 import { hasTransientTransportCode } from "@repo/errors/transport";
-import { Email } from "@repo/registration/domain/identity";
-import type {
+import {
   AuthUserId,
+  Email,
+  PersonName,
+} from "@repo/registration/domain/identity";
+import type {
   IdentityUserProfile,
   RedactedEmail,
 } from "@repo/registration/domain/identity";
@@ -14,7 +17,7 @@ import {
   normalizedIdentityEmail,
 } from "@repo/registration/services/identity-users";
 import type { IdentityProviderFailureReason } from "@repo/registration/services/identity-users";
-import { Config, Effect, Layer, Redacted, Schema } from "effect";
+import { Config, Effect, Layer, Option, Redacted, Schema } from "effect";
 
 const ClerkEmailAddress = Schema.Struct({
   emailAddress: Schema.String,
@@ -59,7 +62,7 @@ const providerFailureReason = (
     : "unexpectedResponse";
 
 const providerFailure = (
-  operation: "getById" | "hasUserWithEmail",
+  operation: "findByEmail" | "getById",
   cause: unknown
 ) =>
   new IdentityUserLookupFailure({
@@ -89,8 +92,62 @@ const displayName = (user: typeof ClerkIdentityUser.Type, email: string) =>
     .flatMap((value) => (value === null || value === "" ? [] : [value]))
     .join(" ") || email;
 
-export const makeClerkIdentityUsers = (users: ClerkIdentityUsersApi) =>
-  IdentityUsers.of({
+const redactedPersonName = (value: string | null) =>
+  value === null || value === ""
+    ? undefined
+    : Redacted.make(PersonName.make(value), { label: "personName" });
+
+const toIdentityUserProfile = (
+  user: typeof ClerkIdentityUser.Type
+): IdentityUserProfile | undefined => {
+  const email = primaryEmail(user);
+
+  return email === undefined
+    ? undefined
+    : {
+        authUserId: AuthUserId.make(user.id),
+        email: Redacted.make(Email.make(email), { label: "email" }),
+        firstName: redactedPersonName(user.firstName),
+        lastName: redactedPersonName(user.lastName),
+        name: displayName(user, email),
+      };
+};
+
+export const makeClerkIdentityUsers = (users: ClerkIdentityUsersApi) => {
+  const findByEmail = Effect.fn("IdentityUsers.Clerk.findByEmail")((
+    email: RedactedEmail
+  ) => {
+    const requestedEmail = normalizedIdentityEmail(email);
+
+    return Effect.tryPromise({
+      catch: (cause) => providerFailure("findByEmail", cause),
+      try: async () =>
+        await users.getUserList({
+          emailAddress: [requestedEmail],
+          limit: 1,
+        }),
+    }).pipe(
+      Effect.flatMap((response) =>
+        Schema.decodeEffect(ClerkIdentityUserList)(response).pipe(Effect.orDie)
+      ),
+      Effect.map((response) =>
+        Option.fromUndefinedOr(
+          response.data
+            .filter((user) =>
+              user.emailAddresses.some(
+                (candidate) =>
+                  candidate.emailAddress.trim().toLowerCase() === requestedEmail
+              )
+            )
+            .map(toIdentityUserProfile)
+            .find((profile) => profile !== undefined)
+        )
+      )
+    );
+  });
+
+  return IdentityUsers.of({
+    findByEmail,
     getById: Effect.fn("IdentityUsers.Clerk.getById")(
       (authUserId: AuthUserId) =>
         Effect.tryPromise({
@@ -115,40 +172,19 @@ export const makeClerkIdentityUsers = (users: ClerkIdentityUsersApi) =>
                   email: Redacted.make(Email.make(email), {
                     label: "email",
                   }),
+                  firstName: redactedPersonName(user.firstName),
+                  lastName: redactedPersonName(user.lastName),
                   name: displayName(user, email),
                 } satisfies IdentityUserProfile);
           })
         )
     ),
     hasUserWithEmail: Effect.fn("IdentityUsers.Clerk.hasUserWithEmail")(
-      (email: RedactedEmail) => {
-        const requestedEmail = normalizedIdentityEmail(email);
-
-        return Effect.tryPromise({
-          catch: (cause) => providerFailure("hasUserWithEmail", cause),
-          try: async () =>
-            await users.getUserList({
-              emailAddress: [requestedEmail],
-              limit: 1,
-            }),
-        }).pipe(
-          Effect.flatMap((response) =>
-            Schema.decodeEffect(ClerkIdentityUserList)(response).pipe(
-              Effect.orDie
-            )
-          ),
-          Effect.map((response) =>
-            response.data.some((user) =>
-              user.emailAddresses.some(
-                (candidate) =>
-                  candidate.emailAddress.trim().toLowerCase() === requestedEmail
-              )
-            )
-          )
-        );
-      }
+      (email: RedactedEmail) =>
+        findByEmail(email).pipe(Effect.map(Option.isSome))
     ),
   });
+};
 
 const clerkIdentityUsersApi: ClerkIdentityUsersApi = {
   getUser: async (authUserId) => {

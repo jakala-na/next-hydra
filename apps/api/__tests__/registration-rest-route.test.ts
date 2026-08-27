@@ -1,13 +1,16 @@
 import {
   AccessTokenInvalid,
+  AccessTokenVerificationFailure,
   AccessTokenVerifier,
   AuthUserId as AccessTokenAuthUserId,
   VerifiedAccessToken,
   authPermissionsFrom,
 } from "@repo/auth/access-token";
+import { CommerceCustomerId } from "@repo/commerce/domain/commerce-account";
 import {
   CommerceAccountUnavailable,
   CommerceAccounts,
+  CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
 import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
@@ -28,9 +31,11 @@ import {
 } from "@repo/registration/domain/registration";
 import type { Registration } from "@repo/registration/domain/registration";
 import {
+  CreateRegistrationResponse,
   CreateRegistrationRequest,
   toCompanyRegistrationDetails,
 } from "@repo/registration/http/registration-api";
+import { CompanyMemberIdentityProjection } from "@repo/registration/services/company-member-identity-projection";
 import {
   IdentityUserLookupFailure,
   IdentityUserNotFound,
@@ -62,8 +67,8 @@ import {
   RegistrationTransitionConflict,
 } from "@repo/registration/services/registrations";
 import { VatValidator } from "@repo/registration/services/vat-validator";
-import { Context, Effect, Layer, Redacted } from "effect";
-import { beforeEach, expect, test, vi } from "vitest";
+import { Context, Effect, Layer, Option, Redacted, Schema } from "effect";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const HTTP_OK = 200;
 const HTTP_CREATED = 201;
@@ -173,13 +178,22 @@ const makeApprovedRegistration = (
   });
 };
 
+const requiredInvitationId = (registration: ApprovedRegistration) => {
+  if (registration.invitationId === undefined) {
+    throw new Error("Expected registration invitation id");
+  }
+  return registration.invitationId;
+};
+
 const makeApiLayer = (
   seed: readonly Registration[] = [],
   options: {
     readonly hasCustomerWithEmail?: boolean;
     readonly hasCustomerWithEmailFailure?: CommerceAccountUnavailable;
+    readonly hasCustomerForAuthUserId?: boolean;
     readonly hasIdentityUserWithEmail?: boolean;
     readonly hasIdentityUserWithEmailFailure?: IdentityUserLookupFailure;
+    readonly identityUserEmail?: string;
     readonly identityUserGetFailure?:
       | IdentityUserLookupFailure
       | IdentityUserNotFound;
@@ -224,11 +238,11 @@ const makeApiLayer = (
   const registrationsLayer = Layer.succeed(
     Registrations,
     Registrations.of({
-      createAwaitingApproval: ({ details, storeKey }) =>
+      createAwaitingApproval: ({ details, storeKey, submittedByAuthUserId }) =>
         Effect.sync(() => {
           const registrationId = RegistrationId.make(crypto.randomUUID());
           const createdAt = new Date("2026-03-22T00:00:00.000Z");
-          const registration = new AwaitingApprovalRegistration({
+          const registrationFields = {
             _tag: "AwaitingApprovalRegistration",
             createdAt,
             details,
@@ -236,7 +250,12 @@ const makeApiLayer = (
             status: "awaiting_approval",
             storeKey,
             updatedAt: createdAt,
-          });
+          } as const;
+          const registration = new AwaitingApprovalRegistration(
+            submittedByAuthUserId === undefined
+              ? registrationFields
+              : { ...registrationFields, submittedByAuthUserId }
+          );
 
           registrations.set(String(registrationId), registration);
           return registration;
@@ -370,7 +389,15 @@ const makeApiLayer = (
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
-      getCustomerIdByAuthUserId: () => Effect.die("not used"),
+      getCustomerIdByAuthUserId: (authUserId) =>
+        options.hasCustomerForAuthUserId === true
+          ? Effect.succeed(CommerceCustomerId.make(`customer-${authUserId}`))
+          : Effect.fail(
+              new CommerceCustomerIdNotFound({
+                authUserId,
+                message: "Commerce customer does not exist for auth user",
+              })
+            ),
       getCustomerProfile: () => Effect.die("not used"),
       hasCustomerWithEmail: () =>
         options.hasCustomerWithEmailFailure
@@ -384,13 +411,17 @@ const makeApiLayer = (
   const identityUsersLayer = Layer.succeed(
     IdentityUsers,
     IdentityUsers.of({
+      findByEmail: () => Effect.succeed(Option.none()),
       getById: (authUserId) =>
         options.identityUserGetFailure === undefined
           ? Effect.succeed({
               authUserId,
-              email: Redacted.make(Email.make("reviewer@example.com"), {
-                label: "email",
-              }),
+              email: Redacted.make(
+                Email.make(options.identityUserEmail ?? "reviewer@example.com"),
+                {
+                  label: "email",
+                }
+              ),
               name: "Registration Reviewer",
             } satisfies IdentityUserProfile)
           : Effect.fail(options.identityUserGetFailure),
@@ -443,7 +474,15 @@ const makeApiLayer = (
       registrationMarketPolicyLayer,
       vatValidatorLayer,
       invitationCapabilitiesLayerMemory,
-      registrationInvitationsLayer
+      registrationInvitationsLayer,
+      Layer.succeed(
+        CompanyMemberIdentityProjection,
+        CompanyMemberIdentityProjection.of({
+          projectAcceptedInvitation: () => Effect.void,
+          projectMembership: () => Effect.void,
+          removeMembership: () => Effect.void,
+        })
+      )
     ),
     list,
     registrations,
@@ -452,11 +491,13 @@ const makeApiLayer = (
 
 const makeHandler = async (
   layer: ReturnType<typeof makeApiLayer>["layer"],
-  reviewerIdentityLayer: Layer.Layer<IdentityUsers> = layer
+  reviewerIdentityLayer: Layer.Layer<IdentityUsers> = layer,
+  customerAuthenticationLayerOverride?: Layer.Layer<AccessTokenVerifier>,
+  reviewerAuthenticationLayerOverride?: Layer.Layer<AccessTokenVerifier>
 ) => {
   const { makeRegistrationHttpHandler } =
     await import("../lib/registration/http");
-  const authenticationLayer = Layer.succeed(
+  const defaultAuthenticationLayer = Layer.succeed(
     AccessTokenVerifier,
     AccessTokenVerifier.of({
       verify: (token) => {
@@ -469,12 +510,15 @@ const makeHandler = async (
           );
         }
 
-        const permissions =
-          token === "read-token"
-            ? ["registration.read"]
-            : (token === "decide-token"
-              ? ["registration.decide"]
-              : ["registration.read", "registration.decide"]);
+        let permissions: readonly string[] = [
+          "registration.read",
+          "registration.decide",
+        ];
+        if (token === "read-token") {
+          permissions = ["registration.read"];
+        } else if (token === "decide-token") {
+          permissions = ["registration.decide"];
+        }
 
         return Effect.succeed(
           new VerifiedAccessToken({
@@ -523,8 +567,11 @@ const makeHandler = async (
   );
 
   return makeRegistrationHttpHandler({
-    authenticationLayer,
+    customerAuthenticationLayer:
+      customerAuthenticationLayerOverride ?? defaultAuthenticationLayer,
     layer: layer.pipe(Layer.provideMerge(workflowLayer)),
+    reviewerAuthenticationLayer:
+      reviewerAuthenticationLayerOverride ?? defaultAuthenticationLayer,
     reviewerIdentityLayer,
   });
 };
@@ -550,7 +597,9 @@ test("POST /registrations creates an Effect registration and starts the workflow
       }),
       emptyContext()
     );
-    const body = await response.json();
+    const body = Schema.decodeUnknownSync(CreateRegistrationResponse)(
+      await response.json()
+    );
 
     expect(response.status).toBe(HTTP_CREATED);
     expect(body).toMatchObject({
@@ -918,6 +967,129 @@ test("POST /registrations rejects existing WorkOS user emails as field errors", 
   }
 });
 
+describe("POST /registrations optional identity binding", () => {
+  test("verifies customer registration tokens against the customer identity pool", async () => {
+    workflowMocks.start.mockResolvedValue({ id: "run-123" });
+    const api = makeApiLayer([], {
+      hasIdentityUserWithEmail: true,
+      identityUserEmail: registrationPayload.email,
+    });
+    const customerAuthentication = Layer.succeed(
+      AccessTokenVerifier,
+      AccessTokenVerifier.of({
+        verify: () =>
+          Effect.succeed(
+            new VerifiedAccessToken({
+              authUserId: AccessTokenAuthUserId.make("auth-customer-1"),
+              permissions: authPermissionsFrom([]),
+            })
+          ),
+      })
+    );
+    const reviewerAuthentication = Layer.succeed(
+      AccessTokenVerifier,
+      AccessTokenVerifier.of({
+        verify: () =>
+          Effect.fail(
+            new AccessTokenInvalid({
+              message: "Not an administrator token",
+              reason: "invalidToken",
+            })
+          ),
+      })
+    );
+    const { dispose, handler } = await makeHandler(
+      api.layer,
+      api.layer,
+      customerAuthentication,
+      reviewerAuthentication
+    );
+
+    try {
+      const response = await handler(
+        request("POST", "/registrations", registrationPayload, {
+          authorization: "Bearer customer-token",
+        }),
+        emptyContext()
+      );
+      const body = Schema.decodeUnknownSync(CreateRegistrationResponse)(
+        await response.json()
+      );
+
+      expect(response.status).toBe(HTTP_CREATED);
+      expect(api.registrations.get(String(body.registrationId))).toMatchObject({
+        submittedByAuthUserId: "auth-customer-1",
+      });
+    } finally {
+      await dispose();
+    }
+  });
+
+  test("binds a matching verified identity instead of rejecting it", async () => {
+    workflowMocks.start.mockResolvedValue({ id: "run-123" });
+    const api = makeApiLayer([], {
+      hasIdentityUserWithEmail: true,
+      identityUserEmail: registrationPayload.email,
+    });
+    const { dispose, handler } = await makeHandler(api.layer);
+
+    try {
+      const response = await handler(
+        request("POST", "/registrations", registrationPayload),
+        emptyContext()
+      );
+      const body = Schema.decodeUnknownSync(CreateRegistrationResponse)(
+        await response.json()
+      );
+      const stored = api.registrations.get(String(body.registrationId));
+
+      expect(response.status).toBe(HTTP_CREATED);
+      expect(stored).toMatchObject({
+        submittedByAuthUserId: "auth-reviewer-1",
+      });
+      expect(workflowMocks.start).toHaveBeenCalledOnce();
+    } finally {
+      await dispose();
+    }
+  });
+
+  test("reports an unavailable identity verifier", async () => {
+    const api = makeApiLayer([], { hasIdentityUserWithEmail: true });
+    const unavailableAuthentication = Layer.succeed(
+      AccessTokenVerifier,
+      AccessTokenVerifier.of({
+        verify: () =>
+          Effect.fail(
+            new AccessTokenVerificationFailure({
+              cause: new Error("identity provider unavailable"),
+              message: "Identity provider unavailable",
+              reason: "unavailable",
+            })
+          ),
+      })
+    );
+    const { dispose, handler } = await makeHandler(
+      api.layer,
+      api.layer,
+      unavailableAuthentication
+    );
+
+    try {
+      const response = await handler(
+        request("POST", "/registrations", registrationPayload),
+        emptyContext()
+      );
+      const body = await response.text();
+
+      expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+      expect(body).toContain('"_tag":"RegistrationApiError"');
+      expect(workflowMocks.start).not.toHaveBeenCalled();
+    } finally {
+      await dispose();
+    }
+  });
+});
+
 test("GET /registrations lists registrations through RegistrationQueries", async () => {
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration]);
@@ -1104,6 +1276,9 @@ test("registration decisions resolve reviewers from the isolated admin identity 
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration]);
   const adminIdentityUsers = IdentityUsers.of({
+    findByEmail: vi.fn<IdentityUsers["Service"]["findByEmail"]>(() =>
+      Effect.succeed(Option.none())
+    ),
     getById: vi.fn((authUserId) =>
       Effect.succeed({
         authUserId,
@@ -1360,7 +1535,7 @@ test("POST /registrations/:id/invitation/revoke preserves InvitationExpired", as
   const api = makeApiLayer([registration], {
     invitationRevokeFailure: new InvitationExpired({
       expiredAt: new Date("2026-04-21T00:00:01.000Z"),
-      invitationId: registration.invitationId,
+      invitationId: requiredInvitationId(registration),
       message: "Invitation expired",
     }),
   });
@@ -1391,7 +1566,7 @@ test("POST /registrations/:id/invitation/revoke preserves InvitationNotFound", a
   const registration = makeApprovedRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration], {
     invitationRevokeFailure: new InvitationNotFound({
-      invitationId: registration.invitationId,
+      invitationId: requiredInvitationId(registration),
       message: "Invitation not found",
     }),
   });

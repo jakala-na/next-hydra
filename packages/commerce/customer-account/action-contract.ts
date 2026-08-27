@@ -6,14 +6,17 @@ import { Schema } from "effect";
 import type { CommerceRequestContextNotFound } from "../domain/commerce-request-context";
 import type {
   CommerceAccountUnavailable,
+  CommerceCustomerEmailConflict,
   CommerceCustomerProfileNotFound,
 } from "../services/commerce-accounts";
+import type { CompanyMemberRemovalPersistenceFailure } from "../services/company-member-removal-records";
 import type {
   CompanyMemberInvitationNotFound,
   CompanyMemberInvitationPersistenceFailure,
   CompanyMemberInvitationRecordConflict,
   CompanyMemberManagementForbidden,
   CompanyMemberRemovalConflict,
+  CustomerAccountIdentityLookupFailure,
   CustomerAccountProfileIncomplete,
   InvitationConflict,
   InvitationExpired,
@@ -21,6 +24,7 @@ import type {
   InvitationNotFound,
   InvitationPolicyError,
   InvitationProviderFailure,
+  IdentityMembershipProjectionFailure,
 } from "../services/customer-account-members";
 
 const InvitationPolicyErrorDefinition = definePublicError({
@@ -41,6 +45,24 @@ const InvitationConflictDefinition = definePublicError({
   tag: "InvitationConflict",
 });
 
+const CustomerAccountIdentityLookupFailureDefinition = definePublicError({
+  category: "unavailable",
+  code: "customerAccount.identity.unavailable",
+  fields: { reason: Schema.Literal("unavailable") },
+  recovery: "retry",
+  status: 503,
+  tag: "CustomerAccountIdentityLookupFailure",
+});
+
+const CommerceCustomerEmailConflictDefinition = definePublicError({
+  category: "conflict",
+  code: "customerAccount.member.emailConflict",
+  fields: {},
+  recovery: "fix_input",
+  status: 409,
+  tag: "CommerceCustomerEmailConflict",
+});
+
 const InvitationProviderFailureDefinition = definePublicError({
   category: "unavailable",
   code: "customerAccount.invitation.unavailable",
@@ -48,6 +70,24 @@ const InvitationProviderFailureDefinition = definePublicError({
   recovery: "retry",
   status: 503,
   tag: "InvitationProviderFailure",
+});
+
+const IdentityMembershipProjectionFailureDefinition = definePublicError({
+  category: "unavailable",
+  code: "customerAccount.identityMembership.unavailable",
+  fields: { reason: Schema.Literal("unavailable") },
+  recovery: "retry",
+  status: 503,
+  tag: "IdentityMembershipProjectionFailure",
+});
+
+const CompanyMemberRemovalPersistenceFailureDefinition = definePublicError({
+  category: "unavailable",
+  code: "customerAccount.member.removalPersistenceUnavailable",
+  fields: { reason: Schema.Literal("unavailable") },
+  recovery: "retry",
+  status: 503,
+  tag: "CompanyMemberRemovalPersistenceFailure",
 });
 
 const InvitationIssueOutcomeUnknownDefinition = definePublicError({
@@ -168,7 +208,10 @@ export const InviteCompanyMemberActionError = Schema.Union([
   InvitationPolicyErrorDefinition.schema,
   InvitationConflictDefinition.schema,
   InvitationProviderFailureDefinition.schema,
+  IdentityMembershipProjectionFailureDefinition.schema,
   InvitationIssueOutcomeUnknownDefinition.schema,
+  CustomerAccountIdentityLookupFailureDefinition.schema,
+  CommerceCustomerEmailConflictDefinition.schema,
   CustomerAccountProfileIncompleteDefinition.schema,
   CustomerAccountContextUnavailableDefinition.schema,
   CustomerAccountProviderFailureDefinition.schema,
@@ -180,8 +223,9 @@ export type InviteCompanyMemberActionError =
 export class InviteCompanyMemberSuccess extends Schema.Class<InviteCompanyMemberSuccess>(
   "InviteCompanyMemberSuccess"
 )({
-  invitationId: Schema.NonEmptyString,
+  invitationId: Schema.optional(Schema.NonEmptyString),
   inviteeEmail: Schema.NonEmptyString,
+  outcome: Schema.Literals(["invitation_sent", "member_added"]),
 }) {}
 
 export const InviteCompanyMemberActionResult = makeDisplayActionResultSchema(
@@ -200,6 +244,7 @@ export const CompanyMemberManagementActionError = Schema.Union([
   InvitationNotFoundDefinition.schema,
   CompanyMemberRemovalConflictDefinition.schema,
   CompanyMemberManagementForbiddenDefinition.schema,
+  CompanyMemberRemovalPersistenceFailureDefinition.schema,
 ]);
 export type CompanyMemberManagementActionError =
   typeof CompanyMemberManagementActionError.Type;
@@ -247,9 +292,12 @@ export type CompanyMemberManagementAction = (
 
 export type IssueCompanyMemberExpectedFailure =
   | CommerceAccountUnavailable
+  | CommerceCustomerEmailConflict
   | CommerceCustomerProfileNotFound
   | CommerceRequestContextNotFound
   | CustomerAccountProfileIncomplete
+  | CustomerAccountIdentityLookupFailure
+  | IdentityMembershipProjectionFailure
   | InvitationConflict
   | InvitationIssueOutcomeUnknown
   | InvitationPolicyError
@@ -262,6 +310,7 @@ export type ManageCompanyMemberExpectedFailure =
   | CompanyMemberInvitationRecordConflict
   | CompanyMemberManagementForbidden
   | CompanyMemberRemovalConflict
+  | CompanyMemberRemovalPersistenceFailure
   | InvitationExpired
   | InvitationNotFound;
 
@@ -279,9 +328,26 @@ export const projectCompanyMemberInvitationFailure = (
         message: error.message,
       });
     }
+    case "CommerceCustomerEmailConflict": {
+      return CommerceCustomerEmailConflictDefinition.make({
+        message: error.message,
+      });
+    }
+    case "CustomerAccountIdentityLookupFailure": {
+      return CustomerAccountIdentityLookupFailureDefinition.make({
+        message: "The identity directory is temporarily unavailable.",
+        reason: error.reason,
+      });
+    }
     case "InvitationProviderFailure": {
       return InvitationProviderFailureDefinition.make({
         message: "The invitation operation could not be completed right now.",
+      });
+    }
+    case "IdentityMembershipProjectionFailure": {
+      return IdentityMembershipProjectionFailureDefinition.make({
+        message: "Company membership could not be synchronized right now.",
+        reason: error.reason,
       });
     }
     case "InvitationIssueOutcomeUnknown": {
@@ -352,6 +418,14 @@ export const projectCompanyMemberManagementFailure = (
         message: error.message,
       });
     }
+    case "CompanyMemberRemovalPersistenceFailure": {
+      return CompanyMemberRemovalPersistenceFailureDefinition.make({
+        message: "Company member removal could not be saved right now.",
+        reason: error.reason,
+      });
+    }
+    case "CommerceCustomerEmailConflict":
+    case "CustomerAccountIdentityLookupFailure":
     case "CommerceAccountUnavailable":
     case "CommerceCustomerProfileNotFound":
     case "CommerceRequestContextNotFound":
@@ -359,6 +433,7 @@ export const projectCompanyMemberManagementFailure = (
     case "InvitationConflict":
     case "InvitationIssueOutcomeUnknown":
     case "InvitationPolicyError":
+    case "IdentityMembershipProjectionFailure":
     case "InvitationProviderFailure": {
       return projectCompanyMemberInvitationFailure(error);
     }

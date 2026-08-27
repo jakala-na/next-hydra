@@ -80,6 +80,8 @@ const layer = Layer.mergeAll(
   CompanyMemberInvitationRecords.layerMemory,
   Layer.succeed(CompanyMemberIdentityProjection, {
     projectAcceptedInvitation: () => Effect.void,
+    projectMembership: () => Effect.void,
+    removeMembership: () => Effect.void,
   }),
   CommerceAccounts.layerMemory
 );
@@ -116,6 +118,8 @@ const conflictAfterCommitLayer = Layer.mergeAll(
   ),
   Layer.succeed(CompanyMemberIdentityProjection, {
     projectAcceptedInvitation: () => Effect.void,
+    projectMembership: () => Effect.void,
+    removeMembership: () => Effect.void,
   }),
   CommerceAccounts.layerMemory
 );
@@ -142,6 +146,8 @@ const customerClaimRaceLayer = Layer.mergeAll(
   CompanyMemberInvitationRecords.layerMemory,
   Layer.succeed(CompanyMemberIdentityProjection, {
     projectAcceptedInvitation: () => Effect.void,
+    projectMembership: () => Effect.void,
+    removeMembership: () => Effect.void,
   }),
   customerClaimRaceCommerceLayer
 );

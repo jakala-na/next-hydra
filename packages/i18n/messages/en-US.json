@@ -236,6 +236,8 @@
           "sending": "Sending...",
           "successTitle": "Invitation sent",
           "successDescription": "An invitation was sent to {email}.",
+          "memberAddedTitle": "User added",
+          "memberAddedDescription": "{email} already had an account and was added to your company.",
           "failureTitle": "Invitation not sent"
         },
         "management": {
@@ -268,7 +270,10 @@
         "InputInvalidRoles": "Select at least one company role.",
         "InvitationPolicyError": "Only a company administrator can invite users.",
         "InvitationConflict": "This user cannot be invited.",
+        "CommerceCustomerEmailConflict": "That email belongs to a different commerce customer.",
+        "CustomerAccountIdentityLookupFailure": "The identity directory is temporarily unavailable. Try again.",
         "InvitationProviderFailure": "The invitation operation could not be completed right now. Try again.",
+        "IdentityMembershipProjectionFailure": "The company membership could not be synchronized right now. Try again.",
         "InvitationIssueOutcomeUnknown": "The invitation may have been sent, but its result could not be confirmed. Do not send it again.",
         "CustomerAccountProfileIncomplete": "Your profile needs an email address before you can invite users.",
         "CommerceRequestContextNotFound": "The current company account is unavailable. Refresh and try again.",
@@ -280,7 +285,8 @@
         "InvitationExpired": "This invitation has expired. Refresh the member list to reissue it.",
         "InvitationNotFound": "The identity provider no longer has this invitation. Refresh the member list.",
         "CompanyMemberRemovalConflict": "This member cannot be removed from the current company state. Refresh and try again.",
-        "CompanyMemberManagementForbidden": "Only a company administrator can manage company members."
+        "CompanyMemberManagementForbidden": "Only a company administrator can manage company members.",
+        "CompanyMemberRemovalPersistenceFailure": "The company member removal could not be saved right now. Try again."
       }
     },
     "checkout": {

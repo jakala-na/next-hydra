@@ -1,5 +1,12 @@
 import { describe, expect, it } from "@effect/vitest";
-import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import {
+  CommerceAssociateMembership,
+  CommerceCustomerId,
+} from "@repo/commerce/domain/commerce-account";
+import {
+  CommerceAccounts,
+  CommerceCustomerEmailConflict,
+} from "@repo/commerce/services/commerce-accounts";
 import { StoreConflict, VersionedKeyValueStore } from "@repo/versioned-store";
 import { DateTime, Effect, Exit, Layer, Redacted, Ref } from "effect";
 import { TestClock } from "effect/testing";
@@ -15,7 +22,9 @@ import {
 } from "../domain/identity";
 import { InvitationDelivery, PendingInvitation } from "../domain/invitations";
 import { CompanyInvitationPolicy } from "../services/company-invitation-policy";
+import { CompanyMemberIdentityProjection } from "../services/company-member-identity-projection";
 import { CompanyMemberInvitationRecords } from "../services/company-member-invitation-records";
+import { IdentityUsers } from "../services/identity-users";
 import {
   CompanyMemberInvitations,
   InvitationDeliveries,
@@ -25,17 +34,29 @@ import {
 } from "../services/invitations";
 import type { CompanyMemberInvitationIssueInput } from "../services/invitations";
 import {
+  addCompanyMember,
   issueCompanyMemberInvite,
   listCompanyMemberInvitations,
   reissueCompanyMemberInvite,
   revokeCompanyMemberInvite,
 } from "./company-member-invitations";
 
+const identityProjectionLayer = Layer.succeed(
+  CompanyMemberIdentityProjection,
+  CompanyMemberIdentityProjection.of({
+    projectAcceptedInvitation: () => Effect.void,
+    projectMembership: () => Effect.void,
+    removeMembership: () => Effect.void,
+  })
+);
+
 const layerMemory = Layer.mergeAll(
   invitationCapabilitiesLayerMemory,
   CompanyInvitationPolicy.layer,
   CompanyMemberInvitationRecords.layerMemory,
-  CommerceAccounts.layerMemory
+  CommerceAccounts.layerMemory,
+  identityProjectionLayer,
+  IdentityUsers.layerMemory
 );
 
 const existingCustomerLayer = Layer.effect(
@@ -44,6 +65,13 @@ const existingCustomerLayer = Layer.effect(
     Effect.map((accounts) =>
       CommerceAccounts.of({
         ...accounts,
+        addAssociate: () =>
+          Effect.fail(
+            new CommerceCustomerEmailConflict({
+              message:
+                "A Commerce customer already owns the invited identity or email",
+            })
+          ),
         hasCustomerWithEmail: () => Effect.succeed(true),
       })
     )
@@ -54,7 +82,8 @@ const existingCustomerInvitationLayer = Layer.mergeAll(
   invitationCapabilitiesLayerMemory,
   CompanyInvitationPolicy.layer,
   CompanyMemberInvitationRecords.layerMemory,
-  existingCustomerLayer
+  existingCustomerLayer,
+  IdentityUsers.layerMemory
 );
 
 const inviteeEmail = Redacted.make(Email.make("member@example.com"), {
@@ -120,7 +149,8 @@ const retryableReissueLayer = Layer.mergeAll(
   ),
   CompanyInvitationPolicy.layer,
   CompanyMemberInvitationRecords.layerMemory,
-  CommerceAccounts.layerMemory
+  CommerceAccounts.layerMemory,
+  IdentityUsers.layerMemory
 );
 
 const missingExpiredDeliveryLayer = Layer.mergeAll(
@@ -160,7 +190,8 @@ const missingExpiredDeliveryLayer = Layer.mergeAll(
   ),
   CompanyInvitationPolicy.layer,
   CompanyMemberInvitationRecords.layerMemory,
-  CommerceAccounts.layerMemory
+  CommerceAccounts.layerMemory,
+  IdentityUsers.layerMemory
 );
 
 const acceptedBeforeReissueLayer = Layer.mergeAll(
@@ -209,7 +240,8 @@ const acceptedBeforeReissueLayer = Layer.mergeAll(
   ),
   CompanyInvitationPolicy.layer,
   CompanyMemberInvitationRecords.layerMemory,
-  CommerceAccounts.layerMemory
+  CommerceAccounts.layerMemory,
+  IdentityUsers.layerMemory
 );
 
 const releaseConflictStoreLayer = Layer.effect(
@@ -247,7 +279,8 @@ const releaseConflictLayer = Layer.mergeAll(
   CompanyMemberInvitationRecords.layerStorage.pipe(
     Layer.provide(releaseConflictStoreLayer)
   ),
-  CommerceAccounts.layerMemory
+  CommerceAccounts.layerMemory,
+  IdentityUsers.layerMemory
 );
 
 const businessUnitId = CommerceBusinessUnitId.make("business-unit-1");
@@ -279,6 +312,128 @@ const buyer = new CompanyActor({
 });
 
 describe("company member invitations", () => {
+  it.effect(
+    "provisions an existing identity without issuing a provider invitation",
+    () => {
+      const projected: AuthUserId[] = [];
+      const existingIdentityUsers = IdentityUsers.layerMemoryFrom(
+        [],
+        [
+          {
+            authUserId: AuthUserId.make("auth-member-1"),
+            email: inviteeEmail,
+            firstName: Redacted.make(PersonName.make("Provider"), {
+              label: "personName",
+            }),
+            lastName: Redacted.make(PersonName.make("Profile"), {
+              label: "personName",
+            }),
+            name: "Provider Profile",
+          },
+        ]
+      );
+      const directCommerceLayer = Layer.effect(
+        CommerceAccounts,
+        CommerceAccounts.pipe(
+          Effect.map((accounts) =>
+            CommerceAccounts.of({
+              ...accounts,
+              addAssociate: (input) =>
+                Effect.succeed(
+                  new CommerceAssociateMembership({
+                    authUserId: input.acceptedIdentity.authUserId,
+                    businessUnitId: input.businessUnitId,
+                    customerId: CommerceCustomerId.make("customer-member-1"),
+                    roles: input.roles,
+                  })
+                ),
+            })
+          )
+        )
+      ).pipe(Layer.provide(CommerceAccounts.layerMemory));
+      const directProjectionLayer = Layer.succeed(
+        CompanyMemberIdentityProjection,
+        CompanyMemberIdentityProjection.of({
+          projectAcceptedInvitation: () => Effect.void,
+          projectMembership: (input) =>
+            Effect.sync(() => {
+              projected.push(input.authUserId);
+            }),
+          removeMembership: () => Effect.void,
+        })
+      );
+      const directLayer = Layer.mergeAll(
+        invitationCapabilitiesLayerMemory,
+        CompanyInvitationPolicy.layer,
+        CompanyMemberInvitationRecords.layerMemory,
+        directCommerceLayer,
+        directProjectionLayer,
+        existingIdentityUsers
+      );
+
+      return Effect.gen(function* () {
+        const result = yield* addCompanyMember({
+          actor: administrator,
+          inviteeEmail,
+          inviteeName,
+          roles: ["buyer", "approver"],
+        });
+        const records = yield* CompanyMemberInvitationRecords;
+        const invitations = yield* records.listByBusinessUnit(businessUnitId);
+
+        expect(result).toMatchObject({
+          _tag: "CompanyMemberProvisioned",
+          membership: {
+            authUserId: "auth-member-1",
+            customerId: "customer-member-1",
+            roles: ["buyer", "approver"],
+          },
+        });
+        expect(invitations).toStrictEqual([]);
+        expect(projected).toStrictEqual(["auth-member-1"]);
+      }).pipe(Effect.provide(directLayer));
+    }
+  );
+
+  it.effect(
+    "rejects an existing identity that already has a Commerce customer",
+    () => {
+      const existingIdentityUsers = IdentityUsers.layerMemoryFrom(
+        [],
+        [
+          {
+            authUserId: AuthUserId.make("auth-member-1"),
+            email: inviteeEmail,
+            name: "Invited Member",
+          },
+        ]
+      );
+      const directLayer = Layer.mergeAll(
+        invitationCapabilitiesLayerMemory,
+        CompanyInvitationPolicy.layer,
+        CompanyMemberInvitationRecords.layerMemory,
+        existingCustomerLayer,
+        identityProjectionLayer,
+        existingIdentityUsers
+      );
+
+      return Effect.gen(function* () {
+        const failure = yield* addCompanyMember({
+          actor: administrator,
+          inviteeEmail,
+          inviteeName,
+          roles: ["buyer"],
+        }).pipe(Effect.flip);
+
+        expect(failure).toMatchObject({
+          _tag: "CommerceCustomerEmailConflict",
+          message:
+            "A Commerce customer already owns the invited identity or email",
+        });
+      }).pipe(Effect.provide(directLayer));
+    }
+  );
+
   it.effect("allows an administrator to issue a multi-role invitation", () =>
     Effect.gen(function* () {
       const invitation = yield* issueCompanyMemberInvite({

@@ -10,9 +10,9 @@ import {
   CommerceCustomer,
   CommerceCustomerId,
   CommerceCustomerProfile,
+  CompanyRoles,
   INITIAL_COMPANY_ROLES,
 } from "../domain/commerce-account";
-import type { CompanyRoles } from "../domain/commerce-account";
 import { AuthUserId } from "../domain/commerce-request-context";
 import type { StoreKey } from "../store";
 
@@ -314,9 +314,46 @@ export class CommerceAccounts extends Context.Service<
               (associate) =>
                 associate.authUserId === input.acceptedIdentity.authUserId
             );
+            const hasAnotherMembership = [
+              ...current.associatesByBusinessUnit.entries(),
+            ].some(
+              ([candidateBusinessUnitId, associates]) =>
+                candidateBusinessUnitId !== input.businessUnitId &&
+                associates.some(
+                  (associate) => associate.customerId === customer.customerId
+                )
+            );
+
+            if (existingAssociate === undefined && hasAnotherMembership) {
+              return yield* new CommerceCustomerEmailConflict({
+                message:
+                  "A Commerce customer already owns the invited identity or email",
+              });
+            }
 
             if (existingAssociate) {
-              return existingAssociate;
+              const membership = new CommerceAssociateMembership({
+                ...existingAssociate,
+                roles: Schema.decodeUnknownSync(CompanyRoles)([
+                  ...new Set([...existingAssociate.roles, ...input.roles]),
+                ]),
+              });
+
+              yield* Ref.update(state, (latest) => ({
+                ...latest,
+                associatesByBusinessUnit: new Map(
+                  latest.associatesByBusinessUnit
+                ).set(
+                  input.businessUnitId,
+                  existing.map((associate) =>
+                    associate.authUserId === input.acceptedIdentity.authUserId
+                      ? membership
+                      : associate
+                  )
+                ),
+              }));
+
+              return membership;
             }
 
             const membership = new CommerceAssociateMembership({

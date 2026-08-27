@@ -1,3 +1,4 @@
+import type { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import type { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
 import { Clock, Effect } from "effect";
@@ -5,11 +6,8 @@ import { Clock, Effect } from "effect";
 import type { RegistrationReviewerActor } from "../domain/actors";
 import { registrationSystemActor } from "../domain/actors";
 import { ApprovedDecision, RejectedDecision } from "../domain/approval";
-import type {
-  AcceptedAuthIdentity,
-  InvitationId,
-  RegistrationId,
-} from "../domain/identity";
+import { AcceptedAuthIdentity } from "../domain/identity";
+import type { InvitationId, RegistrationId } from "../domain/identity";
 import { RegistrationApprovalIntent } from "../domain/invitations";
 import type { RevokedInvitation } from "../domain/invitations";
 import type {
@@ -17,6 +15,12 @@ import type {
   RejectedRegistration,
 } from "../domain/registration";
 import { INITIAL_COMPANY_ROLES } from "../domain/roles";
+import { CompanyMemberIdentityProjection } from "../services/company-member-identity-projection";
+import { IdentityUsers } from "../services/identity-users";
+import type {
+  IdentityUserLookupFailure,
+  IdentityUserNotFound,
+} from "../services/identity-users";
 import {
   InvitationConflict,
   RegistrationInvitations,
@@ -77,16 +81,55 @@ export const approveRegistration = (
   input: ApproveRegistrationInput
 ): Effect.Effect<
   ApprovedRegistration,
-  RegistrationDecisionTransitionError | InvitationIssueError,
-  Registrations | RegistrationInvitations
+  | CommerceAccountUnavailable
+  | IdentityMembershipProjectionFailure
+  | IdentityUserLookupFailure
+  | IdentityUserNotFound
+  | RegistrationDecisionTransitionError
+  | InvitationIssueError,
+  | CommerceAccounts
+  | CompanyMemberIdentityProjection
+  | IdentityUsers
+  | Registrations
+  | RegistrationInvitations
 > =>
   Effect.gen(function* () {
     const registrations = yield* Registrations;
     const invitations = yield* RegistrationInvitations;
+    const commerceAccounts = yield* CommerceAccounts;
+    const identityProjection = yield* CompanyMemberIdentityProjection;
+    const identityUsers = yield* IdentityUsers;
 
     const registration = yield* registrations.get(input.registrationId);
 
     if (registration._tag === "ApprovedRegistration") {
+      if (
+        registration.submittedByAuthUserId !== undefined &&
+        registration.onboardingStatus === "accepted" &&
+        registration.invitationId === undefined
+      ) {
+        const identity = yield* identityUsers.getById(
+          registration.submittedByAuthUserId
+        );
+        const acceptedIdentity = new AcceptedAuthIdentity({
+          authUserId: identity.authUserId,
+          email: identity.email,
+          firstName:
+            identity.firstName ?? registration.details.contactFirstName,
+          lastName: identity.lastName ?? registration.details.contactLastName,
+        });
+        const commerceAccount =
+          yield* commerceAccounts.createFromRegistration(registration);
+        yield* commerceAccounts.linkRegistrantIdentity({
+          acceptedIdentity,
+          commerceAccount,
+        });
+        yield* identityProjection.projectMembership({
+          authUserId: acceptedIdentity.authUserId,
+          businessUnitId: commerceAccount.businessUnitId,
+          roles: INITIAL_COMPANY_ROLES,
+        });
+      }
       return registration;
     }
 
@@ -97,6 +140,36 @@ export const approveRegistration = (
       decision: "approved",
       reason: input.reason,
     });
+
+    if (registration.submittedByAuthUserId !== undefined) {
+      const identity = yield* identityUsers.getById(
+        registration.submittedByAuthUserId
+      );
+      const approved = yield* registrations.markApproved({
+        acceptedAuthUserId: identity.authUserId,
+        decision,
+        registrationId: input.registrationId,
+      });
+      const commerceAccount =
+        yield* commerceAccounts.createFromRegistration(approved);
+      const acceptedIdentity = new AcceptedAuthIdentity({
+        authUserId: identity.authUserId,
+        email: identity.email,
+        firstName: identity.firstName ?? approved.details.contactFirstName,
+        lastName: identity.lastName ?? approved.details.contactLastName,
+      });
+      yield* commerceAccounts.linkRegistrantIdentity({
+        acceptedIdentity,
+        commerceAccount,
+      });
+      yield* identityProjection.projectMembership({
+        authUserId: acceptedIdentity.authUserId,
+        businessUnitId: commerceAccount.businessUnitId,
+        roles: INITIAL_COMPANY_ROLES,
+      });
+
+      return approved;
+    }
 
     const intent = new RegistrationApprovalIntent({
       intent: "registration_approval",
@@ -151,14 +224,19 @@ export const acceptRegistrationInvitation = (
   ApprovedRegistration,
   | InvitationAcceptError
   | CommerceAccountUnavailable
+  | IdentityMembershipProjectionFailure
   | RegistrationReadError
   | RegistrationOnboardingTransitionError
   | RegistrationNotFoundByInvitationId,
-  RegistrationInvitations | CommerceAccounts | Registrations
+  | RegistrationInvitations
+  | CommerceAccounts
+  | CompanyMemberIdentityProjection
+  | Registrations
 > =>
   Effect.gen(function* () {
     const invitations = yield* RegistrationInvitations;
     const commerceAccounts = yield* CommerceAccounts;
+    const identityProjection = yield* CompanyMemberIdentityProjection;
     const registrations = yield* Registrations;
 
     const registration = yield* registrations.get(input.registrationId).pipe(
@@ -199,6 +277,11 @@ export const acceptRegistrationInvitation = (
     yield* commerceAccounts.linkRegistrantIdentity({
       acceptedIdentity: input.acceptedIdentity,
       commerceAccount,
+    });
+    yield* identityProjection.projectMembership({
+      authUserId: input.acceptedIdentity.authUserId,
+      businessUnitId: commerceAccount.businessUnitId,
+      roles: INITIAL_COMPANY_ROLES,
     });
 
     return acceptedRegistration;
@@ -277,7 +360,10 @@ export const revokeRegistrationInvitation = (
     const registrations = yield* Registrations;
     const registration = yield* registrations.get(input.registrationId);
 
-    if (registration._tag !== "ApprovedRegistration") {
+    if (
+      registration._tag !== "ApprovedRegistration" ||
+      registration.invitationId === undefined
+    ) {
       return yield* new InvitationConflict({
         message: `Registration ${input.registrationId} has no invitation to revoke`,
       });

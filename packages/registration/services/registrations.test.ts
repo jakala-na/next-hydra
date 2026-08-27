@@ -308,6 +308,49 @@ describe("Registrations over versioned storage", () => {
     }).pipe(Effect.provide(Registrations.layerMemory))
   );
 
+  it.effect("approves a verified registration without an invitation", () =>
+    Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const submittedByAuthUserId = AuthUserId.make("auth-user-1");
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+        submittedByAuthUserId,
+      });
+
+      const approved = yield* registrations.markApproved({
+        acceptedAuthUserId: submittedByAuthUserId,
+        decision: makeDecision(),
+        registrationId: created.id,
+      });
+
+      expect(approved.invitationId).toBeUndefined();
+      expect(approved.onboardingStatus).toBe("accepted");
+      expect(approved.acceptedAuthUserId).toBe(submittedByAuthUserId);
+    }).pipe(Effect.provide(Registrations.layerMemory))
+  );
+
+  it.effect("rejects approval evidence for a different auth identity", () =>
+    Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const created = yield* registrations.createAwaitingApproval({
+        details,
+        storeKey,
+        submittedByAuthUserId: AuthUserId.make("auth-user-1"),
+      });
+
+      const failure = yield* registrations
+        .markApproved({
+          acceptedAuthUserId: AuthUserId.make("auth-user-2"),
+          decision: makeDecision(),
+          registrationId: created.id,
+        })
+        .pipe(Effect.flip);
+
+      expect(failure).toBeInstanceOf(RegistrationTransitionConflict);
+    }).pipe(Effect.provide(Registrations.layerMemory))
+  );
+
   it.effect("moves accepted approval decisions into processing", () =>
     Effect.gen(function* () {
       const registrations = yield* Registrations;

@@ -56,6 +56,8 @@ const layer = Layer.mergeAll(
   CompanyMemberInvitationRecords.layerMemory,
   Layer.succeed(CompanyMemberIdentityProjection, {
     projectAcceptedInvitation: () => Effect.void,
+    projectMembership: () => Effect.void,
+    removeMembership: () => Effect.void,
   }),
   CommerceAccounts.layerMemory,
   RegistrationQueries.layerMemoryFrom([]),

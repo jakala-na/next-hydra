@@ -13,13 +13,10 @@ import {
   CustomerCommercePrincipal,
 } from "../domain/commerce-request-context";
 import { CommerceContext } from "../services/commerce-context";
-import type {
-  InviteCustomerAccountMemberFailure,
-  InviteCustomerAccountMemberInput,
-} from "../services/customer-account-members";
 import {
   CompanyMemberInvitationNotFound,
   CustomerAccountMemberInvitation,
+  CustomerAccountMemberProvisioned,
   CustomerAccountMembers,
   CustomerAccountInvitationId,
   InvitationIssueOutcomeUnknown,
@@ -35,12 +32,7 @@ const profileEmail = Redacted.make("administrator@example.com", {
   label: "email",
 });
 
-type InvitationIssue = (
-  input: InviteCustomerAccountMemberInput
-) => Effect.Effect<
-  CustomerAccountMemberInvitation,
-  InviteCustomerAccountMemberFailure
->;
+type InvitationIssue = CustomerAccountMembers["Service"]["invite"];
 
 interface HarnessOptions {
   readonly cancel?: CustomerAccountMembers["Service"]["cancelInvitation"];
@@ -65,7 +57,9 @@ const makeHarness = (options: HarnessOptions = {}) => {
     cancelInvitation: options.cancel ?? (() => Effect.die("not used")),
     invite: issueInvitation,
     listInvitations: () => Effect.die("not used"),
+    projectMemberIdentity: () => Effect.void,
     reissueInvitation: () => Effect.die("not used"),
+    removeMemberIdentity: () => Effect.void,
   });
   const runtime = ManagedRuntime.make(
     Layer.mergeAll(Layer.succeed(CustomerAccountMembers, members))
@@ -139,6 +133,7 @@ describe("Customer account invitation boundaries", () => {
       success: {
         invitationId: "invitation-1",
         inviteeEmail: "new.user@example.com",
+        outcome: "invitation_sent",
       },
     });
     const [invitationInput] = harness.issueInvitation.mock.calls[0] ?? [];
@@ -162,6 +157,31 @@ describe("Customer account invitation boundaries", () => {
       firstName: "Ada",
       lastName: "Lovelace",
       roles: ["buyer", "approver"],
+    });
+  });
+
+  it("reports an existing identity as added without an invitation id", async () => {
+    const harness = makeHarness({
+      issue: (input) =>
+        Effect.succeed(
+          new CustomerAccountMemberProvisioned({
+            customerId: CommerceCustomerId.make("customer-existing-1"),
+            inviteeEmail: input.inviteeEmail,
+          })
+        ),
+    });
+
+    const result = await harness.action(
+      null,
+      invitationForm("existing.user@example.com", ["buyer"])
+    );
+
+    expect(result).toStrictEqual({
+      _tag: "Success",
+      success: {
+        inviteeEmail: "existing.user@example.com",
+        outcome: "member_added",
+      },
     });
   });
 

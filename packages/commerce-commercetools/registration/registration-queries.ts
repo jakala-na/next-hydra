@@ -1,5 +1,6 @@
 import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import type {
+  AuthUserId,
   InvitationId,
   RedactedEmail,
 } from "@repo/registration/domain/identity";
@@ -469,7 +470,7 @@ const makeRegistrationQueries = ({
 
   const hasBlockingEmail = Effect.fn(
     "CommercetoolsRegistrationQueries.hasBlockingEmail"
-  )(function* (email: RedactedEmail) {
+  )(function* (email: RedactedEmail, verifiedAuthUserId?: AuthUserId) {
     for (const status of [
       "awaiting_approval",
       "approval_processing",
@@ -486,7 +487,11 @@ const makeRegistrationQueries = ({
 
         if (
           result.items.some((item) =>
-            registrationBlocksEmail(item.registration, email)
+            registrationBlocksEmail(
+              item.registration,
+              email,
+              verifiedAuthUserId
+            )
           )
         ) {
           return true;

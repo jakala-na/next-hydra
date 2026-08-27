@@ -79,7 +79,7 @@ export const layerRegistrationEmails = ({
                 companyName={getCompanyName(registration)}
                 contactName={getContactName(registration)}
                 onboardingUrl={
-                  invitation.acceptInvitationUrl ??
+                  invitation?.acceptInvitationUrl ??
                   new URL("/api/auth/signin", webUrl).toString()
                 }
               />

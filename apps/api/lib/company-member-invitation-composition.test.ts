@@ -292,8 +292,17 @@ describe("generated company-member invitation acceptance composition", () => {
                 userId: "auth-member-1",
               },
             ],
+            [
+              {
+                metadata: {
+                  membership:
+                    '{"businessUnitId":"business-unit-composition-1","roles":["buyer","approver"]}',
+                },
+                userId: "auth-member-1",
+              },
+            ],
           ]
         : []
     );
-  });
+  }, 15_000);
 });

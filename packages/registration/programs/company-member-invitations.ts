@@ -1,9 +1,17 @@
-import type { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
+import type { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
+import type { CommerceAssociateMembership } from "@repo/commerce/domain/commerce-account";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
-import { Clock, DateTime, Effect, Random, Redacted } from "effect";
+import type {
+  CommerceAccountUnavailable,
+  CommerceCustomerEmailConflict,
+} from "@repo/commerce/services/commerce-accounts";
+import { Clock, DateTime, Effect, Option, Random, Redacted } from "effect";
 
 import type { CompanyActor } from "../domain/actors";
-import { CompanyMemberInvitationId } from "../domain/identity";
+import {
+  AcceptedAuthIdentity,
+  CompanyMemberInvitationId,
+} from "../domain/identity";
 import type {
   CompanyMemberInvitationId as CompanyMemberInvitationIdType,
   RedactedEmail,
@@ -20,12 +28,15 @@ import type {
 import type { CompanyRoles } from "../domain/roles";
 import { CompanyInvitationPolicy } from "../services/company-invitation-policy";
 import type { InvitationPolicyError } from "../services/company-invitation-policy";
+import { CompanyMemberIdentityProjection } from "../services/company-member-identity-projection";
 import { CompanyMemberInvitationRecords } from "../services/company-member-invitation-records";
 import type {
   CompanyMemberInvitationNotFound,
   CompanyMemberInvitationPersistenceFailure,
   CompanyMemberInvitationRecordConflict,
 } from "../services/company-member-invitation-records";
+import { IdentityUsers } from "../services/identity-users";
+import type { IdentityUserLookupFailure } from "../services/identity-users";
 import {
   CompanyMemberInvitations,
   InvitationConflict,
@@ -60,6 +71,16 @@ export interface ReissueCompanyMemberInviteInput {
   readonly actor: CompanyActor;
   readonly companyMemberInvitationId: CompanyMemberInvitationIdType;
 }
+
+export interface CompanyMemberProvisioned {
+  readonly _tag: "CompanyMemberProvisioned";
+  readonly inviteeEmail: RedactedEmail;
+  readonly membership: CommerceAssociateMembership;
+}
+
+export type AddCompanyMemberResult =
+  | CompanyMemberProvisioned
+  | PendingCompanyMemberInvitation;
 
 export type ListCompanyMemberInvitationsError =
   | CompanyMemberInvitationNotFound
@@ -177,6 +198,67 @@ export const issueCompanyMemberInvite = (
       input,
       yield* makeCompanyMemberInvitationId
     );
+  });
+
+export const addCompanyMember = (
+  input: IssueCompanyMemberInviteInput
+): Effect.Effect<
+  AddCompanyMemberResult,
+  | CommerceAccountUnavailable
+  | CommerceCustomerEmailConflict
+  | IdentityMembershipProjectionFailure
+  | IdentityUserLookupFailure
+  | InvitationPolicyError
+  | CompanyMemberInvitationIssueError,
+  | CompanyInvitationPolicy
+  | CompanyMemberInvitationRecords
+  | CompanyMemberInvitations
+  | CommerceAccounts
+  | CompanyMemberIdentityProjection
+  | IdentityUsers
+> =>
+  Effect.gen(function* () {
+    const policy = yield* CompanyInvitationPolicy;
+    const identityUsers = yield* IdentityUsers;
+    const commerceAccounts = yield* CommerceAccounts;
+    const identityProjection = yield* CompanyMemberIdentityProjection;
+
+    yield* policy.authorizeIssueInvite({
+      actor: input.actor,
+      inviteeEmail: input.inviteeEmail,
+      roles: input.roles,
+    });
+
+    const existingIdentity = yield* identityUsers.findByEmail(
+      input.inviteeEmail
+    );
+    if (Option.isSome(existingIdentity)) {
+      const acceptedIdentity = new AcceptedAuthIdentity({
+        authUserId: existingIdentity.value.authUserId,
+        email: existingIdentity.value.email,
+        firstName:
+          existingIdentity.value.firstName ?? input.inviteeName.firstName,
+        lastName: existingIdentity.value.lastName ?? input.inviteeName.lastName,
+      });
+      const membership = yield* commerceAccounts.addAssociate({
+        acceptedIdentity,
+        businessUnitId: input.actor.businessUnitId,
+        roles: input.roles,
+      });
+      yield* identityProjection.projectMembership({
+        authUserId: acceptedIdentity.authUserId,
+        businessUnitId: membership.businessUnitId,
+        roles: membership.roles,
+      });
+
+      return {
+        _tag: "CompanyMemberProvisioned" as const,
+        inviteeEmail: existingIdentity.value.email,
+        membership,
+      };
+    }
+
+    return yield* issueCompanyMemberInvite(input);
   });
 
 export const revokeCompanyMemberInvite = (

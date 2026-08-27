@@ -103,13 +103,16 @@ export type RegistrationOnboardingTransitionError =
 export interface CreateAwaitingApprovalRegistrationInput {
   readonly details: CompanyRegistrationDetails;
   readonly storeKey: StoreKey;
+  readonly submittedByAuthUserId?: AuthUserId;
 }
 
-export interface MarkRegistrationApprovedInput {
+export type MarkRegistrationApprovedInput = {
   readonly registrationId: RegistrationId;
   readonly decision: ApprovedDecision;
-  readonly invitationId: InvitationId;
-}
+} & (
+  | { readonly invitationId: InvitationId }
+  | { readonly acceptedAuthUserId: AuthUserId }
+);
 
 export type MarkRegistrationOnboardingStatusInput =
   | {
@@ -124,6 +127,9 @@ export type MarkRegistrationOnboardingStatusInput =
         "accepted" | "invited"
       >;
     };
+
+const submittedIdentityFields = (submittedByAuthUserId?: AuthUserId) =>
+  submittedByAuthUserId === undefined ? {} : { submittedByAuthUserId };
 
 export interface MarkRegistrationApprovalProcessingInput {
   readonly registrationId: RegistrationId;
@@ -251,6 +257,7 @@ export class Registrations extends Context.Service<
               id,
               status: "awaiting_approval",
               storeKey: input.storeKey,
+              ...submittedIdentityFields(input.submittedByAuthUserId),
               updatedAt: createdAt,
             });
 
@@ -360,19 +367,49 @@ export class Registrations extends Context.Service<
           });
         }
 
+        const { submittedByAuthUserId } = current.value;
+        const invalidApprovalEvidence =
+          submittedByAuthUserId === undefined
+            ? !("invitationId" in input)
+            : !(
+                "acceptedAuthUserId" in input &&
+                input.acceptedAuthUserId === submittedByAuthUserId
+              );
+        if (invalidApprovalEvidence) {
+          return yield* new RegistrationTransitionConflict({
+            attemptedDecision: "approved",
+            currentState: current.value._tag,
+            message: `Registration ${input.registrationId} approval evidence does not match its submission identity`,
+            registrationId: input.registrationId,
+          });
+        }
+
         const updatedAt = yield* nowDate;
-        const approved = new ApprovedRegistration({
-          _tag: "ApprovedRegistration",
+        const commonApproval = {
+          _tag: "ApprovedRegistration" as const,
           createdAt: current.value.createdAt,
           decision: input.decision,
           details: current.value.details,
           id: current.value.id,
-          invitationId: input.invitationId,
-          onboarding: { status: "invited" },
-          status: "approved",
+          ...submittedIdentityFields(current.value.submittedByAuthUserId),
+          status: "approved" as const,
           storeKey: current.value.storeKey,
           updatedAt,
-        });
+        };
+        const approved =
+          "invitationId" in input
+            ? new ApprovedRegistration({
+                ...commonApproval,
+                invitationId: input.invitationId,
+                onboarding: { status: "invited" },
+              })
+            : new ApprovedRegistration({
+                ...commonApproval,
+                onboarding: {
+                  acceptedAuthUserId: input.acceptedAuthUserId,
+                  status: "accepted",
+                },
+              });
 
         yield* store.update(key, Registration, current, approved).pipe(
           Effect.catchTags({
@@ -461,6 +498,7 @@ export class Registrations extends Context.Service<
               : { status: input.status },
           status: "approved",
           storeKey: current.value.storeKey,
+          ...submittedIdentityFields(current.value.submittedByAuthUserId),
           updatedAt,
         });
 
@@ -532,6 +570,7 @@ export class Registrations extends Context.Service<
           requestedDecision: input.decision,
           status: "approval_processing",
           storeKey: current.value.storeKey,
+          ...submittedIdentityFields(current.value.submittedByAuthUserId),
           updatedAt,
         });
 
@@ -603,6 +642,7 @@ export class Registrations extends Context.Service<
           id: current.value.id,
           status: "rejected",
           storeKey: current.value.storeKey,
+          ...submittedIdentityFields(current.value.submittedByAuthUserId),
           updatedAt,
         });
 

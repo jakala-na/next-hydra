@@ -48,6 +48,9 @@ export const notifyRegistrationApproved = (
     if (registration._tag !== "ApprovedRegistration") {
       return;
     }
+    if (registration.invitationId === undefined) {
+      return yield* emails.sendApprovedToRegistrant({ registration });
+    }
 
     const invitation = yield* deliveries.get(registration.invitationId);
 

@@ -1,3 +1,5 @@
+import { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
+import { hasTransientTransportCode } from "@repo/errors/transport";
 import {
   CompanyMemberInvitationId,
   CommerceBusinessUnitId,
@@ -13,7 +15,10 @@ import {
 } from "@repo/registration/domain/invitations";
 import { CompanyRoles } from "@repo/registration/domain/roles";
 import { CompanyMemberIdentityProjection } from "@repo/registration/services/company-member-identity-projection";
-import type { ProjectAcceptedCompanyMemberIdentityInput } from "@repo/registration/services/company-member-identity-projection";
+import type {
+  ProjectAcceptedCompanyMemberIdentityInput,
+  ProjectCompanyMembershipIdentityInput,
+} from "@repo/registration/services/company-member-identity-projection";
 import {
   CompanyMemberInvitations,
   InvitationConflict,
@@ -36,6 +41,7 @@ import type { RegistrationInvitationIssueAttemptsService } from "@repo/registrat
 import {
   ApiKeyRequiredException,
   BadRequestException,
+  GenericServerException,
   NoApiKeyProvidedException,
   NotFoundException,
   RateLimitExceededException,
@@ -134,6 +140,15 @@ const WorkosCompanyMemberInvitationMetadataJson = Schema.fromJsonString(
   Schema.toCodecJson(WorkosCompanyMemberInvitationMetadata)
 );
 
+const WorkosCompanyMembershipMetadata = Schema.Struct({
+  businessUnitId: CommerceBusinessUnitId,
+  roles: CompanyRoles,
+});
+
+const WorkosCompanyMembershipMetadataJson = Schema.fromJsonString(
+  Schema.toCodecJson(WorkosCompanyMembershipMetadata)
+);
+
 const workosCompanyMemberInvitationMetadata = (
   input: ProjectAcceptedCompanyMemberIdentityInput
 ) =>
@@ -142,6 +157,14 @@ const workosCompanyMemberInvitationMetadata = (
     companyMemberInvitationId: input.intent.companyMemberInvitationId,
     intent: input.intent.intent,
     roles: input.intent.roles,
+  });
+
+const workosCompanyMembershipMetadata = (
+  input: ProjectCompanyMembershipIdentityInput
+) =>
+  Schema.encodeSync(WorkosCompanyMembershipMetadataJson)({
+    businessUnitId: input.businessUnitId,
+    roles: input.roles,
   });
 
 const workosRegistrationInvitationMetadata = (
@@ -191,6 +214,35 @@ const providerFailure = (
     }`,
     operation,
   });
+
+const REQUEST_TIMEOUT_STATUS_CODE = 408;
+const SERVER_ERROR_STATUS_CODE = 500;
+
+const isWorkosMembershipProjectionUnavailable = (cause: unknown) =>
+  cause instanceof RateLimitExceededException ||
+  hasTransientTransportCode(cause) ||
+  (cause instanceof GenericServerException &&
+    (cause.status === REQUEST_TIMEOUT_STATUS_CODE ||
+      cause.status >= SERVER_ERROR_STATUS_CODE));
+
+const identityMembershipProjection = (
+  operation: IdentityMembershipProjectionFailure["operation"],
+  run: () => Promise<void>
+) =>
+  Effect.tryPromise({ catch: (cause) => cause, try: run }).pipe(
+    Effect.catch((cause) =>
+      isWorkosMembershipProjectionUnavailable(cause)
+        ? Effect.fail(
+            new IdentityMembershipProjectionFailure({
+              cause,
+              message: `Failed to ${operation} WorkOS company membership metadata`,
+              operation,
+              reason: "unavailable",
+            })
+          )
+        : Effect.die(cause)
+    )
+  );
 
 const issueOutcomeUnknown = (
   input: WorkosInvitationIssueInput,
@@ -588,6 +640,28 @@ export const makeWorkosCompanyMemberIdentityProjection = (
             userId: input.acceptedIdentity.authUserId,
           });
         },
+      })
+    ),
+    projectMembership: Effect.fn(
+      "CompanyMemberIdentityProjection.Workos.projectMembership"
+    )((input) =>
+      identityMembershipProjection("project", async () => {
+        await userManagement.updateUser({
+          metadata: {
+            membership: workosCompanyMembershipMetadata(input),
+          },
+          userId: input.authUserId,
+        });
+      })
+    ),
+    removeMembership: Effect.fn(
+      "CompanyMemberIdentityProjection.Workos.removeMembership"
+    )((input) =>
+      identityMembershipProjection("remove", async () => {
+        await userManagement.updateUser({
+          metadata: { invitation: null, membership: null },
+          userId: input.authUserId,
+        });
       })
     ),
   });

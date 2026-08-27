@@ -1,4 +1,5 @@
-import { Effect, Redacted } from "effect";
+import type { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
+import { Effect, Option, Redacted } from "effect";
 
 import { hasCompanyRole } from "../domain/commerce-account";
 import type {
@@ -10,7 +11,13 @@ import { AuthUserId as CustomerAccountAuthUserId } from "../domain/commerce-requ
 import { CommerceAccounts } from "../services/commerce-accounts";
 import type { CommerceAccountUnavailable } from "../services/commerce-accounts";
 import { CommerceCompanyMemberships } from "../services/commerce-company-memberships";
+import type { CommerceCompanyMemberRemoval } from "../services/commerce-company-memberships";
 import { CommerceContext } from "../services/commerce-context";
+import { CompanyMemberRemovalRecords } from "../services/company-member-removal-records";
+import type {
+  CompanyMemberRemovalPersistenceFailure,
+  CompanyMemberRemovalRecord,
+} from "../services/company-member-removal-records";
 import {
   CompanyMemberManagementForbidden,
   CompanyMemberRemovalConflict,
@@ -132,15 +139,70 @@ export const removeCompanyMember = Effect.fn(
   }
 
   const memberships = yield* CommerceCompanyMemberships;
+  const removalRecords = yield* CompanyMemberRemovalRecords;
   const customerAccountMembers = yield* CustomerAccountMembers;
   const targetCustomerId = customerId;
+
+  const finishRemoval = (
+    record: CompanyMemberRemovalRecord,
+    removal: CommerceCompanyMemberRemoval
+  ): Effect.Effect<
+    void,
+    CompanyMemberRemovalPersistenceFailure | IdentityMembershipProjectionFailure
+  > =>
+    Effect.gen(function* () {
+      if (removal.customerDisposition === "retained") {
+        yield* customerAccountMembers.projectMemberIdentity({
+          authUserId: record.authUserId,
+          businessUnitId: removal.remainingMembership.businessUnitId,
+          roles: removal.remainingMembership.roles,
+        });
+      } else {
+        yield* customerAccountMembers.removeMemberIdentity({
+          authUserId: record.authUserId,
+          businessUnitId: record.businessUnitId,
+        });
+      }
+
+      yield* removalRecords.complete(record);
+    });
+
+  const resumeAuthorizedRemoval = (
+    missingReceiptMessage: string
+  ): Effect.Effect<
+    void,
+    | CommerceAccountUnavailable
+    | CompanyMemberRemovalConflict
+    | CompanyMemberRemovalPersistenceFailure
+    | IdentityMembershipProjectionFailure
+  > =>
+    Effect.gen(function* () {
+      const receipt = yield* removalRecords.find({
+        businessUnitId: actor.businessUnitId,
+        customerId: targetCustomerId,
+      });
+      if (Option.isNone(receipt)) {
+        return yield* new CompanyMemberRemovalConflict({
+          message: missingReceiptMessage,
+        });
+      }
+      if (receipt.value.status === "completed") {
+        return;
+      }
+
+      const removal =
+        yield* memberships.reconcileCustomerDisposition(targetCustomerId);
+      yield* finishRemoval(receipt.value, removal);
+    });
 
   const removeFromCurrentRoster = (
     remainingAttempts: number
   ): Effect.Effect<
     void,
     | CompanyMemberRemovalConflict
+    | CompanyMemberRemovalPersistenceFailure
     | CommerceAccountUnavailable
+    | IdentityMembershipProjectionFailure
     | ManageCustomerAccountInvitationFailure
   > =>
     Effect.gen(function* () {
@@ -150,20 +212,20 @@ export const removeCompanyMember = Effect.fn(
       );
 
       if (target === undefined) {
-        return yield* Effect.void;
+        return yield* resumeAuthorizedRemoval(
+          "This member no longer belongs to the current company"
+        );
+      }
+      if (!target.directlyAssociated) {
+        return yield* resumeAuthorizedRemoval(
+          "This company member is inherited and must be managed by the owning company"
+        );
       }
       if (target.authUserId === actor.authUserId) {
         return yield* new CompanyMemberRemovalConflict({
           message: "Company administrators cannot remove themselves",
         });
       }
-      if (!target.directlyAssociated) {
-        return yield* new CompanyMemberRemovalConflict({
-          message:
-            "This company member is inherited and must be managed by the owning company",
-        });
-      }
-
       const invitations = yield* customerAccountMembers
         .listInvitations(actor)
         .pipe(Effect.tapError(logInvitationDiagnostic));
@@ -191,16 +253,25 @@ export const removeCompanyMember = Effect.fn(
         });
       }
 
-      return yield* memberships
+      const removal = yield* removalRecords.begin({
+        authUserId: CustomerAccountAuthUserId.make(target.authUserId),
+        businessUnitId: actor.businessUnitId,
+        customerId: targetCustomerId,
+      });
+
+      const result = yield* memberships
         .removeMember({
           businessUnitId: actor.businessUnitId,
           customerId: targetCustomerId,
           expectedRevision: roster.revision,
         })
         .pipe(
+          Effect.map(Option.some),
           Effect.catchTag("CommerceCompanyMembershipChanged", () =>
             remainingAttempts > 0
-              ? removeFromCurrentRoster(remainingAttempts - 1)
+              ? removeFromCurrentRoster(remainingAttempts - 1).pipe(
+                  Effect.as(Option.none())
+                )
               : Effect.fail(
                   new CompanyMemberRemovalConflict({
                     message:
@@ -209,6 +280,11 @@ export const removeCompanyMember = Effect.fn(
                 )
           )
         );
+
+      if (Option.isNone(result)) {
+        return;
+      }
+      yield* finishRemoval(removal, result.value);
     });
 
   return yield* removeFromCurrentRoster(2);

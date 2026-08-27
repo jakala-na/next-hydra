@@ -175,6 +175,9 @@ describe("RegistrationQueries.layerMemoryFrom", () => {
         })
       );
       const queries = yield* listWith([record(registration)]);
+      if (registration.invitationId === undefined) {
+        return yield* Effect.die("Expected registration invitation id");
+      }
 
       const found = yield* queries.findByInvitationId(
         registration.invitationId
@@ -273,10 +276,17 @@ describe("RegistrationQueries.layerMemoryFrom", () => {
           label: "email",
         })
       );
+      const hasAcceptedEmailForSameIdentity = yield* queries.hasBlockingEmail(
+        Redacted.make(Email.make("accepted@example.com"), {
+          label: "email",
+        }),
+        AuthUserId.make("accepted-user-1")
+      );
 
       expect(hasAwaitingEmail).toBeTruthy();
       expect(hasInvitedEmail).toBeTruthy();
       expect(hasAcceptedEmail).toBeTruthy();
+      expect(hasAcceptedEmailForSameIdentity).toBeFalsy();
       expect(hasExpiredEmail).toBeFalsy();
     })
   );

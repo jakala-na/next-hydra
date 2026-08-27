@@ -1,5 +1,8 @@
 import { identityUsersLayer } from "@repo/auth/identity-users";
-import { invitationsLayer } from "@repo/auth/invitations";
+import {
+  companyMemberIdentityProjectionLayer,
+  invitationsLayer,
+} from "@repo/auth/invitations";
 import { commerceAccountsLayer } from "@repo/commerce-provider/commerce-accounts";
 import { registrationQueriesLayer } from "@repo/commerce-provider/registration";
 import { layerResendEmailProvider } from "@repo/email/resend-provider";
@@ -36,6 +39,7 @@ export const registrationLayer = registrationRepositoryLayer.pipe(
   ),
   Layer.provideMerge(commerceAccountsLayer),
   Layer.provideMerge(identityUsersLayer),
+  Layer.provideMerge(companyMemberIdentityProjectionLayer),
   Layer.provideMerge(registrationInvitationsLayer),
   Layer.provideMerge(RegistrationMarketPolicy.layerDefault),
   Layer.provideMerge(

@@ -8,6 +8,7 @@ import type {
   CommerceStableServices,
 } from "@repo/commerce/runtime/make-commerce-app";
 import { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
+import { CompanyMemberRemovalRecords } from "@repo/commerce/services/company-member-removal-records";
 import { CustomerAccountMembers } from "@repo/commerce/services/customer-account-members";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer, Schema } from "effect";
@@ -28,6 +29,7 @@ export {
 
 type CommerceRuntimeServices =
   | CommerceStableServices
+  | CompanyMemberRemovalRecords
   | CustomerAccountMembers
   | CurrentAuth
   | NextServer
@@ -48,7 +50,10 @@ const provide =
     program: Effect.Effect<
       A,
       E,
-      CommerceRequestServices | CommerceStableServices | CustomerAccountMembers
+      | CommerceRequestServices
+      | CommerceStableServices
+      | CompanyMemberRemovalRecords
+      | CustomerAccountMembers
     >
   ): Effect.Effect<
     A,
@@ -57,10 +62,15 @@ const provide =
   > =>
     Effect.gen(function* () {
       const customerAccountMembers = yield* CustomerAccountMembers;
+      const companyMemberRemovalRecords = yield* CompanyMemberRemovalRecords;
       const request = yield* nextCommerceRequest(locale, options);
 
       return yield* program.pipe(
         Effect.provideService(CustomerAccountMembers, customerAccountMembers),
+        Effect.provideService(
+          CompanyMemberRemovalRecords,
+          companyMemberRemovalRecords
+        ),
         CommerceApp.provide(request)
       );
     }).pipe(

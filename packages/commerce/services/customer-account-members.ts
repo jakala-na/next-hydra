@@ -1,3 +1,4 @@
+import type { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
 /* oxlint-disable eslint/max-classes-per-file, typescript/no-unsafe-call, unicorn/throw-new-error -- This commerce-facing port keeps the small request and failure vocabulary needed by the customer-account boundary; provider-owned invitation intent remains in Registration. */
 import type {
   CompanyMemberInvitationNotFound,
@@ -18,7 +19,11 @@ import {
   CommerceCustomerId,
 } from "../domain/commerce-account";
 import { AuthUserId } from "../domain/commerce-request-context";
-import type { CommerceAccountUnavailable } from "./commerce-accounts";
+import type {
+  CommerceAccountUnavailable,
+  CommerceCustomerEmailConflict,
+} from "./commerce-accounts";
+import type { CompanyMemberRemovalPersistenceFailure } from "./company-member-removal-records";
 
 export const CustomerAccountInvitationId = Schema.NonEmptyString.pipe(
   Schema.brand("InvitationId")
@@ -47,6 +52,20 @@ export class CustomerAccountMemberInvitation extends Schema.Class<CustomerAccoun
   invitationId: CustomerAccountInvitationId,
   inviteeEmail: Schema.Redacted(Schema.NonEmptyString, { label: "email" }),
 }) {}
+
+export class CustomerAccountMemberProvisioned extends Schema.Class<CustomerAccountMemberProvisioned>(
+  "CustomerAccountMemberProvisioned"
+)({
+  customerId: CommerceCustomerId,
+  inviteeEmail: Schema.Redacted(Schema.NonEmptyString, { label: "email" }),
+}) {}
+
+export const CustomerAccountMemberAddResult = Schema.Union([
+  CustomerAccountMemberInvitation,
+  CustomerAccountMemberProvisioned,
+]);
+export type CustomerAccountMemberAddResult =
+  typeof CustomerAccountMemberAddResult.Type;
 
 export class CustomerAccountInvitationListItem extends Schema.Class<CustomerAccountInvitationListItem>(
   "CustomerAccountInvitationListItem"
@@ -107,6 +126,15 @@ export class CustomerAccountProfileIncomplete extends Schema.TaggedError<Custome
   { message: Schema.String }
 ) {}
 
+export class CustomerAccountIdentityLookupFailure extends Schema.TaggedError<CustomerAccountIdentityLookupFailure>()(
+  "CustomerAccountIdentityLookupFailure",
+  {
+    cause: Schema.optional(Schema.Defect()),
+    message: Schema.String,
+    reason: Schema.Literal("unavailable"),
+  }
+) {}
+
 export class CompanyMemberRemovalConflict extends Schema.TaggedError<CompanyMemberRemovalConflict>()(
   "CompanyMemberRemovalConflict",
   { message: Schema.String }
@@ -117,8 +145,13 @@ export class CompanyMemberManagementForbidden extends Schema.TaggedError<Company
   { message: Schema.String }
 ) {}
 
+export { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
+
 export type InviteCustomerAccountMemberFailure =
   | CommerceAccountUnavailable
+  | CommerceCustomerEmailConflict
+  | CustomerAccountIdentityLookupFailure
+  | IdentityMembershipProjectionFailure
   | InvitationConflict
   | InvitationIssueOutcomeUnknown
   | InvitationPolicyError
@@ -131,6 +164,21 @@ export type ManageCustomerAccountInvitationFailure =
   | CompanyMemberInvitationRecordConflict
   | InvitationExpired
   | InvitationNotFound;
+
+export type RemoveCustomerAccountMemberFailure =
+  | CompanyMemberRemovalPersistenceFailure
+  | IdentityMembershipProjectionFailure;
+
+export interface RemoveCustomerAccountMemberIdentityInput {
+  readonly authUserId: AuthUserId;
+  readonly businessUnitId: CommerceBusinessUnitId;
+}
+
+export interface ProjectCustomerAccountMemberIdentityInput {
+  readonly authUserId: AuthUserId;
+  readonly businessUnitId: CommerceBusinessUnitId;
+  readonly roles: CompanyRoles;
+}
 
 export type CustomerAccountMemberInvitationFailure =
   ManageCustomerAccountInvitationFailure;
@@ -161,7 +209,7 @@ export class CustomerAccountMembers extends Context.Service<
     readonly invite: (
       input: InviteCustomerAccountMemberInput
     ) => Effect.Effect<
-      CustomerAccountMemberInvitation,
+      CustomerAccountMemberAddResult,
       InviteCustomerAccountMemberFailure
     >;
     readonly listInvitations: (
@@ -170,11 +218,17 @@ export class CustomerAccountMembers extends Context.Service<
       readonly CustomerAccountInvitationListItem[],
       ManageCustomerAccountInvitationFailure
     >;
+    readonly projectMemberIdentity: (
+      input: ProjectCustomerAccountMemberIdentityInput
+    ) => Effect.Effect<void, IdentityMembershipProjectionFailure>;
     readonly reissueInvitation: (
       input: ManageCustomerAccountInvitationInput
     ) => Effect.Effect<
       CustomerAccountMemberInvitation,
       ManageCustomerAccountInvitationFailure
     >;
+    readonly removeMemberIdentity: (
+      input: RemoveCustomerAccountMemberIdentityInput
+    ) => Effect.Effect<void, IdentityMembershipProjectionFailure>;
   }
 >()("@repo/commerce/CustomerAccountMembers") {}

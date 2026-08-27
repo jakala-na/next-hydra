@@ -1,4 +1,5 @@
 /* oxlint-disable eslint/require-await -- WorkOS SDK test doubles intentionally implement asynchronous provider interfaces without network I/O. */
+import { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
 import {
   CompanyActor,
   registrationSystemActor,
@@ -38,7 +39,7 @@ import type {
   Invitation as WorkosInvitation,
   User as WorkosUser,
 } from "@workos-inc/node";
-import { DateTime, Effect, Exit, Layer, Redacted } from "effect";
+import { Cause, DateTime, Effect, Exit, Layer, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -241,6 +242,110 @@ describe(makeWorkosInvitationCapabilities, () => {
       },
       userId: acceptedIdentity.authUserId,
     });
+  });
+
+  it("projects direct company membership into WorkOS user metadata", async () => {
+    let updatedUser:
+      | Parameters<WorkosInvitationUserManagement["updateUser"]>[0]
+      | undefined;
+    const projection = makeWorkosCompanyMemberIdentityProjection(
+      makeUserManagement({
+        updateUser: async (input) => {
+          updatedUser = input;
+          return await Promise.resolve(makeWorkosUser());
+        },
+      })
+    );
+
+    await Effect.runPromise(
+      projection.projectMembership({
+        authUserId: acceptedIdentity.authUserId,
+        businessUnitId: actor.businessUnitId,
+        roles: ["buyer", "approver"],
+      })
+    );
+
+    expect(updatedUser).toStrictEqual({
+      metadata: {
+        membership:
+          '{"businessUnitId":"business-unit-1","roles":["buyer","approver"]}',
+      },
+      userId: acceptedIdentity.authUserId,
+    });
+  });
+
+  it("removes final company membership metadata from a WorkOS user", async () => {
+    let updatedUser:
+      | Parameters<WorkosInvitationUserManagement["updateUser"]>[0]
+      | undefined;
+    const projection = makeWorkosCompanyMemberIdentityProjection(
+      makeUserManagement({
+        updateUser: async (input) => {
+          updatedUser = input;
+          return await Promise.resolve(makeWorkosUser());
+        },
+      })
+    );
+
+    await Effect.runPromise(
+      projection.removeMembership({
+        authUserId: acceptedIdentity.authUserId,
+        businessUnitId: actor.businessUnitId,
+      })
+    );
+
+    expect(updatedUser).toStrictEqual({
+      metadata: { invitation: null, membership: null },
+      userId: acceptedIdentity.authUserId,
+    });
+  });
+
+  it("types only recoverable WorkOS membership projection failures", async () => {
+    const unavailable = Object.assign(new Error("connection timed out"), {
+      code: "ETIMEDOUT",
+    });
+    const recoverableProjection = makeWorkosCompanyMemberIdentityProjection(
+      makeUserManagement({
+        updateUser: async () => {
+          throw unavailable;
+        },
+      })
+    );
+    const failure = await Effect.runPromise(
+      recoverableProjection
+        .projectMembership({
+          authUserId: acceptedIdentity.authUserId,
+          businessUnitId: actor.businessUnitId,
+          roles: ["buyer"],
+        })
+        .pipe(Effect.flip)
+    );
+
+    expect(failure).toBeInstanceOf(IdentityMembershipProjectionFailure);
+    expect(failure).toMatchObject({
+      operation: "project",
+      reason: "unavailable",
+    });
+
+    const defectiveProjection = makeWorkosCompanyMemberIdentityProjection(
+      makeUserManagement({
+        updateUser: async () => {
+          throw new Error("invalid WorkOS configuration");
+        },
+      })
+    );
+    const exit = await Effect.runPromiseExit(
+      defectiveProjection.projectMembership({
+        authUserId: acceptedIdentity.authUserId,
+        businessUnitId: actor.businessUnitId,
+        roles: ["buyer"],
+      })
+    );
+
+    expect(Exit.isFailure(exit)).toBeTruthy();
+    if (Exit.isFailure(exit)) {
+      expect(Cause.hasDies(exit.cause)).toBeTruthy();
+    }
   });
 
   it("issues invitations through the WorkOS SDK and returns the domain issue context", async () => {

@@ -17,6 +17,7 @@ import { CartPolicies } from "./services/cart-policies";
 import { Carts } from "./services/carts";
 import { CommerceAccounts } from "./services/commerce-accounts";
 import { CommerceCompanyMemberships } from "./services/commerce-company-memberships";
+import { CompanyMemberRemovalRecords } from "./services/company-member-removal-records";
 import { CustomerAccountMembers } from "./services/customer-account-members";
 import type { StoreKey } from "./store";
 
@@ -55,18 +56,27 @@ export interface NextCommerceRuntime {
     program: Effect.Effect<
       A,
       E,
-      CommerceRequestServices | CommerceStableServices | CustomerAccountMembers
+      | CommerceRequestServices
+      | CommerceStableServices
+      | CompanyMemberRemovalRecords
+      | CustomerAccountMembers
     >
   ) => Effect.Effect<
     A,
     E | NextCommerceRequestError,
-    CommerceStableServices | CustomerAccountMembers | NextServer
+    | CommerceStableServices
+    | CompanyMemberRemovalRecords
+    | CustomerAccountMembers
+    | NextServer
   >;
   readonly runPromise: <A, E>(
     program: Effect.Effect<
       A,
       E,
-      CommerceStableServices | CustomerAccountMembers | NextServer
+      | CommerceStableServices
+      | CompanyMemberRemovalRecords
+      | CustomerAccountMembers
+      | NextServer
     >
   ) => Promise<A>;
 }
@@ -116,6 +126,10 @@ const unconfiguredRuntime = ManagedRuntime.make(
     ),
     Layer.effect(
       CommerceCompanyMemberships,
+      Effect.die(new CommerceRuntimeNotConfigured())
+    ),
+    Layer.effect(
+      CompanyMemberRemovalRecords,
       Effect.die(new CommerceRuntimeNotConfigured())
     ),
     Layer.effect(

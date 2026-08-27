@@ -240,6 +240,8 @@
           "sending": "A enviar...",
           "successTitle": "Convite enviado",
           "successDescription": "Foi enviado um convite para {email}.",
+          "memberAddedTitle": "Utilizador adicionado",
+          "memberAddedDescription": "{email} já tinha uma conta e foi adicionado à sua empresa.",
           "failureTitle": "Convite não enviado"
         },
         "management": {
@@ -272,7 +274,10 @@
         "InputInvalidRoles": "Selecione pelo menos uma função da empresa.",
         "InvitationPolicyError": "Apenas um administrador pode convidar utilizadores.",
         "InvitationConflict": "Este utilizador não pode ser convidado.",
+        "CommerceCustomerEmailConflict": "Este e-mail pertence a outro cliente de comércio.",
+        "CustomerAccountIdentityLookupFailure": "O diretório de identidades está temporariamente indisponível. Tente novamente.",
         "InvitationProviderFailure": "Não foi possível concluir a operação do convite. Tente novamente.",
+        "IdentityMembershipProjectionFailure": "Não foi possível sincronizar a associação à empresa. Tente novamente.",
         "InvitationIssueOutcomeUnknown": "O convite pode ter sido enviado, mas não foi possível confirmar o resultado. Não o envie novamente.",
         "CustomerAccountProfileIncomplete": "O seu perfil precisa de um endereço de e-mail.",
         "CommerceRequestContextNotFound": "A conta da empresa atual não está disponível.",
@@ -284,7 +289,8 @@
         "InvitationExpired": "Este convite expirou. Atualize a lista de membros para o voltar a emitir.",
         "InvitationNotFound": "O fornecedor de identidade já não tem este convite. Atualize a lista de membros.",
         "CompanyMemberRemovalConflict": "Este membro não pode ser removido no estado atual da empresa. Atualize e tente novamente.",
-        "CompanyMemberManagementForbidden": "Apenas um administrador da empresa pode gerir membros."
+        "CompanyMemberManagementForbidden": "Apenas um administrador da empresa pode gerir membros.",
+        "CompanyMemberRemovalPersistenceFailure": "Não foi possível guardar a remoção do membro da empresa. Tente novamente."
       }
     },
     "checkout": {

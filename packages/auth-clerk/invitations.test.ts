@@ -20,11 +20,14 @@ import type { InvitationExpired } from "@repo/registration/services/invitations"
 import { InvitationIssueOutcomeUnknown } from "@repo/registration/services/invitations";
 import { RegistrationInvitationIssueAttempt } from "@repo/registration/services/registration-invitation-issue-attempts";
 import type { RegistrationInvitationIssueAttemptsService } from "@repo/registration/services/registration-invitation-issue-attempts";
-import { Effect, Redacted } from "effect";
+import { Cause, Effect, Exit, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { makeClerkInvitationCapabilities } from "./invitations";
-import type { ClerkInvitationsApi } from "./invitations";
+import {
+  makeClerkCompanyMemberIdentityProjection,
+  makeClerkInvitationCapabilities,
+} from "./invitations";
+import type { ClerkInvitationsApi, ClerkUserMetadataApi } from "./invitations";
 
 const inviteeEmail = Redacted.make(Email.make("invitee@example.com"), {
   label: "email",
@@ -152,6 +155,108 @@ const makeIssueAttempts = (): RegistrationInvitationIssueAttemptsService => {
 };
 
 describe(makeClerkInvitationCapabilities, () => {
+  it("projects every company role into Clerk user metadata", async () => {
+    let update:
+      | Parameters<ClerkUserMetadataApi["updateUserMetadata"]>
+      | undefined;
+    const projection = makeClerkCompanyMemberIdentityProjection({
+      updateUserMetadata: async (...input) => {
+        update = input;
+        await Promise.resolve();
+      },
+    });
+
+    await Effect.runPromise(
+      projection.projectMembership({
+        authUserId: acceptedIdentity.authUserId,
+        businessUnitId: companyActor.businessUnitId,
+        roles: ["buyer", "approver"],
+      })
+    );
+
+    expect(update).toStrictEqual([
+      acceptedIdentity.authUserId,
+      {
+        publicMetadata: {
+          membership: {
+            businessUnitId: "business-unit-1",
+            roles: ["buyer", "approver"],
+          },
+        },
+      },
+    ]);
+  });
+
+  it("removes final company membership metadata from a Clerk user", async () => {
+    let update:
+      | Parameters<ClerkUserMetadataApi["updateUserMetadata"]>
+      | undefined;
+    const projection = makeClerkCompanyMemberIdentityProjection({
+      updateUserMetadata: async (...input) => {
+        update = input;
+        await Promise.resolve();
+      },
+    });
+
+    await Effect.runPromise(
+      projection.removeMembership({
+        authUserId: acceptedIdentity.authUserId,
+        businessUnitId: companyActor.businessUnitId,
+      })
+    );
+
+    expect(update).toStrictEqual([
+      acceptedIdentity.authUserId,
+      { publicMetadata: { invitation: null, membership: null } },
+    ]);
+  });
+
+  it("types only recoverable Clerk membership projection failures", async () => {
+    const unavailable = Object.assign(new Error("connection timed out"), {
+      code: "ETIMEDOUT",
+    });
+    const recoverableProjection = makeClerkCompanyMemberIdentityProjection({
+      updateUserMetadata: async () => {
+        await Promise.resolve();
+        throw unavailable;
+      },
+    });
+    const failure = await Effect.runPromise(
+      recoverableProjection
+        .projectMembership({
+          authUserId: acceptedIdentity.authUserId,
+          businessUnitId: companyActor.businessUnitId,
+          roles: ["buyer"],
+        })
+        .pipe(Effect.flip)
+    );
+
+    expect(failure).toBeInstanceOf(IdentityMembershipProjectionFailure);
+    expect(failure).toMatchObject({
+      operation: "project",
+      reason: "unavailable",
+    });
+
+    const defectiveProjection = makeClerkCompanyMemberIdentityProjection({
+      updateUserMetadata: async () => {
+        await Promise.resolve();
+        throw new Error("invalid Clerk configuration");
+      },
+    });
+    const exit = await Effect.runPromiseExit(
+      defectiveProjection.projectMembership({
+        authUserId: acceptedIdentity.authUserId,
+        businessUnitId: companyActor.businessUnitId,
+        roles: ["buyer"],
+      })
+    );
+
+    expect(Exit.isFailure(exit)).toBeTruthy();
+    if (Exit.isFailure(exit)) {
+      expect(Cause.hasDies(exit.cause)).toBeTruthy();
+    }
+  });
+
   it("issues a Clerk invitation with domain correlation metadata", async () => {
     let createInput:
       | Parameters<ClerkInvitationsApi["createInvitation"]>[0]
@@ -604,3 +709,4 @@ describe(makeClerkInvitationCapabilities, () => {
     expect(revokeCalls).toBe(1);
   });
 });
+import { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";

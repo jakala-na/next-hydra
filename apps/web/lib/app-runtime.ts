@@ -1,5 +1,9 @@
 import "server-only";
-import { companyMemberInvitationsLayer as authCompanyMemberInvitationsLayer } from "@repo/auth/invitations";
+import { identityUsersLayer } from "@repo/auth/identity-users";
+import {
+  companyMemberIdentityProjectionLayer,
+  companyMemberInvitationsLayer as authCompanyMemberInvitationsLayer,
+} from "@repo/auth/invitations";
 import {
   addressBookLayer,
   cartsLayer,
@@ -16,6 +20,7 @@ import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import {
   CompanyInvitationPolicy,
   CompanyMemberInvitationRecords,
+  companyMemberRemovalRecordsLayerStorage,
   customerAccountMembersLayer,
 } from "@repo/registration";
 import { Config, Effect, Layer, ManagedRuntime } from "effect";
@@ -49,19 +54,33 @@ const companyMemberInvitationRecordsLayer = Layer.unwrap(
   )
 );
 
+const companyMemberRemovalRecordsLayer = Layer.unwrap(
+  Config.string("COMPANY_MEMBER_REMOVAL_CONTAINER").pipe(
+    Config.orElse(() => Config.succeed("customer-company-member-removals")),
+    Effect.map((container) =>
+      companyMemberRemovalRecordsLayerStorage.pipe(
+        Layer.provide(versionedKeyValueStoreLayer({ container }))
+      )
+    )
+  )
+);
+
 const customerAccountMembers = customerAccountMembersLayer.pipe(
   Layer.provide(
     Layer.mergeAll(
       Layer.orDie(authCompanyMemberInvitationsLayer),
       CompanyInvitationPolicy.layer,
       Layer.orDie(companyMemberInvitationRecordsLayer),
-      commerceAccounts
+      commerceAccounts,
+      Layer.orDie(companyMemberIdentityProjectionLayer),
+      Layer.orDie(identityUsersLayer)
     )
   )
 );
 
 export const appLayer = Layer.mergeAll(
   CommerceApp.layer,
+  Layer.orDie(companyMemberRemovalRecordsLayer),
   customerAccountMembers,
   currentAuthLayer,
   nextRequestApiLayer,

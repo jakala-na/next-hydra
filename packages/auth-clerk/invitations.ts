@@ -1,5 +1,7 @@
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { clerkClient } from "@clerk/nextjs/server";
+import { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
+import { hasTransientTransportCode } from "@repo/errors/transport";
 import { Email, InvitationId } from "@repo/registration/domain/identity";
 import {
   AcceptedInvitation,
@@ -9,6 +11,7 @@ import {
 } from "@repo/registration/domain/invitations";
 import { sameCompanyRoles } from "@repo/registration/domain/roles";
 import { CompanyMemberIdentityProjection } from "@repo/registration/services/company-member-identity-projection";
+import type { ProjectCompanyMembershipIdentityInput } from "@repo/registration/services/company-member-identity-projection";
 import {
   CompanyMemberInvitations,
   InvitationConflict,
@@ -83,6 +86,21 @@ export interface ClerkInvitationsApi {
   ) => Promise<typeof ClerkInvitation.Type>;
 }
 
+export interface ClerkUserMetadataApi {
+  readonly updateUserMetadata: (
+    userId: string,
+    input: {
+      readonly publicMetadata: {
+        readonly invitation?: null;
+        readonly membership?: {
+          readonly businessUnitId: string;
+          readonly roles: readonly string[];
+        } | null;
+      };
+    }
+  ) => Promise<void>;
+}
+
 const toDate = (value: number) => new Date(value);
 const expiresAtFromClerk = (invitation: typeof ClerkInvitation.Type) =>
   new Date(
@@ -121,6 +139,36 @@ const providerFailure = (
     }`,
     operation,
   });
+
+const REQUEST_TIMEOUT_STATUS_CODE = 408;
+const RATE_LIMIT_STATUS_CODE = 429;
+const SERVER_ERROR_STATUS_CODE = 500;
+
+const isClerkMembershipProjectionUnavailable = (cause: unknown) =>
+  hasTransientTransportCode(cause) ||
+  (isClerkAPIResponseError(cause) &&
+    (cause.status === REQUEST_TIMEOUT_STATUS_CODE ||
+      cause.status === RATE_LIMIT_STATUS_CODE ||
+      cause.status >= SERVER_ERROR_STATUS_CODE));
+
+const identityMembershipProjection = (
+  operation: IdentityMembershipProjectionFailure["operation"],
+  run: () => Promise<void>
+) =>
+  Effect.tryPromise({ catch: (cause) => cause, try: run }).pipe(
+    Effect.catch((cause) =>
+      isClerkMembershipProjectionUnavailable(cause)
+        ? Effect.fail(
+            new IdentityMembershipProjectionFailure({
+              cause,
+              message: `Failed to ${operation} Clerk company membership metadata`,
+              operation,
+              reason: "unavailable",
+            })
+          )
+        : Effect.die(cause)
+    )
+  );
 
 const issueOutcomeUnknown = (
   input: ClerkInvitationIssueInput,
@@ -568,6 +616,13 @@ const clerkInvitationsApi: ClerkInvitationsApi = {
   },
 };
 
+const clerkUserMetadataApi: ClerkUserMetadataApi = {
+  updateUserMetadata: async (userId, input) => {
+    const client = await clerkClient();
+    await client.users.updateUserMetadata(userId, input);
+  },
+};
+
 export const companyMemberInvitationsLayer = Layer.effectContext(
   Config.url("NEXT_PUBLIC_WEB_URL").pipe(
     Effect.map((webUrl) => {
@@ -589,11 +644,43 @@ export const companyMemberInvitationsLayer = Layer.effectContext(
   )
 );
 
-export const companyMemberIdentityProjectionLayer = Layer.succeed(
-  CompanyMemberIdentityProjection,
+const clerkCompanyMembershipMetadata = (
+  input: ProjectCompanyMembershipIdentityInput
+) => ({
+  businessUnitId: input.businessUnitId,
+  roles: input.roles,
+});
+
+export const makeClerkCompanyMemberIdentityProjection = (
+  users: ClerkUserMetadataApi
+) =>
   CompanyMemberIdentityProjection.of({
     projectAcceptedInvitation: () => Effect.void,
-  })
+    projectMembership: Effect.fn(
+      "CompanyMemberIdentityProjection.Clerk.projectMembership"
+    )((input) =>
+      identityMembershipProjection("project", async () => {
+        await users.updateUserMetadata(input.authUserId, {
+          publicMetadata: {
+            membership: clerkCompanyMembershipMetadata(input),
+          },
+        });
+      })
+    ),
+    removeMembership: Effect.fn(
+      "CompanyMemberIdentityProjection.Clerk.removeMembership"
+    )((input) =>
+      identityMembershipProjection("remove", async () => {
+        await users.updateUserMetadata(input.authUserId, {
+          publicMetadata: { invitation: null, membership: null },
+        });
+      })
+    ),
+  });
+
+export const companyMemberIdentityProjectionLayer = Layer.succeed(
+  CompanyMemberIdentityProjection,
+  makeClerkCompanyMemberIdentityProjection(clerkUserMetadataApi)
 );
 
 export const invitationsLayer = Layer.effectContext(

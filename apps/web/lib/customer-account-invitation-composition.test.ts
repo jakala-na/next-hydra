@@ -193,9 +193,20 @@ interface SelectedAuthInvitationFactories {
 
 vi.mock(import("@repo/auth/invitations"), async (importOriginal) => {
   const actual = await importOriginal();
-  const { CompanyMemberInvitations, InvitationDeliveries } =
-    await import("@repo/registration");
-  const { Layer } = await import("effect");
+  const {
+    CompanyMemberIdentityProjection,
+    CompanyMemberInvitations,
+    InvitationDeliveries,
+  } = await import("@repo/registration");
+  const { Effect, Layer } = await import("effect");
+  const companyMemberIdentityProjectionLayer = Layer.succeed(
+    CompanyMemberIdentityProjection,
+    CompanyMemberIdentityProjection.of({
+      projectAcceptedInvitation: () => Effect.void,
+      projectMembership: () => Effect.void,
+      removeMembership: () => Effect.void,
+    })
+  );
   const selected = actual as unknown as typeof actual &
     SelectedAuthInvitationFactories;
 
@@ -211,6 +222,7 @@ vi.mock(import("@repo/auth/invitations"), async (importOriginal) => {
     };
     return {
       ...actual,
+      companyMemberIdentityProjectionLayer,
       companyMemberInvitationsLayer: Layer.merge(
         Layer.succeed(
           CompanyMemberInvitations,
@@ -239,6 +251,7 @@ vi.mock(import("@repo/auth/invitations"), async (importOriginal) => {
 
   return {
     ...actual,
+    companyMemberIdentityProjectionLayer,
     companyMemberInvitationsLayer: Layer.merge(
       Layer.succeed(
         CompanyMemberInvitations,
@@ -256,6 +269,12 @@ vi.mock(import("@repo/auth/invitations"), async (importOriginal) => {
       )
     ),
   };
+});
+
+vi.mock(import("@repo/auth/identity-users"), async () => {
+  const { IdentityUsers } = await import("@repo/registration");
+
+  return { identityUsersLayer: IdentityUsers.layerMemory };
 });
 
 vi.mock(import("@repo/commerce-provider/provider"), async (importOriginal) => {
@@ -359,8 +378,10 @@ vi.mock(import("@repo/commerce-provider/provider"), async (importOriginal) => {
 
 vi.mock(import("@repo/commerce-provider/versioned-store"), async () => {
   const { VersionedKeyValueStore } = await import("@repo/versioned-store");
+  const { Layer } = await import("effect");
   return {
-    versionedKeyValueStoreLayer: () => VersionedKeyValueStore.layerMemory,
+    versionedKeyValueStoreLayer: () =>
+      Layer.fresh(VersionedKeyValueStore.layerMemory),
   };
 });
 

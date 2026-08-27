@@ -32,7 +32,7 @@ export interface SendAwaitingApprovalApproverEmailInput {
 
 export interface SendApprovedRegistrantEmailInput {
   readonly registration: ApprovedRegistration;
-  readonly invitation: InvitationDelivery;
+  readonly invitation?: InvitationDelivery;
 }
 
 export interface SendRejectedRegistrantEmailInput {

@@ -8,6 +8,7 @@ export {
   validateRequiredAccessTokenPermissions,
 } from "./access-token.js";
 export { AuthProviderCapabilities } from "./capabilities.js";
+export { IdentityMembershipProjectionFailure } from "./identity-memberships.js";
 export {
   CompanyMemberInvitationNotFound,
   CompanyMemberInvitationPersistenceFailure,

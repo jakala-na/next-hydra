@@ -3,6 +3,7 @@ import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import type { StoreKey } from "@repo/commerce/store";
 import { Effect } from "effect";
 
+import type { AuthUserId } from "../domain/identity";
 import type {
   AwaitingApprovalRegistration,
   CompanyRegistrationDetails,
@@ -42,23 +43,39 @@ export {
 export interface SubmitRegistrationForReviewInput {
   readonly details: CompanyRegistrationDetails;
   readonly storeKey: StoreKey;
+  readonly submittedByAuthUserId?: AuthUserId;
 }
 
 const toNonEmptyValidationReasons = (
   reasons: readonly RegistrationIntakeValidationReason[]
-) =>
-  reasons.length > 0
-    ? ([reasons[0], ...reasons.slice(1)] as [
-        RegistrationIntakeValidationReason,
-        ...RegistrationIntakeValidationReason[],
-      ])
-    : undefined;
+):
+  | [
+      RegistrationIntakeValidationReason,
+      ...RegistrationIntakeValidationReason[],
+    ]
+  | undefined => {
+  const [first, ...remaining] = reasons;
+  return first === undefined ? undefined : [first, ...remaining];
+};
 
 const hasCustomerWithEmail = (details: CompanyRegistrationDetails) =>
   Effect.gen(function* () {
     const commerceAccounts = yield* CommerceAccounts;
     return yield* commerceAccounts.hasCustomerWithEmail(details.email);
   });
+
+const hasCustomerForAuthUserId = (authUserId?: AuthUserId) =>
+  authUserId === undefined
+    ? Effect.succeed(false)
+    : CommerceAccounts.pipe(
+        Effect.flatMap((commerceAccounts) =>
+          commerceAccounts.getCustomerIdByAuthUserId(authUserId)
+        ),
+        Effect.as(true),
+        Effect.catchTag("CommerceCustomerIdNotFound", () =>
+          Effect.succeed(false)
+        )
+      );
 
 const hasIdentityUserWithEmail = (details: CompanyRegistrationDetails) =>
   Effect.gen(function* () {
@@ -67,12 +84,13 @@ const hasIdentityUserWithEmail = (details: CompanyRegistrationDetails) =>
   });
 
 const hasBlockingRegistrationWithEmail = (
-  details: CompanyRegistrationDetails
+  details: CompanyRegistrationDetails,
+  submittedByAuthUserId?: AuthUserId
 ) =>
   Effect.gen(function* () {
     const queries = yield* RegistrationQueries;
     return yield* queries
-      .hasBlockingEmail(details.email)
+      .hasBlockingEmail(details.email, submittedByAuthUserId)
       .pipe(Effect.catchTag("RegistrationQueryInvalidCursor", Effect.die));
   });
 
@@ -101,7 +119,8 @@ const isInvalidVatId = (details: CompanyRegistrationDetails) =>
 export const checkRegistrationEligibility = Effect.fn(
   "checkRegistrationEligibility"
 )(function* (
-  details: CompanyRegistrationDetails
+  details: CompanyRegistrationDetails,
+  submittedByAuthUserId?: AuthUserId
 ): Effect.fn.Return<
   void,
   RegistrationEligibilityProviderError | RegistrationIntakeValidationError,
@@ -112,7 +131,8 @@ export const checkRegistrationEligibility = Effect.fn(
   | VatValidator
 > {
   const [
-    hasCustomer,
+    hasCustomerWithSubmittedEmail,
+    hasCustomerForSubmittedIdentity,
     hasIdentityUser,
     hasBlockingEmailRegistration,
     unsupportedRegistrationCountry,
@@ -120,15 +140,19 @@ export const checkRegistrationEligibility = Effect.fn(
   ] = yield* Effect.all(
     [
       hasCustomerWithEmail(details),
+      hasCustomerForAuthUserId(submittedByAuthUserId),
       hasIdentityUserWithEmail(details),
-      hasBlockingRegistrationWithEmail(details),
+      hasBlockingRegistrationWithEmail(details, submittedByAuthUserId),
       isUnsupportedRegistrationCountry(details),
       isInvalidVatId(details),
     ],
     { concurrency: "unbounded" }
   );
   const validationReasons = toNonEmptyValidationReasons([
-    ...(hasCustomer || hasIdentityUser || hasBlockingEmailRegistration
+    ...(hasCustomerWithSubmittedEmail ||
+    hasCustomerForSubmittedIdentity ||
+    (hasIdentityUser && submittedByAuthUserId === undefined) ||
+    hasBlockingEmailRegistration
       ? [
           new DuplicateRegistrationEmail({
             code: "duplicateEmail",
@@ -160,6 +184,8 @@ export const checkRegistrationEligibility = Effect.fn(
       reasons: validationReasons,
     });
   }
+
+  return;
 });
 
 export const submitRegistrationForReview = Effect.fn(
@@ -180,13 +206,24 @@ export const submitRegistrationForReview = Effect.fn(
   | Registrations
   | VatValidator
 > {
-  yield* checkRegistrationEligibility(input.details);
+  yield* checkRegistrationEligibility(
+    input.details,
+    input.submittedByAuthUserId
+  );
   const registrations = yield* Registrations;
   const workflow = yield* RegistrationWorkflow;
-  const registration = yield* registrations.createAwaitingApproval({
-    details: input.details,
-    storeKey: input.storeKey,
-  });
+  const registration = yield* registrations.createAwaitingApproval(
+    input.submittedByAuthUserId === undefined
+      ? {
+          details: input.details,
+          storeKey: input.storeKey,
+        }
+      : {
+          details: input.details,
+          storeKey: input.storeKey,
+          submittedByAuthUserId: input.submittedByAuthUserId,
+        }
+  );
 
   return yield* workflow.start(registration.id).pipe(
     Effect.as(registration),

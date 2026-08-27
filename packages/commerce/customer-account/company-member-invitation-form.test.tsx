@@ -59,7 +59,9 @@ const makeInvitationAction = () => {
     cancelInvitation: () => Effect.die("not used"),
     invite,
     listInvitations: () => Effect.die("not used"),
+    projectMemberIdentity: () => Effect.void,
     reissueInvitation: () => Effect.die("not used"),
+    removeMemberIdentity: () => Effect.void,
   });
   const runtime = ManagedRuntime.make(
     Layer.succeed(CustomerAccountMembers, members)

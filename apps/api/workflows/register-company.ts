@@ -399,7 +399,7 @@ export async function registerCompanyWorkflow(
     await notifyApprovedStep(input);
     const { invitationId } = registration;
     if (!invitationId) {
-      throw new Error("Approved registration is missing an invitation id");
+      return registration;
     }
 
     const invitationHook = createRegistrationInvitationHook(invitationId);

@@ -10,11 +10,13 @@ import {
   CompanyMemberInvitationNotFound,
   CustomerAccountCompanyActor,
   CustomerAccountCompanyMemberInvitationId,
+  CustomerAccountIdentityLookupFailure,
+  CustomerAccountMemberInvitation,
   CustomerAccountMembers,
   InvitationPolicyError as CustomerAccountInvitationPolicyError,
   InvitationProviderFailure,
 } from "@repo/commerce/services/customer-account-members";
-import { DateTime, Effect, Layer, Redacted, Ref } from "effect";
+import { DateTime, Effect, Layer, Redacted, Ref, Schema } from "effect";
 import { TestClock } from "effect/testing";
 
 import {
@@ -26,8 +28,10 @@ import {
 } from "../domain/identity";
 import { PendingInvitation } from "../domain/invitations";
 import { CompanyInvitationPolicy } from "./company-invitation-policy";
+import { CompanyMemberIdentityProjection } from "./company-member-identity-projection";
 import { CompanyMemberInvitationRecords } from "./company-member-invitation-records";
 import { customerAccountMembersLayer } from "./customer-account-members";
+import { IdentityUserLookupFailure, IdentityUsers } from "./identity-users";
 import type { CompanyMemberInvitationIssueInput } from "./invitations";
 import {
   CompanyMemberInvitations,
@@ -39,6 +43,15 @@ const unusedDeliveriesLayer = Layer.succeed(
   InvitationDeliveries,
   InvitationDeliveries.of({
     get: () => Effect.die("not used in this test"),
+  })
+);
+
+const identityProjectionLayer = Layer.succeed(
+  CompanyMemberIdentityProjection,
+  CompanyMemberIdentityProjection.of({
+    projectAcceptedInvitation: () => Effect.void,
+    projectMembership: () => Effect.void,
+    removeMembership: () => Effect.void,
   })
 );
 
@@ -72,7 +85,9 @@ const provideAdapter = (
         providerLayer,
         CompanyInvitationPolicy.layer,
         CompanyMemberInvitationRecords.layerMemory,
-        commerceLayer
+        commerceLayer,
+        identityProjectionLayer,
+        IdentityUsers.layerMemory
       )
     )
   );
@@ -129,6 +144,9 @@ describe("customer account members adapter", () => {
             : Effect.succeed(input)
         )
       );
+      if (!Schema.is(CustomerAccountMemberInvitation)(receipt)) {
+        return yield* Effect.die("Expected an invitation receipt");
+      }
 
       expect({
         invitationId: receipt.invitationId,
@@ -220,6 +238,104 @@ describe("customer account members adapter", () => {
     );
   });
 
+  it.effect(
+    "preserves only unavailable identity lookups as expected failures",
+    () => {
+      const identityFailure = new IdentityUserLookupFailure({
+        cause: new Error("directory timed out"),
+        message: "Identity directory timed out",
+        operation: "findByEmail",
+        reason: "unavailable",
+      });
+      const identityLayer = Layer.succeed(
+        IdentityUsers,
+        IdentityUsers.of({
+          findByEmail: () => Effect.fail(identityFailure),
+          getById: () => Effect.die("not used"),
+          hasUserWithEmail: () => Effect.die("not used"),
+        })
+      );
+      const adapter = customerAccountMembersLayer.pipe(
+        Layer.provide(
+          Layer.mergeAll(
+            invitationCapabilitiesLayerMemory,
+            CompanyInvitationPolicy.layer,
+            CompanyMemberInvitationRecords.layerMemory,
+            CommerceAccounts.layerMemory,
+            identityProjectionLayer,
+            identityLayer
+          )
+        )
+      );
+
+      return Effect.gen(function* () {
+        const members = yield* CustomerAccountMembers;
+        const failure = yield* members
+          .invite({
+            actor: actor(["admin", "buyer"]),
+            inviteeEmail: Redacted.make("member@example.com", {
+              label: "email",
+            }),
+            inviteeName,
+            roles: ["buyer"],
+          })
+          .pipe(Effect.flip);
+
+        expect(failure).toBeInstanceOf(CustomerAccountIdentityLookupFailure);
+        if (failure._tag !== "CustomerAccountIdentityLookupFailure") {
+          return yield* Effect.die("Expected an identity lookup failure");
+        }
+        expect(failure.reason).toBe("unavailable");
+      }).pipe(Effect.provide(adapter));
+    }
+  );
+
+  it.effect("treats unexpected identity responses as defects", () => {
+    const identityFailure = new IdentityUserLookupFailure({
+      cause: new Error("malformed provider response"),
+      message: "Identity directory returned malformed data",
+      operation: "findByEmail",
+      reason: "unexpectedResponse",
+    });
+    const identityLayer = Layer.succeed(
+      IdentityUsers,
+      IdentityUsers.of({
+        findByEmail: () => Effect.fail(identityFailure),
+        getById: () => Effect.die("not used"),
+        hasUserWithEmail: () => Effect.die("not used"),
+      })
+    );
+    const adapter = customerAccountMembersLayer.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          invitationCapabilitiesLayerMemory,
+          CompanyInvitationPolicy.layer,
+          CompanyMemberInvitationRecords.layerMemory,
+          CommerceAccounts.layerMemory,
+          identityProjectionLayer,
+          identityLayer
+        )
+      )
+    );
+
+    return Effect.gen(function* () {
+      const members = yield* CustomerAccountMembers;
+      const exit = yield* members
+        .invite({
+          actor: actor(["admin", "buyer"]),
+          inviteeEmail: Redacted.make("member@example.com", {
+            label: "email",
+          }),
+          inviteeName,
+          roles: ["buyer"],
+        })
+        .pipe(Effect.exit);
+
+      expect(exit.toString()).toContain("IdentityUserLookupFailure");
+      expect(exit.toString()).toContain("Die");
+    }).pipe(Effect.provide(adapter));
+  });
+
   it.effect("preserves durable invitation failure identity", () =>
     Effect.gen(function* () {
       const members = yield* CustomerAccountMembers;
@@ -276,7 +392,9 @@ describe("customer account members adapter", () => {
             invitationCapabilitiesLayerMemory,
             CompanyInvitationPolicy.layer,
             recordsLayer,
-            CommerceAccounts.layerMemory
+            CommerceAccounts.layerMemory,
+            identityProjectionLayer,
+            IdentityUsers.layerMemory
           )
         )
       );

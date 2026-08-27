@@ -105,6 +105,7 @@ export class AwaitingApprovalRegistration extends Schema.TaggedClass<AwaitingApp
     id: RegistrationId,
     status: Schema.Literal(RegistrationStatus.literals[0]),
     storeKey: StoreKey,
+    submittedByAuthUserId: Schema.optional(AuthUserId),
     updatedAt: Schema.Date,
   }
 ) {}
@@ -118,23 +119,44 @@ export class ApprovalProcessingRegistration extends Schema.TaggedClass<ApprovalP
     requestedDecision: Schema.Literals(["approved", "rejected"]),
     status: Schema.Literal(RegistrationStatus.literals[1]),
     storeKey: StoreKey,
+    submittedByAuthUserId: Schema.optional(AuthUserId),
     updatedAt: Schema.Date,
   }
 ) {}
 
 export class ApprovedRegistration extends Schema.TaggedClass<ApprovedRegistration>()(
   "ApprovedRegistration",
-  {
+  Schema.Struct({
     createdAt: Schema.Date,
     decision: ApprovedDecision,
     details: CompanyRegistrationDetails,
     id: RegistrationId,
-    invitationId: InvitationId,
+    invitationId: Schema.optional(InvitationId),
     onboarding: RegistrationOnboarding,
     status: Schema.Literal(RegistrationStatus.literals[2]),
     storeKey: StoreKey,
+    submittedByAuthUserId: Schema.optional(AuthUserId),
     updatedAt: Schema.Date,
-  }
+  }).check(
+    Schema.makeFilter(
+      (registration) => {
+        if (registration.submittedByAuthUserId === undefined) {
+          return registration.invitationId !== undefined;
+        }
+
+        return (
+          registration.invitationId === undefined &&
+          registration.onboarding.status === "accepted" &&
+          registration.onboarding.acceptedAuthUserId ===
+            registration.submittedByAuthUserId
+        );
+      },
+      {
+        expected:
+          "an invited registration with an invitation id or an accepted verified identity without an invitation",
+      }
+    )
+  )
 ) {
   get acceptedAuthUserId(): AuthUserId | undefined {
     return this.onboarding.status === "accepted"
@@ -156,6 +178,7 @@ export class RejectedRegistration extends Schema.TaggedClass<RejectedRegistratio
     id: RegistrationId,
     status: Schema.Literal(RegistrationStatus.literals[3]),
     storeKey: StoreKey,
+    submittedByAuthUserId: Schema.optional(AuthUserId),
     updatedAt: Schema.Date,
   }
 ) {}
@@ -173,11 +196,28 @@ const normalizedEmail = (email: RedactedEmail) =>
 
 export const registrationBlocksEmail = (
   registration: Registration,
-  email: RedactedEmail
-) =>
-  (registration.status === "awaiting_approval" ||
-    registration.status === "approval_processing" ||
-    (registration._tag === "ApprovedRegistration" &&
-      (registration.onboardingStatus === "invited" ||
-        registration.onboardingStatus === "accepted"))) &&
-  normalizedEmail(registration.details.email) === normalizedEmail(email);
+  email: RedactedEmail,
+  verifiedAuthUserId?: AuthUserId
+) => {
+  const belongsToVerifiedIdentity =
+    registration._tag === "ApprovedRegistration" &&
+    registration.onboarding.status === "accepted" &&
+    verifiedAuthUserId !== undefined &&
+    registration.onboarding.acceptedAuthUserId === verifiedAuthUserId;
+  const belongsToPendingVerifiedIdentity =
+    verifiedAuthUserId !== undefined &&
+    registration.submittedByAuthUserId === verifiedAuthUserId &&
+    (registration.status === "awaiting_approval" ||
+      registration.status === "approval_processing");
+
+  return (
+    !belongsToVerifiedIdentity &&
+    (registration.status === "awaiting_approval" ||
+      registration.status === "approval_processing" ||
+      (registration._tag === "ApprovedRegistration" &&
+        (registration.onboardingStatus === "invited" ||
+          registration.onboardingStatus === "accepted"))) &&
+    (belongsToPendingVerifiedIdentity ||
+      normalizedEmail(registration.details.email) === normalizedEmail(email))
+  );
+};
