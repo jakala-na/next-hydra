@@ -1,6 +1,6 @@
 {
   "name": "create-next-hydra",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "CLI to scaffold a new next-hydra project",
   "keywords": [
     "cli",
@@ -13,6 +13,11 @@
   ],
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jakala-na/next-hydra",
+    "directory": "packages/create-next-hydra"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

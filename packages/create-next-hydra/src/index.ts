@@ -7,6 +7,7 @@ import { CLI_NAME, DEFAULT_REPO_URL } from "./constants.js";
 import { promptForTargetDirectory } from "./prompts.js";
 import { scaffoldProject } from "./scaffold.js";
 import type { CreateOptions } from "./types.js";
+import { CLI_VERSION } from "./version.js";
 
 type CliActionOptions = {
   yes?: boolean;
@@ -76,9 +77,9 @@ export async function runCli(
         value,
       ]
     )
-    .option("--preset <selection>", "Use a portable Next Hydra Preset")
+    .option("--preset <selection>", "Use a portable next-hydra preset")
     .option("--verbose", "Print git command output")
-    .version("0.1.0")
+    .version(CLI_VERSION)
     .action(
       async (
         projectDirectory: string | undefined,
@@ -114,7 +115,7 @@ export async function runCli(
         value,
       ]
     )
-    .option("--preset <selection>", "Use a portable Next Hydra Preset")
+    .option("--preset <selection>", "Use a portable next-hydra preset")
     .option("--check", "Check for composition drift without writing")
     .option("--dry-run", "Preview and validate changes without writing")
     .option("-y, --yes", "Apply changes without confirmation")

@@ -23,6 +23,11 @@
           "type": "registry:file"
         },
         {
+          "path": "identity-memberships.ts",
+          "target": "~/packages/auth-contract/identity-memberships.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "index.ts",
           "target": "~/packages/auth-contract/index.ts",
           "type": "registry:file"

@@ -1,38 +1,42 @@
 # Changesets Policy (`create-next-hydra`)
 
-This repo uses Changesets for **starter releases**, not for every merge.
+This repository uses Changesets only for the published `create-next-hydra` npm artifact. The rolling next-hydra platform is not versioned by this package.
 
 Current scope:
 
 - Publishable package: `create-next-hydra` only
-- Version tracks the public `next-hydra` starter release
-- Multiple merges may be batched into one release
+- Private workspace packages are neither versioned nor tagged
+- The package version identifies the immutable CLI artifact, not the starter source cloned from `main`
+- Platform changes are documented as dated updates in `apps/docs/content/docs/updates/`
+- Multiple package changes may be batched into one npm release
 
 ## When to add a changeset
 
-Add a changeset only when a change affects:
+Add a `create-next-hydra` changeset when a change affects the published artifact's user-facing contract, including:
 
-- CLI behavior (`create-next-hydra` flags, prompts, clone/sanitize behavior)
-- The generated starter output users receive after scaffolding
-- Breaking setup assumptions or migration steps
+- CLI commands, options, prompts, output, or failure behavior
+- Programmatic exports or bundled schemas
+- Scaffold, composition, or registry-installation behavior implemented by the CLI
+- Runtime or dependency changes that alter observable CLI behavior
 
-Do not add a changeset for internal-only refactors that don't affect scaffolded output.
+Do not add a changeset only because current `main` produces different starter code. Starter applications, workspace packages, registry source, or documentation can change without changing the npm artifact.
 
-## Changeset summary style (hybrid)
+Internal refactors, tests, and tooling changes with no observable package effect do not need a changeset.
 
-Summaries should describe user-visible impact:
+If one pull request changes both the rolling platform and the published CLI contract, add both a dated platform update and a `create-next-hydra` changeset. Each should describe the change for its own audience.
 
-- CLI changes (if any)
-- Generated starter changes (if any)
-- Breaking changes / migration notes (if any)
+## Summary style
 
-Keep it concise and user-facing.
+Describe the user-visible difference between npm package versions. Do not summarize unrelated starter changes or general monorepo work.
+
+State breaking command, export, schema, or runtime changes explicitly. Keep migration steps concise and link to longer documentation when necessary.
 
 ## Typical release flow
 
-1. `pnpm changeset` (for user-facing starter/CLI changes)
-2. Batch merges until ready to ship a starter release
-3. `pnpm version:cli`
-4. Review generated changelog/version bump
-5. `pnpm release:create-next-hydra:dry-run`
-6. `pnpm release:create-next-hydra`
+1. Add changesets with the package changes that introduce them.
+2. Merge those changes to `main`; the release workflow creates or updates the Changesets release pull request.
+3. Batch merges until the next `create-next-hydra` release is ready.
+4. Review and merge the release pull request containing the generated version and changelog.
+5. The next `main` workflow run publishes that committed version through npm trusted publishing.
+
+For the manual fallback, run `pnpm version:cli`, review and commit the generated changes, then use the documented dry-run and publish commands in `RELEASING.md`.

@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   addCatalogReferences,
   fetchRegistryItemGraph,
+  loadGitHubSourceRegistryCatalog,
   loadSourceRegistryCatalog,
 } from "../src/composition/catalog.js";
 import { prepareComposition } from "../src/composition/install.js";
@@ -21,7 +22,6 @@ import { NEXT_HYDRA_SELECTION_SCHEMA_URL } from "../src/composition/schema.js";
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const CONTENTSTACK_MANAGED_FILE_COUNT = 10;
 const DRUPAL_MANAGED_FILE_COUNT = 14;
-const DRUPAL_PNPM_PATCH_COUNT = 3;
 
 describe("Next Hydra source registry", () => {
   it("distinguishes registry-owned application files from ordinary registry-named source folders", () => {
@@ -170,6 +170,52 @@ describe("Next Hydra source registry", () => {
     );
   });
 
+  it("loads ShadCN-normalized GitHub registry artifacts", async () => {
+    const localCatalog = await loadSourceRegistryCatalog(repoRoot);
+    const artifactsByName = new Map(
+      [...localCatalog.items].map(([name, item]) => [
+        name,
+        {
+          ...item,
+          $schema: "https://ui.shadcn.com/schema/registry-item.json",
+        },
+      ])
+    );
+    const requestedAddresses: string[][] = [];
+
+    const catalog = await loadGitHubSourceRegistryCatalog(
+      "jakala-na/next-hydra",
+      "pinned-ref",
+      {
+        fetchItems: (addresses) => {
+          requestedAddresses.push(addresses);
+          return addresses.map((address) => {
+            const itemName = address.split("/").at(-1)?.split("#")[0];
+            const artifact = itemName
+              ? artifactsByName.get(itemName)
+              : undefined;
+            if (!artifact) {
+              throw new Error(`Missing registry artifact for ${address}`);
+            }
+            return artifact;
+          });
+        },
+        loadRegistryConfig: () => localCatalog.registryConfig,
+      }
+    );
+
+    expect(requestedAddresses).toHaveLength(1);
+    expect(requestedAddresses[0]).toHaveLength(8);
+    expect(
+      [...catalog.items.values()].every(
+        (item) =>
+          item.meta?.nextHydra === undefined ||
+          item.$schema === NEXT_HYDRA_SELECTION_SCHEMA_URL
+      )
+    ).toBeTruthy();
+    expect(catalog.selections).toHaveLength(6);
+  });
+
   it("plans both supported CMS compositions deterministically", async () => {
     const catalog = await loadSourceRegistryCatalog(repoRoot);
     const base = {
@@ -227,7 +273,24 @@ describe("Next Hydra source registry", () => {
     expect(contentstack.managedTargets).not.toContain(
       "apps/web/app/api/canvas/components/route.ts"
     );
-    expect(drupal.pnpmPatches).toHaveLength(DRUPAL_PNPM_PATCH_COUNT);
+    expect(drupal.pnpmPatches).toStrictEqual([
+      {
+        dependency: "@drupal-canvas/headless",
+        path: "patches/@drupal-canvas__headless.patch",
+      },
+      {
+        dependency: "@drupal-canvas/headless-next",
+        path: "patches/@drupal-canvas__headless-next.patch",
+      },
+      {
+        dependency: "@drupal-canvas/headless-react",
+        path: "patches/@drupal-canvas__headless-react.patch",
+      },
+      {
+        dependency: "@drupal-canvas/workbench@0.10.0",
+        path: "patches/@drupal-canvas__workbench@0.10.0.patch",
+      },
+    ]);
     expect(contentstack.pnpmPatches).toStrictEqual([
       {
         dependency: "@contentstack/cli-cm-import@2.0.0",
@@ -328,6 +391,55 @@ describe("Next Hydra source registry", () => {
         "external-backend"
       );
       expect(prepared.registryConfig).toBe(catalog.registryConfig);
+    } finally {
+      await rm(temporaryDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it("accepts Selection metadata from a ShadCN-normalized registry artifact", async () => {
+    const temporaryDirectory = await mkdtemp(
+      path.join(tmpdir(), "next-hydra-normalized-selection-")
+    );
+    try {
+      const artifactPath = path.join(
+        temporaryDirectory,
+        "normalized-selection.json"
+      );
+      await writeFile(
+        artifactPath,
+        `${JSON.stringify(
+          {
+            $schema: "https://ui.shadcn.com/schema/registry-item.json",
+            files: [],
+            meta: {
+              nextHydra: {
+                compatibility: {
+                  conflicts: [],
+                  requires: [],
+                },
+                id: "example/add-on/normalized-selection",
+                kind: "add-on",
+              },
+            },
+            name: "normalized-selection",
+            type: "registry:item",
+          },
+          null,
+          2
+        )}\n`
+      );
+
+      const catalog = await addCatalogReferences(
+        await loadSourceRegistryCatalog(repoRoot),
+        [artifactPath]
+      );
+
+      expect(catalog.byId.get("example/add-on/normalized-selection")).toEqual(
+        expect.objectContaining({ itemName: "normalized-selection" })
+      );
+      expect(catalog.items.get("normalized-selection")?.$schema).toBe(
+        NEXT_HYDRA_SELECTION_SCHEMA_URL
+      );
     } finally {
       await rm(temporaryDirectory, { force: true, recursive: true });
     }

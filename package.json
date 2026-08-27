@@ -1,33 +1,42 @@
 {
   "name": "next-hydra",
   "version": "0.0.0",
+  "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jakala-na/next-hydra"
+  },
   "scripts": {
     "analyze": "turbo analyze",
     "boundaries": "turbo run boundaries",
     "build": "turbo build",
     "bump-deps": "npx npm-check-updates --deep -u -x react-day-picker",
     "bump-ui": "npx shadcn@latest add --all --overwrite -c packages/design-system",
-    "changeset": "pnpm dlx @changesets/cli",
-    "changeset:status": "pnpm dlx @changesets/cli status --verbose",
+    "changeset": "changeset",
+    "changeset:status": "changeset status --verbose",
     "clean": "git clean -xdf node_modules",
     "cli": "pnpm --filter cli cli",
     "dev": "turbo dev",
     "format": "ultracite fix",
     "lint": "ultracite check",
     "prepare": "husky && effect-tsgo patch --typescript --oxlint",
+    "publish:cli": "changeset publish",
     "registry:check": "node scripts/sync-registry-files.ts --check",
     "registry:sync": "node scripts/sync-registry-files.ts",
-    "release:create-next-hydra": "node scripts/release-create-next-hydra.mjs --version",
+    "release:create-next-hydra": "node scripts/release-create-next-hydra.mjs",
     "release:create-next-hydra:dry-run": "node scripts/release-create-next-hydra.mjs --dry-run",
     "test": "turbo test",
     "translate": "turbo translate",
     "typecheck": "turbo typecheck",
-    "version:cli": "pnpm dlx @changesets/cli version"
+    "version:cli": "changeset version"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": [
+    "*.{js,jsx,ts,tsx}": [
       "ultracite fix"
+    ],
+    "*.{json,jsonc,css,scss,md,mdx}": [
+      "oxfmt --write"
     ]
   },
   "dependencies": {
@@ -35,6 +44,7 @@
     "commander": "^14.0.0"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.1",
     "@effect/tsgo": "0.36.5",
     "@oxlint/plugins": "1.78.0",
     "@repo/typescript-config": "workspace:*",

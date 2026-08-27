@@ -8,9 +8,7 @@
       "title": "Next Hydra Clerk Auth provider",
       "description": "Installs the Clerk Auth provider package and component-backed authentication routes.",
       "docs": "Configure separate Clerk applications for the customer web app and admin app. The admin app uses its own Clerk credentials and host-only cookies; the API uses ADMIN_CLERK_* credentials to verify reviewer tokens and resolve reviewer identities from that admin application. Configure CLERK_AUTHORIZED_PARTIES for the customer origin and ADMIN_CLERK_AUTHORIZED_PARTIES for the admin origin. Do not configure the admin subdomain as a Clerk satellite of the customer application. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output clerk-webhook.env` once with the customer CLERK_SECRET_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact managed endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets. Registration approvals issue application invitations that redirect to /accept-invitation, where Clerk's SignIn component consumes the invitation ticket.",
-      "registryDependencies": [
-        "jakala-na/next-hydra/auth-contract"
-      ],
+      "registryDependencies": ["jakala-na/next-hydra/auth-contract"],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/auth/clerk",

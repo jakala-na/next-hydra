@@ -4,9 +4,25 @@ import type { CompanyMemberIdentityProjection as CompanyMemberIdentityProjection
 import type { VersionedKeyValueStore } from "@repo/versioned-store";
 import { describe, expect, it, vi } from "vitest";
 
+type ClerkUpdateUserMetadata = (
+  userId: string,
+  input: {
+    readonly publicMetadata: {
+      readonly invitation?: null;
+      readonly membership?: {
+        readonly businessUnitId: string;
+        readonly roles: readonly string[];
+      } | null;
+    };
+  }
+) => Promise<void>;
+
 interface CompositionHarness {
   readonly addAssociate: ReturnType<
     typeof vi.fn<(input: AddAssociateInput) => void>
+  >;
+  readonly clerkUpdateUserMetadata: ReturnType<
+    typeof vi.fn<ClerkUpdateUserMetadata>
   >;
   selected: "" | "Clerk" | "WorkOS";
   storeService: unknown;
@@ -22,6 +38,22 @@ interface CompositionHarness {
 
 const harness = vi.hoisted<CompositionHarness>(() => ({
   addAssociate: vi.fn<(input: AddAssociateInput) => void>(),
+  clerkUpdateUserMetadata: vi.fn<ClerkUpdateUserMetadata>(
+    async (
+      _userId: string,
+      _input: {
+        readonly publicMetadata: {
+          readonly invitation?: null;
+          readonly membership?: {
+            readonly businessUnitId: string;
+            readonly roles: readonly string[];
+          } | null;
+        };
+      }
+    ) => {
+      await Promise.resolve();
+    }
+  ),
   selected: "",
   storeService: undefined,
   workosUpdateUser: vi.fn<
@@ -45,6 +77,9 @@ vi.mock(import("@repo/auth/invitations"), async (importOriginal) => {
     await import("@repo/registration");
   const { Layer } = await import("effect");
   const selected = actual as typeof actual & {
+    readonly makeClerkCompanyMemberIdentityProjection?: (api: {
+      readonly updateUserMetadata: typeof harness.clerkUpdateUserMetadata;
+    }) => CompanyMemberIdentityProjectionService["Service"];
     readonly makeWorkosCompanyMemberIdentityProjection?: (api: {
       readonly updateUser: typeof harness.workosUpdateUser;
     }) => CompanyMemberIdentityProjectionService["Service"];
@@ -53,19 +88,31 @@ vi.mock(import("@repo/auth/invitations"), async (importOriginal) => {
   harness.selected =
     "makeClerkCompanyMemberInvitations" in actual ? "Clerk" : "WorkOS";
 
-  if (selected.makeWorkosCompanyMemberIdentityProjection === undefined) {
-    return actual;
+  if (selected.makeClerkCompanyMemberIdentityProjection !== undefined) {
+    return {
+      ...actual,
+      companyMemberIdentityProjectionLayer: Layer.succeed(
+        CompanyMemberIdentityProjection,
+        selected.makeClerkCompanyMemberIdentityProjection({
+          updateUserMetadata: harness.clerkUpdateUserMetadata,
+        })
+      ),
+    };
   }
 
-  return {
-    ...actual,
-    companyMemberIdentityProjectionLayer: Layer.succeed(
-      CompanyMemberIdentityProjection,
-      selected.makeWorkosCompanyMemberIdentityProjection({
-        updateUser: harness.workosUpdateUser,
-      })
-    ),
-  };
+  if (selected.makeWorkosCompanyMemberIdentityProjection !== undefined) {
+    return {
+      ...actual,
+      companyMemberIdentityProjectionLayer: Layer.succeed(
+        CompanyMemberIdentityProjection,
+        selected.makeWorkosCompanyMemberIdentityProjection({
+          updateUser: harness.workosUpdateUser,
+        })
+      ),
+    };
+  }
+
+  return actual;
 });
 
 vi.mock(import("@repo/commerce-provider/commerce-accounts"), async () => {
@@ -280,6 +327,23 @@ describe("generated company-member invitation acceptance composition", () => {
       acceptedAt,
       acceptedBy: { authUserId: "auth-member-1" },
     });
+    expect(harness.clerkUpdateUserMetadata.mock.calls).toStrictEqual(
+      harness.selected === "Clerk"
+        ? [
+            [
+              "auth-member-1",
+              {
+                publicMetadata: {
+                  membership: {
+                    businessUnitId: "business-unit-composition-1",
+                    roles: ["buyer", "approver"],
+                  },
+                },
+              },
+            ],
+          ]
+        : []
+    );
     expect(harness.workosUpdateUser.mock.calls).toStrictEqual(
       harness.selected === "WorkOS"
         ? [

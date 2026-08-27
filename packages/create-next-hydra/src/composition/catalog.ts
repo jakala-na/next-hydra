@@ -29,6 +29,8 @@ import type {
 
 const GITHUB_HOMEPAGE_PATTERN =
   /^https:\/\/github\.com\/([^/]+\/[^/]+?)(?:\.git)?\/?$/;
+const SHADCN_REGISTRY_ITEM_SCHEMA_URL =
+  "https://ui.shadcn.com/schema/registry-item.json";
 
 const OFFICIAL_REFERENCES: Record<string, string> = {
   clerk: "next-hydra/auth/clerk",
@@ -49,6 +51,19 @@ const OFFICIAL_ITEM_NAMES = [
   "drupal",
   "next-hydra-standard",
 ] as const;
+
+function restoreFetchedSelectionSchema(item: RegistryItem): RegistryItem {
+  // ShadCN assigns its registry-item schema to every resolved artifact,
+  // including artifacts authored with the Next Hydra Selection schema.
+  if (
+    item.meta?.nextHydra !== undefined &&
+    item.$schema === SHADCN_REGISTRY_ITEM_SCHEMA_URL
+  ) {
+    return { ...item, $schema: NEXT_HYDRA_SELECTION_SCHEMA_URL };
+  }
+
+  return item;
+}
 
 function createCatalog(options: {
   cwd: string;
@@ -276,15 +291,16 @@ export async function fetchRegistryItemGraph(options: {
         reference,
         options.cwd
       );
-      const [artifact] = await fetchItems([resolvedReference], {
+      const [fetchedArtifact] = await fetchItems([resolvedReference], {
         config: options.config,
       });
-      if (!artifact) {
+      if (!fetchedArtifact) {
         throw new CompositionValidationError(
           "The registry dependency graph is incomplete.",
           [`${reference} returned no registry item`]
         );
       }
+      const artifact = restoreFetchedSelectionSchema(fetchedArtifact);
 
       const fetched = fetchedItems.get(artifact.name);
       const unpinnedReference = reference.split("#", 1)[0] ?? reference;
@@ -380,14 +396,27 @@ export async function loadSourceRegistryCatalog(
 
 export async function loadGitHubSourceRegistryCatalog(
   repository: string,
-  ref?: string
+  ref?: string,
+  dependencies: {
+    fetchItems?: (
+      addresses: string[]
+    ) => RegistryItem[] | Promise<RegistryItem[]>;
+    loadRegistryConfig?: (
+      cwd: string
+    ) => RegistriesConfig | Promise<RegistriesConfig>;
+  } = {}
 ): Promise<SourceRegistryCatalog> {
   const suffix = ref ? `#${ref}` : "";
   const addresses = OFFICIAL_ITEM_NAMES.map(
     (item) => `${repository}/${item}${suffix}`
   );
-  const registryItems = await getRegistryItems(addresses);
-  const registryConfig = await getRegistriesConfig(process.cwd());
+  const fetchedItems = await (dependencies.fetchItems ?? getRegistryItems)(
+    addresses
+  );
+  const registryItems = fetchedItems.map(restoreFetchedSelectionSchema);
+  const registryConfig = await (
+    dependencies.loadRegistryConfig ?? getRegistriesConfig
+  )(process.cwd());
   const itemByReference = new Map(
     registryItems.flatMap((item, index) => {
       const address = addresses[index];

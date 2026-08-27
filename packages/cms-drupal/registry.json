@@ -8,9 +8,7 @@
       "title": "Next Hydra Drupal CMS provider",
       "description": "Installs the Drupal CMS provider package and its Drupal backend app.",
       "docs": "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
-      "registryDependencies": [
-        "jakala-na/next-hydra/drupal"
-      ],
+      "registryDependencies": ["jakala-na/next-hydra/drupal"],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/cms/drupal",
@@ -44,6 +42,10 @@
               "target": "patches/@drupal-canvas__headless.patch"
             },
             {
+              "source": "patches/@drupal-canvas__workbench@0.10.0.patch",
+              "target": "patches/@drupal-canvas__workbench@0.10.0.patch"
+            },
+            {
               "source": "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
               "target": "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp"
             },
@@ -72,6 +74,10 @@
             {
               "dependency": "@drupal-canvas/headless-react",
               "path": "patches/@drupal-canvas__headless-react.patch"
+            },
+            {
+              "dependency": "@drupal-canvas/workbench@0.10.0",
+              "path": "patches/@drupal-canvas__workbench@0.10.0.patch"
             }
           ]
         }
