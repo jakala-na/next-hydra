@@ -417,16 +417,6 @@
           "type": "registry:file"
         },
         {
-          "path": "migrations/create-order-custom-fields-type.test.ts",
-          "target": "~/packages/commerce-commercetools/migrations/create-order-custom-fields-type.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "migrations/ensure-address-book-associate-role-permissions.test.ts",
-          "target": "~/packages/commerce-commercetools/migrations/ensure-address-book-associate-role-permissions.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "migrations/migration-client.ts",
           "target": "~/packages/commerce-commercetools/migrations/migration-client.ts",
           "type": "registry:file"
@@ -439,11 +429,6 @@
         {
           "path": "migrations/scripts/2026-07-28-130000-create-order-custom-fields-type.ts",
           "target": "~/packages/commerce-commercetools/migrations/scripts/2026-07-28-130000-create-order-custom-fields-type.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "migrations/scripts/2026-07-31-120000-ensure-address-book-associate-role-permissions.ts",
-          "target": "~/packages/commerce-commercetools/migrations/scripts/2026-07-31-120000-ensure-address-book-associate-role-permissions.ts",
           "type": "registry:file"
         },
         {

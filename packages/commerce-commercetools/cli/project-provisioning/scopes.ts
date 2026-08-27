@@ -52,8 +52,3 @@ export const RUNTIME_SCOPE_NAMES = [
 
 export const runtimeScopeFor = (projectKey: ProjectKey): string =>
   RUNTIME_SCOPE_NAMES.map((name) => `${name}:${projectKey}`).join(" ");
-
-export const bootstrapScopesFor = (projectKey: ProjectKey) => [
-  `manage_project_settings:${projectKey}`,
-  `manage_api_clients:${projectKey}`,
-];

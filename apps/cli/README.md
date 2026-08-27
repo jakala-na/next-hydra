@@ -40,7 +40,7 @@ pnpm cli commerce schema export
 pnpm cli commerce types generate
 ```
 
-The gitignored `.env.bootstrap.local` contains `COMMERCETOOLS_PROJECT_KEY`, `COMMERCETOOLS_REGION`, `COMMERCETOOLS_BOOTSTRAP_CLIENT_ID`, and `COMMERCETOOLS_BOOTSTRAP_CLIENT_SECRET`. Provisioning enables Product Projection Search, creates an exact-scoped runtime API Client, applies pending migrations, writes and reads back `.env.runtime.local` with `0600` permissions, and only then revokes the bootstrap API Client. It never invokes the Vercel CLI and never prints either secret.
+The gitignored `.env.bootstrap.local` uses the standard Commercetools API Client variables: `CTP_PROJECT_KEY`, `CTP_CLIENT_SECRET`, `CTP_CLIENT_ID`, `CTP_AUTH_URL`, `CTP_API_URL`, and `CTP_SCOPES`. Provisioning enables Product Projection Search, creates an exact-scoped runtime API Client, applies pending migrations, writes and reads back `.env.runtime.local` using the application's existing `COMMERCETOOLS_*` variables with `0600` permissions, and only then revokes the bootstrap API Client. It never invokes the Vercel CLI and never prints either secret.
 
 Package composition:
 

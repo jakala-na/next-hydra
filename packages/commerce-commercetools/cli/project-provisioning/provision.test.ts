@@ -47,10 +47,16 @@ const credentialFileReceipt = new PrivateDotEnvFileReceipt({
 const bootstrapLayer = Layer.succeed(
   BootstrapCommercetoolsConfig,
   BootstrapCommercetoolsConfig.of({
+    apiUrl: "https://api.us-central1.gcp.commercetools.com",
+    authUrl: "https://auth.us-central1.gcp.commercetools.com",
     clientId: bootstrapClientId,
     clientSecret: Redacted.make("bootstrap-secret"),
     projectKey,
     region: CommercetoolsRegion.make("us-central1.gcp"),
+    scopes: [
+      "manage_project_settings:test-project",
+      "manage_api_clients:test-project",
+    ],
   })
 );
 

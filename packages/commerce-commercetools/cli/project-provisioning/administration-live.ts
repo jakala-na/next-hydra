@@ -16,7 +16,6 @@ import {
   RuntimeClientCreationOutcomeUnknown,
   RuntimeCredentials,
 } from "./model";
-import { bootstrapScopesFor } from "./scopes";
 
 const SEARCH_POLL_ATTEMPTS = 60;
 const SEARCH_POLL_INTERVAL = "2 seconds";
@@ -36,14 +35,14 @@ export const projectAdministrationLayer = Layer.effect(
         clientId: config.clientId,
         clientSecret: Redacted.value(config.clientSecret),
       },
-      host: `https://auth.${config.region}.commercetools.com`,
+      host: config.authUrl,
       httpClient: fetch,
       projectKey: config.projectKey,
-      scopes: bootstrapScopesFor(config.projectKey),
+      scopes: [...config.scopes],
     };
     const httpMiddlewareOptions: HttpMiddlewareOptions = {
       enableRetry: false,
-      host: `https://api.${config.region}.commercetools.com`,
+      host: config.apiUrl,
       httpClient: fetch,
     };
     const client = new ClientBuilder()

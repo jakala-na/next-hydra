@@ -43,7 +43,7 @@ pnpm cli commerce migrate plan
 pnpm cli commerce migrate
 ```
 
-Project provisioning expects a manually-created bootstrap API Client with only `manage_project_settings` and `manage_api_clients`. It creates the versioned application runtime scopes, applies pending migrations, and publishes a new dotenv file using exclusive creation and `0600` permissions. The bootstrap client is deleted only after the runtime credentials have been verified from disk. Existing output files are never overwritten.
+Project provisioning reads a manually-created bootstrap API Client from the standard `CTP_*` variables, including its auth/API URLs and scopes. It creates the versioned application runtime scopes, applies pending migrations, and publishes a new dotenv file using the application's existing `COMMERCETOOLS_*` variables, exclusive creation, and `0600` permissions. The bootstrap client is deleted only after the runtime credentials have been verified from disk. Existing output files are never overwritten.
 
 Schema export writes raw Product Types and Custom Types under `schema/`. Type generation writes provider-private Custom Field helpers under `custom-fields/` and intentionally regenerates the provider-neutral Product Attribute Effect Schemas at `packages/commerce/product/generated/attributes.ts`.
 
