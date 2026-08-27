@@ -1,5 +1,11 @@
 # create-next-hydra
 
+## 0.2.1
+
+### Patch Changes
+
+- ee9bdcf: Restore the Next Hydra Selection schema marker after ShadCN resolves registry artifacts.
+
 ## 0.2.0
 
 ### Minor Changes
