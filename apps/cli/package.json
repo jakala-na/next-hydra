@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo node_modules",
-    "cli": "jiti src/index.ts",
+    "cli": "tsx src/index.ts",
     "test": "vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project apps/cli/tsconfig.json"
   },
@@ -13,12 +13,12 @@
     "@effect/platform-node": "catalog:",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
     "@repo/cms": "workspace:@repo/cms-contentstack@*",
-    "effect": "catalog:",
-    "jiti": "^2.6.1"
+    "effect": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "tsx": "^4.23.12",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
