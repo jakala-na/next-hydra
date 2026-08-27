@@ -8,6 +8,7 @@ import { Effect, Layer, Redacted } from "effect";
 
 import { CommercetoolsProjectAdministration } from "./administration";
 import { BootstrapCommercetoolsConfig } from "./bootstrap-config";
+import { decodeErrorDetails } from "./error-details";
 import {
   ApiClientId,
   PreparedProject,
@@ -25,6 +26,27 @@ const administrationError = (
   message: string,
   cause: unknown
 ) => new ProjectAdministrationError({ cause, message, operation });
+
+export const runtimeClientCreationError = (
+  cause: unknown,
+  clientName: string
+): ProjectAdministrationError | RuntimeClientCreationOutcomeUnknown => {
+  const details = decodeErrorDetails(cause);
+  const statusCode = details?.statusCode ?? details?.status;
+
+  return statusCode !== undefined && statusCode >= 400 && statusCode < 500
+    ? administrationError(
+        "createRuntimeClient",
+        `Commercetools rejected runtime API Client "${clientName}"`,
+        cause
+      )
+    : new RuntimeClientCreationOutcomeUnknown({
+        cause,
+        clientName,
+        message:
+          "The runtime API Client creation outcome could not be confirmed",
+      });
+};
 
 export const projectAdministrationLayer = Layer.effect(
   CommercetoolsProjectAdministration,
@@ -136,13 +158,7 @@ export const projectAdministrationLayer = Layer.effect(
       "ProjectAdministration.createRuntimeClient"
     )((input: { readonly name: string; readonly scope: string }) =>
       Effect.tryPromise({
-        catch: (cause) =>
-          new RuntimeClientCreationOutcomeUnknown({
-            cause,
-            clientName: input.name,
-            message:
-              "The runtime API Client creation outcome could not be confirmed",
-          }),
+        catch: (cause) => runtimeClientCreationError(cause, input.name),
         try: async () => {
           const response = await apiRoot
             .apiClients()

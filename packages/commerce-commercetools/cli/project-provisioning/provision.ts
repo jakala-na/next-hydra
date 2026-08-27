@@ -1,11 +1,11 @@
-import { Effect, Random, Ref } from "effect";
+import { Console, Effect, Random, Ref } from "effect";
 
 import { CommercetoolsProjectAdministration } from "./administration";
 import { BootstrapCommercetoolsConfig } from "./bootstrap-config";
 import { RuntimeCredentialHandoff } from "./credential-handoff";
-import { ProvisioningReceipt } from "./model";
+import { BootstrapApiClientScopeError, ProvisioningReceipt } from "./model";
 import { RuntimeProjectSetup } from "./runtime-project-setup";
-import { runtimeScopeFor } from "./scopes";
+import { missingBootstrapScopes, runtimeScopeFor } from "./scopes";
 
 export interface ProvisionCommerceProjectOptions {
   readonly clientName?: string;
@@ -21,8 +21,21 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
     const clientName =
       options.clientName ??
       `Next Hydra runtime (${Math.abs(yield* Random.nextInt)})`;
+    const missingScopes = missingBootstrapScopes(
+      bootstrapConfig.projectKey,
+      bootstrapConfig.scopes
+    );
+    if (missingScopes.length > 0) {
+      return yield* new BootstrapApiClientScopeError({
+        message: `The bootstrap API Client is missing required scope(s): ${missingScopes.join(" ")}`,
+        missingScopes,
+      });
+    }
+
+    yield* Console.log("Preparing the Commercetools project...");
     const project = yield* administration.prepareProject;
     const scope = runtimeScopeFor(bootstrapConfig.projectKey);
+    yield* Console.log(`Creating runtime API Client "${clientName}"...`);
     const credentials = yield* administration.createRuntimeClient({
       name: clientName,
       scope,
@@ -30,13 +43,16 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
     const committed = yield* Ref.make(false);
 
     const finishProvisioning = Effect.gen(function* () {
+      yield* Console.log("Applying starter-kit migrations...");
       const seed = yield* runtimeSetup.setup(credentials);
+      yield* Console.log(`Writing runtime credentials to ${options.output}...`);
       const credentialFile = yield* credentialHandoff
         .save(credentials, options.output)
         .pipe(
           Effect.tap(() => Ref.set(committed, true)),
           Effect.uninterruptible
         );
+      yield* Console.log("Revoking the bootstrap API Client...");
       yield* administration.deleteApiClient(bootstrapConfig.clientId);
 
       return new ProvisioningReceipt({
