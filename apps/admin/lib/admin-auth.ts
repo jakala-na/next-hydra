@@ -1,6 +1,6 @@
 import "server-only";
 import { withAuth } from "@repo/auth/server";
-import { notFound, redirect } from "next/navigation";
+import { forbidden, redirect } from "next/navigation";
 
 export {
   REGISTRATION_DECIDE_PERMISSION as ADMIN_REGISTRATION_DECIDE_PERMISSION,
@@ -15,7 +15,7 @@ export async function requireAdminPermission(permission: string) {
   }
 
   if (!session.permissions.has(permission)) {
-    notFound();
+    forbidden();
   }
 
   return session;
