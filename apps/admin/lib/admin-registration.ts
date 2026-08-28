@@ -1,4 +1,5 @@
 import "server-only";
+import { toError } from "@repo/errors/boundary";
 import { RegistrationId } from "@repo/registration";
 import type {
   RegistrationDetailStatus,
@@ -42,6 +43,21 @@ const ADMIN_REGISTRATION_STATUSES = [
   "approved",
   "rejected",
 ] as const satisfies readonly RegistrationDetailStatus[];
+
+const toRegistrationRequestError = (cause: unknown) =>
+  toError(cause, "The registration request failed.");
+
+const runRegistrationRequest = async <A, E>(
+  program: Effect.Effect<A, E>
+): Promise<A> =>
+  await Effect.runPromise(
+    program.pipe(
+      Effect.mapError(toRegistrationRequestError),
+      Effect.catchDefect((defect) =>
+        Effect.die(toRegistrationRequestError(defect))
+      )
+    )
+  );
 
 const isRegistrationReviewStatus = (
   status: RegistrationDetailStatus | undefined
@@ -129,7 +145,7 @@ export async function listAdminRegistrations(
     ADMIN_REGISTRATION_READ_PERMISSION
   );
 
-  const result = await Effect.runPromise(
+  const result = await runRegistrationRequest(
     Effect.gen(function* listAdminRegistrationsEffect() {
       const client = yield* RegistrationClient;
       return yield* client.registrations.list({
@@ -153,24 +169,20 @@ export async function getAdminRegistration(input: {
     ADMIN_REGISTRATION_READ_PERMISSION
   );
 
-  try {
-    return toRegistrationDetailView(
-      await Effect.runPromise(
-        Effect.gen(function* getAdminRegistrationEffect() {
-          const client = yield* RegistrationClient;
-          return yield* client.registrations.get({
-            params: {
-              registrationId: RegistrationId.make(input.registrationId),
-            },
-          });
-        }).pipe(Effect.provide(registrationClientLayer(session.accessToken)))
-      )
-    );
-  } catch (error) {
-    if (Schema.is(PublicRegistrationNotFound)(error)) {
-      return null;
-    }
-
-    throw error;
-  }
+  return await runRegistrationRequest(
+    Effect.gen(function* getAdminRegistrationEffect() {
+      const client = yield* RegistrationClient;
+      return yield* client.registrations.get({
+        params: {
+          registrationId: RegistrationId.make(input.registrationId),
+        },
+      });
+    }).pipe(
+      Effect.map(toRegistrationDetailView),
+      Effect.catchIf(Schema.is(PublicRegistrationNotFound), () =>
+        Effect.succeed(null)
+      ),
+      Effect.provide(registrationClientLayer(session.accessToken))
+    )
+  );
 }
