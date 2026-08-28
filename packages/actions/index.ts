@@ -4,6 +4,7 @@ import {
   makeInputInvalid,
   makeSchemaErrorIssues,
 } from "@repo/errors";
+import { toError } from "@repo/errors/boundary";
 import { Effect, Result, Schema } from "effect";
 import type { Layer, ManagedRuntime } from "effect";
 
@@ -95,6 +96,11 @@ export type ActionSchemaIssuePath = readonly (
   | { readonly key: PropertyKey }
 )[];
 
+const isKeyedActionSchemaIssuePathSegment = Schema.is(
+  Schema.Struct({ key: Schema.PropertyKey })
+);
+const isSymbol = Schema.is(Schema.Symbol);
+
 const actionSchemaIssuePathKeys = (
   path: ActionSchemaIssuePath | undefined
 ): readonly string[] => {
@@ -103,10 +109,10 @@ const actionSchemaIssuePathKeys = (
   }
 
   const keys = path.map((segment) =>
-    typeof segment === "object" ? segment.key : segment
+    isKeyedActionSchemaIssuePathSegment(segment) ? segment.key : segment
   );
 
-  return keys.some((key) => typeof key === "symbol") ? [] : keys.map(String);
+  return keys.some(isSymbol) ? [] : keys.map(String);
 };
 
 const ensureActionInputIssues = (
@@ -480,6 +486,10 @@ type AnyActionProvision = ActionProvision<object, unknown, unknown, unknown>;
 
 type AnyActionStep = AnyActionMiddleware | AnyActionProvision;
 
+type AnyActionContext = Parameters<
+  AnyActionMiddleware["operation"]["resolve"]
+>[0];
+
 const isActionProvision = (step: AnyActionStep): step is AnyActionProvision =>
   step.operation._tag === "Provide";
 
@@ -491,8 +501,8 @@ interface PreparedAction<Context> {
 const prepareActionSteps = (
   steps: readonly AnyActionStep[],
   index: number,
-  context: object
-): Effect.Effect<PreparedAction<object>, never, unknown> => {
+  context: AnyActionContext
+): Effect.Effect<PreparedAction<AnyActionContext>, never, unknown> => {
   const current = steps[index];
 
   if (current === undefined) {
@@ -526,21 +536,30 @@ const prepareActionSteps = (
 /* oxlint-disable typescript/no-unsafe-type-assertion -- Public action steps are erased only for heterogeneous traversal. */
 const prepareAction = <Context extends object, RuntimeServices>(
   steps: readonly AnyActionStep[]
-): Effect.Effect<PreparedAction<Context>, never, RuntimeServices> =>
-  // The public ActionClient types prove the steps' context and requirements.
-  // Runtime traversal erases them here and restores them once.
-  prepareActionSteps(steps, 0, {}) as unknown as Effect.Effect<
+): Effect.Effect<PreparedAction<Context>, never, RuntimeServices> => {
+  const prepared = prepareActionSteps(steps, 0, {});
+
+  // SAFETY: ActionClient.use proves the ordered middleware chain produces Context.
+  const withContext = prepared as Effect.Effect<
+    PreparedAction<Context>,
+    never,
+    unknown
+  >;
+
+  // SAFETY: ActionClient.use also proves every middleware requirement is in RuntimeServices.
+  return withContext as Effect.Effect<
     PreparedAction<Context>,
     never,
     RuntimeServices
   >;
+};
 
 const provideActionLayers = (
   provisions: readonly AnyActionProvision[],
   index: number,
-  context: object,
+  context: AnyActionContext,
   program: Effect.Effect<unknown, never, unknown>,
-  recover: (error: unknown) => Effect.Effect<unknown>
+  recover: (cause: unknown) => Effect.Effect<unknown>
 ): Effect.Effect<unknown, never, unknown> => {
   const current = provisions[index];
 
@@ -564,17 +583,27 @@ const provideActionLayers = (
 /* oxlint-disable typescript/no-unnecessary-type-parameters -- ProvisionFailure restores the public failure type at this erased Layer seam. */
 const provideAction = <Success, ProvisionFailure, Services, RuntimeServices>(
   provisions: readonly AnyActionProvision[],
-  context: object,
+  context: AnyActionContext,
   program: Effect.Effect<Success, never, Services>,
   recover: (error: ProvisionFailure) => Effect.Effect<Success>
-): Effect.Effect<Success, never, RuntimeServices> =>
-  provideActionLayers(
+): Effect.Effect<Success, never, RuntimeServices> => {
+  const recoverUnknown = (cause: unknown): Effect.Effect<unknown> =>
+    // SAFETY: ActionClient.provide proves every acquisition failure belongs to ProvisionFailure.
+    recover(cause as ProvisionFailure);
+  const provided = provideActionLayers(
     provisions,
     0,
     context,
     program,
-    recover as (error: unknown) => Effect.Effect<unknown>
-  ) as unknown as Effect.Effect<Success, never, RuntimeServices>;
+    recoverUnknown
+  );
+
+  // SAFETY: provideActionLayers preserves the program's Success value.
+  const withSuccess = provided as Effect.Effect<Success, never, unknown>;
+
+  // SAFETY: ActionClient.provide proves all Layer requirements are in RuntimeServices.
+  return withSuccess as Effect.Effect<Success, never, RuntimeServices>;
+};
 /* oxlint-enable typescript/no-unnecessary-type-parameters */
 /* oxlint-enable typescript/no-unsafe-type-assertion */
 
@@ -740,21 +769,30 @@ const makeProcedure = <
       Effect.map(({ encoded }) => encoded)
     );
 
+  const runEffect = async <A>(
+    program: Effect.Effect<A, never, RuntimeServices>
+  ): Promise<A> =>
+    await options.runtime.runPromise(
+      program.pipe(
+        Effect.catchDefect((defect) =>
+          Effect.die(toError(defect, `Action ${options.name} failed.`))
+        )
+      )
+    );
+
   const execute = async (input: Input["Encoded"]) =>
-    await options.runtime.runPromise(effect(input));
+    await runEffect(effect(input));
 
   const executeDisplay = async (
     message: ActionFailureMessage<Error, Context>,
     input: Input["Encoded"]
-  ) => await options.runtime.runPromise(displayEffect(message, input));
+  ) => await runEffect(displayEffect(message, input));
 
   const executeSuccess = async (
     success: ActionSuccessHandler<Output, Context>,
     input: Input["Encoded"]
   ) => {
-    const execution = await options.runtime.runPromise(
-      encodedResultEffect(input)
-    );
+    const execution = await runEffect(encodedResultEffect(input));
 
     // Framework terminal control flow such as Next redirect intentionally runs
     // after Effect execution so its thrown control signal is not captured as a
@@ -770,9 +808,7 @@ const makeProcedure = <
     adapter: ActionPresentationAdapter<Output, Error, Context>,
     input: Input["Encoded"]
   ) => {
-    const execution = await options.runtime.runPromise(
-      displayedResultEffect(adapter, input)
-    );
+    const execution = await runEffect(displayedResultEffect(adapter, input));
     if (Result.isSuccess(execution.result)) {
       await adapter.onSuccess(execution.result.success, execution.context);
     }
@@ -994,8 +1030,8 @@ const makeClient = <
     }),
   });
 
-  // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- Requires proves middleware dependencies are already available.
-  function use<AddedContext extends object, Requires extends Services>(
+  /* oxlint-disable typescript/no-unnecessary-type-parameters -- Requires proves middleware dependencies are already available. */
+  const use = <AddedContext extends object, Requires extends Services>(
     next: Phase extends "Context"
       ? ActionContextMiddleware<Context, Context & AddedContext, Requires>
       : never
@@ -1005,23 +1041,34 @@ const makeClient = <
     RuntimeServices,
     Context & AddedContext,
     Phase
-  >;
-  function use(next: unknown): unknown {
+  > => {
     if (phase === "Provided") {
       throw new Error("Action context must be configured before provide");
     }
 
-    // The overload above proves this transition. Runtime storage erases the
-    // heterogeneous Context types at this private seam.
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ActionClient.use checked the transition before storage.
-    const actionMiddleware = next as AnyActionMiddleware;
+    const actionMiddleware: AnyActionMiddleware = {
+      operation: {
+        _tag: "Context",
+        resolve: (context) => {
+          /* oxlint-disable typescript/no-unsafe-type-assertion -- The public signature proves each traversal context matches this middleware input. */
+          // SAFETY: prepareActionSteps invokes middleware in the order enforced by ActionClient.use.
+          const middlewareContext = context as Context;
+          /* oxlint-enable typescript/no-unsafe-type-assertion */
 
-    return makeClient<Services, Failure, RuntimeServices, Context, Phase>(
-      runtime,
-      [...steps, actionMiddleware],
-      phase
-    );
-  }
+          return next.operation.resolve(middlewareContext);
+        },
+      },
+    };
+
+    return makeClient<
+      Services,
+      Failure,
+      RuntimeServices,
+      Context & AddedContext,
+      Phase
+    >(runtime, [...steps, actionMiddleware], phase);
+  };
+  /* oxlint-enable typescript/no-unnecessary-type-parameters */
 
   const provide = <Provides, ProvisionFailure, Requires extends Services>(
     layer: (
@@ -1043,18 +1090,21 @@ const makeClient = <
       operation: { _tag: "Provide", layer },
     };
 
+    /* oxlint-disable typescript/no-unsafe-type-assertion -- The public signature proves the provision before erasure. */
+    const nextSteps = [
+      ...steps,
+      // SAFETY: ActionClient.provide checked the provision before heterogeneous storage.
+      provision as AnyActionProvision,
+    ];
+    /* oxlint-enable typescript/no-unsafe-type-assertion */
+
     return makeClient<
       Services | Provides,
       Failure | ProvisionFailure,
       RuntimeServices,
       Context,
       "Provided"
-    >(
-      runtime,
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- ActionClient.provide checked the provision before heterogeneous storage.
-      [...steps, provision as AnyActionProvision],
-      "Provided"
-    );
+    >(runtime, nextSteps, "Provided");
   };
 
   return { procedure, provide, use };

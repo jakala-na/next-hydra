@@ -2,6 +2,7 @@ import { ActionClient, ActionMiddleware } from "@repo/actions";
 import type { EmptyActionContext } from "@repo/actions";
 import { StoreKey } from "@repo/commerce/store";
 import { ErrorIssue, makeInputInvalid } from "@repo/errors";
+import { makeUnexpected } from "@repo/errors/http";
 import type { Locale } from "@repo/i18n/types";
 import { DuplicateRegistrationEmail, RegistrationId } from "@repo/registration";
 import type { RegistrationFormTranslator } from "@repo/registration";
@@ -404,21 +405,36 @@ describe("submitRegistration", () => {
     expect(redirects).toStrictEqual([]);
   });
 
-  it("rejects downstream bad requests after the action input was decoded", async () => {
+  it("rejects an API Unexpected response as a server defect", async () => {
+    const unexpected = makeUnexpected();
     const { submitRegistration } = makeHarness({
-      create: () =>
-        Effect.fail(
-          makeInputInvalid({
-            issues: [
-              new ErrorIssue({ message: "HTTP contract drift", path: [] }),
-            ],
-            message: "HTTP contract drift",
-          })
-        ),
+      create: () => Effect.fail(unexpected),
     });
+    const submission = submitRegistration(validInput);
 
-    await expect(submitRegistration(validInput)).rejects.toMatchObject({
-      _tag: "InputInvalid",
+    await expect(submission).rejects.toBeInstanceOf(Error);
+    await expect(submission).rejects.toMatchObject({
+      cause: unexpected,
+      message: "[unexpected] Something went wrong.",
+      name: "Unexpected",
+    });
+  });
+
+  it("rejects downstream bad requests after the action input was decoded", async () => {
+    const downstreamFailure = makeInputInvalid({
+      issues: [new ErrorIssue({ message: "HTTP contract drift", path: [] })],
+      message: "HTTP contract drift",
+    });
+    const { submitRegistration } = makeHarness({
+      create: () => Effect.fail(downstreamFailure),
+    });
+    const submission = submitRegistration(validInput);
+
+    await expect(submission).rejects.toBeInstanceOf(Error);
+    await expect(submission).rejects.toMatchObject({
+      cause: downstreamFailure,
+      message: "[input.invalid] HTTP contract drift",
+      name: "InputInvalid",
     });
   });
 });
