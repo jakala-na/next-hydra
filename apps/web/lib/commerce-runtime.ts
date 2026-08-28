@@ -10,6 +10,7 @@ import type {
 import { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
 import { CompanyMemberRemovalRecords } from "@repo/commerce/services/company-member-removal-records";
 import { CustomerAccountMembers } from "@repo/commerce/services/customer-account-members";
+import { toError } from "@repo/errors/boundary";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer, Schema } from "effect";
 
@@ -36,6 +37,9 @@ type CommerceRuntimeServices =
   | NextRequestApi;
 
 export type NextCommerceRequestError = CommerceRequestProvisionError;
+
+const toCommerceBoundaryError = (cause: unknown) =>
+  toError(cause, "The Commerce request failed.");
 
 const logCommerceRequestCause = (error: CommerceAccountUnavailable) =>
   Effect.logError(error.message, error.cause ?? error).pipe(
@@ -113,5 +117,13 @@ export const NextCommerce = {
   provide,
   runPromise: async <A, E>(
     program: Effect.Effect<A, E, CommerceRuntimeServices>
-  ) => await AppRuntime.runPromise(program),
+  ) =>
+    await AppRuntime.runPromise(
+      program.pipe(
+        Effect.mapError(toCommerceBoundaryError),
+        Effect.catchDefect((defect) =>
+          Effect.die(toCommerceBoundaryError(defect))
+        )
+      )
+    ),
 };
