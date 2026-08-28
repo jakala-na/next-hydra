@@ -5,6 +5,7 @@ import {
 } from "@repo/design-system/components/commerce/blocks/product-collection";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Schema } from "effect";
+import { connection } from "next/server";
 import type { ReactNode } from "react";
 
 import type { CategoryId, ProductId } from "./identity";
@@ -37,27 +38,35 @@ const productCollectionArchitecture = {
   sourceLabel: "Commerce provider",
 } as const;
 
-async function getProductCards({
+const getProductCards = async ({
   categoryId,
   excludeProductId,
   limit = 3,
   locale,
-}: ProductCollectionGridProps) {
-  const input = Schema.decodeUnknownSync(ListProductCardsInput)({
-    ...(categoryId === undefined ? {} : { categoryId }),
-    limit,
-    ...(excludeProductId === undefined ? {} : { excludeProductId }),
-  });
+}: ProductCollectionGridProps) => {
+  await connection();
+
+  let encodedInput: typeof ListProductCardsInput.Encoded = { limit };
+  if (categoryId !== undefined) {
+    encodedInput = { ...encodedInput, categoryId };
+  }
+  if (excludeProductId !== undefined) {
+    encodedInput = { ...encodedInput, excludeProductId };
+  }
+  const input = Schema.decodeSync(ListProductCardsInput)(encodedInput);
   const products = await NextCommerce.runPromise(
-    Effect.flatMap(ProductDiscovery, (discovery) =>
-      discovery.listCards(input)
-    ).pipe(NextCommerce.provide(locale))
+    ProductDiscovery.pipe(
+      Effect.flatMap((discovery) => discovery.listCards(input)),
+      NextCommerce.provide(locale)
+    )
   );
 
   return products.map(toProductCardPresentation);
-}
+};
 
-export async function ProductCollectionGrid(props: ProductCollectionGridProps) {
+export const ProductCollectionGrid = async (
+  props: ProductCollectionGridProps
+) => {
   const products = await getProductCards(props);
 
   if (products.length === 0) {
@@ -70,13 +79,13 @@ export async function ProductCollectionGrid(props: ProductCollectionGridProps) {
       products={products}
     />
   );
-}
+};
 
-export async function ProductCollection({
+export const ProductCollection = async ({
   description,
   title,
   ...gridProps
-}: ProductCollectionProps) {
+}: ProductCollectionProps) => {
   const products = await getProductCards(gridProps);
 
   if (products.length === 0) {
@@ -91,4 +100,4 @@ export async function ProductCollection({
       products={products}
     />
   );
-}
+};
