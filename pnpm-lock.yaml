@@ -549,6 +549,9 @@ importers:
       '@repo/actions':
         specifier: workspace:*
         version: link:../../packages/actions
+      '@repo/analytics':
+        specifier: workspace:*
+        version: link:../../packages/analytics
       '@repo/auth':
         specifier: workspace:@repo/auth-workos@*
         version: link:../../packages/auth-workos
@@ -1382,9 +1385,6 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.7
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@repo/analytics':
-        specifier: workspace:*
-        version: link:../analytics
       '@repo/i18n':
         specifier: workspace:*
         version: link:../i18n
