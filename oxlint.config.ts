@@ -239,7 +239,7 @@ export default defineConfig({
     // checked were one of these cases, none a genuine unconverted call site.
     "effecttsgo/async-function": "off",
     "func-names": "off",
-    "func-style": ["warn", "expression", { allowArrowFunctions: true }],
+    "func-style": "off",
     "import/no-namespace": "warn",
     "jsx-a11y/label-has-associated-control": "warn",
     "jsx-a11y/no-noninteractive-element-interactions": "warn",
@@ -252,10 +252,7 @@ export default defineConfig({
     "no-useless-escape": "off",
     "oxc/no-barrel-file": "off",
     radix: "warn",
-    "react/function-component-definition": [
-      "warn",
-      { namedComponents: "arrow-function" },
-    ],
+    "react/function-component-definition": "off",
     "react/no-array-index-key": "warn",
     "react/no-danger": "warn",
     "react/no-unstable-nested-components": "warn",
