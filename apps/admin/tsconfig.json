@@ -3,8 +3,8 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
-      "@repo/auth": ["./node_modules/@repo/auth"],
-      "@repo/auth/*": ["./node_modules/@repo/auth/*"],
+      "@repo/auth": ["../../packages/auth-workos"],
+      "@repo/auth/*": ["../../packages/auth-workos/*"],
       "@repo/*": ["../../packages/*"]
     }
   },

@@ -50,6 +50,7 @@
   "dependencies": {
     "@clack/prompts": "^0.11.0",
     "commander": "^14.0.0",
+    "jsonc-parser": "^3.3.1",
     "shadcn": "^4.16.2",
     "yaml": "^2.9.0",
     "zod": "^3.25.28"

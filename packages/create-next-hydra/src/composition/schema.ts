@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import { PROVIDER_SLOTS } from "./types.js";
+import { PROVIDER_ALIASES, PROVIDER_SLOTS } from "./types.js";
 
 export const NEXT_HYDRA_SELECTION_SCHEMA_URL =
   "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json";
@@ -35,6 +35,25 @@ const packageRequirementSchema = z
   })
   .strict();
 
+const providerBindingSchema = z
+  .object({
+    sourcePath: workspaceFilePathSchema.optional(),
+    specifier: z.string().min(1),
+  })
+  .strict();
+
+const providerDependencySchema = z
+  .object({
+    cwd: workspaceRelativePathSchema,
+    section: z.enum([
+      "dependencies",
+      "devDependencies",
+      "optionalDependencies",
+    ]),
+    slot: z.enum(PROVIDER_SLOTS),
+  })
+  .strict();
+
 const pnpmPatchSchema = z
   .object({
     dependency: z.string().min(1),
@@ -57,6 +76,8 @@ const presetSelectionsSchema = z
   })
   .strict();
 
+const providerAliasNames = new Set<string>(Object.values(PROVIDER_ALIASES));
+
 export const selectionDefinitionSchema = z
   .object({
     assets: z
@@ -69,6 +90,7 @@ export const selectionDefinitionSchema = z
           .strict()
       )
       .default([]),
+    binding: providerBindingSchema.optional(),
     compatibility: z
       .object({
         conflicts: z.array(z.string().min(1)).default([]),
@@ -80,6 +102,7 @@ export const selectionDefinitionSchema = z
     kind: z.enum(["provider", "add-on", "preset"]),
     packages: z.array(packageRequirementSchema).default([]),
     pnpmPatches: z.array(pnpmPatchSchema).default([]),
+    providerDependencies: z.array(providerDependencySchema).default([]),
     selections: presetSelectionsSchema.optional(),
     slot: z.enum(PROVIDER_SLOTS).optional(),
   })
@@ -93,12 +116,50 @@ export const selectionDefinitionSchema = z
       });
     }
 
+    if (definition.kind === "provider" && !definition.binding) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "a provider must declare its binding",
+        path: ["binding"],
+      });
+    }
+
     if (definition.kind !== "provider" && definition.slot) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: `${definition.kind} must not declare a provider slot`,
         path: ["slot"],
       });
+    }
+
+    if (definition.kind !== "provider" && definition.binding) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${definition.kind} must not declare a provider binding`,
+        path: ["binding"],
+      });
+    }
+
+    if (
+      definition.kind === "preset" &&
+      definition.providerDependencies.length > 0
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "a preset must not declare provider dependencies",
+        path: ["providerDependencies"],
+      });
+    }
+
+    for (const [index, requirement] of definition.packages.entries()) {
+      if (providerAliasNames.has(requirement.name)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "stable Provider aliases must be declared through providerDependencies",
+          path: ["packages", index, "name"],
+        });
+      }
     }
 
     if (definition.kind === "preset" && !definition.selections) {

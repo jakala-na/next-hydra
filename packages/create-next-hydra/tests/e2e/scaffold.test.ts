@@ -13,6 +13,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
+import { parse } from "jsonc-parser";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { pathExists, readJsonFile } from "../../src/fs-utils.js";
@@ -437,6 +438,49 @@ describe("scaffold composition", () => {
       expect(packageJson.devDependencies?.["@changesets/cli"]).toBeUndefined();
 
       await rm(target, { force: true, recursive: true });
+    },
+    E2E_TIMEOUT
+  );
+
+  it(
+    "writes maintained Provider aliases into generated TypeScript configurations",
+    async () => {
+      const variants: {
+        cms: "contentstack" | "drupal";
+        sourcePath: string;
+      }[] = [
+        {
+          cms: "contentstack",
+          sourcePath: "../../packages/cms-contentstack",
+        },
+        {
+          cms: "drupal",
+          sourcePath: "../../packages/cms-drupal",
+        },
+      ];
+
+      for (const variant of variants) {
+        const target = path.join(testRoot, `${variant.cms}-aliases-project`);
+        // oxlint-disable-next-line no-await-in-loop -- Each scaffold uses the shared local fixture repository and is cleaned before the next begins.
+        await scaffoldProject(options(target, variant.cms), {
+          install: fakeRootInstall,
+        });
+        // oxlint-disable-next-line no-await-in-loop -- The assertion observes the scaffold completed immediately above.
+        const config = await readFile(
+          path.join(target, "apps/web/tsconfig.json"),
+          "utf-8"
+        );
+        expect(parse(config)).toMatchObject({
+          compilerOptions: {
+            paths: {
+              "@repo/cms": [variant.sourcePath],
+              "@repo/cms/*": [`${variant.sourcePath}/*`],
+            },
+          },
+        });
+        // oxlint-disable-next-line no-await-in-loop -- Cleanup keeps the two independently scaffolded variants isolated.
+        await rm(target, { force: true, recursive: true });
+      }
     },
     E2E_TIMEOUT
   );

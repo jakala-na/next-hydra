@@ -60,6 +60,20 @@
         "slot": {
           "enum": ["auth", "cms", "commerce"]
         },
+        "binding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["specifier"],
+          "properties": {
+            "specifier": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sourcePath": {
+              "$ref": "#/$defs/workspaceFilePath"
+            }
+          }
+        },
         "compatibility": {
           "type": "object",
           "additionalProperties": false,
@@ -101,11 +115,41 @@
               },
               "name": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "not": {
+                  "enum": [
+                    "@repo/auth",
+                    "@repo/cms",
+                    "@repo/commerce-provider"
+                  ]
+                }
               },
               "specifier": {
                 "type": "string",
                 "minLength": 1
+              }
+            }
+          }
+        },
+        "providerDependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cwd", "section", "slot"],
+            "properties": {
+              "cwd": {
+                "$ref": "#/$defs/workspacePath"
+              },
+              "section": {
+                "enum": [
+                  "dependencies",
+                  "devDependencies",
+                  "optionalDependencies"
+                ]
+              },
+              "slot": {
+                "enum": ["auth", "cms", "commerce"]
               }
             }
           }
@@ -187,7 +231,7 @@
             "required": ["kind"]
           },
           "then": {
-            "required": ["slot"],
+            "required": ["binding", "slot"],
             "not": {
               "required": ["selections"]
             }
@@ -209,6 +253,9 @@
                   "required": ["slot"]
                 },
                 {
+                  "required": ["binding"]
+                },
+                {
                   "required": ["selections"]
                 }
               ]
@@ -227,7 +274,22 @@
           "then": {
             "required": ["selections"],
             "not": {
-              "required": ["slot"]
+              "anyOf": [
+                {
+                  "required": ["slot"]
+                },
+                {
+                  "required": ["binding"]
+                },
+                {
+                  "properties": {
+                    "providerDependencies": {
+                      "minItems": 1
+                    }
+                  },
+                  "required": ["providerDependencies"]
+                }
+              ]
             }
           }
         }

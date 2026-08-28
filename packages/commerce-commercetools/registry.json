@@ -13,26 +13,10 @@
           "id": "next-hydra/commerce/commercetools",
           "kind": "provider",
           "slot": "commerce",
-          "packages": [
-            {
-              "cwd": "apps/api",
-              "section": "dependencies",
-              "name": "@repo/commerce-provider",
-              "specifier": "workspace:@repo/commerce-commercetools@*"
-            },
-            {
-              "cwd": "apps/cli",
-              "section": "dependencies",
-              "name": "@repo/commerce-provider",
-              "specifier": "workspace:@repo/commerce-commercetools@*"
-            },
-            {
-              "cwd": "apps/web",
-              "section": "dependencies",
-              "name": "@repo/commerce-provider",
-              "specifier": "workspace:@repo/commerce-commercetools@*"
-            }
-          ]
+          "binding": {
+            "specifier": "workspace:@repo/commerce-commercetools@*",
+            "sourcePath": "packages/commerce-commercetools"
+          }
         }
       },
       "files": [

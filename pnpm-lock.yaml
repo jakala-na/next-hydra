@@ -1258,6 +1258,9 @@ importers:
       commander:
         specifier: ^14.0.0
         version: 14.0.2
+      jsonc-parser:
+        specifier: ^3.3.1
+        version: 3.3.1
       shadcn:
         specifier: ^4.16.2
         version: 4.16.2(@typescript/typescript6@6.0.2)

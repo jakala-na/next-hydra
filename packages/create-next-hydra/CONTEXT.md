@@ -26,6 +26,10 @@ The Workspace Composition context describes the selectable parts of a Next Hydra
 
 **Provider Alias**: The stable workspace package name through which Baseline code imports the Provider selected for one Provider Slot. Each slot defines its own current package interface; a Provider may satisfy part of that interface with an explicit no-op when the capability is validly unnecessary. V1 does not assign independent version numbers to these interfaces. _Avoid_: Concrete Provider package, generated binding module, universal Provider interface
 
+**Provider Binding**: The Provider-owned association between one Provider Alias and that Provider's installable implementation package, including its canonical Maintainer Workspace source when available. _Avoid_: Provider Alias, concrete consumer dependency, compatibility declaration
+
+**Provider Dependency**: A consumer-owned declaration that one workspace package uses the Provider selected for a Provider Slot through that slot's Provider Alias. It does not select or require a concrete Provider. _Avoid_: Compatibility declaration, registry dependency, concrete Provider requirement
+
 **Add-on**: An optional composition selection that may depend on other registry items and is valid only when its compatibility requirements are satisfied by the complete selected stack. _Avoid_: Provider, optional package
 
 **Selection ID**: The stable, globally scoped identity of a Provider or Add-on, independent of where its materialization content is obtained. _Avoid_: Registry URL, repository path, registry item name

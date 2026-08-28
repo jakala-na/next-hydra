@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import { parse } from "jsonc-parser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -100,6 +101,10 @@ async function maintainerFixture(): Promise<string> {
       await writeFile(
         path.join(fixture, relative, "package.json"),
         `${JSON.stringify({ dependencies: {}, name: path.basename(relative) }, null, 2)}\n`
+      );
+      await writeFile(
+        path.join(fixture, relative, "tsconfig.json"),
+        '{"compilerOptions":{"paths":{"@repo/*":["../../packages/*"]}}}\n'
       );
     })
   );
@@ -203,7 +208,32 @@ describe("maintainer use", () => {
     await expect(
       readFile(path.join(cwd, "pnpm-workspace.yaml"), "utf-8")
     ).resolves.not.toContain("patches/@drupal-canvas__headless.patch");
+
+    const webTypeScriptConfigPath = path.join(cwd, "apps/web/tsconfig.json");
+    const contentstackTypeScriptConfig = await readFile(
+      webTypeScriptConfigPath,
+      "utf-8"
+    );
+    expect(parse(contentstackTypeScriptConfig)).toMatchObject({
+      compilerOptions: {
+        paths: {
+          "@repo/cms": ["../../packages/cms-contentstack"],
+          "@repo/cms/*": ["../../packages/cms-contentstack/*"],
+        },
+      },
+    });
     await useComposition({ check: true, cwd });
+
+    await writeFile(
+      webTypeScriptConfigPath,
+      contentstackTypeScriptConfig.replace(
+        '"../../packages/cms-contentstack"',
+        '"../../packages/not-contentstack"'
+      )
+    );
+    await expect(useComposition({ check: true, cwd })).rejects.toThrow(
+      /expected compilerOptions\.paths\.@repo\/cms/u
+    );
 
     await useComposition({ cms: "drupal", cwd, yes: true }, { install });
     expect(
@@ -223,6 +253,16 @@ describe("maintainer use", () => {
     await expect(
       readFile(path.join(cwd, "pnpm-workspace.yaml"), "utf-8")
     ).resolves.toContain("patches/@drupal-canvas__headless.patch");
+    expect(
+      parse(await readFile(webTypeScriptConfigPath, "utf-8"))
+    ).toMatchObject({
+      compilerOptions: {
+        paths: {
+          "@repo/cms": ["../../packages/cms-drupal"],
+          "@repo/cms/*": ["../../packages/cms-drupal/*"],
+        },
+      },
+    });
     expect(installs).toHaveLength(2);
 
     await writeFile(
@@ -263,6 +303,7 @@ describe("maintainer use", () => {
         "  replace managed application files",
         "  install selected source",
         "  update package aliases",
+        "  update TypeScript paths",
         "  update pnpm patches",
         "  run pnpm install",
       ].join("\n")

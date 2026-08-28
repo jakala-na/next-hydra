@@ -14,38 +14,10 @@
           "id": "next-hydra/auth/workos",
           "kind": "provider",
           "slot": "auth",
-          "packages": [
-            {
-              "cwd": "apps/api",
-              "section": "dependencies",
-              "name": "@repo/auth",
-              "specifier": "workspace:@repo/auth-workos@*"
-            },
-            {
-              "cwd": "apps/web",
-              "section": "dependencies",
-              "name": "@repo/auth",
-              "specifier": "workspace:@repo/auth-workos@*"
-            },
-            {
-              "cwd": "apps/admin",
-              "section": "dependencies",
-              "name": "@repo/auth",
-              "specifier": "workspace:@repo/auth-workos@*"
-            },
-            {
-              "cwd": "apps/cli",
-              "section": "dependencies",
-              "name": "@repo/auth",
-              "specifier": "workspace:@repo/auth-workos@*"
-            },
-            {
-              "cwd": "packages/feature-flags",
-              "section": "dependencies",
-              "name": "@repo/auth",
-              "specifier": "workspace:@repo/auth-workos@*"
-            }
-          ]
+          "binding": {
+            "specifier": "workspace:@repo/auth-workos@*",
+            "sourcePath": "packages/auth-workos"
+          }
         }
       },
       "files": [

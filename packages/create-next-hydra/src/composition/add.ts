@@ -19,6 +19,7 @@ import {
   parsePackageJson,
   readPackageJson,
 } from "./packages.js";
+import type { PackageJson } from "./packages.js";
 import { resolveRegistryTarget } from "./paths.js";
 import {
   formatZodError,
@@ -62,7 +63,6 @@ type ParsedDependency = {
   specifier?: string;
 };
 
-const PACKAGE_ALIAS_PROTOCOL = /^(?:workspace|npm):/;
 const EXACT_COPY_FILE_TYPES = new Set(["registry:file", "registry:item"]);
 
 const KNOWN_PROVIDERS = new Map<
@@ -297,50 +297,39 @@ function usesProviderAlias(
   );
 }
 
-function aliasedPackageName(specifier: string): string | undefined {
-  const request = specifier.replace(PACKAGE_ALIAS_PROTOCOL, "");
-  const packageEnd = request.startsWith("@")
-    ? request.indexOf("@", request.indexOf("/") + 1)
-    : request.indexOf("@");
-  return packageEnd < 1 ? request || undefined : request.slice(0, packageEnd);
-}
-
 function providerExpectation(
   selectionId: string,
   selectionsById: Map<string, SelectionDefinition>
-): { dependency: string; packageName: string } | undefined {
-  const known = KNOWN_PROVIDERS.get(selectionId);
-  if (known) {
-    return known;
-  }
+):
+  | { dependency: string; packageName: string }
+  | { dependency: string; specifier: string }
+  | undefined {
   const selection = selectionsById.get(selectionId);
-  if (selection?.kind !== "provider" || !selection.slot) {
-    return;
+  if (selection?.kind === "provider" && selection.slot && selection.binding) {
+    return {
+      dependency: PROVIDER_ALIASES[selection.slot],
+      specifier: selection.binding.specifier,
+    };
   }
-  const dependency = PROVIDER_ALIASES[selection.slot];
-  const requirement = selection.packages.find(
-    (candidate) =>
-      candidate.cwd === "apps/web" &&
-      candidate.section === "dependencies" &&
-      candidate.name === dependency
-  );
-  const packageName = requirement
-    ? aliasedPackageName(requirement.specifier)
-    : undefined;
-  return packageName ? { dependency, packageName } : undefined;
+  return KNOWN_PROVIDERS.get(selectionId);
 }
 
-async function validateKnownProviderCompatibility(
-  workspaceRoot: string,
+function matchesProviderExpectation(
+  actual: string | undefined,
+  expectation: NonNullable<ReturnType<typeof providerExpectation>>
+): boolean {
+  return "specifier" in expectation
+    ? actual === expectation.specifier
+    : usesProviderAlias(actual, expectation.packageName);
+}
+
+function validateKnownProviderCompatibility(
+  manifest: PackageJson,
   selections: SelectionDefinition[]
-): Promise<string[]> {
+): string[] {
   if (selections.length === 0) {
     return [];
   }
-  const manifest = await readPackageJson(
-    path.join(workspaceRoot, "apps/web/package.json"),
-    "apps/web/package.json"
-  );
   const issues: string[] = [];
   const assumptions: string[] = [];
   const selectionsById = new Map(selections.map((item) => [item.id, item]));
@@ -352,12 +341,12 @@ async function validateKnownProviderCompatibility(
     const provider = providerExpectation(selection.id, selectionsById);
     if (!provider) {
       issues.push(
-        `${selection.id} is a Provider in the requested graph but does not declare its apps/web stable alias`
+        `${selection.id} is a Provider in the requested graph but does not declare a usable Provider binding`
       );
       continue;
     }
     const actual = manifest.dependencies?.[provider.dependency];
-    if (!usesProviderAlias(actual, provider.packageName)) {
+    if (!matchesProviderExpectation(actual, provider)) {
       issues.push(
         `${selection.id} is a Provider in the requested graph, but the current provider alias ${provider.dependency} is ${actual ?? "missing"}`
       );
@@ -370,9 +359,9 @@ async function validateKnownProviderCompatibility(
       const requiredSelection = selectionsById.get(required);
       if (
         provider &&
-        !usesProviderAlias(
+        !matchesProviderExpectation(
           manifest.dependencies?.[provider.dependency],
-          provider.packageName
+          provider
         )
       ) {
         issues.push(`${selection.id} requires ${required}`);
@@ -387,9 +376,9 @@ async function validateKnownProviderCompatibility(
       const conflictingSelection = selectionsById.get(conflict);
       if (
         (provider &&
-          usesProviderAlias(
+          matchesProviderExpectation(
             manifest.dependencies?.[provider.dependency],
-            provider.packageName
+            provider
           )) ||
         conflictingSelection?.kind === "add-on"
       ) {
@@ -410,6 +399,42 @@ async function validateKnownProviderCompatibility(
   return [...new Set(assumptions)].sort((left, right) =>
     left.localeCompare(right)
   );
+}
+
+function resolveCustomerProviderRequirements(
+  manifest: PackageJson,
+  selections: SelectionDefinition[]
+): PackageRequirement[] {
+  const requirements: PackageRequirement[] = [];
+  const issues: string[] = [];
+
+  for (const selection of selections) {
+    for (const dependency of selection.providerDependencies) {
+      const name = PROVIDER_ALIASES[dependency.slot];
+      const specifier = manifest.dependencies?.[name];
+      if (!specifier) {
+        issues.push(
+          `${selection.id} needs the ${dependency.slot} Provider at ${dependency.cwd}, but apps/web/package.json does not declare ${name}`
+        );
+        continue;
+      }
+      requirements.push({
+        cwd: dependency.cwd,
+        name,
+        section: dependency.section,
+        specifier,
+      });
+    }
+  }
+
+  if (issues.length > 0) {
+    throw new CompositionValidationError(
+      "The Add-on's Provider dependencies could not be resolved from the customer workspace.",
+      issues
+    );
+  }
+
+  return requirements;
 }
 
 function validateRegistryTargetClaims(items: Iterable<RegistryItem>): void {
@@ -625,11 +650,39 @@ export async function addRegistryItem(
     );
   }
 
-  const compatibilityAssumptions = await validateKnownProviderCompatibility(
-    cwd,
+  validateRegistryTargetClaims(graph.items.values());
+  const providerSelectionIds = new Set(
+    graphSelections
+      .filter((candidate) => candidate.kind === "provider")
+      .map((candidate) => candidate.id)
+  );
+  const needsProviderManifest = graphSelections.some(
+    (candidate) =>
+      candidate.kind === "provider" ||
+      candidate.providerDependencies.length > 0 ||
+      [
+        ...candidate.compatibility.requires,
+        ...candidate.compatibility.conflicts,
+      ].some(
+        (selectionId) =>
+          KNOWN_PROVIDERS.has(selectionId) ||
+          providerSelectionIds.has(selectionId)
+      )
+  );
+  const providerManifest = needsProviderManifest
+    ? await readPackageJson(
+        path.join(cwd, "apps/web/package.json"),
+        "apps/web/package.json"
+      )
+    : {};
+  const compatibilityAssumptions = validateKnownProviderCompatibility(
+    providerManifest,
     graphSelections
   );
-  validateRegistryTargetClaims(graph.items.values());
+  const packageRequirements = mergePackageRequirements([
+    ...graphSelections.flatMap((candidate) => candidate.packages),
+    ...resolveCustomerProviderRequirements(providerManifest, graphSelections),
+  ]);
   await withPreparedRegistryArtifacts({
     artifacts: [...graph.items.values()],
     entryItems: [primary.name],
@@ -645,7 +698,7 @@ export async function addRegistryItem(
       const fileChanges = await inspectFiles(cwd, tree);
       const packageChanges = await inspectPackages(
         cwd,
-        mergePackageRequirements(graphSelections),
+        packageRequirements,
         tree
       );
       const rootDependencyChanges = await inspectRootDependencies(cwd, tree);

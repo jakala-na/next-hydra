@@ -14,7 +14,7 @@ import type {
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const MATERIALIZATION_CONFLICT = /Materialization targets conflict/u;
-const STABLE_PROVIDER_ALIASES = /stable Provider aliases/u;
+const PROVIDER_BINDING_MISSING = /Provider binding is missing/u;
 
 function withSelection(
   catalog: SourceRegistryCatalog,
@@ -68,6 +68,7 @@ function addOn(overrides: Partial<CatalogSelection> = {}): CatalogSelection {
     kind: "add-on",
     packages: [],
     pnpmPatches: [],
+    providerDependencies: [],
     ...overrides,
   };
 }
@@ -124,7 +125,7 @@ describe("composition planner failures", () => {
     }
   });
 
-  it("requires every Provider to supply the stable aliases used by its slot", async () => {
+  it("requires every Provider to supply its binding", async () => {
     const provider: CatalogSelection = {
       assets: [],
       compatibility: { conflicts: [], requires: [] },
@@ -133,6 +134,7 @@ describe("composition planner failures", () => {
       kind: "provider",
       packages: [],
       pnpmPatches: [],
+      providerDependencies: [],
       slot: "cms",
     };
     const catalog = withSelection(
@@ -154,35 +156,7 @@ describe("composition planner failures", () => {
           commerce: "commercetools",
         },
       })
-    ).toThrow(STABLE_PROVIDER_ALIASES);
-  });
-
-  it("requires CMS Providers to supply the CLI alias", async () => {
-    const catalog = await loadSourceRegistryCatalog(repoRoot);
-    const contentstack = catalog.byReference.get("contentstack");
-
-    if (contentstack === undefined) {
-      throw new Error("Contentstack provider is missing from the catalog");
-    }
-
-    const withoutCliAlias = {
-      ...contentstack,
-      packages: contentstack.packages.filter(
-        (requirement) =>
-          !(requirement.cwd === "apps/cli" && requirement.name === "@repo/cms")
-      ),
-    };
-
-    expect(() =>
-      planComposition(replaceSelection(catalog, withoutCliAlias), {
-        addOns: [],
-        providers: {
-          auth: "workos",
-          cms: "contentstack",
-          commerce: "commercetools",
-        },
-      })
-    ).toThrow(/apps\/cli\/dependencies\.@repo\/cms/u);
+    ).toThrow(PROVIDER_BINDING_MISSING);
   });
 
   it("materializes a compatible cross-provider Add-on", async () => {

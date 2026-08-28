@@ -6,11 +6,11 @@ export type RegistriesConfig = Awaited<ReturnType<typeof getRegistriesConfig>>;
 export const PROVIDER_SLOTS = ["auth", "cms", "commerce"] as const;
 
 export type ProviderSlot = (typeof PROVIDER_SLOTS)[number];
-export const PROVIDER_ALIASES: Record<ProviderSlot, string> = {
+export const PROVIDER_ALIASES = {
   auth: "@repo/auth",
   cms: "@repo/cms",
   commerce: "@repo/commerce-provider",
-};
+} as const satisfies Record<ProviderSlot, string>;
 export type SelectionKind = "provider" | "add-on" | "preset";
 export type DependencySection =
   | "dependencies"
@@ -21,6 +21,19 @@ export type PackageRequirement = {
   section: DependencySection;
   name: string;
   specifier: string;
+};
+
+export type PackageRequirementTarget = Omit<PackageRequirement, "specifier">;
+
+export type ProviderBinding = {
+  specifier: string;
+  sourcePath?: string;
+};
+
+export type ProviderDependency = {
+  cwd: string;
+  section: DependencySection;
+  slot: ProviderSlot;
 };
 
 export type AssetContribution = {
@@ -42,11 +55,13 @@ export type SelectionDefinition = {
   id: string;
   kind: SelectionKind;
   slot?: ProviderSlot;
+  binding?: ProviderBinding;
   compatibility: {
     requires: string[];
     conflicts: string[];
   };
   packages: PackageRequirement[];
+  providerDependencies: ProviderDependency[];
   pnpmPatches: PnpmPatch[];
   assets: AssetContribution[];
   selections?: {
@@ -82,18 +97,31 @@ export type PreparedComposition = {
   managedFiles: { content: string; target: string }[];
 };
 
+export type TypeScriptPathAlias = {
+  alias: string;
+  cwd: string;
+  sourcePath: string;
+};
+
+export type TypeScriptPathAliasTarget = Pick<
+  TypeScriptPathAlias,
+  "alias" | "cwd"
+>;
+
 export type CompositionPlan = {
   selection: WorkspaceSelection;
   selections: CatalogSelection[];
   entryItems: string[];
   registryItems: string[];
   packageRequirements: PackageRequirement[];
-  catalogPackageRequirements: PackageRequirement[];
+  catalogPackageRequirementTargets: PackageRequirementTarget[];
   pnpmPatches: PnpmPatch[];
   catalogPnpmPatches: PnpmPatch[];
   assets: AssetContribution[];
   managedTargets: string[];
   catalogManagedTargets: string[];
+  catalogTypeScriptPathAliases: TypeScriptPathAliasTarget[];
+  typeScriptPathAliases: TypeScriptPathAlias[];
   variableTargets: string[];
   instructions: string[];
 };

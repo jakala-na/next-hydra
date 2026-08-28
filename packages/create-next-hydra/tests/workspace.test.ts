@@ -31,15 +31,15 @@ function removalPlan(): CompositionPlan {
   return {
     assets: [],
     catalogManagedTargets: [],
-    catalogPackageRequirements: [
+    catalogPackageRequirementTargets: [
       {
         cwd: "apps/web",
         name: "remove-me",
         section: "dependencies",
-        specifier: "^1.0.0",
       },
     ],
     catalogPnpmPatches: [],
+    catalogTypeScriptPathAliases: [],
     entryItems: [],
     instructions: [],
     managedTargets: [],
@@ -55,6 +55,7 @@ function removalPlan(): CompositionPlan {
       },
     },
     selections: [],
+    typeScriptPathAliases: [],
     variableTargets: [],
   };
 }

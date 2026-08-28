@@ -71,6 +71,7 @@ export function formatCompositionPreview(
       "  replace managed application files",
       "  install selected source",
       "  update package aliases",
+      "  update TypeScript paths",
       "  update pnpm patches",
       "  run pnpm install"
     );
@@ -102,6 +103,10 @@ export function formatCompositionPlan(plan: CompositionPlan): string {
     ...plan.packageRequirements.map(
       (requirement) =>
         `  ${requirement.cwd}: ${requirement.name} = ${requirement.specifier}`
+    ),
+    "TypeScript paths:",
+    ...plan.typeScriptPathAliases.map(
+      (entry) => `  ${entry.cwd}: ${entry.alias} -> ${entry.sourcePath}`
     ),
     "pnpm patches:",
     ...plan.pnpmPatches.map(

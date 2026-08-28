@@ -17,6 +17,7 @@ import type {
   PreparedComposition,
   WorkspaceSelection,
 } from "./types.js";
+import { checkTypeScriptPathAliases } from "./typescript-paths.js";
 
 export const WORKSPACE_SELECTION_FILE = "next-hydra.json";
 
@@ -69,7 +70,7 @@ export async function applyPackageRequirements(
         `${requirement.cwd}\0${requirement.section}\0${requirement.name}`
     )
   );
-  const removals = plan.catalogPackageRequirements.filter(
+  const removals = plan.catalogPackageRequirementTargets.filter(
     (requirement) =>
       !selected.has(
         `${requirement.cwd}\0${requirement.section}\0${requirement.name}`
@@ -257,7 +258,7 @@ export async function checkWorkspaceComposition(
   );
 
   const unselectedPackageDrift = await Promise.all(
-    plan.catalogPackageRequirements.map(async (requirement) => {
+    plan.catalogPackageRequirementTargets.map(async (requirement) => {
       const key = `${requirement.cwd}\0${requirement.section}\0${requirement.name}`;
       if (selected.has(key)) {
         return;
@@ -293,10 +294,15 @@ export async function checkWorkspaceComposition(
         : `${manifest}: expected ${requirement.section}.${requirement.name} to be ${requirement.specifier}, found ${actual ?? "missing"}`;
     })
   );
+  const typeScriptPathDrift = await checkTypeScriptPathAliases(
+    workspaceRoot,
+    plan
+  );
   drift.push(
     ...selectedPackageDrift.filter(
       (issue): issue is string => issue !== undefined
-    )
+    ),
+    ...typeScriptPathDrift
   );
 
   if (plan.catalogPnpmPatches.length > 0) {
