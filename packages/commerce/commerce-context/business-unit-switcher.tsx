@@ -93,9 +93,7 @@ export async function BusinessUnitSwitcher({
     <BusinessUnitSwitcherView
       currentBusinessUnitId={switcherData.currentBusinessUnitId}
       items={switcherData.items}
-      onSwitchBusinessUnit={(businessUnitId) => {
-        void onSwitchBusinessUnit(businessUnitId);
-      }}
+      onSwitchBusinessUnit={onSwitchBusinessUnit}
     />
   );
 }

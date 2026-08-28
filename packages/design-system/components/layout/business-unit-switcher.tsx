@@ -21,7 +21,9 @@ export type BusinessUnitSwitcherProps = {
   readonly currentBusinessUnitId?: string;
   readonly items: readonly BusinessUnitSwitcherItem[];
   readonly label?: string;
-  readonly onSwitchBusinessUnit?: (businessUnitId: string) => void;
+  readonly onSwitchBusinessUnit?: (
+    businessUnitId: string
+  ) => void | Promise<void>;
 };
 
 export function BusinessUnitSwitcher({
@@ -72,7 +74,9 @@ export function BusinessUnitSwitcher({
         {items.map((unit) => (
           <DropdownMenuItem
             key={unit.id}
-            onClick={() => onSwitchBusinessUnit?.(unit.id)}
+            onClick={() => {
+              void onSwitchBusinessUnit?.(unit.id);
+            }}
             className="flex cursor-pointer items-start gap-2 py-3"
           >
             <Check
