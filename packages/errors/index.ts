@@ -114,6 +114,11 @@ export type SchemaErrorIssuePath = readonly (
   | { readonly key: PropertyKey }
 )[];
 
+const isKeyedSchemaErrorIssuePathSegment = Schema.is(
+  Schema.Struct({ key: Schema.PropertyKey })
+);
+const isSymbol = Schema.is(Schema.Symbol);
+
 const schemaErrorIssuePath = (
   path: SchemaErrorIssuePath | undefined
 ): readonly string[] => {
@@ -122,10 +127,10 @@ const schemaErrorIssuePath = (
   }
 
   const keys = path.map((segment) =>
-    typeof segment === "object" ? segment.key : segment
+    isKeyedSchemaErrorIssuePathSegment(segment) ? segment.key : segment
   );
 
-  return keys.some((key) => typeof key === "symbol") ? [] : keys.map(String);
+  return keys.some(isSymbol) ? [] : keys.map(String);
 };
 
 /**
