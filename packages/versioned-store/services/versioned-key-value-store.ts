@@ -10,6 +10,17 @@ import {
 export const StoreVersion = Schema.String.pipe(Schema.brand("StoreVersion"));
 export type StoreVersion = typeof StoreVersion.Type;
 
+// Provider-compatible store keys use 1-256 ASCII letters, digits, dashes, underscores, tildes, or dots.
+export const VersionedStoreKey = Schema.String.pipe(
+  Schema.check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(256),
+    Schema.isPattern(/^[-_~.a-zA-Z0-9]+$/u)
+  ),
+  Schema.brand("VersionedStoreKey")
+);
+export type VersionedStoreKey = typeof VersionedStoreKey.Type;
+
 export interface Versioned<A> {
   readonly value: A;
   readonly version: StoreVersion;
@@ -31,16 +42,13 @@ export const StoreFailureReason = Schema.Literals([
 ]);
 export type StoreFailureReason = typeof StoreFailureReason.Type;
 
-export class StoreError extends Schema.TaggedError<StoreError>()(
-  "StoreError",
-  {
-    cause: Schema.Defect(),
-    key: Schema.String,
-    message: Schema.String,
-    operation: Schema.Literals(["read", "insert", "remove", "update"]),
-    reason: StoreFailureReason,
-  }
-) {}
+export class StoreError extends Schema.TaggedError<StoreError>()("StoreError", {
+  cause: Schema.Defect(),
+  key: Schema.String,
+  message: Schema.String,
+  operation: Schema.Literals(["read", "insert", "remove", "update"]),
+  reason: StoreFailureReason,
+}) {}
 
 interface StoredValue {
   readonly encoded: string;
@@ -48,7 +56,7 @@ interface StoredValue {
   readonly version: StoreVersion;
 }
 
-type Store = ReadonlyMap<string, StoredValue>;
+type Store = ReadonlyMap<VersionedStoreKey, StoredValue>;
 
 const versionFromRevision = (revision: number) =>
   StoreVersion.make(String(revision));
@@ -88,7 +96,7 @@ export const decodeJsonString = <S extends Schema.Top>(
 };
 
 const encodeValue = <S extends Schema.Top>(
-  key: string,
+  key: VersionedStoreKey,
   operation: "insert" | "update",
   schema: S,
   value: S["Type"]
@@ -98,7 +106,7 @@ const encodeValue = <S extends Schema.Top>(
   );
 
 const decodeValue = <S extends Schema.Top>(
-  key: string,
+  key: VersionedStoreKey,
   schema: S,
   stored: StoredValue
 ) =>
@@ -111,7 +119,7 @@ export class VersionedKeyValueStore extends Context.Service<
   VersionedKeyValueStore,
   {
     readonly get: <S extends Schema.Top>(
-      key: string,
+      key: VersionedStoreKey,
       schema: S
     ) => Effect.Effect<
       Option.Option<Versioned<S["Type"]>>,
@@ -119,7 +127,7 @@ export class VersionedKeyValueStore extends Context.Service<
       S["DecodingServices"]
     >;
     readonly insert: <S extends Schema.Top>(
-      key: string,
+      key: VersionedStoreKey,
       schema: S,
       value: S["Type"]
     ) => Effect.Effect<
@@ -128,11 +136,11 @@ export class VersionedKeyValueStore extends Context.Service<
       S["DecodingServices"] | S["EncodingServices"]
     >;
     readonly remove: (
-      key: string,
+      key: VersionedStoreKey,
       current: Versioned<unknown>
     ) => Effect.Effect<void, StoreConflict | StoreError>;
     readonly update: <S extends Schema.Top>(
-      key: string,
+      key: VersionedStoreKey,
       schema: S,
       current: Versioned<S["Type"]>,
       next: S["Type"]
@@ -156,7 +164,7 @@ export class VersionedKeyValueStore extends Context.Service<
       const store = yield* SynchronizedRef.make<Store>(new Map());
 
       const get = Effect.fn("VersionedKeyValueStore.get")(
-        <S extends Schema.Top>(key: string, schema: S) =>
+        <S extends Schema.Top>(key: VersionedStoreKey, schema: S) =>
           SynchronizedRef.get(store).pipe(
             Effect.flatMap((entries) => {
               const stored = entries.get(key);
@@ -174,7 +182,7 @@ export class VersionedKeyValueStore extends Context.Service<
 
       const insert = Effect.fn("VersionedKeyValueStore.insert")(function* <
         S extends Schema.Top,
-      >(key: string, schema: S, value: S["Type"]) {
+      >(key: VersionedStoreKey, schema: S, value: S["Type"]) {
         const encoded = yield* encodeValue(key, "insert", schema, value);
         const stored: StoredValue = {
           encoded,
@@ -200,7 +208,7 @@ export class VersionedKeyValueStore extends Context.Service<
       const update = Effect.fn("VersionedKeyValueStore.update")(function* <
         S extends Schema.Top,
       >(
-        key: string,
+        key: VersionedStoreKey,
         schema: S,
         current: Versioned<S["Type"]>,
         next: S["Type"]
@@ -232,7 +240,7 @@ export class VersionedKeyValueStore extends Context.Service<
       });
 
       const remove = Effect.fn("VersionedKeyValueStore.remove")(
-        (key: string, current: Versioned<unknown>) =>
+        (key: VersionedStoreKey, current: Versioned<unknown>) =>
           SynchronizedRef.updateEffect(store, (entries) => {
             const stored = entries.get(key);
 

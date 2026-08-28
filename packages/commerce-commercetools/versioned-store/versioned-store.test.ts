@@ -5,6 +5,7 @@ import {
   StoreError,
   StoreVersion,
   VersionedKeyValueStore,
+  VersionedStoreKey,
 } from "@repo/versioned-store";
 import { Effect, Option, Schema } from "effect";
 import { beforeEach, vi } from "vitest";
@@ -63,7 +64,7 @@ class StoredItem extends Schema.Class<StoredItem>("StoredItem")({
 }) {}
 
 const container = "versioned-key-value-store";
-const key = "item-1";
+const key = VersionedStoreKey.make("item-1");
 const item = new StoredItem({
   createdAt: new Date(0),
   id: key,

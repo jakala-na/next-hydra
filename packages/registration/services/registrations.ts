@@ -2,6 +2,7 @@ import type { StoreKey } from "@repo/commerce/store";
 import {
   StoreFailureReason,
   VersionedKeyValueStore,
+  VersionedStoreKey,
 } from "@repo/versioned-store";
 import type { StoreConflict, StoreError } from "@repo/versioned-store";
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect";
@@ -150,7 +151,8 @@ const nowDate = Clock.currentTimeMillis.pipe(
   Effect.map((time) => new Date(time))
 );
 
-const registrationKey = (id: RegistrationId) => String(id);
+const registrationKey = (id: RegistrationId) =>
+  VersionedStoreKey.make(String(id));
 
 const mapStoreUpdateConflict =
   (registrationId: RegistrationId) => (_error: StoreConflict) =>

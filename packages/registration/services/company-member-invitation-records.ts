@@ -4,7 +4,10 @@ import {
   CompanyMemberInvitationPersistenceFailure,
   CompanyMemberInvitationRecordConflict,
 } from "@repo/auth-contract/invitations";
-import { VersionedKeyValueStore } from "@repo/versioned-store";
+import {
+  VersionedKeyValueStore,
+  VersionedStoreKey,
+} from "@repo/versioned-store";
 import type { StoreConflict, StoreError } from "@repo/versioned-store";
 import { Context, Effect, Layer, Option } from "effect";
 
@@ -69,7 +72,8 @@ export interface ReleaseCompanyMemberInvitationReissueInput {
   readonly replacementCompanyMemberInvitationId: CompanyMemberInvitationId;
 }
 
-const recordKey: (id: CompanyMemberInvitationId) => string = String;
+const recordKey = (id: CompanyMemberInvitationId) =>
+  VersionedStoreKey.make(String(id));
 
 const storeDefect = (
   operation: CompanyMemberInvitationPersistenceFailure["operation"],

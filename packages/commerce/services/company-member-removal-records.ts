@@ -47,7 +47,7 @@ export interface FindCompanyMemberRemovalInput {
 export const companyMemberRemovalRecordKey = (
   input: FindCompanyMemberRemovalInput
 ) =>
-  `${String(input.businessUnitId).length}:${input.businessUnitId}${input.customerId}`;
+  `${String(input.businessUnitId).length}-${input.businessUnitId}${input.customerId}`;
 
 export class CompanyMemberRemovalRecords extends Context.Service<
   CompanyMemberRemovalRecords,
@@ -96,7 +96,9 @@ export class CompanyMemberRemovalRecords extends Context.Service<
             new Map(current).set(
               companyMemberRemovalRecordKey(record),
               new CompanyMemberRemovalRecord({
-                ...record,
+                authUserId: record.authUserId,
+                businessUnitId: record.businessUnitId,
+                customerId: record.customerId,
                 status: "completed",
               })
             )

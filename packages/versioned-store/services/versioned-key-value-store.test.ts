@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import {
   StoreConflict,
   VersionedKeyValueStore,
+  VersionedStoreKey,
 } from "./versioned-key-value-store";
 
 const RedactedEmail = Schema.String.pipe(
@@ -31,7 +32,7 @@ class ExampleRecord extends Schema.Class<ExampleRecord>("ExampleRecord")({
   id: Schema.String,
 }) {}
 
-const key = "example-1";
+const key = VersionedStoreKey.make("example-1");
 const example = new ExampleRecord({
   createdAt: new Date(0),
   email: Redacted.make("ada@example.com", { label: "email" }),

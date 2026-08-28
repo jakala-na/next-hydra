@@ -7,4 +7,5 @@ export {
   StoreVersion,
   type Versioned,
   VersionedKeyValueStore,
+  VersionedStoreKey,
 } from "./services/versioned-key-value-store";

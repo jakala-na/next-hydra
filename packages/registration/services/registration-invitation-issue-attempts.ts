@@ -1,4 +1,7 @@
-import { VersionedKeyValueStore } from "@repo/versioned-store";
+import {
+  VersionedKeyValueStore,
+  VersionedStoreKey,
+} from "@repo/versioned-store";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import type { InvitationId, RegistrationId } from "../domain/identity";
@@ -39,7 +42,7 @@ export interface RegistrationInvitationIssueAttemptsService {
 }
 
 const attemptKey = (registrationId: RegistrationId) =>
-  `registration-invitation-issue:${registrationId}`;
+  VersionedStoreKey.make(`registration-invitation-issue-${registrationId}`);
 
 export class RegistrationInvitationIssueAttempts extends Context.Service<
   RegistrationInvitationIssueAttempts,

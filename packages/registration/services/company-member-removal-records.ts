@@ -8,7 +8,10 @@ import type {
   BeginCompanyMemberRemovalInput,
   FindCompanyMemberRemovalInput,
 } from "@repo/commerce/services/company-member-removal-records";
-import { VersionedKeyValueStore } from "@repo/versioned-store";
+import {
+  VersionedKeyValueStore,
+  VersionedStoreKey,
+} from "@repo/versioned-store";
 import type { StoreError } from "@repo/versioned-store";
 import { Effect, Layer, Option } from "effect";
 
@@ -27,6 +30,9 @@ const persistenceFailure = (
       )
     : Effect.die(error);
 
+const removalRecordKey = (input: FindCompanyMemberRemovalInput) =>
+  VersionedStoreKey.make(companyMemberRemovalRecordKey(input));
+
 export const companyMemberRemovalRecordsLayerStorage = Layer.effect(
   CompanyMemberRemovalRecords,
   Effect.gen(function* () {
@@ -34,14 +40,12 @@ export const companyMemberRemovalRecordsLayerStorage = Layer.effect(
 
     const find = Effect.fn("CompanyMemberRemovalRecords.find")(
       (input: FindCompanyMemberRemovalInput) =>
-        store
-          .get(companyMemberRemovalRecordKey(input), CompanyMemberRemovalRecord)
-          .pipe(
-            Effect.map(Option.map(({ value }) => value)),
-            Effect.catchTag("StoreError", (error) =>
-              persistenceFailure("read", error)
-            )
+        store.get(removalRecordKey(input), CompanyMemberRemovalRecord).pipe(
+          Effect.map(Option.map(({ value }) => value)),
+          Effect.catchTag("StoreError", (error) =>
+            persistenceFailure("read", error)
           )
+        )
     );
 
     const begin = Effect.fn("CompanyMemberRemovalRecords.begin")(
@@ -51,7 +55,7 @@ export const companyMemberRemovalRecordsLayerStorage = Layer.effect(
         CompanyMemberRemovalRecord,
         CompanyMemberRemovalPersistenceFailure
       > {
-        const key = companyMemberRemovalRecordKey(input);
+        const key = removalRecordKey(input);
         const next = new CompanyMemberRemovalRecord({
           ...input,
           status: "pending",
@@ -86,7 +90,7 @@ export const companyMemberRemovalRecordsLayerStorage = Layer.effect(
       function attempt(
         record: CompanyMemberRemovalRecord
       ): Effect.Effect<void, CompanyMemberRemovalPersistenceFailure> {
-        const key = companyMemberRemovalRecordKey(record);
+        const key = removalRecordKey(record);
 
         return store.get(key, CompanyMemberRemovalRecord).pipe(
           Effect.flatMap(
@@ -105,7 +109,9 @@ export const companyMemberRemovalRecordsLayerStorage = Layer.effect(
                       CompanyMemberRemovalRecord,
                       current,
                       new CompanyMemberRemovalRecord({
-                        ...current.value,
+                        authUserId: current.value.authUserId,
+                        businessUnitId: current.value.businessUnitId,
+                        customerId: current.value.customerId,
                         status: "completed",
                       })
                     ),
