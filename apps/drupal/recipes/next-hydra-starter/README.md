@@ -18,7 +18,7 @@ This recipe provisions the Drupal content contract used by `@repo/cms-drupal`:
 
 Next.js for Drupal sends saved View-tab revisions through its short-lived signed Draft Mode URL. The connector validates that URL with Drupal and loads the requested revision through GraphQL. GraphQL Compose Preview separately sends unsaved form previews with their UUID and token; the connector validates that pair through the GraphQL `preview` query. Both flows use `/api/drupal-preview` before redirecting the iframe to the page's canonical path.
 
-Update the Next Hydra site under `/admin/config/services/next` when the frontend does not run at `http://localhost:3001`. Set `GRAPHQL_COMPOSE_PREVIEW_URL` for the unsaved-preview formatter, preserving its `[node:preview:uuid]` and `[node:preview:token]` placeholders and the `langcode=[node:langcode]` query parameter.
+The recipe defaults browser previews to `https://web.next-hydra.localhost`. For a hosted or non-Portless frontend, update the site under `/admin/config/services/next` and preserve the `[node:preview:uuid]`, `[node:preview:token]`, and `langcode=[node:langcode]` placeholders in `GRAPHQL_COMPOSE_PREVIEW_URL`.
 
 ## Languages and translations
 
@@ -36,7 +36,7 @@ The Canvas demo homepage mirrors the regular homepage's Hero, Product Collection
 
 The frontend sends the requested Drupal langcode explicitly for GraphQL routes, menus, and previews. Canvas requests use Drupal's localized path. A translation therefore cannot reuse another locale's cached route or menu result.
 
-The recipe leaves the revalidation secret empty. `ddev install` generates one, stores it on the Drupal site, and prints the matching `CMS_REVALIDATION_SECRET` for `apps/web/.env.local`. Drupal calls the local frontend through `http://host.docker.internal:3001/api/revalidate` because that request originates in the DDEV container.
+The recipe configures local revalidation through `http://host.docker.internal:3001/api/revalidate` and leaves the secret empty. `ddev install` generates a secret, stores it on the Drupal site, and prints the matching `CMS_REVALIDATION_SECRET` for `apps/web/.env.local`. During local development, run the Drupal package's `dev:web` command so Portless uses port 3001 and Next.js listens on the host for DDEV.
 
 Apply it to a fresh Drupal installation from the web root:
 

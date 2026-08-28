@@ -627,6 +627,25 @@ describe("scaffold composition", () => {
         pathExists(path.join(drupalTarget, "packages/cms-drupal/registry.json"))
       ).resolves.toBeFalsy();
 
+      const frontendConfig = await readFile(
+        path.join(
+          drupalTarget,
+          "apps/drupal/recipes/next-hydra-starter/config/next.next_site.next_hydra.yml"
+        ),
+        "utf-8"
+      );
+      expect({
+        frontendHasMaintainerHostname: frontendConfig.includes(
+          "web.next-hydra.localhost"
+        ),
+        frontendHasProjectHostname: frontendConfig.includes(
+          "web.drupal-project.localhost"
+        ),
+      }).toStrictEqual({
+        frontendHasMaintainerHostname: false,
+        frontendHasProjectHostname: true,
+      });
+
       const asset =
         "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp";
       const hash = (content: Uint8Array) =>

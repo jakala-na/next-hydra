@@ -87,9 +87,22 @@ Use the public URL when provisioning a temporary WorkOS or Clerk webhook endpoin
 
 Do not set `PORTLESS_NGROK=1` for this workspace: that setting can expose every Portless-managed application rather than only the API.
 
-## DDEV boundary
+## Drupal and DDEV
 
-The Drupal/DDEV preview and revalidation configuration intentionally retains its existing fixed `host.docker.internal:3001` contract. A DDEV container cannot reach Portless's random loopback child port directly. Resolve and validate that container-to-host bridge separately before using Drupal preview or revalidation with the Portless-managed web process.
+Portless and DDEV both claim host ports 80 and 443 by default. This project's DDEV configuration pins its router to 8080 and 8443, leaving the standard ports to Portless. Start Drupal normally:
+
+```bash
+cd apps/drupal
+ddev start
+cd ../..
+pnpm --filter @repo/drupal dev:web
+```
+
+Browser previews continue to use the configured Portless HTTPS origin. The Drupal package's `dev:web` command uses Portless's native `--app-port 3001` option and starts Next.js on `0.0.0.0`. Drupal therefore reaches the web application directly at `http://host.docker.internal:3001/api/revalidate`.
+
+The callback from DDEV is local HTTP, while all browser previews remain HTTPS. Its query string contains the existing revalidation secret, which the Next.js route still validates. Because the development server listens on every host interface, keep a host firewall enabled.
+
+Port 3001 is fixed only for `dev:web`, so only one checkout can run that DDEV-compatible command at a time. Regular Portless development retains dynamic application ports.
 
 ## Maintenance
 
