@@ -33,7 +33,6 @@ export class AuthSession extends Schema.Class<AuthSession>("AuthSession")({
 export const AuthRoutes = Schema.Struct({
   signInHref: Schema.NonEmptyString,
   signOutHref: Schema.NonEmptyString,
-  signUpHref: Schema.optional(Schema.NonEmptyString),
 });
 export type AuthRoutes = typeof AuthRoutes.Type;
 

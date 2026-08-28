@@ -36,9 +36,6 @@ export async function AccountMenu() {
       <AccountMenuClient
         signInHref={routes.signInHref}
         signOutHref={routes.signOutHref}
-        {...(routes.signUpHref === undefined
-          ? {}
-          : { signUpHref: routes.signUpHref })}
         user={toAccountMenuUser(session.user)}
       />
     </ArchitectureBoundary>

@@ -8,14 +8,12 @@ import { useLocale, useTranslations } from "@repo/i18n";
 type AccountMenuClientProps = {
   readonly signInHref: string;
   readonly signOutHref: string;
-  readonly signUpHref?: string;
   readonly user: AccountMenuUser | null;
 };
 
 export function AccountMenuClient({
   signInHref,
   signOutHref,
-  signUpHref,
   user,
 }: AccountMenuClientProps) {
   const locale = useLocale();
@@ -43,7 +41,7 @@ export function AccountMenuClient({
         }}
         signInHref={signInHref}
         signOutHref={signOutHref}
-        signUpHref={signUpHref}
+        signUpHref={`/${locale}/register`}
         user={user}
       />
     </ArchitectureBoundary>

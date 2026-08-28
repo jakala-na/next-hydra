@@ -175,11 +175,6 @@
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/web/app/api/auth/signup/route.ts",
-          "target": "~/apps/web/app/api/auth/signup/route.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "route-handlers/callback.ts",
           "target": "~/packages/auth-workos/route-handlers/callback.ts",
           "type": "registry:file"
@@ -192,11 +187,6 @@
         {
           "path": "route-handlers/signout.ts",
           "target": "~/packages/auth-workos/route-handlers/signout.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "route-handlers/signup.ts",
-          "target": "~/packages/auth-workos/route-handlers/signup.ts",
           "type": "registry:file"
         },
         {

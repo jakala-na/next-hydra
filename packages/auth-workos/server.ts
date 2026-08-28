@@ -6,7 +6,6 @@ import {
 } from "@repo/auth-contract/session";
 import {
   getSignInUrl as getWorkosSignInUrl,
-  getSignUpUrl as getWorkosSignUpUrl,
   withAuth as withWorkosAuth,
 } from "@workos-inc/authkit-nextjs";
 import { Effect, Layer, Schema } from "effect";
@@ -30,20 +29,12 @@ export {
 } from "@workos-inc/authkit-nextjs";
 
 export const getSignInUrl = getWorkosSignInUrl;
-export const getSignUpUrl = getWorkosSignUpUrl;
 
-export const getAuthRoutes = async (): Promise<AuthRoutes> => {
-  const [signInHref, signUpHref] = await Promise.all([
-    getSignInUrl(),
-    getSignUpUrl(),
-  ]);
-
-  return Schema.decodeSync(AuthRoutes)({
-    signInHref,
+export const getAuthRoutes = async (): Promise<AuthRoutes> =>
+  Schema.decodeSync(AuthRoutes)({
+    signInHref: await getSignInUrl(),
     signOutHref: "/api/auth/signout",
-    signUpHref,
   });
-};
 
 export const authSessionAdapter = makeAuthSessionAdapter({
   decode: workosSessionToAuthSession,

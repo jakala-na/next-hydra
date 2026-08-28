@@ -1,9 +1,11 @@
+/* oxlint-disable vitest/max-expects -- These integration tests assert complete registry and composition contracts after a single resolution pass. */
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { loadRegistryItem } from "shadcn/registry";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import {
   addCatalogReferences,
@@ -20,8 +22,33 @@ import {
 import { NEXT_HYDRA_SELECTION_SCHEMA_URL } from "../src/composition/schema.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
-const CONTENTSTACK_MANAGED_FILE_COUNT = 10;
-const DRUPAL_MANAGED_FILE_COUNT = 14;
+const jsonSchemaThenKey = "then";
+
+const selectionJsonSchema = z.object({
+  $defs: z.object({
+    nextHydra: z.object({
+      additionalProperties: z.boolean(),
+    }),
+  }),
+  allOf: z.tuple([z.object({ $ref: z.string() }), z.unknown()]),
+});
+
+const sourceRegistryJsonSchema = z.object({
+  allOf: z.tuple([
+    z.unknown(),
+    z.object({
+      properties: z.object({
+        items: z.object({
+          items: z
+            .record(z.unknown())
+            .transform((value) =>
+              z.object({ $ref: z.string() }).parse(value[jsonSchemaThenKey])
+            ),
+        }),
+      }),
+    }),
+  ]),
+});
 
 describe("Next Hydra source registry", () => {
   it("distinguishes registry-owned application files from ordinary registry-named source folders", () => {
@@ -42,16 +69,18 @@ describe("Next Hydra source registry", () => {
   it("loads the official registry artifacts and required package targets", async () => {
     const catalog = await loadSourceRegistryCatalog(repoRoot);
 
-    expect([...catalog.items.keys()].sort()).toStrictEqual([
-      "auth-clerk",
-      "auth-contract",
-      "auth-workos",
-      "cms-contentstack",
-      "cms-drupal",
-      "commerce-commercetools",
-      "drupal",
-      "next-hydra-standard",
-    ]);
+    expect(new Set(catalog.items.keys())).toStrictEqual(
+      new Set([
+        "auth-clerk",
+        "auth-contract",
+        "auth-workos",
+        "cms-contentstack",
+        "cms-drupal",
+        "commerce-commercetools",
+        "drupal",
+        "next-hydra-standard",
+      ])
+    );
 
     const drupal = await loadRegistryItem("cms-drupal", { cwd: repoRoot });
     const contentstack = await loadRegistryItem("cms-contentstack", {
@@ -118,16 +147,20 @@ describe("Next Hydra source registry", () => {
       "commerce-commercetools",
       "drupal",
     ]);
-    expect(clerk.managedTargets).toEqual(
-      expect.arrayContaining([
-        "apps/admin/app/sign-in/page.tsx",
-        "apps/admin/app/sign-out/page.tsx",
-        "apps/api/app/api/webhooks/clerk/route.ts",
-        "apps/web/app/accept-invitation/[[...accept-invitation]]/page.tsx",
-        "apps/web/app/sign-in/page.tsx",
-        "apps/web/app/sign-out/page.tsx",
-      ])
-    );
+    expect(clerk.managedTargets).toStrictEqual([
+      "apps/admin/app/sign-in/page.tsx",
+      "apps/admin/app/sign-out/page.tsx",
+      "apps/api/app/api/webhooks/clerk/route.ts",
+      "apps/web/app/accept-invitation/[[...accept-invitation]]/page.tsx",
+      "apps/web/app/api/canvas/components/route.ts",
+      "apps/web/app/api/disable-draft/route.ts",
+      "apps/web/app/api/disable-drupal-preview/route.ts",
+      "apps/web/app/api/draft/renew/route.ts",
+      "apps/web/app/api/draft/route.ts",
+      "apps/web/app/api/drupal-preview/route.ts",
+      "apps/web/app/sign-in/page.tsx",
+      "apps/web/app/sign-out/page.tsx",
+    ]);
     expect(clerkRegistry.files?.map((file) => file.target)).toEqual(
       expect.arrayContaining([
         "~/packages/auth-clerk/access-token.ts",
@@ -244,20 +277,21 @@ describe("Next Hydra source registry", () => {
       "cms-contentstack",
       "commerce-commercetools",
     ]);
-    expect(drupal.managedTargets).toHaveLength(DRUPAL_MANAGED_FILE_COUNT);
-    expect(contentstack.managedTargets).toHaveLength(
-      CONTENTSTACK_MANAGED_FILE_COUNT
-    );
-    expect(drupal.managedTargets).toContain(
-      "apps/web/app/api/canvas/components/route.ts"
-    );
-    expect(drupal.managedTargets).toEqual(
-      expect.arrayContaining([
-        "apps/admin/app/api/auth/callback/route.ts",
-        "apps/admin/app/api/auth/signout/route.ts",
-        "apps/admin/app/sign-in/route.ts",
-      ])
-    );
+    expect(drupal.managedTargets).toStrictEqual([
+      "apps/admin/app/api/auth/callback/route.ts",
+      "apps/admin/app/api/auth/signout/route.ts",
+      "apps/admin/app/sign-in/route.ts",
+      "apps/api/app/api/webhooks/workos/route.ts",
+      "apps/web/app/api/auth/callback/route.ts",
+      "apps/web/app/api/auth/signin/route.ts",
+      "apps/web/app/api/auth/signout/route.ts",
+      "apps/web/app/api/canvas/components/route.ts",
+      "apps/web/app/api/disable-draft/route.ts",
+      "apps/web/app/api/disable-drupal-preview/route.ts",
+      "apps/web/app/api/draft/renew/route.ts",
+      "apps/web/app/api/draft/route.ts",
+      "apps/web/app/api/drupal-preview/route.ts",
+    ]);
     expect(drupal.packageRequirements).toContainEqual({
       cwd: "apps/admin",
       name: "@repo/auth",
@@ -270,9 +304,17 @@ describe("Next Hydra source registry", () => {
       section: "dependencies",
       specifier: "workspace:@repo/auth-workos@*",
     });
-    expect(contentstack.managedTargets).not.toContain(
-      "apps/web/app/api/canvas/components/route.ts"
-    );
+    expect(contentstack.managedTargets).toStrictEqual([
+      "apps/admin/app/api/auth/callback/route.ts",
+      "apps/admin/app/api/auth/signout/route.ts",
+      "apps/admin/app/sign-in/route.ts",
+      "apps/api/app/api/webhooks/workos/route.ts",
+      "apps/web/app/api/auth/callback/route.ts",
+      "apps/web/app/api/auth/signin/route.ts",
+      "apps/web/app/api/auth/signout/route.ts",
+      "apps/web/app/api/disable-draft/route.ts",
+      "apps/web/app/api/draft/route.ts",
+    ]);
     expect(drupal.pnpmPatches).toStrictEqual([
       {
         dependency: "@drupal-canvas/headless",
@@ -470,6 +512,7 @@ describe("Next Hydra source registry", () => {
     const graph = await fetchRegistryItemGraph({
       config: catalog.registryConfig,
       cwd: repoRoot,
+      // oxlint-disable-next-line eslint/require-await -- This test double implements the asynchronous registry fetch contract without I/O.
       fetchItems: async (items) => {
         requests.push(items);
         return [items[0] === helperReference ? helper : pinned];
@@ -487,22 +530,26 @@ describe("Next Hydra source registry", () => {
   });
 
   it("publishes a complete registry-item schema for Selection Definitions", async () => {
-    const selectionSchema = JSON.parse(
-      await readFile(
-        path.join(
-          repoRoot,
-          "packages/create-next-hydra/schema/selection-definition.json"
-        ),
-        "utf-8"
+    const selectionSchema = selectionJsonSchema.parse(
+      JSON.parse(
+        await readFile(
+          path.join(
+            repoRoot,
+            "packages/create-next-hydra/schema/selection-definition.json"
+          ),
+          "utf-8"
+        )
       )
     );
-    const sourceRegistrySchema = JSON.parse(
-      await readFile(
-        path.join(
-          repoRoot,
-          "packages/create-next-hydra/schema/source-registry.json"
-        ),
-        "utf-8"
+    const sourceRegistrySchema = sourceRegistryJsonSchema.parse(
+      JSON.parse(
+        await readFile(
+          path.join(
+            repoRoot,
+            "packages/create-next-hydra/schema/source-registry.json"
+          ),
+          "utf-8"
+        )
       )
     );
     const catalog = await loadSourceRegistryCatalog(repoRoot);
@@ -511,7 +558,7 @@ describe("Next Hydra source registry", () => {
       "https://ui.shadcn.com/schema/registry-item.json"
     );
     expect(selectionSchema.$defs.nextHydra.additionalProperties).toBeFalsy();
-    expect(sourceRegistrySchema.allOf[1].properties.items.items.then.$ref).toBe(
+    expect(sourceRegistrySchema.allOf[1].properties.items.items.$ref).toBe(
       NEXT_HYDRA_SELECTION_SCHEMA_URL
     );
     expect(
