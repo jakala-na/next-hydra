@@ -2,9 +2,14 @@
   "name": "email",
   "version": "0.0.0",
   "private": true,
+  "portless": {
+    "name": "email.next-hydra",
+    "script": "dev:app"
+  },
   "scripts": {
     "build": "email build",
-    "dev": "email dev --port 3003 --dir ../../packages/email/templates",
+    "dev": "portless",
+    "dev:app": "node ../../scripts/run-with-port.ts 3003 email dev --port {port} --dir ../../packages/email/templates",
     "export": "email export",
     "clean": "git clean -xdf .cache .turbo dist node_modules"
   },

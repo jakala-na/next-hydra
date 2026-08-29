@@ -7,10 +7,13 @@ import {
 import { keys as commerce } from "@repo/commerce-provider/keys";
 import { keys as email } from "@repo/email/keys";
 import { keys as core } from "@repo/next-config/keys";
+import { configurePortlessEnvironment } from "@repo/next-config/portless";
 import { keys as observability } from "@repo/observability/keys";
 import { createEnv } from "@t3-oss/env-nextjs";
 
 import { apiServerEnvFields } from "./env-schema";
+
+configurePortlessEnvironment("api");
 
 export const env = createEnv({
   client: {},

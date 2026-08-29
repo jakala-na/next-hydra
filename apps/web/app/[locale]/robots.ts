@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
 
 import { env } from "@/env";
+import { productionUrl } from "@/lib/production-url";
 
-const protocol = env.VERCEL_PROJECT_PRODUCTION_URL?.startsWith("https")
-  ? "https"
-  : "http";
-const url = new URL(`${protocol}://${env.VERCEL_PROJECT_PRODUCTION_URL}`);
+const url = productionUrl(
+  env.VERCEL_PROJECT_PRODUCTION_URL ?? env.NEXT_PUBLIC_WEB_URL
+);
 
 export default function robots(): MetadataRoute.Robots {
   return {

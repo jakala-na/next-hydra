@@ -18,7 +18,7 @@ describe(ContentstackRecipe, () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const receipt = yield* recipe.materialize({
-          localUrl: "http://localhost:3001/",
+          localUrl: "https://web.next-hydra.localhost/",
           productionUrl: "https://store.example.com/",
           targetMasterLocale: "en-us",
         });
@@ -28,7 +28,7 @@ describe(ContentstackRecipe, () => {
         const locales = yield* fileSystem.readFileString(
           path.join(receipt.directory, "locales", "locales.json")
         );
-        expect(environments).toContain("http://localhost:3001");
+        expect(environments).toContain("https://web.next-hydra.localhost");
         expect(environments).toContain("https://store.example.com");
         expect(environments).not.toContain("__NEXT_HYDRA_");
         expect(locales).toBe("{}\n");
@@ -51,17 +51,13 @@ describe(ContentstackRecipe, () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const receipt = yield* recipe.materialize({
-          localUrl: "http://localhost:3001",
+          localUrl: "https://web.next-hydra.localhost",
           productionUrl: "https://store.example.com",
           targetMasterLocale: "en-us",
         });
         const ledgerContentType = yield* fileSystem
           .readFileString(
-            path.join(
-              receipt.directory,
-              "content_types",
-              "migrations.json"
-            )
+            path.join(receipt.directory, "content_types", "migrations.json")
           )
           .pipe(
             Effect.flatMap(
@@ -96,7 +92,7 @@ describe(ContentstackRecipe, () => {
         const fileSystem = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const receipt = yield* recipe.materialize({
-          localUrl: "http://localhost:3001",
+          localUrl: "https://web.next-hydra.localhost",
           productionUrl: "https://store.example.com",
           targetMasterLocale: "fr-fr",
         });

@@ -41,7 +41,7 @@ content:
     type: preview_token_iframe
     label: hidden
     settings:
-      iframe_url: "http://localhost:3001/api/drupal-preview?uuid=[node:preview:uuid]&token=[node:preview:token]&langcode=[node:langcode]"
+      iframe_url: "https://web.next-hydra.localhost/api/drupal-preview?uuid=[node:preview:uuid]&token=[node:preview:token]&langcode=[node:langcode]"
       class: ""
       width: "100%"
       height: "800"

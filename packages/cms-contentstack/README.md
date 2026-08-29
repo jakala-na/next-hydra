@@ -35,7 +35,7 @@ pnpm cli cms provision \
   --output apps/cli/.env.contentstack.local
 ```
 
-The command verifies the pinned Contentstack CLI, resolves the target Stack API Key from the alias, reads the region already configured in `csdx`, and imports the checked-in recipe. The recipe creates the baseline `landing_page`, `navigation`, and administrative `migrations` content types, English starter entries, and the `development` and `production` environments. Provisioning then applies every pending migration before collecting runtime credentials. Environment URLs default to `http://localhost:3001` and the supplied production URL. Runtime credentials target the Contentstack `development` environment by default; select another with `--contentstack-environment`.
+The command verifies the pinned Contentstack CLI, resolves the target Stack API Key from the alias, reads the region already configured in `csdx`, and imports the checked-in recipe. The recipe creates the baseline `landing_page`, `navigation`, and administrative `migrations` content types, English starter entries, and the `development` and `production` environments. Provisioning then applies every pending migration before collecting runtime credentials. Environment URLs default to `https://web.next-hydra.localhost` and the supplied production URL. Runtime credentials target the Contentstack `development` environment by default; select another with `--contentstack-environment`.
 
 The target stack master locale defaults to `en-us`. If the stack uses another master locale, declare it so the materialized import includes English as an additional locale instead of silently skipping the starter entries:
 
