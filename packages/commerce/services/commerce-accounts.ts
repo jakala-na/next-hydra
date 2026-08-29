@@ -266,27 +266,34 @@ export class CommerceAccounts extends Context.Service<
             }
 
             const { authUserId } = input.acceptedIdentity;
-            const expectedCustomerId = CommerceCustomerId.make(
-              `customer-${authUserId}`
-            );
             const existingCustomer =
               current.customersByAuthUserId.get(authUserId);
             const targetEmail = normalizedEmail(input.acceptedIdentity.email);
+            const linkedRegistrantEntry = [
+              ...current.linkedRegistrantIdentities.entries(),
+            ].find(
+              ([, identity]) =>
+                identity.authUserId === authUserId ||
+                normalizedEmail(identity.email) === targetEmail
+            );
+            const linkedRegistrant = linkedRegistrantEntry?.[1];
+            const linkedRegistrantAccount =
+              linkedRegistrantEntry === undefined
+                ? undefined
+                : current.accountsByRegistration.get(linkedRegistrantEntry[0]);
+            const expectedCustomerId =
+              linkedRegistrantAccount?.customerId ??
+              CommerceCustomerId.make(`customer-${authUserId}`);
             const customerWithEmail = [
               ...current.customersByAuthUserId.values(),
             ].find(
               (candidate) => normalizedEmail(candidate.email) === targetEmail
             );
-            const linkedRegistrant = [
-              ...current.linkedRegistrantIdentities.values(),
-            ].find(
-              (identity) =>
-                identity.authUserId === authUserId ||
-                normalizedEmail(identity.email) === targetEmail
-            );
 
             if (
-              linkedRegistrant !== undefined ||
+              (linkedRegistrant !== undefined &&
+                (linkedRegistrant.authUserId !== authUserId ||
+                  normalizedEmail(linkedRegistrant.email) !== targetEmail)) ||
               (existingCustomer !== undefined &&
                 (existingCustomer.customerId !== expectedCustomerId ||
                   normalizedEmail(existingCustomer.email) !== targetEmail)) ||
@@ -314,29 +321,22 @@ export class CommerceAccounts extends Context.Service<
               (associate) =>
                 associate.authUserId === input.acceptedIdentity.authUserId
             );
-            const hasAnotherMembership = [
-              ...current.associatesByBusinessUnit.entries(),
-            ].some(
-              ([candidateBusinessUnitId, associates]) =>
-                candidateBusinessUnitId !== input.businessUnitId &&
-                associates.some(
-                  (associate) => associate.customerId === customer.customerId
-                )
-            );
-
-            if (existingAssociate === undefined && hasAnotherMembership) {
-              return yield* new CommerceCustomerEmailConflict({
-                message:
-                  "A Commerce customer already owns the invited identity or email",
-              });
-            }
 
             if (existingAssociate) {
+              const mergedRoles = [
+                ...new Set([...existingAssociate.roles, ...input.roles]),
+              ];
+              const [firstRole, ...remainingRoles] = mergedRoles;
+              if (firstRole === undefined) {
+                return yield* Effect.die(
+                  new Error("A Company membership must have at least one role")
+                );
+              }
               const membership = new CommerceAssociateMembership({
-                ...existingAssociate,
-                roles: Schema.decodeUnknownSync(CompanyRoles)([
-                  ...new Set([...existingAssociate.roles, ...input.roles]),
-                ]),
+                authUserId: existingAssociate.authUserId,
+                businessUnitId: existingAssociate.businessUnitId,
+                customerId: existingAssociate.customerId,
+                roles: [firstRole, ...remainingRoles],
               });
 
               yield* Ref.update(state, (latest) => ({
@@ -571,42 +571,44 @@ export class CommerceAccounts extends Context.Service<
     );
     const layerSeededAccounts = Layer.effect(
       CommerceAccounts,
-      Effect.map(CommerceAccounts, (accounts) =>
-        CommerceAccounts.of({
-          ...accounts,
-          getCustomerIdByAuthUserId: (authUserId) => {
-            const customer = customers.find(
-              (candidate) => candidate.authUserId === authUserId
-            );
-            return customer
-              ? Effect.succeed(customer.customerId)
-              : accounts.getCustomerIdByAuthUserId(authUserId);
-          },
-          getCustomerProfile: (customerId) => {
-            const profile = profilesByCustomerId.get(customerId);
-            return profile
-              ? Effect.succeed(profile)
-              : accounts.getCustomerProfile(customerId);
-          },
-          listBusinessUnitMembershipsForCustomerInStore: (
-            customerId,
-            storeKey
-          ) => {
-            const seeded = businessUnitMemberships
-              .filter(
-                (candidate) =>
-                  candidate.customerId === customerId &&
-                  candidate.storeKey === storeKey
-              )
-              .map(({ membership }) => membership);
-            return seeded.length > 0
-              ? Effect.succeed(seeded)
-              : accounts.listBusinessUnitMembershipsForCustomerInStore(
-                  customerId,
-                  storeKey
-                );
-          },
-        })
+      CommerceAccounts.pipe(
+        Effect.map((accounts) =>
+          CommerceAccounts.of({
+            ...accounts,
+            getCustomerIdByAuthUserId: (authUserId) => {
+              const customer = customers.find(
+                (candidate) => candidate.authUserId === authUserId
+              );
+              return customer
+                ? Effect.succeed(customer.customerId)
+                : accounts.getCustomerIdByAuthUserId(authUserId);
+            },
+            getCustomerProfile: (customerId) => {
+              const profile = profilesByCustomerId.get(customerId);
+              return profile
+                ? Effect.succeed(profile)
+                : accounts.getCustomerProfile(customerId);
+            },
+            listBusinessUnitMembershipsForCustomerInStore: (
+              customerId,
+              storeKey
+            ) => {
+              const seeded = businessUnitMemberships
+                .filter(
+                  (candidate) =>
+                    candidate.customerId === customerId &&
+                    candidate.storeKey === storeKey
+                )
+                .map(({ membership }) => membership);
+              return seeded.length > 0
+                ? Effect.succeed(seeded)
+                : accounts.listBusinessUnitMembershipsForCustomerInStore(
+                    customerId,
+                    storeKey
+                  );
+            },
+          })
+        )
       )
     );
 

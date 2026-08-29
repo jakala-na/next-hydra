@@ -29,6 +29,8 @@
     "release:create-next-hydra": "node scripts/release-create-next-hydra.mjs",
     "release:create-next-hydra:dry-run": "node scripts/release-create-next-hydra.mjs --dry-run",
     "test": "turbo test",
+    "test:e2e": "turbo run e2e",
+    "test:e2e:affected": "turbo run e2e --affected",
     "translate": "turbo translate",
     "typecheck": "turbo typecheck",
     "version:cli": "changeset version"

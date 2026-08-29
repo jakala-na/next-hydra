@@ -42,6 +42,11 @@ Temporary Items
 
 # testing
 /coverage
+**/.features-gen/**/*.spec.js
+**/.features-gen/**/*.spec.js.map
+**/playwright-report/
+**/playwright/.auth/
+**/test-results/
 
 # next.js
 /.next/

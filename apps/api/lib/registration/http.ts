@@ -36,6 +36,7 @@ import { submitRegistrationForReview } from "@repo/registration/programs/registr
 import type { RegistrationEligibilityProviderError } from "@repo/registration/programs/registration-intake";
 import { revokeRegistrationInvitation } from "@repo/registration/programs/registration-onboarding";
 import { acceptRegistrationReviewDecision } from "@repo/registration/programs/registration-review";
+import type { AcceptRegistrationReviewDecisionInput } from "@repo/registration/programs/registration-review";
 import {
   projectRegistrationIntakeValidation,
   registrationAuthenticationUnavailable,
@@ -57,7 +58,10 @@ import type {
 } from "@repo/registration/services/invitations";
 import type { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
 import { RegistrationQueries } from "@repo/registration/services/registration-queries";
-import type { RegistrationQueryFailure } from "@repo/registration/services/registration-queries";
+import type {
+  ListRegistrationsInput,
+  RegistrationQueryFailure,
+} from "@repo/registration/services/registration-queries";
 import type { RegistrationWorkflow } from "@repo/registration/services/registration-workflow";
 import { Registrations } from "@repo/registration/services/registrations";
 import type { RegistrationPersistenceFailure } from "@repo/registration/services/registrations";
@@ -124,6 +128,14 @@ const logRegistrationAuthenticationFailure = (error: {
     })
   );
 
+const logInvalidRegistrationAccessToken = (error: AccessTokenInvalid) =>
+  Effect.logWarning(error.message).pipe(
+    Effect.annotateLogs({
+      "auth.surface": "registration",
+      "auth.token.invalid.reason": error.reason,
+    })
+  );
+
 const isRegistrationEligibilityProviderError = (error: {
   readonly _tag: string;
 }): error is RegistrationEligibilityProviderError =>
@@ -164,7 +176,7 @@ const verifyRegistrationAccess = (
   credential: Redacted.Redacted,
   requiredPermission: string
 ) =>
-  Effect.gen(function* verifyRegistrationAccess() {
+  Effect.gen(function* verifyRegistrationAccessEffect() {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const authorization = parseBearerAuthorization(
       request.headers.authorization,
@@ -177,7 +189,10 @@ const verifyRegistrationAccess = (
 
     return yield* verifier.verify(authorization.token).pipe(
       Effect.catchTags({
-        AccessTokenInvalid: () => Effect.fail(unauthorized()),
+        AccessTokenInvalid: (error) =>
+          logInvalidRegistrationAccessToken(error).pipe(
+            Effect.andThen(Effect.fail(unauthorized()))
+          ),
         AccessTokenVerificationFailure: (error) =>
           logRegistrationAuthenticationFailure(error).pipe(
             Effect.andThen(
@@ -318,12 +333,15 @@ const makeRegistrationHttpHandlers = () =>
       }) =>
         Effect.gen(function* acceptRegistrationDecision() {
           const reviewer = yield* RegistrationReviewerContext;
-          yield* acceptRegistrationReviewDecision({
+          const decision: AcceptRegistrationReviewDecisionInput = {
             decision: input.decision,
             registrationId: input.registrationId,
             reviewer,
-            ...(input.reason === undefined ? {} : { reason: input.reason }),
-          });
+          };
+          if (input.reason !== undefined) {
+            Object.assign(decision, { reason: input.reason });
+          }
+          yield* acceptRegistrationReviewDecision(decision);
 
           return new RegistrationDecisionAcceptedResponse({
             registrationId: input.registrationId,
@@ -456,40 +474,47 @@ const makeRegistrationHttpHandlers = () =>
             })
           )
         )
-        .handle("list", ({ query }) =>
-          queries
-            .list({
-              ...(query.status === undefined ? {} : { status: query.status }),
-              ...(query.search === undefined ? {} : { search: query.search }),
-              ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
-              ...(query.limit === undefined ? {} : { limit: query.limit }),
-            })
-            .pipe(
-              Effect.map((result) => {
-                const items = result.items.map((item) =>
-                  toRegistrationDetailResponse(item.registration)
-                );
+        .handle("list", ({ query }) => {
+          const input: ListRegistrationsInput = {};
+          if (query.status !== undefined) {
+            Object.assign(input, { status: query.status });
+          }
+          if (query.search !== undefined) {
+            Object.assign(input, { search: query.search });
+          }
+          if (query.cursor !== undefined) {
+            Object.assign(input, { cursor: query.cursor });
+          }
+          if (query.limit !== undefined) {
+            Object.assign(input, { limit: query.limit });
+          }
 
-                return new ListRegistrationsResponse(
-                  result.nextCursor
-                    ? { items, nextCursor: result.nextCursor }
-                    : { items }
-                );
-              }),
-              Effect.tapErrorTag("RegistrationQueryFailure", (error) =>
-                Effect.logError(error.message)
-              ),
-              Effect.catchTag(
-                "RegistrationQueryFailure",
-                retainRecoverableRegistrationInfrastructureFailure
-              ),
-              Effect.annotateLogs({
-                operation: "registration.api.list",
-                service: "registration-api",
-              }),
-              Effect.mapError(toRegistrationQueryApiError)
-            )
-        )
+          return queries.list(input).pipe(
+            Effect.map((result) => {
+              const items = result.items.map((item) =>
+                toRegistrationDetailResponse(item.registration)
+              );
+
+              return new ListRegistrationsResponse(
+                result.nextCursor
+                  ? { items, nextCursor: result.nextCursor }
+                  : { items }
+              );
+            }),
+            Effect.tapErrorTag("RegistrationQueryFailure", (error) =>
+              Effect.logError(error.message)
+            ),
+            Effect.catchTag(
+              "RegistrationQueryFailure",
+              retainRecoverableRegistrationInfrastructureFailure
+            ),
+            Effect.annotateLogs({
+              operation: "registration.api.list",
+              service: "registration-api",
+            }),
+            Effect.mapError(toRegistrationQueryApiError)
+          );
+        })
         .handle("get", ({ params }) =>
           registrations
             .get(params.registrationId)
@@ -502,20 +527,26 @@ const makeRegistrationHttpHandlers = () =>
               Effect.mapError(toRegistrationReadApiError)
             )
         )
-        .handle("approve", ({ params, payload }) =>
-          acceptDecision({
+        .handle("approve", ({ params, payload }) => {
+          const decision: Parameters<typeof acceptDecision>[0] = {
             decision: "approved",
             registrationId: params.registrationId,
-            ...(payload.reason === undefined ? {} : { reason: payload.reason }),
-          })
-        )
-        .handle("reject", ({ params, payload }) =>
-          acceptDecision({
+          };
+          if (payload.reason !== undefined) {
+            Object.assign(decision, { reason: payload.reason });
+          }
+          return acceptDecision(decision);
+        })
+        .handle("reject", ({ params, payload }) => {
+          const decision: Parameters<typeof acceptDecision>[0] = {
             decision: "rejected",
             registrationId: params.registrationId,
-            ...(payload.reason === undefined ? {} : { reason: payload.reason }),
-          })
-        )
+          };
+          if (payload.reason !== undefined) {
+            Object.assign(decision, { reason: payload.reason });
+          }
+          return acceptDecision(decision);
+        })
         .handle("revokeInvitation", ({ params }) =>
           Effect.gen(function* revokeInvitation() {
             const reviewer = yield* RegistrationReviewerContext;

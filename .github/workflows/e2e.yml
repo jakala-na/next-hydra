@@ -1,0 +1,88 @@
+name: End-to-end tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: ${{ matrix.composition }} / ${{ matrix.scope }}
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+    runs-on: ubuntu-latest
+    environment: e2e
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - composition: workos-commercetools-contentstack
+            scope: auth
+            tag: "@auth"
+          - composition: workos-commercetools-contentstack
+            scope: registration
+            tag: "@registration"
+    env:
+      CI: "true"
+      E2E_RUN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.scope }}
+      ADMIN_WORKOS_API_KEY: ${{ secrets.ADMIN_WORKOS_API_KEY }}
+      ADMIN_WORKOS_CLIENT_ID: ${{ secrets.ADMIN_WORKOS_CLIENT_ID }}
+      ADMIN_WORKOS_COOKIE_NAME: admin-session
+      ADMIN_WORKOS_COOKIE_PASSWORD: ${{ secrets.ADMIN_WORKOS_COOKIE_PASSWORD }}
+      CMS_HOMEPAGE_SLUG: homepage
+      COMMERCETOOLS_CLIENT_ID: ${{ secrets.COMMERCETOOLS_CLIENT_ID }}
+      COMMERCETOOLS_CLIENT_SECRET: ${{ secrets.COMMERCETOOLS_CLIENT_SECRET }}
+      COMMERCETOOLS_PROJECT_KEY: ${{ secrets.COMMERCETOOLS_PROJECT_KEY }}
+      COMMERCETOOLS_REGION: ${{ vars.COMMERCETOOLS_REGION }}
+      COMMERCETOOLS_SCOPE: ${{ secrets.COMMERCETOOLS_SCOPE }}
+      CONTENTSTACK_API_KEY: ${{ secrets.CONTENTSTACK_API_KEY }}
+      CONTENTSTACK_DELIVERY_TOKEN: ${{ secrets.CONTENTSTACK_DELIVERY_TOKEN }}
+      CONTENTSTACK_ENVIRONMENT: ${{ vars.CONTENTSTACK_ENVIRONMENT }}
+      CONTENTSTACK_PREVIEW_TOKEN: ${{ secrets.CONTENTSTACK_PREVIEW_TOKEN }}
+      CONTENTSTACK_WEBHOOK_SECRET: ${{ secrets.CONTENTSTACK_WEBHOOK_SECRET }}
+      NEXT_PUBLIC_ADMIN_WORKOS_REDIRECT_URI: http://localhost:3005/api/auth/callback
+      NEXT_PUBLIC_CONTENTSTACK_API_KEY: ${{ secrets.CONTENTSTACK_API_KEY }}
+      NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT: ${{ vars.CONTENTSTACK_ENVIRONMENT }}
+      NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.NEXT_PUBLIC_POSTHOG_HOST }}
+      NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+      NEXT_PUBLIC_WORKOS_REDIRECT_URI: http://localhost:3001/api/auth/callback
+      REGISTRATION_APPROVER_EMAIL: ${{ vars.REGISTRATION_APPROVER_EMAIL }}
+      RESEND_FROM: ${{ vars.RESEND_FROM }}
+      RESEND_TOKEN: ${{ secrets.RESEND_TOKEN }}
+      WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
+      WORKOS_CLIENT_ID: ${{ secrets.WORKOS_CLIENT_ID }}
+      WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
+      WORKOS_WEBHOOK_SECRET: ${{ secrets.WORKOS_WEBHOOK_SECRET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install Chromium
+        run: pnpm --filter @repo/e2e exec playwright install --with-deps chromium
+
+      - name: Run affected ${{ matrix.scope }} scenarios
+        run: pnpm exec turbo run e2e --affected --output-logs=full -- --grep "${{ matrix.tag }}"

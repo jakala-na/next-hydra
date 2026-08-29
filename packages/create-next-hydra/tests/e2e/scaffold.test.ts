@@ -404,7 +404,7 @@ describe("scaffold composition", () => {
   );
 
   it(
-    "strips maintainer release and registry tooling from generated projects",
+    "strips maintainer workflows and release tooling from generated projects",
     async () => {
       const target = path.join(testRoot, "customer-release-project");
       await scaffoldProject(options(target, "contentstack"), {
@@ -421,8 +421,9 @@ describe("scaffold composition", () => {
           pathExists(
             path.join(target, ".github/workflows/registry-integrity.yml")
           ),
+          pathExists(path.join(target, ".github/workflows/e2e.yml")),
         ])
-      ).resolves.toStrictEqual([false, false, false, false]);
+      ).resolves.toStrictEqual([false, false, false, false, false]);
 
       const packageJson = await readJsonFile<{
         scripts?: Record<string, string>;

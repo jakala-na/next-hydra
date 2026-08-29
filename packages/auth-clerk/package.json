@@ -29,6 +29,10 @@
     "next": "catalog:"
   },
   "devDependencies": {
+    "@clerk/backend": "^3.16.10",
+    "@clerk/shared": "^4.30.2",
+    "@clerk/testing": "^2.2.23",
+    "@repo/e2e-testing": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

@@ -20,14 +20,20 @@ import {
   RateLimitExceededException,
   WorkOS,
 } from "@workos-inc/node";
+import type { AutoPaginatable, User } from "@workos-inc/node";
 import { Config, Effect, Layer, Option, Redacted, Schema } from "effect";
+
+type WorkosIdentityUserListItem = Pick<
+  User,
+  "email" | "firstName" | "id" | "lastName"
+>;
 
 export interface WorkosIdentityUserManagement {
   readonly getUser: (authUserId: string) => Promise<unknown>;
   readonly listUsers: (input: {
     readonly email: string;
     readonly limit: number;
-  }) => Promise<unknown>;
+  }) => Promise<Pick<AutoPaginatable<WorkosIdentityUserListItem>, "data">>;
 }
 
 const WorkosIdentityUserProfile = Schema.Struct({
@@ -43,9 +49,7 @@ const WorkosIdentityUser = Schema.Struct({
   lastName: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-const WorkosIdentityUserList = Schema.Struct({
-  data: Schema.Array(WorkosIdentityUser),
-});
+const WorkosIdentityUserListData = Schema.Array(WorkosIdentityUser);
 const REQUEST_TIMEOUT_STATUS_CODE = 408;
 const SERVER_ERROR_STATUS_CODE = 500;
 
@@ -111,13 +115,13 @@ export const makeWorkosIdentityUsers = (
           }),
       }).pipe(
         Effect.flatMap((users) =>
-          Schema.decodeUnknownEffect(WorkosIdentityUserList)(users).pipe(
+          Schema.decodeEffect(WorkosIdentityUserListData)(users.data).pipe(
             Effect.orDie
           )
         ),
         Effect.map((users) => {
           const requestedEmail = Redacted.value(email).trim().toLowerCase();
-          const user = users.data.find(
+          const user = users.find(
             (candidate) =>
               candidate.email.trim().toLowerCase() === requestedEmail
           );

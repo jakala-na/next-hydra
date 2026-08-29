@@ -22,6 +22,7 @@ import { CommandExecutionError } from "../src/git.js";
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const run = promisify(execFile);
 const temporaryDirectories: string[] = [];
+const skipDependencyInstall = () => Promise.resolve();
 const MANAGED_FILE_DRIFT = /managed file differs/;
 const PACKAGE_JSON_TARGETS = /package\.json targets/;
 const INVALID_DEPENDENCY_SECTION = /dependencies: Expected object/;
@@ -96,6 +97,7 @@ async function maintainerFixture(): Promise<string> {
       "apps/cli",
       "apps/web",
       "packages/feature-flags",
+      "tests/e2e",
     ].map(async (relative) => {
       await mkdir(path.join(fixture, relative), { recursive: true });
       await writeFile(
@@ -271,6 +273,27 @@ describe("maintainer use", () => {
     );
     await expect(useComposition({ check: true, cwd })).rejects.toThrow(
       MANAGED_FILE_DRIFT
+    );
+  });
+
+  it("switches the E2E auth adapter with the application provider", async () => {
+    const cwd = await maintainerFixture();
+    const e2eManifest = path.join(cwd, "tests/e2e/package.json");
+
+    await useComposition(
+      { auth: "clerk", cwd, yes: true },
+      { install: skipDependencyInstall }
+    );
+    await expect(readFile(e2eManifest, "utf-8")).resolves.toContain(
+      '"@repo/auth": "workspace:@repo/auth-clerk@*"'
+    );
+
+    await useComposition(
+      { auth: "workos", cwd, yes: true },
+      { install: skipDependencyInstall }
+    );
+    await expect(readFile(e2eManifest, "utf-8")).resolves.toContain(
+      '"@repo/auth": "workspace:@repo/auth-workos@*"'
     );
   });
 

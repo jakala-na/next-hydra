@@ -1,11 +1,11 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalDependencies": ["**/.env.*local"],
   "ui": "tui",
   "envMode": "loose",
   "tasks": {
     "build": {
       "dependsOn": ["^build", "typecheck", "test"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": [
         ".next/**",
         "!**/node_modules/**",
@@ -17,7 +17,59 @@
       ]
     },
     "test": {
-      "dependsOn": ["^test"]
+      "dependsOn": ["^test"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"]
+    },
+    "e2e": {
+      "cache": false,
+      "passThroughEnv": [
+        "E2E_ADMIN_URL",
+        "E2E_API_URL",
+        "E2E_RUN_ID",
+        "E2E_STORE_KEY",
+        "E2E_WEB_URL",
+        "ADMIN_CLERK_AUTHORIZED_PARTIES",
+        "ADMIN_CLERK_JWT_KEY",
+        "ADMIN_CLERK_PUBLISHABLE_KEY",
+        "ADMIN_CLERK_SECRET_KEY",
+        "ADMIN_WORKOS_ACCESS_TOKEN_ISSUER",
+        "ADMIN_WORKOS_API_HOSTNAME",
+        "ADMIN_WORKOS_API_HTTPS",
+        "ADMIN_WORKOS_API_KEY",
+        "ADMIN_WORKOS_API_PORT",
+        "ADMIN_WORKOS_CLIENT_ID",
+        "ADMIN_WORKOS_COOKIE_DOMAIN",
+        "ADMIN_WORKOS_COOKIE_MAX_AGE",
+        "ADMIN_WORKOS_COOKIE_NAME",
+        "ADMIN_WORKOS_COOKIE_PASSWORD",
+        "ADMIN_WORKOS_COOKIE_SAMESITE",
+        "CLERK_API_URL",
+        "CLERK_AUTHORIZED_PARTIES",
+        "CLERK_FAPI",
+        "CLERK_JWT_KEY",
+        "CLERK_PUBLISHABLE_KEY",
+        "CLERK_SECRET_KEY",
+        "CLERK_TESTING_TOKEN",
+        "COMPANY_MEMBER_INVITATION_CONTAINER",
+        "COMMERCETOOLS_CLIENT_ID",
+        "COMMERCETOOLS_CLIENT_SECRET",
+        "COMMERCETOOLS_PROJECT_KEY",
+        "COMMERCETOOLS_REGION",
+        "COMMERCETOOLS_SCOPE",
+        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+        "NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL",
+        "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
+        "NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL",
+        "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
+        "NEXT_PUBLIC_ADMIN_WORKOS_REDIRECT_URI",
+        "REGISTRATION_CONTAINER",
+        "WORKOS_ACCESS_TOKEN_ISSUER",
+        "WORKOS_API_KEY",
+        "WORKOS_CLIENT_ID",
+        "WORKOS_COOKIE_NAME",
+        "WORKOS_COOKIE_PASSWORD",
+        "CI"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]

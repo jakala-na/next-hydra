@@ -56,16 +56,17 @@ describe(CommerceAccounts, () => {
           StoreKey.make("de-fr-uk")
         );
 
-      expect(customerId).toBe(commerceAccount.customerId);
-      expect(profile.email && Redacted.value(profile.email)).toBe(
-        "ada@example.com"
-      );
-      expect(profile.firstName && Redacted.value(profile.firstName)).toBe(
-        "Ada"
-      );
-      expect(profile.lastName && Redacted.value(profile.lastName)).toBe(
-        "Lovelace"
-      );
+      expect({
+        customerId,
+        email: profile.email && Redacted.value(profile.email),
+        firstName: profile.firstName && Redacted.value(profile.firstName),
+        lastName: profile.lastName && Redacted.value(profile.lastName),
+      }).toStrictEqual({
+        customerId: commerceAccount.customerId,
+        email: "ada@example.com",
+        firstName: "Ada",
+        lastName: "Lovelace",
+      });
       expect(businessUnitMemberships).toStrictEqual([
         expect.objectContaining({
           businessUnitId: commerceAccount.businessUnitId,
@@ -75,5 +76,99 @@ describe(CommerceAccounts, () => {
       ]);
       expect(otherStoreMemberships).toStrictEqual([]);
     }).pipe(Effect.provide(CommerceAccounts.layerMemory))
+  );
+
+  it.effect("keeps one Customer across multiple Business Units", () =>
+    Effect.gen(function* () {
+      const accounts = yield* CommerceAccounts;
+      const firstAccount = yield* accounts.createFromRegistration(registration);
+      const secondAccount = yield* accounts.createFromRegistration({
+        ...registration,
+        details: {
+          ...registration.details,
+          companyName: "Difference Engine",
+          email: Redacted.make("charles@example.com", { label: "email" }),
+        },
+        id: "registration-2",
+      });
+
+      const firstMembership = yield* accounts.addAssociate({
+        acceptedIdentity,
+        businessUnitId: firstAccount.businessUnitId,
+        roles: ["buyer"],
+      });
+      const secondMembership = yield* accounts.addAssociate({
+        acceptedIdentity,
+        businessUnitId: secondAccount.businessUnitId,
+        roles: ["approver"],
+      });
+      const memberships =
+        yield* accounts.listBusinessUnitMembershipsForCustomerInStore(
+          firstMembership.customerId,
+          StoreKey.make("default-store")
+        );
+
+      expect(secondMembership.customerId).toBe(firstMembership.customerId);
+      expect(memberships).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            businessUnitId: firstAccount.businessUnitId,
+            roles: ["buyer"],
+          }),
+          expect.objectContaining({
+            businessUnitId: secondAccount.businessUnitId,
+            roles: ["approver"],
+          }),
+        ])
+      );
+    }).pipe(Effect.provide(CommerceAccounts.layerMemory))
+  );
+
+  it.effect(
+    "lets an initial Company administrator join another Business Unit",
+    () =>
+      Effect.gen(function* () {
+        const accounts = yield* CommerceAccounts;
+        const firstAccount =
+          yield* accounts.createFromRegistration(registration);
+        yield* accounts.linkRegistrantIdentity({
+          acceptedIdentity,
+          commerceAccount: firstAccount,
+        });
+        const secondAccount = yield* accounts.createFromRegistration({
+          ...registration,
+          details: {
+            ...registration.details,
+            companyName: "Difference Engine",
+            email: Redacted.make("charles@example.com", { label: "email" }),
+          },
+          id: "registration-2",
+        });
+
+        const secondMembership = yield* accounts.addAssociate({
+          acceptedIdentity,
+          businessUnitId: secondAccount.businessUnitId,
+          roles: ["approver"],
+        });
+        const memberships =
+          yield* accounts.listBusinessUnitMembershipsForCustomerInStore(
+            firstAccount.customerId,
+            StoreKey.make("default-store")
+          );
+
+        expect(secondMembership.customerId).toBe(firstAccount.customerId);
+        expect(memberships).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              businessUnitId: firstAccount.businessUnitId,
+              roles: ["admin", "buyer"],
+            }),
+            expect.objectContaining({
+              businessUnitId: secondAccount.businessUnitId,
+              roles: ["approver"],
+            }),
+          ])
+        );
+      }).pipe(Effect.provide(CommerceAccounts.layerMemory))
   );
 });

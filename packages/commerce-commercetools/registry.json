@@ -541,6 +541,21 @@
           "type": "registry:file"
         },
         {
+          "path": "testing/commercetools-janitor.test.ts",
+          "target": "~/packages/commerce-commercetools/testing/commercetools-janitor.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/commercetools-janitor.ts",
+          "target": "~/packages/commerce-commercetools/testing/commercetools-janitor.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/index.ts",
+          "target": "~/packages/commerce-commercetools/testing/index.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "tsconfig.json",
           "target": "~/packages/commerce-commercetools/tsconfig.json",
           "type": "registry:file"

@@ -1,17 +1,21 @@
 packages:
   - apps/*
   - packages/*
+  - tests/*
 catalog:
   "@effect/platform-node": 4.0.0-rc.111
   "@effect/vitest": 4.0.0-rc.111
   "@next/bundle-analyzer": 16.3.1
+  "@next/env": 16.3.1
   "@next/third-parties": 16.3.1
+  "@playwright/test": 1.62.1
   "@t3-oss/env-nextjs": ^0.13.4
   "@types/node": 24.13.3
   "@types/react": 19.2.10
   "@types/react-dom": 19.2.3
   effect: 4.0.0-rc.111
   next: 16.3.1
+  playwright-bdd: 9.2.0
   react: 19.2.8
   react-dom: 19.2.8
   server-only: ^0.0.1

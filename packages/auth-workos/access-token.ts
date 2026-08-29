@@ -54,7 +54,7 @@ export type AccessTokenJwtVerifier = (token: string) => Promise<unknown>;
 
 export interface AccessTokenVerifierOptions {
   readonly expectedClientId?: string;
-  readonly expectedIssuer?: string;
+  readonly expectedIssuers?: readonly string[];
   readonly requiredPermissions?: readonly string[];
   readonly verifyAccessToken: AccessTokenJwtVerifier;
 }
@@ -168,13 +168,14 @@ const validateTrustedClaims = (
   payload: typeof WorkosAccessTokenPayload.Type,
   options: {
     readonly expectedClientId?: string;
-    readonly expectedIssuer?: string;
+    readonly expectedIssuers?: readonly string[];
   }
 ) => {
   if (
-    options.expectedIssuer &&
-    normalizeIssuer(payload.iss ?? "") !==
-      normalizeIssuer(options.expectedIssuer)
+    options.expectedIssuers !== undefined &&
+    !options.expectedIssuers.some(
+      (issuer) => normalizeIssuer(payload.iss ?? "") === normalizeIssuer(issuer)
+    )
   ) {
     return Effect.fail(invalidIssuer());
   }
@@ -191,7 +192,7 @@ const validateTrustedClaims = (
 
 const makeWorkosAccessTokenVerifier = ({
   expectedClientId,
-  expectedIssuer,
+  expectedIssuers,
   requiredPermissions = [],
   verifyAccessToken,
 }: AccessTokenVerifierOptions) =>
@@ -205,7 +206,7 @@ const makeWorkosAccessTokenVerifier = ({
         Effect.flatMap((payload) =>
           validateTrustedClaims(payload, {
             expectedClientId,
-            expectedIssuer,
+            expectedIssuers,
           })
         ),
         Effect.map((payload) => {
@@ -248,15 +249,14 @@ export const accessTokenVerifierLayer = ({
       const apiHostname = yield* Config.option(
         Config.string(configKey(configPrefix, "WORKOS_API_HOSTNAME"))
       ).pipe(Effect.map(Option.getOrUndefined));
-      const expectedIssuer = yield* Config.option(
+      const configuredIssuer = yield* Config.option(
         Config.string(configKey(configPrefix, "WORKOS_ACCESS_TOKEN_ISSUER"))
-      ).pipe(
-        Effect.map(
-          Option.getOrElse(
-            () => `https://${apiHostname ?? DEFAULT_WORKOS_API_HOSTNAME}`
-          )
-        )
-      );
+      ).pipe(Effect.map(Option.getOrUndefined));
+      const defaultIssuer = `https://${apiHostname ?? DEFAULT_WORKOS_API_HOSTNAME}`;
+      const expectedIssuers =
+        configuredIssuer === undefined
+          ? [defaultIssuer, `${defaultIssuer}/user_management/${clientId}`]
+          : [configuredIssuer];
       const workos = apiHostname
         ? new WorkOS({ apiHostname, clientId })
         : new WorkOS({ clientId });
@@ -270,7 +270,7 @@ export const accessTokenVerifierLayer = ({
 
       return makeWorkosAccessTokenVerifier({
         expectedClientId: clientId,
-        expectedIssuer,
+        expectedIssuers,
         requiredPermissions,
         verifyAccessToken: async (token) =>
           await jwtVerify(token, jwks).then(({ payload }) => payload),

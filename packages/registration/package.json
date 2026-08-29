@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "@repo/e2e-testing": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

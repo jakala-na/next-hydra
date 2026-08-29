@@ -77,6 +77,33 @@ export interface RecordRegistrationInvitationRevokedInput {
   readonly invitationId: InvitationId;
 }
 
+export interface ProvisionApprovedRegistrationInput {
+  readonly acceptedIdentity: AcceptedAuthIdentity;
+  readonly registration: ApprovedRegistration;
+}
+
+export const provisionApprovedRegistration = Effect.fn(
+  "provisionApprovedRegistration"
+)(function* (input: ProvisionApprovedRegistrationInput) {
+  const commerceAccounts = yield* CommerceAccounts;
+  const identityProjection = yield* CompanyMemberIdentityProjection;
+  const commerceAccount = yield* commerceAccounts.createFromRegistration(
+    input.registration
+  );
+
+  yield* commerceAccounts.linkRegistrantIdentity({
+    acceptedIdentity: input.acceptedIdentity,
+    commerceAccount,
+  });
+  yield* identityProjection.projectMembership({
+    authUserId: input.acceptedIdentity.authUserId,
+    businessUnitId: commerceAccount.businessUnitId,
+    roles: INITIAL_COMPANY_ROLES,
+  });
+
+  return commerceAccount;
+});
+
 export const approveRegistration = (
   input: ApproveRegistrationInput
 ): Effect.Effect<
@@ -96,8 +123,6 @@ export const approveRegistration = (
   Effect.gen(function* () {
     const registrations = yield* Registrations;
     const invitations = yield* RegistrationInvitations;
-    const commerceAccounts = yield* CommerceAccounts;
-    const identityProjection = yield* CompanyMemberIdentityProjection;
     const identityUsers = yield* IdentityUsers;
 
     const registration = yield* registrations.get(input.registrationId);
@@ -118,16 +143,9 @@ export const approveRegistration = (
             identity.firstName ?? registration.details.contactFirstName,
           lastName: identity.lastName ?? registration.details.contactLastName,
         });
-        const commerceAccount =
-          yield* commerceAccounts.createFromRegistration(registration);
-        yield* commerceAccounts.linkRegistrantIdentity({
+        yield* provisionApprovedRegistration({
           acceptedIdentity,
-          commerceAccount,
-        });
-        yield* identityProjection.projectMembership({
-          authUserId: acceptedIdentity.authUserId,
-          businessUnitId: commerceAccount.businessUnitId,
-          roles: INITIAL_COMPANY_ROLES,
+          registration,
         });
       }
       return registration;
@@ -150,22 +168,15 @@ export const approveRegistration = (
         decision,
         registrationId: input.registrationId,
       });
-      const commerceAccount =
-        yield* commerceAccounts.createFromRegistration(approved);
       const acceptedIdentity = new AcceptedAuthIdentity({
         authUserId: identity.authUserId,
         email: identity.email,
         firstName: identity.firstName ?? approved.details.contactFirstName,
         lastName: identity.lastName ?? approved.details.contactLastName,
       });
-      yield* commerceAccounts.linkRegistrantIdentity({
+      yield* provisionApprovedRegistration({
         acceptedIdentity,
-        commerceAccount,
-      });
-      yield* identityProjection.projectMembership({
-        authUserId: acceptedIdentity.authUserId,
-        businessUnitId: commerceAccount.businessUnitId,
-        roles: INITIAL_COMPANY_ROLES,
+        registration: approved,
       });
 
       return approved;
@@ -235,8 +246,6 @@ export const acceptRegistrationInvitation = (
 > =>
   Effect.gen(function* () {
     const invitations = yield* RegistrationInvitations;
-    const commerceAccounts = yield* CommerceAccounts;
-    const identityProjection = yield* CompanyMemberIdentityProjection;
     const registrations = yield* Registrations;
 
     const registration = yield* registrations.get(input.registrationId).pipe(
@@ -271,17 +280,9 @@ export const acceptRegistrationInvitation = (
       status: "accepted",
     });
 
-    const commerceAccount =
-      yield* commerceAccounts.createFromRegistration(acceptedRegistration);
-
-    yield* commerceAccounts.linkRegistrantIdentity({
+    yield* provisionApprovedRegistration({
       acceptedIdentity: input.acceptedIdentity,
-      commerceAccount,
-    });
-    yield* identityProjection.projectMembership({
-      authUserId: input.acceptedIdentity.authUserId,
-      businessUnitId: commerceAccount.businessUnitId,
-      roles: INITIAL_COMPANY_ROLES,
+      registration: acceptedRegistration,
     });
 
     return acceptedRegistration;

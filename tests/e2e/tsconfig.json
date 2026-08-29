@@ -1,0 +1,15 @@
+{
+  "extends": "@repo/typescript-config/effect.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@repo/auth": ["./node_modules/@repo/auth"],
+      "@repo/auth/*": ["./node_modules/@repo/auth/*"],
+      "@repo/commerce-provider": ["./node_modules/@repo/commerce-provider"],
+      "@repo/commerce-provider/*": ["./node_modules/@repo/commerce-provider/*"],
+      "@repo/*": ["../../packages/*"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": [".features-gen", "node_modules"]
+}

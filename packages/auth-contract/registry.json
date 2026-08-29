@@ -23,6 +23,36 @@
           "type": "registry:file"
         },
         {
+          "path": "e2e/@auth/company-login.feature",
+          "target": "~/packages/auth-contract/e2e/@auth/company-login.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/auth-context.test.ts",
+          "target": "~/packages/auth-contract/e2e/auth-context.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/auth-context.ts",
+          "target": "~/packages/auth-contract/e2e/auth-context.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/auth-scenario.ts",
+          "target": "~/packages/auth-contract/e2e/auth-scenario.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/auth-test-control.ts",
+          "target": "~/packages/auth-contract/e2e/auth-test-control.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/auth.steps.ts",
+          "target": "~/packages/auth-contract/e2e/auth.steps.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "identity-memberships.ts",
           "target": "~/packages/auth-contract/identity-memberships.ts",
           "type": "registry:file"

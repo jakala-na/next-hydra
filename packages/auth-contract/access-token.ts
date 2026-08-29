@@ -1,8 +1,8 @@
 /* oxlint-disable max-classes-per-file, unicorn/throw-new-error -- The token DTO, typed errors, and verifier service form one public auth contract. */
 import { Context, Effect, Schema } from "effect";
 
-import { AuthPermissionAdapterSchema } from "./session.js";
-import type { AuthPermissionAdapter } from "./session.js";
+import { AuthPermissionAdapterSchema } from "./session";
+import type { AuthPermissionAdapter } from "./session";
 
 export const AuthUserId = Schema.NonEmptyString.pipe(
   Schema.brand("AuthUserId")

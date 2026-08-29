@@ -72,6 +72,12 @@ export interface ReissueCompanyMemberInviteInput {
   readonly companyMemberInvitationId: CompanyMemberInvitationIdType;
 }
 
+export interface ProvisionCompanyMemberInput {
+  readonly acceptedIdentity: AcceptedAuthIdentity;
+  readonly actor: CompanyActor;
+  readonly roles: CompanyRoles;
+}
+
 export interface CompanyMemberProvisioned {
   readonly _tag: "CompanyMemberProvisioned";
   readonly inviteeEmail: RedactedEmail;
@@ -200,6 +206,54 @@ export const issueCompanyMemberInvite = (
     );
   });
 
+const provisionCompanyMembership = (
+  input: ProvisionCompanyMemberInput
+): Effect.Effect<
+  CommerceAssociateMembership,
+  | CommerceAccountUnavailable
+  | CommerceCustomerEmailConflict
+  | IdentityMembershipProjectionFailure,
+  CommerceAccounts | CompanyMemberIdentityProjection
+> =>
+  Effect.gen(function* () {
+    const commerceAccounts = yield* CommerceAccounts;
+    const identityProjection = yield* CompanyMemberIdentityProjection;
+    const membership = yield* commerceAccounts.addAssociate({
+      acceptedIdentity: input.acceptedIdentity,
+      businessUnitId: input.actor.businessUnitId,
+      roles: input.roles,
+    });
+    yield* identityProjection.projectMembership({
+      authUserId: input.acceptedIdentity.authUserId,
+      businessUnitId: membership.businessUnitId,
+      roles: membership.roles,
+    });
+
+    return membership;
+  });
+
+export const provisionCompanyMember = (
+  input: ProvisionCompanyMemberInput
+): Effect.Effect<
+  CommerceAssociateMembership,
+  | CommerceAccountUnavailable
+  | CommerceCustomerEmailConflict
+  | IdentityMembershipProjectionFailure
+  | InvitationConflict
+  | InvitationPolicyError,
+  CommerceAccounts | CompanyInvitationPolicy | CompanyMemberIdentityProjection
+> =>
+  Effect.gen(function* () {
+    const policy = yield* CompanyInvitationPolicy;
+    yield* policy.authorizeIssueInvite({
+      actor: input.actor,
+      inviteeEmail: input.acceptedIdentity.email,
+      roles: input.roles,
+    });
+
+    return yield* provisionCompanyMembership(input);
+  });
+
 export const addCompanyMember = (
   input: IssueCompanyMemberInviteInput
 ): Effect.Effect<
@@ -220,8 +274,6 @@ export const addCompanyMember = (
   Effect.gen(function* () {
     const policy = yield* CompanyInvitationPolicy;
     const identityUsers = yield* IdentityUsers;
-    const commerceAccounts = yield* CommerceAccounts;
-    const identityProjection = yield* CompanyMemberIdentityProjection;
 
     yield* policy.authorizeIssueInvite({
       actor: input.actor,
@@ -240,15 +292,10 @@ export const addCompanyMember = (
           existingIdentity.value.firstName ?? input.inviteeName.firstName,
         lastName: existingIdentity.value.lastName ?? input.inviteeName.lastName,
       });
-      const membership = yield* commerceAccounts.addAssociate({
+      const membership = yield* provisionCompanyMembership({
         acceptedIdentity,
-        businessUnitId: input.actor.businessUnitId,
+        actor: input.actor,
         roles: input.roles,
-      });
-      yield* identityProjection.projectMembership({
-        authUserId: acceptedIdentity.authUserId,
-        businessUnitId: membership.businessUnitId,
-        roles: membership.roles,
       });
 
       return {

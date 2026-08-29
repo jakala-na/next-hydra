@@ -161,8 +161,14 @@ vi.mock(import("@repo/commerce-provider/versioned-store"), async () => {
     })
   );
   harness.storeService = storeService;
+  const companyMemberInvitationContainer =
+    "customer-company-member-invitations" as const;
+  const registrationContainer = "b2b-registration-by-id" as const;
 
   return {
+    DEFAULT_COMPANY_MEMBER_INVITATION_CONTAINER:
+      companyMemberInvitationContainer,
+    DEFAULT_REGISTRATION_CONTAINER: registrationContainer,
     versionedKeyValueStoreLayer: () =>
       Layer.succeed(VersionedKeyValueStore, storeService),
   };

@@ -192,11 +192,13 @@ const BASELINE_PROVIDER_DEPENDENCIES = [
   { cwd: "apps/cli", section: "dependencies", slot: "auth" },
   { cwd: "apps/web", section: "dependencies", slot: "auth" },
   { cwd: "packages/feature-flags", section: "dependencies", slot: "auth" },
+  { cwd: "tests/e2e", section: "devDependencies", slot: "auth" },
   { cwd: "apps/cli", section: "dependencies", slot: "cms" },
   { cwd: "apps/web", section: "dependencies", slot: "cms" },
   { cwd: "apps/api", section: "dependencies", slot: "commerce" },
   { cwd: "apps/cli", section: "dependencies", slot: "commerce" },
   { cwd: "apps/web", section: "dependencies", slot: "commerce" },
+  { cwd: "tests/e2e", section: "devDependencies", slot: "commerce" },
 ] satisfies ProviderDependency[];
 
 function selectedProviderDependencies(

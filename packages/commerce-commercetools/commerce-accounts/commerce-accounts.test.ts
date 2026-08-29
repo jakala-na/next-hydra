@@ -1089,7 +1089,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
-  it.effect("rejects an exact Customer that belongs to another company", () =>
+  it.effect("adds an exact Customer to another Business Unit", () =>
     Effect.gen(function* () {
       mocks.customerWithKeyGetExecute.mockResolvedValueOnce({
         body: {
@@ -1113,18 +1113,40 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       mocks.businessUnitQueryGetExecute.mockResolvedValueOnce({
         body: { results: [{ id: "business-unit-2" }] },
       });
+      mocks.businessUnitPostExecute.mockResolvedValueOnce({
+        body: {
+          associates: [
+            {
+              associateRoleAssignments: [
+                {
+                  associateRole: { key: "buyer", typeId: "associate-role" },
+                  inheritance: "Enabled",
+                },
+              ],
+              customer: { id: "customer-1", typeId: "customer" },
+            },
+          ],
+          id: "business-unit-1",
+          status: "Active",
+          version: 4,
+        },
+      });
 
       const commerceAccounts = yield* CommerceAccounts;
-      const failure = yield* commerceAccounts
-        .addAssociate({
-          acceptedIdentity,
-          businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-          roles: ["buyer"],
-        })
-        .pipe(Effect.flip);
+      const membership = yield* commerceAccounts.addAssociate({
+        acceptedIdentity,
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+        roles: ["buyer"],
+      });
 
-      expect(failure).toBeInstanceOf(CommerceCustomerEmailConflict);
-      expect(mocks.businessUnitPost).not.toHaveBeenCalled();
+      expect(membership).toMatchObject({
+        businessUnitId: "business-unit-1",
+        customerId: "customer-1",
+        roles: ["buyer"],
+      });
+      expect(mocks.customerDelete).not.toHaveBeenCalled();
+      expect(mocks.customerCreate).not.toHaveBeenCalled();
+      expect(mocks.businessUnitPost).toHaveBeenCalledOnce();
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 

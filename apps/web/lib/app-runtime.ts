@@ -12,7 +12,10 @@ import {
   commerceCompanyMembershipsLayer,
   productDiscoveryLayer,
 } from "@repo/commerce-provider/provider";
-import { versionedKeyValueStoreLayer } from "@repo/commerce-provider/versioned-store";
+import {
+  DEFAULT_COMPANY_MEMBER_INVITATION_CONTAINER,
+  versionedKeyValueStoreLayer,
+} from "@repo/commerce-provider/versioned-store";
 import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
 import { makeCommerceApp } from "@repo/commerce/runtime/make-commerce-app";
 import { CartPolicies } from "@repo/commerce/services/cart-policies";
@@ -45,7 +48,9 @@ export const CommerceApp = makeCommerceApp({
 
 const companyMemberInvitationRecordsLayer = Layer.unwrap(
   Config.string("COMPANY_MEMBER_INVITATION_CONTAINER").pipe(
-    Config.orElse(() => Config.succeed("customer-company-member-invitations")),
+    Config.orElse(() =>
+      Config.succeed(DEFAULT_COMPANY_MEMBER_INVITATION_CONTAINER)
+    ),
     Effect.map((container) =>
       CompanyMemberInvitationRecords.layerStorage.pipe(
         Layer.provide(versionedKeyValueStoreLayer({ container }))

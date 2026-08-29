@@ -5,6 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./index.ts",
+    "./e2e/auth-context": "./e2e/auth-context.ts",
+    "./e2e/auth-scenario": "./e2e/auth-scenario.ts",
+    "./e2e/auth-test-control": "./e2e/auth-test-control.ts",
     "./access-token": "./access-token.ts",
     "./capabilities": "./capabilities.ts",
     "./cli": "./cli.ts",
@@ -22,6 +25,7 @@
     "@repo/cli-core": "workspace:*"
   },
   "devDependencies": {
+    "@repo/e2e-testing": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "effect": "catalog:",

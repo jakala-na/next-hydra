@@ -1,6 +1,9 @@
 import { companyMemberIdentityProjectionLayer } from "@repo/auth/invitations";
 import { commerceAccountsLayer } from "@repo/commerce-provider/commerce-accounts";
-import { versionedKeyValueStoreLayer } from "@repo/commerce-provider/versioned-store";
+import {
+  DEFAULT_COMPANY_MEMBER_INVITATION_CONTAINER,
+  versionedKeyValueStoreLayer,
+} from "@repo/commerce-provider/versioned-store";
 import {
   acceptCompanyMemberInvitation,
   dispatchInvitationLifecycleEvent,
@@ -27,7 +30,9 @@ export interface AcceptedCompanyMemberIdentityInput {
 
 const recordsLayer = Layer.unwrap(
   Config.string("COMPANY_MEMBER_INVITATION_CONTAINER").pipe(
-    Config.orElse(() => Config.succeed("customer-company-member-invitations")),
+    Config.orElse(() =>
+      Config.succeed(DEFAULT_COMPANY_MEMBER_INVITATION_CONTAINER)
+    ),
     Effect.map((container) =>
       CompanyMemberInvitationRecords.layerStorage.pipe(
         Layer.provide(versionedKeyValueStoreLayer({ container }))

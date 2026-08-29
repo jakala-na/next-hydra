@@ -177,6 +177,26 @@
           "type": "registry:file"
         },
         {
+          "path": "testing/auth.test.ts",
+          "target": "~/packages/auth-clerk/testing/auth.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/auth.ts",
+          "target": "~/packages/auth-clerk/testing/auth.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/index.ts",
+          "target": "~/packages/auth-clerk/testing/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/package.json",
+          "target": "~/packages/auth-clerk/testing/package.json",
+          "type": "registry:file"
+        },
+        {
           "path": "tsconfig.admin.json",
           "target": "~/packages/auth-clerk/tsconfig.admin.json",
           "type": "registry:file"

@@ -42,7 +42,14 @@ describe(makeWorkosIdentityUsers, () => {
         listUsers: async (input) => {
           listInput = input;
           return {
-            data: [{ email: "ada@example.com", id: "user-1" }],
+            data: [
+              {
+                email: "ada@example.com",
+                firstName: null,
+                id: "user-1",
+                lastName: null,
+              },
+            ],
           };
         },
       })
@@ -65,6 +72,40 @@ describe(makeWorkosIdentityUsers, () => {
         });
       }).pipe(Effect.provide(layer))
     );
+  });
+
+  it("reads WorkOS user lists exposed through prototype getters", async () => {
+    const response = new (class {
+      readonly #data = [
+        {
+          email: "ada@example.com",
+          firstName: null,
+          id: "user-1",
+          lastName: null,
+        },
+      ];
+
+      get data() {
+        return this.#data;
+      }
+    })();
+    const layer = makeLayer(
+      makeUserManagement({
+        listUsers: async () => {
+          await Promise.resolve();
+          return response;
+        },
+      })
+    );
+
+    const exists = await Effect.runPromise(
+      Effect.gen(function* () {
+        const identityUsers = yield* IdentityUsers;
+        return yield* identityUsers.hasUserWithEmail(email);
+      }).pipe(Effect.provide(layer))
+    );
+
+    expect(exists).toBeTruthy();
   });
 
   it("resolves a schema-backed identity profile by auth user id", async () => {
@@ -182,7 +223,16 @@ describe(makeWorkosIdentityUsers, () => {
   it("treats malformed WorkOS user lists as defects", async () => {
     const layer = makeLayer(
       makeUserManagement({
-        listUsers: async () => ({ users: [] }),
+        listUsers: async () => ({
+          data: [
+            {
+              email: "ada@example.com",
+              firstName: null,
+              id: "",
+              lastName: null,
+            },
+          ],
+        }),
       })
     );
 

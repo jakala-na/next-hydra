@@ -379,7 +379,11 @@ vi.mock(import("@repo/commerce-provider/provider"), async (importOriginal) => {
 vi.mock(import("@repo/commerce-provider/versioned-store"), async () => {
   const { VersionedKeyValueStore } = await import("@repo/versioned-store");
   const { Layer } = await import("effect");
+  const companyMemberInvitationContainer =
+    "customer-company-member-invitations" as const;
   return {
+    DEFAULT_COMPANY_MEMBER_INVITATION_CONTAINER:
+      companyMemberInvitationContainer,
     versionedKeyValueStoreLayer: () =>
       Layer.fresh(VersionedKeyValueStore.layerMemory),
   };

@@ -1089,7 +1089,9 @@ const makeCommerceCapabilities = (apiRoot: ByProjectKeyRequestBuilder) => {
             toCommerceCustomerId(existingCustomer)
           );
           if (remainingMembership !== null) {
-            return yield* claimedCustomerConflict();
+            return yield* syncCustomerIdentity(existingCustomer, {
+              acceptedIdentity: input.acceptedIdentity,
+            });
           }
 
           return yield* replaceOrphanedCustomer(

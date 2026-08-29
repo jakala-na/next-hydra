@@ -187,6 +187,26 @@
           "type": "registry:file"
         },
         {
+          "path": "testing/auth.test.ts",
+          "target": "~/packages/auth-workos/testing/auth.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/auth.ts",
+          "target": "~/packages/auth-workos/testing/auth.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/index.ts",
+          "target": "~/packages/auth-workos/testing/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/package.json",
+          "target": "~/packages/auth-workos/testing/package.json",
+          "type": "registry:file"
+        },
+        {
           "path": "tsconfig.json",
           "target": "~/packages/auth-workos/tsconfig.json",
           "type": "registry:file"
