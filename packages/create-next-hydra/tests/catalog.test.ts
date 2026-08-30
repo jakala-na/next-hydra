@@ -151,15 +151,15 @@ describe("Next Hydra source registry", () => {
       "apps/admin/app/sign-in/page.tsx",
       "apps/admin/app/sign-out/page.tsx",
       "apps/api/app/api/webhooks/clerk/route.ts",
-      "apps/web/app/accept-invitation/[[...accept-invitation]]/page.tsx",
+      "apps/web/app/[locale]/accept-invitation/[[...accept-invitation]]/page.tsx",
+      "apps/web/app/[locale]/sign-in/[[...sign-in]]/page.tsx",
+      "apps/web/app/[locale]/sign-out/page.tsx",
       "apps/web/app/api/canvas/components/route.ts",
       "apps/web/app/api/disable-draft/route.ts",
       "apps/web/app/api/disable-drupal-preview/route.ts",
       "apps/web/app/api/draft/renew/route.ts",
       "apps/web/app/api/draft/route.ts",
       "apps/web/app/api/drupal-preview/route.ts",
-      "apps/web/app/sign-in/page.tsx",
-      "apps/web/app/sign-out/page.tsx",
     ]);
     expect(clerkRegistry.files?.map((file) => file.target)).toEqual(
       expect.arrayContaining([

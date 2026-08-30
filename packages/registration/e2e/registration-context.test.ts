@@ -42,6 +42,8 @@ describe("RegistrationContext", () => {
     const deletedInvitations: string[] = [];
     const cleanupOrder: string[] = [];
     const auth = AuthTestControl.of({
+      acceptPendingInvitation: (input) =>
+        Effect.succeed({ authUserId: `invited-${input.firstName}`, ...input }),
       createVerifiedIdentity: (input) =>
         Effect.succeed({
           authUserId: "user-ada",
@@ -52,6 +54,7 @@ describe("RegistrationContext", () => {
           deletedUsers.push(identity.authUserId);
           cleanupOrder.push(`identity:${identity.authUserId}`);
         }),
+      emailAddressFor: (uniqueSeed) => `${uniqueSeed}@example.test`,
       revokePendingInvitationsFor: (email) =>
         Effect.sync(() => {
           deletedInvitations.push(email);
@@ -166,6 +169,8 @@ describe("RegistrationContext", () => {
     const deletedUsers: string[] = [];
     const cleanupOrder: string[] = [];
     const auth = AuthTestControl.of({
+      acceptPendingInvitation: (input) =>
+        Effect.succeed({ authUserId: `invited-${input.firstName}`, ...input }),
       createVerifiedIdentity: (input) =>
         Effect.succeed({
           authUserId: `user-${input.firstName.toLowerCase()}`,
@@ -176,6 +181,7 @@ describe("RegistrationContext", () => {
           deletedUsers.push(identity.authUserId);
           cleanupOrder.push(`identity:${identity.authUserId}`);
         }),
+      emailAddressFor: (uniqueSeed) => `${uniqueSeed}@example.test`,
       revokePendingInvitationsFor: () => Effect.void,
       signIn: () => Effect.void,
     });
@@ -274,6 +280,8 @@ describe("RegistrationContext", () => {
     );
     let deleteUserAttempts = 0;
     const auth = AuthTestControl.of({
+      acceptPendingInvitation: (input) =>
+        Effect.succeed({ authUserId: `invited-${input.firstName}`, ...input }),
       createVerifiedIdentity: (input) =>
         Effect.succeed({ authUserId: "user-ada", ...input }),
       deleteIdentity: () =>
@@ -290,6 +298,7 @@ describe("RegistrationContext", () => {
               )
             : Effect.void;
         }),
+      emailAddressFor: (uniqueSeed) => `${uniqueSeed}@example.test`,
       revokePendingInvitationsFor: () => Effect.void,
       signIn: () => Effect.void,
     });

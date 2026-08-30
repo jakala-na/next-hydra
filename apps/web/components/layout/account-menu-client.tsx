@@ -5,6 +5,8 @@ import { AccountMenu } from "@repo/design-system/components/layout/account-menu"
 import type { AccountMenuUser } from "@repo/design-system/components/layout/account-menu";
 import { useLocale, useTranslations } from "@repo/i18n";
 
+import { localizeAuthHref } from "./auth-href";
+
 type AccountMenuClientProps = {
   readonly signInHref: string;
   readonly signOutHref: string;
@@ -39,8 +41,8 @@ export function AccountMenuClient({
           signUp: t("signUp"),
           user: t("user"),
         }}
-        signInHref={signInHref}
-        signOutHref={signOutHref}
+        signInHref={localizeAuthHref(signInHref, locale)}
+        signOutHref={localizeAuthHref(signOutHref, locale)}
         signUpHref={`/${locale}/register`}
         user={user}
       />

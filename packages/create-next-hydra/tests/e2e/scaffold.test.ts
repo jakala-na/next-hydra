@@ -742,11 +742,17 @@ describe("scaffold composition", () => {
           pathExists(
             path.join(
               target,
-              "apps/web/app/accept-invitation/[[...accept-invitation]]/page.tsx"
+              "apps/web/app/[locale]/accept-invitation/[[...accept-invitation]]/page.tsx"
+            )
+          ),
+          pathExists(
+            path.join(
+              target,
+              "apps/web/app/[locale]/sign-in/[[...sign-in]]/page.tsx"
             )
           ),
         ])
-      ).resolves.toStrictEqual([true, false, true, true, true, true]);
+      ).resolves.toStrictEqual([true, false, true, true, true, true, true]);
 
       await expect(
         readFile(path.join(target, "apps/admin/package.json"), "utf-8")

@@ -43,6 +43,22 @@ export class AuthContext {
     this.#options.scenario.identities.set(name, { application, identity });
   }
 
+  identityFor(
+    name: string,
+    application: AuthTestApplication = "web"
+  ): AuthTestIdentity | undefined {
+    const scenarioIdentity = this.#options.scenario.identities.get(name);
+    if (
+      scenarioIdentity !== undefined &&
+      scenarioIdentity.application !== application
+    ) {
+      throw new Error(
+        `${name} belongs to the ${scenarioIdentity.application} application, not ${application}`
+      );
+    }
+    return scenarioIdentity?.identity;
+  }
+
   async givenUser(
     name: string,
     input: GivenAuthUserInput
@@ -83,6 +99,30 @@ export class AuthContext {
       })
     );
     await application.page.goto(application.url);
+  }
+
+  async acceptPendingInvitation(
+    name: string,
+    input: Omit<CreateAuthTestIdentityInput, "permissions">,
+    page: Page,
+    applicationName: AuthTestApplication = "web"
+  ): Promise<AuthTestIdentity> {
+    const application = this.#options.applications[applicationName];
+    const identity = await Effect.runPromise(
+      application.auth.acceptPendingInvitation({
+        applicationUrl: application.url,
+        email: input.email,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        page,
+      })
+    );
+    this.#provisionedIdentities.push({
+      application: applicationName,
+      identity,
+    });
+    this.rememberIdentity(name, identity, applicationName);
+    return identity;
   }
 
   async dispose(): Promise<void> {

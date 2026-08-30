@@ -1,34 +1,43 @@
 import { Then, When } from "@repo/e2e-testing";
-import type { Page } from "@repo/e2e-testing";
+import type { DataTable, Page } from "@repo/e2e-testing";
 
 import { parseCompanyMemberName } from "../company-member-name";
-import {
-  COMPANY_ROLE_LABELS,
-  CompanyMemberInvitationsDriver,
-} from "../drivers/company-member-invitations.driver";
+import { companyRoleLabelsFrom } from "../company-roles";
+import { CompanyMemberInvitationsDriver } from "../drivers/company-member-invitations.driver";
 import type {
-  CompanyMemberInvitee,
-  CompanyRoleLabel,
-} from "../drivers/company-member-invitations.driver";
-import type { RegistrationScenario } from "../registration-scenario";
+  CompanyMemberInvitationReference,
+  RegistrationScenario,
+} from "../registration-scenario";
 
 const driver = (page: Page) => new CompanyMemberInvitationsDriver(page);
 
-const roleLabel = (value: string): CompanyRoleLabel => {
-  const role = COMPANY_ROLE_LABELS.find(
-    (candidate) => candidate.toLowerCase() === value.toLowerCase()
-  );
-  if (role === undefined) {
-    throw new Error(`Unknown Company Role: ${value}`);
+const invitationFrom = (
+  scenario: RegistrationScenario,
+  name: string
+): CompanyMemberInvitationReference => {
+  const invitation = scenario.companyMemberInvitations.get(name);
+  if (invitation === undefined) {
+    throw new Error(
+      `The scenario does not have a Company Member Invitation for ${name}`
+    );
   }
-  return role;
+  return invitation;
 };
 
-const inviteeFrom = (scenario: RegistrationScenario): CompanyMemberInvitee => {
-  if (scenario.companyMemberInvitee === undefined) {
-    throw new Error("The scenario does not have a Company Member invitee");
+const expectedRolesFrom = (
+  invitation: CompanyMemberInvitationReference,
+  dataTable: DataTable
+) => {
+  const expectedRoles = companyRoleLabelsFrom(dataTable);
+  if (
+    expectedRoles.length !== invitation.roles.length ||
+    expectedRoles.some((role) => !invitation.roles.includes(role))
+  ) {
+    throw new Error(
+      `Expected ${invitation.firstName} ${invitation.lastName} to have the Company Roles ${expectedRoles.join(", ")}, but the invitation offered ${invitation.roles.join(", ")}`
+    );
   }
-  return scenario.companyMemberInvitee;
+  return expectedRoles;
 };
 
 When("I am on the Manage Users page", async ({ page }) => {
@@ -36,51 +45,82 @@ When("I am on the Manage Users page", async ({ page }) => {
 });
 
 When(
-  "I invite {string} with the {string} and {string} roles",
+  "I invite {string} with the Company Roles:",
   async (
-    { page, registration, registrationScenario, registrationTestData },
+    { auth, page, registration, registrationScenario, registrationTestData },
     name: string,
-    firstRole: string,
-    secondRole: string
+    dataTable: DataTable
   ) => {
     const { firstName, lastName } = parseCompanyMemberName(name);
-    registrationScenario.companyMemberInvitee = {
-      email: registrationTestData.uniqueEmail(`${firstName}.${lastName}`),
+    const existingIdentity = auth.identityFor(name);
+    const invitation: CompanyMemberInvitationReference = {
+      email:
+        existingIdentity?.email ??
+        registrationTestData.uniqueEmail(
+          `${firstName}-${lastName}`.toLowerCase()
+        ),
       firstName,
       lastName,
+      roles: companyRoleLabelsFrom(dataTable),
     };
-    const roles = [roleLabel(firstRole), roleLabel(secondRole)];
-    const invitee = inviteeFrom(registrationScenario);
 
-    registration.trackCompanyMemberInvitation(invitee.email);
-    await driver(page).invite(invitee, roles);
+    registrationScenario.companyMemberInvitations.set(name, invitation);
+    registration.trackCompanyMemberInvitation(invitation.email);
+    await driver(page).invite(invitation, invitation.roles);
   }
 );
 
 Then(
   "a pending Company Member Invitation is shown for {string}",
   async ({ page, registrationScenario }, name: string) => {
-    const invitee = inviteeFrom(registrationScenario);
-    const expectedName = `${invitee.firstName} ${invitee.lastName}`;
-    if (expectedName !== name) {
-      throw new Error(
-        `Expected the pending invitation for ${name}, but the invitee is ${expectedName}`
-      );
-    }
-    await driver(page).expectPendingInvitation(invitee);
+    await driver(page).expectPendingInvitation(
+      invitationFrom(registrationScenario, name)
+    );
   }
 );
 
 Then(
-  "the invitation offers the {string} and {string} roles",
+  "the invitation for {string} offers the Company Roles:",
   async (
     { page, registrationScenario },
-    firstRole: string,
-    secondRole: string
+    name: string,
+    dataTable: DataTable
   ) => {
+    const invitation = invitationFrom(registrationScenario, name);
     await driver(page).expectInvitationRoles(
-      inviteeFrom(registrationScenario),
-      [roleLabel(firstRole), roleLabel(secondRole)]
+      invitation,
+      expectedRolesFrom(invitation, dataTable)
+    );
+  }
+);
+
+When(
+  "the invited person {string} accepts their invitation",
+  async ({ auth, browser, registrationScenario }, name: string) => {
+    const invitation = invitationFrom(registrationScenario, name);
+    const context = await browser.newContext({ ignoreHTTPSErrors: true });
+    try {
+      const invitedPersonPage = await context.newPage();
+      await auth.acceptPendingInvitation(name, invitation, invitedPersonPage);
+    } finally {
+      await context.close();
+    }
+  }
+);
+
+Then(
+  "the Company Member {string} belongs to {string} with the Company Roles:",
+  async (
+    { page, registrationScenario },
+    name: string,
+    companyName: string,
+    dataTable: DataTable
+  ) => {
+    const invitation = invitationFrom(registrationScenario, name);
+    await driver(page).expectCompanyMember(
+      invitation,
+      companyName,
+      expectedRolesFrom(invitation, dataTable)
     );
   }
 );

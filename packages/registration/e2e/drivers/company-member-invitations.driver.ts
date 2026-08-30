@@ -1,15 +1,12 @@
 import { expect } from "@repo/e2e-testing";
-import type { Page } from "@repo/e2e-testing";
+import type { Locator, Page } from "@repo/e2e-testing";
 
-export const COMPANY_ROLE_LABELS = ["Admin", "Buyer", "Approver"] as const;
+import { COMPANY_ROLE_LABELS } from "../company-roles";
+import type { CompanyRoleLabel } from "../company-roles";
+import type { CompanyMemberInviteeReference } from "../registration-scenario";
 
-export type CompanyRoleLabel = (typeof COMPANY_ROLE_LABELS)[number];
-
-export interface CompanyMemberInvitee {
-  readonly email: string;
-  readonly firstName: string;
-  readonly lastName: string;
-}
+export { COMPANY_ROLE_LABELS } from "../company-roles";
+export type { CompanyRoleLabel } from "../company-roles";
 
 export class CompanyMemberInvitationsDriver {
   readonly #page: Page;
@@ -29,7 +26,7 @@ export class CompanyMemberInvitationsDriver {
   }
 
   async invite(
-    invitee: CompanyMemberInvitee,
+    invitee: CompanyMemberInviteeReference,
     roles: readonly CompanyRoleLabel[]
   ): Promise<void> {
     await this.#page.getByLabel("First name").fill(invitee.firstName);
@@ -48,7 +45,9 @@ export class CompanyMemberInvitationsDriver {
     ).toContainText(`An invitation was sent to ${invitee.email}.`);
   }
 
-  async expectPendingInvitation(invitee: CompanyMemberInvitee): Promise<void> {
+  async expectPendingInvitation(
+    invitee: CompanyMemberInviteeReference
+  ): Promise<void> {
     const row = this.#invitationRow(invitee.email);
 
     await expect(row).toBeVisible();
@@ -57,7 +56,7 @@ export class CompanyMemberInvitationsDriver {
   }
 
   async expectInvitationRoles(
-    invitee: CompanyMemberInvitee,
+    invitee: CompanyMemberInviteeReference,
     roles: readonly CompanyRoleLabel[]
   ): Promise<void> {
     const row = this.#invitationRow(invitee.email);
@@ -70,6 +69,28 @@ export class CompanyMemberInvitationsDriver {
           : expect(roleBadge).toHaveCount(0));
       })
     );
+  }
+
+  async expectCompanyMember(
+    invitee: CompanyMemberInviteeReference,
+    companyName: string,
+    roles: readonly CompanyRoleLabel[]
+  ): Promise<void> {
+    const memberRow = this.#memberRow(invitee.email);
+
+    await expect(async () => {
+      await this.#page.reload();
+      await expect(memberRow).toBeVisible();
+    }).toPass({ timeout: 30_000 });
+    await expect(
+      this.#page
+        .getByRole("group", { name: "Company switcher" })
+        .getByText(companyName, { exact: true })
+    ).toBeVisible();
+    await expect(memberRow).toContainText(
+      `${invitee.firstName} ${invitee.lastName}`
+    );
+    await CompanyMemberInvitationsDriver.#expectRoles(memberRow, roles);
   }
 
   async #setRoleSelection(
@@ -88,5 +109,26 @@ export class CompanyMemberInvitationsDriver {
     return this.#page.getByRole("row").filter({
       has: this.#page.getByText(email, { exact: true }),
     });
+  }
+
+  #memberRow(email: string) {
+    return this.#page
+      .getByRole("row")
+      .filter({ has: this.#page.getByText(email, { exact: true }) })
+      .filter({ has: this.#page.getByText("Active", { exact: true }) });
+  }
+
+  static async #expectRoles(
+    row: Locator,
+    roles: readonly CompanyRoleLabel[]
+  ): Promise<void> {
+    await Promise.all(
+      COMPANY_ROLE_LABELS.map(async (role) => {
+        const roleBadge = row.getByText(role, { exact: true });
+        await (roles.includes(role)
+          ? expect(roleBadge).toBeVisible()
+          : expect(roleBadge).toHaveCount(0));
+      })
+    );
   }
 }

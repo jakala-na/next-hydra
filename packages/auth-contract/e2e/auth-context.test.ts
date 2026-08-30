@@ -23,9 +23,12 @@ const pageStub = (visitedUrls: string[]): Page => {
 
 const authControl = (signedInUserIds: string[]) =>
   AuthTestControl.of({
+    acceptPendingInvitation: (input) =>
+      Effect.succeed({ authUserId: `invited-${input.firstName}`, ...input }),
     createVerifiedIdentity: (input) =>
       Effect.succeed({ authUserId: `user-${input.firstName}`, ...input }),
     deleteIdentity: () => Effect.void,
+    emailAddressFor: (uniqueSeed) => `${uniqueSeed}@example.test`,
     revokePendingInvitationsFor: () => Effect.void,
     signIn: ({ identity }) =>
       Effect.sync(() => {
@@ -108,6 +111,8 @@ describe(AuthContext, () => {
     const createdAdminInputs: unknown[] = [];
     const deletedAdminIds: string[] = [];
     const adminControl = AuthTestControl.of({
+      acceptPendingInvitation: (input) =>
+        Effect.succeed({ authUserId: `invited-${input.firstName}`, ...input }),
       createVerifiedIdentity: (input) =>
         Effect.sync(() => {
           createdAdminInputs.push(input);
@@ -117,6 +122,7 @@ describe(AuthContext, () => {
         Effect.sync(() => {
           deletedAdminIds.push(identity.authUserId);
         }),
+      emailAddressFor: (uniqueSeed) => `${uniqueSeed}@example.test`,
       revokePendingInvitationsFor: () => Effect.void,
       signIn: () => Effect.void,
     });

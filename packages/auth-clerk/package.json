@@ -14,6 +14,7 @@
     "@repo/analytics": "workspace:*",
     "@repo/auth-contract": "workspace:*",
     "@repo/errors": "workspace:*",
+    "@repo/i18n": "workspace:*",
     "@repo/observability": "workspace:*",
     "@repo/registration": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",

@@ -1,6 +1,6 @@
 {
   "providers": {
-    "auth": "workos",
+    "auth": "clerk",
     "cms": "contentstack",
     "commerce": "commercetools"
   },

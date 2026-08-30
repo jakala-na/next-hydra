@@ -23,6 +23,14 @@ export interface SignInAuthTestIdentityInput {
   readonly page: Page;
 }
 
+export interface AcceptPendingAuthInvitationInput {
+  readonly applicationUrl: string;
+  readonly email: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly page: Page;
+}
+
 export class AuthTestFailure extends Schema.TaggedError<AuthTestFailure>()(
   "AuthTestFailure",
   {
@@ -31,6 +39,7 @@ export class AuthTestFailure extends Schema.TaggedError<AuthTestFailure>()(
     operation: Schema.Literals([
       "createIdentity",
       "deleteIdentity",
+      "acceptInvitation",
       "revokeInvitations",
       "signIn",
     ]),
@@ -41,12 +50,16 @@ export class AuthTestFailure extends Schema.TaggedError<AuthTestFailure>()(
 export class AuthTestControl extends Context.Service<
   AuthTestControl,
   {
+    readonly acceptPendingInvitation: (
+      input: AcceptPendingAuthInvitationInput
+    ) => Effect.Effect<AuthTestIdentity, AuthTestFailure>;
     readonly createVerifiedIdentity: (
       input: CreateAuthTestIdentityInput
     ) => Effect.Effect<AuthTestIdentity, AuthTestFailure>;
     readonly deleteIdentity: (
       identity: AuthTestIdentity
     ) => Effect.Effect<void, AuthTestFailure>;
+    readonly emailAddressFor: (uniqueSeed: string) => string;
     readonly revokePendingInvitationsFor: (
       email: string
     ) => Effect.Effect<void, AuthTestFailure>;

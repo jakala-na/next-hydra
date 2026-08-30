@@ -3,8 +3,12 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
-      "@repo/auth": ["../auth-workos"],
-      "@repo/auth/*": ["../auth-workos/*"],
+      "@repo/auth": [
+        "../auth-clerk"
+      ],
+      "@repo/auth/*": [
+        "../auth-clerk/*"
+      ],
       "@repo/*": ["../*"]
     }
   },

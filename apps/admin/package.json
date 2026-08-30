@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@repo/actions": "workspace:*",
-    "@repo/auth": "workspace:@repo/auth-workos@*",
+    "@repo/auth": "workspace:@repo/auth-clerk@*",
     "@repo/design-system": "workspace:*",
     "@repo/next-config": "workspace:*",
     "@repo/observability": "workspace:*",

@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { createClerkClient } from "@clerk/backend";
 import { isClerkAPIResponseError } from "@clerk/backend/errors";
@@ -9,14 +10,25 @@ import {
   AuthTestFailure,
 } from "@repo/auth-contract/e2e/auth-test-control";
 import type { AuthTestIdentity } from "@repo/auth-contract/e2e/auth-test-control";
+import { expect } from "@repo/e2e-testing";
 import type { Page } from "@repo/e2e-testing";
-import { Config, Effect, Layer, Redacted } from "effect";
+import {
+  Config,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  Redacted,
+  Schema,
+} from "effect";
+import { Webhook } from "svix";
 
 import { domainPermissionToClerkPermission } from "../session";
 
 interface ClerkInvitation {
   readonly emailAddress: string;
   readonly id: string;
+  readonly url?: string;
 }
 
 interface ClerkInvitationList {
@@ -29,6 +41,7 @@ export interface ClerkAuthTestApi {
     readonly emailAddress: string[];
     readonly firstName: string;
     readonly lastName: string;
+    readonly skipPasswordRequirement: boolean;
   }) => Promise<{ readonly id: string }>;
   readonly deleteUser: (userId: string) => Promise<void>;
   readonly getInvitationList: (input: {
@@ -37,6 +50,9 @@ export interface ClerkAuthTestApi {
     readonly query: string;
     readonly status: "pending";
   }) => Promise<ClerkInvitationList>;
+  readonly getUserList: (input: {
+    readonly emailAddress: readonly string[];
+  }) => Promise<{ readonly data: readonly { readonly id: string }[] }>;
   readonly revokeInvitation: (invitationId: string) => Promise<void>;
 }
 
@@ -53,8 +69,20 @@ export interface ClerkAuthTestAuthorizationApi {
 }
 
 export interface ClerkAuthTestControlOptions {
+  readonly acceptInvitation: (input: {
+    readonly applicationUrl: string;
+    readonly email: string;
+    readonly firstName: string;
+    readonly invitationUrl: string;
+    readonly lastName: string;
+    readonly page: Page;
+  }) => Promise<{ readonly authUserId: string }>;
   readonly api: ClerkAuthTestApi;
   readonly authorization?: ClerkAuthTestAuthorizationApi;
+  readonly deliverAcceptedInvitation?: (input: {
+    readonly authUserId: string;
+    readonly page: Page;
+  }) => Promise<void>;
   readonly signIn: (input: {
     readonly emailAddress: string;
     readonly organizationId?: string;
@@ -64,6 +92,60 @@ export interface ClerkAuthTestControlOptions {
 
 const pageSize = 100;
 const clerkTestingTokenParameter = "__clerk_testing_token";
+const cleanupRetryAttempts = 3;
+const cleanupRetryDelayMilliseconds = 250;
+
+const TransportFailure = Schema.Struct({
+  cause: Schema.optionalKey(Schema.Unknown),
+  code: Schema.optionalKey(Schema.String),
+});
+type TransportFailure = typeof TransportFailure.Type;
+
+const transientTransportFailureCodes = new Set([
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ETIMEDOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_SOCKET",
+]);
+
+const hasTransientTransportFailureCode = (
+  transportFailure: TransportFailure
+): boolean => {
+  let candidate: TransportFailure | undefined = transportFailure;
+
+  for (let depth = 0; candidate !== undefined && depth < 8; depth += 1) {
+    if (
+      candidate.code !== undefined &&
+      transientTransportFailureCodes.has(candidate.code)
+    ) {
+      return true;
+    }
+    candidate = Option.getOrUndefined(
+      Schema.decodeUnknownOption(TransportFailure)(candidate.cause)
+    );
+  }
+
+  return false;
+};
+
+const emailIdentityPart = (value: string) => {
+  const normalized = value
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/gu, "-")
+    .replaceAll(/^-|-$/gu, "")
+    .slice(0, 10);
+  const readablePart = normalized.length === 0 ? "test" : normalized;
+  const fingerprint = createHash("sha256")
+    .update(value)
+    .digest("hex")
+    .slice(0, 8);
+  return `${readablePart}-${fingerprint}`;
+};
 
 const failure = (operation: AuthTestFailure["operation"], cause: unknown) =>
   new AuthTestFailure({
@@ -75,9 +157,41 @@ const failure = (operation: AuthTestFailure["operation"], cause: unknown) =>
     provider: "clerk",
   });
 
+const retryClerkCleanup = async <Result>(
+  operation: () => Promise<Result>,
+  attempt = 0
+): Promise<Result> => {
+  try {
+    return await operation();
+  } catch (error) {
+    const clerkResponseError = isClerkAPIResponseError(error)
+      ? error
+      : undefined;
+    const transportFailure = Option.getOrUndefined(
+      Schema.decodeUnknownOption(TransportFailure)(error)
+    );
+    const retryable =
+      (clerkResponseError !== undefined &&
+        (clerkResponseError.status === 429 ||
+          clerkResponseError.status >= 500)) ||
+      (transportFailure !== undefined &&
+        hasTransientTransportFailureCode(transportFailure));
+    if (!retryable || attempt >= cleanupRetryAttempts - 1) {
+      throw error;
+    }
+
+    const delayMilliseconds =
+      clerkResponseError?.retryAfter === undefined
+        ? cleanupRetryDelayMilliseconds * 2 ** attempt
+        : clerkResponseError.retryAfter * 1000;
+    await delay(delayMilliseconds);
+    return await retryClerkCleanup(operation, attempt + 1);
+  }
+};
+
 const ignoreNotFound = async (operation: () => Promise<void>) => {
   try {
-    await operation();
+    await retryClerkCleanup(operation);
   } catch (error) {
     if (!(isClerkAPIResponseError(error) && error.status === 404)) {
       throw error;
@@ -89,8 +203,151 @@ export const makeClerkAuthTestControl = (
   options: ClerkAuthTestControlOptions
 ) => {
   const organizationIds = new Map<string, string>();
+  const getPendingInvitations = async (
+    email: string,
+    offset: number
+  ): Promise<ClerkInvitationList> =>
+    await retryClerkCleanup(
+      async () =>
+        await options.api.getInvitationList({
+          limit: pageSize,
+          offset,
+          query: email,
+          status: "pending",
+        })
+    );
+  const pendingInvitationsFor = async (
+    email: string
+  ): Promise<readonly ClerkInvitation[]> => {
+    const normalizedEmail = email.toLowerCase();
+    const matchingInvitations: ClerkInvitation[] = [];
+    let offset = 0;
+    while (true) {
+      // oxlint-disable-next-line no-await-in-loop -- Clerk pagination must be read sequentially.
+      const invitations = await getPendingInvitations(email, offset);
+      matchingInvitations.push(
+        ...invitations.data.filter(
+          (invitation) =>
+            invitation.emailAddress.toLowerCase() === normalizedEmail
+        )
+      );
+      offset += invitations.data.length;
+      if (invitations.data.length === 0 || offset >= invitations.totalCount) {
+        return matchingInvitations;
+      }
+    }
+  };
+  const userIdsForEmail = async (email: string): Promise<Set<string>> => {
+    const users = await retryClerkCleanup(
+      async () => await options.api.getUserList({ emailAddress: [email] })
+    );
+    return new Set(users.data.map(({ id }) => id));
+  };
+  const newlyCreatedUserIdsForEmail = async (
+    email: string,
+    preexistingUserIds: ReadonlySet<string>
+  ): Promise<Set<string>> => {
+    for (let attempt = 0; attempt < cleanupRetryAttempts; attempt += 1) {
+      // oxlint-disable-next-line no-await-in-loop -- Clerk user indexing can lag behind a successful browser signup.
+      const currentUserIds = await userIdsForEmail(email);
+      const createdUserIds = new Set(
+        [...currentUserIds].filter((id) => !preexistingUserIds.has(id))
+      );
+      if (createdUserIds.size > 0 || attempt === cleanupRetryAttempts - 1) {
+        return createdUserIds;
+      }
+      // oxlint-disable-next-line no-await-in-loop -- Bounded compensation retry waits for Clerk user indexing.
+      await delay(cleanupRetryDelayMilliseconds * 2 ** attempt);
+    }
+    return new Set();
+  };
 
   return AuthTestControl.of({
+    acceptPendingInvitation: ({
+      applicationUrl,
+      email,
+      firstName,
+      lastName,
+      page,
+    }) =>
+      Effect.tryPromise({
+        catch: (cause) => failure("acceptInvitation", cause),
+        try: async () => {
+          const [invitation] = await pendingInvitationsFor(email);
+          if (invitation === undefined) {
+            throw new Error(`No pending Clerk invitation exists for ${email}`);
+          }
+          if (invitation.url === undefined) {
+            throw new Error(
+              `The pending Clerk invitation for ${email} has no acceptance URL`
+            );
+          }
+
+          const preexistingUserIds = await userIdsForEmail(email);
+          let acceptedAuthUserId: string | undefined;
+          try {
+            ({ authUserId: acceptedAuthUserId } =
+              await options.acceptInvitation({
+                applicationUrl,
+                email,
+                firstName,
+                invitationUrl: invitation.url,
+                lastName,
+                page,
+              }));
+            await options.deliverAcceptedInvitation?.({
+              authUserId: acceptedAuthUserId,
+              page,
+            });
+          } catch (error) {
+            const cleanupFailures: unknown[] = [];
+            try {
+              const createdUserIds =
+                acceptedAuthUserId === undefined
+                  ? await newlyCreatedUserIdsForEmail(email, preexistingUserIds)
+                  : new Set(
+                      preexistingUserIds.has(acceptedAuthUserId)
+                        ? []
+                        : [acceptedAuthUserId]
+                    );
+              const cleanupResults = await Promise.all(
+                [...createdUserIds].map(async (userId) => {
+                  try {
+                    await ignoreNotFound(async () => {
+                      await options.api.deleteUser(userId);
+                    });
+                    return undefined;
+                  } catch (cleanupError) {
+                    return cleanupError;
+                  }
+                })
+              );
+              for (const cleanupResult of cleanupResults) {
+                if (cleanupResult !== undefined) {
+                  cleanupFailures.push(cleanupResult);
+                }
+              }
+            } catch (cleanupError) {
+              cleanupFailures.push(cleanupError);
+            }
+            if (cleanupFailures.length > 0) {
+              const aggregateFailure = new AggregateError(
+                [error, ...cleanupFailures],
+                `Failed to clean up Clerk user after invitation acceptance failed for ${email}`,
+                { cause: error }
+              );
+              throw aggregateFailure;
+            }
+            throw error;
+          }
+          return {
+            authUserId: acceptedAuthUserId,
+            email,
+            firstName,
+            lastName,
+          };
+        },
+      }),
     createVerifiedIdentity: (input) =>
       Effect.tryPromise({
         catch: (cause) => failure("createIdentity", cause),
@@ -99,6 +356,7 @@ export const makeClerkAuthTestControl = (
             emailAddress: [input.email],
             firstName: input.firstName,
             lastName: input.lastName,
+            skipPasswordRequirement: true,
           });
           let organizationId: string | undefined;
           try {
@@ -179,40 +437,16 @@ export const makeClerkAuthTestControl = (
           })
         )
       ),
+    emailAddressFor: (uniqueSeed) =>
+      `delivered+clerk_test_${emailIdentityPart(uniqueSeed)}@resend.dev`,
     revokePendingInvitationsFor: (email) =>
       Effect.tryPromise({
         catch: (cause) => failure("revokeInvitations", cause),
         try: async () => {
-          const normalizedEmail = email.toLowerCase();
-          const matchingInvitationIds: string[] = [];
-          let offset = 0;
-          while (true) {
-            // oxlint-disable-next-line no-await-in-loop -- Clerk pagination must be read sequentially.
-            const invitations = await options.api.getInvitationList({
-              limit: pageSize,
-              offset,
-              query: email,
-              status: "pending",
-            });
-            const matchingInvitations = invitations.data.filter(
-              (invitation) =>
-                invitation.emailAddress.toLowerCase() === normalizedEmail
-            );
-            matchingInvitationIds.push(
-              ...matchingInvitations.map(({ id }) => id)
-            );
-
-            offset += invitations.data.length;
-            if (
-              invitations.data.length === 0 ||
-              offset >= invitations.totalCount
-            ) {
-              break;
-            }
-          }
+          const matchingInvitations = await pendingInvitationsFor(email);
 
           await Promise.all(
-            matchingInvitationIds.map(async (invitationId) => {
+            matchingInvitations.map(async ({ id: invitationId }) => {
               await ignoreNotFound(async () => {
                 await options.api.revokeInvitation(invitationId);
               });
@@ -244,10 +478,49 @@ export const makeClerkAuthTestControl = (
 interface ClerkAuthTestEnvironmentNames {
   readonly publishableKey: string;
   readonly secretKey: string;
+  readonly webhookSecret?: string;
 }
+
+const isLocalE2EApi = (value: string): boolean => {
+  const { hostname } = new URL(value);
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname.endsWith(".localhost")
+  );
+};
 
 const escapeRegularExpression = (value: string): string =>
   value.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+
+const ClerkTestingState = Schema.StructWithRest(
+  Schema.Struct({ captcha_bypass: Schema.optionalKey(Schema.Boolean) }),
+  [Schema.Record(Schema.String, Schema.Unknown)]
+);
+
+const ClerkTestingResponse = Schema.StructWithRest(
+  Schema.Struct({
+    client: Schema.optionalKey(Schema.NullOr(ClerkTestingState)),
+    response: Schema.optionalKey(Schema.NullOr(ClerkTestingState)),
+  }),
+  [Schema.Record(Schema.String, Schema.Unknown)]
+);
+
+type ClerkTestingResponse = typeof ClerkTestingResponse.Type;
+
+const withClerkCaptchaBypass = (
+  value: ClerkTestingResponse
+): ClerkTestingResponse => {
+  const { client, response } = value;
+  if (response?.captcha_bypass === false) {
+    Object.assign(response, { captcha_bypass: true });
+  }
+  if (client?.captcha_bypass === false) {
+    Object.assign(client, { captcha_bypass: true });
+  }
+  return value;
+};
 
 const clerkAuthTestControlLayer = (names: ClerkAuthTestEnvironmentNames) =>
   Layer.effect(
@@ -257,6 +530,17 @@ const clerkAuthTestControlLayer = (names: ClerkAuthTestEnvironmentNames) =>
       const secretKey = yield* Config.redacted(names.secretKey);
       const secretKeyValue = Redacted.value(secretKey);
       const client = createClerkClient({ secretKey: secretKeyValue });
+      const e2eApiUrl = Option.getOrUndefined(
+        yield* Config.option(Config.string("E2E_API_URL"))
+      );
+      const localE2EApiUrl =
+        e2eApiUrl !== undefined && isLocalE2EApi(e2eApiUrl)
+          ? e2eApiUrl
+          : undefined;
+      const localWebhookSecret =
+        names.webhookSecret !== undefined && localE2EApiUrl !== undefined
+          ? Redacted.value(yield* Config.redacted(names.webhookSecret))
+          : undefined;
       const parsedPublishableKey = parsePublishableKey(publishableKey, {
         fatal: true,
       });
@@ -267,7 +551,206 @@ const clerkAuthTestControlLayer = (names: ClerkAuthTestEnvironmentNames) =>
       const testingToken = testingTokenResponse.token;
       const configuredContexts = new WeakSet();
 
+      const configureContext = async (page: Page) => {
+        const context = page.context();
+        if (!configuredContexts.has(context)) {
+          const frontendApiUrl = parsedPublishableKey.frontendApi;
+          const clerkApiPattern = new RegExp(
+            `^https://${escapeRegularExpression(frontendApiUrl)}/v1/`,
+            "u"
+          );
+          await context.route(clerkApiPattern, async (route) => {
+            const url = new URL(route.request().url());
+            url.searchParams.set(clerkTestingTokenParameter, testingToken);
+            if (route.request().isNavigationRequest()) {
+              await route.continue({ url: url.href });
+              return;
+            }
+            const response = await route.fetch({ url: url.href });
+            const responseJson = Schema.decodeUnknownSync(ClerkTestingResponse)(
+              await response.json()
+            );
+            await route.fulfill({
+              json: withClerkCaptchaBypass(responseJson),
+              response,
+            });
+          });
+          configuredContexts.add(context);
+        }
+      };
+
+      const configurePage = async (page: Page) => {
+        await configureContext(page);
+        await clerk.loaded({ page });
+      };
+
+      const signInWithTicket = async (
+        page: Page,
+        ticket: string,
+        activeOrganizationId?: string
+      ) => {
+        await configurePage(page);
+        await page.evaluate(
+          async ({ organizationId, invitationTicket }) => {
+            const attempt = await window.Clerk.client?.signIn.create({
+              strategy: "ticket",
+              ticket: invitationTicket,
+            });
+            if (attempt?.status !== "complete") {
+              throw new Error(
+                `Clerk ticket sign-in did not complete: ${attempt?.status ?? "unavailable"}`
+              );
+            }
+            await (organizationId === undefined
+              ? window.Clerk.setActive({ session: attempt.createdSessionId })
+              : window.Clerk.setActive({
+                  organization: organizationId,
+                  session: attempt.createdSessionId,
+                }));
+          },
+          { invitationTicket: ticket, organizationId: activeOrganizationId }
+        );
+        await page.waitForFunction(() => window.Clerk?.user !== null);
+      };
+
+      const deliverAcceptedInvitation =
+        localWebhookSecret === undefined || localE2EApiUrl === undefined
+          ? undefined
+          : async ({
+              authUserId,
+              page,
+            }: {
+              readonly authUserId: string;
+              readonly page: Page;
+            }) => {
+              const user = await client.users.getUser(authUserId);
+              const event = {
+                data: {
+                  created_at: user.createdAt,
+                  email_addresses: user.emailAddresses.map(
+                    ({ emailAddress, id }) => ({
+                      email_address: emailAddress,
+                      id,
+                    })
+                  ),
+                  first_name: user.firstName,
+                  id: user.id,
+                  image_url: user.imageUrl,
+                  last_name: user.lastName,
+                  phone_numbers: user.phoneNumbers.map(({ phoneNumber }) => ({
+                    phone_number: phoneNumber,
+                  })),
+                  primary_email_address_id: user.primaryEmailAddressId,
+                  public_metadata: user.publicMetadata,
+                },
+                object: "event",
+                type: "user.created",
+              };
+              const body = JSON.stringify(event);
+              const messageId = `msg_${randomUUID()}`;
+              const timestamp = DateTime.toDateUtc(DateTime.nowUnsafe());
+              const signature = new Webhook(localWebhookSecret).sign(
+                messageId,
+                timestamp,
+                body
+              );
+              const response = await page.request.post(
+                new URL("/api/webhooks/clerk", localE2EApiUrl).href,
+                {
+                  data: body,
+                  headers: {
+                    "content-type": "application/json",
+                    "svix-id": messageId,
+                    "svix-signature": signature,
+                    "svix-timestamp": String(
+                      Math.floor(timestamp.getTime() / 1000)
+                    ),
+                  },
+                }
+              );
+              if (!response.ok()) {
+                throw new Error(
+                  `The local Clerk webhook relay failed with ${response.status()}: ${await response.text()}`
+                );
+              }
+            };
+
       return makeClerkAuthTestControl({
+        acceptInvitation: async ({
+          applicationUrl,
+          email,
+          firstName,
+          invitationUrl,
+          lastName,
+          page,
+        }) => {
+          await configureContext(page);
+          const invitationTicket = new URL(invitationUrl).searchParams.get(
+            "ticket"
+          );
+          if (invitationTicket === null) {
+            throw new Error("The Clerk invitation URL has no ticket");
+          }
+
+          await page.goto(invitationUrl);
+          const expectedRedirectUrl = new URL(
+            "/accept-invitation",
+            applicationUrl
+          );
+          await expect(page).toHaveURL(
+            (url) =>
+              url.origin === expectedRedirectUrl.origin &&
+              url.pathname === expectedRedirectUrl.pathname &&
+              url.searchParams.get("__clerk_ticket") === invitationTicket
+          );
+          await clerk.loaded({ page });
+
+          const signUp = page.locator(".cl-signUp-root");
+          await expect(signUp).toBeVisible();
+
+          const fillIfVisible = async (name: string, value: string) => {
+            const input = signUp.locator(`input[name=${name}]`);
+            if (await input.isVisible()) {
+              await input.fill(value);
+            }
+          };
+          await fillIfVisible("firstName", firstName);
+          await fillIfVisible("lastName", lastName);
+          await fillIfVisible(
+            "username",
+            `e2e_${randomUUID().replaceAll("-", "")}`
+          );
+
+          const emailInput = signUp.locator("input[name=emailAddress]");
+          if (
+            (await emailInput.isVisible()) &&
+            (await emailInput.isEditable())
+          ) {
+            await emailInput.fill(email);
+          }
+          await signUp
+            .locator("input[name=password]")
+            .fill(`E2E-A9!-${randomUUID()}`);
+
+          const legalAcceptance = signUp.locator("input[name=legalAccepted]");
+          if (await legalAcceptance.isVisible()) {
+            await legalAcceptance.check();
+          }
+
+          await signUp
+            .getByRole("button", { exact: true, name: "Continue" })
+            .click();
+          await page.waitForFunction(
+            () => window.Clerk?.user?.id !== undefined
+          );
+          const authUserId = await page.evaluate(
+            () => window.Clerk.user?.id ?? null
+          );
+          if (authUserId === null) {
+            throw new Error("Clerk invitation acceptance created no user");
+          }
+          return { authUserId };
+        },
         api: {
           createUser: async (input) => await client.users.createUser(input),
           deleteUser: async (userId) => {
@@ -275,6 +758,10 @@ const clerkAuthTestControlLayer = (names: ClerkAuthTestEnvironmentNames) =>
           },
           getInvitationList: async (input) =>
             await client.invitations.getInvitationList(input),
+          getUserList: async (input) =>
+            await client.users.getUserList({
+              emailAddress: [...input.emailAddress],
+            }),
           revokeInvitation: async (invitationId) => {
             await client.invitations.revokeInvitation(invitationId);
           },
@@ -365,24 +852,8 @@ const clerkAuthTestControlLayer = (names: ClerkAuthTestEnvironmentNames) =>
             await client.organizations.deleteOrganization(organizationId);
           },
         },
+        deliverAcceptedInvitation,
         signIn: async ({ emailAddress, organizationId, page }) => {
-          const context = page.context();
-          if (!configuredContexts.has(context)) {
-            const frontendApiUrl = parsedPublishableKey.frontendApi;
-            const clerkApiPattern = new RegExp(
-              `^https://${escapeRegularExpression(frontendApiUrl)}/v1/`,
-              "u"
-            );
-            await context.route(clerkApiPattern, async (route) => {
-              const url = new URL(route.request().url());
-              url.searchParams.set(clerkTestingTokenParameter, testingToken);
-              const response = await route.fetch({ url: url.href });
-              await route.fulfill({ response });
-            });
-            configuredContexts.add(context);
-          }
-
-          await clerk.loaded({ page });
           const users = await client.users.getUserList({
             emailAddress: [emailAddress],
           });
@@ -394,32 +865,7 @@ const clerkAuthTestControlLayer = (names: ClerkAuthTestEnvironmentNames) =>
             expiresInSeconds: 300,
             userId: user.id,
           });
-          await page.evaluate(
-            async ({ activeOrganizationId, ticket }) => {
-              const attempt = await window.Clerk.client?.signIn.create({
-                strategy: "ticket",
-                ticket,
-              });
-              if (attempt?.status !== "complete") {
-                throw new Error(
-                  `Clerk ticket sign-in did not complete: ${attempt?.status ?? "unavailable"}`
-                );
-              }
-              await (activeOrganizationId === undefined
-                ? window.Clerk.setActive({
-                    session: attempt.createdSessionId,
-                  })
-                : window.Clerk.setActive({
-                    organization: activeOrganizationId,
-                    session: attempt.createdSessionId,
-                  }));
-            },
-            {
-              activeOrganizationId: organizationId,
-              ticket: signInToken.token,
-            }
-          );
-          await page.waitForFunction(() => window.Clerk?.user !== null);
+          await signInWithTicket(page, signInToken.token, organizationId);
         },
       });
     })
@@ -428,6 +874,7 @@ const clerkAuthTestControlLayer = (names: ClerkAuthTestEnvironmentNames) =>
 export const authTestControlLayer = clerkAuthTestControlLayer({
   publishableKey: "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
   secretKey: "CLERK_SECRET_KEY",
+  webhookSecret: "CLERK_WEBHOOK_SECRET",
 });
 
 export const adminAuthTestControlLayer = clerkAuthTestControlLayer({

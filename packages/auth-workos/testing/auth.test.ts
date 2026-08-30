@@ -17,6 +17,30 @@ const accessToken = (permissions: readonly string[]) =>
   `header.${Buffer.from(JSON.stringify({ permissions })).toString("base64url")}.signature`;
 
 describe("makeWorkosAuthTestControl", () => {
+  it("constructs deterministic WorkOS-safe email addresses", () => {
+    const control = makeWorkosAuthTestControl({
+      clientId: "client_test",
+      cookieName: "wos-session",
+      cookiePassword: "a-secure-cookie-password-for-testing",
+      userManagement: {
+        authenticateWithPassword: () =>
+          Promise.resolve({ sealedSession: "sealed-session" }),
+        createUser: () => Promise.resolve({ id: "unused" }),
+        deleteUser: () => Promise.resolve(),
+        listInvitations: () => Promise.resolve({ data: [] }),
+        revokeInvitation: (invitationId) =>
+          Promise.resolve({ id: invitationId }),
+      },
+    });
+
+    const email = control.emailAddressFor("Grace Hopper/run 1");
+
+    expect(email).toMatch(/^delivered\+[a-z0-9-]+@resend\.dev$/u);
+    expect(email).not.toContain("clerk_test");
+    expect(control.emailAddressFor("Grace Hopper/run 1")).toBe(email);
+    expect(control.emailAddressFor("Grace Hopper/run 2")).not.toBe(email);
+  });
+
   it("provisions and removes an authorized organization membership", async () => {
     const memberships: object[] = [];
     const deletedResources: string[] = [];
@@ -191,6 +215,81 @@ describe("makeWorkosAuthTestControl", () => {
     ]);
   });
 
+  it("accepts the exact pending invitation with the WorkOS invitation token", async () => {
+    const authentications: Parameters<
+      WorkosTestUserManagement["authenticateWithPassword"]
+    >[0][] = [];
+    const control = makeWorkosAuthTestControl({
+      clientId: "client_test",
+      cookieName: "wos-session",
+      cookiePassword: "a-secure-cookie-password-for-testing",
+      makePassword: () => "a-unique-password",
+      userManagement: {
+        authenticateWithPassword: (input) => {
+          authentications.push(input);
+          return Promise.resolve({ sealedSession: "sealed-session" });
+        },
+        createUser: () => Promise.resolve({ id: "user-grace" }),
+        deleteUser: () => Promise.resolve(),
+        listInvitations: () =>
+          Promise.resolve({
+            data: [
+              {
+                email: "other@example.test",
+                id: "invitation-other",
+                state: "pending" as const,
+                token: "other-token",
+              },
+              {
+                email: "GRACE@EXAMPLE.TEST",
+                id: "invitation-grace",
+                state: "pending" as const,
+                token: "grace-token",
+              },
+            ],
+          }),
+        revokeInvitation: (invitationId) =>
+          Promise.resolve({ id: invitationId }),
+      },
+    });
+    const pageStub = {
+      context: () => ({
+        addCookies: (_cookies: object[]) => Promise.resolve(),
+      }),
+    };
+    // SAFETY: this provider test exercises only Page.context().addCookies, which the stub implements.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    const page = pageStub as Page;
+    const identity = await Effect.runPromise(
+      control.acceptPendingInvitation({
+        applicationUrl: "http://localhost:3001",
+        email: "grace@example.test",
+        firstName: "Grace",
+        lastName: "Hopper",
+        page,
+      })
+    );
+
+    expect(authentications).toStrictEqual([
+      {
+        clientId: "client_test",
+        email: "grace@example.test",
+        invitationToken: "grace-token",
+        password: "a-unique-password",
+        session: {
+          cookiePassword: "a-secure-cookie-password-for-testing",
+          sealSession: true,
+        },
+      },
+    ]);
+    expect(identity).toStrictEqual({
+      authUserId: "user-grace",
+      email: "grace@example.test",
+      firstName: "Grace",
+      lastName: "Hopper",
+    });
+  });
+
   it("revokes pending invitations for an E2E test email", async () => {
     const revokedInvitationIds: string[] = [];
     const control = makeWorkosAuthTestControl({
@@ -211,8 +310,18 @@ describe("makeWorkosAuthTestControl", () => {
         listInvitations: () =>
           Promise.resolve({
             data: [
-              { id: "invitation-pending", state: "pending" as const },
-              { id: "invitation-accepted", state: "accepted" as const },
+              {
+                email: "grace@example.test",
+                id: "invitation-pending",
+                state: "pending" as const,
+                token: "pending-token",
+              },
+              {
+                email: "grace@example.test",
+                id: "invitation-accepted",
+                state: "accepted" as const,
+                token: "accepted-token",
+              },
             ],
           }),
         revokeInvitation: (invitationId) => {
@@ -242,7 +351,14 @@ describe("makeWorkosAuthTestControl", () => {
         deleteUser: () => Promise.reject(workosNotFound()),
         listInvitations: () =>
           Promise.resolve({
-            data: [{ id: "invitation-missing", state: "pending" as const }],
+            data: [
+              {
+                email: "missing@example.test",
+                id: "invitation-missing",
+                state: "pending" as const,
+                token: "missing-token",
+              },
+            ],
           }),
         revokeInvitation: () => Promise.reject(workosNotFound()),
       },

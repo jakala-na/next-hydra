@@ -1,4 +1,4 @@
-import type { CompanyMemberInvitee } from "./drivers/company-member-invitations.driver";
+import type { CompanyRoleLabel } from "./company-roles";
 import type {
   RegistrationCompany,
   RegistrationCompanyMember,
@@ -9,15 +9,29 @@ export interface RegistrationReference {
   readonly registrationId: string;
 }
 
+export interface CompanyMemberInviteeReference {
+  readonly email: string;
+  readonly firstName: string;
+  readonly lastName: string;
+}
+
+export interface CompanyMemberInvitationReference extends CompanyMemberInviteeReference {
+  readonly roles: readonly CompanyRoleLabel[];
+}
+
 export interface RegistrationScenario {
-  companyMemberInvitee?: CompanyMemberInvitee;
   readonly companies: Map<string, RegistrationCompany>;
+  readonly companyMemberInvitations: Map<
+    string,
+    CompanyMemberInvitationReference
+  >;
   readonly companyMembers: Map<string, RegistrationCompanyMember>;
   readonly registrations: Map<string, RegistrationReference>;
 }
 
 export const createRegistrationScenario = (): RegistrationScenario => ({
   companies: new Map(),
+  companyMemberInvitations: new Map(),
   companyMembers: new Map(),
   registrations: new Map(),
 });

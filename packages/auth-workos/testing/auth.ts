@@ -6,6 +6,7 @@ import {
   AuthTestFailure,
 } from "@repo/auth-contract/e2e/auth-test-control";
 import type { AuthTestIdentity } from "@repo/auth-contract/e2e/auth-test-control";
+import type { Page } from "@repo/e2e-testing";
 import { NotFoundException, WorkOS } from "@workos-inc/node";
 import { Config, Effect, Layer, Redacted, Schema } from "effect";
 
@@ -13,6 +14,7 @@ export interface WorkosTestUserManagement {
   readonly authenticateWithPassword: (input: {
     readonly clientId: string;
     readonly email: string;
+    readonly invitationToken?: string;
     readonly password: string;
     readonly session: {
       readonly cookiePassword: string;
@@ -32,8 +34,10 @@ export interface WorkosTestUserManagement {
   readonly deleteUser: (userId: string) => Promise<void>;
   readonly listInvitations: (input: { readonly email: string }) => Promise<{
     readonly data: readonly {
+      readonly email: string;
       readonly id: string;
       readonly state: "accepted" | "expired" | "pending" | "revoked";
+      readonly token: string;
     }[];
   }>;
   readonly revokeInvitation: (
@@ -73,6 +77,20 @@ interface WorkosTestCredentials {
 const defaultPassword = () => `E2E-A9!-${randomUUID()}`;
 const defaultWaitForAuthorization = async () => {
   await delay(500);
+};
+
+const emailIdentityPart = (value: string) => {
+  const normalized = value
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/gu, "-")
+    .replaceAll(/^-|-$/gu, "")
+    .slice(0, 10);
+  const readablePart = normalized.length === 0 ? "test" : normalized;
+  const fingerprint = createHash("sha256")
+    .update(value)
+    .digest("hex")
+    .slice(0, 8);
+  return `${readablePart}-${fingerprint}`;
 };
 
 const AccessTokenPermissions = Schema.Struct({
@@ -130,7 +148,129 @@ export const makeWorkosAuthTestControl = (
   const waitForAuthorization =
     options.waitForAuthorization ?? defaultWaitForAuthorization;
 
+  const authenticate = async (
+    identityCredentials: WorkosTestCredentials,
+    applicationUrl: string,
+    page: Page,
+    invitationToken?: string
+  ) => {
+    let sealedSession: string | undefined;
+    let grantedPermissions: readonly string[] = [];
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const authenticationInput: Parameters<
+        WorkosTestUserManagement["authenticateWithPassword"]
+      >[0] = {
+        clientId: options.clientId,
+        email: identityCredentials.email,
+        password: identityCredentials.password,
+        session: {
+          cookiePassword: options.cookiePassword,
+          sealSession: true,
+        },
+      };
+      if (invitationToken !== undefined) {
+        Object.assign(authenticationInput, { invitationToken });
+      }
+      const authentication =
+        // oxlint-disable-next-line no-await-in-loop -- Each bounded retry validates a newly issued WorkOS token after eventual-consistency delay.
+        await options.userManagement.authenticateWithPassword(
+          authenticationInput
+        );
+      const { accessToken, sealedSession: authenticatedSession } =
+        authentication;
+      grantedPermissions =
+        accessToken === undefined ? [] : accessTokenPermissions(accessToken);
+      if (
+        identityCredentials.permissions === undefined ||
+        hasPermissions(grantedPermissions, identityCredentials.permissions)
+      ) {
+        sealedSession = authenticatedSession;
+        break;
+      }
+      if (attempt < 4) {
+        // oxlint-disable-next-line no-await-in-loop -- This bounded delay lets WorkOS authorization changes propagate.
+        await waitForAuthorization();
+      }
+    }
+    if (sealedSession === undefined) {
+      if (identityCredentials.permissions !== undefined) {
+        throw new Error(
+          `WorkOS session did not receive permissions ${identityCredentials.permissions.join(", ")}; received ${grantedPermissions.join(", ") || "none"}`
+        );
+      }
+      throw new Error("WorkOS did not return a sealed session");
+    }
+
+    const url = new URL(applicationUrl);
+    await page.context().addCookies([
+      {
+        httpOnly: true,
+        name: options.cookieName,
+        sameSite: "Lax",
+        secure: url.protocol === "https:",
+        url: url.origin,
+        value: sealedSession,
+      },
+    ]);
+  };
+
   return AuthTestControl.of({
+    acceptPendingInvitation: ({
+      applicationUrl,
+      email,
+      firstName,
+      lastName,
+      page,
+    }) =>
+      Effect.tryPromise({
+        catch: (cause) => failure("acceptInvitation", cause),
+        try: async () => {
+          const invitations = await options.userManagement.listInvitations({
+            email,
+          });
+          const invitation = invitations.data.find(
+            ({ email: invitationEmail, state }) =>
+              state === "pending" &&
+              invitationEmail.toLowerCase() === email.toLowerCase()
+          );
+          if (invitation === undefined) {
+            throw new Error(`No pending WorkOS invitation exists for ${email}`);
+          }
+          const password = makePassword();
+          const user = await options.userManagement.createUser({
+            email,
+            emailVerified: true,
+            firstName,
+            lastName,
+            password,
+          });
+          const identityCredentials: WorkosTestCredentials = {
+            email,
+            password,
+          };
+          credentials.set(user.id, identityCredentials);
+          try {
+            await authenticate(
+              identityCredentials,
+              applicationUrl,
+              page,
+              invitation.token
+            );
+          } catch (error) {
+            credentials.delete(user.id);
+            await ignoreNotFound(async () => {
+              await options.userManagement.deleteUser(user.id);
+            });
+            throw error;
+          }
+          return {
+            authUserId: user.id,
+            email,
+            firstName,
+            lastName,
+          };
+        },
+      }),
     createVerifiedIdentity: (input) =>
       Effect.tryPromise({
         catch: (cause) => failure("createIdentity", cause),
@@ -235,6 +375,8 @@ export const makeWorkosAuthTestControl = (
           })
         )
       ),
+    emailAddressFor: (uniqueSeed) =>
+      `delivered+${emailIdentityPart(uniqueSeed)}@resend.dev`,
     revokePendingInvitationsFor: (email) =>
       Effect.tryPromise({
         catch: (cause) => failure("revokeInvitations", cause),
@@ -265,61 +407,7 @@ export const makeWorkosAuthTestControl = (
       return Effect.tryPromise({
         catch: (cause) => failure("signIn", cause),
         try: async () => {
-          let sealedSession: string | undefined;
-          let grantedPermissions: readonly string[] = [];
-          for (let attempt = 0; attempt < 5; attempt += 1) {
-            const authentication =
-              // oxlint-disable-next-line no-await-in-loop -- Each bounded retry validates a newly issued WorkOS token after eventual-consistency delay.
-              await options.userManagement.authenticateWithPassword({
-                clientId: options.clientId,
-                email: identityCredentials.email,
-                password: identityCredentials.password,
-                session: {
-                  cookiePassword: options.cookiePassword,
-                  sealSession: true,
-                },
-              });
-            const { accessToken, sealedSession: authenticatedSession } =
-              authentication;
-            grantedPermissions =
-              accessToken === undefined
-                ? []
-                : accessTokenPermissions(accessToken);
-            if (
-              identityCredentials.permissions === undefined ||
-              hasPermissions(
-                grantedPermissions,
-                identityCredentials.permissions
-              )
-            ) {
-              sealedSession = authenticatedSession;
-              break;
-            }
-            if (attempt < 4) {
-              // oxlint-disable-next-line no-await-in-loop -- This bounded delay lets WorkOS authorization changes propagate.
-              await waitForAuthorization();
-            }
-          }
-          if (sealedSession === undefined) {
-            if (identityCredentials.permissions !== undefined) {
-              throw new Error(
-                `WorkOS session did not receive permissions ${identityCredentials.permissions.join(", ")}; received ${grantedPermissions.join(", ") || "none"}`
-              );
-            }
-            throw new Error("WorkOS did not return a sealed session");
-          }
-
-          const url = new URL(applicationUrl);
-          await page.context().addCookies([
-            {
-              httpOnly: true,
-              name: options.cookieName,
-              sameSite: "Lax",
-              secure: url.protocol === "https:",
-              url: url.origin,
-              value: sealedSession,
-            },
-          ]);
+          await authenticate(identityCredentials, applicationUrl, page);
         },
       });
     },

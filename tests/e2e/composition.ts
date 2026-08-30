@@ -148,28 +148,6 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
   authScenario: async ({ browserName: _browserName }, provide) => {
     await provide(createAuthScenario());
   },
-  registration: async ({ e2eServices, registrationTestData }, provide) => {
-    const { StoreKey } = await import("@repo/commerce/store");
-    const registration = new RegistrationContext({
-      auth: e2eServices.customerAuth,
-      deleteCommerceAccount: e2eServices.deleteCommerceAccount,
-      deleteRegistration: e2eServices.deleteRegistration,
-      provisionCompany: e2eServices.provisionCompany,
-      provisionCompanyMember: e2eServices.provisionCompanyMember,
-      storeKey: StoreKey.make(process.env.E2E_STORE_KEY ?? "default-store"),
-      uniqueEmail: registrationTestData.uniqueEmail,
-      uniqueId: registrationTestData.uniqueId,
-    });
-
-    try {
-      await provide(registration);
-    } finally {
-      await registration.dispose();
-    }
-  },
-  registrationScenario: async ({ browserName: _browserName }, provide) => {
-    await provide(createRegistrationScenario());
-  },
   e2eServices: [
     async ({ browserName: _browserName }, provide) => {
       const [
@@ -232,11 +210,29 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
     },
     { scope: "worker" },
   ],
-  registrationTestData: async (
-    { browserName: _browserName },
-    provide,
-    testInfo
-  ) => {
+  registration: async ({ e2eServices, registrationTestData }, provide) => {
+    const { StoreKey } = await import("@repo/commerce/store");
+    const registration = new RegistrationContext({
+      auth: e2eServices.customerAuth,
+      deleteCommerceAccount: e2eServices.deleteCommerceAccount,
+      deleteRegistration: e2eServices.deleteRegistration,
+      provisionCompany: e2eServices.provisionCompany,
+      provisionCompanyMember: e2eServices.provisionCompanyMember,
+      storeKey: StoreKey.make(process.env.E2E_STORE_KEY ?? "default-store"),
+      uniqueEmail: registrationTestData.uniqueEmail,
+      uniqueId: registrationTestData.uniqueId,
+    });
+
+    try {
+      await provide(registration);
+    } finally {
+      await registration.dispose();
+    }
+  },
+  registrationScenario: async ({ browserName: _browserName }, provide) => {
+    await provide(createRegistrationScenario());
+  },
+  registrationTestData: async ({ e2eServices }, provide, testInfo) => {
     const scenarioId = createHash("sha256")
       .update(testInfo.testId)
       .digest("hex")
@@ -244,13 +240,15 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
     const runId = emailPart(
       process.env.E2E_RUN_ID ??
         `${randomUUID()}-${testInfo.workerIndex}-${testInfo.retry}`,
-      24
+      12
     );
     const uniqueSuffix = `${runId}-${scenarioId}`;
 
     await provide({
       uniqueEmail: (localPart) =>
-        `${emailPart(localPart, 24)}+${uniqueSuffix}@e2e.example.test`,
+        e2eServices.customerAuth.emailAddressFor(
+          `${localPart}-${uniqueSuffix}`
+        ),
       uniqueId: (prefix) => `${emailPart(prefix, 32)}-${uniqueSuffix}`,
     });
   },

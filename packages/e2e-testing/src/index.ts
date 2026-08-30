@@ -27,6 +27,7 @@ export const test = base.extend<E2EFixtures>({});
 export const { Given, Then, When } = createBdd(test);
 
 export { expect } from "@playwright/test";
+export { DataTable } from "playwright-bdd";
 export type {
   APIRequestContext,
   BrowserContext,
