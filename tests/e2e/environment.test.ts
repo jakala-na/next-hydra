@@ -115,25 +115,99 @@ describe(composeE2EEnvironments, () => {
           "http://localhost:3005/api/auth/callback",
         WORKOS_API_KEY: "sk_customer",
         WORKOS_CLIENT_ID: "client_customer",
+        WORKOS_WEBHOOK_SECRET: "whsec_customer",
       },
     });
 
-    expect(environments.runner).toMatchObject({
-      ADMIN_WORKOS_API_KEY: "sk_admin",
-      WORKOS_API_KEY: "sk_customer",
+    expect({
+      admin: {
+        adminApiKey: environments.servers.admin.ADMIN_WORKOS_API_KEY,
+        apiKey: environments.servers.admin.WORKOS_API_KEY,
+        clientId: environments.servers.admin.WORKOS_CLIENT_ID,
+        cookieName: environments.servers.admin.WORKOS_COOKIE_NAME,
+        cookiePassword: environments.servers.admin.WORKOS_COOKIE_PASSWORD,
+        redirectUri: environments.servers.admin.NEXT_PUBLIC_WORKOS_REDIRECT_URI,
+        webhookSecret: environments.servers.admin.WORKOS_WEBHOOK_SECRET,
+      },
+      api: {
+        adminApiKey: environments.servers.api.ADMIN_WORKOS_API_KEY,
+        adminClientId: environments.servers.api.ADMIN_WORKOS_CLIENT_ID,
+        apiKey: environments.servers.api.WORKOS_API_KEY,
+        webhookSecret: environments.servers.api.WORKOS_WEBHOOK_SECRET,
+      },
+      runner: {
+        adminApiKey: environments.runner.ADMIN_WORKOS_API_KEY,
+        apiKey: environments.runner.WORKOS_API_KEY,
+      },
+      web: {
+        adminApiKey: environments.servers.web.ADMIN_WORKOS_API_KEY,
+        adminClientId: environments.servers.web.ADMIN_WORKOS_CLIENT_ID,
+        apiKey: environments.servers.web.WORKOS_API_KEY,
+        clientId: environments.servers.web.WORKOS_CLIENT_ID,
+        redirectUri:
+          environments.servers.web.NEXT_PUBLIC_ADMIN_WORKOS_REDIRECT_URI,
+        webhookSecret: environments.servers.web.WORKOS_WEBHOOK_SECRET,
+      },
+    }).toStrictEqual({
+      admin: {
+        adminApiKey: undefined,
+        apiKey: "sk_admin",
+        clientId: "client_admin",
+        cookieName: "admin-session",
+        cookiePassword: "admin-cookie-password",
+        redirectUri: "http://localhost:3005/api/auth/callback",
+        webhookSecret: undefined,
+      },
+      api: {
+        adminApiKey: "sk_admin",
+        adminClientId: "client_admin",
+        apiKey: "sk_customer",
+        webhookSecret: "whsec_customer",
+      },
+      runner: {
+        adminApiKey: "sk_admin",
+        apiKey: "sk_customer",
+      },
+      web: {
+        adminApiKey: undefined,
+        adminClientId: undefined,
+        apiKey: "sk_customer",
+        clientId: "client_customer",
+        redirectUri: undefined,
+        webhookSecret: undefined,
+      },
     });
-    expect(environments.servers.web).toMatchObject({
-      WORKOS_API_KEY: "sk_customer",
-      WORKOS_CLIENT_ID: "client_customer",
+  });
+
+  it("does not project customer domain secrets into the admin process", () => {
+    const environments = composeE2EEnvironments({
+      applications: { admin: {}, api: {}, web: {} },
+      explicitEnvironment: {
+        ADMIN_WORKOS_API_KEY: "sk_admin",
+        ADMIN_WORKOS_CLIENT_ID: "client_admin",
+        COMMERCETOOLS_CLIENT_SECRET: "commerce-secret",
+        CONTENTSTACK_DELIVERY_TOKEN: "cms-secret",
+        NEXT_PUBLIC_POSTHOG_KEY: "analytics-key",
+        RESEND_TOKEN: "email-secret",
+        WORKOS_API_KEY: "sk_customer",
+        WORKOS_CLIENT_ID: "client_customer",
+      },
     });
+
     expect(environments.servers.admin).toMatchObject({
-      NEXT_PUBLIC_WORKOS_REDIRECT_URI:
-        "http://localhost:3005/api/auth/callback",
       WORKOS_API_KEY: "sk_admin",
       WORKOS_CLIENT_ID: "client_admin",
-      WORKOS_COOKIE_NAME: "admin-session",
-      WORKOS_COOKIE_PASSWORD: "admin-cookie-password",
     });
+    expect(environments.servers.admin).not.toHaveProperty(
+      "COMMERCETOOLS_CLIENT_SECRET"
+    );
+    expect(environments.servers.admin).not.toHaveProperty(
+      "CONTENTSTACK_DELIVERY_TOKEN"
+    );
+    expect(environments.servers.admin).not.toHaveProperty(
+      "NEXT_PUBLIC_POSTHOG_KEY"
+    );
+    expect(environments.servers.admin).not.toHaveProperty("RESEND_TOKEN");
   });
 
   it("projects isolated Clerk credentials into the runner and admin app", () => {

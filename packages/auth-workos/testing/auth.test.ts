@@ -16,6 +16,10 @@ const workosNotFound = () =>
 const accessToken = (permissions: readonly string[]) =>
   `header.${Buffer.from(JSON.stringify({ permissions })).toString("base64url")}.signature`;
 
+const invitedUserManagementDefaults = {
+  listUsers: () => Promise.resolve({ data: [] }),
+} satisfies Pick<WorkosTestUserManagement, "listUsers">;
+
 describe("makeWorkosAuthTestControl", () => {
   it("constructs deterministic WorkOS-safe email addresses", () => {
     const control = makeWorkosAuthTestControl({
@@ -23,6 +27,7 @@ describe("makeWorkosAuthTestControl", () => {
       cookieName: "wos-session",
       cookiePassword: "a-secure-cookie-password-for-testing",
       userManagement: {
+        ...invitedUserManagementDefaults,
         authenticateWithPassword: () =>
           Promise.resolve({ sealedSession: "sealed-session" }),
         createUser: () => Promise.resolve({ id: "unused" }),
@@ -61,6 +66,7 @@ describe("makeWorkosAuthTestControl", () => {
       cookieName: "wos-session",
       cookiePassword: "a-secure-cookie-password-for-testing",
       userManagement: {
+        ...invitedUserManagementDefaults,
         authenticateWithPassword: () => {
           authenticationAttempts += 1;
           return Promise.resolve({
@@ -131,6 +137,7 @@ describe("makeWorkosAuthTestControl", () => {
       WorkosTestUserManagement["authenticateWithPassword"]
     >[0][] = [];
     const userManagement: WorkosTestUserManagement = {
+      ...invitedUserManagementDefaults,
       authenticateWithPassword: (input) => {
         authentications.push(input);
         return Promise.resolve({ sealedSession: "sealed-session" });
@@ -215,21 +222,27 @@ describe("makeWorkosAuthTestControl", () => {
     ]);
   });
 
-  it("accepts the exact pending invitation with the WorkOS invitation token", async () => {
+  it("accepts the exact pending invitation through the hosted WorkOS flow", async () => {
     const authentications: Parameters<
       WorkosTestUserManagement["authenticateWithPassword"]
     >[0][] = [];
+    const acceptedInvitations: object[] = [];
     const control = makeWorkosAuthTestControl({
+      acceptInvitation: (input) => {
+        acceptedInvitations.push(input);
+        return Promise.resolve();
+      },
       clientId: "client_test",
       cookieName: "wos-session",
       cookiePassword: "a-secure-cookie-password-for-testing",
       makePassword: () => "a-unique-password",
       userManagement: {
+        ...invitedUserManagementDefaults,
         authenticateWithPassword: (input) => {
           authentications.push(input);
           return Promise.resolve({ sealedSession: "sealed-session" });
         },
-        createUser: () => Promise.resolve({ id: "user-grace" }),
+        createUser: () => Promise.resolve({ id: "unused" }),
         deleteUser: () => Promise.resolve(),
         listInvitations: () =>
           Promise.resolve({
@@ -248,16 +261,22 @@ describe("makeWorkosAuthTestControl", () => {
               },
             ],
           }),
+        listUsers: () =>
+          Promise.resolve({
+            data: [
+              {
+                email: "GRACE@EXAMPLE.TEST",
+                emailVerified: false,
+                id: "user-grace",
+              },
+            ],
+          }),
         revokeInvitation: (invitationId) =>
           Promise.resolve({ id: invitationId }),
       },
     });
-    const pageStub = {
-      context: () => ({
-        addCookies: (_cookies: object[]) => Promise.resolve(),
-      }),
-    };
-    // SAFETY: this provider test exercises only Page.context().addCookies, which the stub implements.
+    const pageStub = {};
+    // SAFETY: the injected hosted-flow double treats the page as an opaque value.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const page = pageStub as Page;
     const identity = await Effect.runPromise(
@@ -270,16 +289,16 @@ describe("makeWorkosAuthTestControl", () => {
       })
     );
 
-    expect(authentications).toStrictEqual([
+    expect(authentications).toStrictEqual([]);
+    expect(acceptedInvitations).toStrictEqual([
       {
-        clientId: "client_test",
+        applicationUrl: "http://localhost:3001",
         email: "grace@example.test",
+        firstName: "Grace",
         invitationToken: "grace-token",
+        lastName: "Hopper",
+        page,
         password: "a-unique-password",
-        session: {
-          cookiePassword: "a-secure-cookie-password-for-testing",
-          sealSession: true,
-        },
       },
     ]);
     expect(identity).toStrictEqual({
@@ -290,13 +309,90 @@ describe("makeWorkosAuthTestControl", () => {
     });
   });
 
+  it("defers cleanup when invitation delivery has an unknown outcome", async () => {
+    const deletedUserIds: string[] = [];
+    let invitationLookup = 0;
+    const control = makeWorkosAuthTestControl({
+      acceptInvitation: () => Promise.resolve(),
+      clientId: "client_test",
+      cookieName: "wos-session",
+      cookiePassword: "a-secure-cookie-password-for-testing",
+      deliverAcceptedInvitation: () =>
+        Promise.reject(new Error("webhook response was lost")),
+      makePassword: () => "a-unique-password",
+      userManagement: {
+        ...invitedUserManagementDefaults,
+        authenticateWithPassword: () =>
+          Promise.resolve({ sealedSession: "sealed-session" }),
+        createUser: () => Promise.resolve({ id: "unused" }),
+        deleteUser: (userId) => {
+          deletedUserIds.push(userId);
+          return Promise.resolve();
+        },
+        listInvitations: () => {
+          invitationLookup += 1;
+          return Promise.resolve({
+            data: [
+              {
+                email: "grace@example.test",
+                id: "invitation-grace",
+                state:
+                  invitationLookup === 1
+                    ? ("pending" as const)
+                    : ("accepted" as const),
+                token: "grace-token",
+              },
+            ],
+          });
+        },
+        listUsers: () =>
+          Promise.resolve({
+            data: [
+              {
+                email: "grace@example.test",
+                emailVerified: invitationLookup !== 1,
+                id: "provisional-user-grace",
+              },
+            ],
+          }),
+        revokeInvitation: (invitationId) =>
+          Promise.resolve({ id: invitationId }),
+      },
+    });
+    const pageStub = {};
+    // SAFETY: the injected hosted-flow and delivery doubles treat the page as opaque.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    const page = pageStub as Page;
+
+    await expect(
+      Effect.runPromise(
+        control.acceptPendingInvitation({
+          applicationUrl: "http://localhost:3001",
+          email: "grace@example.test",
+          firstName: "Grace",
+          lastName: "Hopper",
+          page,
+        })
+      )
+    ).rejects.toThrow("webhook response was lost");
+    expect(deletedUserIds).toStrictEqual([]);
+
+    await Effect.runPromise(
+      control.revokePendingInvitationsFor("grace@example.test")
+    );
+
+    expect(deletedUserIds).toStrictEqual(["provisional-user-grace"]);
+  });
+
   it("revokes pending invitations for an E2E test email", async () => {
     const revokedInvitationIds: string[] = [];
+    const deletedUserIds: string[] = [];
     const control = makeWorkosAuthTestControl({
       clientId: "client_test",
       cookieName: "wos-session",
       cookiePassword: "a-secure-cookie-password-for-testing",
       userManagement: {
+        ...invitedUserManagementDefaults,
         authenticateWithPassword: () =>
           Promise.resolve({
             sealedSession: "sealed-session",
@@ -306,7 +402,10 @@ describe("makeWorkosAuthTestControl", () => {
             email: "unused@example.test",
             id: "unused",
           }),
-        deleteUser: () => Promise.resolve(),
+        deleteUser: (userId) => {
+          deletedUserIds.push(userId);
+          return Promise.resolve();
+        },
         listInvitations: () =>
           Promise.resolve({
             data: [
@@ -324,6 +423,21 @@ describe("makeWorkosAuthTestControl", () => {
               },
             ],
           }),
+        listUsers: () =>
+          Promise.resolve({
+            data: [
+              {
+                email: "grace@example.test",
+                emailVerified: false,
+                id: "user-provisional",
+              },
+              {
+                email: "grace@example.test",
+                emailVerified: true,
+                id: "user-established",
+              },
+            ],
+          }),
         revokeInvitation: (invitationId) => {
           revokedInvitationIds.push(invitationId);
           return Promise.resolve({ id: invitationId });
@@ -336,6 +450,7 @@ describe("makeWorkosAuthTestControl", () => {
     );
 
     expect(revokedInvitationIds).toStrictEqual(["invitation-pending"]);
+    expect(deletedUserIds).toStrictEqual(["user-provisional"]);
   });
 
   it("treats already-absent WorkOS resources as cleaned", async () => {
@@ -344,6 +459,7 @@ describe("makeWorkosAuthTestControl", () => {
       cookieName: "wos-session",
       cookiePassword: "a-secure-cookie-password-for-testing",
       userManagement: {
+        ...invitedUserManagementDefaults,
         authenticateWithPassword: () =>
           Promise.resolve({ sealedSession: "sealed-session" }),
         createUser: () =>

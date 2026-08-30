@@ -87,12 +87,88 @@ const definedEnvironment = (environment: Environment): RuntimeEnvironment =>
     )
   );
 
+const filterEnvironment = (
+  environment: Environment,
+  include: (name: string) => boolean
+): Environment =>
+  Object.fromEntries(
+    Object.entries(environment).filter(([name]) => include(name))
+  );
+
+const isAdminRealmEnvironmentName = (name: string): boolean =>
+  name.startsWith("ADMIN_CLERK_") ||
+  name.startsWith("ADMIN_WORKOS_") ||
+  name.startsWith("NEXT_PUBLIC_ADMIN_CLERK_") ||
+  name.startsWith("NEXT_PUBLIC_ADMIN_WORKOS_");
+
+const isCustomerAuthEnvironmentName = (name: string): boolean =>
+  name.startsWith("CLERK_") ||
+  name.startsWith("WORKOS_") ||
+  name.startsWith("NEXT_PUBLIC_CLERK_") ||
+  name.startsWith("NEXT_PUBLIC_WORKOS_");
+
+const isCmsEnvironmentName = (name: string): boolean =>
+  name.startsWith("CMS_") ||
+  name.startsWith("CONTENTSTACK_") ||
+  name.startsWith("NEXT_PUBLIC_CONTENTSTACK_");
+
+const isCommerceEnvironmentName = (name: string): boolean =>
+  name.startsWith("COMMERCETOOLS_");
+
+const isEmailEnvironmentName = (name: string): boolean =>
+  name.startsWith("RESEND_");
+
+const isAnalyticsEnvironmentName = (name: string): boolean =>
+  name.startsWith("NEXT_PUBLIC_GA_") || name.startsWith("NEXT_PUBLIC_POSTHOG_");
+
+const explicitServerEnvironment = (
+  application: keyof ApplicationEnvironments,
+  explicitEnvironment: Environment
+): Environment =>
+  filterEnvironment(explicitEnvironment, (name) => {
+    if (application === "web") {
+      return (
+        !isAdminRealmEnvironmentName(name) &&
+        name !== "ADMIN_URL" &&
+        name !== "CLERK_WEBHOOK_SECRET" &&
+        name !== "REGISTRATION_APPROVER_EMAIL" &&
+        name !== "REGISTRATION_CONTAINER" &&
+        name !== "WORKOS_WEBHOOK_SECRET"
+      );
+    }
+
+    if (application === "api") {
+      return (
+        !isCmsEnvironmentName(name) &&
+        name !== "ARCJET_KEY" &&
+        name !== "FLAGS_SECRET" &&
+        name !== "NEXT_PUBLIC_ARCHITECTURE_OVERLAYS"
+      );
+    }
+
+    return (
+      !isAdminRealmEnvironmentName(name) &&
+      !isCustomerAuthEnvironmentName(name) &&
+      !isCmsEnvironmentName(name) &&
+      !isCommerceEnvironmentName(name) &&
+      !isEmailEnvironmentName(name) &&
+      !isAnalyticsEnvironmentName(name) &&
+      !name.startsWith("REGISTRATION_") &&
+      name !== "ARCJET_KEY" &&
+      name !== "FLAGS_SECRET" &&
+      name !== "NEXT_PUBLIC_ARCHITECTURE_OVERLAYS"
+    );
+  });
+
 const serverEnvironment = (
+  application: keyof ApplicationEnvironments,
   applicationEnvironment: Environment,
   explicitEnvironment: Environment
 ) => ({
   ...definedEnvironment(applicationEnvironment),
-  ...definedEnvironment(explicitEnvironment),
+  ...definedEnvironment(
+    explicitServerEnvironment(application, explicitEnvironment)
+  ),
 });
 
 const isRunnerEnvironmentName = (name: string): boolean =>
@@ -167,7 +243,7 @@ const adminServerEnvironment = (
 ): RuntimeEnvironment => {
   const adminEnvironment = Object.fromEntries(
     Object.entries(
-      serverEnvironment(applications.admin, explicitEnvironment)
+      serverEnvironment("admin", applications.admin, explicitEnvironment)
     ).filter(([name]) => !providerEnvironmentNames.has(name))
   );
 
@@ -194,8 +270,8 @@ export const composeE2EEnvironments = ({
   runner: e2eRunnerEnvironment(explicitEnvironment, applications),
   servers: {
     admin: adminServerEnvironment(explicitEnvironment, applications),
-    api: serverEnvironment(applications.api, explicitEnvironment),
-    web: serverEnvironment(applications.web, explicitEnvironment),
+    api: serverEnvironment("api", applications.api, explicitEnvironment),
+    web: serverEnvironment("web", applications.web, explicitEnvironment),
   },
 });
 

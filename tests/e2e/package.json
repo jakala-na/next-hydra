@@ -14,7 +14,7 @@
     "@next/env": "catalog:",
     "@playwright/test": "catalog:",
     "@repo/e2e-testing": "workspace:*",
-    "@repo/auth": "workspace:@repo/auth-clerk@*",
+    "@repo/auth": "workspace:@repo/auth-workos@*",
     "@repo/auth-contract": "workspace:*",
     "@repo/commerce": "workspace:*",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",

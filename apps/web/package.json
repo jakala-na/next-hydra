@@ -21,7 +21,7 @@
     "@radix-ui/react-icons": "^1.3.2",
     "@repo/actions": "workspace:*",
     "@repo/analytics": "workspace:*",
-    "@repo/auth": "workspace:@repo/auth-clerk@*",
+    "@repo/auth": "workspace:@repo/auth-workos@*",
     "@repo/cms": "workspace:@repo/cms-contentstack@*",
     "@repo/commerce": "workspace:*",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",

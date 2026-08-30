@@ -6,25 +6,13 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
-      "@repo/auth": [
-        "../../packages/auth-clerk"
-      ],
-      "@repo/auth/*": [
-        "../../packages/auth-clerk/*"
-      ],
-      "@repo/cms": [
-        "../../packages/cms-contentstack"
-      ],
-      "@repo/cms/*": [
-        "../../packages/cms-contentstack/*"
-      ],
+      "@repo/auth": ["../../packages/auth-workos"],
+      "@repo/auth/*": ["../../packages/auth-workos/*"],
+      "@repo/cms": ["../../packages/cms-contentstack"],
+      "@repo/cms/*": ["../../packages/cms-contentstack/*"],
       "@repo/commerce/runtime": ["./lib/commerce-runtime.ts"],
-      "@repo/commerce-provider": [
-        "../../packages/commerce-commercetools"
-      ],
-      "@repo/commerce-provider/*": [
-        "../../packages/commerce-commercetools/*"
-      ],
+      "@repo/commerce-provider": ["../../packages/commerce-commercetools"],
+      "@repo/commerce-provider/*": ["../../packages/commerce-commercetools/*"],
       "@repo/*": ["../../packages/*"]
     }
   },

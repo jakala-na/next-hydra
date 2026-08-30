@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@repo/analytics": "workspace:*",
-    "@repo/auth": "workspace:@repo/auth-clerk@*",
+    "@repo/auth": "workspace:@repo/auth-workos@*",
     "@repo/commerce": "workspace:*",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
     "@repo/design-system": "workspace:*",

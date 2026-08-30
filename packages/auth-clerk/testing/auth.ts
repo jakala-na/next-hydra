@@ -9,9 +9,11 @@ import {
   AuthTestControl,
   AuthTestFailure,
 } from "@repo/auth-contract/e2e/auth-test-control";
-import type { AuthTestIdentity } from "@repo/auth-contract/e2e/auth-test-control";
-import { expect } from "@repo/e2e-testing";
-import type { Page } from "@repo/e2e-testing";
+import type {
+  AcceptPendingAuthInvitationInput,
+  AuthTestIdentity,
+} from "@repo/auth-contract/e2e/auth-test-control";
+import { expect, localE2EUrl } from "@repo/e2e-testing";
 import {
   Config,
   DateTime,
@@ -24,6 +26,8 @@ import {
 import { Webhook } from "svix";
 
 import { domainPermissionToClerkPermission } from "../session";
+
+type Page = AcceptPendingAuthInvitationInput["page"];
 
 interface ClerkInvitation {
   readonly emailAddress: string;
@@ -481,16 +485,6 @@ interface ClerkAuthTestEnvironmentNames {
   readonly webhookSecret?: string;
 }
 
-const isLocalE2EApi = (value: string): boolean => {
-  const { hostname } = new URL(value);
-  return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1" ||
-    hostname.endsWith(".localhost")
-  );
-};
-
 const escapeRegularExpression = (value: string): string =>
   value.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
@@ -533,10 +527,7 @@ const clerkAuthTestControlLayer = (names: ClerkAuthTestEnvironmentNames) =>
       const e2eApiUrl = Option.getOrUndefined(
         yield* Config.option(Config.string("E2E_API_URL"))
       );
-      const localE2EApiUrl =
-        e2eApiUrl !== undefined && isLocalE2EApi(e2eApiUrl)
-          ? e2eApiUrl
-          : undefined;
+      const localE2EApiUrl = localE2EUrl(e2eApiUrl);
       const localWebhookSecret =
         names.webhookSecret !== undefined && localE2EApiUrl !== undefined
           ? Redacted.value(yield* Config.redacted(names.webhookSecret))

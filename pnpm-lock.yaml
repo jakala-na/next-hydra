@@ -143,8 +143,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/actions
       '@repo/auth':
-        specifier: workspace:@repo/auth-clerk@*
-        version: link:../../packages/auth-clerk
+        specifier: workspace:@repo/auth-workos@*
+        version: link:../../packages/auth-workos
       '@repo/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
@@ -216,8 +216,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/analytics
       '@repo/auth':
-        specifier: workspace:@repo/auth-clerk@*
-        version: link:../../packages/auth-clerk
+        specifier: workspace:@repo/auth-workos@*
+        version: link:../../packages/auth-workos
       '@repo/commerce':
         specifier: workspace:*
         version: link:../../packages/commerce
@@ -304,8 +304,8 @@ importers:
         specifier: 'catalog:'
         version: 4.0.0-rc.111(bufferutil@4.0.9)(effect@4.0.0-rc.111)(redis@6.2.1(@opentelemetry/api@1.9.1))
       '@repo/auth':
-        specifier: workspace:@repo/auth-clerk@*
-        version: link:../../packages/auth-clerk
+        specifier: workspace:@repo/auth-workos@*
+        version: link:../../packages/auth-workos
       '@repo/cms':
         specifier: workspace:@repo/cms-contentstack@*
         version: link:../../packages/cms-contentstack
@@ -565,8 +565,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/analytics
       '@repo/auth':
-        specifier: workspace:@repo/auth-clerk@*
-        version: link:../../packages/auth-clerk
+        specifier: workspace:@repo/auth-workos@*
+        version: link:../../packages/auth-workos
       '@repo/cms':
         specifier: workspace:@repo/cms-contentstack@*
         version: link:../../packages/cms-contentstack
@@ -1620,8 +1620,8 @@ importers:
         specifier: workspace:*
         version: link:../analytics
       '@repo/auth':
-        specifier: workspace:@repo/auth-clerk@*
-        version: link:../auth-clerk
+        specifier: workspace:@repo/auth-workos@*
+        version: link:../auth-workos
       '@repo/design-system':
         specifier: workspace:*
         version: link:../design-system
@@ -2000,8 +2000,8 @@ importers:
         specifier: 'catalog:'
         version: 1.62.1
       '@repo/auth':
-        specifier: workspace:@repo/auth-clerk@*
-        version: link:../../packages/auth-clerk
+        specifier: workspace:@repo/auth-workos@*
+        version: link:../../packages/auth-workos
       '@repo/auth-contract':
         specifier: workspace:*
         version: link:../../packages/auth-contract

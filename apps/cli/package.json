@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
-    "@repo/auth": "workspace:@repo/auth-clerk@*",
+    "@repo/auth": "workspace:@repo/auth-workos@*",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
     "@repo/cms": "workspace:@repo/cms-contentstack@*",
     "effect": "catalog:",

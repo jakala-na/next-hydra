@@ -5,10 +5,20 @@ import {
   AuthTestControl,
   AuthTestFailure,
 } from "@repo/auth-contract/e2e/auth-test-control";
-import type { AuthTestIdentity } from "@repo/auth-contract/e2e/auth-test-control";
-import type { Page } from "@repo/e2e-testing";
+import type {
+  AcceptPendingAuthInvitationInput,
+  AuthTestIdentity,
+} from "@repo/auth-contract/e2e/auth-test-control";
+import { localE2EUrl } from "@repo/e2e-testing";
 import { NotFoundException, WorkOS } from "@workos-inc/node";
-import { Config, Effect, Layer, Redacted, Schema } from "effect";
+import { Config, Effect, Layer, Option, Redacted, Schema } from "effect";
+
+import { workosHostedInvitationDriver } from "./hosted-invitation-driver";
+import type { WorkosHostedInvitationDriver } from "./hosted-invitation-driver";
+import { localWorkosInvitationWebhookRelay } from "./local-webhook-relay";
+import type { WorkosInvitationWebhookRelay } from "./local-webhook-relay";
+
+type Page = AcceptPendingAuthInvitationInput["page"];
 
 export interface WorkosTestUserManagement {
   readonly authenticateWithPassword: (input: {
@@ -40,6 +50,13 @@ export interface WorkosTestUserManagement {
       readonly token: string;
     }[];
   }>;
+  readonly listUsers: (input: { readonly email: string }) => Promise<{
+    readonly data: readonly {
+      readonly email: string;
+      readonly emailVerified: boolean;
+      readonly id: string;
+    }[];
+  }>;
   readonly revokeInvitation: (
     invitationId: string
   ) => Promise<{ readonly id: string }>;
@@ -58,10 +75,12 @@ export interface WorkosTestAuthorizationApi {
 }
 
 export interface WorkosAuthTestControlOptions {
+  readonly acceptInvitation?: WorkosHostedInvitationDriver;
   readonly authorization?: WorkosTestAuthorizationApi;
   readonly clientId: string;
   readonly cookieName: string;
   readonly cookiePassword: string;
+  readonly deliverAcceptedInvitation?: WorkosInvitationWebhookRelay;
   readonly makePassword?: () => string;
   readonly userManagement: WorkosTestUserManagement;
   readonly waitForAuthorization?: () => Promise<void>;
@@ -144,9 +163,29 @@ export const makeWorkosAuthTestControl = (
   options: WorkosAuthTestControlOptions
 ) => {
   const credentials = new Map<string, WorkosTestCredentials>();
+  const cleanupIdentityIdsByEmail = new Map<string, Set<string>>();
   const makePassword = options.makePassword ?? defaultPassword;
   const waitForAuthorization =
     options.waitForAuthorization ?? defaultWaitForAuthorization;
+
+  const trackIdentityForCleanup = (email: string, userId: string) => {
+    const normalizedEmail = email.toLowerCase();
+    const existing = cleanupIdentityIdsByEmail.get(normalizedEmail);
+    if (existing === undefined) {
+      cleanupIdentityIdsByEmail.set(normalizedEmail, new Set([userId]));
+      return;
+    }
+    existing.add(userId);
+  };
+
+  const releaseIdentityFromCleanup = (email: string, userId: string) => {
+    const normalizedEmail = email.toLowerCase();
+    const existing = cleanupIdentityIdsByEmail.get(normalizedEmail);
+    existing?.delete(userId);
+    if (existing?.size === 0) {
+      cleanupIdentityIdsByEmail.delete(normalizedEmail);
+    }
+  };
 
   const authenticate = async (
     identityCredentials: WorkosTestCredentials,
@@ -237,34 +276,53 @@ export const makeWorkosAuthTestControl = (
             throw new Error(`No pending WorkOS invitation exists for ${email}`);
           }
           const password = makePassword();
-          const user = await options.userManagement.createUser({
-            email,
-            emailVerified: true,
-            firstName,
-            lastName,
-            password,
-          });
+          const normalizedEmail = email.toLowerCase();
+          const users = await options.userManagement.listUsers({ email });
+          const matchingUsers = users.data.filter(
+            (candidate) => candidate.email.toLowerCase() === normalizedEmail
+          );
+          if (matchingUsers.length > 1) {
+            throw new Error(`Multiple WorkOS users exist for ${email}`);
+          }
+          const [provisionalUser] = matchingUsers;
+          if (provisionalUser?.emailVerified === true) {
+            throw new Error(
+              `A verified WorkOS user already exists for ${email}`
+            );
+          }
+          if (provisionalUser === undefined) {
+            throw new Error(
+              `WorkOS invitation for ${email} has no provisional user`
+            );
+          }
+          if (options.acceptInvitation === undefined) {
+            throw new Error(
+              "WorkOS hosted invitation testing is not configured"
+            );
+          }
           const identityCredentials: WorkosTestCredentials = {
             email,
             password,
           };
-          credentials.set(user.id, identityCredentials);
-          try {
-            await authenticate(
-              identityCredentials,
-              applicationUrl,
-              page,
-              invitation.token
-            );
-          } catch (error) {
-            credentials.delete(user.id);
-            await ignoreNotFound(async () => {
-              await options.userManagement.deleteUser(user.id);
-            });
-            throw error;
-          }
+          trackIdentityForCleanup(email, provisionalUser.id);
+          await options.acceptInvitation({
+            applicationUrl,
+            email,
+            firstName,
+            invitationToken: invitation.token,
+            lastName,
+            page,
+            password,
+          });
+          await options.deliverAcceptedInvitation?.({
+            authUserId: provisionalUser.id,
+            invitationId: invitation.id,
+            page,
+          });
+          credentials.set(provisionalUser.id, identityCredentials);
+          releaseIdentityFromCleanup(email, provisionalUser.id);
           return {
-            authUserId: user.id,
+            authUserId: provisionalUser.id,
             email,
             firstName,
             lastName,
@@ -372,6 +430,7 @@ export const makeWorkosAuthTestControl = (
         Effect.tap(() =>
           Effect.sync(() => {
             credentials.delete(identity.authUserId);
+            releaseIdentityFromCleanup(identity.email, identity.authUserId);
           })
         )
       ),
@@ -381,18 +440,61 @@ export const makeWorkosAuthTestControl = (
       Effect.tryPromise({
         catch: (cause) => failure("revokeInvitations", cause),
         try: async () => {
-          const invitations = await options.userManagement.listInvitations({
-            email,
-          });
-          await Promise.all(
-            invitations.data
-              .filter(({ state }) => state === "pending")
-              .map(async ({ id }) => {
-                await ignoreNotFound(async () => {
-                  await options.userManagement.revokeInvitation(id);
-                });
-              })
+          const normalizedEmail = email.toLowerCase();
+          const failures: unknown[] = [];
+          try {
+            const invitations = await options.userManagement.listInvitations({
+              email,
+            });
+            await Promise.all(
+              invitations.data
+                .filter(({ state }) => state === "pending")
+                .map(async ({ id }) => {
+                  await ignoreNotFound(async () => {
+                    await options.userManagement.revokeInvitation(id);
+                  });
+                })
+            );
+          } catch (error) {
+            failures.push(error);
+          }
+
+          const identityIds = new Set(
+            cleanupIdentityIdsByEmail.get(normalizedEmail)
           );
+          try {
+            const users = await options.userManagement.listUsers({ email });
+            for (const user of users.data) {
+              if (
+                user.email.toLowerCase() === normalizedEmail &&
+                !user.emailVerified
+              ) {
+                identityIds.add(user.id);
+              }
+            }
+          } catch (error) {
+            failures.push(error);
+          }
+
+          const deletionResults = await Promise.allSettled(
+            [...identityIds].map(async (userId) => {
+              await ignoreNotFound(async () => {
+                await options.userManagement.deleteUser(userId);
+              });
+              releaseIdentityFromCleanup(email, userId);
+            })
+          );
+          for (const result of deletionResults) {
+            if (result.status === "rejected") {
+              failures.push(result.reason);
+            }
+          }
+          if (failures.length > 0) {
+            throw new AggregateError(
+              failures,
+              `Failed to clean WorkOS invitations for ${email}`
+            );
+          }
         },
       }),
     signIn: ({ applicationUrl, identity, page }) => {
@@ -419,6 +521,7 @@ interface WorkosAuthTestEnvironmentNames {
   readonly clientId: string;
   readonly cookieName: string;
   readonly cookiePassword: string;
+  readonly webhookSecret?: string;
 }
 
 const workosAuthTestControlLayer = (names: WorkosAuthTestEnvironmentNames) =>
@@ -431,12 +534,33 @@ const workosAuthTestControlLayer = (names: WorkosAuthTestEnvironmentNames) =>
         Config.withDefault("wos-session")
       );
       const cookiePassword = yield* Config.redacted(names.cookiePassword);
+      const e2eApiUrl = Option.getOrUndefined(
+        yield* Config.option(Config.string("E2E_API_URL"))
+      );
+      const localE2EApiUrl = localE2EUrl(e2eApiUrl);
+      const localWebhookSecret =
+        names.webhookSecret !== undefined && localE2EApiUrl !== undefined
+          ? Redacted.value(yield* Config.redacted(names.webhookSecret))
+          : undefined;
       const workos = new WorkOS({
         apiKey: Redacted.value(apiKey),
         clientId,
       });
 
+      const deliverAcceptedInvitation =
+        localWebhookSecret === undefined || localE2EApiUrl === undefined
+          ? undefined
+          : localWorkosInvitationWebhookRelay({
+              apiUrl: localE2EApiUrl,
+              webhookSecret: localWebhookSecret,
+              workos,
+            });
+
       return makeWorkosAuthTestControl({
+        acceptInvitation: workosHostedInvitationDriver({
+          clientId,
+          userManagement: workos.userManagement,
+        }),
         authorization: {
           createAuthorizedMembership: async (input) => {
             const permissions = [...input.permissions];
@@ -505,6 +629,7 @@ const workosAuthTestControlLayer = (names: WorkosAuthTestEnvironmentNames) =>
         clientId,
         cookieName,
         cookiePassword: Redacted.value(cookiePassword),
+        deliverAcceptedInvitation,
         userManagement: workos.userManagement,
       });
     })
@@ -515,6 +640,7 @@ export const authTestControlLayer = workosAuthTestControlLayer({
   clientId: "WORKOS_CLIENT_ID",
   cookieName: "WORKOS_COOKIE_NAME",
   cookiePassword: "WORKOS_COOKIE_PASSWORD",
+  webhookSecret: "WORKOS_WEBHOOK_SECRET",
 });
 
 export const adminAuthTestControlLayer = workosAuthTestControlLayer({

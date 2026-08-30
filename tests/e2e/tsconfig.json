@@ -3,18 +3,10 @@
   "compilerOptions": {
     "noEmit": true,
     "paths": {
-      "@repo/auth": [
-        "../../packages/auth-clerk"
-      ],
-      "@repo/auth/*": [
-        "../../packages/auth-clerk/*"
-      ],
-      "@repo/commerce-provider": [
-        "../../packages/commerce-commercetools"
-      ],
-      "@repo/commerce-provider/*": [
-        "../../packages/commerce-commercetools/*"
-      ],
+      "@repo/auth": ["../../packages/auth-workos"],
+      "@repo/auth/*": ["../../packages/auth-workos/*"],
+      "@repo/commerce-provider": ["../../packages/commerce-commercetools"],
+      "@repo/commerce-provider/*": ["../../packages/commerce-commercetools/*"],
       "@repo/*": ["../../packages/*"]
     }
   },

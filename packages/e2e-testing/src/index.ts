@@ -22,6 +22,20 @@ export const e2eApplicationUrlsFromEnvironment = (
   web: environment.E2E_WEB_URL ?? "http://localhost:3001",
 });
 
+export const localE2EUrl = (value: string | undefined): string | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const { hostname } = new URL(value);
+  return hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname.endsWith(".localhost")
+    ? value
+    : undefined;
+};
+
 export const test = base.extend<E2EFixtures>({});
 
 export const { Given, Then, When } = createBdd(test);
