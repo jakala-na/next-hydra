@@ -33,8 +33,10 @@ import {
   CompanyRegistrationDetails,
 } from "../domain/registration";
 import type { CompanyRoles } from "../domain/roles";
-import type { ProvisionCompanyMemberInput } from "../programs/company-member-invitations";
-import type { ProvisionApprovedRegistrationInput } from "../programs/registration-onboarding";
+import type {
+  ProvisionScenarioCompanyInput,
+  ProvisionScenarioCompanyMemberInput,
+} from "./provisioning";
 
 export interface RegistrationCompanyMember {
   readonly authUserId: AuthUserId;
@@ -59,10 +61,10 @@ export interface RegistrationContextOptions {
   }) => Promise<void>;
   readonly deleteRegistration: (registrationId: string) => Promise<void>;
   readonly provisionCompany: (
-    input: ProvisionApprovedRegistrationInput
+    input: ProvisionScenarioCompanyInput
   ) => Promise<CommerceAccount>;
   readonly provisionCompanyMember: (
-    input: ProvisionCompanyMemberInput
+    input: ProvisionScenarioCompanyMemberInput
   ) => Promise<CommerceAssociateMembership>;
   readonly storeKey: StoreKey;
   readonly uniqueEmail: (localPart: string) => string;

@@ -9,10 +9,12 @@ import { StoreKey } from "@repo/commerce/store";
 import { Effect, Layer, ManagedRuntime } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { provisionCompanyMember } from "../programs/company-member-invitations";
-import { provisionApprovedRegistration } from "../programs/registration-onboarding";
 import { CompanyInvitationPolicy } from "../services/company-invitation-policy";
 import { CompanyMemberIdentityProjection } from "../services/company-member-identity-projection";
+import {
+  provisionScenarioCompany,
+  provisionScenarioCompanyMember,
+} from "./provisioning";
 import { RegistrationContext } from "./registration-context";
 
 describe("RegistrationContext", () => {
@@ -80,9 +82,9 @@ describe("RegistrationContext", () => {
         return Promise.resolve();
       },
       provisionCompany: (input) =>
-        runtime.runPromise(provisionApprovedRegistration(input)),
+        runtime.runPromise(provisionScenarioCompany(input)),
       provisionCompanyMember: (input) =>
-        runtime.runPromise(provisionCompanyMember(input)),
+        runtime.runPromise(provisionScenarioCompanyMember(input)),
       storeKey: StoreKey.make("default-store"),
       uniqueEmail: (localPart) => `${localPart}@e2e.example.test`,
       uniqueId: (prefix) => `${prefix}-scenario-1`,
@@ -193,9 +195,9 @@ describe("RegistrationContext", () => {
       },
       deleteRegistration: () => Promise.resolve(),
       provisionCompany: (input) =>
-        runtime.runPromise(provisionApprovedRegistration(input)),
+        runtime.runPromise(provisionScenarioCompany(input)),
       provisionCompanyMember: (input) =>
-        runtime.runPromise(provisionCompanyMember(input)),
+        runtime.runPromise(provisionScenarioCompanyMember(input)),
       storeKey: StoreKey.make("default-store"),
       uniqueEmail: (localPart) => `${localPart}@e2e.example.test`,
       uniqueId: (prefix) => `${prefix}-scenario-2`,
@@ -307,9 +309,9 @@ describe("RegistrationContext", () => {
       deleteCommerceAccount: () => Promise.resolve(),
       deleteRegistration: () => Promise.resolve(),
       provisionCompany: (input) =>
-        runtime.runPromise(provisionApprovedRegistration(input)),
+        runtime.runPromise(provisionScenarioCompany(input)),
       provisionCompanyMember: (input) =>
-        runtime.runPromise(provisionCompanyMember(input)),
+        runtime.runPromise(provisionScenarioCompanyMember(input)),
       storeKey: StoreKey.make("default-store"),
       uniqueEmail: (localPart) => `${localPart}@e2e.example.test`,
       uniqueId: (prefix) => `${prefix}-cleanup-retry`,

@@ -77,14 +77,14 @@ export interface RecordRegistrationInvitationRevokedInput {
   readonly invitationId: InvitationId;
 }
 
-export interface ProvisionApprovedRegistrationInput {
+interface CompleteApprovedRegistrationOnboardingInput {
   readonly acceptedIdentity: AcceptedAuthIdentity;
   readonly registration: ApprovedRegistration;
 }
 
-export const provisionApprovedRegistration = Effect.fn(
-  "provisionApprovedRegistration"
-)(function* (input: ProvisionApprovedRegistrationInput) {
+const completeApprovedRegistrationOnboarding = Effect.fn(
+  "completeApprovedRegistrationOnboarding"
+)(function* (input: CompleteApprovedRegistrationOnboardingInput) {
   const commerceAccounts = yield* CommerceAccounts;
   const identityProjection = yield* CompanyMemberIdentityProjection;
   const commerceAccount = yield* commerceAccounts.createFromRegistration(
@@ -143,7 +143,7 @@ export const approveRegistration = (
             identity.firstName ?? registration.details.contactFirstName,
           lastName: identity.lastName ?? registration.details.contactLastName,
         });
-        yield* provisionApprovedRegistration({
+        yield* completeApprovedRegistrationOnboarding({
           acceptedIdentity,
           registration,
         });
@@ -174,7 +174,7 @@ export const approveRegistration = (
         firstName: identity.firstName ?? approved.details.contactFirstName,
         lastName: identity.lastName ?? approved.details.contactLastName,
       });
-      yield* provisionApprovedRegistration({
+      yield* completeApprovedRegistrationOnboarding({
         acceptedIdentity,
         registration: approved,
       });
@@ -280,7 +280,7 @@ export const acceptRegistrationInvitation = (
       status: "accepted",
     });
 
-    yield* provisionApprovedRegistration({
+    yield* completeApprovedRegistrationOnboarding({
       acceptedIdentity: input.acceptedIdentity,
       registration: acceptedRegistration,
     });

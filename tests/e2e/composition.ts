@@ -21,12 +21,14 @@ import {
 } from "@repo/e2e-testing";
 import type { APIRequestContext, Page } from "@repo/e2e-testing";
 import type { RegistrationTestData } from "@repo/registration/e2e/fixtures";
+import {
+  provisionScenarioCompany,
+  provisionScenarioCompanyMember,
+} from "@repo/registration/e2e/provisioning";
 import { RegistrationContext } from "@repo/registration/e2e/registration-context";
 import type { RegistrationContextOptions } from "@repo/registration/e2e/registration-context";
 import { createRegistrationScenario } from "@repo/registration/e2e/registration-scenario";
 import type { RegistrationScenario } from "@repo/registration/e2e/registration-scenario";
-import { provisionCompanyMember } from "@repo/registration/programs/company-member-invitations";
-import { provisionApprovedRegistration } from "@repo/registration/programs/registration-onboarding";
 import { CompanyInvitationPolicy } from "@repo/registration/services/company-invitation-policy";
 import { Effect, Layer, ManagedRuntime } from "effect";
 import { createJiti } from "jiti";
@@ -200,9 +202,9 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
           deleteCommerceAccount: janitor.deleteCommerceAccount,
           deleteRegistration: janitor.deleteRegistration,
           provisionCompany: async (input) =>
-            await runtime.runPromise(provisionApprovedRegistration(input)),
+            await runtime.runPromise(provisionScenarioCompany(input)),
           provisionCompanyMember: async (input) =>
-            await runtime.runPromise(provisionCompanyMember(input)),
+            await runtime.runPromise(provisionScenarioCompanyMember(input)),
         });
       } finally {
         await Promise.all([adminAuthRuntime.dispose(), runtime.dispose()]);
