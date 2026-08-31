@@ -70,6 +70,14 @@ export class ProjectAdministrationError extends Schema.TaggedError<ProjectAdmini
   }
 ) {}
 
+export class BootstrapApiClientScopeError extends Schema.TaggedError<BootstrapApiClientScopeError>()(
+  "BootstrapApiClientScopeError",
+  {
+    message: Schema.String,
+    missingScopes: Schema.Array(Schema.NonEmptyString),
+  }
+) {}
+
 export class RuntimeClientCreationOutcomeUnknown extends Schema.TaggedError<RuntimeClientCreationOutcomeUnknown>()(
   "RuntimeClientCreationOutcomeUnknown",
   {

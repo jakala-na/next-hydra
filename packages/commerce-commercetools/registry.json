@@ -116,6 +116,11 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/commands/project.test.ts",
+          "target": "~/packages/commerce-commercetools/cli/commands/project.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/commands/project.ts",
           "target": "~/packages/commerce-commercetools/cli/commands/project.ts",
           "type": "registry:file"
@@ -161,6 +166,11 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/project-provisioning/administration-live.test.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/administration-live.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/project-provisioning/administration-live.ts",
           "target": "~/packages/commerce-commercetools/cli/project-provisioning/administration-live.ts",
           "type": "registry:file"
@@ -183,6 +193,11 @@
         {
           "path": "cli/project-provisioning/credential-handoff.ts",
           "target": "~/packages/commerce-commercetools/cli/project-provisioning/credential-handoff.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/error-details.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/error-details.ts",
           "type": "registry:file"
         },
         {
@@ -383,11 +398,6 @@
         {
           "path": "keys.ts",
           "target": "~/packages/commerce-commercetools/keys.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "migrations/create-order-custom-fields-type.test.ts",
-          "target": "~/packages/commerce-commercetools/migrations/create-order-custom-fields-type.test.ts",
           "type": "registry:file"
         },
         {
