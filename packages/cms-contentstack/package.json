@@ -21,7 +21,7 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "generate": "node scripts/gql-sync.ts",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/cms-contentstack/tsconfig.json"
   },
   "dependencies": {

@@ -12,7 +12,7 @@
     "dev": "portless",
     "dev:app": "NODE_USE_SYSTEM_CA=1 next dev --turbopack",
     "start": "NODE_USE_SYSTEM_CA=1 next start",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "typecheck": "next typegen && pnpm --workspace-root exec tsc --noEmit --project apps/web/tsconfig.json"
   },
   "dependencies": {

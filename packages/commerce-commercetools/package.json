@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "generate": "node scripts/gql-sync.ts",
-    "test": "vitest run --passWithNoTests",
+    "test": "NODE_ENV=test vitest run --passWithNoTests",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/commerce-commercetools/tsconfig.json"
   },
   "exports": {

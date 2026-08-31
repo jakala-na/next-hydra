@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo node_modules",
     "cli": "jiti src/index.ts",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project apps/cli/tsconfig.json"
   },
   "dependencies": {

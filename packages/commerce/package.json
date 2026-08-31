@@ -59,7 +59,7 @@
   "scripts": {
     "boundaries": "node --experimental-transform-types scripts/check-commerce-boundaries.ts",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/commerce/tsconfig.json"
   },
   "dependencies": {
