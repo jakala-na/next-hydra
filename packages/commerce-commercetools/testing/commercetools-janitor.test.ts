@@ -2,9 +2,37 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  makeCommercetoolsCartJanitor,
   makeCommercetoolsJanitor,
   makeCommercetoolsRegistrationJanitor,
 } from "./commercetools-janitor";
+
+describe("makeCommercetoolsCartJanitor", () => {
+  it("deletes a Cart using its latest provider version", async () => {
+    const deleted: object[] = [];
+    const janitor = makeCommercetoolsCartJanitor({
+      deleteCart: (cart) => {
+        deleted.push(cart);
+        return Promise.resolve();
+      },
+      getCart: (cartId) => Promise.resolve({ id: cartId, version: 7 }),
+    });
+
+    await janitor.deleteCart("cart-1");
+
+    expect(deleted).toStrictEqual([{ id: "cart-1", version: 7 }]);
+  });
+
+  it("treats an absent Cart as already cleaned", async () => {
+    const janitor = makeCommercetoolsCartJanitor({
+      deleteCart: () =>
+        Promise.reject(new Error("should not delete an absent Cart")),
+      getCart: () => Promise.resolve(null),
+    });
+
+    await expect(janitor.deleteCart("cart-missing")).resolves.toBeUndefined();
+  });
+});
 
 describe("makeCommercetoolsRegistrationJanitor", () => {
   it("deletes a Registration using its latest stored version", async () => {
@@ -37,13 +65,52 @@ describe("makeCommercetoolsRegistrationJanitor", () => {
 });
 
 describe("makeCommercetoolsJanitor", () => {
-  it("deletes a Business Unit before deleting all of its direct Customers", async () => {
+  it("deletes Business Unit Carts before deleting the Business Unit", async () => {
+    const operations: string[] = [];
+    const janitor = makeCommercetoolsJanitor({
+      deleteBusinessUnit: (businessUnit) => {
+        operations.push(`delete-business-unit:${businessUnit.id}`);
+        return Promise.resolve();
+      },
+      deleteCartsForBusinessUnit: (businessUnitKey: string) => {
+        operations.push(`delete-carts:${businessUnitKey}`);
+        return Promise.resolve();
+      },
+      deleteCompanyMemberInvitationRecords: () => Promise.resolve(),
+      deleteCustomer: () => Promise.resolve(),
+      getBusinessUnit: (businessUnitId) =>
+        Promise.resolve({
+          associates: [],
+          id: businessUnitId,
+          key: "business-unit-key-1",
+          version: 1,
+        }),
+      getCustomer: () => Promise.resolve(null),
+      hasBusinessUnitMembership: () => Promise.resolve(false),
+    });
+
+    await janitor.deleteCommerceAccount({
+      businessUnitId: "business-unit-1",
+      customerId: "customer-1",
+    });
+
+    expect(operations).toStrictEqual([
+      "delete-carts:business-unit-key-1",
+      "delete-business-unit:business-unit-1",
+    ]);
+  });
+
+  it("deletes a Business Unit and its Carts before deleting all of its direct Customers", async () => {
     const operations: string[] = [];
     const janitor = makeCommercetoolsJanitor({
       deleteBusinessUnit: (businessUnit) => {
         operations.push(
           `delete-business-unit:${businessUnit.id}:${businessUnit.version}`
         );
+        return Promise.resolve();
+      },
+      deleteCartsForBusinessUnit: (businessUnitKey) => {
+        operations.push(`delete-carts:${businessUnitKey}`);
         return Promise.resolve();
       },
       deleteCompanyMemberInvitationRecords: (businessUnitId) => {
@@ -61,6 +128,7 @@ describe("makeCommercetoolsJanitor", () => {
             { customerId: "customer-member" },
           ],
           id: businessUnitId,
+          key: "business-unit-key-1",
           version: 7,
         }),
       getCustomer: (customerId) =>
@@ -78,6 +146,7 @@ describe("makeCommercetoolsJanitor", () => {
 
     expect(operations).toStrictEqual([
       "delete-invitations:business-unit-1",
+      "delete-carts:business-unit-key-1",
       "delete-business-unit:business-unit-1:7",
       "delete-customer:customer-administrator:3",
       "delete-customer:customer-member:4",
@@ -93,6 +162,7 @@ describe("makeCommercetoolsJanitor", () => {
         businessUnitExists = false;
         return Promise.resolve();
       },
+      deleteCartsForBusinessUnit: () => Promise.resolve(),
       deleteCompanyMemberInvitationRecords: () => Promise.resolve(),
       deleteCustomer: (customer) => {
         if (customer.id === "customer-member") {
@@ -115,6 +185,7 @@ describe("makeCommercetoolsJanitor", () => {
                   { customerId: "customer-member" },
                 ],
                 id: businessUnitId,
+                key: "business-unit-key-1",
                 version: 7,
               }
             : null
@@ -156,6 +227,7 @@ describe("makeCommercetoolsJanitor", () => {
             { customerId: "customer-shared" },
           ],
           id: "business-unit-1",
+          key: "business-unit-key-1",
           version: 1,
         },
       ],
@@ -167,6 +239,7 @@ describe("makeCommercetoolsJanitor", () => {
             { customerId: "customer-shared" },
           ],
           id: "business-unit-2",
+          key: "business-unit-key-2",
           version: 1,
         },
       ],
@@ -177,6 +250,7 @@ describe("makeCommercetoolsJanitor", () => {
         businessUnits.delete(businessUnit.id);
         return Promise.resolve();
       },
+      deleteCartsForBusinessUnit: () => Promise.resolve(),
       deleteCompanyMemberInvitationRecords: () => Promise.resolve(),
       deleteCustomer: (customer) => {
         deletedCustomerIds.add(customer.id);

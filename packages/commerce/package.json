@@ -28,6 +28,7 @@
     "./domain/commerce-request-context": "./domain/commerce-request-context.ts",
     "./domain/money": "./domain/money.ts",
     "./domain/provider-failure": "./domain/provider-failure.ts",
+    "./e2e/checkout-scenario": "./e2e/checkout-scenario.ts",
     "./http/address-book-api": "./http/address-book-api.ts",
     "./http/checkout-api": "./http/checkout-api.ts",
     "./http/checkout-api-messages": "./http/checkout-api-messages.ts",

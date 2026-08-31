@@ -15,6 +15,8 @@ import type {
   CommercetoolsRestClient,
   makeCommercetoolsJanitorFromApiRoot as MakeCommercetoolsJanitorFromApiRoot,
 } from "@repo/commerce-provider/testing";
+import { CheckoutScenario } from "@repo/commerce/e2e/checkout-scenario";
+import type { CheckoutScenarioOptions } from "@repo/commerce/e2e/checkout-scenario";
 import {
   e2eApplicationUrlsFromEnvironment,
   test as base,
@@ -58,6 +60,7 @@ interface CommerceProviderTestingModule {
 interface E2EServices {
   readonly adminAuth: AuthTestControl["Service"];
   readonly customerAuth: AuthTestControl["Service"];
+  readonly deleteCart: CheckoutScenarioOptions["deleteCart"];
   readonly deleteCommerceAccount: RegistrationContextOptions["deleteCommerceAccount"];
   readonly deleteRegistration: RegistrationContextOptions["deleteRegistration"];
   readonly provisionCompany: RegistrationContextOptions["provisionCompany"];
@@ -75,6 +78,7 @@ interface E2EFixtures extends RegistrationFixtures {
   readonly apiRequest: APIRequestContext;
   readonly auth: AuthContext;
   readonly authScenario: AuthScenario;
+  readonly checkoutScenario: CheckoutScenario;
 }
 
 interface E2EWorkerFixtures {
@@ -150,6 +154,18 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
   authScenario: async ({ browserName: _browserName }, provide) => {
     await provide(createAuthScenario());
   },
+  checkoutScenario: async ({ e2eServices, page }, provide) => {
+    const checkoutScenario = new CheckoutScenario({
+      deleteCart: e2eServices.deleteCart,
+      page,
+    });
+
+    try {
+      await provide(checkoutScenario);
+    } finally {
+      await checkoutScenario.dispose();
+    }
+  },
   e2eServices: [
     async ({ browserName: _browserName }, provide) => {
       const [
@@ -199,6 +215,7 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
         await provide({
           adminAuth,
           customerAuth: services.auth,
+          deleteCart: janitor.deleteCart,
           deleteCommerceAccount: janitor.deleteCommerceAccount,
           deleteRegistration: janitor.deleteRegistration,
           provisionCompany: async (input) =>

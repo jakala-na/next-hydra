@@ -13,6 +13,7 @@ interface CommercetoolsVersionedResource {
 
 interface CommercetoolsBusinessUnitResource extends CommercetoolsVersionedResource {
   readonly associates: readonly { readonly customerId: string }[];
+  readonly key: string;
 }
 
 export interface CommercetoolsJanitorApi {
@@ -21,6 +22,9 @@ export interface CommercetoolsJanitorApi {
   ) => Promise<void>;
   readonly deleteBusinessUnit: (
     businessUnit: CommercetoolsVersionedResource
+  ) => Promise<void>;
+  readonly deleteCartsForBusinessUnit: (
+    businessUnitKey: string
   ) => Promise<void>;
   readonly deleteCustomer: (
     customer: CommercetoolsVersionedResource
@@ -37,6 +41,13 @@ export interface CommercetoolsJanitorApi {
 export interface CommercetoolsAccountReference {
   readonly businessUnitId: string;
   readonly customerId: string;
+}
+
+export interface CommercetoolsCartJanitorApi {
+  readonly deleteCart: (cart: CommercetoolsVersionedResource) => Promise<void>;
+  readonly getCart: (
+    cartId: string
+  ) => Promise<CommercetoolsVersionedResource | null>;
 }
 
 export interface CommercetoolsRegistrationJanitorApi {
@@ -56,7 +67,49 @@ const isNotFound = Schema.is(
 const CompanyMemberInvitationRecordValue = Schema.Struct({
   intent: Schema.Struct({ businessUnitId: Schema.String }),
 });
+const CART_PAGE_SIZE = 500;
 const CUSTOM_OBJECT_PAGE_SIZE = 500;
+
+const deleteCartsForBusinessUnit = async (
+  apiRoot: ByProjectKeyRequestBuilder,
+  businessUnitKey: string
+) => {
+  while (true) {
+    // Always read the first page because each completed iteration deletes it.
+    // oxlint-disable-next-line no-await-in-loop -- The next page depends on the preceding deletions.
+    const response = await apiRoot
+      .carts()
+      .get({
+        queryArgs: {
+          limit: CART_PAGE_SIZE,
+          where: `businessUnit(key=${JSON.stringify(businessUnitKey)})`,
+          withTotal: false,
+        },
+      })
+      .execute();
+
+    // oxlint-disable-next-line no-await-in-loop -- Deleting the current page must complete before the same page is queried again.
+    await Promise.all(
+      response.body.results.map(async (cart) => {
+        try {
+          await apiRoot
+            .carts()
+            .withId({ ID: cart.id })
+            .delete({ queryArgs: { version: cart.version } })
+            .execute();
+        } catch (error) {
+          if (!isNotFound(error)) {
+            throw error;
+          }
+        }
+      })
+    );
+
+    if (response.body.results.length < CART_PAGE_SIZE) {
+      break;
+    }
+  }
+};
 
 const deleteCompanyMemberInvitationRecords = async (
   apiRoot: ByProjectKeyRequestBuilder,
@@ -133,6 +186,7 @@ export const makeCommercetoolsJanitor = (api: CommercetoolsJanitorApi) => {
       }
 
       if (businessUnit !== null) {
+        await api.deleteCartsForBusinessUnit(businessUnit.key);
         await api.deleteBusinessUnit(businessUnit);
       }
 
@@ -178,6 +232,17 @@ export const makeCommercetoolsRegistrationJanitor = (
   },
 });
 
+export const makeCommercetoolsCartJanitor = (
+  api: CommercetoolsCartJanitorApi
+) => ({
+  deleteCart: async (cartId: string) => {
+    const cart = await api.getCart(cartId);
+    if (cart !== null) {
+      await api.deleteCart(cart);
+    }
+  },
+});
+
 export const makeCommercetoolsJanitorFromApiRoot = (
   apiRoot: ByProjectKeyRequestBuilder,
   companyMemberInvitationContainer = process.env
@@ -186,6 +251,36 @@ export const makeCommercetoolsJanitorFromApiRoot = (
   registrationContainer = process.env.REGISTRATION_CONTAINER ??
     DEFAULT_REGISTRATION_CONTAINER
 ) => ({
+  ...makeCommercetoolsCartJanitor({
+    deleteCart: async (cart) => {
+      try {
+        await apiRoot
+          .carts()
+          .withId({ ID: cart.id })
+          .delete({ queryArgs: { version: cart.version } })
+          .execute();
+      } catch (error) {
+        if (!isNotFound(error)) {
+          throw error;
+        }
+      }
+    },
+    getCart: async (cartId) => {
+      try {
+        const response = await apiRoot
+          .carts()
+          .withId({ ID: cartId })
+          .get()
+          .execute();
+        return { id: response.body.id, version: response.body.version };
+      } catch (error) {
+        if (isNotFound(error)) {
+          return null;
+        }
+        throw error;
+      }
+    },
+  }),
   ...makeCommercetoolsJanitor({
     deleteBusinessUnit: async (businessUnit) => {
       try {
@@ -199,6 +294,9 @@ export const makeCommercetoolsJanitorFromApiRoot = (
           throw error;
         }
       }
+    },
+    deleteCartsForBusinessUnit: async (businessUnitKey) => {
+      await deleteCartsForBusinessUnit(apiRoot, businessUnitKey);
     },
     deleteCompanyMemberInvitationRecords: async (businessUnitId) => {
       await deleteCompanyMemberInvitationRecords(
@@ -232,6 +330,7 @@ export const makeCommercetoolsJanitorFromApiRoot = (
             customerId: associate.customer.id,
           })),
           id: response.body.id,
+          key: response.body.key,
           version: response.body.version,
         };
       } catch (error) {

@@ -26,12 +26,18 @@ const PriceFormat_Sale: React.FC<PriceFormat_SaleProps> = ({
   const format = useFormatter();
 
   const isSale = salePrice !== undefined && salePrice < originalPrice;
+  const effectivePrice = isSale ? salePrice : originalPrice;
   const savePercentage = isSale
     ? ((originalPrice - salePrice) / originalPrice) * 100
     : 0;
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+    <div
+      className={cn("flex flex-wrap items-center gap-2", className)}
+      data-commerce-money="product-price"
+      data-currency={currencyCode}
+      data-minor-amount={Math.round(effectivePrice * 100)}
+    >
       {isSale ? (
         <>
           <span

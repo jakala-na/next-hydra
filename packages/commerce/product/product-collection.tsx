@@ -8,6 +8,8 @@ import { Effect, Schema } from "effect";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 
+import { CommerceContextObservation } from "../commerce-context/commerce-context-observation";
+import { CommerceContext } from "../services/commerce-context";
 import type { CategoryId, ProductId } from "./identity";
 import { toProductCardPresentation } from "./presentation";
 import { ListProductCardsInput, ProductDiscovery } from "./product-discovery";
@@ -54,30 +56,34 @@ const getProductCards = async ({
     encodedInput = { ...encodedInput, excludeProductId };
   }
   const input = Schema.decodeSync(ListProductCardsInput)(encodedInput);
-  const products = await NextCommerce.runPromise(
-    ProductDiscovery.pipe(
-      Effect.flatMap((discovery) => discovery.listCards(input)),
-      NextCommerce.provide(locale)
-    )
+  const { products, store } = await NextCommerce.runPromise(
+    Effect.gen(function* () {
+      const context = yield* CommerceContext;
+      const discovery = yield* ProductDiscovery;
+      const discoveredProducts = yield* discovery.listCards(input);
+
+      return { products: discoveredProducts, store: context.store };
+    }).pipe(NextCommerce.provide(locale))
   );
 
-  return products.map(toProductCardPresentation);
+  return { products: products.map(toProductCardPresentation), store };
 };
 
 export const ProductCollectionGrid = async (
   props: ProductCollectionGridProps
 ) => {
-  const products = await getProductCards(props);
-
-  if (products.length === 0) {
-    return null;
-  }
+  const { products, store } = await getProductCards(props);
 
   return (
-    <ProductGrid
-      architecture={productCollectionArchitecture}
-      products={products}
-    />
+    <>
+      <CommerceContextObservation store={store} />
+      {products.length === 0 ? null : (
+        <ProductGrid
+          architecture={productCollectionArchitecture}
+          products={products}
+        />
+      )}
+    </>
   );
 };
 
@@ -86,18 +92,19 @@ export const ProductCollection = async ({
   title,
   ...gridProps
 }: ProductCollectionProps) => {
-  const products = await getProductCards(gridProps);
-
-  if (products.length === 0) {
-    return null;
-  }
+  const { products, store } = await getProductCards(gridProps);
 
   return (
-    <ProductCollectionView
-      architecture={productCollectionArchitecture}
-      title={title}
-      description={description}
-      products={products}
-    />
+    <>
+      <CommerceContextObservation store={store} />
+      {products.length === 0 ? null : (
+        <ProductCollectionView
+          architecture={productCollectionArchitecture}
+          title={title}
+          description={description}
+          products={products}
+        />
+      )}
+    </>
   );
 };

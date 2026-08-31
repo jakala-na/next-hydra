@@ -201,7 +201,12 @@ function CartSidebar({
       />
       <div className="mt-5 flex items-center justify-between border-border border-t pt-4">
         <span className="font-medium text-sm">{messages.subtotal}</span>
-        <span className="font-semibold text-sm">
+        <span
+          className="font-semibold text-sm"
+          data-commerce-money="checkout-subtotal"
+          data-currency={state.cart.totalPrice.currencyCode}
+          data-minor-amount={state.cart.totalPrice.centAmount}
+        >
           {formatMoney(state.cart.totalPrice, locale)}
         </span>
       </div>

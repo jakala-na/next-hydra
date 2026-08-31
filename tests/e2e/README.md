@@ -30,7 +30,7 @@ Playwright transforms the test entrypoints themselves. The live provider graph i
 
 `@repo/e2e` declares workspace dependencies on the composed web, API, and admin applications and the domains it discovers. Once the lockfile is current, `turbo run e2e --affected` therefore selects this runner when those packages or their dependencies change.
 
-Use `pnpm test:e2e` to run the suite unconditionally and `pnpm test:e2e:affected` for a local affected run. GitHub Actions uses the same Turbo task with `--affected`, then filters each matrix row by its owning tag. The current composition has `@auth` and `@registration` rows; add a distinct `@commerce` or `@cms` row when that context owns its first feature. Provider combinations are composition rows, not feature tags, and only compositions supported by the workspace lockfile belong in the matrix.
+Use `pnpm test:e2e` to run the suite unconditionally and `pnpm test:e2e:affected` for a local affected run. GitHub Actions uses the same Turbo task with `--affected`, then filters each matrix row by its owning tag. The current composition has `@auth`, `@registration`, and `@commerce` rows; add a distinct `@cms` row when that context owns its first feature. Provider combinations are composition rows, not feature tags, and only compositions supported by the workspace lockfile belong in the matrix.
 
 ## Authoring loop
 

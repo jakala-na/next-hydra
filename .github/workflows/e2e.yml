@@ -30,6 +30,9 @@ jobs:
           - composition: workos-commercetools-contentstack
             scope: registration
             tag: "@registration"
+          - composition: workos-commercetools-contentstack
+            scope: commerce
+            tag: "@commerce"
     env:
       CI: "true"
       E2E_RUN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.scope }}
