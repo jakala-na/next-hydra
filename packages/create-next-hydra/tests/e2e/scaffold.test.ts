@@ -714,8 +714,15 @@ describe("scaffold composition", () => {
         { install: fakeRootInstall }
       );
       await expect(
-        pathExists(path.join(presetTarget, "packages/cms-drupal/package.json"))
-      ).resolves.toBeTruthy();
+        Promise.all([
+          pathExists(
+            path.join(presetTarget, "packages/cms-contentstack/package.json")
+          ),
+          pathExists(
+            path.join(presetTarget, "packages/cms-drupal/package.json")
+          ),
+        ])
+      ).resolves.toStrictEqual([true, false]);
     },
     E2E_TIMEOUT
   );
