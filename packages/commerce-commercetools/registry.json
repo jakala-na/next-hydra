@@ -311,11 +311,6 @@
           "type": "registry:file"
         },
         {
-          "path": "config/keys.test.ts",
-          "target": "~/packages/commerce-commercetools/config/keys.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "config/keys.ts",
           "target": "~/packages/commerce-commercetools/config/keys.ts",
           "type": "registry:file"

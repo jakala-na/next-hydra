@@ -77,11 +77,6 @@
           "type": "registry:file"
         },
         {
-          "path": "keys.test.ts",
-          "target": "~/packages/auth-workos/keys.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "keys.ts",
           "target": "~/packages/auth-workos/keys.ts",
           "type": "registry:file"
@@ -197,8 +192,18 @@
           "type": "registry:file"
         },
         {
+          "path": "testing/hosted-invitation-driver.ts",
+          "target": "~/packages/auth-workos/testing/hosted-invitation-driver.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "testing/index.ts",
           "target": "~/packages/auth-workos/testing/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/local-webhook-relay.ts",
+          "target": "~/packages/auth-workos/testing/local-webhook-relay.ts",
           "type": "registry:file"
         },
         {

@@ -87,11 +87,6 @@
           "type": "registry:file"
         },
         {
-          "path": "keys.test.ts",
-          "target": "~/packages/auth-clerk/keys.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "keys.ts",
           "target": "~/packages/auth-clerk/keys.ts",
           "type": "registry:file"
