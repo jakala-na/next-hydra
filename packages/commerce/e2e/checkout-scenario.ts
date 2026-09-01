@@ -3,6 +3,7 @@ import {
   ANONYMOUS_CART_COOKIE_NAME,
   decodeAnonymousCartCookie,
 } from "../lib/cart/utils/anonymous-cart-cookies";
+import { minorAmountFromDecimal } from "./checkout-expectations";
 import type {
   ShippingOptionExpectation,
   ShippingOptionsExpectation,
@@ -26,6 +27,14 @@ export interface ShippingAddressExpectation {
   readonly fields: ReadonlyMap<string, string>;
 }
 
+export interface NetTermsAccountExpectation {
+  readonly availableCredit: {
+    readonly centAmount: number;
+    readonly currencyCode: string;
+  };
+  readonly termsInDays: number;
+}
+
 interface AnonymousCartCookiePage {
   readonly context: () => {
     readonly cookies: () => Promise<
@@ -35,17 +44,31 @@ interface AnonymousCartCookiePage {
 }
 
 export interface CheckoutScenarioOptions {
+  readonly deleteNetTerms?: (businessUnitId: string) => Promise<void>;
   readonly deleteCart: (cartId: CartId) => Promise<void>;
+  readonly deletePayments?: (cartId: CartId) => Promise<void>;
   readonly expectShippingOptions?: (
     input: ShippingOptionsExpectation
   ) => Promise<void>;
+  readonly expectCardNotAuthorized?: (cartId: CartId) => Promise<void>;
+  readonly getNetTerms?: (
+    businessUnitId: string
+  ) => Promise<NetTermsAccountExpectation>;
   readonly page: AnonymousCartCookiePage;
+  readonly setNetTerms?: (input: {
+    readonly amount: string;
+    readonly businessUnitId: string;
+    readonly currency: string;
+    readonly termsInDays: number;
+  }) => Promise<void>;
 }
 
 export class CheckoutScenario {
-  readonly #anonymousCartIds = new Set<CartId>();
+  readonly #cartIds = new Set<CartId>();
+  readonly #netTermsBusinessUnitIds = new Set<string>();
   readonly #options: CheckoutScenarioOptions;
   #disposed = false;
+  #currentCartId?: CartId;
   #product?: ProductExpectation;
   #shippingAddress?: ShippingAddressExpectation;
   #store?: StoreExpectation;
@@ -86,6 +109,59 @@ export class CheckoutScenario {
     await this.#options.expectShippingOptions({ country, options });
   }
 
+  async setNetTerms(input: {
+    readonly amount: string;
+    readonly businessUnitId: string;
+    readonly currency: string;
+    readonly termsInDays: number;
+  }): Promise<void> {
+    if (this.#options.setNetTerms === undefined) {
+      throw new Error("The scenario cannot configure Net Terms");
+    }
+    await this.#options.setNetTerms(input);
+    this.#netTermsBusinessUnitIds.add(input.businessUnitId);
+  }
+
+  async expectNetTerms(input: {
+    readonly amount: string;
+    readonly businessUnitId: string;
+    readonly currency: string;
+    readonly termsInDays: number;
+  }): Promise<void> {
+    if (this.#options.getNetTerms === undefined) {
+      throw new Error("The scenario cannot inspect Net Terms");
+    }
+    const actual = await this.#options.getNetTerms(input.businessUnitId);
+    const expected = {
+      availableCredit: {
+        centAmount: Number(minorAmountFromDecimal(input.amount)),
+        currencyCode: input.currency,
+      },
+      termsInDays: input.termsInDays,
+    };
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      throw new Error(
+        `Net Terms did not match the scenario input: expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`
+      );
+    }
+  }
+
+  async expectCardNotAuthorized(): Promise<void> {
+    if (this.#options.expectCardNotAuthorized === undefined) {
+      throw new Error("The scenario cannot inspect live Card Payments");
+    }
+    const cookies = await this.#options.page.context().cookies();
+    const anonymousCart = cookies
+      .filter(({ name }) => name === ANONYMOUS_CART_COOKIE_NAME)
+      .map(({ value }) => decodeAnonymousCartCookie(value))
+      .find((cart) => cart !== null);
+    const cartId = anonymousCart?.cartId ?? this.#currentCartId;
+    if (cartId === undefined) {
+      throw new Error("The scenario has no current Cart");
+    }
+    await this.#options.expectCardNotAuthorized(cartId);
+  }
+
   defineShippingAddress(address: ShippingAddressExpectation): void {
     this.#shippingAddress = address;
   }
@@ -105,9 +181,14 @@ export class CheckoutScenario {
       }
       const cart = decodeAnonymousCartCookie(value);
       if (cart !== null) {
-        this.#anonymousCartIds.add(cart.cartId);
+        this.rememberCart(cart.cartId);
       }
     }
+  }
+
+  rememberCart(cartId: CartId): void {
+    this.#cartIds.add(cartId);
+    this.#currentCartId = cartId;
   }
 
   async dispose(): Promise<void> {
@@ -116,11 +197,33 @@ export class CheckoutScenario {
     }
 
     await this.observeAnonymousCart();
-    const results = await Promise.allSettled(
-      [...this.#anonymousCartIds].map(async (cartId) => {
-        await this.#options.deleteCart(cartId);
-      })
-    );
+    const results = await Promise.allSettled([
+      ...[...this.#cartIds].map(async (cartId) => {
+        const cartFailures: unknown[] = [];
+        try {
+          await this.#options.deleteCart(cartId);
+        } catch (error) {
+          cartFailures.push(error);
+        }
+        try {
+          await this.#options.deletePayments?.(cartId);
+        } catch (error) {
+          cartFailures.push(error);
+        }
+        if (cartFailures.length === 1) {
+          throw cartFailures[0];
+        }
+        if (cartFailures.length > 1) {
+          throw new AggregateError(
+            cartFailures,
+            `Failed to clean up Checkout Cart ${cartId}`
+          );
+        }
+      }),
+      ...[...this.#netTermsBusinessUnitIds].map(async (businessUnitId) => {
+        await this.#options.deleteNetTerms?.(businessUnitId);
+      }),
+    ]);
     const failures: unknown[] = [];
     for (const result of results) {
       if (result.status === "rejected") {
@@ -131,7 +234,7 @@ export class CheckoutScenario {
     if (failures.length > 0) {
       throw new AggregateError(
         failures,
-        "Failed to clean up Checkout scenario Carts"
+        "Failed to clean up Checkout scenario resources"
       );
     }
     this.#disposed = true;

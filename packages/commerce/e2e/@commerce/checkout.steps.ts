@@ -397,6 +397,74 @@ When("the buyer saves Shipping Options", async ({ page }) => {
   await new CheckoutDriver(page).saveShippingOptions();
 });
 
+Then(
+  "Payment Options offers Payment Methods:",
+  async ({ checkoutScenario, page }, dataTable: DataTable) => {
+    const methods = rowsWithHeaders(dataTable, [
+      "Payment Method",
+      "Availability",
+    ]).map((row) => ({
+      availability: row.get("Availability") ?? "",
+      name: row.get("Payment Method") ?? "",
+    }));
+    const checkout = new CheckoutDriver(page);
+    checkoutScenario.rememberCart(await checkout.currentPaymentOptionsCartId());
+    await checkout.expectPaymentMethods(methods);
+  }
+);
+
+Then(
+  "Net 30 shows {string} available to spend in currency {string}",
+  async ({ page }, amount: string, currency: string) => {
+    await new CheckoutDriver(page).expectNetTermsBalance(amount, currency);
+  }
+);
+
+When(
+  "the buyer enters valid Card details and uses the Shipping Address for Billing",
+  async ({ cardPaymentEntry }) => {
+    await cardPaymentEntry.enterValidDetails();
+  }
+);
+
+When(
+  "the buyer selects Payment Method {string} and uses the Shipping Address for Billing",
+  async ({ page }, method: string) => {
+    await new CheckoutDriver(page).selectPaymentMethod(method);
+  }
+);
+
+When("the buyer saves Payment Options", async ({ checkoutScenario, page }) => {
+  const checkout = new CheckoutDriver(page);
+  checkoutScenario.rememberCart(await checkout.currentPaymentOptionsCartId());
+  await checkout.savePaymentOptions();
+});
+
+Then(
+  "Review Order shows Payment Method {string} with planned amount {string} in currency {string}",
+  async ({ page }, method: string, amount: string, currency: string) => {
+    await new CheckoutDriver(page).expectReviewPayment(
+      method,
+      amount,
+      currency
+    );
+  }
+);
+
+Then(
+  "the Card Payment has not been authorized",
+  async ({ checkoutScenario }) => {
+    await checkoutScenario.expectCardNotAuthorized();
+  }
+);
+
+Then(
+  "the buyer cannot select Payment Method {string}",
+  async ({ page }, method: string) => {
+    await new CheckoutDriver(page).expectPaymentMethodCannotBeSelected(method);
+  }
+);
+
 When("the buyer chooses to edit {string}", async ({ page }, step: string) => {
   await new CheckoutDriver(page).editStep(step);
 });

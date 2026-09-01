@@ -177,6 +177,7 @@ const isRunnerEnvironmentName = (name: string): boolean =>
   name.startsWith("CLERK_") ||
   name.startsWith("COMMERCETOOLS_") ||
   name.startsWith("NEXT_PUBLIC_CLERK_") ||
+  name.startsWith("STRIPE_") ||
   name.startsWith("WORKOS_") ||
   name === "COMPANY_MEMBER_INVITATION_CONTAINER" ||
   name === "REGISTRATION_CONTAINER";

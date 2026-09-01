@@ -1,6 +1,7 @@
 import { expect } from "@repo/e2e-testing";
 import type { Locator, Page } from "@repo/e2e-testing";
 
+import { CartId } from "../../domain/cart";
 import type { ShippingOptionExpectation } from "../shipping-options-test-control";
 import { expectMoney } from "./money.driver";
 
@@ -202,6 +203,78 @@ export class CheckoutDriver {
       .click();
   }
 
+  async expectPaymentMethods(
+    methods: readonly {
+      readonly availability: string;
+      readonly name: string;
+    }[]
+  ): Promise<void> {
+    await expect(
+      this.#activeStep("Payment Options").locator("[data-payment-method]")
+    ).toHaveCount(methods.length);
+    await Promise.all(
+      methods.map(async ({ availability, name }) => {
+        const method = this.#paymentMethod(name);
+        await expect(method).toHaveAttribute(
+          "data-payment-method-availability",
+          availability.toLowerCase()
+        );
+        await (availability === "Unavailable"
+          ? expect(method.getByRole("radio")).toBeDisabled()
+          : expect(method.getByRole("radio")).toBeEnabled());
+      })
+    );
+  }
+
+  async currentPaymentOptionsCartId(): Promise<CartId> {
+    const cartId = await this.#activeStep("Payment Options")
+      .locator("form")
+      .filter({ has: this.#page.locator("[data-payment-method]") })
+      .locator('input[name="cartId"]')
+      .inputValue();
+    return CartId.make(cartId);
+  }
+
+  async expectNetTermsBalance(amount: string, currency: string): Promise<void> {
+    await expectMoney(
+      this.#paymentMethod("Net 30").locator(
+        '[data-commerce-money="net-terms-available-balance"]'
+      ),
+      amount,
+      currency
+    );
+  }
+
+  async selectPaymentMethod(name: string): Promise<void> {
+    await this.#paymentMethod(name).getByRole("radio").check();
+  }
+
+  async savePaymentOptions(): Promise<void> {
+    await this.#activeStep("Payment Options")
+      .getByRole("button", { name: "Save payment options" })
+      .click();
+  }
+
+  async expectPaymentMethodCannotBeSelected(name: string): Promise<void> {
+    await expect(this.#paymentMethod(name).getByRole("radio")).toBeDisabled();
+  }
+
+  async expectReviewPayment(
+    method: string,
+    amount: string,
+    currency: string
+  ): Promise<void> {
+    const review = this.#activeStep("Review Order");
+    await expect(review.locator("[data-selected-payment-method]")).toHaveText(
+      method
+    );
+    await expectMoney(
+      review.locator('[data-commerce-money="prepared-payment"]'),
+      amount,
+      currency
+    );
+  }
+
   async editStep(stepName: string): Promise<void> {
     if (stepName !== "Delivery Details") {
       throw new Error(`Editing ${stepName} is not supported`);
@@ -253,6 +326,14 @@ export class CheckoutDriver {
     return group.locator("[data-shipping-option-name]").filter({
       has: this.#page.getByText(exactTextIgnoringCase(name)),
     });
+  }
+
+  #paymentMethod(name: string): Locator {
+    return this.#activeStep("Payment Options")
+      .locator("[data-payment-method]")
+      .filter({
+        has: this.#page.getByText(exactTextIgnoringCase(name)),
+      });
   }
 
   #addressChoice(address: ReadonlyMap<string, string>): Locator {

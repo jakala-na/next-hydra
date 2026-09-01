@@ -14,8 +14,12 @@ import type { commercetoolsClientsLayer as CommercetoolsClientsLayer } from "@re
 import type {
   CommercetoolsRestClient,
   makeCommercetoolsJanitorFromApiRoot as MakeCommercetoolsJanitorFromApiRoot,
+  makeCommercetoolsNetTermsTestControl as MakeCommercetoolsNetTermsTestControl,
+  makeCommercetoolsPaymentTestControl as MakeCommercetoolsPaymentTestControl,
   shippingOptionsTestControlLayer as ShippingOptionsTestControlLayer,
 } from "@repo/commerce-provider/testing";
+import type { BusinessUnitLookup } from "@repo/commerce/e2e/business-unit-lookup";
+import type { CardPaymentEntryDriver } from "@repo/commerce/e2e/card-payment-entry-driver";
 import { CheckoutScenario } from "@repo/commerce/e2e/checkout-scenario";
 import type { CheckoutScenarioOptions } from "@repo/commerce/e2e/checkout-scenario";
 import { ShippingOptionsTestControl } from "@repo/commerce/e2e/shipping-options-test-control";
@@ -24,6 +28,10 @@ import {
   test as base,
 } from "@repo/e2e-testing";
 import type { APIRequestContext, Page } from "@repo/e2e-testing";
+import type {
+  makeStripeCardPaymentsTestControl as MakeStripeCardPaymentsTestControl,
+  StripeCardPaymentEntryDriver as StripeCardPaymentEntryDriverType,
+} from "@repo/payments-stripe/testing";
 import type { RegistrationTestData } from "@repo/registration/e2e/fixtures";
 import {
   provisionScenarioCompany,
@@ -57,16 +65,34 @@ interface CommerceProviderModule {
 interface CommerceProviderTestingModule {
   readonly CommercetoolsRestClient: typeof CommercetoolsRestClient;
   readonly makeCommercetoolsJanitorFromApiRoot: typeof MakeCommercetoolsJanitorFromApiRoot;
+  readonly makeCommercetoolsNetTermsTestControl: typeof MakeCommercetoolsNetTermsTestControl;
+  readonly makeCommercetoolsPaymentTestControl: typeof MakeCommercetoolsPaymentTestControl;
   readonly shippingOptionsTestControlLayer: typeof ShippingOptionsTestControlLayer;
+}
+
+interface PaymentsStripeTestingModule {
+  readonly makeStripeCardPaymentsTestControl: typeof MakeStripeCardPaymentsTestControl;
+  readonly StripeCardPaymentEntryDriver: typeof StripeCardPaymentEntryDriverType;
 }
 
 interface E2EServices {
   readonly adminAuth: AuthTestControl["Service"];
   readonly customerAuth: AuthTestControl["Service"];
   readonly deleteCart: CheckoutScenarioOptions["deleteCart"];
+  readonly deletePayments: NonNullable<
+    CheckoutScenarioOptions["deletePayments"]
+  >;
   readonly expectShippingOptions: NonNullable<
     CheckoutScenarioOptions["expectShippingOptions"]
   >;
+  readonly expectCardNotAuthorized: NonNullable<
+    CheckoutScenarioOptions["expectCardNotAuthorized"]
+  >;
+  readonly getNetTerms: NonNullable<CheckoutScenarioOptions["getNetTerms"]>;
+  readonly deleteNetTerms: NonNullable<
+    CheckoutScenarioOptions["deleteNetTerms"]
+  >;
+  readonly setNetTerms: NonNullable<CheckoutScenarioOptions["setNetTerms"]>;
   readonly deleteCommerceAccount: RegistrationContextOptions["deleteCommerceAccount"];
   readonly deleteRegistration: RegistrationContextOptions["deleteRegistration"];
   readonly provisionCompany: RegistrationContextOptions["provisionCompany"];
@@ -84,6 +110,8 @@ interface E2EFixtures extends RegistrationFixtures {
   readonly apiRequest: APIRequestContext;
   readonly auth: AuthContext;
   readonly authScenario: AuthScenario;
+  readonly businessUnits: BusinessUnitLookup;
+  readonly cardPaymentEntry: CardPaymentEntryDriver;
   readonly checkoutScenario: CheckoutScenario;
 }
 
@@ -160,11 +188,34 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
   authScenario: async ({ browserName: _browserName }, provide) => {
     await provide(createAuthScenario());
   },
+  businessUnits: async ({ registrationScenario }, provide) => {
+    await provide({
+      idForCompany: (companyName) => {
+        const company = registrationScenario.companies.get(companyName);
+        if (company === undefined) {
+          throw new Error(`The scenario does not have Company ${companyName}`);
+        }
+        return company.businessUnitId;
+      },
+    });
+  },
+  cardPaymentEntry: async ({ page }, provide) => {
+    const { StripeCardPaymentEntryDriver } =
+      await importLiveModule<PaymentsStripeTestingModule>(
+        "@repo/payments-stripe/testing"
+      );
+    await provide(new StripeCardPaymentEntryDriver(page));
+  },
   checkoutScenario: async ({ e2eServices, page }, provide) => {
     const checkoutScenario = new CheckoutScenario({
       deleteCart: e2eServices.deleteCart,
+      deleteNetTerms: e2eServices.deleteNetTerms,
+      deletePayments: e2eServices.deletePayments,
+      expectCardNotAuthorized: e2eServices.expectCardNotAuthorized,
       expectShippingOptions: e2eServices.expectShippingOptions,
+      getNetTerms: e2eServices.getNetTerms,
       page,
+      setNetTerms: e2eServices.setNetTerms,
     });
 
     try {
@@ -183,8 +234,11 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
         {
           CommercetoolsRestClient,
           makeCommercetoolsJanitorFromApiRoot,
+          makeCommercetoolsNetTermsTestControl,
+          makeCommercetoolsPaymentTestControl,
           shippingOptionsTestControlLayer,
         },
+        { makeStripeCardPaymentsTestControl },
       ] = await Promise.all([
         importLiveModule<AuthInvitationsModule>("@repo/auth/invitations"),
         importLiveModule<AuthTestingModule>("@repo/auth/testing"),
@@ -196,6 +250,9 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
         ),
         importLiveModule<CommerceProviderTestingModule>(
           "@repo/commerce-provider/testing"
+        ),
+        importLiveModule<PaymentsStripeTestingModule>(
+          "@repo/payments-stripe/testing"
         ),
       ]);
       const commerceTestingLayer = shippingOptionsTestControlLayer.pipe(
@@ -225,6 +282,21 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
       const janitor = makeCommercetoolsJanitorFromApiRoot(
         services.restClient.apiRoot
       );
+      const netTerms = makeCommercetoolsNetTermsTestControl(
+        services.restClient.apiRoot
+      );
+      const payments = makeCommercetoolsPaymentTestControl(
+        services.restClient.apiRoot
+      );
+      const stripePayments = () => {
+        const secretKey = process.env.STRIPE_SECRET_KEY;
+        if (secretKey === undefined || secretKey.length === 0) {
+          throw new Error(
+            "STRIPE_SECRET_KEY is required to inspect Card Payments"
+          );
+        }
+        return makeStripeCardPaymentsTestControl(secretKey);
+      };
 
       try {
         await provide({
@@ -232,16 +304,45 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
           customerAuth: services.auth,
           deleteCart: janitor.deleteCart,
           deleteCommerceAccount: janitor.deleteCommerceAccount,
+          deleteNetTerms: netTerms.delete,
+          deletePayments: async (cartId) => {
+            const resources = await payments.getForCheckout(cartId);
+            await Promise.all(
+              resources
+                .filter(({ provider }) => provider === "Stripe")
+                .map(async ({ providerReference }) => {
+                  await stripePayments().cancel(providerReference);
+                })
+            );
+            await Promise.all(
+              resources.map(async (payment) => {
+                await payments.delete(payment);
+              })
+            );
+          },
           deleteRegistration: janitor.deleteRegistration,
+          expectCardNotAuthorized: async (cartId) => {
+            const selected = await payments.getSelectedProvider(cartId);
+            if (selected.provider !== "Stripe") {
+              throw new Error(
+                `Expected Stripe Card Payment, received ${selected.provider}`
+              );
+            }
+            await stripePayments().expectNotAuthorized(
+              selected.providerReference
+            );
+          },
           expectShippingOptions: async (input) => {
             await runtime.runPromise(
               services.shippingOptions.expectShippingOptions(input)
             );
           },
+          getNetTerms: netTerms.get,
           provisionCompany: async (input) =>
             await runtime.runPromise(provisionScenarioCompany(input)),
           provisionCompanyMember: async (input) =>
             await runtime.runPromise(provisionScenarioCompanyMember(input)),
+          setNetTerms: netTerms.set,
         });
       } finally {
         await Promise.all([adminAuthRuntime.dispose(), runtime.dispose()]);

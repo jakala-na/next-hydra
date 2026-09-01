@@ -18,6 +18,7 @@
     "@repo/auth-contract": "workspace:*",
     "@repo/commerce": "workspace:*",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
+    "@repo/payments-stripe": "workspace:*",
     "@repo/registration": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
