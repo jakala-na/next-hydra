@@ -7,15 +7,18 @@ import type {
   CheckoutStepId,
   CheckoutViolation,
 } from "../domain/checkout";
+import type { DeliveryPlanQuote } from "../domain/delivery-plan";
 import { checkoutViolationMessage } from "../lib/checkout/violation-message";
 import { CommerceLocale } from "../store";
 import type {
   SaveCheckoutContactAction,
   SaveCheckoutDeliveryDetailsAction,
+  SaveCheckoutShippingOptionsAction,
 } from "./action-contract";
 import { CheckoutContactForm } from "./contact-form";
 import { CheckoutDeliveryDetailsForm } from "./delivery-details-form";
 import type { CheckoutShippingAddressOption } from "./delivery-details-form";
+import { CheckoutShippingOptionsForm } from "./shipping-options-form";
 import { ActiveStepViolations, CartSidebarViolations } from "./violations";
 
 const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
@@ -29,18 +32,34 @@ const formatMoney = (
     style: "currency",
   }).format(money.centAmount / CENTS_PER_MAJOR_CURRENCY_UNIT);
 
+const merchandiseSubtotalFor = (
+  cart: CheckoutState["cart"]
+): CheckoutState["cart"]["totalPrice"] => ({
+  centAmount: cart.lineItems.reduce(
+    (subtotal, lineItem) =>
+      subtotal +
+      (lineItem.totalPrice?.centAmount ??
+        lineItem.unitPrice.centAmount * lineItem.quantity),
+    0
+  ),
+  currencyCode: cart.totalPrice.currencyCode,
+});
+
 interface CheckoutActions {
   readonly saveContact: SaveCheckoutContactAction;
   readonly saveDeliveryDetails: SaveCheckoutDeliveryDetailsAction;
+  readonly saveShippingOptions: SaveCheckoutShippingOptionsAction;
 }
 
-interface CheckoutPageMessages {
+export interface CheckoutPageMessages {
   readonly activeStep: string;
   readonly attention: string;
   readonly cartTitle: string;
   readonly cartItems: (count: number) => string;
   readonly cartQuantity: (quantity: number) => string;
   readonly cartViolations: string;
+  readonly delivery: (number: number) => string;
+  readonly editDeliveryDetails: string;
   readonly subtotal: string;
   readonly stepLabels: Record<CheckoutStepId, string>;
   readonly stepStatuses: Record<
@@ -99,16 +118,24 @@ function CheckoutSteps({
 
 function ActiveStep({
   actions,
+  deliveryPlanQuote,
   messages,
   shippingAddressOptions,
   state,
 }: {
   readonly actions: CheckoutActions;
+  readonly deliveryPlanQuote: DeliveryPlanQuote;
   readonly messages: CheckoutPageMessages;
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
   readonly state: CheckoutState;
 }) {
   let content: ReactNode = null;
+  const shippingOptionsComplete =
+    state.steps.find((step) => step.id === "shippingOptions")?.status ===
+    "complete";
+  const deliveryDetailsComplete =
+    state.steps.find((step) => step.id === "deliveryDetails")?.status ===
+    "complete";
 
   if (state.activeStep === "contact") {
     content = (
@@ -137,6 +164,20 @@ function ActiveStep({
         shippingAddressOptions={shippingAddressOptions}
       />
     );
+  } else if (state.activeStep === "shippingOptions") {
+    content = (
+      <CheckoutShippingOptionsForm
+        cart={state.cart}
+        deliveryPlanQuote={deliveryPlanQuote}
+        locale={state.scope.locale}
+        saveAction={actions.saveShippingOptions}
+        selectedPlan={
+          shippingOptionsComplete
+            ? state.details.selectedDeliveryPlan
+            : undefined
+        }
+      />
+    );
   }
 
   return (
@@ -152,12 +193,34 @@ function ActiveStep({
         messages={messages}
         violations={state.violations}
       />
+      {deliveryDetailsComplete &&
+      state.activeStep !== "contact" &&
+      state.activeStep !== "deliveryDetails" ? (
+        <details className="mb-6 rounded-md border border-border p-4">
+          <summary className="cursor-pointer font-medium text-sm">
+            {messages.editDeliveryDetails}
+          </summary>
+          <div className="mt-4 border-border border-t pt-4">
+            <CheckoutDeliveryDetailsForm
+              addressBookReference={
+                state.details.deliveryDetails?.source === "addressBook"
+                  ? state.details.deliveryDetails.addressBookReference
+                  : undefined
+              }
+              cartId={state.cart.id}
+              saveAction={actions.saveDeliveryDetails}
+              shippingAddress={state.details.deliveryDetails?.shippingAddress}
+              shippingAddressOptions={shippingAddressOptions}
+            />
+          </div>
+        </details>
+      ) : null}
       {content}
     </section>
   );
 }
 
-function CartSidebar({
+export function CartSidebar({
   messages,
   state,
 }: {
@@ -165,6 +228,10 @@ function CartSidebar({
   readonly state: CheckoutState;
 }) {
   const { locale } = state.scope;
+  const shippingOptionsComplete =
+    state.steps.find((step) => step.id === "shippingOptions")?.status ===
+    "complete";
+  const merchandiseSubtotal = merchandiseSubtotalFor(state.cart);
 
   return (
     <aside className="rounded-md border border-border p-6 sm:col-span-2">
@@ -204,23 +271,60 @@ function CartSidebar({
         <span
           className="font-semibold text-sm"
           data-commerce-money="checkout-subtotal"
-          data-currency={state.cart.totalPrice.currencyCode}
-          data-minor-amount={state.cart.totalPrice.centAmount}
+          data-currency={merchandiseSubtotal.currencyCode}
+          data-minor-amount={merchandiseSubtotal.centAmount}
         >
-          {formatMoney(state.cart.totalPrice, locale)}
+          {formatMoney(merchandiseSubtotal, locale)}
         </span>
       </div>
+      {!shippingOptionsComplete ||
+      state.details.selectedDeliveryPlan === undefined ? null : (
+        <div className="mt-5 grid gap-3 border-border border-t pt-4">
+          {state.details.selectedDeliveryPlan.groups.map((group, index) => (
+            <div
+              className="flex items-center justify-between gap-4 text-sm"
+              data-selected-delivery-group={group.reference}
+              key={group.reference}
+            >
+              <span>
+                <span className="block font-medium">
+                  {messages.delivery(index + 1)}
+                </span>
+                <span
+                  className="block text-muted-foreground"
+                  data-selected-shipping-option={
+                    group.selectedShippingOption.reference
+                  }
+                >
+                  {group.selectedShippingOption.name}
+                </span>
+              </span>
+              <span
+                data-commerce-money="selected-shipping-option"
+                data-currency={group.selectedShippingOption.price.currencyCode}
+                data-minor-amount={
+                  group.selectedShippingOption.price.centAmount
+                }
+              >
+                {formatMoney(group.selectedShippingOption.price, locale)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </aside>
   );
 }
 
 export async function CheckoutView({
   actions,
+  deliveryPlanQuote,
   locale,
   shippingAddressOptions,
   state,
 }: {
   readonly actions: CheckoutActions;
+  readonly deliveryPlanQuote: DeliveryPlanQuote;
   readonly locale: Locale;
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
   readonly state: CheckoutState;
@@ -235,6 +339,8 @@ export async function CheckoutView({
     cartQuantity: (quantity) => t("cart.quantity", { quantity }),
     cartTitle: t("cart.title"),
     cartViolations: t("cart.violations"),
+    delivery: (number) => t("shippingOptions.delivery", { number }),
+    editDeliveryDetails: t("deliveryDetails.actions.edit"),
     stepLabels: {
       contact: t("steps.contact"),
       deliveryDetails: t("steps.deliveryDetails"),
@@ -256,6 +362,7 @@ export async function CheckoutView({
       <CheckoutSteps messages={messages} state={state} />
       <ActiveStep
         actions={actions}
+        deliveryPlanQuote={deliveryPlanQuote}
         messages={messages}
         shippingAddressOptions={shippingAddressOptions}
         state={state}

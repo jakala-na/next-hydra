@@ -13,6 +13,7 @@ import type { RemoveCartItemInput } from "@repo/commerce/cart/remove-cart-item";
 import type {
   SaveCheckoutContactActionResult,
   SaveCheckoutDeliveryDetailsActionResult,
+  SaveCheckoutShippingOptionsActionResult,
 } from "@repo/commerce/checkout";
 import { makeCheckoutProcedures } from "@repo/commerce/checkout/procedures";
 import { getTranslations } from "@repo/i18n";
@@ -22,6 +23,7 @@ import { AppRuntime } from "./app-runtime";
 import {
   shouldRevalidateContact,
   shouldRevalidateDeliveryDetails,
+  shouldRevalidateShippingOptions,
 } from "./commerce-action-cache-policy";
 import { CommerceActions } from "./commerce-runtime";
 import { NextRequestApi } from "./next-request";
@@ -31,8 +33,11 @@ const {
   changeCartItemsQuantityProcedure,
   removeCartItemProcedure,
 } = makeCartProcedures(CommerceActions);
-const { saveCheckoutContactProcedure, saveCheckoutDeliveryDetailsProcedure } =
-  makeCheckoutProcedures(CommerceActions);
+const {
+  saveCheckoutContactProcedure,
+  saveCheckoutDeliveryDetailsProcedure,
+  saveCheckoutShippingOptionsProcedure,
+} = makeCheckoutProcedures(CommerceActions);
 
 const addToCartAction = addToCartProcedure.toAction();
 const changeCartItemsQuantityAction =
@@ -58,6 +63,21 @@ const saveCheckoutDeliveryDetailsAction =
       const t = await getTranslations({
         locale,
         namespace: "web.checkout.errors.saveDeliveryDetails",
+      });
+
+      return t(
+        error._tag === "InputInvalid"
+          ? "CheckoutMutationSchemaFailure"
+          : error._tag
+      );
+    },
+  });
+const saveCheckoutShippingOptionsAction =
+  saveCheckoutShippingOptionsProcedure.toFormAction({
+    getFailureMessage: async (error, { locale }) => {
+      const t = await getTranslations({
+        locale,
+        namespace: "web.checkout.errors.saveShippingOptions",
       });
 
       return t(
@@ -114,5 +134,17 @@ export const saveCheckoutDeliveryDetails = async (
     formData
   );
   await revalidateCheckoutWhen(shouldRevalidateDeliveryDetails(result));
+  return result;
+};
+
+export const saveCheckoutShippingOptions = async (
+  previousResult: SaveCheckoutShippingOptionsActionResult | null,
+  formData: FormData
+): Promise<SaveCheckoutShippingOptionsActionResult> => {
+  const result = await saveCheckoutShippingOptionsAction(
+    previousResult,
+    formData
+  );
+  await revalidateCheckoutWhen(shouldRevalidateShippingOptions(result));
   return result;
 };

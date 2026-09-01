@@ -24,11 +24,14 @@
     "./domain/cart-errors": "./domain/cart-errors.ts",
     "./domain/cart-snapshot": "./domain/cart-snapshot.ts",
     "./domain/checkout": "./domain/checkout.ts",
+    "./domain/delivery-plan": "./domain/delivery-plan.ts",
     "./domain/commerce-account": "./domain/commerce-account.ts",
     "./domain/commerce-request-context": "./domain/commerce-request-context.ts",
     "./domain/money": "./domain/money.ts",
     "./domain/provider-failure": "./domain/provider-failure.ts",
+    "./e2e/checkout-expectations": "./e2e/checkout-expectations.ts",
     "./e2e/checkout-scenario": "./e2e/checkout-scenario.ts",
+    "./e2e/shipping-options-test-control": "./e2e/shipping-options-test-control.ts",
     "./http/address-book-api": "./http/address-book-api.ts",
     "./http/checkout-api": "./http/checkout-api.ts",
     "./http/checkout-api-messages": "./http/checkout-api-messages.ts",
@@ -54,6 +57,7 @@
     "./services/commerce-context": "./services/commerce-context.ts",
     "./services/customer-account-members": "./services/customer-account-members.ts",
     "./services/current-cart": "./services/current-cart.ts",
+    "./services/delivery-planning": "./services/delivery-planning.ts",
     "./store": "./store/index.ts"
   },
   "scripts": {

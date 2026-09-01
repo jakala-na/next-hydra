@@ -12,6 +12,7 @@
   "exports": {
     "./provider": "./provider.ts",
     "./cart": "./cart/index.ts",
+    "./delivery-planning": "./delivery-planning/index.ts",
     "./commerce-accounts": "./commerce-accounts/index.ts",
     "./address-book": "./address-book/index.ts",
     "./product": "./product/index.ts",

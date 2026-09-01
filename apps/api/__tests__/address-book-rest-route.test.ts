@@ -32,6 +32,7 @@ import { Carts } from "@repo/commerce/services/carts";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
+import { DeliveryPlanning } from "@repo/commerce/services/delivery-planning";
 import { StoreKey } from "@repo/commerce/store";
 import { Context, Effect, Layer } from "effect";
 import { expect, test } from "vitest";
@@ -141,6 +142,7 @@ const makeHandler = (
     checkoutPoliciesLayer: CheckoutPolicies.layer,
     commerceAccountsLayer,
     commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
+    deliveryPlanningLayer: DeliveryPlanning.emptyLayer,
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 

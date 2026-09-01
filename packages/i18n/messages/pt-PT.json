@@ -347,7 +347,21 @@
           "country": "País"
         },
         "actions": {
+          "edit": "Editar detalhes de entrega",
           "save": "Guardar detalhes de entrega",
+          "saving": "A guardar..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Escolha uma opção de envio",
+        "choosePlan": "Escolha um plano de entrega",
+        "delivery": "Entrega {number}",
+        "noOptions": "Não existem opções de envio para esta entrega.",
+        "noPlans": "Não existe um plano de entrega para esta morada.",
+        "plan": "Plano de entrega {number}",
+        "quantity": "Qtd. {quantity}",
+        "actions": {
+          "save": "Guardar opções de envio",
           "saving": "A guardar..."
         }
       },
@@ -395,6 +409,18 @@
           "CheckoutUnavailable": "O checkout não foi encontrado para este pedido.",
           "CommerceRequestContextNotFound": "O checkout não foi encontrado para este pedido.",
           "CheckoutVersionConflict": "O checkout foi alterado antes de guardar. Atualize a página e tente novamente."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "Este checkout já não está atualizado.",
+          "CheckoutMutationSchemaFailure": "Escolha uma opção para cada entrega.",
+          "CheckoutMutationOutcomeUnknown": "Não foi possível confirmar o registo. Atualize a página.",
+          "CheckoutMutationProviderFailure": "Não foi possível guardar as opções de envio.",
+          "CheckoutShippingOptionsRefreshRequired": "As opções de envio foram guardadas, mas não foi possível atualizar o checkout. Atualize a página.",
+          "CheckoutShippingSelectionUnavailable": "Esta opção de envio já não está disponível.",
+          "CheckoutUnavailable": "Checkout não encontrado.",
+          "CheckoutVersionConflict": "O checkout foi alterado antes de guardar.",
+          "CommerceAccountUnavailable": "Não foi possível guardar as opções de envio.",
+          "CommerceRequestContextNotFound": "Checkout não encontrado."
         }
       },
       "violations": {

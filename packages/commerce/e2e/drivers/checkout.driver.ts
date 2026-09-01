@@ -1,6 +1,7 @@
 import { expect } from "@repo/e2e-testing";
 import type { Locator, Page } from "@repo/e2e-testing";
 
+import type { ShippingOptionExpectation } from "../shipping-options-test-control";
 import { expectMoney } from "./money.driver";
 
 const exactTextIgnoringCase = (value: string): RegExp =>
@@ -144,6 +145,100 @@ export class CheckoutDriver {
       .click();
   }
 
+  async expectDeliveryTargets(
+    targets: readonly {
+      readonly deliveryGroup: string;
+      readonly product: string;
+      readonly quantity: number;
+    }[]
+  ): Promise<void> {
+    await Promise.all(
+      targets.map(async (target) => {
+        const group = this.#deliveryGroup(target.deliveryGroup);
+        const visibleTarget = group
+          .locator("[data-delivery-target-line-item-id]")
+          .filter({ hasText: target.product });
+        await expect(visibleTarget).toHaveAttribute(
+          "data-delivery-target-quantity",
+          String(target.quantity)
+        );
+      })
+    );
+  }
+
+  async expectShippingOptions(
+    deliveryGroup: string,
+    options: readonly ShippingOptionExpectation[]
+  ): Promise<void> {
+    const group = this.#deliveryGroup(deliveryGroup);
+    await Promise.all(
+      options.map(async (option) => {
+        const choice = this.#shippingOption(group, option.name);
+        await expect(choice.getByRole("radio")).toBeVisible();
+        await expectMoney(
+          choice.locator('[data-commerce-money="shipping-option"]'),
+          option.price,
+          option.currency
+        );
+      })
+    );
+  }
+
+  async selectShippingOption(
+    deliveryGroup: string,
+    shippingOption: string
+  ): Promise<void> {
+    await this.#shippingOption(
+      this.#deliveryGroup(deliveryGroup),
+      shippingOption
+    )
+      .getByRole("radio")
+      .check();
+  }
+
+  async saveShippingOptions(): Promise<void> {
+    await this.#activeStep("Shipping Options")
+      .getByRole("button", { name: "Save shipping options" })
+      .click();
+  }
+
+  async editStep(stepName: string): Promise<void> {
+    if (stepName !== "Delivery Details") {
+      throw new Error(`Editing ${stepName} is not supported`);
+    }
+    await this.#page
+      .getByText("Edit delivery details", { exact: true })
+      .click();
+  }
+
+  async expectNoSelectedShippingOption(): Promise<void> {
+    await expect(
+      this.#cart().locator("[data-selected-shipping-option]")
+    ).toHaveCount(0);
+    await expect(
+      this.#activeStep("Shipping Options").getByRole("radio", {
+        checked: true,
+      })
+    ).toHaveCount(0);
+  }
+
+  async expectSelectedShippingOption(
+    deliveryGroup: string,
+    shippingOption: string,
+    price: string,
+    currency: string
+  ): Promise<void> {
+    const selected = this.#selectedDeliveryGroup(deliveryGroup);
+    await expect(
+      selected.locator("[data-selected-shipping-option]")
+    ).toHaveText(shippingOption);
+    await expectMoney(
+      selected.locator('[data-commerce-money="selected-shipping-option"]'),
+      price,
+      currency
+    );
+  }
+
   #activeStep(stepName: string): Locator {
     return this.#page.locator("section").filter({
       has: this.#page.getByRole("heading", {
@@ -151,6 +246,12 @@ export class CheckoutDriver {
         level: 1,
         name: exactTextIgnoringCase(stepName),
       }),
+    });
+  }
+
+  #shippingOption(group: Locator, name: string): Locator {
+    return group.locator("[data-shipping-option-name]").filter({
+      has: this.#page.getByText(exactTextIgnoringCase(name)),
     });
   }
 
@@ -167,6 +268,23 @@ export class CheckoutDriver {
 
   #cart(): Locator {
     return this.#page.locator("aside");
+  }
+
+  #deliveryGroup(deliveryGroup: string): Locator {
+    return this.#activeStep("Shipping Options")
+      .locator("[data-delivery-group]")
+      .filter({
+        has: this.#page.getByRole("heading", {
+          exact: true,
+          name: exactTextIgnoringCase(deliveryGroup),
+        }),
+      });
+  }
+
+  #selectedDeliveryGroup(deliveryGroup: string): Locator {
+    return this.#cart()
+      .locator("[data-selected-delivery-group]")
+      .filter({ hasText: deliveryGroup });
   }
 
   async #expectCompanyContext(companyName: string): Promise<void> {

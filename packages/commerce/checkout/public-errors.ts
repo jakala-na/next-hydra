@@ -8,11 +8,17 @@ import type {
   CheckoutProviderFailure,
   CheckoutUnavailable,
 } from "../domain/checkout";
+import {
+  DeliveryPlanQuoteReference,
+  DeliveryPlanReference,
+  ShippingOptionReference,
+} from "../domain/delivery-plan";
 import { checkoutApiErrorMessage } from "../http/checkout-api-messages";
 import type { CheckoutApiErrorCode } from "../http/checkout-api-messages";
 import type {
   CheckoutSaveContactFailure,
   CheckoutSaveDeliveryDetailsFailure,
+  CheckoutSaveShippingOptionsFailure,
 } from "../lib/checkout/checkout-session";
 import type { NextCommerceRequestError } from "../runtime";
 
@@ -116,6 +122,46 @@ const PublicCheckoutContactProviderFailure = definePublicError({
   tag: "CheckoutMutationProviderFailure",
 });
 
+const PublicCheckoutShippingSelectionUnavailable = definePublicError({
+  category: "conflict",
+  code: "checkout.shippingOptions.selectionUnavailable",
+  fields: {
+    planReference: DeliveryPlanReference,
+    quoteReference: DeliveryPlanQuoteReference,
+    shippingOptionReference: Schema.optional(ShippingOptionReference),
+  },
+  recovery: "refresh",
+  status: 409,
+  tag: "CheckoutShippingSelectionUnavailable",
+});
+
+const PublicCheckoutShippingOptionsRefreshRequired = definePublicError({
+  category: "unavailable",
+  code: "checkout.shippingOptions.refreshRequired",
+  fields: { cartId: CartId },
+  recovery: "refresh",
+  status: 503,
+  tag: "CheckoutShippingOptionsRefreshRequired",
+});
+
+const PublicCheckoutShippingOutcomeUnknown = definePublicError({
+  category: "unavailable",
+  code: "checkout.shippingOptions.outcomeUnknown",
+  fields: { cartId: Schema.optional(CartId) },
+  recovery: "refresh",
+  status: 503,
+  tag: "CheckoutMutationOutcomeUnknown",
+});
+
+const PublicCheckoutShippingProviderFailure = definePublicError({
+  category: "unavailable",
+  code: "checkout.shippingOptions.providerFailure",
+  fields: {},
+  recovery: "retry",
+  status: 503,
+  tag: "CheckoutMutationProviderFailure",
+});
+
 const PublicCheckoutProviderFailure = definePublicError({
   category: "unavailable",
   code: "checkout.internal",
@@ -132,6 +178,11 @@ export type CheckoutSaveContactExpectedFailure = Exclude<
 
 export type CheckoutSaveDeliveryDetailsExpectedFailure = Exclude<
   CheckoutSaveDeliveryDetailsFailure,
+  { readonly _tag: "CheckoutMutationUnsupported" }
+>;
+
+export type CheckoutSaveShippingOptionsExpectedFailure = Exclude<
+  CheckoutSaveShippingOptionsFailure,
   { readonly _tag: "CheckoutMutationUnsupported" }
 >;
 
@@ -226,6 +277,17 @@ const customerProfileIncompleteFailure = definePublicError({
 const deliveryInputFailure = definePublicError({
   category: "bad_input",
   code: "checkout.deliveryDetails.invalidInput",
+  fields: {
+    issues: Schema.NonEmptyArray(ErrorIssue),
+  },
+  recovery: "fix_input",
+  status: 400,
+  tag: "CheckoutMutationSchemaFailure",
+});
+
+const shippingOptionsInputFailure = definePublicError({
+  category: "bad_input",
+  code: "checkout.shippingOptions.invalidInput",
   fields: {
     issues: Schema.NonEmptyArray(ErrorIssue),
   },
@@ -514,6 +576,112 @@ export function projectSaveCheckoutDeliveryDetailsFailure(
         ...(error.addressBookReference === undefined
           ? {}
           : { addressBookReference: error.addressBookReference }),
+      });
+    }
+    case "CheckoutUnavailable": {
+      return PublicCheckoutUnavailable.make({
+        message: message(locale, "checkout.notFound"),
+        reason: error.reason,
+      });
+    }
+    case "CommerceAccountUnavailable":
+    case "CommerceRequestContextNotFound": {
+      return projectCheckoutRequestFailure(error, locale);
+    }
+    default: {
+      return absurd(error);
+    }
+  }
+}
+
+export const SaveCheckoutShippingOptionsOperationPublicErrors = [
+  shippingOptionsInputFailure.schema,
+  PublicCheckoutShippingSelectionUnavailable.schema,
+  PublicCheckoutShippingOptionsRefreshRequired.schema,
+  PublicCheckoutCartMismatch.schema,
+  PublicCheckoutContactVersionConflict.schema,
+  PublicCheckoutShippingOutcomeUnknown.schema,
+  PublicCheckoutShippingProviderFailure.schema,
+  PublicCheckoutUnavailable.schema,
+] as const;
+export const SaveCheckoutShippingOptionsOperationPublicError = Schema.Union(
+  SaveCheckoutShippingOptionsOperationPublicErrors
+);
+export type SaveCheckoutShippingOptionsOperationPublicError =
+  typeof SaveCheckoutShippingOptionsOperationPublicError.Type;
+export const SaveCheckoutShippingOptionsPublicError = Schema.Union([
+  ...SaveCheckoutShippingOptionsOperationPublicErrors,
+  ...CheckoutRequestPublicErrors,
+]);
+export type SaveCheckoutShippingOptionsPublicError =
+  typeof SaveCheckoutShippingOptionsPublicError.Type;
+
+export function projectSaveCheckoutShippingOptionsFailure(
+  error: CheckoutSaveShippingOptionsExpectedFailure,
+  locale: string
+): SaveCheckoutShippingOptionsOperationPublicError;
+export function projectSaveCheckoutShippingOptionsFailure(
+  error: CheckoutSaveShippingOptionsExpectedFailure | NextCommerceRequestError,
+  locale: string
+): SaveCheckoutShippingOptionsPublicError;
+export function projectSaveCheckoutShippingOptionsFailure(
+  error: CheckoutSaveShippingOptionsExpectedFailure | NextCommerceRequestError,
+  locale: string
+): SaveCheckoutShippingOptionsPublicError {
+  switch (error._tag) {
+    case "CheckoutMutationSchemaFailure": {
+      const publicMessage = message(locale, "checkout.badRequest");
+      return shippingOptionsInputFailure.make({
+        issues: publicIssues(error.issues, publicMessage),
+        message: publicMessage,
+      });
+    }
+    case "CheckoutShippingSelectionUnavailable": {
+      const failure = {
+        message: message(locale, "checkout.versionConflict"),
+        planReference: error.planReference,
+        quoteReference: error.quoteReference,
+      };
+      return error.shippingOptionReference === undefined
+        ? PublicCheckoutShippingSelectionUnavailable.make(failure)
+        : PublicCheckoutShippingSelectionUnavailable.make({
+            ...failure,
+            shippingOptionReference: error.shippingOptionReference,
+          });
+    }
+    case "CheckoutShippingOptionsRefreshRequired": {
+      return PublicCheckoutShippingOptionsRefreshRequired.make({
+        cartId: error.cartId,
+        message: message(locale, "checkout.internal"),
+      });
+    }
+    case "CheckoutCartMismatch": {
+      return PublicCheckoutCartMismatch.make({
+        currentCartId: error.currentCartId,
+        message: message(locale, "checkout.cartMismatch"),
+        submittedCartId: error.submittedCartId,
+      });
+    }
+    case "CheckoutVersionConflict": {
+      return PublicCheckoutContactVersionConflict.make({
+        cartId: error.cartId,
+        message: message(locale, "checkout.versionConflict"),
+      });
+    }
+    case "CheckoutMutationOutcomeUnknown": {
+      const failure = {
+        message: message(locale, "checkout.internal"),
+      };
+      return error.cartId === undefined
+        ? PublicCheckoutShippingOutcomeUnknown.make(failure)
+        : PublicCheckoutShippingOutcomeUnknown.make({
+            ...failure,
+            cartId: error.cartId,
+          });
+    }
+    case "CheckoutMutationProviderFailure": {
+      return PublicCheckoutShippingProviderFailure.make({
+        message: message(locale, "checkout.internal"),
       });
     }
     case "CheckoutUnavailable": {

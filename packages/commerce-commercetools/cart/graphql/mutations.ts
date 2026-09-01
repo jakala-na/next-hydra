@@ -8,7 +8,13 @@ export const CreateCartMutation = graphql(
       $storeKey: String!
       $locale: Locale!
     ) {
-      createCart(draft: { currency: $currency, store: { key: $storeKey } }) {
+      createCart(
+        draft: {
+          currency: $currency
+          shippingMode: Multiple
+          store: { key: $storeKey }
+        }
+      ) {
         ...CartFields
       }
     }

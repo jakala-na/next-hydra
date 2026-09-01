@@ -2,7 +2,7 @@ import "server-only";
 import { normalizeActionSchemaIssuePath } from "@repo/actions";
 import type { ActionSchemaIssuePath } from "@repo/actions";
 import { ErrorIssue } from "@repo/errors";
-import { Effect, Schema, SchemaIssue } from "effect";
+import { Effect, Schema, SchemaIssue, SchemaTransformation } from "effect";
 
 import { AddressBookReference } from "../domain/address-book";
 import { CartId } from "../domain/cart";
@@ -11,23 +11,28 @@ import {
   CheckoutState,
   CountryCodeFromString,
 } from "../domain/checkout";
+import { DeliveryPlanSelection } from "../domain/delivery-plan";
 import type {
   SaveCheckoutContactInput,
   SaveCheckoutDeliveryDetailsInput,
+  SaveCheckoutShippingOptionsInput,
 } from "../lib/checkout/checkout-session";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import type { CommerceActionClient } from "../runtime";
 import {
   SaveCheckoutContactActionError,
   SaveCheckoutDeliveryDetailsActionError,
+  SaveCheckoutShippingOptionsActionError,
 } from "./action-contract";
 import type {
   CheckoutSaveContactExpectedFailure,
   CheckoutSaveDeliveryDetailsExpectedFailure,
+  CheckoutSaveShippingOptionsExpectedFailure,
 } from "./public-errors";
 import {
   projectSaveCheckoutContactFailure,
   projectSaveCheckoutDeliveryDetailsFailure,
+  projectSaveCheckoutShippingOptionsFailure,
 } from "./public-errors";
 import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
 
@@ -75,6 +80,18 @@ const SaveCheckoutDeliveryDetailsForm = Schema.fromFormData(
       saveToAddressBook: FormCheckboxValue,
     }),
   ])
+);
+
+const DeliveryPlanSelectionFromJson = Schema.String.pipe(
+  Schema.decodeTo(Schema.Unknown, SchemaTransformation.fromJsonString()),
+  Schema.decodeTo(DeliveryPlanSelection)
+);
+
+const SaveCheckoutShippingOptionsForm = Schema.fromFormData(
+  Schema.Struct({
+    cartId: CartId,
+    selection: DeliveryPlanSelectionFromJson,
+  })
 );
 
 const optionalNonEmptyString = (value: string | undefined) =>
@@ -147,6 +164,13 @@ const toSaveCheckoutDeliveryDetailsInput = (
   };
 };
 
+const toSaveCheckoutShippingOptionsInput = (
+  input: typeof SaveCheckoutShippingOptionsForm.Type
+): SaveCheckoutShippingOptionsInput => ({
+  cart: { id: input.cartId },
+  selection: input.selection,
+});
+
 const saveCheckoutContactProgram = Effect.fn("CheckoutAction.saveContact")(
   (input: typeof SaveCheckoutContactForm.Type) =>
     CheckoutSession.saveContact(toSaveCheckoutContactInput(input))
@@ -158,6 +182,12 @@ const saveCheckoutDeliveryDetailsProgram = Effect.fn(
   CheckoutSession.saveDeliveryDetails(
     toSaveCheckoutDeliveryDetailsInput(input)
   ).pipe(Effect.map(({ state }) => state))
+);
+
+const saveCheckoutShippingOptionsProgram = Effect.fn(
+  "CheckoutAction.saveShippingOptions"
+)((input: typeof SaveCheckoutShippingOptionsForm.Type) =>
+  CheckoutSession.saveShippingOptions(toSaveCheckoutShippingOptionsInput(input))
 );
 
 const toCheckoutMutationIssuePath = (
@@ -269,6 +299,13 @@ const checkoutDeliveryDetailsInputIssues = (
     (path) => checkoutDeliveryDetailsPath(formData, path)
   );
 
+const checkoutShippingOptionsInputIssues = (error: Schema.SchemaError) =>
+  checkoutInputIssues(
+    error,
+    "Checkout Shipping Options action input is invalid",
+    (path) => path === "root" || path === "cartId"
+  );
+
 export const makeCheckoutProcedures = <
   RuntimeServices,
   Context extends { readonly locale: string },
@@ -297,4 +334,15 @@ export const makeCheckoutProcedures = <
       projectSaveCheckoutDeliveryDetailsFailure(error, locale)
     )
     .handle(saveCheckoutDeliveryDetailsProgram),
+  saveCheckoutShippingOptionsProcedure: actions
+    .procedure("CheckoutAction.saveShippingOptions")
+    .input(SaveCheckoutShippingOptionsForm)
+    .output(CheckoutState)
+    .error(SaveCheckoutShippingOptionsActionError)
+    .mapInputIssues(checkoutShippingOptionsInputIssues)
+    // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect action error mapper, not Promise control flow.
+    .mapError<CheckoutSaveShippingOptionsExpectedFailure>((error, { locale }) =>
+      projectSaveCheckoutShippingOptionsFailure(error, locale)
+    )
+    .handle(saveCheckoutShippingOptionsProgram),
 });

@@ -31,6 +31,7 @@ import { CommerceAccounts } from "../services/commerce-accounts";
 import { CommerceCompanyMemberships } from "../services/commerce-company-memberships";
 import { CommerceContext } from "../services/commerce-context";
 import { CurrentCart } from "../services/current-cart";
+import { DeliveryPlanning } from "../services/delivery-planning";
 import { CommerceLocale, resolveStore, StoreKey } from "../store";
 import type { CommerceRequestInput } from "./commerce-request";
 import type {
@@ -150,6 +151,7 @@ const makeApp = (
       customers: [{ authUserId, customerId }],
     }),
     commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
+    deliveryPlanningLayer: DeliveryPlanning.emptyLayer,
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 };

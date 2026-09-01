@@ -68,7 +68,8 @@ const isDeliveryDetailsComplete = (details: CheckoutDetails) => {
 const buildCheckoutSteps = (
   details: CheckoutDetails,
   buyerContext: CheckoutBuyerContext,
-  allowedContactSources: readonly CheckoutContactSource[]
+  allowedContactSources: readonly CheckoutContactSource[],
+  shippingOptionsComplete: boolean
 ): readonly CheckoutStep[] => [
   {
     id: "contact",
@@ -82,7 +83,7 @@ const buildCheckoutSteps = (
   },
   {
     id: "shippingOptions",
-    status: "incomplete",
+    status: shippingOptionsComplete ? "complete" : "incomplete",
   },
   {
     id: "paymentOptions",
@@ -142,6 +143,7 @@ export interface BuildCheckoutStateInput {
   readonly allowedContactSources?: readonly CheckoutContactSource[];
   readonly cartPolicyViolations: readonly CartPolicyViolation[];
   readonly checkoutPolicyViolations: readonly CheckoutPolicyViolation[];
+  readonly shippingOptionsComplete?: boolean;
 }
 
 export const buildCheckoutState = Effect.fn("buildCheckoutState")(function* ({
@@ -152,6 +154,7 @@ export const buildCheckoutState = Effect.fn("buildCheckoutState")(function* ({
   allowedContactSources = ["manual", "customerProfile"],
   cartPolicyViolations,
   checkoutPolicyViolations,
+  shippingOptionsComplete = false,
 }: BuildCheckoutStateInput): Effect.fn.Return<
   CheckoutState,
   CheckoutUnavailable
@@ -160,7 +163,8 @@ export const buildCheckoutState = Effect.fn("buildCheckoutState")(function* ({
   const steps = buildCheckoutSteps(
     details,
     buyerContext,
-    allowedContactSources
+    allowedContactSources,
+    shippingOptionsComplete
   );
 
   return {

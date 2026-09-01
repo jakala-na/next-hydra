@@ -3,6 +3,10 @@ import {
   ANONYMOUS_CART_COOKIE_NAME,
   decodeAnonymousCartCookie,
 } from "../lib/cart/utils/anonymous-cart-cookies";
+import type {
+  ShippingOptionExpectation,
+  ShippingOptionsExpectation,
+} from "./shipping-options-test-control";
 
 export interface StoreExpectation {
   readonly currency: string;
@@ -32,6 +36,9 @@ interface AnonymousCartCookiePage {
 
 export interface CheckoutScenarioOptions {
   readonly deleteCart: (cartId: CartId) => Promise<void>;
+  readonly expectShippingOptions?: (
+    input: ShippingOptionsExpectation
+  ) => Promise<void>;
   readonly page: AnonymousCartCookiePage;
 }
 
@@ -67,6 +74,16 @@ export class CheckoutScenario {
       throw new Error("The scenario does not define a Product Variant");
     }
     return this.#product;
+  }
+
+  async expectShippingOptions(
+    country: string,
+    options: readonly ShippingOptionExpectation[]
+  ): Promise<void> {
+    if (this.#options.expectShippingOptions === undefined) {
+      throw new Error("The scenario cannot inspect live Shipping Options");
+    }
+    await this.#options.expectShippingOptions({ country, options });
   }
 
   defineShippingAddress(address: ShippingAddressExpectation): void {

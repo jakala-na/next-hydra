@@ -1,4 +1,4 @@
-type ContactRevalidationResult =
+type CheckoutRevalidationResult =
   | { readonly _tag: "Success" }
   | {
       readonly _tag: "Failure";
@@ -21,7 +21,7 @@ type DeliveryRevalidationResult =
       };
     };
 
-export const shouldRevalidateContact = (result: ContactRevalidationResult) =>
+export const shouldRevalidateContact = (result: CheckoutRevalidationResult) =>
   result._tag === "Success" ||
   result.failure.error._tag === "CheckoutCartMismatch" ||
   result.failure.error._tag === "CheckoutMutationOutcomeUnknown" ||
@@ -36,3 +36,13 @@ export const shouldRevalidateDeliveryDetails = (
   result.failure.error._tag === "CheckoutVersionConflict" ||
   (result.failure.error._tag === "CheckoutMutationProviderFailure" &&
     result.failure.error.addressBookReference !== undefined);
+
+export const shouldRevalidateShippingOptions = (
+  result: CheckoutRevalidationResult
+) =>
+  result._tag === "Success" ||
+  result.failure.error._tag === "CheckoutCartMismatch" ||
+  result.failure.error._tag === "CheckoutMutationOutcomeUnknown" ||
+  result.failure.error._tag === "CheckoutShippingOptionsRefreshRequired" ||
+  result.failure.error._tag === "CheckoutShippingSelectionUnavailable" ||
+  result.failure.error._tag === "CheckoutVersionConflict";

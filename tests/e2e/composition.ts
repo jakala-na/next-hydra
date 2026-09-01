@@ -14,9 +14,11 @@ import type { commercetoolsClientsLayer as CommercetoolsClientsLayer } from "@re
 import type {
   CommercetoolsRestClient,
   makeCommercetoolsJanitorFromApiRoot as MakeCommercetoolsJanitorFromApiRoot,
+  shippingOptionsTestControlLayer as ShippingOptionsTestControlLayer,
 } from "@repo/commerce-provider/testing";
 import { CheckoutScenario } from "@repo/commerce/e2e/checkout-scenario";
 import type { CheckoutScenarioOptions } from "@repo/commerce/e2e/checkout-scenario";
+import { ShippingOptionsTestControl } from "@repo/commerce/e2e/shipping-options-test-control";
 import {
   e2eApplicationUrlsFromEnvironment,
   test as base,
@@ -55,12 +57,16 @@ interface CommerceProviderModule {
 interface CommerceProviderTestingModule {
   readonly CommercetoolsRestClient: typeof CommercetoolsRestClient;
   readonly makeCommercetoolsJanitorFromApiRoot: typeof MakeCommercetoolsJanitorFromApiRoot;
+  readonly shippingOptionsTestControlLayer: typeof ShippingOptionsTestControlLayer;
 }
 
 interface E2EServices {
   readonly adminAuth: AuthTestControl["Service"];
   readonly customerAuth: AuthTestControl["Service"];
   readonly deleteCart: CheckoutScenarioOptions["deleteCart"];
+  readonly expectShippingOptions: NonNullable<
+    CheckoutScenarioOptions["expectShippingOptions"]
+  >;
   readonly deleteCommerceAccount: RegistrationContextOptions["deleteCommerceAccount"];
   readonly deleteRegistration: RegistrationContextOptions["deleteRegistration"];
   readonly provisionCompany: RegistrationContextOptions["provisionCompany"];
@@ -157,6 +163,7 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
   checkoutScenario: async ({ e2eServices, page }, provide) => {
     const checkoutScenario = new CheckoutScenario({
       deleteCart: e2eServices.deleteCart,
+      expectShippingOptions: e2eServices.expectShippingOptions,
       page,
     });
 
@@ -173,7 +180,11 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
         { adminAuthTestControlLayer, authTestControlLayer },
         { commerceAccountsLayer },
         { commercetoolsClientsLayer },
-        { CommercetoolsRestClient, makeCommercetoolsJanitorFromApiRoot },
+        {
+          CommercetoolsRestClient,
+          makeCommercetoolsJanitorFromApiRoot,
+          shippingOptionsTestControlLayer,
+        },
       ] = await Promise.all([
         importLiveModule<AuthInvitationsModule>("@repo/auth/invitations"),
         importLiveModule<AuthTestingModule>("@repo/auth/testing"),
@@ -187,11 +198,14 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
           "@repo/commerce-provider/testing"
         ),
       ]);
+      const commerceTestingLayer = shippingOptionsTestControlLayer.pipe(
+        Layer.provideMerge(commercetoolsClientsLayer)
+      );
       const liveRegistrationLayer = Layer.mergeAll(
         authTestControlLayer,
         commerceAccountsLayer,
         companyMemberIdentityProjectionLayer,
-        commercetoolsClientsLayer,
+        commerceTestingLayer,
         CompanyInvitationPolicy.layer
       );
       const runtime = ManagedRuntime.make(liveRegistrationLayer);
@@ -202,6 +216,7 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
             return {
               auth: yield* AuthTestControl,
               restClient: yield* CommercetoolsRestClient,
+              shippingOptions: yield* ShippingOptionsTestControl,
             };
           })
         ),
@@ -218,6 +233,11 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
           deleteCart: janitor.deleteCart,
           deleteCommerceAccount: janitor.deleteCommerceAccount,
           deleteRegistration: janitor.deleteRegistration,
+          expectShippingOptions: async (input) => {
+            await runtime.runPromise(
+              services.shippingOptions.expectShippingOptions(input)
+            );
+          },
           provisionCompany: async (input) =>
             await runtime.runPromise(provisionScenarioCompany(input)),
           provisionCompanyMember: async (input) =>

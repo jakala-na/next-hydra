@@ -1,11 +1,15 @@
 import { AddressBookReference } from "@repo/commerce/domain/address-book";
-import { CountryCode } from "@repo/commerce/domain/checkout";
-import type { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
+import {
+  CheckoutDeliveryDetails,
+  CountryCode,
+} from "@repo/commerce/domain/checkout";
+import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
   buildSaveCheckoutDeliveryDetailsActions,
   hasPersistedCheckoutDeliveryDetails,
+  serializeCheckoutDeliveryDetails,
 } from "./delivery-details-actions";
 
 const shippingAddress = {
@@ -29,40 +33,38 @@ const addressBookDeliveryDetails = {
 } as const satisfies CheckoutDeliveryDetails;
 
 describe(buildSaveCheckoutDeliveryDetailsActions, () => {
-  it("copies a Manual address into the Cart without saved identity", () => {
+  it("separates the persisted String value from GraphQL JSON encoding", () => {
+    const serialized = serializeCheckoutDeliveryDetails(manualDeliveryDetails);
+
+    expect(serialized).toBe(JSON.stringify(manualDeliveryDetails));
+    expect(
+      Schema.decodeSync(Schema.fromJsonString(CheckoutDeliveryDetails))(
+        serialized
+      )
+    ).toStrictEqual(manualDeliveryDetails);
+  });
+
+  it("persists Manual Delivery Details as cart-owned checkout data", () => {
     expect(
       buildSaveCheckoutDeliveryDetailsActions(manualDeliveryDetails)
     ).toStrictEqual([
       {
-        setShippingAddress: {
-          address: {
-            additionalStreetInfo: "Suite 42",
-            city: "London",
-            country: "GB",
-            postalCode: "SW1A 1AA",
-            region: "Greater London",
-            streetName: "123 Analytical Engine Way",
-          },
+        setCustomField: {
+          name: "checkoutDeliveryDetails",
+          value: JSON.stringify(JSON.stringify(manualDeliveryDetails)),
         },
       },
     ]);
   });
 
-  it("copies a saved address and its Address Book key into the Cart", () => {
+  it("persists saved-address identity with its Delivery Details", () => {
     expect(
       buildSaveCheckoutDeliveryDetailsActions(addressBookDeliveryDetails)
     ).toStrictEqual([
       {
-        setShippingAddress: {
-          address: {
-            additionalStreetInfo: "Suite 42",
-            city: "London",
-            country: "GB",
-            key: "address-book-bG9uZG9uLW9mZmljZQ",
-            postalCode: "SW1A 1AA",
-            region: "Greater London",
-            streetName: "123 Analytical Engine Way",
-          },
+        setCustomField: {
+          name: "checkoutDeliveryDetails",
+          value: JSON.stringify(JSON.stringify(addressBookDeliveryDetails)),
         },
       },
     ]);
@@ -75,7 +77,6 @@ describe(hasPersistedCheckoutDeliveryDetails, () => {
       hasPersistedCheckoutDeliveryDetails(
         {
           checkoutDetails: { deliveryDetails: addressBookDeliveryDetails },
-          shippingAddress,
         },
         addressBookDeliveryDetails
       )
@@ -85,9 +86,11 @@ describe(hasPersistedCheckoutDeliveryDetails, () => {
       hasPersistedCheckoutDeliveryDetails(
         {
           checkoutDetails: { deliveryDetails: addressBookDeliveryDetails },
-          shippingAddress: { ...shippingAddress, city: "Oxford" },
         },
-        addressBookDeliveryDetails
+        {
+          ...addressBookDeliveryDetails,
+          shippingAddress: { ...shippingAddress, city: "Oxford" },
+        }
       )
     ).toBeFalsy();
 
@@ -95,7 +98,6 @@ describe(hasPersistedCheckoutDeliveryDetails, () => {
       hasPersistedCheckoutDeliveryDetails(
         {
           checkoutDetails: { deliveryDetails: manualDeliveryDetails },
-          shippingAddress,
         },
         addressBookDeliveryDetails
       )

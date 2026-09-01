@@ -16,6 +16,8 @@ import type {
   CartMerchandiseUnavailable,
   CartOperation,
   CartPolicyFailure,
+  CartShippingOptionsRefreshRequired,
+  CartShippingSelectionUnavailable,
   CartWriteConflict,
   CartWriteOutcomeUnknown,
   CurrentCartOperationFailure,
@@ -33,6 +35,9 @@ import {
   AnonymousCommercePrincipal,
   CustomerCommercePrincipal,
 } from "../domain/commerce-request-context";
+import type { SelectedDeliveryPlan } from "../domain/delivery-plan";
+import { checkoutDeliveryDetailsEqual } from "../lib/checkout/delivery-details-equality";
+import { selectedDeliveryPlansEqual } from "../lib/checkout/delivery-plan-equality";
 import type { CurrentCartCookie } from "../lib/current-cart/cookie";
 import { CartPolicies } from "./cart-policies";
 import { Carts } from "./carts";
@@ -88,6 +93,11 @@ export type SaveCurrentCartDetailsFailure =
   | CartProviderFailure
   | CartPolicyFailure;
 
+export type SaveCurrentCartShippingOptionsFailure =
+  | SaveCurrentCartDetailsFailure
+  | CartShippingOptionsRefreshRequired
+  | CartShippingSelectionUnavailable;
+
 export class CurrentCart extends Context.Service<
   CurrentCart,
   {
@@ -110,6 +120,9 @@ export class CurrentCart extends Context.Service<
     readonly saveDeliveryDetails: (
       details: CheckoutDeliveryDetails
     ) => Effect.Effect<CurrentCartState, SaveCurrentCartDetailsFailure>;
+    readonly saveShippingOptions: (
+      selectedDeliveryPlan: SelectedDeliveryPlan
+    ) => Effect.Effect<CurrentCartState, SaveCurrentCartShippingOptionsFailure>;
   }
 >()("@repo/commerce/CurrentCart") {
   static readonly get = Effect.fn("CurrentCart.get")(() =>
@@ -148,6 +161,14 @@ export class CurrentCart extends Context.Service<
   )((details: CheckoutDeliveryDetails) =>
     Effect.flatMap(CurrentCart, (currentCart) =>
       currentCart.saveDeliveryDetails(details)
+    )
+  );
+
+  static readonly saveShippingOptions = Effect.fn(
+    "CurrentCart.saveShippingOptions"
+  )((selectedDeliveryPlan: SelectedDeliveryPlan) =>
+    Effect.flatMap(CurrentCart, (currentCart) =>
+      currentCart.saveShippingOptions(selectedDeliveryPlan)
     )
   );
 
@@ -395,15 +416,35 @@ export class CurrentCart extends Context.Service<
             Effect.gen(function* () {
               const resolved = yield* requireResolvedCart();
               if (
-                JSON.stringify(
-                  resolved.cart.checkoutDetails.deliveryDetails
-                ) === JSON.stringify(deliveryDetails)
+                checkoutDeliveryDetailsEqual(
+                  resolved.cart.checkoutDetails.deliveryDetails,
+                  deliveryDetails
+                )
               ) {
                 return yield* evaluate(resolved.cart);
               }
               const cart = yield* mapUnavailable(
                 carts.saveDeliveryDetails({
                   deliveryDetails,
+                  target: resolved.target,
+                })
+              );
+              return yield* replaceAndEvaluate(resolved, cart);
+            }),
+          saveShippingOptions: (selectedDeliveryPlan) =>
+            Effect.gen(function* () {
+              const resolved = yield* requireResolvedCart();
+              if (
+                selectedDeliveryPlansEqual(
+                  resolved.cart.checkoutDetails.selectedDeliveryPlan,
+                  selectedDeliveryPlan
+                )
+              ) {
+                return yield* evaluate(resolved.cart);
+              }
+              const cart = yield* mapUnavailable(
+                carts.saveShippingOptions({
+                  selectedDeliveryPlan,
                   target: resolved.target,
                 })
               );

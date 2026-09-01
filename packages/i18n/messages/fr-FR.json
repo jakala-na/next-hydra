@@ -347,7 +347,21 @@
           "country": "Pays"
         },
         "actions": {
+          "edit": "Modifier les détails de livraison",
           "save": "Enregistrer les détails de livraison",
+          "saving": "Enregistrement..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Choisir une option de livraison",
+        "choosePlan": "Choisir un plan de livraison",
+        "delivery": "Livraison {number}",
+        "noOptions": "Aucune option n’est disponible pour cette livraison.",
+        "noPlans": "Aucun plan de livraison n’est disponible pour cette adresse.",
+        "plan": "Plan de livraison {number}",
+        "quantity": "Qté {quantity}",
+        "actions": {
+          "save": "Enregistrer les options de livraison",
           "saving": "Enregistrement..."
         }
       },
@@ -395,6 +409,18 @@
           "CheckoutUnavailable": "Le paiement est introuvable pour cette requête.",
           "CommerceRequestContextNotFound": "Le paiement est introuvable pour cette requête.",
           "CheckoutVersionConflict": "Le paiement a changé avant l’enregistrement. Actualisez la page et réessayez."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "Ce paiement n’est plus à jour.",
+          "CheckoutMutationSchemaFailure": "Choisissez une option pour chaque livraison.",
+          "CheckoutMutationOutcomeUnknown": "L’enregistrement n’a pas pu être confirmé. Actualisez la page.",
+          "CheckoutMutationProviderFailure": "Les options de livraison n’ont pas pu être enregistrées.",
+          "CheckoutShippingOptionsRefreshRequired": "Les options de livraison ont été enregistrées, mais le paiement n’a pas pu être actualisé. Actualisez la page.",
+          "CheckoutShippingSelectionUnavailable": "Cette option de livraison n’est plus disponible.",
+          "CheckoutUnavailable": "Le paiement est introuvable.",
+          "CheckoutVersionConflict": "Le paiement a changé avant l’enregistrement.",
+          "CommerceAccountUnavailable": "Les options de livraison n’ont pas pu être enregistrées.",
+          "CommerceRequestContextNotFound": "Le paiement est introuvable."
         }
       },
       "violations": {

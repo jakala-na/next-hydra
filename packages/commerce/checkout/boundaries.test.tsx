@@ -1,5 +1,6 @@
 import { ActionClient, ActionMiddleware } from "@repo/actions";
 import { Effect, Layer, ManagedRuntime } from "effect";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { CountryCode } from "../domain/address";
@@ -7,6 +8,11 @@ import { AddressBookEntry, AddressBookReference } from "../domain/address-book";
 import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
 import type { CheckoutState } from "../domain/checkout";
 import {
+  CheckoutCartMismatch,
+  CheckoutMutationOutcomeUnknown,
+  CheckoutMutationProviderFailure,
+  CheckoutShippingOptionsRefreshRequired,
+  CheckoutShippingSelectionUnavailable,
   CheckoutVersionConflict,
   StorefrontCustomerCheckoutScope,
 } from "../domain/checkout";
@@ -16,16 +22,26 @@ import {
   CommerceCustomerId,
 } from "../domain/commerce-account";
 import { AnonymousCommercePrincipal } from "../domain/commerce-request-context";
+import {
+  DeliveryGroupReference,
+  DeliveryPlanQuoteReference,
+  DeliveryPlanReference,
+  ShippingOptionReference,
+} from "../domain/delivery-plan";
 import type {
   CheckoutSaveContactFailure,
+  CheckoutSaveShippingOptionsFailure,
   SaveCheckoutContactInput,
   SaveCheckoutDeliveryDetailsInput,
   SaveCheckoutDeliveryDetailsResult,
+  SaveCheckoutShippingOptionsInput,
 } from "../lib/checkout/checkout-session";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import { AddressBook } from "../services/address-book";
 import { CommerceContext } from "../services/commerce-context";
 import { CommerceLocale, resolveStore, StoreKey } from "../store";
+import { CartSidebar } from "./checkout-view";
+import type { CheckoutPageMessages } from "./checkout-view";
 import { makeCheckoutProcedures } from "./procedures";
 import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
 
@@ -139,12 +155,23 @@ const makeCheckoutHarness = (options?: {
   readonly saveDeliveryDetails?: (
     input: SaveCheckoutDeliveryDetailsInput
   ) => Effect.Effect<SaveCheckoutDeliveryDetailsResult>;
+  readonly saveShippingOptions?: (
+    input: SaveCheckoutShippingOptionsInput
+  ) => Effect.Effect<CheckoutState, CheckoutSaveShippingOptionsFailure>;
 }) => {
   let provideCalls = 0;
   let getLocaleCalls = 0;
 
   const checkoutSession = {
     getCurrent: () => Effect.succeed(checkoutState),
+    getCurrentWithDeliveryPlans: () =>
+      Effect.succeed({
+        deliveryPlanQuote: {
+          plans: [],
+          reference: DeliveryPlanQuoteReference.make("empty-delivery-quote"),
+        },
+        state: checkoutState,
+      }),
     saveContact:
       options?.saveContact ??
       ((_input: SaveCheckoutContactInput) => Effect.succeed(checkoutState)),
@@ -152,6 +179,10 @@ const makeCheckoutHarness = (options?: {
       options?.saveDeliveryDetails ??
       ((_input: SaveCheckoutDeliveryDetailsInput) =>
         Effect.succeed({ state: checkoutState })),
+    saveShippingOptions:
+      options?.saveShippingOptions ??
+      ((_input: SaveCheckoutShippingOptionsInput) =>
+        Effect.succeed(checkoutState)),
   };
 
   const addressBook = {
@@ -193,8 +224,11 @@ const makeCheckoutHarness = (options?: {
       )
     );
 
-  const { saveCheckoutContactProcedure, saveCheckoutDeliveryDetailsProcedure } =
-    makeCheckoutProcedures(TestCommerceActions);
+  const {
+    saveCheckoutContactProcedure,
+    saveCheckoutDeliveryDetailsProcedure,
+    saveCheckoutShippingOptionsProcedure,
+  } = makeCheckoutProcedures(TestCommerceActions);
 
   return {
     checkoutSession,
@@ -208,10 +242,90 @@ const makeCheckoutHarness = (options?: {
       saveCheckoutDeliveryDetailsProcedure.toFormAction({
         getFailureMessage: (error) => `Localized en-US ${error._tag}`,
       }),
+    saveCheckoutShippingOptions:
+      saveCheckoutShippingOptionsProcedure.toFormAction({
+        getFailureMessage: (error) => `Localized en-US ${error._tag}`,
+      }),
   };
 };
 
 describe("Checkout boundaries", () => {
+  it("renders merchandise subtotal separately from selected Shipping", () => {
+    const selectedShippingOption = {
+      name: "Standard",
+      price: { centAmount: 500, currencyCode: "USD" as const },
+      reference: ShippingOptionReference.make("standard"),
+    };
+    const state: CheckoutState = {
+      ...checkoutState,
+      activeStep: "paymentOptions",
+      cart: {
+        ...checkoutState.cart,
+        totalPrice: { centAmount: 3000, currencyCode: "USD" },
+      },
+      details: {
+        selectedDeliveryPlan: {
+          groups: [
+            {
+              reference: DeliveryGroupReference.make("delivery-1"),
+              selectedShippingOption,
+              shippingAddress: shippingAddress.address,
+              targets: [
+                {
+                  lineItemId: LineItemId.make("line-item-1"),
+                  quantity: 1,
+                },
+              ],
+            },
+          ],
+          quoteReference: DeliveryPlanQuoteReference.make("quote-1"),
+          reference: DeliveryPlanReference.make("plan-1"),
+        },
+      },
+      steps: checkoutState.steps.map((step) => ({
+        ...step,
+        status:
+          step.id === "contact" || step.id === "shippingOptions"
+            ? "complete"
+            : "incomplete",
+      })),
+    };
+
+    const messages = {
+      activeStep: "Active",
+      attention: "Attention",
+      cartItems: (count: number) => `${count} items`,
+      cartQuantity: (quantity: number) => `Quantity ${quantity}`,
+      cartTitle: "Cart",
+      cartViolations: "Cart issues",
+      delivery: (number: number) => `Delivery ${number}`,
+      editDeliveryDetails: "Edit delivery details",
+      stepLabels: {
+        contact: "Contact",
+        deliveryDetails: "Delivery details",
+        paymentOptions: "Payment options",
+        reviewOrder: "Review order",
+        shippingOptions: "Shipping options",
+      },
+      stepStatuses: {
+        complete: "Complete",
+        incomplete: "Incomplete",
+      },
+      subtotal: "Subtotal",
+      violation: () => "Violation",
+    } satisfies CheckoutPageMessages;
+    const markup = renderToStaticMarkup(
+      <CartSidebar messages={messages} state={state} />
+    );
+
+    expect(markup).toContain(
+      'data-commerce-money="checkout-subtotal" data-currency="USD" data-minor-amount="2500"'
+    );
+    expect(markup).toContain(
+      'data-commerce-money="selected-shipping-option" data-currency="USD" data-minor-amount="500"'
+    );
+  });
+
   it("runs each Checkout mutation with fresh request state", async () => {
     const harness = makeCheckoutHarness();
     const contact = new FormData();
@@ -395,5 +509,103 @@ describe("Checkout boundaries", () => {
         },
       },
     });
+  });
+
+  it("maps every expected Shipping Options service state at the action boundary", async () => {
+    const failures: readonly {
+      readonly error: CheckoutSaveShippingOptionsFailure;
+      readonly expected: {
+        readonly code: string;
+        readonly recovery: "refresh" | "retry";
+      };
+    }[] = [
+      {
+        error: new CheckoutCartMismatch({
+          currentCartId: CartId.make("cart-current"),
+          message: "Cart mismatch",
+          submittedCartId: CartId.make("cart-1"),
+        }),
+        expected: { code: "checkout.cartMismatch", recovery: "refresh" },
+      },
+      {
+        error: new CheckoutShippingSelectionUnavailable({
+          message: "Stale selection",
+          planReference: DeliveryPlanReference.make("plan-1"),
+          quoteReference: DeliveryPlanQuoteReference.make("quote-1"),
+          shippingOptionReference: ShippingOptionReference.make("standard"),
+        }),
+        expected: {
+          code: "checkout.shippingOptions.selectionUnavailable",
+          recovery: "refresh",
+        },
+      },
+      {
+        error: new CheckoutVersionConflict({
+          cartId: CartId.make("cart-1"),
+          message: "Conflict",
+        }),
+        expected: { code: "checkout.versionConflict", recovery: "refresh" },
+      },
+      {
+        error: new CheckoutMutationOutcomeUnknown({
+          cartId: CartId.make("cart-1"),
+          message: "Unknown outcome",
+          operation: "saveShippingOptions",
+        }),
+        expected: {
+          code: "checkout.shippingOptions.outcomeUnknown",
+          recovery: "refresh",
+        },
+      },
+      {
+        error: new CheckoutMutationProviderFailure({
+          message: "Unavailable",
+          operation: "checkout.shippingOptions.save",
+          reason: "unavailable",
+        }),
+        expected: {
+          code: "checkout.shippingOptions.providerFailure",
+          recovery: "retry",
+        },
+      },
+      {
+        error: new CheckoutShippingOptionsRefreshRequired({
+          cartId: CartId.make("cart-1"),
+          message: "Saved but refresh failed",
+        }),
+        expected: {
+          code: "checkout.shippingOptions.refreshRequired",
+          recovery: "refresh",
+        },
+      },
+    ];
+
+    for (const { error, expected } of failures) {
+      const harness = makeCheckoutHarness({
+        saveShippingOptions: () => Effect.fail(error),
+      });
+      const form = new FormData();
+      form.set("cartId", "cart-1");
+      form.set(
+        "selection",
+        JSON.stringify({
+          groups: [
+            {
+              deliveryGroupReference: DeliveryGroupReference.make("delivery-1"),
+              shippingOptionReference: ShippingOptionReference.make("standard"),
+            },
+          ],
+          quoteReference: DeliveryPlanQuoteReference.make("quote-1"),
+          reference: DeliveryPlanReference.make("plan-1"),
+        })
+      );
+
+      // oxlint-disable-next-line no-await-in-loop -- Each isolated action boundary must complete before asserting its projected error.
+      const result = await harness.saveCheckoutShippingOptions(null, form);
+      expect(result).toMatchObject({
+        _tag: "Failure",
+        failure: { error: expected },
+      });
+    }
   });
 });

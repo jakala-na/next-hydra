@@ -347,7 +347,21 @@
           "country": "Land"
         },
         "actions": {
+          "edit": "Lieferdetails bearbeiten",
           "save": "Lieferdetails speichern",
+          "saving": "Wird gespeichert..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Versandoption auswählen",
+        "choosePlan": "Lieferplan auswählen",
+        "delivery": "Lieferung {number}",
+        "noOptions": "Für diese Lieferung sind keine Versandoptionen verfügbar.",
+        "noPlans": "Für diese Adresse ist kein Lieferplan verfügbar.",
+        "plan": "Lieferplan {number}",
+        "quantity": "Menge {quantity}",
+        "actions": {
+          "save": "Versandoptionen speichern",
           "saving": "Wird gespeichert..."
         }
       },
@@ -395,6 +409,18 @@
           "CheckoutUnavailable": "Der Checkout wurde für diese Anfrage nicht gefunden.",
           "CommerceRequestContextNotFound": "Der Checkout wurde für diese Anfrage nicht gefunden.",
           "CheckoutVersionConflict": "Der Checkout wurde vor dem Speichern geändert. Aktualisieren Sie die Seite und versuchen Sie es erneut."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "Dieser Checkout ist nicht mehr aktuell.",
+          "CheckoutMutationSchemaFailure": "Wählen Sie für jede Lieferung eine Versandoption.",
+          "CheckoutMutationOutcomeUnknown": "Wir konnten das Speichern nicht bestätigen. Aktualisieren Sie die Seite.",
+          "CheckoutMutationProviderFailure": "Die Versandoptionen konnten nicht gespeichert werden.",
+          "CheckoutShippingOptionsRefreshRequired": "Die Versandoptionen wurden gespeichert, aber der Checkout konnte nicht aktualisiert werden. Aktualisieren Sie die Seite.",
+          "CheckoutShippingSelectionUnavailable": "Diese Versandoption ist nicht mehr verfügbar.",
+          "CheckoutUnavailable": "Der Checkout wurde nicht gefunden.",
+          "CheckoutVersionConflict": "Der Checkout wurde vor dem Speichern geändert.",
+          "CommerceAccountUnavailable": "Die Versandoptionen konnten nicht gespeichert werden.",
+          "CommerceRequestContextNotFound": "Der Checkout wurde nicht gefunden."
         }
       },
       "violations": {

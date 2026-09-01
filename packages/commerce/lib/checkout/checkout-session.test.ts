@@ -2,6 +2,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Redacted } from "effect";
 
 import {
+  AddressBookEntry,
   AddressBookReference,
   AddressBookWriteOutcomeUnknown,
 } from "../../domain/address-book";
@@ -25,12 +26,23 @@ import {
   AuthUserId,
   CustomerCommerceContextRequest,
 } from "../../domain/commerce-request-context";
+import {
+  DeliveryGroupReference,
+  DeliveryPlanReference,
+  DeliveryPlanQuoteReference,
+  ShippingOptionReference,
+} from "../../domain/delivery-plan";
+import type { DeliveryPlanQuote } from "../../domain/delivery-plan";
 import { AddressBook } from "../../services/address-book";
 import { CartPolicies } from "../../services/cart-policies";
 import { Carts } from "../../services/carts";
 import { CommerceAccounts } from "../../services/commerce-accounts";
 import { CommerceContext } from "../../services/commerce-context";
 import { CurrentCart } from "../../services/current-cart";
+import {
+  DeliveryPlanning,
+  DeliveryPlanningProviderFailure,
+} from "../../services/delivery-planning";
 import { CommerceLocale, Store, StoreKey } from "../../store";
 import type { CurrentCartCookie } from "../current-cart/cookie";
 import { CheckoutPolicies } from "./checkout-policy";
@@ -79,14 +91,16 @@ const currentCartCookie: CurrentCartCookie = {
 const provideCheckout = <A, E>(
   program: Effect.Effect<A, E, CheckoutSession>,
   carts = Carts.layerMemory({ carts: [cart] }),
-  addressBookOverride?: Layer.Layer<AddressBook>
+  addressBookOverride?: Layer.Layer<AddressBook>,
+  deliveryPlanningOverride = DeliveryPlanning.emptyLayer
 ) => {
   const commerceAccounts = CommerceAccounts.layerMemoryFrom({});
   const dependencies = Layer.mergeAll(
     carts,
     CartPolicies.layerEmpty,
     CheckoutPolicies.layerEmpty,
-    commerceAccounts
+    commerceAccounts,
+    deliveryPlanningOverride
   );
   const commerceContext = CommerceContext.layer(context).pipe(
     Layer.provide(commerceAccounts)
@@ -138,7 +152,8 @@ const provideCustomerCheckout = <A, E>(
     Carts.layerMemory({ carts: [customerCart] }),
     CartPolicies.layerEmpty,
     CheckoutPolicies.layerEmpty,
-    commerceAccounts
+    commerceAccounts,
+    DeliveryPlanning.emptyLayer
   );
   const addressBook = AddressBook.layerMemory().pipe(
     Layer.provide(commerceContext)
@@ -196,6 +211,173 @@ describe(CheckoutSession, () => {
         expect(state.activeStep).toBe("deliveryDetails");
       })
     )
+  );
+
+  it.effect("rejects a selection from an older Delivery Plan quote", () => {
+    const shippingAddress = {
+      addressLine1: "1 Hydra Way",
+      city: "New York",
+      country: CountryCode.make("US"),
+      postalCode: "10001",
+    };
+    const checkoutReadyCart: CartSnapshot = {
+      ...cart,
+      checkoutDetails: {
+        contact: {
+          buyerContact: {
+            email: "ada@example.com",
+            firstName: "Ada",
+            lastName: "Lovelace",
+          },
+          source: "manual",
+        },
+        deliveryDetails: { shippingAddress, source: "manual" },
+      },
+    };
+    const planReference = DeliveryPlanReference.make("plan-1");
+    const groupReference = DeliveryGroupReference.make("delivery-1");
+    const optionReference = ShippingOptionReference.make("standard");
+    const quote = {
+      plans: [
+        {
+          groups: [
+            {
+              reference: groupReference,
+              shippingAddress,
+              shippingOptions: [
+                {
+                  name: "Standard",
+                  price: { centAmount: 500, currencyCode: "USD" },
+                  reference: optionReference,
+                },
+              ],
+              targets: [{ lineItemId: LineItemId.make("line-1"), quantity: 1 }],
+            },
+          ],
+          reference: planReference,
+        },
+      ],
+      reference: DeliveryPlanQuoteReference.make("quote-current"),
+    } as const satisfies DeliveryPlanQuote;
+
+    return provideCheckout(
+      CheckoutSession.saveShippingOptions({
+        cart: { id: cart.id },
+        selection: {
+          groups: [
+            {
+              deliveryGroupReference: groupReference,
+              shippingOptionReference: optionReference,
+            },
+          ],
+          quoteReference: DeliveryPlanQuoteReference.make("quote-stale"),
+          reference: planReference,
+        },
+      }).pipe(
+        Effect.flip,
+        Effect.map((error) => {
+          expect(error).toMatchObject({
+            _tag: "CheckoutShippingSelectionUnavailable",
+            quoteReference: "quote-stale",
+          });
+        })
+      ),
+      Carts.layerMemory({ carts: [checkoutReadyCart] }),
+      undefined,
+      DeliveryPlanning.layerMemory(() => Effect.succeed(quote))
+    );
+  });
+
+  it.effect(
+    "requires refresh instead of retry when saving succeeds but re-quoting fails",
+    () => {
+      const shippingAddress = {
+        addressLine1: "1 Hydra Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      };
+      const checkoutReadyCart: CartSnapshot = {
+        ...cart,
+        checkoutDetails: {
+          contact: {
+            buyerContact: {
+              email: "ada@example.com",
+              firstName: "Ada",
+              lastName: "Lovelace",
+            },
+            source: "manual",
+          },
+          deliveryDetails: { shippingAddress, source: "manual" },
+        },
+      };
+      const planReference = DeliveryPlanReference.make("plan-1");
+      const groupReference = DeliveryGroupReference.make("delivery-1");
+      const optionReference = ShippingOptionReference.make("standard");
+      const quoteReference = DeliveryPlanQuoteReference.make("quote-1");
+      const quote = {
+        plans: [
+          {
+            groups: [
+              {
+                reference: groupReference,
+                shippingAddress,
+                shippingOptions: [
+                  {
+                    name: "Standard",
+                    price: { centAmount: 500, currencyCode: "USD" },
+                    reference: optionReference,
+                  },
+                ],
+                targets: [
+                  { lineItemId: LineItemId.make("line-1"), quantity: 1 },
+                ],
+              },
+            ],
+            reference: planReference,
+          },
+        ],
+        reference: quoteReference,
+      } as const satisfies DeliveryPlanQuote;
+      let quoteCalls = 0;
+
+      return provideCheckout(
+        CheckoutSession.saveShippingOptions({
+          cart: { id: cart.id },
+          selection: {
+            groups: [
+              {
+                deliveryGroupReference: groupReference,
+                shippingOptionReference: optionReference,
+              },
+            ],
+            quoteReference,
+            reference: planReference,
+          },
+        }).pipe(
+          Effect.flip,
+          Effect.map((error) => {
+            expect(error).toMatchObject({
+              _tag: "CheckoutShippingOptionsRefreshRequired",
+              cartId: cart.id,
+            });
+          })
+        ),
+        Carts.layerMemory({ carts: [checkoutReadyCart] }),
+        undefined,
+        DeliveryPlanning.layerMemory(() => {
+          quoteCalls += 1;
+          return quoteCalls === 1
+            ? Effect.succeed(quote)
+            : Effect.fail(
+                new DeliveryPlanningProviderFailure({
+                  operation: "quote",
+                  reason: "unavailable",
+                })
+              );
+        })
+      );
+    }
   );
 
   it.effect(
@@ -379,6 +561,174 @@ describe(CheckoutSession, () => {
           });
         })
       )
+  );
+
+  it.effect(
+    "re-quotes and advances to Payment after saving every Delivery Group selection",
+    () => {
+      const shippingAddress = {
+        addressLine1: "1 Hydra Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      };
+      const checkoutReadyCart: CartSnapshot = {
+        ...cart,
+        checkoutDetails: {
+          contact: {
+            buyerContact: {
+              email: "ada@example.com",
+              firstName: "Ada",
+              lastName: "Lovelace",
+            },
+            source: "manual",
+          },
+          deliveryDetails: { shippingAddress, source: "manual" },
+        },
+      };
+      const planReference = DeliveryPlanReference.make("plan-1");
+      const groupReference = DeliveryGroupReference.make("delivery-1");
+      const optionReference = ShippingOptionReference.make("standard");
+      const quoteReference = DeliveryPlanQuoteReference.make("quote-1");
+      const quote = {
+        plans: [
+          {
+            groups: [
+              {
+                reference: groupReference,
+                shippingAddress,
+                shippingOptions: [
+                  {
+                    name: "Standard",
+                    price: { centAmount: 500, currencyCode: "USD" },
+                    reference: optionReference,
+                  },
+                ],
+                targets: [
+                  { lineItemId: LineItemId.make("line-1"), quantity: 1 },
+                ],
+              },
+            ],
+            reference: planReference,
+          },
+        ],
+        reference: quoteReference,
+      } as const satisfies DeliveryPlanQuote;
+
+      return provideCheckout(
+        Effect.gen(function* () {
+          const before = yield* CheckoutSession.getCurrentWithDeliveryPlans();
+          expect(before.state.activeStep).toBe("shippingOptions");
+
+          const state = yield* CheckoutSession.saveShippingOptions({
+            cart: { id: cart.id },
+            selection: {
+              groups: [
+                {
+                  deliveryGroupReference: groupReference,
+                  shippingOptionReference: optionReference,
+                },
+              ],
+              quoteReference,
+              reference: planReference,
+            },
+          });
+
+          expect(state.activeStep).toBe("paymentOptions");
+          expect(
+            state.steps.find((step) => step.id === "shippingOptions")?.status
+          ).toBe("complete");
+          expect(
+            state.details.selectedDeliveryPlan?.groups[0].selectedShippingOption
+          ).toStrictEqual(quote.plans[0].groups[0].shippingOptions[0]);
+        }),
+        Carts.layerMemory({ carts: [checkoutReadyCart] }),
+        undefined,
+        DeliveryPlanning.layerMemory(() => Effect.succeed(quote))
+      );
+    }
+  );
+
+  it.effect(
+    "preserves the saved Address Book reference when post-write re-quoting fails",
+    () => {
+      let savedEntry: AddressBookEntry | undefined;
+      let saveCalls = 0;
+      let quoteCalls = 0;
+      const addressBook = Layer.succeed(
+        AddressBook,
+        AddressBook.of({
+          get: () =>
+            savedEntry === undefined
+              ? Effect.die("Address Book entry was not saved")
+              : Effect.succeed(savedEntry),
+          list: () =>
+            Effect.succeed(savedEntry === undefined ? [] : [savedEntry]),
+          save: (input) => {
+            saveCalls += 1;
+            savedEntry = new AddressBookEntry(input);
+            return Effect.succeed(savedEntry);
+          },
+        })
+      );
+      const deliveryPlanning = DeliveryPlanning.layerMemory(() => {
+        quoteCalls += 1;
+        return quoteCalls === 2
+          ? Effect.fail(
+              new DeliveryPlanningProviderFailure({
+                operation: "quote",
+                reason: "unavailable",
+              })
+            )
+          : Effect.succeed({
+              plans: [],
+              reference: DeliveryPlanQuoteReference.make(`quote-${quoteCalls}`),
+            });
+      });
+
+      return provideCheckout(
+        Effect.gen(function* () {
+          const error = yield* CheckoutSession.saveDeliveryDetails({
+            cart: { id: cart.id },
+            deliveryDetails: {
+              makeDefaultShipping: false,
+              saveToAddressBook: true,
+              shippingAddress: {
+                addressLine1: "1 Hydra Way",
+                city: "New York",
+                country: CountryCode.make("US"),
+                postalCode: "10001",
+              },
+              type: "manual",
+            },
+          }).pipe(Effect.flip);
+
+          expect(error).toMatchObject({
+            _tag: "CheckoutMutationProviderFailure",
+            operation: "checkout.deliveryPlanning.quote",
+          });
+          if (
+            error._tag !== "CheckoutMutationProviderFailure" ||
+            error.addressBookReference === undefined
+          ) {
+            throw new Error("Expected the saved Address Book reference");
+          }
+
+          yield* CheckoutSession.saveDeliveryDetails({
+            cart: { id: cart.id },
+            deliveryDetails: {
+              addressBookReference: error.addressBookReference,
+              type: "addressBook",
+            },
+          });
+
+          expect(saveCalls).toBe(1);
+        }),
+        Carts.layerMemory({ carts: [cart] }),
+        addressBook,
+        deliveryPlanning
+      );
+    }
   );
 
   it.effect(

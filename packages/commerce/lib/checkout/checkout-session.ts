@@ -1,5 +1,6 @@
 import { Context, Effect, Layer, Option, Redacted } from "effect";
 
+import type { Address } from "../../domain/address";
 import {
   AddressBookReference,
   SaveAddressBookEntryInput,
@@ -23,6 +24,8 @@ import {
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutProviderFailure,
+  CheckoutShippingOptionsRefreshRequired,
+  CheckoutShippingSelectionUnavailable,
   CheckoutUnavailable,
   CheckoutVersionConflict,
 } from "../../domain/checkout";
@@ -38,9 +41,15 @@ import type {
   CheckoutDeliveryDetailsInput,
   CheckoutDeliveryDetailsMutationFailure,
   CheckoutScope,
+  CheckoutShippingOptionsMutationFailure,
   CheckoutState,
 } from "../../domain/checkout";
 import type { CommerceRequestContextNotFound } from "../../domain/commerce-request-context";
+import type {
+  DeliveryPlanQuote,
+  DeliveryPlanSelection,
+  SelectedDeliveryPlan,
+} from "../../domain/delivery-plan";
 import { AddressBook } from "../../services/address-book";
 import type {
   AddressBookGetFailure,
@@ -51,10 +60,16 @@ import { CommerceContext } from "../../services/commerce-context";
 import type {
   CurrentCartReadFailure,
   SaveCurrentCartDetailsFailure,
+  SaveCurrentCartShippingOptionsFailure,
 } from "../../services/current-cart";
 import { CurrentCart } from "../../services/current-cart";
+import { DeliveryPlanning } from "../../services/delivery-planning";
 import { CheckoutPolicies } from "./checkout-policy";
 import { allowedContactSourcesForCheckout } from "./contact-source-policy";
+import {
+  selectedDeliveryPlansEqual,
+  selectedPlanMatchesQuote,
+} from "./delivery-plan-equality";
 import {
   retainExpectedCheckoutMutationFailures,
   retainExpectedCheckoutReadFailures,
@@ -77,12 +92,26 @@ export interface SaveCheckoutDeliveryDetailsResult {
   readonly state: CheckoutState;
 }
 
+export interface SaveCheckoutShippingOptionsInput {
+  readonly cart: CheckoutCartReference;
+  readonly selection: DeliveryPlanSelection;
+}
+
+export interface CheckoutSessionSnapshot {
+  readonly deliveryPlanQuote: DeliveryPlanQuote;
+  readonly state: CheckoutState;
+}
+
 export type CheckoutSaveContactFailure =
   | CheckoutContactMutationFailure
   | CheckoutUnavailable;
 
 export type CheckoutSaveDeliveryDetailsFailure =
   | CheckoutDeliveryDetailsMutationFailure
+  | CheckoutUnavailable;
+
+export type CheckoutSaveShippingOptionsFailure =
+  | CheckoutShippingOptionsMutationFailure
   | CheckoutUnavailable;
 
 const guestBuyerContext: CheckoutBuyerContext = {
@@ -137,20 +166,18 @@ const normalizeManualContact = (
     return Effect.fail(requiredFieldError("lastName"));
   }
 
+  const buyerContact =
+    phoneNumber === undefined || phoneNumber.length === 0
+      ? { email, firstName, lastName }
+      : { email, firstName, lastName, phoneNumber };
+
   return Effect.succeed({
-    buyerContact: {
-      email,
-      firstName,
-      lastName,
-      ...(phoneNumber === undefined || phoneNumber.length === 0
-        ? {}
-        : { phoneNumber }),
-    },
+    buyerContact,
     source: "manual",
   });
 };
 
-type CommerceContextService = Context.Service.Shape<typeof CommerceContext>;
+type CommerceContextService = CommerceContext["Service"];
 
 const customerProfileNotFoundToMutationFailure = (
   _error: CommerceCustomerProfileNotFound | CommerceRequestContextNotFound
@@ -266,19 +293,15 @@ const normalizeShippingAddress = (
     return Effect.fail(requiredShippingAddressFieldError("city"));
   }
 
-  return Effect.succeed({
-    ...deliveryDetails,
-    shippingAddress: {
-      addressLine1,
-      city,
-      country,
-      postalCode,
-      ...(addressLine2 === undefined || addressLine2.length === 0
-        ? {}
-        : { addressLine2 }),
-      ...(region === undefined || region.length === 0 ? {} : { region }),
-    },
-  });
+  let shippingAddress: Address = { addressLine1, city, country, postalCode };
+  if (addressLine2 !== undefined && addressLine2.length > 0) {
+    shippingAddress = { ...shippingAddress, addressLine2 };
+  }
+  if (region !== undefined && region.length > 0) {
+    shippingAddress = { ...shippingAddress, region };
+  }
+
+  return Effect.succeed({ ...deliveryDetails, shippingAddress });
 };
 
 const normalizeCheckoutDeliveryDetailsInput = (
@@ -291,7 +314,7 @@ const normalizeCheckoutDeliveryDetailsInput = (
     ? normalizeShippingAddress(deliveryDetails)
     : Effect.succeed(deliveryDetails);
 
-type AddressBookService = Context.Service.Shape<typeof AddressBook>;
+type AddressBookService = AddressBook["Service"];
 
 interface ResolvedCheckoutDeliveryDetails {
   readonly deliveryDetails: CheckoutDeliveryDetails;
@@ -449,41 +472,123 @@ const withSavedAddressBookReference = (
     return error;
   }
 
-  switch (error._tag) {
-    case "CheckoutVersionConflict": {
-      return new CheckoutVersionConflict({
-        addressBookReference,
-        cartId: error.cartId,
-        message: error.message,
-      });
-    }
-    case "CheckoutMutationProviderFailure": {
-      return new CheckoutMutationProviderFailure({
-        message: error.message,
-        operation: error.operation,
-        reason: error.reason,
-        ...(error.cause === undefined ? {} : { cause: error.cause }),
-        addressBookReference,
-      });
-    }
-    case "CheckoutMutationOutcomeUnknown": {
-      return new CheckoutMutationOutcomeUnknown({
-        message: error.message,
-        operation: error.operation,
-        ...(error.cartId === undefined ? {} : { cartId: error.cartId }),
-        addressBookReference,
-      });
-    }
-    default: {
-      return error;
-    }
+  if (error._tag === "CheckoutVersionConflict") {
+    return new CheckoutVersionConflict({
+      addressBookReference,
+      cartId: error.cartId,
+      message: error.message,
+    });
   }
+
+  if (error._tag === "CheckoutMutationProviderFailure") {
+    const failure = {
+      addressBookReference,
+      message: error.message,
+      operation: error.operation,
+      reason: error.reason,
+    };
+    return error.cause === undefined
+      ? new CheckoutMutationProviderFailure(failure)
+      : new CheckoutMutationProviderFailure({ ...failure, cause: error.cause });
+  }
+
+  if (error._tag === "CheckoutMutationOutcomeUnknown") {
+    const failure = {
+      addressBookReference,
+      message: error.message,
+      operation: error.operation,
+    };
+    return error.cartId === undefined
+      ? new CheckoutMutationOutcomeUnknown(failure)
+      : new CheckoutMutationOutcomeUnknown({
+          ...failure,
+          cartId: error.cartId,
+        });
+  }
+
+  return error;
+};
+
+const unavailableShippingSelection = (
+  selection: DeliveryPlanSelection,
+  shippingOptionReference?: DeliveryPlanSelection["groups"][number]["shippingOptionReference"]
+) => {
+  const failure = {
+    message: "The selected Shipping Option is no longer available",
+    planReference: selection.reference,
+    quoteReference: selection.quoteReference,
+  };
+  return shippingOptionReference === undefined
+    ? new CheckoutShippingSelectionUnavailable(failure)
+    : new CheckoutShippingSelectionUnavailable({
+        ...failure,
+        shippingOptionReference,
+      });
+};
+
+const resolveSelectedDeliveryPlan = (
+  selection: DeliveryPlanSelection,
+  quote: DeliveryPlanQuote
+): Effect.Effect<
+  SelectedDeliveryPlan,
+  CheckoutShippingSelectionUnavailable
+> => {
+  if (selection.quoteReference !== quote.reference) {
+    return Effect.fail(unavailableShippingSelection(selection));
+  }
+
+  const plan = quote.plans.find(
+    (candidate) => candidate.reference === selection.reference
+  );
+  if (plan === undefined || plan.groups.length !== selection.groups.length) {
+    return Effect.fail(unavailableShippingSelection(selection));
+  }
+
+  const selectedGroups: SelectedDeliveryPlan["groups"][number][] = [];
+  for (const group of plan.groups) {
+    const groupSelections = selection.groups.filter(
+      (candidate) => candidate.deliveryGroupReference === group.reference
+    );
+    const [groupSelection] = groupSelections;
+    if (groupSelection === undefined || groupSelections.length !== 1) {
+      return Effect.fail(unavailableShippingSelection(selection));
+    }
+
+    const option = group.shippingOptions.find(
+      (candidate) =>
+        candidate.reference === groupSelection.shippingOptionReference
+    );
+    if (option === undefined) {
+      return Effect.fail(
+        unavailableShippingSelection(
+          selection,
+          groupSelection.shippingOptionReference
+        )
+      );
+    }
+
+    selectedGroups.push({
+      reference: group.reference,
+      selectedShippingOption: option,
+      shippingAddress: group.shippingAddress,
+      targets: group.targets,
+    });
+  }
+  const [firstGroup, ...remainingGroups] = selectedGroups;
+
+  return firstGroup === undefined
+    ? Effect.fail(unavailableShippingSelection(selection))
+    : Effect.succeed({
+        groups: [firstGroup, ...remainingGroups],
+        quoteReference: selection.quoteReference,
+        reference: selection.reference,
+      });
 };
 
 const ensureCurrentCartIdentity = (
   currentCart: CartSnapshot,
   submittedCart: CheckoutCartReference,
-  detailName: "Contact" | "Delivery Details" = "Contact"
+  detailName: "Contact" | "Delivery Details" | "Shipping Options" = "Contact"
 ) => {
   if (currentCart.id !== submittedCart.id) {
     return Effect.fail(
@@ -498,11 +603,102 @@ const ensureCurrentCartIdentity = (
   return Effect.succeed(currentCart);
 };
 
+const deliveryPlanningReadFailure = (error: {
+  readonly reason: CheckoutProviderFailure["reason"];
+}) =>
+  new CheckoutProviderFailure({
+    cause: error,
+    message: "Failed to quote Delivery Plans",
+    operation: "checkout.deliveryPlanning.quote",
+    reason: error.reason,
+  });
+
+const checkoutReadFailure = (error: CurrentCartReadFailure) =>
+  new CheckoutProviderFailure({
+    cause: error,
+    message: "Failed to resolve Checkout Cart",
+    operation: `checkout.currentCart.${error._tag}`,
+    reason:
+      error._tag === "CartProviderFailure"
+        ? error.reason
+        : "unexpectedResponse",
+  });
+
+const checkoutMutationFailure =
+  (operation: "saveContact" | "saveDeliveryDetails" | "saveShippingOptions") =>
+  (error: SaveCurrentCartDetailsFailure) => {
+    // oxlint-disable-next-line typescript/switch-exhaustiveness-check -- All remaining Cart failures become one Checkout provider failure.
+    switch (error._tag) {
+      case "CurrentCartUnavailable": {
+        return new CheckoutUnavailable({
+          message: "Checkout requires an existing Cart",
+          reason: error.reason,
+        });
+      }
+      case "CartWriteConflict": {
+        return new CheckoutVersionConflict({
+          cartId: error.cartId,
+          message: "Checkout Cart changed while it was being updated",
+        });
+      }
+      case "CartWriteOutcomeUnknown": {
+        const failure = {
+          message: "Checkout Cart write outcome could not be confirmed",
+          operation,
+        };
+        return error.cartId === undefined
+          ? new CheckoutMutationOutcomeUnknown(failure)
+          : new CheckoutMutationOutcomeUnknown({
+              ...failure,
+              cartId: error.cartId,
+            });
+      }
+      default: {
+        return new CheckoutMutationProviderFailure({
+          cause: error,
+          message: "Failed to update Checkout Cart",
+          operation: `checkout.currentCart.${error._tag}`,
+          reason:
+            error._tag === "CartProviderFailure"
+              ? error.reason
+              : "unexpectedResponse",
+        });
+      }
+    }
+  };
+
+const checkoutShippingMutationFailure =
+  (selection: DeliveryPlanSelection) =>
+  (error: SaveCurrentCartShippingOptionsFailure) => {
+    if (error._tag === "CartShippingSelectionUnavailable") {
+      return unavailableShippingSelection(selection);
+    }
+    if (error._tag === "CartShippingOptionsRefreshRequired") {
+      return new CheckoutShippingOptionsRefreshRequired({
+        cartId: error.cartId,
+        message: "Shipping Options were saved, but Checkout could not refresh",
+      });
+    }
+    return checkoutMutationFailure("saveShippingOptions")(error);
+  };
+
+const checkoutMutationReadFailure = (error: CheckoutProviderFailure) =>
+  new CheckoutMutationProviderFailure({
+    cause: error,
+    message: error.message,
+    operation: error.operation,
+    reason: error.reason,
+  });
+
 export class CheckoutSession extends Context.Service<
   CheckoutSession,
   {
     readonly getCurrent: () => Effect.Effect<
       CheckoutState,
+      CheckoutUnavailable | CheckoutProviderFailure
+    >;
+    readonly getCurrentWithDeliveryPlans: () => Effect.Effect<
+      CheckoutSessionSnapshot,
       CheckoutUnavailable | CheckoutProviderFailure
     >;
     readonly saveContact: (
@@ -514,27 +710,51 @@ export class CheckoutSession extends Context.Service<
       SaveCheckoutDeliveryDetailsResult,
       CheckoutSaveDeliveryDetailsFailure
     >;
+    readonly saveShippingOptions: (
+      input: SaveCheckoutShippingOptionsInput
+    ) => Effect.Effect<CheckoutState, CheckoutSaveShippingOptionsFailure>;
   }
 >()("@repo/commerce/checkout/CheckoutSession") {
   static readonly getCurrent = Effect.fn("CheckoutSession.getCurrent")(() =>
-    Effect.flatMap(CheckoutSession, (session) => session.getCurrent()).pipe(
-      retainExpectedCheckoutReadFailures
-    )
+    Effect.gen(function* () {
+      const session = yield* CheckoutSession;
+      return yield* session.getCurrent();
+    }).pipe(retainExpectedCheckoutReadFailures)
+  );
+
+  static readonly getCurrentWithDeliveryPlans = Effect.fn(
+    "CheckoutSession.getCurrentWithDeliveryPlans"
+  )(() =>
+    Effect.gen(function* () {
+      const session = yield* CheckoutSession;
+      return yield* session.getCurrentWithDeliveryPlans();
+    }).pipe(retainExpectedCheckoutReadFailures)
   );
 
   static readonly saveContact = Effect.fn("CheckoutSession.saveContact")(
     (input: SaveCheckoutContactInput) =>
-      Effect.flatMap(CheckoutSession, (session) =>
-        session.saveContact(input)
-      ).pipe(retainExpectedCheckoutMutationFailures)
+      Effect.gen(function* () {
+        const session = yield* CheckoutSession;
+        return yield* session.saveContact(input);
+      }).pipe(retainExpectedCheckoutMutationFailures)
   );
 
   static readonly saveDeliveryDetails = Effect.fn(
     "CheckoutSession.saveDeliveryDetails"
   )((input: SaveCheckoutDeliveryDetailsInput) =>
-    Effect.flatMap(CheckoutSession, (session) =>
-      session.saveDeliveryDetails(input)
-    ).pipe(retainExpectedCheckoutMutationFailures)
+    Effect.gen(function* () {
+      const session = yield* CheckoutSession;
+      return yield* session.saveDeliveryDetails(input);
+    }).pipe(retainExpectedCheckoutMutationFailures)
+  );
+
+  static readonly saveShippingOptions = Effect.fn(
+    "CheckoutSession.saveShippingOptions"
+  )((input: SaveCheckoutShippingOptionsInput) =>
+    Effect.gen(function* () {
+      const session = yield* CheckoutSession;
+      return yield* session.saveShippingOptions(input);
+    }).pipe(retainExpectedCheckoutMutationFailures)
   );
 
   static readonly layer = Layer.effect(
@@ -544,20 +764,24 @@ export class CheckoutSession extends Context.Service<
       const policies = yield* CheckoutPolicies;
       const commerceContext = yield* CommerceContext;
       const addressBook = yield* AddressBook;
+      const deliveryPlanning = yield* DeliveryPlanning;
       const scope = toCheckoutScope(commerceContext);
 
-      const buyerContextFor = (cart: CartSnapshot): CheckoutBuyerContext =>
-        scope.channel === "storefrontAnonymous"
-          ? guestBuyerContext
-          : {
-              buyerMode: "b2bCustomer",
-              requiresBuyingContext: true,
-              ...(cart.buyingContext === undefined
-                ? {}
-                : { buyingContext: cart.buyingContext }),
-            };
+      const buyerContextFor = (cart: CartSnapshot): CheckoutBuyerContext => {
+        if (scope.channel === "storefrontAnonymous") {
+          return guestBuyerContext;
+        }
 
-      const buildState = Effect.fn("CheckoutSession.buildState")(
+        const buyerContext = {
+          buyerMode: "b2bCustomer",
+          requiresBuyingContext: true,
+        } as const;
+        return cart.buyingContext === undefined
+          ? buyerContext
+          : { ...buyerContext, buyingContext: cart.buyingContext };
+      };
+
+      const buildSnapshot = Effect.fn("CheckoutSession.buildSnapshot")(
         (current: CurrentCartState) =>
           Effect.gen(function* () {
             const buyerContext = buyerContextFor(current.cart);
@@ -566,7 +790,10 @@ export class CheckoutSession extends Context.Service<
               cart: current.cart,
               details: current.cart.checkoutDetails,
             });
-            return yield* buildCheckoutState({
+            const deliveryPlanQuote = yield* deliveryPlanning
+              .quote({ cart: current.cart, locale: scope.locale })
+              .pipe(Effect.mapError(deliveryPlanningReadFailure));
+            const state = yield* buildCheckoutState({
               allowedContactSources: allowedContactSourcesForCheckout(scope),
               buyerContext,
               cart: current.cart,
@@ -574,70 +801,18 @@ export class CheckoutSession extends Context.Service<
               checkoutPolicyViolations,
               details: current.cart.checkoutDetails,
               scope,
+              shippingOptionsComplete: selectedPlanMatchesQuote(
+                current.cart.checkoutDetails.selectedDeliveryPlan,
+                deliveryPlanQuote
+              ),
             });
+            return { deliveryPlanQuote, state };
           })
       );
 
-      const readFailure = (error: CurrentCartReadFailure) =>
-        new CheckoutProviderFailure({
-          cause: error,
-          message: "Failed to resolve Checkout Cart",
-          operation: `checkout.currentCart.${error._tag}`,
-          reason:
-            error._tag === "CartProviderFailure"
-              ? error.reason
-              : "unexpectedResponse",
-        });
-
-      const mutationFailure =
-        (operation: "saveContact" | "saveDeliveryDetails") =>
-        (error: SaveCurrentCartDetailsFailure) => {
-          // oxlint-disable-next-line typescript/switch-exhaustiveness-check -- All remaining Cart failures become one Checkout provider failure.
-          switch (error._tag) {
-            case "CurrentCartUnavailable": {
-              return new CheckoutUnavailable({
-                message: "Checkout requires an existing Cart",
-                reason: error.reason,
-              });
-            }
-            case "CartWriteConflict": {
-              return new CheckoutVersionConflict({
-                cartId: error.cartId,
-                message: "Checkout Cart changed while it was being updated",
-              });
-            }
-            case "CartWriteOutcomeUnknown": {
-              return new CheckoutMutationOutcomeUnknown({
-                message: "Checkout Cart write outcome could not be confirmed",
-                operation,
-                ...(error.cartId === undefined ? {} : { cartId: error.cartId }),
-              });
-            }
-            default: {
-              return new CheckoutMutationProviderFailure({
-                cause: error,
-                message: "Failed to update Checkout Cart",
-                operation: `checkout.currentCart.${error._tag}`,
-                reason:
-                  error._tag === "CartProviderFailure"
-                    ? error.reason
-                    : "unexpectedResponse",
-              });
-            }
-          }
-        };
-
-      const mutationReadFailure = (error: CheckoutProviderFailure) =>
-        new CheckoutMutationProviderFailure({
-          cause: error,
-          message: error.message,
-          operation: error.operation,
-          reason: error.reason,
-        });
-
       const requireCurrent = () =>
         currentCart.get().pipe(
-          Effect.mapError(readFailure),
+          Effect.mapError(checkoutReadFailure),
           Effect.flatMap(
             Option.match({
               onNone: () =>
@@ -649,8 +824,8 @@ export class CheckoutSession extends Context.Service<
             })
           ),
           Effect.flatMap((current) =>
-            buildState(current).pipe(
-              Effect.map((state) => ({ current, state }))
+            buildSnapshot(current).pipe(
+              Effect.map((snapshot) => ({ current, ...snapshot }))
             )
           )
         );
@@ -658,6 +833,13 @@ export class CheckoutSession extends Context.Service<
       return CheckoutSession.of({
         getCurrent: () =>
           requireCurrent().pipe(Effect.map(({ state }) => state)),
+        getCurrentWithDeliveryPlans: () =>
+          requireCurrent().pipe(
+            Effect.map(({ deliveryPlanQuote, state }) => ({
+              deliveryPlanQuote,
+              state,
+            }))
+          ),
         saveContact: (input) =>
           Effect.gen(function* () {
             const allowedContactSources =
@@ -673,15 +855,22 @@ export class CheckoutSession extends Context.Service<
             const { current } = yield* requireCurrent().pipe(
               Effect.mapError((error) =>
                 error._tag === "CheckoutProviderFailure"
-                  ? mutationReadFailure(error)
+                  ? checkoutMutationReadFailure(error)
                   : error
               )
             );
             yield* ensureCurrentCartIdentity(current.cart, input.cart);
             const updated = yield* currentCart
               .saveContact(contact)
-              .pipe(Effect.mapError(mutationFailure("saveContact")));
-            return yield* buildState(updated);
+              .pipe(Effect.mapError(checkoutMutationFailure("saveContact")));
+            return yield* buildSnapshot(updated).pipe(
+              Effect.map((snapshot) => snapshot.state),
+              Effect.mapError((error) =>
+                error._tag === "CheckoutProviderFailure"
+                  ? checkoutMutationReadFailure(error)
+                  : error
+              )
+            );
           }),
         saveDeliveryDetails: (input) =>
           Effect.gen(function* () {
@@ -692,7 +881,7 @@ export class CheckoutSession extends Context.Service<
             const { current } = yield* requireCurrent().pipe(
               Effect.mapError((error) =>
                 error._tag === "CheckoutProviderFailure"
-                  ? mutationReadFailure(error)
+                  ? checkoutMutationReadFailure(error)
                   : error
               )
             );
@@ -710,13 +899,68 @@ export class CheckoutSession extends Context.Service<
               .pipe(
                 Effect.mapError((error) =>
                   withSavedAddressBookReference(
-                    mutationFailure("saveDeliveryDetails")(error),
+                    checkoutMutationFailure("saveDeliveryDetails")(error),
                     resolved.savedAddressBookReference
                   )
                 )
               );
-            const state = yield* buildState(updated);
+            const state = yield* buildSnapshot(updated).pipe(
+              Effect.map((snapshot) => snapshot.state),
+              Effect.mapError((error) =>
+                withSavedAddressBookReference(
+                  error._tag === "CheckoutProviderFailure"
+                    ? checkoutMutationReadFailure(error)
+                    : error,
+                  resolved.savedAddressBookReference
+                )
+              )
+            );
             return saveDeliveryDetailsResult(resolved, state);
+          }),
+        saveShippingOptions: (input) =>
+          Effect.gen(function* () {
+            const { current, deliveryPlanQuote } = yield* requireCurrent().pipe(
+              Effect.mapError((error) =>
+                error._tag === "CheckoutProviderFailure"
+                  ? checkoutMutationReadFailure(error)
+                  : error
+              )
+            );
+            yield* ensureCurrentCartIdentity(
+              current.cart,
+              input.cart,
+              "Shipping Options"
+            );
+            const selectedDeliveryPlan = yield* resolveSelectedDeliveryPlan(
+              input.selection,
+              deliveryPlanQuote
+            );
+            const updated = yield* currentCart
+              .saveShippingOptions(selectedDeliveryPlan)
+              .pipe(
+                Effect.mapError(
+                  checkoutShippingMutationFailure(input.selection)
+                )
+              );
+            if (
+              !selectedDeliveryPlansEqual(
+                updated.cart.checkoutDetails.selectedDeliveryPlan,
+                selectedDeliveryPlan
+              )
+            ) {
+              return yield* unavailableShippingSelection(input.selection);
+            }
+            return yield* buildSnapshot(updated).pipe(
+              Effect.map((snapshot) => snapshot.state),
+              Effect.mapError(
+                () =>
+                  new CheckoutShippingOptionsRefreshRequired({
+                    cartId: updated.cart.id,
+                    message:
+                      "Shipping Options were saved, but Checkout could not refresh",
+                  })
+              )
+            );
           }),
       });
     })

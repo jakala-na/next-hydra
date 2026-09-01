@@ -4,6 +4,7 @@ import {
   commercetoolsClientsLayer,
   commerceAccountsLayer,
   commerceCompanyMembershipsLayer,
+  deliveryPlanningLayer,
   productDiscoveryLayer,
 } from "@repo/commerce-provider/provider";
 import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
@@ -18,5 +19,8 @@ export const commerceApp = makeCommerceApp({
   checkoutPoliciesLayer: CheckoutPolicies.layer,
   commerceAccountsLayer,
   commerceCompanyMembershipsLayer,
+  deliveryPlanningLayer: deliveryPlanningLayer.pipe(
+    Layer.provide(commercetoolsClientsLayer)
+  ),
   productDiscoveryLayer,
 });

@@ -10,6 +10,7 @@ import {
   commercetoolsClientsLayer,
   commerceAccountsLayer,
   commerceCompanyMembershipsLayer,
+  deliveryPlanningLayer,
   productDiscoveryLayer,
 } from "@repo/commerce-provider/provider";
 import {
@@ -43,6 +44,9 @@ export const CommerceApp = makeCommerceApp({
   checkoutPoliciesLayer: CheckoutPolicies.layer,
   commerceAccountsLayer: commerceAccounts,
   commerceCompanyMembershipsLayer: Layer.orDie(commerceCompanyMembershipsLayer),
+  deliveryPlanningLayer: Layer.orDie(
+    deliveryPlanningLayer.pipe(Layer.provide(commercetoolsClientsLayer))
+  ),
   productDiscoveryLayer: Layer.orDie(productDiscoveryLayer),
 });
 

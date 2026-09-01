@@ -14,6 +14,7 @@ export const CartOperation = Schema.Literals([
   "removeLineItem",
   "saveContact",
   "saveDeliveryDetails",
+  "saveShippingOptions",
 ]);
 export type CartOperation = typeof CartOperation.Type;
 
@@ -63,6 +64,22 @@ export class CartWriteOutcomeUnknown extends Schema.TaggedError<CartWriteOutcome
   {
     cartId: Schema.optional(CartId),
     operation: CartOperation,
+  }
+) {}
+
+export class CartShippingSelectionUnavailable extends Schema.TaggedError<CartShippingSelectionUnavailable>()(
+  "CartShippingSelectionUnavailable",
+  {
+    cartId: CartId,
+    operation: Schema.Literal("saveShippingOptions"),
+  }
+) {}
+
+export class CartShippingOptionsRefreshRequired extends Schema.TaggedError<CartShippingOptionsRefreshRequired>()(
+  "CartShippingOptionsRefreshRequired",
+  {
+    cartId: CartId,
+    operation: Schema.Literal("saveShippingOptions"),
   }
 ) {}
 

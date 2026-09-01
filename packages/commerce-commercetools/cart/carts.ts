@@ -16,6 +16,8 @@ import {
   CartMerchandiseUnavailable,
   CartNotFound,
   CartProviderFailure,
+  CartShippingOptionsRefreshRequired,
+  CartShippingSelectionUnavailable,
   CartWriteConflict,
   CartWriteOutcomeUnknown,
 } from "@repo/commerce/domain/cart-errors";
@@ -27,6 +29,7 @@ import type {
 } from "@repo/commerce/domain/cart-snapshot";
 import {
   CheckoutContact,
+  CheckoutDeliveryDetails as CheckoutDeliveryDetailsSchema,
   ShippingAddress,
   StorefrontAnonymousCheckoutScope,
   StorefrontCustomerCheckoutScope,
@@ -36,6 +39,12 @@ import type {
   CheckoutDetails,
 } from "@repo/commerce/domain/checkout";
 import { CommerceBusinessUnitId } from "@repo/commerce/domain/commerce-account";
+import type {
+  DeliveryPlanQuoteReference,
+  DeliveryPlanReference,
+  SelectedDeliveryGroup,
+  SelectedDeliveryPlan,
+} from "@repo/commerce/domain/delivery-plan";
 import { Carts } from "@repo/commerce/services/carts";
 import type {
   AddCartItem,
@@ -46,6 +55,7 @@ import type {
   RemoveCartLineItem,
   SaveCartContact,
   SaveCartDeliveryDetails,
+  SaveCartShippingOptions,
   SetCartLineItemQuantity,
 } from "@repo/commerce/services/carts";
 import { StoreKey } from "@repo/commerce/store";
@@ -72,6 +82,11 @@ import type {
   CommercetoolsConcurrentModification,
   VersionedWriteConflictResolution,
 } from "../client/versioned-write";
+import {
+  deliveryAddressKeyFor,
+  deliveryReferencesFromShippingKey,
+  shippingOptionReferenceFor,
+} from "../delivery-planning/references";
 import { readFragment } from "../graphql";
 import { reshapeProductAttributes } from "./attributes";
 import type { ProductTypeKey } from "./attributes";
@@ -81,7 +96,11 @@ import {
   hasPersistedCheckoutContact,
   ORDER_CUSTOM_TYPE_KEY,
 } from "./contact-actions";
-import { buildSaveCheckoutDeliveryDetailsActions } from "./delivery-details-actions";
+import {
+  buildSaveCheckoutDeliveryDetailsActions,
+  CHECKOUT_DELIVERY_DETAILS_CUSTOM_FIELD_NAME,
+  serializeCheckoutDeliveryDetails,
+} from "./delivery-details-actions";
 import { CartFragment } from "./graphql/fragments";
 import {
   AddItemToCartMutation,
@@ -97,7 +116,15 @@ import {
   GetCartByIdQuery,
 } from "./graphql/queries";
 import { reshapePrice } from "./price";
-import type { CommercetoolsCart, CommercetoolsLineItem } from "./provider-cart";
+import type {
+  CommercetoolsAddress,
+  CommercetoolsCart,
+  CommercetoolsLineItem,
+} from "./provider-cart";
+import {
+  buildSaveShippingOptionsActions,
+  clearSelectedDeliveryPlanActions,
+} from "./shipping-options-actions";
 
 type GraphqlClient = Pick<Client, "query" | "mutation">;
 
@@ -187,6 +214,39 @@ const failedWrite = (
   return Effect.fail(new CartWriteOutcomeUnknown({ cartId, operation }));
 };
 
+const failedShippingWrite = (
+  cartId: CartId,
+  cause: unknown
+): Effect.Effect<
+  never,
+  | CartAccessDenied
+  | CartShippingSelectionUnavailable
+  | CartWriteConflict
+  | CartWriteOutcomeUnknown
+> => {
+  const providerCause = commercetoolsFailureCause(cause);
+  if (
+    hasCommercetoolsErrorCode(
+      providerCause,
+      "InvalidOperation",
+      "InvalidItemShippingDetails",
+      "ReferencedResourceNotFound",
+      "ResourceNotFound",
+      "ShippingMethodDoesNotMatchCart",
+      "PriceChanged",
+      "MatchingPriceNotFound"
+    )
+  ) {
+    return Effect.fail(
+      new CartShippingSelectionUnavailable({
+        cartId,
+        operation: "saveShippingOptions",
+      })
+    );
+  }
+  return failedWrite("saveShippingOptions", cartId, cause);
+};
+
 const failedCreate = (
   operation: "createAnonymous" | "createForBusinessUnit",
   cause: unknown
@@ -242,6 +302,7 @@ const CommerceShippingAddress = Schema.Struct({
   key: Schema.NullOr(Schema.String),
   postalCode: Schema.NullOr(Schema.String),
   region: Schema.NullOr(Schema.String),
+  state: Schema.optional(Schema.NullOr(Schema.String)),
   streetName: Schema.NullOr(Schema.String),
 });
 
@@ -263,7 +324,9 @@ const decodeShippingAddress = (
         ...(address.additionalStreetInfo === null
           ? {}
           : { addressLine2: address.additionalStreetInfo }),
-        ...(address.region === null ? {} : { region: address.region }),
+        ...(address.state == null && address.region === null
+          ? {}
+          : { region: address.state ?? address.region ?? undefined }),
       }).pipe(
         Option.map((shippingAddress) => {
           const addressBookReference =
@@ -282,22 +345,8 @@ const decodeShippingAddress = (
     )
   );
 
-const parseCustomJson = (value: unknown) => {
-  if (typeof value !== "string") {
-    return value;
-  }
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    // Invalid custom JSON is handled as absent checkout data.
-  }
-};
-
 const decodeCheckoutContact = (value: unknown) =>
-  Option.getOrUndefined(
-    Schema.decodeUnknownOption(CheckoutContact)(parseCustomJson(value))
-  );
+  Schema.decodeUnknownSync(Schema.fromJsonString(CheckoutContact))(value);
 
 const getCheckoutContactFromCustomFields = (
   customFields: readonly RawCustomField[] | null | undefined
@@ -309,9 +358,33 @@ const getCheckoutContactFromCustomFields = (
   return field === undefined ? undefined : decodeCheckoutContact(field.value);
 };
 
+const decodeCheckoutDeliveryDetails = (value: unknown) =>
+  Schema.decodeUnknownSync(
+    Schema.fromJsonString(CheckoutDeliveryDetailsSchema)
+  )(value);
+
+const getCheckoutDeliveryDetailsFromCustomFields = (
+  customFields: readonly RawCustomField[] | null | undefined
+) => {
+  const field = customFields?.find(
+    (customField) =>
+      customField.name === CHECKOUT_DELIVERY_DETAILS_CUSTOM_FIELD_NAME
+  );
+
+  return field === undefined
+    ? undefined
+    : decodeCheckoutDeliveryDetails(field.value);
+};
+
 const getCheckoutDeliveryDetails = (
+  customFields: readonly RawCustomField[] | null | undefined,
   decodedShippingAddress: DecodedShippingAddress | null
 ): CheckoutDeliveryDetails | undefined => {
+  const persisted = getCheckoutDeliveryDetailsFromCustomFields(customFields);
+  if (persisted !== undefined) {
+    return persisted;
+  }
+
   if (decodedShippingAddress === null) {
     return;
   }
@@ -328,11 +401,140 @@ const getCheckoutDetails = (
   decodedShippingAddress: DecodedShippingAddress | null
 ): CheckoutDetails => {
   const contact = getCheckoutContactFromCustomFields(customFields);
-  const deliveryDetails = getCheckoutDeliveryDetails(decodedShippingAddress);
+  const deliveryDetails = getCheckoutDeliveryDetails(
+    customFields,
+    decodedShippingAddress
+  );
 
   return {
     ...(contact === undefined ? {} : { contact }),
     ...(deliveryDetails === undefined ? {} : { deliveryDetails }),
+  };
+};
+
+const selectedDeliveryPlanFrom = (
+  cartId: string,
+  lineItems: readonly CommercetoolsLineItem[],
+  shipping: CommercetoolsCart["shipping"]
+): SelectedDeliveryPlan | undefined => {
+  for (const lineItem of lineItems) {
+    const shippingTargetQuantity =
+      lineItem.shippingDetails?.targets.reduce(
+        (total, target) => total + target.quantity,
+        0
+      ) ?? 0;
+    if (
+      lineItem.shippingDetails?.valid === false ||
+      (shipping.length === 0 && shippingTargetQuantity > 0) ||
+      (shipping.length > 0 && shippingTargetQuantity !== lineItem.quantity)
+    ) {
+      return;
+    }
+    for (const target of lineItem.shippingDetails?.targets ?? []) {
+      if (
+        target.shippingMethodKey === undefined ||
+        !shipping.some(
+          (entry) => entry.shippingKey === target.shippingMethodKey
+        )
+      ) {
+        return;
+      }
+    }
+  }
+  if (shipping.length === 0) {
+    return;
+  }
+  if (
+    shipping.some(
+      (entry) => entry.shippingInfo.shippingMethodState !== "MatchesCart"
+    )
+  ) {
+    return;
+  }
+
+  const quoteReferences = new Set<DeliveryPlanQuoteReference>();
+  const planReferences = new Set<DeliveryPlanReference>();
+  const groupReferences = new Set<string>();
+  const groups = shipping.map((entry): SelectedDeliveryGroup => {
+    const references = deliveryReferencesFromShippingKey(entry.shippingKey);
+    const shippingMethodId = entry.shippingInfo.shippingMethodId;
+    const decodedAddress = Option.getOrUndefined(
+      decodeShippingAddress(entry.shippingAddress)
+    );
+    if (
+      references === undefined ||
+      shippingMethodId === undefined ||
+      decodedAddress === undefined
+    ) {
+      throw new Error(
+        `Commercetools Cart ${cartId} contains an invalid selected Delivery Plan`
+      );
+    }
+    if (groupReferences.has(references.reference)) {
+      throw new Error(
+        `Commercetools Cart ${cartId} contains a duplicate Delivery Group`
+      );
+    }
+    groupReferences.add(references.reference);
+    quoteReferences.add(references.quoteReference);
+    planReferences.add(references.planReference);
+
+    const targets = lineItems.flatMap((lineItem) =>
+      (lineItem.shippingDetails?.targets ?? []).flatMap((target) => {
+        if (target.shippingMethodKey !== entry.shippingKey) {
+          return [];
+        }
+        if (target.addressKey !== deliveryAddressKeyFor(references.reference)) {
+          throw new Error(
+            `Commercetools Cart ${cartId} contains a Delivery Target with the wrong address`
+          );
+        }
+        return [
+          {
+            lineItemId: LineItemId.make(lineItem.id),
+            quantity: target.quantity,
+          },
+        ];
+      })
+    );
+    const [firstTarget, ...remainingTargets] = targets;
+    if (firstTarget === undefined) {
+      throw new Error(
+        `Commercetools Cart ${cartId} contains a Delivery Group without targets`
+      );
+    }
+
+    return {
+      reference: references.reference,
+      selectedShippingOption: {
+        name: entry.shippingInfo.shippingMethodName,
+        price: entry.shippingInfo.price,
+        reference: shippingOptionReferenceFor(shippingMethodId),
+      },
+      shippingAddress: decodedAddress.shippingAddress,
+      targets: [firstTarget, ...remainingTargets],
+    };
+  });
+  const [firstGroup, ...remainingGroups] = groups;
+  const [quoteReference] = quoteReferences;
+  const [planReference] = planReferences;
+
+  if (
+    firstGroup === undefined ||
+    quoteReference === undefined ||
+    planReference === undefined ||
+    quoteReferences.size !== 1 ||
+    planReferences.size !== 1
+  ) {
+    throw new Error(
+      `Commercetools Cart ${cartId} contains inconsistent Delivery Plan quote references`
+    );
+  }
+
+  return {
+    groups: [firstGroup, ...remainingGroups],
+    quoteReference,
+    reference: planReference,
   };
 };
 
@@ -362,6 +564,19 @@ const toCommercetoolsCart = (
             currencyCode: item.totalPrice.currencyCode as CurrencyCode,
           }
         : null,
+      shippingDetails:
+        item.shippingDetails === null || item.shippingDetails === undefined
+          ? null
+          : {
+              targets: item.shippingDetails.targets.map((target) => ({
+                addressKey: target.addressKey,
+                quantity: target.quantity,
+                ...(target.shippingMethodKey === null
+                  ? {}
+                  : { shippingMethodKey: target.shippingMethodKey }),
+              })),
+              valid: item.shippingDetails.valid,
+            },
       variant: item.variant
         ? {
             id: item.variant.id,
@@ -379,6 +594,64 @@ const toCommercetoolsCart = (
         : null,
     })
   );
+  const itemShippingAddresses: CommercetoolsAddress[] = (
+    parsedData.itemShippingAddresses ?? []
+  ).map((address) => ({
+    additionalStreetInfo: address.additionalStreetInfo,
+    city: address.city,
+    country: address.country,
+    key: address.key,
+    postalCode: address.postalCode,
+    region: address.region,
+    state: address.state,
+    streetName: address.streetName,
+  }));
+  const shipping: CommercetoolsCart["shipping"] = (
+    parsedData.shipping ?? []
+  ).map((entry): CommercetoolsCart["shipping"][number] => {
+    if (
+      entry.shippingKey === null ||
+      entry.shippingAddress === null ||
+      entry.shippingInfo === null ||
+      entry.shippingInfo.shippingMethodRef === null
+    ) {
+      throw new Error(
+        `Commercetools Cart ${parsedData.id} contains incomplete native shipping data`
+      );
+    }
+
+    return {
+      shippingAddress: {
+        additionalStreetInfo: entry.shippingAddress.additionalStreetInfo,
+        city: entry.shippingAddress.city,
+        country: entry.shippingAddress.country,
+        key: entry.shippingAddress.key,
+        postalCode: entry.shippingAddress.postalCode,
+        region: entry.shippingAddress.region,
+        state: entry.shippingAddress.state,
+        streetName: entry.shippingAddress.streetName,
+      },
+      shippingInfo: {
+        price: {
+          centAmount: entry.shippingInfo.price.centAmount,
+          currencyCode: entry.shippingInfo.price.currencyCode as CurrencyCode,
+        },
+        shippingMethodId: entry.shippingInfo.shippingMethodRef.id,
+        shippingMethodName: entry.shippingInfo.shippingMethodName,
+        shippingMethodState: entry.shippingInfo.shippingMethodState,
+      },
+      shippingKey: entry.shippingKey,
+    };
+  });
+  const selectedDeliveryPlan = selectedDeliveryPlanFrom(
+    parsedData.id,
+    lineItems,
+    shipping
+  );
+  const checkoutDetails = getCheckoutDetails(
+    parsedData.custom?.customFieldsRaw,
+    decodedShippingAddress
+  );
 
   return {
     ...parsedData,
@@ -389,11 +662,13 @@ const toCommercetoolsCart = (
             parsedData.businessUnit.id
           ),
         }),
-    checkoutDetails: getCheckoutDetails(
-      parsedData.custom?.customFieldsRaw,
-      decodedShippingAddress
-    ),
+    checkoutDetails: {
+      ...checkoutDetails,
+      ...(selectedDeliveryPlan === undefined ? {} : { selectedDeliveryPlan }),
+    },
+    itemShippingAddresses,
     lineItems,
+    shipping,
     shippingAddress,
     totalLineItemQuantity: parsedData.totalLineItemQuantity ?? 0,
     totalPrice: {
@@ -497,6 +772,10 @@ const targetOwnsCart = (target: CartTarget, cart: CommercetoolsCart) => {
 const activeCartForStorePredicate = (storeKey: string) =>
   `cartState="Active" and store(key=${JSON.stringify(storeKey)})`;
 
+const canRepresentCheckoutDeliveries = (
+  cart: FragmentOf<typeof CartFragment>
+) => readFragment(CartFragment, cart).shippingMode === "Multiple";
+
 // ---------------------------------------------------------------------------
 // Provider write plumbing
 // ---------------------------------------------------------------------------
@@ -586,6 +865,24 @@ const executeCartUpdateAsAssociate = async (
     })
     .execute();
 
+const executeCartUpdate = async (
+  apiRoot: ByProjectKeyRequestBuilder,
+  {
+    actions,
+    cartId,
+    version,
+  }: {
+    readonly actions: CartUpdateAction[];
+    readonly cartId: string;
+    readonly version: number;
+  }
+) =>
+  await apiRoot
+    .carts()
+    .withId({ ID: cartId })
+    .post({ body: { actions, version } })
+    .execute();
+
 // ---------------------------------------------------------------------------
 // Layer
 // ---------------------------------------------------------------------------
@@ -628,6 +925,10 @@ export const cartsLayer = Layer.effect(
         return yield* new CartNotFound({ cartId, operation });
       }
 
+      if (!canRepresentCheckoutDeliveries(result.data.cart)) {
+        return yield* new CartNotFound({ cartId, operation });
+      }
+
       return toCommercetoolsCart(result.data.cart, locale);
     });
 
@@ -644,36 +945,81 @@ export const cartsLayer = Layer.effect(
       return cart;
     });
 
-    const updateCartAsAssociate = (
-      operation: CartOperation,
-      {
-        actions,
-        cartId,
-        retryConcurrentModification = true,
-        scope,
-        version,
-      }: {
-        readonly actions: CartUpdateAction[];
-        readonly cartId: CartId;
-        readonly retryConcurrentModification?: boolean;
-        readonly scope: StorefrontCustomerCheckoutScope;
-        readonly version: number;
-      }
-    ) =>
-      retryVersionedWrite({
-        attempt: (current) =>
-          commercetoolsRequest(
-            "Failed to update Cart as associate",
-            async () =>
-              await executeCartUpdateAsAssociate(apiRoot, {
-                actions: current.actions,
-                cartId: String(current.cartId),
-                scope: current.scope,
-                version: current.version,
-              })
-          ).pipe(Effect.asVoid),
-        input: { actions, cartId, scope, version },
+    const standardCartWrite = {
+      anonymous: {
+        message: "Failed to update Cart",
+        operation: "cart.update",
+      },
+      associate: {
+        message: "Failed to update Cart as associate",
         operation: "cart.updateAsAssociate",
+      },
+    } as const;
+    const shippingCartWrite = {
+      anonymous: {
+        message: "Failed to save Shipping Options",
+        operation: "cart.saveShippingOptions",
+      },
+      associate: {
+        message: "Failed to save Shipping Options as associate",
+        operation: "cart.saveShippingOptionsAsAssociate",
+      },
+    } as const;
+
+    const writeTargetCart = <Failure>({
+      actions,
+      profile,
+      projectFailure,
+      retryConcurrentModification,
+      target,
+      version,
+    }: {
+      readonly actions: CartUpdateAction[];
+      readonly profile: {
+        readonly associate: {
+          readonly message: string;
+          readonly operation: string;
+        };
+        readonly anonymous: {
+          readonly message: string;
+          readonly operation: string;
+        };
+      };
+      readonly projectFailure: (
+        cause: unknown
+      ) => Effect.Effect<never, Failure>;
+      readonly retryConcurrentModification: boolean;
+      readonly target: CartTarget;
+      readonly version: number;
+    }): Effect.Effect<void, Failure> =>
+      retryVersionedWrite({
+        attempt: (current) => {
+          const scope = targetScope(current.target);
+          const write =
+            scope.channel === "storefrontCustomer"
+              ? profile.associate
+              : profile.anonymous;
+          return commercetoolsRequest(write.message, async () => {
+            if (scope.channel === "storefrontCustomer") {
+              return await executeCartUpdateAsAssociate(apiRoot, {
+                actions: current.actions,
+                cartId: String(current.target.id),
+                scope,
+                version: current.version,
+              });
+            }
+            return await executeCartUpdate(apiRoot, {
+              actions: current.actions,
+              cartId: String(current.target.id),
+              version: current.version,
+            });
+          }).pipe(Effect.asVoid);
+        },
+        input: { actions, target, version },
+        operation:
+          targetScope(target).channel === "storefrontCustomer"
+            ? profile.associate.operation
+            : profile.anonymous.operation,
         resolveConflict: (conflict, current) =>
           Effect.succeed(
             retryConcurrentModification &&
@@ -684,7 +1030,26 @@ export const cartsLayer = Layer.effect(
                 })
               : new PreserveVersionedWriteConflict()
           ),
-      }).pipe(Effect.catch((error) => failedWrite(operation, cartId, error)));
+      }).pipe(Effect.catch(projectFailure));
+
+    const updateTargetCartAndReload = Effect.fn(
+      "Carts.updateTargetCartAndReload"
+    )(function* (
+      operation: CartOperation,
+      target: CartTarget,
+      actions: CartUpdateAction[],
+      version: number
+    ) {
+      yield* writeTargetCart({
+        actions,
+        profile: standardCartWrite,
+        projectFailure: (cause) => failedWrite(operation, target.id, cause),
+        retryConcurrentModification: false,
+        target,
+        version,
+      });
+      return yield* loadTargetCart(target, operation);
+    });
 
     const findById = Effect.fn("Carts.findById")(function* (
       input: FindCartById
@@ -742,7 +1107,9 @@ export const cartsLayer = Layer.effect(
       }
 
       return yield* Effect.forEach(
-        result.data.asAssociate.carts.results,
+        result.data.asAssociate.carts.results.filter(
+          canRepresentCheckoutDeliveries
+        ),
         (cart) =>
           toCart(toCommercetoolsCart(cart, input.store.locale), operation)
       );
@@ -793,6 +1160,7 @@ export const cartsLayer = Layer.effect(
                 body: {
                   currency: input.store.currency,
                   customerId: String(input.customerId),
+                  shippingMode: "Multiple",
                   store: { key: String(input.store.storeKey), typeId: "store" },
                 },
               })
@@ -844,6 +1212,30 @@ export const cartsLayer = Layer.effect(
         return yield* dieOnContractViolation(
           `Commercetools Store ${String(input.target.store.storeKey)} has no distribution channel`
         );
+      }
+
+      const clearActions = clearSelectedDeliveryPlanActions(cart);
+      if (clearActions.length > 0) {
+        const actions: CartUpdateAction[] = [
+          ...clearActions,
+          {
+            action: "addLineItem",
+            distributionChannel: {
+              key: distributionChannelKey,
+              typeId: "channel",
+            },
+            productId: String(input.productId),
+            quantity: input.quantity,
+            variantId,
+          },
+        ];
+        const refreshed = yield* updateTargetCartAndReload(
+          operation,
+          input.target,
+          actions,
+          cart.version
+        );
+        return yield* toCart(refreshed, operation);
       }
 
       const result = yield* executeVersionedGraphqlWrite({
@@ -906,6 +1298,25 @@ export const cartsLayer = Layer.effect(
           });
         }
 
+        const clearActions = clearSelectedDeliveryPlanActions(cart);
+        if (clearActions.length > 0) {
+          const actions: CartUpdateAction[] = [
+            ...clearActions,
+            {
+              action: "changeLineItemQuantity",
+              lineItemId: String(input.lineItemId),
+              quantity: input.quantity,
+            },
+          ];
+          const refreshed = yield* updateTargetCartAndReload(
+            operation,
+            input.target,
+            actions,
+            cart.version
+          );
+          return yield* toCart(refreshed, operation);
+        }
+
         const result = yield* executeVersionedGraphqlWrite({
           execute: (current) =>
             client.mutation(ChangeItemsQuantityMutation, current),
@@ -961,6 +1372,24 @@ export const cartsLayer = Layer.effect(
           lineItemId: input.lineItemId,
           operation,
         });
+      }
+
+      const clearActions = clearSelectedDeliveryPlanActions(cart);
+      if (clearActions.length > 0) {
+        const actions: CartUpdateAction[] = [
+          ...clearActions,
+          {
+            action: "removeLineItem",
+            lineItemId: String(input.lineItemId),
+          },
+        ];
+        const refreshed = yield* updateTargetCartAndReload(
+          operation,
+          input.target,
+          actions,
+          cart.version
+        );
+        return yield* toCart(refreshed, operation);
       }
 
       const result = yield* executeVersionedGraphqlWrite({
@@ -1031,11 +1460,13 @@ export const cartsLayer = Layer.effect(
                 },
           ];
 
-          return yield* updateCartAsAssociate(operation, {
+          return yield* writeTargetCart({
             actions: restActions,
-            cartId: input.target.id,
+            profile: standardCartWrite,
+            projectFailure: (cause) =>
+              failedWrite(operation, input.target.id, cause),
             retryConcurrentModification,
-            scope,
+            target: input.target,
             version: cart.version,
           });
         }
@@ -1123,22 +1554,37 @@ export const cartsLayer = Layer.effect(
         const operation: CartOperation = "saveDeliveryDetails";
         const cart = yield* loadTargetCart(input.target, operation);
         const scope = targetScope(input.target);
-        const actions = buildSaveCheckoutDeliveryDetailsActions(
+        const clearActions = clearSelectedDeliveryPlanActions(cart);
+        const customActions = buildSaveCheckoutDeliveryDetailsActions(
           input.deliveryDetails
         );
+        const actions: CartUpdateAction[] = [
+          ...clearActions,
+          ...customActions.map(({ setCustomField }) => ({
+            action: "setCustomField" as const,
+            name: setCustomField.name,
+            value: serializeCheckoutDeliveryDetails(input.deliveryDetails),
+          })),
+        ];
 
         if (scope.channel === "storefrontCustomer") {
-          const restActions: CartUpdateAction[] = actions.map(
-            ({ setShippingAddress }) => ({
-              action: "setShippingAddress",
-              address: setShippingAddress.address,
-            })
-          );
-
-          yield* updateCartAsAssociate(operation, {
-            actions: restActions,
-            cartId: input.target.id,
-            scope,
+          yield* writeTargetCart({
+            actions,
+            profile: standardCartWrite,
+            projectFailure: (cause) =>
+              failedWrite(operation, input.target.id, cause),
+            retryConcurrentModification: clearActions.length === 0,
+            target: input.target,
+            version: cart.version,
+          });
+        } else if (clearActions.length > 0) {
+          yield* writeTargetCart({
+            actions,
+            profile: standardCartWrite,
+            projectFailure: (cause) =>
+              failedWrite(operation, input.target.id, cause),
+            retryConcurrentModification: false,
+            target: input.target,
             version: cart.version,
           });
         } else {
@@ -1146,7 +1592,7 @@ export const cartsLayer = Layer.effect(
             execute: (current) =>
               client.mutation(SaveCheckoutDeliveryDetailsMutation, current),
             input: {
-              actions,
+              actions: customActions,
               id: cart.id,
               locale: input.target.store.locale,
               version: cart.version,
@@ -1178,6 +1624,38 @@ export const cartsLayer = Layer.effect(
       }
     );
 
+    const saveShippingOptions = Effect.fn("Carts.saveShippingOptions")(
+      function* (input: SaveCartShippingOptions) {
+        const operation: CartOperation = "saveShippingOptions";
+        const cart = yield* loadTargetCart(input.target, operation);
+
+        const actions = buildSaveShippingOptionsActions(
+          cart,
+          input.selectedDeliveryPlan
+        );
+        yield* writeTargetCart({
+          actions,
+          profile: shippingCartWrite,
+          projectFailure: (cause) =>
+            failedShippingWrite(input.target.id, cause),
+          retryConcurrentModification: false,
+          target: input.target,
+          version: cart.version,
+        });
+
+        return yield* loadTargetCart(input.target, operation).pipe(
+          Effect.flatMap((refreshed) => toCart(refreshed, operation)),
+          Effect.mapError(
+            () =>
+              new CartShippingOptionsRefreshRequired({
+                cartId: input.target.id,
+                operation,
+              })
+          )
+        );
+      }
+    );
+
     return Carts.of({
       addItem,
       createAnonymous,
@@ -1187,6 +1665,7 @@ export const cartsLayer = Layer.effect(
       removeLineItem,
       saveContact,
       saveDeliveryDetails,
+      saveShippingOptions,
       setLineItemQuantity,
     });
   })

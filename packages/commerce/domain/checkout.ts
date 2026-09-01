@@ -10,6 +10,12 @@ import {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "./commerce-account";
+import {
+  DeliveryPlanQuoteReference,
+  DeliveryPlanReference,
+  SelectedDeliveryPlan,
+  ShippingOptionReference,
+} from "./delivery-plan";
 import { ProviderFailureReason } from "./provider-failure";
 
 export class StorefrontAnonymousCheckoutScope extends Schema.TaggedClass<StorefrontAnonymousCheckoutScope>()(
@@ -183,6 +189,7 @@ export const CheckoutDetails = Schema.Struct({
   buyingContext: Schema.optional(BuyingContext),
   contact: Schema.optional(CheckoutContact),
   deliveryDetails: Schema.optional(CheckoutDeliveryDetails),
+  selectedDeliveryPlan: Schema.optional(SelectedDeliveryPlan),
 });
 export type CheckoutDetails = typeof CheckoutDetails.Type;
 
@@ -344,6 +351,24 @@ export class CheckoutMutationAddressBookEntryUnavailable extends Schema.TaggedEr
   }
 ) {}
 
+export class CheckoutShippingSelectionUnavailable extends Schema.TaggedError<CheckoutShippingSelectionUnavailable>()(
+  "CheckoutShippingSelectionUnavailable",
+  {
+    message: Schema.String,
+    planReference: DeliveryPlanReference,
+    quoteReference: DeliveryPlanQuoteReference,
+    shippingOptionReference: Schema.optional(ShippingOptionReference),
+  }
+) {}
+
+export class CheckoutShippingOptionsRefreshRequired extends Schema.TaggedError<CheckoutShippingOptionsRefreshRequired>()(
+  "CheckoutShippingOptionsRefreshRequired",
+  {
+    cartId: CartId,
+    message: Schema.String,
+  }
+) {}
+
 export class CheckoutCartMismatch extends Schema.TaggedError<CheckoutCartMismatch>()(
   "CheckoutCartMismatch",
   {
@@ -368,7 +393,11 @@ export class CheckoutMutationOutcomeUnknown extends Schema.TaggedError<CheckoutM
     addressBookReference: Schema.optional(AddressBookReference),
     cartId: Schema.optional(CartId),
     message: Schema.String,
-    operation: Schema.Literals(["saveContact", "saveDeliveryDetails"]),
+    operation: Schema.Literals([
+      "saveContact",
+      "saveDeliveryDetails",
+      "saveShippingOptions",
+    ]),
   }
 ) {}
 
@@ -387,7 +416,11 @@ export class CheckoutMutationUnsupported extends Schema.TaggedError<CheckoutMuta
   "CheckoutMutationUnsupported",
   {
     message: Schema.String,
-    operation: Schema.Literals(["saveContact", "saveDeliveryDetails"]),
+    operation: Schema.Literals([
+      "saveContact",
+      "saveDeliveryDetails",
+      "saveShippingOptions",
+    ]),
   }
 ) {}
 
@@ -396,6 +429,8 @@ export const CheckoutMutationFailure = Schema.Union([
   CheckoutMutationSourceUnavailable,
   CheckoutCustomerProfileIncomplete,
   CheckoutMutationAddressBookEntryUnavailable,
+  CheckoutShippingSelectionUnavailable,
+  CheckoutShippingOptionsRefreshRequired,
   CheckoutCartMismatch,
   CheckoutVersionConflict,
   CheckoutMutationOutcomeUnknown,
@@ -429,3 +464,16 @@ export const CheckoutDeliveryDetailsMutationFailure = Schema.Union([
 ]);
 export type CheckoutDeliveryDetailsMutationFailure =
   typeof CheckoutDeliveryDetailsMutationFailure.Type;
+
+export const CheckoutShippingOptionsMutationFailure = Schema.Union([
+  CheckoutMutationSchemaFailure,
+  CheckoutShippingSelectionUnavailable,
+  CheckoutShippingOptionsRefreshRequired,
+  CheckoutCartMismatch,
+  CheckoutVersionConflict,
+  CheckoutMutationOutcomeUnknown,
+  CheckoutMutationProviderFailure,
+  CheckoutMutationUnsupported,
+]);
+export type CheckoutShippingOptionsMutationFailure =
+  typeof CheckoutShippingOptionsMutationFailure.Type;

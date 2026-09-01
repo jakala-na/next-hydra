@@ -347,7 +347,21 @@
           "country": "Paese"
         },
         "actions": {
+          "edit": "Modifica dettagli di consegna",
           "save": "Salva dettagli di consegna",
+          "saving": "Salvataggio..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Scegli un’opzione di spedizione",
+        "choosePlan": "Scegli un piano di consegna",
+        "delivery": "Consegna {number}",
+        "noOptions": "Non sono disponibili opzioni per questa consegna.",
+        "noPlans": "Non è disponibile un piano di consegna per questo indirizzo.",
+        "plan": "Piano di consegna {number}",
+        "quantity": "Qtà {quantity}",
+        "actions": {
+          "save": "Salva opzioni di spedizione",
           "saving": "Salvataggio..."
         }
       },
@@ -395,6 +409,18 @@
           "CheckoutUnavailable": "Checkout non trovato per questa richiesta.",
           "CommerceRequestContextNotFound": "Checkout non trovato per questa richiesta.",
           "CheckoutVersionConflict": "Il checkout è cambiato prima del salvataggio. Aggiorna la pagina e riprova."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "Questo checkout non è più aggiornato.",
+          "CheckoutMutationSchemaFailure": "Scegli un’opzione per ogni consegna.",
+          "CheckoutMutationOutcomeUnknown": "Impossibile confermare il salvataggio. Aggiorna la pagina.",
+          "CheckoutMutationProviderFailure": "Impossibile salvare le opzioni di spedizione.",
+          "CheckoutShippingOptionsRefreshRequired": "Le opzioni di spedizione sono state salvate, ma non è stato possibile aggiornare il checkout. Aggiorna la pagina.",
+          "CheckoutShippingSelectionUnavailable": "Questa opzione non è più disponibile.",
+          "CheckoutUnavailable": "Checkout non trovato.",
+          "CheckoutVersionConflict": "Il checkout è cambiato prima del salvataggio.",
+          "CommerceAccountUnavailable": "Impossibile salvare le opzioni di spedizione.",
+          "CommerceRequestContextNotFound": "Checkout non trovato."
         }
       },
       "violations": {

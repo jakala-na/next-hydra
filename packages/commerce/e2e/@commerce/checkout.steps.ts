@@ -5,6 +5,7 @@ import type { DataTable } from "@repo/e2e-testing";
 import { CartDriver } from "../drivers/cart.driver";
 import { CatalogDriver } from "../drivers/catalog.driver";
 import { CheckoutDriver } from "../drivers/checkout.driver";
+import type { ShippingOptionExpectation } from "../shipping-options-test-control";
 
 const keyValueTable = (
   dataTable: DataTable,
@@ -70,6 +71,41 @@ const expectSameValues = (
   }
 };
 
+const rowsWithHeaders = (
+  dataTable: DataTable,
+  expectedHeaders: readonly string[]
+): readonly ReadonlyMap<string, string>[] => {
+  const [headers, ...rows] = dataTable.raw();
+  if (
+    headers?.length !== expectedHeaders.length ||
+    expectedHeaders.some((header, index) => headers[index] !== header)
+  ) {
+    throw new Error(`Expected table headers ${expectedHeaders.join(", ")}`);
+  }
+
+  return rows.map((row) => {
+    if (row.length !== expectedHeaders.length) {
+      throw new Error(
+        `Each table row must contain ${expectedHeaders.length} values`
+      );
+    }
+    return new Map(
+      expectedHeaders.map((header, index) => [header, row[index] ?? ""])
+    );
+  });
+};
+
+const shippingOptionsFrom = (
+  dataTable: DataTable
+): readonly ShippingOptionExpectation[] =>
+  rowsWithHeaders(dataTable, ["Shipping Option", "Price", "Currency"]).map(
+    (row) => ({
+      currency: row.get("Currency") ?? "",
+      name: row.get("Shipping Option") ?? "",
+      price: row.get("Price") ?? "",
+    })
+  );
+
 const expectCustomer = (auth: AuthContext, customerName: string): void => {
   if (auth.identityFor(customerName) === undefined) {
     throw new Error(
@@ -98,6 +134,16 @@ Given(
     const store = { currency, key: storeKey, locale };
     checkoutScenario.defineStore(store);
     await new CatalogDriver(page).switchStore(store);
+  }
+);
+
+Given(
+  "deliveries to {string} have Shipping Options:",
+  async ({ checkoutScenario }, country: string, dataTable: DataTable) => {
+    await checkoutScenario.expectShippingOptions(
+      country,
+      shippingOptionsFrom(dataTable)
+    );
   }
 );
 
@@ -300,5 +346,79 @@ When(
     const address = keyValueTable(dataTable, ["Field", "Value"]);
     expectKeys(address, SHIPPING_ADDRESS_FIELDS);
     await new CheckoutDriver(page).enterDeliveryDetails(address);
+  }
+);
+
+Then(
+  "Shipping Options presents a Delivery Plan with targets:",
+  async ({ page }, dataTable: DataTable) => {
+    const targets = rowsWithHeaders(dataTable, [
+      "Delivery Group",
+      "Product",
+      "Quantity",
+    ]).map((row) => {
+      const quantity = Number(row.get("Quantity"));
+      if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+        throw new Error(
+          `Invalid Delivery Target quantity: ${String(quantity)}`
+        );
+      }
+      return {
+        deliveryGroup: row.get("Delivery Group") ?? "",
+        product: row.get("Product") ?? "",
+        quantity,
+      };
+    });
+    await new CheckoutDriver(page).expectDeliveryTargets(targets);
+  }
+);
+
+Then(
+  "Delivery Group {string} offers Shipping Options:",
+  async ({ page }, deliveryGroup: string, dataTable: DataTable) => {
+    await new CheckoutDriver(page).expectShippingOptions(
+      deliveryGroup,
+      shippingOptionsFrom(dataTable)
+    );
+  }
+);
+
+When(
+  "the buyer selects Shipping Option {string} for Delivery Group {string}",
+  async ({ page }, shippingOption: string, deliveryGroup: string) => {
+    await new CheckoutDriver(page).selectShippingOption(
+      deliveryGroup,
+      shippingOption
+    );
+  }
+);
+
+When("the buyer saves Shipping Options", async ({ page }) => {
+  await new CheckoutDriver(page).saveShippingOptions();
+});
+
+When("the buyer chooses to edit {string}", async ({ page }, step: string) => {
+  await new CheckoutDriver(page).editStep(step);
+});
+
+Then("no selected Shipping Option is shown", async ({ page }) => {
+  await new CheckoutDriver(page).expectNoSelectedShippingOption();
+});
+
+Then(
+  "Delivery Group {string} has selected Shipping Option {string} priced at {string} in currency {string}",
+  async (
+    { page },
+    deliveryGroup: string,
+    shippingOption: string,
+    price: string,
+    currency: string
+  ) => {
+    await new CheckoutDriver(page).expectSelectedShippingOption(
+      deliveryGroup,
+      shippingOption,
+      price,
+      currency
+    );
   }
 );

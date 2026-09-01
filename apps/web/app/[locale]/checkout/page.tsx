@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import {
   saveCheckoutContact,
   saveCheckoutDeliveryDetails,
+  saveCheckoutShippingOptions,
 } from "@/lib/commerce-actions";
 
 type CheckoutRouteProps = {
@@ -26,6 +27,7 @@ export default async function Checkout({ params }: CheckoutRouteProps) {
       actions={{
         saveContact: saveCheckoutContact,
         saveDeliveryDetails: saveCheckoutDeliveryDetails,
+        saveShippingOptions: saveCheckoutShippingOptions,
       }}
       locale={locale}
     />

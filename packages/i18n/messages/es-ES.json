@@ -347,7 +347,21 @@
           "country": "País"
         },
         "actions": {
+          "edit": "Editar datos de entrega",
           "save": "Guardar datos de entrega",
+          "saving": "Guardando..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Elige una opción de envío",
+        "choosePlan": "Elige un plan de entrega",
+        "delivery": "Entrega {number}",
+        "noOptions": "No hay opciones de envío disponibles para esta entrega.",
+        "noPlans": "No hay ningún plan de entrega disponible para esta dirección.",
+        "plan": "Plan de entrega {number}",
+        "quantity": "Cant. {quantity}",
+        "actions": {
+          "save": "Guardar opciones de envío",
           "saving": "Guardando..."
         }
       },
@@ -395,6 +409,18 @@
           "CheckoutUnavailable": "No se encontró el proceso de compra para esta solicitud.",
           "CommerceRequestContextNotFound": "No se encontró el proceso de compra para esta solicitud.",
           "CheckoutVersionConflict": "El proceso de compra cambió antes de guardar. Actualiza la página e inténtalo de nuevo."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "Este proceso de compra ya no está actualizado.",
+          "CheckoutMutationSchemaFailure": "Elige una opción de envío para cada entrega.",
+          "CheckoutMutationOutcomeUnknown": "No pudimos confirmar si se guardaron las opciones. Actualiza la página.",
+          "CheckoutMutationProviderFailure": "No se pudieron guardar las opciones de envío.",
+          "CheckoutShippingOptionsRefreshRequired": "Las opciones de envío se guardaron, pero no se pudo actualizar el proceso de compra. Actualiza la página.",
+          "CheckoutShippingSelectionUnavailable": "Esa opción de envío ya no está disponible.",
+          "CheckoutUnavailable": "No se encontró el proceso de compra.",
+          "CheckoutVersionConflict": "El proceso de compra cambió antes de guardar.",
+          "CommerceAccountUnavailable": "No se pudieron guardar las opciones de envío.",
+          "CommerceRequestContextNotFound": "No se encontró el proceso de compra."
         }
       },
       "violations": {

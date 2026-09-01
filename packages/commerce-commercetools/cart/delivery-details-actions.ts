@@ -1,38 +1,39 @@
-import type { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
+import { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
 import { checkoutDeliveryDetailsEqual } from "@repo/commerce/lib/checkout/delivery-details-equality";
+import { Schema } from "effect";
 
-import { toCommercetoolsAddressKey } from "../address-book/address-book-key";
 import type { CommercetoolsCart } from "./provider-cart";
 
 type SaveCheckoutDeliveryDetailsAction = {
-  readonly setShippingAddress: {
-    readonly address: {
-      readonly key?: string;
-      readonly streetName: string;
-      readonly postalCode: string;
-      readonly city: string;
-      readonly country: string;
-      readonly additionalStreetInfo?: string;
-      readonly region?: string;
-    };
+  readonly setCustomField: {
+    readonly name: string;
+    readonly value: string;
   };
 };
 
+export const CHECKOUT_DELIVERY_DETAILS_CUSTOM_FIELD_NAME =
+  "checkoutDeliveryDetails";
+
+const CheckoutDeliveryDetailsFromJson = Schema.fromJsonString(
+  CheckoutDeliveryDetails
+);
+
+export const serializeCheckoutDeliveryDetails = (
+  deliveryDetails: CheckoutDeliveryDetails
+) => Schema.encodeSync(CheckoutDeliveryDetailsFromJson)(deliveryDetails);
+
 export const hasPersistedCheckoutDeliveryDetails = (
-  cart: Pick<CommercetoolsCart, "checkoutDetails" | "shippingAddress">,
+  cart: Pick<CommercetoolsCart, "checkoutDetails">,
   deliveryDetails: CheckoutDeliveryDetails
 ) => {
   const persistedDeliveryDetails = cart.checkoutDetails?.deliveryDetails;
 
-  if (persistedDeliveryDetails === undefined || cart.shippingAddress == null) {
+  if (persistedDeliveryDetails === undefined) {
     return false;
   }
 
   return checkoutDeliveryDetailsEqual(
-    {
-      ...persistedDeliveryDetails,
-      shippingAddress: cart.shippingAddress,
-    },
+    persistedDeliveryDetails,
     deliveryDetails
   );
 };
@@ -41,29 +42,12 @@ export const buildSaveCheckoutDeliveryDetailsActions = (
   deliveryDetails: CheckoutDeliveryDetails
 ): SaveCheckoutDeliveryDetailsAction[] => [
   {
-    setShippingAddress: {
-      address: {
-        ...(deliveryDetails.source === "addressBook"
-          ? {
-              key: toCommercetoolsAddressKey(
-                deliveryDetails.addressBookReference
-              ),
-            }
-          : {}),
-        city: deliveryDetails.shippingAddress.city,
-        country: deliveryDetails.shippingAddress.country,
-        postalCode: deliveryDetails.shippingAddress.postalCode,
-        streetName: deliveryDetails.shippingAddress.addressLine1,
-        ...(deliveryDetails.shippingAddress.addressLine2 === undefined
-          ? {}
-          : {
-              additionalStreetInfo:
-                deliveryDetails.shippingAddress.addressLine2,
-            }),
-        ...(deliveryDetails.shippingAddress.region === undefined
-          ? {}
-          : { region: deliveryDetails.shippingAddress.region }),
-      },
+    setCustomField: {
+      name: CHECKOUT_DELIVERY_DETAILS_CUSTOM_FIELD_NAME,
+      // GraphQL's Custom Field value is itself JSON. A Commercetools String
+      // field therefore needs the serialized checkout JSON encoded as a JSON
+      // string, just like checkoutContact.
+      value: JSON.stringify(serializeCheckoutDeliveryDetails(deliveryDetails)),
     },
   },
 ];

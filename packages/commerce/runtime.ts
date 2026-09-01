@@ -19,6 +19,7 @@ import { CommerceAccounts } from "./services/commerce-accounts";
 import { CommerceCompanyMemberships } from "./services/commerce-company-memberships";
 import { CompanyMemberRemovalRecords } from "./services/company-member-removal-records";
 import { CustomerAccountMembers } from "./services/customer-account-members";
+import { DeliveryPlanning } from "./services/delivery-planning";
 import type { StoreKey } from "./store";
 
 export type {
@@ -126,6 +127,10 @@ const unconfiguredRuntime = ManagedRuntime.make(
     ),
     Layer.effect(
       CommerceCompanyMemberships,
+      Effect.die(new CommerceRuntimeNotConfigured())
+    ),
+    Layer.effect(
+      DeliveryPlanning,
       Effect.die(new CommerceRuntimeNotConfigured())
     ),
     Layer.effect(

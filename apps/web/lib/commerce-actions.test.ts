@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   shouldRevalidateContact,
   shouldRevalidateDeliveryDetails,
+  shouldRevalidateShippingOptions,
 } from "./commerce-action-cache-policy";
 import { NextRequestApi } from "./next-request-api";
 
@@ -42,6 +43,17 @@ describe("Commerce action cache policy", () => {
       shouldRevalidateContact({
         _tag: "Failure",
         failure: { error: { _tag: "CheckoutMutationOutcomeUnknown" } },
+      })
+    ).toBeTruthy();
+  });
+
+  it("revalidates after Shipping Options were saved but the refreshed quote failed", () => {
+    expect(
+      shouldRevalidateShippingOptions({
+        _tag: "Failure",
+        failure: {
+          error: { _tag: "CheckoutShippingOptionsRefreshRequired" },
+        },
       })
     ).toBeTruthy();
   });

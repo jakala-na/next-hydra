@@ -7,6 +7,17 @@ import type { CurrencyCode } from "@repo/commerce/domain/money";
 
 import type { ProductAttributes, ProductTypeKey } from "./attributes";
 
+export type CommercetoolsAddress = {
+  readonly additionalStreetInfo?: string | null;
+  readonly city?: string | null;
+  readonly country: string;
+  readonly key?: string | null;
+  readonly postalCode?: string | null;
+  readonly region?: string | null;
+  readonly state?: string | null;
+  readonly streetName?: string | null;
+};
+
 export type CommercetoolsMoney = {
   readonly centAmount: number;
   readonly currencyCode: CurrencyCode;
@@ -44,7 +55,19 @@ export type CommercetoolsCart = {
   readonly totalPrice: CommercetoolsMoney;
   readonly checkoutDetails?: CheckoutDetails;
   readonly shippingAddress?: ShippingAddress | null;
+  readonly itemShippingAddresses: readonly CommercetoolsAddress[];
+  readonly shipping: readonly {
+    readonly shippingAddress: CommercetoolsAddress;
+    readonly shippingInfo: {
+      readonly price: CommercetoolsMoney;
+      readonly shippingMethodId?: string;
+      readonly shippingMethodName: string;
+      readonly shippingMethodState: "DoesNotMatchCart" | "MatchesCart";
+    };
+    readonly shippingKey: string;
+  }[];
   readonly cartState: "Active" | "Merged" | "Ordered" | "Frozen";
+  readonly shippingMode: "Single" | "Multiple";
 };
 
 export type CommercetoolsLineItem = {
@@ -64,4 +87,12 @@ export type CommercetoolsLineItem = {
   readonly price: CommercetoolsPrice;
   readonly quantity: number;
   readonly totalPrice: CommercetoolsMoney | null;
+  readonly shippingDetails?: {
+    readonly targets: readonly {
+      readonly addressKey: string;
+      readonly quantity: number;
+      readonly shippingMethodKey?: string;
+    }[];
+    readonly valid: boolean;
+  } | null;
 };

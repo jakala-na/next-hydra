@@ -347,7 +347,21 @@
           "country": "Country"
         },
         "actions": {
+          "edit": "Edit delivery details",
           "save": "Save delivery details",
+          "saving": "Saving..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Choose a shipping option",
+        "choosePlan": "Choose a delivery plan",
+        "delivery": "Delivery {number}",
+        "noOptions": "No shipping options are available for this delivery.",
+        "noPlans": "No delivery plan is available for this address.",
+        "plan": "Delivery plan {number}",
+        "quantity": "Qty {quantity}",
+        "actions": {
+          "save": "Save shipping options",
           "saving": "Saving..."
         }
       },
@@ -395,6 +409,18 @@
           "CheckoutUnavailable": "Checkout was not found for the current request.",
           "CommerceRequestContextNotFound": "Checkout was not found for the current request.",
           "CheckoutVersionConflict": "Checkout changed before your details could be saved. Refresh and try again."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "CheckoutMutationSchemaFailure": "Choose one shipping option for every delivery.",
+          "CheckoutMutationOutcomeUnknown": "We could not confirm whether your shipping options were saved. Refresh before trying again.",
+          "CheckoutMutationProviderFailure": "Shipping options could not be saved. Try again.",
+          "CheckoutShippingOptionsRefreshRequired": "Shipping options were saved, but checkout could not refresh. Refresh the page to continue.",
+          "CheckoutShippingSelectionUnavailable": "That shipping option is no longer available. Refresh and choose again.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your shipping options could be saved. Refresh and try again.",
+          "CommerceAccountUnavailable": "Shipping options could not be saved. Try again.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request."
         }
       },
       "violations": {

@@ -8,6 +8,8 @@ The Checkout context describes how a buyer completes the information and choices
 
 **Cart**: The current collection of products and cart-owned checkout details being prepared for purchase in a Store and, for B2B Checkout, a Business Unit. _Avoid_: Checkout state
 
+**Cart Line Item**: One Product Variant and its requested quantity in a Cart. Its identity lets checkout choices refer to that exact Cart entry rather than to the Product in general. _Avoid_: Product, Provider Line Item
+
 **Cart Snapshot**: An observation of a Cart's current semantic state, independent of provider resource revisions and storage representation. _Avoid_: Provider Cart, Cart version
 
 **Current Cart**: The Cart resolved for the buyer's current Store and, for B2B activity, Business Unit Buying Context. The `cart` cookie identifies an anonymous Current Cart. _Avoid_: Cart Session, arbitrary Cart
@@ -154,6 +156,28 @@ The Checkout context describes how a buyer completes the information and choices
 
 **Shipping Options**: The Checkout Step where the buyer chooses how the order should be delivered. _Avoid_: Delivery options
 
+**Delivery Plan**: A checkout-time proposal that allocates a Current Cart into one or more Delivery Groups using explicit Delivery Targets. It does not itself select Shipping Options or describe how an Order is physically fulfilled. _Avoid_: Shipment Plan, Order Deliveries
+
+**Delivery Plan Reference**: The opaque identity of one Delivery Plan calculated for the Current Cart. It lets Checkout select and revalidate a complete proposal without accepting caller-supplied routing or promises. _Avoid_: Fulfillment Route ID, Shipment Plan ID
+
+**Delivery Plan Quote**: The current set of Delivery Plans calculated together for one Current Cart state. Checkout replaces it when Cart contents, delivery destinations, or fulfillment constraints require the plans and their Shipping Options to be recalculated. _Avoid_: Shipping Quote, Rate Quote
+
+**Delivery Plan Quote Reference**: The opaque identity of one Delivery Plan Quote. A buyer returns it with a selection so Checkout can reject choices made against a superseded quote without accepting a browser-supplied price. _Avoid_: Price Token, Browser Price
+
+**Delivery Group**: A non-empty collection of Delivery Targets that share one Shipping Address and require one Shipping Option selection. It is a checkout planning unit, not a physical Shipment or Order Delivery. _Avoid_: Shipment, Package
+
+**Delivery Target**: A positive quantity of one exact Cart Line Item allocated to a Delivery Group. It is always explicit; no wildcard or “all Cart quantities” target exists. _Avoid_: Product Target, Item Selector, All Cart Quantities
+
+**Delivery Promise**: The buyer-facing commitment for when a Delivery Group is expected to arrive or be ready for collection. _Avoid_: Carrier estimate, Fulfillment SLA
+
+**Delivery Routing**: The decision that derives and ranks Delivery Plans from the Current Cart, its delivery destinations, and applicable fulfillment constraints. _Avoid_: Shipping Option selection, Order fulfillment
+
+**Shipping Option**: A currently available way to deliver one Delivery Group, including its buyer-facing description, Delivery-Group-dependent price, and any Delivery Promise that can be made. _Avoid_: Shipping Method, Delivery Option
+
+**Shipping Option Reference**: The opaque identity a buyer submits to select a Shipping Option for one Delivery Group in a Delivery Plan. It identifies a choice without exposing a provider Shipping Method identity as Checkout vocabulary. _Avoid_: Provider Shipping Method ID
+
+**Selected Shipping Option**: The Shipping Option currently saved on the Cart for one Delivery Group, including its applied price and whether it still applies to that group. _Avoid_: Saved Shipping Options Step, Shipping Method payload
+
 **Payment Method**: The way the buyer will pay or settle the order. _Avoid_: Payment arrangement, payment option
 
 **Payment Options**: The Checkout Step where the buyer chooses one or more Payment Methods for the order. _Avoid_: Payment methods step, payment arrangement
@@ -293,6 +317,18 @@ The Checkout context describes how a buyer completes the information and choices
 - Changing **Buying Context** requires a different **Cart**.
 - A structurally valid **Shipping Address** can be saved even when it produces a **Checkout Policy Violation**.
 - **Shipping Options** can be the **Active Checkout Step** and remain incomplete when blocking violations prevent selecting shipping.
+- **Delivery Routing** produces one or more ranked **Delivery Plans**; plans can differ in their Delivery Groups and in the Shipping Options available to those groups.
+- Each **Delivery Plan** has a **Delivery Plan Reference**, and every Delivery Group contains one or more explicit **Delivery Targets**.
+- For each **Cart Line Item** in a Delivery Plan, its Delivery Target quantities are positive and sum exactly to the quantity currently requested in the Cart; no other Cart Line Item may be targeted.
+- A one-shipment Checkout has one **Delivery Group**; a split Checkout has more than one.
+- One **Delivery Plan** can offer more than one **Shipping Option** for the same Delivery Group.
+- A **Delivery Plan** does not create physical Shipments, Order Deliveries, or Parcels.
+- **Shipping Options** is complete only when every **Delivery Group** from the selected Delivery Plan has its **Selected Shipping Option** saved on the Cart and that selection still applies.
+- Available **Shipping Options** are resolved for each Delivery Group within a Delivery Plan and are presented alongside **Checkout State**, not stored inside it.
+- A buyer selects a **Delivery Plan** by its **Delivery Plan Reference** and one Shipping Option per Delivery Group by its **Shipping Option Reference**; the save resolves those references against the authoritative Current Cart rather than accepting copied allocations, prices, or promises.
+- Saving the selected Delivery Plan's **Selected Shipping Options** is one replacement-style **Checkout Mutation** and is allowed when Shipping Options is already complete.
+- Changing the Cart, its **Shipping Address**, or fulfillment constraints can change the **Delivery Plan** or available **Shipping Options**, which makes Shipping Options incomplete again until every Delivery Group has a current selection.
+- No available **Shipping Options** is a valid availability result rather than a provider failure; Shipping Options remains incomplete.
 - A **Checkout Policy Violation** can have one or more **Violation Targets**.
 - A **Checkout Violation** can have one or more **Violation Targets**.
 - A **Violation Target** can identify a **Checkout Step**, a Cart item, or the whole **Cart**.

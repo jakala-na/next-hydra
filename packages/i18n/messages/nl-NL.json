@@ -347,7 +347,21 @@
           "country": "Land"
         },
         "actions": {
+          "edit": "Bezorggegevens bewerken",
           "save": "Bezorggegevens opslaan",
+          "saving": "Opslaan..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Kies een verzendoptie",
+        "choosePlan": "Kies een bezorgplan",
+        "delivery": "Bezorging {number}",
+        "noOptions": "Er zijn geen verzendopties voor deze bezorging.",
+        "noPlans": "Er is geen bezorgplan beschikbaar voor dit adres.",
+        "plan": "Bezorgplan {number}",
+        "quantity": "Aantal {quantity}",
+        "actions": {
+          "save": "Verzendopties opslaan",
           "saving": "Opslaan..."
         }
       },
@@ -395,6 +409,18 @@
           "CheckoutUnavailable": "De checkout is niet gevonden voor dit verzoek.",
           "CommerceRequestContextNotFound": "De checkout is niet gevonden voor dit verzoek.",
           "CheckoutVersionConflict": "De checkout is gewijzigd voordat de gegevens zijn opgeslagen. Vernieuw de pagina en probeer het opnieuw."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "Deze checkout is niet meer actueel.",
+          "CheckoutMutationSchemaFailure": "Kies voor elke bezorging een verzendoptie.",
+          "CheckoutMutationOutcomeUnknown": "Opslaan kon niet worden bevestigd. Vernieuw de pagina.",
+          "CheckoutMutationProviderFailure": "De verzendopties konden niet worden opgeslagen.",
+          "CheckoutShippingOptionsRefreshRequired": "De verzendopties zijn opgeslagen, maar de checkout kon niet worden vernieuwd. Vernieuw de pagina.",
+          "CheckoutShippingSelectionUnavailable": "Deze verzendoptie is niet meer beschikbaar.",
+          "CheckoutUnavailable": "Checkout is niet gevonden.",
+          "CheckoutVersionConflict": "De checkout is gewijzigd vóór het opslaan.",
+          "CommerceAccountUnavailable": "De verzendopties konden niet worden opgeslagen.",
+          "CommerceRequestContextNotFound": "Checkout is niet gevonden."
         }
       },
       "violations": {

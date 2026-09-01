@@ -67,6 +67,7 @@ import {
 } from "@repo/commerce/services/commerce-accounts";
 import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
+import { DeliveryPlanning } from "@repo/commerce/services/delivery-planning";
 import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
 import { Context, Effect, Layer, Option, Redacted } from "effect";
@@ -382,6 +383,7 @@ const makeCheckoutLayer = (
             : forBusinessUnit(activeCart)
         );
       },
+      saveShippingOptions: () => Effect.die("not used"),
       setLineItemQuantity: () => Effect.die("not used"),
     })
   );
@@ -625,6 +627,7 @@ const makeTestCommerceApp = (
       CommerceAccounts
     ).pipe(Layer.provide(layer)),
     commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
+    deliveryPlanningLayer: DeliveryPlanning.emptyLayer,
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 

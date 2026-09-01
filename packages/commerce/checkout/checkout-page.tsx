@@ -10,6 +10,7 @@ import { AddressBook } from "../services/address-book";
 import type {
   SaveCheckoutContactAction,
   SaveCheckoutDeliveryDetailsAction,
+  SaveCheckoutShippingOptionsAction,
 } from "./action-contract";
 import { CheckoutView } from "./checkout-view";
 
@@ -20,6 +21,7 @@ export async function CheckoutPage({
   readonly actions: {
     readonly saveContact: SaveCheckoutContactAction;
     readonly saveDeliveryDetails: SaveCheckoutDeliveryDetailsAction;
+    readonly saveShippingOptions: SaveCheckoutShippingOptionsAction;
   };
   readonly locale: Locale;
 }) {
@@ -27,12 +29,14 @@ export async function CheckoutPage({
 
   const pageData = await NextCommerce.runPromise(
     Effect.gen(function* () {
-      const state = yield* CheckoutSession.getCurrent().pipe(
-        Effect.catchTag("CheckoutUnavailable", () => Effect.succeed(null))
-      );
-      if (state === null) {
-        return { shippingAddressOptions: undefined, state };
+      const snapshot =
+        yield* CheckoutSession.getCurrentWithDeliveryPlans().pipe(
+          Effect.catchTag("CheckoutUnavailable", () => Effect.succeed(null))
+        );
+      if (snapshot === null) {
+        return { shippingAddressOptions: undefined, snapshot };
       }
+      const { state } = snapshot;
       const entries =
         state.scope.channel === "storefrontCustomer"
           ? yield* AddressBook.list().pipe(
@@ -49,7 +53,7 @@ export async function CheckoutPage({
           defaultShipping: entry.defaultShipping,
           reference: entry.reference,
         })),
-        state,
+        snapshot,
       };
     }).pipe(
       NextCommerce.provide(locale),
@@ -59,7 +63,10 @@ export async function CheckoutPage({
     )
   );
 
-  if (pageData === null || pageData.state === null) {
+  if (pageData === null) {
+    notFound();
+  }
+  if (pageData.snapshot === null) {
     notFound();
   }
 
@@ -68,10 +75,12 @@ export async function CheckoutPage({
       actions={{
         saveContact: actions.saveContact,
         saveDeliveryDetails: actions.saveDeliveryDetails,
+        saveShippingOptions: actions.saveShippingOptions,
       }}
+      deliveryPlanQuote={pageData.snapshot.deliveryPlanQuote}
       locale={locale}
       shippingAddressOptions={pageData.shippingAddressOptions}
-      state={pageData.state}
+      state={pageData.snapshot.state}
     />
   );
 }

@@ -12,6 +12,12 @@ import {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "@repo/commerce/domain/commerce-account";
+import {
+  DeliveryGroupReference,
+  DeliveryPlanQuoteReference,
+  DeliveryPlanReference,
+  ShippingOptionReference,
+} from "@repo/commerce/domain/delivery-plan";
 import { Carts } from "@repo/commerce/services/carts";
 import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
 import type { Client } from "@urql/core";
@@ -19,6 +25,10 @@ import { Cause, Effect, Exit, Layer, Option } from "effect";
 
 import { CommercetoolsGraphQLClient } from "../client/graphql-client";
 import { CommercetoolsRestClient } from "../client/rest-client";
+import {
+  deliveryAddressKeyFor,
+  shippingKeyFor,
+} from "../delivery-planning/references";
 import { cartsLayer } from "./carts";
 
 type ScriptedResponse = {
@@ -42,7 +52,7 @@ type RecordedCall = {
 const operationName = (document: GraphqlDocument): string =>
   document.definitions?.[0]?.name?.value ?? "unknown";
 
-const makeScriptedClients = () => {
+const makeScriptedClients = (apiRoot?: ByProjectKeyRequestBuilder) => {
   const queues = new Map<string, ScriptedResponse[]>();
   const sticky = new Map<string, ScriptedResponse>();
   const calls: RecordedCall[] = [];
@@ -90,7 +100,7 @@ const makeScriptedClients = () => {
     Layer.provide(
       Layer.mergeAll(
         CommercetoolsGraphQLClient.testLayer(graphqlClient),
-        CommercetoolsRestClient.testLayer(unusedApiRoot)
+        CommercetoolsRestClient.testLayer(apiRoot ?? unusedApiRoot)
       )
     )
   );
@@ -123,6 +133,7 @@ const rawActiveCart = {
   id: "cart-1",
   lineItems: [],
   shippingAddress: null,
+  shippingMode: "Multiple",
   store: { key: "us-store" },
   totalLineItemQuantity: 0,
   totalPrice: { centAmount: 0, currencyCode: "USD" },
@@ -155,6 +166,30 @@ const rawCartWithLineItem = {
   totalLineItemQuantity: 1,
   totalPrice: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
 };
+
+const selectedDeliveryPlan = {
+  groups: [
+    {
+      reference: DeliveryGroupReference.make("delivery-1"),
+      selectedShippingOption: {
+        name: "Standard",
+        price: { centAmount: 500, currencyCode: "USD" as const },
+        reference: ShippingOptionReference.make(
+          "shipping-option-c2hpcHBpbmctbWV0aG9kLTE"
+        ),
+      },
+      shippingAddress: {
+        addressLine1: "1 Hydra Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      },
+      targets: [{ lineItemId: LineItemId.make("line-1"), quantity: 1 }],
+    },
+  ],
+  quoteReference: DeliveryPlanQuoteReference.make("quote-1"),
+  reference: DeliveryPlanReference.make("plan-1"),
+} as const;
 
 const rawBusinessUnitCart = {
   ...rawActiveCart,
@@ -270,6 +305,107 @@ describe("findById", () => {
     }).pipe(Effect.provide(clients.layer));
   });
 
+  it.effect("defects when persisted Checkout custom JSON is malformed", () => {
+    const clients = makeScriptedClients();
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawActiveCart,
+        custom: {
+          customFieldsRaw: [
+            { name: "checkoutDeliveryDetails", value: "{not-json" },
+          ],
+          type: { key: "order" },
+        },
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const exit = yield* carts
+        .findById({ id: CartId.make("cart-1"), store })
+        .pipe(Effect.exit);
+
+      if (!Exit.isFailure(exit)) {
+        throw new Error("Expected malformed persisted Checkout JSON to defect");
+      }
+      expect(exit.cause.reasons.some(Cause.isDieReason)).toBeTruthy();
+      expect(Cause.pretty(exit.cause)).toContain(
+        "Expected a valid JSON string"
+      );
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect("ignores native Shipping that no longer matches the Cart", () => {
+    const clients = makeScriptedClients();
+    const groupReference = DeliveryGroupReference.make("delivery-1");
+    const quoteReference = DeliveryPlanQuoteReference.make("quote-1");
+    const planReference = DeliveryPlanReference.make("plan-1");
+    const shippingKey = shippingKeyFor(
+      groupReference,
+      quoteReference,
+      planReference
+    );
+    const addressKey = deliveryAddressKeyFor(groupReference);
+    const address = {
+      additionalStreetInfo: null,
+      city: "New York",
+      country: "US",
+      key: addressKey,
+      postalCode: "10001",
+      region: null,
+      state: "NY",
+      streetName: "1 Hydra Way",
+    };
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawCartWithLineItem,
+        itemShippingAddresses: [address],
+        lineItems: [
+          {
+            ...rawCartLineItem,
+            shippingDetails: {
+              targets: [
+                {
+                  addressKey,
+                  quantity: 1,
+                  shippingMethodKey: shippingKey,
+                },
+              ],
+              valid: true,
+            },
+          },
+        ],
+        shipping: [
+          {
+            shippingAddress: address,
+            shippingInfo: {
+              price: { centAmount: 500, currencyCode: "USD" },
+              shippingMethodName: "Standard",
+              shippingMethodRef: { id: "standard" },
+              shippingMethodState: "DoesNotMatchCart",
+            },
+            shippingKey,
+          },
+        ],
+        shippingMode: "Multiple",
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({
+        id: CartId.make("cart-1"),
+        store,
+      });
+
+      expect(Option.getOrThrow(found).checkoutDetails).not.toHaveProperty(
+        "selectedDeliveryPlan"
+      );
+    }).pipe(Effect.provide(clients.layer));
+  });
+
   it.effect(
     "rejects Business Unit Carts presented as anonymous possession",
     () => {
@@ -283,6 +419,102 @@ describe("findById", () => {
           .pipe(Effect.flip);
 
         expect(error._tag).toBe("CartAccessDenied");
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+});
+
+describe("saveShippingOptions", () => {
+  it.effect("maps merchandise repricing to an unavailable selection", () => {
+    // SAFETY: This test exercises the anonymous Cart update chain consumed by
+    // saveShippingOptions and returns the SDK response shape it awaits.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions
+    const apiRoot = {
+      carts: () => ({
+        withId: () => ({
+          post: () => ({
+            execute: async () =>
+              await Promise.reject(
+                Object.assign(new Error("No matching merchandise price"), {
+                  body: { errors: [{ code: "MatchingPriceNotFound" }] },
+                  statusCode: 400,
+                })
+              ),
+          }),
+        }),
+      }),
+    } as unknown as ByProjectKeyRequestBuilder;
+    const clients = makeScriptedClients(apiRoot);
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawCartWithLineItem,
+        itemShippingAddresses: [],
+        shipping: [],
+        shippingMode: "Multiple",
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const error = yield* carts
+        .saveShippingOptions({
+          selectedDeliveryPlan,
+          target: anonymousTarget,
+        })
+        .pipe(Effect.flip);
+
+      expect(error._tag).toBe("CartShippingSelectionUnavailable");
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect(
+    "requires refresh when the confirmed write cannot be reloaded",
+    () => {
+      // SAFETY: This test exercises only the anonymous Cart update chain consumed
+      // by saveShippingOptions and returns the SDK response shape it awaits.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions
+      const apiRoot = {
+        carts: () => ({
+          withId: () => ({
+            post: () => ({
+              execute: async () =>
+                await Promise.resolve({ body: { id: "cart-1" } }),
+            }),
+          }),
+        }),
+      } as unknown as ByProjectKeyRequestBuilder;
+      const clients = makeScriptedClients(apiRoot);
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawCartWithLineItem,
+          itemShippingAddresses: [],
+          shipping: [],
+          shippingMode: "Multiple",
+        }),
+        {
+          error: {
+            message: "Reload unavailable",
+            networkError: new Error("Reload unavailable"),
+          },
+        }
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const error = yield* carts
+          .saveShippingOptions({
+            selectedDeliveryPlan,
+            target: anonymousTarget,
+          })
+          .pipe(Effect.flip);
+
+        expect(error).toMatchObject({
+          _tag: "CartShippingOptionsRefreshRequired",
+          cartId: "cart-1",
+          operation: "saveShippingOptions",
+        });
       }).pipe(Effect.provide(clients.layer));
     }
   );

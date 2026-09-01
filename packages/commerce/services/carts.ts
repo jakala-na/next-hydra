@@ -14,6 +14,8 @@ import {
 } from "../domain/cart-errors";
 import type {
   CartProviderFailure,
+  CartShippingOptionsRefreshRequired,
+  CartShippingSelectionUnavailable,
   CartWriteConflict,
   CartWriteOutcomeUnknown,
 } from "../domain/cart-errors";
@@ -31,6 +33,7 @@ import type {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "../domain/commerce-account";
+import type { SelectedDeliveryPlan } from "../domain/delivery-plan";
 import type { Store } from "../store";
 
 export interface FindCartById {
@@ -79,6 +82,11 @@ export interface SaveCartDeliveryDetails {
   readonly target: CartTarget;
 }
 
+export interface SaveCartShippingOptions {
+  readonly selectedDeliveryPlan: SelectedDeliveryPlan;
+  readonly target: CartTarget;
+}
+
 export type FindCartFailure = CartAccessDenied | CartProviderFailure;
 export type FindCartsFailure = CartAccessDenied | CartProviderFailure;
 export type CreateCartFailure =
@@ -106,6 +114,10 @@ export type SaveCartDetailsFailure =
   | CartWriteConflict
   | CartWriteOutcomeUnknown
   | CartProviderFailure;
+export type SaveCartShippingOptionsFailure =
+  | SaveCartDetailsFailure
+  | CartShippingOptionsRefreshRequired
+  | CartShippingSelectionUnavailable;
 
 export interface CartsMemoryMerchandise {
   readonly unitPrice: CartSnapshot["totalPrice"];
@@ -124,6 +136,7 @@ export interface CartsMemorySeed {
     readonly removeLineItem?: RemoveCartLineItemFailure;
     readonly saveContact?: SaveCartDetailsFailure;
     readonly saveDeliveryDetails?: SaveCartDetailsFailure;
+    readonly saveShippingOptions?: SaveCartShippingOptionsFailure;
   };
   readonly merchandise?: readonly CartsMemoryMerchandise[];
 }
@@ -178,6 +191,9 @@ export class Carts extends Context.Service<
     readonly saveDeliveryDetails: (
       input: SaveCartDeliveryDetails
     ) => Effect.Effect<CartSnapshot, SaveCartDetailsFailure>;
+    readonly saveShippingOptions: (
+      input: SaveCartShippingOptions
+    ) => Effect.Effect<CartSnapshot, SaveCartShippingOptionsFailure>;
   }
 >()("@repo/commerce/Carts") {
   static readonly layerMemory = (seed: CartsMemorySeed = {}) =>
@@ -257,6 +273,7 @@ export class Carts extends Context.Service<
             | "removeLineItem"
             | "saveContact"
             | "saveDeliveryDetails"
+            | "saveShippingOptions"
         ) =>
           Effect.gen(function* () {
             const carts = yield* Ref.get(state);
@@ -293,6 +310,10 @@ export class Carts extends Context.Service<
           lineItems: CartSnapshot["lineItems"]
         ): CartSnapshot => ({
           ...cart,
+          checkoutDetails: {
+            ...cart.checkoutDetails,
+            selectedDeliveryPlan: undefined,
+          },
           lineItems,
           totalLineItemQuantity: lineItems.reduce(
             (total, lineItem) => total + lineItem.quantity,
@@ -452,6 +473,27 @@ export class Carts extends Context.Service<
                 checkoutDetails: {
                   ...cart.checkoutDetails,
                   deliveryDetails: input.deliveryDetails,
+                  selectedDeliveryPlan: undefined,
+                },
+              } satisfies CartSnapshot;
+              yield* saveCart(updated);
+              return updated;
+            })
+        );
+
+        const saveShippingOptions = Effect.fn("Carts.saveShippingOptions")(
+          (input: SaveCartShippingOptions) =>
+            Effect.gen(function* () {
+              yield* failIfConfigured(seed.failures?.saveShippingOptions);
+              const cart = yield* getTargetCart(
+                input.target,
+                "saveShippingOptions"
+              );
+              const updated = {
+                ...cart,
+                checkoutDetails: {
+                  ...cart.checkoutDetails,
+                  selectedDeliveryPlan: input.selectedDeliveryPlan,
                 },
               } satisfies CartSnapshot;
               yield* saveCart(updated);
@@ -468,6 +510,7 @@ export class Carts extends Context.Service<
           removeLineItem,
           saveContact,
           saveDeliveryDetails,
+          saveShippingOptions,
           setLineItemQuantity,
         });
       })
