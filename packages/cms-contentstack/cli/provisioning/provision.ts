@@ -1,3 +1,5 @@
+import { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
+import type { RuntimeEnvironmentDestination } from "@repo/cli-core/runtime-environment";
 import { Console, Effect } from "effect";
 
 import { applyContentstackMigrations } from "../migrations/migrate";
@@ -7,15 +9,16 @@ import type { ContentstackEnvironment } from "./model";
 import { ContentstackRecipe } from "./recipe";
 import { requireSupportedContentstackCliVersion } from "./require-cli-version";
 import {
-  ContentstackRuntimeCredentialHandoff,
   ContentstackRuntimeCredentialInput,
+  contentstackRuntimeEnvironment,
+  contentstackRuntimeEnvironmentManifest,
 } from "./runtime-credentials";
 
 export interface ProvisionContentstackOptions {
   readonly environment: ContentstackEnvironment;
   readonly localUrl: string;
   readonly managementTokenAlias: string;
-  readonly output: string;
+  readonly destination: RuntimeEnvironmentDestination;
   readonly productionUrl: string;
   readonly stackMasterLocale: string;
 }
@@ -26,7 +29,12 @@ export const provisionContentstack = Effect.fn(
   const cli = yield* ContentstackCli;
   const recipe = yield* ContentstackRecipe;
   const credentialInput = yield* ContentstackRuntimeCredentialInput;
-  const handoff = yield* ContentstackRuntimeCredentialHandoff;
+  const publisher = yield* RuntimeEnvironmentPublisher;
+
+  const preparedDestination = yield* publisher.prepare({
+    destination: options.destination,
+    manifest: contentstackRuntimeEnvironmentManifest,
+  });
 
   yield* requireSupportedContentstackCliVersion();
   const endpoints = yield* cli.runtimeEndpoints();
@@ -58,11 +66,14 @@ export const provisionContentstack = Effect.fn(
     options.environment,
     endpoints
   );
-  const credentialFile = yield* handoff.save(credentials, options.output);
+  const publishedCredentials = yield* publisher.publish(
+    preparedDestination,
+    contentstackRuntimeEnvironment(credentials)
+  );
 
   return new ContentstackProvisioningReceipt({
     apiKey: stack.apiKey,
-    credentialFile,
+    credentials: publishedCredentials,
     environments: [...recipeReceipt.environments],
     imported: true,
     livePreviewConfigurationRequired: true,

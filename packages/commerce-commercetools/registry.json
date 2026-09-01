@@ -13,26 +13,10 @@
           "id": "next-hydra/commerce/commercetools",
           "kind": "provider",
           "slot": "commerce",
-          "packages": [
-            {
-              "cwd": "apps/api",
-              "section": "dependencies",
-              "name": "@repo/commerce-provider",
-              "specifier": "workspace:@repo/commerce-commercetools@*"
-            },
-            {
-              "cwd": "apps/cli",
-              "section": "dependencies",
-              "name": "@repo/commerce-provider",
-              "specifier": "workspace:@repo/commerce-commercetools@*"
-            },
-            {
-              "cwd": "apps/web",
-              "section": "dependencies",
-              "name": "@repo/commerce-provider",
-              "specifier": "workspace:@repo/commerce-commercetools@*"
-            }
-          ]
+          "binding": {
+            "specifier": "workspace:@repo/commerce-commercetools@*",
+            "sourcePath": "packages/commerce-commercetools"
+          }
         }
       },
       "files": [
@@ -207,16 +191,6 @@
           "type": "registry:file"
         },
         {
-          "path": "cli/project-provisioning/credential-handoff-live.test.ts",
-          "target": "~/packages/commerce-commercetools/cli/project-provisioning/credential-handoff-live.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "cli/project-provisioning/credential-handoff-live.ts",
-          "target": "~/packages/commerce-commercetools/cli/project-provisioning/credential-handoff-live.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "cli/project-provisioning/credential-handoff.ts",
           "target": "~/packages/commerce-commercetools/cli/project-provisioning/credential-handoff.ts",
           "type": "registry:file"
@@ -349,11 +323,6 @@
         {
           "path": "config/index.ts",
           "target": "~/packages/commerce-commercetools/config/index.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "config/keys.test.ts",
-          "target": "~/packages/commerce-commercetools/config/keys.test.ts",
           "type": "registry:file"
         },
         {
@@ -554,6 +523,21 @@
         {
           "path": "scripts/gql-sync.ts",
           "target": "~/packages/commerce-commercetools/scripts/gql-sync.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/commercetools-janitor.test.ts",
+          "target": "~/packages/commerce-commercetools/testing/commercetools-janitor.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/commercetools-janitor.ts",
+          "target": "~/packages/commerce-commercetools/testing/commercetools-janitor.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/index.ts",
+          "target": "~/packages/commerce-commercetools/testing/index.ts",
           "type": "registry:file"
         },
         {

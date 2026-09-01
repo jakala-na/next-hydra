@@ -1,0 +1,59 @@
+{
+  "file_scan_exclusions": [
+    "**/.git",
+    "**/.svn",
+    "**/.hg",
+    "**/.jj",
+    "**/CVS",
+    "**/.DS_Store",
+    "**/Thumbs.db",
+    "**/.classpath",
+    "**/.settings",
+    "**/node_modules",
+    "**/.next",
+    "**/.turbo"
+  ],
+  "lsp": {
+    "typescript-language-server": {
+      "initialization_options": {
+        "tsserver": {
+          "path": "node_modules/.pnpm/node_modules/@typescript/old/lib/tsserver.js"
+        }
+      }
+    }
+  },
+  "languages": {
+    "JavaScript": {
+      "language_servers": [
+        "typescript-language-server",
+        "!typescript-ls",
+        "!vtsls",
+        "..."
+      ]
+    },
+    "JSX": {
+      "language_servers": [
+        "typescript-language-server",
+        "!typescript-ls",
+        "!vtsls",
+        "..."
+      ]
+    },
+    "TypeScript": {
+      "language_servers": [
+        "typescript-language-server",
+        "!typescript-ls",
+        "!vtsls",
+        "..."
+      ]
+    },
+    "TSX": {
+      "language_servers": [
+        "typescript-language-server",
+        "!typescript-ls",
+        "!vtsls",
+        "..."
+      ]
+    }
+  }
+}

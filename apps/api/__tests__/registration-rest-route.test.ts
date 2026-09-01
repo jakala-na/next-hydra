@@ -1,27 +1,29 @@
 import {
   AccessTokenInvalid,
+  AccessTokenVerificationFailure,
   AccessTokenVerifier,
   AuthUserId as AccessTokenAuthUserId,
   VerifiedAccessToken,
+  authPermissionsFrom,
 } from "@repo/auth/access-token";
-import { CommerceAccount } from "@repo/commerce/domain/commerce-account";
+import { CommerceCustomerId } from "@repo/commerce/domain/commerce-account";
 import {
   CommerceAccountUnavailable,
   CommerceAccounts,
+  CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
 import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
 import { ApprovedDecision } from "@repo/registration/domain/approval";
 import {
   AuthUserId,
-  CommerceBusinessUnitId,
-  CommerceCustomerId,
   CountryCode,
   Email,
   InvitationId,
   RegistrationId,
 } from "@repo/registration/domain/identity";
 import type { IdentityUserProfile } from "@repo/registration/domain/identity";
+import { RevokedInvitation } from "@repo/registration/domain/invitations";
 import {
   ApprovalProcessingRegistration,
   ApprovedRegistration,
@@ -29,15 +31,23 @@ import {
 } from "@repo/registration/domain/registration";
 import type { Registration } from "@repo/registration/domain/registration";
 import {
+  CreateRegistrationResponse,
   CreateRegistrationRequest,
   toCompanyRegistrationDetails,
 } from "@repo/registration/http/registration-api";
+import { CompanyMemberIdentityProjection } from "@repo/registration/services/company-member-identity-projection";
 import {
   IdentityUserLookupFailure,
   IdentityUserNotFound,
   IdentityUsers,
 } from "@repo/registration/services/identity-users";
-import { Invitations } from "@repo/registration/services/invitations";
+import {
+  InvitationConflict,
+  InvitationExpired,
+  InvitationNotFound,
+  invitationCapabilitiesLayerMemory,
+  RegistrationInvitations,
+} from "@repo/registration/services/invitations";
 import { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
 import {
   listRegistrationRecords,
@@ -46,17 +56,19 @@ import {
 } from "@repo/registration/services/registration-queries";
 import {
   RegistrationWorkflow,
+  RegistrationWorkflowInvitationResumeOutcomeUnknown,
   RegistrationWorkflowResumeOutcomeUnknown,
   RegistrationWorkflowStartUnavailable,
 } from "@repo/registration/services/registration-workflow";
 import {
   RegistrationNotFound,
+  RegistrationOnboardingTransitionConflict,
   Registrations,
   RegistrationTransitionConflict,
 } from "@repo/registration/services/registrations";
 import { VatValidator } from "@repo/registration/services/vat-validator";
-import { Context, Effect, Layer, Redacted } from "effect";
-import { beforeEach, expect, test, vi } from "vitest";
+import { Context, Effect, Layer, Option, Redacted, Schema } from "effect";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const HTTP_OK = 200;
 const HTTP_CREATED = 201;
@@ -64,11 +76,13 @@ const HTTP_BAD_REQUEST = 400;
 const HTTP_FORBIDDEN = 403;
 const HTTP_CONFLICT = 409;
 const HTTP_INTERNAL_SERVER_ERROR = 500;
+const HTTP_NOT_FOUND = 404;
 const HTTP_SERVICE_UNAVAILABLE = 503;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_UNPROCESSABLE_ENTITY = 422;
 
 const workflowMocks = vi.hoisted(() => ({
+  resumeInvitation: vi.fn(),
   resumeReview: vi.fn(),
   start: vi.fn(),
 }));
@@ -141,11 +155,6 @@ const makeApprovedRegistration = (
 
   return new ApprovedRegistration({
     _tag: "ApprovedRegistration",
-    commerceAccount: new CommerceAccount({
-      businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
-      customerId: CommerceCustomerId.make("customer-1"),
-      registrationId: awaiting.id,
-    }),
     createdAt: awaiting.createdAt,
     decision: new ApprovedDecision({
       actor: new RegistrationReviewerActor({
@@ -162,10 +171,18 @@ const makeApprovedRegistration = (
     details: awaiting.details,
     id: awaiting.id,
     invitationId: InvitationId.make("invitation-1"),
+    onboarding: { status: "invited" },
     status: "approved",
     storeKey: awaiting.storeKey,
     updatedAt: new Date("2026-03-22T00:00:01.000Z"),
   });
+};
+
+const requiredInvitationId = (registration: ApprovedRegistration) => {
+  if (registration.invitationId === undefined) {
+    throw new Error("Expected registration invitation id");
+  }
+  return registration.invitationId;
 };
 
 const makeApiLayer = (
@@ -173,12 +190,18 @@ const makeApiLayer = (
   options: {
     readonly hasCustomerWithEmail?: boolean;
     readonly hasCustomerWithEmailFailure?: CommerceAccountUnavailable;
+    readonly hasCustomerForAuthUserId?: boolean;
     readonly hasIdentityUserWithEmail?: boolean;
     readonly hasIdentityUserWithEmailFailure?: IdentityUserLookupFailure;
+    readonly identityUserEmail?: string;
     readonly identityUserGetFailure?:
       | IdentityUserLookupFailure
       | IdentityUserNotFound;
     readonly invalidVatIds?: readonly string[];
+    readonly invitationRevokeFailure?:
+      | InvitationConflict
+      | InvitationExpired
+      | InvitationNotFound;
     readonly listFailure?: RegistrationQueryFailure;
     readonly supportedRegistrationCountries?: readonly string[];
   } = {}
@@ -215,11 +238,11 @@ const makeApiLayer = (
   const registrationsLayer = Layer.succeed(
     Registrations,
     Registrations.of({
-      createAwaitingApproval: ({ details, storeKey }) =>
+      createAwaitingApproval: ({ details, storeKey, submittedByAuthUserId }) =>
         Effect.sync(() => {
           const registrationId = RegistrationId.make(crypto.randomUUID());
           const createdAt = new Date("2026-03-22T00:00:00.000Z");
-          const registration = new AwaitingApprovalRegistration({
+          const registrationFields = {
             _tag: "AwaitingApprovalRegistration",
             createdAt,
             details,
@@ -227,7 +250,12 @@ const makeApiLayer = (
             status: "awaiting_approval",
             storeKey,
             updatedAt: createdAt,
-          });
+          } as const;
+          const registration = new AwaitingApprovalRegistration(
+            submittedByAuthUserId === undefined
+              ? registrationFields
+              : { ...registrationFields, submittedByAuthUserId }
+          );
 
           registrations.set(String(registrationId), registration);
           return registration;
@@ -236,7 +264,6 @@ const makeApiLayer = (
         Effect.sync(() => {
           registrations.delete(String(registrationId));
         }),
-      findByInvitationId: () => Effect.die("not used"),
       get,
       markApprovalProcessing: ({ registrationId, decision }) =>
         Effect.gen(function* markApprovalProcessing() {
@@ -250,6 +277,17 @@ const makeApiLayer = (
           }
 
           if (current._tag !== "AwaitingApprovalRegistration") {
+            if (
+              (current._tag === "ApprovalProcessingRegistration" &&
+                current.requestedDecision === decision) ||
+              (current._tag === "ApprovedRegistration" &&
+                decision === "approved") ||
+              (current._tag === "RejectedRegistration" &&
+                decision === "rejected")
+            ) {
+              return { registration: current, transitioned: false };
+            }
+
             return yield* new RegistrationTransitionConflict({
               attemptedDecision: decision,
               currentState: current._tag,
@@ -270,16 +308,58 @@ const makeApiLayer = (
           });
 
           registrations.set(String(registrationId), processing);
-          return processing;
+          return { registration: processing, transitioned: true };
         }),
       markApproved: () => Effect.die("not used"),
+      markOnboardingStatus: (transition) =>
+        Effect.gen(function* () {
+          const current = registrations.get(String(transition.registrationId));
+          if (current?._tag !== "ApprovedRegistration") {
+            return yield* Effect.die(new Error("Registration is not approved"));
+          }
+
+          if (current.onboardingStatus === transition.status) {
+            return current;
+          }
+
+          if (current.onboardingStatus !== "invited") {
+            return yield* new RegistrationOnboardingTransitionConflict({
+              attemptedStatus: transition.status,
+              currentState: current.onboardingStatus,
+              message: `Cannot mark registration ${transition.registrationId} onboarding as ${transition.status} from ${current.onboardingStatus}`,
+              registrationId: transition.registrationId,
+            });
+          }
+
+          const updated = new ApprovedRegistration({
+            _tag: "ApprovedRegistration",
+            createdAt: current.createdAt,
+            decision: current.decision,
+            details: current.details,
+            id: current.id,
+            invitationId: current.invitationId,
+            onboarding:
+              transition.status === "accepted"
+                ? {
+                    acceptedAuthUserId: transition.acceptedAuthUserId,
+                    status: "accepted",
+                  }
+                : { status: transition.status },
+            status: "approved",
+            storeKey: current.storeKey,
+            updatedAt: new Date("2026-03-22T00:00:02.000Z"),
+          });
+          registrations.set(String(transition.registrationId), updated);
+          return updated;
+        }),
       markRejected: () => Effect.die("not used"),
     })
   );
   const queriesLayer = Layer.succeed(
     RegistrationQueries,
     RegistrationQueries.of({
-      hasPendingEmail: (email) =>
+      findByInvitationId: () => Effect.die("not used"),
+      hasBlockingEmail: (email) =>
         listRegistrationRecords(
           [...registrations.values()].map((registration) => ({
             createdAt: registration.createdAt,
@@ -309,7 +389,15 @@ const makeApiLayer = (
     CommerceAccounts.of({
       addAssociate: () => Effect.die("not used"),
       createFromRegistration: () => Effect.die("not used"),
-      getCustomerIdByAuthUserId: () => Effect.die("not used"),
+      getCustomerIdByAuthUserId: (authUserId) =>
+        options.hasCustomerForAuthUserId === true
+          ? Effect.succeed(CommerceCustomerId.make(`customer-${authUserId}`))
+          : Effect.fail(
+              new CommerceCustomerIdNotFound({
+                authUserId,
+                message: "Commerce customer does not exist for auth user",
+              })
+            ),
       getCustomerProfile: () => Effect.die("not used"),
       hasCustomerWithEmail: () =>
         options.hasCustomerWithEmailFailure
@@ -323,13 +411,17 @@ const makeApiLayer = (
   const identityUsersLayer = Layer.succeed(
     IdentityUsers,
     IdentityUsers.of({
+      findByEmail: () => Effect.succeed(Option.none()),
       getById: (authUserId) =>
         options.identityUserGetFailure === undefined
           ? Effect.succeed({
               authUserId,
-              email: Redacted.make(Email.make("reviewer@example.com"), {
-                label: "email",
-              }),
+              email: Redacted.make(
+                Email.make(options.identityUserEmail ?? "reviewer@example.com"),
+                {
+                  label: "email",
+                }
+              ),
               name: "Registration Reviewer",
             } satisfies IdentityUserProfile)
           : Effect.fail(options.identityUserGetFailure),
@@ -350,6 +442,28 @@ const makeApiLayer = (
         ]
       ).map((country) => CountryCode.make(country)),
     });
+  const registrationInvitationsLayer = Layer.succeed(
+    RegistrationInvitations,
+    RegistrationInvitations.of({
+      accept: () => Effect.die("not used"),
+      issue: () => Effect.die("not used"),
+      revoke: (input) =>
+        options.invitationRevokeFailure
+          ? Effect.fail(options.invitationRevokeFailure)
+          : Effect.succeed(
+              new RevokedInvitation({
+                _tag: "RevokedInvitation",
+                createdAt: new Date("2026-03-22T00:00:01.000Z"),
+                expiresAt: new Date("2026-04-21T00:00:01.000Z"),
+                id: input.invitationId,
+                intent: input.intent,
+                issuedBy: input.issuedBy,
+                revokedAt: new Date("2026-03-22T00:00:02.000Z"),
+                revokedBy: input.revokedBy,
+              })
+            ),
+    })
+  );
   return {
     get,
     layer: Layer.mergeAll(
@@ -359,17 +473,31 @@ const makeApiLayer = (
       identityUsersLayer,
       registrationMarketPolicyLayer,
       vatValidatorLayer,
-      Invitations.layerMemory
+      invitationCapabilitiesLayerMemory,
+      registrationInvitationsLayer,
+      Layer.succeed(
+        CompanyMemberIdentityProjection,
+        CompanyMemberIdentityProjection.of({
+          projectAcceptedInvitation: () => Effect.void,
+          projectMembership: () => Effect.void,
+          removeMembership: () => Effect.void,
+        })
+      )
     ),
     list,
     registrations,
   };
 };
 
-const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
+const makeHandler = async (
+  layer: ReturnType<typeof makeApiLayer>["layer"],
+  reviewerIdentityLayer: Layer.Layer<IdentityUsers> = layer,
+  customerAuthenticationLayerOverride?: Layer.Layer<AccessTokenVerifier>,
+  reviewerAuthenticationLayerOverride?: Layer.Layer<AccessTokenVerifier>
+) => {
   const { makeRegistrationHttpHandler } =
     await import("../lib/registration/http");
-  const authenticationLayer = Layer.succeed(
+  const defaultAuthenticationLayer = Layer.succeed(
     AccessTokenVerifier,
     AccessTokenVerifier.of({
       verify: (token) => {
@@ -382,17 +510,20 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
           );
         }
 
-        const permissions =
-          token === "read-token"
-            ? ["registration.read"]
-            : (token === "decide-token"
-              ? ["registration.decide"]
-              : ["registration.read", "registration.decide"]);
+        let permissions: readonly string[] = [
+          "registration.read",
+          "registration.decide",
+        ];
+        if (token === "read-token") {
+          permissions = ["registration.read"];
+        } else if (token === "decide-token") {
+          permissions = ["registration.decide"];
+        }
 
         return Effect.succeed(
           new VerifiedAccessToken({
             authUserId: AccessTokenAuthUserId.make("auth-reviewer-1"),
-            permissions,
+            permissions: authPermissionsFrom(permissions),
           })
         );
       },
@@ -402,7 +533,16 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
   const workflowLayer = Layer.succeed(
     RegistrationWorkflow,
     RegistrationWorkflow.of({
-      resumeInvitation: () => Effect.die("not used"),
+      resumeInvitation: (invitationId, event) =>
+        Effect.tryPromise({
+          catch: (cause) =>
+            new RegistrationWorkflowInvitationResumeOutcomeUnknown({
+              cause,
+              invitationId,
+              message: "Invitation workflow resume outcome is unknown",
+            }),
+          try: () => workflowMocks.resumeInvitation(invitationId, event),
+        }),
       resumeReview: (registrationId, decision) =>
         Effect.tryPromise({
           catch: (cause) =>
@@ -427,8 +567,12 @@ const makeHandler = async (layer: ReturnType<typeof makeApiLayer>["layer"]) => {
   );
 
   return makeRegistrationHttpHandler({
-    authenticationLayer,
+    customerAuthenticationLayer:
+      customerAuthenticationLayerOverride ?? defaultAuthenticationLayer,
     layer: layer.pipe(Layer.provideMerge(workflowLayer)),
+    reviewerAuthenticationLayer:
+      reviewerAuthenticationLayerOverride ?? defaultAuthenticationLayer,
+    reviewerIdentityLayer,
   });
 };
 
@@ -436,6 +580,7 @@ const emptyContext = () => Context.empty() as Context.Context<unknown>;
 
 beforeEach(() => {
   vi.resetModules();
+  workflowMocks.resumeInvitation.mockReset();
   workflowMocks.resumeReview.mockReset();
   workflowMocks.start.mockReset();
 });
@@ -452,7 +597,9 @@ test("POST /registrations creates an Effect registration and starts the workflow
       }),
       emptyContext()
     );
-    const body = await response.json();
+    const body = Schema.decodeUnknownSync(CreateRegistrationResponse)(
+      await response.json()
+    );
 
     expect(response.status).toBe(HTTP_CREATED);
     expect(body).toMatchObject({
@@ -820,6 +967,129 @@ test("POST /registrations rejects existing WorkOS user emails as field errors", 
   }
 });
 
+describe("POST /registrations optional identity binding", () => {
+  test("verifies customer registration tokens against the customer identity pool", async () => {
+    workflowMocks.start.mockResolvedValue({ id: "run-123" });
+    const api = makeApiLayer([], {
+      hasIdentityUserWithEmail: true,
+      identityUserEmail: registrationPayload.email,
+    });
+    const customerAuthentication = Layer.succeed(
+      AccessTokenVerifier,
+      AccessTokenVerifier.of({
+        verify: () =>
+          Effect.succeed(
+            new VerifiedAccessToken({
+              authUserId: AccessTokenAuthUserId.make("auth-customer-1"),
+              permissions: authPermissionsFrom([]),
+            })
+          ),
+      })
+    );
+    const reviewerAuthentication = Layer.succeed(
+      AccessTokenVerifier,
+      AccessTokenVerifier.of({
+        verify: () =>
+          Effect.fail(
+            new AccessTokenInvalid({
+              message: "Not an administrator token",
+              reason: "invalidToken",
+            })
+          ),
+      })
+    );
+    const { dispose, handler } = await makeHandler(
+      api.layer,
+      api.layer,
+      customerAuthentication,
+      reviewerAuthentication
+    );
+
+    try {
+      const response = await handler(
+        request("POST", "/registrations", registrationPayload, {
+          authorization: "Bearer customer-token",
+        }),
+        emptyContext()
+      );
+      const body = Schema.decodeUnknownSync(CreateRegistrationResponse)(
+        await response.json()
+      );
+
+      expect(response.status).toBe(HTTP_CREATED);
+      expect(api.registrations.get(String(body.registrationId))).toMatchObject({
+        submittedByAuthUserId: "auth-customer-1",
+      });
+    } finally {
+      await dispose();
+    }
+  });
+
+  test("binds a matching verified identity instead of rejecting it", async () => {
+    workflowMocks.start.mockResolvedValue({ id: "run-123" });
+    const api = makeApiLayer([], {
+      hasIdentityUserWithEmail: true,
+      identityUserEmail: registrationPayload.email,
+    });
+    const { dispose, handler } = await makeHandler(api.layer);
+
+    try {
+      const response = await handler(
+        request("POST", "/registrations", registrationPayload),
+        emptyContext()
+      );
+      const body = Schema.decodeUnknownSync(CreateRegistrationResponse)(
+        await response.json()
+      );
+      const stored = api.registrations.get(String(body.registrationId));
+
+      expect(response.status).toBe(HTTP_CREATED);
+      expect(stored).toMatchObject({
+        submittedByAuthUserId: "auth-reviewer-1",
+      });
+      expect(workflowMocks.start).toHaveBeenCalledOnce();
+    } finally {
+      await dispose();
+    }
+  });
+
+  test("reports an unavailable identity verifier", async () => {
+    const api = makeApiLayer([], { hasIdentityUserWithEmail: true });
+    const unavailableAuthentication = Layer.succeed(
+      AccessTokenVerifier,
+      AccessTokenVerifier.of({
+        verify: () =>
+          Effect.fail(
+            new AccessTokenVerificationFailure({
+              cause: new Error("identity provider unavailable"),
+              message: "Identity provider unavailable",
+              reason: "unavailable",
+            })
+          ),
+      })
+    );
+    const { dispose, handler } = await makeHandler(
+      api.layer,
+      api.layer,
+      unavailableAuthentication
+    );
+
+    try {
+      const response = await handler(
+        request("POST", "/registrations", registrationPayload),
+        emptyContext()
+      );
+      const body = await response.text();
+
+      expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+      expect(body).toContain('"_tag":"RegistrationApiError"');
+      expect(workflowMocks.start).not.toHaveBeenCalled();
+    } finally {
+      await dispose();
+    }
+  });
+});
+
 test("GET /registrations lists registrations through RegistrationQueries", async () => {
   const registration = makeAwaitingRegistration(crypto.randomUUID());
   const api = makeApiLayer([registration]);
@@ -1001,6 +1271,60 @@ test("POST /registrations/:id/approve resumes the deterministic workflow hook", 
   }
 });
 
+test("registration decisions resolve reviewers from the isolated admin identity pool", async () => {
+  workflowMocks.resumeReview.mockResolvedValue(undefined);
+  const registration = makeAwaitingRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration]);
+  const adminIdentityUsers = IdentityUsers.of({
+    findByEmail: vi.fn<IdentityUsers["Service"]["findByEmail"]>(() =>
+      Effect.succeed(Option.none())
+    ),
+    getById: vi.fn((authUserId) =>
+      Effect.succeed({
+        authUserId,
+        email: Redacted.make(Email.make("admin-reviewer@example.com"), {
+          label: "email",
+        }),
+        name: "Admin Reviewer",
+      })
+    ),
+    hasUserWithEmail: vi.fn(() =>
+      Effect.die("admin identity preflight must not be used")
+    ),
+  });
+  const { dispose, handler } = await makeHandler(
+    api.layer,
+    Layer.succeed(IdentityUsers, adminIdentityUsers)
+  );
+
+  try {
+    const response = await handler(
+      request(
+        "POST",
+        `/registrations/${registration.id}/approve`,
+        reviewerPayload
+      ),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(adminIdentityUsers.getById).toHaveBeenCalledWith(
+      AuthUserId.make("auth-reviewer-1")
+    );
+    expect(workflowMocks.resumeReview).toHaveBeenCalledWith(registration.id, {
+      decision: "approved",
+      reason: "Looks good",
+      reviewer: {
+        authUserId: "auth-reviewer-1",
+        email: "admin-reviewer@example.com",
+        name: "Admin Reviewer",
+      },
+    });
+  } finally {
+    await dispose();
+  }
+});
+
 test("POST /registrations/:id/approve requires registration.decide permission", async () => {
   workflowMocks.resumeReview.mockResolvedValue(undefined);
   const registration = makeAwaitingRegistration(crypto.randomUUID());
@@ -1171,6 +1495,222 @@ test("POST /registrations/:id/reject does not resume workflow when transition co
     expect(response.status).toBe(HTTP_CONFLICT);
     expect(body._tag).toBe("RegistrationAlreadyApproved");
     expect(workflowMocks.resumeReview).not.toHaveBeenCalled();
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/invitation/revoke persists and publishes revocation", async () => {
+  workflowMocks.resumeInvitation.mockResolvedValue(undefined);
+  const registration = makeApprovedRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration]);
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", `/registrations/${registration.id}/invitation/revoke`),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_OK);
+    expect(body).toStrictEqual({
+      onboardingStatus: "revoked",
+      registrationId: String(registration.id),
+    });
+    expect(api.registrations.get(String(registration.id))).toMatchObject({
+      onboardingStatus: "revoked",
+    });
+    expect(workflowMocks.resumeInvitation).toHaveBeenCalledWith(
+      registration.invitationId,
+      { event: "revoked" }
+    );
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/invitation/revoke preserves InvitationExpired", async () => {
+  const registration = makeApprovedRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration], {
+    invitationRevokeFailure: new InvitationExpired({
+      expiredAt: new Date("2026-04-21T00:00:01.000Z"),
+      invitationId: requiredInvitationId(registration),
+      message: "Invitation expired",
+    }),
+  });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", `/registrations/${registration.id}/invitation/revoke`),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_CONFLICT);
+    expect(body).toMatchObject({
+      _tag: "InvitationExpired",
+      category: "conflict",
+      code: "registration.invitationExpired",
+      expiredAt: "2026-04-21T00:00:01.000Z",
+      invitationId: String(registration.invitationId),
+      recovery: "none",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/invitation/revoke preserves InvitationNotFound", async () => {
+  const registration = makeApprovedRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration], {
+    invitationRevokeFailure: new InvitationNotFound({
+      invitationId: requiredInvitationId(registration),
+      message: "Invitation not found",
+    }),
+  });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", `/registrations/${registration.id}/invitation/revoke`),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_NOT_FOUND);
+    expect(body).toMatchObject({
+      _tag: "InvitationNotFound",
+      category: "not_found",
+      code: "registration.invitationNotFound",
+      invitationId: String(registration.invitationId),
+      recovery: "refresh",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/invitation/revoke preserves InvitationConflict", async () => {
+  const registration = makeApprovedRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration], {
+    invitationRevokeFailure: new InvitationConflict({
+      message: "Invitation already progressed",
+    }),
+  });
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", `/registrations/${registration.id}/invitation/revoke`),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_CONFLICT);
+    expect(body).toStrictEqual({
+      _tag: "InvitationConflict",
+      category: "conflict",
+      code: "registration.invitationConflict",
+      message: "Invitation already progressed",
+      recovery: "refresh",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/invitation/revoke preserves onboarding conflicts", async () => {
+  const invited = makeApprovedRegistration(crypto.randomUUID());
+  const registration = new ApprovedRegistration({
+    _tag: "ApprovedRegistration",
+    createdAt: invited.createdAt,
+    decision: invited.decision,
+    details: invited.details,
+    id: invited.id,
+    invitationId: invited.invitationId,
+    onboarding: {
+      acceptedAuthUserId: AuthUserId.make("accepted-user-1"),
+      status: "accepted",
+    },
+    status: "approved",
+    storeKey: invited.storeKey,
+    updatedAt: invited.updatedAt,
+  });
+  const api = makeApiLayer([registration]);
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", `/registrations/${registration.id}/invitation/revoke`),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_CONFLICT);
+    expect(body).toStrictEqual({
+      _tag: "RegistrationOnboardingTransitionConflict",
+      attemptedStatus: "revoked",
+      category: "conflict",
+      code: "registration.onboardingConflict",
+      currentState: "accepted",
+      message: `Cannot mark registration ${registration.id} onboarding as revoked from accepted`,
+      recovery: "refresh",
+      registrationId: String(registration.id),
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/invitation/revoke preserves an unknown resume outcome", async () => {
+  workflowMocks.resumeInvitation.mockRejectedValueOnce(
+    new TypeError("response lost")
+  );
+  const registration = makeApprovedRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration]);
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request("POST", `/registrations/${registration.id}/invitation/revoke`),
+      emptyContext()
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(HTTP_SERVICE_UNAVAILABLE);
+    expect(body).toStrictEqual({
+      _tag: "RegistrationWorkflowInvitationResumeOutcomeUnknown",
+      category: "unavailable",
+      code: "registration.invitationResumeOutcomeUnknown",
+      invitationId: String(registration.invitationId),
+      message: "Invitation workflow resume outcome is unknown",
+      recovery: "refresh",
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+test("POST /registrations/:id/invitation/revoke requires decision permission", async () => {
+  const registration = makeApprovedRegistration(crypto.randomUUID());
+  const api = makeApiLayer([registration]);
+  const { dispose, handler } = await makeHandler(api.layer);
+
+  try {
+    const response = await handler(
+      request(
+        "POST",
+        `/registrations/${registration.id}/invitation/revoke`,
+        undefined,
+        { authorization: "Bearer read-token" }
+      ),
+      emptyContext()
+    );
+
+    expect(response.status).toBe(HTTP_FORBIDDEN);
+    expect(workflowMocks.resumeInvitation).not.toHaveBeenCalled();
   } finally {
     await dispose();
   }

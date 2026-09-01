@@ -19,6 +19,7 @@ import {
 } from "./install.js";
 import { planComposition, selectionFromPreset } from "./planner.js";
 import type { ProviderSlot, WorkspaceSelection } from "./types.js";
+import { applyTypeScriptPathAliases } from "./typescript-paths.js";
 import {
   applyPackageRequirements,
   applyPnpmPatches,
@@ -229,6 +230,7 @@ export async function useComposition(
     "remove managed application files",
     "install selected source",
     "update package aliases",
+    "update TypeScript paths",
     "update pnpm patches",
     "install dependencies",
   ];
@@ -255,6 +257,9 @@ export async function useComposition(
   await runStep("update package aliases", async () => {
     await applyPackageRequirements(cwd, plan);
   });
+  await runStep("update TypeScript paths", async () => {
+    await applyTypeScriptPathAliases(cwd, plan);
+  });
   await runStep("update pnpm patches", async () => {
     await applyPnpmPatches(cwd, plan);
   });
@@ -265,7 +270,6 @@ export async function useComposition(
     }
     await installCompositionDependencies(cwd, options.verbose ?? false);
   });
-
   if (plan.instructions.length > 0) {
     printInstructions([
       {

@@ -10,8 +10,9 @@ import {
   CommerceCustomer,
   CommerceCustomerId,
   CommerceCustomerProfile,
+  CompanyRoles,
+  INITIAL_COMPANY_ROLES,
 } from "../domain/commerce-account";
-import type { CommerceCompanyRole } from "../domain/commerce-account";
 import { AuthUserId } from "../domain/commerce-request-context";
 import type { StoreKey } from "../store";
 
@@ -60,6 +61,13 @@ export class CommerceAccountUnavailable extends Schema.TaggedError<CommerceAccou
   }
 ) {}
 
+export class CommerceCustomerEmailConflict extends Schema.TaggedError<CommerceCustomerEmailConflict>()(
+  "CommerceCustomerEmailConflict",
+  {
+    message: Schema.String,
+  }
+) {}
+
 export class CommerceCustomerIdNotFound extends Schema.TaggedError<CommerceCustomerIdNotFound>()(
   "CommerceCustomerIdNotFound",
   {
@@ -90,17 +98,14 @@ export interface CommerceAccountsMemoryInput {
 }
 
 export interface LinkRegistrantIdentityInput {
-  readonly registration: {
-    readonly id: string;
-    readonly commerceAccount: CommerceAccount;
-  };
+  readonly commerceAccount: CommerceAccount;
   readonly acceptedIdentity: AcceptedCommerceIdentity;
 }
 
 export interface AddAssociateInput {
   readonly businessUnitId: CommerceBusinessUnitId;
   readonly acceptedIdentity: AcceptedCommerceIdentity;
-  readonly role: Extract<CommerceCompanyRole, "associate">;
+  readonly roles: CompanyRoles;
 }
 
 const normalizedEmail = (email: RedactedString) =>
@@ -144,7 +149,10 @@ export class CommerceAccounts extends Context.Service<
     ) => Effect.Effect<CommerceAccount, CommerceAccountUnavailable>;
     readonly addAssociate: (
       input: AddAssociateInput
-    ) => Effect.Effect<CommerceAssociateMembership, CommerceAccountUnavailable>;
+    ) => Effect.Effect<
+      CommerceAssociateMembership,
+      CommerceAccountUnavailable | CommerceCustomerEmailConflict
+    >;
     readonly hasCustomerWithEmail: (
       email: RedactedString
     ) => Effect.Effect<boolean, CommerceAccountUnavailable>;
@@ -223,7 +231,7 @@ export class CommerceAccounts extends Context.Service<
         Effect.gen(function* () {
           const current = yield* Ref.get(state);
 
-          const registrationId = input.registration.id;
+          const { registrationId } = input.commerceAccount;
           const account = current.accountsByRegistration.get(registrationId);
 
           if (!account) {
@@ -239,7 +247,7 @@ export class CommerceAccounts extends Context.Service<
             ).set(registrationId, input.acceptedIdentity),
           }));
 
-          return account;
+          return input.commerceAccount;
         })
       );
 
@@ -257,15 +265,52 @@ export class CommerceAccounts extends Context.Service<
               );
             }
 
+            const { authUserId } = input.acceptedIdentity;
+            const existingCustomer =
+              current.customersByAuthUserId.get(authUserId);
+            const targetEmail = normalizedEmail(input.acceptedIdentity.email);
+            const linkedRegistrantEntry = [
+              ...current.linkedRegistrantIdentities.entries(),
+            ].find(
+              ([, identity]) =>
+                identity.authUserId === authUserId ||
+                normalizedEmail(identity.email) === targetEmail
+            );
+            const linkedRegistrant = linkedRegistrantEntry?.[1];
+            const linkedRegistrantAccount =
+              linkedRegistrantEntry === undefined
+                ? undefined
+                : current.accountsByRegistration.get(linkedRegistrantEntry[0]);
+            const expectedCustomerId =
+              linkedRegistrantAccount?.customerId ??
+              CommerceCustomerId.make(`customer-${authUserId}`);
+            const customerWithEmail = [
+              ...current.customersByAuthUserId.values(),
+            ].find(
+              (candidate) => normalizedEmail(candidate.email) === targetEmail
+            );
+
+            if (
+              (linkedRegistrant !== undefined &&
+                (linkedRegistrant.authUserId !== authUserId ||
+                  normalizedEmail(linkedRegistrant.email) !== targetEmail)) ||
+              (existingCustomer !== undefined &&
+                (existingCustomer.customerId !== expectedCustomerId ||
+                  normalizedEmail(existingCustomer.email) !== targetEmail)) ||
+              (customerWithEmail !== undefined &&
+                customerWithEmail.customerId !== expectedCustomerId)
+            ) {
+              return yield* new CommerceCustomerEmailConflict({
+                message:
+                  "A Commerce customer already owns the invited identity or email",
+              });
+            }
+
             const customer =
-              current.customersByAuthUserId.get(
-                input.acceptedIdentity.authUserId
-              ) ??
+              existingCustomer ??
               new CommerceCustomer({
                 authUserId: input.acceptedIdentity.authUserId,
-                customerId: CommerceCustomerId.make(
-                  `customer-${input.acceptedIdentity.authUserId}`
-                ),
+                customerId: expectedCustomerId,
                 email: input.acceptedIdentity.email,
                 firstName: input.acceptedIdentity.firstName,
                 lastName: input.acceptedIdentity.lastName,
@@ -278,14 +323,44 @@ export class CommerceAccounts extends Context.Service<
             );
 
             if (existingAssociate) {
-              return existingAssociate;
+              const mergedRoles = [
+                ...new Set([...existingAssociate.roles, ...input.roles]),
+              ];
+              const [firstRole, ...remainingRoles] = mergedRoles;
+              if (firstRole === undefined) {
+                return yield* Effect.die(
+                  new Error("A Company membership must have at least one role")
+                );
+              }
+              const membership = new CommerceAssociateMembership({
+                authUserId: existingAssociate.authUserId,
+                businessUnitId: existingAssociate.businessUnitId,
+                customerId: existingAssociate.customerId,
+                roles: [firstRole, ...remainingRoles],
+              });
+
+              yield* Ref.update(state, (latest) => ({
+                ...latest,
+                associatesByBusinessUnit: new Map(
+                  latest.associatesByBusinessUnit
+                ).set(
+                  input.businessUnitId,
+                  existing.map((associate) =>
+                    associate.authUserId === input.acceptedIdentity.authUserId
+                      ? membership
+                      : associate
+                  )
+                ),
+              }));
+
+              return membership;
             }
 
             const membership = new CommerceAssociateMembership({
               authUserId: input.acceptedIdentity.authUserId,
               businessUnitId: input.businessUnitId,
               customerId: customer.customerId,
-              role: input.role,
+              roles: input.roles,
             });
 
             yield* Ref.update(state, (latest) => ({
@@ -310,8 +385,13 @@ export class CommerceAccounts extends Context.Service<
           Effect.map((current) => {
             const targetEmail = normalizedEmail(email);
 
-            return [...current.customersByAuthUserId.values()].some(
-              (customer) => normalizedEmail(customer.email) === targetEmail
+            return (
+              [...current.customersByAuthUserId.values()].some(
+                (customer) => normalizedEmail(customer.email) === targetEmail
+              ) ||
+              [...current.linkedRegistrantIdentities.values()].some(
+                (identity) => normalizedEmail(identity.email) === targetEmail
+              )
             );
           })
         )
@@ -444,6 +524,17 @@ export class CommerceAccounts extends Context.Service<
               return [];
             }
 
+            const roles =
+              account.customerId === customerId
+                ? INITIAL_COMPANY_ROLES
+                : current.associatesByBusinessUnit
+                    .get(businessUnitId)
+                    ?.find((associate) => associate.customerId === customerId)
+                    ?.roles;
+            if (roles === undefined) {
+              return [];
+            }
+
             return [
               new CommerceBusinessUnitMembership({
                 businessUnitId,
@@ -451,6 +542,7 @@ export class CommerceAccounts extends Context.Service<
                   `registration-business-unit-${account.registrationId}`
                 ),
                 businessUnitLabel,
+                roles,
               }),
             ];
           });
@@ -479,42 +571,44 @@ export class CommerceAccounts extends Context.Service<
     );
     const layerSeededAccounts = Layer.effect(
       CommerceAccounts,
-      Effect.map(CommerceAccounts, (accounts) =>
-        CommerceAccounts.of({
-          ...accounts,
-          getCustomerIdByAuthUserId: (authUserId) => {
-            const customer = customers.find(
-              (candidate) => candidate.authUserId === authUserId
-            );
-            return customer
-              ? Effect.succeed(customer.customerId)
-              : accounts.getCustomerIdByAuthUserId(authUserId);
-          },
-          getCustomerProfile: (customerId) => {
-            const profile = profilesByCustomerId.get(customerId);
-            return profile
-              ? Effect.succeed(profile)
-              : accounts.getCustomerProfile(customerId);
-          },
-          listBusinessUnitMembershipsForCustomerInStore: (
-            customerId,
-            storeKey
-          ) => {
-            const seeded = businessUnitMemberships
-              .filter(
-                (candidate) =>
-                  candidate.customerId === customerId &&
-                  candidate.storeKey === storeKey
-              )
-              .map(({ membership }) => membership);
-            return seeded.length > 0
-              ? Effect.succeed(seeded)
-              : accounts.listBusinessUnitMembershipsForCustomerInStore(
-                  customerId,
-                  storeKey
-                );
-          },
-        })
+      CommerceAccounts.pipe(
+        Effect.map((accounts) =>
+          CommerceAccounts.of({
+            ...accounts,
+            getCustomerIdByAuthUserId: (authUserId) => {
+              const customer = customers.find(
+                (candidate) => candidate.authUserId === authUserId
+              );
+              return customer
+                ? Effect.succeed(customer.customerId)
+                : accounts.getCustomerIdByAuthUserId(authUserId);
+            },
+            getCustomerProfile: (customerId) => {
+              const profile = profilesByCustomerId.get(customerId);
+              return profile
+                ? Effect.succeed(profile)
+                : accounts.getCustomerProfile(customerId);
+            },
+            listBusinessUnitMembershipsForCustomerInStore: (
+              customerId,
+              storeKey
+            ) => {
+              const seeded = businessUnitMemberships
+                .filter(
+                  (candidate) =>
+                    candidate.customerId === customerId &&
+                    candidate.storeKey === storeKey
+                )
+                .map(({ membership }) => membership);
+              return seeded.length > 0
+                ? Effect.succeed(seeded)
+                : accounts.listBusinessUnitMembershipsForCustomerInStore(
+                    customerId,
+                    storeKey
+                  );
+            },
+          })
+        )
       )
     );
 

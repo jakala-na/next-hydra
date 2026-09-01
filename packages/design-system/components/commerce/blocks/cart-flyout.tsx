@@ -14,6 +14,11 @@ import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
+// SAFETY: Locale routing resolves this temporary destination at runtime while the generated Route union cannot represent it yet.
+const PRODUCTS_ROUTE = "/products" as Route;
+// SAFETY: Locale routing resolves this Checkout destination at runtime while the generated Route union requires a locale-prefixed path.
+const CHECKOUT_ROUTE = "/checkout" as Route;
+
 export function CartFlyout() {
   const {
     items,
@@ -52,8 +57,8 @@ export function CartFlyout() {
               {t("empty.description")}
             </p>
             <Button onClick={closeCart} asChild>
-              {/* @todo: implement products page and remove type assertion */}
-              <Link href={"/products" as Route}>
+              {/* @todo: implement products page */}
+              <Link href={PRODUCTS_ROUTE}>
                 {t("empty.actions.browseProducts")}
               </Link>
             </Button>
@@ -89,7 +94,9 @@ export function CartFlyout() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 shrink-0"
-                        onClick={async () => removeItem(item.id)}
+                        onClick={() => {
+                          void removeItem(item.id);
+                        }}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -101,9 +108,9 @@ export function CartFlyout() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8 bg-transparent"
-                          onClick={async () =>
-                            updateQuantity(item.id, item.quantity - 1)
-                          }
+                          onClick={() => {
+                            void updateQuantity(item.id, item.quantity - 1);
+                          }}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -114,9 +121,9 @@ export function CartFlyout() {
                           variant="outline"
                           size="icon"
                           className="h-8 w-8 bg-transparent"
-                          onClick={async () =>
-                            updateQuantity(item.id, item.quantity + 1)
-                          }
+                          onClick={() => {
+                            void updateQuantity(item.id, item.quantity + 1);
+                          }}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -136,7 +143,14 @@ export function CartFlyout() {
                   <span className="text-muted-foreground">
                     {t("summary.subtotal.label")}
                   </span>
-                  <span className="font-medium">{formatPrice(totalPrice)}</span>
+                  <span
+                    className="font-medium"
+                    data-commerce-money="cart-subtotal"
+                    data-currency={currencyCode}
+                    data-minor-amount={Math.round(totalPrice * 100)}
+                  >
+                    {formatPrice(totalPrice)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
@@ -154,8 +168,7 @@ export function CartFlyout() {
 
               <div className="space-y-2">
                 <Button className="h-12 w-full" size="lg" asChild>
-                  {/* @todo: implement checkout page and remove type assertion */}
-                  <Link href={"/checkout" as Route} onClick={closeCart}>
+                  <Link href={CHECKOUT_ROUTE} onClick={closeCart}>
                     {t("actions.checkout")}
                   </Link>
                 </Button>

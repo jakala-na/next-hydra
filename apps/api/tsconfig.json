@@ -4,10 +4,10 @@
     "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./*"],
-      "@repo/auth": ["./node_modules/@repo/auth"],
-      "@repo/auth/*": ["./node_modules/@repo/auth/*"],
-      "@repo/commerce-provider": ["./node_modules/@repo/commerce-provider"],
-      "@repo/commerce-provider/*": ["./node_modules/@repo/commerce-provider/*"],
+      "@repo/auth": ["../../packages/auth-workos"],
+      "@repo/auth/*": ["../../packages/auth-workos/*"],
+      "@repo/commerce-provider": ["../../packages/commerce-commercetools"],
+      "@repo/commerce-provider/*": ["../../packages/commerce-commercetools/*"],
       "@repo/*": ["../../packages/*"]
     }
   },

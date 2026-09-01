@@ -13,6 +13,33 @@ pnpm cli --env-file /absolute/path/to/project.env commerce migrate plan
 Common commands:
 
 ```bash
+# Create the selected customer identity provider's webhook once. The command
+# never updates or deletes an existing endpoint. An exact managed endpoint can
+# be read on rerun to recover its secret; any drift is reported as a conflict.
+# The output path must not exist and receives only the signing secret.
+pnpm cli auth provision \
+  --api-url https://api.example.com \
+  --output apps/cli/.env.auth-webhook.local
+
+# Publish the signing secret directly to every required linked Vercel project.
+# Providers select apps/web, apps/api, or both. Preflight verifies every link,
+# local Vercel login, access, custom target, and key conflict before mutation.
+pnpm cli auth provision \
+  --api-url https://api.example.com \
+  --store vercel \
+  --environment preview \
+  --environment preview:feature/auth \
+  --environment staging \
+  --environment production
+
+# Re-provision the exact provider manifest into an existing demo environment.
+# This upserts only the selected keys in the selected linked projects/targets.
+pnpm cli auth provision \
+  --api-url https://api.example.com \
+  --store vercel \
+  --environment demo-replacement \
+  --overwrite
+
 # Inspect and run the selected CMS provider's setup workflow.
 pnpm cli cms provision --help
 
@@ -40,7 +67,7 @@ pnpm cli commerce schema export
 pnpm cli commerce types generate
 ```
 
-The gitignored `.env.bootstrap.local` uses the standard Commercetools API Client variables: `CTP_PROJECT_KEY`, `CTP_CLIENT_SECRET`, `CTP_CLIENT_ID`, `CTP_AUTH_URL`, `CTP_API_URL`, and `CTP_SCOPES`. Provisioning enables Product Projection Search, creates an exact-scoped runtime API Client, applies pending migrations, writes and reads back `.env.runtime.local` using the application's existing `COMMERCETOOLS_*` variables with `0600` permissions, and only then revokes the bootstrap API Client. It never invokes the Vercel CLI and never prints either secret.
+The gitignored `.env.bootstrap.local` uses the standard Commercetools API Client variables: `CTP_PROJECT_KEY`, `CTP_CLIENT_SECRET`, `CTP_CLIENT_ID`, `CTP_AUTH_URL`, `CTP_API_URL`, and `CTP_SCOPES`. Provisioning verifies that the bootstrap client can manage project settings and API clients, enables Product Projection Search, creates an exact-scoped runtime API Client, applies pending migrations, publishes the application's `COMMERCETOOLS_*` runtime environment, and only then revokes the bootstrap API Client. Local publication creates and verifies a `0600` file. Vercel publication uses the links in each provider-selected `apps/web` or `apps/api` project and local Vercel CLI credentials, refuses existing keys by default, and requires a new deployment before the variables take effect. Operators may pass `--overwrite` to upsert only the provider manifest's exact keys in the selected projects and environments; `--yes` only skips confirmation and does not authorize replacement. Ambiguous overwrite responses are retried in-process with the same values. After a partial or unknown publication failure, the runtime client is preserved because a Vercel project may reference it; a fresh `--overwrite` provisioning run creates replacement credentials and converges every selected target, potentially leaving the earlier client for manual cleanup. Supported selectors are `production`, `preview`, `preview:<branch>`, and existing custom-environment slugs; Development intentionally remains local. Provisioning never prints secrets.
 
 Package composition:
 
@@ -48,6 +75,7 @@ Package composition:
 - `apps/cli/src/program.ts` adds the `Command` objects declared by packages.
 - `packages/commerce-commercetools/keys.ts` owns the Commercetools environment schema.
 - `packages/commerce-commercetools/cli` owns the Commercetools commands and implementation.
+- The selected auth package's `cli` export owns its customer webhook manifest and provider API integration.
 - The selected CMS package's `cli` export owns its provider-specific provisioning workflow.
 
 To add commands from another package:

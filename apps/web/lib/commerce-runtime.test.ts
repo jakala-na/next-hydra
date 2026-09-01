@@ -27,6 +27,7 @@ import {
   CommerceAccountUnavailable,
   CommerceAccounts,
 } from "@repo/commerce/services/commerce-accounts";
+import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
 import { StoreKey } from "@repo/commerce/store";
@@ -60,6 +61,7 @@ const makeTestCommerceApp = (options?: {
           businessUnitId: CommerceBusinessUnitId.make(id),
           businessUnitKey: CommerceBusinessUnitKey.make(`${id}-key`),
           businessUnitLabel: CommerceBusinessUnitLabel.make(id),
+          roles: ["admin", "buyer"],
         }),
         storeKey: StoreKey.make("default-store"),
       })
@@ -91,6 +93,7 @@ const makeTestCommerceApp = (options?: {
         )
       )
     ).pipe(Layer.provide(memoryAccountsLayer)),
+    commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 };
@@ -122,7 +125,9 @@ const makeHarness = (options?: {
   if (options?.setCookie !== undefined) {
     cookieStore.set = options.setCookie;
   }
-  const session: CurrentAuthSnapshot = options?.session ?? { permissions: [] };
+  const session: CurrentAuthSnapshot = options?.session ?? {
+    permissions: { has: () => false },
+  };
   const commerceApp = makeTestCommerceApp({
     commerceAccountFailure: options?.commerceAccountFailure,
   });
@@ -197,7 +202,10 @@ describe("Next Commerce request adapter", () => {
 
   it("provides the authenticated user and selected Business Unit", async () => {
     const { cookies, provide, runPromise } = makeHarness({
-      session: { permissions: [], userId: "auth-user-1" },
+      session: {
+        permissions: { has: () => false },
+        userId: "auth-user-1",
+      },
     });
     cookies.set("business-unit-id", "business-unit-2");
 
@@ -211,7 +219,7 @@ describe("Next Commerce request adapter", () => {
 
   it("rejects when the trusted authenticated user ID violates its contract", async () => {
     const { provide, runPromise } = makeHarness({
-      session: { permissions: [], userId: "" },
+      session: { permissions: { has: () => false }, userId: "" },
     });
 
     await expect(
@@ -278,7 +286,7 @@ describe("Next Commerce request adapter", () => {
     });
 
     const broken = makeHarness({
-      session: { permissions: [], userId: "" },
+      session: { permissions: { has: () => false }, userId: "" },
     });
     const brokenAction = broken.TestActions.procedure(
       "CommerceTest.actionBroken"
@@ -304,7 +312,10 @@ describe("Next Commerce request adapter", () => {
     });
     const { TestActions, runPromise } = makeHarness({
       commerceAccountFailure: new Error("provider credentials leaked"),
-      session: { permissions: [], userId: "auth-user-1" },
+      session: {
+        permissions: { has: () => false },
+        userId: "auth-user-1",
+      },
     });
     const ActionFailure = Schema.Literal("invalid-request");
     const procedure = TestActions.procedure("CommerceTest.layerFailure")

@@ -43,6 +43,7 @@ export type {
   ProductCardPresentation,
   ProductDetailPresentation,
   ProductDetailVariantPresentation,
+  ProductVariantOptionPresentation,
 } from "./presentation";
 export {
   toProductCardPresentation,

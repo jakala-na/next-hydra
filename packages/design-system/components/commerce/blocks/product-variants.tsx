@@ -1,7 +1,7 @@
 "use client";
 
 import ImageViewer from "@repo/design-system/components/commerce/image-viewer-basic";
-import PriceFormat_Sale from "@repo/design-system/components/commerce/price-format-sale";
+import PriceFormatSale from "@repo/design-system/components/commerce/price-format-sale";
 import QuantityInputBasic from "@repo/design-system/components/commerce/quantity-input-basic";
 import VariantSelectorBasic from "@repo/design-system/components/commerce/variant-selector-basic";
 import type { VariantItem as BaseVariantItem } from "@repo/design-system/components/commerce/variant-selector-basic";
@@ -48,6 +48,57 @@ type ProductVariantProps = {
   errorMessage?: string | null;
 };
 
+const isVariantInStock = (variant: VariantItem): boolean =>
+  variant.isInStock ?? true;
+
+const addStockIndicators = (
+  variants: readonly VariantItem[],
+  outOfStockSuffix: string
+): VariantItem[] =>
+  variants.map((variant) => {
+    const inStock = isVariantInStock(variant);
+    return {
+      ...variant,
+      disabled: !inStock,
+      label: variant.label + (inStock ? "" : ` ${outOfStockSuffix}`),
+    };
+  });
+
+const makeVariantSelectionPayload = ({
+  currentPrice,
+  currentSalePrice,
+  effectivePrice,
+  isOnSale,
+  quantity,
+  selectedVariant,
+  selectedVariantId,
+}: {
+  readonly currentPrice: number | undefined;
+  readonly currentSalePrice: number | undefined;
+  readonly effectivePrice: number | undefined;
+  readonly isOnSale: boolean;
+  readonly quantity: number;
+  readonly selectedVariant: VariantItem;
+  readonly selectedVariantId: string;
+}): VariantSelectionPayload => {
+  const selection: VariantSelectionPayload = {
+    isOnSale,
+    quantity,
+    variantId: selectedVariantId,
+    variantLabel: selectedVariant.label,
+  };
+  if (currentPrice === undefined) {
+    return selection;
+  }
+  return {
+    ...selection,
+    originalPrice: isOnSale ? currentPrice : undefined,
+    price: currentPrice,
+    salePrice: isOnSale ? currentSalePrice : undefined,
+    totalPrice: quantity * (effectivePrice ?? currentPrice),
+  };
+};
+
 function ProductVariant({
   badge,
   defaultImage,
@@ -72,7 +123,7 @@ function ProductVariant({
   }
   const t = useTranslations("web.product");
   const format = useFormatter();
-  const defaultInitialVariant = initialVariant || variants[0].value;
+  const defaultInitialVariant = initialVariant ?? variants[0].value;
 
   const [internalSelectedVariant, setInternalSelectedVariant] = useState(
     defaultInitialVariant
@@ -104,9 +155,10 @@ function ProductVariant({
   };
 
   const selectedVariant =
-    variants.find((v) => v.value === selectedVariantId) || variants[0];
+    variants.find((variant) => variant.value === selectedVariantId) ??
+    variants[0];
 
-  const currentImage = selectedVariant?.imageUrl || defaultImage;
+  const currentImage = selectedVariant.imageUrl ?? defaultImage;
   const currentPrice = selectedVariant.price;
   const currentSalePrice = selectedVariant.salePrice;
   const { currencyCode } = selectedVariant;
@@ -115,32 +167,27 @@ function ProductVariant({
     currentSalePrice !== undefined &&
     currentSalePrice < currentPrice;
 
-  // Get stock status from the selected variant
-  const isInStock =
-    selectedVariant.isInStock === undefined ? true : selectedVariant.isInStock; // Default to in stock if not specified
+  const inStock = isVariantInStock(selectedVariant);
 
   const { availableQuantity } = selectedVariant;
 
   const effectivePrice = isOnSale ? currentSalePrice : currentPrice;
 
   const handleAddToCart = () => {
-    onAddToCart?.({
-      isOnSale,
-      quantity,
-      variantId: selectedVariantId,
-      variantLabel: selectedVariant?.label || "",
-      ...(currentPrice === undefined
-        ? {}
-        : {
-            originalPrice: isOnSale ? currentPrice : undefined,
-            price: currentPrice,
-            salePrice: isOnSale ? currentSalePrice : undefined,
-            totalPrice: quantity * (effectivePrice ?? currentPrice),
-          }),
-    });
+    onAddToCart?.(
+      makeVariantSelectionPayload({
+        currentPrice,
+        currentSalePrice,
+        effectivePrice,
+        isOnSale,
+        quantity,
+        selectedVariant,
+        selectedVariantId,
+      })
+    );
   };
 
-  const handleQuateRequest = () => {
+  const handleQuoteRequest = () => {
     onQuoteRequest?.();
   };
 
@@ -153,17 +200,10 @@ function ProductVariant({
     );
   }
 
-  // Add visual indicator for out of stock items in variant selector
-  const variantsWithStockIndicator = variants.map((variant) => {
-    const isVariantInStock =
-      variant.isInStock === undefined ? true : variant.isInStock;
-    return {
-      ...variant,
-      disabled: !isVariantInStock,
-      label:
-        variant.label + (isVariantInStock ? "" : ` ${t("outOfStockSuffix")}`),
-    };
-  });
+  const variantsWithStockIndicator = addStockIndicators(
+    variants,
+    t("outOfStockSuffix")
+  );
 
   return (
     <div className="my-6 grid max-w-screen-lg grid-cols-1 gap-12 rounded-lg md:grid-cols-2">
@@ -180,7 +220,7 @@ function ProductVariant({
             </div>
           ) : (
             <ImageViewer
-              imageUrl={currentImage || ""}
+              imageUrl={currentImage ?? ""}
               classNameThumbnailViewer="rounded-lg object-contain h-[300px] mx-auto"
             />
           )}
@@ -205,7 +245,7 @@ function ProductVariant({
 
             <div className="flex flex-wrap items-center gap-2">
               {currentPrice !== undefined && (
-                <PriceFormat_Sale
+                <PriceFormatSale
                   currencyCode={currencyCode}
                   originalPrice={currentPrice}
                   salePrice={isOnSale ? currentSalePrice : undefined}
@@ -225,7 +265,7 @@ function ProductVariant({
               )}
             </div>
 
-            {isInStock ? (
+            {inStock ? (
               <div className="rounded-md bg-secondary p-3 text-secondary-foreground">
                 <p className="font-bold text-sm">{t("inStock")}</p>
                 {availableQuantity !== null &&
@@ -248,6 +288,7 @@ function ProductVariant({
                   {variantLabel}
                 </p>
                 <VariantSelectorBasic
+                  label={variantLabel}
                   value={selectedVariantId}
                   onValueChange={handleVariantChange}
                   variants={variantsWithStockIndicator}
@@ -267,14 +308,10 @@ function ProductVariant({
               <QuantityInputBasic
                 quantity={quantity}
                 onChange={handleQuantityChange}
-                max={
-                  availableQuantity !== null && availableQuantity !== undefined
-                    ? availableQuantity
-                    : undefined
-                }
+                max={availableQuantity ?? undefined}
                 min={1}
                 className="max-w-[150px] border-border"
-                disabled={!isInStock}
+                disabled={!inStock}
               />
             </div>
 
@@ -283,13 +320,13 @@ function ProductVariant({
                 variant="outline"
                 className="w-full"
                 onClick={handleAddToCart}
-                disabled={!isInStock || isLoading || currentPrice === undefined}
+                disabled={!inStock || isLoading || currentPrice === undefined}
               >
                 {isLoading ? t("loading") : t("addToCart")}
               </Button>
               <Button
                 className="w-full"
-                onClick={handleQuateRequest}
+                onClick={handleQuoteRequest}
                 disabled={isLoading}
               >
                 {isLoading ? t("loading") : t("quoteRequest")}
@@ -347,8 +384,8 @@ function ProductVariant({
                 </p>
               )}
               <p className="mt-1 text-muted-foreground text-xs">
-                {isInStock ? t("inStock") : t("outOfStock")}
-                {isInStock &&
+                {inStock ? t("inStock") : t("outOfStock")}
+                {inStock &&
                   availableQuantity !== null &&
                   availableQuantity !== undefined &&
                   ` (${t("unitsAvailable", { count: availableQuantity })})`}

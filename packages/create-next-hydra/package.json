@@ -43,20 +43,27 @@
     "prepublishOnly": "pnpm run build",
     "publish:dry-run": "npm publish --access public --dry-run",
     "publish:public": "npm publish --access public",
-    "test": "vitest run --exclude 'tests/e2e/**'",
-    "test:e2e": "vitest run tests/e2e",
+    "test": "NODE_ENV=test vitest run --exclude 'tests/e2e/**'",
+    "test:e2e": "NODE_ENV=test vitest run tests/e2e",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/create-next-hydra/tsconfig.json"
   },
   "dependencies": {
     "@clack/prompts": "^0.11.0",
     "commander": "^14.0.0",
+    "jsonc-parser": "^3.3.1",
     "shadcn": "^4.16.2",
     "yaml": "^2.9.0",
     "zod": "^3.25.28"
   },
   "devDependencies": {
+    "@repo/actions": "workspace:*",
+    "@repo/auth-clerk": "workspace:*",
+    "@repo/auth-workos": "workspace:*",
+    "@repo/commerce": "workspace:*",
+    "@repo/registration": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "effect": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

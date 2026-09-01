@@ -1,32 +1,37 @@
 import { identityUsersLayer } from "@repo/auth/identity-users";
-import { invitationsLayer } from "@repo/auth/invitations";
+import {
+  companyMemberIdentityProjectionLayer,
+  invitationsLayer,
+} from "@repo/auth/invitations";
 import { commerceAccountsLayer } from "@repo/commerce-provider/commerce-accounts";
 import { registrationQueriesLayer } from "@repo/commerce-provider/registration";
-import { versionedKeyValueStoreLayer } from "@repo/commerce-provider/versioned-store";
 import { layerResendEmailProvider } from "@repo/email/resend-provider";
 import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
 import { layerRegistrationEmails } from "@repo/registration";
 import { RegistrationMarketPolicy } from "@repo/registration/services/registration-market-policy";
-import { Registrations } from "@repo/registration/services/registrations";
 import { VatValidator } from "@repo/registration/services/vat-validator";
 import { Layer } from "effect";
 
 import { env } from "@/env";
 
-export const REGISTRATION_CONTAINER =
-  process.env.REGISTRATION_CONTAINER ?? "b2b-registration-by-id";
+import {
+  REGISTRATION_CONTAINER,
+  registrationRepositoryLayer,
+} from "./repository-runtime";
 
-const registrationStorageLayer = versionedKeyValueStoreLayer({
-  container: REGISTRATION_CONTAINER,
-});
+export { REGISTRATION_CONTAINER } from "./repository-runtime";
 
 const registrationEmailsLayer = layerRegistrationEmails({
+  adminUrl: env.ADMIN_URL,
   approverEmail: env.REGISTRATION_APPROVER_EMAIL,
   webUrl: env.NEXT_PUBLIC_WEB_URL,
 }).pipe(Layer.provide(layerResendEmailProvider));
 
-export const registrationLayer = Registrations.layerStorage.pipe(
-  Layer.provide(registrationStorageLayer),
+const registrationInvitationsLayer = invitationsLayer.pipe(
+  Layer.provide(registrationRepositoryLayer)
+);
+
+export const registrationLayer = registrationRepositoryLayer.pipe(
   Layer.provideMerge(
     registrationQueriesLayer({
       container: REGISTRATION_CONTAINER,
@@ -34,7 +39,8 @@ export const registrationLayer = Registrations.layerStorage.pipe(
   ),
   Layer.provideMerge(commerceAccountsLayer),
   Layer.provideMerge(identityUsersLayer),
-  Layer.provideMerge(invitationsLayer),
+  Layer.provideMerge(companyMemberIdentityProjectionLayer),
+  Layer.provideMerge(registrationInvitationsLayer),
   Layer.provideMerge(RegistrationMarketPolicy.layerDefault),
   Layer.provideMerge(
     VatValidator.layerMemoryFrom({

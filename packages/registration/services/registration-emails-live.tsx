@@ -3,6 +3,7 @@ import { EmailProvider } from "@repo/email";
 import RegistrationApprovedTemplate from "@repo/email/templates/registration-approved";
 import RegistrationAwaitingApprovalTemplate from "@repo/email/templates/registration-awaiting-approval";
 import RegistrationAwaitingApproverTemplate from "@repo/email/templates/registration-awaiting-approver";
+import RegistrationInvitationExpiredTemplate from "@repo/email/templates/registration-invitation-expired";
 import RegistrationRejectedTemplate from "@repo/email/templates/registration-rejected";
 import { Effect, Layer, Redacted } from "effect";
 
@@ -13,6 +14,7 @@ import {
 } from "./registration-emails";
 
 export interface RegistrationEmailsLayerOptions {
+  readonly adminUrl: string;
   readonly approverEmail: string;
   readonly webUrl: string;
 }
@@ -28,9 +30,12 @@ const getRegistrationEmail = (registration: Registration) =>
 const getCompanyName = (registration: Registration) =>
   String(registration.details.companyName);
 
-const getApprovalUrl = (webUrl: string, registration: Registration) => {
-  const url = new URL("/admin/registration-approvals", webUrl);
-  url.searchParams.set("registrationId", String(registration.id));
+export const registrationApprovalUrl = (
+  adminUrl: string,
+  registrationId: string
+) => {
+  const url = new URL("/registration-approvals", adminUrl);
+  url.searchParams.set("registrationId", registrationId);
   return url.toString();
 };
 
@@ -57,6 +62,7 @@ const sendRegistrationEmail = (
     .pipe(Effect.asVoid, Effect.mapError(toFailure(notification)));
 
 export const layerRegistrationEmails = ({
+  adminUrl,
   approverEmail,
   webUrl,
 }: RegistrationEmailsLayerOptions) =>
@@ -73,7 +79,7 @@ export const layerRegistrationEmails = ({
                 companyName={getCompanyName(registration)}
                 contactName={getContactName(registration)}
                 onboardingUrl={
-                  invitation.acceptInvitationUrl ??
+                  invitation?.acceptInvitationUrl ??
                   new URL("/api/auth/signin", webUrl).toString()
                 }
               />
@@ -85,12 +91,17 @@ export const layerRegistrationEmails = ({
           sendRegistrationEmail(emailProvider, "approver_awaiting_approval", {
             react: (
               <RegistrationAwaitingApproverTemplate
-                approvalUrl={getApprovalUrl(webUrl, registration)}
+                approvalUrl={registrationApprovalUrl(
+                  adminUrl,
+                  String(registration.id)
+                )}
                 companyName={getCompanyName(registration)}
                 contactName={getContactName(registration)}
               />
             ),
-            subject: `${getCompanyName(registration)} registration needs review`,
+            subject: `${getCompanyName(
+              registration
+            )} registration needs review`,
             to: approverEmail,
           }),
         sendAwaitingApprovalToRegistrant: ({ registration }) =>
@@ -104,6 +115,22 @@ export const layerRegistrationEmails = ({
             subject: `${getCompanyName(registration)} registration received`,
             to: getRegistrationEmail(registration),
           }),
+        sendInvitationExpiredToRegistrant: ({ registration }) =>
+          sendRegistrationEmail(
+            emailProvider,
+            "registrant_invitation_expired",
+            {
+              react: (
+                <RegistrationInvitationExpiredTemplate
+                  companyName={getCompanyName(registration)}
+                  contactName={getContactName(registration)}
+                  registrationUrl={new URL("/register", webUrl).toString()}
+                />
+              ),
+              subject: `${getCompanyName(registration)} invitation expired`,
+              to: getRegistrationEmail(registration),
+            }
+          ),
         sendRejectedToRegistrant: ({ registration }) =>
           sendRegistrationEmail(emailProvider, "registrant_rejected", {
             react: (
@@ -115,7 +142,9 @@ export const layerRegistrationEmails = ({
                   : {})}
               />
             ),
-            subject: `${getCompanyName(registration)} registration not approved`,
+            subject: `${getCompanyName(
+              registration
+            )} registration not approved`,
             to: getRegistrationEmail(registration),
           }),
       });

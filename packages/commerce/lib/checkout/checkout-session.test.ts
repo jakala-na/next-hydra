@@ -114,6 +114,7 @@ const provideCustomerCheckout = <A, E>(
     businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
     businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
     businessUnitLabel: CommerceBusinessUnitLabel.make("Hydra Supply"),
+    roles: ["admin", "buyer"],
   });
   const commerceAccounts = CommerceAccounts.layerMemoryFrom({
     businessUnitMemberships: [

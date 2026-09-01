@@ -1,55 +1,54 @@
+/* oxlint-disable max-classes-per-file, typescript/no-unsafe-call, typescript/no-unsafe-return, unicorn/throw-new-error -- This cohesive invitation capability owns related Schema error classes; the lint analyzer loses tagged-error types across Effect generators. */
+import type {
+  InvitationIssueOutcomeUnknown,
+  InvitationProviderFailure,
+} from "@repo/auth-contract/invitations";
 import {
-  Clock,
-  Context,
-  Effect,
-  Layer,
-  Option,
-  Redacted,
-  Ref,
-  Schema,
-} from "effect";
+  InvitationConflict,
+  InvitationExpired,
+  InvitationNotFound,
+} from "@repo/auth-contract/invitations";
+import { Clock, Context, Effect, Layer, Option, Redacted, Ref } from "effect";
 
-import type { Actor } from "../domain/actors";
+import type { Actor, CompanyActor } from "../domain/actors";
 import { InvitationId } from "../domain/identity";
 import type { AcceptedAuthIdentity, RegistrationId } from "../domain/identity";
 import {
   AcceptedInvitation,
+  ExpiredInvitation,
+  InvitationDelivery,
   PendingInvitation,
   RevokedInvitation,
 } from "../domain/invitations";
 import type {
   CompanyMemberIntent,
   Invitation,
-  InvitationIntent,
   RegistrationApprovalIntent,
 } from "../domain/invitations";
+import type { RegistrationInvitationIssueAttemptFailure } from "./registration-invitation-issue-attempt-failure";
 
-export class InvitationNotFound extends Schema.TaggedError<InvitationNotFound>()(
-  "InvitationNotFound",
-  {
-    invitationId: InvitationId,
-    message: Schema.String,
-  }
-) {}
-
-export class InvitationConflict extends Schema.TaggedError<InvitationConflict>()(
-  "InvitationConflict",
-  {
-    message: Schema.String,
-  }
-) {}
-
-export class InvitationProviderFailure extends Schema.TaggedError<InvitationProviderFailure>()(
-  "InvitationProviderFailure",
-  {
-    cause: Schema.Defect(),
-    message: Schema.String,
-    operation: Schema.Literals(["issue", "read", "accept", "revoke"]),
-  }
-) {}
+export {
+  InvitationConflict,
+  InvitationExpired,
+  InvitationIssueOutcomeUnknown,
+  InvitationNotFound,
+  InvitationProviderFailure,
+} from "@repo/auth-contract/invitations";
 
 export type InvitationIssueError =
   | InvitationConflict
+  | InvitationExpired
+  | InvitationIssueOutcomeUnknown
+  | InvitationProviderFailure
+  | RegistrationInvitationIssueAttemptFailure;
+export type CompanyMemberInvitationIssueError =
+  | InvitationConflict
+  | InvitationIssueOutcomeUnknown
+  | InvitationProviderFailure;
+export type CompanyMemberInvitationRevokeError =
+  | InvitationNotFound
+  | InvitationConflict
+  | InvitationExpired
   | InvitationProviderFailure;
 export type InvitationReadError =
   | InvitationNotFound
@@ -57,42 +56,91 @@ export type InvitationReadError =
 export type InvitationAcceptError =
   | InvitationNotFound
   | InvitationConflict
+  | InvitationExpired
   | InvitationProviderFailure;
 export type InvitationRevokeError =
   | InvitationNotFound
   | InvitationConflict
+  | InvitationExpired
   | InvitationProviderFailure;
 
-export interface IssueInvitationInput {
-  readonly intent: InvitationIntent;
+export interface RegistrationInvitationIssueInput {
+  readonly intent: RegistrationApprovalIntent;
   readonly issuedBy: Actor;
 }
 
-export interface AcceptInvitationInput {
+export interface RegistrationInvitationAcceptanceInput {
   readonly invitationId: InvitationId;
   readonly acceptedIdentity: AcceptedAuthIdentity;
-  readonly expectedIntent: InvitationIntent["intent"];
+  readonly intent: RegistrationApprovalIntent;
+  readonly issuedBy: Actor;
 }
 
-export interface RevokeInvitationInput {
+export interface RegistrationInvitationRevocationInput {
   readonly invitationId: InvitationId;
+  readonly intent: RegistrationApprovalIntent;
+  readonly issuedBy: Actor;
   readonly revokedBy: Actor;
 }
 
+export interface CompanyMemberInvitationIssueInput {
+  readonly intent: CompanyMemberIntent;
+  readonly issuedBy: CompanyActor;
+  readonly replacesInvitationId?: InvitationId;
+}
+
+export interface CompanyMemberInvitationRevocationInput {
+  readonly invitationId: InvitationId;
+  readonly intent: CompanyMemberIntent;
+  readonly issuedBy: Actor;
+  readonly revokedBy: CompanyActor;
+}
+
+export class InvitationDeliveries extends Context.Service<
+  InvitationDeliveries,
+  {
+    readonly get: (
+      invitationId: InvitationId
+    ) => Effect.Effect<InvitationDelivery, InvitationReadError>;
+  }
+>()("@repo/registration/InvitationDeliveries") {}
+
+export class RegistrationInvitations extends Context.Service<
+  RegistrationInvitations,
+  {
+    readonly issue: (
+      input: RegistrationInvitationIssueInput
+    ) => Effect.Effect<PendingInvitation, InvitationIssueError>;
+    readonly accept: (
+      input: RegistrationInvitationAcceptanceInput
+    ) => Effect.Effect<AcceptedInvitation, InvitationAcceptError>;
+    readonly revoke: (
+      input: RegistrationInvitationRevocationInput
+    ) => Effect.Effect<RevokedInvitation, InvitationRevokeError>;
+  }
+>()("@repo/registration/RegistrationInvitations") {}
+
+export class CompanyMemberInvitations extends Context.Service<
+  CompanyMemberInvitations,
+  {
+    readonly issue: (
+      input: CompanyMemberInvitationIssueInput
+    ) => Effect.Effect<PendingInvitation, CompanyMemberInvitationIssueError>;
+    readonly revoke: (
+      input: CompanyMemberInvitationRevocationInput
+    ) => Effect.Effect<RevokedInvitation, CompanyMemberInvitationRevokeError>;
+  }
+>()("@repo/registration/CompanyMemberInvitations") {}
+
 type InvitationStore = ReadonlyMap<InvitationId, Invitation>;
+type InvitationIssueInput =
+  | RegistrationInvitationIssueInput
+  | CompanyMemberInvitationIssueInput;
 
 const nowDate = Clock.currentTimeMillis.pipe(
   Effect.map((time) => new Date(time))
 );
-
-const isRegistrationApprovalIntent = (
-  intent: InvitationIntent
-): intent is RegistrationApprovalIntent =>
-  intent.intent === "registration_approval";
-
-const isCompanyMemberIntent = (
-  intent: InvitationIntent
-): intent is CompanyMemberIntent => intent.intent === "company_member";
+const memoryInvitationLifetimeMilliseconds = 30 * 24 * 60 * 60 * 1000;
 
 const findRegistrationApprovalInvitation = (
   invitations: Iterable<Invitation>,
@@ -117,111 +165,182 @@ const findPendingCompanyMemberInvitation = (
         Redacted.value(intent.inviteeEmail)
   );
 
-export class Invitations extends Context.Service<
-  Invitations,
-  {
-    readonly issue: (
-      input: IssueInvitationInput
-    ) => Effect.Effect<PendingInvitation, InvitationIssueError>;
-    readonly get: (
-      invitationId: InvitationId
-    ) => Effect.Effect<Invitation, InvitationReadError>;
-    readonly accept: (
-      input: AcceptInvitationInput
-    ) => Effect.Effect<AcceptedInvitation, InvitationAcceptError>;
-    readonly revoke: (
-      input: RevokeInvitationInput
-    ) => Effect.Effect<RevokedInvitation, InvitationRevokeError>;
+const deliveryStatusFromInvitation = (invitation: Invitation) => {
+  switch (invitation._tag) {
+    case "PendingInvitation": {
+      return "pending" as const;
+    }
+    case "AcceptedInvitation": {
+      return "accepted" as const;
+    }
+    case "RevokedInvitation": {
+      return "revoked" as const;
+    }
+    case "ExpiredInvitation": {
+      return "expired" as const;
+    }
+    default: {
+      return invitation satisfies never;
+    }
   }
->()("@repo/registration/Invitations") {
-  static readonly layerMemory = Layer.effect(
-    Invitations,
-    Effect.gen(function* () {
-      const store = yield* Ref.make<InvitationStore>(new Map());
+};
 
-      const issue = Effect.fn("Invitations.issue")(function* (
-        input: IssueInvitationInput
-      ) {
-        const invitations = yield* Ref.get(store);
+const deliveryUpdatedAtFromInvitation = (invitation: Invitation) => {
+  switch (invitation._tag) {
+    case "PendingInvitation": {
+      return invitation.createdAt;
+    }
+    case "AcceptedInvitation": {
+      return invitation.acceptedAt;
+    }
+    case "RevokedInvitation": {
+      return invitation.revokedAt;
+    }
+    case "ExpiredInvitation": {
+      return invitation.expiredAt;
+    }
+    default: {
+      return invitation satisfies never;
+    }
+  }
+};
 
-        if (isRegistrationApprovalIntent(input.intent)) {
-          const existing = findRegistrationApprovalInvitation(
-            invitations.values(),
-            input.intent.registrationId
-          );
+const deliveryFromInvitation = (invitation: Invitation) => {
+  const delivery = {
+    createdAt: invitation.createdAt,
+    expiresAt: invitation.expiresAt,
+    id: invitation.id,
+    inviteeEmail: invitation.intent.inviteeEmail,
+    status: deliveryStatusFromInvitation(invitation),
+    updatedAt: deliveryUpdatedAtFromInvitation(invitation),
+  };
 
-          if (existing) {
-            if (existing._tag !== "PendingInvitation") {
-              return yield* new InvitationConflict({
-                message: "Registration approval invitation already progressed",
-              });
-            }
+  return invitation._tag === "PendingInvitation" &&
+    invitation.acceptInvitationUrl
+    ? new InvitationDelivery({
+        ...delivery,
+        acceptInvitationUrl: invitation.acceptInvitationUrl,
+      })
+    : new InvitationDelivery(delivery);
+};
 
-            return existing;
-          }
-        }
+export const invitationCapabilitiesLayerMemory = Layer.effectContext(
+  Effect.gen(function* () {
+    const store = yield* Ref.make<InvitationStore>(new Map());
 
-        if (isCompanyMemberIntent(input.intent)) {
-          const existing = findPendingCompanyMemberInvitation(
-            invitations.values(),
-            input.intent
-          );
+    const persistPendingInvitation = Effect.fn(
+      "InvitationCapabilities.persistPending"
+    )(function* (input: InvitationIssueInput) {
+      const id = InvitationId.make(
+        yield* Effect.sync(() => crypto.randomUUID())
+      );
+      const createdAt = yield* nowDate;
+      const expiresAt = new Date(
+        createdAt.getTime() + memoryInvitationLifetimeMilliseconds
+      );
+      const invitation = new PendingInvitation({
+        _tag: "PendingInvitation",
+        createdAt,
+        expiresAt,
+        id,
+        intent: input.intent,
+        issuedBy: input.issuedBy,
+      });
 
-          if (existing) {
-            if (
-              existing.intent.intent === "company_member" &&
-              existing.intent.role !== input.intent.role
-            ) {
-              return yield* new InvitationConflict({
-                message:
-                  "Pending company invitation already exists with a different role",
-              });
-            }
+      yield* Ref.update(store, (current) =>
+        new Map(current).set(id, invitation)
+      );
 
-            return existing;
-          }
-        }
+      return invitation;
+    });
 
-        const id = InvitationId.make(
-          yield* Effect.sync(() => crypto.randomUUID())
-        );
-        const createdAt = yield* nowDate;
-        const invitation = new PendingInvitation({
-          _tag: "PendingInvitation",
-          createdAt,
-          id,
-          intent: input.intent,
-          issuedBy: input.issuedBy,
-        });
-
-        yield* Ref.update(store, (current) =>
-          new Map(current).set(id, invitation)
-        );
-
+    const materializeExpiration = Effect.fn(
+      "InvitationCapabilities.materializeExpiration"
+    )(function* (invitation: Invitation) {
+      if (invitation._tag !== "PendingInvitation") {
         return invitation;
+      }
+
+      const observedAt = yield* nowDate;
+      if (observedAt < invitation.expiresAt) {
+        return invitation;
+      }
+
+      const expired = new ExpiredInvitation({
+        _tag: "ExpiredInvitation",
+        createdAt: invitation.createdAt,
+        expiredAt: invitation.expiresAt,
+        expiresAt: invitation.expiresAt,
+        id: invitation.id,
+        intent: invitation.intent,
+        issuedBy: invitation.issuedBy,
       });
 
-      const get = Effect.fn("Invitations.get")(function* (
-        invitationId: InvitationId
-      ) {
+      yield* Ref.update(store, (current) =>
+        new Map(current).set(invitation.id, expired)
+      );
+
+      return expired;
+    });
+
+    const issueRegistration = Effect.fn("RegistrationInvitations.issue")(
+      function* (input: RegistrationInvitationIssueInput) {
         const invitations = yield* Ref.get(store);
-        return yield* Option.fromNullishOr(invitations.get(invitationId)).pipe(
-          Effect.fromOption,
-          Effect.mapError(
-            () =>
-              new InvitationNotFound({
-                invitationId,
-                message: `Invitation ${invitationId} was not found`,
-              })
-          )
+        const candidate = findRegistrationApprovalInvitation(
+          invitations.values(),
+          input.intent.registrationId
         );
-      });
+        const existing = candidate
+          ? yield* materializeExpiration(candidate)
+          : undefined;
 
-      const accept = Effect.fn("Invitations.accept")(function* (
-        input: AcceptInvitationInput
-      ) {
+        if (existing) {
+          if (existing._tag === "ExpiredInvitation") {
+            return yield* new InvitationExpired({
+              expiredAt: existing.expiredAt,
+              invitationId: existing.id,
+              message: `Registration invitation ${existing.id} has expired`,
+            });
+          }
+
+          if (existing._tag !== "PendingInvitation") {
+            return yield* new InvitationConflict({
+              message: "Registration approval invitation already progressed",
+            });
+          }
+
+          return existing;
+        }
+
+        return yield* persistPendingInvitation(input);
+      }
+    );
+
+    const issueCompanyMember = Effect.fn("CompanyMemberInvitations.issue")(
+      function* (input: CompanyMemberInvitationIssueInput) {
         const invitations = yield* Ref.get(store);
-        const current = yield* Option.fromNullishOr(
+        const candidate = findPendingCompanyMemberInvitation(
+          invitations.values(),
+          input.intent
+        );
+        const existing = candidate
+          ? yield* materializeExpiration(candidate)
+          : undefined;
+
+        if (existing?._tag === "PendingInvitation") {
+          return yield* new InvitationConflict({
+            message: "Pending company invitation already exists",
+          });
+        }
+
+        return yield* persistPendingInvitation(input);
+      }
+    );
+
+    const revokeCompanyMember = Effect.fn("CompanyMemberInvitations.revoke")(
+      function* (input: CompanyMemberInvitationRevocationInput) {
+        const invitations = yield* Ref.get(store);
+        const stored = yield* Option.fromNullishOr(
           invitations.get(input.invitationId)
         ).pipe(
           Effect.fromOption,
@@ -233,10 +352,99 @@ export class Invitations extends Context.Service<
               })
           )
         );
+        const current = yield* materializeExpiration(stored);
 
-        if (current.intent.intent !== input.expectedIntent) {
+        if (
+          current.intent.intent !== "company_member" ||
+          current.intent.companyMemberInvitationId !==
+            input.intent.companyMemberInvitationId
+        ) {
           return yield* new InvitationConflict({
-            message: `Invitation is not for ${input.expectedIntent}`,
+            message: "Invitation is not for this company member",
+          });
+        }
+
+        if (current._tag === "AcceptedInvitation") {
+          return yield* new InvitationConflict({
+            message: "Accepted invitations cannot be revoked",
+          });
+        }
+
+        if (current._tag === "RevokedInvitation") {
+          return current;
+        }
+
+        if (current._tag === "ExpiredInvitation") {
+          return yield* new InvitationExpired({
+            expiredAt: current.expiredAt,
+            invitationId: current.id,
+            message: `Invitation ${current.id} has expired`,
+          });
+        }
+
+        const revokedAt = yield* nowDate;
+        const revoked = new RevokedInvitation({
+          _tag: "RevokedInvitation",
+          createdAt: current.createdAt,
+          expiresAt: current.expiresAt,
+          id: current.id,
+          intent: current.intent,
+          issuedBy: current.issuedBy,
+          revokedAt,
+          revokedBy: input.revokedBy,
+        });
+
+        yield* Ref.update(store, (existing) =>
+          new Map(existing).set(input.invitationId, revoked)
+        );
+
+        return revoked;
+      }
+    );
+
+    const get = Effect.fn("InvitationDeliveries.get")(function* (
+      invitationId: InvitationId
+    ) {
+      const invitations = yield* Ref.get(store);
+      const current = yield* Option.fromNullishOr(
+        invitations.get(invitationId)
+      ).pipe(
+        Effect.fromOption,
+        Effect.mapError(
+          () =>
+            new InvitationNotFound({
+              invitationId,
+              message: `Invitation ${invitationId} was not found`,
+            })
+        )
+      );
+      const invitation = yield* materializeExpiration(current);
+      return deliveryFromInvitation(invitation);
+    });
+
+    const acceptRegistration = Effect.fn("RegistrationInvitations.accept")(
+      function* (input: RegistrationInvitationAcceptanceInput) {
+        const invitations = yield* Ref.get(store);
+        const stored = yield* Option.fromNullishOr(
+          invitations.get(input.invitationId)
+        ).pipe(
+          Effect.fromOption,
+          Effect.mapError(
+            () =>
+              new InvitationNotFound({
+                invitationId: input.invitationId,
+                message: `Invitation ${input.invitationId} was not found`,
+              })
+          )
+        );
+        const current = yield* materializeExpiration(stored);
+
+        if (
+          current.intent.intent !== "registration_approval" ||
+          current.intent.registrationId !== input.intent.registrationId
+        ) {
+          return yield* new InvitationConflict({
+            message: "Invitation is not for this Registration",
           });
         }
 
@@ -258,12 +466,21 @@ export class Invitations extends Context.Service<
           });
         }
 
+        if (current._tag === "ExpiredInvitation") {
+          return yield* new InvitationExpired({
+            expiredAt: current.expiredAt,
+            invitationId: current.id,
+            message: `Invitation ${current.id} has expired`,
+          });
+        }
+
         const acceptedAt = yield* nowDate;
         const accepted = new AcceptedInvitation({
           _tag: "AcceptedInvitation",
           acceptedAt,
           acceptedBy: input.acceptedIdentity,
           createdAt: current.createdAt,
+          expiresAt: current.expiresAt,
           id: current.id,
           intent: current.intent,
           issuedBy: current.issuedBy,
@@ -274,13 +491,13 @@ export class Invitations extends Context.Service<
         );
 
         return accepted;
-      });
+      }
+    );
 
-      const revoke = Effect.fn("Invitations.revoke")(function* (
-        input: RevokeInvitationInput
-      ) {
+    const revokeRegistration = Effect.fn("RegistrationInvitations.revoke")(
+      function* (input: RegistrationInvitationRevocationInput) {
         const invitations = yield* Ref.get(store);
-        const current = yield* Option.fromNullishOr(
+        const stored = yield* Option.fromNullishOr(
           invitations.get(input.invitationId)
         ).pipe(
           Effect.fromOption,
@@ -292,6 +509,16 @@ export class Invitations extends Context.Service<
               })
           )
         );
+        const current = yield* materializeExpiration(stored);
+
+        if (
+          current.intent.intent !== "registration_approval" ||
+          current.intent.registrationId !== input.intent.registrationId
+        ) {
+          return yield* new InvitationConflict({
+            message: "Invitation is not for this Registration",
+          });
+        }
 
         if (current._tag === "AcceptedInvitation") {
           return yield* new InvitationConflict({
@@ -303,10 +530,19 @@ export class Invitations extends Context.Service<
           return current;
         }
 
+        if (current._tag === "ExpiredInvitation") {
+          return yield* new InvitationExpired({
+            expiredAt: current.expiredAt,
+            invitationId: current.id,
+            message: `Invitation ${current.id} has expired`,
+          });
+        }
+
         const revokedAt = yield* nowDate;
         const revoked = new RevokedInvitation({
           _tag: "RevokedInvitation",
           createdAt: current.createdAt,
+          expiresAt: current.expiresAt,
           id: current.id,
           intent: current.intent,
           issuedBy: current.issuedBy,
@@ -319,14 +555,25 @@ export class Invitations extends Context.Service<
         );
 
         return revoked;
-      });
+      }
+    );
 
-      return {
-        accept,
-        get,
-        issue,
-        revoke,
-      };
-    })
-  );
-}
+    return Context.make(
+      RegistrationInvitations,
+      RegistrationInvitations.of({
+        accept: acceptRegistration,
+        issue: issueRegistration,
+        revoke: revokeRegistration,
+      })
+    ).pipe(
+      Context.add(
+        CompanyMemberInvitations,
+        CompanyMemberInvitations.of({
+          issue: issueCompanyMember,
+          revoke: revokeCompanyMember,
+        })
+      ),
+      Context.add(InvitationDeliveries, InvitationDeliveries.of({ get }))
+    );
+  })
+);

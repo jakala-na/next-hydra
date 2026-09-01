@@ -5,6 +5,7 @@ import {
   StoreError,
   StoreVersion,
   VersionedKeyValueStore,
+  VersionedStoreKey,
 } from "@repo/versioned-store";
 import { Effect, Option, Schema } from "effect";
 import { beforeEach, vi } from "vitest";
@@ -18,9 +19,19 @@ interface CustomObjectResponse {
   };
 }
 
+interface CustomObjectQueryResponse {
+  readonly body: {
+    readonly results: readonly {
+      readonly value: unknown;
+      readonly version: number;
+    }[];
+  };
+}
+
 const getExecute = vi.fn<() => Promise<CustomObjectResponse>>();
 const postExecute = vi.fn<() => Promise<CustomObjectResponse>>();
 const removeExecute = vi.fn<() => Promise<CustomObjectResponse>>();
+const queryExecute = vi.fn<() => Promise<CustomObjectQueryResponse>>();
 const get = vi.fn<() => { execute: typeof getExecute }>(() => ({
   execute: getExecute,
 }));
@@ -30,12 +41,22 @@ const post = vi.fn<() => { execute: typeof postExecute }>(() => ({
 const remove = vi.fn<() => { execute: typeof removeExecute }>(() => ({
   execute: removeExecute,
 }));
+const queryGet = vi.fn<() => { execute: typeof queryExecute }>(() => ({
+  execute: queryExecute,
+}));
+const withContainer = vi.fn<() => { get: typeof queryGet }>(() => ({
+  get: queryGet,
+}));
 const withContainerAndKey = vi.fn<
   () => { delete: typeof remove; get: typeof get }
 >(() => ({ delete: remove, get }));
 const customObjects = vi.fn<
-  () => { post: typeof post; withContainerAndKey: typeof withContainerAndKey }
->(() => ({ post, withContainerAndKey }));
+  () => {
+    post: typeof post;
+    withContainer: typeof withContainer;
+    withContainerAndKey: typeof withContainerAndKey;
+  }
+>(() => ({ post, withContainer, withContainerAndKey }));
 
 class StoredItem extends Schema.Class<StoredItem>("StoredItem")({
   createdAt: Schema.Date,
@@ -43,7 +64,7 @@ class StoredItem extends Schema.Class<StoredItem>("StoredItem")({
 }) {}
 
 const container = "versioned-key-value-store";
-const key = "item-1";
+const key = VersionedStoreKey.make("item-1");
 const item = new StoredItem({
   createdAt: new Date(0),
   id: key,
@@ -66,9 +87,12 @@ describe("versionedKeyValueStoreLayer", () => {
     getExecute.mockReset();
     postExecute.mockReset();
     removeExecute.mockReset();
+    queryExecute.mockReset();
     get.mockClear();
     post.mockClear();
     remove.mockClear();
+    queryGet.mockClear();
+    withContainer.mockClear();
     withContainerAndKey.mockClear();
     customObjects.mockClear();
   });
@@ -268,6 +292,61 @@ describe("versionedKeyValueStoreLayer", () => {
 
       expect(error).toBeInstanceOf(StoreError);
       expect(error.operation).toBe("read");
+    }).pipe(Effect.provide(layer))
+  );
+
+  it.effect("reads every page of custom object values", () =>
+    Effect.gen(function* () {
+      queryExecute
+        .mockResolvedValueOnce({
+          body: {
+            results: Array.from({ length: 500 }, (_, index) => ({
+              value: {
+                createdAt: "1970-01-01T00:00:00.000Z",
+                id: `item-${index}`,
+              },
+              version: 1,
+            })),
+          },
+        })
+        .mockResolvedValueOnce({
+          body: {
+            results: [
+              {
+                value: {
+                  createdAt: "1970-01-01T00:00:00.000Z",
+                  id: "item-500",
+                },
+                version: 2,
+              },
+            ],
+          },
+        });
+      const store = yield* VersionedKeyValueStore;
+
+      const values = yield* store.values(StoredItem);
+
+      expect(values).toHaveLength(501);
+      expect(values.at(-1)).toStrictEqual({
+        value: new StoredItem({ createdAt: new Date(0), id: "item-500" }),
+        version: StoreVersion.make("2"),
+      });
+      expect(queryGet).toHaveBeenNthCalledWith(1, {
+        queryArgs: {
+          limit: 500,
+          offset: 0,
+          sort: "key asc",
+          withTotal: false,
+        },
+      });
+      expect(queryGet).toHaveBeenNthCalledWith(2, {
+        queryArgs: {
+          limit: 500,
+          offset: 500,
+          sort: "key asc",
+          withTotal: false,
+        },
+      });
     }).pipe(Effect.provide(layer))
   );
 

@@ -13,6 +13,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
+import { parse } from "jsonc-parser";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { pathExists, readJsonFile } from "../../src/fs-utils.js";
@@ -25,7 +26,7 @@ const INCOMPATIBLE_DRUPAL_ADD_ON = /requires next-hydra\/cms\/drupal/;
 const PARTIAL_PROJECT_PRESERVED =
   /partial project has been left exactly as it stands/;
 const WORKOS_SETUP_INSTRUCTION_PREFIX =
-  "Configure the WorkOS environment variables described by packages/auth-workos";
+  "Configure separate WorkOS projects for the customer web app and admin app";
 let testRoot: string;
 let sourceRepository: string;
 
@@ -157,41 +158,79 @@ const fakeRootInstall = async (cwd: string) => {
   await writeFile(path.join(cwd, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
 };
 
-async function installWebWorkspace(cwd: string): Promise<void> {
-  await run("pnpm", ["install", "--filter", "web..."], { cwd });
-}
+const installApplicationWorkspaces = async (cwd: string): Promise<void> => {
+  await run(
+    "pnpm",
+    [
+      "install",
+      "--filter",
+      "admin...",
+      "--filter",
+      "web...",
+      "--filter",
+      "api...",
+      "--filter",
+      "cli...",
+    ],
+    { cwd }
+  );
+};
 
-async function typecheckWeb(cwd: string): Promise<void> {
-  const env = {
-    ...process.env,
-    COMMERCETOOLS_CLIENT_ID: "test-client",
-    COMMERCETOOLS_CLIENT_SECRET: "test-secret",
-    COMMERCETOOLS_PROJECT_KEY: "test-project",
-    COMMERCETOOLS_REGION: "test-region",
-    COMMERCETOOLS_SCOPE: "test-scope",
-    CONTENTSTACK_API_KEY: "test-api-key",
-    CONTENTSTACK_DELIVERY_TOKEN: "cs-test-delivery",
-    CONTENTSTACK_ENVIRONMENT: "test",
-    CONTENTSTACK_PREVIEW_TOKEN: "cs-test-preview",
-    CONTENTSTACK_WEBHOOK_SECRET: "test-webhook-secret",
-    DRUPAL_BASE_URL: "https://drupal.example.com",
-    DRUPAL_PREVIEWER_CLIENT_ID: "test-preview-client",
-    DRUPAL_PREVIEWER_CLIENT_SECRET: "test-preview-secret",
-    DRUPAL_VIEWER_CLIENT_ID: "test-viewer-client",
-    DRUPAL_VIEWER_CLIENT_SECRET: "test-viewer-secret",
-    NEXT_PUBLIC_CONTENTSTACK_API_KEY: "test-api-key",
-    NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT: "test",
-    NEXT_PUBLIC_WEB_URL: "http://localhost:3001",
-    NEXT_PUBLIC_WORKOS_REDIRECT_URI: "http://localhost:3001/api/auth/callback",
-    RESEND_FROM: "test@example.com",
-    RESEND_TOKEN: "re_test",
-    WORKOS_API_KEY: "sk_test",
-    WORKOS_CLIENT_ID: "client_test",
-    WORKOS_COOKIE_PASSWORD: "test-cookie-password-at-least-32-characters",
-  };
+const typecheckEnvironment = () => ({
+  ...process.env,
+  ADMIN_CLERK_AUTHORIZED_PARTIES: "https://admin.customer-project.localhost",
+  ADMIN_CLERK_PUBLISHABLE_KEY: "pk_test_admin_publishable",
+  ADMIN_CLERK_SECRET_KEY: "sk_test_admin_secret",
+  ADMIN_URL: "https://admin.customer-project.localhost",
+  ADMIN_WORKOS_API_KEY: "sk_test_admin",
+  ADMIN_WORKOS_CLIENT_ID: "client_test_admin",
+  CLERK_AUTHORIZED_PARTIES: "https://web.customer-project.localhost",
+  CLERK_SECRET_KEY: "sk_test_secret",
+  CLERK_WEBHOOK_SECRET: "whsec_test",
+  COMMERCETOOLS_CLIENT_ID: "test-client",
+  COMMERCETOOLS_CLIENT_SECRET: "test-secret",
+  COMMERCETOOLS_PROJECT_KEY: "test-project",
+  COMMERCETOOLS_REGION: "test-region",
+  COMMERCETOOLS_SCOPE: "test-scope",
+  CONTENTSTACK_API_KEY: "test-api-key",
+  CONTENTSTACK_DELIVERY_TOKEN: "cs-test-delivery",
+  CONTENTSTACK_ENVIRONMENT: "test",
+  CONTENTSTACK_PREVIEW_TOKEN: "cs-test-preview",
+  CONTENTSTACK_WEBHOOK_SECRET: "test-webhook-secret",
+  DRUPAL_BASE_URL: "https://drupal.example.com",
+  DRUPAL_PREVIEWER_CLIENT_ID: "test-preview-client",
+  DRUPAL_PREVIEWER_CLIENT_SECRET: "test-preview-secret",
+  DRUPAL_VIEWER_CLIENT_ID: "test-viewer-client",
+  DRUPAL_VIEWER_CLIENT_SECRET: "test-viewer-secret",
+  NEXT_PUBLIC_API_URL: "https://api.customer-project.localhost",
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_publishable",
+  NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: "/",
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in",
+  NEXT_PUBLIC_CONTENTSTACK_API_KEY: "test-api-key",
+  NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT: "test",
+  NEXT_PUBLIC_POSTHOG_HOST: "https://posthog.example.com",
+  NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+  NEXT_PUBLIC_WEB_URL: "https://web.customer-project.localhost",
+  NEXT_PUBLIC_WORKOS_REDIRECT_URI:
+    "https://web.customer-project.localhost/api/auth/callback",
+  REGISTRATION_APPROVER_EMAIL: "approver@example.com",
+  RESEND_FROM: "test@example.com",
+  RESEND_TOKEN: "re_test",
+  WORKOS_API_KEY: "sk_test",
+  WORKOS_CLIENT_ID: "client_test",
+  WORKOS_COOKIE_PASSWORD: "test-cookie-password-at-least-32-characters",
+  WORKOS_WEBHOOK_SECRET: "whsec_test",
+});
+
+const runTypecheck = async (
+  cwd: string,
+  args: readonly string[],
+  description: string
+): Promise<void> => {
+  const env = typecheckEnvironment();
 
   try {
-    await run("pnpm", ["--filter", "web", "typecheck"], { cwd, env });
+    await run("pnpm", [...args], { cwd, env });
   } catch (error) {
     const failure = error as {
       code?: number;
@@ -201,7 +240,9 @@ async function typecheckWeb(cwd: string): Promise<void> {
     };
     throw new Error(
       [
-        `web typecheck failed with code ${failure.code ?? "unknown"}${failure.signal ? ` and signal ${failure.signal}` : ""}`,
+        `${description} failed with code ${failure.code ?? "unknown"}${
+          failure.signal ? ` and signal ${failure.signal}` : ""
+        }`,
         failure.stdout?.trim(),
         failure.stderr?.trim(),
       ]
@@ -210,11 +251,61 @@ async function typecheckWeb(cwd: string): Promise<void> {
       { cause: error }
     );
   }
-}
+};
 
-function options(targetDir: string, cms: "drupal" | "contentstack") {
+const typecheckApplications = async (cwd: string) => {
+  await runTypecheck(
+    cwd,
+    [
+      "exec",
+      "turbo",
+      "run",
+      "typecheck",
+      "--filter=admin",
+      "--filter=web",
+      "--filter=api",
+      "--filter=cli",
+    ],
+    "application typecheck"
+  );
+};
+
+const testCustomerInvitationComposition = async (target: string) => {
+  await Promise.all([
+    runTypecheck(
+      target,
+      [
+        "--filter",
+        "web",
+        "exec",
+        "vitest",
+        "run",
+        "lib/customer-account-invitation-composition.test.ts",
+      ],
+      "customer-account invitation lifecycle composition test"
+    ),
+    runTypecheck(
+      target,
+      [
+        "--filter",
+        "api",
+        "exec",
+        "vitest",
+        "run",
+        "lib/company-member-invitation-composition.test.ts",
+      ],
+      "company-member invitation acceptance composition test"
+    ),
+  ]);
+};
+
+function options(
+  targetDir: string,
+  cms: "drupal" | "contentstack",
+  auth: "clerk" | "workos" = "workos"
+) {
   return {
-    auth: "workos",
+    auth,
     cms,
     commerce: "commercetools",
     commit: false,
@@ -313,7 +404,7 @@ describe("scaffold composition", () => {
   );
 
   it(
-    "strips maintainer release and registry tooling from generated projects",
+    "strips maintainer workflows and release tooling from generated projects",
     async () => {
       const target = path.join(testRoot, "customer-release-project");
       await scaffoldProject(options(target, "contentstack"), {
@@ -330,8 +421,9 @@ describe("scaffold composition", () => {
           pathExists(
             path.join(target, ".github/workflows/registry-integrity.yml")
           ),
+          pathExists(path.join(target, ".github/workflows/e2e.yml")),
         ])
-      ).resolves.toStrictEqual([false, false, false, false]);
+      ).resolves.toStrictEqual([false, false, false, false, false]);
 
       const packageJson = await readJsonFile<{
         scripts?: Record<string, string>;
@@ -346,9 +438,94 @@ describe("scaffold composition", () => {
         "version:cli",
       ].filter((name) => packageJson.scripts?.[name] !== undefined);
       expect(maintainerScripts).toStrictEqual([]);
-      expect(packageJson.devDependencies?.["@changesets/cli"]).toBeUndefined();
+
+      const [
+        apiPackageJson,
+        rootPortlessConfigExists,
+        webEnvironment,
+        webPackageJson,
+      ] = await Promise.all([
+        readJsonFile<{
+          portless?: { name?: string; script?: string };
+        }>(path.join(target, "apps/api/package.json")),
+        pathExists(path.join(target, "portless.json")),
+        readFile(path.join(target, "apps/web/.env.example"), "utf-8"),
+        readJsonFile<{
+          portless?: { name?: string; script?: string };
+        }>(path.join(target, "apps/web/package.json")),
+      ]);
+      expect({
+        apiPackagePortless: apiPackageJson.portless,
+        changesetsDependency: packageJson.devDependencies?.["@changesets/cli"],
+        portlessDependency: packageJson.devDependencies?.portless,
+        rootPortlessConfigExists,
+        webEnvironmentHasMaintainerHostname: webEnvironment.includes(
+          "next-hydra.localhost"
+        ),
+        webEnvironmentHasProjectHostname: webEnvironment.includes(
+          'NEXT_PUBLIC_WEB_URL="https://web.customer-release-project.localhost"'
+        ),
+        webPackagePortless: webPackageJson.portless,
+      }).toStrictEqual({
+        apiPackagePortless: {
+          name: "api.customer-release-project",
+          script: "dev:app",
+        },
+        changesetsDependency: undefined,
+        portlessDependency: "0.15.6",
+        rootPortlessConfigExists: false,
+        webEnvironmentHasMaintainerHostname: false,
+        webEnvironmentHasProjectHostname: true,
+        webPackagePortless: {
+          name: "web.customer-release-project",
+          script: "dev:app",
+        },
+      });
 
       await rm(target, { force: true, recursive: true });
+    },
+    E2E_TIMEOUT
+  );
+
+  it(
+    "writes maintained Provider aliases into generated TypeScript configurations",
+    async () => {
+      const variants: {
+        cms: "contentstack" | "drupal";
+        sourcePath: string;
+      }[] = [
+        {
+          cms: "contentstack",
+          sourcePath: "../../packages/cms-contentstack",
+        },
+        {
+          cms: "drupal",
+          sourcePath: "../../packages/cms-drupal",
+        },
+      ];
+
+      for (const variant of variants) {
+        const target = path.join(testRoot, `${variant.cms}-aliases-project`);
+        // oxlint-disable-next-line no-await-in-loop -- Each scaffold uses the shared local fixture repository and is cleaned before the next begins.
+        await scaffoldProject(options(target, variant.cms), {
+          install: fakeRootInstall,
+        });
+        // oxlint-disable-next-line no-await-in-loop -- The assertion observes the scaffold completed immediately above.
+        const config = await readFile(
+          path.join(target, "apps/web/tsconfig.json"),
+          "utf-8"
+        );
+        expect(parse(config)).toMatchObject({
+          compilerOptions: {
+            paths: {
+              "@repo/cms": [variant.sourcePath],
+              "@repo/cms/*": [`${variant.sourcePath}/*`],
+            },
+          },
+        });
+        // oxlint-disable-next-line no-await-in-loop -- Cleanup keeps the two independently scaffolded variants isolated.
+        await rm(target, { force: true, recursive: true });
+      }
     },
     E2E_TIMEOUT
   );
@@ -358,9 +535,10 @@ describe("scaffold composition", () => {
     async () => {
       const contentstackTarget = path.join(testRoot, "contentstack-project");
       await scaffoldProject(options(contentstackTarget, "contentstack"), {
-        install: installWebWorkspace,
+        install: installApplicationWorkspaces,
       });
-      await typecheckWeb(contentstackTarget);
+      await typecheckApplications(contentstackTarget);
+      await testCustomerInvitationComposition(contentstackTarget);
 
       await expect(
         pathExists(
@@ -456,9 +634,9 @@ describe("scaffold composition", () => {
 
       const drupalTarget = path.join(testRoot, "drupal-project");
       await scaffoldProject(options(drupalTarget, "drupal"), {
-        install: installWebWorkspace,
+        install: installApplicationWorkspaces,
       });
-      await typecheckWeb(drupalTarget);
+      await typecheckApplications(drupalTarget);
       await expect(
         pathExists(path.join(drupalTarget, "packages/cms-drupal/package.json"))
       ).resolves.toBeTruthy();
@@ -494,6 +672,25 @@ describe("scaffold composition", () => {
         pathExists(path.join(drupalTarget, "packages/cms-drupal/registry.json"))
       ).resolves.toBeFalsy();
 
+      const frontendConfig = await readFile(
+        path.join(
+          drupalTarget,
+          "apps/drupal/recipes/next-hydra-starter/config/next.next_site.next_hydra.yml"
+        ),
+        "utf-8"
+      );
+      expect({
+        frontendHasMaintainerHostname: frontendConfig.includes(
+          "web.next-hydra.localhost"
+        ),
+        frontendHasProjectHostname: frontendConfig.includes(
+          "web.drupal-project.localhost"
+        ),
+      }).toStrictEqual({
+        frontendHasMaintainerHostname: false,
+        frontendHasProjectHostname: true,
+      });
+
       const asset =
         "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp";
       const hash = (content: Uint8Array) =>
@@ -517,8 +714,67 @@ describe("scaffold composition", () => {
         { install: fakeRootInstall }
       );
       await expect(
-        pathExists(path.join(presetTarget, "packages/cms-drupal/package.json"))
-      ).resolves.toBeTruthy();
+        Promise.all([
+          pathExists(
+            path.join(presetTarget, "packages/cms-contentstack/package.json")
+          ),
+          pathExists(
+            path.join(presetTarget, "packages/cms-drupal/package.json")
+          ),
+        ])
+      ).resolves.toStrictEqual([true, false]);
+    },
+    E2E_TIMEOUT
+  );
+
+  it(
+    "installs and typechecks the generated Clerk application composition",
+    async () => {
+      const target = path.join(testRoot, "clerk-project");
+      await scaffoldProject(options(target, "contentstack", "clerk"), {
+        install: installApplicationWorkspaces,
+      });
+      await typecheckApplications(target);
+      await testCustomerInvitationComposition(target);
+
+      await expect(
+        Promise.all([
+          pathExists(path.join(target, "packages/auth-clerk/package.json")),
+          pathExists(path.join(target, "packages/auth-workos")),
+          pathExists(path.join(target, "apps/admin/app/sign-in/page.tsx")),
+          pathExists(path.join(target, "apps/admin/app/sign-out/page.tsx")),
+          pathExists(
+            path.join(target, "apps/api/app/api/webhooks/clerk/route.ts")
+          ),
+          pathExists(
+            path.join(
+              target,
+              "apps/web/app/[locale]/accept-invitation/[[...accept-invitation]]/page.tsx"
+            )
+          ),
+          pathExists(
+            path.join(
+              target,
+              "apps/web/app/[locale]/sign-in/[[...sign-in]]/page.tsx"
+            )
+          ),
+        ])
+      ).resolves.toStrictEqual([true, false, true, true, true, true, true]);
+
+      await expect(
+        readFile(path.join(target, "apps/admin/package.json"), "utf-8")
+      ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');
+      await expect(
+        readFile(path.join(target, "apps/web/package.json"), "utf-8")
+      ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');
+      await expect(
+        readFile(path.join(target, "apps/api/package.json"), "utf-8")
+      ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');
+      await expect(
+        readFile(path.join(target, "apps/cli/package.json"), "utf-8")
+      ).resolves.toContain('"@repo/auth": "workspace:@repo/auth-clerk@*"');
+
+      await rm(target, { force: true, recursive: true });
     },
     E2E_TIMEOUT
   );

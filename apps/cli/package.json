@@ -6,11 +6,12 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo node_modules",
     "cli": "tsx src/index.ts",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project apps/cli/tsconfig.json"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
+    "@repo/auth": "workspace:@repo/auth-workos@*",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
     "@repo/cms": "workspace:@repo/cms-contentstack@*",
     "effect": "catalog:"

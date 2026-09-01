@@ -1,3 +1,8 @@
+import { runtimeEnvironmentReceiptDescription } from "@repo/cli-core/runtime-environment";
+import {
+  runtimeEnvironmentDestinationFlags,
+  runtimeEnvironmentDestinationFromFlags,
+} from "@repo/cli-core/runtime-environment-cli";
 import chalk from "chalk";
 import type { ConfigProvider, Effect as EffectType } from "effect";
 import { Console, Effect, Option, Schema } from "effect";
@@ -60,20 +65,18 @@ export const createProjectCommand = <E, R>(
         Flag.withDescription("Name for the application runtime API Client"),
         Flag.optional
       ),
-      output: Flag.string("output").pipe(
-        Flag.withDescription(
-          "New dotenv file for the application runtime credentials"
-        )
-      ),
+      ...runtimeEnvironmentDestinationFlags(),
     },
-    ({ clientName, output }) => {
+    ({ clientName, ...destinationFlags }) => {
       const runtimeClientName = Option.getOrUndefined(clientName);
+      const destination =
+        runtimeEnvironmentDestinationFromFlags(destinationFlags);
       const program =
         runtimeClientName === undefined
-          ? provisionCommerceProject({ output })
+          ? provisionCommerceProject({ destination })
           : provisionCommerceProject({
               clientName: runtimeClientName,
-              output,
+              destination,
             });
 
       return asUserError(program).pipe(
@@ -83,7 +86,9 @@ export const createProjectCommand = <E, R>(
               Console.log(`  Runtime API Client: ${receipt.runtimeClientId}`)
             ),
             Effect.andThen(
-              Console.log(`  Credentials: ${receipt.credentialFile.path}`)
+              Console.log(
+                `  Credentials: ${runtimeEnvironmentReceiptDescription(receipt.credentials)}`
+              )
             ),
             Effect.andThen(
               Console.log(

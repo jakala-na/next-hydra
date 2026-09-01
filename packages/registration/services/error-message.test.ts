@@ -7,6 +7,7 @@ import { InvitationId, RegistrationId } from "../domain/identity";
 import { InvitationPolicyError } from "./company-invitation-policy";
 import {
   InvitationConflict,
+  InvitationExpired,
   InvitationNotFound,
   InvitationProviderFailure,
 } from "./invitations";
@@ -14,11 +15,11 @@ import { RegistrationEmailFailure } from "./registration-emails";
 import {
   RegistrationQueryFailure,
   RegistrationQueryInvalidCursor,
+  RegistrationNotFoundByInvitationId,
 } from "./registration-queries";
 import {
   RegistrationConcurrentModification,
   RegistrationNotFound,
-  RegistrationNotFoundByInvitationId,
   RegistrationPersistenceFailure,
   RegistrationTransitionConflict,
 } from "./registrations";
@@ -144,5 +145,15 @@ describe("workflow-facing tagged error messages", () => {
         operation: "update",
       }).message
     ).toBe("Store update conflict for registration-1: version mismatch");
+  });
+
+  it("gives expired invitations a workflow-safe native message", () => {
+    expect(
+      new InvitationExpired({
+        expiredAt: new Date("2026-02-01T00:00:00.000Z"),
+        invitationId,
+        message: "Invitation invitation-1 has expired",
+      }).message
+    ).toBe("Invitation invitation-1 has expired");
   });
 });

@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  checkApplicationRuntimeBindingSource,
   checkCommerceBoundaries,
   checkGeneratedProductAttributesSource,
   extractImportSpecifiers,
@@ -40,5 +41,22 @@ describe("Commerce provider boundaries", () => {
     ).toContain(
       `product/generated/attributes.ts imports non-core module ${wonkaSubpath}`
     );
+  });
+
+  it("requires package-owned actions to use the application runtime alias", () => {
+    expect(
+      checkApplicationRuntimeBindingSource(
+        'import { CommerceActions } from "../runtime";',
+        "customer-account/actions.ts"
+      )
+    ).toContain(
+      "customer-account/actions.ts must import the application-selected @repo/commerce/runtime binding"
+    );
+    expect(
+      checkApplicationRuntimeBindingSource(
+        'import { CommerceActions } from "@repo/commerce/runtime";',
+        "customer-account/actions.ts"
+      )
+    ).toStrictEqual([]);
   });
 });

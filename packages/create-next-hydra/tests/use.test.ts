@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { parse } from "jsonc-parser";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
@@ -43,18 +44,6 @@ const packageManifestSchema = z.object({
   dependencies: z.record(z.string()),
 });
 
-const packageRequirements = (
-  name: string,
-  implementation: string,
-  workspaces: readonly string[]
-) =>
-  workspaces.map((cwd) => ({
-    cwd,
-    name,
-    section: "dependencies",
-    specifier: `workspace:${implementation}@*`,
-  }));
-
 const managedFile = (target: string) => ({
   path: `registry/${target.replace(/^~\//u, "")}`,
   target,
@@ -62,10 +51,19 @@ const managedFile = (target: string) => ({
 });
 
 const provider = (options: {
+  readonly binding: {
+    readonly sourcePath: string;
+    readonly specifier: string;
+  };
   readonly id: string;
   readonly name: string;
   readonly slot: "auth" | "cms" | "commerce";
-  readonly packages: ReturnType<typeof packageRequirements>;
+  readonly packages?: readonly {
+    readonly cwd: string;
+    readonly name: string;
+    readonly section: "dependencies";
+    readonly specifier: string;
+  }[];
   readonly files?: readonly ReturnType<typeof managedFile>[];
   readonly assets?: readonly {
     readonly source: string;
@@ -81,9 +79,10 @@ const provider = (options: {
   meta: {
     nextHydra: {
       assets: options.assets ?? [],
+      binding: options.binding,
       id: options.id,
       kind: "provider",
-      packages: options.packages,
+      packages: options.packages ?? [],
       pnpmPatches: options.pnpmPatches ?? [],
       slot: options.slot,
     },
@@ -97,31 +96,41 @@ const sourceRegistry = (item: ReturnType<typeof provider>) => ({
   items: [item],
 });
 
-const AUTH_REGISTRY = "packages/auth-workos/registry.json";
+const CLERK_AUTH_REGISTRY = "packages/auth-clerk/registry.json";
+const WORKOS_AUTH_REGISTRY = "packages/auth-workos/registry.json";
 const CONTENTSTACK_REGISTRY = "packages/cms-contentstack/registry.json";
 const DRUPAL_REGISTRY = "packages/cms-drupal/registry.json";
 const COMMERCETOOLS_REGISTRY = "packages/commerce-commercetools/registry.json";
 
-const authProvider = provider({
+const workosAuthProvider = provider({
+  binding: {
+    sourcePath: "packages/auth-workos",
+    specifier: "workspace:@repo/auth-workos@*",
+  },
   id: "next-hydra/auth/workos",
   name: "auth-workos",
-  packages: packageRequirements("@repo/auth", "@repo/auth-workos", [
-    "apps/api",
-    "apps/web",
-    "packages/feature-flags",
-  ]),
+  slot: "auth",
+});
+
+const clerkAuthProvider = provider({
+  binding: {
+    sourcePath: "packages/auth-clerk",
+    specifier: "workspace:@repo/auth-clerk@*",
+  },
+  id: "next-hydra/auth/clerk",
+  name: "auth-clerk",
   slot: "auth",
 });
 
 const contentstackProvider = provider({
+  binding: {
+    sourcePath: "packages/cms-contentstack",
+    specifier: "workspace:@repo/cms-contentstack@*",
+  },
   files: [managedFile("~/apps/web/app/api/draft/route.ts")],
   id: "next-hydra/cms/contentstack",
   name: "cms-contentstack",
   packages: [
-    ...packageRequirements("@repo/cms", "@repo/cms-contentstack", [
-      "apps/cli",
-      "apps/web",
-    ]),
     {
       cwd: "apps/web",
       name: "contentstack-only",
@@ -139,16 +148,16 @@ const drupalProvider = provider({
       target: "patches/@drupal-canvas__headless.patch",
     },
   ],
+  binding: {
+    sourcePath: "packages/cms-drupal",
+    specifier: "workspace:@repo/cms-drupal@*",
+  },
   files: [
     managedFile("~/apps/web/app/api/draft/route.ts"),
     managedFile("~/apps/web/app/api/canvas/components/route.ts"),
   ],
   id: "next-hydra/cms/drupal",
   name: "cms-drupal",
-  packages: packageRequirements("@repo/cms", "@repo/cms-drupal", [
-    "apps/cli",
-    "apps/web",
-  ]),
   pnpmPatches: [
     {
       dependency: "@drupal-canvas/headless",
@@ -159,13 +168,12 @@ const drupalProvider = provider({
 });
 
 const commercetoolsProvider = provider({
+  binding: {
+    sourcePath: "packages/commerce-commercetools",
+    specifier: "workspace:@repo/commerce-commercetools@*",
+  },
   id: "next-hydra/commerce/commercetools",
   name: "commerce-commercetools",
-  packages: packageRequirements(
-    "@repo/commerce-provider",
-    "@repo/commerce-commercetools",
-    ["apps/api", "apps/cli", "apps/web"]
-  ),
   slot: "commerce",
 });
 
@@ -173,7 +181,8 @@ const fixtureRegistry = {
   $schema: SOURCE_REGISTRY_SCHEMA_URL,
   homepage: "https://example.com/next-hydra-use-fixture",
   include: [
-    AUTH_REGISTRY,
+    CLERK_AUTH_REGISTRY,
+    WORKOS_AUTH_REGISTRY,
     CONTENTSTACK_REGISTRY,
     DRUPAL_REGISTRY,
     COMMERCETOOLS_REGISTRY,
@@ -189,8 +198,12 @@ const maintainerFixture = async (): Promise<string> => {
     [
       ["registry.json", `${JSON.stringify(fixtureRegistry, null, 2)}\n`],
       [
-        AUTH_REGISTRY,
-        `${JSON.stringify(sourceRegistry(authProvider), null, 2)}\n`,
+        CLERK_AUTH_REGISTRY,
+        `${JSON.stringify(sourceRegistry(clerkAuthProvider), null, 2)}\n`,
+      ],
+      [
+        WORKOS_AUTH_REGISTRY,
+        `${JSON.stringify(sourceRegistry(workosAuthProvider), null, 2)}\n`,
       ],
       [
         CONTENTSTACK_REGISTRY,
@@ -233,15 +246,27 @@ const maintainerFixture = async (): Promise<string> => {
     })
   );
   await Promise.all(
-    ["apps/api", "apps/cli", "apps/web", "packages/feature-flags"].map(
-      async (relative) => {
-        await mkdir(path.join(fixture, relative), { recursive: true });
-        await writeFile(
-          path.join(fixture, relative, "package.json"),
-          `${JSON.stringify({ dependencies: {}, name: path.basename(relative) }, null, 2)}\n`
-        );
-      }
-    )
+    [
+      "apps/admin",
+      "apps/api",
+      "apps/cli",
+      "apps/web",
+      "packages/feature-flags",
+      "tests/e2e",
+    ].map(async (relative) => {
+      await mkdir(path.join(fixture, relative), { recursive: true });
+      await writeFile(
+        path.join(fixture, relative, "package.json"),
+        `${JSON.stringify({ dependencies: {}, name: path.basename(relative) }, null, 2)}\n`
+      );
+      const wildcard = relative.startsWith("packages/")
+        ? "../*"
+        : "../../packages/*";
+      await writeFile(
+        path.join(fixture, relative, "tsconfig.json"),
+        `${JSON.stringify({ compilerOptions: { paths: { "@repo/*": [wildcard] } } })}\n`
+      );
+    })
   );
   return fixture;
 };
@@ -326,6 +351,9 @@ describe("maintainer use", () => {
         "patches/@drupal-canvas__headless.patch"
       ),
       selection: await readFile(selectionPath, "utf-8"),
+      typeScriptPaths: parse(
+        await readFile(path.join(cwd, "apps/web/tsconfig.json"), "utf-8")
+      ),
     }).toEqual({
       canvasRouteExists: false,
       cmsAlias: "workspace:@repo/cms-contentstack@*",
@@ -336,8 +364,42 @@ describe("maintainer use", () => {
         '"cms": "drupal"',
         '"cms": "contentstack"'
       ),
+      typeScriptPaths: {
+        compilerOptions: {
+          paths: {
+            "@repo/*": ["../../packages/*"],
+            "@repo/auth": ["../../packages/auth-workos"],
+            "@repo/auth/*": ["../../packages/auth-workos/*"],
+            "@repo/cms": ["../../packages/cms-contentstack"],
+            "@repo/cms/*": ["../../packages/cms-contentstack/*"],
+            "@repo/commerce-provider": [
+              "../../packages/commerce-commercetools",
+            ],
+            "@repo/commerce-provider/*": [
+              "../../packages/commerce-commercetools/*",
+            ],
+          },
+        },
+      },
     });
     await useComposition({ check: true, cwd });
+
+    const webTypeScriptConfigPath = path.join(cwd, "apps/web/tsconfig.json");
+    const contentstackTypeScriptConfig = await readFile(
+      webTypeScriptConfigPath,
+      "utf-8"
+    );
+    await writeFile(
+      webTypeScriptConfigPath,
+      contentstackTypeScriptConfig.replace(
+        '"../../packages/cms-contentstack"',
+        '"../../packages/not-contentstack"'
+      )
+    );
+    await expect(useComposition({ check: true, cwd })).rejects.toThrow(
+      /expected compilerOptions\.paths\.@repo\/cms/u
+    );
+    await writeFile(webTypeScriptConfigPath, contentstackTypeScriptConfig);
 
     await useComposition({ cms: "drupal", cwd, yes: true }, { install });
     const drupalDependencies = await readWebDependencies(cwd);
@@ -360,6 +422,9 @@ describe("maintainer use", () => {
       ),
       installCount: install.mock.calls.length,
       selection: await readFile(selectionPath, "utf-8"),
+      typeScriptPaths: parse(
+        await readFile(path.join(cwd, "apps/web/tsconfig.json"), "utf-8")
+      ),
     }).toEqual({
       canvasRoute:
         'export { getCanvasComponents as GET } from "@repo/cms/routes/canvas";\n',
@@ -369,6 +434,23 @@ describe("maintainer use", () => {
       hasDrupalPatch: true,
       installCount: 2,
       selection: DRUPAL_SELECTION,
+      typeScriptPaths: {
+        compilerOptions: {
+          paths: {
+            "@repo/*": ["../../packages/*"],
+            "@repo/auth": ["../../packages/auth-workos"],
+            "@repo/auth/*": ["../../packages/auth-workos/*"],
+            "@repo/cms": ["../../packages/cms-drupal"],
+            "@repo/cms/*": ["../../packages/cms-drupal/*"],
+            "@repo/commerce-provider": [
+              "../../packages/commerce-commercetools",
+            ],
+            "@repo/commerce-provider/*": [
+              "../../packages/commerce-commercetools/*",
+            ],
+          },
+        },
+      },
     });
 
     await writeFile(
@@ -377,6 +459,22 @@ describe("maintainer use", () => {
     );
     await expect(useComposition({ check: true, cwd })).rejects.toThrow(
       MANAGED_FILE_DRIFT
+    );
+  });
+
+  it("switches the E2E auth adapter with the application provider", async () => {
+    const cwd = await maintainerFixture();
+    const e2eManifest = path.join(cwd, "tests/e2e/package.json");
+    const install = noOpInstall();
+
+    await useComposition({ auth: "clerk", cwd, yes: true }, { install });
+    await expect(readFile(e2eManifest, "utf-8")).resolves.toContain(
+      '"@repo/auth": "workspace:@repo/auth-clerk@*"'
+    );
+
+    await useComposition({ auth: "workos", cwd, yes: true }, { install });
+    await expect(readFile(e2eManifest, "utf-8")).resolves.toContain(
+      '"@repo/auth": "workspace:@repo/auth-workos@*"'
     );
   });
 
@@ -409,6 +507,7 @@ describe("maintainer use", () => {
         "  replace managed application files",
         "  install selected source",
         "  update package aliases",
+        "  update TypeScript paths",
         "  update pnpm patches",
         "  run pnpm install",
       ].join("\n")

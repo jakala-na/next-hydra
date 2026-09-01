@@ -6,10 +6,12 @@
     "moduleResolution": "Bundler",
     "noEmit": true,
     "paths": {
-      "@repo/commerce-provider": ["./node_modules/@repo/commerce-provider"],
-      "@repo/commerce-provider/*": ["./node_modules/@repo/commerce-provider/*"],
-      "@repo/cms": ["./node_modules/@repo/cms"],
-      "@repo/cms/*": ["./node_modules/@repo/cms/*"],
+      "@repo/auth": ["../../packages/auth-workos"],
+      "@repo/auth/*": ["../../packages/auth-workos/*"],
+      "@repo/commerce-provider": ["../../packages/commerce-commercetools"],
+      "@repo/commerce-provider/*": ["../../packages/commerce-commercetools/*"],
+      "@repo/cms": ["../../packages/cms-contentstack"],
+      "@repo/cms/*": ["../../packages/cms-contentstack/*"],
       "@repo/*": ["../../packages/*"]
     }
   },

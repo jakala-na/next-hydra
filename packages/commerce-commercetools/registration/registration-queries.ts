@@ -1,7 +1,12 @@
 import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
-import type { RedactedEmail } from "@repo/registration/domain/identity";
+import type {
+  AuthUserId,
+  InvitationId,
+  RedactedEmail,
+} from "@repo/registration/domain/identity";
 import {
   Registration as RegistrationSchema,
+  registrationBlocksEmail,
   RegistrationStatus,
 } from "@repo/registration/domain/registration";
 import type {
@@ -12,6 +17,7 @@ import {
   encodeRegistrationQueryCursor,
   normalizeRegistrationQuerySort,
   parseRegistrationQueryCursor,
+  RegistrationNotFoundByInvitationId,
   RegistrationQueries,
   RegistrationQueryFailure,
   registrationQueryCursorFromRecord,
@@ -73,19 +79,28 @@ const cursorPredicate = (cursor: RegistrationQueryCursor) => {
 const statusPredicate = (status: RegistrationStatusType) =>
   `value(status = "${escapePredicateString(status)}")`;
 
+const invitationIdPredicate = (invitationId: InvitationId) =>
+  `value(invitationId = "${escapePredicateString(invitationId)}")`;
+
 const compatibleRegistrationPredicate = "value(storeKey is defined)";
 
 const wherePredicate = ({
   cursor,
+  invitationId,
   status,
 }: {
   readonly cursor?: RegistrationQueryCursor | undefined;
+  readonly invitationId?: InvitationId | undefined;
   readonly status?: RegistrationStatusType | undefined;
 }) => {
   const predicates: string[] = [compatibleRegistrationPredicate];
 
   if (status) {
     predicates.push(statusPredicate(status));
+  }
+
+  if (invitationId) {
+    predicates.push(invitationIdPredicate(invitationId));
   }
 
   if (cursor) {
@@ -99,16 +114,6 @@ const sortExpressions = (
   field: RegistrationQuerySortField,
   direction: RegistrationQuerySortDirection
 ) => [`${field} ${direction}`, `id ${direction}`];
-
-const normalizedEmail = (email: RedactedEmail) =>
-  Redacted.value(email).trim().toLowerCase();
-
-const registrationMatchesEmail = (
-  registration: Registration,
-  email: RedactedEmail
-) =>
-  Redacted.value(registration.details.email).trim().toLowerCase() ===
-  normalizedEmail(email);
 
 const normalizedSearch = (search: string | undefined) => {
   const trimmed = search?.trim().toLowerCase();
@@ -216,6 +221,7 @@ const queryCustomObjects = ({
   apiRoot,
   container,
   cursor,
+  invitationId,
   sort,
   status,
   limit,
@@ -223,6 +229,7 @@ const queryCustomObjects = ({
   readonly apiRoot: ByProjectKeyRequestBuilder;
   readonly container: string;
   readonly cursor?: RegistrationQueryCursor | undefined;
+  readonly invitationId?: InvitationId | undefined;
   readonly sort: {
     readonly field: RegistrationQuerySortField;
     readonly direction: RegistrationQuerySortDirection;
@@ -233,7 +240,7 @@ const queryCustomObjects = ({
   commercetoolsRequest(
     "Failed to query Commercetools registration Custom Objects",
     async () => {
-      const where = wherePredicate({ cursor, status });
+      const where = wherePredicate({ cursor, invitationId, status });
       const response = await apiRoot
         .customObjects()
         .withContainer({ container })
@@ -325,6 +332,62 @@ const makeRegistrationQueries = ({
 }: RegistrationQueriesLayerOptions & {
   readonly apiRoot: ByProjectKeyRequestBuilder;
 }) => {
+  const findByInvitationId = Effect.fn(
+    "CommercetoolsRegistrationQueries.findByInvitationId"
+  )(function* (invitationId: InvitationId) {
+    const response = yield* queryCustomObjects({
+      apiRoot,
+      container,
+      invitationId,
+      limit: 1,
+      sort: { direction: "desc", field: "lastModifiedAt" },
+      status: "approved",
+    }).pipe(
+      Effect.mapError(
+        (error) =>
+          new RegistrationQueryFailure({
+            cause: error.cause,
+            message: `Failed to find registration for invitation ${invitationId}: ${error.message}`,
+            operation: "findByInvitationId",
+            reason: error.reason,
+          })
+      )
+    );
+    const [customObject] = response.results;
+
+    if (!customObject) {
+      return yield* new RegistrationNotFoundByInvitationId({
+        invitationId,
+        message: `Registration for invitation ${invitationId} was not found`,
+      });
+    }
+
+    const record = yield* decodeCustomObject(customObject).pipe(
+      Effect.mapError(
+        (error) =>
+          new RegistrationQueryFailure({
+            cause: error.cause,
+            message: `Failed to find registration for invitation ${invitationId}: ${error.message}`,
+            operation: "findByInvitationId",
+            reason: error.reason,
+          })
+      )
+    );
+
+    if (
+      record.registration._tag !== "ApprovedRegistration" ||
+      record.registration.invitationId !== invitationId
+    ) {
+      return yield* Effect.die(
+        new Error(
+          `Registration invitation query returned an incompatible record for ${invitationId}`
+        )
+      );
+    }
+
+    return record.registration;
+  });
+
   const list = Effect.fn("CommercetoolsRegistrationQueries.list")(function* (
     input: ListRegistrationsInput
   ) {
@@ -405,12 +468,13 @@ const makeRegistrationQueries = ({
     return nextCursor ? { items, nextCursor } : { items };
   });
 
-  const hasPendingEmail = Effect.fn(
-    "CommercetoolsRegistrationQueries.hasPendingEmail"
-  )(function* (email: RedactedEmail) {
+  const hasBlockingEmail = Effect.fn(
+    "CommercetoolsRegistrationQueries.hasBlockingEmail"
+  )(function* (email: RedactedEmail, verifiedAuthUserId?: AuthUserId) {
     for (const status of [
       "awaiting_approval",
       "approval_processing",
+      "approved",
     ] as const) {
       let cursor: string | undefined;
 
@@ -423,7 +487,11 @@ const makeRegistrationQueries = ({
 
         if (
           result.items.some((item) =>
-            registrationMatchesEmail(item.registration, email)
+            registrationBlocksEmail(
+              item.registration,
+              email,
+              verifiedAuthUserId
+            )
           )
         ) {
           return true;
@@ -437,7 +505,8 @@ const makeRegistrationQueries = ({
   });
 
   return RegistrationQueries.of({
-    hasPendingEmail,
+    findByInvitationId,
+    hasBlockingEmail,
     list,
   });
 };

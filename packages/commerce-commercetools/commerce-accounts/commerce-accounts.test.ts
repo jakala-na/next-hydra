@@ -14,20 +14,34 @@ import type { AcceptedCommerceIdentity } from "@repo/commerce/services/commerce-
 import {
   CommerceAccountUnavailable,
   CommerceAccounts,
+  CommerceCustomerEmailConflict,
 } from "@repo/commerce/services/commerce-accounts";
+import {
+  CommerceCompanyMembershipRevision,
+  CommerceCompanyMemberships,
+} from "@repo/commerce/services/commerce-company-memberships";
 import { StoreKey } from "@repo/commerce/store";
-import { Cause, Effect, Redacted } from "effect";
+import { Cause, Effect, Exit, Redacted } from "effect";
 import { beforeEach, vi } from "vitest";
 
-import { commerceAccountsLayerFrom } from "./commerce-accounts";
+import {
+  commerceAccountsLayerFrom,
+  commerceCompanyMembershipsLayerFrom,
+} from "./commerce-accounts";
 
 type BusinessUnitResponse = { body: Partial<BusinessUnit> };
 type BusinessUnitPageResponse = { body: { results: Partial<BusinessUnit>[] } };
 type CustomerResponse = { body: Partial<Customer> };
+type CustomerPageResponse = { body: { results: Partial<Customer>[] } };
 type CustomerSignInResponse = { body: { customer: Partial<Customer> } };
 
 const mocks = vi.hoisted(() => {
   const businessUnitGetExecute = vi.fn<() => Promise<BusinessUnitResponse>>();
+  const businessUnitQueryGetExecute =
+    vi.fn<() => Promise<BusinessUnitPageResponse>>();
+  const businessUnitQueryGet = vi.fn<
+    () => { execute: typeof businessUnitQueryGetExecute }
+  >(() => ({ execute: businessUnitQueryGetExecute }));
   const businessUnitPostExecute = vi.fn<() => Promise<BusinessUnitResponse>>();
   const businessUnitCreateExecute =
     vi.fn<() => Promise<BusinessUnitResponse>>();
@@ -68,9 +82,11 @@ const mocks = vi.hoisted(() => {
     () => {
       withId: typeof businessUnitWithId;
       withKey: typeof businessUnitWithKey;
+      get: typeof businessUnitQueryGet;
       post: typeof businessUnitCreate;
     }
   >(() => ({
+    get: businessUnitQueryGet,
     post: businessUnitCreate,
     withId: businessUnitWithId,
     withKey: businessUnitWithKey,
@@ -93,7 +109,17 @@ const mocks = vi.hoisted(() => {
     })
   );
   const customerGetExecute = vi.fn<() => Promise<CustomerResponse>>();
+  const customerQueryGetExecute = vi.fn<() => Promise<CustomerPageResponse>>();
+  const customerQueryGet = vi.fn<
+    (request: {
+      readonly queryArgs: { readonly limit: number; readonly where: string };
+    }) => { execute: typeof customerQueryGetExecute }
+  >(() => ({ execute: customerQueryGetExecute }));
   const customerPostExecute = vi.fn<() => Promise<CustomerResponse>>();
+  const customerDeleteExecute = vi.fn<() => Promise<CustomerResponse>>();
+  const customerDelete = vi.fn<() => { execute: typeof customerDeleteExecute }>(
+    () => ({ execute: customerDeleteExecute })
+  );
   const customerCreateExecute = vi.fn<() => Promise<CustomerSignInResponse>>();
   const customerCreate = vi.fn<() => { execute: typeof customerCreateExecute }>(
     () => ({ execute: customerCreateExecute })
@@ -114,18 +140,25 @@ const mocks = vi.hoisted(() => {
     () => ({ execute: customerPostExecute })
   );
   const customerWithId = vi.fn<
-    () => { get: typeof customerGet; post: typeof customerPost }
+    () => {
+      delete: typeof customerDelete;
+      get: typeof customerGet;
+      post: typeof customerPost;
+    }
   >(() => ({
+    delete: customerDelete,
     get: customerGet,
     post: customerPost,
   }));
   const customers = vi.fn<
     () => {
+      get: typeof customerQueryGet;
       withId: typeof customerWithId;
       withKey: typeof customerWithKey;
       post: typeof customerCreate;
     }
   >(() => ({
+    get: customerQueryGet,
     post: customerCreate,
     withId: customerWithId,
     withKey: customerWithKey,
@@ -138,6 +171,8 @@ const mocks = vi.hoisted(() => {
     businessUnitGetExecute,
     businessUnitPost,
     businessUnitPostExecute,
+    businessUnitQueryGet,
+    businessUnitQueryGetExecute,
     businessUnitWithId,
     businessUnitWithKey,
     businessUnitWithKeyGet,
@@ -145,10 +180,14 @@ const mocks = vi.hoisted(() => {
     businessUnits,
     customerCreate,
     customerCreateExecute,
+    customerDelete,
+    customerDeleteExecute,
     customerGet,
     customerGetExecute,
     customerPost,
     customerPostExecute,
+    customerQueryGet,
+    customerQueryGetExecute,
     customerWithId,
     customerWithKey,
     customerWithKeyGet,
@@ -170,6 +209,8 @@ const apiRoot = {
 } as unknown as ByProjectKeyRequestBuilder;
 
 const layerCommercetoolsCommerceAccounts = commerceAccountsLayerFrom(apiRoot);
+const layerCommercetoolsCompanyMemberships =
+  commerceCompanyMembershipsLayerFrom(apiRoot);
 
 const acceptedIdentity: AcceptedCommerceIdentity = {
   authUserId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
@@ -193,8 +234,12 @@ describe("layerCommercetoolsCommerceAccounts", () => {
   beforeEach(() => {
     mocks.customerCreate.mockClear();
     mocks.customerCreateExecute.mockReset();
+    mocks.customerDelete.mockClear();
+    mocks.customerDeleteExecute.mockReset();
     mocks.customerGet.mockClear();
     mocks.customerGetExecute.mockReset();
+    mocks.customerQueryGet.mockClear();
+    mocks.customerQueryGetExecute.mockReset();
     mocks.customerPost.mockClear();
     mocks.customerPostExecute.mockReset();
     mocks.customerWithId.mockClear();
@@ -206,6 +251,8 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     mocks.businessUnitCreateExecute.mockReset();
     mocks.businessUnitGet.mockClear();
     mocks.businessUnitGetExecute.mockReset();
+    mocks.businessUnitQueryGet.mockClear();
+    mocks.businessUnitQueryGetExecute.mockReset();
     mocks.businessUnitPost.mockClear();
     mocks.businessUnitPostExecute.mockReset();
     mocks.businessUnitWithId.mockClear();
@@ -548,6 +595,20 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         body: {
           results: [
             {
+              associates: [
+                {
+                  associateRoleAssignments: [
+                    {
+                      associateRole: {
+                        key: "admin",
+                        typeId: "associate-role",
+                      },
+                      inheritance: "Enabled",
+                    },
+                  ],
+                  customer: { id: "customer-1", typeId: "customer" },
+                },
+              ],
               id: "business-unit-1",
               key: "business-unit-key-1",
               name: "Hydra Supply",
@@ -580,6 +641,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
           businessUnitId: "business-unit-1",
           businessUnitKey: "business-unit-key-1",
           businessUnitLabel: "Hydra Supply",
+          roles: ["admin"],
         }),
       ]);
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
@@ -593,11 +655,39 @@ describe("layerCommercetoolsCommerceAccounts", () => {
           body: {
             results: [
               {
+                associates: [
+                  {
+                    associateRoleAssignments: [
+                      {
+                        associateRole: {
+                          key: "buyer",
+                          typeId: "associate-role",
+                        },
+                        inheritance: "Enabled",
+                      },
+                    ],
+                    customer: { id: "customer-1", typeId: "customer" },
+                  },
+                ],
                 id: "business-unit-1",
                 key: "business-unit-key-1",
                 name: "Hydra Supply",
               },
               {
+                associates: [
+                  {
+                    associateRoleAssignments: [
+                      {
+                        associateRole: {
+                          key: "approver",
+                          typeId: "associate-role",
+                        },
+                        inheritance: "Enabled",
+                      },
+                    ],
+                    customer: { id: "customer-1", typeId: "customer" },
+                  },
+                ],
                 id: "business-unit-2",
                 key: "business-unit-key-2",
                 name: "Hydra Distribution",
@@ -614,12 +704,833 @@ describe("layerCommercetoolsCommerceAccounts", () => {
           );
 
         expect(
-          memberships.map(({ businessUnitId }) => businessUnitId)
-        ).toStrictEqual(["business-unit-1", "business-unit-2"]);
+          memberships.map(({ businessUnitId, roles }) => ({
+            businessUnitId,
+            roles,
+          }))
+        ).toStrictEqual([
+          { businessUnitId: "business-unit-1", roles: ["buyer"] },
+          { businessUnitId: "business-unit-2", roles: ["approver"] },
+        ]);
       }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
-  it.effect("maps the owner role to Commercetools admin and buyer roles", () =>
+  it.effect("adds every requested domain role to a company member", () =>
+    Effect.gen(function* () {
+      mocks.customerWithKeyGetExecute.mockRejectedValueOnce({
+        statusCode: 404,
+      });
+      mocks.customerQueryGetExecute.mockResolvedValue({
+        body: { results: [] },
+      });
+      mocks.customerCreateExecute.mockResolvedValueOnce({
+        body: {
+          customer: {
+            email: "ada@example.com",
+            externalId: "user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+            firstName: "Ada",
+            id: "customer-1",
+            key: "auth-customer-user_01KG3ZSVVGPQ0NQ1FBZZJ2HTXV",
+            lastName: "Lovelace",
+            version: 1,
+          },
+        },
+      });
+      mocks.businessUnitGetExecute.mockResolvedValueOnce({
+        body: {
+          associates: [],
+          id: "business-unit-1",
+          status: "Active",
+          version: 3,
+        },
+      });
+      mocks.businessUnitQueryGetExecute.mockResolvedValueOnce({
+        body: { results: [] },
+      });
+      mocks.businessUnitPostExecute.mockResolvedValueOnce({
+        body: {
+          id: "business-unit-1",
+          status: "Active",
+          version: 4,
+        },
+      });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      const membership = yield* commerceAccounts.addAssociate({
+        acceptedIdentity,
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+        roles: ["buyer", "approver"],
+      });
+
+      expect(mocks.customerQueryGet).toHaveBeenCalledWith({
+        queryArgs: {
+          limit: 1,
+          where: 'lowercaseEmail = "ada@example.com"',
+        },
+      });
+      expect(mocks.businessUnitPost).toHaveBeenCalledWith({
+        body: {
+          actions: [
+            {
+              action: "addAssociate",
+              associate: {
+                associateRoleAssignments: [
+                  {
+                    associateRole: {
+                      key: "buyer",
+                      typeId: "associate-role",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      key: "approver",
+                      typeId: "associate-role",
+                    },
+                    inheritance: "Enabled",
+                  },
+                ],
+                customer: { id: "customer-1", typeId: "customer" },
+              },
+            },
+          ],
+          version: 3,
+        },
+      });
+      expect(membership.roles).toStrictEqual(["buyer", "approver"]);
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect(
+    "replaces an orphaned Customer before creating an association",
+    () =>
+      Effect.gen(function* () {
+        mocks.customerWithKeyGetExecute.mockResolvedValueOnce({
+          body: {
+            email: "ada@example.com",
+            externalId: acceptedIdentity.authUserId,
+            firstName: "Ada",
+            id: "customer-1",
+            key: `auth-customer-${acceptedIdentity.authUserId}`,
+            lastName: "Lovelace",
+            version: 1,
+          },
+        });
+        mocks.businessUnitGetExecute.mockResolvedValueOnce({
+          body: {
+            associates: [],
+            id: "business-unit-1",
+            status: "Active",
+            version: 3,
+          },
+        });
+        mocks.businessUnitQueryGetExecute.mockResolvedValueOnce({
+          body: { results: [] },
+        });
+        mocks.customerDeleteExecute.mockResolvedValueOnce({
+          body: { id: "customer-1", version: 1 },
+        });
+        mocks.customerCreateExecute.mockResolvedValueOnce({
+          body: {
+            customer: {
+              email: "ada@example.com",
+              externalId: acceptedIdentity.authUserId,
+              firstName: "Ada",
+              id: "customer-2",
+              key: `auth-customer-${acceptedIdentity.authUserId}`,
+              lastName: "Lovelace",
+              version: 1,
+            },
+          },
+        });
+        mocks.businessUnitPostExecute.mockResolvedValueOnce({
+          body: {
+            id: "business-unit-1",
+            status: "Active",
+            version: 4,
+          },
+        });
+
+        const commerceAccounts = yield* CommerceAccounts;
+        const membership = yield* commerceAccounts.addAssociate({
+          acceptedIdentity,
+          businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+          roles: ["buyer"],
+        });
+
+        expect(membership.customerId).toBe("customer-2");
+        expect(mocks.customerDelete).toHaveBeenCalledWith({
+          queryArgs: { version: 1 },
+        });
+        expect(mocks.customerCreate).toHaveBeenCalledOnce();
+        expect(mocks.businessUnitPost).toHaveBeenCalledWith({
+          body: {
+            actions: [
+              {
+                action: "addAssociate",
+                associate: {
+                  associateRoleAssignments: [
+                    {
+                      associateRole: {
+                        key: "buyer",
+                        typeId: "associate-role",
+                      },
+                      inheritance: "Enabled",
+                    },
+                  ],
+                  customer: { id: "customer-2", typeId: "customer" },
+                },
+              },
+            ],
+            version: 3,
+          },
+        });
+        expect(mocks.businessUnitPost).toHaveBeenCalledOnce();
+      }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect("acknowledges a previously completed direct association", () =>
+    Effect.gen(function* () {
+      mocks.customerWithKeyGetExecute.mockResolvedValueOnce({
+        body: {
+          email: "ada@example.com",
+          externalId: acceptedIdentity.authUserId,
+          firstName: "Ada",
+          id: "customer-1",
+          key: `auth-customer-${acceptedIdentity.authUserId}`,
+          lastName: "Lovelace",
+          version: 1,
+        },
+      });
+      mocks.businessUnitGetExecute.mockResolvedValueOnce({
+        body: {
+          associates: [
+            {
+              associateRoleAssignments: [
+                {
+                  associateRole: { key: "buyer", typeId: "associate-role" },
+                  inheritance: "Enabled",
+                },
+              ],
+              customer: { id: "customer-1", typeId: "customer" },
+            },
+          ],
+          id: "business-unit-1",
+          status: "Active",
+          version: 4,
+        },
+      });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      const membership = yield* commerceAccounts.addAssociate({
+        acceptedIdentity,
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+        roles: ["buyer"],
+      });
+
+      expect(membership.customerId).toBe("customer-1");
+      expect(mocks.businessUnitQueryGet).not.toHaveBeenCalled();
+      expect(mocks.businessUnitPost).not.toHaveBeenCalled();
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect("reconciles a changed email by immutable auth user id", () =>
+    Effect.gen(function* () {
+      mocks.customerWithKeyGetExecute.mockResolvedValueOnce({
+        body: {
+          email: "old-email@example.com",
+          externalId: acceptedIdentity.authUserId,
+          firstName: "Ada",
+          id: "customer-1",
+          key: `auth-customer-${acceptedIdentity.authUserId}`,
+          lastName: "Lovelace",
+          version: 1,
+        },
+      });
+      mocks.businessUnitGetExecute.mockResolvedValueOnce({
+        body: {
+          associates: [
+            {
+              associateRoleAssignments: [
+                {
+                  associateRole: { key: "buyer", typeId: "associate-role" },
+                  inheritance: "Enabled",
+                },
+              ],
+              customer: { id: "customer-1", typeId: "customer" },
+            },
+          ],
+          id: "business-unit-1",
+          status: "Active",
+          version: 4,
+        },
+      });
+      mocks.customerPostExecute.mockResolvedValueOnce({
+        body: {
+          email: "ada@example.com",
+          externalId: acceptedIdentity.authUserId,
+          firstName: "Ada",
+          id: "customer-1",
+          key: `auth-customer-${acceptedIdentity.authUserId}`,
+          lastName: "Lovelace",
+          version: 2,
+        },
+      });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      const membership = yield* commerceAccounts.addAssociate({
+        acceptedIdentity,
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+        roles: ["buyer"],
+      });
+
+      expect(membership.customerId).toBe("customer-1");
+      expect(mocks.customerPost).toHaveBeenCalledWith({
+        body: {
+          actions: [{ action: "changeEmail", email: "ada@example.com" }],
+          version: 1,
+        },
+      });
+      expect(mocks.customerDelete).not.toHaveBeenCalled();
+      expect(mocks.businessUnitPost).not.toHaveBeenCalled();
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect("returns the union of existing and requested company roles", () =>
+    Effect.gen(function* () {
+      mocks.customerWithKeyGetExecute.mockResolvedValueOnce({
+        body: {
+          email: "ada@example.com",
+          externalId: acceptedIdentity.authUserId,
+          firstName: "Ada",
+          id: "customer-1",
+          key: `auth-customer-${acceptedIdentity.authUserId}`,
+          lastName: "Lovelace",
+          version: 1,
+        },
+      });
+      mocks.businessUnitGetExecute.mockResolvedValueOnce({
+        body: {
+          associates: [
+            {
+              associateRoleAssignments: [
+                {
+                  associateRole: { key: "admin", typeId: "associate-role" },
+                  inheritance: "Enabled",
+                },
+                {
+                  associateRole: {
+                    key: "approver",
+                    typeId: "associate-role",
+                  },
+                  inheritance: "Enabled",
+                },
+              ],
+              customer: { id: "customer-1", typeId: "customer" },
+            },
+          ],
+          id: "business-unit-1",
+          status: "Active",
+          version: 4,
+        },
+      });
+      mocks.businessUnitPostExecute.mockResolvedValueOnce({
+        body: {
+          id: "business-unit-1",
+          status: "Active",
+          version: 5,
+        },
+      });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      const membership = yield* commerceAccounts.addAssociate({
+        acceptedIdentity,
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+        roles: ["buyer"],
+      });
+
+      expect(membership.roles).toStrictEqual(["admin", "approver", "buyer"]);
+      expect(mocks.businessUnitPost).toHaveBeenCalledWith({
+        body: {
+          actions: [
+            {
+              action: "changeAssociate",
+              associate: {
+                associateRoleAssignments: [
+                  {
+                    associateRole: {
+                      key: "admin",
+                      typeId: "associate-role",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      key: "approver",
+                      typeId: "associate-role",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      key: "buyer",
+                      typeId: "associate-role",
+                    },
+                    inheritance: "Enabled",
+                  },
+                ],
+                customer: { id: "customer-1", typeId: "customer" },
+              },
+            },
+          ],
+          version: 4,
+        },
+      });
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect("adds an exact Customer to another Business Unit", () =>
+    Effect.gen(function* () {
+      mocks.customerWithKeyGetExecute.mockResolvedValueOnce({
+        body: {
+          email: "ada@example.com",
+          externalId: acceptedIdentity.authUserId,
+          firstName: "Ada",
+          id: "customer-1",
+          key: `auth-customer-${acceptedIdentity.authUserId}`,
+          lastName: "Lovelace",
+          version: 1,
+        },
+      });
+      mocks.businessUnitGetExecute.mockResolvedValueOnce({
+        body: {
+          associates: [],
+          id: "business-unit-1",
+          status: "Active",
+          version: 3,
+        },
+      });
+      mocks.businessUnitQueryGetExecute.mockResolvedValueOnce({
+        body: { results: [{ id: "business-unit-2" }] },
+      });
+      mocks.businessUnitPostExecute.mockResolvedValueOnce({
+        body: {
+          associates: [
+            {
+              associateRoleAssignments: [
+                {
+                  associateRole: { key: "buyer", typeId: "associate-role" },
+                  inheritance: "Enabled",
+                },
+              ],
+              customer: { id: "customer-1", typeId: "customer" },
+            },
+          ],
+          id: "business-unit-1",
+          status: "Active",
+          version: 4,
+        },
+      });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      const membership = yield* commerceAccounts.addAssociate({
+        acceptedIdentity,
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+        roles: ["buyer"],
+      });
+
+      expect(membership).toMatchObject({
+        businessUnitId: "business-unit-1",
+        customerId: "customer-1",
+        roles: ["buyer"],
+      });
+      expect(mocks.customerDelete).not.toHaveBeenCalled();
+      expect(mocks.customerCreate).not.toHaveBeenCalled();
+      expect(mocks.businessUnitPost).toHaveBeenCalledOnce();
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect(
+    "lists direct and inherited company members with their origin",
+    () =>
+      Effect.gen(function* () {
+        mocks.businessUnitGetExecute.mockResolvedValueOnce({
+          body: {
+            associates: [
+              {
+                associateRoleAssignments: [
+                  {
+                    associateRole: {
+                      key: "buyer",
+                      typeId: "associate-role",
+                    },
+                    inheritance: "Enabled",
+                  },
+                ],
+                customer: { id: "customer-1", typeId: "customer" },
+              },
+            ],
+            id: "business-unit-1",
+            inheritedAssociates: [
+              {
+                associateRoleAssignments: [
+                  {
+                    associateRole: {
+                      key: "approver",
+                      typeId: "associate-role",
+                    },
+                    source: {
+                      key: "parent-company",
+                      typeId: "business-unit",
+                    },
+                  },
+                ],
+                customer: { id: "customer-1", typeId: "customer" },
+              },
+              {
+                associateRoleAssignments: [
+                  {
+                    associateRole: {
+                      key: "admin",
+                      typeId: "associate-role",
+                    },
+                    source: {
+                      key: "parent-company",
+                      typeId: "business-unit",
+                    },
+                  },
+                ],
+                customer: { id: "customer-2", typeId: "customer" },
+              },
+            ],
+            status: "Active",
+            version: 3,
+          },
+        });
+        mocks.customerGetExecute
+          .mockResolvedValueOnce({
+            body: {
+              email: "ada@example.com",
+              externalId: "auth-user-1",
+              firstName: "Ada",
+              id: "customer-1",
+              lastName: "Lovelace",
+              version: 5,
+            },
+          })
+          .mockResolvedValueOnce({
+            body: {
+              email: "grace@example.com",
+              externalId: "auth-user-2",
+              firstName: "Grace",
+              id: "customer-2",
+              lastName: "Hopper",
+              version: 2,
+            },
+          });
+
+        const memberships = yield* CommerceCompanyMemberships;
+        const roster = yield* memberships.getRoster(
+          CommerceBusinessUnitId.make("business-unit-1")
+        );
+        const { members } = roster;
+
+        expect(members).toHaveLength(2);
+        expect(members[0]).toMatchObject({
+          authUserId: "auth-user-1",
+          businessUnitId: "business-unit-1",
+          customerId: "customer-1",
+          directlyAssociated: true,
+          inheritedRoles: ["approver"],
+          roles: ["buyer", "approver"],
+        });
+        expect(members[1]).toMatchObject({
+          authUserId: "auth-user-2",
+          businessUnitId: "business-unit-1",
+          customerId: "customer-2",
+          directlyAssociated: false,
+          inheritedRoles: ["admin"],
+          roles: ["admin"],
+        });
+        expect(
+          members[0] === undefined
+            ? undefined
+            : Redacted.value(members[0].email)
+        ).toBe("ada@example.com");
+      }).pipe(Effect.provide(layerCommercetoolsCompanyMemberships))
+  );
+
+  it.effect("deletes the Customer after removing its final membership", () =>
+    Effect.gen(function* () {
+      mocks.businessUnitGetExecute.mockResolvedValueOnce({
+        body: {
+          associates: [
+            {
+              associateRoleAssignments: [],
+              customer: { id: "customer-1", typeId: "customer" },
+            },
+          ],
+          id: "business-unit-1",
+          status: "Active",
+          version: 3,
+        },
+      });
+      mocks.businessUnitPostExecute.mockResolvedValueOnce({
+        body: {
+          associates: [],
+          id: "business-unit-1",
+          status: "Active",
+          version: 4,
+        },
+      });
+      mocks.businessUnitQueryGetExecute.mockResolvedValueOnce({
+        body: { results: [] },
+      });
+      mocks.customerGetExecute.mockResolvedValueOnce({
+        body: {
+          email: "member@example.com",
+          externalId: "auth-member-1",
+          id: "customer-1",
+          version: 5,
+        },
+      });
+      mocks.customerDeleteExecute.mockResolvedValueOnce({
+        body: { id: "customer-1", version: 5 },
+      });
+
+      const memberships = yield* CommerceCompanyMemberships;
+      const removal = yield* memberships.removeMember({
+        businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+        customerId: CommerceCustomerId.make("customer-1"),
+        expectedRevision: CommerceCompanyMembershipRevision.make("3"),
+      });
+
+      expect(mocks.businessUnitPost).toHaveBeenCalledWith({
+        body: {
+          actions: [
+            {
+              action: "removeAssociate",
+              customer: { id: "customer-1", typeId: "customer" },
+            },
+          ],
+          version: 3,
+        },
+      });
+      expect(removal.customerDisposition).toBe("deleted");
+      expect(mocks.customerDelete).toHaveBeenCalledWith({
+        queryArgs: { version: 5 },
+      });
+    }).pipe(Effect.provide(layerCommercetoolsCompanyMemberships))
+  );
+
+  it.effect(
+    "retries orphaned Customer deletion without repeating membership removal",
+    () =>
+      Effect.gen(function* () {
+        mocks.businessUnitPostExecute.mockResolvedValueOnce({
+          body: {
+            associates: [],
+            id: "business-unit-1",
+            status: "Active",
+            version: 4,
+          },
+        });
+        mocks.businessUnitQueryGetExecute
+          .mockResolvedValueOnce({ body: { results: [] } })
+          .mockResolvedValueOnce({ body: { results: [] } });
+        mocks.customerGetExecute
+          .mockResolvedValueOnce({
+            body: {
+              email: "member@example.com",
+              externalId: "auth-member-1",
+              id: "customer-1",
+              version: 5,
+            },
+          })
+          .mockResolvedValueOnce({
+            body: {
+              email: "member@example.com",
+              externalId: "auth-member-1",
+              id: "customer-1",
+              version: 5,
+            },
+          });
+        mocks.customerDeleteExecute
+          .mockRejectedValueOnce({ statusCode: 503 })
+          .mockResolvedValueOnce({ body: { id: "customer-1", version: 5 } });
+
+        const memberships = yield* CommerceCompanyMemberships;
+        const first = yield* memberships
+          .removeMember({
+            businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+            customerId: CommerceCustomerId.make("customer-1"),
+            expectedRevision: CommerceCompanyMembershipRevision.make("3"),
+          })
+          .pipe(Effect.exit);
+        const retried = yield* memberships.reconcileCustomerDisposition(
+          CommerceCustomerId.make("customer-1")
+        );
+
+        expect(Exit.isFailure(first)).toBeTruthy();
+        expect(retried.customerDisposition).toBe("deleted");
+        expect(mocks.businessUnitPost).toHaveBeenCalledOnce();
+        expect(mocks.customerDelete).toHaveBeenCalledTimes(2);
+      }).pipe(Effect.provide(layerCommercetoolsCompanyMemberships))
+  );
+
+  it.effect(
+    "retains the Customer while another Business Unit membership exists",
+    () =>
+      Effect.gen(function* () {
+        mocks.businessUnitPostExecute.mockResolvedValueOnce({
+          body: {
+            associates: [],
+            id: "business-unit-1",
+            status: "Active",
+            version: 4,
+          },
+        });
+        mocks.businessUnitQueryGetExecute.mockResolvedValueOnce({
+          body: {
+            results: [
+              {
+                associates: [
+                  {
+                    associateRoleAssignments: [
+                      {
+                        associateRole: {
+                          key: "buyer",
+                          typeId: "associate-role",
+                        },
+                        inheritance: "Enabled",
+                      },
+                    ],
+                    customer: { id: "customer-1", typeId: "customer" },
+                  },
+                ],
+                id: "business-unit-2",
+                status: "Active",
+                version: 1,
+              },
+            ],
+          },
+        });
+
+        const memberships = yield* CommerceCompanyMemberships;
+        const removal = yield* memberships.removeMember({
+          businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+          customerId: CommerceCustomerId.make("customer-1"),
+          expectedRevision: CommerceCompanyMembershipRevision.make("3"),
+        });
+
+        expect(removal).toMatchObject({
+          customerDisposition: "retained",
+          remainingMembership: {
+            businessUnitId: "business-unit-2",
+            roles: ["buyer"],
+          },
+        });
+        expect(mocks.customerGet).not.toHaveBeenCalled();
+        expect(mocks.customerDelete).not.toHaveBeenCalled();
+      }).pipe(Effect.provide(layerCommercetoolsCompanyMemberships))
+  );
+
+  it.effect(
+    "returns membership change instead of retrying a stale removal",
+    () =>
+      Effect.gen(function* () {
+        mocks.businessUnitPostExecute.mockRejectedValueOnce({
+          body: {
+            errors: [{ code: "ConcurrentModification", currentVersion: 4 }],
+          },
+          statusCode: 409,
+        });
+
+        const memberships = yield* CommerceCompanyMemberships;
+        const failure = yield* memberships
+          .removeMember({
+            businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+            customerId: CommerceCustomerId.make("customer-1"),
+            expectedRevision: CommerceCompanyMembershipRevision.make("3"),
+          })
+          .pipe(Effect.flip);
+
+        expect(failure._tag).toBe("CommerceCompanyMembershipChanged");
+        expect(mocks.businessUnitPost).toHaveBeenCalledOnce();
+        expect(mocks.businessUnitGet).not.toHaveBeenCalled();
+      }).pipe(Effect.provide(layerCommercetoolsCompanyMemberships))
+  );
+
+  it.effect("queries lowercaseEmail when checking an existing customer", () =>
+    Effect.gen(function* () {
+      mocks.customerQueryGetExecute.mockResolvedValueOnce({
+        body: { results: [{ id: "customer-1" }] },
+      });
+
+      const commerceAccounts = yield* CommerceAccounts;
+      const exists = yield* commerceAccounts.hasCustomerWithEmail(
+        Redacted.make("Member@Example.com", { label: "email" })
+      );
+
+      expect(exists).toBeTruthy();
+      expect(mocks.customerQueryGet).toHaveBeenCalledWith({
+        queryArgs: {
+          limit: 1,
+          "var.email": "member@example.com",
+          where: "lowercaseEmail = :email",
+        },
+      });
+    }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect(
+    "reports a typed conflict when another customer wins the email claim",
+    () =>
+      Effect.gen(function* () {
+        mocks.customerWithKeyGetExecute.mockRejectedValue({ statusCode: 404 });
+        mocks.customerQueryGetExecute
+          .mockResolvedValueOnce({ body: { results: [] } })
+          .mockResolvedValueOnce({ body: { results: [] } })
+          .mockResolvedValueOnce({ body: { results: [] } })
+          .mockResolvedValueOnce({
+            body: {
+              results: [
+                {
+                  email: "ADA@EXAMPLE.COM",
+                  externalId: "another-auth-user",
+                  id: "customer-other",
+                  key: "another-customer",
+                },
+              ],
+            },
+          });
+        mocks.customerCreateExecute.mockRejectedValueOnce({
+          body: {
+            errors: [
+              {
+                code: "DuplicateField",
+                duplicateValue: "ada@example.com",
+                field: "email",
+              },
+            ],
+          },
+          statusCode: 400,
+        });
+
+        const commerceAccounts = yield* CommerceAccounts;
+        const failure = yield* commerceAccounts
+          .addAssociate({
+            acceptedIdentity,
+            businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+            roles: ["buyer"],
+          })
+          .pipe(Effect.flip);
+
+        expect(failure).toBeInstanceOf(CommerceCustomerEmailConflict);
+      }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
+  );
+
+  it.effect("maps initial company roles to Commercetools admin and buyer", () =>
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
         body: {
@@ -659,7 +1570,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       const commerceAccounts = yield* CommerceAccounts;
       yield* commerceAccounts.linkRegistrantIdentity({
         acceptedIdentity,
-        registration,
+        commerceAccount: registration.commerceAccount,
       });
 
       expect(mocks.customerPost).toHaveBeenCalledWith({
@@ -771,7 +1682,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         const commerceAccounts = yield* CommerceAccounts;
         yield* commerceAccounts.linkRegistrantIdentity({
           acceptedIdentity,
-          registration,
+          commerceAccount: registration.commerceAccount,
         });
 
         expect(mocks.customerPost).toHaveBeenCalledOnce();
@@ -842,7 +1753,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       const commerceAccounts = yield* CommerceAccounts;
       yield* commerceAccounts.linkRegistrantIdentity({
         acceptedIdentity,
-        registration,
+        commerceAccount: registration.commerceAccount,
       });
 
       expect(mocks.businessUnitPost).toHaveBeenCalledOnce();
@@ -850,7 +1761,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
     }).pipe(Effect.provide(layerCommercetoolsCommerceAccounts))
   );
 
-  it.effect("adds the buyer role to an existing admin owner", () =>
+  it.effect("adds the buyer role without removing existing roles", () =>
     Effect.gen(function* () {
       mocks.customerGetExecute.mockResolvedValueOnce({
         body: {
@@ -870,6 +1781,13 @@ describe("layerCommercetoolsCommerceAccounts", () => {
                 {
                   associateRole: {
                     key: "admin",
+                    typeId: "associate-role",
+                  },
+                  inheritance: "Enabled",
+                },
+                {
+                  associateRole: {
+                    key: "approver",
                     typeId: "associate-role",
                   },
                   inheritance: "Enabled",
@@ -894,7 +1812,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       const commerceAccounts = yield* CommerceAccounts;
       yield* commerceAccounts.linkRegistrantIdentity({
         acceptedIdentity,
-        registration,
+        commerceAccount: registration.commerceAccount,
       });
 
       expect(mocks.businessUnitPost).toHaveBeenCalledWith({
@@ -907,6 +1825,13 @@ describe("layerCommercetoolsCommerceAccounts", () => {
                   {
                     associateRole: {
                       key: "admin",
+                      typeId: "associate-role",
+                    },
+                    inheritance: "Enabled",
+                  },
+                  {
+                    associateRole: {
+                      key: "approver",
                       typeId: "associate-role",
                     },
                     inheritance: "Enabled",
@@ -975,7 +1900,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
         const commerceAccounts = yield* CommerceAccounts;
         yield* commerceAccounts.linkRegistrantIdentity({
           acceptedIdentity,
-          registration,
+          commerceAccount: registration.commerceAccount,
         });
 
         expect(mocks.customerPost).not.toHaveBeenCalled();
@@ -1020,7 +1945,7 @@ describe("layerCommercetoolsCommerceAccounts", () => {
       const exit = yield* commerceAccounts
         .linkRegistrantIdentity({
           acceptedIdentity,
-          registration,
+          commerceAccount: registration.commerceAccount,
         })
         .pipe(Effect.exit);
 

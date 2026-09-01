@@ -1,6 +1,6 @@
 /* oxlint-disable max-classes-per-file, unicorn/throw-new-error -- Effect Schema classes keep the provisioning wire model and its typed errors together. */
 
-import { PrivateDotEnvFileReceipt } from "@repo/cli-core/private-dotenv";
+import { RuntimeEnvironmentPublicationReceipt } from "@repo/cli-core/runtime-environment";
 import { Schema } from "effect";
 
 const NonNegativeInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
@@ -49,7 +49,7 @@ export class ProvisioningReceipt extends Schema.Class<ProvisioningReceipt>(
   "ProvisioningReceipt"
 )({
   bootstrapClientRevoked: Schema.Boolean,
-  credentialFile: PrivateDotEnvFileReceipt,
+  credentials: RuntimeEnvironmentPublicationReceipt,
   project: PreparedProject,
   runtimeClientId: ApiClientId,
   scope: Schema.NonEmptyString,

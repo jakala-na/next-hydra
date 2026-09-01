@@ -14,20 +14,10 @@
           "id": "next-hydra/cms/drupal",
           "kind": "provider",
           "slot": "cms",
-          "packages": [
-            {
-              "cwd": "apps/cli",
-              "section": "dependencies",
-              "name": "@repo/cms",
-              "specifier": "workspace:@repo/cms-drupal@*"
-            },
-            {
-              "cwd": "apps/web",
-              "section": "dependencies",
-              "name": "@repo/cms",
-              "specifier": "workspace:@repo/cms-drupal@*"
-            }
-          ],
+          "binding": {
+            "specifier": "workspace:@repo/cms-drupal@*",
+            "sourcePath": "packages/cms-drupal"
+          },
           "assets": [
             {
               "source": "patches/@drupal-canvas__headless-next.patch",

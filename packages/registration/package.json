@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/registration/tsconfig.json"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "@repo/e2e-testing": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
@@ -21,6 +22,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@repo/actions": "workspace:*",
+    "@repo/auth-contract": "workspace:*",
     "@repo/commerce": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/email": "workspace:*",

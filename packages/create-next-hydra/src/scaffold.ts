@@ -21,6 +21,7 @@ import type {
   SourceRegistryCatalog,
   WorkspaceSelection,
 } from "./composition/types.js";
+import { applyTypeScriptPathAliases } from "./composition/typescript-paths.js";
 import {
   applyPackageRequirements,
   applyPnpmPatches,
@@ -293,6 +294,7 @@ export async function scaffoldProject(
     "remove variable provider source",
     "install selected source",
     "update package aliases",
+    "update TypeScript paths",
     "update pnpm patches",
     "remove maintainer-only files",
     "install dependencies",
@@ -364,6 +366,9 @@ export async function scaffoldProject(
 
     await runStep("update package aliases", async () => {
       await applyPackageRequirements(targetPath, plan);
+    });
+    await runStep("update TypeScript paths", async () => {
+      await applyTypeScriptPathAliases(targetPath, plan);
     });
     await runStep("update pnpm patches", async () => {
       await applyPnpmPatches(targetPath, plan);

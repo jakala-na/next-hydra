@@ -1,9 +1,14 @@
 import {
   acceptRegistrationInvitation,
   approveRegistration,
+  expireRegistrationInvitation,
+  InvitationDeliveries,
+  InvitationExpired,
   notifyRegistrationApproved,
   notifyRegistrationAwaitingApproval,
+  notifyRegistrationInvitationExpired,
   notifyRegistrationRejected,
+  recordRegistrationInvitationRevoked,
   RegistrationInvitationEvent,
   RegistrationId,
   RegistrationReviewWorkflowDecision,
@@ -20,7 +25,7 @@ import { toRegistrationDetailResponse } from "@repo/registration/http/registrati
 import type { RegistrationDetailResponse } from "@repo/registration/http/registration-api";
 import { registrationReviewerActorFromWorkflow } from "@repo/registration/programs/registration-review";
 import { Effect, Redacted, Schema } from "effect";
-import { defineHook } from "workflow";
+import { defineHook, sleep } from "workflow";
 
 import { registrationLayer } from "@/lib/registration/runtime";
 
@@ -242,6 +247,83 @@ async function notifyApprovedStep(input: RegistrationWorkflowInput) {
   );
 }
 
+async function readInvitationDeliveryStep(
+  input: RegistrationWorkflowInput,
+  invitationId: string
+) {
+  "use step";
+
+  const invitation = await runWorkflowStep(
+    InvitationDeliveries.pipe(
+      Effect.flatMap((deliveries) =>
+        deliveries.get(InvitationId.make(invitationId))
+      )
+    ),
+    input,
+    "read-invitation-delivery",
+    { invitationId }
+  );
+
+  return {
+    expiresAt: invitation.expiresAt.toISOString(),
+    status: invitation.status,
+  };
+}
+
+async function notifyInvitationExpiredStep(
+  input: RegistrationWorkflowInput,
+  invitationId: string
+) {
+  "use step";
+
+  await runWorkflowStep(
+    notifyRegistrationInvitationExpired({
+      registrationId: RegistrationId.make(input.registrationId),
+    }),
+    input,
+    "notify-invitation-expired",
+    { invitationId }
+  );
+}
+
+async function expireInvitationStep(
+  input: RegistrationWorkflowInput,
+  invitationId: string
+) {
+  "use step";
+
+  await runWorkflowStep(
+    expireRegistrationInvitation({
+      invitationId: InvitationId.make(invitationId),
+      registrationId: RegistrationId.make(input.registrationId),
+    }),
+    input,
+    "expire-invitation",
+    { invitationId }
+  );
+}
+
+async function recordInvitationRevokedStep(
+  input: RegistrationWorkflowInput,
+  invitationId: string
+) {
+  "use step";
+
+  const registration = await runWorkflowStep(
+    recordRegistrationInvitationRevoked({
+      invitationId: InvitationId.make(invitationId),
+      registrationId: RegistrationId.make(input.registrationId),
+    }),
+    input,
+    "record-invitation-revoked",
+    { invitationId }
+  );
+
+  return toPlainRegistrationDetailResponse(
+    toRegistrationDetailResponse(registration)
+  );
+}
+
 async function acceptInvitationStep(
   input: RegistrationWorkflowInput,
   invitationId: string,
@@ -317,20 +399,87 @@ export async function registerCompanyWorkflow(
     await notifyApprovedStep(input);
     const { invitationId } = registration;
     if (!invitationId) {
-      throw new Error("Approved registration is missing an invitation id");
+      return registration;
     }
 
-    const invitationEvent =
-      await createRegistrationInvitationHook(invitationId);
+    const invitationHook = createRegistrationInvitationHook(invitationId);
 
-    if (invitationEvent.event === "accepted") {
-      return await acceptInvitationStep(input, invitationId, invitationEvent, {
-        firstName: registration.contactFirstName,
-        lastName: registration.contactLastName,
+    try {
+      const initialDelivery = await readInvitationDeliveryStep(
+        input,
+        invitationId
+      );
+
+      if (initialDelivery.status === "accepted") {
+        const event = await invitationHook;
+        if (event.event === "accepted") {
+          return await acceptInvitationStep(input, invitationId, event, {
+            firstName: registration.contactFirstName,
+            lastName: registration.contactLastName,
+          });
+        }
+
+        return registration;
+      }
+
+      if (initialDelivery.status === "revoked") {
+        return await recordInvitationRevokedStep(input, invitationId);
+      }
+
+      const outcome = await Promise.race([
+        invitationHook.then((event) => ({ event, outcome: "event" as const })),
+        sleep(new Date(initialDelivery.expiresAt)).then(() => ({
+          outcome: "deadline" as const,
+        })),
+      ]);
+
+      if (outcome.outcome === "event") {
+        if (outcome.event.event === "accepted") {
+          return await acceptInvitationStep(
+            input,
+            invitationId,
+            outcome.event,
+            {
+              firstName: registration.contactFirstName,
+              lastName: registration.contactLastName,
+            }
+          );
+        }
+
+        return await recordInvitationRevokedStep(input, invitationId);
+      }
+
+      const currentDelivery = await readInvitationDeliveryStep(
+        input,
+        invitationId
+      );
+
+      if (currentDelivery.status === "accepted") {
+        const event = await invitationHook;
+        if (event.event === "accepted") {
+          return await acceptInvitationStep(input, invitationId, event, {
+            firstName: registration.contactFirstName,
+            lastName: registration.contactLastName,
+          });
+        }
+
+        return registration;
+      }
+
+      if (currentDelivery.status === "revoked") {
+        return await recordInvitationRevokedStep(input, invitationId);
+      }
+
+      await expireInvitationStep(input, invitationId);
+      await notifyInvitationExpiredStep(input, invitationId);
+      throw new InvitationExpired({
+        expiredAt: new Date(initialDelivery.expiresAt),
+        invitationId: InvitationId.make(invitationId),
+        message: `Registration invitation ${invitationId} expired before acceptance`,
       });
+    } finally {
+      invitationHook.dispose();
     }
-
-    return registration;
   }
 
   const registration = await rejectRegistrationStep(input, decision);

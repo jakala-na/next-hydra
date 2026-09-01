@@ -53,9 +53,51 @@ describe("workspace CLI program", () => {
     ]);
 
     expect(Exit.isSuccess(result.exit)).toBeTruthy();
-    expect(result.stdout).toContain("cms");
-    expect(result.stdout).toContain("commerce");
-    expect(result.stdout).toContain("Commercetools administration commands");
+    expect(
+      [
+        "cms",
+        "commerce",
+        "auth        Customer authentication administration commands",
+        "Commercetools administration commands",
+      ].every((value) => result.stdout.includes(value))
+    ).toBeTruthy();
+    expect(loadConfigProvider).not.toHaveBeenCalled();
+  });
+
+  it("lists auth provisioning without loading customer credentials", async () => {
+    const loadConfigProvider = makeConfigProviderLoader();
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "auth",
+      "--help",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain("provision");
+    expect(result.stdout).toContain("customer identity provider webhook");
+    expect(loadConfigProvider).not.toHaveBeenCalled();
+  });
+
+  it("documents auth provision inputs without loading customer credentials", async () => {
+    const loadConfigProvider = makeConfigProviderLoader();
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "auth",
+      "provision",
+      "--help",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(
+      [
+        "--api-url",
+        "--environment",
+        "--output",
+        "--overwrite",
+        "--store",
+        "--yes",
+      ].every((flag) => result.stdout.includes(flag))
+    ).toBeTruthy();
     expect(loadConfigProvider).not.toHaveBeenCalled();
   });
 
@@ -107,7 +149,7 @@ describe("workspace CLI program", () => {
     expect(loadConfigProvider).not.toHaveBeenCalled();
   });
 
-  it("documents the explicit credential output without resolving config", async () => {
+  it("documents local and Vercel config stores without resolving config", async () => {
     const loadConfigProvider = makeConfigProviderLoader();
 
     const result = await runProgram(createProgram(loadConfigProvider), [
@@ -118,8 +160,12 @@ describe("workspace CLI program", () => {
     ]);
 
     expect(Exit.isSuccess(result.exit)).toBeTruthy();
-    expect(result.stdout).toContain("--output");
-    expect(result.stdout).toContain("runtime credentials");
+    expect(
+      ["--output", "--overwrite", "--store", "--environment"].every((flag) =>
+        result.stdout.includes(flag)
+      )
+    ).toBeTruthy();
+    expect(result.stdout).toContain("runtime configuration");
     expect(loadConfigProvider).not.toHaveBeenCalled();
   });
 

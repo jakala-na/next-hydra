@@ -1,6 +1,7 @@
 {
   "web": {
     "header": {
+      "account": "Área de cliente",
       "signUp": "Inscrever-se",
       "signIn": "Iniciar sessão",
       "signOut": "Terminar sessão",
@@ -194,6 +195,102 @@
           "title": "O registo da sua empresa continua em análise.",
           "description": "Enviaremos os próximos passos por e-mail assim que a sua empresa for aprovada."
         }
+      }
+    },
+    "customerArea": {
+      "title": "Área de cliente",
+      "description": "Gira a conta da empresa e as pessoas autorizadas a comprar em seu nome.",
+      "navigation": {
+        "accountManagement": "Gestão da conta",
+        "orders": "Encomendas",
+        "addresses": "Moradas",
+        "comingSoon": "Em breve"
+      },
+      "users": {
+        "adminOnly": {
+          "title": "Acesso de administrador necessário",
+          "description": "Apenas um administrador da empresa pode convidar utilizadores."
+        },
+        "invite": {
+          "title": "Adicionar utilizador",
+          "description": "Convide alguém e escolha o que pode fazer pela sua empresa.",
+          "firstNameLabel": "Nome",
+          "firstNamePlaceholder": "Ada",
+          "lastNameLabel": "Apelido",
+          "lastNamePlaceholder": "Lovelace",
+          "emailLabel": "Endereço de e-mail",
+          "emailPlaceholder": "nome@empresa.pt",
+          "rolesLabel": "Funções da empresa",
+          "rolesDescription": "Selecione uma ou mais funções. As permissões são combinadas.",
+          "roles": {
+            "admin": {
+              "label": "Administrador",
+              "description": "Gerir utilizadores e acessos."
+            },
+            "buyer": {
+              "label": "Comprador",
+              "description": "Efetuar encomendas para a empresa."
+            },
+            "approver": {
+              "label": "Aprovador",
+              "description": "Rever e aprovar encomendas."
+            }
+          },
+          "send": "Enviar convite",
+          "sending": "A enviar...",
+          "successTitle": "Convite enviado",
+          "successDescription": "Foi enviado um convite para {email}.",
+          "memberAddedTitle": "Utilizador adicionado",
+          "memberAddedDescription": "{email} já tinha uma conta e foi adicionado à sua empresa.",
+          "failureTitle": "Convite não enviado"
+        },
+        "management": {
+          "title": "Utilizadores da empresa",
+          "description": "Gerir utilizadores ativos e convites pendentes.",
+          "empty": "Ainda não existem utilizadores ou convites.",
+          "person": "Utilizador",
+          "roles": "Funções",
+          "status": "Estado",
+          "expiry": "Expira",
+          "actions": "Ações",
+          "cancel": "Cancelar convite",
+          "reissue": "Enviar novamente",
+          "remove": "Remover",
+          "currentUser": "Você",
+          "inheritedMembership": "Gerido pela empresa-mãe",
+          "noAction": "A provisionar",
+          "statuses": {
+            "active": "Ativo",
+            "pending": "Pendente",
+            "accepted": "Aceite",
+            "expired": "Expirado",
+            "revoked": "Cancelado"
+          }
+        }
+      },
+      "errors": {
+        "InputInvalid": "Introduza um endereço de e-mail válido.",
+        "InputInvalidName": "Introduza o nome e o apelido da pessoa.",
+        "InputInvalidRoles": "Selecione pelo menos uma função da empresa.",
+        "InvitationPolicyError": "Apenas um administrador pode convidar utilizadores.",
+        "InvitationConflict": "Este utilizador não pode ser convidado.",
+        "CommerceCustomerEmailConflict": "Este e-mail pertence a outro cliente de comércio.",
+        "CustomerAccountIdentityLookupFailure": "O diretório de identidades está temporariamente indisponível. Tente novamente.",
+        "InvitationProviderFailure": "Não foi possível concluir a operação do convite. Tente novamente.",
+        "IdentityMembershipProjectionFailure": "Não foi possível sincronizar a associação à empresa. Tente novamente.",
+        "InvitationIssueOutcomeUnknown": "O convite pode ter sido enviado, mas não foi possível confirmar o resultado. Não o envie novamente.",
+        "CustomerAccountProfileIncomplete": "O seu perfil precisa de um endereço de e-mail.",
+        "CommerceRequestContextNotFound": "A conta da empresa atual não está disponível.",
+        "CommerceAccountUnavailable": "A conta da empresa está temporariamente indisponível.",
+        "CommerceCustomerProfileNotFound": "O seu perfil de cliente não foi encontrado.",
+        "CompanyMemberInvitationNotFound": "Este convite não foi encontrado. Atualize a lista de membros.",
+        "CompanyMemberInvitationPersistenceFailure": "Os convites da empresa estão temporariamente indisponíveis. Tente novamente.",
+        "CompanyMemberInvitationRecordConflict": "Este convite foi alterado durante a operação. Atualize a lista de membros.",
+        "InvitationExpired": "Este convite expirou. Atualize a lista de membros para o voltar a emitir.",
+        "InvitationNotFound": "O fornecedor de identidade já não tem este convite. Atualize a lista de membros.",
+        "CompanyMemberRemovalConflict": "Este membro não pode ser removido no estado atual da empresa. Atualize e tente novamente.",
+        "CompanyMemberManagementForbidden": "Apenas um administrador da empresa pode gerir membros.",
+        "CompanyMemberRemovalPersistenceFailure": "Não foi possível guardar a remoção do membro da empresa. Tente novamente."
       }
     },
     "checkout": {

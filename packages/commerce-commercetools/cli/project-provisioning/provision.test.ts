@@ -1,13 +1,16 @@
 import { describe, expect, it } from "@effect/vitest";
 import {
-  PrivateDotEnvFileError,
-  PrivateDotEnvFileReceipt,
-} from "@repo/cli-core/private-dotenv";
+  LocalRuntimeEnvironmentPublicationReceipt,
+  RuntimeEnvironmentPreflightError,
+  RuntimeEnvironmentPublicationError,
+  RuntimeEnvironmentPublicationIncomplete,
+  RuntimeEnvironmentPublicationOutcomeUnknown,
+  RuntimeEnvironmentPublisher,
+} from "@repo/cli-core/runtime-environment";
 import { Effect, Exit, Layer, Redacted } from "effect";
 
 import { CommercetoolsProjectAdministration } from "./administration";
 import { BootstrapCommercetoolsConfig } from "./bootstrap-config";
-import { RuntimeCredentialHandoff } from "./credential-handoff";
 import {
   ApiClientId,
   BootstrapApiClientScopeError,
@@ -40,7 +43,8 @@ const preparedProject = new PreparedProject({
 const seedReceipt = new ProjectSeedReceipt({
   migrationsApplied: 2,
 });
-const credentialFileReceipt = new PrivateDotEnvFileReceipt({
+const credentialReceipt = new LocalRuntimeEnvironmentPublicationReceipt({
+  destination: "local",
   mode: 0o600,
   path: "/tmp/runtime.env",
 });
@@ -67,6 +71,9 @@ const layersFor = (options: {
   readonly bootstrapScopes?: readonly string[];
   readonly events: string[];
   readonly handoffFailure?: boolean;
+  readonly handoffIncomplete?: boolean;
+  readonly handoffOutcomeUnknown?: boolean;
+  readonly preflightFailure?: boolean;
   readonly revokeFailure?: boolean;
   readonly setupFailure?: boolean;
 }) =>
@@ -113,31 +120,99 @@ const layersFor = (options: {
             : Effect.succeed(seedReceipt);
         }),
     }),
-    RuntimeCredentialHandoff.layerFrom({
-      save: () =>
+    RuntimeEnvironmentPublisher.layerFrom({
+      prepare: ({ manifest }) =>
         Effect.suspend(() => {
-          options.events.push("save");
-          return options.handoffFailure
+          options.events.push("preflight");
+          expect(
+            manifest.every(
+              ({ applications }) =>
+                applications.includes("web") && applications.includes("api")
+            )
+          ).toBeTruthy();
+          return options.preflightFailure
             ? Effect.fail(
-                new PrivateDotEnvFileError({
-                  cause: new Error("handoff failed"),
-                  message: "handoff failed",
-                  operation: "publish",
-                  path: "/tmp/runtime.env",
+                new RuntimeEnvironmentPreflightError({
+                  cause: new Error("preflight failed"),
+                  destination: "local",
+                  message: "preflight failed",
+                  operation: "validation",
                 })
               )
-            : Effect.succeed(credentialFileReceipt);
+            : Effect.succeed({
+                destination: "local" as const,
+                manifest,
+                path: "/tmp/runtime.env",
+              });
         }),
+      publish: () =>
+        Effect.suspend(
+          (): Effect.Effect<
+            LocalRuntimeEnvironmentPublicationReceipt,
+            | RuntimeEnvironmentPublicationError
+            | RuntimeEnvironmentPublicationIncomplete
+            | RuntimeEnvironmentPublicationOutcomeUnknown
+          > => {
+            options.events.push("save");
+            if (options.handoffOutcomeUnknown) {
+              return Effect.fail(
+                new RuntimeEnvironmentPublicationOutcomeUnknown({
+                  cause: new Error("handoff outcome unknown"),
+                  destination: "vercel",
+                  message: "handoff outcome unknown",
+                })
+              );
+            }
+            if (options.handoffIncomplete) {
+              return Effect.fail(
+                new RuntimeEnvironmentPublicationIncomplete({
+                  cause: new Error("handoff incomplete"),
+                  destination: "vercel",
+                  failedApplication: "api",
+                  message: "handoff incomplete",
+                  publishedApplications: ["web"],
+                })
+              );
+            }
+            return options.handoffFailure
+              ? Effect.fail(
+                  new RuntimeEnvironmentPublicationError({
+                    cause: new Error("handoff failed"),
+                    destination: "local",
+                    message: "handoff failed",
+                  })
+                )
+              : Effect.succeed(credentialReceipt);
+          }
+        ),
     })
   );
 
 const runProvisioning = (layer: ReturnType<typeof layersFor>) =>
   provisionCommerceProject({
     clientName: "test runtime",
-    output: "/tmp/runtime.env",
+    destination: {
+      destination: "local",
+      output: "/tmp/runtime.env",
+      publicationMode: "create",
+      yes: true,
+    },
   }).pipe(Effect.provide(layer));
 
 describe(provisionCommerceProject, () => {
+  it.effect("preflights the destination before mutating the project", () => {
+    const events: string[] = [];
+
+    return Effect.gen(function* () {
+      const exit = yield* runProvisioning(
+        layersFor({ events, preflightFailure: true })
+      ).pipe(Effect.exit);
+
+      expect(Exit.isFailure(exit)).toBeTruthy();
+      expect(events).toStrictEqual(["preflight"]);
+    });
+  });
+
   it.effect(
     "rejects a bootstrap client that cannot manage API clients before changing the project",
     () => {
@@ -169,6 +244,7 @@ describe(provisionCommerceProject, () => {
         const receipt = yield* runProvisioning(layersFor({ events }));
 
         expect(events).toStrictEqual([
+          "preflight",
           "prepare",
           "create:test runtime",
           "setup",
@@ -194,6 +270,7 @@ describe(provisionCommerceProject, () => {
 
       expect(Exit.isFailure(exit)).toBeTruthy();
       expect(events).toStrictEqual([
+        "preflight",
         "prepare",
         "create:test runtime",
         "setup",
@@ -212,6 +289,7 @@ describe(provisionCommerceProject, () => {
 
       expect(Exit.isFailure(exit)).toBeTruthy();
       expect(events).toStrictEqual([
+        "preflight",
         "prepare",
         "create:test runtime",
         "setup",
@@ -220,6 +298,50 @@ describe(provisionCommerceProject, () => {
       ]);
     });
   });
+
+  it.effect(
+    "preserves the runtime client when publication outcome is unknown",
+    () => {
+      const events: string[] = [];
+
+      return Effect.gen(function* () {
+        const exit = yield* runProvisioning(
+          layersFor({ events, handoffOutcomeUnknown: true })
+        ).pipe(Effect.exit);
+
+        expect(Exit.isFailure(exit)).toBeTruthy();
+        expect(events).toStrictEqual([
+          "preflight",
+          "prepare",
+          "create:test runtime",
+          "setup",
+          "save",
+        ]);
+      });
+    }
+  );
+
+  it.effect(
+    "preserves the runtime client when publication is incomplete",
+    () => {
+      const events: string[] = [];
+
+      return Effect.gen(function* () {
+        const exit = yield* runProvisioning(
+          layersFor({ events, handoffIncomplete: true })
+        ).pipe(Effect.exit);
+
+        expect(Exit.isFailure(exit)).toBeTruthy();
+        expect(events).toStrictEqual([
+          "preflight",
+          "prepare",
+          "create:test runtime",
+          "setup",
+          "save",
+        ]);
+      });
+    }
+  );
 
   it.effect(
     "preserves committed runtime credentials when bootstrap revocation fails",
@@ -233,6 +355,7 @@ describe(provisionCommerceProject, () => {
 
         expect(Exit.isFailure(exit)).toBeTruthy();
         expect(events).toStrictEqual([
+          "preflight",
           "prepare",
           "create:test runtime",
           "setup",

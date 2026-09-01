@@ -52,6 +52,7 @@ const contextLayer = (authenticated: boolean) =>
             businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
             businessUnitKey: CommerceBusinessUnitKey.make("business-unit-1"),
             customerId: CommerceCustomerId.make("customer-1"),
+            roles: ["admin", "buyer"],
           })
         : new AnonymousCommercePrincipal({}),
       store,

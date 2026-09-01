@@ -1,4 +1,5 @@
 import "server-only";
+import type { NextServer } from "@repo/actions/next-server";
 /* oxlint-disable promise/prefer-await-to-callbacks, promise/prefer-await-to-then -- Effect combinators use callback APIs to transform Effect values. */
 import type {
   CommerceRequestProvisionError,
@@ -7,6 +8,9 @@ import type {
   CommerceStableServices,
 } from "@repo/commerce/runtime/make-commerce-app";
 import { CommerceAccountUnavailable } from "@repo/commerce/services/commerce-accounts";
+import { CompanyMemberRemovalRecords } from "@repo/commerce/services/company-member-removal-records";
+import { CustomerAccountMembers } from "@repo/commerce/services/customer-account-members";
+import { toError } from "@repo/errors/boundary";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Layer, Schema } from "effect";
 
@@ -26,10 +30,16 @@ export {
 
 type CommerceRuntimeServices =
   | CommerceStableServices
+  | CompanyMemberRemovalRecords
+  | CustomerAccountMembers
   | CurrentAuth
+  | NextServer
   | NextRequestApi;
 
 export type NextCommerceRequestError = CommerceRequestProvisionError;
+
+const toCommerceBoundaryError = (cause: unknown) =>
+  toError(cause, "The Commerce request failed.");
 
 const logCommerceRequestCause = (error: CommerceAccountUnavailable) =>
   Effect.logError(error.message, error.cause ?? error).pipe(
@@ -41,14 +51,33 @@ const logCommerceRequestCause = (error: CommerceAccountUnavailable) =>
 const provide =
   (locale: Locale, options?: NextCommerceRequestOptions) =>
   <A, E>(
-    program: Effect.Effect<A, E, CommerceRequestServices>
+    program: Effect.Effect<
+      A,
+      E,
+      | CommerceRequestServices
+      | CommerceStableServices
+      | CompanyMemberRemovalRecords
+      | CustomerAccountMembers
+    >
   ): Effect.Effect<
     A,
     E | CommerceRequestProvisionError,
     CommerceRuntimeServices
   > =>
-    nextCommerceRequest(locale, options).pipe(
-      Effect.flatMap((request) => program.pipe(CommerceApp.provide(request))),
+    Effect.gen(function* () {
+      const customerAccountMembers = yield* CustomerAccountMembers;
+      const companyMemberRemovalRecords = yield* CompanyMemberRemovalRecords;
+      const request = yield* nextCommerceRequest(locale, options);
+
+      return yield* program.pipe(
+        Effect.provideService(CustomerAccountMembers, customerAccountMembers),
+        Effect.provideService(
+          CompanyMemberRemovalRecords,
+          companyMemberRemovalRecords
+        ),
+        CommerceApp.provide(request)
+      );
+    }).pipe(
       Effect.tapError((error) =>
         Schema.is(CommerceAccountUnavailable)(error)
           ? logCommerceRequestCause(error)
@@ -88,5 +117,13 @@ export const NextCommerce = {
   provide,
   runPromise: async <A, E>(
     program: Effect.Effect<A, E, CommerceRuntimeServices>
-  ) => await AppRuntime.runPromise(program),
+  ) =>
+    await AppRuntime.runPromise(
+      program.pipe(
+        Effect.mapError(toCommerceBoundaryError),
+        Effect.catchDefect((defect) =>
+          Effect.die(toCommerceBoundaryError(defect))
+        )
+      )
+    ),
 };

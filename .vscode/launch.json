@@ -8,40 +8,40 @@
       "command": "pnpm dev"
     },
     {
-      "name": "Next.js: debug client-side (app)",
+      "name": "Next.js: debug client-side (docs)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3000"
+      "url": "https://docs.next-hydra.localhost"
     },
     {
       "name": "Next.js: debug client-side (web)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3001"
+      "url": "https://web.next-hydra.localhost"
     },
     {
       "name": "Next.js: debug client-side (api)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3002"
+      "url": "https://api.next-hydra.localhost"
     },
     {
       "name": "Next.js: debug client-side (email)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3003"
+      "url": "https://email.next-hydra.localhost"
     },
     {
-      "name": "Next.js: debug client-side (app)",
+      "name": "Next.js: debug client-side (storybook)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3004"
+      "url": "https://storybook.next-hydra.localhost"
     },
     {
-      "name": "Next.js: debug client-side (studio)",
+      "name": "Next.js: debug client-side (admin)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:3005"
+      "url": "https://admin.next-hydra.localhost"
     },
     {
       "name": "Next.js: debug full stack",

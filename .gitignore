@@ -42,6 +42,11 @@ Temporary Items
 
 # testing
 /coverage
+**/.features-gen/**/*.spec.js
+**/.features-gen/**/*.spec.js.map
+**/playwright-report/
+**/playwright/.auth/
+**/test-results/
 
 # next.js
 /.next/
@@ -145,6 +150,8 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+/.env.github.secrets
+/.env.github.variables
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

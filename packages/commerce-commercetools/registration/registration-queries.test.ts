@@ -1,17 +1,22 @@
 import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import { describe, expect, it } from "@effect/vitest";
 import { StoreKey } from "@repo/commerce/store";
+import { RegistrationReviewerActor } from "@repo/registration/domain/actors";
+import { ApprovedDecision } from "@repo/registration/domain/approval";
 import {
   AddressLine,
+  AuthUserId,
   City,
   CompanyName,
   CountryCode,
   Email,
+  InvitationId,
   PersonName,
   PostalCode,
   RegistrationId,
 } from "@repo/registration/domain/identity";
 import {
+  ApprovedRegistration,
   AwaitingApprovalRegistration,
   CompanyAddress,
   CompanyRegistrationDetails,
@@ -111,6 +116,38 @@ const makeAwaiting = (id: string, companyName = "Hydra Supplies") =>
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   });
 
+const makeApproved = (
+  registration: AwaitingApprovalRegistration,
+  onboardingStatus: "invited" | "accepted" | "expired" | "revoked"
+) =>
+  new ApprovedRegistration({
+    _tag: "ApprovedRegistration",
+    createdAt: registration.createdAt,
+    decision: new ApprovedDecision({
+      actor: new RegistrationReviewerActor({
+        actorType: "registration_reviewer",
+        authUserId: AuthUserId.make("reviewer-1"),
+        email: registration.details.email,
+        name: "Reviewer",
+      }),
+      decidedAt: new Date("2026-01-02T00:00:00.000Z"),
+      decision: "approved",
+    }),
+    details: registration.details,
+    id: registration.id,
+    invitationId: InvitationId.make(`invitation-${registration.id}`),
+    onboarding:
+      onboardingStatus === "accepted"
+        ? {
+            acceptedAuthUserId: AuthUserId.make("accepted-user-1"),
+            status: onboardingStatus,
+          }
+        : { status: onboardingStatus },
+    status: "approved",
+    storeKey: registration.storeKey,
+    updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+  });
+
 const RegistrationJsonString = Schema.fromJsonString(
   Schema.toCodecJson(Registration)
 );
@@ -136,6 +173,46 @@ describe("registrationQueriesLayer", () => {
     get.mockClear();
     execute.mockReset();
   });
+
+  it.effect("queries an invitation correlation directly", () =>
+    Effect.gen(function* () {
+      const registration = makeApproved(
+        makeAwaiting("registration-by-invitation"),
+        "invited"
+      );
+      execute.mockResolvedValueOnce({
+        body: {
+          results: [
+            yield* customObject(
+              "custom-object-by-invitation",
+              "2026-01-02T00:00:00.000Z",
+              registration
+            ),
+          ],
+        },
+      });
+      const queries = yield* RegistrationQueries;
+      if (registration.invitationId === undefined) {
+        return yield* Effect.die("Expected registration invitation id");
+      }
+
+      const found = yield* queries.findByInvitationId(
+        registration.invitationId
+      );
+
+      expect(found.id).toBe(registration.id);
+      expect(get).toHaveBeenCalledWith({
+        queryArgs: {
+          limit: 1,
+          offset: 0,
+          sort: ["lastModifiedAt desc", "id desc"],
+          where:
+            'value(storeKey is defined) and value(status = "approved") and value(invitationId = "invitation-registration-by-invitation")',
+          withTotal: false,
+        },
+      });
+    }).pipe(Effect.provide(layer))
+  );
 
   it.effect(
     "queries custom objects by lastModifiedAt and id cursor order",
@@ -420,11 +497,11 @@ describe("registrationQueriesLayer", () => {
         }));
         const queries = yield* RegistrationQueries;
 
-        const hasPendingEmail = yield* queries.hasPendingEmail(
+        const hasBlockingEmail = yield* queries.hasBlockingEmail(
           Redacted.make(Email.make("ada@example.com"), { label: "email" })
         );
 
-        expect(hasPendingEmail).toBeTruthy();
+        expect(hasBlockingEmail).toBeTruthy();
         expect(get).toHaveBeenCalledWith({
           queryArgs: {
             limit: 101,
@@ -435,6 +512,98 @@ describe("registrationQueriesLayer", () => {
             withTotal: false,
           },
         });
+      }).pipe(Effect.provide(layer))
+  );
+
+  it.effect("eligibility lookup excludes expired approved invitations", () =>
+    Effect.gen(function* () {
+      const expired = makeApproved(
+        makeAwaiting("expired-registration"),
+        "expired"
+      );
+      const expiredCustomObject = yield* customObject(
+        "expired-custom-object",
+        "2026-01-02T00:00:00.000Z",
+        expired
+      );
+
+      get
+        .mockReturnValueOnce({
+          execute: vi
+            .fn<() => Promise<CustomObjectsResponse>>()
+            .mockResolvedValue({ body: { results: [] } }),
+        })
+        .mockReturnValueOnce({
+          execute: vi
+            .fn<() => Promise<CustomObjectsResponse>>()
+            .mockResolvedValue({ body: { results: [] } }),
+        })
+        .mockReturnValueOnce({
+          execute: vi
+            .fn<() => Promise<CustomObjectsResponse>>()
+            .mockResolvedValue({
+              body: { results: [expiredCustomObject] },
+            }),
+        });
+      const queries = yield* RegistrationQueries;
+
+      const hasBlockingEmail = yield* queries.hasBlockingEmail(
+        Redacted.make(Email.make("ada@example.com"), { label: "email" })
+      );
+
+      expect(hasBlockingEmail).toBeFalsy();
+      expect(get).toHaveBeenCalledWith({
+        queryArgs: {
+          limit: 101,
+          offset: 0,
+          sort: ["lastModifiedAt desc", "id desc"],
+          where: 'value(storeKey is defined) and value(status = "approved")',
+          withTotal: false,
+        },
+      });
+    }).pipe(Effect.provide(layer))
+  );
+
+  it.effect(
+    "eligibility lookup excludes an accepted registration for the same verified identity",
+    () =>
+      Effect.gen(function* () {
+        const accepted = makeApproved(
+          makeAwaiting("accepted-registration"),
+          "accepted"
+        );
+        const acceptedCustomObject = yield* customObject(
+          "accepted-custom-object",
+          "2026-01-02T00:00:00.000Z",
+          accepted
+        );
+
+        get
+          .mockReturnValueOnce({
+            execute: vi
+              .fn<() => Promise<CustomObjectsResponse>>()
+              .mockResolvedValue({ body: { results: [] } }),
+          })
+          .mockReturnValueOnce({
+            execute: vi
+              .fn<() => Promise<CustomObjectsResponse>>()
+              .mockResolvedValue({ body: { results: [] } }),
+          })
+          .mockReturnValueOnce({
+            execute: vi
+              .fn<() => Promise<CustomObjectsResponse>>()
+              .mockResolvedValue({
+                body: { results: [acceptedCustomObject] },
+              }),
+          });
+        const queries = yield* RegistrationQueries;
+
+        const hasBlockingEmail = yield* queries.hasBlockingEmail(
+          Redacted.make(Email.make("ada@example.com"), { label: "email" }),
+          AuthUserId.make("accepted-user-1")
+        );
+
+        expect(hasBlockingEmail).toBeFalsy();
       }).pipe(Effect.provide(layer))
   );
 

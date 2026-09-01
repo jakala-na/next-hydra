@@ -1,0 +1,103 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "name": "auth-contract",
+      "type": "registry:item",
+      "title": "Next Hydra Auth contract",
+      "description": "Installs the provider-neutral authentication domain contract.",
+      "files": [
+        {
+          "path": "access-token.ts",
+          "target": "~/packages/auth-contract/access-token.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "capabilities.ts",
+          "target": "~/packages/auth-contract/capabilities.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli.ts",
+          "target": "~/packages/auth-contract/cli.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@auth/company-login.feature",
+          "target": "~/packages/auth-contract/e2e/@auth/company-login.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/auth-context.test.ts",
+          "target": "~/packages/auth-contract/e2e/auth-context.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/auth-context.ts",
+          "target": "~/packages/auth-contract/e2e/auth-context.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/auth-scenario.ts",
+          "target": "~/packages/auth-contract/e2e/auth-scenario.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/auth-test-control.ts",
+          "target": "~/packages/auth-contract/e2e/auth-test-control.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/auth.steps.ts",
+          "target": "~/packages/auth-contract/e2e/auth.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "identity-memberships.ts",
+          "target": "~/packages/auth-contract/identity-memberships.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "index.ts",
+          "target": "~/packages/auth-contract/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.ts",
+          "target": "~/packages/auth-contract/invitations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/auth-contract/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "provisioning.test.ts",
+          "target": "~/packages/auth-contract/provisioning.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "provisioning.ts",
+          "target": "~/packages/auth-contract/provisioning.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "session.test.ts",
+          "target": "~/packages/auth-contract/session.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "session.ts",
+          "target": "~/packages/auth-contract/session.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/auth-contract/tsconfig.json",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

@@ -13,21 +13,21 @@ import {
   RegistrationFormSuccess,
 } from "@repo/registration";
 import { RegistrationSubmissionPublicError } from "@repo/registration/public-errors";
-import { Effect } from "effect";
+import { Effect, Redacted } from "effect";
 
-import { Actions } from "./actions";
-import type { WebActionContext } from "./actions";
 import type { RegistrationActionContext } from "./registration-procedures";
 import {
   submitRegistrationProgram,
   toRegistrationInputIssues,
 } from "./registration-procedures";
 import { registrationClientLayer } from "./registration-rest-client";
+import { SessionActions } from "./session-actions";
+import type { WebSessionActionContext } from "./session-actions";
 
 const AWAITING_APPROVAL_HREF = "/register/awaiting-approval";
 
 const registrationTranslations = ActionMiddleware.context<
-  WebActionContext,
+  WebSessionActionContext,
   { readonly t: RegistrationFormTranslator }
 >(({ locale }) =>
   Effect.promise(async () => {
@@ -43,8 +43,14 @@ const registrationTranslations = ActionMiddleware.context<
 );
 
 // oxlint-disable-next-line react-hooks/rules-of-hooks -- ActionClient.use composes action middleware; it is not a React Hook.
-const RegistrationActions = Actions.use(registrationTranslations).provide(
-  (_context: RegistrationActionContext) => registrationClientLayer()
+const RegistrationActions = SessionActions.use(
+  registrationTranslations
+).provide((context: RegistrationActionContext & WebSessionActionContext) =>
+  registrationClientLayer(
+    context.session.accessToken === undefined
+      ? undefined
+      : Redacted.value(context.session.accessToken)
+  )
 );
 
 const submitRegistrationProcedure = RegistrationActions.procedure(

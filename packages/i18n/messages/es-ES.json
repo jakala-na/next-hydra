@@ -1,6 +1,7 @@
 {
   "web": {
     "header": {
+      "account": "Área de clientes",
       "signUp": "Registrarse",
       "signIn": "Iniciar sesión",
       "signOut": "Cerrar sesión",
@@ -194,6 +195,102 @@
           "title": "El registro de tu empresa sigue en revisión.",
           "description": "Te enviaremos los siguientes pasos por correo cuando tu empresa haya sido aprobada."
         }
+      }
+    },
+    "customerArea": {
+      "title": "Área de clientes",
+      "description": "Gestiona la cuenta de tu empresa y las personas que pueden comprar en su nombre.",
+      "navigation": {
+        "accountManagement": "Gestión de la cuenta",
+        "orders": "Pedidos",
+        "addresses": "Direcciones",
+        "comingSoon": "Próximamente"
+      },
+      "users": {
+        "adminOnly": {
+          "title": "Se requiere acceso de administrador",
+          "description": "Solo un administrador de la empresa puede invitar usuarios."
+        },
+        "invite": {
+          "title": "Añadir un usuario",
+          "description": "Envía una invitación y elige lo que la persona puede hacer para tu empresa.",
+          "firstNameLabel": "Nombre",
+          "firstNamePlaceholder": "Ada",
+          "lastNameLabel": "Apellidos",
+          "lastNamePlaceholder": "Lovelace",
+          "emailLabel": "Correo electrónico",
+          "emailPlaceholder": "nombre@empresa.com",
+          "rolesLabel": "Roles de empresa",
+          "rolesDescription": "Selecciona uno o más roles. Sus permisos se combinarán.",
+          "roles": {
+            "admin": {
+              "label": "Administrador",
+              "description": "Gestionar usuarios y accesos."
+            },
+            "buyer": {
+              "label": "Comprador",
+              "description": "Realizar pedidos para la empresa."
+            },
+            "approver": {
+              "label": "Aprobador",
+              "description": "Revisar y aprobar pedidos."
+            }
+          },
+          "send": "Enviar invitación",
+          "sending": "Enviando...",
+          "successTitle": "Invitación enviada",
+          "successDescription": "Se envió una invitación a {email}.",
+          "memberAddedTitle": "Usuario añadido",
+          "memberAddedDescription": "{email} ya tenía una cuenta y se añadió a tu empresa.",
+          "failureTitle": "Invitación no enviada"
+        },
+        "management": {
+          "title": "Usuarios de la empresa",
+          "description": "Gestiona usuarios activos e invitaciones pendientes.",
+          "empty": "Todavía no hay usuarios ni invitaciones.",
+          "person": "Usuario",
+          "roles": "Roles",
+          "status": "Estado",
+          "expiry": "Caduca",
+          "actions": "Acciones",
+          "cancel": "Cancelar invitación",
+          "reissue": "Enviar de nuevo",
+          "remove": "Eliminar",
+          "currentUser": "Tú",
+          "inheritedMembership": "Gestionado por la empresa matriz",
+          "noAction": "Aprovisionando",
+          "statuses": {
+            "active": "Activo",
+            "pending": "Pendiente",
+            "accepted": "Aceptada",
+            "expired": "Caducada",
+            "revoked": "Cancelada"
+          }
+        }
+      },
+      "errors": {
+        "InputInvalid": "Introduce un correo electrónico válido.",
+        "InputInvalidName": "Introduce el nombre y los apellidos de la persona.",
+        "InputInvalidRoles": "Selecciona al menos un rol de empresa.",
+        "InvitationPolicyError": "Solo un administrador de la empresa puede invitar usuarios.",
+        "InvitationConflict": "No se puede invitar a este usuario.",
+        "CommerceCustomerEmailConflict": "Ese correo pertenece a otro cliente de comercio.",
+        "CustomerAccountIdentityLookupFailure": "El directorio de identidades no está disponible temporalmente. Inténtalo de nuevo.",
+        "InvitationProviderFailure": "No se pudo completar la operación de invitación. Inténtalo de nuevo.",
+        "IdentityMembershipProjectionFailure": "No se pudo sincronizar la membresía de la empresa. Inténtalo de nuevo.",
+        "InvitationIssueOutcomeUnknown": "Es posible que se haya enviado la invitación, pero no se pudo confirmar el resultado. No vuelvas a enviarla.",
+        "CustomerAccountProfileIncomplete": "Tu perfil necesita un correo electrónico.",
+        "CommerceRequestContextNotFound": "La cuenta de empresa actual no está disponible.",
+        "CommerceAccountUnavailable": "La cuenta de empresa no está disponible temporalmente.",
+        "CommerceCustomerProfileNotFound": "No se encontró tu perfil de cliente.",
+        "CompanyMemberInvitationNotFound": "No se encontró esta invitación. Actualiza la lista de miembros.",
+        "CompanyMemberInvitationPersistenceFailure": "Las invitaciones de la empresa no están disponibles temporalmente. Inténtalo de nuevo.",
+        "CompanyMemberInvitationRecordConflict": "Esta invitación cambió mientras trabajabas. Actualiza la lista de miembros.",
+        "InvitationExpired": "Esta invitación ha caducado. Actualiza la lista de miembros para volver a emitirla.",
+        "InvitationNotFound": "El proveedor de identidad ya no tiene esta invitación. Actualiza la lista de miembros.",
+        "CompanyMemberRemovalConflict": "Este miembro no se puede eliminar en el estado actual de la empresa. Actualiza e inténtalo de nuevo.",
+        "CompanyMemberManagementForbidden": "Solo un administrador de la empresa puede gestionar miembros.",
+        "CompanyMemberRemovalPersistenceFailure": "No se pudo guardar la eliminación del miembro de la empresa. Inténtalo de nuevo."
       }
     },
     "checkout": {

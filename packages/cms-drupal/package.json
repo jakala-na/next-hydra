@@ -35,7 +35,7 @@
     "canvas:workbench": "canvas-workbench --config scripts/canvas-workbench.config.mjs",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "generate": "node --use-system-ca scripts/gql-sync.ts",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/cms-drupal/tsconfig.json"
   },
   "dependencies": {

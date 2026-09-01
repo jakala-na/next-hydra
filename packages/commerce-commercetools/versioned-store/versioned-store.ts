@@ -17,6 +17,7 @@ import {
 } from "../client/versioned-write";
 
 const NOT_FOUND_STATUS_CODE = 404;
+const CUSTOM_OBJECT_PAGE_SIZE = 500;
 
 const CommercetoolsStatusCodeError = Schema.Struct({
   statusCode: Schema.Number,
@@ -206,18 +207,32 @@ const queryCustomObjects = (
   commercetoolsRequest(
     "Failed to query Commercetools custom objects",
     async () => {
-      const response = await apiRoot
-        .customObjects()
-        .withContainer({ container })
-        .get({
-          queryArgs: {
-            limit: 500,
-            withTotal: false,
-          },
-        })
-        .execute();
+      const results = [];
+      let offset = 0;
 
-      return response.body;
+      while (true) {
+        // oxlint-disable-next-line no-await-in-loop -- Each stable page offset depends on the preceding response length.
+        const response = await apiRoot
+          .customObjects()
+          .withContainer({ container })
+          .get({
+            queryArgs: {
+              limit: CUSTOM_OBJECT_PAGE_SIZE,
+              offset,
+              sort: "key asc",
+              withTotal: false,
+            },
+          })
+          .execute();
+
+        results.push(...response.body.results);
+
+        if (response.body.results.length < CUSTOM_OBJECT_PAGE_SIZE) {
+          return results;
+        }
+
+        offset += response.body.results.length;
+      }
     }
   ).pipe(
     Effect.mapError((error) =>
@@ -358,9 +373,9 @@ const versionedKeyValueStoreImplementationLayer = ({
       const values = Effect.fn("CommercetoolsCustomObjectKeyValueStore.values")(
         <S extends Schema.Top>(schema: S) =>
           queryCustomObjects(apiRoot, container).pipe(
-            Effect.flatMap((response) =>
+            Effect.flatMap((storedObjects) =>
               Effect.forEach(
-                response.results,
+                storedObjects,
                 (stored) =>
                   decodeJsonValue(container, schema, stored.value).pipe(
                     Effect.map((value) => ({

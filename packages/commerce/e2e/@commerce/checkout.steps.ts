@@ -1,0 +1,304 @@
+import type { AuthContext } from "@repo/auth-contract/e2e/auth-context";
+import { Given, Then, When } from "@repo/e2e-testing";
+import type { DataTable } from "@repo/e2e-testing";
+
+import { CartDriver } from "../drivers/cart.driver";
+import { CatalogDriver } from "../drivers/catalog.driver";
+import { CheckoutDriver } from "../drivers/checkout.driver";
+
+const keyValueTable = (
+  dataTable: DataTable,
+  expectedHeaders: readonly [string, string]
+): ReadonlyMap<string, string> => {
+  const [headers, ...rows] = dataTable.raw();
+  if (
+    headers?.length !== 2 ||
+    headers[0] !== expectedHeaders[0] ||
+    headers[1] !== expectedHeaders[1]
+  ) {
+    throw new Error(
+      `Expected table headers "${expectedHeaders[0]}" and "${expectedHeaders[1]}"`
+    );
+  }
+
+  const entries = rows.map((row) => {
+    const [key, value, ...unexpectedValues] = row;
+    if (
+      key === undefined ||
+      value === undefined ||
+      unexpectedValues.length > 0
+    ) {
+      throw new Error("Each table row must contain exactly two values");
+    }
+    return [key, value] as const;
+  });
+  const values = new Map(entries);
+
+  if (values.size !== entries.length) {
+    throw new Error(`Table values for ${expectedHeaders[0]} must be unique`);
+  }
+  return values;
+};
+
+const expectKeys = (
+  values: ReadonlyMap<string, string>,
+  expectedKeys: readonly string[]
+) => {
+  const actualKeys = [...values.keys()];
+  const unexpected = actualKeys.filter((key) => !expectedKeys.includes(key));
+  const missing = expectedKeys.filter((key) => !values.has(key));
+
+  if (unexpected.length > 0 || missing.length > 0) {
+    throw new Error(
+      `Expected fields ${expectedKeys.join(", ")}; missing: ${missing.join(", ") || "none"}; unexpected: ${unexpected.join(", ") || "none"}`
+    );
+  }
+};
+
+const expectSameValues = (
+  actual: ReadonlyMap<string, string>,
+  expected: ReadonlyMap<string, string>,
+  label: string
+) => {
+  if (
+    actual.size !== expected.size ||
+    [...expected].some(([key, value]) => actual.get(key) !== value)
+  ) {
+    throw new Error(
+      `${label} did not match the Product Variant defined by the scenario`
+    );
+  }
+};
+
+const expectCustomer = (auth: AuthContext, customerName: string): void => {
+  if (auth.identityFor(customerName) === undefined) {
+    throw new Error(
+      `The scenario does not have a Customer named ${customerName}`
+    );
+  }
+};
+
+const SHIPPING_ADDRESS_FIELDS = [
+  "Address line 1",
+  "Address line 2",
+  "City",
+  "Postal code",
+  "Region",
+  "Country",
+] as const;
+
+Given(
+  "Store {string} serves locale {string} in currency {string}",
+  async (
+    { checkoutScenario, page },
+    storeKey: string,
+    locale: string,
+    currency: string
+  ) => {
+    const store = { currency, key: storeKey, locale };
+    checkoutScenario.defineStore(store);
+    await new CatalogDriver(page).switchStore(store);
+  }
+);
+
+Given(
+  "Product {string} has an available Product Variant in Store {string} priced at {string} in currency {string} with attributes:",
+  async (
+    { checkoutScenario, page },
+    productName: string,
+    storeKey: string,
+    price: string,
+    currency: string,
+    dataTable: DataTable
+  ) => {
+    const store = checkoutScenario.requireStore();
+    if (store.key !== storeKey || store.currency !== currency) {
+      throw new Error(
+        `Product Variant Store ${storeKey}/${currency} does not match configured Store ${store.key}/${store.currency}`
+      );
+    }
+
+    const product = {
+      attributes: keyValueTable(dataTable, ["Attribute", "Value"]),
+      currency,
+      name: productName,
+      price,
+    };
+    await new CatalogDriver(page).expectLiveProduct(product, store);
+    checkoutScenario.defineProduct(product);
+  }
+);
+
+When(
+  "an anonymous buyer visits the PDP for Product {string}",
+  async ({ checkoutScenario, page }, productName: string) => {
+    const product = checkoutScenario.requireProduct();
+    if (product.name !== productName) {
+      throw new Error(
+        `Expected the buyer to visit ${product.name}, received ${productName}`
+      );
+    }
+    await new CatalogDriver(page).openProduct(productName);
+  }
+);
+
+When(
+  "Customer {string} visits the PDP for Product {string}",
+  async (
+    { auth, checkoutScenario, page },
+    customerName: string,
+    productName: string
+  ) => {
+    expectCustomer(auth, customerName);
+    const product = checkoutScenario.requireProduct();
+    if (product.name !== productName) {
+      throw new Error(
+        `Expected the buyer to visit ${product.name}, received ${productName}`
+      );
+    }
+    await new CatalogDriver(page).openProduct(productName);
+  }
+);
+
+When(
+  "the buyer selects the Product Variant with attributes:",
+  async ({ checkoutScenario, page }, dataTable: DataTable) => {
+    const product = checkoutScenario.requireProduct();
+    const attributes = keyValueTable(dataTable, ["Attribute", "Value"]);
+    expectSameValues(attributes, product.attributes, "Selected attributes");
+    await new CatalogDriver(page).selectVariant(attributes);
+  }
+);
+
+When(
+  "the buyer adds {int} unit of the selected Product Variant to their Cart",
+  async ({ checkoutScenario, page }, quantity: number) => {
+    try {
+      await new CatalogDriver(page).addSelectedVariantToCart(quantity);
+    } finally {
+      await checkoutScenario.observeAnonymousCart();
+    }
+  }
+);
+
+Then(
+  "the Cart is open with {int} unit of Product {string}",
+  async ({ page }, quantity: number, productName: string) => {
+    await new CartDriver(page).expectOpenWithProduct(quantity, productName);
+  }
+);
+
+Then(
+  "the Cart subtotal is {string} in currency {string}",
+  async ({ page }, amount: string, currency: string) => {
+    await new CartDriver(page).expectSubtotal(amount, currency);
+  }
+);
+
+When(
+  "the buyer proceeds from the Cart to {string}",
+  async ({ page }, destination: string) => {
+    await new CartDriver(page).proceedTo(destination);
+  }
+);
+
+Then(
+  "the {string} Cart summary contains {int} unit of Product {string}",
+  async ({ page }, pageName: string, quantity: number, productName: string) => {
+    await new CheckoutDriver(page).expectCartSummary(
+      pageName,
+      quantity,
+      productName
+    );
+  }
+);
+
+Then(
+  "the {string} Cart subtotal is {string} in currency {string}",
+  async ({ page }, pageName: string, amount: string, currency: string) => {
+    await new CheckoutDriver(page).expectCartSubtotal(
+      pageName,
+      amount,
+      currency
+    );
+  }
+);
+
+Then(
+  "the Checkout Steps have statuses:",
+  async ({ page }, dataTable: DataTable) => {
+    await new CheckoutDriver(page).expectStepStatuses(
+      keyValueTable(dataTable, ["Step", "Status"])
+    );
+  }
+);
+
+Then(
+  "the {string} Step offers {string}",
+  async ({ page }, stepName: string, actionName: string) => {
+    await new CheckoutDriver(page).expectStepAction(stepName, actionName);
+  }
+);
+
+When(
+  "Customer {string} uses their Profile for {string}",
+  async ({ auth, page }, customerName: string, stepName: string) => {
+    expectCustomer(auth, customerName);
+    await new CheckoutDriver(page).useCustomerProfile(stepName);
+  }
+);
+
+Then(
+  "{string} offers the default Shipping Address for Company {string}:",
+  async (
+    { checkoutScenario, page },
+    stepName: string,
+    companyName: string,
+    dataTable: DataTable
+  ) => {
+    const fields = keyValueTable(dataTable, ["Field", "Value"]);
+    expectKeys(fields, SHIPPING_ADDRESS_FIELDS);
+    const shippingAddress = { companyName, fields };
+    checkoutScenario.defineShippingAddress(shippingAddress);
+    await new CheckoutDriver(page).expectDefaultShippingAddress(
+      stepName,
+      companyName,
+      fields
+    );
+  }
+);
+
+When(
+  "Customer {string} selects that Shipping Address and saves {string}",
+  async (
+    { auth, checkoutScenario, page },
+    customerName: string,
+    stepName: string
+  ) => {
+    expectCustomer(auth, customerName);
+    const shippingAddress = checkoutScenario.requireShippingAddress();
+    await new CheckoutDriver(page).selectShippingAddress(
+      stepName,
+      shippingAddress.companyName,
+      shippingAddress.fields
+    );
+  }
+);
+
+When(
+  "the buyer enters and saves Contact details:",
+  async ({ page }, dataTable: DataTable) => {
+    const contact = keyValueTable(dataTable, ["Field", "Value"]);
+    expectKeys(contact, ["Email", "First name", "Last name", "Phone"]);
+    await new CheckoutDriver(page).enterContact(contact);
+  }
+);
+
+When(
+  "the buyer enters and saves Delivery Details:",
+  async ({ page }, dataTable: DataTable) => {
+    const address = keyValueTable(dataTable, ["Field", "Value"]);
+    expectKeys(address, SHIPPING_ADDRESS_FIELDS);
+    await new CheckoutDriver(page).enterDeliveryDetails(address);
+  }
+);

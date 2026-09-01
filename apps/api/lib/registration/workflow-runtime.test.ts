@@ -68,19 +68,23 @@ const makeHarness = (overrides: Partial<RegistrationWorkflowAdapters> = {}) => {
       resumeInvitation: resumeInvitationCalls,
       start: startCalls,
     },
-    resumeInvitation: async () => {
+    resumeInvitation: async (
+      event: RegistrationInvitationEvent = invitationEvent
+    ) => {
       await runtime.runPromise(
         RegistrationWorkflow.pipe(
           Effect.flatMap((workflow) =>
-            workflow.resumeInvitation(invitationId, invitationEvent)
+            workflow.resumeInvitation(invitationId, event)
           )
         )
       );
     },
-    resumeInvitationEffect: () =>
+    resumeInvitationEffect: (
+      event: RegistrationInvitationEvent = invitationEvent
+    ) =>
       RegistrationWorkflow.pipe(
         Effect.flatMap((workflow) =>
-          workflow.resumeInvitation(invitationId, invitationEvent)
+          workflow.resumeInvitation(invitationId, event)
         ),
         Effect.provide(registrationWorkflowLayerFrom(adapters))
       ),
@@ -105,7 +109,7 @@ describe("registration workflow runtime", () => {
 
   test("projects a rejected workflow start to one unavailable failure", async () => {
     const { startEffect } = makeHarness({
-      start: () => Promise.reject(new Error("Vercel rejected kickoff")),
+      start: async () => Promise.reject(new Error("Vercel rejected kickoff")),
     });
 
     const failure = await Effect.runPromise(startEffect().pipe(Effect.flip));
@@ -115,7 +119,7 @@ describe("registration workflow runtime", () => {
 
   test("keeps Workflow SDK start failures as defects", async () => {
     const { startEffect } = makeHarness({
-      start: () =>
+      start: async () =>
         Promise.reject(
           new WorkflowRuntimeError(
             "'start' received an invalid workflow function"
@@ -144,7 +148,23 @@ describe("registration workflow runtime", () => {
     );
   });
 
-  test("keeps a missing workflow hook as a defect", async () => {
+  test("treats a consumed revocation hook as idempotent success", async () => {
+    let resumeCalls = 0;
+    const { resumeInvitation } = makeHarness({
+      resumeInvitation: async () => {
+        resumeCalls += 1;
+        await Promise.reject(
+          new HookNotFoundError("registration-invitation:missing")
+        );
+      },
+    });
+
+    await resumeInvitation({ event: "revoked" });
+
+    expect(resumeCalls).toBe(1);
+  });
+
+  test("keeps a missing acceptance hook as a defect", async () => {
     const { resumeInvitationEffect } = makeHarness({
       resumeInvitation: async () => {
         await Promise.reject(

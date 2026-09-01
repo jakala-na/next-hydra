@@ -121,6 +121,7 @@ export class CommerceContext extends Context.Service<
                   businessUnitId: businessUnit.businessUnitId,
                   businessUnitKey: businessUnit.businessUnitKey,
                   customerId,
+                  roles: businessUnit.roles,
                 });
               });
         const customerPrincipal: Effect.Effect<

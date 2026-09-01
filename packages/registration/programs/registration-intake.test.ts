@@ -1,28 +1,36 @@
 import { describe, expect, it } from "@effect/vitest";
+import { CommerceCustomerId } from "@repo/commerce/domain/commerce-account";
 import {
   CommerceAccountUnavailable,
   CommerceAccounts,
+  CommerceCustomerIdNotFound,
 } from "@repo/commerce/services/commerce-accounts";
 import type { CommerceAccountRegistrationInput } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
 import type { Context } from "effect";
 import { Effect, Exit, Layer, Redacted } from "effect";
 
+import { RegistrationReviewerActor } from "../domain/actors";
+import { ApprovedDecision } from "../domain/approval";
 import {
   AddressLine,
+  AuthUserId,
   City,
   CompanyName,
   CountryCode,
   Email,
+  InvitationId,
   PersonName,
   PostalCode,
   VatId,
 } from "../domain/identity";
 import {
+  ApprovedRegistration,
   AwaitingApprovalRegistration,
   CompanyAddress,
   CompanyRegistrationDetails,
 } from "../domain/registration";
+import type { Registration } from "../domain/registration";
 import { IdentityUsers } from "../services/identity-users";
 import { RegistrationMarketPolicy } from "../services/registration-market-policy";
 import { RegistrationQueries } from "../services/registration-queries";
@@ -78,16 +86,14 @@ const details = ({
     }),
   });
 
-const record = (
-  registration: AwaitingApprovalRegistration
-): RegistrationQueryRecord => ({
+const record = (registration: Registration): RegistrationQueryRecord => ({
   createdAt: registration.createdAt,
   id: String(registration.id),
   lastModifiedAt: registration.updatedAt,
   registration,
 });
 
-const makeAwaiting = (email: string) =>
+const makeAwaiting = (email: string, submittedByAuthUserId?: AuthUserId) =>
   new AwaitingApprovalRegistration({
     _tag: "AwaitingApprovalRegistration",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -95,14 +101,54 @@ const makeAwaiting = (email: string) =>
     id: "registration-existing" as AwaitingApprovalRegistration["id"],
     status: "awaiting_approval",
     storeKey: StoreKey.make("default-store"),
+    ...(submittedByAuthUserId === undefined ? {} : { submittedByAuthUserId }),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   });
 
+const makeApproved = (
+  email: string,
+  onboardingStatus: "invited" | "accepted" | "expired" | "revoked"
+) => {
+  const registration = makeAwaiting(email);
+
+  return new ApprovedRegistration({
+    _tag: "ApprovedRegistration",
+    createdAt: registration.createdAt,
+    decision: new ApprovedDecision({
+      actor: new RegistrationReviewerActor({
+        actorType: "registration_reviewer",
+        authUserId: AuthUserId.make("reviewer-1"),
+        email: Redacted.make(Email.make("reviewer@example.com"), {
+          label: "email",
+        }),
+        name: "Reviewer",
+      }),
+      decidedAt: new Date("2026-01-02T00:00:00.000Z"),
+      decision: "approved",
+    }),
+    details: registration.details,
+    id: registration.id,
+    invitationId: InvitationId.make(`${onboardingStatus}-invitation`),
+    onboarding:
+      onboardingStatus === "accepted"
+        ? {
+            acceptedAuthUserId: AuthUserId.make("accepted-user-1"),
+            status: onboardingStatus,
+          }
+        : { status: onboardingStatus },
+    status: "approved",
+    storeKey: registration.storeKey,
+    updatedAt: new Date("2026-02-02T00:00:00.000Z"),
+  });
+};
+
 const commerceAccountsLayer = ({
   failure,
+  hasCustomerForAuthUserId = false,
   hasCustomerWithEmail = false,
 }: {
   readonly failure?: CommerceAccountUnavailable;
+  readonly hasCustomerForAuthUserId?: boolean;
   readonly hasCustomerWithEmail?: boolean;
 } = {}) =>
   Layer.succeed(
@@ -112,7 +158,15 @@ const commerceAccountsLayer = ({
       createFromRegistration: (
         _registration: CommerceAccountRegistrationInput
       ) => Effect.die("not used"),
-      getCustomerIdByAuthUserId: () => Effect.die("not used"),
+      getCustomerIdByAuthUserId: (authUserId) =>
+        hasCustomerForAuthUserId
+          ? Effect.succeed(CommerceCustomerId.make(`customer-${authUserId}`))
+          : Effect.fail(
+              new CommerceCustomerIdNotFound({
+                authUserId,
+                message: "Commerce customer does not exist for auth user",
+              })
+            ),
       getCustomerProfile: () => Effect.die("not used"),
       hasCustomerWithEmail: () =>
         failure ? Effect.fail(failure) : Effect.succeed(hasCustomerWithEmail),
@@ -126,6 +180,7 @@ const layerWithRecords = (
   records: readonly RegistrationQueryRecord[],
   {
     commerceFailure,
+    hasCustomerForAuthUserId = false,
     hasCustomerWithEmail = false,
     identityEmails = [],
     invalidVatIds = [],
@@ -137,6 +192,7 @@ const layerWithRecords = (
     }),
   }: {
     readonly commerceFailure?: CommerceAccountUnavailable;
+    readonly hasCustomerForAuthUserId?: boolean;
     readonly hasCustomerWithEmail?: boolean;
     readonly identityEmails?: readonly string[];
     readonly invalidVatIds?: readonly string[];
@@ -149,6 +205,7 @@ const layerWithRecords = (
     Layer.succeed(RegistrationWorkflow, workflow),
     RegistrationQueries.layerMemoryFrom(records),
     commerceAccountsLayer({
+      hasCustomerForAuthUserId,
       hasCustomerWithEmail,
       ...(commerceFailure === undefined ? {} : { failure: commerceFailure }),
     }),
@@ -278,6 +335,143 @@ describe(submitRegistrationForReview, () => {
           layerWithRecords([record(makeAwaiting("ada@example.com"))])
         )
       )
+  );
+
+  it.effect(
+    "rejects duplicate emails while an approved invitation is active",
+    () =>
+      Effect.gen(function* () {
+        const error = yield* submitRegistrationForReview({
+          details: details({ email: " ADA@example.com " }),
+          storeKey: StoreKey.make("default-store"),
+        }).pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(RegistrationIntakeValidationError);
+        if (error instanceof RegistrationIntakeValidationError) {
+          expect(error.reasons[0]).toBeInstanceOf(DuplicateRegistrationEmail);
+        }
+      }).pipe(
+        Effect.provide(
+          layerWithRecords([record(makeApproved("ada@example.com", "invited"))])
+        )
+      )
+  );
+
+  it.effect(
+    "allows a new Registration after the prior invitation expires without provisioning",
+    () =>
+      Effect.gen(function* () {
+        const registration = yield* submitRegistrationForReview({
+          details: details({ email: " ADA@example.com " }),
+          storeKey: StoreKey.make("default-store"),
+        });
+
+        expect(registration._tag).toBe("AwaitingApprovalRegistration");
+      }).pipe(
+        Effect.provide(
+          layerWithRecords([record(makeApproved("ada@example.com", "expired"))])
+        )
+      )
+  );
+
+  it.effect(
+    "allows a verified existing identity to submit its own registration",
+    () => {
+      const submittedByAuthUserId = AuthUserId.make("auth-existing-1");
+
+      return Effect.gen(function* () {
+        const registration = yield* submitRegistrationForReview({
+          details: details(),
+          storeKey: StoreKey.make("default-store"),
+          submittedByAuthUserId,
+        });
+
+        expect(registration.submittedByAuthUserId).toBe(submittedByAuthUserId);
+      }).pipe(
+        Effect.provide(
+          layerWithRecords([], { identityEmails: ["ada@example.com"] })
+        )
+      );
+    }
+  );
+
+  it.effect(
+    "allows the accepted identity to register again after its Commerce customer is retired",
+    () => {
+      const submittedByAuthUserId = AuthUserId.make("accepted-user-1");
+
+      return Effect.gen(function* () {
+        const registration = yield* submitRegistrationForReview({
+          details: details(),
+          storeKey: StoreKey.make("default-store"),
+          submittedByAuthUserId,
+        });
+
+        expect(registration.submittedByAuthUserId).toBe(submittedByAuthUserId);
+      }).pipe(
+        Effect.provide(
+          layerWithRecords(
+            [record(makeApproved("ada@example.com", "accepted"))],
+            { identityEmails: ["ada@example.com"] }
+          )
+        )
+      );
+    }
+  );
+
+  it.effect(
+    "blocks a surviving Commerce customer by immutable auth identity after an email change",
+    () => {
+      const submittedByAuthUserId = AuthUserId.make("accepted-user-1");
+
+      return Effect.gen(function* () {
+        const error = yield* submitRegistrationForReview({
+          details: details({ email: "new-address@example.com" }),
+          storeKey: StoreKey.make("default-store"),
+          submittedByAuthUserId,
+        }).pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(RegistrationIntakeValidationError);
+        if (error instanceof RegistrationIntakeValidationError) {
+          expect(error.reasons[0]).toBeInstanceOf(DuplicateRegistrationEmail);
+        }
+      }).pipe(
+        Effect.provide(
+          layerWithRecords([], {
+            hasCustomerForAuthUserId: true,
+            identityEmails: ["new-address@example.com"],
+          })
+        )
+      );
+    }
+  );
+
+  it.effect(
+    "blocks a pending Registration by immutable auth identity after an email change",
+    () => {
+      const submittedByAuthUserId = AuthUserId.make("pending-user-1");
+
+      return Effect.gen(function* () {
+        const error = yield* submitRegistrationForReview({
+          details: details({ email: "new-address@example.com" }),
+          storeKey: StoreKey.make("default-store"),
+          submittedByAuthUserId,
+        }).pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(RegistrationIntakeValidationError);
+        if (error instanceof RegistrationIntakeValidationError) {
+          expect(error.reasons[0]).toBeInstanceOf(DuplicateRegistrationEmail);
+        }
+      }).pipe(
+        Effect.provide(
+          layerWithRecords([
+            record(
+              makeAwaiting("old-address@example.com", submittedByAuthUserId)
+            ),
+          ])
+        )
+      );
+    }
   );
 
   it.effect(

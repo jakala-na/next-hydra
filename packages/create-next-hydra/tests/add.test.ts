@@ -399,7 +399,7 @@ describe("customer add", () => {
     ).rejects.toThrow("requires next-hydra/cms/drupal");
   });
 
-  it("validates a private Provider from its declared stable alias", async () => {
+  it("validates a fetched Provider from its exact binding", async () => {
     const { artifactPath, root } = await fixture();
     const providerPath = path.join(root, "private-cms.json");
     const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
@@ -407,21 +407,20 @@ describe("customer add", () => {
     artifact.registryDependencies = [providerPath];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
     await writeFile(
+      path.join(root, "apps/web/package.json"),
+      '{"name":"web","dependencies":{"@repo/cms":"workspace:*"}}\n'
+    );
+    await writeFile(
       providerPath,
       `${JSON.stringify({
         $schema: NEXT_HYDRA_SELECTION_SCHEMA_URL,
         meta: {
           nextHydra: {
+            binding: {
+              specifier: "workspace:*",
+            },
             id: "vendor/cms/private",
             kind: "provider",
-            packages: [
-              {
-                cwd: "apps/web",
-                name: "@repo/cms",
-                section: "dependencies",
-                specifier: "workspace:@vendor/cms-private@*",
-              },
-            ],
             slot: "cms",
           },
         },
@@ -431,8 +430,12 @@ describe("customer add", () => {
     );
 
     await expect(
-      addRegistryItem(artifactPath, { cwd: root, yes: true })
-    ).rejects.toThrow("requires vendor/cms/private");
+      addRegistryItem(
+        artifactPath,
+        { cwd: root, yes: true },
+        { install: async () => {} }
+      )
+    ).resolves.toBeUndefined();
   });
 
   it("does not let a nested Provider switch the customer alias", async () => {
@@ -460,16 +463,11 @@ describe("customer add", () => {
         ],
         meta: {
           nextHydra: {
+            binding: {
+              specifier: "workspace:@repo/cms-drupal@*",
+            },
             id: "next-hydra/cms/drupal",
             kind: "provider",
-            packages: [
-              {
-                cwd: "apps/web",
-                name: "@repo/cms",
-                section: "dependencies",
-                specifier: "workspace:@repo/cms-drupal@*",
-              },
-            ],
             slot: "cms",
           },
         },
@@ -545,7 +543,7 @@ describe("customer add", () => {
     await mkdir(path.join(root, "apps/web"), { recursive: true });
     await writeFile(
       path.join(root, "apps/web/package.json"),
-      '{"name":"web","dependencies":{}}\n'
+      '{"name":"web","dependencies":{"@repo/cms":"workspace:@repo/cms-drupal@*"}}\n'
     );
     const artifactPath = path.join(root, "new-package.json");
     await writeFile(
@@ -572,6 +570,13 @@ describe("customer add", () => {
                 specifier: "^1.0.0",
               },
             ],
+            providerDependencies: [
+              {
+                cwd: "packages/new-package",
+                section: "dependencies",
+                slot: "cms",
+              },
+            ],
           },
         },
         name: "new-package",
@@ -593,6 +598,14 @@ describe("customer add", () => {
         )
       ).dependencies["example-client"]
     ).toBe("^1.0.0");
+    expect(
+      JSON.parse(
+        await readFile(
+          path.join(root, "packages/new-package/package.json"),
+          "utf-8"
+        )
+      ).dependencies["@repo/cms"]
+    ).toBe("workspace:@repo/cms-drupal@*");
   });
 
   it("rejects a supplied package.json with the wrong shape before writing", async () => {

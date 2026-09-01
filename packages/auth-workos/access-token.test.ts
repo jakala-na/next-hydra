@@ -1,20 +1,36 @@
-import { Effect } from "effect";
+import { ConfigProvider, Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
   AccessTokenInvalid,
   AccessTokenVerificationFailure,
   AccessTokenVerifier,
+  accessTokenVerifierLayer,
   accessTokenVerifierLayerFromJwtVerifier,
   fetchWorkosJwks,
 } from "./access-token";
 
 describe(AccessTokenVerifier, () => {
+  it("loads verifier credentials from the isolated admin namespace", async () => {
+    const configProvider = ConfigProvider.fromUnknown({
+      ADMIN_WORKOS_CLIENT_ID: "client_test_admin",
+    });
+
+    const verifier = await Effect.runPromise(
+      AccessTokenVerifier.pipe(
+        Effect.provide(accessTokenVerifierLayer({ configPrefix: "ADMIN" })),
+        Effect.provideService(ConfigProvider.ConfigProvider, configProvider)
+      )
+    );
+
+    expect(verifier.verify).toBeTypeOf("function");
+  });
+
   it("verifies a WorkOS access token and returns the auth user id", async () => {
     let verifiedToken: string | undefined;
     const layer = accessTokenVerifierLayerFromJwtVerifier({
       expectedClientId: "client_1",
-      expectedIssuer: "https://api.workos.com/",
+      expectedIssuers: ["https://api.workos.com/"],
       requiredPermissions: ["checkout:read"],
       verifyAccessToken: async (token) => {
         verifiedToken = token;
@@ -38,9 +54,11 @@ describe(AccessTokenVerifier, () => {
     expect(verifiedToken).toBe("jwt-1");
     expect(result).toMatchObject({
       authUserId: "user-1",
-      permissions: ["checkout:read", "checkout:write"],
       sessionId: "session-1",
     });
+    expect(result.permissions.has("checkout:read")).toBeTruthy();
+    expect(result.permissions.has("checkout:write")).toBeTruthy();
+    expect(result.permissions.has("checkout:delete")).toBeFalsy();
   });
 
   it("rejects invalid WorkOS access tokens", async () => {
@@ -134,7 +152,7 @@ describe(AccessTokenVerifier, () => {
 
   it("rejects a verified token payload from an unexpected issuer", async () => {
     const layer = accessTokenVerifierLayerFromJwtVerifier({
-      expectedIssuer: "https://api.workos.com",
+      expectedIssuers: ["https://api.workos.com"],
       verifyAccessToken: async () => ({
         client_id: "client_1",
         iss: "https://evil.example.com",
@@ -153,6 +171,29 @@ describe(AccessTokenVerifier, () => {
     if (exit._tag === "Failure") {
       expect(exit.cause.toString()).toContain(AccessTokenInvalid.name);
     }
+  });
+
+  it("accepts a password-authentication issuer for the expected client", async () => {
+    const layer = accessTokenVerifierLayerFromJwtVerifier({
+      expectedIssuers: [
+        "https://api.workos.com",
+        "https://api.workos.com/user_management/client_1",
+      ],
+      verifyAccessToken: async () => ({
+        client_id: "client_1",
+        iss: "https://api.workos.com/user_management/client_1",
+        sub: "user-1",
+      }),
+    });
+
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const verifier = yield* AccessTokenVerifier;
+        return yield* verifier.verify("jwt-1");
+      }).pipe(Effect.provide(layer))
+    );
+
+    expect(result.authUserId).toBe("user-1");
   });
 
   it("accepts the expected client through the token audience", async () => {

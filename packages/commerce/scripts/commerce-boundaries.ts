@@ -237,6 +237,19 @@ const checkGeneratedProductAttributes = (
   );
 };
 
+export const checkApplicationRuntimeBindingSource = (
+  source: string,
+  sourcePath: string
+): readonly string[] => {
+  const imports = extractImportSpecifiers(source);
+
+  return imports.includes("@repo/commerce/runtime")
+    ? []
+    : [
+        `${sourcePath} must import the application-selected @repo/commerce/runtime binding`,
+      ];
+};
+
 export const checkCommerceBoundaries = (
   repoRoot: string
 ): readonly string[] => {
@@ -331,7 +344,14 @@ export const checkCommerceBoundaries = (
       providerPackage,
       repoRoot
     ),
-    ...checkGeneratedProductAttributes(commerceRoot)
+    ...checkGeneratedProductAttributes(commerceRoot),
+    ...checkApplicationRuntimeBindingSource(
+      readFileSync(
+        resolve(commerceRoot, "customer-account/actions.ts"),
+        "utf-8"
+      ),
+      "packages/commerce/customer-account/actions.ts"
+    )
   );
 
   return violations;

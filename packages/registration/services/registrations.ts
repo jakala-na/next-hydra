@@ -1,19 +1,21 @@
-import type { CommerceAccount } from "@repo/commerce/domain/commerce-account";
 import type { StoreKey } from "@repo/commerce/store";
 import {
   StoreFailureReason,
   VersionedKeyValueStore,
+  VersionedStoreKey,
 } from "@repo/versioned-store";
 import type { StoreConflict, StoreError } from "@repo/versioned-store";
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect";
 
 import type { ApprovedDecision, RejectedDecision } from "../domain/approval";
-import { InvitationId, RegistrationId } from "../domain/identity";
+import type { AuthUserId, InvitationId } from "../domain/identity";
+import { RegistrationId } from "../domain/identity";
 import {
   ApprovalProcessingRegistration,
   ApprovedRegistration,
   AwaitingApprovalRegistration,
   Registration,
+  RegistrationOnboardingStatus,
   RejectedRegistration,
 } from "../domain/registration";
 import type { CompanyRegistrationDetails } from "../domain/registration";
@@ -26,18 +28,20 @@ export class RegistrationNotFound extends Schema.TaggedError<RegistrationNotFoun
   }
 ) {}
 
-export class RegistrationNotFoundByInvitationId extends Schema.TaggedError<RegistrationNotFoundByInvitationId>()(
-  "RegistrationNotFoundByInvitationId",
-  {
-    invitationId: InvitationId,
-    message: Schema.String,
-  }
-) {}
-
 export class RegistrationTransitionConflict extends Schema.TaggedError<RegistrationTransitionConflict>()(
   "RegistrationTransitionConflict",
   {
     attemptedDecision: Schema.Literals(["approved", "rejected"]),
+    currentState: Schema.String,
+    message: Schema.String,
+    registrationId: RegistrationId,
+  }
+) {}
+
+export class RegistrationOnboardingTransitionConflict extends Schema.TaggedError<RegistrationOnboardingTransitionConflict>()(
+  "RegistrationOnboardingTransitionConflict",
+  {
+    attemptedStatus: RegistrationOnboardingStatus,
     currentState: Schema.String,
     message: Schema.String,
     registrationId: RegistrationId,
@@ -75,9 +79,6 @@ export class RegistrationPersistenceFailure extends Schema.TaggedError<Registrat
 export type RegistrationReadError =
   | RegistrationNotFound
   | RegistrationPersistenceFailure;
-export type RegistrationFindByInvitationError =
-  | RegistrationNotFoundByInvitationId
-  | RegistrationPersistenceFailure;
 export type RegistrationCreateError = RegistrationPersistenceFailure;
 export type RegistrationDiscardError =
   | RegistrationDiscardConflict
@@ -86,24 +87,59 @@ export type RegistrationDiscardError =
 export type RegistrationTransitionError =
   | RegistrationNotFound
   | RegistrationTransitionConflict
+  | RegistrationOnboardingTransitionConflict
+  | RegistrationConcurrentModification
+  | RegistrationPersistenceFailure;
+export type RegistrationDecisionTransitionError =
+  | RegistrationNotFound
+  | RegistrationTransitionConflict
+  | RegistrationConcurrentModification
+  | RegistrationPersistenceFailure;
+export type RegistrationOnboardingTransitionError =
+  | RegistrationNotFound
+  | RegistrationOnboardingTransitionConflict
   | RegistrationConcurrentModification
   | RegistrationPersistenceFailure;
 
 export interface CreateAwaitingApprovalRegistrationInput {
   readonly details: CompanyRegistrationDetails;
   readonly storeKey: StoreKey;
+  readonly submittedByAuthUserId?: AuthUserId;
 }
 
-export interface MarkRegistrationApprovedInput {
+export type MarkRegistrationApprovedInput = {
   readonly registrationId: RegistrationId;
   readonly decision: ApprovedDecision;
-  readonly commerceAccount: CommerceAccount;
-  readonly invitationId: InvitationId;
-}
+} & (
+  | { readonly invitationId: InvitationId }
+  | { readonly acceptedAuthUserId: AuthUserId }
+);
+
+export type MarkRegistrationOnboardingStatusInput =
+  | {
+      readonly acceptedAuthUserId: AuthUserId;
+      readonly registrationId: RegistrationId;
+      readonly status: "accepted";
+    }
+  | {
+      readonly registrationId: RegistrationId;
+      readonly status: Exclude<
+        RegistrationOnboardingStatus,
+        "accepted" | "invited"
+      >;
+    };
+
+const submittedIdentityFields = (submittedByAuthUserId?: AuthUserId) =>
+  submittedByAuthUserId === undefined ? {} : { submittedByAuthUserId };
 
 export interface MarkRegistrationApprovalProcessingInput {
   readonly registrationId: RegistrationId;
   readonly decision: "approved" | "rejected";
+}
+
+export interface MarkRegistrationApprovalProcessingResult {
+  readonly registration: Registration;
+  readonly transitioned: boolean;
 }
 
 export interface MarkRegistrationRejectedInput {
@@ -115,7 +151,8 @@ const nowDate = Clock.currentTimeMillis.pipe(
   Effect.map((time) => new Date(time))
 );
 
-const registrationKey = (id: RegistrationId) => String(id);
+const registrationKey = (id: RegistrationId) =>
+  VersionedStoreKey.make(String(id));
 
 const mapStoreUpdateConflict =
   (registrationId: RegistrationId) => (_error: StoreConflict) =>
@@ -150,18 +187,30 @@ export class Registrations extends Context.Service<
     readonly get: (
       id: RegistrationId
     ) => Effect.Effect<Registration, RegistrationReadError>;
-    readonly findByInvitationId: (
-      invitationId: InvitationId
-    ) => Effect.Effect<ApprovedRegistration, RegistrationFindByInvitationError>;
     readonly markApprovalProcessing: (
       input: MarkRegistrationApprovalProcessingInput
-    ) => Effect.Effect<Registration, RegistrationTransitionError>;
+    ) => Effect.Effect<
+      MarkRegistrationApprovalProcessingResult,
+      RegistrationDecisionTransitionError
+    >;
     readonly markApproved: (
       input: MarkRegistrationApprovedInput
-    ) => Effect.Effect<ApprovedRegistration, RegistrationTransitionError>;
+    ) => Effect.Effect<
+      ApprovedRegistration,
+      RegistrationDecisionTransitionError
+    >;
+    readonly markOnboardingStatus: (
+      input: MarkRegistrationOnboardingStatusInput
+    ) => Effect.Effect<
+      ApprovedRegistration,
+      RegistrationOnboardingTransitionError
+    >;
     readonly markRejected: (
       input: MarkRegistrationRejectedInput
-    ) => Effect.Effect<RejectedRegistration, RegistrationTransitionError>;
+    ) => Effect.Effect<
+      RejectedRegistration,
+      RegistrationDecisionTransitionError
+    >;
   }
 >()("@repo/registration/Registrations") {
   static readonly layerStorage = Layer.effect(
@@ -210,6 +259,7 @@ export class Registrations extends Context.Service<
               id,
               status: "awaiting_approval",
               storeKey: input.storeKey,
+              ...submittedIdentityFields(input.submittedByAuthUserId),
               updatedAt: createdAt,
             });
 
@@ -272,37 +322,6 @@ export class Registrations extends Context.Service<
         );
       });
 
-      const findByInvitationId = Effect.fn("Registrations.findByInvitationId")(
-        (invitationId: InvitationId) =>
-          store.values(Registration).pipe(
-            Effect.flatMap((registrations) => {
-              const registration = registrations
-                .map((versioned) => versioned.value)
-                .find(
-                  (candidate): candidate is ApprovedRegistration =>
-                    candidate._tag === "ApprovedRegistration" &&
-                    candidate.invitationId === invitationId
-                );
-
-              if (!registration) {
-                return Effect.fail(
-                  new RegistrationNotFoundByInvitationId({
-                    invitationId,
-                    message: `Registration for invitation ${invitationId} was not found`,
-                  })
-                );
-              }
-
-              return Effect.succeed(registration);
-            }),
-            Effect.catchTag("StoreError", (error) =>
-              Effect.fail(
-                mapStoreError(RegistrationId.make(error.key), "read")(error)
-              )
-            )
-          )
-      );
-
       const markApproved = Effect.fn("Registrations.markApproved")(function* (
         input: MarkRegistrationApprovedInput
       ) {
@@ -350,17 +369,138 @@ export class Registrations extends Context.Service<
           });
         }
 
+        const { submittedByAuthUserId } = current.value;
+        const invalidApprovalEvidence =
+          submittedByAuthUserId === undefined
+            ? !("invitationId" in input)
+            : !(
+                "acceptedAuthUserId" in input &&
+                input.acceptedAuthUserId === submittedByAuthUserId
+              );
+        if (invalidApprovalEvidence) {
+          return yield* new RegistrationTransitionConflict({
+            attemptedDecision: "approved",
+            currentState: current.value._tag,
+            message: `Registration ${input.registrationId} approval evidence does not match its submission identity`,
+            registrationId: input.registrationId,
+          });
+        }
+
         const updatedAt = yield* nowDate;
-        const approved = new ApprovedRegistration({
-          _tag: "ApprovedRegistration",
-          commerceAccount: input.commerceAccount,
+        const commonApproval = {
+          _tag: "ApprovedRegistration" as const,
           createdAt: current.value.createdAt,
           decision: input.decision,
           details: current.value.details,
           id: current.value.id,
-          invitationId: input.invitationId,
+          ...submittedIdentityFields(current.value.submittedByAuthUserId),
+          status: "approved" as const,
+          storeKey: current.value.storeKey,
+          updatedAt,
+        };
+        const approved =
+          "invitationId" in input
+            ? new ApprovedRegistration({
+                ...commonApproval,
+                invitationId: input.invitationId,
+                onboarding: { status: "invited" },
+              })
+            : new ApprovedRegistration({
+                ...commonApproval,
+                onboarding: {
+                  acceptedAuthUserId: input.acceptedAuthUserId,
+                  status: "accepted",
+                },
+              });
+
+        yield* store.update(key, Registration, current, approved).pipe(
+          Effect.catchTags({
+            StoreConflict: (error) =>
+              Effect.fail(mapStoreUpdateConflict(input.registrationId)(error)),
+            StoreError: (error) =>
+              Effect.fail(mapStoreError(input.registrationId, "update")(error)),
+          })
+        );
+
+        return approved;
+      });
+
+      const markOnboardingStatus = Effect.fn(
+        "Registrations.markOnboardingStatus"
+      )(function* (input: MarkRegistrationOnboardingStatusInput) {
+        const key = registrationKey(input.registrationId);
+        const current = yield* store.get(key, Registration).pipe(
+          Effect.flatMap((registration) =>
+            Option.match(registration, {
+              onNone: () =>
+                Effect.fail(
+                  new RegistrationNotFound({
+                    message: `Registration ${input.registrationId} was not found`,
+                    registrationId: input.registrationId,
+                  })
+                ),
+              onSome: Effect.succeed,
+            })
+          ),
+          Effect.catchTag("StoreError", (error) =>
+            Effect.fail(mapStoreError(input.registrationId, "read")(error))
+          )
+        );
+
+        if (
+          current.value._tag === "ApprovedRegistration" &&
+          current.value.onboardingStatus === input.status
+        ) {
+          if (
+            input.status === "accepted" &&
+            current.value.acceptedAuthUserId !== input.acceptedAuthUserId
+          ) {
+            return yield* new RegistrationOnboardingTransitionConflict({
+              attemptedStatus: input.status,
+              currentState: current.value.onboardingStatus,
+              message: `Registration ${input.registrationId} was accepted by a different auth user`,
+              registrationId: input.registrationId,
+            });
+          }
+
+          return current.value;
+        }
+
+        if (
+          current.value._tag !== "ApprovedRegistration" ||
+          current.value.onboardingStatus !== "invited"
+        ) {
+          const currentState =
+            current.value._tag === "ApprovedRegistration"
+              ? current.value.onboardingStatus
+              : current.value._tag;
+
+          return yield* new RegistrationOnboardingTransitionConflict({
+            attemptedStatus: input.status,
+            currentState,
+            message: `Cannot mark registration ${input.registrationId} onboarding as ${input.status} from ${currentState}`,
+            registrationId: input.registrationId,
+          });
+        }
+
+        const updatedAt = yield* nowDate;
+        const approved = new ApprovedRegistration({
+          _tag: "ApprovedRegistration",
+          createdAt: current.value.createdAt,
+          decision: current.value.decision,
+          details: current.value.details,
+          id: current.value.id,
+          invitationId: current.value.invitationId,
+          onboarding:
+            input.status === "accepted"
+              ? {
+                  acceptedAuthUserId: input.acceptedAuthUserId,
+                  status: input.status,
+                }
+              : { status: input.status },
           status: "approved",
           storeKey: current.value.storeKey,
+          ...submittedIdentityFields(current.value.submittedByAuthUserId),
           updatedAt,
         });
 
@@ -402,7 +542,7 @@ export class Registrations extends Context.Service<
           current.value._tag === "ApprovalProcessingRegistration" &&
           current.value.requestedDecision === input.decision
         ) {
-          return current.value;
+          return { registration: current.value, transitioned: false };
         }
 
         if (
@@ -411,7 +551,7 @@ export class Registrations extends Context.Service<
           (current.value._tag === "RejectedRegistration" &&
             input.decision === "rejected")
         ) {
-          return current.value;
+          return { registration: current.value, transitioned: false };
         }
 
         if (current.value._tag !== "AwaitingApprovalRegistration") {
@@ -432,6 +572,7 @@ export class Registrations extends Context.Service<
           requestedDecision: input.decision,
           status: "approval_processing",
           storeKey: current.value.storeKey,
+          ...submittedIdentityFields(current.value.submittedByAuthUserId),
           updatedAt,
         });
 
@@ -444,7 +585,7 @@ export class Registrations extends Context.Service<
           })
         );
 
-        return processing;
+        return { registration: processing, transitioned: true };
       });
 
       const markRejected = Effect.fn("Registrations.markRejected")(function* (
@@ -503,6 +644,7 @@ export class Registrations extends Context.Service<
           id: current.value.id,
           status: "rejected",
           storeKey: current.value.storeKey,
+          ...submittedIdentityFields(current.value.submittedByAuthUserId),
           updatedAt,
         });
 
@@ -521,10 +663,10 @@ export class Registrations extends Context.Service<
       return {
         createAwaitingApproval,
         discardAwaitingApproval,
-        findByInvitationId,
         get,
         markApprovalProcessing,
         markApproved,
+        markOnboardingStatus,
         markRejected,
       };
     })

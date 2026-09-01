@@ -1,0 +1,38 @@
+{
+  "name": "@repo/auth-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./e2e/auth-context": "./e2e/auth-context.ts",
+    "./e2e/auth-scenario": "./e2e/auth-scenario.ts",
+    "./e2e/auth-test-control": "./e2e/auth-test-control.ts",
+    "./access-token": "./access-token.ts",
+    "./capabilities": "./capabilities.ts",
+    "./cli": "./cli.ts",
+    "./identity-memberships": "./identity-memberships.ts",
+    "./invitations": "./invitations.ts",
+    "./provisioning": "./provisioning.ts",
+    "./session": "./session.ts"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "test": "NODE_ENV=test vitest run",
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/auth-contract/tsconfig.json"
+  },
+  "dependencies": {
+    "@repo/cli-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/e2e-testing": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "effect": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

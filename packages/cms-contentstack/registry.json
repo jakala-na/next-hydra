@@ -13,6 +13,10 @@
           "id": "next-hydra/cms/contentstack",
           "kind": "provider",
           "slot": "cms",
+          "binding": {
+            "specifier": "workspace:@repo/cms-contentstack@*",
+            "sourcePath": "packages/cms-contentstack"
+          },
           "assets": [
             {
               "source": "patches/@contentstack__cli-cm-import@2.0.0.patch",
@@ -33,20 +37,7 @@
               "path": "patches/@contentstack__cli-migration@2.0.0.patch"
             }
           ],
-          "packages": [
-            {
-              "cwd": "apps/cli",
-              "section": "dependencies",
-              "name": "@repo/cms",
-              "specifier": "workspace:@repo/cms-contentstack@*"
-            },
-            {
-              "cwd": "apps/web",
-              "section": "dependencies",
-              "name": "@repo/cms",
-              "specifier": "workspace:@repo/cms-contentstack@*"
-            }
-          ]
+          "packages": []
         }
       },
       "files": [
@@ -148,11 +139,6 @@
         {
           "path": "cli/provisioning/require-cli-version.ts",
           "target": "~/packages/cms-contentstack/cli/provisioning/require-cli-version.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "cli/provisioning/runtime-credentials-live.test.ts",
-          "target": "~/packages/cms-contentstack/cli/provisioning/runtime-credentials-live.test.ts",
           "type": "registry:file"
         },
         {

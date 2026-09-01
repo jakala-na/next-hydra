@@ -7,32 +7,17 @@
       "type": "registry:item",
       "title": "Next Hydra WorkOS Auth provider",
       "description": "Installs the WorkOS AuthKit provider package.",
-      "docs": "Configure the WorkOS environment variables described by packages/auth-workos before starting the applications.",
+      "docs": "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output workos-webhook.env` once with the customer WORKOS_API_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets.",
+      "registryDependencies": ["jakala-na/next-hydra/auth-contract"],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/auth/workos",
           "kind": "provider",
           "slot": "auth",
-          "packages": [
-            {
-              "cwd": "apps/api",
-              "section": "dependencies",
-              "name": "@repo/auth",
-              "specifier": "workspace:@repo/auth-workos@*"
-            },
-            {
-              "cwd": "apps/web",
-              "section": "dependencies",
-              "name": "@repo/auth",
-              "specifier": "workspace:@repo/auth-workos@*"
-            },
-            {
-              "cwd": "packages/feature-flags",
-              "section": "dependencies",
-              "name": "@repo/auth",
-              "specifier": "workspace:@repo/auth-workos@*"
-            }
-          ]
+          "binding": {
+            "specifier": "workspace:@repo/auth-workos@*",
+            "sourcePath": "packages/auth-workos"
+          }
         }
       },
       "files": [
@@ -54,6 +39,16 @@
         {
           "path": "admin.ts",
           "target": "~/packages/auth-workos/admin.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "capabilities.ts",
+          "target": "~/packages/auth-workos/capabilities.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli.ts",
+          "target": "~/packages/auth-workos/cli.ts",
           "type": "registry:file"
         },
         {
@@ -97,8 +92,33 @@
           "type": "registry:file"
         },
         {
+          "path": "provisioning.test.ts",
+          "target": "~/packages/auth-workos/provisioning.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "provisioning.ts",
+          "target": "~/packages/auth-workos/provisioning.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "proxy.ts",
           "target": "~/packages/auth-workos/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/admin/app/api/auth/callback/route.ts",
+          "target": "~/apps/admin/app/api/auth/callback/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/admin/app/api/auth/signout/route.ts",
+          "target": "~/apps/admin/app/api/auth/signout/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/admin/app/sign-in/route.ts",
+          "target": "~/apps/admin/app/sign-in/route.ts",
           "type": "registry:file"
         },
         {
@@ -122,11 +142,6 @@
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/web/app/api/auth/signup/route.ts",
-          "target": "~/apps/web/app/api/auth/signup/route.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "route-handlers/callback.ts",
           "target": "~/packages/auth-workos/route-handlers/callback.ts",
           "type": "registry:file"
@@ -142,8 +157,8 @@
           "type": "registry:file"
         },
         {
-          "path": "route-handlers/signup.ts",
-          "target": "~/packages/auth-workos/route-handlers/signup.ts",
+          "path": "route-handlers/webhook.test.ts",
+          "target": "~/packages/auth-workos/route-handlers/webhook.test.ts",
           "type": "registry:file"
         },
         {
@@ -154,6 +169,46 @@
         {
           "path": "server.ts",
           "target": "~/packages/auth-workos/server.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "session.test.ts",
+          "target": "~/packages/auth-workos/session.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "session.ts",
+          "target": "~/packages/auth-workos/session.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/auth.test.ts",
+          "target": "~/packages/auth-workos/testing/auth.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/auth.ts",
+          "target": "~/packages/auth-workos/testing/auth.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/hosted-invitation-driver.ts",
+          "target": "~/packages/auth-workos/testing/hosted-invitation-driver.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/index.ts",
+          "target": "~/packages/auth-workos/testing/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/local-webhook-relay.ts",
+          "target": "~/packages/auth-workos/testing/local-webhook-relay.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/package.json",
+          "target": "~/packages/auth-workos/testing/package.json",
           "type": "registry:file"
         },
         {

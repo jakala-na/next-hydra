@@ -32,7 +32,14 @@ const PROVIDER_CHOICES: Record<
   ProviderSlot,
   { label: string; value: string; hint?: string }[]
 > = {
-  auth: [{ label: "WorkOS", value: "workos" }],
+  auth: [
+    { label: "WorkOS", value: "workos" },
+    {
+      hint: "sign-in/out, token validation, and registration onboarding",
+      label: "Clerk",
+      value: "clerk",
+    },
+  ],
   cms: [
     {
       hint: "includes the Drupal backend app",

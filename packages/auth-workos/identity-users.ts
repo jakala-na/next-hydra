@@ -1,7 +1,10 @@
 import { hasTransientTransportCode } from "@repo/errors/transport";
-import { Email } from "@repo/registration/domain/identity";
-import type {
+import {
   AuthUserId,
+  Email,
+  PersonName,
+} from "@repo/registration/domain/identity";
+import type {
   IdentityUserProfile,
   RedactedEmail,
 } from "@repo/registration/domain/identity";
@@ -17,14 +20,20 @@ import {
   RateLimitExceededException,
   WorkOS,
 } from "@workos-inc/node";
+import type { AutoPaginatable, User } from "@workos-inc/node";
 import { Config, Effect, Layer, Option, Redacted, Schema } from "effect";
+
+type WorkosIdentityUserListItem = Pick<
+  User,
+  "email" | "firstName" | "id" | "lastName"
+>;
 
 export interface WorkosIdentityUserManagement {
   readonly getUser: (authUserId: string) => Promise<unknown>;
   readonly listUsers: (input: {
     readonly email: string;
     readonly limit: number;
-  }) => Promise<unknown>;
+  }) => Promise<Pick<AutoPaginatable<WorkosIdentityUserListItem>, "data">>;
 }
 
 const WorkosIdentityUserProfile = Schema.Struct({
@@ -33,10 +42,14 @@ const WorkosIdentityUserProfile = Schema.Struct({
   lastName: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-const WorkosIdentityUserList = Schema.Struct({
-  data: Schema.Array(Schema.Unknown),
+const WorkosIdentityUser = Schema.Struct({
+  email: Schema.String,
+  firstName: Schema.optional(Schema.NullOr(Schema.String)),
+  id: Schema.NonEmptyString,
+  lastName: Schema.optional(Schema.NullOr(Schema.String)),
 });
-const EMPTY_USER_LIST_LENGTH = 0;
+
+const WorkosIdentityUserListData = Schema.Array(WorkosIdentityUser);
 const REQUEST_TIMEOUT_STATUS_CODE = 408;
 const SERVER_ERROR_STATUS_CODE = 500;
 
@@ -52,7 +65,7 @@ const providerFailureReason = (
     : "unexpectedResponse";
 
 const providerFailure = (
-  operation: "getById" | "hasUserWithEmail",
+  operation: "findByEmail" | "getById",
   cause: unknown
 ) =>
   new IdentityUserLookupFailure({
@@ -83,10 +96,53 @@ const displayName = (user: {
     )
     .join(" ") || user.email;
 
+const redactedPersonName = (value: string | null | undefined) =>
+  value === undefined || value === null || value === ""
+    ? undefined
+    : Redacted.make(PersonName.make(value), { label: "personName" });
+
 export const makeWorkosIdentityUsers = (
   userManagement: WorkosIdentityUserManagement
-) =>
-  IdentityUsers.of({
+) => {
+  const findByEmail = Effect.fn("IdentityUsers.Workos.findByEmail")(
+    (email: RedactedEmail) =>
+      Effect.tryPromise({
+        catch: (cause) => providerFailure("findByEmail", cause),
+        try: async () =>
+          await userManagement.listUsers({
+            email: Redacted.value(email),
+            limit: 1,
+          }),
+      }).pipe(
+        Effect.flatMap((users) =>
+          Schema.decodeEffect(WorkosIdentityUserListData)(users.data).pipe(
+            Effect.orDie
+          )
+        ),
+        Effect.map((users) => {
+          const requestedEmail = Redacted.value(email).trim().toLowerCase();
+          const user = users.find(
+            (candidate) =>
+              candidate.email.trim().toLowerCase() === requestedEmail
+          );
+
+          return user === undefined
+            ? Option.none()
+            : Option.some({
+                authUserId: AuthUserId.make(user.id),
+                email: Redacted.make(Email.make(user.email), {
+                  label: "email",
+                }),
+                firstName: redactedPersonName(user.firstName),
+                lastName: redactedPersonName(user.lastName),
+                name: displayName(user),
+              } satisfies IdentityUserProfile);
+        })
+      )
+  );
+
+  return IdentityUsers.of({
+    findByEmail,
     getById: Effect.fn("IdentityUsers.Workos.getById")(
       (authUserId: AuthUserId) =>
         Effect.tryPromise({
@@ -104,6 +160,8 @@ export const makeWorkosIdentityUsers = (
               email: Redacted.make(Email.make(user.email), {
                 label: "email",
               }),
+              firstName: redactedPersonName(user.firstName),
+              lastName: redactedPersonName(user.lastName),
               name: displayName(user),
             })
           )
@@ -111,35 +169,37 @@ export const makeWorkosIdentityUsers = (
     ),
     hasUserWithEmail: Effect.fn("IdentityUsers.Workos.hasUserWithEmail")(
       (email: RedactedEmail) =>
-        Effect.tryPromise({
-          catch: (cause) => providerFailure("hasUserWithEmail", cause),
-          try: async () =>
-            await userManagement.listUsers({
-              email: Redacted.value(email),
-              limit: 1,
-            }),
-        }).pipe(
-          Effect.flatMap((users) =>
-            Schema.decodeUnknownEffect(WorkosIdentityUserList)(users).pipe(
-              Effect.orDie
-            )
-          ),
-          Effect.map((users) => users.data.length !== EMPTY_USER_LIST_LENGTH)
-        )
+        findByEmail(email).pipe(Effect.map(Option.isSome))
     ),
   });
+};
 
-export const identityUsersLayer = Layer.effect(
-  IdentityUsers,
-  Effect.gen(function* identityUsersLayerEffect() {
-    const apiKey = yield* Config.redacted("WORKOS_API_KEY");
-    const clientId = yield* Config.option(Config.string("WORKOS_CLIENT_ID"));
-    const clientIdValue = Option.getOrUndefined(clientId);
-    const workos = new WorkOS({
-      apiKey: Redacted.value(apiKey),
-      ...(clientIdValue === undefined ? {} : { clientId: clientIdValue }),
-    });
+const configKey = (prefix: string | undefined, key: string) =>
+  prefix === undefined || prefix === "" ? key : `${prefix}_${key}`;
 
-    return makeWorkosIdentityUsers(workos.userManagement);
-  })
-);
+export const identityUsersLayerFromConfig = ({
+  configPrefix,
+}: {
+  readonly configPrefix?: string;
+} = {}) =>
+  Layer.effect(
+    IdentityUsers,
+    Effect.gen(function* identityUsersLayerEffect() {
+      const apiKey = yield* Config.redacted(
+        configKey(configPrefix, "WORKOS_API_KEY")
+      );
+      const clientId = yield* Config.option(
+        Config.string(configKey(configPrefix, "WORKOS_CLIENT_ID"))
+      );
+      const clientIdValue = Option.getOrUndefined(clientId);
+      const workos = new WorkOS(
+        clientIdValue === undefined
+          ? { apiKey: Redacted.value(apiKey) }
+          : { apiKey: Redacted.value(apiKey), clientId: clientIdValue }
+      );
+
+      return makeWorkosIdentityUsers(workos.userManagement);
+    })
+  );
+
+export const identityUsersLayer = identityUsersLayerFromConfig();

@@ -40,4 +40,4 @@ jobs:
         run: pnpm registry:check
 
       - name: Test registry composition
-        run: pnpm --filter create-next-hydra exec vitest run tests/catalog.test.ts
+        run: NODE_ENV=test pnpm --filter create-next-hydra exec vitest run tests/catalog.test.ts

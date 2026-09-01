@@ -1,6 +1,7 @@
 {
   "web": {
     "header": {
+      "account": "Espace client",
       "signUp": "S'inscrire",
       "signIn": "Se connecter",
       "signOut": "Se déconnecter",
@@ -194,6 +195,102 @@
           "title": "L’inscription de votre entreprise est toujours en cours d’examen.",
           "description": "Nous vous enverrons la suite par e-mail dès que votre entreprise aura été approuvée."
         }
+      }
+    },
+    "customerArea": {
+      "title": "Espace client",
+      "description": "Gérez le compte de votre entreprise et les personnes autorisées à acheter en son nom.",
+      "navigation": {
+        "accountManagement": "Gestion du compte",
+        "orders": "Commandes",
+        "addresses": "Adresses",
+        "comingSoon": "Bientôt"
+      },
+      "users": {
+        "adminOnly": {
+          "title": "Accès administrateur requis",
+          "description": "Seul un administrateur de l’entreprise peut inviter des utilisateurs."
+        },
+        "invite": {
+          "title": "Ajouter un utilisateur",
+          "description": "Invitez une personne et choisissez ce qu’elle peut faire pour votre entreprise.",
+          "firstNameLabel": "Prénom",
+          "firstNamePlaceholder": "Ada",
+          "lastNameLabel": "Nom",
+          "lastNamePlaceholder": "Lovelace",
+          "emailLabel": "Adresse e-mail",
+          "emailPlaceholder": "nom@entreprise.fr",
+          "rolesLabel": "Rôles dans l’entreprise",
+          "rolesDescription": "Sélectionnez un ou plusieurs rôles. Leurs autorisations sont combinées.",
+          "roles": {
+            "admin": {
+              "label": "Administrateur",
+              "description": "Gérer les utilisateurs et les accès."
+            },
+            "buyer": {
+              "label": "Acheteur",
+              "description": "Passer des commandes pour l’entreprise."
+            },
+            "approver": {
+              "label": "Approbateur",
+              "description": "Vérifier et approuver les commandes."
+            }
+          },
+          "send": "Envoyer l’invitation",
+          "sending": "Envoi...",
+          "successTitle": "Invitation envoyée",
+          "successDescription": "Une invitation a été envoyée à {email}.",
+          "memberAddedTitle": "Utilisateur ajouté",
+          "memberAddedDescription": "{email} avait déjà un compte et a été ajouté à votre entreprise.",
+          "failureTitle": "Invitation non envoyée"
+        },
+        "management": {
+          "title": "Utilisateurs de l’entreprise",
+          "description": "Gérez les utilisateurs actifs et les invitations en attente.",
+          "empty": "Aucun utilisateur ni aucune invitation pour le moment.",
+          "person": "Utilisateur",
+          "roles": "Rôles",
+          "status": "Statut",
+          "expiry": "Expiration",
+          "actions": "Actions",
+          "cancel": "Annuler l’invitation",
+          "reissue": "Renvoyer",
+          "remove": "Supprimer",
+          "currentUser": "Vous",
+          "inheritedMembership": "Géré par la société mère",
+          "noAction": "Provisionnement",
+          "statuses": {
+            "active": "Actif",
+            "pending": "En attente",
+            "accepted": "Acceptée",
+            "expired": "Expirée",
+            "revoked": "Annulée"
+          }
+        }
+      },
+      "errors": {
+        "InputInvalid": "Saisissez une adresse e-mail valide.",
+        "InputInvalidName": "Saisissez le prénom et le nom de la personne.",
+        "InputInvalidRoles": "Sélectionnez au moins un rôle d’entreprise.",
+        "InvitationPolicyError": "Seul un administrateur peut inviter des utilisateurs.",
+        "InvitationConflict": "Cet utilisateur ne peut pas être invité.",
+        "CommerceCustomerEmailConflict": "Cette adresse e-mail appartient à un autre client commerce.",
+        "CustomerAccountIdentityLookupFailure": "L’annuaire d’identités est temporairement indisponible. Réessayez.",
+        "InvitationProviderFailure": "L’opération d’invitation n’a pas pu être effectuée. Réessayez.",
+        "IdentityMembershipProjectionFailure": "L’adhésion à l’entreprise n’a pas pu être synchronisée. Réessayez.",
+        "InvitationIssueOutcomeUnknown": "L’invitation a peut-être été envoyée, mais le résultat n’a pas pu être confirmé. Ne la renvoyez pas.",
+        "CustomerAccountProfileIncomplete": "Votre profil doit comporter une adresse e-mail.",
+        "CommerceRequestContextNotFound": "Le compte d’entreprise actuel est indisponible.",
+        "CommerceAccountUnavailable": "Le compte d’entreprise est temporairement indisponible.",
+        "CommerceCustomerProfileNotFound": "Votre profil client est introuvable.",
+        "CompanyMemberInvitationNotFound": "Cette invitation est introuvable. Actualisez la liste des membres.",
+        "CompanyMemberInvitationPersistenceFailure": "Les invitations de l’entreprise sont temporairement indisponibles. Réessayez.",
+        "CompanyMemberInvitationRecordConflict": "Cette invitation a changé pendant votre action. Actualisez la liste des membres.",
+        "InvitationExpired": "Cette invitation a expiré. Actualisez la liste des membres pour la réémettre.",
+        "InvitationNotFound": "Le fournisseur d’identité ne possède plus cette invitation. Actualisez la liste des membres.",
+        "CompanyMemberRemovalConflict": "Ce membre ne peut pas être supprimé dans l’état actuel de l’entreprise. Actualisez et réessayez.",
+        "CompanyMemberManagementForbidden": "Seul un administrateur de l’entreprise peut gérer les membres.",
+        "CompanyMemberRemovalPersistenceFailure": "La suppression du membre de l’entreprise n’a pas pu être enregistrée. Réessayez."
       }
     },
     "checkout": {

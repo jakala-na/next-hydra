@@ -9,7 +9,7 @@ import {
   RateLimitExceededException,
   UnauthorizedException,
 } from "@workos-inc/node";
-import { Cause, Effect, Layer, Redacted } from "effect";
+import { Cause, Effect, Layer, Option, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { makeWorkosIdentityUsers } from "./identity-users";
@@ -42,7 +42,14 @@ describe(makeWorkosIdentityUsers, () => {
         listUsers: async (input) => {
           listInput = input;
           return {
-            data: [{ email: "ada@example.com", id: "user-1" }],
+            data: [
+              {
+                email: "ada@example.com",
+                firstName: null,
+                id: "user-1",
+                lastName: null,
+              },
+            ],
           };
         },
       })
@@ -52,14 +59,53 @@ describe(makeWorkosIdentityUsers, () => {
       Effect.gen(function* () {
         const identityUsers = yield* IdentityUsers;
         const exists = yield* identityUsers.hasUserWithEmail(email);
+        const profile = yield* identityUsers.findByEmail(email);
 
         expect(exists).toBeTruthy();
+        expect(Option.getOrUndefined(profile)).toMatchObject({
+          authUserId: "user-1",
+          name: "ada@example.com",
+        });
         expect(listInput).toStrictEqual({
           email: "ada@example.com",
           limit: 1,
         });
       }).pipe(Effect.provide(layer))
     );
+  });
+
+  it("reads WorkOS user lists exposed through prototype getters", async () => {
+    const response = new (class {
+      readonly #data = [
+        {
+          email: "ada@example.com",
+          firstName: null,
+          id: "user-1",
+          lastName: null,
+        },
+      ];
+
+      get data() {
+        return this.#data;
+      }
+    })();
+    const layer = makeLayer(
+      makeUserManagement({
+        listUsers: async () => {
+          await Promise.resolve();
+          return response;
+        },
+      })
+    );
+
+    const exists = await Effect.runPromise(
+      Effect.gen(function* () {
+        const identityUsers = yield* IdentityUsers;
+        return yield* identityUsers.hasUserWithEmail(email);
+      }).pipe(Effect.provide(layer))
+    );
+
+    expect(exists).toBeTruthy();
   });
 
   it("resolves a schema-backed identity profile by auth user id", async () => {
@@ -87,6 +133,11 @@ describe(makeWorkosIdentityUsers, () => {
     expect(requestedAuthUserId).toBe("user-1");
     expect(profile.authUserId).toBe("user-1");
     expect(Redacted.value(profile.email)).toBe("reviewer@example.com");
+    if (profile.firstName === undefined || profile.lastName === undefined) {
+      throw new Error("Expected WorkOS profile names");
+    }
+    expect(Redacted.value(profile.firstName)).toBe("Grace");
+    expect(Redacted.value(profile.lastName)).toBe("Hopper");
     expect(profile.name).toBe("Grace Hopper");
   });
 
@@ -164,7 +215,7 @@ describe(makeWorkosIdentityUsers, () => {
     );
 
     expect(failure).toMatchObject({
-      operation: "hasUserWithEmail",
+      operation: "findByEmail",
       reason: "unavailable",
     });
   });
@@ -172,7 +223,16 @@ describe(makeWorkosIdentityUsers, () => {
   it("treats malformed WorkOS user lists as defects", async () => {
     const layer = makeLayer(
       makeUserManagement({
-        listUsers: async () => ({ users: [] }),
+        listUsers: async () => ({
+          data: [
+            {
+              email: "ada@example.com",
+              firstName: null,
+              id: "",
+              lastName: null,
+            },
+          ],
+        }),
       })
     );
 
@@ -254,7 +314,7 @@ describe(makeWorkosIdentityUsers, () => {
 
     expect(failure).toBeInstanceOf(IdentityUserLookupFailure);
     expect(failure).toMatchObject({
-      operation: "hasUserWithEmail",
+      operation: "findByEmail",
       reason: "unexpectedResponse",
     });
   });

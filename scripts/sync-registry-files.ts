@@ -11,6 +11,16 @@ const checkOnly = process.argv.includes("--check");
 const managedSourceDirectory = "registry";
 const manifests = [
   {
+    item: "auth-clerk",
+    manifest: "packages/auth-clerk/registry.json",
+    sourceRoot: "packages/auth-clerk",
+  },
+  {
+    item: "auth-contract",
+    manifest: "packages/auth-contract/registry.json",
+    sourceRoot: "packages/auth-contract",
+  },
+  {
     item: "auth-workos",
     manifest: "packages/auth-workos/registry.json",
     sourceRoot: "packages/auth-workos",
@@ -76,7 +86,9 @@ function sourceFiles(sourceRoot) {
     .split("\n")
     .filter(Boolean)
     .filter((file) => existsSync(path.join(workspaceRoot, file)))
-    .filter((file) => path.posix.basename(file) !== "registry.json");
+    .filter((file) => path.posix.basename(file) !== "registry.json")
+    // Prototypes are maintainer references, not generated workspace source.
+    .filter((file) => !file.startsWith(`${sourceRoot}/prototypes/`));
 
   for (const file of files) {
     if (

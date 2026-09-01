@@ -13,9 +13,13 @@ import type {
   CatalogSelection,
   CompositionPlan,
   PackageRequirement,
+  PackageRequirementTarget,
   PnpmPatch,
+  ProviderDependency,
   ProviderSlot,
   SourceRegistryCatalog,
+  TypeScriptPathAlias,
+  TypeScriptPathAliasTarget,
   WorkspaceSelection,
 } from "./types.js";
 import { PROVIDER_ALIASES, PROVIDER_SLOTS } from "./types.js";
@@ -182,81 +186,123 @@ function validateCompatibility(selections: CatalogSelection[]): void {
   }
 }
 
-function validateProviderAliasRequirements(
-  providers: CatalogSelection[]
-): void {
-  const requiredLocations = {
-    auth: [
-      { cwd: "apps/api", section: "dependencies" },
-      { cwd: "apps/web", section: "dependencies" },
-      { cwd: "packages/feature-flags", section: "dependencies" },
-    ],
-    cms: [
-      { cwd: "apps/cli", section: "dependencies" },
-      { cwd: "apps/web", section: "dependencies" },
-    ],
-    commerce: [
-      { cwd: "apps/api", section: "dependencies" },
-      { cwd: "apps/cli", section: "dependencies" },
-      { cwd: "apps/web", section: "dependencies" },
-    ],
-  } satisfies Record<
-    ProviderSlot,
-    readonly { cwd: string; section: PackageRequirement["section"] }[]
-  >;
-  const issues: string[] = [];
+const BASELINE_PROVIDER_DEPENDENCIES = [
+  { cwd: "apps/admin", section: "dependencies", slot: "auth" },
+  { cwd: "apps/api", section: "dependencies", slot: "auth" },
+  { cwd: "apps/cli", section: "dependencies", slot: "auth" },
+  { cwd: "apps/web", section: "dependencies", slot: "auth" },
+  { cwd: "packages/feature-flags", section: "dependencies", slot: "auth" },
+  { cwd: "tests/e2e", section: "devDependencies", slot: "auth" },
+  { cwd: "apps/cli", section: "dependencies", slot: "cms" },
+  { cwd: "apps/web", section: "dependencies", slot: "cms" },
+  { cwd: "apps/api", section: "dependencies", slot: "commerce" },
+  { cwd: "apps/cli", section: "dependencies", slot: "commerce" },
+  { cwd: "apps/web", section: "dependencies", slot: "commerce" },
+  { cwd: "tests/e2e", section: "devDependencies", slot: "commerce" },
+] satisfies ProviderDependency[];
 
-  for (const provider of providers) {
-    if (!provider.slot) {
-      continue;
-    }
-    const alias = PROVIDER_ALIASES[provider.slot];
-    const requiredClaims = new Set(
-      requiredLocations[provider.slot].map(
-        (requirement) => `${requirement.cwd}\0${requirement.section}\0${alias}`
-      )
-    );
-    const actualClaims = new Set(
-      provider.packages.map(
-        (requirement) =>
-          `${requirement.cwd}\0${requirement.section}\0${requirement.name}`
-      )
-    );
-
-    for (const claim of requiredClaims) {
-      if (!actualClaims.has(claim)) {
-        const [cwd, section, name] = claim.split("\0");
-        issues.push(
-          `${provider.id} must declare ${cwd}/${section}.${name} for the ${provider.slot} Provider Slot`
-        );
-      }
-    }
-  }
-
-  if (issues.length > 0) {
-    throw new CompositionValidationError(
-      "Providers do not supply all stable Provider aliases required by the Baseline.",
-      uniqueSorted(issues)
-    );
-  }
+function selectedProviderDependencies(
+  selections: CatalogSelection[]
+): ProviderDependency[] {
+  return [
+    ...BASELINE_PROVIDER_DEPENDENCIES,
+    ...selections.flatMap((selection) => selection.providerDependencies),
+  ];
 }
 
-function catalogPackageRequirements(
+function catalogProviderDependencies(
   catalog: SourceRegistryCatalog
-): PackageRequirement[] {
-  const requirements = new Map<string, PackageRequirement>();
+): ProviderDependency[] {
+  return [
+    ...BASELINE_PROVIDER_DEPENDENCIES,
+    ...catalog.selections.flatMap(
+      (selection) => selection.providerDependencies
+    ),
+  ];
+}
 
-  for (const selection of catalog.selections) {
-    for (const requirement of selection.packages) {
-      const key = `${requirement.cwd}\0${requirement.section}\0${requirement.name}`;
-      if (!requirements.has(key)) {
-        requirements.set(key, requirement);
-      }
+function resolveProviderRequirements(
+  providers: Map<ProviderSlot, CatalogSelection>,
+  dependencies: ProviderDependency[]
+) {
+  const packageRequirements: PackageRequirement[] = [];
+  const typeScriptPathAliases = new Map<string, TypeScriptPathAlias>();
+
+  for (const dependency of dependencies) {
+    const provider = providers.get(dependency.slot);
+    if (!provider?.binding) {
+      throw new CompositionValidationError("Provider binding is missing.", [
+        `${dependency.slot} does not supply a Provider binding`,
+      ]);
+    }
+    const alias = PROVIDER_ALIASES[dependency.slot];
+    packageRequirements.push({
+      cwd: dependency.cwd,
+      name: alias,
+      section: dependency.section,
+      specifier: provider.binding.specifier,
+    });
+    if (provider.binding.sourcePath) {
+      typeScriptPathAliases.set(`${dependency.cwd}\0${alias}`, {
+        alias,
+        cwd: dependency.cwd,
+        sourcePath: resolveWorkspacePath(
+          provider.binding.sourcePath,
+          `${provider.id} Provider binding source path`
+        ),
+      });
     }
   }
 
   // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
-  return [...requirements.values()].sort((left, right) =>
+  const aliases = [...typeScriptPathAliases.values()].sort((left, right) =>
+    `${left.cwd}/${left.alias}`.localeCompare(`${right.cwd}/${right.alias}`)
+  );
+  return { packageRequirements, typeScriptPathAliases: aliases };
+}
+
+function catalogTypeScriptPathAliases(
+  dependencies: ProviderDependency[]
+): TypeScriptPathAliasTarget[] {
+  const aliases = new Map<string, TypeScriptPathAliasTarget>();
+  for (const dependency of dependencies) {
+    const alias = PROVIDER_ALIASES[dependency.slot];
+    aliases.set(`${dependency.cwd}\0${alias}`, {
+      alias,
+      cwd: dependency.cwd,
+    });
+  }
+
+  // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
+  return [...aliases.values()].sort((left, right) =>
+    `${left.cwd}/${left.alias}`.localeCompare(`${right.cwd}/${right.alias}`)
+  );
+}
+
+function catalogPackageRequirementTargets(
+  catalog: SourceRegistryCatalog,
+  providerDependencies: ProviderDependency[]
+): PackageRequirementTarget[] {
+  const targets = new Map<string, PackageRequirementTarget>();
+  const add = (target: PackageRequirementTarget) => {
+    targets.set(`${target.cwd}\0${target.section}\0${target.name}`, target);
+  };
+
+  for (const selection of catalog.selections) {
+    for (const { cwd, name, section } of selection.packages) {
+      add({ cwd, name, section });
+    }
+  }
+  for (const dependency of providerDependencies) {
+    add({
+      cwd: dependency.cwd,
+      name: PROVIDER_ALIASES[dependency.slot],
+      section: dependency.section,
+    });
+  }
+
+  // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
+  return [...targets.values()].sort((left, right) =>
     `${left.cwd}/${left.section}/${left.name}`.localeCompare(
       `${right.cwd}/${right.section}/${right.name}`
     )
@@ -388,8 +434,17 @@ export function planComposition(
   const addOns = resolveAddOns(catalog, selection.addOns, providerSelections);
   const selections = [...providerSelections, ...addOns];
 
-  validateProviderAliasRequirements(providerSelections);
   validateCompatibility(selections);
+  const providerDependencies = selectedProviderDependencies(selections);
+  const catalogDependencies = catalogProviderDependencies(catalog);
+  const providerRequirements = resolveProviderRequirements(
+    providers,
+    providerDependencies
+  );
+  const packageRequirements = mergePackageRequirements([
+    ...selections.flatMap((selected) => selected.packages),
+    ...providerRequirements.packageRequirements,
+  ]);
 
   const entryItems = uniqueSorted(
     selections.map((selected) => selected.itemName)
@@ -444,8 +499,13 @@ export function planComposition(
   return {
     assets,
     catalogManagedTargets: catalog.managedTargets,
-    catalogPackageRequirements: catalogPackageRequirements(catalog),
+    catalogPackageRequirementTargets: catalogPackageRequirementTargets(
+      catalog,
+      catalogDependencies
+    ),
     catalogPnpmPatches: catalogPnpmPatches(catalog),
+    catalogTypeScriptPathAliases:
+      catalogTypeScriptPathAliases(catalogDependencies),
     entryItems,
     instructions: [
       ...new Set(
@@ -455,7 +515,7 @@ export function planComposition(
       ),
     ],
     managedTargets,
-    packageRequirements: mergePackageRequirements(selections),
+    packageRequirements,
     pnpmPatches,
     registryItems,
     selection: {
@@ -464,6 +524,7 @@ export function planComposition(
       providers: { ...selection.providers },
     },
     selections,
+    typeScriptPathAliases: providerRequirements.typeScriptPathAliases,
     variableTargets: uniqueSorted([
       ...catalogVariableTargets(catalog),
       ...catalog.selections.flatMap((selected) =>

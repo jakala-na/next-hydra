@@ -8,7 +8,8 @@ import { registrationFormMessageCatalogs } from "@repo/i18n/registration-message
 import type { Locale } from "@repo/i18n/types";
 import { Schema } from "effect";
 
-import { RegistrationId } from "./domain/identity";
+import { InvitationId, RegistrationId } from "./domain/identity";
+import { RegistrationOnboardingStatus } from "./domain/registration";
 import { RegistrationIntakeValidationReason } from "./domain/registration-intake-validation";
 import type { RegistrationIntakeValidationError } from "./domain/registration-intake-validation";
 
@@ -74,6 +75,62 @@ export const PublicRegistrationTransitionConflict =
   RegistrationTransitionConflictFailure.schema;
 export type PublicRegistrationTransitionConflict =
   typeof PublicRegistrationTransitionConflict.Type;
+
+export const PublicRegistrationOnboardingTransitionConflictFailure =
+  definePublicError({
+    category: "conflict",
+    code: "registration.onboardingConflict",
+    fields: {
+      attemptedStatus: RegistrationOnboardingStatus,
+      currentState: Schema.String,
+      registrationId: RegistrationId,
+    },
+    recovery: "refresh",
+    status: 409,
+    tag: "RegistrationOnboardingTransitionConflict",
+  });
+export const PublicRegistrationOnboardingTransitionConflict =
+  PublicRegistrationOnboardingTransitionConflictFailure.schema;
+export type PublicRegistrationOnboardingTransitionConflict =
+  typeof PublicRegistrationOnboardingTransitionConflict.Type;
+
+export const PublicInvitationConflictFailure = definePublicError({
+  category: "conflict",
+  code: "registration.invitationConflict",
+  fields: {},
+  recovery: "refresh",
+  status: 409,
+  tag: "InvitationConflict",
+});
+export const PublicInvitationConflict = PublicInvitationConflictFailure.schema;
+export type PublicInvitationConflict = typeof PublicInvitationConflict.Type;
+
+export const PublicInvitationExpiredFailure = definePublicError({
+  category: "conflict",
+  code: "registration.invitationExpired",
+  fields: {
+    expiredAt: Schema.String,
+    invitationId: InvitationId,
+  },
+  recovery: "none",
+  status: 409,
+  tag: "InvitationExpired",
+});
+export const PublicInvitationExpired = PublicInvitationExpiredFailure.schema;
+export type PublicInvitationExpired = typeof PublicInvitationExpired.Type;
+
+export const PublicInvitationNotFoundFailure = definePublicError({
+  category: "not_found",
+  code: "registration.invitationNotFound",
+  fields: {
+    invitationId: InvitationId,
+  },
+  recovery: "refresh",
+  status: 404,
+  tag: "InvitationNotFound",
+});
+export const PublicInvitationNotFound = PublicInvitationNotFoundFailure.schema;
+export type PublicInvitationNotFound = typeof PublicInvitationNotFound.Type;
 
 export const RegistrationAlreadyApprovedFailure = definePublicError({
   category: "conflict",
@@ -179,6 +236,22 @@ export const RegistrationDecisionOutcomeUnknown =
 export type RegistrationDecisionOutcomeUnknown =
   typeof RegistrationDecisionOutcomeUnknown.Type;
 
+export const PublicRegistrationWorkflowInvitationResumeOutcomeUnknownFailure =
+  definePublicError({
+    category: "unavailable",
+    code: "registration.invitationResumeOutcomeUnknown",
+    fields: {
+      invitationId: InvitationId,
+    },
+    recovery: "refresh",
+    status: 503,
+    tag: "RegistrationWorkflowInvitationResumeOutcomeUnknown",
+  });
+export const PublicRegistrationWorkflowInvitationResumeOutcomeUnknown =
+  PublicRegistrationWorkflowInvitationResumeOutcomeUnknownFailure.schema;
+export type PublicRegistrationWorkflowInvitationResumeOutcomeUnknown =
+  typeof PublicRegistrationWorkflowInvitationResumeOutcomeUnknown.Type;
+
 export const RegistrationSubmissionOutcomeUnknownFailure = definePublicError({
   category: "unavailable",
   code: "registration.submissionOutcomeUnknown",
@@ -240,6 +313,22 @@ export const RegistrationDecisionPublicError = Schema.Union([
 ]);
 export type RegistrationDecisionPublicError =
   typeof RegistrationDecisionPublicError.Type;
+
+export const RegistrationInvitationRevocationPublicError = Schema.Union([
+  RegistrationApiError,
+  RegistrationApiUnauthorized,
+  RegistrationApiForbidden,
+  RegistrationApiAuthenticationUnavailable,
+  PublicInvitationConflict,
+  PublicInvitationExpired,
+  PublicInvitationNotFound,
+  PublicRegistrationConcurrentModification,
+  PublicRegistrationNotFound,
+  PublicRegistrationOnboardingTransitionConflict,
+  PublicRegistrationWorkflowInvitationResumeOutcomeUnknown,
+]);
+export type RegistrationInvitationRevocationPublicError =
+  typeof RegistrationInvitationRevocationPublicError.Type;
 
 export const registrationUnavailable = (
   locale = "en-US",

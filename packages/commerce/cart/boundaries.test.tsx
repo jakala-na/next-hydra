@@ -12,7 +12,7 @@ import { makeCartProcedures } from "./procedures";
 
 const CART_MUTATION_COUNT = 3;
 
-const cartState = Schema.decodeUnknownSync(CurrentCartState)({
+const cartState = Schema.decodeSync(CurrentCartState)({
   cart: {
     checkoutDetails: {},
     id: "cart-1",
@@ -227,27 +227,26 @@ describe("Cart boundaries", () => {
   it.each(["invalidData", "unexpectedResponse"] as const)(
     "lets %s provider failures reject the Server Action",
     async (reason) => {
+      const providerFailure = new CartProviderFailure({
+        operation: "addItem",
+        reason,
+      });
       const { addToCart } = makeCartActions(() =>
         currentCartLayer({
-          addItem: () =>
-            Effect.fail(
-              new CartProviderFailure({
-                operation: "addItem",
-                reason,
-              })
-            ),
+          addItem: () => Effect.fail(providerFailure),
         })
       );
+      const submission = addToCart({
+        productId: "product-1",
+        quantity: 1,
+        variantId: "variant-1",
+      });
 
-      await expect(
-        addToCart({
-          productId: "product-1",
-          quantity: 1,
-          variantId: "variant-1",
-        })
-      ).rejects.toMatchObject({
-        _tag: "CartProviderFailure",
-        reason,
+      await expect(submission).rejects.toBeInstanceOf(Error);
+      await expect(submission).rejects.toMatchObject({
+        cause: providerFailure,
+        message: "Action CartAction.addToCart failed.",
+        name: "CartProviderFailure",
       });
     }
   );

@@ -1,23 +1,28 @@
-import type {
-  PrivateDotEnvFileError,
-  PrivateDotEnvFileReceipt,
-} from "@repo/cli-core/private-dotenv";
-import type { Effect } from "effect";
-import { Context, Layer } from "effect";
+import { runtimeEnvironmentManifestFromSchema } from "@repo/cli-core/runtime-environment";
+import { Schema } from "effect";
 
 import type { RuntimeCredentials } from "./model";
 
-interface RuntimeCredentialHandoffValue {
-  readonly save: (
-    credentials: RuntimeCredentials,
-    destination: string
-  ) => Effect.Effect<PrivateDotEnvFileReceipt, PrivateDotEnvFileError>;
-}
+const commerceRuntimeEnvironmentSchema = {
+  COMMERCETOOLS_CLIENT_ID: Schema.String,
+  COMMERCETOOLS_CLIENT_SECRET: Schema.Redacted(Schema.String),
+  COMMERCETOOLS_PROJECT_KEY: Schema.String,
+  COMMERCETOOLS_REGION: Schema.String,
+  COMMERCETOOLS_SCOPE: Schema.String,
+} as const;
 
-export class RuntimeCredentialHandoff extends Context.Service<
-  RuntimeCredentialHandoff,
-  RuntimeCredentialHandoffValue
->()("@repo/commerce-commercetools/RuntimeCredentialHandoff") {
-  static readonly layerFrom = (value: RuntimeCredentialHandoffValue) =>
-    Layer.succeed(RuntimeCredentialHandoff, RuntimeCredentialHandoff.of(value));
-}
+export const commerceRuntimeEnvironmentManifest =
+  runtimeEnvironmentManifestFromSchema(commerceRuntimeEnvironmentSchema, [
+    "web",
+    "api",
+  ]);
+
+export const commerceRuntimeEnvironment = (
+  credentials: RuntimeCredentials
+) => ({
+  COMMERCETOOLS_CLIENT_ID: credentials.clientId,
+  COMMERCETOOLS_CLIENT_SECRET: credentials.clientSecret,
+  COMMERCETOOLS_PROJECT_KEY: credentials.projectKey,
+  COMMERCETOOLS_REGION: credentials.region,
+  COMMERCETOOLS_SCOPE: credentials.scope,
+});

@@ -1,22 +1,27 @@
+import { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
+import type { RuntimeEnvironmentDestination } from "@repo/cli-core/runtime-environment";
 import { Console, Effect, Random, Ref } from "effect";
 
 import { CommercetoolsProjectAdministration } from "./administration";
 import { BootstrapCommercetoolsConfig } from "./bootstrap-config";
-import { RuntimeCredentialHandoff } from "./credential-handoff";
+import {
+  commerceRuntimeEnvironment,
+  commerceRuntimeEnvironmentManifest,
+} from "./credential-handoff";
 import { BootstrapApiClientScopeError, ProvisioningReceipt } from "./model";
 import { RuntimeProjectSetup } from "./runtime-project-setup";
 import { missingBootstrapScopes, runtimeScopeFor } from "./scopes";
 
 export interface ProvisionCommerceProjectOptions {
   readonly clientName?: string;
-  readonly output: string;
+  readonly destination: RuntimeEnvironmentDestination;
 }
 
 export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
   function* (options: ProvisionCommerceProjectOptions) {
     const administration = yield* CommercetoolsProjectAdministration;
     const bootstrapConfig = yield* BootstrapCommercetoolsConfig;
-    const credentialHandoff = yield* RuntimeCredentialHandoff;
+    const publisher = yield* RuntimeEnvironmentPublisher;
     const runtimeSetup = yield* RuntimeProjectSetup;
     const clientName =
       options.clientName ??
@@ -32,6 +37,10 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
       });
     }
 
+    const preparedDestination = yield* publisher.prepare({
+      destination: options.destination,
+      manifest: commerceRuntimeEnvironmentManifest,
+    });
     yield* Console.log("Preparing the Commercetools project...");
     const project = yield* administration.prepareProject;
     const scope = runtimeScopeFor(bootstrapConfig.projectKey);
@@ -45,10 +54,17 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
     const finishProvisioning = Effect.gen(function* () {
       yield* Console.log("Applying starter-kit migrations...");
       const seed = yield* runtimeSetup.setup(credentials);
-      yield* Console.log(`Writing runtime credentials to ${options.output}...`);
-      const credentialFile = yield* credentialHandoff
-        .save(credentials, options.output)
+      yield* Console.log("Publishing runtime credentials...");
+      const publishedCredentials = yield* publisher
+        .publish(preparedDestination, commerceRuntimeEnvironment(credentials))
         .pipe(
+          Effect.tapErrorTag(
+            [
+              "RuntimeEnvironmentPublicationIncomplete",
+              "RuntimeEnvironmentPublicationOutcomeUnknown",
+            ],
+            () => Ref.set(committed, true)
+          ),
           Effect.tap(() => Ref.set(committed, true)),
           Effect.uninterruptible
         );
@@ -57,7 +73,7 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
 
       return new ProvisioningReceipt({
         bootstrapClientRevoked: true,
-        credentialFile,
+        credentials: publishedCredentials,
         project,
         runtimeClientId: credentials.clientId,
         scope: credentials.scope,

@@ -1,3 +1,4 @@
+import { createAuthCommand } from "@repo/auth/cli";
 import { createCmsCommand } from "@repo/cms/cli";
 import { createCommerceCommand } from "@repo/commerce-provider/cli";
 import { Effect, Option } from "effect";
@@ -30,6 +31,7 @@ export const createProgram = (
   });
   const commerce = createCommerceCommand(configProvider);
   const cms = createCmsCommand(configProvider);
+  const auth = createAuthCommand(configProvider);
 
-  return root.pipe(Command.withSubcommands([cms, commerce]));
+  return root.pipe(Command.withSubcommands([auth, cms, commerce]));
 };

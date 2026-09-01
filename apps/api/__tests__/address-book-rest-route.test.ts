@@ -30,6 +30,7 @@ import { AddressBook } from "@repo/commerce/services/address-book";
 import { CartPolicies } from "@repo/commerce/services/cart-policies";
 import { Carts } from "@repo/commerce/services/carts";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { StoreKey } from "@repo/commerce/store";
 import { Context, Effect, Layer } from "effect";
@@ -103,6 +104,7 @@ const commerceAccountsLayer = CommerceAccounts.layerMemoryFrom({
         businessUnitId,
         businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
         businessUnitLabel: CommerceBusinessUnitLabel.make("Business Unit One"),
+        roles: ["admin", "buyer"],
       }),
       storeKey: StoreKey.make("default-store"),
     },
@@ -138,6 +140,7 @@ const makeHandler = (
     cartsLayer: Carts.layerMemory(),
     checkoutPoliciesLayer: CheckoutPolicies.layer,
     commerceAccountsLayer,
+    commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 

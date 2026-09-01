@@ -7,13 +7,20 @@ export interface VariantItem {
   id: string;
   value: string;
   label: string;
+  options?: readonly VariantItemOption[];
   disabled?: boolean;
+}
+
+export interface VariantItemOption {
+  readonly name: string;
+  readonly value: string;
 }
 
 interface VariantSelectorBasicProps {
   value: string;
   onValueChange: (value: string) => void;
   variants: VariantItem[];
+  label?: string;
   className?: string;
   itemClassName?: string;
   labelClassName?: string;
@@ -22,12 +29,14 @@ interface VariantSelectorBasicProps {
 const VariantSelectorBasic = ({
   className,
   itemClassName,
+  label,
   labelClassName,
   onValueChange,
   value,
   variants,
 }: VariantSelectorBasicProps) => (
   <RadioGroupPrimitive.Root
+    aria-label={label}
     className={cn("flex flex-wrap gap-3", className)}
     value={value}
     onValueChange={onValueChange}
@@ -51,6 +60,15 @@ const VariantSelectorBasic = ({
           <span className={cn("font-medium", labelClassName)}>
             {variant.label}
           </span>
+          {variant.options?.map((option) => (
+            <span
+              data-commerce-product-option=""
+              data-product-option-name={option.name}
+              data-product-option-value={option.value}
+              hidden
+              key={option.name}
+            />
+          ))}
         </RadioGroupPrimitive.Item>
       </div>
     ))}

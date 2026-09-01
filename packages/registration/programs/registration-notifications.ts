@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { RegistrationId } from "../domain/identity";
-import { Invitations } from "../services/invitations";
+import { InvitationDeliveries } from "../services/invitations";
 import type { InvitationReadError } from "../services/invitations";
 import { RegistrationEmails } from "../services/registration-emails";
 import type { RegistrationEmailFailure } from "../services/registration-emails";
@@ -37,21 +37,27 @@ export const notifyRegistrationApproved = (
 ): Effect.Effect<
   void,
   RegistrationReadError | InvitationReadError | RegistrationEmailFailure,
-  Registrations | Invitations | RegistrationEmails
+  Registrations | InvitationDeliveries | RegistrationEmails
 > =>
   Effect.gen(function* () {
     const registrations = yield* Registrations;
-    const invitations = yield* Invitations;
+    const deliveries = yield* InvitationDeliveries;
     const emails = yield* RegistrationEmails;
     const registration = yield* registrations.get(input.registrationId);
 
     if (registration._tag !== "ApprovedRegistration") {
       return;
     }
+    if (registration.invitationId === undefined) {
+      return yield* emails.sendApprovedToRegistrant({ registration });
+    }
 
-    const invitation = yield* invitations.get(registration.invitationId);
+    const invitation = yield* deliveries.get(registration.invitationId);
 
-    if (invitation._tag !== "PendingInvitation") {
+    if (
+      invitation.status !== "pending" ||
+      invitation.acceptInvitationUrl === undefined
+    ) {
       return;
     }
 
@@ -75,4 +81,23 @@ export const notifyRegistrationRejected = (
     }
 
     yield* emails.sendRejectedToRegistrant({ registration });
+  });
+
+export const notifyRegistrationInvitationExpired = (
+  input: NotifyRegistrationInput
+): Effect.Effect<
+  void,
+  RegistrationReadError | RegistrationEmailFailure,
+  Registrations | RegistrationEmails
+> =>
+  Effect.gen(function* () {
+    const registrations = yield* Registrations;
+    const emails = yield* RegistrationEmails;
+    const registration = yield* registrations.get(input.registrationId);
+
+    if (registration._tag !== "ApprovedRegistration") {
+      return;
+    }
+
+    yield* emails.sendInvitationExpiredToRegistrant({ registration });
   });

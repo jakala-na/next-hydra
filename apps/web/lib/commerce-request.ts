@@ -25,7 +25,10 @@ import type { StoreKey } from "@repo/commerce/store";
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
 
-import { CurrentAuth } from "./current-auth-api";
+import {
+  CurrentAuth,
+  terminateAuthSessionReadFailure,
+} from "./current-auth-api";
 import type { NextCookieStore } from "./next-request-api";
 import { NextRequestApi } from "./next-request-api";
 
@@ -139,18 +142,20 @@ export const makeNextCommerceRequest = (
       options
     );
   }).pipe(
-    Effect.catchTag("CommerceRequestFailure", (error) =>
-      Effect.logError(
-        "The authenticated user ID violated the Commerce request contract",
-        error.cause
-      ).pipe(
-        Effect.annotateLogs({
-          "commerce.error.tag": error._tag,
-          "commerce.operation": error.operation,
-        }),
-        Effect.andThen(Effect.die(error))
-      )
-    )
+    Effect.catchTags({
+      AuthSessionReadFailure: terminateAuthSessionReadFailure,
+      CommerceRequestFailure: (error) =>
+        Effect.logError(
+          "The authenticated user ID violated the Commerce request contract",
+          error.cause
+        ).pipe(
+          Effect.annotateLogs({
+            "commerce.error.tag": error._tag,
+            "commerce.operation": error.operation,
+          }),
+          Effect.andThen(Effect.die(error))
+        ),
+    })
   );
 
 export const nextCommerceRequest = makeNextCommerceRequest;

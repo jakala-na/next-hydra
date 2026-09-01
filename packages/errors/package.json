@@ -5,12 +5,13 @@
   "type": "module",
   "exports": {
     ".": "./index.ts",
+    "./boundary": "./boundary.ts",
     "./http": "./http.ts",
     "./transport": "./transport.ts"
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/errors/tsconfig.json"
   },
   "devDependencies": {

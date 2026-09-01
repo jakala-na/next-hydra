@@ -1,6 +1,7 @@
 {
   "web": {
     "header": {
+      "account": "Area clienti",
       "signUp": "Registrati",
       "signIn": "Accedi",
       "signOut": "Esci",
@@ -194,6 +195,102 @@
           "title": "La registrazione della tua azienda è ancora in fase di verifica.",
           "description": "Ti invieremo i prossimi passaggi via email non appena la tua azienda sarà approvata."
         }
+      }
+    },
+    "customerArea": {
+      "title": "Area clienti",
+      "description": "Gestisci l’account aziendale e le persone autorizzate ad acquistare per suo conto.",
+      "navigation": {
+        "accountManagement": "Gestione account",
+        "orders": "Ordini",
+        "addresses": "Indirizzi",
+        "comingSoon": "Prossimamente"
+      },
+      "users": {
+        "adminOnly": {
+          "title": "Accesso amministratore richiesto",
+          "description": "Solo un amministratore dell’azienda può invitare utenti."
+        },
+        "invite": {
+          "title": "Aggiungi un utente",
+          "description": "Invita una persona e scegli cosa può fare per la tua azienda.",
+          "firstNameLabel": "Nome",
+          "firstNamePlaceholder": "Ada",
+          "lastNameLabel": "Cognome",
+          "lastNamePlaceholder": "Lovelace",
+          "emailLabel": "Indirizzo email",
+          "emailPlaceholder": "nome@azienda.it",
+          "rolesLabel": "Ruoli aziendali",
+          "rolesDescription": "Seleziona uno o più ruoli. Le autorizzazioni vengono combinate.",
+          "roles": {
+            "admin": {
+              "label": "Amministratore",
+              "description": "Gestire utenti e accessi."
+            },
+            "buyer": {
+              "label": "Acquirente",
+              "description": "Effettuare ordini per l’azienda."
+            },
+            "approver": {
+              "label": "Approvatore",
+              "description": "Controllare e approvare gli ordini."
+            }
+          },
+          "send": "Invia invito",
+          "sending": "Invio...",
+          "successTitle": "Invito inviato",
+          "successDescription": "È stato inviato un invito a {email}.",
+          "memberAddedTitle": "Utente aggiunto",
+          "memberAddedDescription": "{email} aveva già un account ed è stato aggiunto alla tua azienda.",
+          "failureTitle": "Invito non inviato"
+        },
+        "management": {
+          "title": "Utenti dell’azienda",
+          "description": "Gestisci utenti attivi e inviti in sospeso.",
+          "empty": "Non ci sono ancora utenti o inviti.",
+          "person": "Utente",
+          "roles": "Ruoli",
+          "status": "Stato",
+          "expiry": "Scadenza",
+          "actions": "Azioni",
+          "cancel": "Annulla invito",
+          "reissue": "Invia di nuovo",
+          "remove": "Rimuovi",
+          "currentUser": "Tu",
+          "inheritedMembership": "Gestito dalla società madre",
+          "noAction": "Provisioning",
+          "statuses": {
+            "active": "Attivo",
+            "pending": "In sospeso",
+            "accepted": "Accettato",
+            "expired": "Scaduto",
+            "revoked": "Annullato"
+          }
+        }
+      },
+      "errors": {
+        "InputInvalid": "Inserisci un indirizzo email valido.",
+        "InputInvalidName": "Inserisci il nome e il cognome della persona.",
+        "InputInvalidRoles": "Seleziona almeno un ruolo aziendale.",
+        "InvitationPolicyError": "Solo un amministratore può invitare utenti.",
+        "InvitationConflict": "Questo utente non può essere invitato.",
+        "CommerceCustomerEmailConflict": "Questa email appartiene a un altro cliente commerce.",
+        "CustomerAccountIdentityLookupFailure": "La directory delle identità non è temporaneamente disponibile. Riprova.",
+        "InvitationProviderFailure": "Impossibile completare l’operazione sull’invito. Riprova.",
+        "IdentityMembershipProjectionFailure": "Impossibile sincronizzare l’appartenenza all’azienda. Riprova.",
+        "InvitationIssueOutcomeUnknown": "L’invito potrebbe essere stato inviato, ma non è stato possibile confermare il risultato. Non inviarlo di nuovo.",
+        "CustomerAccountProfileIncomplete": "Il tuo profilo deve avere un indirizzo email.",
+        "CommerceRequestContextNotFound": "L’account aziendale corrente non è disponibile.",
+        "CommerceAccountUnavailable": "L’account aziendale non è temporaneamente disponibile.",
+        "CommerceCustomerProfileNotFound": "Il tuo profilo cliente non è stato trovato.",
+        "CompanyMemberInvitationNotFound": "Questo invito non è stato trovato. Aggiorna l’elenco dei membri.",
+        "CompanyMemberInvitationPersistenceFailure": "Gli inviti aziendali non sono temporaneamente disponibili. Riprova.",
+        "CompanyMemberInvitationRecordConflict": "Questo invito è cambiato durante l’operazione. Aggiorna l’elenco dei membri.",
+        "InvitationExpired": "Questo invito è scaduto. Aggiorna l’elenco dei membri per inviarlo di nuovo.",
+        "InvitationNotFound": "Il provider di identità non dispone più di questo invito. Aggiorna l’elenco dei membri.",
+        "CompanyMemberRemovalConflict": "Questo membro non può essere rimosso nello stato attuale dell’azienda. Aggiorna e riprova.",
+        "CompanyMemberManagementForbidden": "Solo un amministratore dell’azienda può gestire i membri.",
+        "CompanyMemberRemovalPersistenceFailure": "Impossibile salvare la rimozione del membro dell’azienda. Riprova."
       }
     },
     "checkout": {

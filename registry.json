@@ -8,10 +8,10 @@
       "name": "next-hydra-standard",
       "type": "registry:item",
       "title": "Next Hydra standard stack",
-      "description": "WorkOS, Drupal, and Commercetools.",
+      "description": "WorkOS, Contentstack, and commercetools.",
       "registryDependencies": [
         "jakala-na/next-hydra/auth-workos",
-        "jakala-na/next-hydra/cms-drupal",
+        "jakala-na/next-hydra/cms-contentstack",
         "jakala-na/next-hydra/commerce-commercetools"
       ],
       "meta": {
@@ -21,7 +21,7 @@
           "selections": {
             "providers": {
               "auth": "workos",
-              "cms": "drupal",
+              "cms": "contentstack",
               "commerce": "commercetools"
             },
             "addOns": []
@@ -31,6 +31,8 @@
     }
   ],
   "include": [
+    "packages/auth-clerk/registry.json",
+    "packages/auth-contract/registry.json",
     "packages/auth-workos/registry.json",
     "packages/cms-contentstack/registry.json",
     "packages/cms-drupal/registry.json",

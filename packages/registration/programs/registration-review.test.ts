@@ -3,6 +3,7 @@ import { StoreKey } from "@repo/commerce/store";
 import { Effect, Exit, Layer, Redacted } from "effect";
 
 import { RegistrationReviewerActor } from "../domain/actors";
+import { ApprovedDecision } from "../domain/approval";
 import {
   AddressLine,
   AuthUserId,
@@ -10,6 +11,7 @@ import {
   CompanyName,
   CountryCode,
   Email,
+  InvitationId,
   PersonName,
   PostalCode,
 } from "../domain/identity";
@@ -153,4 +155,90 @@ describe(acceptRegistrationReviewDecision, () => {
       )
     );
   });
+
+  it.effect("acknowledges an approval that is already processing", () => {
+    const resumed: unknown[] = [];
+
+    return Effect.gen(function* () {
+      const registrations = yield* Registrations;
+      const registration = yield* createRegistration;
+      yield* registrations.markApprovalProcessing({
+        decision: "approved",
+        registrationId: registration.id,
+      });
+
+      const repeated = yield* acceptRegistrationReviewDecision({
+        decision: "approved",
+        registrationId: registration.id,
+        reviewer,
+      });
+
+      expect(repeated._tag).toBe("ApprovalProcessingRegistration");
+      expect(resumed).toStrictEqual([]);
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          Registrations.layerMemory,
+          Layer.succeed(
+            RegistrationWorkflow,
+            RegistrationWorkflow.of({
+              resumeInvitation: () => Effect.die("not used"),
+              resumeReview: (registrationId, decision) =>
+                Effect.sync(() => resumed.push({ decision, registrationId })),
+              start: () => Effect.die("not used"),
+            })
+          )
+        )
+      )
+    );
+  });
+
+  it.effect(
+    "does not resume a consumed hook for a completed approval retry",
+    () => {
+      const resumed: unknown[] = [];
+
+      return Effect.gen(function* () {
+        const registrations = yield* Registrations;
+        const registration = yield* createRegistration;
+        yield* registrations.markApprovalProcessing({
+          decision: "approved",
+          registrationId: registration.id,
+        });
+        yield* registrations.markApproved({
+          decision: new ApprovedDecision({
+            actor: reviewer,
+            decidedAt: new Date("2026-03-22T00:00:00.000Z"),
+            decision: "approved",
+          }),
+          invitationId: InvitationId.make("invitation-completed"),
+          registrationId: registration.id,
+        });
+
+        const repeated = yield* acceptRegistrationReviewDecision({
+          decision: "approved",
+          registrationId: registration.id,
+          reviewer,
+        });
+
+        expect(repeated._tag).toBe("ApprovedRegistration");
+        expect(resumed).toStrictEqual([]);
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            Registrations.layerMemory,
+            Layer.succeed(
+              RegistrationWorkflow,
+              RegistrationWorkflow.of({
+                resumeInvitation: () => Effect.die("not used"),
+                resumeReview: (registrationId, decision) =>
+                  Effect.sync(() => resumed.push({ decision, registrationId })),
+                start: () => Effect.die("not used"),
+              })
+            )
+          )
+        )
+      );
+    }
+  );
 });

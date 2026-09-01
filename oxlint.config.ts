@@ -239,7 +239,7 @@ export default defineConfig({
     // checked were one of these cases, none a genuine unconverted call site.
     "effecttsgo/async-function": "off",
     "func-names": "off",
-    "func-style": ["warn", "expression", { allowArrowFunctions: true }],
+    "func-style": "off",
     "import/no-namespace": "warn",
     "jsx-a11y/label-has-associated-control": "warn",
     "jsx-a11y/no-noninteractive-element-interactions": "warn",
@@ -251,15 +251,24 @@ export default defineConfig({
     "no-shadow": "warn",
     "no-useless-escape": "off",
     "oxc/no-barrel-file": "off",
+    // Effect modules intentionally co-locate related Schema classes, including
+    // tagged errors, and Schema.TaggedError is a class factory rather than a
+    // thrown value. These structural rules misclassify those domain modules.
+    "max-classes-per-file": "off",
+    "unicorn/throw-new-error": "off",
+    // Effect combinators transform Effect values through callback-based APIs;
+    // they are not Promise chains that can be rewritten to async/await.
+    "promise/prefer-await-to-callbacks": "off",
+    "promise/prefer-await-to-then": "off",
     radix: "warn",
-    "react/function-component-definition": [
-      "warn",
-      { namedComponents: "arrow-function" },
-    ],
+    "react/function-component-definition": "off",
     "react/no-array-index-key": "warn",
     "react/no-danger": "warn",
     "react/no-unstable-nested-components": "warn",
     "sort-keys": "warn",
+    // Effect generators use `return yield* failure` as a typed terminal exit,
+    // which this syntax-only rule reports as an inconsistent return value.
+    "typescript/consistent-return": "off",
     "typescript/consistent-type-definitions": "off",
     // Off by default, re-enabled for the Next apps below. A workspace package is
     // type-checked against its own tsconfig, where `Route` from `next` is the

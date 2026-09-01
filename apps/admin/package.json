@@ -1,0 +1,45 @@
+{
+  "name": "admin",
+  "private": true,
+  "portless": {
+    "name": "admin.next-hydra",
+    "script": "dev:app"
+  },
+  "scripts": {
+    "analyze": "ANALYZE=true npm run build",
+    "build": "NODE_USE_SYSTEM_CA=1 next build --turbopack",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "portless",
+    "dev:app": "NODE_USE_SYSTEM_CA=1 next dev --turbopack",
+    "start": "NODE_USE_SYSTEM_CA=1 next start",
+    "test": "NODE_ENV=test vitest run",
+    "typecheck": "next typegen && pnpm --workspace-root exec tsc --noEmit --project apps/admin/tsconfig.json"
+  },
+  "dependencies": {
+    "@repo/actions": "workspace:*",
+    "@repo/auth": "workspace:@repo/auth-workos@*",
+    "@repo/design-system": "workspace:*",
+    "@repo/next-config": "workspace:*",
+    "@repo/observability": "workspace:*",
+    "@repo/registration": "workspace:*",
+    "@sentry/nextjs": "^10.22.0",
+    "@t3-oss/env-nextjs": "catalog:",
+    "effect": "catalog:",
+    "lucide-react": "^0.511.0",
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "server-only": "catalog:",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@repo/testing": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "tailwindcss": "^4.1.7",
+    "typescript": "catalog:typescript7",
+    "vitest": "catalog:"
+  }
+}

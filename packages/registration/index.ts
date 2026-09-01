@@ -1,3 +1,4 @@
+export { customerAccountMembersLayer } from "./services/customer-account-members";
 export {
   type ApproveRegistrationInput as ApproveRegistrationViewInput,
   ApproveRegistrationInputSchema,
@@ -49,6 +50,7 @@ export {
   City,
   type City as CityType,
   CompanyName,
+  CompanyMemberInvitationId,
   type CompanyName as CompanyNameType,
   CountryCode,
   type CountryCode as CountryCodeType,
@@ -72,15 +74,26 @@ export {
   type VatId as VatIdType,
 } from "./domain/identity";
 export {
+  AcceptedCompanyMemberInvitation,
   AcceptedInvitation,
   AcceptedRegistrationInvitation,
   CompanyMemberIntent,
+  CompanyMemberProvisionedMembership,
+  CompanyMemberInvitation,
+  ExpiredCompanyMemberInvitation,
+  ExpiredInvitation,
+  ExpiredRegistrationInvitation,
   type Invitation,
+  InvitationDelivery,
+  InvitationDeliveryStatus,
+  InvitationLifecycleEvent,
+  type InvitationLifecycleEvent as InvitationLifecycleEventType,
   type InvitationIntent,
   PendingInvitation,
+  PendingCompanyMemberInvitation,
   PendingRegistrationInvitation,
-  ProviderInvitationIntent,
   RegistrationApprovalIntent,
+  RevokedCompanyMemberInvitation,
   type RegistrationInvitation,
   RevokedInvitation,
   RevokedRegistrationInvitation,
@@ -111,15 +124,24 @@ export {
   RedactedVatId,
   type RedactedVatId as RedactedVatIdType,
   type Registration,
+  RegistrationOnboarding,
+  type RegistrationOnboarding as RegistrationOnboardingType,
+  RegistrationOnboardingStatus,
+  type RegistrationOnboardingStatus as RegistrationOnboardingStatusType,
+  registrationBlocksEmail,
   RegistrationStatus,
   type RegistrationStatus as RegistrationStatusType,
   RejectedRegistration,
 } from "./domain/registration";
 export {
-  CompanyMemberInvitationRole,
-  type CompanyMemberInvitationRole as CompanyMemberInvitationRoleType,
+  COMPANY_ROLES,
   CompanyRole,
   type CompanyRole as CompanyRoleType,
+  CompanyRoles,
+  type CompanyRoles as CompanyRolesType,
+  hasCompanyRole,
+  INITIAL_COMPANY_ROLES,
+  sameCompanyRoles,
 } from "./domain/roles";
 export {
   CreateRegistrationRequest,
@@ -128,6 +150,9 @@ export {
   ListRegistrationsResponse,
   REGISTRATION_DECIDE_PERMISSION,
   REGISTRATION_READ_PERMISSION,
+  PublicInvitationConflict,
+  PublicInvitationExpired,
+  PublicInvitationNotFound,
   RegistrationAddressInput,
   RegistrationAlreadyApproved,
   RegistrationAlreadyRejected,
@@ -141,6 +166,7 @@ export {
   RegistrationDecisionAlreadyProcessing,
   RegistrationDecisionRequest,
   RegistrationDecisionResponse,
+  RegistrationInvitationRevokedResponse,
   RegistrationDetailResponse,
   RegistrationHttpApi,
   RegistrationReadAccessMiddleware,
@@ -148,16 +174,35 @@ export {
   RegistrationSchemaErrorMiddleware,
   PublicRegistrationConcurrentModification,
   PublicRegistrationNotFound,
+  PublicRegistrationOnboardingTransitionConflict,
   PublicRegistrationQueryInvalidCursor,
+  PublicRegistrationWorkflowInvitationResumeOutcomeUnknown,
 } from "./http/registration-api";
 export {
-  type AcceptCompanyMemberInvitationInput,
-  acceptCompanyMemberInvitation,
   type IssueCompanyMemberInviteInput,
   issueCompanyMemberInvite,
+  type ListCompanyMemberInvitationsError,
+  type ListCompanyMemberInvitationsInput,
+  listCurrentCompanyMemberInvitations,
+  listCompanyMemberInvitations,
+  type ReissueCompanyMemberInviteError,
+  type ReissueCompanyMemberInviteInput,
+  reissueCompanyMemberInvite,
+  type RevokeCompanyMemberInviteError,
   type RevokeCompanyMemberInviteInput,
   revokeCompanyMemberInvite,
 } from "./programs/company-member-invitations";
+export {
+  type AcceptCompanyMemberInvitationError,
+  type AcceptCompanyMemberInvitationInput,
+  acceptCompanyMemberInvitation,
+  CompanyMemberInvitationAcceptanceReference,
+} from "./programs/company-member-onboarding";
+export {
+  type DispatchInvitationLifecycleEventInput,
+  dispatchInvitationLifecycleEvent,
+  type InvitationLifecycleEventRequirements,
+} from "./programs/invitation-lifecycle-events";
 export {
   checkRegistrationEligibility,
   type SubmitRegistrationForReviewInput,
@@ -167,15 +212,28 @@ export {
   type NotifyRegistrationInput,
   notifyRegistrationApproved,
   notifyRegistrationAwaitingApproval,
+  notifyRegistrationInvitationExpired,
   notifyRegistrationRejected,
 } from "./programs/registration-notifications";
+export {
+  type ResumeRegistrationInvitationForInvitationInput,
+  type ResumeRegistrationInvitationForRegistrationInput,
+  resumeRegistrationInvitationForInvitation,
+  resumeRegistrationInvitationForRegistration,
+} from "./programs/registration-invitation-events";
 export {
   type AcceptRegistrationInvitationInput,
   type ApproveRegistrationInput,
   acceptRegistrationInvitation,
   approveRegistration,
+  type ExpireRegistrationInvitationInput,
+  expireRegistrationInvitation,
   type RejectRegistrationInput,
+  type RecordRegistrationInvitationRevokedInput,
+  recordRegistrationInvitationRevoked,
   rejectRegistration,
+  type RevokeRegistrationInvitationInput,
+  revokeRegistrationInvitation,
 } from "./programs/registration-onboarding";
 export {
   type AcceptRegistrationReviewDecisionInput,
@@ -186,10 +244,28 @@ export {
 } from "./programs/registration-review";
 export {
   type AuthorizeIssueInviteInput,
+  type AuthorizeManageCompanyInput,
   type AuthorizeRevokeInviteInput,
   CompanyInvitationPolicy,
   InvitationPolicyError,
 } from "./services/company-invitation-policy";
+export {
+  CompanyMemberIdentityProjection,
+  type ProjectAcceptedCompanyMemberIdentityInput,
+  type ProjectCompanyMembershipIdentityInput,
+} from "./services/company-member-identity-projection";
+export { companyMemberRemovalRecordsLayerStorage } from "./services/company-member-removal-records";
+export {
+  type AcceptCompanyMemberInvitationRecordInput,
+  CompanyMemberInvitationNotFound,
+  CompanyMemberInvitationPersistenceFailure,
+  CompanyMemberInvitationRecordConflict,
+  type CompanyMemberInvitationRecordReadError,
+  CompanyMemberInvitationRecords,
+  type ExpireCompanyMemberInvitationRecordInput,
+  type MarkCompanyMemberInvitationProvisionedInput,
+  type RevokeCompanyMemberInvitationRecordInput,
+} from "./services/company-member-invitation-records";
 export {
   IdentityUserLookupFailure,
   IdentityUserNotFound,
@@ -197,17 +273,25 @@ export {
   normalizedIdentityEmail,
 } from "./services/identity-users";
 export {
-  type AcceptInvitationInput,
+  type CompanyMemberInvitationIssueInput,
+  type CompanyMemberInvitationRevocationInput,
+  CompanyMemberInvitations,
+  type CompanyMemberInvitationRevokeError,
+  invitationCapabilitiesLayerMemory,
   type InvitationAcceptError,
   InvitationConflict,
+  InvitationDeliveries,
+  InvitationExpired,
   type InvitationIssueError,
+  InvitationIssueOutcomeUnknown,
   InvitationNotFound,
   InvitationProviderFailure,
   type InvitationReadError,
   type InvitationRevokeError,
-  Invitations,
-  type IssueInvitationInput,
-  type RevokeInvitationInput,
+  type RegistrationInvitationAcceptanceInput,
+  type RegistrationInvitationIssueInput,
+  type RegistrationInvitationRevocationInput,
+  RegistrationInvitations,
 } from "./services/invitations";
 export {
   RegistrationInvitationEvent,
@@ -223,6 +307,7 @@ export {
   type SendApprovedRegistrantEmailInput,
   type SendAwaitingApprovalApproverEmailInput,
   type SendAwaitingApprovalRegistrantEmailInput,
+  type SendInvitationExpiredRegistrantEmailInput,
   type SendRejectedRegistrantEmailInput,
 } from "./services/registration-emails";
 export {
@@ -230,6 +315,15 @@ export {
   type RegistrationEmailsLayerOptions,
 } from "./services/registration-emails-live";
 export { RegistrationMarketPolicy } from "./services/registration-market-policy";
+export {
+  RegistrationInvitationIssueAttempt,
+  RegistrationInvitationIssueAttemptFailure,
+  RegistrationInvitationIssueAttempts,
+  type RecordRegistrationInvitationIssuedInput,
+  type RegistrationInvitationIssueAttemptsService,
+  type StartRegistrationInvitationIssueAttemptInput,
+  type StartRegistrationInvitationIssueAttemptResult,
+} from "./services/registration-invitation-issue-attempts";
 export {
   decodeRegistrationQueryCursor,
   encodeRegistrationQueryCursor,
@@ -239,6 +333,8 @@ export {
   normalizeRegistrationQuerySort,
   parseRegistrationQueryCursor,
   RegistrationQueries,
+  type RegistrationFindByInvitationError,
+  RegistrationNotFoundByInvitationId,
   type RegistrationQueryCursor,
   type RegistrationQueryError,
   RegistrationQueryFailure,
@@ -253,15 +349,19 @@ export {
 } from "./services/registration-queries";
 export {
   type CreateAwaitingApprovalRegistrationInput,
+  type MarkRegistrationApprovalProcessingInput,
+  type MarkRegistrationApprovalProcessingResult,
   type MarkRegistrationApprovedInput,
+  type MarkRegistrationOnboardingStatusInput,
   type MarkRegistrationRejectedInput,
   RegistrationConcurrentModification,
   type RegistrationCreateError,
+  type RegistrationDecisionTransitionError,
   RegistrationDiscardConflict,
   type RegistrationDiscardError,
-  type RegistrationFindByInvitationError,
   RegistrationNotFound,
-  RegistrationNotFoundByInvitationId,
+  RegistrationOnboardingTransitionConflict,
+  type RegistrationOnboardingTransitionError,
   RegistrationPersistenceFailure,
   type RegistrationReadError,
   Registrations,

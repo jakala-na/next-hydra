@@ -30,6 +30,7 @@ const businessUnit = new CommerceBusinessUnitMembership({
   businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
   businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-1"),
   businessUnitLabel: CommerceBusinessUnitLabel.make("Business Unit One"),
+  roles: ["admin", "buyer"],
 });
 const customerRequest = new CustomerCommerceContextRequest({
   authUserId,
@@ -77,6 +78,7 @@ describe(CommerceContext, () => {
             businessUnitId: businessUnit.businessUnitId,
             businessUnitKey: businessUnit.businessUnitKey,
             customerId,
+            roles: ["admin", "buyer"],
           })
         );
         expect(yield* CommerceContext.customerProfile()).toStrictEqual(
@@ -116,12 +118,14 @@ describe(CommerceContext, () => {
       businessUnitId: CommerceBusinessUnitId.make("business-unit-2"),
       businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-2"),
       businessUnitLabel: CommerceBusinessUnitLabel.make("Business Unit Two"),
+      roles: ["buyer", "approver"],
     });
 
     return provideCommerceContext(
       Effect.gen(function* () {
         const customerPrincipal = yield* CommerceContext.customerPrincipal();
         expect(customerPrincipal.businessUnitId).toBe(selected.businessUnitId);
+        expect(customerPrincipal.roles).toStrictEqual(["buyer", "approver"]);
       }),
       new CustomerCommerceContextRequest({
         authUserId,
@@ -155,6 +159,7 @@ describe(CommerceContext, () => {
         businessUnitId: CommerceBusinessUnitId.make("business-unit-2"),
         businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key-2"),
         businessUnitLabel: CommerceBusinessUnitLabel.make("Business Unit Two"),
+        roles: ["buyer", "approver"],
       });
 
       return provideCommerceContext(

@@ -17,15 +17,15 @@ The model will deliberately separate business flow from invitation mechanics. In
 ## User Stories
 
 1. As a product engineer, I want a parallel Effect model of registration onboarding, so that I can validate domain behavior without changing production flows.
-2. As a product engineer, I want registration state represented as discriminated unions, so that approved records cannot exist without required commerce and invitation data.
+2. As a product engineer, I want registration state represented as discriminated unions, so that approved records cannot exist without their decision, invitation correlation, and onboarding status.
 3. As a product engineer, I want invitation state represented separately from registration status, so that approval and invitation progress are not overloaded into one lifecycle field.
 4. As a product engineer, I want lifecycle operations to return typed Effect errors, so that failure paths are explicit and testable.
 5. As a product engineer, I want memory layers for services, so that onboarding flows can be tested without Commercetools, WorkOS, API routes, or workflows.
 6. As a product engineer, I want composed Effect programs over step-sized services, so that local tests can exercise the whole flow while later workflow steps can map to the same operation boundaries.
 7. As a product engineer, I want the POC to omit the `submitted` state, so that the model starts at the reviewable `awaiting_approval` lifecycle point.
-8. As a registration reviewer, I want to approve a registration, so that a company account is provisioned and the registrant receives an onboarding invitation.
+8. As a registration reviewer, I want to approve a registration, so that the registrant receives an onboarding invitation without creating an unclaimed company account.
 9. As a registration reviewer, I want to reject a registration, so that no commerce account or invitation is created.
-10. As a registration reviewer, I want approval retries to be idempotent, so that repeated approval commands do not create duplicate commerce resources or invitations.
+10. As a registration reviewer, I want approval retries to be idempotent, so that repeated approval commands do not create duplicate invitations.
 11. As a registration reviewer, I want incompatible repeated decisions to fail, so that an approved registration cannot later be rejected and a rejected registration cannot later be approved.
 12. As a registrant, I want an approval invitation to grant the owner role, so that I become the initial company owner during onboarding.
 13. As a registrant, I want accepting my invitation to link my auth identity to the commerce customer and business unit, so that I can operate in the newly created company.
@@ -64,7 +64,7 @@ The model will deliberately separate business flow from invitation mechanics. In
   - Invitations: invitation ID, invitation purpose variants, invitation state variants, issued-by actor metadata.
 - Collapse the production `submitted` and `awaiting_approval` distinction for this POC. The executable lifecycle starts at `AwaitingApprovalRegistration`.
 - Keep registration status separate from invitation state.
-- Model approved registrations so that required approval decision, commerce IDs, and invitation data are always present.
+- Model approved registrations so that required approval decision, invitation correlation, and onboarding status are always present; Commerce IDs are created after acceptance and remain owned by Commerce.
 - Model rejected registrations so that rejected approval decision data is always present and commerce/invitation data is absent.
 - Registration approval invitations are issued by `SystemActor`, not by the reviewer actor.
 - Registration approval invitations always grant `owner`.
@@ -254,8 +254,12 @@ ApprovedRegistration {
   id
   details
   decision: ApprovedDecision
-  commerceAccount
-  invitation: PendingRegistrationInvitation | AcceptedRegistrationInvitation | RevokedRegistrationInvitation
+  invitationId
+  onboarding:
+    | { status: "invited" }
+    | { status: "accepted"; acceptedAuthUserId }
+    | { status: "expired" }
+    | { status: "revoked" }
   createdAt
   updatedAt
 }
@@ -321,19 +325,19 @@ RevokedInvitation {
 }
 ```
 
-Approved registration embeds a registration-specific invitation union so approved records cannot omit invitation data:
+Approved Registration stores only the Registration Invitation correlation, its
+Registration-owned onboarding status, and the accepted auth user after
+acceptance. Provider delivery state remains behind `InvitationDeliveries` and
+is not embedded in the Registration:
 
 ```ts
-PendingRegistrationInvitation = PendingInvitation & {
-  purpose: RegistrationApprovalInvite
-}
-
-AcceptedRegistrationInvitation = AcceptedInvitation & {
-  purpose: RegistrationApprovalInvite
-}
-
-RevokedRegistrationInvitation = RevokedInvitation & {
-  purpose: RegistrationApprovalInvite
+ApprovedRegistration {
+  invitationId
+  onboarding:
+    | { status: "invited" }
+    | { status: "accepted"; acceptedAuthUserId }
+    | { status: "expired" }
+    | { status: "revoked" }
 }
 ```
 
@@ -346,6 +350,7 @@ Registrations {
   createAwaitingApproval(input): Effect<AwaitingApprovalRegistration, RegistrationCreateError>
   get(id): Effect<Registration, RegistrationNotFound>
   markApproved(input): Effect<ApprovedRegistration, RegistrationTransitionError>
+  markOnboardingStatus(input): Effect<ApprovedRegistration, RegistrationTransitionError>
   markRejected(input): Effect<RejectedRegistration, RegistrationTransitionError>
 }
 
@@ -390,9 +395,8 @@ Approval program sequence:
 ```ts
 registration = Registrations.get(registrationId)
 decision = ApprovedDecision(...)
-commerceAccount = CommerceAccount.createFromRegistration(registration)
 invitation = Invitations.issue(registration approval invite)
-approved = Registrations.markApproved({ registration, decision, commerceAccount, invitation })
+approved = Registrations.markApproved({ registration, decision, invitation })
 return approved
 ```
 
@@ -400,9 +404,11 @@ Registration invitation acceptance sequence:
 
 ```ts
 invitation = Invitations.accept({ invitationId, acceptedIdentity })
-CommerceAccount.linkRegistrantIdentity({ invitation, acceptedIdentity })
 registration = Registrations.get(invitation.purpose.registrationId)
-return registration
+accepted = Registrations.markOnboardingStatus({ registration, status: "accepted", acceptedAuthUserId: acceptedIdentity.authUserId })
+commerceAccount = CommerceAccount.createFromRegistration(accepted)
+CommerceAccount.linkRegistrantIdentity({ commerceAccount, acceptedIdentity })
+return accepted
 ```
 
 Company member invite sequence:
@@ -421,15 +427,16 @@ return invitation
 - Test layers should follow Effect patterns: colocated `layerMemory` and explicit layer replacement for failure scenarios.
 - Avoid a broad exported `testLayerWith` testing DSL in the first POC. Use local failing layers in specific tests when needed.
 - Core behavior tests should cover:
-  - Approving a registration provisions commerce, issues a registration approval invitation, and stores a complete approved registration.
-  - Approval retry does not create duplicate commerce resources or duplicate invitations.
+  - Approving a registration issues a registration approval invitation and stores an invited approved Registration without provisioning Commerce.
+  - Approval retry does not create duplicate invitations.
   - Incompatible approval retry fails with a typed conflict.
   - Rejection stores a complete rejected registration and creates no invitation.
   - Rejecting an already approved registration fails.
   - Approving an already rejected registration fails.
-  - Commerce provisioning failure leaves the registration awaiting approval and issues no invitation.
-  - Invitation issuance failure after commerce provisioning leaves the registration awaiting approval and allows retry to reuse commerce state.
-  - Accepting a registration approval invitation links accepted identity through commerce account behavior.
+  - Invitation issuance failure leaves the Registration awaiting approval and allows retry.
+  - Acceptance claims the accepted onboarding outcome before idempotent Commerce provisioning and identity linking.
+  - Active approved invitations block duplicate registration emails; expired and revoked invitations do not.
+  - Accepting a registration approval invitation claims acceptance, provisions Commerce, and links the accepted identity.
   - Accepting the same invitation with the same auth user is idempotent.
   - Accepting the same invitation with a different auth user fails.
   - Revoking an accepted invitation fails.

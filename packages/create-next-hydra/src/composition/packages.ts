@@ -4,11 +4,7 @@ import { z } from "zod";
 
 import { CompositionValidationError } from "./errors.js";
 import { formatZodError } from "./schema.js";
-import type {
-  DependencySection,
-  PackageRequirement,
-  SelectionDefinition,
-} from "./types.js";
+import type { DependencySection, PackageRequirement } from "./types.js";
 
 const dependencyEntriesSchema = z.record(z.string());
 const packageJsonSchema = z
@@ -59,32 +55,32 @@ export async function readPackageJson(
 }
 
 export function mergePackageRequirements(
-  selections: Pick<SelectionDefinition, "packages">[]
+  entries: Iterable<PackageRequirement>
 ): PackageRequirement[] {
   const requirements = new Map<string, PackageRequirement>();
   const issues: string[] = [];
 
-  for (const selection of selections) {
-    for (const requirement of selection.packages) {
-      const key = `${requirement.cwd}\0${requirement.section}\0${requirement.name}`;
-      const existing = requirements.get(key);
-      if (existing && existing.specifier !== requirement.specifier) {
-        issues.push(
-          `${requirement.cwd}/${requirement.section}.${requirement.name} is requested as both ${existing.specifier} and ${requirement.specifier}`
-        );
-      } else {
-        requirements.set(key, requirement);
-      }
+  for (const requirement of entries) {
+    const key = `${requirement.cwd}\0${requirement.section}\0${requirement.name}`;
+    const existing = requirements.get(key);
+    if (existing && existing.specifier !== requirement.specifier) {
+      issues.push(
+        `${requirement.cwd}/${requirement.section}.${requirement.name} is requested as both ${existing.specifier} and ${requirement.specifier}`
+      );
+    } else {
+      requirements.set(key, requirement);
     }
   }
 
   if (issues.length > 0) {
     throw new CompositionValidationError(
       "Package requirements conflict.",
+      // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
       [...new Set(issues)].sort((left, right) => left.localeCompare(right))
     );
   }
 
+  // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
   return [...requirements.values()].sort((left, right) =>
     `${left.cwd}/${left.section}/${left.name}`.localeCompare(
       `${right.cwd}/${right.section}/${right.name}`

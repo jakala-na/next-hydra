@@ -1,4 +1,6 @@
+/* oxlint-disable typescript/no-base-to-string -- Redacted domain values deliberately stringify to their protected representation in assertions. */
 import { describe, expect, it } from "@effect/vitest";
+import { IdentityMembershipProjectionFailure } from "@repo/auth-contract/identity-memberships";
 import {
   CommerceAccount,
   CommerceAssociateMembership,
@@ -10,8 +12,13 @@ import {
 import type { AcceptedCommerceIdentity } from "@repo/commerce/services/commerce-accounts";
 import { StoreKey } from "@repo/commerce/store";
 import { Effect, Exit, Layer, Redacted } from "effect";
+import { TestClock } from "effect/testing";
 
-import { RegistrationReviewerActor } from "../domain/actors";
+import {
+  CompanyActor,
+  RegistrationReviewerActor,
+  registrationSystemActor,
+} from "../domain/actors";
 import {
   AcceptedAuthIdentity,
   AddressLine,
@@ -19,6 +26,7 @@ import {
   City,
   CommerceBusinessUnitId,
   CommerceCustomerId,
+  CompanyMemberInvitationId,
   CompanyName,
   CountryCode,
   Email,
@@ -29,32 +37,85 @@ import {
   Region,
   VatId,
 } from "../domain/identity";
-import { CompanyMemberIntent, PendingInvitation } from "../domain/invitations";
+import {
+  CompanyMemberIntent,
+  PendingInvitation,
+  RegistrationApprovalIntent,
+} from "../domain/invitations";
 import {
   CompanyAddress,
   CompanyRegistrationDetails,
 } from "../domain/registration";
+import type { ApprovedRegistration } from "../domain/registration";
+import { CompanyMemberIdentityProjection } from "../services/company-member-identity-projection";
+import type { ProjectCompanyMembershipIdentityInput } from "../services/company-member-identity-projection";
+import { IdentityUsers } from "../services/identity-users";
 import {
+  CompanyMemberInvitations,
+  invitationCapabilitiesLayerMemory,
   InvitationConflict,
-  InvitationNotFound,
-  Invitations,
+  InvitationDeliveries,
+  InvitationExpired,
+  RegistrationInvitations,
 } from "../services/invitations";
-import type { IssueInvitationInput } from "../services/invitations";
+import type { RegistrationInvitationIssueInput } from "../services/invitations";
+import { RegistrationEmails } from "../services/registration-emails";
+import { RegistrationQueries } from "../services/registration-queries";
+import { RegistrationWorkflow } from "../services/registration-workflow";
+import type { RegistrationInvitationEvent } from "../services/registration-workflow";
 import {
   Registrations,
   RegistrationTransitionConflict,
 } from "../services/registrations";
 import {
+  resumeRegistrationInvitationForInvitation,
+  resumeRegistrationInvitationForRegistration,
+} from "./registration-invitation-events";
+import {
+  notifyRegistrationApproved,
+  notifyRegistrationInvitationExpired,
+} from "./registration-notifications";
+import {
   acceptRegistrationInvitation,
   approveRegistration,
+  expireRegistrationInvitation,
   rejectRegistration,
+  revokeRegistrationInvitation,
 } from "./registration-onboarding";
+
+const identityProjectionLayer = Layer.succeed(
+  CompanyMemberIdentityProjection,
+  CompanyMemberIdentityProjection.of({
+    projectAcceptedInvitation: () => Effect.void,
+    projectMembership: () => Effect.void,
+    removeMembership: () => Effect.void,
+  })
+);
 
 const layerMemory = Layer.mergeAll(
   Registrations.layerMemory,
   CommerceAccounts.layerMemory,
-  Invitations.layerMemory
+  invitationCapabilitiesLayerMemory,
+  identityProjectionLayer,
+  IdentityUsers.layerMemory
 );
+
+const requiredInvitationId = (registration: ApprovedRegistration) => {
+  if (registration.invitationId === undefined) {
+    throw new Error("Expected registration invitation id");
+  }
+  return registration.invitationId;
+};
+
+const queryLayerFor = (registration: ApprovedRegistration) =>
+  RegistrationQueries.layerMemoryFrom([
+    {
+      createdAt: registration.createdAt,
+      id: String(registration.id),
+      lastModifiedAt: registration.updatedAt,
+      registration,
+    },
+  ]);
 
 const reviewer = new RegistrationReviewerActor({
   actorType: "registration_reviewer",
@@ -63,6 +124,14 @@ const reviewer = new RegistrationReviewerActor({
     label: "email",
   }),
   name: "Registration Reviewer",
+});
+
+const companyAdministrator = new CompanyActor({
+  actorType: "company",
+  authUserId: AuthUserId.make("auth-company-admin-1"),
+  businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+  email: Redacted.make(Email.make("admin@example.com"), { label: "email" }),
+  roles: ["admin", "buyer"],
 });
 
 const details = new CompanyRegistrationDetails({
@@ -113,7 +182,191 @@ const createRegistration = Effect.gen(function* () {
 
 describe("registration onboarding", () => {
   it.effect(
-    "approves a registration by provisioning commerce and issuing an owner invitation",
+    "provisions a verified existing identity without an invitation",
+    () => {
+      const submittedAuthUserId = AuthUserId.make("auth-existing-1");
+      const projected: AuthUserId[] = [];
+      const directProjectionLayer = Layer.succeed(
+        CompanyMemberIdentityProjection,
+        CompanyMemberIdentityProjection.of({
+          projectAcceptedInvitation: () => Effect.void,
+          projectMembership: (input) =>
+            Effect.sync(() => {
+              projected.push(input.authUserId);
+            }),
+          removeMembership: () => Effect.void,
+        })
+      );
+      const directLayer = Layer.mergeAll(
+        Registrations.layerMemory,
+        CommerceAccounts.layerMemory,
+        invitationCapabilitiesLayerMemory,
+        directProjectionLayer,
+        IdentityUsers.layerMemoryFrom(
+          [],
+          [
+            {
+              authUserId: submittedAuthUserId,
+              email: details.email,
+              firstName: Redacted.make(PersonName.make("Grace"), {
+                label: "personName",
+              }),
+              lastName: Redacted.make(PersonName.make("Hopper"), {
+                label: "personName",
+              }),
+              name: "Grace Hopper",
+            },
+          ]
+        )
+      );
+
+      return Effect.gen(function* () {
+        const registrations = yield* Registrations;
+        const registration = yield* registrations.createAwaitingApproval({
+          details,
+          storeKey: StoreKey.make("default-store"),
+          submittedByAuthUserId: AuthUserId.make("auth-existing-1"),
+        });
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+        const accounts = yield* CommerceAccounts;
+        const customerId = yield* accounts.getCustomerIdByAuthUserId(
+          AuthUserId.make("auth-existing-1")
+        );
+
+        expect(approved.onboardingStatus).toBe("accepted");
+        expect(approved.acceptedAuthUserId).toBe(submittedAuthUserId);
+        expect(approved.invitationId).toBeUndefined();
+        expect(customerId).toBe(`customer-${registration.id}`);
+        expect(projected).toStrictEqual([submittedAuthUserId]);
+      }).pipe(Effect.provide(directLayer));
+    }
+  );
+
+  it.effect(
+    "notifies a directly approved registrant with sign-in access",
+    () => {
+      const submittedAuthUserId = AuthUserId.make("auth-existing-1");
+      const notified: string[] = [];
+      const directLayer = Layer.mergeAll(
+        layerMemory,
+        IdentityUsers.layerMemoryFrom(
+          [],
+          [
+            {
+              authUserId: submittedAuthUserId,
+              email: details.email,
+              name: "Ada Lovelace",
+            },
+          ]
+        ),
+        Layer.succeed(
+          RegistrationEmails,
+          RegistrationEmails.of({
+            sendApprovedToRegistrant: ({ invitation, registration }) =>
+              Effect.sync(() => {
+                expect(invitation).toBeUndefined();
+                notified.push(String(registration.id));
+              }),
+            sendAwaitingApprovalToApprover: () => Effect.void,
+            sendAwaitingApprovalToRegistrant: () => Effect.void,
+            sendInvitationExpiredToRegistrant: () => Effect.void,
+            sendRejectedToRegistrant: () => Effect.void,
+          })
+        )
+      );
+
+      return Effect.gen(function* () {
+        const registrations = yield* Registrations;
+        const registration = yield* registrations.createAwaitingApproval({
+          details,
+          storeKey: StoreKey.make("default-store"),
+          submittedByAuthUserId: submittedAuthUserId,
+        });
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+
+        yield* notifyRegistrationApproved({ registrationId: approved.id });
+
+        expect(notified).toStrictEqual([String(approved.id)]);
+      }).pipe(Effect.provide(directLayer));
+    }
+  );
+
+  it.effect(
+    "resumes direct provisioning after identity projection fails",
+    () => {
+      const submittedAuthUserId = AuthUserId.make("auth-existing-1");
+      let projectionAttempts = 0;
+      const retryingProjectionLayer = Layer.succeed(
+        CompanyMemberIdentityProjection,
+        CompanyMemberIdentityProjection.of({
+          projectAcceptedInvitation: () => Effect.void,
+          projectMembership: () =>
+            Effect.suspend(() => {
+              projectionAttempts += 1;
+              return projectionAttempts === 1
+                ? Effect.fail(
+                    new IdentityMembershipProjectionFailure({
+                      cause: new Error("metadata unavailable"),
+                      message: "Identity metadata projection failed",
+                      operation: "project",
+                      reason: "unavailable",
+                    })
+                  )
+                : Effect.void;
+            }),
+          removeMembership: () => Effect.void,
+        })
+      );
+      const directLayer = Layer.mergeAll(
+        Registrations.layerMemory,
+        CommerceAccounts.layerMemory,
+        invitationCapabilitiesLayerMemory,
+        retryingProjectionLayer,
+        IdentityUsers.layerMemoryFrom(
+          [],
+          [
+            {
+              authUserId: submittedAuthUserId,
+              email: details.email,
+              name: "Ada Lovelace",
+            },
+          ]
+        )
+      );
+
+      return Effect.gen(function* () {
+        const registrations = yield* Registrations;
+        const registration = yield* registrations.createAwaitingApproval({
+          details,
+          storeKey: StoreKey.make("default-store"),
+          submittedByAuthUserId: submittedAuthUserId,
+        });
+        const first = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        }).pipe(Effect.exit);
+        const durable = yield* registrations.get(registration.id);
+        const retried = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+
+        expect(Exit.isFailure(first)).toBeTruthy();
+        expect(durable._tag).toBe("ApprovedRegistration");
+        expect(retried.onboardingStatus).toBe("accepted");
+        expect(projectionAttempts).toBe(2);
+      }).pipe(Effect.provide(directLayer));
+    }
+  );
+
+  it.effect(
+    "approves a registration and issues an administrator invitation before commerce provisioning",
     () =>
       Effect.gen(function* () {
         const registration = yield* createRegistration;
@@ -123,25 +376,28 @@ describe("registration onboarding", () => {
           reason: "Looks good",
           registrationId: registration.id,
         });
-        const invitations = yield* Invitations;
-        const invitation = yield* invitations.get(approved.invitationId);
+        const invitations = yield* InvitationDeliveries;
+        const invitation = yield* invitations.get(
+          requiredInvitationId(approved)
+        );
 
         expect(approved._tag).toBe("ApprovedRegistration");
         expect(approved.decision.decision).toBe("approved");
-        expect(approved.commerceAccount.registrationId).toBe(registration.id);
-        expect(invitation._tag).toBe("PendingInvitation");
-        expect(invitation.intent.intent).toBe("provider_managed");
-        expect(String(approved.details.vatId)).toBe("<redacted:vatId>");
-        expect(String(approved.details.email)).toBe("<redacted:email>");
-        expect(String(approved.details.address.streetName)).toBe(
-          "<redacted:addressLine>"
-        );
-        expect(String(approved.details.address.postalCode)).toBe(
-          "<redacted:postalCode>"
-        );
-        expect(String(invitation.intent.inviteeEmail)).toBe("<redacted:email>");
-        expect(invitation.intent.role).toBe("owner");
-        expect(invitation.issuedBy.actorType).toBe("system");
+        expect(approved.onboardingStatus).toBe("invited");
+        expect(invitation.status).toBe("pending");
+        expect([
+          String(approved.details.vatId),
+          String(approved.details.email),
+          String(approved.details.address.streetName),
+          String(approved.details.address.postalCode),
+          String(invitation.inviteeEmail),
+        ]).toStrictEqual([
+          "<redacted:vatId>",
+          "<redacted:email>",
+          "<redacted:addressLine>",
+          "<redacted:postalCode>",
+          "<redacted:email>",
+        ]);
       }).pipe(Effect.provide(layerMemory))
   );
 
@@ -158,9 +414,7 @@ describe("registration onboarding", () => {
         registrationId: registration.id,
       });
 
-      expect(second.commerceAccount.customerId).toBe(
-        first.commerceAccount.customerId
-      );
+      expect(second.onboardingStatus).toBe("invited");
       expect(second.invitationId).toBe(first.invitationId);
     }).pipe(Effect.provide(layerMemory))
   );
@@ -211,146 +465,199 @@ describe("registration onboarding", () => {
     }).pipe(Effect.provide(layerMemory))
   );
 
-  it.effect(
-    "leaves the registration awaiting approval when commerce provisioning fails",
-    () => {
-      const commerceFailureLayer = Layer.succeed(CommerceAccounts)({
-        addAssociate: () =>
-          Effect.fail(
-            new CommerceAccountUnavailable({
-              message: "commerce down",
-            })
-          ),
-        createFromRegistration: () =>
-          Effect.fail(
-            new CommerceAccountUnavailable({
-              message: "commerce down",
-            })
-          ),
-        getCustomerIdByAuthUserId: () =>
-          Effect.fail(
-            new CommerceAccountUnavailable({
-              message: "commerce down",
-            })
-          ),
-        getCustomerProfile: () =>
-          Effect.fail(
-            new CommerceAccountUnavailable({
-              message: "commerce down",
-            })
-          ),
-        hasCustomerWithEmail: () =>
-          Effect.fail(
-            new CommerceAccountUnavailable({
-              message: "commerce down",
-            })
-          ),
-        linkRegistrantIdentity: () =>
-          Effect.fail(
-            new CommerceAccountUnavailable({
-              message: "commerce down",
-            })
-          ),
-        listBusinessUnitMembershipsForCustomerInStore: () =>
-          Effect.fail(
-            new CommerceAccountUnavailable({
-              message: "commerce down",
-            })
-          ),
-      });
-      const layer = Layer.mergeAll(
-        Registrations.layerMemory,
-        commerceFailureLayer,
-        Invitations.layerMemory
-      );
+  it.effect("approves without requiring commerce provisioning", () => {
+    const commerceFailureLayer = Layer.succeed(CommerceAccounts)({
+      addAssociate: () =>
+        Effect.fail(
+          new CommerceAccountUnavailable({
+            message: "commerce down",
+          })
+        ),
+      createFromRegistration: () =>
+        Effect.fail(
+          new CommerceAccountUnavailable({
+            message: "commerce down",
+          })
+        ),
+      getCustomerIdByAuthUserId: () =>
+        Effect.fail(
+          new CommerceAccountUnavailable({
+            message: "commerce down",
+          })
+        ),
+      getCustomerProfile: () =>
+        Effect.fail(
+          new CommerceAccountUnavailable({
+            message: "commerce down",
+          })
+        ),
+      hasCustomerWithEmail: () =>
+        Effect.fail(
+          new CommerceAccountUnavailable({
+            message: "commerce down",
+          })
+        ),
+      linkRegistrantIdentity: () =>
+        Effect.fail(
+          new CommerceAccountUnavailable({
+            message: "commerce down",
+          })
+        ),
+      listBusinessUnitMembershipsForCustomerInStore: () =>
+        Effect.fail(
+          new CommerceAccountUnavailable({
+            message: "commerce down",
+          })
+        ),
+    });
+    const layer = Layer.mergeAll(
+      Registrations.layerMemory,
+      commerceFailureLayer,
+      invitationCapabilitiesLayerMemory,
+      identityProjectionLayer,
+      IdentityUsers.layerMemory
+    );
 
-      return Effect.gen(function* () {
+    return Effect.gen(function* () {
+      const registration = yield* createRegistration;
+      const approved = yield* approveRegistration({
+        actor: reviewer,
+        registrationId: registration.id,
+      });
+      const registrations = yield* Registrations;
+      const current = yield* registrations.get(registration.id);
+
+      expect(approved.onboardingStatus).toBe("invited");
+      expect(current._tag).toBe("ApprovedRegistration");
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.effect("retries invitation issuance before approving", () => {
+    let issueAttempts = 0;
+    const flakyInvitationsLayer = Layer.succeed(RegistrationInvitations)({
+      accept: () => Effect.die("not used in this test"),
+      issue: (input: RegistrationInvitationIssueInput) =>
+        Effect.suspend(() => {
+          issueAttempts += 1;
+          if (issueAttempts === 1) {
+            return Effect.fail(
+              new InvitationConflict({
+                message: "invitation provider down",
+              })
+            );
+          }
+
+          return Effect.succeed(
+            new PendingInvitation({
+              _tag: "PendingInvitation",
+              createdAt: new Date(0),
+              expiresAt: new Date("2026-02-01T00:00:00.000Z"),
+              id: InvitationId.make("invitation-retry"),
+              intent: input.intent,
+              issuedBy: input.issuedBy,
+            })
+          );
+        }),
+      revoke: () => Effect.die("not used in this test"),
+    });
+    const failingLayer = Layer.mergeAll(
+      Registrations.layerMemory,
+      CommerceAccounts.layerMemory,
+      flakyInvitationsLayer,
+      identityProjectionLayer,
+      IdentityUsers.layerMemory
+    );
+
+    return Effect.gen(function* () {
+      const registration = yield* createRegistration;
+      const failed = yield* approveRegistration({
+        actor: reviewer,
+        registrationId: registration.id,
+      }).pipe(Effect.exit);
+      const registrations = yield* Registrations;
+      const awaiting = yield* registrations.get(registration.id);
+
+      expect(Exit.isFailure(failed)).toBeTruthy();
+      expect(awaiting._tag).toBe("AwaitingApprovalRegistration");
+
+      const approved = yield* approveRegistration({
+        actor: reviewer,
+        registrationId: registration.id,
+      });
+
+      expect(approved.onboardingStatus).toBe("invited");
+      expect(approved.invitationId).toBe(InvitationId.make("invitation-retry"));
+    }).pipe(Effect.provide(failingLayer));
+  });
+
+  it.effect(
+    "expires registration invitations without changing the approval decision",
+    () =>
+      Effect.gen(function* () {
         const registration = yield* createRegistration;
-        const exit = yield* approveRegistration({
+        const approved = yield* approveRegistration({
           actor: reviewer,
           registrationId: registration.id,
-        }).pipe(Effect.exit);
-        const registrations = yield* Registrations;
-        const current = yield* registrations.get(registration.id);
+        });
+        const deliveries = yield* InvitationDeliveries;
+        const pending = yield* deliveries.get(requiredInvitationId(approved));
 
-        expect(Exit.isFailure(exit)).toBeTruthy();
-        expect(current._tag).toBe("AwaitingApprovalRegistration");
-      }).pipe(Effect.provide(layer));
-    }
+        yield* TestClock.adjust("31 days");
+
+        const expired = yield* deliveries.get(requiredInvitationId(approved));
+        const acceptanceFailure = yield* acceptRegistrationInvitation({
+          acceptedIdentity,
+          invitationId: requiredInvitationId(approved),
+          registrationId: approved.id,
+        }).pipe(Effect.flip);
+        yield* expireRegistrationInvitation({
+          invitationId: requiredInvitationId(approved),
+          registrationId: approved.id,
+        });
+        const registrations = yield* Registrations;
+        const current = yield* registrations.get(approved.id);
+
+        expect(expired.status).toBe("expired");
+        expect(expired.expiresAt).toStrictEqual(pending.expiresAt);
+        expect(acceptanceFailure).toBeInstanceOf(InvitationExpired);
+        expect(current._tag).toBe("ApprovedRegistration");
+        if (current._tag === "ApprovedRegistration") {
+          expect(current.onboardingStatus).toBe("expired");
+        }
+      }).pipe(Effect.provide(layerMemory))
   );
 
   it.effect(
-    "reuses commerce state when invitation issuance fails and approval is retried",
+    "notifies an approved registrant that an expired invitation requires a new registration",
     () => {
-      let issueAttempts = 0;
-      const flakyInvitationsLayer = Layer.succeed(Invitations)({
-        accept: () =>
-          Effect.fail(
-            new InvitationConflict({ message: "not used in this test" })
-          ),
-        get: () =>
-          Effect.fail(
-            new InvitationNotFound({
-              invitationId: InvitationId.make("not-used"),
-              message: "Invitation not-used was not found",
-            })
-          ),
-        issue: (input: IssueInvitationInput) =>
-          Effect.suspend(() => {
-            issueAttempts += 1;
-            if (issueAttempts === 1) {
-              return Effect.fail(
-                new InvitationConflict({
-                  message: "invitation provider down",
-                })
-              );
-            }
-
-            return Effect.succeed(
-              new PendingInvitation({
-                _tag: "PendingInvitation",
-                createdAt: new Date(0),
-                id: InvitationId.make("invitation-retry"),
-                intent: input.intent,
-                issuedBy: input.issuedBy,
-              })
-            );
-          }),
-        revoke: () =>
-          Effect.fail(
-            new InvitationConflict({ message: "not used in this test" })
-          ),
-      });
-      const failingLayer = Layer.mergeAll(
-        Registrations.layerMemory,
-        CommerceAccounts.layerMemory,
-        flakyInvitationsLayer
+      const sent: string[] = [];
+      const emailsLayer = Layer.succeed(
+        RegistrationEmails,
+        RegistrationEmails.of({
+          sendApprovedToRegistrant: () => Effect.void,
+          sendAwaitingApprovalToApprover: () => Effect.void,
+          sendAwaitingApprovalToRegistrant: () => Effect.void,
+          sendInvitationExpiredToRegistrant: ({ registration }) =>
+            Effect.sync(() => {
+              sent.push(String(registration.id));
+            }),
+          sendRejectedToRegistrant: () => Effect.void,
+        })
       );
 
       return Effect.gen(function* () {
         const registration = yield* createRegistration;
-        const failed = yield* approveRegistration({
-          actor: reviewer,
-          registrationId: registration.id,
-        }).pipe(Effect.exit);
-        const registrations = yield* Registrations;
-        const awaiting = yield* registrations.get(registration.id);
-
-        expect(Exit.isFailure(failed)).toBeTruthy();
-        expect(awaiting._tag).toBe("AwaitingApprovalRegistration");
-
         const approved = yield* approveRegistration({
           actor: reviewer,
           registrationId: registration.id,
         });
 
-        expect(approved.commerceAccount.customerId).toBe(
-          CommerceCustomerId.make(`customer-${registration.id}`)
-        );
-        expect(approved.invitationId).toBe(
-          InvitationId.make("invitation-retry")
-        );
-      }).pipe(Effect.provide(failingLayer));
+        yield* notifyRegistrationInvitationExpired({
+          registrationId: approved.id,
+        });
+
+        expect(sent).toStrictEqual([String(approved.id)]);
+      }).pipe(Effect.provide(Layer.mergeAll(layerMemory, emailsLayer)));
     }
   );
 
@@ -366,83 +673,113 @@ describe("registration onboarding", () => {
 
         const first = yield* acceptRegistrationInvitation({
           acceptedIdentity,
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         });
         const second = yield* acceptRegistrationInvitation({
           acceptedIdentity,
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         });
 
         expect(first._tag).toBe("ApprovedRegistration");
         expect(second._tag).toBe("ApprovedRegistration");
+        expect(first.onboardingStatus).toBe("accepted");
+        expect(second.onboardingStatus).toBe("accepted");
+        expect([first.acceptedAuthUserId, second.acceptedAuthUserId]).toEqual([
+          acceptedIdentity.authUserId,
+          acceptedIdentity.authUserId,
+        ]);
       }).pipe(Effect.provide(layerMemory))
   );
 
-  it.effect("adds the accepted registrant as the business unit owner", () => {
-    const linkedIdentities: AcceptedCommerceIdentity[] = [];
-    const commerceLayer = Layer.succeed(
-      CommerceAccounts,
-      CommerceAccounts.of({
-        addAssociate: (input) =>
-          Effect.sync(
-            () =>
-              new CommerceAssociateMembership({
-                authUserId: input.acceptedIdentity.authUserId,
-                businessUnitId: input.businessUnitId,
-                customerId: CommerceCustomerId.make(
-                  `customer-${input.acceptedIdentity.authUserId}`
+  it.effect(
+    "adds the accepted registrant as the business unit administrator",
+    () => {
+      const linkedIdentities: AcceptedCommerceIdentity[] = [];
+      const projectedMemberships: ProjectCompanyMembershipIdentityInput[] = [];
+      const commerceLayer = Layer.succeed(
+        CommerceAccounts,
+        CommerceAccounts.of({
+          addAssociate: (input) =>
+            Effect.sync(
+              () =>
+                new CommerceAssociateMembership({
+                  authUserId: input.acceptedIdentity.authUserId,
+                  businessUnitId: input.businessUnitId,
+                  customerId: CommerceCustomerId.make(
+                    `customer-${input.acceptedIdentity.authUserId}`
+                  ),
+                  roles: input.roles,
+                })
+            ),
+          createFromRegistration: (registration) =>
+            Effect.succeed(
+              new CommerceAccount({
+                businessUnitId: CommerceBusinessUnitId.make(
+                  `business-unit-${registration.id}`
                 ),
-                role: input.role,
+                customerId: CommerceCustomerId.make(
+                  `customer-${registration.id}`
+                ),
+                registrationId: registration.id,
               })
-          ),
-        createFromRegistration: (registration) =>
-          Effect.succeed(
-            new CommerceAccount({
-              businessUnitId: CommerceBusinessUnitId.make(
-                `business-unit-${registration.id}`
-              ),
-              customerId: CommerceCustomerId.make(
-                `customer-${registration.id}`
-              ),
-              registrationId: registration.id,
-            })
-          ),
-        getCustomerIdByAuthUserId: () => Effect.die("not used"),
-        getCustomerProfile: () => Effect.die("not used"),
-        hasCustomerWithEmail: () => Effect.succeed(false),
-        linkRegistrantIdentity: (input) =>
-          Effect.sync(() => {
-            linkedIdentities.push(input.acceptedIdentity);
-            return input.registration.commerceAccount;
-          }),
-        listBusinessUnitMembershipsForCustomerInStore: () =>
-          Effect.die("not used"),
-      })
-    );
-    const layer = Layer.mergeAll(
-      Registrations.layerMemory,
-      commerceLayer,
-      Invitations.layerMemory
-    );
+            ),
+          getCustomerIdByAuthUserId: () => Effect.die("not used"),
+          getCustomerProfile: () => Effect.die("not used"),
+          hasCustomerWithEmail: () => Effect.succeed(false),
+          linkRegistrantIdentity: (input) =>
+            Effect.sync(() => {
+              linkedIdentities.push(input.acceptedIdentity);
+              return input.commerceAccount;
+            }),
+          listBusinessUnitMembershipsForCustomerInStore: () =>
+            Effect.die("not used"),
+        })
+      );
+      const projectionLayer = Layer.succeed(
+        CompanyMemberIdentityProjection,
+        CompanyMemberIdentityProjection.of({
+          projectAcceptedInvitation: () => Effect.void,
+          projectMembership: (input) =>
+            Effect.sync(() => {
+              projectedMemberships.push(input);
+            }),
+          removeMembership: () => Effect.void,
+        })
+      );
+      const layer = Layer.mergeAll(
+        Registrations.layerMemory,
+        commerceLayer,
+        invitationCapabilitiesLayerMemory,
+        projectionLayer,
+        IdentityUsers.layerMemory
+      );
 
-    return Effect.gen(function* () {
-      const registration = yield* createRegistration;
-      const approved = yield* approveRegistration({
-        actor: reviewer,
-        registrationId: registration.id,
-      });
+      return Effect.gen(function* () {
+        const registration = yield* createRegistration;
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
 
-      yield* acceptRegistrationInvitation({
-        acceptedIdentity,
-        invitationId: approved.invitationId,
-        registrationId: approved.id,
-      });
+        yield* acceptRegistrationInvitation({
+          acceptedIdentity,
+          invitationId: requiredInvitationId(approved),
+          registrationId: approved.id,
+        });
 
-      expect(linkedIdentities).toStrictEqual([acceptedIdentity]);
-    }).pipe(Effect.provide(layer));
-  });
+        expect(linkedIdentities).toStrictEqual([acceptedIdentity]);
+        expect(projectedMemberships).toStrictEqual([
+          {
+            authUserId: acceptedIdentity.authUserId,
+            businessUnitId: `business-unit-${registration.id}`,
+            roles: ["admin", "buyer"],
+          },
+        ]);
+      }).pipe(Effect.provide(layer));
+    }
+  );
 
   it.effect(
     "fails registration invitation acceptance by a different auth user",
@@ -456,7 +793,7 @@ describe("registration onboarding", () => {
 
         yield* acceptRegistrationInvitation({
           acceptedIdentity,
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         });
 
@@ -475,7 +812,7 @@ describe("registration onboarding", () => {
 
         const exit = yield* acceptRegistrationInvitation({
           acceptedIdentity: differentIdentity,
-          invitationId: approved.invitationId,
+          invitationId: requiredInvitationId(approved),
           registrationId: approved.id,
         }).pipe(Effect.exit);
 
@@ -487,7 +824,7 @@ describe("registration onboarding", () => {
     "does not accept company member invitations through the registration program",
     () =>
       Effect.gen(function* () {
-        const invitations = yield* Invitations;
+        const invitations = yield* CompanyMemberInvitations;
         const registration = yield* createRegistration;
         const approved = yield* approveRegistration({
           actor: reviewer,
@@ -496,11 +833,18 @@ describe("registration onboarding", () => {
         const companyInvitation = yield* invitations.issue({
           intent: new CompanyMemberIntent({
             businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
+            companyMemberInvitationId: CompanyMemberInvitationId.make(
+              "company-invitation-1"
+            ),
             intent: "company_member",
             inviteeEmail: details.email,
-            role: "associate",
+            inviteeName: {
+              firstName: details.contactFirstName,
+              lastName: details.contactLastName,
+            },
+            roles: ["buyer"],
           }),
-          issuedBy: reviewer,
+          issuedBy: companyAdministrator,
         });
 
         const wrongProgramExit = yield* acceptRegistrationInvitation({
@@ -511,14 +855,7 @@ describe("registration onboarding", () => {
 
         expect(Exit.isFailure(wrongProgramExit)).toBeTruthy();
 
-        const accepted = yield* invitations.accept({
-          acceptedIdentity,
-          expectedIntent: "company_member",
-          invitationId: companyInvitation.id,
-        });
-
-        expect(accepted._tag).toBe("AcceptedInvitation");
-        expect(accepted.intent.intent).toBe("company_member");
+        expect(invitations).not.toHaveProperty("accept");
       }).pipe(Effect.provide(layerMemory))
   );
 
@@ -531,19 +868,140 @@ describe("registration onboarding", () => {
       });
       yield* acceptRegistrationInvitation({
         acceptedIdentity,
-        invitationId: approved.invitationId,
+        invitationId: requiredInvitationId(approved),
         registrationId: approved.id,
       });
 
-      const invitations = yield* Invitations;
+      const invitations = yield* RegistrationInvitations;
       const exit = yield* invitations
         .revoke({
-          invitationId: approved.invitationId,
+          intent: new RegistrationApprovalIntent({
+            intent: "registration_approval",
+            inviteeEmail: approved.details.email,
+            registrationId: approved.id,
+            roles: ["admin", "buyer"],
+          }),
+          invitationId: requiredInvitationId(approved),
+          issuedBy: registrationSystemActor,
           revokedBy: reviewer,
         })
         .pipe(Effect.exit);
 
       expect(Exit.isFailure(exit)).toBeTruthy();
     }).pipe(Effect.provide(layerMemory))
+  );
+
+  it.effect(
+    "publishes a revoked event after the application revokes an invitation",
+    () => {
+      const resumed: (readonly [InvitationId, RegistrationInvitationEvent])[] =
+        [];
+      const workflowLayer = Layer.succeed(RegistrationWorkflow, {
+        resumeInvitation: (invitationId, event) =>
+          Effect.sync(() => {
+            resumed.push([invitationId, event]);
+          }),
+        resumeReview: () => Effect.void,
+        start: () => Effect.void,
+      });
+      const layer = Layer.mergeAll(layerMemory, workflowLayer);
+
+      return Effect.gen(function* () {
+        const registration = yield* createRegistration;
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+
+        const revoked = yield* revokeRegistrationInvitation({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+        const deliveries = yield* InvitationDeliveries;
+        const delivery = yield* deliveries.get(requiredInvitationId(approved));
+
+        yield* resumeRegistrationInvitationForInvitation({
+          event: { event: "revoked" },
+          invitationId: requiredInvitationId(approved),
+        }).pipe(Effect.provide(queryLayerFor(approved)));
+
+        expect(revoked._tag).toBe("RevokedInvitation");
+        expect(delivery.status).toBe("revoked");
+        expect(resumed).toStrictEqual([
+          [approved.invitationId, { event: "revoked" }],
+          [approved.invitationId, { event: "revoked" }],
+        ]);
+      }).pipe(Effect.provide(layer));
+    }
+  );
+
+  it.effect(
+    "resumes invitation workflow from the approved registration's stored invitation",
+    () => {
+      const resumedInvitationIds: InvitationId[] = [];
+      const workflowLayer = Layer.succeed(RegistrationWorkflow, {
+        resumeInvitation: (invitationId) =>
+          Effect.sync(() => {
+            resumedInvitationIds.push(invitationId);
+          }),
+        resumeReview: () => Effect.void,
+        start: () => Effect.void,
+      });
+      const layer = Layer.mergeAll(layerMemory, workflowLayer);
+
+      return Effect.gen(function* () {
+        const registration = yield* createRegistration;
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+
+        yield* resumeRegistrationInvitationForRegistration({
+          event: { event: "revoked" },
+          registrationId: registration.id,
+        });
+        const current = yield* Registrations.pipe(
+          Effect.flatMap((registrations) => registrations.get(registration.id))
+        );
+
+        expect(resumedInvitationIds).toStrictEqual([approved.invitationId]);
+        expect(current).toMatchObject({ onboardingStatus: "revoked" });
+      }).pipe(Effect.provide(layer));
+    }
+  );
+
+  it.effect(
+    "reconciles provider revocation by invitation id before resuming",
+    () => {
+      const resumedInvitationIds: InvitationId[] = [];
+      const workflowLayer = Layer.succeed(RegistrationWorkflow, {
+        resumeInvitation: (invitationId) =>
+          Effect.sync(() => {
+            resumedInvitationIds.push(invitationId);
+          }),
+        resumeReview: () => Effect.void,
+        start: () => Effect.void,
+      });
+      const layer = Layer.mergeAll(layerMemory, workflowLayer);
+
+      return Effect.gen(function* () {
+        const registration = yield* createRegistration;
+        const approved = yield* approveRegistration({
+          actor: reviewer,
+          registrationId: registration.id,
+        });
+
+        yield* resumeRegistrationInvitationForInvitation({
+          event: { event: "revoked" },
+          invitationId: requiredInvitationId(approved),
+        }).pipe(Effect.provide(queryLayerFor(approved)));
+        const current = yield* Registrations.pipe(
+          Effect.flatMap((registrations) => registrations.get(registration.id))
+        );
+
+        expect(current).toMatchObject({ onboardingStatus: "revoked" });
+        expect(resumedInvitationIds).toStrictEqual([approved.invitationId]);
+      }).pipe(Effect.provide(layer));
+    }
   );
 });

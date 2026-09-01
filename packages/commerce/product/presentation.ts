@@ -21,12 +21,18 @@ export interface ProductDetailVariantPresentation {
   readonly id: string;
   readonly value: string;
   readonly label: string;
+  readonly options: readonly ProductVariantOptionPresentation[];
   readonly price?: number;
   readonly salePrice?: number;
   readonly imageUrl?: string;
   readonly isInStock: boolean;
   readonly availableQuantity?: number;
   readonly currencyCode?: string;
+}
+
+export interface ProductVariantOptionPresentation {
+  readonly name: string;
+  readonly value: string;
 }
 
 export interface ProductDetailPresentation {
@@ -51,39 +57,84 @@ const isAvailableForSale = (product: ProductDetail): boolean =>
 
 export const toProductCardPresentation = (
   product: ProductCard
-): ProductCardPresentation => ({
-  id: product.id,
-  slug: product.slug,
-  imageUrl: product.featuredImage?.url ?? "",
-  ...(product.featuredImage?.altText === undefined
-    ? {}
-    : { imageTitle: product.featuredImage.altText }),
-  title: product.title,
-  ...(product.description === undefined
-    ? {}
-    : { description: product.description }),
-  ...(product.startingPrice === undefined
-    ? {}
-    : {
-        currencyCode: product.startingPrice.currencyCode,
-        price: toUnits(product.startingPrice.centAmount),
-      }),
-  isInStock: product.availableForSale,
-});
+): ProductCardPresentation => {
+  let presentation: ProductCardPresentation = {
+    id: product.id,
+    imageUrl: product.featuredImage?.url ?? "",
+    isInStock: product.availableForSale,
+    slug: product.slug,
+    title: product.title,
+  };
+  if (product.featuredImage?.altText !== undefined) {
+    presentation = {
+      ...presentation,
+      imageTitle: product.featuredImage.altText,
+    };
+  }
+  if (product.description !== undefined) {
+    presentation = { ...presentation, description: product.description };
+  }
+  if (product.startingPrice !== undefined) {
+    presentation = {
+      ...presentation,
+      currencyCode: product.startingPrice.currencyCode,
+      price: toUnits(product.startingPrice.centAmount),
+    };
+  }
+  return presentation;
+};
 
-const variantLabel = (
+const variantOptions = (
   product: ProductDetail,
   variant: ProductDetail["variants"][number]
-): string => {
-  const labels = product.options.flatMap((option) => {
+): readonly ProductVariantOptionPresentation[] =>
+  product.options.flatMap((option) => {
     const selectedKey = variant.optionValues[option.key];
     const selectedValue = option.values.find(
       (value) => value.key === selectedKey
     );
-    return selectedValue === undefined ? [] : [selectedValue.label];
+    return selectedValue === undefined
+      ? []
+      : [{ name: option.label, value: selectedValue.label }];
   });
 
-  return labels.length === 0 ? (variant.sku ?? variant.id) : labels.join(" / ");
+const toProductDetailVariantPresentation = (
+  product: ProductDetail,
+  variant: ProductDetail["variants"][number]
+): ProductDetailVariantPresentation => {
+  const options = variantOptions(product, variant);
+  let presentation: ProductDetailVariantPresentation = {
+    id: variant.id,
+    isInStock: variant.availability.availableForSale,
+    label:
+      options.length === 0
+        ? (variant.sku ?? variant.id)
+        : options.map(({ value }) => value).join(" / "),
+    options,
+    value: variant.id,
+  };
+  if (variant.price !== undefined) {
+    presentation = {
+      ...presentation,
+      currencyCode: variant.price.regular.currencyCode,
+      price: toUnits(variant.price.regular.centAmount),
+    };
+    if (variant.price.discounted !== undefined) {
+      presentation = {
+        ...presentation,
+        salePrice: toUnits(variant.price.discounted.centAmount),
+      };
+    }
+  }
+  const imageUrl = variant.images[0]?.url;
+  if (imageUrl !== undefined) {
+    presentation = { ...presentation, imageUrl };
+  }
+  const { availableQuantity } = variant.availability;
+  if (availableQuantity !== undefined) {
+    presentation = { ...presentation, availableQuantity };
+  }
+  return presentation;
 };
 
 export const toProductDetailPresentation = (
@@ -91,42 +142,26 @@ export const toProductDetailPresentation = (
 ): ProductDetailPresentation => {
   const defaultImage = defaultVariant(product)?.images[0]?.url;
   const categoryName = product.categories[0]?.name;
-
-  return {
+  let presentation: ProductDetailPresentation = {
+    availableForSale: isAvailableForSale(product),
+    defaultVariantId: product.defaultVariantId,
     productId: product.id,
     title: product.title,
-    ...(product.description === undefined
-      ? {}
-      : { description: product.description }),
-    ...(categoryName === undefined ? {} : { categoryName }),
-    availableForSale: isAvailableForSale(product),
-    ...(defaultImage === undefined ? {} : { defaultImage }),
-    defaultVariantId: product.defaultVariantId,
     variantLabel: product.options.map((option) => option.label).join(" / "),
-    variants: product.variants.map((variant) => {
-      const imageUrl = variant.images[0]?.url;
-      const { availableQuantity } = variant.availability;
-      return {
-        id: variant.id,
-        value: variant.id,
-        label: variantLabel(product, variant),
-        ...(variant.price === undefined
-          ? {}
-          : {
-              price: toUnits(variant.price.regular.centAmount),
-              ...(variant.price.discounted === undefined
-                ? {}
-                : {
-                    salePrice: toUnits(variant.price.discounted.centAmount),
-                  }),
-              currencyCode: variant.price.regular.currencyCode,
-            }),
-        ...(imageUrl === undefined ? {} : { imageUrl }),
-        isInStock: variant.availability.availableForSale,
-        ...(availableQuantity === undefined ? {} : { availableQuantity }),
-      };
-    }),
+    variants: product.variants.map((variant) =>
+      toProductDetailVariantPresentation(product, variant)
+    ),
   };
+  if (product.description !== undefined) {
+    presentation = { ...presentation, description: product.description };
+  }
+  if (categoryName !== undefined) {
+    presentation = { ...presentation, categoryName };
+  }
+  if (defaultImage !== undefined) {
+    presentation = { ...presentation, defaultImage };
+  }
+  return presentation;
 };
 
 export const toProductDetailMetadata = (product: ProductDetail): Metadata => ({

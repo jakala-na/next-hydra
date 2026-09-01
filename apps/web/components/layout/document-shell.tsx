@@ -1,3 +1,4 @@
+import { AnalyticsProvider } from "@repo/analytics";
 import { AuthProvider } from "@repo/auth/provider";
 import { DesignSystemProvider } from "@repo/design-system";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
@@ -31,7 +32,9 @@ export function DocumentShell({
           sourceLabel="Next.js application"
         >
           <AuthProvider>
-            <DesignSystemProvider>{children}</DesignSystemProvider>
+            <AnalyticsProvider>
+              <DesignSystemProvider>{children}</DesignSystemProvider>
+            </AnalyticsProvider>
           </AuthProvider>
         </ArchitectureBoundary>
         <ArchitectureToolbar />

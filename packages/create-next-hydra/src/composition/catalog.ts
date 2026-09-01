@@ -33,6 +33,7 @@ const SHADCN_REGISTRY_ITEM_SCHEMA_URL =
   "https://ui.shadcn.com/schema/registry-item.json";
 
 const OFFICIAL_REFERENCES: Record<string, string> = {
+  clerk: "next-hydra/auth/clerk",
   commercetools: "next-hydra/commerce/commercetools",
   contentstack: "next-hydra/cms/contentstack",
   drupal: "next-hydra/cms/drupal",
@@ -41,6 +42,8 @@ const OFFICIAL_REFERENCES: Record<string, string> = {
 };
 
 const OFFICIAL_ITEM_NAMES = [
+  "auth-clerk",
+  "auth-contract",
   "auth-workos",
   "cms-contentstack",
   "cms-drupal",
@@ -471,7 +474,10 @@ export async function addCatalogReferences(
 
   for (const itemName of graph.fetchedItemNames) {
     const externalSelection = current.byReference.get(itemName);
-    if (externalSelection !== undefined && externalSelection.assets.length > 0) {
+    if (
+      externalSelection !== undefined &&
+      externalSelection.assets.length > 0
+    ) {
       throw new CompositionValidationError(
         "External selections cannot declare separate binary assets in v1.",
         [

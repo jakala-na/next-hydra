@@ -57,10 +57,12 @@ Keep source in its normal package or application directory and place a `registry
 A Selection Definition declares:
 
 - its stable ID and whether it is a Provider, Add-on, or Preset;
-- a Provider Slot when it is a Provider;
+- a Provider Slot and one package `binding` when it is a Provider;
+- an optional `binding.sourcePath` for resolving a maintained Provider directly to workspace source;
+- `providerDependencies` for packages contributed by the selection that consume a Provider Slot;
 - standard ShadCN `registryDependencies` for any other registry items it needs;
 - required and conflicting selection IDs;
-- exact package entries and aliases;
+- ordinary exact package entries;
 - exact pnpm patch entries and their patch-file assets; and
 - setup instructions through the registry item's standard `docs` field.
 
@@ -77,7 +79,36 @@ pnpm registry:check
 
 `registry:sync` regenerates only each registry item's `files` list and its final workspace-root targets. Provider-owned metadata stays in the colocated registry file. Next Hydra first walks the intact `registryDependencies` graph to retain metadata and detect target conflicts, then prepares those exact artifacts and asks ShadCN to install them once from the workspace root.
 
-Standard ShadCN `dependencies` and `devDependencies` apply to the workspace root. Use `meta.nextHydra.packages` only when a dependency must be added to a specific workspace package.
+Standard ShadCN `dependencies` and `devDependencies` apply to the workspace root. Use `meta.nextHydra.packages` only when an ordinary dependency must be added to a specific workspace package. Stable Provider aliases are derived from the slot and cannot be declared in `packages`.
+
+A Provider declares its installable package once:
+
+```json
+{
+  "kind": "provider",
+  "slot": "cms",
+  "binding": {
+    "specifier": "npm:@vendor/cms-provider@^1.0.0"
+  }
+}
+```
+
+An Add-on that contributes a package which imports the selected CMS declares the consumer, not a concrete CMS package:
+
+```json
+{
+  "kind": "add-on",
+  "providerDependencies": [
+    {
+      "cwd": "packages/vendor-search",
+      "section": "dependencies",
+      "slot": "cms"
+    }
+  ]
+}
+```
+
+Scaffold and maintainer `use` resolve that dependency to `@repo/cms` using the selected Provider's `binding.specifier`. If the Provider also declares `binding.sourcePath`, they write the exact alias and its `/*` wildcard into every selected consumer's `tsconfig.json` for direct-source development. Without `sourcePath`, pnpm's installed alias is the only resolution path and Next Hydra writes no TypeScript path override. Catalog-governed overrides are removed when they are no longer selected, and `use --check` reports incorrect or stale paths. Customer `add`, which has no retained selection receipt, copies the exact Provider alias already present in `apps/web/package.json` into each contributed consumer.
 
 ShadCN reads registry source files as text. For a binary file that must survive byte-for-byte, or a root patch file referenced by `pnpmPatches`, an official or locally included source-registry selection may declare a typed `assets` source and target instead. Separately fetched external selections cannot contribute assets in v1.
 

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect";
+import { Context, Effect, Layer, Option, Redacted, Ref, Schema } from "effect";
 
 import { AuthUserId } from "../domain/identity";
 import type { IdentityUserProfile, RedactedEmail } from "../domain/identity";
@@ -15,7 +15,7 @@ export class IdentityUserLookupFailure extends Schema.TaggedError<IdentityUserLo
   {
     cause: Schema.Defect(),
     message: Schema.String,
-    operation: Schema.Literals(["getById", "hasUserWithEmail"]),
+    operation: Schema.Literals(["findByEmail", "getById", "hasUserWithEmail"]),
     reason: IdentityProviderFailureReason,
   }
 ) {}
@@ -38,6 +38,12 @@ export const normalizedIdentityEmail = (email: RedactedEmail) =>
 export class IdentityUsers extends Context.Service<
   IdentityUsers,
   {
+    readonly findByEmail: (
+      email: RedactedEmail
+    ) => Effect.Effect<
+      Option.Option<IdentityUserProfile>,
+      IdentityUserLookupFailure
+    >;
     readonly hasUserWithEmail: (
       email: RedactedEmail
     ) => Effect.Effect<boolean, IdentityUserLookupFailure>;
@@ -62,8 +68,21 @@ export class IdentityUsers extends Context.Service<
         const profilesByAuthUserId = new Map(
           [...profiles].map((profile) => [String(profile.authUserId), profile])
         );
+        const profilesByEmail = new Map(
+          [...profiles].map((profile) => [
+            normalizedIdentityEmail(profile.email),
+            profile,
+          ])
+        );
 
         return IdentityUsers.of({
+          findByEmail: Effect.fn("IdentityUsers.findByEmail")((email) =>
+            Effect.succeed(
+              Option.fromUndefinedOr(
+                profilesByEmail.get(normalizedIdentityEmail(email))
+              )
+            )
+          ),
           getById: Effect.fn("IdentityUsers.getById")(function* (authUserId) {
             const profile = profilesByAuthUserId.get(String(authUserId));
 

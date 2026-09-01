@@ -103,7 +103,7 @@ export const privateDotEnvFileLayer = Layer.effect(
     return PrivateDotEnvFile.of({
       publish: Effect.fn("PrivateDotEnvFile.publish")(
         function* (values, destination) {
-          const absolutePath = path.resolve(process.cwd(), destination);
+          const absolutePath = path.resolve(destination);
           const rendered = renderDotEnv(values);
           const created = yield* Ref.make(false);
           const publish = Effect.scoped(
