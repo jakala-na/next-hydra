@@ -239,6 +239,12 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@repo/payments':
+        specifier: workspace:*
+        version: link:../../packages/payments
+      '@repo/payments-stripe':
+        specifier: workspace:*
+        version: link:../../packages/payments-stripe
       '@repo/registration':
         specifier: workspace:*
         version: link:../../packages/registration
@@ -597,6 +603,12 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@repo/payments':
+        specifier: workspace:*
+        version: link:../../packages/payments
+      '@repo/payments-stripe':
+        specifier: workspace:*
+        version: link:../../packages/payments-stripe
       '@repo/rate-limit':
         specifier: workspace:*
         version: link:../../packages/rate-limit
@@ -1157,6 +1169,9 @@ importers:
       '@repo/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@repo/payments':
+        specifier: workspace:*
+        version: link:../payments
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -1224,6 +1239,9 @@ importers:
       '@repo/observability':
         specifier: workspace:*
         version: link:../observability
+      '@repo/payments':
+        specifier: workspace:*
+        version: link:../payments
       '@repo/registration':
         specifier: workspace:*
         version: link:../registration
@@ -1796,6 +1814,95 @@ importers:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
 
+  packages/payments:
+    dependencies:
+      '@repo/versioned-store':
+        specifier: workspace:*
+        version: link:../versioned-store
+    devDependencies:
+      '@effect/vitest':
+        specifier: 'catalog:'
+        version: 4.0.0-rc.111(effect@4.0.0-rc.111)(vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(jsdom@26.1.0(bufferutil@4.0.9))(msw@2.12.10(@types/node@24.13.3)(@typescript/typescript6@6.0.2))(vite@7.3.0(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(yaml@2.9.0)))
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-rc.111
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(jsdom@26.1.0(bufferutil@4.0.9))(msw@2.12.10(@types/node@24.13.3)(@typescript/typescript6@6.0.2))(vite@7.3.0(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(yaml@2.9.0))
+
+  packages/payments-stripe:
+    dependencies:
+      '@repo/commerce':
+        specifier: workspace:*
+        version: link:../commerce
+      '@repo/commerce-provider':
+        specifier: workspace:@repo/commerce-commercetools@*
+        version: link:../commerce-commercetools
+      '@repo/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@repo/payments':
+        specifier: workspace:*
+        version: link:../payments
+      '@stripe/react-stripe-js':
+        specifier: ^6.8.2
+        version: 6.8.2(@stripe/stripe-js@9.15.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@stripe/stripe-js':
+        specifier: ^9.15.0
+        version: 9.15.0
+      '@t3-oss/env-nextjs':
+        specifier: 'catalog:'
+        version: 0.13.10(@typescript/typescript6@6.0.2)(arktype@2.1.20)(zod@3.25.76)
+      react:
+        specifier: 19.2.8
+        version: 19.2.8
+      server-only:
+        specifier: 'catalog:'
+        version: 0.0.1
+      zod:
+        specifier: ^3.25.28
+        version: 3.25.76
+    devDependencies:
+      '@repo/e2e-testing':
+        specifier: workspace:*
+        version: link:../e2e-testing
+      '@repo/testing':
+        specifier: workspace:*
+        version: link:../testing
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.10
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.10)
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-rc.111
+      react-dom:
+        specifier: 19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(jsdom@26.1.0(bufferutil@4.0.9))(msw@2.12.10(@types/node@24.13.3)(@typescript/typescript6@6.0.2))(vite@7.3.0(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(yaml@2.9.0))
+
   packages/rate-limit:
     dependencies:
       '@t3-oss/env-nextjs':
@@ -2014,6 +2121,9 @@ importers:
       '@repo/e2e-testing':
         specifier: workspace:*
         version: link:../../packages/e2e-testing
+      '@repo/payments-stripe':
+        specifier: workspace:*
+        version: link:../../packages/payments-stripe
       '@repo/registration':
         specifier: workspace:*
         version: link:../../packages/registration
@@ -6865,6 +6975,17 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  '@stripe/react-stripe-js@6.8.2':
+    resolution: {integrity: sha512-6qxosv6c+LqtdML2R7nCDpFNowuh4ohIM894V9eRkbFJANUKbMKoXBd8AKOQAn1wjEfuYVI2NYtFnqFLOKbPjw==}
+    peerDependencies:
+      '@stripe/stripe-js': '>=9.5.0 <10.0.0'
+      react: 19.2.8
+      react-dom: 19.2.8
+
+  '@stripe/stripe-js@9.15.0':
+    resolution: {integrity: sha512-0ySfsYH9XzfEspNS6MXMU2cjGsxNXWDQT9JxS43nOAatj6jDEP0fLBm2BanfblzU/GL/kDjFFcKmGInHmrASeg==}
+    engines: {node: '>=12.16'}
 
   '@svgr/babel-plugin-add-jsx-attribute@8.0.0':
     resolution: {integrity: sha512-b9MIk7yhdS1pMCZM8VeNfUlSKVRhsHZNMl5O9SfaX0l0t5wjdgu4IDzGB8bpnGBBOjGST3rRFVsaaEtI4W6f7g==}
@@ -20536,6 +20657,15 @@ snapshots:
       typescript: '@typescript/typescript6@6.0.2'
     transitivePeerDependencies:
       - supports-color
+
+  '@stripe/react-stripe-js@6.8.2(@stripe/stripe-js@9.15.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@stripe/stripe-js': 9.15.0
+      prop-types: 15.8.1
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+
+  '@stripe/stripe-js@9.15.0': {}
 
   '@svgr/babel-plugin-add-jsx-attribute@8.0.0(@babel/core@7.28.5)':
     dependencies:

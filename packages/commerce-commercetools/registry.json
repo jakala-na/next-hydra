@@ -46,6 +46,11 @@
           "type": "registry:file"
         },
         {
+          "path": "cart/address-mapping.ts",
+          "target": "~/packages/commerce-commercetools/cart/address-mapping.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cart/attributes.ts",
           "target": "~/packages/commerce-commercetools/cart/attributes.ts",
           "type": "registry:file"
@@ -101,6 +106,16 @@
           "type": "registry:file"
         },
         {
+          "path": "cart/payment-options-actions.test.ts",
+          "target": "~/packages/commerce-commercetools/cart/payment-options-actions.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/payment-options-actions.ts",
+          "target": "~/packages/commerce-commercetools/cart/payment-options-actions.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cart/price.ts",
           "target": "~/packages/commerce-commercetools/cart/price.ts",
           "type": "registry:file"
@@ -108,6 +123,16 @@
         {
           "path": "cart/provider-cart.ts",
           "target": "~/packages/commerce-commercetools/cart/provider-cart.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/shipping-options-actions.test.ts",
+          "target": "~/packages/commerce-commercetools/cart/shipping-options-actions.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/shipping-options-actions.ts",
+          "target": "~/packages/commerce-commercetools/cart/shipping-options-actions.ts",
           "type": "registry:file"
         },
         {
@@ -361,6 +386,31 @@
           "type": "registry:file"
         },
         {
+          "path": "delivery-planning/delivery-planning.test.ts",
+          "target": "~/packages/commerce-commercetools/delivery-planning/delivery-planning.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "delivery-planning/delivery-planning.ts",
+          "target": "~/packages/commerce-commercetools/delivery-planning/delivery-planning.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "delivery-planning/index.ts",
+          "target": "~/packages/commerce-commercetools/delivery-planning/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "delivery-planning/references.test.ts",
+          "target": "~/packages/commerce-commercetools/delivery-planning/references.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "delivery-planning/references.ts",
+          "target": "~/packages/commerce-commercetools/delivery-planning/references.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "gql/graphql-cache.d.ts",
           "target": "~/packages/commerce-commercetools/gql/graphql-cache.d.ts",
           "type": "registry:file"
@@ -391,6 +441,11 @@
           "type": "registry:file"
         },
         {
+          "path": "migrations/add-checkout-payment.test.ts",
+          "target": "~/packages/commerce-commercetools/migrations/add-checkout-payment.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "migrations/create-order-custom-fields-type.test.ts",
           "target": "~/packages/commerce-commercetools/migrations/create-order-custom-fields-type.test.ts",
           "type": "registry:file"
@@ -411,6 +466,21 @@
           "type": "registry:file"
         },
         {
+          "path": "migrations/scripts/2026-08-31-120000-add-checkout-delivery-details.ts",
+          "target": "~/packages/commerce-commercetools/migrations/scripts/2026-08-31-120000-add-checkout-delivery-details.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/scripts/2026-08-31-130000-add-demo-us-shipping-options.ts",
+          "target": "~/packages/commerce-commercetools/migrations/scripts/2026-08-31-130000-add-demo-us-shipping-options.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/scripts/2026-08-31-140000-add-checkout-payment.ts",
+          "target": "~/packages/commerce-commercetools/migrations/scripts/2026-08-31-140000-add-checkout-payment.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "migrations/types.ts",
           "target": "~/packages/commerce-commercetools/migrations/types.ts",
           "type": "registry:file"
@@ -418,6 +488,31 @@
         {
           "path": "package.json",
           "target": "~/packages/commerce-commercetools/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "payment-repository/custom-fields.ts",
+          "target": "~/packages/commerce-commercetools/payment-repository/custom-fields.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "payment-repository/index.ts",
+          "target": "~/packages/commerce-commercetools/payment-repository/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "payment-repository/keys.ts",
+          "target": "~/packages/commerce-commercetools/payment-repository/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "payment-repository/payment-repository.test.ts",
+          "target": "~/packages/commerce-commercetools/payment-repository/payment-repository.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "payment-repository/payment-repository.ts",
+          "target": "~/packages/commerce-commercetools/payment-repository/payment-repository.ts",
           "type": "registry:file"
         },
         {
@@ -511,6 +606,11 @@
           "type": "registry:file"
         },
         {
+          "path": "schema/types/checkoutPaymentFields.json",
+          "target": "~/packages/commerce-commercetools/schema/types/checkoutPaymentFields.json",
+          "type": "registry:file"
+        },
+        {
           "path": "schema/types/orderCustomFields.json",
           "target": "~/packages/commerce-commercetools/schema/types/orderCustomFields.json",
           "type": "registry:file"
@@ -533,6 +633,31 @@
         {
           "path": "testing/index.ts",
           "target": "~/packages/commerce-commercetools/testing/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/net-terms-test-control.ts",
+          "target": "~/packages/commerce-commercetools/testing/net-terms-test-control.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/payment-test-control.test.ts",
+          "target": "~/packages/commerce-commercetools/testing/payment-test-control.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/payment-test-control.ts",
+          "target": "~/packages/commerce-commercetools/testing/payment-test-control.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/shipping-options-test-control.test.ts",
+          "target": "~/packages/commerce-commercetools/testing/shipping-options-test-control.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/shipping-options-test-control.ts",
+          "target": "~/packages/commerce-commercetools/testing/shipping-options-test-control.ts",
           "type": "registry:file"
         },
         {
