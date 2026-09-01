@@ -20,6 +20,7 @@
     "dev": "turbo run dev",
     "dev:api:public": "turbo run dev:public --filter=api",
     "dev:without-api": "turbo run dev --filter=!api",
+    "e2e:env:split": "node scripts/split-e2e-github-env.ts",
     "format": "ultracite fix",
     "lint": "ultracite check",
     "prepare": "husky && effect-tsgo patch --typescript --oxlint",
