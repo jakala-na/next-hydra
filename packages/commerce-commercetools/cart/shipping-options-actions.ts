@@ -1,8 +1,4 @@
-import type {
-  BaseAddress,
-  CartUpdateAction,
-} from "@commercetools/platform-sdk";
-import type { Address } from "@repo/commerce/domain/address";
+import type { CartUpdateAction } from "@commercetools/platform-sdk";
 import type { SelectedDeliveryPlan } from "@repo/commerce/domain/delivery-plan";
 
 import {
@@ -11,24 +7,8 @@ import {
   shippingKeyFor,
   shippingMethodIdFrom,
 } from "../delivery-planning/references";
+import { toCommercetoolsAddress } from "./address-mapping";
 import type { CommercetoolsCart } from "./provider-cart";
-
-const toBaseAddress = (address: Address, key: string): BaseAddress => {
-  const result: BaseAddress = {
-    city: address.city,
-    country: address.country,
-    key,
-    postalCode: address.postalCode,
-    streetName: address.addressLine1,
-  };
-  const withAddressLine2 =
-    address.addressLine2 === undefined
-      ? result
-      : { ...result, additionalStreetInfo: address.addressLine2 };
-  return address.region === undefined
-    ? withAddressLine2
-    : { ...withAddressLine2, state: address.region };
-};
 
 /**
  * Removes the complete delivery-plan projection. Cart contents or delivery
@@ -100,7 +80,7 @@ export const buildSaveShippingOptionsActions = (
   const addAddresses = groupRouting.map(
     ({ addressKey, group }): CartUpdateAction => ({
       action: "addItemShippingAddress",
-      address: toBaseAddress(group.shippingAddress, addressKey),
+      address: toCommercetoolsAddress(group.shippingAddress, addressKey),
     })
   );
   const addShippingMethods = groupRouting.map(
@@ -111,7 +91,10 @@ export const buildSaveShippingOptionsActions = (
       shippingMethodId,
     }): CartUpdateAction => ({
       action: "addShippingMethod",
-      shippingAddress: toBaseAddress(group.shippingAddress, addressKey),
+      shippingAddress: toCommercetoolsAddress(
+        group.shippingAddress,
+        addressKey
+      ),
       shippingKey,
       shippingMethod: { id: shippingMethodId, typeId: "shipping-method" },
     })

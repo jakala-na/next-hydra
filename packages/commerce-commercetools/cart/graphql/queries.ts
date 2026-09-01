@@ -24,7 +24,7 @@ export const GetActiveCartForBusinessUnitAsAssociateQuery = graphql(
         associateId: $associateId
         businessUnitKey: $businessUnitKey
       ) {
-        carts(where: $where, sort: ["lastModifiedAt desc"], limit: 500) {
+        carts(where: $where, sort: ["lastModifiedAt desc"], limit: 2) {
           results {
             ...CartFields
           }
