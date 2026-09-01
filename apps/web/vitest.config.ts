@@ -40,6 +40,13 @@ export default mergeConfig(
             "node_modules/@repo/commerce-provider"
           ),
         },
+        {
+          find: /^@repo\/payments-stripe\/server$/u,
+          replacement: path.resolve(
+            import.meta.dirname,
+            "node_modules/@repo/payments-stripe/server/card-payments.ts"
+          ),
+        },
         { find: "@", replacement: import.meta.dirname },
       ],
     },

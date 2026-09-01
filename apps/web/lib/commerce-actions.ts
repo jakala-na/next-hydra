@@ -13,6 +13,7 @@ import type { RemoveCartItemInput } from "@repo/commerce/cart/remove-cart-item";
 import type {
   SaveCheckoutContactActionResult,
   SaveCheckoutDeliveryDetailsActionResult,
+  SaveCheckoutPaymentOptionsActionResult,
   SaveCheckoutShippingOptionsActionResult,
 } from "@repo/commerce/checkout";
 import { makeCheckoutProcedures } from "@repo/commerce/checkout/procedures";
@@ -23,6 +24,7 @@ import { AppRuntime } from "./app-runtime";
 import {
   shouldRevalidateContact,
   shouldRevalidateDeliveryDetails,
+  shouldRevalidatePaymentOptions,
   shouldRevalidateShippingOptions,
 } from "./commerce-action-cache-policy";
 import { CommerceActions } from "./commerce-runtime";
@@ -36,6 +38,7 @@ const {
 const {
   saveCheckoutContactProcedure,
   saveCheckoutDeliveryDetailsProcedure,
+  saveCheckoutPaymentOptionsProcedure,
   saveCheckoutShippingOptionsProcedure,
 } = makeCheckoutProcedures(CommerceActions);
 
@@ -78,6 +81,21 @@ const saveCheckoutShippingOptionsAction =
       const t = await getTranslations({
         locale,
         namespace: "web.checkout.errors.saveShippingOptions",
+      });
+
+      return t(
+        error._tag === "InputInvalid"
+          ? "CheckoutMutationSchemaFailure"
+          : error._tag
+      );
+    },
+  });
+const saveCheckoutPaymentOptionsAction =
+  saveCheckoutPaymentOptionsProcedure.toFormAction({
+    getFailureMessage: async (error, { locale }) => {
+      const t = await getTranslations({
+        locale,
+        namespace: "web.checkout.errors.savePaymentOptions",
       });
 
       return t(
@@ -146,5 +164,17 @@ export const saveCheckoutShippingOptions = async (
     formData
   );
   await revalidateCheckoutWhen(shouldRevalidateShippingOptions(result));
+  return result;
+};
+
+export const saveCheckoutPaymentOptions = async (
+  previousResult: SaveCheckoutPaymentOptionsActionResult | null,
+  formData: FormData
+): Promise<SaveCheckoutPaymentOptionsActionResult> => {
+  const result = await saveCheckoutPaymentOptionsAction(
+    previousResult,
+    formData
+  );
+  await revalidateCheckoutWhen(shouldRevalidatePaymentOptions(result));
   return result;
 };

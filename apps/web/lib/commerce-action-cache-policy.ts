@@ -1,48 +1,75 @@
-type CheckoutRevalidationResult =
+import type {
+  SaveCheckoutContactActionError,
+  SaveCheckoutDeliveryDetailsActionError,
+  SaveCheckoutPaymentOptionsActionError,
+  SaveCheckoutShippingOptionsActionError,
+} from "@repo/commerce/checkout";
+
+type RevalidationResult<Tag extends string> =
   | { readonly _tag: "Success" }
   | {
       readonly _tag: "Failure";
       readonly failure: {
         readonly error: {
-          readonly _tag: string;
+          readonly _tag: Tag;
         };
       };
     };
 
-type DeliveryRevalidationResult =
-  | { readonly _tag: "Success" }
-  | {
-      readonly _tag: "Failure";
-      readonly failure: {
-        readonly error: {
-          readonly _tag: string;
-          readonly addressBookReference?: string;
-        };
-      };
-    };
+type CheckoutError =
+  | SaveCheckoutContactActionError
+  | SaveCheckoutDeliveryDetailsActionError
+  | SaveCheckoutPaymentOptionsActionError
+  | SaveCheckoutShippingOptionsActionError;
+type CheckoutErrorTag = CheckoutError["_tag"] | "InputInvalid";
 
-export const shouldRevalidateContact = (result: CheckoutRevalidationResult) =>
-  result._tag === "Success" ||
-  result.failure.error._tag === "CheckoutCartMismatch" ||
-  result.failure.error._tag === "CheckoutMutationOutcomeUnknown" ||
-  result.failure.error._tag === "CheckoutVersionConflict";
+const REFRESH_ERROR_TAGS = new Set<CheckoutErrorTag>([
+  "CheckoutCartMismatch",
+  "CheckoutMutationOutcomeUnknown",
+  "CheckoutPaymentMethodUnavailable",
+  "CheckoutPaymentOptionsUnavailable",
+  "CheckoutPaymentPreparationRefreshRequired",
+  "CheckoutShippingOptionsRefreshRequired",
+  "CheckoutShippingSelectionUnavailable",
+  "CheckoutVersionConflict",
+]);
 
-export const shouldRevalidateDeliveryDetails = (
-  result: DeliveryRevalidationResult
+const shouldRevalidateFromTag = <Tag extends CheckoutErrorTag>(
+  result: RevalidationResult<Tag>
 ) =>
   result._tag === "Success" ||
-  result.failure.error._tag === "CheckoutCartMismatch" ||
-  result.failure.error._tag === "CheckoutMutationOutcomeUnknown" ||
-  result.failure.error._tag === "CheckoutVersionConflict" ||
-  (result.failure.error._tag === "CheckoutMutationProviderFailure" &&
+  REFRESH_ERROR_TAGS.has(result.failure.error._tag);
+
+export const shouldRevalidateContact = (
+  result: RevalidationResult<
+    SaveCheckoutContactActionError["_tag"] | "InputInvalid"
+  >
+) => shouldRevalidateFromTag(result);
+
+export const shouldRevalidateDeliveryDetails = (
+  result: RevalidationResult<
+    SaveCheckoutDeliveryDetailsActionError["_tag"] | "InputInvalid"
+  > & {
+    readonly failure?: {
+      readonly error: {
+        readonly addressBookReference?: string;
+      };
+    };
+  }
+) =>
+  shouldRevalidateFromTag(result) ||
+  (result._tag === "Failure" &&
+    result.failure.error._tag === "CheckoutMutationProviderFailure" &&
     result.failure.error.addressBookReference !== undefined);
 
 export const shouldRevalidateShippingOptions = (
-  result: CheckoutRevalidationResult
-) =>
-  result._tag === "Success" ||
-  result.failure.error._tag === "CheckoutCartMismatch" ||
-  result.failure.error._tag === "CheckoutMutationOutcomeUnknown" ||
-  result.failure.error._tag === "CheckoutShippingOptionsRefreshRequired" ||
-  result.failure.error._tag === "CheckoutShippingSelectionUnavailable" ||
-  result.failure.error._tag === "CheckoutVersionConflict";
+  result: RevalidationResult<
+    SaveCheckoutShippingOptionsActionError["_tag"] | "InputInvalid"
+  >
+) => shouldRevalidateFromTag(result);
+
+export const shouldRevalidatePaymentOptions = (
+  result: RevalidationResult<
+    SaveCheckoutPaymentOptionsActionError["_tag"] | "InputInvalid"
+  >
+) => shouldRevalidateFromTag(result);
