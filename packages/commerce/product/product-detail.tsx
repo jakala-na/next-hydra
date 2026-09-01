@@ -5,6 +5,7 @@ import type { Locale } from "@repo/i18n/types";
 import { Effect, Option, Schema } from "effect";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 
 import { CommerceContextObservation } from "../commerce-context/commerce-context-observation";
 import { CommerceContext } from "../services/commerce-context";
@@ -25,6 +26,8 @@ const loadProductDetail = async ({
   locale,
   slug,
 }: ProductDetailBoundaryProps) => {
+  await connection();
+
   const productSlug = Schema.decodeUnknownSync(ProductSlug)(slug);
   const { product, store } = await NextCommerce.runPromise(
     Effect.gen(function* () {
