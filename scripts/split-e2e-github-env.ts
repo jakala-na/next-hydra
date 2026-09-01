@@ -21,6 +21,10 @@ import { parseEnv } from "node:util";
  *   gh variable set --repo jakala-na/next-hydra --env e2e \
  *     --env-file .env.github.variables
  *
+ * Add the stable production E2E URLs and Vercel project slugs to
+ * `.env.github.variables` before uploading it. They are deployment metadata,
+ * not application runtime values, so this script cannot derive them safely.
+ *
  * Both generated files are gitignored and written with mode 0600. Keep the
  * mapping below aligned with `.github/workflows/e2e.yml`.
  */
@@ -65,35 +69,9 @@ const githubEnvironmentMappings = [
   ["api", "COMMERCETOOLS_PROJECT_KEY", "secret", "COMMERCETOOLS_PROJECT_KEY"],
   ["api", "COMMERCETOOLS_REGION", "variable", "COMMERCETOOLS_REGION"],
   ["api", "COMMERCETOOLS_SCOPE", "secret", "COMMERCETOOLS_SCOPE"],
-  ["web", "CONTENTSTACK_API_KEY", "secret", "CONTENTSTACK_API_KEY"],
-  [
-    "web",
-    "CONTENTSTACK_DELIVERY_TOKEN",
-    "secret",
-    "CONTENTSTACK_DELIVERY_TOKEN",
-  ],
-  ["web", "CONTENTSTACK_ENVIRONMENT", "variable", "CONTENTSTACK_ENVIRONMENT"],
-  ["web", "CONTENTSTACK_PREVIEW_TOKEN", "secret", "CONTENTSTACK_PREVIEW_TOKEN"],
-  [
-    "web",
-    "CONTENTSTACK_WEBHOOK_SECRET",
-    "secret",
-    "CONTENTSTACK_WEBHOOK_SECRET",
-  ],
-  ["web", "NEXT_PUBLIC_POSTHOG_HOST", "variable", "NEXT_PUBLIC_POSTHOG_HOST"],
-  ["web", "NEXT_PUBLIC_POSTHOG_KEY", "secret", "NEXT_PUBLIC_POSTHOG_KEY"],
-  [
-    "api",
-    "REGISTRATION_APPROVER_EMAIL",
-    "variable",
-    "REGISTRATION_APPROVER_EMAIL",
-  ],
-  ["api", "RESEND_FROM", "variable", "RESEND_FROM"],
-  ["api", "RESEND_TOKEN", "secret", "RESEND_TOKEN"],
   ["api", "WORKOS_API_KEY", "secret", "WORKOS_API_KEY"],
   ["api", "WORKOS_CLIENT_ID", "secret", "WORKOS_CLIENT_ID"],
   ["web", "WORKOS_COOKIE_PASSWORD", "secret", "WORKOS_COOKIE_PASSWORD"],
-  ["api", "WORKOS_WEBHOOK_SECRET", "secret", "WORKOS_WEBHOOK_SECRET"],
 ] as const satisfies readonly GitHubEnvironmentMapping[];
 
 const readInput = (input: string) => {

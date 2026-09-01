@@ -83,8 +83,6 @@ describe("split-e2e-github-env", () => {
       {
         ADMIN_WORKOS_API_KEY: "admin-key",
         ADMIN_WORKOS_COOKIE_PASSWORD: "admin-cookie-password",
-        CONTENTSTACK_API_KEY: "content-key",
-        RESEND_TOKEN: "token value",
         WORKOS_API_KEY: "api-customer-key",
         WORKOS_COOKIE_PASSWORD: "customer-cookie-password",
       }
@@ -98,7 +96,6 @@ describe("split-e2e-github-env", () => {
       ),
       {
         COMMERCETOOLS_REGION: "us-central1.gcp",
-        RESEND_FROM: "Demo <demo@example.com>",
       }
     );
     assert.equal(
