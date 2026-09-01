@@ -22,7 +22,10 @@ import {
   CartWriteOutcomeUnknown,
 } from "@repo/commerce/domain/cart-errors";
 import type { CartOperation } from "@repo/commerce/domain/cart-errors";
-import { CartSnapshot } from "@repo/commerce/domain/cart-snapshot";
+import {
+  CartSnapshot,
+  ProductTypeKey as CartProductTypeKey,
+} from "@repo/commerce/domain/cart-snapshot";
 import type {
   CartTarget,
   ProductAttributeValue,
@@ -45,6 +48,7 @@ import type {
   SelectedDeliveryGroup,
   SelectedDeliveryPlan,
 } from "@repo/commerce/domain/delivery-plan";
+import { CurrencyCode } from "@repo/commerce/domain/money";
 import { Carts } from "@repo/commerce/services/carts";
 import type {
   AddCartItem,
@@ -55,11 +59,18 @@ import type {
   RemoveCartLineItem,
   SaveCartContact,
   SaveCartDeliveryDetails,
+  SaveCartPaymentOptions,
   SaveCartShippingOptions,
   SetCartLineItemQuantity,
 } from "@repo/commerce/services/carts";
 import { StoreKey } from "@repo/commerce/store";
-import type { CurrencyCode, Locale } from "@repo/i18n/types";
+import type { Locale } from "@repo/i18n/types";
+import {
+  cardPreparationReferenceFor,
+  PaymentCheckoutReference,
+  PreparedPayment as PreparedPaymentSchema,
+} from "@repo/payments";
+import type { PreparedPayment } from "@repo/payments";
 import type { Client } from "@urql/core";
 import { Effect, Layer, Option, Schema } from "effect";
 import type { FragmentOf } from "gql.tada";
@@ -88,8 +99,17 @@ import {
   shippingOptionReferenceFor,
 } from "../delivery-planning/references";
 import { readFragment } from "../graphql";
-import { reshapeProductAttributes } from "./attributes";
-import type { ProductTypeKey } from "./attributes";
+import {
+  PAYMENT_CONFIRMATION_REFERENCE_FIELD,
+  PAYMENT_CUSTOM_TYPE_KEY,
+  PAYMENT_TERMS_IN_DAYS_FIELD,
+} from "../payment-repository/custom-fields";
+import {
+  cardPaymentKeyForCheckout,
+  netTermsPaymentKeyForCheckout,
+} from "../payment-repository/keys";
+// oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- Legacy adapter export; the local name states its domain destination.
+import { reshapeProductAttributes as toCartProductAttributes } from "./attributes";
 import {
   buildSaveCheckoutContactActions,
   CHECKOUT_CONTACT_CUSTOM_FIELD_NAME,
@@ -115,11 +135,17 @@ import {
   GetActiveCartForBusinessUnitAsAssociateQuery,
   GetCartByIdQuery,
 } from "./graphql/queries";
-import { reshapePrice } from "./price";
+import {
+  buildSavePaymentOptionsActions,
+  clearSelectedPaymentActions,
+} from "./payment-options-actions";
+// oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- Legacy adapter export; the local name states its domain destination.
+import { reshapePrice as toCartPrice } from "./price";
 import type {
   CommercetoolsAddress,
   CommercetoolsCart,
   CommercetoolsLineItem,
+  CommercetoolsPayment,
 } from "./provider-cart";
 import {
   buildSaveShippingOptionsActions,
@@ -132,6 +158,56 @@ type RawCustomField = {
   readonly name: string;
   readonly value: unknown;
 };
+
+type Mutable<Value> = {
+  -readonly [Key in keyof Value]: Value[Key];
+};
+
+type CartProductVariantCandidate = {
+  readonly attributes: Record<string, ProductAttributeValue | undefined>;
+  readonly id: VariantId;
+  readonly images: NonNullable<CommercetoolsLineItem["variant"]>["images"];
+  readonly name?: string;
+  readonly productId: ProductId;
+  readonly productType?: CartProductTypeKey;
+  readonly sku?: Sku;
+};
+
+type CartLineItemCandidate = {
+  readonly id: LineItemId;
+  readonly quantity: number;
+  readonly totalPrice?: CommercetoolsLineItem["totalPrice"];
+  readonly unitPrice: CommercetoolsLineItem["price"]["value"];
+  readonly variant?: CartProductVariantCandidate;
+};
+
+type CartSnapshotCandidate = {
+  readonly buyingContext?: {
+    readonly businessUnitId: CommerceBusinessUnitId;
+  };
+  readonly checkoutDetails: CheckoutDetails;
+  readonly id: CartId;
+  readonly lineItems: readonly CartLineItemCandidate[];
+  readonly status: "active" | "inactive";
+  readonly storeKey?: StoreKey;
+  readonly totalLineItemQuantity: number;
+  readonly totalPrice: CommercetoolsCart["totalPrice"];
+};
+
+type MutableCheckoutDetails = Mutable<CheckoutDetails>;
+type ProjectedShippingTarget = Mutable<
+  NonNullable<
+    NonNullable<CommercetoolsLineItem["shippingDetails"]>["targets"][number]
+  >
+>;
+type ProjectedCommercetoolsVariant = Mutable<
+  NonNullable<CommercetoolsLineItem["variant"]>
+>;
+type ProjectedCommercetoolsLineItem = Mutable<CommercetoolsLineItem>;
+type ProjectedCommercetoolsCart = Mutable<CommercetoolsCart>;
+type MutableCartProductVariantCandidate = Mutable<CartProductVariantCandidate>;
+type MutableCartLineItemCandidate = Mutable<CartLineItemCandidate>;
+type MutableCartSnapshotCandidate = Mutable<CartSnapshotCandidate>;
 
 type ProviderErrorPayload = {
   readonly networkError?: unknown;
@@ -306,27 +382,34 @@ const CommerceShippingAddress = Schema.Struct({
   streetName: Schema.NullOr(Schema.String),
 });
 
+type CommerceShippingAddressInput = {
+  readonly additionalStreetInfo?: string | null;
+  readonly city?: string | null;
+  readonly country?: string | null;
+  readonly key?: string | null;
+  readonly postalCode?: string | null;
+  readonly region?: string | null;
+  readonly state?: string | null;
+  readonly streetName?: string | null;
+};
+
 type DecodedShippingAddress = {
   readonly shippingAddress: ShippingAddress;
   readonly addressBookReference?: AddressBookReference;
 };
 
 const decodeShippingAddress = (
-  value: unknown
+  value: CommerceShippingAddressInput | null | undefined
 ): Option.Option<DecodedShippingAddress> =>
   Schema.decodeUnknownOption(CommerceShippingAddress)(value).pipe(
     Option.flatMap((address) =>
       Schema.decodeUnknownOption(ShippingAddress)({
         addressLine1: address.streetName,
+        addressLine2: address.additionalStreetInfo ?? undefined,
         city: address.city,
         country: address.country,
         postalCode: address.postalCode,
-        ...(address.additionalStreetInfo === null
-          ? {}
-          : { addressLine2: address.additionalStreetInfo }),
-        ...(address.state == null && address.region === null
-          ? {}
-          : { region: address.state ?? address.region ?? undefined }),
+        region: address.state ?? address.region ?? undefined,
       }).pipe(
         Option.map((shippingAddress) => {
           const addressBookReference =
@@ -334,19 +417,11 @@ const decodeShippingAddress = (
               ? undefined
               : fromCommercetoolsAddressKey(address.key);
 
-          return {
-            shippingAddress,
-            ...(addressBookReference === undefined
-              ? {}
-              : { addressBookReference }),
-          };
+          return { addressBookReference, shippingAddress };
         })
       )
     )
   );
-
-const decodeCheckoutContact = (value: unknown) =>
-  Schema.decodeUnknownSync(Schema.fromJsonString(CheckoutContact))(value);
 
 const getCheckoutContactFromCustomFields = (
   customFields: readonly RawCustomField[] | null | undefined
@@ -355,13 +430,12 @@ const getCheckoutContactFromCustomFields = (
     (customField) => customField.name === CHECKOUT_CONTACT_CUSTOM_FIELD_NAME
   );
 
-  return field === undefined ? undefined : decodeCheckoutContact(field.value);
+  return field === undefined
+    ? undefined
+    : Schema.decodeUnknownSync(Schema.fromJsonString(CheckoutContact))(
+        field.value
+      );
 };
-
-const decodeCheckoutDeliveryDetails = (value: unknown) =>
-  Schema.decodeUnknownSync(
-    Schema.fromJsonString(CheckoutDeliveryDetailsSchema)
-  )(value);
 
 const getCheckoutDeliveryDetailsFromCustomFields = (
   customFields: readonly RawCustomField[] | null | undefined
@@ -373,7 +447,9 @@ const getCheckoutDeliveryDetailsFromCustomFields = (
 
   return field === undefined
     ? undefined
-    : decodeCheckoutDeliveryDetails(field.value);
+    : Schema.decodeUnknownSync(
+        Schema.fromJsonString(CheckoutDeliveryDetailsSchema)
+      )(field.value);
 };
 
 const getCheckoutDeliveryDetails = (
@@ -398,18 +474,89 @@ const getCheckoutDeliveryDetails = (
 
 const getCheckoutDetails = (
   customFields: readonly RawCustomField[] | null | undefined,
-  decodedShippingAddress: DecodedShippingAddress | null
+  decodedShippingAddress: DecodedShippingAddress | null,
+  preparedPayment: PreparedPayment | undefined
 ): CheckoutDetails => {
   const contact = getCheckoutContactFromCustomFields(customFields);
   const deliveryDetails = getCheckoutDeliveryDetails(
     customFields,
     decodedShippingAddress
   );
+  const details: MutableCheckoutDetails = {};
+  if (contact !== undefined) {
+    details.contact = contact;
+  }
+  if (deliveryDetails !== undefined) {
+    details.deliveryDetails = deliveryDetails;
+  }
+  if (preparedPayment !== undefined) {
+    details.preparedPayment = preparedPayment;
+  }
+  return details;
+};
 
-  return {
-    ...(contact === undefined ? {} : { contact }),
-    ...(deliveryDetails === undefined ? {} : { deliveryDetails }),
+const decodeCurrencyCode = Schema.decodeUnknownSync(CurrencyCode);
+
+const paymentCustomField = (payment: CommercetoolsPayment, name: string) =>
+  payment.custom?.customFieldsRaw?.find((field) => field.name === name)?.value;
+
+const preparedPaymentFrom = (
+  cartId: string,
+  billingAddress: ShippingAddress | null,
+  payment: CommercetoolsPayment
+): Option.Option<PreparedPayment> => {
+  if (
+    billingAddress === null ||
+    payment.custom?.type?.key !== PAYMENT_CUSTOM_TYPE_KEY
+  ) {
+    return Option.none();
+  }
+
+  const checkout = {
+    amount: payment.amountPlanned,
+    reference: PaymentCheckoutReference.make(cartId),
   };
+  const common = {
+    amount: payment.amountPlanned,
+    billingAddress,
+    paymentReference: payment.id,
+  };
+
+  if (
+    payment.paymentMethodInfo.method === "card" &&
+    payment.key === cardPaymentKeyForCheckout(cartId) &&
+    payment.interfaceId !== null &&
+    payment.interfaceId !== undefined &&
+    payment.paymentMethodInfo.paymentInterface !== null &&
+    payment.paymentMethodInfo.paymentInterface !== undefined
+  ) {
+    return Schema.decodeUnknownOption(PreparedPaymentSchema)({
+      ...common,
+      confirmationReference: paymentCustomField(
+        payment,
+        PAYMENT_CONFIRMATION_REFERENCE_FIELD
+      ),
+      method: "card",
+      preparationReference: cardPreparationReferenceFor(checkout),
+    });
+  }
+
+  if (
+    payment.paymentMethodInfo.method === "netTerms" &&
+    payment.key === netTermsPaymentKeyForCheckout(cartId) &&
+    payment.interfaceId !== null &&
+    payment.interfaceId !== undefined &&
+    payment.paymentMethodInfo.paymentInterface !== null &&
+    payment.paymentMethodInfo.paymentInterface !== undefined
+  ) {
+    return Schema.decodeUnknownOption(PreparedPaymentSchema)({
+      ...common,
+      method: "netTerms",
+      termsInDays: paymentCustomField(payment, PAYMENT_TERMS_IN_DAYS_FIELD),
+    });
+  }
+
+  return Option.none();
 };
 
 const selectedDeliveryPlanFrom = (
@@ -457,7 +604,7 @@ const selectedDeliveryPlanFrom = (
   const groupReferences = new Set<string>();
   const groups = shipping.map((entry): SelectedDeliveryGroup => {
     const references = deliveryReferencesFromShippingKey(entry.shippingKey);
-    const shippingMethodId = entry.shippingInfo.shippingMethodId;
+    const { shippingMethodId } = entry.shippingInfo;
     const decodedAddress = Option.getOrUndefined(
       decodeShippingAddress(entry.shippingAddress)
     );
@@ -547,52 +694,71 @@ const toCommercetoolsCart = (
     decodeShippingAddress(parsedData.shippingAddress)
   );
   const shippingAddress = decodedShippingAddress?.shippingAddress ?? null;
+  const billingAddress =
+    Option.getOrNull(decodeShippingAddress(parsedData.billingAddress))
+      ?.shippingAddress ?? null;
 
   const lineItems: CommercetoolsLineItem[] = parsedData.lineItems.map(
-    (item) => ({
-      id: item.id,
-      name: item.name,
-      productId: item.productId,
-      ...(item.productType?.key === undefined
-        ? {}
-        : { productType: item.productType.key as ProductTypeKey }),
-      price: reshapePrice(item.price),
-      quantity: item.quantity,
-      totalPrice: item.totalPrice
-        ? {
-            centAmount: item.totalPrice.centAmount,
-            currencyCode: item.totalPrice.currencyCode as CurrencyCode,
-          }
-        : null,
-      shippingDetails:
+    (item) => {
+      const productType = Option.getOrUndefined(
+        Schema.decodeUnknownOption(CartProductTypeKey)(item.productType?.key)
+      );
+      const shippingDetails =
         item.shippingDetails === null || item.shippingDetails === undefined
           ? null
           : {
-              targets: item.shippingDetails.targets.map((target) => ({
-                addressKey: target.addressKey,
-                quantity: target.quantity,
-                ...(target.shippingMethodKey === null
-                  ? {}
-                  : { shippingMethodKey: target.shippingMethodKey }),
-              })),
+              targets: item.shippingDetails.targets.map((target) => {
+                const projectedTarget: ProjectedShippingTarget = {
+                  addressKey: target.addressKey,
+                  quantity: target.quantity,
+                };
+                if (target.shippingMethodKey !== null) {
+                  projectedTarget.shippingMethodKey = target.shippingMethodKey;
+                }
+                return projectedTarget;
+              }),
               valid: item.shippingDetails.valid,
-            },
-      variant: item.variant
-        ? {
-            id: item.variant.id,
-            ...(item.variant.sku === null ? {} : { sku: item.variant.sku }),
-            attributes: reshapeProductAttributes(
-              item.productType?.key as ProductTypeKey,
-              item.variant.attributesRaw,
-              locale
-            ),
-            images: item.variant.images.map((image) => ({
-              altText: image.label ?? "",
-              url: image.url,
-            })),
-          }
-        : null,
-    })
+            };
+      let variant: CommercetoolsLineItem["variant"] = null;
+      if (item.variant !== null) {
+        const projectedVariant: ProjectedCommercetoolsVariant = {
+          attributes: toCartProductAttributes(
+            productType ?? "generic-product",
+            item.variant.attributesRaw,
+            locale
+          ),
+          id: item.variant.id,
+          images: item.variant.images.map((image) => ({
+            altText: image.label ?? "",
+            url: image.url,
+          })),
+        };
+        if (item.variant.sku !== null) {
+          projectedVariant.sku = item.variant.sku;
+        }
+        variant = projectedVariant;
+      }
+
+      const lineItem: ProjectedCommercetoolsLineItem = {
+        id: item.id,
+        name: item.name,
+        price: toCartPrice(item.price),
+        productId: item.productId,
+        quantity: item.quantity,
+        shippingDetails,
+        totalPrice: item.totalPrice
+          ? {
+              centAmount: item.totalPrice.centAmount,
+              currencyCode: decodeCurrencyCode(item.totalPrice.currencyCode),
+            }
+          : null,
+        variant,
+      };
+      if (productType !== undefined) {
+        lineItem.productType = productType;
+      }
+      return lineItem;
+    }
   );
   const itemShippingAddresses: CommercetoolsAddress[] = (
     parsedData.itemShippingAddresses ?? []
@@ -634,7 +800,9 @@ const toCommercetoolsCart = (
       shippingInfo: {
         price: {
           centAmount: entry.shippingInfo.price.centAmount,
-          currencyCode: entry.shippingInfo.price.currencyCode as CurrencyCode,
+          currencyCode: decodeCurrencyCode(
+            entry.shippingInfo.price.currencyCode
+          ),
         },
         shippingMethodId: entry.shippingInfo.shippingMethodRef.id,
         shippingMethodName: entry.shippingInfo.shippingMethodName,
@@ -648,26 +816,53 @@ const toCommercetoolsCart = (
     lineItems,
     shipping
   );
+  const payments: CommercetoolsPayment[] = (
+    parsedData.paymentInfo?.payments ?? []
+  ).map((payment) => ({
+    amountPlanned: {
+      centAmount: payment.amountPlanned.centAmount,
+      currencyCode: decodeCurrencyCode(payment.amountPlanned.currencyCode),
+    },
+    custom:
+      payment.custom === null
+        ? null
+        : {
+            customFieldsRaw: payment.custom.customFieldsRaw,
+            type: payment.custom.type,
+          },
+    id: payment.id,
+    interfaceId: payment.interfaceId,
+    key: payment.key,
+    paymentMethodInfo: payment.paymentMethodInfo,
+  }));
+  const preparedPayment =
+    payments.length === 1 && payments[0] !== undefined
+      ? Option.getOrUndefined(
+          preparedPaymentFrom(parsedData.id, billingAddress, payments[0])
+        )
+      : undefined;
   const checkoutDetails = getCheckoutDetails(
     parsedData.custom?.customFieldsRaw,
-    decodedShippingAddress
+    decodedShippingAddress,
+    preparedPayment
   );
 
-  return {
+  const checkoutDetailsWithShipping: MutableCheckoutDetails = {
+    ...checkoutDetails,
+  };
+  if (selectedDeliveryPlan !== undefined) {
+    checkoutDetailsWithShipping.selectedDeliveryPlan = selectedDeliveryPlan;
+  }
+
+  const cart: ProjectedCommercetoolsCart = {
     ...parsedData,
-    ...(parsedData.businessUnit === null
-      ? {}
-      : {
-          businessUnitId: CommerceBusinessUnitId.make(
-            parsedData.businessUnit.id
-          ),
-        }),
-    checkoutDetails: {
-      ...checkoutDetails,
-      ...(selectedDeliveryPlan === undefined ? {} : { selectedDeliveryPlan }),
-    },
+    billingAddress,
+    checkoutDetails: checkoutDetailsWithShipping,
     itemShippingAddresses,
     lineItems,
+    paymentIds:
+      parsedData.paymentInfo?.paymentRefs.map((payment) => payment.id) ?? [],
+    payments,
     shipping,
     shippingAddress,
     totalLineItemQuantity: parsedData.totalLineItemQuantity ?? 0,
@@ -676,6 +871,12 @@ const toCommercetoolsCart = (
       currencyCode: parsedData.totalPrice.currencyCode,
     },
   };
+  if (parsedData.businessUnit !== null) {
+    cart.businessUnitId = CommerceBusinessUnitId.make(
+      parsedData.businessUnit.id
+    );
+  }
+  return cart;
 };
 
 const productAttributes = (
@@ -689,46 +890,50 @@ export const toCart = (
   cart: CommercetoolsCart,
   operation: CartOperation
 ): Effect.Effect<CartSnapshot, CartProviderFailure> => {
-  const value = {
-    id: CartId.make(cart.id),
-    status: cart.cartState === "Active" ? "active" : "inactive",
-    storeKey:
-      cart.store?.key === null || cart.store?.key === undefined
-        ? undefined
-        : StoreKey.make(cart.store.key),
-    ...(cart.businessUnitId === undefined
-      ? {}
-      : { buyingContext: { businessUnitId: cart.businessUnitId } }),
-    checkoutDetails: cart.checkoutDetails ?? {},
-    lineItems: cart.lineItems.map((lineItem) => ({
+  const lineItems: CartLineItemCandidate[] = cart.lineItems.map((lineItem) => {
+    const projectedLineItem: MutableCartLineItemCandidate = {
       id: LineItemId.make(lineItem.id),
       quantity: lineItem.quantity,
       unitPrice: lineItem.price.discounted?.value ?? lineItem.price.value,
-      variant:
-        lineItem.variant === null
-          ? undefined
-          : {
-              id: VariantId.make(String(lineItem.variant.id)),
-              productId: ProductId.make(lineItem.productId),
-              ...(lineItem.productType === undefined
-                ? {}
-                : { productType: lineItem.productType }),
-              ...(lineItem.name === null || lineItem.name === undefined
-                ? {}
-                : { name: lineItem.name }),
-              ...(lineItem.variant.sku === undefined
-                ? {}
-                : { sku: Sku.make(lineItem.variant.sku) }),
-              attributes: productAttributes(lineItem.variant.attributes),
-              images: lineItem.variant.images,
-            },
-      ...(lineItem.totalPrice === null
-        ? {}
-        : { totalPrice: lineItem.totalPrice }),
-    })),
+    };
+    if (lineItem.totalPrice !== null) {
+      projectedLineItem.totalPrice = lineItem.totalPrice;
+    }
+    if (lineItem.variant !== null) {
+      const variant: MutableCartProductVariantCandidate = {
+        attributes: productAttributes(lineItem.variant.attributes),
+        id: VariantId.make(String(lineItem.variant.id)),
+        images: lineItem.variant.images,
+        productId: ProductId.make(lineItem.productId),
+      };
+      if (lineItem.name !== null && lineItem.name !== undefined) {
+        variant.name = lineItem.name;
+      }
+      if (lineItem.productType !== undefined) {
+        variant.productType = lineItem.productType;
+      }
+      if (lineItem.variant.sku !== undefined) {
+        variant.sku = Sku.make(lineItem.variant.sku);
+      }
+      projectedLineItem.variant = variant;
+    }
+    return projectedLineItem;
+  });
+
+  const value: MutableCartSnapshotCandidate = {
+    checkoutDetails: cart.checkoutDetails ?? {},
+    id: CartId.make(cart.id),
+    lineItems,
+    status: cart.cartState === "Active" ? "active" : "inactive",
     totalLineItemQuantity: cart.totalLineItemQuantity,
     totalPrice: cart.totalPrice,
   };
+  if (cart.businessUnitId !== undefined) {
+    value.buyingContext = { businessUnitId: cart.businessUnitId };
+  }
+  if (cart.store?.key !== null && cart.store?.key !== undefined) {
+    value.storeKey = StoreKey.make(cart.store.key);
+  }
 
   return Schema.decodeUnknownEffect(CartSnapshot)(value).pipe(
     Effect.mapError((cause) => providerFailure(operation, cause, "invalidData"))
@@ -772,9 +977,24 @@ const targetOwnsCart = (target: CartTarget, cart: CommercetoolsCart) => {
 const activeCartForStorePredicate = (storeKey: string) =>
   `cartState="Active" and store(key=${JSON.stringify(storeKey)})`;
 
-const canRepresentCheckoutDeliveries = (
-  cart: FragmentOf<typeof CartFragment>
-) => readFragment(CartFragment, cart).shippingMode === "Multiple";
+const canRepresentCheckoutCart = (cart: CommercetoolsCart) => {
+  if (cart.shippingMode !== "Multiple") {
+    return false;
+  }
+
+  const paymentIds = cart.paymentIds ?? [];
+  const payments = cart.payments ?? [];
+  if (paymentIds.length === 0) {
+    return payments.length === 0;
+  }
+
+  return (
+    paymentIds.length === 1 &&
+    payments.length === 1 &&
+    paymentIds[0] === payments[0]?.id &&
+    cart.checkoutDetails?.preparedPayment?.paymentReference === paymentIds[0]
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Provider write plumbing
@@ -925,11 +1145,12 @@ export const cartsLayer = Layer.effect(
         return yield* new CartNotFound({ cartId, operation });
       }
 
-      if (!canRepresentCheckoutDeliveries(result.data.cart)) {
+      const cart = toCommercetoolsCart(result.data.cart, locale);
+      if (!canRepresentCheckoutCart(cart)) {
         return yield* new CartNotFound({ cartId, operation });
       }
 
-      return toCommercetoolsCart(result.data.cart, locale);
+      return cart;
     });
 
     const loadTargetCart = Effect.fn("Carts.loadTargetCart")(function* (
@@ -1106,12 +1327,12 @@ export const cartsLayer = Layer.effect(
         );
       }
 
+      const carts = result.data.asAssociate.carts.results.map((cart) =>
+        toCommercetoolsCart(cart, input.store.locale)
+      );
       return yield* Effect.forEach(
-        result.data.asAssociate.carts.results.filter(
-          canRepresentCheckoutDeliveries
-        ),
-        (cart) =>
-          toCart(toCommercetoolsCart(cart, input.store.locale), operation)
+        carts.filter(canRepresentCheckoutCart),
+        (cart) => toCart(cart, operation)
       );
     });
 
@@ -1214,7 +1435,10 @@ export const cartsLayer = Layer.effect(
         );
       }
 
-      const clearActions = clearSelectedDeliveryPlanActions(cart);
+      const clearActions = [
+        ...clearSelectedDeliveryPlanActions(cart),
+        ...clearSelectedPaymentActions(cart),
+      ];
       if (clearActions.length > 0) {
         const actions: CartUpdateAction[] = [
           ...clearActions,
@@ -1298,7 +1522,10 @@ export const cartsLayer = Layer.effect(
           });
         }
 
-        const clearActions = clearSelectedDeliveryPlanActions(cart);
+        const clearActions = [
+          ...clearSelectedDeliveryPlanActions(cart),
+          ...clearSelectedPaymentActions(cart),
+        ];
         if (clearActions.length > 0) {
           const actions: CartUpdateAction[] = [
             ...clearActions,
@@ -1374,7 +1601,10 @@ export const cartsLayer = Layer.effect(
         });
       }
 
-      const clearActions = clearSelectedDeliveryPlanActions(cart);
+      const clearActions = [
+        ...clearSelectedDeliveryPlanActions(cart),
+        ...clearSelectedPaymentActions(cart),
+      ];
       if (clearActions.length > 0) {
         const actions: CartUpdateAction[] = [
           ...clearActions,
@@ -1554,7 +1784,10 @@ export const cartsLayer = Layer.effect(
         const operation: CartOperation = "saveDeliveryDetails";
         const cart = yield* loadTargetCart(input.target, operation);
         const scope = targetScope(input.target);
-        const clearActions = clearSelectedDeliveryPlanActions(cart);
+        const clearActions = [
+          ...clearSelectedDeliveryPlanActions(cart),
+          ...clearSelectedPaymentActions(cart),
+        ];
         const customActions = buildSaveCheckoutDeliveryDetailsActions(
           input.deliveryDetails
         );
@@ -1629,10 +1862,10 @@ export const cartsLayer = Layer.effect(
         const operation: CartOperation = "saveShippingOptions";
         const cart = yield* loadTargetCart(input.target, operation);
 
-        const actions = buildSaveShippingOptionsActions(
-          cart,
-          input.selectedDeliveryPlan
-        );
+        const actions = [
+          ...clearSelectedPaymentActions(cart),
+          ...buildSaveShippingOptionsActions(cart, input.selectedDeliveryPlan),
+        ];
         yield* writeTargetCart({
           actions,
           profile: shippingCartWrite,
@@ -1656,6 +1889,30 @@ export const cartsLayer = Layer.effect(
       }
     );
 
+    const savePaymentOptions = Effect.fn("Carts.savePaymentOptions")(function* (
+      input: SaveCartPaymentOptions
+    ) {
+      const operation: CartOperation = "savePaymentOptions";
+      const cart = yield* loadTargetCart(input.target, operation);
+      const actions = buildSavePaymentOptionsActions(
+        cart,
+        input.preparedPayment
+      );
+
+      yield* writeTargetCart({
+        actions: [...actions],
+        profile: standardCartWrite,
+        projectFailure: (cause) =>
+          failedWrite(operation, input.target.id, cause),
+        retryConcurrentModification: false,
+        target: input.target,
+        version: cart.version,
+      });
+
+      const refreshed = yield* loadTargetCart(input.target, operation);
+      return yield* toCart(refreshed, operation);
+    });
+
     return Carts.of({
       addItem,
       createAnonymous,
@@ -1665,6 +1922,7 @@ export const cartsLayer = Layer.effect(
       removeLineItem,
       saveContact,
       saveDeliveryDetails,
+      savePaymentOptions,
       saveShippingOptions,
       setLineItemQuantity,
     });

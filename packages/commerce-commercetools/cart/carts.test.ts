@@ -125,6 +125,7 @@ const providerVersion = 8;
 const unitPriceCentAmount = 2500;
 
 const rawActiveCart = {
+  billingAddress: null,
   businessUnit: null,
   cartState: "Active",
   country: null,
@@ -138,6 +139,37 @@ const rawActiveCart = {
   totalLineItemQuantity: 0,
   totalPrice: { centAmount: 0, currencyCode: "USD" },
   version: currentVersion,
+};
+
+const rawPaymentBillingAddress = {
+  additionalStreetInfo: null,
+  city: "New York",
+  country: "US",
+  key: null,
+  postalCode: "10001",
+  region: null,
+  state: "NY",
+  streetName: "1 Payment Way",
+};
+
+const rawPreparedCardPayment = {
+  amountPlanned: { centAmount: 2500, currencyCode: "USD" },
+  custom: {
+    customFieldsRaw: [
+      {
+        name: "checkoutConfirmationReference",
+        value: "confirmation-1",
+      },
+    ],
+    type: { key: "checkoutPaymentFields" },
+  },
+  id: "payment-1",
+  interfaceId: "pi-1",
+  key: "checkout-card-cart-1",
+  paymentMethodInfo: {
+    method: "card",
+    paymentInterface: "Stripe",
+  },
 };
 
 const rawCartLineItem = {
@@ -304,6 +336,238 @@ describe("findById", () => {
       });
     }).pipe(Effect.provide(clients.layer));
   });
+
+  it.effect(
+    "projects a prepared Payment from the linked Payment object",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          billingAddress: rawPaymentBillingAddress,
+          paymentInfo: {
+            paymentRefs: [{ id: "payment-1" }],
+            payments: [rawPreparedCardPayment],
+          },
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(
+          Option.getOrThrow(found).checkoutDetails.preparedPayment
+        ).toEqual({
+          amount: { centAmount: 2500, currencyCode: "USD" },
+          billingAddress: {
+            addressLine1: "1 Payment Way",
+            city: "New York",
+            country: "US",
+            postalCode: "10001",
+            region: "NY",
+          },
+          confirmationReference: "confirmation-1",
+          method: "card",
+          paymentReference: "payment-1",
+          preparationReference: "checkout-card-cart-1:USD:2500",
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect(
+    "projects a deferred Card Payment before confirmation is available",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          billingAddress: rawPaymentBillingAddress,
+          paymentInfo: {
+            paymentRefs: [{ id: "payment-1" }],
+            payments: [
+              {
+                ...rawPreparedCardPayment,
+                custom: {
+                  customFieldsRaw: [],
+                  type: { key: "checkoutPaymentFields" },
+                },
+              },
+            ],
+          },
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(
+          Option.getOrThrow(found).checkoutDetails.preparedPayment
+        ).toEqual({
+          amount: { centAmount: 2500, currencyCode: "USD" },
+          billingAddress: {
+            addressLine1: "1 Payment Way",
+            city: "New York",
+            country: "US",
+            postalCode: "10001",
+            region: "NY",
+          },
+          method: "card",
+          paymentReference: "payment-1",
+          preparationReference: "checkout-card-cart-1:USD:2500",
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect(
+    "projects Net Terms assertions from the linked Payment object",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          billingAddress: rawPaymentBillingAddress,
+          paymentInfo: {
+            paymentRefs: [{ id: "net-terms-payment-1" }],
+            payments: [
+              {
+                amountPlanned: { centAmount: 2500, currencyCode: "USD" },
+                custom: {
+                  customFieldsRaw: [{ name: "checkoutTermsInDays", value: 30 }],
+                  type: { key: "checkoutPaymentFields" },
+                },
+                id: "net-terms-payment-1",
+                interfaceId: "checkout-net-terms-cart-1",
+                key: "checkout-net-terms-cart-1",
+                paymentMethodInfo: {
+                  method: "netTerms",
+                  paymentInterface: "erp-credit",
+                },
+              },
+            ],
+          },
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(
+          Option.getOrThrow(found).checkoutDetails.preparedPayment
+        ).toEqual({
+          amount: { centAmount: 2500, currencyCode: "USD" },
+          billingAddress: {
+            addressLine1: "1 Payment Way",
+            city: "New York",
+            country: "US",
+            postalCode: "10001",
+            region: "NY",
+          },
+          method: "netTerms",
+          paymentReference: "net-terms-payment-1",
+          termsInDays: 30,
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect("ignores a Cart with an incompatible linked Payment", () => {
+    const clients = makeScriptedClients();
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawActiveCart,
+        billingAddress: rawPaymentBillingAddress,
+        paymentInfo: {
+          paymentRefs: [{ id: "payment-1" }],
+          payments: [
+            {
+              ...rawPreparedCardPayment,
+              custom: {
+                ...rawPreparedCardPayment.custom,
+                type: { key: "anotherPaymentType" },
+              },
+            },
+          ],
+        },
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({
+        id: CartId.make("cart-1"),
+        store,
+      });
+
+      expect(Option.isNone(found)).toBeTruthy();
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect("ignores a Cart whose expanded Payment is not linked", () => {
+    const clients = makeScriptedClients();
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawActiveCart,
+        billingAddress: rawPaymentBillingAddress,
+        paymentInfo: {
+          paymentRefs: [{ id: "another-payment" }],
+          payments: [rawPreparedCardPayment],
+        },
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({
+        id: CartId.make("cart-1"),
+        store,
+      });
+
+      expect(Option.isNone(found)).toBeTruthy();
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect(
+    "ignores a Cart with linked Payments but no prepared Payment",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          paymentInfo: { paymentRefs: [{ id: "orphaned-payment" }] },
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(Option.isNone(found)).toBeTruthy();
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
 
   it.effect("defects when persisted Checkout custom JSON is malformed", () => {
     const clients = makeScriptedClients();

@@ -19,6 +19,16 @@ export const CartFragment = graphql(
         region
         state
       }
+      billingAddress {
+        key
+        streetName
+        postalCode
+        city
+        country
+        additionalStreetInfo
+        region
+        state
+      }
       itemShippingAddresses {
         key
         streetName
@@ -58,6 +68,33 @@ export const CartFragment = graphql(
       }
       businessUnit {
         id
+      }
+      paymentInfo {
+        paymentRefs {
+          id
+        }
+        payments {
+          id
+          key
+          amountPlanned {
+            currencyCode
+            centAmount
+          }
+          interfaceId
+          paymentMethodInfo {
+            method
+            paymentInterface
+          }
+          custom {
+            type {
+              key
+            }
+            customFieldsRaw {
+              name
+              value
+            }
+          }
+        }
       }
       custom {
         type {

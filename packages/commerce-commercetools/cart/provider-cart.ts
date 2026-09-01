@@ -35,6 +35,7 @@ export type CommercetoolsCart = {
   readonly version: number;
   readonly customerId?: string;
   readonly businessUnitId?: CommerceBusinessUnitId;
+  readonly billingAddress?: ShippingAddress | null;
   readonly customerEmail?: string | null;
   readonly store?: {
     readonly key: string | null;
@@ -51,6 +52,8 @@ export type CommercetoolsCart = {
       | null;
   } | null;
   readonly lineItems: readonly CommercetoolsLineItem[];
+  readonly paymentIds?: readonly string[];
+  readonly payments?: readonly CommercetoolsPayment[];
   readonly totalLineItemQuantity: number;
   readonly totalPrice: CommercetoolsMoney;
   readonly checkoutDetails?: CheckoutDetails;
@@ -68,6 +71,23 @@ export type CommercetoolsCart = {
   }[];
   readonly cartState: "Active" | "Merged" | "Ordered" | "Frozen";
   readonly shippingMode: "Single" | "Multiple";
+};
+
+export type CommercetoolsPayment = {
+  readonly amountPlanned: CommercetoolsMoney;
+  readonly custom?: {
+    readonly type?: { readonly key: string } | null;
+    readonly customFieldsRaw?:
+      | readonly { readonly name: string; readonly value: unknown }[]
+      | null;
+  } | null;
+  readonly id: string;
+  readonly interfaceId?: string | null;
+  readonly key?: string | null;
+  readonly paymentMethodInfo: {
+    readonly method?: string | null;
+    readonly paymentInterface?: string | null;
+  };
 };
 
 export type CommercetoolsLineItem = {
