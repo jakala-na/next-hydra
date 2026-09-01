@@ -3,6 +3,11 @@
 
 import type { CustomField } from "../types";
 
+export type CheckoutPaymentFieldsSchema = {
+  checkoutConfirmationReference: CustomField<"text">;
+  checkoutTermsInDays: CustomField<"number">;
+};
+
 export type OrderCustomFieldsSchema = {
   checkoutContact: CustomField<"text">;
 };

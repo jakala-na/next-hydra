@@ -1,6 +1,19 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+const includesScope = (scope: string, name: string): boolean =>
+  scope.split(/\s+/u).some((entry) => entry.startsWith(`${name}:`));
+
+const paymentManagementScope = z
+  .string()
+  .min(1)
+  .refine(
+    (scope) =>
+      includesScope(scope, "manage_payments") ||
+      includesScope(scope, "manage_project"),
+    "must include manage_payments or manage_project"
+  );
+
 export const serverKeys = () =>
   createEnv({
     runtimeEnv: {
@@ -15,7 +28,7 @@ export const serverKeys = () =>
       COMMERCETOOLS_CLIENT_SECRET: z.string().min(1),
       COMMERCETOOLS_PROJECT_KEY: z.string().min(1),
       COMMERCETOOLS_REGION: z.string().min(1),
-      COMMERCETOOLS_SCOPE: z.string().min(1),
+      COMMERCETOOLS_SCOPE: paymentManagementScope,
     },
   });
 

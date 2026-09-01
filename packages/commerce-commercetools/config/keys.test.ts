@@ -7,7 +7,7 @@ const serverEnvironment = {
   COMMERCETOOLS_CLIENT_SECRET: "client-secret",
   COMMERCETOOLS_PROJECT_KEY: "project-key",
   COMMERCETOOLS_REGION: "region",
-  COMMERCETOOLS_SCOPE: "scope",
+  COMMERCETOOLS_SCOPE: "manage_payments:project-key",
 } as const;
 
 const stubValidEnvironment = () => {
@@ -16,12 +16,12 @@ const stubValidEnvironment = () => {
   }
 };
 
-afterEach(() => {
-  vi.restoreAllMocks();
-  vi.unstubAllEnvs();
-});
-
 describe("Commercetools environment", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
   it("loads the provider server environment", () => {
     stubValidEnvironment();
 
@@ -40,7 +40,21 @@ describe("Commercetools environment", () => {
       stubValidEnvironment();
       vi.stubEnv(name, "");
 
-      expect(serverKeys).toThrow();
+      expect(serverKeys).toThrow("Invalid environment variables");
     }
   );
+
+  it("requires permission to manage Payment objects", () => {
+    const consoleError = vi.spyOn(console, "error").mockReturnValue();
+    stubValidEnvironment();
+    vi.stubEnv("COMMERCETOOLS_SCOPE", "manage_orders:project-key");
+
+    expect(serverKeys).toThrow("Invalid environment variables");
+    expect(consoleError).toHaveBeenCalledWith(
+      "❌ Invalid environment variables:",
+      expect.arrayContaining([
+        expect.objectContaining({ path: ["COMMERCETOOLS_SCOPE"] }),
+      ])
+    );
+  });
 });

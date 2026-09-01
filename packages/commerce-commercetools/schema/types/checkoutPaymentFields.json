@@ -1,0 +1,33 @@
+{
+  "key": "checkoutPaymentFields",
+  "name": {
+    "en-US": "Checkout Payment Fields"
+  },
+  "description": {
+    "en-US": "Checkout assertions attached to a Payment"
+  },
+  "resourceTypeIds": ["payment"],
+  "fieldDefinitions": [
+    {
+      "name": "checkoutConfirmationReference",
+      "label": {
+        "en-US": "Card confirmation reference"
+      },
+      "required": false,
+      "type": {
+        "name": "String"
+      },
+      "inputHint": "SingleLine"
+    },
+    {
+      "name": "checkoutTermsInDays",
+      "label": {
+        "en-US": "Net Terms duration in days"
+      },
+      "required": false,
+      "type": {
+        "name": "Number"
+      }
+    }
+  ]
+}
