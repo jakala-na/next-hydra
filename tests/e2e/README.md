@@ -10,7 +10,7 @@ Configure each application with the same runtime files it normally uses. Next's 
 - `apps/api` contains the consumer API values and the admin identity verification values.
 - `apps/admin` contains the isolated admin runtime values using the same generic provider names the admin app normally consumes.
 
-Start the workspace with `pnpm dev`, then run `pnpm test:e2e`. Locally, Playwright asks Portless for this checkout's web, API, and admin origins. That preserves worktree prefixes and the proxy's configured HTTPS port while keeping the applications in the same long-lived development composition you already use. Playwright verifies all three applications are available but does not start or stop them. CI does not require Portless or its machine-level certificate setup: Playwright owns fresh `dev:app` processes on ports 3001, 3002, and 3005.
+Start the workspace with `pnpm dev`, then run `pnpm test:e2e`. Locally, Playwright asks Portless for this checkout's web, API, and admin origins. That preserves worktree prefixes and the proxy's configured HTTPS port while keeping the applications in the same long-lived development composition you already use. Playwright verifies all three applications are available but does not start or stop them.
 
 Install the Chromium binary once on a new machine with `pnpm --filter @repo/e2e exec playwright install chromium`.
 
@@ -18,9 +18,11 @@ Install the Chromium binary once on a new machine with `pnpm --filter @repo/e2e 
 
 The default `page` fixture targets the customer web app. The composition also exposes an isolated `adminPage` and an `apiRequest` context rooted at the resolved admin and API origins. The shared auth context remembers which application owns each identity, so the same `I log in as` step selects the customer or admin provider control without leaking either application's credentials into the other.
 
-Locally, each app loads its own environment through its normal `pnpm dev` process. In CI, Playwright loads each app's `.env` before starting its web server, using Next's development environment rules. Each CI child process receives its own app environment, while the runner receives only the web/API provider values needed to provision scenarios. Explicit shell or CI values take precedence. Next's more-specific development overrides remain supported, so the values resolve exactly as they do when an app runs directly.
+Locally, each app loads its own environment through its normal `pnpm dev` process. CI is reserved for manually dispatched production regressions from `main`. It waits for the web, API, and admin Vercel production deployments at the selected commit, then uses `E2E_WEB_URL`, `E2E_API_URL`, and `E2E_ADMIN_URL` without starting application servers. The GitHub runner receives only the provider values needed to provision and clean up scenarios; application runtime values remain in Vercel.
 
-For CI, provide the customer auth provider under its normal runtime names. Provide the isolated admin provider as `ADMIN_WORKOS_*` plus `NEXT_PUBLIC_ADMIN_WORKOS_REDIRECT_URI`, or as `ADMIN_CLERK_*`. Playwright projects only those admin values onto the provider's generic runtime names in the admin child process. Production Next configuration and provider packages remain unaware of this test-only projection.
+For CI, provide the customer auth provider under its normal runtime names and the isolated admin provider under `ADMIN_WORKOS_*` or `ADMIN_CLERK_*`. Configure the stable production URLs as `E2E_WEB_URL`, `E2E_API_URL`, and `E2E_ADMIN_URL` in the `e2e` GitHub Environment. Configure `VERCEL_WEB_PROJECT_SLUG`, `VERCEL_API_PROJECT_SLUG`, and `VERCEL_ADMIN_PROJECT_SLUG` there as well so the workflow can wait for the exact `main` deployment. The workflow serializes runs and does not cancel an active run, allowing fixture cleanup to complete against the shared demo environment.
+
+All three applications must be connected to Vercel as separate projects rooted at `apps/web`, `apps/api`, and `apps/admin`. The current project slugs belong in the GitHub Environment rather than this repository so project renames do not require a code change.
 
 The registration fixture asks the selected auth provider to create a verified identity and sign that identity into the scenario's isolated page. WorkOS authenticates the provisioned password user and installs its sealed session cookie. Clerk creates one testing token and backend client per customer or admin Layer, then installs that token only in the matching browser context before completing ticket sign-in. This realm-scoped setup is necessary because Clerk's process-global helper state can represent only one Clerk application at a time. Both implementations expose the same `AuthTestControl` Effect service. Teardown revokes tracked pending invitations, deletes their stored invitation records, deletes the real Commercetools Business Unit and its direct Customers, and finally deletes the provider identities. Cleanup remains safe when a provider resource is already absent.
 
@@ -30,7 +32,7 @@ Playwright transforms the test entrypoints themselves. The live provider graph i
 
 `@repo/e2e` declares workspace dependencies on the composed web, API, and admin applications and the domains it discovers. Once the lockfile is current, `turbo run e2e --affected` therefore selects this runner when those packages or their dependencies change.
 
-Use `pnpm test:e2e` to run the suite unconditionally and `pnpm test:e2e:affected` for a local affected run. GitHub Actions uses the same Turbo task with `--affected`, then filters each matrix row by its owning tag. The current composition has `@auth`, `@registration`, and `@commerce` rows; add a distinct `@cms` row when that context owns its first feature. Provider combinations are composition rows, not feature tags, and only compositions supported by the workspace lockfile belong in the matrix.
+Use `pnpm test:e2e` to run the suite unconditionally and `pnpm test:e2e:affected` for a local affected run. GitHub Actions runs the complete regression suite on demand against the deployed demo. Feature tags remain available for focused local diagnosis.
 
 ## Authoring loop
 

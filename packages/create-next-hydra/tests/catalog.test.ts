@@ -120,7 +120,7 @@ describe("Next Hydra source registry", () => {
       addOns: [],
       providers: {
         auth: "workos",
-        cms: "drupal",
+        cms: "contentstack",
         commerce: "commercetools",
       },
     });

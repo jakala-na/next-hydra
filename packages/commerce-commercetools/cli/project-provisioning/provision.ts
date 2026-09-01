@@ -1,6 +1,6 @@
 import { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
 import type { RuntimeEnvironmentDestination } from "@repo/cli-core/runtime-environment";
-import { Effect, Random, Ref } from "effect";
+import { Console, Effect, Random, Ref } from "effect";
 
 import { CommercetoolsProjectAdministration } from "./administration";
 import { BootstrapCommercetoolsConfig } from "./bootstrap-config";
@@ -8,9 +8,9 @@ import {
   commerceRuntimeEnvironment,
   commerceRuntimeEnvironmentManifest,
 } from "./credential-handoff";
-import { ProvisioningReceipt } from "./model";
+import { BootstrapApiClientScopeError, ProvisioningReceipt } from "./model";
 import { RuntimeProjectSetup } from "./runtime-project-setup";
-import { runtimeScopeFor } from "./scopes";
+import { missingBootstrapScopes, runtimeScopeFor } from "./scopes";
 
 export interface ProvisionCommerceProjectOptions {
   readonly clientName?: string;
@@ -23,15 +23,28 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
     const bootstrapConfig = yield* BootstrapCommercetoolsConfig;
     const publisher = yield* RuntimeEnvironmentPublisher;
     const runtimeSetup = yield* RuntimeProjectSetup;
+    const clientName =
+      options.clientName ??
+      `Next Hydra runtime (${Math.abs(yield* Random.nextInt)})`;
+    const missingScopes = missingBootstrapScopes(
+      bootstrapConfig.projectKey,
+      bootstrapConfig.scopes
+    );
+    if (missingScopes.length > 0) {
+      return yield* new BootstrapApiClientScopeError({
+        message: `The bootstrap API Client is missing required scope(s): ${missingScopes.join(" ")}`,
+        missingScopes,
+      });
+    }
+
     const preparedDestination = yield* publisher.prepare({
       destination: options.destination,
       manifest: commerceRuntimeEnvironmentManifest,
     });
-    const clientName =
-      options.clientName ??
-      `Next Hydra runtime (${Math.abs(yield* Random.nextInt)})`;
+    yield* Console.log("Preparing the Commercetools project...");
     const project = yield* administration.prepareProject;
     const scope = runtimeScopeFor(bootstrapConfig.projectKey);
+    yield* Console.log(`Creating runtime API Client "${clientName}"...`);
     const credentials = yield* administration.createRuntimeClient({
       name: clientName,
       scope,
@@ -39,7 +52,9 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
     const committed = yield* Ref.make(false);
 
     const finishProvisioning = Effect.gen(function* () {
+      yield* Console.log("Applying starter-kit migrations...");
       const seed = yield* runtimeSetup.setup(credentials);
+      yield* Console.log("Publishing runtime credentials...");
       const publishedCredentials = yield* publisher
         .publish(preparedDestination, commerceRuntimeEnvironment(credentials))
         .pipe(
@@ -53,6 +68,7 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
           Effect.tap(() => Ref.set(committed, true)),
           Effect.uninterruptible
         );
+      yield* Console.log("Revoking the bootstrap API Client...");
       yield* administration.deleteApiClient(bootstrapConfig.clientId);
 
       return new ProvisioningReceipt({

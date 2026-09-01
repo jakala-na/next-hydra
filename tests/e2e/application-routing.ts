@@ -19,7 +19,7 @@ export interface E2EApplicationNames {
 }
 
 export interface E2EApplicationRouting {
-  readonly mode: "direct" | "portless";
+  readonly mode: "direct" | "external" | "portless";
   readonly urls: E2EApplicationUrls;
 }
 
@@ -58,11 +58,26 @@ const directApplicationUrls = {
   web: "http://localhost:3001",
 } as const;
 
+const externalApplicationUrls = (
+  environment: Environment
+): E2EApplicationUrls | undefined => {
+  const admin = environment.E2E_ADMIN_URL;
+  const api = environment.E2E_API_URL;
+  const web = environment.E2E_WEB_URL;
+
+  return admin && api && web ? { admin, api, web } : undefined;
+};
+
 export const resolveE2EApplicationRouting = ({
   environment,
   getPortlessUrl,
   portlessApplicationNames,
 }: ResolveE2EApplicationRoutingInput): E2EApplicationRouting => {
+  const externalUrls = externalApplicationUrls(environment);
+  if (externalUrls !== undefined) {
+    return { mode: "external", urls: externalUrls };
+  }
+
   if (environment.CI) {
     return {
       mode: "direct",

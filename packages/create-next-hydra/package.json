@@ -1,6 +1,6 @@
 {
   "name": "create-next-hydra",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "CLI to scaffold a new next-hydra project",
   "keywords": [
     "cli",
@@ -43,8 +43,8 @@
     "prepublishOnly": "pnpm run build",
     "publish:dry-run": "npm publish --access public --dry-run",
     "publish:public": "npm publish --access public",
-    "test": "vitest run --exclude 'tests/e2e/**'",
-    "test:e2e": "vitest run tests/e2e",
+    "test": "NODE_ENV=test vitest run --exclude 'tests/e2e/**'",
+    "test:e2e": "NODE_ENV=test vitest run tests/e2e",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/create-next-hydra/tsconfig.json"
   },
   "dependencies": {

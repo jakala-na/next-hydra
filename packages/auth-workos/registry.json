@@ -77,11 +77,6 @@
           "type": "registry:file"
         },
         {
-          "path": "keys.test.ts",
-          "target": "~/packages/auth-workos/keys.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "keys.ts",
           "target": "~/packages/auth-workos/keys.ts",
           "type": "registry:file"

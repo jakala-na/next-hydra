@@ -1,71 +1,122 @@
-name: End-to-end tests
+name: Production end-to-end regressions
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: production-e2e
+  cancel-in-progress: false
 
 permissions:
   contents: read
+  deployments: read
+  statuses: read
 
 jobs:
   e2e:
-    name: ${{ matrix.composition }} / ${{ matrix.scope }}
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+    name: Production regressions
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: e2e
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - composition: workos-commercetools-contentstack
-            scope: auth
-            tag: "@auth"
-          - composition: workos-commercetools-contentstack
-            scope: registration
-            tag: "@registration"
-          - composition: workos-commercetools-contentstack
-            scope: commerce
-            tag: "@commerce"
     env:
       CI: "true"
-      E2E_RUN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.scope }}
+      E2E_ADMIN_URL: ${{ vars.E2E_ADMIN_URL }}
+      E2E_API_URL: ${{ vars.E2E_API_URL }}
+      E2E_WEB_URL: ${{ vars.E2E_WEB_URL }}
+      VERCEL_ADMIN_PROJECT_SLUG: ${{ vars.VERCEL_ADMIN_PROJECT_SLUG }}
+      VERCEL_API_PROJECT_SLUG: ${{ vars.VERCEL_API_PROJECT_SLUG }}
+      VERCEL_WEB_PROJECT_SLUG: ${{ vars.VERCEL_WEB_PROJECT_SLUG }}
       ADMIN_WORKOS_API_KEY: ${{ secrets.ADMIN_WORKOS_API_KEY }}
       ADMIN_WORKOS_CLIENT_ID: ${{ secrets.ADMIN_WORKOS_CLIENT_ID }}
       ADMIN_WORKOS_COOKIE_NAME: admin-session
       ADMIN_WORKOS_COOKIE_PASSWORD: ${{ secrets.ADMIN_WORKOS_COOKIE_PASSWORD }}
-      CMS_HOMEPAGE_SLUG: homepage
       COMMERCETOOLS_CLIENT_ID: ${{ secrets.COMMERCETOOLS_CLIENT_ID }}
       COMMERCETOOLS_CLIENT_SECRET: ${{ secrets.COMMERCETOOLS_CLIENT_SECRET }}
       COMMERCETOOLS_PROJECT_KEY: ${{ secrets.COMMERCETOOLS_PROJECT_KEY }}
       COMMERCETOOLS_REGION: ${{ vars.COMMERCETOOLS_REGION }}
       COMMERCETOOLS_SCOPE: ${{ secrets.COMMERCETOOLS_SCOPE }}
-      CONTENTSTACK_API_KEY: ${{ secrets.CONTENTSTACK_API_KEY }}
-      CONTENTSTACK_DELIVERY_TOKEN: ${{ secrets.CONTENTSTACK_DELIVERY_TOKEN }}
-      CONTENTSTACK_ENVIRONMENT: ${{ vars.CONTENTSTACK_ENVIRONMENT }}
-      CONTENTSTACK_PREVIEW_TOKEN: ${{ secrets.CONTENTSTACK_PREVIEW_TOKEN }}
-      CONTENTSTACK_WEBHOOK_SECRET: ${{ secrets.CONTENTSTACK_WEBHOOK_SECRET }}
-      NEXT_PUBLIC_ADMIN_WORKOS_REDIRECT_URI: http://localhost:3005/api/auth/callback
-      NEXT_PUBLIC_CONTENTSTACK_API_KEY: ${{ secrets.CONTENTSTACK_API_KEY }}
-      NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT: ${{ vars.CONTENTSTACK_ENVIRONMENT }}
-      NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.NEXT_PUBLIC_POSTHOG_HOST }}
-      NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
-      NEXT_PUBLIC_WORKOS_REDIRECT_URI: http://localhost:3001/api/auth/callback
-      REGISTRATION_APPROVER_EMAIL: ${{ vars.REGISTRATION_APPROVER_EMAIL }}
-      RESEND_FROM: ${{ vars.RESEND_FROM }}
-      RESEND_TOKEN: ${{ secrets.RESEND_TOKEN }}
       WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
       WORKOS_CLIENT_ID: ${{ secrets.WORKOS_CLIENT_ID }}
       WORKOS_COOKIE_PASSWORD: ${{ secrets.WORKOS_COOKIE_PASSWORD }}
-      WORKOS_WEBHOOK_SECRET: ${{ secrets.WORKOS_WEBHOOK_SECRET }}
 
     steps:
+      - name: Validate production regression target
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Production regressions must be dispatched from main, not $GITHUB_REF." >&2
+            exit 1
+          fi
+
+          missing=()
+          for name in \
+            E2E_ADMIN_URL \
+            E2E_API_URL \
+            E2E_WEB_URL \
+            VERCEL_ADMIN_PROJECT_SLUG \
+            VERCEL_API_PROJECT_SLUG \
+            VERCEL_WEB_PROJECT_SLUG
+          do
+            if [[ -z "${!name}" ]]; then
+              missing+=("$name")
+            fi
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "Missing e2e GitHub Environment variables: ${missing[*]}" >&2
+            exit 1
+          fi
+
+          for name in E2E_ADMIN_URL E2E_API_URL E2E_WEB_URL
+          do
+            value="${!name}"
+            if [[ ! "$value" =~ ^https://[a-zA-Z0-9.-]+(:[0-9]+)?$ ]]; then
+              echo "$name must be a complete HTTPS origin without a path or trailing slash." >&2
+              exit 1
+            fi
+          done
+
+          for name in \
+            VERCEL_ADMIN_PROJECT_SLUG \
+            VERCEL_API_PROJECT_SLUG \
+            VERCEL_WEB_PROJECT_SLUG
+          do
+            value="${!name}"
+            if [[ "$value" == prj_* || ! "$value" =~ ^[a-z0-9][a-z0-9._-]{0,99}$ ]]; then
+              echo "$name must be a Vercel project slug, not a project ID." >&2
+              exit 1
+            fi
+          done
+
+          # The E2E fixture names retain 12 characters of this value. Hash the
+          # complete run identity so reruns and nearby workflow runs stay unique.
+          run_id="$({ printf '%s:%s' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"; } | sha256sum | cut -c1-12)"
+          echo "E2E_RUN_ID=$run_id" >> "$GITHUB_ENV"
+
+      - name: Wait for web production deployment
+        uses: vercel/wait-for-deployment-action@0e2b0c5c5cce31f1648108aeec56467187aca037
+        with:
+          environment: production
+          project-slug: ${{ env.VERCEL_WEB_PROJECT_SLUG }}
+          sha: ${{ github.sha }}
+          timeout: 900
+
+      - name: Wait for API production deployment
+        uses: vercel/wait-for-deployment-action@0e2b0c5c5cce31f1648108aeec56467187aca037
+        with:
+          environment: production
+          project-slug: ${{ env.VERCEL_API_PROJECT_SLUG }}
+          sha: ${{ github.sha }}
+          timeout: 900
+
+      - name: Wait for admin production deployment
+        uses: vercel/wait-for-deployment-action@0e2b0c5c5cce31f1648108aeec56467187aca037
+        with:
+          environment: production
+          project-slug: ${{ env.VERCEL_ADMIN_PROJECT_SLUG }}
+          sha: ${{ github.sha }}
+          timeout: 900
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -87,5 +138,16 @@ jobs:
       - name: Install Chromium
         run: pnpm --filter @repo/e2e exec playwright install --with-deps chromium
 
-      - name: Run affected ${{ matrix.scope }} scenarios
-        run: pnpm exec turbo run e2e --affected --output-logs=full -- --grep "${{ matrix.tag }}"
+      - name: Run production regressions
+        run: pnpm exec turbo run e2e --filter=@repo/e2e --output-logs=full
+
+      - name: Upload Playwright diagnostics
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            tests/e2e/playwright-report
+            tests/e2e/test-results
+          if-no-files-found: ignore
+          retention-days: 7

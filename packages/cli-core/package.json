@@ -10,7 +10,7 @@
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/cli-core/tsconfig.json"
   },
   "devDependencies": {

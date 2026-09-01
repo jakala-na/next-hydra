@@ -13,6 +13,7 @@ import { CommercetoolsProjectAdministration } from "./administration";
 import { BootstrapCommercetoolsConfig } from "./bootstrap-config";
 import {
   ApiClientId,
+  BootstrapApiClientScopeError,
   CommercetoolsRegion,
   PreparedProject,
   ProjectAdministrationError,
@@ -48,17 +49,26 @@ const credentialReceipt = new LocalRuntimeEnvironmentPublicationReceipt({
   path: "/tmp/runtime.env",
 });
 
-const bootstrapLayer = Layer.succeed(
-  BootstrapCommercetoolsConfig,
-  BootstrapCommercetoolsConfig.of({
-    clientId: bootstrapClientId,
-    clientSecret: Redacted.make("bootstrap-secret"),
-    projectKey,
-    region: CommercetoolsRegion.make("us-central1.gcp"),
-  })
-);
+const bootstrapLayer = (scopes: readonly string[]) =>
+  Layer.succeed(
+    BootstrapCommercetoolsConfig,
+    BootstrapCommercetoolsConfig.of({
+      apiUrl: "https://api.us-central1.gcp.commercetools.com",
+      authUrl: "https://auth.us-central1.gcp.commercetools.com",
+      clientId: bootstrapClientId,
+      clientSecret: Redacted.make("bootstrap-secret"),
+      projectKey,
+      region: CommercetoolsRegion.make("us-central1.gcp"),
+      scopes,
+    })
+  );
+const validBootstrapScopes = [
+  "manage_project_settings:test-project",
+  "manage_api_clients:test-project",
+] as const;
 
 const layersFor = (options: {
+  readonly bootstrapScopes?: readonly string[];
   readonly events: string[];
   readonly handoffFailure?: boolean;
   readonly handoffIncomplete?: boolean;
@@ -68,7 +78,7 @@ const layersFor = (options: {
   readonly setupFailure?: boolean;
 }) =>
   Layer.mergeAll(
-    bootstrapLayer,
+    bootstrapLayer(options.bootstrapScopes ?? validBootstrapScopes),
     CommercetoolsProjectAdministration.layerFrom({
       createRuntimeClient: ({ name, scope }) =>
         Effect.sync(() => {
@@ -202,6 +212,28 @@ describe(provisionCommerceProject, () => {
       expect(events).toStrictEqual(["preflight"]);
     });
   });
+
+  it.effect(
+    "rejects a bootstrap client that cannot manage API clients before changing the project",
+    () => {
+      const events: string[] = [];
+
+      return Effect.gen(function* () {
+        const error = yield* runProvisioning(
+          layersFor({
+            bootstrapScopes: ["manage_project:test-project"],
+            events,
+          })
+        ).pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(BootstrapApiClientScopeError);
+        expect(error).toMatchObject({
+          missingScopes: ["manage_api_clients:test-project"],
+        });
+        expect(events).toStrictEqual([]);
+      });
+    }
+  );
 
   it.effect(
     "commits the runtime credentials before revoking bootstrap access",

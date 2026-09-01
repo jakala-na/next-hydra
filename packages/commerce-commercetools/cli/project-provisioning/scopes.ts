@@ -1,5 +1,26 @@
 import type { ProjectKey } from "./model";
 
+const scopeFor = (name: string, projectKey: ProjectKey) =>
+  `${name}:${projectKey}`;
+
+export const missingBootstrapScopes = (
+  projectKey: ProjectKey,
+  scopes: readonly string[]
+): readonly string[] => {
+  const manageApiClients = scopeFor("manage_api_clients", projectKey);
+  const canManageProjectSettings = [
+    scopeFor("manage_project_settings", projectKey),
+    scopeFor("manage_project", projectKey),
+  ].some((scope) => scopes.includes(scope));
+
+  return [
+    ...(scopes.includes(manageApiClients) ? [] : [manageApiClients]),
+    ...(canManageProjectSettings
+      ? []
+      : [scopeFor("manage_project_settings", projectKey)]),
+  ];
+};
+
 export const RUNTIME_SCOPE_NAMES = [
   "view_states",
   "manage_products",
@@ -55,8 +76,3 @@ export const RUNTIME_SCOPE_NAMES = [
 
 export const runtimeScopeFor = (projectKey: ProjectKey): string =>
   RUNTIME_SCOPE_NAMES.map((name) => `${name}:${projectKey}`).join(" ");
-
-export const bootstrapScopesFor = (projectKey: ProjectKey) => [
-  `manage_project_settings:${projectKey}`,
-  `manage_api_clients:${projectKey}`,
-];

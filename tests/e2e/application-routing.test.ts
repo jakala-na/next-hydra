@@ -97,6 +97,35 @@ describe(resolveE2EApplicationRouting, () => {
     expect(getPortlessUrl).not.toHaveBeenCalled();
   });
 
+  it("uses fully explicit external application origins without local servers", () => {
+    const getPortlessUrl = vi.fn<(name: string) => string>();
+
+    const routing = resolveE2EApplicationRouting({
+      environment: {
+        CI: "true",
+        E2E_ADMIN_URL: "https://admin.example.test",
+        E2E_API_URL: "https://api.example.test",
+        E2E_WEB_URL: "https://web.example.test",
+      },
+      getPortlessUrl,
+      portlessApplicationNames: {
+        admin: "admin.customer-project",
+        api: "api.customer-project",
+        web: "web.customer-project",
+      },
+    });
+
+    expect(routing).toEqual({
+      mode: "external",
+      urls: {
+        admin: "https://admin.example.test",
+        api: "https://api.example.test",
+        web: "https://web.example.test",
+      },
+    });
+    expect(getPortlessUrl).not.toHaveBeenCalled();
+  });
+
   it("keeps explicit local application URL overrides", () => {
     const getPortlessUrl = vi.fn<(name: string) => string>(
       (name) => `https://${name}.localhost`

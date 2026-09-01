@@ -7,7 +7,7 @@
     "e2e": "bddgen && playwright test",
     "e2e:generate": "bddgen",
     "clean": "git clean -xdf .features-gen playwright-report test-results node_modules",
-    "test": "vitest run",
+    "test": "NODE_ENV=test vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project tests/e2e/tsconfig.json"
   },
   "devDependencies": {
