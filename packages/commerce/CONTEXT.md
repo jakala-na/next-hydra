@@ -178,9 +178,27 @@ The Checkout context describes how a buyer completes the information and choices
 
 **Selected Shipping Option**: The Shipping Option currently saved on the Cart for one Delivery Group, including its applied price and whether it still applies to that group. _Avoid_: Saved Shipping Options Step, Shipping Method payload
 
-**Payment Method**: The way the buyer will pay or settle the order. _Avoid_: Payment arrangement, payment option
+**Payment Method**: The way the buyer will pay or settle the order. Card and Net Terms are Payment Methods. _Avoid_: Payment arrangement, Payment Plan
 
-**Payment Options**: The Checkout Step where the buyer chooses one or more Payment Methods for the order. _Avoid_: Payment methods step, payment arrangement
+**Payment Method Eligibility**: Whether the current buyer may use a Payment Method based on buyer and account qualifications, independently of how much of the current Cart the method can fund. _Avoid_: Funding sufficiency, saved availability
+
+**Payment Method Funding Capacity**: How much of the current Cart amount an eligible Payment Method can fund: full, partial, or none. _Avoid_: Payment Method Eligibility, authorization, captured amount
+
+**Credit Profile**: The payment terms and available credit associated with a Business Unit's financial account for evaluating Net Terms. _Avoid_: Customer credit, Trade Credit Account, ledger
+
+**Available Credit**: The amount the Business Unit's financial account can currently use toward a purchase before any account-credit authorization or reservation. _Avoid_: Credit limit, reserved credit, ledger balance
+
+**Payment Options**: The Checkout Step where the buyer chooses a Payment Method for the order. _Avoid_: Payment methods step, payment arrangement
+
+**Payment**: The planned and attempted settlement associated with a Cart and its resulting Order. It records the selected Payment Method, planned amount, and financial progress without performing payment processing itself. _Avoid_: Payment Plan, provider Payment Object
+
+**Prepared Payment**: A Payment whose method and current planned amount are saved for Checkout but have not been authorized. _Avoid_: Authorized Payment, Payment Plan
+
+**Payment Authorization**: A financially reliable reservation of funds or account credit that begins only when the buyer places the order. A card authorization can create a visible hold. _Avoid_: Payment save, Payment Method selection
+
+**Payment Capture**: The collection of funds from an authorized card Payment after the Order has been placed. _Avoid_: Payment Authorization, Order placement
+
+**Order Placement Attempt**: One resumable attempt to authorize the selected Payment, place the Order, and then capture funds or commit account-credit exposure. Repeating the same attempt does not create another authorization. _Avoid_: Payment Plan, browser submission
 
 **Review Order**: The Checkout Step where the buyer confirms the order before it is placed. _Avoid_: Review checkout, order summary
 
@@ -332,8 +350,17 @@ The Checkout context describes how a buyer completes the information and choices
 - A **Checkout Policy Violation** can have one or more **Violation Targets**.
 - A **Checkout Violation** can have one or more **Violation Targets**.
 - A **Violation Target** can identify a **Checkout Step**, a Cart item, or the whole **Cart**.
-- **Payment Method** includes invoice terms, store credit, card payment, and split-payment components.
-- **Payment Options** saves one or more **Payment Methods** for the current **Cart**.
+- **Payment Method** includes Net Terms, store credit, and card payment; supporting several available methods does not imply split tender.
+- Each **Payment Method** determines its own **Payment Method Eligibility** from the current buyer context.
+- An ineligible **Payment Method** is omitted from **Payment Options**; an eligible Payment Method remains eligible when its **Payment Method Funding Capacity** is partial or none.
+- Net Terms **Payment Method Eligibility** requires an approved Business Unit **Credit Profile**. Its **Payment Method Funding Capacity** is assessed from the current Cart amount and available credit and is reassessed when Net Terms is saved.
+- Payment Options currently permits selecting an eligible Payment Method only when it can fund the full Cart amount; retaining partial funding capacity allows a future Checkout to allocate the shortfall to another Payment Method.
+- **Payment Options** saves one **Prepared Payment** for the current **Cart** and does not perform **Payment Authorization**.
+- A card **Prepared Payment** can be initialized before authorization so the buyer can enter payment details securely; initialization is not **Payment Authorization**.
+- The **Prepared Payment** and current **Cart** must agree on amount and currency before **Payment Authorization**.
+- A **Prepared Payment** is updated when the Cart amount changes; an authorized Payment is not silently changed to match a new Cart amount.
+- **Payment Authorization** begins inside an **Order Placement Attempt** after the buyer chooses Place Order.
+- **Payment Capture** occurs only after the Order has been placed.
 
 ## Example Dialogue
 

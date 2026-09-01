@@ -1,5 +1,6 @@
 import { InputInvalid } from "@repo/errors";
 import { UnexpectedHttpErrors } from "@repo/errors/http";
+import { PaymentOptions } from "@repo/payments";
 import { Schema } from "effect";
 import {
   HttpApi,
@@ -13,68 +14,43 @@ import {
 import {
   CheckoutAuthenticationUnavailable,
   CheckoutCurrentOperationPublicErrors,
+  PrepareCheckoutPaymentOptionsOperationPublicErrors,
   CheckoutRequestPublicErrors,
   CheckoutUnauthenticated,
   SaveCheckoutContactOperationPublicErrors,
   SaveCheckoutDeliveryDetailsOperationPublicErrors,
+  SaveCheckoutPaymentOptionsOperationPublicErrors,
+  SaveCheckoutShippingOptionsOperationPublicErrors,
 } from "../checkout/public-errors";
-import { CartSnapshot } from "../domain/cart-snapshot";
+import { CheckoutPublicState } from "../checkout/public-state";
 import {
   CheckoutCartReference,
   CheckoutContactInput,
-  CheckoutDetails,
   CheckoutDeliveryDetailsInput,
-  CheckoutState,
-  CheckoutViolation,
+  CheckoutPaymentSelectionInput,
 } from "../domain/checkout";
+import {
+  DeliveryPlanQuote,
+  DeliveryPlanSelection,
+} from "../domain/delivery-plan";
 import type { CheckoutSession } from "../lib/checkout/checkout-session";
-import { CommerceLocale } from "../store";
 import { CommerceRequestHeaders } from "./commerce-request";
 
-export const CheckoutApiViolation = Schema.Struct({
-  ...CheckoutViolation.fields,
-  message: Schema.String,
-});
-export type CheckoutApiViolation = typeof CheckoutApiViolation.Type;
-
-export const CheckoutApiScope = Schema.Union([
-  Schema.Struct({
-    channel: Schema.Literal("storefrontAnonymous"),
-    locale: CommerceLocale,
-  }),
-  Schema.Struct({
-    channel: Schema.Literal("storefrontCustomer"),
-    locale: CommerceLocale,
-  }),
-]);
-export type CheckoutApiScope = typeof CheckoutApiScope.Type;
-
-export const CheckoutApiDetails = Schema.Struct({
-  contact: CheckoutDetails.fields.contact,
-  deliveryDetails: CheckoutDetails.fields.deliveryDetails,
-});
-export type CheckoutApiDetails = typeof CheckoutApiDetails.Type;
-
-export const CheckoutApiCart = Schema.Struct({
-  checkoutDetails: CheckoutApiDetails,
-  id: CartSnapshot.fields.id,
-  lineItems: CartSnapshot.fields.lineItems,
-  status: CartSnapshot.fields.status,
-  storeKey: CartSnapshot.fields.storeKey,
-  totalLineItemQuantity: CartSnapshot.fields.totalLineItemQuantity,
-  totalPrice: CartSnapshot.fields.totalPrice,
-});
-export type CheckoutApiCart = typeof CheckoutApiCart.Type;
-
-export const CheckoutApiState = Schema.Struct({
-  activeStep: CheckoutState.fields.activeStep,
-  cart: CheckoutApiCart,
-  details: CheckoutApiDetails,
-  scope: CheckoutApiScope,
-  steps: CheckoutState.fields.steps,
-  violations: Schema.Array(CheckoutApiViolation),
-});
+export const CheckoutApiState = CheckoutPublicState;
 export type CheckoutApiState = typeof CheckoutApiState.Type;
+
+export const CheckoutApiSnapshot = Schema.Struct({
+  ...CheckoutApiState.fields,
+  deliveryPlanQuote: DeliveryPlanQuote,
+});
+export type CheckoutApiSnapshot = typeof CheckoutApiSnapshot.Type;
+
+export const CheckoutApiPaymentOptionsSnapshot = Schema.Struct({
+  paymentOptions: PaymentOptions,
+  state: CheckoutApiState,
+});
+export type CheckoutApiPaymentOptionsSnapshot =
+  typeof CheckoutApiPaymentOptionsSnapshot.Type;
 
 export class SaveCheckoutContactRequest extends Schema.Class<SaveCheckoutContactRequest>(
   "SaveCheckoutContactRequest"
@@ -88,6 +64,20 @@ export class SaveCheckoutDeliveryDetailsRequest extends Schema.Class<SaveCheckou
 )({
   cart: CheckoutCartReference,
   deliveryDetails: CheckoutDeliveryDetailsInput,
+}) {}
+
+export class SaveCheckoutShippingOptionsRequest extends Schema.Class<SaveCheckoutShippingOptionsRequest>(
+  "SaveCheckoutShippingOptionsRequest"
+)({
+  cart: CheckoutCartReference,
+  selection: DeliveryPlanSelection,
+}) {}
+
+export class SaveCheckoutPaymentOptionsRequest extends Schema.Class<SaveCheckoutPaymentOptionsRequest>(
+  "SaveCheckoutPaymentOptionsRequest"
+)({
+  cart: CheckoutCartReference,
+  selection: CheckoutPaymentSelectionInput,
 }) {}
 
 export class CheckoutSchemaErrorMiddleware extends HttpApiMiddleware.Service<
@@ -120,10 +110,16 @@ export class CheckoutSessionMiddleware extends HttpApiMiddleware.Service<
 const optionalAccessTokenOpenApi = (summary: string) =>
   OpenApi.annotations({
     summary,
-    transform: (operation) => ({
-      ...operation,
-      security: [{}, ...operation.security],
-    }),
+    transform: (operation) => {
+      const security: unknown[] = [{}];
+      const configuredSecurity: unknown = operation.security;
+      if (Array.isArray(configuredSecurity)) {
+        for (const requirement of configuredSecurity) {
+          security.push(requirement);
+        }
+      }
+      return { ...operation, security };
+    },
   });
 
 export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
@@ -131,8 +127,19 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
     HttpApiEndpoint.get("current", "/checkout/current", {
       error: CheckoutCurrentOperationPublicErrors,
       headers: CommerceRequestHeaders,
-      success: CheckoutApiState,
+      success: CheckoutApiSnapshot,
     }).annotateMerge(optionalAccessTokenOpenApi("Get the current checkout"))
+  )
+  .add(
+    HttpApiEndpoint.post(
+      "preparePaymentOptions",
+      "/checkout/payment-options/prepare",
+      {
+        error: PrepareCheckoutPaymentOptionsOperationPublicErrors,
+        headers: CommerceRequestHeaders,
+        success: CheckoutApiPaymentOptionsSnapshot,
+      }
+    ).annotateMerge(optionalAccessTokenOpenApi("Prepare payment options"))
   )
   .add(
     HttpApiEndpoint.post("saveContact", "/checkout/contact", {
@@ -152,6 +159,26 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
       success: CheckoutApiState,
     }).annotateMerge(
       optionalAccessTokenOpenApi("Save checkout delivery details")
+    )
+  )
+  .add(
+    HttpApiEndpoint.post("saveShippingOptions", "/checkout/shipping-options", {
+      error: SaveCheckoutShippingOptionsOperationPublicErrors,
+      headers: CommerceRequestHeaders,
+      payload: SaveCheckoutShippingOptionsRequest,
+      success: CheckoutApiState,
+    }).annotateMerge(
+      optionalAccessTokenOpenApi("Save checkout shipping options")
+    )
+  )
+  .add(
+    HttpApiEndpoint.post("savePaymentOptions", "/checkout/payment-options", {
+      error: SaveCheckoutPaymentOptionsOperationPublicErrors,
+      headers: CommerceRequestHeaders,
+      payload: SaveCheckoutPaymentOptionsRequest,
+      success: CheckoutApiState,
+    }).annotateMerge(
+      optionalAccessTokenOpenApi("Save checkout payment options")
     )
   )
   .middleware(CheckoutSchemaErrorMiddleware)

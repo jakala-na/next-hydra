@@ -1,10 +1,15 @@
+import {
+  PaymentMethod,
+  PaymentSelection,
+  PreparedPayment,
+  PreparedPaymentReference,
+} from "@repo/payments";
 import { Schema } from "effect";
 
 import { CommerceLocale } from "../store";
 import { Address } from "./address";
 import { AddressBookReference } from "./address-book";
 import { CartId, LineItemId, ProductId, Sku, VariantId } from "./cart";
-import { CartSnapshot } from "./cart-snapshot";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -189,9 +194,23 @@ export const CheckoutDetails = Schema.Struct({
   buyingContext: Schema.optional(BuyingContext),
   contact: Schema.optional(CheckoutContact),
   deliveryDetails: Schema.optional(CheckoutDeliveryDetails),
+  preparedPayment: Schema.optional(PreparedPayment),
   selectedDeliveryPlan: Schema.optional(SelectedDeliveryPlan),
 });
 export type CheckoutDetails = typeof CheckoutDetails.Type;
+
+export const CheckoutBillingAddressInput = Schema.Struct({
+  source: Schema.Literal("shippingAddress"),
+});
+export type CheckoutBillingAddressInput =
+  typeof CheckoutBillingAddressInput.Type;
+
+export const CheckoutPaymentSelectionInput = Schema.Struct({
+  billingAddress: CheckoutBillingAddressInput,
+  payment: PaymentSelection,
+});
+export type CheckoutPaymentSelectionInput =
+  typeof CheckoutPaymentSelectionInput.Type;
 
 export const ViolationTarget = Schema.Union([
   Schema.Struct({
@@ -219,7 +238,7 @@ export type CheckoutViolationSource = typeof CheckoutViolationSource.Type;
 
 export const CheckoutViolationParameter = Schema.Union([
   Schema.String,
-  Schema.Number,
+  Schema.Finite,
 ]);
 export type CheckoutViolationParameter = typeof CheckoutViolationParameter.Type;
 
@@ -246,16 +265,6 @@ export const CheckoutPolicyViolation = Schema.Struct({
   targets: Schema.Array(ViolationTarget),
 });
 export type CheckoutPolicyViolation = typeof CheckoutPolicyViolation.Type;
-
-export const CheckoutState = Schema.Struct({
-  activeStep: CheckoutStepId,
-  cart: Schema.suspend(() => CartSnapshot),
-  details: CheckoutDetails,
-  scope: CheckoutScope,
-  steps: Schema.Array(CheckoutStep),
-  violations: Schema.Array(CheckoutViolation),
-});
-export type CheckoutState = typeof CheckoutState.Type;
 
 export const CheckoutBuyerContext = Schema.Struct({
   buyerMode: Schema.Literals(["guest", "customer", "b2bCustomer"]),
@@ -299,6 +308,7 @@ export const CheckoutMutationIssuePath = Schema.Literals([
   "region",
   "saveToAddressBook",
   "source",
+  "method",
 ]);
 export type CheckoutMutationIssuePath = typeof CheckoutMutationIssuePath.Type;
 
@@ -396,6 +406,7 @@ export class CheckoutMutationOutcomeUnknown extends Schema.TaggedError<CheckoutM
     operation: Schema.Literals([
       "saveContact",
       "saveDeliveryDetails",
+      "savePaymentOptions",
       "saveShippingOptions",
     ]),
   }
@@ -419,7 +430,42 @@ export class CheckoutMutationUnsupported extends Schema.TaggedError<CheckoutMuta
     operation: Schema.Literals([
       "saveContact",
       "saveDeliveryDetails",
+      "savePaymentOptions",
       "saveShippingOptions",
+    ]),
+  }
+) {}
+
+export class CheckoutPaymentMethodUnavailable extends Schema.TaggedError<CheckoutPaymentMethodUnavailable>()(
+  "CheckoutPaymentMethodUnavailable",
+  {
+    message: Schema.String,
+    method: PaymentMethod,
+    reason: Schema.Literals(["insufficientAvailableCredit", "notEligible"]),
+  }
+) {}
+
+export class CheckoutPaymentOptionsUnavailable extends Schema.TaggedError<CheckoutPaymentOptionsUnavailable>()(
+  "CheckoutPaymentOptionsUnavailable",
+  {
+    message: Schema.String,
+    reason: Schema.Literals([
+      "contactIncomplete",
+      "deliveryDetailsIncomplete",
+      "shippingOptionsIncomplete",
+    ]),
+  }
+) {}
+
+export class CheckoutPaymentPreparationRefreshRequired extends Schema.TaggedError<CheckoutPaymentPreparationRefreshRequired>()(
+  "CheckoutPaymentPreparationRefreshRequired",
+  {
+    message: Schema.String,
+    preparationReference: PreparedPaymentReference,
+    reason: Schema.Literals([
+      "amountChanged",
+      "notFound",
+      "confirmationUnavailable",
     ]),
   }
 ) {}
@@ -436,6 +482,9 @@ export const CheckoutMutationFailure = Schema.Union([
   CheckoutMutationOutcomeUnknown,
   CheckoutMutationProviderFailure,
   CheckoutMutationUnsupported,
+  CheckoutPaymentOptionsUnavailable,
+  CheckoutPaymentMethodUnavailable,
+  CheckoutPaymentPreparationRefreshRequired,
 ]);
 export type CheckoutMutationFailure = typeof CheckoutMutationFailure.Type;
 
@@ -477,3 +526,17 @@ export const CheckoutShippingOptionsMutationFailure = Schema.Union([
 ]);
 export type CheckoutShippingOptionsMutationFailure =
   typeof CheckoutShippingOptionsMutationFailure.Type;
+
+export const CheckoutPaymentOptionsMutationFailure = Schema.Union([
+  CheckoutMutationSchemaFailure,
+  CheckoutPaymentOptionsUnavailable,
+  CheckoutPaymentMethodUnavailable,
+  CheckoutPaymentPreparationRefreshRequired,
+  CheckoutCartMismatch,
+  CheckoutVersionConflict,
+  CheckoutMutationOutcomeUnknown,
+  CheckoutMutationProviderFailure,
+  CheckoutMutationUnsupported,
+]);
+export type CheckoutPaymentOptionsMutationFailure =
+  typeof CheckoutPaymentOptionsMutationFailure.Type;

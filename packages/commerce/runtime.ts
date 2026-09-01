@@ -3,6 +3,7 @@ import { ActionClient, ActionMiddleware } from "@repo/actions";
 import type { EmptyActionContext } from "@repo/actions";
 import { NextServer } from "@repo/actions/next-server";
 import type { Locale } from "@repo/i18n/types";
+import { CheckoutPayments } from "@repo/payments";
 import { Effect, Layer, ManagedRuntime } from "effect";
 
 import { CheckoutPolicies } from "./lib/checkout/checkout-policy";
@@ -117,6 +118,10 @@ const unconfiguredRuntime = ManagedRuntime.make(
   Layer.mergeAll(
     Layer.effect(CartPolicies, Effect.die(new CommerceRuntimeNotConfigured())),
     Layer.effect(Carts, Effect.die(new CommerceRuntimeNotConfigured())),
+    Layer.effect(
+      CheckoutPayments,
+      Effect.die(new CommerceRuntimeNotConfigured())
+    ),
     Layer.effect(
       CheckoutPolicies,
       Effect.die(new CommerceRuntimeNotConfigured())

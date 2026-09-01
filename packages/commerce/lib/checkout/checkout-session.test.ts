@@ -1,4 +1,10 @@
 import { describe, expect, it } from "@effect/vitest";
+import {
+  CheckoutPayments,
+  PaymentConfirmationReference,
+  PaymentProviderReference,
+  PaymentReference,
+} from "@repo/payments";
 import { Effect, Layer, Redacted } from "effect";
 
 import {
@@ -92,14 +98,17 @@ const provideCheckout = <A, E>(
   program: Effect.Effect<A, E, CheckoutSession>,
   carts = Carts.layerMemory({ carts: [cart] }),
   addressBookOverride?: Layer.Layer<AddressBook>,
-  deliveryPlanningOverride = DeliveryPlanning.emptyLayer
+  deliveryPlanningOverride = DeliveryPlanning.emptyLayer,
+  checkoutPaymentsOverride = CheckoutPayments.unavailableLayer
 ) => {
   const commerceAccounts = CommerceAccounts.layerMemoryFrom({});
   const dependencies = Layer.mergeAll(
     carts,
     CartPolicies.layerEmpty,
     CheckoutPolicies.layerEmpty,
+    CheckoutPayments.unavailableLayer,
     commerceAccounts,
+    checkoutPaymentsOverride,
     deliveryPlanningOverride
   );
   const commerceContext = CommerceContext.layer(context).pipe(
@@ -152,6 +161,7 @@ const provideCustomerCheckout = <A, E>(
     Carts.layerMemory({ carts: [customerCart] }),
     CartPolicies.layerEmpty,
     CheckoutPolicies.layerEmpty,
+    CheckoutPayments.unavailableLayer,
     commerceAccounts,
     DeliveryPlanning.emptyLayer
   );
@@ -280,6 +290,7 @@ describe(CheckoutSession, () => {
             _tag: "CheckoutShippingSelectionUnavailable",
             quoteReference: "quote-stale",
           });
+          return error;
         })
       ),
       Carts.layerMemory({ carts: [checkoutReadyCart] }),
@@ -361,6 +372,7 @@ describe(CheckoutSession, () => {
               _tag: "CheckoutShippingOptionsRefreshRequired",
               cartId: cart.id,
             });
+            return error;
           })
         ),
         Carts.layerMemory({ carts: [checkoutReadyCart] }),
@@ -394,6 +406,7 @@ describe(CheckoutSession, () => {
               _tag: "CheckoutCustomerProfileIncomplete",
               missingFields: ["email"],
             });
+            return error;
           })
         ),
         new CommerceCustomerProfile({
@@ -460,6 +473,7 @@ describe(CheckoutSession, () => {
       ).pipe(
         Effect.map((error) => {
           expect(error._tag).toBe("CheckoutCartMismatch");
+          return error;
         })
       )
     )
@@ -484,6 +498,7 @@ describe(CheckoutSession, () => {
         ).pipe(
           Effect.map((error) => {
             expect(error._tag).toBe("CheckoutVersionConflict");
+            return error;
           })
         ),
         Carts.layerMemory({
@@ -519,6 +534,7 @@ describe(CheckoutSession, () => {
             cartId: cart.id,
             operation: "saveContact",
           });
+          return error;
         })
       ),
       Carts.layerMemory({
@@ -759,6 +775,7 @@ describe(CheckoutSession, () => {
               throw new Error("Expected an unknown Checkout mutation outcome");
             }
             expect(error.addressBookReference).toBeDefined();
+            return error;
           })
         ),
         Carts.layerMemory({ carts: [cart] }),
@@ -777,5 +794,195 @@ describe(CheckoutSession, () => {
           })
         )
       )
+  );
+
+  it.effect(
+    "does not prepare Payment Options before current Shipping Options are complete",
+    () => {
+      const shippingAddress = {
+        addressLine1: "1 Payment Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      };
+      const cartBeforeShipping: CartSnapshot = {
+        ...cart,
+        checkoutDetails: {
+          contact: {
+            buyerContact: {
+              email: "payment@example.com",
+              firstName: "Payment",
+              lastName: "Buyer",
+            },
+            source: "manual",
+          },
+          deliveryDetails: { shippingAddress, source: "manual" },
+        },
+      };
+
+      return provideCheckout(
+        CheckoutSession.preparePaymentOptions().pipe(
+          Effect.flip,
+          Effect.map((failure) => {
+            expect(failure).toMatchObject({
+              _tag: "CheckoutPaymentOptionsUnavailable",
+              reason: "shippingOptionsIncomplete",
+            });
+            return failure;
+          })
+        ),
+        Carts.layerMemory({ carts: [cartBeforeShipping] })
+      );
+    }
+  );
+
+  it.effect(
+    "prepares and saves the parameterized Card payment before Review without authorization",
+    () => {
+      const shippingAddress = {
+        addressLine1: "1 Payment Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      };
+      const quoteReference = DeliveryPlanQuoteReference.make("quote-payment");
+      const planReference = DeliveryPlanReference.make("plan-payment");
+      const groupReference = DeliveryGroupReference.make("group-payment");
+      const optionReference = ShippingOptionReference.make("option-payment");
+      const selectedDeliveryPlan = {
+        groups: [
+          {
+            reference: groupReference,
+            selectedShippingOption: {
+              name: "Parameterized Shipping",
+              price: { centAmount: 500, currencyCode: "USD" },
+              reference: optionReference,
+            },
+            shippingAddress,
+            targets: [{ lineItemId: LineItemId.make("line-1"), quantity: 1 }],
+          },
+        ],
+        quoteReference,
+        reference: planReference,
+      } as const;
+      const readyCart: CartSnapshot = {
+        ...cart,
+        checkoutDetails: {
+          contact: {
+            buyerContact: {
+              email: "payment@example.com",
+              firstName: "Payment",
+              lastName: "Buyer",
+            },
+            source: "manual",
+          },
+          deliveryDetails: { shippingAddress, source: "manual" },
+          selectedDeliveryPlan,
+        },
+        totalPrice: { centAmount: 3000, currencyCode: "USD" },
+      };
+      const quote = {
+        plans: [
+          {
+            groups: [
+              {
+                reference: groupReference,
+                shippingAddress,
+                shippingOptions: [
+                  selectedDeliveryPlan.groups[0].selectedShippingOption,
+                ],
+                targets: selectedDeliveryPlan.groups[0].targets,
+              },
+            ],
+            reference: planReference,
+          },
+        ],
+        reference: quoteReference,
+      } as const satisfies DeliveryPlanQuote;
+      const paymentReference = PaymentReference.make("payment-from-input");
+      const confirmationReference = PaymentConfirmationReference.make(
+        "confirmation-from-input"
+      );
+      const publicConfiguration = "public-configuration-from-input";
+      const clientToken = "client-token-from-input";
+      const payments = CheckoutPayments.layerMemory({
+        card: {
+          clientTokenFor: () => clientToken,
+          confirmationAvailabilityFor: ({
+            confirmationReference: submittedConfirmationReference,
+          }) => {
+            expect(submittedConfirmationReference).toBe(confirmationReference);
+            return "available";
+          },
+          provider: "Memory Card Provider",
+          providerReferenceFor: () =>
+            PaymentProviderReference.make("provider-from-input"),
+          publicConfiguration,
+        },
+        cardPaymentReferenceFor: () => paymentReference,
+        creditProfiles: [],
+        netTermsPaymentReferenceFor: () =>
+          PaymentReference.make("unused-net-terms-payment"),
+      });
+
+      return provideCheckout(
+        Effect.gen(function* () {
+          const prepared = yield* CheckoutSession.preparePaymentOptions();
+          const card = prepared.paymentOptions.methods.find(
+            (method) => method.method === "card"
+          );
+          if (card === undefined) {
+            return yield* Effect.die("Expected Card preparation input");
+          }
+          const { preparationReference } = card.input;
+          expect(preparationReference.length).toBeGreaterThan(0);
+          expect(prepared.deliveryPlanQuote).toStrictEqual(quote);
+          expect(prepared.paymentOptions).toStrictEqual({
+            amount: readyCart.totalPrice,
+            methods: [
+              {
+                availability: "available",
+                displayName: "Card",
+                input: {
+                  clientIntegration: {
+                    clientToken,
+                    provider: "Memory Card Provider",
+                    publicConfiguration,
+                  },
+                  preparationReference,
+                },
+                method: "card",
+              },
+            ],
+          });
+
+          const state = yield* CheckoutSession.savePaymentOptions({
+            cart: { id: readyCart.id },
+            selection: {
+              billingAddress: { source: "shippingAddress" },
+              payment: {
+                confirmationReference,
+                method: "card",
+                preparationReference,
+              },
+            },
+          });
+
+          expect(state.activeStep).toBe("reviewOrder");
+          expect(state.details.preparedPayment).toStrictEqual({
+            amount: readyCart.totalPrice,
+            billingAddress: shippingAddress,
+            confirmationReference,
+            method: "card",
+            paymentReference,
+            preparationReference,
+          });
+        }),
+        Carts.layerMemory({ carts: [readyCart] }),
+        undefined,
+        DeliveryPlanning.layerMemory(() => Effect.succeed(quote)),
+        payments
+      );
+    }
   );
 });

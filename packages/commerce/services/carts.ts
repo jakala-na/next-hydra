@@ -1,3 +1,4 @@
+import type { PreparedPayment } from "@repo/payments";
 import { Context, Effect, Layer, Option, Ref } from "effect";
 
 import { CartId, LineItemId } from "../domain/cart";
@@ -52,7 +53,7 @@ export interface CreateAnonymousCart {
   readonly store: Store;
 }
 
-export interface CreateBusinessUnitCart extends FindActiveCartsForBusinessUnit {}
+export type CreateBusinessUnitCart = FindActiveCartsForBusinessUnit;
 
 export interface AddCartItem {
   readonly productId: ProductId;
@@ -84,6 +85,11 @@ export interface SaveCartDeliveryDetails {
 
 export interface SaveCartShippingOptions {
   readonly selectedDeliveryPlan: SelectedDeliveryPlan;
+  readonly target: CartTarget;
+}
+
+export interface SaveCartPaymentOptions {
+  readonly preparedPayment: PreparedPayment;
   readonly target: CartTarget;
 }
 
@@ -136,6 +142,7 @@ export interface CartsMemorySeed {
     readonly removeLineItem?: RemoveCartLineItemFailure;
     readonly saveContact?: SaveCartDetailsFailure;
     readonly saveDeliveryDetails?: SaveCartDetailsFailure;
+    readonly savePaymentOptions?: SaveCartDetailsFailure;
     readonly saveShippingOptions?: SaveCartShippingOptionsFailure;
   };
   readonly merchandise?: readonly CartsMemoryMerchandise[];
@@ -145,19 +152,49 @@ const emptyCart = (
   id: CartId,
   store: Store,
   businessUnitId?: CommerceBusinessUnitId
+): CartSnapshot => {
+  const cart: CartSnapshot = {
+    checkoutDetails: {},
+    id,
+    lineItems: [],
+    status: "active",
+    storeKey: store.storeKey,
+    totalLineItemQuantity: 0,
+    totalPrice: {
+      centAmount: 0,
+      currencyCode: store.currency,
+    },
+  };
+  if (businessUnitId === undefined) {
+    return cart;
+  }
+  return { ...cart, buyingContext: { businessUnitId } };
+};
+
+const failIfConfigured = <E>(failure: E | undefined) =>
+  failure === undefined ? Effect.void : Effect.fail(failure);
+
+const withLineItems = (
+  cart: CartSnapshot,
+  lineItems: CartSnapshot["lineItems"]
 ): CartSnapshot => ({
-  id,
-  status: "active",
-  storeKey: store.storeKey,
-  ...(businessUnitId === undefined
-    ? {}
-    : { buyingContext: { businessUnitId } }),
-  checkoutDetails: {},
-  lineItems: [],
-  totalLineItemQuantity: 0,
+  ...cart,
+  checkoutDetails: {
+    ...cart.checkoutDetails,
+    preparedPayment: undefined,
+    selectedDeliveryPlan: undefined,
+  },
+  lineItems,
+  totalLineItemQuantity: lineItems.reduce(
+    (total, lineItem) => total + lineItem.quantity,
+    0
+  ),
   totalPrice: {
-    centAmount: 0,
-    currencyCode: store.currency,
+    centAmount: lineItems.reduce(
+      (total, lineItem) => total + (lineItem.totalPrice?.centAmount ?? 0),
+      0
+    ),
+    currencyCode: cart.totalPrice.currencyCode,
   },
 });
 
@@ -191,6 +228,9 @@ export class Carts extends Context.Service<
     readonly saveDeliveryDetails: (
       input: SaveCartDeliveryDetails
     ) => Effect.Effect<CartSnapshot, SaveCartDetailsFailure>;
+    readonly savePaymentOptions: (
+      input: SaveCartPaymentOptions
+    ) => Effect.Effect<CartSnapshot, SaveCartDetailsFailure>;
     readonly saveShippingOptions: (
       input: SaveCartShippingOptions
     ) => Effect.Effect<CartSnapshot, SaveCartShippingOptionsFailure>;
@@ -204,9 +244,6 @@ export class Carts extends Context.Service<
           new Map((seed.carts ?? []).map((cart) => [cart.id, cart]))
         );
         let nextId = (seed.carts?.length ?? 0) + 1;
-
-        const failIfConfigured = <E>(failure: E | undefined) =>
-          failure === undefined ? Effect.void : Effect.fail(failure);
 
         const findById = Effect.fn("Carts.findById")(
           ({ id, store }: FindCartById) =>
@@ -273,6 +310,7 @@ export class Carts extends Context.Service<
             | "removeLineItem"
             | "saveContact"
             | "saveDeliveryDetails"
+            | "savePaymentOptions"
             | "saveShippingOptions"
         ) =>
           Effect.gen(function* () {
@@ -304,30 +342,6 @@ export class Carts extends Context.Service<
 
         const saveCart = (cart: CartSnapshot) =>
           Ref.update(state, (carts) => new Map(carts).set(cart.id, cart));
-
-        const withLineItems = (
-          cart: CartSnapshot,
-          lineItems: CartSnapshot["lineItems"]
-        ): CartSnapshot => ({
-          ...cart,
-          checkoutDetails: {
-            ...cart.checkoutDetails,
-            selectedDeliveryPlan: undefined,
-          },
-          lineItems,
-          totalLineItemQuantity: lineItems.reduce(
-            (total, lineItem) => total + lineItem.quantity,
-            0
-          ),
-          totalPrice: {
-            centAmount: lineItems.reduce(
-              (total, lineItem) =>
-                total + (lineItem.totalPrice?.centAmount ?? 0),
-              0
-            ),
-            currencyCode: cart.totalPrice.currencyCode,
-          },
-        });
 
         const addItem = Effect.fn("Carts.addItem")((input: AddCartItem) =>
           Effect.gen(function* () {
@@ -473,6 +487,7 @@ export class Carts extends Context.Service<
                 checkoutDetails: {
                   ...cart.checkoutDetails,
                   deliveryDetails: input.deliveryDetails,
+                  preparedPayment: undefined,
                   selectedDeliveryPlan: undefined,
                 },
               } satisfies CartSnapshot;
@@ -493,7 +508,44 @@ export class Carts extends Context.Service<
                 ...cart,
                 checkoutDetails: {
                   ...cart.checkoutDetails,
+                  preparedPayment: undefined,
                   selectedDeliveryPlan: input.selectedDeliveryPlan,
+                },
+                totalPrice: {
+                  centAmount:
+                    cart.lineItems.reduce(
+                      (total, lineItem) =>
+                        total +
+                        (lineItem.totalPrice?.centAmount ??
+                          lineItem.unitPrice.centAmount * lineItem.quantity),
+                      0
+                    ) +
+                    input.selectedDeliveryPlan.groups.reduce(
+                      (total, group) =>
+                        total + group.selectedShippingOption.price.centAmount,
+                      0
+                    ),
+                  currencyCode: cart.totalPrice.currencyCode,
+                },
+              } satisfies CartSnapshot;
+              yield* saveCart(updated);
+              return updated;
+            })
+        );
+
+        const savePaymentOptions = Effect.fn("Carts.savePaymentOptions")(
+          (input: SaveCartPaymentOptions) =>
+            Effect.gen(function* () {
+              yield* failIfConfigured(seed.failures?.savePaymentOptions);
+              const cart = yield* getTargetCart(
+                input.target,
+                "savePaymentOptions"
+              );
+              const updated = {
+                ...cart,
+                checkoutDetails: {
+                  ...cart.checkoutDetails,
+                  preparedPayment: input.preparedPayment,
                 },
               } satisfies CartSnapshot;
               yield* saveCart(updated);
@@ -510,6 +562,7 @@ export class Carts extends Context.Service<
           removeLineItem,
           saveContact,
           saveDeliveryDetails,
+          savePaymentOptions,
           saveShippingOptions,
           setLineItemQuantity,
         });

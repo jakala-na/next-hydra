@@ -294,6 +294,18 @@
       }
     },
     "checkout": {
+      "paymentOptions": {
+        "availableToSpend": "{amount} available to spend",
+        "card": "Card",
+        "cardInvalid": "Check your card details and try again.",
+        "cardNotReady": "Card entry is still loading.",
+        "chooseMethod": "Choose a payment method",
+        "netTerms": "Net {days}",
+        "paymentMethod": "Payment method",
+        "save": "Save payment options",
+        "saving": "Saving...",
+        "useShippingAddress": "Use shipping address for billing"
+      },
       "steps": {
         "contact": "Coordonnées",
         "deliveryDetails": "Détails de livraison",
@@ -381,6 +393,9 @@
           "unsupported": "Cette source de livraison n’est pas encore prise en charge."
         },
         "notFound": "Le paiement est introuvable pour cette requête.",
+        "paymentOptions": {
+          "unavailable": "Terminez l’étape actuelle du passage en caisse avant de préparer le paiement."
+        },
         "versionConflict": "Le paiement a changé avant l’enregistrement. Actualisez la page et réessayez.",
         "saveContact": {
           "CheckoutCartMismatch": "Ce paiement n’est plus à jour. Actualisez la page et réessayez.",
@@ -409,6 +424,19 @@
           "CheckoutUnavailable": "Le paiement est introuvable pour cette requête.",
           "CommerceRequestContextNotFound": "Le paiement est introuvable pour cette requête.",
           "CheckoutVersionConflict": "Le paiement a changé avant l’enregistrement. Actualisez la page et réessayez."
+        },
+        "savePaymentOptions": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "CheckoutMutationSchemaFailure": "Choose an available payment method and complete its details.",
+          "CheckoutMutationOutcomeUnknown": "We could not confirm whether your payment options were saved. Refresh before trying again.",
+          "CheckoutMutationProviderFailure": "Payment options could not be saved. Try again.",
+          "CheckoutPaymentMethodUnavailable": "That payment method is no longer available. Refresh and choose again.",
+          "CheckoutPaymentOptionsUnavailable": "Terminez l’étape actuelle du passage en caisse avant de préparer le paiement.",
+          "CheckoutPaymentPreparationRefreshRequired": "Card details no longer match this checkout. Refresh and enter them again.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your payment options could be saved. Refresh and try again.",
+          "CommerceAccountUnavailable": "Payment options could not be saved. Try again.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request."
         },
         "saveShippingOptions": {
           "CheckoutCartMismatch": "Ce paiement n’est plus à jour.",

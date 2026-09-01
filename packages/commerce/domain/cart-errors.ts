@@ -14,6 +14,7 @@ export const CartOperation = Schema.Literals([
   "removeLineItem",
   "saveContact",
   "saveDeliveryDetails",
+  "savePaymentOptions",
   "saveShippingOptions",
 ]);
 export type CartOperation = typeof CartOperation.Type;

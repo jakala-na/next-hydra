@@ -1,14 +1,14 @@
 import { makeDisplayActionResultSchema } from "@repo/actions";
 
-import { CheckoutState } from "../domain/checkout";
 import { SaveCheckoutContactPublicError } from "./public-errors";
+import { CheckoutPublicState } from "./public-state";
 
 export const SaveCheckoutContactActionError = SaveCheckoutContactPublicError;
 export type SaveCheckoutContactActionError =
   typeof SaveCheckoutContactActionError.Type;
 
 export const SaveCheckoutContactActionResult = makeDisplayActionResultSchema(
-  CheckoutState,
+  CheckoutPublicState,
   SaveCheckoutContactActionError
 );
 export type SaveCheckoutContactActionResult =

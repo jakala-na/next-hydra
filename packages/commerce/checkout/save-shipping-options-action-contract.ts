@@ -1,7 +1,7 @@
 import { makeDisplayActionResultSchema } from "@repo/actions";
 
-import { CheckoutState } from "../domain/checkout";
 import { SaveCheckoutShippingOptionsPublicError } from "./public-errors";
+import { CheckoutPublicState } from "./public-state";
 
 export const SaveCheckoutShippingOptionsActionError =
   SaveCheckoutShippingOptionsPublicError;
@@ -10,7 +10,7 @@ export type SaveCheckoutShippingOptionsActionError =
 
 export const SaveCheckoutShippingOptionsActionResult =
   makeDisplayActionResultSchema(
-    CheckoutState,
+    CheckoutPublicState,
     SaveCheckoutShippingOptionsActionError
   );
 export type SaveCheckoutShippingOptionsActionResult =

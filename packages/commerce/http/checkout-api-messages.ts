@@ -1,8 +1,6 @@
 import { checkoutMessageCatalogs } from "@repo/i18n/checkout-messages";
-import type { SupportedLocale } from "@repo/i18n/config";
+import { locales } from "@repo/i18n/config";
 import { Option, Schema } from "effect";
-
-import { CommerceLocale } from "../store";
 
 export type CheckoutApiErrorCode =
   | "checkout.badRequest"
@@ -18,6 +16,12 @@ export type CheckoutApiErrorCode =
   | "checkout.deliveryDetails.sourceUnavailable"
   | "checkout.internal"
   | "checkout.notFound"
+  | "checkout.paymentOptions.invalidInput"
+  | "checkout.paymentOptions.methodUnavailable"
+  | "checkout.paymentOptions.outcomeUnknown"
+  | "checkout.paymentOptions.preparationRefreshRequired"
+  | "checkout.paymentOptions.providerFailure"
+  | "checkout.paymentOptions.unavailable"
   | "checkout.versionConflict";
 
 export const checkoutApiErrorMessage = (
@@ -25,11 +29,10 @@ export const checkoutApiErrorMessage = (
   code: CheckoutApiErrorCode
 ) => {
   const decodedLocale = Option.getOrElse(
-    Schema.decodeUnknownOption(CommerceLocale)(locale),
-    () => CommerceLocale.make("en-US")
+    Schema.decodeUnknownOption(Schema.Literals(locales))(locale),
+    () => "en-US" as const
   );
-  const messages =
-    checkoutMessageCatalogs[decodedLocale as SupportedLocale].errors;
+  const messages = checkoutMessageCatalogs[decodedLocale].errors;
 
   switch (code) {
     case "checkout.badRequest": {
@@ -70,6 +73,25 @@ export const checkoutApiErrorMessage = (
     }
     case "checkout.notFound": {
       return messages.notFound;
+    }
+    case "checkout.paymentOptions.invalidInput": {
+      return messages.savePaymentOptions.CheckoutMutationSchemaFailure;
+    }
+    case "checkout.paymentOptions.methodUnavailable": {
+      return messages.savePaymentOptions.CheckoutPaymentMethodUnavailable;
+    }
+    case "checkout.paymentOptions.outcomeUnknown": {
+      return messages.savePaymentOptions.CheckoutMutationOutcomeUnknown;
+    }
+    case "checkout.paymentOptions.preparationRefreshRequired": {
+      return messages.savePaymentOptions
+        .CheckoutPaymentPreparationRefreshRequired;
+    }
+    case "checkout.paymentOptions.providerFailure": {
+      return messages.savePaymentOptions.CheckoutMutationProviderFailure;
+    }
+    case "checkout.paymentOptions.unavailable": {
+      return messages.paymentOptions.unavailable;
     }
     case "checkout.versionConflict": {
       return messages.versionConflict;

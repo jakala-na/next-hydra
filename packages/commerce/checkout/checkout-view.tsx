@@ -1,18 +1,19 @@
 import { getTranslations } from "@repo/i18n";
 import type { Locale } from "@repo/i18n/types";
+import type { PaymentMethod, PaymentOptions } from "@repo/payments";
 import type { ReactNode } from "react";
 
-import type {
-  CheckoutState,
-  CheckoutStepId,
-  CheckoutViolation,
-} from "../domain/checkout";
+import type { Address } from "../domain/address";
+import type { CartId } from "../domain/cart";
+import type { CheckoutStepId, CheckoutViolation } from "../domain/checkout";
+import type { CheckoutState } from "../domain/checkout-state";
 import type { DeliveryPlanQuote } from "../domain/delivery-plan";
 import { checkoutViolationMessage } from "../lib/checkout/violation-message";
 import { CommerceLocale } from "../store";
 import type {
   SaveCheckoutContactAction,
   SaveCheckoutDeliveryDetailsAction,
+  SaveCheckoutPaymentOptionsAction,
   SaveCheckoutShippingOptionsAction,
 } from "./action-contract";
 import { CheckoutContactForm } from "./contact-form";
@@ -48,8 +49,22 @@ const merchandiseSubtotalFor = (
 interface CheckoutActions {
   readonly saveContact: SaveCheckoutContactAction;
   readonly saveDeliveryDetails: SaveCheckoutDeliveryDetailsAction;
+  readonly savePaymentOptions: SaveCheckoutPaymentOptionsAction;
   readonly saveShippingOptions: SaveCheckoutShippingOptionsAction;
 }
+
+export interface CheckoutPaymentOptionsRendererProps {
+  readonly billingAddress: Address;
+  readonly cartId: CartId;
+  readonly locale: Locale;
+  readonly options: PaymentOptions;
+  readonly saveAction: SaveCheckoutPaymentOptionsAction;
+  readonly selectedMethod?: PaymentMethod;
+}
+
+export type CheckoutPaymentOptionsRenderer = (
+  props: CheckoutPaymentOptionsRendererProps
+) => ReactNode;
 
 export interface CheckoutPageMessages {
   readonly activeStep: string;
@@ -59,7 +74,10 @@ export interface CheckoutPageMessages {
   readonly cartQuantity: (quantity: number) => string;
   readonly cartViolations: string;
   readonly delivery: (number: number) => string;
+  readonly card: string;
   readonly editDeliveryDetails: string;
+  readonly netTerms: (days: number) => string;
+  readonly paymentMethod: string;
   readonly subtotal: string;
   readonly stepLabels: Record<CheckoutStepId, string>;
   readonly stepStatuses: Record<
@@ -120,12 +138,16 @@ function ActiveStep({
   actions,
   deliveryPlanQuote,
   messages,
+  paymentOptions,
+  renderPaymentOptions,
   shippingAddressOptions,
   state,
 }: {
   readonly actions: CheckoutActions;
   readonly deliveryPlanQuote: DeliveryPlanQuote;
   readonly messages: CheckoutPageMessages;
+  readonly paymentOptions?: PaymentOptions;
+  readonly renderPaymentOptions: CheckoutPaymentOptionsRenderer;
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
   readonly state: CheckoutState;
 }) {
@@ -177,6 +199,41 @@ function ActiveStep({
             : undefined
         }
       />
+    );
+  } else if (
+    state.activeStep === "paymentOptions" &&
+    paymentOptions !== undefined &&
+    state.details.deliveryDetails !== undefined
+  ) {
+    content = renderPaymentOptions({
+      billingAddress: state.details.deliveryDetails.shippingAddress,
+      cartId: state.cart.id,
+      locale: state.scope.locale,
+      options: paymentOptions,
+      saveAction: actions.savePaymentOptions,
+      selectedMethod: state.details.preparedPayment?.method,
+    });
+  } else if (
+    state.activeStep === "reviewOrder" &&
+    state.details.preparedPayment !== undefined
+  ) {
+    const payment = state.details.preparedPayment;
+    content = (
+      <section className="grid gap-2 rounded-md border border-border p-4">
+        <h2 className="font-semibold">{messages.paymentMethod}</h2>
+        <p data-selected-payment-method={payment.method}>
+          {payment.method === "card"
+            ? messages.card
+            : messages.netTerms(payment.termsInDays)}
+        </p>
+        <p
+          data-commerce-money="prepared-payment"
+          data-currency={payment.amount.currencyCode}
+          data-minor-amount={payment.amount.centAmount}
+        >
+          {formatMoney(payment.amount, state.scope.locale)}
+        </p>
+      </section>
     );
   }
 
@@ -320,12 +377,16 @@ export async function CheckoutView({
   actions,
   deliveryPlanQuote,
   locale,
+  paymentOptions,
+  renderPaymentOptions,
   shippingAddressOptions,
   state,
 }: {
   readonly actions: CheckoutActions;
   readonly deliveryPlanQuote: DeliveryPlanQuote;
   readonly locale: Locale;
+  readonly paymentOptions?: PaymentOptions;
+  readonly renderPaymentOptions: CheckoutPaymentOptionsRenderer;
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
   readonly state: CheckoutState;
 }) {
@@ -335,12 +396,15 @@ export async function CheckoutView({
   const messages: CheckoutPageMessages = {
     activeStep: t("activeStep"),
     attention: t("attention"),
+    card: t("paymentOptions.card"),
     cartItems: (count) => t("cart.items", { count }),
     cartQuantity: (quantity) => t("cart.quantity", { quantity }),
     cartTitle: t("cart.title"),
     cartViolations: t("cart.violations"),
     delivery: (number) => t("shippingOptions.delivery", { number }),
     editDeliveryDetails: t("deliveryDetails.actions.edit"),
+    netTerms: (days) => t("paymentOptions.netTerms", { days }),
+    paymentMethod: t("paymentOptions.paymentMethod"),
     stepLabels: {
       contact: t("steps.contact"),
       deliveryDetails: t("steps.deliveryDetails"),
@@ -364,6 +428,8 @@ export async function CheckoutView({
         actions={actions}
         deliveryPlanQuote={deliveryPlanQuote}
         messages={messages}
+        paymentOptions={paymentOptions}
+        renderPaymentOptions={renderPaymentOptions}
         shippingAddressOptions={shippingAddressOptions}
         state={state}
       />

@@ -10,20 +10,25 @@ import { AddressBook } from "../services/address-book";
 import type {
   SaveCheckoutContactAction,
   SaveCheckoutDeliveryDetailsAction,
+  SaveCheckoutPaymentOptionsAction,
   SaveCheckoutShippingOptionsAction,
 } from "./action-contract";
 import { CheckoutView } from "./checkout-view";
+import type { CheckoutPaymentOptionsRenderer } from "./checkout-view";
 
 export async function CheckoutPage({
   actions,
   locale,
+  renderPaymentOptions,
 }: {
   readonly actions: {
     readonly saveContact: SaveCheckoutContactAction;
     readonly saveDeliveryDetails: SaveCheckoutDeliveryDetailsAction;
+    readonly savePaymentOptions: SaveCheckoutPaymentOptionsAction;
     readonly saveShippingOptions: SaveCheckoutShippingOptionsAction;
   };
   readonly locale: Locale;
+  readonly renderPaymentOptions: CheckoutPaymentOptionsRenderer;
 }) {
   await connection();
 
@@ -34,9 +39,18 @@ export async function CheckoutPage({
           Effect.catchTag("CheckoutUnavailable", () => Effect.succeed(null))
         );
       if (snapshot === null) {
-        return { shippingAddressOptions: undefined, snapshot };
+        return {
+          paymentOptions: undefined,
+          shippingAddressOptions: undefined,
+          snapshot,
+        };
       }
-      const { state } = snapshot;
+      const paymentSnapshot =
+        snapshot.state.activeStep === "paymentOptions"
+          ? yield* CheckoutSession.preparePaymentOptions()
+          : undefined;
+      const currentSnapshot = paymentSnapshot ?? snapshot;
+      const { state } = currentSnapshot;
       const entries =
         state.scope.channel === "storefrontCustomer"
           ? yield* AddressBook.list().pipe(
@@ -48,12 +62,13 @@ export async function CheckoutPage({
             )
           : undefined;
       return {
+        paymentOptions: paymentSnapshot?.paymentOptions,
         shippingAddressOptions: entries?.map((entry) => ({
           address: { ...entry.address },
           defaultShipping: entry.defaultShipping,
           reference: entry.reference,
         })),
-        snapshot,
+        snapshot: currentSnapshot,
       };
     }).pipe(
       NextCommerce.provide(locale),
@@ -75,10 +90,13 @@ export async function CheckoutPage({
       actions={{
         saveContact: actions.saveContact,
         saveDeliveryDetails: actions.saveDeliveryDetails,
+        savePaymentOptions: actions.savePaymentOptions,
         saveShippingOptions: actions.saveShippingOptions,
       }}
       deliveryPlanQuote={pageData.snapshot.deliveryPlanQuote}
       locale={locale}
+      paymentOptions={pageData.paymentOptions}
+      renderPaymentOptions={renderPaymentOptions}
       shippingAddressOptions={pageData.shippingAddressOptions}
       state={pageData.snapshot.state}
     />

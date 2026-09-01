@@ -1,4 +1,5 @@
 import { ErrorIssue, definePublicError } from "@repo/errors";
+import { PaymentMethod, PreparedPaymentReference } from "@repo/payments";
 import { Schema } from "effect";
 
 import { AddressBookReference } from "../domain/address-book";
@@ -18,6 +19,8 @@ import type { CheckoutApiErrorCode } from "../http/checkout-api-messages";
 import type {
   CheckoutSaveContactFailure,
   CheckoutSaveDeliveryDetailsFailure,
+  CheckoutPreparePaymentOptionsFailure,
+  CheckoutSavePaymentOptionsFailure,
   CheckoutSaveShippingOptionsFailure,
 } from "../lib/checkout/checkout-session";
 import type { NextCommerceRequestError } from "../runtime";
@@ -186,6 +189,11 @@ export type CheckoutSaveShippingOptionsExpectedFailure = Exclude<
   { readonly _tag: "CheckoutMutationUnsupported" }
 >;
 
+export type CheckoutSavePaymentOptionsExpectedFailure = Exclude<
+  CheckoutSavePaymentOptionsFailure,
+  { readonly _tag: "CheckoutMutationUnsupported" }
+>;
+
 const PublicCommerceRequestContextNotFound = definePublicError({
   category: "not_found",
   code: "checkout.notFound",
@@ -296,6 +304,85 @@ const shippingOptionsInputFailure = definePublicError({
   tag: "CheckoutMutationSchemaFailure",
 });
 
+const paymentOptionsInputFailure = definePublicError({
+  category: "bad_input",
+  code: "checkout.paymentOptions.invalidInput",
+  fields: { issues: Schema.NonEmptyArray(ErrorIssue) },
+  recovery: "fix_input",
+  status: 400,
+  tag: "CheckoutMutationSchemaFailure",
+});
+
+const PublicCheckoutPaymentMethodUnavailable = definePublicError({
+  category: "conflict",
+  code: "checkout.paymentOptions.methodUnavailable",
+  fields: {
+    method: PaymentMethod,
+    reason: Schema.Literals(["insufficientAvailableCredit", "notEligible"]),
+  },
+  recovery: "refresh",
+  status: 409,
+  tag: "CheckoutPaymentMethodUnavailable",
+});
+
+const PublicCheckoutPaymentPreparationRefreshRequired = definePublicError({
+  category: "conflict",
+  code: "checkout.paymentOptions.preparationRefreshRequired",
+  fields: {
+    preparationReference: PreparedPaymentReference,
+    reason: Schema.Literals([
+      "amountChanged",
+      "notFound",
+      "confirmationUnavailable",
+    ]),
+  },
+  recovery: "refresh",
+  status: 409,
+  tag: "CheckoutPaymentPreparationRefreshRequired",
+});
+
+const PublicCheckoutPaymentOutcomeUnknown = definePublicError({
+  category: "unavailable",
+  code: "checkout.paymentOptions.outcomeUnknown",
+  fields: { cartId: Schema.optional(CartId) },
+  recovery: "refresh",
+  status: 503,
+  tag: "CheckoutMutationOutcomeUnknown",
+});
+
+const PublicCheckoutPaymentProviderFailure = definePublicError({
+  category: "unavailable",
+  code: "checkout.paymentOptions.providerFailure",
+  fields: {},
+  recovery: "retry",
+  status: 503,
+  tag: "CheckoutMutationProviderFailure",
+});
+
+const PublicCheckoutPaymentOptionsUnavailable = definePublicError({
+  category: "conflict",
+  code: "checkout.paymentOptions.unavailable",
+  fields: {
+    reason: Schema.Literals([
+      "contactIncomplete",
+      "deliveryDetailsIncomplete",
+      "shippingOptionsIncomplete",
+    ]),
+  },
+  recovery: "refresh",
+  status: 409,
+  tag: "CheckoutPaymentOptionsUnavailable",
+});
+
+const PublicCheckoutPaymentOptionsReadProviderFailure = definePublicError({
+  category: "unavailable",
+  code: "checkout.paymentOptions.providerFailure",
+  fields: {},
+  recovery: "retry",
+  status: 503,
+  tag: "CheckoutProviderFailure",
+});
+
 const deliverySourceFailure = definePublicError({
   category: "bad_input",
   code: "checkout.deliveryDetails.sourceUnavailable",
@@ -381,6 +468,45 @@ export const projectCheckoutReadFailure = (
   }
 };
 
+export const PrepareCheckoutPaymentOptionsOperationPublicErrors = [
+  PublicCheckoutPaymentOptionsUnavailable.schema,
+  PublicCheckoutPaymentOptionsReadProviderFailure.schema,
+  PublicCheckoutUnavailable.schema,
+] as const;
+export const PrepareCheckoutPaymentOptionsOperationPublicError = Schema.Union(
+  PrepareCheckoutPaymentOptionsOperationPublicErrors
+);
+export type PrepareCheckoutPaymentOptionsOperationPublicError =
+  typeof PrepareCheckoutPaymentOptionsOperationPublicError.Type;
+
+export const projectPrepareCheckoutPaymentOptionsFailure = (
+  error: CheckoutPreparePaymentOptionsFailure,
+  locale: string
+): PrepareCheckoutPaymentOptionsOperationPublicError => {
+  switch (error._tag) {
+    case "CheckoutPaymentOptionsUnavailable": {
+      return PublicCheckoutPaymentOptionsUnavailable.make({
+        message: message(locale, "checkout.paymentOptions.unavailable"),
+        reason: error.reason,
+      });
+    }
+    case "CheckoutProviderFailure": {
+      return PublicCheckoutPaymentOptionsReadProviderFailure.make({
+        message: message(locale, "checkout.paymentOptions.providerFailure"),
+      });
+    }
+    case "CheckoutUnavailable": {
+      return PublicCheckoutUnavailable.make({
+        message: message(locale, "checkout.notFound"),
+        reason: error.reason,
+      });
+    }
+    default: {
+      return absurd(error);
+    }
+  }
+};
+
 export const SaveCheckoutContactOperationPublicErrors = [
   contactInputFailure.schema,
   contactSourceFailure.schema,
@@ -456,9 +582,15 @@ export function projectSaveCheckoutContactFailure(
       });
     }
     case "CheckoutMutationOutcomeUnknown": {
+      const publicMessage = message(locale, "checkout.contact.outcomeUnknown");
+      if (error.cartId === undefined) {
+        return PublicCheckoutContactOutcomeUnknown.make({
+          message: publicMessage,
+        });
+      }
       return PublicCheckoutContactOutcomeUnknown.make({
-        message: message(locale, "checkout.contact.outcomeUnknown"),
-        ...(error.cartId === undefined ? {} : { cartId: error.cartId }),
+        cartId: error.cartId,
+        message: publicMessage,
       });
     }
     case "CheckoutMutationProviderFailure": {
@@ -553,29 +685,63 @@ export function projectSaveCheckoutDeliveryDetailsFailure(
       });
     }
     case "CheckoutVersionConflict": {
+      const publicMessage = message(locale, "checkout.versionConflict");
+      if (error.addressBookReference === undefined) {
+        return PublicCheckoutDeliveryVersionConflict.make({
+          cartId: error.cartId,
+          message: publicMessage,
+        });
+      }
       return PublicCheckoutDeliveryVersionConflict.make({
+        addressBookReference: error.addressBookReference,
         cartId: error.cartId,
-        message: message(locale, "checkout.versionConflict"),
-        ...(error.addressBookReference === undefined
-          ? {}
-          : { addressBookReference: error.addressBookReference }),
+        message: publicMessage,
       });
     }
     case "CheckoutMutationOutcomeUnknown": {
+      const publicMessage = message(
+        locale,
+        "checkout.deliveryDetails.outcomeUnknown"
+      );
+      if (
+        error.addressBookReference === undefined &&
+        error.cartId === undefined
+      ) {
+        return PublicCheckoutDeliveryOutcomeUnknown.make({
+          message: publicMessage,
+        });
+      }
+      if (error.addressBookReference === undefined) {
+        return PublicCheckoutDeliveryOutcomeUnknown.make({
+          cartId: error.cartId,
+          message: publicMessage,
+        });
+      }
+      if (error.cartId === undefined) {
+        return PublicCheckoutDeliveryOutcomeUnknown.make({
+          addressBookReference: error.addressBookReference,
+          message: publicMessage,
+        });
+      }
       return PublicCheckoutDeliveryOutcomeUnknown.make({
-        message: message(locale, "checkout.deliveryDetails.outcomeUnknown"),
-        ...(error.addressBookReference === undefined
-          ? {}
-          : { addressBookReference: error.addressBookReference }),
-        ...(error.cartId === undefined ? {} : { cartId: error.cartId }),
+        addressBookReference: error.addressBookReference,
+        cartId: error.cartId,
+        message: publicMessage,
       });
     }
     case "CheckoutMutationProviderFailure": {
+      const publicMessage = message(
+        locale,
+        "checkout.deliveryDetails.providerFailure"
+      );
+      if (error.addressBookReference === undefined) {
+        return PublicCheckoutDeliveryProviderFailure.make({
+          message: publicMessage,
+        });
+      }
       return PublicCheckoutDeliveryProviderFailure.make({
-        message: message(locale, "checkout.deliveryDetails.providerFailure"),
-        ...(error.addressBookReference === undefined
-          ? {}
-          : { addressBookReference: error.addressBookReference }),
+        addressBookReference: error.addressBookReference,
+        message: publicMessage,
       });
     }
     case "CheckoutUnavailable": {
@@ -682,6 +848,120 @@ export function projectSaveCheckoutShippingOptionsFailure(
     case "CheckoutMutationProviderFailure": {
       return PublicCheckoutShippingProviderFailure.make({
         message: message(locale, "checkout.internal"),
+      });
+    }
+    case "CheckoutUnavailable": {
+      return PublicCheckoutUnavailable.make({
+        message: message(locale, "checkout.notFound"),
+        reason: error.reason,
+      });
+    }
+    case "CommerceAccountUnavailable":
+    case "CommerceRequestContextNotFound": {
+      return projectCheckoutRequestFailure(error, locale);
+    }
+    default: {
+      return absurd(error);
+    }
+  }
+}
+
+export const SaveCheckoutPaymentOptionsOperationPublicErrors = [
+  paymentOptionsInputFailure.schema,
+  PublicCheckoutPaymentOptionsUnavailable.schema,
+  PublicCheckoutPaymentMethodUnavailable.schema,
+  PublicCheckoutPaymentPreparationRefreshRequired.schema,
+  PublicCheckoutCartMismatch.schema,
+  PublicCheckoutContactVersionConflict.schema,
+  PublicCheckoutPaymentOutcomeUnknown.schema,
+  PublicCheckoutPaymentProviderFailure.schema,
+  PublicCheckoutUnavailable.schema,
+] as const;
+export const SaveCheckoutPaymentOptionsOperationPublicError = Schema.Union(
+  SaveCheckoutPaymentOptionsOperationPublicErrors
+);
+export type SaveCheckoutPaymentOptionsOperationPublicError =
+  typeof SaveCheckoutPaymentOptionsOperationPublicError.Type;
+export const SaveCheckoutPaymentOptionsPublicError = Schema.Union([
+  ...SaveCheckoutPaymentOptionsOperationPublicErrors,
+  ...CheckoutRequestPublicErrors,
+]);
+export type SaveCheckoutPaymentOptionsPublicError =
+  typeof SaveCheckoutPaymentOptionsPublicError.Type;
+
+export function projectSaveCheckoutPaymentOptionsFailure(
+  error: CheckoutSavePaymentOptionsExpectedFailure,
+  locale: string
+): SaveCheckoutPaymentOptionsOperationPublicError;
+export function projectSaveCheckoutPaymentOptionsFailure(
+  error: CheckoutSavePaymentOptionsExpectedFailure | NextCommerceRequestError,
+  locale: string
+): SaveCheckoutPaymentOptionsPublicError;
+export function projectSaveCheckoutPaymentOptionsFailure(
+  error: CheckoutSavePaymentOptionsExpectedFailure | NextCommerceRequestError,
+  locale: string
+): SaveCheckoutPaymentOptionsPublicError {
+  switch (error._tag) {
+    case "CheckoutMutationSchemaFailure": {
+      const publicMessage = message(
+        locale,
+        "checkout.paymentOptions.invalidInput"
+      );
+      return paymentOptionsInputFailure.make({
+        issues: publicIssues(error.issues, publicMessage),
+        message: publicMessage,
+      });
+    }
+    case "CheckoutPaymentOptionsUnavailable": {
+      return PublicCheckoutPaymentOptionsUnavailable.make({
+        message: message(locale, "checkout.paymentOptions.unavailable"),
+        reason: error.reason,
+      });
+    }
+    case "CheckoutPaymentMethodUnavailable": {
+      return PublicCheckoutPaymentMethodUnavailable.make({
+        message: message(locale, "checkout.paymentOptions.methodUnavailable"),
+        method: error.method,
+        reason: error.reason,
+      });
+    }
+    case "CheckoutPaymentPreparationRefreshRequired": {
+      return PublicCheckoutPaymentPreparationRefreshRequired.make({
+        message: message(
+          locale,
+          "checkout.paymentOptions.preparationRefreshRequired"
+        ),
+        preparationReference: error.preparationReference,
+        reason: error.reason,
+      });
+    }
+    case "CheckoutCartMismatch": {
+      return PublicCheckoutCartMismatch.make({
+        currentCartId: error.currentCartId,
+        message: message(locale, "checkout.cartMismatch"),
+        submittedCartId: error.submittedCartId,
+      });
+    }
+    case "CheckoutVersionConflict": {
+      return PublicCheckoutContactVersionConflict.make({
+        cartId: error.cartId,
+        message: message(locale, "checkout.versionConflict"),
+      });
+    }
+    case "CheckoutMutationOutcomeUnknown": {
+      const failure = {
+        message: message(locale, "checkout.paymentOptions.outcomeUnknown"),
+      };
+      return error.cartId === undefined
+        ? PublicCheckoutPaymentOutcomeUnknown.make(failure)
+        : PublicCheckoutPaymentOutcomeUnknown.make({
+            ...failure,
+            cartId: error.cartId,
+          });
+    }
+    case "CheckoutMutationProviderFailure": {
+      return PublicCheckoutPaymentProviderFailure.make({
+        message: message(locale, "checkout.paymentOptions.providerFailure"),
       });
     }
     case "CheckoutUnavailable": {

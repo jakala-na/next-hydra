@@ -1,3 +1,4 @@
+import { CheckoutPayments } from "@repo/payments";
 import { Effect, Layer, ManagedRuntime, Option } from "effect";
 import { describe, expect, it, vi } from "vitest";
 
@@ -134,6 +135,7 @@ const makeApp = (
             cartsLayer,
             Layer.effectDiscard(Effect.sync(onStableLayerBuild))
           ),
+    checkoutPaymentsLayer: CheckoutPayments.unavailableLayer,
     checkoutPoliciesLayer: CheckoutPolicies.layer,
     commerceAccountsLayer: CommerceAccounts.layerMemoryFrom({
       businessUnitMemberships: [

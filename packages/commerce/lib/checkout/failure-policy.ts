@@ -3,6 +3,7 @@ import { Effect, Filter } from "effect";
 
 import type {
   CheckoutMutationProviderFailure,
+  CheckoutPaymentOptionsUnavailable,
   CheckoutProviderFailure,
   CheckoutMutationFailure,
   CheckoutMutationUnsupported,
@@ -16,7 +17,10 @@ type CheckoutDiagnosticFailure =
 type CheckoutSessionMutationFailure =
   | CheckoutMutationFailure
   | CheckoutUnavailable;
-type CheckoutSessionReadFailure = CheckoutProviderFailure | CheckoutUnavailable;
+type CheckoutSessionReadFailure =
+  | CheckoutPaymentOptionsUnavailable
+  | CheckoutProviderFailure
+  | CheckoutUnavailable;
 
 const logCheckoutDiagnosticFailure = (error: CheckoutDiagnosticFailure) =>
   Effect.logError(

@@ -1,4 +1,9 @@
 import { ActionClient, ActionMiddleware } from "@repo/actions";
+import {
+  PaymentConfirmationReference,
+  PaymentReference,
+  PreparedPaymentReference,
+} from "@repo/payments";
 import { Effect, Layer, ManagedRuntime } from "effect";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -6,7 +11,6 @@ import { describe, expect, it } from "vitest";
 import { CountryCode } from "../domain/address";
 import { AddressBookEntry, AddressBookReference } from "../domain/address-book";
 import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
-import type { CheckoutState } from "../domain/checkout";
 import {
   CheckoutCartMismatch,
   CheckoutMutationOutcomeUnknown,
@@ -16,6 +20,7 @@ import {
   CheckoutVersionConflict,
   StorefrontCustomerCheckoutScope,
 } from "../domain/checkout";
+import type { CheckoutState } from "../domain/checkout-state";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -117,11 +122,7 @@ const encodedCheckoutSuccess = {
     },
     details: {},
     scope: {
-      _tag: "StorefrontCustomerCheckoutScope",
-      businessUnitId: "business-unit-1",
-      businessUnitKey: "business-unit-key",
       channel: "storefrontCustomer",
-      customerId: "customer-1",
       locale: "en-US",
     },
     steps: [
@@ -172,6 +173,7 @@ const makeCheckoutHarness = (options?: {
         },
         state: checkoutState,
       }),
+    preparePaymentOptions: () => Effect.die("not used"),
     saveContact:
       options?.saveContact ??
       ((_input: SaveCheckoutContactInput) => Effect.succeed(checkoutState)),
@@ -179,6 +181,7 @@ const makeCheckoutHarness = (options?: {
       options?.saveDeliveryDetails ??
       ((_input: SaveCheckoutDeliveryDetailsInput) =>
         Effect.succeed({ state: checkoutState })),
+    savePaymentOptions: () => Effect.die("not used"),
     saveShippingOptions:
       options?.saveShippingOptions ??
       ((_input: SaveCheckoutShippingOptionsInput) =>
@@ -227,6 +230,7 @@ const makeCheckoutHarness = (options?: {
   const {
     saveCheckoutContactProcedure,
     saveCheckoutDeliveryDetailsProcedure,
+    saveCheckoutPaymentOptionsProcedure,
     saveCheckoutShippingOptionsProcedure,
   } = makeCheckoutProcedures(TestCommerceActions);
 
@@ -240,6 +244,10 @@ const makeCheckoutHarness = (options?: {
     saveCheckoutContactProcedure,
     saveCheckoutDeliveryDetails:
       saveCheckoutDeliveryDetailsProcedure.toFormAction({
+        getFailureMessage: (error) => `Localized en-US ${error._tag}`,
+      }),
+    saveCheckoutPaymentOptions:
+      saveCheckoutPaymentOptionsProcedure.toFormAction({
         getFailureMessage: (error) => `Localized en-US ${error._tag}`,
       }),
     saveCheckoutShippingOptions:
@@ -294,12 +302,15 @@ describe("Checkout boundaries", () => {
     const messages = {
       activeStep: "Active",
       attention: "Attention",
+      card: "Card",
       cartItems: (count: number) => `${count} items`,
       cartQuantity: (quantity: number) => `Quantity ${quantity}`,
       cartTitle: "Cart",
       cartViolations: "Cart issues",
       delivery: (number: number) => `Delivery ${number}`,
       editDeliveryDetails: "Edit delivery details",
+      netTerms: (days: number) => `Net ${days}`,
+      paymentMethod: "Payment method",
       stepLabels: {
         contact: "Contact",
         deliveryDetails: "Delivery details",
@@ -355,6 +366,42 @@ describe("Checkout boundaries", () => {
     expect(contactResult).toStrictEqual(encodedCheckoutSuccess);
     expect(deliveryDetailsResult).toStrictEqual(encodedCheckoutSuccess);
     expect(harness.provideCalls()).toBe(2);
+  });
+
+  it("projects internal payment references out of Action success values", async () => {
+    const preparedPayment = {
+      amount: checkoutState.cart.totalPrice,
+      billingAddress: shippingAddress.address,
+      confirmationReference: PaymentConfirmationReference.make(
+        "private-confirmation-reference"
+      ),
+      method: "card" as const,
+      paymentReference: PaymentReference.make("private-payment-reference"),
+      preparationReference: PreparedPaymentReference.make(
+        "private-preparation-reference"
+      ),
+    };
+    const state = {
+      ...checkoutState,
+      cart: {
+        ...checkoutState.cart,
+        checkoutDetails: { preparedPayment },
+      },
+      details: { preparedPayment },
+    } satisfies CheckoutState;
+    const harness = makeCheckoutHarness({
+      saveContact: () => Effect.succeed(state),
+    });
+    const contact = new FormData();
+    contact.set("cartId", "cart-1");
+    contact.set("source", "customerProfile");
+
+    const result = await harness.saveCheckoutContact(null, contact);
+    const serialized = JSON.stringify(result);
+
+    expect(serialized).not.toContain(preparedPayment.paymentReference);
+    expect(serialized).not.toContain(preparedPayment.preparationReference);
+    expect(serialized).not.toContain(preparedPayment.confirmationReference);
   });
 
   it("uses the native delivery address choice as the submitted Address Book reference", async () => {
@@ -430,6 +477,30 @@ describe("Checkout boundaries", () => {
     });
     expect(harness.getLocaleCalls()).toBe(1);
     expect(saveContactCalls).toBe(0);
+  });
+
+  it("maps an invalid Payment Method to the submitted form field", async () => {
+    const harness = makeCheckoutHarness();
+    const paymentOptions = new FormData();
+    paymentOptions.set("cartId", "cart-1");
+    paymentOptions.set("method", "invented-method");
+
+    await expect(
+      harness.saveCheckoutPaymentOptions(null, paymentOptions)
+    ).resolves.toMatchObject({
+      _tag: "Failure",
+      failure: {
+        error: {
+          _tag: "InputInvalid",
+          issues: [
+            {
+              message: "This field is invalid.",
+              path: ["method"],
+            },
+          ],
+        },
+      },
+    });
   });
 
   it("returns delivery schema failures with the invalid field paths", async () => {

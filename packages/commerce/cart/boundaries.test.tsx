@@ -34,6 +34,7 @@ const currentCartLayer = (overrides: Partial<CurrentCartService> = {}) =>
     removeLineItem: () => Effect.succeed(cartState),
     saveContact: () => Effect.die("not used"),
     saveDeliveryDetails: () => Effect.die("not used"),
+    savePaymentOptions: () => Effect.die("not used"),
     saveShippingOptions: () => Effect.die("not used"),
     setLineItemQuantity: () => Effect.succeed(cartState),
     ...overrides,

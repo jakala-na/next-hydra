@@ -5,11 +5,9 @@ import type {
   AddToCartInput,
 } from "@repo/commerce/cart/add-to-cart";
 import type { ChangeCartItemsQuantityAction } from "@repo/commerce/cart/change-cart-items-quantity";
+import type { CartPublicStateEncoded } from "@repo/commerce/cart/public-state";
 import type { RemoveCartItemAction } from "@repo/commerce/cart/remove-cart-item";
-import type {
-  CartLineItemEncoded,
-  CurrentCartStateEncoded,
-} from "@repo/commerce/domain/cart-snapshot";
+import type { CartLineItemEncoded } from "@repo/commerce/domain/cart-snapshot";
 import { useTranslations } from "@repo/i18n";
 import type { CurrencyCode } from "@repo/i18n/types";
 import {
@@ -33,9 +31,9 @@ type CartActions = {
 };
 
 type CartContextType = {
-  cartPromise: Promise<CurrentCartStateEncoded | null>;
-  cart: CurrentCartStateEncoded | null;
-  setCart: (cart: CurrentCartStateEncoded | null) => void;
+  cartPromise: Promise<CartPublicStateEncoded | null>;
+  cart: CartPublicStateEncoded | null;
+  setCart: (cart: CartPublicStateEncoded | null) => void;
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -46,7 +44,7 @@ const CartContext = createContext<CartContextType | null>(null);
 
 type CartProviderProps = {
   children: ReactNode;
-  cartPromise: Promise<CurrentCartStateEncoded | null>;
+  cartPromise: Promise<CartPublicStateEncoded | null>;
   actions: CartActions;
 };
 
@@ -61,7 +59,7 @@ export function CartProvider({
   cartPromise,
   actions,
 }: CartProviderProps) {
-  const [cart, setCart] = useState<CurrentCartStateEncoded | null>(null);
+  const [cart, setCart] = useState<CartPublicStateEncoded | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   const openCart = useCallback(() => {
@@ -155,8 +153,9 @@ export function useCart() {
     actions,
   } = ctx;
   const cart = currentCart?.cart ?? null;
+  const cartCurrency = cart?.totalPrice.currencyCode;
   const currencyCode: CurrencyCode =
-    (cart?.totalPrice.currencyCode as CurrencyCode | undefined) ?? "USD";
+    cartCurrency === "EUR" || cartCurrency === "GBP" ? cartCurrency : "USD";
   const violations = currentCart?.violations ?? [];
 
   const items = useMemo(() => {

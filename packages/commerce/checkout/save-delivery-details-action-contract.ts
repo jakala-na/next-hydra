@@ -1,7 +1,7 @@
 import { makeDisplayActionResultSchema } from "@repo/actions";
 
-import { CheckoutState } from "../domain/checkout";
 import { SaveCheckoutDeliveryDetailsPublicError } from "./public-errors";
+import { CheckoutPublicState } from "./public-state";
 
 /** This sentinel cannot decode as an AddressBookReference because `:` is forbidden there. */
 export const MANUAL_DELIVERY_ADDRESS_CHOICE = "manual:";
@@ -13,7 +13,7 @@ export type SaveCheckoutDeliveryDetailsActionError =
 
 export const SaveCheckoutDeliveryDetailsActionResult =
   makeDisplayActionResultSchema(
-    CheckoutState,
+    CheckoutPublicState,
     SaveCheckoutDeliveryDetailsActionError
   );
 export type SaveCheckoutDeliveryDetailsActionResult =

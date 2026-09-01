@@ -1,3 +1,4 @@
+import type { CheckoutPayments } from "@repo/payments";
 import { Effect, Layer } from "effect";
 
 import type {
@@ -39,6 +40,7 @@ export type CommerceStableServices =
   | CartPolicies
   | Carts
   | CheckoutPolicies
+  | CheckoutPayments
   | CommerceAccounts
   | CommerceCompanyMemberships
   | DeliveryPlanning;
@@ -56,6 +58,7 @@ export interface CommerceAppBindings<
   CartPoliciesError,
   CartsError,
   CheckoutPoliciesError,
+  CheckoutPaymentsError,
   CommerceAccountsError,
   CommerceCompanyMembershipsError,
   DeliveryPlanningError,
@@ -71,6 +74,10 @@ export interface CommerceAppBindings<
   readonly checkoutPoliciesLayer: Layer.Layer<
     CheckoutPolicies,
     CheckoutPoliciesError
+  >;
+  readonly checkoutPaymentsLayer: Layer.Layer<
+    CheckoutPayments,
+    CheckoutPaymentsError
   >;
   readonly commerceAccountsLayer: Layer.Layer<
     CommerceAccounts,
@@ -121,6 +128,7 @@ const makeRequestLayer = <
   CartPoliciesError,
   CartsError,
   CheckoutPoliciesError,
+  CheckoutPaymentsError,
   CommerceAccountsError,
   CommerceCompanyMembershipsError,
   DeliveryPlanningError,
@@ -131,6 +139,7 @@ const makeRequestLayer = <
     CartPoliciesError,
     CartsError,
     CheckoutPoliciesError,
+    CheckoutPaymentsError,
     CommerceAccountsError,
     CommerceCompanyMembershipsError,
     DeliveryPlanningError,
@@ -168,6 +177,7 @@ const makeAddressBookRequestLayer = <
   CartPoliciesError,
   CartsError,
   CheckoutPoliciesError,
+  CheckoutPaymentsError,
   CommerceAccountsError,
   CommerceCompanyMembershipsError,
   DeliveryPlanningError,
@@ -178,6 +188,7 @@ const makeAddressBookRequestLayer = <
     CartPoliciesError,
     CartsError,
     CheckoutPoliciesError,
+    CheckoutPaymentsError,
     CommerceAccountsError,
     CommerceCompanyMembershipsError,
     DeliveryPlanningError,
@@ -198,6 +209,7 @@ export const makeCommerceApp = <
   CartPoliciesError,
   CartsError,
   CheckoutPoliciesError,
+  CheckoutPaymentsError,
   CommerceAccountsError,
   CommerceCompanyMembershipsError,
   DeliveryPlanningError,
@@ -208,6 +220,7 @@ export const makeCommerceApp = <
     CartPoliciesError,
     CartsError,
     CheckoutPoliciesError,
+    CheckoutPaymentsError,
     CommerceAccountsError,
     CommerceCompanyMembershipsError,
     DeliveryPlanningError,
@@ -217,6 +230,7 @@ export const makeCommerceApp = <
   | CartPoliciesError
   | CartsError
   | CheckoutPoliciesError
+  | CheckoutPaymentsError
   | CommerceAccountsError
   | CommerceCompanyMembershipsError
   | DeliveryPlanningError,
@@ -227,6 +241,7 @@ export const makeCommerceApp = <
     bindings.cartPoliciesLayer,
     bindings.cartsLayer,
     bindings.checkoutPoliciesLayer,
+    bindings.checkoutPaymentsLayer,
     bindings.commerceAccountsLayer,
     bindings.commerceCompanyMembershipsLayer,
     bindings.deliveryPlanningLayer
