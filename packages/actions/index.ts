@@ -164,12 +164,70 @@ export interface ActionSuccessHandler<Output extends Schema.Top, Context> {
   ) => void | PromiseLike<void>;
 }
 
+export interface ActionFailureHandler<Error extends Schema.Top, Context> {
+  /** Runs after Effect execution for a declared domain or input failure. */
+  readonly onFailure: (
+    error: ActionFailure<Error>,
+    context: Context
+  ) => void | PromiseLike<void>;
+}
+
+export interface ActionResultHandler<
+  Output extends Schema.Top,
+  Error extends Schema.Top,
+  Context,
+> {
+  /**
+   * Runs after Effect execution and before the branch-specific lifecycle hook.
+   * This allows common work to complete before an onSuccess redirect or other
+   * terminal framework signal.
+   */
+  readonly onResult: (
+    result: Result.Result<Output["Type"], ActionFailure<Error>>,
+    context: Context
+  ) => void | PromiseLike<void>;
+}
+
+export type ActionLifecycleAdapter<
+  Output extends Schema.Top,
+  Error extends Schema.Top,
+  Context,
+> = Partial<
+  ActionSuccessHandler<Output, Context> &
+    ActionFailureHandler<Error, Context> &
+    ActionResultHandler<Output, Error, Context>
+>;
+
 export type ActionPresentationAdapter<
   Output extends Schema.Top,
   Error extends Schema.Top,
   Context,
 > = ActionFailureMessage<Error, Context> &
-  ActionSuccessHandler<Output, Context>;
+  ActionLifecycleAdapter<Output, Error, Context>;
+
+interface ActionExecution<
+  Output extends Schema.Top,
+  Error extends Schema.Top,
+  Context,
+> {
+  readonly context: Context;
+  readonly result: Result.Result<Output["Type"], ActionFailure<Error>>;
+}
+
+const runActionLifecycle = async <
+  Output extends Schema.Top,
+  Error extends Schema.Top,
+  Context,
+>(
+  lifecycle: ActionLifecycleAdapter<Output, Error, Context>,
+  execution: ActionExecution<Output, Error, Context>
+) => {
+  await lifecycle.onResult?.(execution.result, execution.context);
+
+  return Result.isSuccess(execution.result)
+    ? await lifecycle.onSuccess?.(execution.result.success, execution.context)
+    : await lifecycle.onFailure?.(execution.result.failure, execution.context);
+};
 
 interface ActionStateFactory<
   Input extends ActionInputSchema,
@@ -178,15 +236,13 @@ interface ActionStateFactory<
   Context,
 > {
   (
-    options:
-      | ActionFailureMessage<Error, Context>
-      | ActionPresentationAdapter<Output, Error, Context>
+    options: ActionPresentationAdapter<Output, Error, Context>
   ): (
     previousResult: DisplayActionResult<Output, Error> | null,
     input: Input["Encoded"]
   ) => Promise<DisplayActionResult<Output, Error>>;
   (
-    options?: ActionSuccessHandler<Output, Context>
+    options?: ActionLifecycleAdapter<Output, Error, Context>
   ): (
     previousResult: EncodedActionResult<Output, Error> | null,
     input: Input["Encoded"]
@@ -301,12 +357,10 @@ export interface ActionProcedure<
   ) => Promise<EncodedActionResult<Output, Error>>;
   readonly toAction: {
     (
-      options:
-        | ActionFailureMessage<Error, Context>
-        | ActionPresentationAdapter<Output, Error, Context>
+      options: ActionPresentationAdapter<Output, Error, Context>
     ): (input: Input["Encoded"]) => Promise<DisplayActionResult<Output, Error>>;
     (
-      options?: ActionSuccessHandler<Output, Context>
+      options?: ActionLifecycleAdapter<Output, Error, Context>
     ): (input: Input["Encoded"]) => Promise<EncodedActionResult<Output, Error>>;
   };
   /** Adapts a procedure to React's `useActionState` reducer signature. */
@@ -771,14 +825,6 @@ const makeProcedure = <
       );
     });
 
-  const displayEffect = (
-    message: ActionFailureMessage<Error, Context>,
-    input: Input["Encoded"]
-  ) =>
-    displayedResultEffect(message, input).pipe(
-      Effect.map(({ encoded }) => encoded)
-    );
-
   const runEffect = async <A>(
     program: Effect.Effect<A, never, RuntimeServices>
   ): Promise<A> =>
@@ -793,35 +839,25 @@ const makeProcedure = <
   const execute = async (input: Input["Encoded"]) =>
     await runEffect(effect(input));
 
-  const executeDisplay = async (
-    message: ActionFailureMessage<Error, Context>,
-    input: Input["Encoded"]
-  ) => await runEffect(displayEffect(message, input));
-
-  const executeSuccess = async (
-    success: ActionSuccessHandler<Output, Context>,
+  const executeLifecycle = async (
+    lifecycle: ActionLifecycleAdapter<Output, Error, Context>,
     input: Input["Encoded"]
   ) => {
     const execution = await runEffect(encodedResultEffect(input));
 
-    // Framework terminal control flow such as Next redirect intentionally runs
-    // after Effect execution so its thrown control signal is not captured as a
-    // defect by the runtime.
-    if (Result.isSuccess(execution.result)) {
-      await success.onSuccess(execution.result.success, execution.context);
-    }
+    // Lifecycle hooks intentionally run after Effect execution so framework
+    // control flow such as Next redirect is not captured as a runtime defect.
+    await runActionLifecycle(lifecycle, execution);
 
     return execution.encoded;
   };
 
-  const executeDisplaySuccess = async (
+  const executeDisplayLifecycle = async (
     adapter: ActionPresentationAdapter<Output, Error, Context>,
     input: Input["Encoded"]
   ) => {
     const execution = await runEffect(displayedResultEffect(adapter, input));
-    if (Result.isSuccess(execution.result)) {
-      await adapter.onSuccess(execution.result.success, execution.context);
-    }
+    await runActionLifecycle(adapter, execution);
     return execution.encoded;
   };
 
@@ -829,33 +865,26 @@ const makeProcedure = <
     input: Input["Encoded"]
   ) => Promise<EncodedActionResult<Output, Error>>;
   function toAction(
-    adapter:
-      | ActionFailureMessage<Error, Context>
-      | ActionPresentationAdapter<Output, Error, Context>
+    adapter: ActionPresentationAdapter<Output, Error, Context>
   ): (input: Input["Encoded"]) => Promise<DisplayActionResult<Output, Error>>;
   function toAction(
-    success: ActionSuccessHandler<Output, Context>
+    lifecycle: ActionLifecycleAdapter<Output, Error, Context>
   ): (input: Input["Encoded"]) => Promise<EncodedActionResult<Output, Error>>;
   function toAction(
     adapter?:
-      | ActionFailureMessage<Error, Context>
       | ActionPresentationAdapter<Output, Error, Context>
-      | ActionSuccessHandler<Output, Context>
+      | ActionLifecycleAdapter<Output, Error, Context>
   ) {
     if (adapter === undefined) {
       return execute;
     }
 
     if ("getFailureMessage" in adapter) {
-      if ("onSuccess" in adapter) {
-        return async (input: Input["Encoded"]) =>
-          await executeDisplaySuccess(adapter, input);
-      }
       return async (input: Input["Encoded"]) =>
-        await executeDisplay(adapter, input);
+        await executeDisplayLifecycle(adapter, input);
     }
     return async (input: Input["Encoded"]) =>
-      await executeSuccess(adapter, input);
+      await executeLifecycle(adapter, input);
   }
 
   function toActionState(): (
@@ -863,24 +892,21 @@ const makeProcedure = <
     input: Input["Encoded"]
   ) => Promise<EncodedActionResult<Output, Error>>;
   function toActionState(
-    adapter:
-      | ActionFailureMessage<Error, Context>
-      | ActionPresentationAdapter<Output, Error, Context>
+    adapter: ActionPresentationAdapter<Output, Error, Context>
   ): (
     previousResult: DisplayActionResult<Output, Error> | null,
     input: Input["Encoded"]
   ) => Promise<DisplayActionResult<Output, Error>>;
   function toActionState(
-    success: ActionSuccessHandler<Output, Context>
+    lifecycle: ActionLifecycleAdapter<Output, Error, Context>
   ): (
     previousResult: EncodedActionResult<Output, Error> | null,
     input: Input["Encoded"]
   ) => Promise<EncodedActionResult<Output, Error>>;
   function toActionState(
     adapter?:
-      | ActionFailureMessage<Error, Context>
       | ActionPresentationAdapter<Output, Error, Context>
-      | ActionSuccessHandler<Output, Context>
+      | ActionLifecycleAdapter<Output, Error, Context>
   ) {
     if (adapter === undefined) {
       return async (
@@ -890,21 +916,15 @@ const makeProcedure = <
     }
 
     if ("getFailureMessage" in adapter) {
-      if ("onSuccess" in adapter) {
-        return async (
-          _previousResult: DisplayActionResult<Output, Error> | null,
-          input: Input["Encoded"]
-        ) => await executeDisplaySuccess(adapter, input);
-      }
       return async (
         _previousResult: DisplayActionResult<Output, Error> | null,
         input: Input["Encoded"]
-      ) => await executeDisplay(adapter, input);
+      ) => await executeDisplayLifecycle(adapter, input);
     }
     return async (
       _previousResult: EncodedActionResult<Output, Error> | null,
       input: Input["Encoded"]
-    ) => await executeSuccess(adapter, input);
+    ) => await executeLifecycle(adapter, input);
   }
 
   return {
