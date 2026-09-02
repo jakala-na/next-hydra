@@ -2,6 +2,7 @@ import {
   CardPayments,
   PaymentCheckoutReference,
   PaymentConfirmationReference,
+  PaymentOperationReference,
   PaymentProviderReference,
 } from "@repo/payments";
 import { Cause, ConfigProvider, Effect, Exit, Layer } from "effect";
@@ -19,6 +20,50 @@ const requestBody = (request: HttpClientRequest.HttpClientRequest) => {
   }
   return new URLSearchParams(new TextDecoder().decode(request.body.body));
 };
+
+const operationCheckout = {
+  amount: { centAmount: 1_700_000, currencyCode: "USD" },
+  reference: PaymentCheckoutReference.make("cart-from-input"),
+};
+
+const paymentIntent = (status: string) => ({
+  amount: operationCheckout.amount.centAmount,
+  capture_method: "automatic_async",
+  client_secret: "pi-from-provider_secret_from-provider",
+  confirmation_method: "automatic",
+  currency: "usd",
+  id: "pi-from-provider",
+  last_payment_error: null,
+  latest_charge:
+    status === "requires_capture" || status === "succeeded"
+      ? {
+          balance_transaction:
+            status === "succeeded" ? "txn-from-provider" : null,
+          id: "ch-from-provider",
+          payment_method_details: {
+            card: { brand: "visa", last4: "4242" },
+            type: "card",
+          },
+        }
+      : null,
+  metadata: { checkout_reference: operationCheckout.reference },
+  payment_method_options: { card: { capture_method: "manual" } },
+  payment_method_types: ["card"],
+  status,
+});
+
+const confirmationToken = (paymentIntentReference: null | string = null) => ({
+  expires_at: 4_000_000_000,
+  id: "ctoken-from-input",
+  payment_intent: paymentIntentReference,
+  payment_method_preview: { type: "card" },
+});
+
+const stripeConfigProvider = () =>
+  ConfigProvider.fromUnknown({
+    STRIPE_PUBLISHABLE_KEY: "pk_test_from_input",
+    STRIPE_SECRET_KEY: "sk_test_from_input",
+  });
 
 describe("Stripe Card Payments", () => {
   it("treats non-transient Stripe responses as provider defects", async () => {
@@ -445,7 +490,12 @@ describe("Stripe Card Payments", () => {
     },
   ])(
     "rejects a ConfirmationToken that is $reason",
-    async ({ expiresAt, paymentIntent, paymentMethodType, reason }) => {
+    async ({
+      expiresAt,
+      paymentIntent: tokenPaymentIntent,
+      paymentMethodType,
+      reason,
+    }) => {
       const http = HttpClient.make((request) =>
         Effect.succeed(
           HttpClientResponse.fromWeb(
@@ -454,7 +504,7 @@ describe("Stripe Card Payments", () => {
               {
                 expires_at: expiresAt,
                 id: "ctoken-from-input",
-                payment_intent: paymentIntent,
+                payment_intent: tokenPaymentIntent,
                 payment_method_preview: { type: paymentMethodType },
               },
               { headers: { "content-type": "application/json" }, status: 200 }
@@ -542,6 +592,266 @@ describe("Stripe Card Payments", () => {
       );
 
       expect(failure).toMatchObject(expected);
+    }
+  );
+
+  it("confirms a prepared PaymentIntent with the stable authorization identity", async () => {
+    const requests: HttpClientRequest.HttpClientRequest[] = [];
+    const http = HttpClient.make((request) => {
+      requests.push(request);
+      const response = request.url.includes("/confirmation_tokens/")
+        ? confirmationToken()
+        : paymentIntent(
+            request.url.endsWith("/confirm")
+              ? "requires_capture"
+              : "requires_payment_method"
+          );
+      return Effect.succeed(
+        HttpClientResponse.fromWeb(
+          request,
+          Response.json(response, { status: 200 })
+        )
+      );
+    });
+    const layer = stripeCardPaymentsLayerWithHttp.pipe(
+      Layer.provide(Layer.succeed(HttpClient.HttpClient, http))
+    );
+    const operationReference = PaymentOperationReference.make(
+      "placement-from-input:authorize"
+    );
+
+    const authorization = await Effect.runPromise(
+      Effect.gen(function* () {
+        const cards = yield* CardPayments;
+        return yield* cards.authorize({
+          checkout: operationCheckout,
+          confirmationReference:
+            PaymentConfirmationReference.make("ctoken-from-input"),
+          operationReference,
+          providerReference: PaymentProviderReference.make("pi-from-provider"),
+        });
+      }).pipe(
+        Effect.provide(layer),
+        Effect.provideService(
+          ConfigProvider.ConfigProvider,
+          stripeConfigProvider()
+        )
+      )
+    );
+
+    expect(authorization).toStrictEqual({
+      _tag: "Authorized",
+      paymentMethod: {
+        cardBrand: "visa",
+        lastFour: "4242",
+        method: "card",
+      },
+      providerTransactionReference: "ch-from-provider",
+    });
+    expect(requests).toHaveLength(3);
+    const confirm = requests.at(2);
+    if (confirm === undefined) {
+      throw new Error("Expected Stripe confirmation request");
+    }
+    expect(confirm.headers["idempotency-key"]).toBe(operationReference);
+    expect(requestBody(confirm).get("confirmation_token")).toBe(
+      "ctoken-from-input"
+    );
+    expect(requestBody(confirm).get("use_stripe_sdk")).toBe("true");
+  });
+
+  it("rechecks browser authentication without confirming the PaymentIntent twice", async () => {
+    const requests: HttpClientRequest.HttpClientRequest[] = [];
+    const http = HttpClient.make((request) => {
+      requests.push(request);
+      return Effect.succeed(
+        HttpClientResponse.fromWeb(
+          request,
+          Response.json(paymentIntent("requires_action"), { status: 200 })
+        )
+      );
+    });
+    const layer = stripeCardPaymentsLayerWithHttp.pipe(
+      Layer.provide(Layer.succeed(HttpClient.HttpClient, http))
+    );
+
+    const authorization = await Effect.runPromise(
+      Effect.gen(function* () {
+        const cards = yield* CardPayments;
+        return yield* cards.authorize({
+          checkout: operationCheckout,
+          confirmationReference:
+            PaymentConfirmationReference.make("ctoken-from-input"),
+          operationReference: PaymentOperationReference.make(
+            "placement-from-input:authorize"
+          ),
+          providerReference: PaymentProviderReference.make("pi-from-provider"),
+        });
+      }).pipe(
+        Effect.provide(layer),
+        Effect.provideService(
+          ConfigProvider.ConfigProvider,
+          stripeConfigProvider()
+        )
+      )
+    );
+
+    expect(authorization).toStrictEqual({
+      _tag: "ActionRequired",
+      clientToken: "pi-from-provider_secret_from-provider",
+      provider: "Stripe",
+      publicConfiguration: "pk_test_from_input",
+    });
+    expect(requests).toHaveLength(5);
+  });
+
+  it("observes a just-cancelled browser authentication before offering it again", async () => {
+    const requests: HttpClientRequest.HttpClientRequest[] = [];
+    const http = HttpClient.make((request) => {
+      requests.push(request);
+      const status =
+        requests.length === 1 ? "requires_action" : "requires_payment_method";
+      return Effect.succeed(
+        HttpClientResponse.fromWeb(
+          request,
+          Response.json(paymentIntent(status), { status: 200 })
+        )
+      );
+    });
+    const layer = stripeCardPaymentsLayerWithHttp.pipe(
+      Layer.provide(Layer.succeed(HttpClient.HttpClient, http))
+    );
+
+    const failure = await Effect.runPromise(
+      Effect.gen(function* () {
+        const cards = yield* CardPayments;
+        return yield* cards
+          .authorize({
+            checkout: operationCheckout,
+            confirmationReference:
+              PaymentConfirmationReference.make("ctoken-from-input"),
+            operationReference: PaymentOperationReference.make(
+              "placement-from-input:authorize"
+            ),
+            providerReference:
+              PaymentProviderReference.make("pi-from-provider"),
+          })
+          .pipe(Effect.flip);
+      }).pipe(
+        Effect.provide(layer),
+        Effect.provideService(
+          ConfigProvider.ConfigProvider,
+          stripeConfigProvider()
+        )
+      )
+    );
+
+    expect(failure).toMatchObject({
+      _tag: "PaymentOperationDeclined",
+      operation: "authorize",
+    });
+    expect(requests).toHaveLength(2);
+  });
+
+  it("does not reuse a consumed ConfirmationToken after authentication cancellation", async () => {
+    const requests: HttpClientRequest.HttpClientRequest[] = [];
+    const http = HttpClient.make((request) => {
+      requests.push(request);
+      const response = request.url.includes("/confirmation_tokens/")
+        ? confirmationToken("pi-from-provider")
+        : paymentIntent("requires_payment_method");
+      return Effect.succeed(
+        HttpClientResponse.fromWeb(request, Response.json(response))
+      );
+    });
+    const layer = stripeCardPaymentsLayerWithHttp.pipe(
+      Layer.provide(Layer.succeed(HttpClient.HttpClient, http))
+    );
+
+    const failure = await Effect.runPromise(
+      Effect.gen(function* () {
+        const cards = yield* CardPayments;
+        return yield* cards
+          .authorize({
+            checkout: operationCheckout,
+            confirmationReference:
+              PaymentConfirmationReference.make("ctoken-from-input"),
+            operationReference: PaymentOperationReference.make(
+              "placement-from-input:authorize"
+            ),
+            providerReference:
+              PaymentProviderReference.make("pi-from-provider"),
+          })
+          .pipe(Effect.flip);
+      }).pipe(
+        Effect.provide(layer),
+        Effect.provideService(
+          ConfigProvider.ConfigProvider,
+          stripeConfigProvider()
+        )
+      )
+    );
+
+    expect(failure).toMatchObject({
+      _tag: "PaymentOperationDeclined",
+      operation: "authorize",
+    });
+    expect(requests).toHaveLength(2);
+    expect(
+      requests.some((request) => request.url.endsWith("/confirm"))
+    ).toBeFalsy();
+  });
+
+  it.each([
+    { operation: "capture", terminalStatus: "succeeded" },
+    { operation: "cancelAuthorization", terminalStatus: "canceled" },
+  ] as const)(
+    "$operation reconciles and mutates an authorized PaymentIntent idempotently",
+    async ({ operation, terminalStatus }) => {
+      const requests: HttpClientRequest.HttpClientRequest[] = [];
+      const http = HttpClient.make((request) => {
+        requests.push(request);
+        const status =
+          requests.length === 1 ? "requires_capture" : terminalStatus;
+        return Effect.succeed(
+          HttpClientResponse.fromWeb(
+            request,
+            Response.json(paymentIntent(status), { status: 200 })
+          )
+        );
+      });
+      const layer = stripeCardPaymentsLayerWithHttp.pipe(
+        Layer.provide(Layer.succeed(HttpClient.HttpClient, http))
+      );
+      const operationReference = PaymentOperationReference.make(
+        `placement-from-input:${operation}`
+      );
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const cards = yield* CardPayments;
+          yield* cards[operation]({
+            checkout: operationCheckout,
+            operationReference,
+            providerReference:
+              PaymentProviderReference.make("pi-from-provider"),
+          });
+        }).pipe(
+          Effect.provide(layer),
+          Effect.provideService(
+            ConfigProvider.ConfigProvider,
+            stripeConfigProvider()
+          )
+        )
+      );
+
+      expect(requests).toHaveLength(2);
+      expect(requests[1]?.headers["idempotency-key"]).toBe(operationReference);
+      expect(
+        requests[1]?.url.endsWith(
+          operation === "capture" ? "/capture" : "/cancel"
+        )
+      ).toBeTruthy();
     }
   );
 });

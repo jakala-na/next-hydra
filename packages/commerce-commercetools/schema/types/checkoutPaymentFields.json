@@ -9,9 +9,9 @@
   "resourceTypeIds": ["payment"],
   "fieldDefinitions": [
     {
-      "name": "checkoutConfirmationReference",
+      "name": "checkoutPlacementAttemptReference",
       "label": {
-        "en-US": "Card confirmation reference"
+        "en-US": "Checkout placement attempt reference"
       },
       "required": false,
       "type": {
@@ -28,6 +28,28 @@
       "type": {
         "name": "Number"
       }
+    },
+    {
+      "name": "checkoutCardBrand",
+      "label": {
+        "en-US": "Card brand"
+      },
+      "required": false,
+      "type": {
+        "name": "String"
+      },
+      "inputHint": "SingleLine"
+    },
+    {
+      "name": "checkoutCardLastFour",
+      "label": {
+        "en-US": "Card last four digits"
+      },
+      "required": false,
+      "type": {
+        "name": "String"
+      },
+      "inputHint": "SingleLine"
     }
   ]
 }

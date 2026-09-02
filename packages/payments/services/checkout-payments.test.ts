@@ -4,6 +4,7 @@ import { Effect, Layer, Option } from "effect";
 import type { PaymentOptions } from "../domain";
 import {
   PaymentAccountReference,
+  PaymentAttemptReference,
   PaymentCheckoutReference,
   PaymentConfirmationReference,
   PaymentProvider,
@@ -23,6 +24,7 @@ const checkoutWithAmount = (centAmount: number, currencyCode: string) => ({
 });
 
 const accountReference = PaymentAccountReference.make("account-under-test");
+const attemptReference = PaymentAttemptReference.make("placement-under-test");
 const cardProviderReference = PaymentProviderReference.make(
   "card-provider-reference-from-seed"
 );
@@ -151,6 +153,7 @@ describe(CheckoutPayments, () => {
       });
       const cardInput = requireCardInput(options);
       const failure = yield* CheckoutPayments.save({
+        attemptReference,
         billingAddress,
         buyer: { type: "guest" },
         checkout,
@@ -181,7 +184,7 @@ describe(CheckoutPayments, () => {
   });
 
   it.effect(
-    "validates and returns the browser confirmation reference without authorizing Card",
+    "validates and stores the browser confirmation reference without exposing it in the prepared Card Payment",
     () => {
       const checkout = checkoutWithAmount(1_700_000, "USD");
       const confirmationReference = PaymentConfirmationReference.make(
@@ -195,6 +198,7 @@ describe(CheckoutPayments, () => {
         });
         const cardInput = requireCardInput(options);
         const payment = yield* CheckoutPayments.save({
+          attemptReference,
           billingAddress,
           buyer: { type: "guest" },
           checkout,
@@ -207,41 +211,7 @@ describe(CheckoutPayments, () => {
 
         expect(payment).toStrictEqual({
           amount: checkout.amount,
-          billingAddress,
-          confirmationReference,
-          method: "card",
-          paymentReference: cardPaymentReference,
-          preparationReference: cardInput.preparationReference,
-        });
-      }).pipe(
-        Effect.provide(layerFor({ centAmount: 2_000_000, currencyCode: "USD" }))
-      );
-    }
-  );
-
-  it.effect(
-    "saves a Card selection without confirmation for a deferred client handoff",
-    () => {
-      const checkout = checkoutWithAmount(1_700_000, "USD");
-
-      return Effect.gen(function* () {
-        const options = yield* CheckoutPayments.prepare({
-          buyer: { type: "guest" },
-          checkout,
-        });
-        const cardInput = requireCardInput(options);
-        const payment = yield* CheckoutPayments.save({
-          billingAddress,
-          buyer: { type: "guest" },
-          checkout,
-          selection: {
-            method: "card",
-            preparationReference: cardInput.preparationReference,
-          },
-        });
-
-        expect(payment).toStrictEqual({
-          amount: checkout.amount,
+          attemptReference,
           billingAddress,
           method: "card",
           paymentReference: cardPaymentReference,
@@ -291,6 +261,9 @@ describe(CheckoutPayments, () => {
     const cardLayer = Layer.succeed(
       CardPayments,
       CardPayments.of({
+        authorize: () => Effect.die("not used"),
+        cancelAuthorization: () => Effect.die("not used"),
+        capture: () => Effect.die("not used"),
         prepare: (input) => {
           expect(input.checkout).toStrictEqual(checkout);
           return Effect.fail(cardFailure);
@@ -344,7 +317,19 @@ describe(CheckoutPayments, () => {
     });
     const accountCreditLayer = Layer.succeed(
       AccountCredit,
-      AccountCredit.of({ find: () => Effect.fail(creditFailure) })
+      AccountCredit.of({
+        authorize: () => Effect.die("not used"),
+        cancel: () => Effect.die("not used"),
+        commit: () => Effect.die("not used"),
+        find: () => Effect.fail(creditFailure),
+        preparePayment: () =>
+          Effect.succeed({
+            provider: PaymentProvider.make("Unavailable Account Credit"),
+            providerReference: PaymentProviderReference.make(
+              "unavailable-account-credit-payment"
+            ),
+          }),
+      })
     );
     const paymentsLayer = CheckoutPayments.layer.pipe(
       Layer.provide(
@@ -404,6 +389,9 @@ describe(CheckoutPayments, () => {
       const cardLayer = Layer.succeed(
         CardPayments,
         CardPayments.of({
+          authorize: () => Effect.die("not used"),
+          cancelAuthorization: () => Effect.die("not used"),
+          capture: () => Effect.die("not used"),
           prepare: () => {
             providerCalled = true;
             return Effect.die("A mismatched reference must not reach Card");
@@ -415,14 +403,18 @@ describe(CheckoutPayments, () => {
       const repositoryLayer = Layer.succeed(
         PaymentRepository,
         PaymentRepository.of({
+          findByReference: () => Effect.die("not used"),
           findCard: () =>
             Effect.succeed(
               Option.some({
+                method: "card",
                 paymentReference: cardPaymentReference,
                 provider: PaymentProvider.make("Previous Card Provider"),
                 providerReference: cardProviderReference,
               })
             ),
+          findTransactions: () => Effect.succeed([]),
+          recordTransaction: () => Effect.die("not used"),
           saveCard: () => Effect.die("not used"),
           saveNetTerms: () => Effect.die("not used"),
         })
@@ -466,6 +458,7 @@ describe(CheckoutPayments, () => {
         });
         const cardInput = requireCardInput(options);
         const failure = yield* CheckoutPayments.save({
+          attemptReference,
           billingAddress,
           buyer: { type: "guest" },
           checkout: changedCheckout,
@@ -516,6 +509,7 @@ describe(CheckoutPayments, () => {
         });
 
         const failure = yield* CheckoutPayments.save({
+          attemptReference,
           billingAddress,
           buyer: { accountReference, type: "company" },
           checkout,

@@ -9,6 +9,7 @@ import {
 import type {
   CardPaymentOption,
   CardPaymentSelection,
+  PaymentAttemptReference,
   PaymentBillingAddress,
   PaymentCheckout,
   PreparedCardPayment,
@@ -17,6 +18,7 @@ import { CardPayments } from "./card-payments";
 import { PaymentRepository } from "./payment-repository";
 
 export interface SaveCardPaymentMethodInput {
+  readonly attemptReference: PaymentAttemptReference;
   readonly billingAddress: PaymentBillingAddress;
   readonly checkout: PaymentCheckout;
   readonly selection: CardPaymentSelection;
@@ -142,19 +144,14 @@ export class CardPaymentMethod extends Context.Service<
                 );
             }
             const savedPayment = {
+              attemptReference: input.attemptReference,
               checkout: input.checkout,
+              confirmationReference: input.selection.confirmationReference,
               provider: cards.provider,
               providerReference: card.providerReference,
             };
-            const savedPaymentReference = yield* repository.saveCard(
-              input.selection.confirmationReference === undefined
-                ? savedPayment
-                : {
-                    ...savedPayment,
-                    confirmationReference:
-                      input.selection.confirmationReference,
-                  }
-            );
+            const savedPaymentReference =
+              yield* repository.saveCard(savedPayment);
             if (savedPaymentReference !== paymentReference) {
               return yield* Effect.die(
                 new Error(
@@ -164,17 +161,13 @@ export class CardPaymentMethod extends Context.Service<
             }
             const prepared = {
               amount: input.checkout.amount,
+              attemptReference: input.attemptReference,
               billingAddress: input.billingAddress,
               method: "card" as const,
               paymentReference: savedPaymentReference,
               preparationReference: expectedReference,
             };
-            return input.selection.confirmationReference === undefined
-              ? prepared
-              : {
-                  ...prepared,
-                  confirmationReference: input.selection.confirmationReference,
-                };
+            return prepared;
           })
       );
 

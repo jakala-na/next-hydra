@@ -4,6 +4,7 @@ import { PaymentMethodUnavailable } from "../domain";
 import type {
   CheckoutPaymentBuyer,
   NetTermsPaymentOption,
+  PaymentAttemptReference,
   PaymentBillingAddress,
   PaymentCheckout,
   PaymentProvider,
@@ -33,6 +34,7 @@ export type NetTermsPaymentMethodEligibility =
   PaymentMethodEligibility<NetTermsPaymentMethodOffer>;
 
 export interface SaveNetTermsPaymentMethodInput extends NetTermsPaymentMethodInput {
+  readonly attemptReference: PaymentAttemptReference;
   readonly billingAddress: PaymentBillingAddress;
 }
 
@@ -172,13 +174,28 @@ export class NetTermsPaymentMethod extends Context.Service<
                 reason: "insufficientAvailableCredit",
               });
             }
-            const paymentReference = yield* repository.saveNetTerms({
+            const preparation = yield* accountCredit.preparePayment({
+              accountReference: input.buyer.accountReference,
+              attemptReference: input.attemptReference,
               checkout: input.checkout,
-              provider: assessment.provider,
+            });
+            if (preparation.provider !== assessment.provider) {
+              return yield* Effect.die(
+                new Error(
+                  "Account Credit changed provider identity between eligibility and Payment preparation"
+                )
+              );
+            }
+            const paymentReference = yield* repository.saveNetTerms({
+              attemptReference: input.attemptReference,
+              checkout: input.checkout,
+              provider: preparation.provider,
+              providerReference: preparation.providerReference,
               termsInDays: assessment.option.termsInDays,
             });
             return {
               amount: input.checkout.amount,
+              attemptReference: input.attemptReference,
               billingAddress: input.billingAddress,
               method: "netTerms" as const,
               paymentReference,

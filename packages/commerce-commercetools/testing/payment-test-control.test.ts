@@ -5,6 +5,99 @@ import { describe, expect, it } from "vitest";
 import { makeCommercetoolsPaymentTestControl } from "./payment-test-control";
 
 describe("Commercetools Payment test control", () => {
+  it("reads capture-failure inputs and records the matching authorization", async () => {
+    const updates: unknown[] = [];
+    const payment = {
+      amountPlanned: { centAmount: 2500, currencyCode: "USD" },
+      custom: {
+        fields: {
+          checkoutPlacementAttemptReference: "attempt-from-input",
+        },
+      },
+      id: "payment-from-input",
+      interfaceId: "pi-from-input",
+      paymentMethodInfo: {
+        method: "card",
+        paymentInterface: "Stripe",
+        token: { value: "ctoken-from-input" },
+      },
+      version: 3,
+    };
+    const apiRoot = {
+      carts: () => ({
+        withId: () => ({
+          get: () => ({
+            execute: () =>
+              Promise.resolve({
+                body: { paymentInfo: { payments: [{ id: payment.id }] } },
+              }),
+          }),
+        }),
+      }),
+      payments: () => ({
+        withId: () => ({
+          get: () => ({ execute: () => Promise.resolve({ body: payment }) }),
+          post: ({ body }: { readonly body: unknown }) => ({
+            execute: () => {
+              updates.push(body);
+              return Promise.resolve({ body: payment });
+            },
+          }),
+        }),
+      }),
+    };
+    // SAFETY: The test control consumes only the Cart and Payment request-builder
+    // methods implemented by this contract double.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions
+    const providerApiRoot = apiRoot as unknown as ByProjectKeyRequestBuilder;
+    const control = makeCommercetoolsPaymentTestControl(providerApiRoot);
+
+    const preparation =
+      await control.getCardCaptureFailurePreparation("cart-from-input");
+    await control.recordSuccessfulAuthorization(preparation, {
+      cardBrand: "visa",
+      lastFour: "4242",
+      providerTransactionReference: "ch-from-provider",
+    });
+
+    expect(preparation).toStrictEqual({
+      amount: { centAmount: 2500, currencyCode: "USD" },
+      attemptReference: "attempt-from-input",
+      confirmationReference: "ctoken-from-input",
+      paymentReference: "payment-from-input",
+      provider: "Stripe",
+      providerReference: "pi-from-input",
+      version: 3,
+    });
+    expect(updates).toStrictEqual([
+      {
+        actions: [
+          {
+            action: "addTransaction",
+            transaction: {
+              amount: { centAmount: 2500, currencyCode: "USD" },
+              interactionId: "attempt-from-input:authorize",
+              interfaceId: "ch-from-provider",
+              state: "Success",
+              type: "Authorization",
+            },
+          },
+          {
+            action: "setCustomField",
+            name: "checkoutCardBrand",
+            value: "visa",
+          },
+          {
+            action: "setCustomField",
+            name: "checkoutCardLastFour",
+            value: "4242",
+          },
+        ],
+        version: 3,
+      },
+    ]);
+  });
+
   it("finds and deletes Payments created for a Checkout", async () => {
     const deleted: { readonly id: string; readonly version: number }[] = [];
     const payments = () => ({

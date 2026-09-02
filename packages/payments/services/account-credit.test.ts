@@ -6,7 +6,11 @@ import {
 } from "@repo/versioned-store";
 import { Effect, Layer, Option } from "effect";
 
-import { PaymentAccountReference } from "../domain";
+import {
+  PaymentAccountReference,
+  PaymentAttemptReference,
+  PaymentCheckoutReference,
+} from "../domain";
 import { AccountCredit, CreditProfile } from "./account-credit";
 
 const accountReference = PaymentAccountReference.make("account-under-test");
@@ -37,12 +41,27 @@ describe(AccountCredit, () => {
         const profile = yield* accountCredit.find(accountReference);
 
         expect(Option.getOrThrow(profile)).toStrictEqual({
+          authorizations: [],
           availableCredit: {
             centAmount: 2_000_000,
             currencyCode: "USD",
           },
+          ledger: [],
           provider: "Demo ERP Ledger",
           termsInDays: 30,
+        });
+        expect(
+          yield* accountCredit.preparePayment({
+            accountReference,
+            attemptReference: PaymentAttemptReference.make("attempt-1"),
+            checkout: {
+              amount: { centAmount: 1_700_000, currencyCode: "USD" },
+              reference: PaymentCheckoutReference.make("checkout-1"),
+            },
+          })
+        ).toStrictEqual({
+          provider: "Demo ERP Ledger",
+          providerReference: "credit-account-under-test-attempt-1",
         });
       }).pipe(Effect.provide(testLayer))
   );

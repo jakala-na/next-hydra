@@ -17,14 +17,24 @@ export const migration: MigrationDefinition = {
       })
       .init();
 
-    if (!paymentType.fieldExists("checkoutConfirmationReference")) {
-      paymentType.addStringField("checkoutConfirmationReference", {
-        "en-US": "Card confirmation reference",
+    if (!paymentType.fieldExists("checkoutPlacementAttemptReference")) {
+      paymentType.addStringField("checkoutPlacementAttemptReference", {
+        "en-US": "Checkout placement attempt reference",
       });
     }
     if (!paymentType.fieldExists("checkoutTermsInDays")) {
       paymentType.addNumberField("checkoutTermsInDays", {
         "en-US": "Net Terms duration in days",
+      });
+    }
+    if (!paymentType.fieldExists("checkoutCardBrand")) {
+      paymentType.addStringField("checkoutCardBrand", {
+        "en-US": "Card brand",
+      });
+    }
+    if (!paymentType.fieldExists("checkoutCardLastFour")) {
+      paymentType.addStringField("checkoutCardLastFour", {
+        "en-US": "Card last four digits",
       });
     }
 

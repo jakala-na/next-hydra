@@ -39,6 +39,12 @@ export const PaymentProviderReference = Schema.String.pipe(
 );
 export type PaymentProviderReference = typeof PaymentProviderReference.Type;
 
+export const PaymentProviderTransactionReference = Schema.NonEmptyString.pipe(
+  Schema.brand("PaymentProviderTransactionReference")
+);
+export type PaymentProviderTransactionReference =
+  typeof PaymentProviderTransactionReference.Type;
+
 export const PaymentProvider = Schema.NonEmptyString.pipe(
   Schema.brand("PaymentProvider")
 );
@@ -54,6 +60,94 @@ export const PaymentConfirmationReference = Schema.String.pipe(
 );
 export type PaymentConfirmationReference =
   typeof PaymentConfirmationReference.Type;
+
+export const PaymentOperationReference = Schema.NonEmptyString.pipe(
+  Schema.brand("PaymentOperationReference")
+);
+export type PaymentOperationReference = typeof PaymentOperationReference.Type;
+
+export const PaymentAttemptReference = Schema.NonEmptyString.pipe(
+  Schema.brand("PaymentAttemptReference")
+);
+export type PaymentAttemptReference = typeof PaymentAttemptReference.Type;
+
+export const CardBrand = Schema.NonEmptyString.pipe(Schema.brand("CardBrand"));
+export type CardBrand = typeof CardBrand.Type;
+
+export const CardLastFour = Schema.String.check(
+  Schema.isPattern(/^\d{4}$/u)
+).pipe(Schema.brand("CardLastFour"));
+export type CardLastFour = typeof CardLastFour.Type;
+
+export const CardPaymentMethodSummary = Schema.Struct({
+  cardBrand: CardBrand,
+  lastFour: CardLastFour,
+  method: Schema.Literal("card"),
+});
+export type CardPaymentMethodSummary = typeof CardPaymentMethodSummary.Type;
+
+export const NetTermsPaymentMethodSummary = Schema.Struct({
+  method: Schema.Literal("netTerms"),
+  termsInDays: Schema.Int.check(Schema.isGreaterThan(0)),
+});
+export type NetTermsPaymentMethodSummary =
+  typeof NetTermsPaymentMethodSummary.Type;
+
+export const PaymentMethodSummary = Schema.Union([
+  CardPaymentMethodSummary,
+  NetTermsPaymentMethodSummary,
+]);
+export type PaymentMethodSummary = typeof PaymentMethodSummary.Type;
+
+export const paymentOperationReferencesForAttempt = (
+  attemptReference: PaymentAttemptReference
+) => ({
+  authorization: PaymentOperationReference.make(
+    `${attemptReference}:authorize`
+  ),
+  cancel: PaymentOperationReference.make(`${attemptReference}:cancel`),
+  finalize: PaymentOperationReference.make(`${attemptReference}:finalize`),
+});
+
+export const PaymentOrderReference = Schema.NonEmptyString.pipe(
+  Schema.brand("PaymentOrderReference")
+);
+export type PaymentOrderReference = typeof PaymentOrderReference.Type;
+
+export const CreditAuthorizationReference = Schema.NonEmptyString.pipe(
+  Schema.brand("CreditAuthorizationReference")
+);
+export type CreditAuthorizationReference =
+  typeof CreditAuthorizationReference.Type;
+
+export const PaymentTransactionType = Schema.Literals([
+  "Authorization",
+  "CancelAuthorization",
+  "Charge",
+]);
+export type PaymentTransactionType = typeof PaymentTransactionType.Type;
+
+export const PaymentTransactionState = Schema.Literals([
+  "Pending",
+  "Success",
+  "Failure",
+]);
+export type PaymentTransactionState = typeof PaymentTransactionState.Type;
+
+export const PaymentFinalizationStatus = Schema.Literals([
+  "confirmed",
+  "pending",
+]);
+export type PaymentFinalizationStatus = typeof PaymentFinalizationStatus.Type;
+
+export const PaymentTransaction = Schema.Struct({
+  amount: PaymentAmount,
+  operationReference: PaymentOperationReference,
+  providerReference: Schema.optional(PaymentProviderTransactionReference),
+  state: PaymentTransactionState,
+  type: PaymentTransactionType,
+});
+export type PaymentTransaction = typeof PaymentTransaction.Type;
 
 export const PaymentCheckout = Schema.Struct({
   amount: PaymentAmount,
@@ -125,8 +219,8 @@ export type PaymentMethodOption = typeof PaymentMethodOption.Type;
 
 export const PreparedCardPayment = Schema.Struct({
   amount: PaymentAmount,
+  attemptReference: PaymentAttemptReference,
   billingAddress: PaymentBillingAddress,
-  confirmationReference: Schema.optional(PaymentConfirmationReference),
   method: Schema.Literal("card"),
   paymentReference: PaymentReference,
   preparationReference: PreparedPaymentReference,
@@ -135,6 +229,7 @@ export type PreparedCardPayment = typeof PreparedCardPayment.Type;
 
 export const PreparedNetTermsPayment = Schema.Struct({
   amount: PaymentAmount,
+  attemptReference: PaymentAttemptReference,
   billingAddress: PaymentBillingAddress,
   method: Schema.Literal("netTerms"),
   paymentReference: PaymentReference,
@@ -148,6 +243,21 @@ export const PreparedPayment = Schema.Union([
 ]);
 export type PreparedPayment = typeof PreparedPayment.Type;
 
+export const PaymentAuthorization = Schema.Union([
+  Schema.TaggedStruct("Authorized", {
+    paymentMethod: PaymentMethodSummary,
+    providerTransactionReference: Schema.optional(
+      PaymentProviderTransactionReference
+    ),
+  }),
+  Schema.TaggedStruct("ActionRequired", {
+    clientToken: Schema.String,
+    provider: PaymentProvider,
+    publicConfiguration: Schema.String,
+  }),
+]);
+export type PaymentAuthorization = typeof PaymentAuthorization.Type;
+
 export const PaymentOptions = Schema.Struct({
   amount: PaymentAmount,
   methods: Schema.Array(PaymentMethodOption),
@@ -155,7 +265,7 @@ export const PaymentOptions = Schema.Struct({
 export type PaymentOptions = typeof PaymentOptions.Type;
 
 export const CardPaymentSelection = Schema.Struct({
-  confirmationReference: Schema.optional(PaymentConfirmationReference),
+  confirmationReference: PaymentConfirmationReference,
   method: Schema.Literal("card"),
   preparationReference: PreparedPaymentReference,
 });
@@ -199,6 +309,7 @@ export class PaymentPreparationUnavailable extends Schema.TaggedError<PaymentPre
       "notFound",
       "amountChanged",
       "confirmationUnavailable",
+      "authorizationReleased",
     ]),
   }
 ) {}
@@ -222,6 +333,7 @@ export class PaymentConfirmationUnavailable extends Schema.TaggedError<PaymentCo
 
 export const PaymentProviderFailureReason = Schema.Literals([
   "unavailable",
+  "outcomeUnknown",
   "invalidData",
   "unexpectedResponse",
 ]);
@@ -234,5 +346,13 @@ export class PaymentProviderFailure extends Schema.TaggedError<PaymentProviderFa
     cause: Schema.optional(Schema.Defect()),
     operation: Schema.String,
     reason: PaymentProviderFailureReason,
+  }
+) {}
+
+export class PaymentOperationDeclined extends Schema.TaggedError<PaymentOperationDeclined>()(
+  "PaymentOperationDeclined",
+  {
+    message: Schema.String,
+    operation: Schema.Literals(["authorize", "capture"]),
   }
 ) {}

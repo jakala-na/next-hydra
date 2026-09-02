@@ -56,16 +56,24 @@ describe("Add Checkout Payment Fields migration", () => {
         resourceTypeIds: ["payment"],
       },
     ]);
-    expect(update?.actions).toHaveLength(2);
+    expect(update?.actions).toHaveLength(4);
     expect(update).toMatchObject({
       actions: [
         {
           action: "addFieldDefinition",
-          fieldDefinition: { name: "checkoutConfirmationReference" },
+          fieldDefinition: { name: "checkoutPlacementAttemptReference" },
         },
         {
           action: "addFieldDefinition",
           fieldDefinition: { name: "checkoutTermsInDays" },
+        },
+        {
+          action: "addFieldDefinition",
+          fieldDefinition: { name: "checkoutCardBrand" },
+        },
+        {
+          action: "addFieldDefinition",
+          fieldDefinition: { name: "checkoutCardLastFour" },
         },
       ],
       version: 1,

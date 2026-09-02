@@ -1,16 +1,24 @@
 /* oxlint-disable typescript/promise-function-async -- The provider contract doubles return already-settled Promises. */
 import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import {
+  CardBrand,
+  CardLastFour,
+  PaymentAttemptReference,
   PaymentCheckoutReference,
   PaymentConfirmationReference,
+  PaymentOperationReference,
   PaymentProvider,
   PaymentProviderReference,
+  PaymentProviderTransactionReference,
   PaymentRepository,
+  PaymentReference,
 } from "@repo/payments";
 import { Effect, Option } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { paymentRepositoryLayerFrom } from "./payment-repository";
+
+const attemptReference = PaymentAttemptReference.make("attempt-from-input");
 
 interface StoredPayment {
   readonly amountPlanned: {
@@ -19,6 +27,7 @@ interface StoredPayment {
   };
   readonly custom?: {
     readonly fields: Readonly<Record<string, number | string>>;
+    readonly type?: { readonly key: string };
   };
   readonly id: string;
   readonly interfaceId?: string;
@@ -26,11 +35,36 @@ interface StoredPayment {
     readonly method?: string;
     readonly name?: Readonly<Record<string, string>>;
     readonly paymentInterface?: string;
+    readonly token?: { readonly value: string };
   };
   readonly transactions: readonly {
+    readonly amount?: {
+      readonly centAmount: number;
+      readonly currencyCode: string;
+    };
+    readonly id?: string;
+    readonly interactionId?: string;
+    readonly interfaceId?: string;
     readonly state: string;
+    readonly type?: string;
   }[];
   readonly version: number;
+}
+
+type StoredTransaction = StoredPayment["transactions"][number];
+
+type TestPaymentUpdateAction =
+  | {
+      readonly action: "addTransaction";
+      readonly transaction: StoredTransaction;
+    }
+  | {
+      readonly action: "changeTransactionState";
+      readonly state: string;
+    };
+
+interface TestPaymentUpdateBody {
+  readonly actions: readonly [TestPaymentUpdateAction];
 }
 
 const checkout = {
@@ -88,6 +122,7 @@ describe("Commercetools PaymentRepository", () => {
         fields: {},
         type: { key: "checkoutPaymentFields", typeId: "type" },
       },
+      interfaceId: "pi-from-input",
     });
   });
 
@@ -95,7 +130,10 @@ describe("Commercetools PaymentRepository", () => {
     const payment: StoredPayment = {
       amountPlanned: checkout.amount,
       custom: {
-        fields: { checkoutConfirmationReference: "ctoken-from-provider" },
+        fields: {
+          checkoutCardBrand: "visa",
+          checkoutCardLastFour: "4242",
+        },
       },
       id: "card-payment-from-provider",
       interfaceId: "pi-from-provider",
@@ -103,6 +141,7 @@ describe("Commercetools PaymentRepository", () => {
         method: "card",
         name: { "en-US": "Card" },
         paymentInterface: "Stripe",
+        token: { value: "ctoken-from-provider" },
       },
       transactions: [],
       version: 1,
@@ -128,6 +167,12 @@ describe("Commercetools PaymentRepository", () => {
 
     expect(record).toStrictEqual({
       confirmationReference: "ctoken-from-provider",
+      method: "card",
+      paymentMethod: {
+        cardBrand: "visa",
+        lastFour: "4242",
+        method: "card",
+      },
       paymentReference: "card-payment-from-provider",
       provider: PaymentProvider.make("Stripe"),
       providerReference: "pi-from-provider",
@@ -139,6 +184,7 @@ describe("Commercetools PaymentRepository", () => {
       PaymentConfirmationReference.make("ctoken-from-input");
     let current: StoredPayment = {
       amountPlanned: checkout.amount,
+      custom: { fields: {} },
       id: "card-payment-from-provider",
       interfaceId: "pi-from-provider",
       paymentMethodInfo: {
@@ -158,10 +204,9 @@ describe("Commercetools PaymentRepository", () => {
             updateBodies.push(body);
             current = {
               ...current,
-              custom: {
-                fields: {
-                  checkoutConfirmationReference: confirmationReference,
-                },
+              paymentMethodInfo: {
+                ...current.paymentMethodInfo,
+                token: { value: confirmationReference },
               },
               version: 2,
             };
@@ -195,14 +240,96 @@ describe("Commercetools PaymentRepository", () => {
       {
         actions: [
           {
-            action: "setCustomType",
-            fields: {
-              checkoutConfirmationReference: confirmationReference,
-            },
-            type: { key: "checkoutPaymentFields", typeId: "type" },
+            action: "setMethodInfoToken",
+            token: { value: confirmationReference },
           },
         ],
         version: 1,
+      },
+    ]);
+  });
+
+  it("retains a released Card Payment and creates a new Payment for a new provider reference", async () => {
+    const released: StoredPayment = {
+      amountPlanned: checkout.amount,
+      custom: { fields: {} },
+      id: "card-payment-from-provider",
+      interfaceId: "pi-released-from-provider",
+      paymentMethodInfo: {
+        method: "card",
+        name: { "en-US": "Card" },
+        paymentInterface: "Stripe",
+      },
+      transactions: [
+        {
+          id: "cancel-transaction-from-provider",
+          state: "Success",
+          type: "CancelAuthorization",
+        },
+      ],
+      version: 2,
+    };
+    const createdBodies: unknown[] = [];
+    const updateBodies: unknown[] = [];
+    const replacement: StoredPayment = {
+      ...released,
+      id: "replacement-payment-from-provider",
+      interfaceId: "pi-new-from-input",
+      transactions: [],
+      version: 1,
+    };
+    const payments = () => ({
+      post: ({ body }: { readonly body: unknown }) => ({
+        execute: () => {
+          createdBodies.push(body);
+          return Promise.resolve({ body: replacement });
+        },
+      }),
+      withId: () => ({
+        post: ({ body }: { readonly body: unknown }) => ({
+          execute: () => {
+            updateBodies.push(body);
+            return Promise.resolve({ body: { ...released, version: 3 } });
+          },
+        }),
+      }),
+      withKey: () => ({
+        get: () => ({ execute: () => Promise.resolve({ body: released }) }),
+      }),
+    });
+    // SAFETY: The adapter consumes only the Payments request-builder methods
+    // implemented by this contract double.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions
+    const apiRoot = { payments } as unknown as ByProjectKeyRequestBuilder;
+
+    const paymentReference = await Effect.runPromise(
+      Effect.gen(function* () {
+        const repository = yield* PaymentRepository;
+        return yield* repository.saveCard({
+          checkout,
+          provider: PaymentProvider.make("Stripe"),
+          providerReference: PaymentProviderReference.make("pi-new-from-input"),
+        });
+      }).pipe(Effect.provide(paymentRepositoryLayerFrom(apiRoot)))
+    );
+
+    expect(paymentReference).toBe("replacement-payment-from-provider");
+    expect(updateBodies).toStrictEqual([
+      {
+        actions: [
+          {
+            action: "setKey",
+            key: "checkout-card-cart-from-input-superseded-card-payment-from-provider",
+          },
+        ],
+        version: 2,
+      },
+    ]);
+    expect(createdBodies).toMatchObject([
+      {
+        interfaceId: "pi-new-from-input",
+        key: "checkout-card-cart-from-input",
+        paymentMethodInfo: { paymentInterface: "Stripe" },
       },
     ]);
   });
@@ -274,7 +401,7 @@ describe("Commercetools PaymentRepository", () => {
     let current: StoredPayment = {
       amountPlanned: checkout.amount,
       id: "net-terms-payment",
-      interfaceId: "checkout-net-terms-cart-from-input",
+      interfaceId: "credit-payment-from-provider",
       paymentMethodInfo: {
         method: "netTerms",
         name: { "en-US": "Net 15" },
@@ -307,6 +434,7 @@ describe("Commercetools PaymentRepository", () => {
               ...current,
               custom: {
                 fields: {
+                  checkoutPlacementAttemptReference: attemptReference,
                   checkoutTermsInDays: 30,
                 },
               },
@@ -333,8 +461,12 @@ describe("Commercetools PaymentRepository", () => {
       Effect.gen(function* () {
         const repository = yield* PaymentRepository;
         yield* repository.saveNetTerms({
+          attemptReference,
           checkout,
           provider: PaymentProvider.make("erp-credit"),
+          providerReference: PaymentProviderReference.make(
+            "credit-payment-from-provider"
+          ),
           termsInDays: 30,
         });
       }).pipe(Effect.provide(paymentRepositoryLayerFrom(apiRoot)))
@@ -351,6 +483,7 @@ describe("Commercetools PaymentRepository", () => {
         {
           action: "setCustomType",
           fields: {
+            checkoutPlacementAttemptReference: attemptReference,
             checkoutTermsInDays: 30,
           },
           type: { key: "checkoutPaymentFields", typeId: "type" },
@@ -364,7 +497,7 @@ describe("Commercetools PaymentRepository", () => {
     let current: StoredPayment = {
       amountPlanned: checkout.amount,
       id: "net-terms-payment",
-      interfaceId: "checkout-net-terms-cart-from-input",
+      interfaceId: "credit-payment-from-provider",
       paymentMethodInfo: {
         method: "netTerms",
         name: { "en-US": "Net 15" },
@@ -411,8 +544,12 @@ describe("Commercetools PaymentRepository", () => {
         const repository = yield* PaymentRepository;
         return yield* repository
           .saveNetTerms({
+            attemptReference,
             checkout,
             provider: PaymentProvider.make("erp-credit"),
+            providerReference: PaymentProviderReference.make(
+              "credit-payment-from-provider"
+            ),
             termsInDays: 30,
           })
           .pipe(Effect.flip);
@@ -524,5 +661,199 @@ describe("Commercetools PaymentRepository", () => {
       _tag: "PaymentProviderFailure",
       reason: "invalidData",
     });
+  });
+
+  it("adds then completes one native Payment transaction by operation reference", async () => {
+    let current: StoredPayment = {
+      amountPlanned: checkout.amount,
+      id: "card-payment-from-provider",
+      interfaceId: "pi-from-provider",
+      paymentMethodInfo: {
+        method: "card",
+        name: { "en-US": "Card" },
+        paymentInterface: "Stripe",
+      },
+      transactions: [],
+      version: 1,
+    };
+    const updateBodies: TestPaymentUpdateBody[] = [];
+    const payments = () => ({
+      withId: () => ({
+        get: () => ({ execute: () => Promise.resolve({ body: current }) }),
+        post: ({ body }: { readonly body: TestPaymentUpdateBody }) => ({
+          execute: () => {
+            updateBodies.push(body);
+            const [action] = body.actions;
+            current =
+              action.action === "addTransaction"
+                ? {
+                    ...current,
+                    transactions: [
+                      {
+                        ...action.transaction,
+                        id: "transaction-from-provider",
+                      },
+                    ],
+                    version: current.version + 1,
+                  }
+                : {
+                    ...current,
+                    transactions: current.transactions.map((transaction) => ({
+                      ...transaction,
+                      state: action.state,
+                    })),
+                    version: current.version + 1,
+                  };
+            return Promise.resolve({ body: current });
+          },
+        }),
+      }),
+    });
+    // SAFETY: The adapter consumes only the Payments request-builder methods
+    // implemented by this contract double.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions
+    const apiRoot = { payments } as unknown as ByProjectKeyRequestBuilder;
+    const operationReference = PaymentOperationReference.make(
+      "placement-from-input:authorize"
+    );
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const repository = yield* PaymentRepository;
+        const common = {
+          amount: checkout.amount,
+          operationReference,
+          paymentReference: PaymentReference.make(current.id),
+          providerReference:
+            PaymentProviderTransactionReference.make("ch-from-provider"),
+          type: "Authorization" as const,
+        };
+        yield* repository.recordTransaction({ ...common, state: "Pending" });
+        yield* repository.recordTransaction({ ...common, state: "Success" });
+        yield* repository.recordTransaction({ ...common, state: "Success" });
+      }).pipe(Effect.provide(paymentRepositoryLayerFrom(apiRoot)))
+    );
+
+    expect(updateBodies).toStrictEqual([
+      {
+        actions: [
+          {
+            action: "addTransaction",
+            transaction: {
+              amount: checkout.amount,
+              interactionId: operationReference,
+              interfaceId: "ch-from-provider",
+              state: "Pending",
+              type: "Authorization",
+            },
+          },
+        ],
+        version: 1,
+      },
+      {
+        actions: [
+          {
+            action: "changeTransactionState",
+            state: "Success",
+            transactionId: "transaction-from-provider",
+          },
+        ],
+        version: 2,
+      },
+    ]);
+  });
+
+  it("persists Card display details with successful authorization", async () => {
+    const operationReference = PaymentOperationReference.make(
+      "placement-from-input:authorize"
+    );
+    const current: StoredPayment = {
+      amountPlanned: checkout.amount,
+      custom: {
+        fields: {},
+        type: { key: "checkoutPaymentFields" },
+      },
+      id: "card-payment-from-provider",
+      interfaceId: "pi-from-provider",
+      paymentMethodInfo: {
+        method: "card",
+        name: { "en-US": "Card" },
+        paymentInterface: "Stripe",
+      },
+      transactions: [
+        {
+          amount: checkout.amount,
+          id: "authorization-from-provider",
+          interactionId: operationReference,
+          state: "Pending",
+          type: "Authorization",
+        },
+      ],
+      version: 2,
+    };
+    const updateBodies: unknown[] = [];
+    const payments = () => ({
+      withId: () => ({
+        get: () => ({ execute: () => Promise.resolve({ body: current }) }),
+        post: ({ body }: { readonly body: unknown }) => ({
+          execute: () => {
+            updateBodies.push(body);
+            return Promise.resolve({ body: current });
+          },
+        }),
+      }),
+    });
+    // SAFETY: The adapter consumes only the Payments request-builder methods
+    // implemented by this contract double.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions
+    const apiRoot = { payments } as unknown as ByProjectKeyRequestBuilder;
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const repository = yield* PaymentRepository;
+        yield* repository.recordTransaction({
+          amount: checkout.amount,
+          operationReference,
+          paymentMethod: {
+            cardBrand: CardBrand.make("visa"),
+            lastFour: CardLastFour.make("4242"),
+            method: "card",
+          },
+          paymentReference: PaymentReference.make(current.id),
+          providerReference:
+            PaymentProviderTransactionReference.make("ch-from-provider"),
+          state: "Success",
+          type: "Authorization",
+        });
+      }).pipe(Effect.provide(paymentRepositoryLayerFrom(apiRoot)))
+    );
+
+    expect(updateBodies).toStrictEqual([
+      {
+        actions: [
+          {
+            action: "setTransactionInterfaceId",
+            interfaceId: "ch-from-provider",
+            transactionId: "authorization-from-provider",
+          },
+          {
+            action: "changeTransactionState",
+            state: "Success",
+            transactionId: "authorization-from-provider",
+          },
+          {
+            action: "setCustomField",
+            name: "checkoutCardBrand",
+            value: "visa",
+          },
+          {
+            action: "setCustomField",
+            name: "checkoutCardLastFour",
+            value: "4242",
+          },
+        ],
+        version: 2,
+      },
+    ]);
   });
 });

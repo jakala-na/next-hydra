@@ -5,14 +5,28 @@ import type {
   PaymentUpdateAction,
 } from "@commercetools/platform-sdk";
 import {
+  CardBrand,
+  CardLastFour,
+  PaymentAttemptReference,
   PaymentConfirmationReference,
+  PaymentOperationReference,
   PaymentProviderFailure,
   PaymentProvider,
   PaymentProviderReference,
+  PaymentProviderTransactionReference,
   PaymentRepository,
   PaymentReference,
+  PaymentTransactionState,
+  PaymentTransactionType,
 } from "@repo/payments";
-import type { CardPaymentRecord, PaymentCheckout } from "@repo/payments";
+import type {
+  CardPaymentRecord,
+  NetTermsPaymentRecord,
+  PaymentCheckout,
+  PaymentRecord,
+  PaymentTransaction,
+  RecordPaymentTransactionInput,
+} from "@repo/payments";
 import { Effect, Layer, Option, Schema } from "effect";
 
 import { CommercetoolsRestClient } from "../client/rest-client";
@@ -23,7 +37,9 @@ import {
 } from "../client/versioned-write";
 import {
   CHECKOUT_PAYMENT_CUSTOM_FIELD_NAMES,
-  PAYMENT_CONFIRMATION_REFERENCE_FIELD,
+  PAYMENT_CARD_BRAND_FIELD,
+  PAYMENT_CARD_LAST_FOUR_FIELD,
+  PAYMENT_ATTEMPT_REFERENCE_FIELD,
   PAYMENT_CUSTOM_TYPE_KEY,
   PAYMENT_TERMS_IN_DAYS_FIELD,
 } from "./custom-fields";
@@ -69,17 +85,66 @@ const findPaymentByKey = (apiRoot: ByProjectKeyRequestBuilder, key: string) =>
     )
   );
 
-interface DesiredPayment {
-  readonly checkout: PaymentCheckout;
-  readonly customFields?: Readonly<Record<string, number | string>>;
-  readonly interfaceId: string;
-  readonly key: string;
-  readonly method: "card" | "netTerms";
-  readonly name: string;
-  readonly paymentInterface: string;
-}
+const findPaymentById = (
+  apiRoot: ByProjectKeyRequestBuilder,
+  paymentReference: string
+) =>
+  providerRequest("payment.read", async () => {
+    const response = await apiRoot
+      .payments()
+      .withId({ ID: paymentReference })
+      .get()
+      .execute();
+    return response.body;
+  });
 
-const customFieldsFor = (desired: DesiredPayment) => desired.customFields ?? {};
+const paymentTransactions = (
+  payment: Payment
+): Effect.Effect<readonly PaymentTransaction[], PaymentProviderFailure> =>
+  Effect.forEach(
+    payment.transactions.filter(
+      (transaction) =>
+        transaction.interactionId !== undefined &&
+        (transaction.type === "Authorization" ||
+          transaction.type === "CancelAuthorization" ||
+          transaction.type === "Charge") &&
+        (transaction.state === "Pending" ||
+          transaction.state === "Success" ||
+          transaction.state === "Failure")
+    ),
+    (transaction) =>
+      Effect.all({
+        operationReference: Schema.decodeUnknownEffect(
+          PaymentOperationReference
+        )(transaction.interactionId),
+        state: Schema.decodeUnknownEffect(PaymentTransactionState)(
+          transaction.state
+        ),
+        type: Schema.decodeUnknownEffect(PaymentTransactionType)(
+          transaction.type
+        ),
+      }).pipe(
+        Effect.map(({ operationReference, state, type }) => {
+          const mapped = {
+            amount: transaction.amount,
+            operationReference,
+            state,
+            type,
+          };
+          return transaction.interfaceId === undefined
+            ? mapped
+            : {
+                ...mapped,
+                providerReference: PaymentProviderTransactionReference.make(
+                  transaction.interfaceId
+                ),
+              };
+        }),
+        Effect.mapError((cause) =>
+          paymentFailure("payment.transactions.read", cause, "invalidData")
+        )
+      )
+  );
 
 const PaymentCustomFields = Schema.Record(
   Schema.String,
@@ -106,6 +171,160 @@ const hasCheckoutPaymentCustomType = (payment: Payment) =>
         CHECKOUT_PAYMENT_CUSTOM_FIELD_NAMES.has(fieldName)
       ),
   });
+
+const transactionStatePriority = {
+  Failure: 1,
+  Pending: 0,
+  Success: 2,
+} as const;
+
+const PAYMENT_RECONCILIATION_RETRIES = 1;
+
+const transactionActions = (
+  payment: Payment,
+  input: RecordPaymentTransactionInput
+): Effect.Effect<readonly PaymentUpdateAction[], PaymentProviderFailure> => {
+  const paymentMethodActions: PaymentUpdateAction[] = [];
+  if (input.paymentMethod !== undefined) {
+    if (
+      payment.paymentMethodInfo.method !== "card" ||
+      !hasCheckoutPaymentCustomType(payment)
+    ) {
+      return Effect.fail(
+        paymentFailure(
+          "payment.transaction.record",
+          new Error("Card details belong to an incompatible Payment"),
+          "invalidData"
+        )
+      );
+    }
+    const currentFields = paymentCustomFieldsOrEmpty(payment);
+    const cardFields = {
+      [PAYMENT_CARD_BRAND_FIELD]: input.paymentMethod.cardBrand,
+      [PAYMENT_CARD_LAST_FOUR_FIELD]: input.paymentMethod.lastFour,
+    };
+    for (const [name, value] of Object.entries(cardFields)) {
+      if (currentFields[name] !== value) {
+        paymentMethodActions.push({ action: "setCustomField", name, value });
+      }
+    }
+  }
+  const existing = payment.transactions.find(
+    (transaction) => transaction.interactionId === input.operationReference
+  );
+  if (existing === undefined) {
+    return Effect.succeed([
+      {
+        action: "addTransaction",
+        transaction:
+          input.providerReference === undefined
+            ? {
+                amount: input.amount,
+                interactionId: input.operationReference,
+                state: input.state,
+                type: input.type,
+              }
+            : {
+                amount: input.amount,
+                interactionId: input.operationReference,
+                interfaceId: input.providerReference,
+                state: input.state,
+                type: input.type,
+              },
+      },
+      ...paymentMethodActions,
+    ]);
+  }
+  if (
+    existing.type !== input.type ||
+    existing.amount.centAmount !== input.amount.centAmount ||
+    existing.amount.currencyCode !== input.amount.currencyCode
+  ) {
+    return Effect.fail(
+      paymentFailure(
+        "payment.transaction.record",
+        new Error(
+          "Payment transaction identity was reused for another operation"
+        ),
+        "invalidData"
+      )
+    );
+  }
+
+  const actions: PaymentUpdateAction[] = [];
+  if (
+    input.providerReference !== undefined &&
+    existing.interfaceId !== input.providerReference
+  ) {
+    actions.push({
+      action: "setTransactionInterfaceId",
+      interfaceId: input.providerReference,
+      transactionId: existing.id,
+    });
+  }
+  const existingPriority = Option.getOrUndefined(
+    Schema.decodeUnknownOption(PaymentTransactionState)(existing.state).pipe(
+      Option.map((state) => transactionStatePriority[state])
+    )
+  );
+  if (
+    existing.state !== input.state &&
+    (existingPriority === undefined ||
+      transactionStatePriority[input.state] > existingPriority)
+  ) {
+    actions.push({
+      action: "changeTransactionState",
+      state: input.state,
+      transactionId: existing.id,
+    });
+  }
+  return Effect.succeed([...actions, ...paymentMethodActions]);
+};
+
+const recordPaymentTransaction = (
+  apiRoot: ByProjectKeyRequestBuilder,
+  input: RecordPaymentTransactionInput,
+  remainingRetries = PAYMENT_RECONCILIATION_RETRIES
+): Effect.Effect<void, PaymentProviderFailure> =>
+  findPaymentById(apiRoot, input.paymentReference).pipe(
+    Effect.flatMap((payment) =>
+      transactionActions(payment, input).pipe(
+        Effect.flatMap((actions) =>
+          actions.length === 0
+            ? Effect.succeed(payment)
+            : providerRequest("payment.transaction.record", async () => {
+                const response = await apiRoot
+                  .payments()
+                  .withId({ ID: payment.id })
+                  .post({
+                    body: { actions: [...actions], version: payment.version },
+                  })
+                  .execute();
+                return response.body;
+              })
+        )
+      )
+    ),
+    Effect.catch((error) =>
+      remainingRetries > 0 && isConcurrentModification(error.cause)
+        ? recordPaymentTransaction(apiRoot, input, remainingRetries - 1)
+        : Effect.fail(error)
+    ),
+    Effect.asVoid
+  );
+
+interface DesiredPayment {
+  readonly checkout: PaymentCheckout;
+  readonly customFields?: Readonly<Record<string, number | string>>;
+  readonly interfaceId?: string;
+  readonly key: string;
+  readonly method: "card" | "netTerms";
+  readonly name: string;
+  readonly paymentInterface: string;
+  readonly token?: string;
+}
+
+const customFieldsFor = (desired: DesiredPayment) => desired.customFields ?? {};
 
 const customFieldsMatch = (payment: Payment, desired: DesiredPayment) =>
   Option.match(paymentCustomFields(payment), {
@@ -157,16 +376,26 @@ const createPayment = (
   input: DesiredPayment
 ) =>
   providerRequest("payment.create", async () => {
-    const paymentDraft: PaymentDraft = {
-      amountPlanned: input.checkout.amount,
-      interfaceId: input.interfaceId,
-      key: input.key,
-      paymentMethodInfo: {
-        method: input.method,
-        name: { "en-US": input.name },
-        paymentInterface: input.paymentInterface,
-      },
+    const paymentMethodInfoWithoutToken: PaymentDraft["paymentMethodInfo"] = {
+      method: input.method,
+      name: { "en-US": input.name },
+      paymentInterface: input.paymentInterface,
     };
+    const paymentDraftWithoutInterfaceId: PaymentDraft = {
+      amountPlanned: input.checkout.amount,
+      key: input.key,
+      paymentMethodInfo:
+        input.token === undefined
+          ? paymentMethodInfoWithoutToken
+          : {
+              ...paymentMethodInfoWithoutToken,
+              token: { value: input.token },
+            },
+    };
+    const paymentDraft: PaymentDraft =
+      input.interfaceId === undefined
+        ? paymentDraftWithoutInterfaceId
+        : { ...paymentDraftWithoutInterfaceId, interfaceId: input.interfaceId };
     const body: PaymentDraft = {
       ...paymentDraft,
       custom: {
@@ -184,7 +413,8 @@ const updatePayment = (
   desired: DesiredPayment
 ): Effect.Effect<Payment, PaymentProviderFailure> => {
   if (
-    (payment.interfaceId !== undefined &&
+    (desired.interfaceId !== undefined &&
+      payment.interfaceId !== undefined &&
       payment.interfaceId !== desired.interfaceId) ||
     (payment.paymentMethodInfo.paymentInterface !== undefined &&
       payment.paymentMethodInfo.paymentInterface !== desired.paymentInterface)
@@ -234,6 +464,16 @@ const updatePayment = (
           }
     );
   }
+  const tokenActions: PaymentUpdateAction[] =
+    desired.token === undefined ||
+    payment.paymentMethodInfo.token?.value === desired.token
+      ? []
+      : [
+          {
+            action: "setMethodInfoToken",
+            token: { value: desired.token },
+          },
+        ];
   return customFieldActions(payment, desired).pipe(
     Effect.flatMap((customActions) => {
       const actions: PaymentUpdateAction[] = [
@@ -245,7 +485,8 @@ const updatePayment = (
               },
             ]
           : []),
-        ...(payment.interfaceId === desired.interfaceId
+        ...(desired.interfaceId === undefined ||
+        payment.interfaceId === desired.interfaceId
           ? []
           : [
               {
@@ -254,6 +495,7 @@ const updatePayment = (
               },
             ]),
         ...methodInfoActions,
+        ...tokenActions,
         ...customActions,
       ];
       if (actions.length === 0) {
@@ -278,10 +520,13 @@ const requireDesiredPayment = (
 ): Effect.Effect<Payment, PaymentProviderFailure> =>
   payment.amountPlanned.centAmount === desired.checkout.amount.centAmount &&
   payment.amountPlanned.currencyCode === desired.checkout.amount.currencyCode &&
-  payment.interfaceId === desired.interfaceId &&
+  (desired.interfaceId === undefined ||
+    payment.interfaceId === desired.interfaceId) &&
   payment.paymentMethodInfo.method === desired.method &&
   payment.paymentMethodInfo.name?.["en-US"] === desired.name &&
   payment.paymentMethodInfo.paymentInterface === desired.paymentInterface &&
+  (desired.token === undefined ||
+    payment.paymentMethodInfo.token?.value === desired.token) &&
   customFieldsMatch(payment, desired)
     ? Effect.succeed(payment)
     : Effect.fail(
@@ -300,7 +545,90 @@ const isReconciliationConflict = (failure: PaymentProviderFailure) =>
     "DuplicateFieldWithConflictingResource"
   );
 
-const PAYMENT_RECONCILIATION_RETRIES = 1;
+const paymentCanBeSuperseded = (payment: Payment) => {
+  if (
+    payment.transactions.some(
+      (transaction) =>
+        transaction.type === "Charge" && transaction.state === "Success"
+    )
+  ) {
+    return false;
+  }
+  for (let index = payment.transactions.length - 1; index >= 0; index -= 1) {
+    const transaction = payment.transactions[index];
+    if (transaction !== undefined && transaction.state !== "Failure") {
+      return (
+        transaction.type === "CancelAuthorization" &&
+        transaction.state === "Success"
+      );
+    }
+  }
+  return true;
+};
+
+const supersededPaymentKey = (payment: Payment, currentKey: string) => {
+  const suffix = `-superseded-${payment.id}`;
+  return `${currentKey.slice(0, 256 - suffix.length)}${suffix}`;
+};
+
+const supersedePayment = (
+  apiRoot: ByProjectKeyRequestBuilder,
+  payment: Payment,
+  desired: DesiredPayment
+): Effect.Effect<Payment, PaymentProviderFailure> => {
+  if (!paymentCanBeSuperseded(payment)) {
+    return Effect.fail(
+      paymentFailure(
+        "payment.update",
+        new Error(
+          "Payment provider identity cannot change after financial progress"
+        ),
+        "invalidData"
+      )
+    );
+  }
+  return providerRequest("payment.supersede", async () => {
+    await apiRoot
+      .payments()
+      .withId({ ID: payment.id })
+      .post({
+        body: {
+          actions: [
+            {
+              action: "setKey",
+              key: supersededPaymentKey(payment, desired.key),
+            },
+          ],
+          version: payment.version,
+        },
+      })
+      .execute();
+  }).pipe(Effect.flatMap(() => createPayment(apiRoot, desired)));
+};
+
+const reconcilePayment = (
+  apiRoot: ByProjectKeyRequestBuilder,
+  payment: Payment,
+  desired: DesiredPayment
+) => {
+  if (
+    payment.paymentMethodInfo.paymentInterface !== undefined &&
+    payment.paymentMethodInfo.paymentInterface !== desired.paymentInterface
+  ) {
+    return Effect.fail(
+      paymentFailure(
+        "payment.update",
+        new Error("Payment belongs to another provider identity"),
+        "invalidData"
+      )
+    );
+  }
+  return desired.interfaceId !== undefined &&
+    payment.interfaceId !== undefined &&
+    payment.interfaceId !== desired.interfaceId
+    ? supersedePayment(apiRoot, payment, desired)
+    : updatePayment(apiRoot, payment, desired);
+};
 
 const ensurePayment = (
   apiRoot: ByProjectKeyRequestBuilder,
@@ -311,7 +639,7 @@ const ensurePayment = (
     Effect.flatMap(
       Option.match({
         onNone: () => createPayment(apiRoot, desired),
-        onSome: (payment) => updatePayment(apiRoot, payment, desired),
+        onSome: (payment) => reconcilePayment(apiRoot, payment, desired),
       })
     ),
     Effect.flatMap((payment) => requireDesiredPayment(payment, desired)),
@@ -326,15 +654,27 @@ const requireCardPaymentRecord = (
   payment: Payment
 ): Effect.Effect<CardPaymentRecord, PaymentProviderFailure> => {
   const provider = payment.paymentMethodInfo.paymentInterface;
-  const confirmationReferenceValue =
-    paymentCustomFieldsOrEmpty(payment)[PAYMENT_CONFIRMATION_REFERENCE_FIELD];
+  const confirmationReferenceValue = payment.paymentMethodInfo.token?.value;
+  const attemptReference = Schema.decodeUnknownOption(PaymentAttemptReference)(
+    paymentCustomFieldsOrEmpty(payment)[PAYMENT_ATTEMPT_REFERENCE_FIELD]
+  );
   const confirmationReference =
     confirmationReferenceValue === undefined
       ? Option.none()
-      : Schema.decodeUnknownOption(PaymentConfirmationReference)(
+      : Schema.decodeOption(PaymentConfirmationReference)(
           confirmationReferenceValue
         );
-  if (payment.interfaceId === undefined || provider === undefined) {
+  const cardBrandValue =
+    paymentCustomFieldsOrEmpty(payment)[PAYMENT_CARD_BRAND_FIELD];
+  const cardLastFourValue =
+    paymentCustomFieldsOrEmpty(payment)[PAYMENT_CARD_LAST_FOUR_FIELD];
+  const cardBrand = Schema.decodeUnknownOption(CardBrand)(cardBrandValue);
+  const cardLastFour =
+    Schema.decodeUnknownOption(CardLastFour)(cardLastFourValue);
+  const providerReference = Schema.decodeUnknownOption(
+    PaymentProviderReference
+  )(payment.interfaceId);
+  if (Option.isNone(providerReference) || provider === undefined) {
     return Effect.fail(
       paymentFailure(
         "payment.read",
@@ -355,15 +695,103 @@ const requireCardPaymentRecord = (
       )
     );
   }
+  if (
+    (cardBrandValue === undefined) !== (cardLastFourValue === undefined) ||
+    (cardBrandValue !== undefined &&
+      (Option.isNone(cardBrand) || Option.isNone(cardLastFour)))
+  ) {
+    return Effect.fail(
+      paymentFailure(
+        "payment.read",
+        new Error("Card Payment has invalid display details"),
+        "invalidData"
+      )
+    );
+  }
   const common = {
+    method: "card" as const,
     paymentReference: PaymentReference.make(payment.id),
     provider: PaymentProvider.make(provider),
-    providerReference: PaymentProviderReference.make(payment.interfaceId),
+    providerReference: providerReference.value,
   };
+  const withAttempt = Option.isNone(attemptReference)
+    ? common
+    : { ...common, attemptReference: attemptReference.value };
+  const withConfirmation = Option.isNone(confirmationReference)
+    ? withAttempt
+    : {
+        ...withAttempt,
+        confirmationReference: confirmationReference.value,
+      };
   return Effect.succeed(
-    Option.isNone(confirmationReference)
+    Option.isNone(cardBrand) || Option.isNone(cardLastFour)
+      ? withConfirmation
+      : {
+          ...withConfirmation,
+          paymentMethod: {
+            cardBrand: cardBrand.value,
+            lastFour: cardLastFour.value,
+            method: "card" as const,
+          },
+        }
+  );
+};
+
+const requireNetTermsPaymentRecord = (
+  payment: Payment
+): Effect.Effect<NetTermsPaymentRecord, PaymentProviderFailure> => {
+  const provider = payment.paymentMethodInfo.paymentInterface;
+  const providerReference = Schema.decodeUnknownOption(
+    PaymentProviderReference
+  )(payment.interfaceId);
+  const termsInDays = Schema.decodeUnknownOption(
+    Schema.Int.check(Schema.isGreaterThan(0))
+  )(paymentCustomFieldsOrEmpty(payment)[PAYMENT_TERMS_IN_DAYS_FIELD]);
+  const attemptReference = Schema.decodeUnknownOption(PaymentAttemptReference)(
+    paymentCustomFieldsOrEmpty(payment)[PAYMENT_ATTEMPT_REFERENCE_FIELD]
+  );
+  if (
+    provider === undefined ||
+    Option.isNone(providerReference) ||
+    Option.isNone(termsInDays)
+  ) {
+    return Effect.fail(
+      paymentFailure(
+        "payment.read",
+        new Error("Net Terms Payment has invalid provider metadata"),
+        "invalidData"
+      )
+    );
+  }
+  const common = {
+    method: "netTerms",
+    paymentReference: PaymentReference.make(payment.id),
+    provider: PaymentProvider.make(provider),
+    providerReference: providerReference.value,
+    termsInDays: termsInDays.value,
+  } as const;
+  return Effect.succeed(
+    Option.isNone(attemptReference)
       ? common
-      : { ...common, confirmationReference: confirmationReference.value }
+      : { ...common, attemptReference: attemptReference.value }
+  );
+};
+
+const requirePaymentRecord = (
+  payment: Payment
+): Effect.Effect<PaymentRecord, PaymentProviderFailure> => {
+  if (payment.paymentMethodInfo.method === "card") {
+    return requireCardPaymentRecord(payment);
+  }
+  if (payment.paymentMethodInfo.method === "netTerms") {
+    return requireNetTermsPaymentRecord(payment);
+  }
+  return Effect.fail(
+    paymentFailure(
+      "payment.read",
+      new Error("Payment has an unsupported checkout method"),
+      "invalidData"
+    )
   );
 };
 
@@ -373,6 +801,19 @@ export const paymentRepositoryLayerFrom = (
   Layer.succeed(
     PaymentRepository,
     PaymentRepository.of({
+      findByReference: Effect.fn(
+        "CommercetoolsPaymentRepository.findByReference"
+      )((paymentReference) =>
+        findPaymentById(apiRoot, paymentReference).pipe(
+          Effect.flatMap(requirePaymentRecord),
+          Effect.map((record) => Option.some<PaymentRecord>(record)),
+          Effect.catch((error) =>
+            isNotFound(error)
+              ? Effect.succeed(Option.none<PaymentRecord>())
+              : Effect.fail(error)
+          )
+        )
+      ),
       findCard: Effect.fn("CommercetoolsPaymentRepository.findCard")(
         (checkoutReference) =>
           findPaymentByKey(
@@ -390,10 +831,20 @@ export const paymentRepositoryLayerFrom = (
             )
           )
       ),
+      findTransactions: Effect.fn(
+        "CommercetoolsPaymentRepository.findTransactions"
+      )((paymentReference) =>
+        findPaymentById(apiRoot, paymentReference).pipe(
+          Effect.flatMap(paymentTransactions)
+        )
+      ),
+      recordTransaction: Effect.fn(
+        "CommercetoolsPaymentRepository.recordTransaction"
+      )((input) => recordPaymentTransaction(apiRoot, input)),
       saveCard: Effect.fn("CommercetoolsPaymentRepository.saveCard")(
         (input) => {
           const key = cardPaymentKeyForCheckout(input.checkout.reference);
-          const desired: DesiredPayment = {
+          const base: DesiredPayment = {
             checkout: input.checkout,
             interfaceId: input.providerReference,
             key,
@@ -401,16 +852,24 @@ export const paymentRepositoryLayerFrom = (
             name: "Card",
             paymentInterface: input.provider,
           };
-          const selected: DesiredPayment =
-            input.confirmationReference === undefined
-              ? desired
+          const desired: DesiredPayment =
+            input.attemptReference === undefined
+              ? base
               : {
-                  ...desired,
+                  ...base,
                   customFields: {
-                    [PAYMENT_CONFIRMATION_REFERENCE_FIELD]:
-                      input.confirmationReference,
+                    ...customFieldsFor(base),
+                    [PAYMENT_ATTEMPT_REFERENCE_FIELD]: input.attemptReference,
                   },
                 };
+          const selectedCustomFields = {
+            ...customFieldsFor(desired),
+          };
+          const selected: DesiredPayment = {
+            ...desired,
+            customFields: selectedCustomFields,
+            token: input.confirmationReference,
+          };
           return ensurePayment(apiRoot, selected).pipe(
             Effect.map((payment) => PaymentReference.make(payment.id))
           );
@@ -422,9 +881,10 @@ export const paymentRepositoryLayerFrom = (
           return ensurePayment(apiRoot, {
             checkout: input.checkout,
             customFields: {
+              [PAYMENT_ATTEMPT_REFERENCE_FIELD]: input.attemptReference,
               [PAYMENT_TERMS_IN_DAYS_FIELD]: input.termsInDays,
             },
-            interfaceId: key,
+            interfaceId: input.providerReference,
             key,
             method: "netTerms",
             name: `Net ${input.termsInDays}`,

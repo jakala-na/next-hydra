@@ -4,8 +4,10 @@
 import type { CustomField } from "../types";
 
 export type CheckoutPaymentFieldsSchema = {
-  checkoutConfirmationReference: CustomField<"text">;
+  checkoutPlacementAttemptReference: CustomField<"text">;
   checkoutTermsInDays: CustomField<"number">;
+  checkoutCardBrand: CustomField<"text">;
+  checkoutCardLastFour: CustomField<"text">;
 };
 
 export type OrderCustomFieldsSchema = {
