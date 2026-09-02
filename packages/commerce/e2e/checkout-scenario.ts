@@ -33,6 +33,34 @@ export interface NetTermsAccountExpectation {
     readonly currencyCode: string;
   };
   readonly termsInDays: number;
+  readonly ledger?: readonly {
+    readonly amount: {
+      readonly centAmount: number;
+      readonly currencyCode: string;
+    };
+    readonly direction: string;
+    readonly orderReference?: string;
+    readonly reference: string;
+  }[];
+}
+
+export interface CheckoutOrderExpectation {
+  readonly id: string;
+  readonly number: string;
+  readonly totalPrice: {
+    readonly centAmount: number;
+    readonly currencyCode: string;
+  };
+}
+
+export interface CheckoutPaymentExpectation {
+  readonly method: string;
+  readonly provider: string;
+  readonly providerReference: string;
+  readonly transactions: readonly {
+    readonly state: string;
+    readonly type: string;
+  }[];
 }
 
 interface AnonymousCartCookiePage {
@@ -44,6 +72,7 @@ interface AnonymousCartCookiePage {
 }
 
 export interface CheckoutScenarioOptions {
+  readonly deleteOrder?: (cartId: CartId) => Promise<void>;
   readonly deleteNetTerms?: (businessUnitId: string) => Promise<void>;
   readonly deleteCart: (cartId: CartId) => Promise<void>;
   readonly deletePayments?: (cartId: CartId) => Promise<void>;
@@ -51,10 +80,20 @@ export interface CheckoutScenarioOptions {
     input: ShippingOptionsExpectation
   ) => Promise<void>;
   readonly expectCardNotAuthorized?: (cartId: CartId) => Promise<void>;
+  readonly expectCardCaptured?: (
+    providerReference: string,
+    expectedMinorAmount: number
+  ) => Promise<void>;
+  readonly getOrder?: (
+    cartId: CartId
+  ) => Promise<CheckoutOrderExpectation | null>;
+  readonly getPayment?: (cartId: CartId) => Promise<CheckoutPaymentExpectation>;
   readonly getNetTerms?: (
     businessUnitId: string
   ) => Promise<NetTermsAccountExpectation>;
   readonly page: AnonymousCartCookiePage;
+  readonly prepareCardCaptureFailure?: (cartId: CartId) => Promise<void>;
+  readonly prepareOrderRejection?: (cartId: CartId) => Promise<void>;
   readonly setNetTerms?: (input: {
     readonly amount: string;
     readonly businessUnitId: string;
@@ -69,6 +108,7 @@ export class CheckoutScenario {
   readonly #options: CheckoutScenarioOptions;
   #disposed = false;
   #currentCartId?: CartId;
+  #cardCaptureFailureRequested = false;
   #product?: ProductExpectation;
   #shippingAddress?: ShippingAddressExpectation;
   #store?: StoreExpectation;
@@ -139,9 +179,13 @@ export class CheckoutScenario {
       },
       termsInDays: input.termsInDays,
     };
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    const actualSeed = {
+      availableCredit: actual.availableCredit,
+      termsInDays: actual.termsInDays,
+    };
+    if (JSON.stringify(actualSeed) !== JSON.stringify(expected)) {
       throw new Error(
-        `Net Terms did not match the scenario input: expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`
+        `Net Terms did not match the scenario input: expected ${JSON.stringify(expected)}, received ${JSON.stringify(actualSeed)}`
       );
     }
   }
@@ -191,6 +235,158 @@ export class CheckoutScenario {
     this.#currentCartId = cartId;
   }
 
+  requireCurrentCartId(): CartId {
+    if (this.#currentCartId === undefined) {
+      throw new Error("The scenario has no current Cart");
+    }
+    return this.#currentCartId;
+  }
+
+  requestCardCaptureFailure(): void {
+    this.#cardCaptureFailureRequested = true;
+  }
+
+  async afterPaymentOptionsSaved(): Promise<void> {
+    if (!this.#cardCaptureFailureRequested) {
+      return;
+    }
+    if (this.#options.prepareCardCaptureFailure === undefined) {
+      throw new Error("The scenario cannot configure Card capture failure");
+    }
+    await this.#options.prepareCardCaptureFailure(this.requireCurrentCartId());
+    this.#cardCaptureFailureRequested = false;
+  }
+
+  async prepareOrderRejection(): Promise<void> {
+    if (this.#options.prepareOrderRejection === undefined) {
+      throw new Error("The scenario cannot configure Order rejection");
+    }
+    await this.#options.prepareOrderRejection(this.requireCurrentCartId());
+  }
+
+  async expectOrder(amount: string, currency: string): Promise<void> {
+    if (this.#options.getOrder === undefined) {
+      throw new Error("The scenario cannot inspect Orders");
+    }
+    const order = await this.#options.getOrder(this.requireCurrentCartId());
+    if (order === null) {
+      throw new Error("The Checkout Order does not exist");
+    }
+    const expected = {
+      centAmount: Number(minorAmountFromDecimal(amount)),
+      currencyCode: currency,
+    };
+    if (
+      order.totalPrice.centAmount !== expected.centAmount ||
+      order.totalPrice.currencyCode !== expected.currencyCode
+    ) {
+      throw new Error(
+        `Order total did not match: expected ${JSON.stringify(expected)}, received ${JSON.stringify(order.totalPrice)}`
+      );
+    }
+  }
+
+  async expectNoOrder(): Promise<void> {
+    if (this.#options.getOrder === undefined) {
+      throw new Error("The scenario cannot inspect Orders");
+    }
+    const order = await this.#options.getOrder(this.requireCurrentCartId());
+    if (order !== null) {
+      throw new Error(`Unexpected Checkout Order ${order.id}`);
+    }
+  }
+
+  async expectPaymentTransactions(
+    method: string,
+    expected: readonly { readonly state: string; readonly type: string }[]
+  ): Promise<void> {
+    if (this.#options.getPayment === undefined) {
+      throw new Error("The scenario cannot inspect Payments");
+    }
+    const payment = await this.#options.getPayment(this.requireCurrentCartId());
+    if (payment.method !== method) {
+      throw new Error(
+        `Expected Payment Method ${method}, received ${payment.method}`
+      );
+    }
+    if (JSON.stringify(payment.transactions) !== JSON.stringify(expected)) {
+      throw new Error(
+        `Payment transactions did not match: expected ${JSON.stringify(expected)}, received ${JSON.stringify(payment.transactions)}`
+      );
+    }
+  }
+
+  async expectCardCaptured(amount: string): Promise<void> {
+    if (
+      this.#options.getPayment === undefined ||
+      this.#options.expectCardCaptured === undefined
+    ) {
+      throw new Error("The scenario cannot inspect captured Card Payments");
+    }
+    const payment = await this.#options.getPayment(this.requireCurrentCartId());
+    await this.#options.expectCardCaptured(
+      payment.providerReference,
+      Number(minorAmountFromDecimal(amount))
+    );
+  }
+
+  async expectCardCapturedForOrder(): Promise<void> {
+    if (
+      this.#options.getOrder === undefined ||
+      this.#options.getPayment === undefined ||
+      this.#options.expectCardCaptured === undefined
+    ) {
+      throw new Error("The scenario cannot inspect captured Card Payments");
+    }
+    const cartId = this.requireCurrentCartId();
+    const [order, payment] = await Promise.all([
+      this.#options.getOrder(cartId),
+      this.#options.getPayment(cartId),
+    ]);
+    if (order === null) {
+      throw new Error("The Checkout Order does not exist");
+    }
+    await this.#options.expectCardCaptured(
+      payment.providerReference,
+      order.totalPrice.centAmount
+    );
+  }
+
+  async expectNoPaymentTransaction(type: string): Promise<void> {
+    if (this.#options.getPayment === undefined) {
+      throw new Error("The scenario cannot inspect Payments");
+    }
+    const payment = await this.#options.getPayment(this.requireCurrentCartId());
+    if (payment.transactions.some((transaction) => transaction.type === type)) {
+      throw new Error(`Payment unexpectedly contains a ${type} transaction`);
+    }
+  }
+
+  async expectNetTermsLedgerDebit(input: {
+    readonly amount: string;
+    readonly businessUnitId: string;
+    readonly currency: string;
+  }): Promise<void> {
+    if (this.#options.getNetTerms === undefined) {
+      throw new Error("The scenario cannot inspect Net Terms");
+    }
+    const profile = await this.#options.getNetTerms(input.businessUnitId);
+    const expectedAmount = {
+      centAmount: Number(minorAmountFromDecimal(input.amount)),
+      currencyCode: input.currency,
+    };
+    const debit = profile.ledger?.find(
+      (entry) =>
+        entry.direction === "debit" &&
+        JSON.stringify(entry.amount) === JSON.stringify(expectedAmount)
+    );
+    if (debit === undefined) {
+      throw new Error(
+        `Net Terms ledger has no debit for ${JSON.stringify(expectedAmount)}`
+      );
+    }
+  }
+
   async dispose(): Promise<void> {
     if (this.#disposed) {
       return;
@@ -200,6 +396,11 @@ export class CheckoutScenario {
     const results = await Promise.allSettled([
       ...[...this.#cartIds].map(async (cartId) => {
         const cartFailures: unknown[] = [];
+        try {
+          await this.#options.deleteOrder?.(cartId);
+        } catch (error) {
+          cartFailures.push(error);
+        }
         try {
           await this.#options.deleteCart(cartId);
         } catch (error) {

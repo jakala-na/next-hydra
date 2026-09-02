@@ -107,4 +107,34 @@ describe(CheckoutScenario, () => {
 
     expect(inspectedCartIds).toStrictEqual(["cart-from-payment-step"]);
   });
+
+  it("compares Net Terms seed fields after financial activity is recorded", async () => {
+    const scenario = new CheckoutScenario({
+      deleteCart: () => Promise.resolve(),
+      getNetTerms: () =>
+        Promise.resolve({
+          availableCredit: { centAmount: 300_000, currencyCode: "USD" },
+          ledger: [
+            {
+              amount: { centAmount: 1_700_000, currencyCode: "USD" },
+              direction: "debit",
+              reference: "credit-authorization-1",
+            },
+          ],
+          termsInDays: 30,
+        }),
+      page: {
+        context: () => ({ cookies: () => Promise.resolve([]) }),
+      },
+    });
+
+    await expect(
+      scenario.expectNetTerms({
+        amount: "3000.00",
+        businessUnitId: "business-unit-1",
+        currency: "USD",
+        termsInDays: 30,
+      })
+    ).resolves.toBeUndefined();
+  });
 });

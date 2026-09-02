@@ -1,9 +1,12 @@
 import { expect } from "@repo/e2e-testing";
-import type { Locator, Page } from "@repo/e2e-testing";
+import type { APIRequestContext, Locator, Page } from "@repo/e2e-testing";
 
 import { CartId } from "../../domain/cart";
+import { ANONYMOUS_CART_COOKIE_NAME } from "../../lib/cart/utils/anonymous-cart-cookies";
 import type { ShippingOptionExpectation } from "../shipping-options-test-control";
 import { expectMoney } from "./money.driver";
+
+const droppedPlacementCompletions = new WeakMap<Page, Promise<void>>();
 
 const exactTextIgnoringCase = (value: string): RegExp =>
   new RegExp(`^${value.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "iu");
@@ -253,6 +256,11 @@ export class CheckoutDriver {
     await this.#activeStep("Payment Options")
       .getByRole("button", { name: "Save payment options" })
       .click();
+    await expect(
+      this.#activeStep("Review Order").getByRole("button", {
+        name: "Place order",
+      })
+    ).toBeVisible();
   }
 
   async expectPaymentMethodCannotBeSelected(name: string): Promise<void> {
@@ -273,6 +281,127 @@ export class CheckoutDriver {
       amount,
       currency
     );
+  }
+
+  async orderPlacementInput(): Promise<{
+    readonly cartId: CartId;
+  }> {
+    const review = this.#activeStep("Review Order");
+    const form = review.locator("form").filter({
+      has: this.#page.getByRole("button", { name: "Place order" }),
+    });
+    const cartId = await form.locator('input[name="cartId"]').inputValue();
+    return {
+      cartId: CartId.make(cartId),
+    };
+  }
+
+  async placeOrder(): Promise<void> {
+    await this.#activeStep("Review Order")
+      .getByRole("button", { name: "Place order" })
+      .click();
+  }
+
+  async clearConsumedCartCookieAndReload(): Promise<void> {
+    await this.#page.context().clearCookies({
+      name: ANONYMOUS_CART_COOKIE_NAME,
+    });
+    await this.#page.reload();
+  }
+
+  async dropNextPlaceOrderResponse(
+    serverRequest: APIRequestContext
+  ): Promise<void> {
+    const checkoutUrl = new URL(this.#page.url());
+    checkoutUrl.search = "";
+    let completePlacement: (() => void) | undefined;
+    let failPlacement: ((error: Error) => void) | undefined;
+    // oxlint-disable-next-line promise/avoid-new, effecttsgo/new-promise -- Playwright's route callback must signal completion to a later browser refresh.
+    const completion = new Promise<void>((resolve, reject) => {
+      completePlacement = resolve;
+      failPlacement = reject;
+    });
+    void completion.catch(() => undefined);
+    droppedPlacementCompletions.set(this.#page, completion);
+    await this.#page.route(
+      checkoutUrl.href,
+      async (route) => {
+        if (route.request().method() !== "POST") {
+          await route.continue();
+          return;
+        }
+        try {
+          const response = await serverRequest.fetch(route.request());
+          if (!response.ok()) {
+            throw new Error(
+              `Detached Place Order request failed with ${response.status()}`
+            );
+          }
+          completePlacement?.();
+        } catch (error) {
+          failPlacement?.(
+            error instanceof Error
+              ? error
+              : new Error("Detached Place Order request failed", {
+                  cause: error,
+                })
+          );
+        } finally {
+          await route.abort("failed");
+        }
+      },
+      { times: 1 }
+    );
+  }
+
+  async refreshCheckout(): Promise<void> {
+    const completion = droppedPlacementCompletions.get(this.#page);
+    if (completion !== undefined) {
+      await completion;
+      droppedPlacementCompletions.delete(this.#page);
+    }
+    await this.#page.reload();
+  }
+
+  async expectPaymentOptionsRequiredBeforeOrder(): Promise<void> {
+    await expect(
+      this.#activeStep("Payment Options").getByRole("button", {
+        name: "Save payment options",
+      })
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      this.#page.getByRole("button", { name: "Place order" })
+    ).toHaveCount(0);
+  }
+
+  async expectOrderConfirmation(
+    amount: string,
+    currency: string
+  ): Promise<void> {
+    const confirmation = this.#page.locator("[data-order-confirmation]");
+    await expect(confirmation).toHaveCount(1, { timeout: 15_000 });
+    await expect(
+      confirmation.getByRole("heading", { name: "Order confirmed" })
+    ).toBeVisible();
+    await expectMoney(
+      confirmation.locator('[data-commerce-money="order-total"]'),
+      amount,
+      currency
+    );
+  }
+
+  async expectPaymentFinalizationPending(): Promise<void> {
+    await expect(this.#page.getByRole("status")).toHaveText(
+      "Payment finalization is pending."
+    );
+  }
+
+  async expectOrderRejection(): Promise<void> {
+    const review = this.#activeStep("Review Order");
+    await expect(review.getByRole("alert")).toBeVisible();
+    await expect(
+      review.getByRole("button", { name: "Place order" })
+    ).toBeVisible();
   }
 
   async editStep(stepName: string): Promise<void> {

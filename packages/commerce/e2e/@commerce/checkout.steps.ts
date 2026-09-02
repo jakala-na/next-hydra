@@ -438,6 +438,7 @@ When("the buyer saves Payment Options", async ({ checkoutScenario, page }) => {
   const checkout = new CheckoutDriver(page);
   checkoutScenario.rememberCart(await checkout.currentPaymentOptionsCartId());
   await checkout.savePaymentOptions();
+  await checkoutScenario.afterPaymentOptionsSaved();
 });
 
 Then(

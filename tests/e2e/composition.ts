@@ -15,6 +15,7 @@ import type {
   CommercetoolsRestClient,
   makeCommercetoolsJanitorFromApiRoot as MakeCommercetoolsJanitorFromApiRoot,
   makeCommercetoolsNetTermsTestControl as MakeCommercetoolsNetTermsTestControl,
+  makeCommercetoolsOrderTestControl as MakeCommercetoolsOrderTestControl,
   makeCommercetoolsPaymentTestControl as MakeCommercetoolsPaymentTestControl,
   shippingOptionsTestControlLayer as ShippingOptionsTestControlLayer,
 } from "@repo/commerce-provider/testing";
@@ -66,6 +67,7 @@ interface CommerceProviderTestingModule {
   readonly CommercetoolsRestClient: typeof CommercetoolsRestClient;
   readonly makeCommercetoolsJanitorFromApiRoot: typeof MakeCommercetoolsJanitorFromApiRoot;
   readonly makeCommercetoolsNetTermsTestControl: typeof MakeCommercetoolsNetTermsTestControl;
+  readonly makeCommercetoolsOrderTestControl: typeof MakeCommercetoolsOrderTestControl;
   readonly makeCommercetoolsPaymentTestControl: typeof MakeCommercetoolsPaymentTestControl;
   readonly shippingOptionsTestControlLayer: typeof ShippingOptionsTestControlLayer;
 }
@@ -79,6 +81,7 @@ interface E2EServices {
   readonly adminAuth: AuthTestControl["Service"];
   readonly customerAuth: AuthTestControl["Service"];
   readonly deleteCart: CheckoutScenarioOptions["deleteCart"];
+  readonly deleteOrder: NonNullable<CheckoutScenarioOptions["deleteOrder"]>;
   readonly deletePayments: NonNullable<
     CheckoutScenarioOptions["deletePayments"]
   >;
@@ -88,6 +91,11 @@ interface E2EServices {
   readonly expectCardNotAuthorized: NonNullable<
     CheckoutScenarioOptions["expectCardNotAuthorized"]
   >;
+  readonly expectCardCaptured: NonNullable<
+    CheckoutScenarioOptions["expectCardCaptured"]
+  >;
+  readonly getOrder: NonNullable<CheckoutScenarioOptions["getOrder"]>;
+  readonly getPayment: NonNullable<CheckoutScenarioOptions["getPayment"]>;
   readonly getNetTerms: NonNullable<CheckoutScenarioOptions["getNetTerms"]>;
   readonly deleteNetTerms: NonNullable<
     CheckoutScenarioOptions["deleteNetTerms"]
@@ -97,6 +105,12 @@ interface E2EServices {
   readonly deleteRegistration: RegistrationContextOptions["deleteRegistration"];
   readonly provisionCompany: RegistrationContextOptions["provisionCompany"];
   readonly provisionCompanyMember: RegistrationContextOptions["provisionCompanyMember"];
+  readonly prepareCardCaptureFailure: NonNullable<
+    CheckoutScenarioOptions["prepareCardCaptureFailure"]
+  >;
+  readonly prepareOrderRejection: NonNullable<
+    CheckoutScenarioOptions["prepareOrderRejection"]
+  >;
 }
 
 interface RegistrationFixtures {
@@ -206,15 +220,24 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
       );
     await provide(new StripeCardPaymentEntryDriver(page));
   },
-  checkoutScenario: async ({ e2eServices, page }, provide) => {
+  checkoutScenario: async (
+    { e2eServices, page, registration: _registration },
+    provide
+  ) => {
     const checkoutScenario = new CheckoutScenario({
       deleteCart: e2eServices.deleteCart,
       deleteNetTerms: e2eServices.deleteNetTerms,
+      deleteOrder: e2eServices.deleteOrder,
       deletePayments: e2eServices.deletePayments,
+      expectCardCaptured: e2eServices.expectCardCaptured,
       expectCardNotAuthorized: e2eServices.expectCardNotAuthorized,
       expectShippingOptions: e2eServices.expectShippingOptions,
       getNetTerms: e2eServices.getNetTerms,
+      getOrder: e2eServices.getOrder,
+      getPayment: e2eServices.getPayment,
       page,
+      prepareCardCaptureFailure: e2eServices.prepareCardCaptureFailure,
+      prepareOrderRejection: e2eServices.prepareOrderRejection,
       setNetTerms: e2eServices.setNetTerms,
     });
 
@@ -235,6 +258,7 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
           CommercetoolsRestClient,
           makeCommercetoolsJanitorFromApiRoot,
           makeCommercetoolsNetTermsTestControl,
+          makeCommercetoolsOrderTestControl,
           makeCommercetoolsPaymentTestControl,
           shippingOptionsTestControlLayer,
         },
@@ -288,6 +312,9 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
       const payments = makeCommercetoolsPaymentTestControl(
         services.restClient.apiRoot
       );
+      const orders = makeCommercetoolsOrderTestControl(
+        services.restClient.apiRoot
+      );
       const stripePayments = () => {
         const secretKey = process.env.STRIPE_SECRET_KEY;
         if (secretKey === undefined || secretKey.length === 0) {
@@ -305,6 +332,7 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
           deleteCart: janitor.deleteCart,
           deleteCommerceAccount: janitor.deleteCommerceAccount,
           deleteNetTerms: netTerms.delete,
+          deleteOrder: orders.deleteForCheckout,
           deletePayments: async (cartId) => {
             const resources = await payments.getForCheckout(cartId);
             await Promise.all(
@@ -321,6 +349,15 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
             );
           },
           deleteRegistration: janitor.deleteRegistration,
+          expectCardCaptured: async (
+            providerReference,
+            expectedMinorAmount
+          ) => {
+            await stripePayments().expectCaptured(
+              providerReference,
+              expectedMinorAmount
+            );
+          },
           expectCardNotAuthorized: async (cartId) => {
             const selected = await payments.getSelectedProvider(cartId);
             if (selected.provider !== "Stripe") {
@@ -338,6 +375,24 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
             );
           },
           getNetTerms: netTerms.get,
+          getOrder: orders.getForCheckout,
+          getPayment: payments.getForCheckoutAssertion,
+          prepareCardCaptureFailure: async (cartId) => {
+            const payment =
+              await payments.getCardCaptureFailurePreparation(cartId);
+            const authorization = await stripePayments().authorizeThenCancel(
+              payment.providerReference,
+              payment.confirmationReference,
+              `${payment.attemptReference}:e2e-capture-failure`
+            );
+            await payments.recordSuccessfulAuthorization(
+              payment,
+              authorization
+            );
+          },
+          prepareOrderRejection: async (cartId) => {
+            await orders.configureOutOfStockRejection(cartId);
+          },
           provisionCompany: async (input) =>
             await runtime.runPromise(provisionScenarioCompany(input)),
           provisionCompanyMember: async (input) =>
