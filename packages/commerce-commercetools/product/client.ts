@@ -20,8 +20,11 @@ export interface ResolveCommercetoolsProductContextInput {
 
 export interface CommercetoolsProductContext {
   readonly distributionChannelId: string;
+  readonly distributionChannelKey: string;
   readonly supplyChannelIds: readonly string[];
+  readonly supplyChannelKeys: readonly string[];
   readonly customerGroupId?: string;
+  readonly customerGroupKey?: string;
 }
 
 export interface FindCommercetoolsProductBySlugInput {
@@ -150,7 +153,9 @@ export class CommercetoolsProductDiscoveryClient extends Context.Service<
           handlers.resolveProductContext?.(input) ??
           Effect.succeed({
             distributionChannelId: "",
+            distributionChannelKey: "",
             supplyChannelIds: [],
+            supplyChannelKeys: [],
           }),
       })
     );

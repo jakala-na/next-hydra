@@ -9,6 +9,7 @@ export type CreateOptions = {
   auth?: string;
   cms?: string;
   commerce?: string;
+  search?: string;
   addOns?: string[];
   preset?: string;
 };

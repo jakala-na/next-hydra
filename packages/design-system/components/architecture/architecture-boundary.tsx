@@ -15,7 +15,12 @@ export type ArchitectureRendering =
   | "dynamic"
   | "static"
   | "streamed";
-export type ArchitectureSource = "app" | "cms" | "commerce" | "design-system";
+export type ArchitectureSource =
+  | "app"
+  | "cms"
+  | "commerce"
+  | "design-system"
+  | "search";
 
 export type ArchitectureMetadata = {
   cacheProfile?: string;
@@ -68,7 +73,7 @@ export function ArchitectureBoundary({
   rendering,
   source,
   sourceLabel,
-}: ArchitectureBoundaryProps) {
+}: ArchitectureBoundaryProps): ReactNode {
   if (!architectureOverlaysEnabled) {
     return children;
   }

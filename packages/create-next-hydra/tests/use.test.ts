@@ -35,7 +35,8 @@ const DRUPAL_SELECTION = `{
   "providers": {
     "auth": "workos",
     "cms": "drupal",
-    "commerce": "commercetools"
+    "commerce": "commercetools",
+    "search": "algolia"
   },
   "addOns": []
 }
@@ -57,7 +58,7 @@ const provider = (options: {
   };
   readonly id: string;
   readonly name: string;
-  readonly slot: "auth" | "cms" | "commerce";
+  readonly slot: "auth" | "cms" | "commerce" | "search";
   readonly packages?: readonly {
     readonly cwd: string;
     readonly name: string;
@@ -101,6 +102,7 @@ const WORKOS_AUTH_REGISTRY = "packages/auth-workos/registry.json";
 const CONTENTSTACK_REGISTRY = "packages/cms-contentstack/registry.json";
 const DRUPAL_REGISTRY = "packages/cms-drupal/registry.json";
 const COMMERCETOOLS_REGISTRY = "packages/commerce-commercetools/registry.json";
+const ALGOLIA_REGISTRY = "packages/search-algolia/registry.json";
 
 const workosAuthProvider = provider({
   binding: {
@@ -177,6 +179,16 @@ const commercetoolsProvider = provider({
   slot: "commerce",
 });
 
+const algoliaProvider = provider({
+  binding: {
+    sourcePath: "packages/search-algolia",
+    specifier: "workspace:@repo/search-algolia@*",
+  },
+  id: "next-hydra/search/algolia",
+  name: "search-algolia",
+  slot: "search",
+});
+
 const fixtureRegistry = {
   $schema: SOURCE_REGISTRY_SCHEMA_URL,
   homepage: "https://example.com/next-hydra-use-fixture",
@@ -186,6 +198,7 @@ const fixtureRegistry = {
     CONTENTSTACK_REGISTRY,
     DRUPAL_REGISTRY,
     COMMERCETOOLS_REGISTRY,
+    ALGOLIA_REGISTRY,
   ],
   items: [],
   name: "next-hydra-use-fixture",
@@ -216,6 +229,10 @@ const maintainerFixture = async (): Promise<string> => {
       [
         COMMERCETOOLS_REGISTRY,
         `${JSON.stringify(sourceRegistry(commercetoolsProvider), null, 2)}\n`,
+      ],
+      [
+        ALGOLIA_REGISTRY,
+        `${JSON.stringify(sourceRegistry(algoliaProvider), null, 2)}\n`,
       ],
       ["next-hydra.json", DRUPAL_SELECTION],
       [
@@ -378,6 +395,8 @@ describe("maintainer use", () => {
             "@repo/commerce-provider/*": [
               "../../packages/commerce-commercetools/*",
             ],
+            "@repo/search-provider": ["../../packages/search-algolia"],
+            "@repo/search-provider/*": ["../../packages/search-algolia/*"],
           },
         },
       },
@@ -448,6 +467,8 @@ describe("maintainer use", () => {
             "@repo/commerce-provider/*": [
               "../../packages/commerce-commercetools/*",
             ],
+            "@repo/search-provider": ["../../packages/search-algolia"],
+            "@repo/search-provider/*": ["../../packages/search-algolia/*"],
           },
         },
       },
@@ -485,6 +506,7 @@ describe("maintainer use", () => {
         auth: "workos",
         cms: "drupal",
         commerce: "commercetools",
+        search: "algolia",
       },
     };
     const proposed = {
@@ -501,6 +523,7 @@ describe("maintainer use", () => {
         "  auth: workos (unchanged)",
         "  cms: drupal -> contentstack",
         "  commerce: commercetools (unchanged)",
+        "  search: algolia (unchanged)",
         "Add-ons: none (unchanged)",
         "",
         "Planned actions:",

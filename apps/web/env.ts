@@ -7,6 +7,7 @@ import { keys as core } from "@repo/next-config/keys";
 import { configurePortlessEnvironment } from "@repo/next-config/portless";
 import { keys as observability } from "@repo/observability/keys";
 import { keys as rateLimit } from "@repo/rate-limit/keys";
+import { keys as search } from "@repo/search-provider/keys";
 import { keys as security } from "@repo/security/keys";
 import { createEnv } from "@t3-oss/env-nextjs";
 
@@ -26,6 +27,7 @@ export const env = createEnv({
     flags(),
     security(),
     rateLimit(),
+    search(),
   ],
   runtimeEnv: {
     CMS_HOMEPAGE_SLUG: process.env.CMS_HOMEPAGE_SLUG,

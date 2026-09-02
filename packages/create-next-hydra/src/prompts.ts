@@ -28,10 +28,7 @@ export async function promptForTargetDirectory(): Promise<string> {
   return result.trim();
 }
 
-const PROVIDER_CHOICES: Record<
-  ProviderSlot,
-  { label: string; value: string; hint?: string }[]
-> = {
+const PROVIDER_CHOICES = {
   auth: [
     { label: "WorkOS", value: "workos" },
     {
@@ -49,7 +46,11 @@ const PROVIDER_CHOICES: Record<
     { label: "Contentstack", value: "contentstack" },
   ],
   commerce: [{ label: "Commercetools", value: "commercetools" }],
-};
+  search: [{ label: "Algolia", value: "algolia" }],
+} satisfies Record<
+  ProviderSlot,
+  { label: string; value: string; hint?: string }[]
+>;
 
 export async function promptForProvider(
   slot: ProviderSlot,

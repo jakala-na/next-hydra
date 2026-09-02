@@ -154,6 +154,7 @@ describe("composition planner failures", () => {
           auth: "workos",
           cms: provider.id,
           commerce: "commercetools",
+          search: "algolia",
         },
       })
     ).toThrow(PROVIDER_BINDING_MISSING);
@@ -172,6 +173,7 @@ describe("composition planner failures", () => {
         auth: "workos",
         cms: "drupal",
         commerce: "commercetools",
+        search: "algolia",
       },
     });
 
@@ -183,6 +185,8 @@ describe("composition planner failures", () => {
       "commerce-commercetools",
       "drupal",
       "drupal-commerce-dam",
+      "search-algolia",
+      "search-contract",
     ]);
   });
 
@@ -200,6 +204,7 @@ describe("composition planner failures", () => {
           auth: "workos",
           cms: "contentstack",
           commerce: "commercetools",
+          search: "algolia",
         },
       })
     ).toThrow(CompositionValidationError);
@@ -258,6 +263,7 @@ describe("composition planner failures", () => {
         auth: "workos",
         cms: "drupal",
         commerce: "commercetools",
+        search: "algolia",
       },
     });
 
@@ -293,6 +299,7 @@ describe("composition planner failures", () => {
           auth: "workos",
           cms: "drupal",
           commerce: "commercetools",
+          search: "algolia",
         },
       })
     ).toThrow(MATERIALIZATION_CONFLICT);

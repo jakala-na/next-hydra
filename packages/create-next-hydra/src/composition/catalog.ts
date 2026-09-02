@@ -33,6 +33,7 @@ const SHADCN_REGISTRY_ITEM_SCHEMA_URL =
   "https://ui.shadcn.com/schema/registry-item.json";
 
 const OFFICIAL_REFERENCES: Record<string, string> = {
+  algolia: "next-hydra/search/algolia",
   clerk: "next-hydra/auth/clerk",
   commercetools: "next-hydra/commerce/commercetools",
   contentstack: "next-hydra/cms/contentstack",
@@ -50,6 +51,8 @@ const OFFICIAL_ITEM_NAMES = [
   "commerce-commercetools",
   "drupal",
   "next-hydra-standard",
+  "search-algolia",
+  "search-contract",
 ] as const;
 
 function restoreFetchedSelectionSchema(item: RegistryItem): RegistryItem {

@@ -40,6 +40,13 @@ export default mergeConfig(
             "node_modules/@repo/commerce-provider"
           ),
         },
+        {
+          find: "@repo/search-provider",
+          replacement: path.resolve(
+            import.meta.dirname,
+            "node_modules/@repo/search-provider"
+          ),
+        },
         { find: "@", replacement: import.meta.dirname },
       ],
     },

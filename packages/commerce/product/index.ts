@@ -56,5 +56,6 @@ export {
   ProductDiscovery,
   ProductDiscoveryFailure,
   ProductDiscoveryOperation,
+  type ProductSearchAudience,
   type ProductDiscoveryTestHandlers,
 } from "./product-discovery";

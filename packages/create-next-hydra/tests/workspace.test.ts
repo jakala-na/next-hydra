@@ -52,6 +52,7 @@ function removalPlan(): CompositionPlan {
         auth: "workos",
         cms: "contentstack",
         commerce: "commercetools",
+        search: "algolia",
       },
     },
     selections: [],
@@ -209,6 +210,7 @@ describe("workspace selection updates", () => {
       `{
   "providers": {
     "commerce": "commercetools",
+    "search": "algolia",
     "auth": "workos",
     "cms": "drupal"
   }
@@ -221,6 +223,7 @@ describe("workspace selection updates", () => {
     expect(Object.keys(selection)).toStrictEqual(["providers", "addOns"]);
     expect(Object.keys(selection.providers)).toStrictEqual([
       "commerce",
+      "search",
       "auth",
       "cms",
     ]);

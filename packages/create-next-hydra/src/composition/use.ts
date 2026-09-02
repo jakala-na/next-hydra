@@ -34,6 +34,7 @@ export type UseCompositionOptions = {
   auth?: string;
   cms?: string;
   commerce?: string;
+  search?: string;
   addOns?: string[];
   preset?: string;
   check?: boolean;
@@ -63,6 +64,7 @@ function requestedSelection(
     auth: options.auth,
     cms: options.cms,
     commerce: options.commerce,
+    search: options.search,
   };
 
   for (const [slot, reference] of Object.entries(providerOverrides) as [
@@ -135,6 +137,7 @@ export async function useComposition(
     (options.auth ||
       options.cms ||
       options.commerce ||
+      options.search ||
       options.preset ||
       options.addOns)
   ) {
@@ -147,7 +150,10 @@ export async function useComposition(
     throw new Error("`use --check` cannot be combined with `--dry-run`.");
   }
 
-  if (options.preset && (options.auth || options.cms || options.commerce)) {
+  if (
+    options.preset &&
+    (options.auth || options.cms || options.commerce || options.search)
+  ) {
     throw new Error("`use --preset` cannot be combined with provider flags.");
   }
 
@@ -155,9 +161,13 @@ export async function useComposition(
   catalog = await addCatalogReferences(catalog, [
     ...Object.values(current.providers),
     ...current.addOns,
-    ...[options.auth, options.cms, options.commerce, options.preset].filter(
-      (value): value is string => Boolean(value)
-    ),
+    ...[
+      options.auth,
+      options.cms,
+      options.commerce,
+      options.search,
+      options.preset,
+    ].filter((value): value is string => Boolean(value)),
     ...(options.addOns ?? []),
   ]);
   const presetSelection = options.preset

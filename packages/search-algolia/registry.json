@@ -1,0 +1,72 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "search-algolia",
+      "type": "registry:item",
+      "title": "Algolia Search provider",
+      "description": "Installs the Algolia InstantSearch provider adapter.",
+      "docs": "Configure the Algolia server credentials and Product index names described by packages/search-algolia before starting the web application.",
+      "registryDependencies": ["jakala-na/next-hydra/search-contract"],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/algolia",
+          "kind": "provider",
+          "slot": "search",
+          "binding": {
+            "specifier": "workspace:@repo/search-algolia@*",
+            "sourcePath": "packages/search-algolia"
+          }
+        }
+      },
+      "files": [
+        {
+          "path": ".env.example",
+          "target": "~/packages/search-algolia/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "index.ts",
+          "target": "~/packages/search-algolia/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "keys.ts",
+          "target": "~/packages/search-algolia/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/search-algolia/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "provider.test.ts",
+          "target": "~/packages/search-algolia/provider.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "provider.ts",
+          "target": "~/packages/search-algolia/provider.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route.test.ts",
+          "target": "~/packages/search-algolia/route.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/search-algolia/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/search-algolia/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

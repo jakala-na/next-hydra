@@ -13,7 +13,15 @@ describe("CLI", () => {
     let received: unknown;
 
     await runCli(
-      ["node", "create-next-hydra", "use", "--cms", "contentstack"],
+      [
+        "node",
+        "create-next-hydra",
+        "use",
+        "--cms",
+        "contentstack",
+        "--search",
+        "algolia",
+      ],
       {
         useComposition: async (options) => {
           received = options;
@@ -22,7 +30,7 @@ describe("CLI", () => {
       }
     );
 
-    expect(received).toMatchObject({ cms: "contentstack" });
+    expect(received).toMatchObject({ cms: "contentstack", search: "algolia" });
   });
 
   it("passes safety options to the composition command", async () => {

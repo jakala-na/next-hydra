@@ -1,6 +1,6 @@
 # create-next-hydra
 
-`create-next-hydra` composes a Next Hydra workspace from one Auth Provider, one CMS Provider, one Commerce Provider, and any compatible Add-ons. It uses [ShadCN registry items](https://ui.shadcn.com/docs/registry/registry-item-json) to copy code and adds Next Hydra's stack validation and package-specific manifest changes.
+`create-next-hydra` composes a Next Hydra workspace from one Auth Provider, one CMS Provider, one Commerce Provider, one Search Provider, and any compatible Add-ons. It uses [ShadCN registry items](https://ui.shadcn.com/docs/registry/registry-item-json) to copy code and adds Next Hydra's stack validation and package-specific manifest changes.
 
 ## Create a project
 
@@ -10,13 +10,14 @@ Interactive scaffolding asks for every required Provider:
 pnpm dlx create-next-hydra@latest my-project
 ```
 
-For a non-interactive scaffold, provide all three Providers or a Preset:
+For a non-interactive scaffold, provide all four Providers or a Preset:
 
 ```bash
 pnpm dlx create-next-hydra@latest my-project --yes \
   --auth workos \
   --cms drupal \
-  --commerce commercetools
+  --commerce commercetools \
+  --search algolia
 
 pnpm dlx create-next-hydra@latest my-project --yes --preset standard
 ```
@@ -116,7 +117,7 @@ ShadCN registry mappings, including private registry URLs and environment-backed
 
 ## Current limits
 
-- Auth, CMS, and Commerce each require exactly one Provider.
+- Auth, CMS, Commerce, and Search each require exactly one Provider.
 - A scaffolded Customer Workspace has no composition receipt and cannot be automatically upgraded or switched later.
 - Composition installs local code and JavaScript dependencies. Remote service setup, real secrets, Composer changes, Drupal module enablement, and deployed extensions remain manual.
 - Selection Definitions are declarative and cannot run arbitrary hooks.

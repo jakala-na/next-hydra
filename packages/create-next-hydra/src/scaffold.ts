@@ -164,7 +164,10 @@ async function requestedSelection(
   options: CreateOptions,
   catalog: SourceRegistryCatalog
 ): Promise<WorkspaceSelection> {
-  if (options.preset && (options.auth || options.cms || options.commerce)) {
+  if (
+    options.preset &&
+    (options.auth || options.cms || options.commerce || options.search)
+  ) {
     throw new Error("`--preset` cannot be combined with provider flags.");
   }
 
@@ -176,9 +179,12 @@ async function requestedSelection(
     };
   }
 
-  if (options.yes && !(options.auth && options.cms && options.commerce)) {
+  if (
+    options.yes &&
+    !(options.auth && options.cms && options.commerce && options.search)
+  ) {
     throw new Error(
-      "`--yes` requires `--auth`, `--cms`, and `--commerce`, or one `--preset`."
+      "`--yes` requires `--auth`, `--cms`, `--commerce`, and `--search`, or one `--preset`."
     );
   }
 
@@ -186,10 +192,12 @@ async function requestedSelection(
   const cms = options.cms ?? (await promptForProvider("cms", "drupal"));
   const commerce =
     options.commerce ?? (await promptForProvider("commerce", "commercetools"));
+  const search =
+    options.search ?? (await promptForProvider("search", "algolia"));
 
   return {
     addOns: options.addOns ?? [],
-    providers: { auth, cms, commerce },
+    providers: { auth, cms, commerce, search },
   };
 }
 
@@ -198,6 +206,7 @@ function explicitSelectionReferences(options: CreateOptions): string[] {
     options.auth,
     options.cms,
     options.commerce,
+    options.search,
     options.preset,
     ...(options.addOns ?? []),
   ].filter((value): value is string => Boolean(value));

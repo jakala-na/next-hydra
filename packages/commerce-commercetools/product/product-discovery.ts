@@ -132,6 +132,26 @@ const productDiscoveryImplementationLayer = Layer.effect(
           )
         )
       ),
+      searchAudience: Effect.fn("ProductDiscovery.searchAudience")(() =>
+        resolveProductContext.pipe(
+          Effect.map((context) => ({
+            customerSegmentKeys:
+              context.customerGroupKey === undefined
+                ? []
+                : [context.customerGroupKey],
+            distributionChannelKeys: [context.distributionChannelKey],
+            supplyChannelKeys: context.supplyChannelKeys,
+          })),
+          Effect.mapError(
+            (cause) =>
+              new ProductDiscoveryFailure({
+                cause,
+                message: "Commercetools Product search audience failed",
+                operation: "searchAudience",
+              })
+          )
+        )
+      ),
     });
   })
 );

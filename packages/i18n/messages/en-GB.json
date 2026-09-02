@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Add to Basket",
       "quoteRequest": "Request a Quote",
+      "priceStartsAt": "Price starts at {price}",
       "badgeNew": "New",
       "titlePlaceholder": "Product Variant Title",
       "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",

@@ -16,9 +16,9 @@ The Workspace Composition context describes the selectable parts of a Next Hydra
 
 **Preset**: A reusable, explicit request containing Provider and Add-on choices for a new composition. A Preset references Selection Definitions but does not replace their compatibility declarations or become retained management state in the Customer Workspace. _Avoid_: Default stack, Reference Composition, scaffold receipt
 
-**Provider Slot**: A dimension of the stack that governs how many Providers may be selected for a role. The v1 Auth, CMS, and Commerce slots each require exactly one Provider; future compositions may support different cardinalities when the application does. _Avoid_: Optional integration, package alias
+**Provider Slot**: A dimension of the stack that governs how many Providers may be selected for a role. The v1 Auth, CMS, Commerce, and Search slots each require exactly one Provider; future compositions may support different cardinalities when the application does. _Avoid_: Optional integration, package alias
 
-**Slot Cardinality**: The minimum and maximum number of Providers a composition may select for a Provider Slot. V1 assigns `1..1` to Auth, CMS, and Commerce. _Avoid_: Permanent exactly-one invariant
+**Slot Cardinality**: The minimum and maximum number of Providers a composition may select for a Provider Slot. V1 assigns `1..1` to Auth, CMS, Commerce, and Search. _Avoid_: Permanent exactly-one invariant
 
 **Provider**: A selectable implementation that fills one Provider Slot and may depend on other registry items. _Avoid_: Provider package, registry item
 

@@ -1,0 +1,45 @@
+{
+  "name": "@repo/search",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./client": "./client.ts",
+    "./contract": "./contract.ts",
+    "./product-card": "./product-card.tsx",
+    "./product-listing": "./product-listing.tsx",
+    "./product-listing-server": "./product-listing-server.tsx",
+    "./product-listing-skeleton": "./product-listing-skeleton.tsx",
+    "./product-listing-routing": "./product-listing-routing.ts",
+    "./server": "./server.ts",
+    "./validation": "./validation.ts"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "test": "NODE_ENV=test vitest run",
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/search/tsconfig.json"
+  },
+  "dependencies": {
+    "@repo/commerce": "workspace:*",
+    "@repo/design-system": "workspace:*",
+    "@repo/i18n": "workspace:*",
+    "effect": "catalog:",
+    "instantsearch.js": "^4.115.0",
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-instantsearch": "^7.48.0",
+    "server-only": "catalog:",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@repo/e2e-testing": "workspace:*",
+    "@repo/testing": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

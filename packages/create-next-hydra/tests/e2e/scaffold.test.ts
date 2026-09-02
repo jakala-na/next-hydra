@@ -310,6 +310,7 @@ function options(
     commerce: "commercetools",
     commit: false,
     repoUrl: pathToFileURL(sourceRepository).href,
+    search: "algolia",
     skipGit: true,
     targetDir,
     verbose: false,

@@ -66,6 +66,7 @@ const providerSelectionsSchema = z
     auth: z.string().min(1).optional(),
     cms: z.string().min(1).optional(),
     commerce: z.string().min(1).optional(),
+    search: z.string().min(1).optional(),
   })
   .strict();
 
@@ -187,6 +188,7 @@ export const workspaceSelectionSchema = z
         auth: z.string().min(1),
         cms: z.string().min(1),
         commerce: z.string().min(1),
+        search: z.string().min(1),
       })
       .strict(),
   })

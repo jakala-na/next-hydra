@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Añadir al carrito",
       "quoteRequest": "Solicitar un presupuesto",
+      "priceStartsAt": "Precio desde {price}",
       "badgeNew": "Nuevo",
       "titlePlaceholder": "Título de la variante del producto",
       "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",

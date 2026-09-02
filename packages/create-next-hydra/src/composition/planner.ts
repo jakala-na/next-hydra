@@ -199,6 +199,7 @@ const BASELINE_PROVIDER_DEPENDENCIES = [
   { cwd: "apps/cli", section: "dependencies", slot: "commerce" },
   { cwd: "apps/web", section: "dependencies", slot: "commerce" },
   { cwd: "tests/e2e", section: "devDependencies", slot: "commerce" },
+  { cwd: "apps/web", section: "dependencies", slot: "search" },
 ] satisfies ProviderDependency[];
 
 function selectedProviderDependencies(
@@ -548,9 +549,11 @@ export function selectionFromPreset(
   }
 
   const { addOns, providers } = preset.selections;
-  if (!(providers.auth && providers.cms && providers.commerce)) {
+  if (
+    !(providers.auth && providers.cms && providers.commerce && providers.search)
+  ) {
     throw new CompositionValidationError("Preset is incomplete.", [
-      `${preset.id} must select auth, cms, and commerce providers`,
+      `${preset.id} must select auth, cms, commerce, and search providers`,
     ]);
   }
 
@@ -560,6 +563,7 @@ export function selectionFromPreset(
       auth: providers.auth,
       cms: providers.cms,
       commerce: providers.commerce,
+      search: providers.search,
     },
   };
 }

@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Add to Cart",
       "quoteRequest": "Request a Quote",
+      "priceStartsAt": "Price starts at {price}",
       "viewDetails": "View Details",
       "errorLoadingProduct": "Error loading product",
       "inStock": "In Stock",

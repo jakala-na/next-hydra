@@ -343,6 +343,11 @@
     --architecture-color: oklch(0.54 0.13 190);
   }
 
+  html[data-architecture-overlay-mode="sources"]
+    [data-architecture-source="search"] {
+    --architecture-color: oklch(0.56 0.17 245);
+  }
+
   html[data-architecture-overlay-mode="layers"]
     [data-architecture-layer="shell"] {
     --architecture-color: oklch(0.5 0.03 250);

@@ -1,0 +1,30 @@
+{
+  "name": "@repo/search-algolia",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./keys": "./keys.ts",
+    "./provider": "./provider.ts"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "test": "NODE_ENV=test vitest run",
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/search-algolia/tsconfig.json"
+  },
+  "dependencies": {
+    "@repo/search": "workspace:*",
+    "@t3-oss/env-nextjs": "catalog:",
+    "algoliasearch": "^5.57.0",
+    "server-only": "catalog:",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@repo/testing": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Ajouter au panier",
       "quoteRequest": "Demander un devis",
+      "priceStartsAt": "Prix à partir de {price}",
       "badgeNew": "Nouveau",
       "titlePlaceholder": "Titre de la variante du produit",
       "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",

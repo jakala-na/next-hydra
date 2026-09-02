@@ -79,6 +79,8 @@ describe("Next Hydra source registry", () => {
         "commerce-commercetools",
         "drupal",
         "next-hydra-standard",
+        "search-algolia",
+        "search-contract",
       ])
     );
 
@@ -122,6 +124,7 @@ describe("Next Hydra source registry", () => {
         auth: "workos",
         cms: "contentstack",
         commerce: "commercetools",
+        search: "algolia",
       },
     });
   });
@@ -137,6 +140,7 @@ describe("Next Hydra source registry", () => {
         auth: "clerk",
         cms: "drupal",
         commerce: "commercetools",
+        search: "algolia",
       },
     });
 
@@ -146,6 +150,8 @@ describe("Next Hydra source registry", () => {
       "cms-drupal",
       "commerce-commercetools",
       "drupal",
+      "search-algolia",
+      "search-contract",
     ]);
     expect(clerk.managedTargets).toStrictEqual([
       "apps/admin/app/sign-in/page.tsx",
@@ -238,7 +244,7 @@ describe("Next Hydra source registry", () => {
     );
 
     expect(requestedAddresses).toHaveLength(1);
-    expect(requestedAddresses[0]).toHaveLength(8);
+    expect(requestedAddresses[0]).toHaveLength(10);
     expect(
       [...catalog.items.values()].every(
         (item) =>
@@ -246,7 +252,7 @@ describe("Next Hydra source registry", () => {
           item.$schema === NEXT_HYDRA_SELECTION_SCHEMA_URL
       )
     ).toBeTruthy();
-    expect(catalog.selections).toHaveLength(6);
+    expect(catalog.selections).toHaveLength(7);
   });
 
   it("plans both supported CMS compositions deterministically", async () => {
@@ -254,6 +260,7 @@ describe("Next Hydra source registry", () => {
     const base = {
       auth: "workos",
       commerce: "commercetools",
+      search: "algolia",
     };
     const drupal = planComposition(catalog, {
       addOns: [],
@@ -270,12 +277,16 @@ describe("Next Hydra source registry", () => {
       "cms-drupal",
       "commerce-commercetools",
       "drupal",
+      "search-algolia",
+      "search-contract",
     ]);
     expect(contentstack.registryItems).toStrictEqual([
       "auth-contract",
       "auth-workos",
       "cms-contentstack",
       "commerce-commercetools",
+      "search-algolia",
+      "search-contract",
     ]);
     expect(drupal.managedTargets).toStrictEqual([
       "apps/admin/app/api/auth/callback/route.ts",
@@ -347,6 +358,7 @@ describe("Next Hydra source registry", () => {
       "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output workos-webhook.env` once with the customer WORKOS_API_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets.",
       "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
       "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
+      "Configure the Algolia server credentials and Product index names described by packages/search-algolia before starting the web application.",
     ]);
     expect(planComposition(catalog, drupal.selection)).toStrictEqual(drupal);
     expect(contentstack.variableTargets).toStrictEqual(drupal.variableTargets);
@@ -419,6 +431,7 @@ describe("Next Hydra source registry", () => {
           auth: "workos",
           cms: "drupal",
           commerce: "commercetools",
+          search: "algolia",
         },
       });
       const prepared = await prepareComposition(catalog, plan);

@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Toevoegen aan winkelwagentje",
       "quoteRequest": "Vraag een offerte aan",
+      "priceStartsAt": "Prijs vanaf {price}",
       "badgeNew": "Nieuw",
       "titlePlaceholder": "Productvariant Titel",
       "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",

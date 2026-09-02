@@ -19,6 +19,7 @@ type CliActionOptions = {
   auth?: string;
   cms?: string;
   commerce?: string;
+  search?: string;
   addOn?: string[];
   preset?: string;
 };
@@ -44,6 +45,7 @@ function buildCreateOptions(
     preset: rawOptions.preset,
     ref: rawOptions.ref,
     repoUrl: rawOptions.repoUrl ?? DEFAULT_REPO_URL,
+    search: rawOptions.search,
     skipGit: rawOptions.skipGit ?? false,
     targetDir,
     verbose: rawOptions.verbose ?? false,
@@ -69,6 +71,7 @@ export async function runCli(
     .option("--auth <provider>", "Select the Auth provider")
     .option("--cms <provider>", "Select the CMS provider")
     .option("--commerce <provider>", "Select the Commerce provider")
+    .option("--search <provider>", "Select the Search provider")
     .option(
       "--add-on <selection>",
       "Select an Add-on (repeatable)",
@@ -107,6 +110,7 @@ export async function runCli(
     .option("--auth <provider>", "Select the Auth provider")
     .option("--cms <provider>", "Select the CMS provider")
     .option("--commerce <provider>", "Select the Commerce provider")
+    .option("--search <provider>", "Select the Search provider")
     .option(
       "--add-on <selection>",
       "Select an Add-on (repeatable)",
