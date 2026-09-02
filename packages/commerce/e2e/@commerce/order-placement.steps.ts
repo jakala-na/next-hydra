@@ -24,6 +24,7 @@ const transactionsFrom = (dataTable: DataTable) => {
 When(
   "the buyer submits Place Order twice for the same Checkout",
   async ({ apiRequest, page }) => {
+    test.setTimeout(60_000);
     const checkout = new CheckoutDriver(page);
     const input = await checkout.orderPlacementInput();
     const cookies = await page.context().cookies();

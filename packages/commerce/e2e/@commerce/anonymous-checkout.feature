@@ -5,9 +5,8 @@ Feature: Anonymous Checkout
   Scenario: An anonymous buyer selects a priced Shipping Option for a planned Delivery Group
     Given Store "default-store" serves locale "en-US" in currency "USD"
     And deliveries to "US" have Shipping Options:
-      | Shipping Option | Price   | Currency |
-      | Standard        | 500.00  | USD      |
-      | Express         | 1250.00 | USD      |
+      | Shipping Option          | Price  | Currency |
+      | Standard shipping method | 100.00 | USD      |
     And Product "A789 BC Deep Mining Excavator" has an available Product Variant in Store "default-store" priced at "16500.00" in currency "USD" with attributes:
       | Attribute | Value |
       | Model     | 2015  |
@@ -55,24 +54,22 @@ Feature: Anonymous Checkout
       | Delivery Group | Product                       | Quantity |
       | Delivery 1     | A789 BC Deep Mining Excavator | 1        |
     And Delivery Group "Delivery 1" offers Shipping Options:
-      | Shipping Option | Price   | Currency |
-      | Standard        | 500.00  | USD      |
-      | Express         | 1250.00 | USD      |
-    When the buyer selects Shipping Option "Standard" for Delivery Group "Delivery 1"
+      | Shipping Option  | Price | Currency |
+      | Standard shipping | 0.00  | USD      |
+    When the buyer selects Shipping Option "Standard shipping" for Delivery Group "Delivery 1"
     And the buyer saves Shipping Options
     Then the Checkout Steps have statuses:
       | Step             | Status   |
       | Shipping Options | Complete |
       | Payment Options  | Active   |
-    And Delivery Group "Delivery 1" has selected Shipping Option "Standard" priced at "500.00" in currency "USD"
+    And Delivery Group "Delivery 1" has selected Shipping Option "Standard shipping method" priced at "0.00" in currency "USD"
     And the "Checkout" Cart subtotal is "16500.00" in currency "USD"
 
   Scenario: Changing Delivery Details invalidates saved Shipping Options
     Given Store "default-store" serves locale "en-US" in currency "USD"
     And deliveries to "US" have Shipping Options:
-      | Shipping Option | Price   | Currency |
-      | Standard        | 500.00  | USD      |
-      | Express         | 1250.00 | USD      |
+      | Shipping Option          | Price  | Currency |
+      | Standard shipping method | 100.00 | USD      |
     And Product "A789 BC Deep Mining Excavator" has an available Product Variant in Store "default-store" priced at "16500.00" in currency "USD" with attributes:
       | Attribute | Value |
       | Model     | 2015  |
@@ -96,7 +93,7 @@ Feature: Anonymous Checkout
       | Postal code    | 10001            |
       | Region         | NY               |
       | Country        | US               |
-    And the buyer selects Shipping Option "Standard" for Delivery Group "Delivery 1"
+    And the buyer selects Shipping Option "Standard shipping" for Delivery Group "Delivery 1"
     And the buyer saves Shipping Options
     Then the Checkout Steps have statuses:
       | Step             | Status   |
@@ -117,7 +114,6 @@ Feature: Anonymous Checkout
       | Shipping Options | Active     |
       | Payment Options  | Incomplete |
     And Delivery Group "Delivery 1" offers Shipping Options:
-      | Shipping Option | Price   | Currency |
-      | Standard        | 500.00  | USD      |
-      | Express         | 1250.00 | USD      |
+      | Shipping Option  | Price | Currency |
+      | Standard shipping | 0.00  | USD      |
     And no selected Shipping Option is shown

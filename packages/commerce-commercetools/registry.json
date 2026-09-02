@@ -351,8 +351,18 @@
           "type": "registry:file"
         },
         {
+          "path": "config/keys.test.ts",
+          "target": "~/packages/commerce-commercetools/config/keys.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "config/keys.ts",
           "target": "~/packages/commerce-commercetools/config/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "config/runtime-scopes.ts",
+          "target": "~/packages/commerce-commercetools/config/runtime-scopes.ts",
           "type": "registry:file"
         },
         {
@@ -468,11 +478,6 @@
         {
           "path": "migrations/scripts/2026-08-31-120000-add-checkout-delivery-details.ts",
           "target": "~/packages/commerce-commercetools/migrations/scripts/2026-08-31-120000-add-checkout-delivery-details.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "migrations/scripts/2026-08-31-130000-add-demo-us-shipping-options.ts",
-          "target": "~/packages/commerce-commercetools/migrations/scripts/2026-08-31-130000-add-demo-us-shipping-options.ts",
           "type": "registry:file"
         },
         {

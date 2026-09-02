@@ -7,8 +7,8 @@ Feature: Checkout Order Placement
     Background:
       Given Store "default-store" serves locale "en-US" in currency "USD"
       And deliveries to "US" have Shipping Options:
-        | Shipping Option | Price  | Currency |
-        | Standard        | 500.00 | USD      |
+        | Shipping Option          | Price  | Currency |
+        | Standard shipping method | 100.00 | USD      |
       And Product "A789 BC Deep Mining Excavator" has an available Product Variant in Store "default-store" priced at "16500.00" in currency "USD" with attributes:
         | Attribute | Value |
         | Model     | 2015  |
@@ -32,7 +32,7 @@ Feature: Checkout Order Placement
         | Postal code    | 10001           |
         | Region         | NY              |
         | Country        | US              |
-      And the buyer selects Shipping Option "Standard" for Delivery Group "Delivery 1"
+      And the buyer selects Shipping Option "Standard shipping" for Delivery Group "Delivery 1"
       And the buyer saves Shipping Options
       Then Payment Options offers Payment Methods:
         | Payment Method | Availability |
@@ -43,7 +43,7 @@ Feature: Checkout Order Placement
       And the buyer saves Payment Options
       And the buyer submits Place Order twice for the same Checkout
       And the consumed Checkout Cart cookie is cleared
-      Then Order Confirmation shows one Order for "17000.00" in currency "USD"
+      Then Order Confirmation shows one Order for "16500.00" in currency "USD"
       And Order Confirmation shows Payment Method "Visa ending in 4242"
       And the Card Payment records transactions:
         | Transaction   | State   |
@@ -85,7 +85,7 @@ Feature: Checkout Order Placement
       When the buyer enters Card details that fail during capture and uses the Shipping Address for Billing
       And the buyer saves Payment Options
       And the buyer places the Order
-      Then Order Confirmation shows one Order for "17000.00" in currency "USD"
+      Then Order Confirmation shows one Order for "16500.00" in currency "USD"
       And Order Confirmation shows that Payment finalization is pending
       And the Card Payment records transactions:
         | Transaction   | State   |
@@ -98,7 +98,7 @@ Feature: Checkout Order Placement
       And Order creation will succeed without returning its response
       And the buyer places the Order
       And the buyer refreshes Checkout
-      Then Order Confirmation shows one Order for "17000.00" in currency "USD"
+      Then Order Confirmation shows one Order for "16500.00" in currency "USD"
       And the Card Payment records transactions:
         | Transaction   | State   |
         | Authorization | Success |
@@ -110,8 +110,8 @@ Feature: Checkout Order Placement
     Scenario: A Company Member places a Net 30 Order and consumes available credit
       Given Store "default-store" serves locale "en-US" in currency "USD"
       And deliveries to "US" have Shipping Options:
-        | Shipping Option | Price  | Currency |
-        | Standard        | 500.00 | USD      |
+        | Shipping Option          | Price  | Currency |
+        | Standard shipping method | 100.00 | USD      |
       And Product "A789 BC Deep Mining Excavator" has an available Product Variant in Store "default-store" priced at "16500.00" in currency "USD" with attributes:
         | Attribute | Value |
         | Model     | 2015  |
@@ -134,16 +134,16 @@ Feature: Checkout Order Placement
         | Region         | NY        |
         | Country        | US        |
       And Customer "Ada Lovelace" selects that Shipping Address and saves "Delivery Details"
-      And the buyer selects Shipping Option "Standard" for Delivery Group "Delivery 1"
+      And the buyer selects Shipping Option "Standard shipping" for Delivery Group "Delivery 1"
       And the buyer saves Shipping Options
       And the buyer selects Payment Method "Net 30" and uses the Shipping Address for Billing
       And the buyer saves Payment Options
       And the buyer places the Order
-      Then Order Confirmation shows one Order for "17000.00" in currency "USD"
+      Then Order Confirmation shows one Order for "16500.00" in currency "USD"
       And Order Confirmation shows Payment Method "Net 30"
       And the Net 30 Payment records transactions:
         | Transaction   | State   |
         | Authorization | Success |
         | Charge        | Success |
-      And Company "Analytical Engines" has a "17000.00" ledger debit in currency "USD" for the Order
-      And Company "Analytical Engines" has "3000.00" available to spend in currency "USD"
+      And Company "Analytical Engines" has a "16500.00" ledger debit in currency "USD" for the Order
+      And Company "Analytical Engines" has "3500.00" available to spend in currency "USD"

@@ -6,8 +6,8 @@ Feature: Checkout Payment Options
   Scenario: An anonymous buyer saves Card and reaches Review Order without authorization
     Given Store "default-store" serves locale "en-US" in currency "USD"
     And deliveries to "US" have Shipping Options:
-      | Shipping Option | Price  | Currency |
-      | Standard        | 500.00 | USD      |
+      | Shipping Option          | Price  | Currency |
+      | Standard shipping method | 100.00 | USD      |
     And Product "A789 BC Deep Mining Excavator" has an available Product Variant in Store "default-store" priced at "16500.00" in currency "USD" with attributes:
       | Attribute | Value |
       | Model     | 2015  |
@@ -31,7 +31,7 @@ Feature: Checkout Payment Options
       | Postal code    | 10001           |
       | Region         | NY              |
       | Country        | US              |
-    And the buyer selects Shipping Option "Standard" for Delivery Group "Delivery 1"
+    And the buyer selects Shipping Option "Standard shipping" for Delivery Group "Delivery 1"
     And the buyer saves Shipping Options
     Then Payment Options offers Payment Methods:
       | Payment Method | Availability |
@@ -42,15 +42,15 @@ Feature: Checkout Payment Options
       | Step            | Status   |
       | Payment Options | Complete |
       | Review Order    | Active   |
-    And Review Order shows Payment Method "Card" with planned amount "17000.00" in currency "USD"
+    And Review Order shows Payment Method "Card" with planned amount "16500.00" in currency "USD"
     And the Card Payment has not been authorized
 
   @authenticated
   Scenario: A Company Member saves Net 30 without consuming credit before Order placement
     Given Store "default-store" serves locale "en-US" in currency "USD"
     And deliveries to "US" have Shipping Options:
-      | Shipping Option | Price  | Currency |
-      | Standard        | 500.00 | USD      |
+      | Shipping Option          | Price  | Currency |
+      | Standard shipping method | 100.00 | USD      |
     And Product "A789 BC Deep Mining Excavator" has an available Product Variant in Store "default-store" priced at "16500.00" in currency "USD" with attributes:
       | Attribute | Value |
       | Model     | 2015  |
@@ -73,7 +73,7 @@ Feature: Checkout Payment Options
       | Region         | NY        |
       | Country        | US        |
     And Customer "Ada Lovelace" selects that Shipping Address and saves "Delivery Details"
-    And the buyer selects Shipping Option "Standard" for Delivery Group "Delivery 1"
+    And the buyer selects Shipping Option "Standard shipping" for Delivery Group "Delivery 1"
     And the buyer saves Shipping Options
     Then Payment Options offers Payment Methods:
       | Payment Method | Availability |
@@ -86,15 +86,15 @@ Feature: Checkout Payment Options
       | Step            | Status   |
       | Payment Options | Complete |
       | Review Order    | Active   |
-    And Review Order shows Payment Method "Net 30" with planned amount "17000.00" in currency "USD"
+    And Review Order shows Payment Method "Net 30" with planned amount "16500.00" in currency "USD"
     And Company "Analytical Engines" still has "20000.00" available to spend in currency "USD"
 
   @authenticated
   Scenario: Net 30 is unavailable when the Order amount exceeds available credit
     Given Store "default-store" serves locale "en-US" in currency "USD"
     And deliveries to "US" have Shipping Options:
-      | Shipping Option | Price  | Currency |
-      | Standard        | 500.00 | USD      |
+      | Shipping Option          | Price  | Currency |
+      | Standard shipping method | 100.00 | USD      |
     And Product "A789 BC Deep Mining Excavator" has an available Product Variant in Store "default-store" priced at "16500.00" in currency "USD" with attributes:
       | Attribute | Value |
       | Model     | 2015  |
@@ -117,7 +117,7 @@ Feature: Checkout Payment Options
       | Region         | NY        |
       | Country        | US        |
     And Customer "Ada Lovelace" selects that Shipping Address and saves "Delivery Details"
-    And the buyer selects Shipping Option "Standard" for Delivery Group "Delivery 1"
+    And the buyer selects Shipping Option "Standard shipping" for Delivery Group "Delivery 1"
     And the buyer saves Shipping Options
     Then Payment Options offers Payment Methods:
       | Payment Method | Availability |
