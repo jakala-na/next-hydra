@@ -1,44 +1,12 @@
-import type { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
-import { Schema } from "effect";
-
 import { migrationClient } from "../migration-client";
 import type { MigrationDefinition } from "../types";
 
-const LEGACY_PAYMENT_CUSTOM_TYPE_KEY = "checkoutPaymentFields";
 const PAYMENT_CUSTOM_TYPE_KEY = "paymentCustomFields";
-const isNotFound = Schema.is(
-  Schema.Struct({ statusCode: Schema.Literal(404) })
-);
-
-const deleteLegacyPaymentCustomType = async (
-  apiRoot: ByProjectKeyRequestBuilder
-): Promise<void> => {
-  try {
-    const response = await apiRoot
-      .types()
-      .withKey({ key: LEGACY_PAYMENT_CUSTOM_TYPE_KEY })
-      .get()
-      .execute();
-
-    await apiRoot
-      .types()
-      .withKey({ key: LEGACY_PAYMENT_CUSTOM_TYPE_KEY })
-      .delete({ queryArgs: { version: response.body.version } })
-      .execute();
-  } catch (error) {
-    if (!isNotFound(error)) {
-      throw error;
-    }
-  }
-};
 
 export const migration: MigrationDefinition = {
-  description:
-    "Replace the legacy checkout Payment Custom Type with the shared Payment Custom Type",
+  description: "Create the shared Payment Custom Type",
   name: "Create Payment Custom Fields Type",
   async up(apiRoot) {
-    await deleteLegacyPaymentCustomType(apiRoot);
-
     const paymentType = await migrationClient(apiRoot)
       .ensureType(PAYMENT_CUSTOM_TYPE_KEY, {
         description: {

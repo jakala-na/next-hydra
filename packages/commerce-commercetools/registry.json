@@ -451,11 +451,6 @@
           "type": "registry:file"
         },
         {
-          "path": "migrations/create-payment-custom-fields-type.test.ts",
-          "target": "~/packages/commerce-commercetools/migrations/create-payment-custom-fields-type.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "migrations/migration-client.ts",
           "target": "~/packages/commerce-commercetools/migrations/migration-client.ts",
           "type": "registry:file"
