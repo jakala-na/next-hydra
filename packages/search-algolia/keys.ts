@@ -10,6 +10,7 @@ export const keys = () =>
         process.env.ALGOLIA_PRODUCTS_PRICE_ASC_INDEX_NAME,
       ALGOLIA_PRODUCTS_PRICE_DESC_INDEX_NAME:
         process.env.ALGOLIA_PRODUCTS_PRICE_DESC_INDEX_NAME,
+      ALGOLIA_RESOURCES_INDEX_NAME: process.env.ALGOLIA_RESOURCES_INDEX_NAME,
       ALGOLIA_SEARCH_API_KEY: process.env.ALGOLIA_SEARCH_API_KEY,
     },
     server: {
@@ -25,6 +26,11 @@ export const keys = () =>
         .trim()
         .min(1)
         .default("products_price_desc"),
+      ALGOLIA_RESOURCES_INDEX_NAME: z
+        .string()
+        .trim()
+        .min(1)
+        .default("resources"),
       ALGOLIA_SEARCH_API_KEY: z.string().trim().min(1),
     },
   });

@@ -6,12 +6,14 @@ import type { SearchBatch, SearchProvider } from "./contract";
 import { getProductListingServerState } from "./product-listing-server";
 
 const audience = {
-  currency: "USD",
-  customerSegmentKeys: ["public"],
-  distributionChannelKeys: ["north-america"],
   locale: "en-US",
-  storeKey: "default-store",
-  supplyChannelKeys: ["main-warehouse"],
+  product: {
+    currency: "USD",
+    customerSegmentKeys: ["public"],
+    distributionChannelKeys: ["north-america"],
+    storeKey: "default-store",
+    supplyChannelKeys: ["main-warehouse"],
+  },
 } as const;
 
 describe(getProductListingServerState, () => {

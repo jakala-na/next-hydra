@@ -8,26 +8,33 @@ import type { ReactElement } from "react";
 import type { ProductSearchHit } from "./contract";
 
 interface SearchProductCardProps {
+  readonly headingLevel?: ProductCardProps["headingLevel"];
   readonly hit: ProductSearchHit;
+  readonly layout?: "grid" | "row";
   readonly locale: Locale;
 }
 
 function toProductCardProps(
   hit: ProductSearchHit,
-  locale: Locale
+  headingLevel: ProductCardProps["headingLevel"],
+  locale: Locale,
+  layout: "grid" | "row"
 ): ProductCardProps {
   const product = toProductCardPresentation(hit.productCard);
   return {
     ...product,
     badge: hit.productCard.availableForSale ? "In stock" : "Out of stock",
     category: hit.categories[0]?.label ?? "Product",
-    headingLevel: "h2",
+    headingLevel,
+    layout,
     productHref: { pathname: `/${locale}/product/${hit.productCard.slug}` },
   };
 }
 
 export function SearchProductCard({
+  headingLevel = "h2",
   hit,
+  layout = "grid",
   locale,
 }: SearchProductCardProps): ReactElement {
   return (
@@ -41,7 +48,7 @@ export function SearchProductCard({
       source="search"
       sourceLabel="Search provider"
     >
-      <ProductCard {...toProductCardProps(hit, locale)} />
+      <ProductCard {...toProductCardProps(hit, headingLevel, locale, layout)} />
     </ArchitectureBoundary>
   );
 }

@@ -1,6 +1,7 @@
 import {
   decodeProductSearchHit,
   PRODUCT_HIT_ATTRIBUTES,
+  RESOURCE_HIT_ATTRIBUTES,
 } from "@repo/search/contract";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -9,12 +10,14 @@ import { audienceFilter, createAlgoliaSearchProvider } from "./provider";
 import type { AlgoliaSearchProviderOptions } from "./provider";
 
 const audience = {
-  currency: "USD",
-  customerSegmentKeys: ["public", "contractors"],
-  distributionChannelKeys: ["north-america"],
   locale: "en-US",
-  storeKey: "default-store",
-  supplyChannelKeys: ["main-warehouse"],
+  product: {
+    currency: "USD",
+    customerSegmentKeys: ["public", "contractors"],
+    distributionChannelKeys: ["north-america"],
+    storeKey: "default-store",
+    supplyChannelKeys: ["main-warehouse"],
+  },
 } as const;
 
 describe(createAlgoliaSearchProvider, () => {
@@ -41,6 +44,7 @@ describe(createAlgoliaSearchProvider, () => {
         priceAscending: "catalog_price_asc",
         priceDescending: "catalog_price_desc",
         products: "catalog",
+        resources: "resources",
       },
     });
 
@@ -125,6 +129,7 @@ describe(createAlgoliaSearchProvider, () => {
         priceAscending: "catalog_price_asc",
         priceDescending: "catalog_price_desc",
         products: "catalog",
+        resources: "resources",
       },
       productHitMapping: {
         attributesToRetrieve: ["objectID", "product"],
@@ -199,13 +204,118 @@ describe(createAlgoliaSearchProvider, () => {
     });
   });
 
+  it("normalizes provider-specific Resource records without requiring a Product audience", async () => {
+    const nestedHitSchema = z.object({
+      content: z.object({
+        description: z.string(),
+        id: z.string(),
+        path: z.string(),
+        published: z.string(),
+        title: z.string(),
+      }),
+      objectID: z.string(),
+    });
+    const search = vi
+      .fn<AlgoliaSearchProviderOptions["client"]["search"]>()
+      .mockResolvedValue({
+        results: [
+          {
+            hits: [
+              {
+                content: {
+                  description: "Choose the right compact excavator.",
+                  id: "guide-1",
+                  path: "/resources/excavator-guide",
+                  published: "2026-08-22",
+                  title: "Compact excavator guide",
+                },
+                objectID: "resource-record-1",
+              },
+            ],
+            hitsPerPage: 6,
+            index: "cms_resources",
+            nbHits: 1,
+            nbPages: 1,
+            page: 0,
+            processingTimeMS: 1,
+            query: "excavator",
+          },
+        ],
+      });
+    const provider = createAlgoliaSearchProvider({
+      client: { search },
+      indices: {
+        priceAscending: "catalog_price_asc",
+        priceDescending: "catalog_price_desc",
+        products: "catalog",
+        resources: "cms_resources",
+      },
+      resourceHitMapping: {
+        attributesToRetrieve: ["objectID", "content"],
+        toResourceSearchHit: (value) => {
+          const hit = nestedHitSchema.parse(value);
+          return {
+            objectID: hit.objectID,
+            resourceCard: {
+              id: hit.content.id,
+              path: hit.content.path,
+              publishedAt: hit.content.published,
+              summary: hit.content.description,
+              title: hit.content.title,
+            },
+          };
+        },
+      },
+    });
+
+    const response = await provider.search(
+      [
+        {
+          indexName: "resources",
+          params: {
+            attributesToRetrieve: [...RESOURCE_HIT_ATTRIBUTES],
+            hitsPerPage: 6,
+            query: "excavator",
+          },
+        },
+      ],
+      { locale: "en-US" }
+    );
+
+    expect(search).toHaveBeenCalledWith({
+      requests: [
+        expect.objectContaining({
+          attributesToRetrieve: ["objectID", "content"],
+          filters: 'locales:"en-US"',
+          indexName: "cms_resources",
+        }),
+      ],
+    });
+    expect(response.results[0]).toMatchObject({
+      hits: [
+        {
+          objectID: "resource-record-1",
+          resourceCard: {
+            id: "guide-1",
+            path: "/resources/excavator-guide",
+            title: "Compact excavator guide",
+          },
+        },
+      ],
+      index: "resources",
+    });
+  });
+
   it("falls back to the public audience for unresolved optional dimensions", () => {
     expect(
       audienceFilter({
         ...audience,
-        customerSegmentKeys: [],
-        distributionChannelKeys: [],
-        supplyChannelKeys: [],
+        product: {
+          ...audience.product,
+          customerSegmentKeys: [],
+          distributionChannelKeys: [],
+          supplyChannelKeys: [],
+        },
       })
     ).toContain(
       'customerSegmentKeys:"public" AND distributionChannelKeys:"public" AND supplyChannelKeys:"public"'

@@ -1,15 +1,19 @@
 import "server-only";
 import type {
-  ProductIndexAlias,
   ProductSearchHit,
+  ResourceSearchHit,
   SearchAudience,
   SearchBatch,
   SearchBatchResult,
+  SearchIndexAlias,
   SearchProvider,
 } from "@repo/search/contract";
 import {
   PRODUCT_HIT_ATTRIBUTES,
+  RESOURCE_HIT_ATTRIBUTES,
   decodeProductSearchHit,
+  decodeResourceSearchHit,
+  isProductIndexAlias,
 } from "@repo/search/contract";
 import { algoliasearch } from "algoliasearch";
 import type { Algoliasearch } from "algoliasearch";
@@ -17,26 +21,35 @@ import { z } from "zod";
 
 import { keys } from "./keys";
 
-export interface AlgoliaProductIndices {
+export interface AlgoliaSearchIndices {
   readonly products: string;
   readonly priceAscending: string;
   readonly priceDescending: string;
+  readonly resources: string;
 }
 
 export interface AlgoliaSearchProviderOptions {
   readonly client: Pick<Algoliasearch, "search">;
-  readonly indices: AlgoliaProductIndices;
+  readonly indices: AlgoliaSearchIndices;
   readonly productHitMapping?: AlgoliaProductHitMapping;
+  readonly resourceHitMapping?: AlgoliaResourceHitMapping;
 }
 
-const algoliaProductRecordSchema = z.record(z.string(), z.unknown());
-export type AlgoliaProductRecord = z.infer<typeof algoliaProductRecordSchema>;
+const algoliaSearchRecordSchema = z.record(z.string(), z.unknown());
+export type AlgoliaSearchRecord = z.infer<typeof algoliaSearchRecordSchema>;
 
 export interface AlgoliaProductHitMapping {
   readonly attributesToRetrieve: readonly string[];
   readonly toProductSearchHit: (
-    record: AlgoliaProductRecord
+    record: AlgoliaSearchRecord
   ) => ProductSearchHit;
+}
+
+export interface AlgoliaResourceHitMapping {
+  readonly attributesToRetrieve: readonly string[];
+  readonly toResourceSearchHit: (
+    record: AlgoliaSearchRecord
+  ) => ResourceSearchHit;
 }
 
 const defaultProductHitMapping: AlgoliaProductHitMapping = {
@@ -44,11 +57,16 @@ const defaultProductHitMapping: AlgoliaProductHitMapping = {
   toProductSearchHit: decodeProductSearchHit,
 };
 
+const defaultResourceHitMapping: AlgoliaResourceHitMapping = {
+  attributesToRetrieve: RESOURCE_HIT_ATTRIBUTES,
+  toResourceSearchHit: decodeResourceSearchHit,
+};
+
 const responseEnvelopeSchema = z.object({
   results: z.array(
     z
       .object({
-        hits: z.array(algoliaProductRecordSchema),
+        hits: z.array(algoliaSearchRecordSchema),
       })
       .passthrough()
   ),
@@ -68,25 +86,37 @@ const filterValues = (attribute: string, values: readonly string[]): string => {
     : `(${effectiveValues.map((value) => filterValue(attribute, value)).join(" OR ")})`;
 };
 
-export const audienceFilter = (audience: SearchAudience): string =>
-  [
-    filterValue("storeKeys", audience.storeKey),
+export const audienceFilter = (audience: SearchAudience): string => {
+  if (audience.product === undefined) {
+    throw new Error("Product search requires a Product audience");
+  }
+
+  return [
+    filterValue("storeKeys", audience.product.storeKey),
     filterValue("locales", audience.locale),
-    filterValue("currencies", audience.currency),
-    filterValues("customerSegmentKeys", audience.customerSegmentKeys),
-    filterValues("distributionChannelKeys", audience.distributionChannelKeys),
-    filterValues("supplyChannelKeys", audience.supplyChannelKeys),
+    filterValue("currencies", audience.product.currency),
+    filterValues("customerSegmentKeys", audience.product.customerSegmentKeys),
+    filterValues(
+      "distributionChannelKeys",
+      audience.product.distributionChannelKeys
+    ),
+    filterValues("supplyChannelKeys", audience.product.supplyChannelKeys),
   ].join(" AND ");
+};
+
+export const resourceAudienceFilter = (audience: SearchAudience): string =>
+  filterValue("locales", audience.locale);
 
 const physicalIndex = (
-  alias: ProductIndexAlias,
-  indices: AlgoliaProductIndices
+  alias: SearchIndexAlias,
+  indices: AlgoliaSearchIndices
 ): string => {
   const physicalIndices = {
     products: indices.products,
     "products@price-asc": indices.priceAscending,
     "products@price-desc": indices.priceDescending,
-  } satisfies Record<ProductIndexAlias, string>;
+    resources: indices.resources,
+  } satisfies Record<SearchIndexAlias, string>;
 
   return physicalIndices[alias];
 };
@@ -94,24 +124,41 @@ const physicalIndex = (
 const mapBatch = (
   batch: SearchBatch,
   audience: SearchAudience,
-  indices: AlgoliaProductIndices,
-  productHitMapping: AlgoliaProductHitMapping
+  indices: AlgoliaSearchIndices,
+  productHitMapping: AlgoliaProductHitMapping,
+  resourceHitMapping: AlgoliaResourceHitMapping
 ) =>
-  batch.map(({ indexName, params }) => ({
-    ...params,
-    attributesToRetrieve: [...productHitMapping.attributesToRetrieve],
-    filters: audienceFilter(audience),
-    indexName: physicalIndex(indexName, indices),
-  }));
+  batch.map(({ indexName, params }) => {
+    const productIndex = isProductIndexAlias(indexName);
+    return {
+      ...params,
+      attributesToRetrieve: [
+        ...(productIndex
+          ? productHitMapping.attributesToRetrieve
+          : resourceHitMapping.attributesToRetrieve),
+      ],
+      filters: productIndex
+        ? audienceFilter(audience)
+        : resourceAudienceFilter(audience),
+      indexName: physicalIndex(indexName, indices),
+    };
+  });
 
 export const createAlgoliaSearchProvider = ({
   client,
   indices,
   productHitMapping = defaultProductHitMapping,
+  resourceHitMapping = defaultResourceHitMapping,
 }: AlgoliaSearchProviderOptions): SearchProvider => ({
   search: async (batch, audience) => {
     const response = await client.search({
-      requests: mapBatch(batch, audience, indices, productHitMapping),
+      requests: mapBatch(
+        batch,
+        audience,
+        indices,
+        productHitMapping,
+        resourceHitMapping
+      ),
     });
     const envelope = responseEnvelopeSchema.parse(response);
     if (envelope.results.length !== batch.length) {
@@ -128,9 +175,15 @@ export const createAlgoliaSearchProvider = ({
 
       return {
         ...result,
-        hits: result.hits.map((hit) =>
-          decodeProductSearchHit(productHitMapping.toProductSearchHit(hit))
-        ),
+        hits: isProductIndexAlias(request.indexName)
+          ? result.hits.map((hit) =>
+              decodeProductSearchHit(productHitMapping.toProductSearchHit(hit))
+            )
+          : result.hits.map((hit) =>
+              decodeResourceSearchHit(
+                resourceHitMapping.toResourceSearchHit(hit)
+              )
+            ),
         index: request.indexName,
       };
     });
@@ -156,6 +209,7 @@ const providerFromEnvironment = (): SearchProvider => {
       priceAscending: config.ALGOLIA_PRODUCTS_PRICE_ASC_INDEX_NAME,
       priceDescending: config.ALGOLIA_PRODUCTS_PRICE_DESC_INDEX_NAME,
       products: config.ALGOLIA_PRODUCTS_INDEX_NAME,
+      resources: config.ALGOLIA_RESOURCES_INDEX_NAME,
     },
   });
   return configuredProvider;

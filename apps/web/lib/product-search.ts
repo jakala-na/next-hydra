@@ -9,6 +9,7 @@ import type {
   SearchBatchResult,
   SearchProvider,
 } from "@repo/search/contract";
+import { isProductIndexAlias } from "@repo/search/contract";
 import { Effect } from "effect";
 import { cacheLife, cacheTag } from "next/cache";
 
@@ -24,39 +25,52 @@ export const resolveProductSearchAudience = async (
       const productAudience = yield* productDiscovery.searchAudience();
 
       return {
-        currency: store.currency,
-        customerSegmentKeys: productAudience.customerSegmentKeys,
-        distributionChannelKeys: productAudience.distributionChannelKeys,
         locale: store.locale,
-        storeKey: store.storeKey,
-        supplyChannelKeys: productAudience.supplyChannelKeys,
+        product: {
+          currency: store.currency,
+          customerSegmentKeys: productAudience.customerSegmentKeys,
+          distributionChannelKeys: productAudience.distributionChannelKeys,
+          storeKey: store.storeKey,
+          supplyChannelKeys: productAudience.supplyChannelKeys,
+        },
       };
     }).pipe(NextCommerce.provide(locale))
   );
 
-const searchProductListing = async (
+export const resolveSearchAudience = async (
+  locale: Locale,
+  batch: SearchBatch
+): Promise<SearchAudience> =>
+  batch.some(({ indexName }) => isProductIndexAlias(indexName))
+    ? await resolveProductSearchAudience(locale)
+    : { locale };
+
+const searchResults = async (
   batch: SearchBatch,
   audience: SearchAudience
 ): Promise<SearchBatchResult> => {
   "use cache";
   cacheLife("minutes");
-  cacheTag(
-    "product-search",
-    `product-search:${audience.storeKey}:${audience.locale}`
-  );
+  cacheTag("search", `search:${audience.locale}`);
+  if (audience.product !== undefined) {
+    cacheTag(
+      "product-search",
+      `product-search:${audience.product.storeKey}:${audience.locale}`
+    );
+  }
 
   return await searchProvider.search(batch, audience);
 };
 
 /**
- * Shares Product listing results only when the complete provider-neutral
+ * Shares search results only when the complete provider-neutral
  * audience and InstantSearch request batch match. Abort signals stay outside
  * the serialized cache key.
  */
-export const cachedProductSearchProvider: SearchProvider = {
+export const cachedSearchProvider: SearchProvider = {
   search: async (batch, audience, signal) => {
     signal?.throwIfAborted();
-    const result = await searchProductListing(batch, audience);
+    const result = await searchResults(batch, audience);
     signal?.throwIfAborted();
     return result;
   },

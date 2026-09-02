@@ -35,6 +35,47 @@ describe(validateSearchBatch, () => {
     expect(requests[1]?.params.facets).toStrictEqual(["price"]);
   });
 
+  it("accepts paged Resource requests without Product facets", () => {
+    const requests = validateSearchBatch({
+      requests: [
+        {
+          indexName: "resources",
+          params: {
+            attributesToRetrieve: ["objectID", "resourceCard"],
+            hitsPerPage: 6,
+            page: 1,
+            query: "excavator",
+          },
+        },
+      ],
+    });
+
+    expect(requests).toStrictEqual([
+      {
+        indexName: "resources",
+        params: {
+          attributesToRetrieve: ["objectID", "resourceCard"],
+          hitsPerPage: 6,
+          page: 1,
+          query: "excavator",
+        },
+      },
+    ]);
+  });
+
+  it("rejects Product facets on the Resource index", () => {
+    expect(() =>
+      validateSearchBatch({
+        requests: [
+          {
+            indexName: "resources",
+            params: { facets: ["category"] },
+          },
+        ],
+      })
+    ).toThrow("Resource search does not support facets");
+  });
+
   it.each([
     [{ indexName: "physical-products", params: {} }, "logical index"],
     [{ indexName: "products", params: { filters: "store:other" } }, "filters"],

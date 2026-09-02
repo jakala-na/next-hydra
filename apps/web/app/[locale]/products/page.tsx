@@ -10,7 +10,7 @@ import { notFound, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 
 import {
-  cachedProductSearchProvider,
+  cachedSearchProvider,
   resolveProductSearchAudience,
 } from "@/lib/product-search";
 
@@ -53,7 +53,7 @@ async function ProductListingResults({
     const audience = await resolveProductSearchAudience(locale);
     serverState = await getProductListingServerState({
       audience,
-      provider: cachedProductSearchProvider,
+      provider: cachedSearchProvider,
       routeState,
     });
   } catch (error) {

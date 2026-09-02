@@ -3,8 +3,8 @@ import { z } from "zod";
 import type { SearchBatch } from "./contract";
 import {
   PRODUCT_FACETS,
-  PRODUCT_HIT_ATTRIBUTES,
-  PRODUCT_INDEX_ALIASES,
+  SEARCH_HIT_ATTRIBUTES,
+  SEARCH_INDEX_ALIASES,
 } from "./contract";
 
 const MAX_BATCH_SIZE = 8;
@@ -35,9 +35,9 @@ const facetsSchema = z
 const searchParametersSchema = z
   .object({
     analytics: z.literal(false).optional(),
-    attributesToHighlight: z.array(z.enum(PRODUCT_HIT_ATTRIBUTES)).optional(),
-    attributesToRetrieve: z.array(z.enum(PRODUCT_HIT_ATTRIBUTES)).optional(),
-    attributesToSnippet: z.array(z.enum(PRODUCT_HIT_ATTRIBUTES)).optional(),
+    attributesToHighlight: z.array(z.enum(SEARCH_HIT_ATTRIBUTES)).optional(),
+    attributesToRetrieve: z.array(z.enum(SEARCH_HIT_ATTRIBUTES)).optional(),
+    attributesToSnippet: z.array(z.enum(SEARCH_HIT_ATTRIBUTES)).optional(),
     clickAnalytics: z.literal(false).optional(),
     facetFilters: z
       .array(z.union([facetFilterValueSchema, z.array(facetFilterValueSchema)]))
@@ -72,7 +72,7 @@ const searchBatchSchema = z
       .array(
         z
           .object({
-            indexName: z.enum(PRODUCT_INDEX_ALIASES, {
+            indexName: z.enum(SEARCH_INDEX_ALIASES, {
               errorMap: () => ({
                 message: "Search request contains an unknown logical index",
               }),
@@ -80,6 +80,21 @@ const searchBatchSchema = z
             params: searchParametersSchema,
           })
           .strict()
+          .superRefine(({ indexName, params }, context) => {
+            if (
+              indexName === "resources" &&
+              (params.facetFilters !== undefined ||
+                params.facetName !== undefined ||
+                params.facets !== undefined ||
+                params.numericFilters !== undefined)
+            ) {
+              context.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Resource search does not support facets",
+                path: ["params"],
+              });
+            }
+          })
       )
       .min(1, "Search batches must contain at least one request")
       .max(

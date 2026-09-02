@@ -35,16 +35,14 @@ export function createProxySearchClient(endpoint: string): SearchClient {
       if (!response.ok) {
         const errorEnvelope = errorEnvelopeSchema.safeParse(payload);
         throw new SearchProxyError(
-          "Product search is unavailable",
+          "Search is unavailable",
           errorEnvelope.success ? errorEnvelope.data.error.requestId : undefined
         );
       }
 
       const envelope = responseEnvelopeSchema.safeParse(payload);
       if (!envelope.success) {
-        throw new SearchProxyError(
-          "Product search returned an invalid response"
-        );
+        throw new SearchProxyError("Search returned an invalid response");
       }
 
       // SAFETY: The same-origin proxy returns the provider's InstantSearch

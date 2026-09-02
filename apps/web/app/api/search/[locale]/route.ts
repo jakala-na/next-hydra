@@ -3,8 +3,8 @@ import { routing } from "@repo/i18n/routing";
 import { makeSearchRouteHandler } from "@repo/search/server";
 
 import {
-  cachedProductSearchProvider,
-  resolveProductSearchAudience,
+  cachedSearchProvider,
+  resolveSearchAudience,
 } from "@/lib/product-search";
 
 export async function POST(
@@ -21,7 +21,8 @@ export async function POST(
   }
 
   return await makeSearchRouteHandler({
-    provider: cachedProductSearchProvider,
-    resolveAudience: async () => await resolveProductSearchAudience(locale),
+    provider: cachedSearchProvider,
+    resolveAudience: async (batch) =>
+      await resolveSearchAudience(locale, batch),
   })(request);
 }

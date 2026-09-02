@@ -7,12 +7,14 @@ import { createAlgoliaSearchProvider } from "./provider";
 import type { AlgoliaSearchProviderOptions } from "./provider";
 
 const audience = {
-  currency: "USD",
-  customerSegmentKeys: ["contractors"],
-  distributionChannelKeys: ["north-america"],
   locale: "en-US",
-  storeKey: "default-store",
-  supplyChannelKeys: ["main-warehouse"],
+  product: {
+    currency: "USD",
+    customerSegmentKeys: ["contractors"],
+    distributionChannelKeys: ["north-america"],
+    storeKey: "default-store",
+    supplyChannelKeys: ["main-warehouse"],
+  },
 } as const;
 
 const expectedAudienceFilter =
@@ -93,16 +95,16 @@ describe("Algolia search proxy", () => {
               request.filters === expectedAudienceFilter
                 ? records.filter(
                     (record) =>
-                      record.storeKeys.includes(audience.storeKey) &&
+                      record.storeKeys.includes(audience.product.storeKey) &&
                       record.locales.includes(audience.locale) &&
-                      record.currencies.includes(audience.currency) &&
-                      audience.customerSegmentKeys.some((value) =>
+                      record.currencies.includes(audience.product.currency) &&
+                      audience.product.customerSegmentKeys.some((value) =>
                         record.customerSegmentKeys.includes(value)
                       ) &&
-                      audience.distributionChannelKeys.some((value) =>
+                      audience.product.distributionChannelKeys.some((value) =>
                         record.distributionChannelKeys.includes(value)
                       ) &&
-                      audience.supplyChannelKeys.some((value) =>
+                      audience.product.supplyChannelKeys.some((value) =>
                         record.supplyChannelKeys.includes(value)
                       )
                   )
@@ -123,6 +125,7 @@ describe("Algolia search proxy", () => {
         priceAscending: "catalog_price_asc",
         priceDescending: "catalog_price_desc",
         products: "catalog",
+        resources: "resources",
       },
     });
     const resolveAudience = vi

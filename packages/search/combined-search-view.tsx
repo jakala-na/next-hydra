@@ -1,0 +1,350 @@
+import { Button } from "@repo/design-system/components/ui/button";
+import { cn } from "@repo/design-system/lib/utils";
+import type { Locale } from "@repo/i18n";
+import type { Route } from "next";
+import Link from "next/link";
+import {
+  Configure,
+  Index,
+  useHits,
+  useInstantSearch,
+  usePagination,
+  useSearchBox,
+  useStats,
+} from "react-instantsearch";
+
+import {
+  combinedProductSearchConfigure,
+  combinedResourceSearchConfigure,
+} from "./combined-search-config";
+import type { CombinedSearchTab } from "./combined-search-routing";
+import {
+  COMBINED_SEARCH_TABS,
+  combinedSearchPageHref,
+  combinedSearchTabHref,
+} from "./combined-search-routing";
+import type { ProductSearchHit, ResourceSearchHit } from "./contract";
+import { SearchProductCard } from "./product-card";
+import { SearchResourceCard } from "./resource-card";
+
+export interface CombinedSearchViewProps {
+  readonly locale: Locale;
+  readonly tab: CombinedSearchTab;
+}
+
+const tabLabel = (tab: CombinedSearchTab): string => {
+  if (tab === "all") {
+    return "All";
+  }
+  return tab === "products" ? "Products" : "Resources";
+};
+
+// SAFETY: Combined Search routing only returns query strings built from the
+// allowlisted Search tab and numeric page state.
+const searchRoute = (href: string): Route => href as Route;
+
+function CombinedSearchQuery({
+  query,
+  refine,
+}: {
+  readonly query: string;
+  readonly refine: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="sr-only">Search Products and Resources</span>
+      <input
+        className="h-12 w-full rounded-md border border-input bg-background px-4 text-base shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        onChange={(event) => {
+          refine(event.currentTarget.value);
+        }}
+        placeholder="Search Products and Resources"
+        type="search"
+        value={query}
+      />
+    </label>
+  );
+}
+
+function CombinedSearchTabs({
+  query,
+  tab,
+}: {
+  readonly query: string;
+  readonly tab: CombinedSearchTab;
+}) {
+  return (
+    <div aria-label="Search result types" className="border-b" role="tablist">
+      <div className="flex gap-6">
+        {COMBINED_SEARCH_TABS.map((candidate) => (
+          <Link
+            aria-selected={candidate === tab}
+            className={cn(
+              "border-b-2 px-1 py-4 font-medium text-sm transition-colors",
+              candidate === tab
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+            href={searchRoute(combinedSearchTabHref(query, candidate))}
+            key={candidate}
+            role="tab"
+          >
+            {tabLabel(candidate)}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SearchPagination({
+  label,
+  query,
+  tab,
+}: {
+  readonly label: string;
+  readonly query: string;
+  readonly tab: Exclude<CombinedSearchTab, "all">;
+}) {
+  const { currentRefinement, isFirstPage, isLastPage, nbPages } =
+    usePagination();
+
+  if (nbPages <= 1) {
+    return null;
+  }
+
+  return (
+    <nav
+      aria-label={`${label} pagination`}
+      className="mt-8 flex items-center justify-center gap-3"
+    >
+      {isFirstPage ? (
+        <Button disabled type="button" variant="outline">
+          Previous
+        </Button>
+      ) : (
+        <Button asChild variant="outline">
+          <Link
+            href={searchRoute(
+              combinedSearchPageHref(query, tab, currentRefinement)
+            )}
+          >
+            Previous
+          </Link>
+        </Button>
+      )}
+      <span className="text-muted-foreground text-sm">
+        Page {currentRefinement + 1} of {nbPages}
+      </span>
+      {isLastPage ? (
+        <Button disabled type="button" variant="outline">
+          Next
+        </Button>
+      ) : (
+        <Button asChild variant="outline">
+          <Link
+            href={searchRoute(
+              combinedSearchPageHref(query, tab, currentRefinement + 2)
+            )}
+          >
+            Next
+          </Link>
+        </Button>
+      )}
+    </nav>
+  );
+}
+
+function SearchUnavailable() {
+  return (
+    <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6">
+      <h2 className="font-semibold">Search is unavailable</h2>
+      <p className="mt-1 text-muted-foreground text-sm">
+        Please try again shortly.
+      </p>
+    </div>
+  );
+}
+
+function NoResults({ label }: { readonly label: string }) {
+  const { status } = useInstantSearch({ catchError: true });
+  return (
+    <div className="rounded-lg border border-dashed p-8 text-center">
+      <p className="font-semibold">
+        {status === "loading" || status === "stalled"
+          ? `Loading ${label}…`
+          : `No ${label} found`}
+      </p>
+    </div>
+  );
+}
+
+function ProductResults({
+  locale,
+  preview,
+  query,
+}: {
+  readonly locale: Locale;
+  readonly preview: boolean;
+  readonly query: string;
+}) {
+  const { status } = useInstantSearch({ catchError: true });
+  const { items } = useHits<ProductSearchHit>();
+  const { nbHits } = useStats();
+
+  if (status === "error") {
+    return <SearchUnavailable />;
+  }
+
+  return (
+    <section aria-labelledby="product-search-results">
+      <div className="mb-5 flex items-end justify-between gap-4">
+        <div>
+          <h2 className="font-semibold text-2xl" id="product-search-results">
+            Products
+          </h2>
+          <p className="mt-1 text-muted-foreground text-sm">
+            {nbHits.toLocaleString(locale)}{" "}
+            {nbHits === 1 ? "result" : "results"}
+          </p>
+        </div>
+        {preview && nbHits > items.length ? (
+          <Button asChild variant="outline">
+            <Link href={searchRoute(combinedSearchTabHref(query, "products"))}>
+              Show more Products
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+      {items.length === 0 ? (
+        <NoResults label="Products" />
+      ) : (
+        <div className="space-y-5">
+          {items.map((hit) => (
+            <div data-search-result-type="product" key={hit.objectID}>
+              <SearchProductCard
+                headingLevel="h3"
+                hit={hit}
+                layout="row"
+                locale={locale}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      {preview ? null : (
+        <SearchPagination
+          label="Product results"
+          query={query}
+          tab="products"
+        />
+      )}
+    </section>
+  );
+}
+
+function ResourceResults({
+  locale,
+  preview,
+  query,
+}: {
+  readonly locale: Locale;
+  readonly preview: boolean;
+  readonly query: string;
+}) {
+  const { status } = useInstantSearch({ catchError: true });
+  const { items } = useHits<ResourceSearchHit>();
+  const { nbHits } = useStats();
+
+  if (status === "error") {
+    return <SearchUnavailable />;
+  }
+
+  return (
+    <section aria-labelledby="resource-search-results">
+      <div className="mb-5 flex items-end justify-between gap-4">
+        <div>
+          <h2 className="font-semibold text-2xl" id="resource-search-results">
+            Resources
+          </h2>
+          <p className="mt-1 text-muted-foreground text-sm">
+            {nbHits.toLocaleString(locale)}{" "}
+            {nbHits === 1 ? "result" : "results"}
+          </p>
+        </div>
+        {preview && nbHits > items.length ? (
+          <Button asChild variant="outline">
+            <Link href={searchRoute(combinedSearchTabHref(query, "resources"))}>
+              Show more Resources
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+      {items.length === 0 ? (
+        <NoResults label="Resources" />
+      ) : (
+        <div className="space-y-5">
+          {items.map((hit) => (
+            <div data-search-result-type="resource" key={hit.objectID}>
+              <SearchResourceCard hit={hit} layout="row" locale={locale} />
+            </div>
+          ))}
+        </div>
+      )}
+      {preview ? null : (
+        <SearchPagination
+          label="Resource results"
+          query={query}
+          tab="resources"
+        />
+      )}
+    </section>
+  );
+}
+
+function AllSearchResults({
+  locale,
+  query,
+}: {
+  readonly locale: Locale;
+  readonly query: string;
+}) {
+  return (
+    <div className="space-y-12">
+      <ProductResults locale={locale} preview query={query} />
+      <Index indexName="resources">
+        <Configure {...combinedResourceSearchConfigure("all")} />
+        <ResourceResults locale={locale} preview query={query} />
+      </Index>
+    </div>
+  );
+}
+
+export function CombinedSearchView({ locale, tab }: CombinedSearchViewProps) {
+  const { query, refine } = useSearchBox();
+
+  return (
+    <>
+      <Configure
+        {...(tab === "resources"
+          ? combinedResourceSearchConfigure(tab)
+          : combinedProductSearchConfigure(tab))}
+      />
+      <div className="space-y-6">
+        <CombinedSearchQuery query={query} refine={refine} />
+        <CombinedSearchTabs query={query} tab={tab} />
+      </div>
+      <div className="mt-8">
+        {tab === "all" ? (
+          <AllSearchResults locale={locale} query={query} />
+        ) : null}
+        {tab === "products" ? (
+          <ProductResults locale={locale} preview={false} query={query} />
+        ) : null}
+        {tab === "resources" ? (
+          <ResourceResults locale={locale} preview={false} query={query} />
+        ) : null}
+      </div>
+    </>
+  );
+}

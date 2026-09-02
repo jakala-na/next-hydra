@@ -1,10 +1,13 @@
 import "server-only";
-import type { SearchAudience, SearchProvider } from "./contract";
+import type { SearchAudience, SearchBatch, SearchProvider } from "./contract";
 import { InvalidSearchRequestError, validateSearchBatch } from "./validation";
 
 export interface SearchRouteDependencies {
   readonly provider: SearchProvider;
-  readonly resolveAudience: (request: Request) => Promise<SearchAudience>;
+  readonly resolveAudience: (
+    batch: SearchBatch,
+    request: Request
+  ) => Promise<SearchAudience>;
 }
 
 const privateResponseHeaders = {
@@ -29,7 +32,7 @@ export const makeSearchRouteHandler =
     try {
       const body: unknown = await request.json();
       const batch = validateSearchBatch(body);
-      const audience = await resolveAudience(request);
+      const audience = await resolveAudience(batch, request);
       const result = await provider.search(batch, audience, request.signal);
 
       return Response.json(result, { headers: privateResponseHeaders });

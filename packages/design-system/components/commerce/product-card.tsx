@@ -9,6 +9,7 @@ import {
   CardContent,
   CardFooter,
 } from "@repo/design-system/components/ui/card";
+import { cn } from "@repo/design-system/lib/utils";
 import { useFormatter, useTranslations } from "@repo/i18n";
 import type { Route } from "next";
 import Image from "next/image";
@@ -26,6 +27,7 @@ interface ProductCardProps {
   imageTitle?: string;
   imageUrl: string;
   isInStock?: boolean;
+  layout?: "grid" | "row";
   price?: number;
   productHref?: Route | UrlObject;
   slug?: string;
@@ -42,6 +44,7 @@ function ProductCard({
   category,
   currencyCode,
   headingLevel = "h3",
+  layout = "grid",
   price,
   productHref,
 }: ProductCardProps) {
@@ -68,8 +71,19 @@ function ProductCard({
       source="design-system"
       sourceLabel="Shared design system"
     >
-      <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg">
-        <div className="relative h-72 overflow-hidden bg-muted">
+      <Card
+        className={cn(
+          "group overflow-hidden transition-all duration-300 hover:shadow-lg",
+          layout === "row" &&
+            "sm:grid sm:grid-cols-[14rem_minmax(0,1fr)] sm:grid-rows-[1fr_auto]"
+        )}
+      >
+        <div
+          className={cn(
+            "relative h-72 overflow-hidden bg-muted",
+            layout === "row" && "sm:row-span-2 sm:h-full sm:min-h-56"
+          )}
+        >
           {badge ? (
             <Badge className="absolute top-4 left-4 z-10 bg-primary text-primary-foreground">
               {badge}
@@ -81,7 +95,11 @@ function ProductCard({
               alt={imageTitle ?? ""}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
-              sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+              sizes={
+                layout === "row"
+                  ? "(min-width: 640px) 14rem, 100vw"
+                  : "(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+              }
             />
           ) : null}
         </div>

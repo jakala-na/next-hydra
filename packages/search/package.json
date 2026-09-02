@@ -6,6 +6,10 @@
   "exports": {
     ".": "./index.ts",
     "./client": "./client.ts",
+    "./combined-search": "./combined-search.tsx",
+    "./combined-search-routing": "./combined-search-routing.ts",
+    "./combined-search-server": "./combined-search-server.tsx",
+    "./combined-search-skeleton": "./combined-search-skeleton.tsx",
     "./contract": "./contract.ts",
     "./product-card": "./product-card.tsx",
     "./product-listing": "./product-listing.tsx",

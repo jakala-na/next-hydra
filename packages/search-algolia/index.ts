@@ -1,6 +1,7 @@
 export { createAlgoliaSearchProvider, searchProvider } from "./provider";
 export type {
-  AlgoliaProductIndices,
   AlgoliaProductHitMapping,
+  AlgoliaResourceHitMapping,
+  AlgoliaSearchIndices,
   AlgoliaSearchProviderOptions,
 } from "./provider";

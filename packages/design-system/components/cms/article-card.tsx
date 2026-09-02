@@ -17,7 +17,7 @@ export type ArticleImage = {
 };
 
 export type ArticleTeaser = {
-  href: string;
+  href: Route | URL;
   id: string;
   image?: ArticleImage;
   publishedAt?: string;
@@ -28,24 +28,46 @@ export type ArticleTeaser = {
 type ArticleCardProps = {
   article: ArticleTeaser;
   className?: string;
+  layout?: "grid" | "row";
   readMoreLabel?: string;
 };
 
 export function ArticleCard({
   article,
   className,
+  layout = "grid",
   readMoreLabel = "Read guide",
 }: ArticleCardProps) {
   return (
     <article className={cn("h-full", className)}>
-      <Card className="group h-full overflow-hidden py-0 transition-all duration-300 hover:shadow-lg">
+      <Card
+        className={cn(
+          "group h-full overflow-hidden py-0 transition-all duration-300 hover:shadow-lg",
+          layout === "row" &&
+            article.image !== undefined &&
+            "sm:grid sm:grid-cols-[14rem_minmax(0,1fr)] sm:grid-rows-[1fr_auto]",
+          layout === "row" &&
+            article.image === undefined &&
+            "sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+        )}
+      >
         {article.image ? (
-          <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+          <div
+            className={cn(
+              "relative aspect-[16/10] overflow-hidden bg-muted",
+              layout === "row" &&
+                "sm:row-span-2 sm:aspect-auto sm:h-full sm:min-h-56"
+            )}
+          >
             <Image
               alt={article.image.altText}
               className="object-cover transition-transform duration-300 group-hover:scale-105"
               fill
-              sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+              sizes={
+                layout === "row"
+                  ? "(min-width: 640px) 14rem, 100vw"
+                  : "(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+              }
               src={article.image.url}
             />
           </div>
@@ -61,10 +83,10 @@ export function ArticleCard({
             {article.summary}
           </p>
         </CardContent>
-        <CardFooter className="p-6 pt-0">
+        <CardFooter className={cn("p-6 pt-0", layout === "row" && "sm:pt-6")}>
           <Link
             className="inline-flex items-center gap-2 font-medium text-primary"
-            href={article.href as Route}
+            href={article.href}
           >
             {readMoreLabel}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -74,3 +96,5 @@ export function ArticleCard({
     </article>
   );
 }
+
+export type { ArticleCardProps };

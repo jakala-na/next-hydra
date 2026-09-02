@@ -5,12 +5,14 @@ import { makeSearchRouteHandler } from "./server";
 import type { SearchRouteDependencies } from "./server";
 
 const audience = {
-  currency: "USD",
-  customerSegmentKeys: ["public"],
-  distributionChannelKeys: ["public"],
   locale: "en-US",
-  storeKey: "default-store",
-  supplyChannelKeys: ["public"],
+  product: {
+    currency: "USD",
+    customerSegmentKeys: ["public"],
+    distributionChannelKeys: ["public"],
+    storeKey: "default-store",
+    supplyChannelKeys: ["public"],
+  },
 } as const;
 
 describe(makeSearchRouteHandler, () => {
@@ -36,7 +38,10 @@ describe(makeSearchRouteHandler, () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toStrictEqual({ results: [] });
-    expect(resolveAudience).toHaveBeenCalledWith(request);
+    expect(resolveAudience).toHaveBeenCalledWith(
+      [{ indexName: "products", params: { hitsPerPage: 12 } }],
+      request
+    );
     expect(search).toHaveBeenCalledWith(
       [{ indexName: "products", params: { hitsPerPage: 12 } }],
       audience,

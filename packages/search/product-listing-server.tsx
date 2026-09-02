@@ -1,5 +1,5 @@
 import "server-only";
-import type { SearchClient, UiState, Widget } from "instantsearch.js";
+import type { Widget } from "instantsearch.js";
 import {
   connectConfigure,
   connectHits,
@@ -10,14 +10,10 @@ import {
   connectSortBy,
   connectStats,
 } from "instantsearch.js/es/connectors";
-import InstantSearch from "instantsearch.js/es/lib/InstantSearch";
-import {
-  getInitialResults,
-  waitForResults,
-} from "instantsearch.js/es/lib/server";
 import type { InstantSearchServerState } from "react-instantsearch";
 
 import type { SearchAudience, SearchProvider } from "./contract";
+import { getInstantSearchServerState } from "./instant-search-server";
 import {
   PRODUCT_LISTING_CONFIGURE,
   PRODUCT_LISTING_FACETS,
@@ -27,7 +23,6 @@ import {
 } from "./product-listing-config";
 import type { ProductListingRouteState } from "./product-listing-routing";
 import { productListingStateMapping } from "./product-listing-routing";
-import { validateSearchBatch } from "./validation";
 
 export interface ProductListingServerStateOptions {
   readonly audience: SearchAudience;
@@ -73,31 +68,11 @@ export async function getProductListingServerState({
   provider,
   routeState,
 }: ProductListingServerStateOptions): Promise<InstantSearchServerState> {
-  const searchClient: SearchClient = {
-    search: async (requests) =>
-      await provider.search(validateSearchBatch({ requests }), audience),
-  };
-
-  const search = new InstantSearch<UiState, ProductListingRouteState>({
-    future: { preserveSharedStateOnUnmount: true },
+  return await getInstantSearchServerState({
+    audience,
     indexName: "products",
     initialUiState: productListingStateMapping.routeToState(routeState),
-    searchClient,
+    provider,
+    widgets: createProductListingServerWidgets(),
   });
-  search.addWidgets(createProductListingServerWidgets());
-
-  // Match React InstantSearch's server lifecycle: start with an empty hydrated
-  // result set so start() initializes helpers without issuing an extra query.
-  search._initialResults = {};
-  search._manuallyResetScheduleSearch = true;
-  search.start();
-
-  try {
-    const requestParameters = await waitForResults(search);
-    return {
-      initialResults: getInitialResults(search.mainIndex, requestParameters),
-    };
-  } finally {
-    search.dispose();
-  }
 }
