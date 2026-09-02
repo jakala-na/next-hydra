@@ -1621,11 +1621,11 @@ describe("Checkout REST API", () => {
 
       expect(response.status).toBe(HTTP_BAD_REQUEST);
       expect(body).toMatchObject({
-        _tag: "CheckoutMutationSchemaFailure",
+        _tag: "InputInvalid",
         category: "bad_input",
-        code: "checkout.contact.invalidInput",
-        issues: [{ path: ["firstName"] }],
-        message: "Enter an email, first name, and last name.",
+        code: "input.invalid",
+        issues: [{ path: ["contact", "buyerContact", "firstName"] }],
+        message: "The checkout request is invalid.",
       });
     } finally {
       await dispose();
@@ -2186,10 +2186,15 @@ describe("Checkout REST API", () => {
 
       expect(response.status).toBe(HTTP_BAD_REQUEST);
       expect(body).toMatchObject({
-        _tag: "CheckoutMutationSchemaFailure",
+        _tag: "InputInvalid",
         category: "bad_input",
-        code: "checkout.deliveryDetails.invalidInput",
-        message: "Enter address line 1, postal code, city, and country.",
+        code: "input.invalid",
+        issues: [
+          {
+            path: ["deliveryDetails", "shippingAddress", "city"],
+          },
+        ],
+        message: "The checkout request is invalid.",
       });
     } finally {
       await dispose();

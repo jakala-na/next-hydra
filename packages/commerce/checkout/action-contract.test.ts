@@ -9,10 +9,8 @@ import {
   CheckoutCartMismatch,
   CheckoutCustomerProfileIncomplete,
   CheckoutMutationAddressBookEntryUnavailable,
-  CheckoutMutationIssue,
   CheckoutMutationOutcomeUnknown,
   CheckoutMutationProviderFailure,
-  CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutShippingOptionsRefreshRequired,
   CheckoutShippingSelectionUnavailable,
@@ -48,15 +46,6 @@ const inputInvalid = makeInputInvalid({
   message: "Invalid input.",
 });
 
-const schemaFailure = new CheckoutMutationSchemaFailure({
-  issues: [
-    new CheckoutMutationIssue({
-      message: "Email is invalid",
-      path: "email",
-    }),
-  ],
-  message: "Checkout input is invalid",
-});
 const sourceUnavailable = new CheckoutMutationSourceUnavailable({
   message: "The selected source is unavailable",
   source: "customerProfile",
@@ -105,7 +94,6 @@ const accountFailure = new CommerceAccountUnavailable({
 
 const contactFailures = [
   inputInvalid,
-  projectSaveCheckoutContactFailure(schemaFailure, "en-US"),
   projectSaveCheckoutContactFailure(sourceUnavailable, "en-US"),
   projectSaveCheckoutContactFailure(customerProfileIncomplete, "en-US"),
   projectSaveCheckoutContactFailure(cartMismatch, "en-US"),
@@ -127,7 +115,6 @@ const contactFailures = [
 
 const deliveryFailures = [
   inputInvalid,
-  projectSaveCheckoutDeliveryDetailsFailure(schemaFailure, "en-US"),
   projectSaveCheckoutDeliveryDetailsFailure(sourceUnavailable, "en-US"),
   projectSaveCheckoutDeliveryDetailsFailure(
     new CheckoutMutationAddressBookEntryUnavailable({
@@ -156,7 +143,6 @@ const deliveryFailures = [
 
 const shippingFailures = [
   inputInvalid,
-  projectSaveCheckoutShippingOptionsFailure(schemaFailure, "en-US"),
   projectSaveCheckoutShippingOptionsFailure(
     new CheckoutShippingSelectionUnavailable({
       message: "Shipping selection is stale",

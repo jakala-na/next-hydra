@@ -6,17 +6,14 @@ export type CheckoutApiErrorCode =
   | "checkout.badRequest"
   | "checkout.cartMismatch"
   | "checkout.contact.customerProfileIncomplete"
-  | "checkout.contact.invalidInput"
   | "checkout.contact.outcomeUnknown"
   | "checkout.contact.sourceUnavailable"
   | "checkout.deliveryDetails.addressBookEntryUnavailable"
-  | "checkout.deliveryDetails.invalidInput"
   | "checkout.deliveryDetails.outcomeUnknown"
   | "checkout.deliveryDetails.providerFailure"
   | "checkout.deliveryDetails.sourceUnavailable"
   | "checkout.internal"
   | "checkout.notFound"
-  | "checkout.paymentOptions.invalidInput"
   | "checkout.paymentOptions.methodUnavailable"
   | "checkout.paymentOptions.outcomeUnknown"
   | "checkout.paymentOptions.preparationRefreshRequired"
@@ -44,9 +41,6 @@ export const checkoutApiErrorMessage = (
     case "checkout.contact.customerProfileIncomplete": {
       return messages.saveContact.CheckoutCustomerProfileIncomplete;
     }
-    case "checkout.contact.invalidInput": {
-      return messages.saveContact.CheckoutMutationSchemaFailure;
-    }
     case "checkout.contact.outcomeUnknown": {
       return messages.saveContact.CheckoutMutationOutcomeUnknown;
     }
@@ -55,9 +49,6 @@ export const checkoutApiErrorMessage = (
     }
     case "checkout.deliveryDetails.addressBookEntryUnavailable": {
       return messages.deliveryDetails.addressBookEntryUnavailable;
-    }
-    case "checkout.deliveryDetails.invalidInput": {
-      return messages.deliveryDetails.invalidInput;
     }
     case "checkout.deliveryDetails.outcomeUnknown": {
       return messages.saveDeliveryDetails.CheckoutMutationOutcomeUnknown;
@@ -73,9 +64,6 @@ export const checkoutApiErrorMessage = (
     }
     case "checkout.notFound": {
       return messages.notFound;
-    }
-    case "checkout.paymentOptions.invalidInput": {
-      return messages.savePaymentOptions.CheckoutMutationSchemaFailure;
     }
     case "checkout.paymentOptions.methodUnavailable": {
       return messages.savePaymentOptions.CheckoutPaymentMethodUnavailable;

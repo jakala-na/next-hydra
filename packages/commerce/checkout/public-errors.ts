@@ -1,4 +1,4 @@
-import { ErrorIssue, definePublicError } from "@repo/errors";
+import { definePublicError } from "@repo/errors";
 import { PaymentMethod, PreparedPaymentReference } from "@repo/payments";
 import { Schema } from "effect";
 
@@ -249,17 +249,6 @@ export type CheckoutUnauthenticated = typeof CheckoutUnauthenticated.Type;
 export const makeCheckoutUnauthenticated =
   CheckoutUnauthenticatedDefinition.make;
 
-const contactInputFailure = definePublicError({
-  category: "bad_input",
-  code: "checkout.contact.invalidInput",
-  fields: {
-    issues: Schema.NonEmptyArray(ErrorIssue),
-  },
-  recovery: "fix_input",
-  status: 400,
-  tag: "CheckoutMutationSchemaFailure",
-});
-
 const contactSourceFailure = definePublicError({
   category: "bad_input",
   code: "checkout.contact.sourceUnavailable",
@@ -282,37 +271,6 @@ const customerProfileIncompleteFailure = definePublicError({
   recovery: "fix_input",
   status: 422,
   tag: "CheckoutCustomerProfileIncomplete",
-});
-
-const deliveryInputFailure = definePublicError({
-  category: "bad_input",
-  code: "checkout.deliveryDetails.invalidInput",
-  fields: {
-    issues: Schema.NonEmptyArray(ErrorIssue),
-  },
-  recovery: "fix_input",
-  status: 400,
-  tag: "CheckoutMutationSchemaFailure",
-});
-
-const shippingOptionsInputFailure = definePublicError({
-  category: "bad_input",
-  code: "checkout.shippingOptions.invalidInput",
-  fields: {
-    issues: Schema.NonEmptyArray(ErrorIssue),
-  },
-  recovery: "fix_input",
-  status: 400,
-  tag: "CheckoutMutationSchemaFailure",
-});
-
-const paymentOptionsInputFailure = definePublicError({
-  category: "bad_input",
-  code: "checkout.paymentOptions.invalidInput",
-  fields: { issues: Schema.NonEmptyArray(ErrorIssue) },
-  recovery: "fix_input",
-  status: 400,
-  tag: "CheckoutMutationSchemaFailure",
 });
 
 const PublicCheckoutPaymentMethodUnavailable = definePublicError({
@@ -447,19 +405,6 @@ const absurd = (error: never): never => {
   throw new Error(`Unexpected checkout failure: ${String(error)}`);
 };
 
-const publicIssues = (
-  issues: readonly { readonly path: string }[],
-  issueMessage: string
-): readonly [ErrorIssue, ...ErrorIssue[]] => {
-  const [first, ...remaining] = issues;
-  const toIssue = ({ path }: { readonly path: string }) =>
-    new ErrorIssue({ message: issueMessage, path: [path] });
-
-  return first === undefined
-    ? [new ErrorIssue({ message: issueMessage, path: [] })]
-    : [toIssue(first), ...remaining.map(toIssue)];
-};
-
 export const projectCheckoutRequestFailure = (
   error: NextCommerceRequestError,
   locale: string
@@ -554,7 +499,6 @@ export const projectPrepareCheckoutPaymentOptionsFailure = (
 };
 
 export const SaveCheckoutContactOperationPublicErrors = [
-  contactInputFailure.schema,
   contactSourceFailure.schema,
   customerProfileIncompleteFailure.schema,
   PublicCheckoutCartMismatch.schema,
@@ -595,13 +539,6 @@ export function projectSaveCheckoutContactFailure(
   locale: string
 ): SaveCheckoutContactPublicError {
   switch (error._tag) {
-    case "CheckoutMutationSchemaFailure": {
-      const publicMessage = message(locale, "checkout.contact.invalidInput");
-      return contactInputFailure.make({
-        issues: publicIssues(error.issues, publicMessage),
-        message: publicMessage,
-      });
-    }
     case "CheckoutMutationSourceUnavailable": {
       return contactSourceFailure.make({
         message: message(locale, "checkout.contact.sourceUnavailable"),
@@ -661,7 +598,6 @@ export function projectSaveCheckoutContactFailure(
 }
 
 export const SaveCheckoutDeliveryDetailsOperationPublicErrors = [
-  deliveryInputFailure.schema,
   deliverySourceFailure.schema,
   PublicCheckoutAddressBookEntryUnavailable.schema,
   PublicCheckoutCartMismatch.schema,
@@ -698,16 +634,6 @@ export function projectSaveCheckoutDeliveryDetailsFailure(
   locale: string
 ): SaveCheckoutDeliveryDetailsPublicError {
   switch (error._tag) {
-    case "CheckoutMutationSchemaFailure": {
-      const publicMessage = message(
-        locale,
-        "checkout.deliveryDetails.invalidInput"
-      );
-      return deliveryInputFailure.make({
-        issues: publicIssues(error.issues, publicMessage),
-        message: publicMessage,
-      });
-    }
     case "CheckoutMutationSourceUnavailable": {
       return deliverySourceFailure.make({
         message: message(locale, "checkout.deliveryDetails.sourceUnavailable"),
@@ -807,7 +733,6 @@ export function projectSaveCheckoutDeliveryDetailsFailure(
 }
 
 export const SaveCheckoutShippingOptionsOperationPublicErrors = [
-  shippingOptionsInputFailure.schema,
   PublicCheckoutShippingSelectionUnavailable.schema,
   PublicCheckoutShippingOptionsRefreshRequired.schema,
   PublicCheckoutCartMismatch.schema,
@@ -841,13 +766,6 @@ export function projectSaveCheckoutShippingOptionsFailure(
   locale: string
 ): SaveCheckoutShippingOptionsPublicError {
   switch (error._tag) {
-    case "CheckoutMutationSchemaFailure": {
-      const publicMessage = message(locale, "checkout.badRequest");
-      return shippingOptionsInputFailure.make({
-        issues: publicIssues(error.issues, publicMessage),
-        message: publicMessage,
-      });
-    }
     case "CheckoutShippingSelectionUnavailable": {
       const failure = {
         message: message(locale, "checkout.versionConflict"),
@@ -913,7 +831,6 @@ export function projectSaveCheckoutShippingOptionsFailure(
 }
 
 export const SaveCheckoutPaymentOptionsOperationPublicErrors = [
-  paymentOptionsInputFailure.schema,
   PublicCheckoutPaymentOptionsUnavailable.schema,
   PublicCheckoutPaymentMethodUnavailable.schema,
   PublicCheckoutPaymentPreparationRefreshRequired.schema,
@@ -948,16 +865,6 @@ export function projectSaveCheckoutPaymentOptionsFailure(
   locale: string
 ): SaveCheckoutPaymentOptionsPublicError {
   switch (error._tag) {
-    case "CheckoutMutationSchemaFailure": {
-      const publicMessage = message(
-        locale,
-        "checkout.paymentOptions.invalidInput"
-      );
-      return paymentOptionsInputFailure.make({
-        issues: publicIssues(error.issues, publicMessage),
-        message: publicMessage,
-      });
-    }
     case "CheckoutPaymentOptionsUnavailable": {
       return PublicCheckoutPaymentOptionsUnavailable.make({
         message: message(locale, "checkout.paymentOptions.unavailable"),

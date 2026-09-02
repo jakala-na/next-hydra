@@ -387,7 +387,6 @@
         "internal": "De checkout kon niet worden voltooid. Probeer het opnieuw.",
         "deliveryDetails": {
           "addressBookEntryUnavailable": "Dit opgeslagen adres is niet meer beschikbaar.",
-          "invalidInput": "Voer adresregel 1, postcode, plaats en land in.",
           "sourceUnavailable": "Deze bezorgbron is niet beschikbaar voor deze checkout.",
           "providerFailure": "De bezorggegevens konden niet worden opgeslagen. Probeer het opnieuw.",
           "unsupported": "Deze bezorgbron wordt nog niet ondersteund."
@@ -400,7 +399,7 @@
         "saveContact": {
           "CheckoutCartMismatch": "Deze checkout is niet meer actueel. Vernieuw de pagina en probeer het opnieuw.",
           "CheckoutCustomerProfileIncomplete": "In uw klantprofiel ontbreken verplichte contactgegevens. Vul ze hieronder in om verder te gaan.",
-          "CheckoutMutationSchemaFailure": "Voer een e-mailadres, voornaam en achternaam in.",
+          "InputInvalid": "Voer een e-mailadres, voornaam en achternaam in.",
           "CheckoutMutationOutcomeUnknown": "We konden niet bevestigen of uw contactgegevens zijn opgeslagen. Vernieuw de pagina voordat u het opnieuw probeert.",
           "CheckoutMutationSourceUnavailable": "Deze contactbron is niet beschikbaar voor deze checkout.",
           "CheckoutMutationProviderFailure": "Het contact kon niet worden opgeslagen. Probeer het opnieuw.",
@@ -414,7 +413,7 @@
         "saveDeliveryDetails": {
           "CheckoutCartMismatch": "Deze checkout is niet meer actueel. Vernieuw de pagina en probeer het opnieuw.",
           "CheckoutMutationAddressBookEntryUnavailable": "Dit opgeslagen adres is niet meer beschikbaar.",
-          "CheckoutMutationSchemaFailure": "Voer adresregel 1, postcode, plaats en land in.",
+          "InputInvalid": "Voer adresregel 1, postcode, plaats en land in.",
           "CheckoutMutationOutcomeUnknown": "We konden niet bevestigen of uw bezorggegevens zijn opgeslagen. Vernieuw de pagina voordat u het opnieuw probeert.",
           "CheckoutMutationSourceUnavailable": "Deze bezorgbron is niet beschikbaar voor deze checkout.",
           "CheckoutMutationProviderFailure": "De bezorggegevens konden niet worden opgeslagen. Probeer het opnieuw.",
@@ -427,7 +426,7 @@
         },
         "savePaymentOptions": {
           "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
-          "CheckoutMutationSchemaFailure": "Choose an available payment method and complete its details.",
+          "InputInvalid": "Choose an available payment method and complete its details.",
           "CheckoutMutationOutcomeUnknown": "We could not confirm whether your payment options were saved. Refresh before trying again.",
           "CheckoutMutationProviderFailure": "Payment options could not be saved. Try again.",
           "CheckoutPaymentMethodUnavailable": "That payment method is no longer available. Refresh and choose again.",
@@ -440,7 +439,7 @@
         },
         "saveShippingOptions": {
           "CheckoutCartMismatch": "Deze checkout is niet meer actueel.",
-          "CheckoutMutationSchemaFailure": "Kies voor elke bezorging een verzendoptie.",
+          "InputInvalid": "Kies voor elke bezorging een verzendoptie.",
           "CheckoutMutationOutcomeUnknown": "Opslaan kon niet worden bevestigd. Vernieuw de pagina.",
           "CheckoutMutationProviderFailure": "De verzendopties konden niet worden opgeslagen.",
           "CheckoutShippingOptionsRefreshRequired": "De verzendopties zijn opgeslagen, maar de checkout kon niet worden vernieuwd. Vernieuw de pagina.",

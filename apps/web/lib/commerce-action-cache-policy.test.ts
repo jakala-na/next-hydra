@@ -7,9 +7,7 @@ describe(shouldRevalidatePaymentOptions, () => {
     expect(
       shouldRevalidatePaymentOptions({
         _tag: "Failure",
-        failure: {
-          error: { _tag: "CheckoutPaymentMethodUnavailable" },
-        },
+        failure: { _tag: "CheckoutPaymentMethodUnavailable" },
       })
     ).toBeTruthy();
   });

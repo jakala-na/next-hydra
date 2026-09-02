@@ -40,10 +40,8 @@ import {
   CheckoutCartMismatch,
   CheckoutCustomerProfileIncomplete,
   CheckoutMutationAddressBookEntryUnavailable,
-  CheckoutMutationIssue,
   CheckoutMutationOutcomeUnknown,
   CheckoutMutationProviderFailure,
-  CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutPaymentMethodUnavailable,
   CheckoutOrderPlacementUnavailable,
@@ -217,23 +215,9 @@ const contactSourceUnavailable = (source: CheckoutContactSource) =>
     source,
   });
 
-const requiredFieldError = (field: keyof CheckoutContact["buyerContact"]) =>
-  new CheckoutMutationSchemaFailure({
-    issues: [
-      new CheckoutMutationIssue({
-        message: `Manual Contact ${field} is required`,
-        path: field,
-      }),
-    ],
-    message: `Manual Contact ${field} is required`,
-  });
-
 const normalizeManualContact = (
   contact: CheckoutContactInput
-): Effect.Effect<
-  CheckoutContact,
-  CheckoutMutationSchemaFailure | CheckoutMutationSourceUnavailable
-> => {
+): Effect.Effect<CheckoutContact, CheckoutMutationSourceUnavailable> => {
   if (contact.source !== "manual") {
     return Effect.fail(contactSourceUnavailable(contact.source));
   }
@@ -242,18 +226,6 @@ const normalizeManualContact = (
   const firstName = contact.buyerContact.firstName.trim();
   const lastName = contact.buyerContact.lastName.trim();
   const phoneNumber = contact.buyerContact.phoneNumber?.trim();
-
-  if (email.length === 0) {
-    return Effect.fail(requiredFieldError("email"));
-  }
-
-  if (firstName.length === 0) {
-    return Effect.fail(requiredFieldError("firstName"));
-  }
-
-  if (lastName.length === 0) {
-    return Effect.fail(requiredFieldError("lastName"));
-  }
 
   const buyerContact =
     phoneNumber === undefined || phoneNumber.length === 0
@@ -280,7 +252,6 @@ const resolveCustomerProfileContact = Effect.fn(
 ): Effect.fn.Return<
   CheckoutContact,
   | CheckoutCustomerProfileIncomplete
-  | CheckoutMutationSchemaFailure
   | CheckoutMutationSourceUnavailable
   | CheckoutMutationProviderFailure
 > {
@@ -347,19 +318,6 @@ const resolveCheckoutContact = (
     ? normalizeManualContact(contact)
     : resolveCustomerProfileContact(scope, commerceContext);
 
-const requiredShippingAddressFieldError = (
-  field: keyof CheckoutDeliveryDetails["shippingAddress"]
-) =>
-  new CheckoutMutationSchemaFailure({
-    issues: [
-      new CheckoutMutationIssue({
-        message: `Manual Shipping Address ${field} is required`,
-        path: field,
-      }),
-    ],
-    message: `Manual Shipping Address ${field} is required`,
-  });
-
 const normalizeShippingAddress = (
   deliveryDetails: Extract<CheckoutDeliveryDetailsInput, { type: "manual" }>
 ) => {
@@ -369,18 +327,6 @@ const normalizeShippingAddress = (
   const { country } = deliveryDetails.shippingAddress;
   const addressLine2 = deliveryDetails.shippingAddress.addressLine2?.trim();
   const region = deliveryDetails.shippingAddress.region?.trim();
-
-  if (addressLine1.length === 0) {
-    return Effect.fail(requiredShippingAddressFieldError("addressLine1"));
-  }
-
-  if (postalCode.length === 0) {
-    return Effect.fail(requiredShippingAddressFieldError("postalCode"));
-  }
-
-  if (city.length === 0) {
-    return Effect.fail(requiredShippingAddressFieldError("city"));
-  }
 
   let shippingAddress: Address = { addressLine1, city, country, postalCode };
   if (addressLine2 !== undefined && addressLine2.length > 0) {
@@ -395,10 +341,7 @@ const normalizeShippingAddress = (
 
 const normalizeCheckoutDeliveryDetailsInput = (
   deliveryDetails: CheckoutDeliveryDetailsInput
-): Effect.Effect<
-  CheckoutDeliveryDetailsInput,
-  CheckoutMutationSchemaFailure
-> =>
+) =>
   deliveryDetails.type === "manual"
     ? normalizeShippingAddress(deliveryDetails)
     : Effect.succeed(deliveryDetails);
@@ -1383,14 +1326,9 @@ export class CheckoutSession extends Context.Service<
             const billingAddress =
               current.cart.checkoutDetails.deliveryDetails?.shippingAddress;
             if (billingAddress === undefined) {
-              return yield* new CheckoutMutationSchemaFailure({
-                issues: [
-                  new CheckoutMutationIssue({
-                    message: "Payment Options require current Delivery Details",
-                    path: "root",
-                  }),
-                ],
+              return yield* new CheckoutPaymentOptionsUnavailable({
                 message: "Payment Options require current Delivery Details",
+                reason: "deliveryDetailsIncomplete",
               });
             }
             const preparedPayment = yield* checkoutPayments

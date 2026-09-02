@@ -387,7 +387,6 @@
         "internal": "Der Checkout konnte nicht abgeschlossen werden. Versuchen Sie es erneut.",
         "deliveryDetails": {
           "addressBookEntryUnavailable": "Diese gespeicherte Adresse ist nicht mehr verfügbar.",
-          "invalidInput": "Geben Sie Adresszeile 1, Postleitzahl, Stadt und Land ein.",
           "sourceUnavailable": "Diese Lieferquelle ist für diesen Checkout nicht verfügbar.",
           "providerFailure": "Die Lieferdetails konnten nicht gespeichert werden. Versuchen Sie es erneut.",
           "unsupported": "Diese Lieferquelle wird noch nicht unterstützt."
@@ -400,7 +399,7 @@
         "saveContact": {
           "CheckoutCartMismatch": "Dieser Checkout ist nicht mehr aktuell. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
           "CheckoutCustomerProfileIncomplete": "In Ihrem Kundenprofil fehlen erforderliche Kontaktdaten. Geben Sie sie unten ein, um fortzufahren.",
-          "CheckoutMutationSchemaFailure": "Geben Sie E-Mail-Adresse, Vorname und Nachname ein.",
+          "InputInvalid": "Geben Sie E-Mail-Adresse, Vorname und Nachname ein.",
           "CheckoutMutationOutcomeUnknown": "Wir konnten nicht bestätigen, ob Ihre Kontaktdaten gespeichert wurden. Aktualisieren Sie die Seite, bevor Sie es erneut versuchen.",
           "CheckoutMutationSourceUnavailable": "Diese Kontaktquelle ist für diesen Checkout nicht verfügbar.",
           "CheckoutMutationProviderFailure": "Die Kontaktdaten konnten nicht gespeichert werden. Versuchen Sie es erneut.",
@@ -414,7 +413,7 @@
         "saveDeliveryDetails": {
           "CheckoutCartMismatch": "Dieser Checkout ist nicht mehr aktuell. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
           "CheckoutMutationAddressBookEntryUnavailable": "Diese gespeicherte Adresse ist nicht mehr verfügbar.",
-          "CheckoutMutationSchemaFailure": "Geben Sie Adresszeile 1, Postleitzahl, Stadt und Land ein.",
+          "InputInvalid": "Geben Sie Adresszeile 1, Postleitzahl, Stadt und Land ein.",
           "CheckoutMutationOutcomeUnknown": "Wir konnten nicht bestätigen, ob Ihre Lieferdaten gespeichert wurden. Aktualisieren Sie die Seite, bevor Sie es erneut versuchen.",
           "CheckoutMutationSourceUnavailable": "Diese Lieferquelle ist für diesen Checkout nicht verfügbar.",
           "CheckoutMutationProviderFailure": "Die Lieferdetails konnten nicht gespeichert werden. Versuchen Sie es erneut.",
@@ -427,7 +426,7 @@
         },
         "savePaymentOptions": {
           "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
-          "CheckoutMutationSchemaFailure": "Choose an available payment method and complete its details.",
+          "InputInvalid": "Choose an available payment method and complete its details.",
           "CheckoutMutationOutcomeUnknown": "We could not confirm whether your payment options were saved. Refresh before trying again.",
           "CheckoutMutationProviderFailure": "Payment options could not be saved. Try again.",
           "CheckoutPaymentMethodUnavailable": "That payment method is no longer available. Refresh and choose again.",
@@ -440,7 +439,7 @@
         },
         "saveShippingOptions": {
           "CheckoutCartMismatch": "Dieser Checkout ist nicht mehr aktuell.",
-          "CheckoutMutationSchemaFailure": "Wählen Sie für jede Lieferung eine Versandoption.",
+          "InputInvalid": "Wählen Sie für jede Lieferung eine Versandoption.",
           "CheckoutMutationOutcomeUnknown": "Wir konnten das Speichern nicht bestätigen. Aktualisieren Sie die Seite.",
           "CheckoutMutationProviderFailure": "Die Versandoptionen konnten nicht gespeichert werden.",
           "CheckoutShippingOptionsRefreshRequired": "Die Versandoptionen wurden gespeichert, aber der Checkout konnte nicht aktualisiert werden. Aktualisieren Sie die Seite.",

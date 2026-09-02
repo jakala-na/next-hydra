@@ -387,7 +387,6 @@
         "internal": "Impossibile completare il checkout. Riprova.",
         "deliveryDetails": {
           "addressBookEntryUnavailable": "Questo indirizzo salvato non è più disponibile.",
-          "invalidInput": "Inserisci indirizzo, codice postale, città e paese.",
           "sourceUnavailable": "Questa origine di consegna non è disponibile per questo checkout.",
           "providerFailure": "Impossibile salvare i dettagli di consegna. Riprova.",
           "unsupported": "Questa origine di consegna non è ancora supportata."
@@ -400,7 +399,7 @@
         "saveContact": {
           "CheckoutCartMismatch": "Questo checkout non è più aggiornato. Aggiorna la pagina e riprova.",
           "CheckoutCustomerProfileIncomplete": "Nel tuo profilo cliente mancano informazioni di contatto obbligatorie. Inseriscile qui sotto per continuare.",
-          "CheckoutMutationSchemaFailure": "Inserisci e-mail, nome e cognome.",
+          "InputInvalid": "Inserisci e-mail, nome e cognome.",
           "CheckoutMutationOutcomeUnknown": "Non è stato possibile confermare il salvataggio dei dati di contatto. Aggiorna la pagina prima di riprovare.",
           "CheckoutMutationSourceUnavailable": "Questa origine del contatto non è disponibile per questo checkout.",
           "CheckoutMutationProviderFailure": "Impossibile salvare il contatto. Riprova.",
@@ -414,7 +413,7 @@
         "saveDeliveryDetails": {
           "CheckoutCartMismatch": "Questo checkout non è più aggiornato. Aggiorna la pagina e riprova.",
           "CheckoutMutationAddressBookEntryUnavailable": "Questo indirizzo salvato non è più disponibile.",
-          "CheckoutMutationSchemaFailure": "Inserisci indirizzo, codice postale, città e paese.",
+          "InputInvalid": "Inserisci indirizzo, codice postale, città e paese.",
           "CheckoutMutationOutcomeUnknown": "Non è stato possibile confermare il salvataggio dei dati di consegna. Aggiorna la pagina prima di riprovare.",
           "CheckoutMutationSourceUnavailable": "Questa origine di consegna non è disponibile per questo checkout.",
           "CheckoutMutationProviderFailure": "Impossibile salvare i dettagli di consegna. Riprova.",
@@ -427,7 +426,7 @@
         },
         "savePaymentOptions": {
           "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
-          "CheckoutMutationSchemaFailure": "Choose an available payment method and complete its details.",
+          "InputInvalid": "Choose an available payment method and complete its details.",
           "CheckoutMutationOutcomeUnknown": "We could not confirm whether your payment options were saved. Refresh before trying again.",
           "CheckoutMutationProviderFailure": "Payment options could not be saved. Try again.",
           "CheckoutPaymentMethodUnavailable": "That payment method is no longer available. Refresh and choose again.",
@@ -440,7 +439,7 @@
         },
         "saveShippingOptions": {
           "CheckoutCartMismatch": "Questo checkout non è più aggiornato.",
-          "CheckoutMutationSchemaFailure": "Scegli un’opzione per ogni consegna.",
+          "InputInvalid": "Scegli un’opzione per ogni consegna.",
           "CheckoutMutationOutcomeUnknown": "Impossibile confermare il salvataggio. Aggiorna la pagina.",
           "CheckoutMutationProviderFailure": "Impossibile salvare le opzioni di spedizione.",
           "CheckoutShippingOptionsRefreshRequired": "Le opzioni di spedizione sono state salvate, ma non è stato possibile aggiornare il checkout. Aggiorna la pagina.",

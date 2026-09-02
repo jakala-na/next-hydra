@@ -1,19 +1,16 @@
 import type {
+  PlaceCheckoutOrderActionError,
   SaveCheckoutContactActionError,
   SaveCheckoutDeliveryDetailsActionError,
   SaveCheckoutPaymentOptionsActionError,
   SaveCheckoutShippingOptionsActionError,
 } from "@repo/commerce/checkout";
 
-type RevalidationResult<Tag extends string> =
+type RevalidationResult<Error extends { readonly _tag: string }> =
   | { readonly _tag: "Success" }
   | {
       readonly _tag: "Failure";
-      readonly failure: {
-        readonly error: {
-          readonly _tag: Tag;
-        };
-      };
+      readonly failure: Error;
     };
 
 type CheckoutError =
@@ -34,42 +31,53 @@ const REFRESH_ERROR_TAGS = new Set<CheckoutErrorTag>([
   "CheckoutVersionConflict",
 ]);
 
-const shouldRevalidateFromTag = <Tag extends CheckoutErrorTag>(
-  result: RevalidationResult<Tag>
-) =>
-  result._tag === "Success" ||
-  REFRESH_ERROR_TAGS.has(result.failure.error._tag);
+const shouldRevalidateFromTag = (
+  result: RevalidationResult<{ readonly _tag: CheckoutErrorTag }>
+) => result._tag === "Success" || REFRESH_ERROR_TAGS.has(result.failure._tag);
 
 export const shouldRevalidateContact = (
-  result: RevalidationResult<
-    SaveCheckoutContactActionError["_tag"] | "InputInvalid"
-  >
+  result: RevalidationResult<{
+    readonly _tag: SaveCheckoutContactActionError["_tag"] | "InputInvalid";
+  }>
 ) => shouldRevalidateFromTag(result);
 
 export const shouldRevalidateDeliveryDetails = (
-  result: RevalidationResult<
-    SaveCheckoutDeliveryDetailsActionError["_tag"] | "InputInvalid"
-  > & {
-    readonly failure?: {
-      readonly error: {
-        readonly addressBookReference?: string;
-      };
-    };
-  }
+  result: RevalidationResult<{
+    readonly _tag:
+      | SaveCheckoutDeliveryDetailsActionError["_tag"]
+      | "InputInvalid";
+    readonly addressBookReference?: string;
+  }>
 ) =>
   shouldRevalidateFromTag(result) ||
   (result._tag === "Failure" &&
-    result.failure.error._tag === "CheckoutMutationProviderFailure" &&
-    result.failure.error.addressBookReference !== undefined);
+    result.failure._tag === "CheckoutMutationProviderFailure" &&
+    result.failure.addressBookReference !== undefined);
 
 export const shouldRevalidateShippingOptions = (
-  result: RevalidationResult<
-    SaveCheckoutShippingOptionsActionError["_tag"] | "InputInvalid"
-  >
+  result: RevalidationResult<{
+    readonly _tag:
+      | SaveCheckoutShippingOptionsActionError["_tag"]
+      | "InputInvalid";
+  }>
 ) => shouldRevalidateFromTag(result);
 
 export const shouldRevalidatePaymentOptions = (
-  result: RevalidationResult<
-    SaveCheckoutPaymentOptionsActionError["_tag"] | "InputInvalid"
-  >
+  result: RevalidationResult<{
+    readonly _tag:
+      | SaveCheckoutPaymentOptionsActionError["_tag"]
+      | "InputInvalid";
+  }>
 ) => shouldRevalidateFromTag(result);
+
+const ORDER_PLACEMENT_REFRESH_ERROR_TAGS = new Set<
+  PlaceCheckoutOrderActionError["_tag"] | "InputInvalid"
+>([
+  "CheckoutOrderPlacementUnavailable",
+  "CheckoutPaymentPreparationRefreshRequired",
+  "CheckoutPaymentRejected",
+]);
+
+export const shouldRevalidatePlaceOrderFailure = (error: {
+  readonly _tag: PlaceCheckoutOrderActionError["_tag"] | "InputInvalid";
+}) => ORDER_PLACEMENT_REFRESH_ERROR_TAGS.has(error._tag);

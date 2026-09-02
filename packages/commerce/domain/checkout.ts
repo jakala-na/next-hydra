@@ -367,42 +367,6 @@ export class CheckoutProviderFailure extends Schema.TaggedError<CheckoutProvider
   }
 ) {}
 
-export const CheckoutMutationIssuePath = Schema.Literals([
-  "root",
-  "addressLine1",
-  "addressLine2",
-  "cartId",
-  "city",
-  "country",
-  "deliveryAddressChoice",
-  "email",
-  "firstName",
-  "lastName",
-  "makeDefaultShipping",
-  "phoneNumber",
-  "postalCode",
-  "region",
-  "saveToAddressBook",
-  "source",
-  "method",
-]);
-export type CheckoutMutationIssuePath = typeof CheckoutMutationIssuePath.Type;
-
-export class CheckoutMutationIssue extends Schema.Class<CheckoutMutationIssue>(
-  "CheckoutMutationIssue"
-)({
-  message: Schema.String,
-  path: CheckoutMutationIssuePath,
-}) {}
-
-export class CheckoutMutationSchemaFailure extends Schema.TaggedError<CheckoutMutationSchemaFailure>()(
-  "CheckoutMutationSchemaFailure",
-  {
-    issues: Schema.NonEmptyArray(CheckoutMutationIssue),
-    message: Schema.String,
-  }
-) {}
-
 export class CheckoutMutationSourceUnavailable extends Schema.TaggedError<CheckoutMutationSourceUnavailable>()(
   "CheckoutMutationSourceUnavailable",
   {
@@ -569,7 +533,6 @@ export class CheckoutPaymentRejected extends Schema.TaggedError<CheckoutPaymentR
 ) {}
 
 export const CheckoutMutationFailure = Schema.Union([
-  CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutCustomerProfileIncomplete,
   CheckoutMutationAddressBookEntryUnavailable,
@@ -587,7 +550,6 @@ export const CheckoutMutationFailure = Schema.Union([
 export type CheckoutMutationFailure = typeof CheckoutMutationFailure.Type;
 
 export const CheckoutContactMutationFailure = Schema.Union([
-  CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutCustomerProfileIncomplete,
   CheckoutCartMismatch,
@@ -600,7 +562,6 @@ export type CheckoutContactMutationFailure =
   typeof CheckoutContactMutationFailure.Type;
 
 export const CheckoutDeliveryDetailsMutationFailure = Schema.Union([
-  CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutMutationAddressBookEntryUnavailable,
   CheckoutCartMismatch,
@@ -613,7 +574,6 @@ export type CheckoutDeliveryDetailsMutationFailure =
   typeof CheckoutDeliveryDetailsMutationFailure.Type;
 
 export const CheckoutShippingOptionsMutationFailure = Schema.Union([
-  CheckoutMutationSchemaFailure,
   CheckoutShippingSelectionUnavailable,
   CheckoutShippingOptionsRefreshRequired,
   CheckoutCartMismatch,
@@ -626,7 +586,6 @@ export type CheckoutShippingOptionsMutationFailure =
   typeof CheckoutShippingOptionsMutationFailure.Type;
 
 export const CheckoutPaymentOptionsMutationFailure = Schema.Union([
-  CheckoutMutationSchemaFailure,
   CheckoutPaymentOptionsUnavailable,
   CheckoutPaymentMethodUnavailable,
   CheckoutPaymentPreparationRefreshRequired,

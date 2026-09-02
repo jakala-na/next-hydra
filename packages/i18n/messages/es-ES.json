@@ -387,7 +387,6 @@
         "internal": "No se pudo completar el proceso de compra. Inténtalo de nuevo.",
         "deliveryDetails": {
           "addressBookEntryUnavailable": "Esta dirección guardada ya no está disponible.",
-          "invalidInput": "Introduce la dirección, el código postal, la ciudad y el país.",
           "sourceUnavailable": "Esta fuente de entrega no está disponible para este proceso de compra.",
           "providerFailure": "No se pudieron guardar los datos de entrega. Inténtalo de nuevo.",
           "unsupported": "Esta fuente de entrega aún no es compatible."
@@ -400,7 +399,7 @@
         "saveContact": {
           "CheckoutCartMismatch": "Este proceso de compra ya no está actualizado. Actualiza la página e inténtalo de nuevo.",
           "CheckoutCustomerProfileIncomplete": "En tu perfil de cliente faltan datos de contacto obligatorios. Introdúcelos abajo para continuar.",
-          "CheckoutMutationSchemaFailure": "Introduce un correo electrónico, un nombre y unos apellidos.",
+          "InputInvalid": "Introduce un correo electrónico, un nombre y unos apellidos.",
           "CheckoutMutationOutcomeUnknown": "No hemos podido confirmar si se guardaron tus datos de contacto. Actualiza antes de volver a intentarlo.",
           "CheckoutMutationSourceUnavailable": "Esta fuente de contacto no está disponible para este proceso de compra.",
           "CheckoutMutationProviderFailure": "No se pudo guardar el contacto. Inténtalo de nuevo.",
@@ -414,7 +413,7 @@
         "saveDeliveryDetails": {
           "CheckoutCartMismatch": "Este proceso de compra ya no está actualizado. Actualiza la página e inténtalo de nuevo.",
           "CheckoutMutationAddressBookEntryUnavailable": "Esta dirección guardada ya no está disponible.",
-          "CheckoutMutationSchemaFailure": "Introduce la dirección, el código postal, la ciudad y el país.",
+          "InputInvalid": "Introduce la dirección, el código postal, la ciudad y el país.",
           "CheckoutMutationOutcomeUnknown": "No hemos podido confirmar si se guardaron tus datos de entrega. Actualiza antes de volver a intentarlo.",
           "CheckoutMutationSourceUnavailable": "Esta fuente de entrega no está disponible para este proceso de compra.",
           "CheckoutMutationProviderFailure": "No se pudieron guardar los datos de entrega. Inténtalo de nuevo.",
@@ -427,7 +426,7 @@
         },
         "savePaymentOptions": {
           "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
-          "CheckoutMutationSchemaFailure": "Choose an available payment method and complete its details.",
+          "InputInvalid": "Choose an available payment method and complete its details.",
           "CheckoutMutationOutcomeUnknown": "We could not confirm whether your payment options were saved. Refresh before trying again.",
           "CheckoutMutationProviderFailure": "Payment options could not be saved. Try again.",
           "CheckoutPaymentMethodUnavailable": "That payment method is no longer available. Refresh and choose again.",
@@ -440,7 +439,7 @@
         },
         "saveShippingOptions": {
           "CheckoutCartMismatch": "Este proceso de compra ya no está actualizado.",
-          "CheckoutMutationSchemaFailure": "Elige una opción de envío para cada entrega.",
+          "InputInvalid": "Elige una opción de envío para cada entrega.",
           "CheckoutMutationOutcomeUnknown": "No pudimos confirmar si se guardaron las opciones. Actualiza la página.",
           "CheckoutMutationProviderFailure": "No se pudieron guardar las opciones de envío.",
           "CheckoutShippingOptionsRefreshRequired": "Las opciones de envío se guardaron, pero no se pudo actualizar el proceso de compra. Actualiza la página.",
