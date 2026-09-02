@@ -72,7 +72,7 @@ export function CheckoutPaymentOptionsForm({
   const actionFailure =
     actionResult?._tag === "Failure" ? actionResult.failure : undefined;
 
-  const submitCard = async (form: HTMLFormElement) => {
+  const submitCard = async () => {
     if (preparingCard.current || isPending) {
       return;
     }
@@ -81,7 +81,7 @@ export function CheckoutPaymentOptionsForm({
     setIsPreparingCard(true);
     setClientFailure(undefined);
     try {
-      if (card === undefined) {
+      if (card === undefined || cardOption === undefined) {
         setClientFailure(t("cardNotReady"));
         return;
       }
@@ -96,10 +96,18 @@ export function CheckoutPaymentOptionsForm({
         return;
       }
 
-      const formData = new FormData(form);
-      formData.set("confirmationReference", preparation.confirmationReference);
       startTransition(() => {
-        formAction(formData);
+        formAction({
+          cart: { id: cartId },
+          selection: {
+            billingAddress: { source: "shippingAddress" },
+            payment: {
+              confirmationReference: preparation.confirmationReference,
+              method: "card",
+              preparationReference: cardOption.input.preparationReference,
+            },
+          },
+        });
       });
     } finally {
       preparingCard.current = false;
@@ -108,26 +116,25 @@ export function CheckoutPaymentOptionsForm({
   };
 
   const submit: FormSubmitHandler = (event) => {
+    event.preventDefault();
     if (method === "netTerms") {
+      startTransition(() => {
+        formAction({
+          cart: { id: cartId },
+          selection: {
+            billingAddress: { source: "shippingAddress" },
+            payment: { method: "netTerms" },
+          },
+        });
+      });
       return;
     }
 
-    event.preventDefault();
-    const form = event.currentTarget;
-    void submitCard(form);
+    void submitCard();
   };
 
   return (
-    <form action={formAction} className="grid gap-6" onSubmit={submit}>
-      <input name="cartId" type="hidden" value={cartId} />
-      <input name="method" type="hidden" value={method} />
-      {cardOption === undefined ? null : (
-        <input
-          name="preparationReference"
-          type="hidden"
-          value={cardOption.input.preparationReference}
-        />
-      )}
+    <form className="grid gap-6" onSubmit={submit}>
       {clientFailure === undefined && actionFailure === undefined ? null : (
         <p
           aria-live="polite"

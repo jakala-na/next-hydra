@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "@repo/i18n";
-import { useActionState, useMemo, useState } from "react";
+import { startTransition, useActionState, useMemo, useState } from "react";
+import type { ComponentProps } from "react";
 
 import type { CartSnapshot } from "../domain/cart-snapshot";
 import type {
@@ -14,6 +15,7 @@ import type {
 import type { SaveCheckoutShippingOptionsAction } from "./action-contract";
 
 const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
+type FormSubmitHandler = NonNullable<ComponentProps<"form">["onSubmit"]>;
 
 type ShippingOptionSelections = ReadonlyMap<
   DeliveryGroupReference,
@@ -92,24 +94,27 @@ function ShippingOptionsFormForQuote({
     () => new Map(cart.lineItems.map((lineItem) => [lineItem.id, lineItem])),
     [cart.lineItems]
   );
+  const selectedGroups =
+    activePlan?.groups.flatMap((group) => {
+      const shippingOptionReference = selections.get(group.reference);
+      const isCurrentOption = group.shippingOptions.some(
+        (option) => option.reference === shippingOptionReference
+      );
+      return shippingOptionReference === undefined || !isCurrentOption
+        ? []
+        : [
+            {
+              deliveryGroupReference: group.reference,
+              shippingOptionReference,
+            },
+          ];
+    }) ?? [];
+  const [firstSelectedGroup, ...remainingSelectedGroups] = selectedGroups;
   const selection =
-    activePlan === undefined
+    activePlan === undefined || firstSelectedGroup === undefined
       ? undefined
       : {
-          groups: activePlan.groups.flatMap((group) => {
-            const shippingOptionReference = selections.get(group.reference);
-            const isCurrentOption = group.shippingOptions.some(
-              (option) => option.reference === shippingOptionReference
-            );
-            return shippingOptionReference === undefined || !isCurrentOption
-              ? []
-              : [
-                  {
-                    deliveryGroupReference: group.reference,
-                    shippingOptionReference,
-                  },
-                ];
-          }),
+          groups: [firstSelectedGroup, ...remainingSelectedGroups] as const,
           quoteReference: deliveryPlanQuote.reference,
           reference: activePlan.reference,
         };
@@ -117,6 +122,16 @@ function ShippingOptionsFormForQuote({
     activePlan !== undefined &&
     selection !== undefined &&
     selection.groups.length === activePlan.groups.length;
+  const submit: FormSubmitHandler = (event) => {
+    event.preventDefault();
+    if (!canSave || selection === undefined) {
+      return;
+    }
+
+    startTransition(() => {
+      formAction({ cart: { id: cart.id }, selection });
+    });
+  };
 
   if (firstPlan === undefined) {
     return (
@@ -127,13 +142,7 @@ function ShippingOptionsFormForQuote({
   }
 
   return (
-    <form action={formAction} className="grid gap-6">
-      <input name="cartId" type="hidden" value={cart.id} />
-      <input
-        name="selection"
-        type="hidden"
-        value={selection === undefined ? "" : JSON.stringify(selection)}
-      />
+    <form className="grid gap-6" onSubmit={submit}>
       {failure === undefined ? null : (
         <p
           aria-live="polite"

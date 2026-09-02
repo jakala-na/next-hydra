@@ -25,15 +25,13 @@ import {
 } from "../checkout/public-errors";
 import { CheckoutPublicState } from "../checkout/public-state";
 import {
-  CheckoutCartReference,
-  CheckoutContactInput,
-  CheckoutDeliveryDetailsInput,
-  CheckoutPaymentSelectionInput,
+  PlaceCheckoutOrderInput,
+  SaveCheckoutContactInput,
+  SaveCheckoutDeliveryDetailsInput,
+  SaveCheckoutPaymentOptionsInput,
+  SaveCheckoutShippingOptionsInput,
 } from "../domain/checkout";
-import {
-  DeliveryPlanQuote,
-  DeliveryPlanSelection,
-} from "../domain/delivery-plan";
+import { DeliveryPlanQuote } from "../domain/delivery-plan";
 import { OrderPlacementResult } from "../domain/order";
 import type { CheckoutSession } from "../lib/checkout/checkout-session";
 import { CommerceRequestHeaders } from "./commerce-request";
@@ -54,39 +52,26 @@ export const CheckoutApiPaymentOptionsSnapshot = Schema.Struct({
 export type CheckoutApiPaymentOptionsSnapshot =
   typeof CheckoutApiPaymentOptionsSnapshot.Type;
 
-export class SaveCheckoutContactRequest extends Schema.Class<SaveCheckoutContactRequest>(
-  "SaveCheckoutContactRequest"
-)({
-  cart: CheckoutCartReference,
-  contact: CheckoutContactInput,
-}) {}
+export const SaveCheckoutContactRequest = SaveCheckoutContactInput;
+export type SaveCheckoutContactRequest = typeof SaveCheckoutContactRequest.Type;
 
-export class SaveCheckoutDeliveryDetailsRequest extends Schema.Class<SaveCheckoutDeliveryDetailsRequest>(
-  "SaveCheckoutDeliveryDetailsRequest"
-)({
-  cart: CheckoutCartReference,
-  deliveryDetails: CheckoutDeliveryDetailsInput,
-}) {}
+export const SaveCheckoutDeliveryDetailsRequest =
+  SaveCheckoutDeliveryDetailsInput;
+export type SaveCheckoutDeliveryDetailsRequest =
+  typeof SaveCheckoutDeliveryDetailsRequest.Type;
 
-export class SaveCheckoutShippingOptionsRequest extends Schema.Class<SaveCheckoutShippingOptionsRequest>(
-  "SaveCheckoutShippingOptionsRequest"
-)({
-  cart: CheckoutCartReference,
-  selection: DeliveryPlanSelection,
-}) {}
+export const SaveCheckoutShippingOptionsRequest =
+  SaveCheckoutShippingOptionsInput;
+export type SaveCheckoutShippingOptionsRequest =
+  typeof SaveCheckoutShippingOptionsRequest.Type;
 
-export class SaveCheckoutPaymentOptionsRequest extends Schema.Class<SaveCheckoutPaymentOptionsRequest>(
-  "SaveCheckoutPaymentOptionsRequest"
-)({
-  cart: CheckoutCartReference,
-  selection: CheckoutPaymentSelectionInput,
-}) {}
+export const SaveCheckoutPaymentOptionsRequest =
+  SaveCheckoutPaymentOptionsInput;
+export type SaveCheckoutPaymentOptionsRequest =
+  typeof SaveCheckoutPaymentOptionsRequest.Type;
 
-export class PlaceCheckoutOrderRequest extends Schema.Class<PlaceCheckoutOrderRequest>(
-  "PlaceCheckoutOrderRequest"
-)({
-  cart: CheckoutCartReference,
-}) {}
+export const PlaceCheckoutOrderRequest = PlaceCheckoutOrderInput;
+export type PlaceCheckoutOrderRequest = typeof PlaceCheckoutOrderRequest.Type;
 
 export class CheckoutSchemaErrorMiddleware extends HttpApiMiddleware.Service<
   CheckoutSchemaErrorMiddleware,

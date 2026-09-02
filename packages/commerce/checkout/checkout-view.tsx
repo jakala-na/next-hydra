@@ -443,7 +443,10 @@ export async function CheckoutView({
   };
 
   return (
-    <main className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:grid-cols-5">
+    <main
+      className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:grid-cols-5"
+      data-checkout-cart-id={state.cart.id}
+    >
       <CheckoutSteps messages={messages} state={state} />
       <ActiveStep
         actions={actions}

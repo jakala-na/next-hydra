@@ -83,12 +83,18 @@ describe(CheckoutPlaceOrderForm, () => {
     await vi.waitFor(() => {
       expect(completePaymentAction).toHaveBeenCalledOnce();
     });
+    expect(placeOrderAction).toHaveBeenNthCalledWith(1, null, {
+      cart: { id: "cart-1" },
+    });
 
     act(() => {
       form.requestSubmit();
     });
     await vi.waitFor(() => {
       expect(completePaymentAction).toHaveBeenCalledTimes(2);
+    });
+    expect(placeOrderAction).toHaveBeenNthCalledWith(2, actionRequired, {
+      cart: { id: "cart-1" },
     });
   });
 

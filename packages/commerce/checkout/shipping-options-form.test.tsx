@@ -155,15 +155,11 @@ describe(CheckoutShippingOptionsForm, () => {
     const refreshedOption = container.querySelector<HTMLInputElement>(
       'input[name="shipping-option-delivery-1"]'
     );
-    const refreshedSelection = container.querySelector<HTMLInputElement>(
-      'input[name="selection"]'
-    );
     const refreshedSaveButton = container.querySelector<HTMLButtonElement>(
       'button[type="submit"]'
     );
     expect(refreshedOption?.checked).toBeFalsy();
-    expect(refreshedSelection?.value).toContain('"quoteReference":"quote-2"');
-    expect(refreshedSelection?.value).toContain('"groups":[]');
+    expect(container.querySelector('input[name="selection"]')).toBeNull();
     expect(refreshedSaveButton?.disabled).toBeTruthy();
   });
 });

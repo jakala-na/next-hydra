@@ -1,5 +1,6 @@
 import { makeDisplayActionResultSchema } from "@repo/actions";
 
+import type { SaveCheckoutShippingOptionsInput } from "../domain/checkout";
 import { SaveCheckoutShippingOptionsPublicError } from "./public-errors";
 import { CheckoutPublicState } from "./public-state";
 
@@ -15,8 +16,10 @@ export const SaveCheckoutShippingOptionsActionResult =
   );
 export type SaveCheckoutShippingOptionsActionResult =
   typeof SaveCheckoutShippingOptionsActionResult.Encoded;
+export type SaveCheckoutShippingOptionsActionInput =
+  typeof SaveCheckoutShippingOptionsInput.Encoded;
 
 export type SaveCheckoutShippingOptionsAction = (
   previousResult: SaveCheckoutShippingOptionsActionResult | null,
-  formData: FormData
+  input: SaveCheckoutShippingOptionsActionInput
 ) => Promise<SaveCheckoutShippingOptionsActionResult>;

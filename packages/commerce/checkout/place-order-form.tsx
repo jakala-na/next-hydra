@@ -5,13 +5,18 @@ import {
   useActionState,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
+import type { ComponentProps } from "react";
 
 import type { CartId } from "../domain/cart";
 import type { OrderPlacementResult } from "../domain/order";
-import type { PlaceCheckoutOrderAction } from "./action-contract";
+import type {
+  PlaceCheckoutOrderAction,
+  PlaceCheckoutOrderActionInput,
+} from "./action-contract";
 import { paymentMethodLabel } from "./payment-method-label";
 
 export type CompleteCheckoutPaymentAction = (
@@ -27,6 +32,8 @@ export interface CheckoutPlaceOrderFormProps {
   readonly placeOrderAction: PlaceCheckoutOrderAction;
   readonly refreshCheckout?: () => void;
 }
+
+type FormSubmitHandler = NonNullable<ComponentProps<"form">["onSubmit"]>;
 
 interface PlaceOrderFormState {
   readonly result: Awaited<ReturnType<PlaceCheckoutOrderAction>> | null;
@@ -65,16 +72,15 @@ export function CheckoutPlaceOrderForm({
   placeOrderAction,
   refreshCheckout = refreshBrowserCheckout,
 }: CheckoutPlaceOrderFormProps) {
-  const formRef = useRef<HTMLFormElement>(null);
   const handledClientToken = useRef<string | undefined>(undefined);
   const [clientFailure, setClientFailure] = useState<string>();
   const [isCompletingPayment, setIsCompletingPayment] = useState(false);
   const placeOrderReducer = useCallback(
     async (
       previousState: PlaceOrderFormState,
-      formData: FormData
+      input: PlaceCheckoutOrderActionInput
     ): Promise<PlaceOrderFormState> => ({
-      result: await placeOrderAction(previousState.result, formData),
+      result: await placeOrderAction(previousState.result, input),
       revision: previousState.revision + 1,
     }),
     [placeOrderAction]
@@ -86,6 +92,10 @@ export function CheckoutPlaceOrderForm({
   const actionResult = actionState.result;
   const placement =
     actionResult?._tag === "Success" ? actionResult.success : undefined;
+  const placeOrderInput = useMemo<PlaceCheckoutOrderActionInput>(
+    () => ({ cart: { id: cartId } }),
+    [cartId]
+  );
 
   useEffect(() => {
     if (checkoutRefreshRequired(actionResult)) {
@@ -118,12 +128,9 @@ export function CheckoutPlaceOrderForm({
           );
           return;
         }
-        const form = formRef.current;
-        if (form !== null) {
-          startTransition(() => {
-            formAction(new FormData(form));
-          });
-        }
+        startTransition(() => {
+          formAction(placeOrderInput);
+        });
       })
       .catch(() => {
         handledClientToken.current = undefined;
@@ -132,7 +139,13 @@ export function CheckoutPlaceOrderForm({
       .finally(() => {
         setIsCompletingPayment(false);
       });
-  }, [actionState.revision, completePaymentAction, formAction, placement]);
+  }, [
+    actionState.revision,
+    completePaymentAction,
+    formAction,
+    placeOrderInput,
+    placement,
+  ]);
 
   if (placement?._tag === "Placed") {
     return (
@@ -164,10 +177,15 @@ export function CheckoutPlaceOrderForm({
       ? actionResult.failure.displayMessage
       : clientFailure;
   const busy = isPending || isCompletingPayment;
+  const submit: FormSubmitHandler = (event) => {
+    event.preventDefault();
+    startTransition(() => {
+      formAction(placeOrderInput);
+    });
+  };
 
   return (
-    <form action={formAction} className="grid gap-4" ref={formRef}>
-      <input name="cartId" type="hidden" value={cartId} />
+    <form className="grid gap-4" onSubmit={submit}>
       {failure === undefined ? null : (
         <p className="text-destructive text-sm" role="alert">
           {failure}

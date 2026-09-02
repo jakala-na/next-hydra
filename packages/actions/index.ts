@@ -171,6 +171,28 @@ export type ActionPresentationAdapter<
 > = ActionFailureMessage<Error, Context> &
   ActionSuccessHandler<Output, Context>;
 
+interface ActionStateFactory<
+  Input extends ActionInputSchema,
+  Output extends ActionOutputSchema,
+  Error extends ActionErrorSchema,
+  Context,
+> {
+  (
+    options:
+      | ActionFailureMessage<Error, Context>
+      | ActionPresentationAdapter<Output, Error, Context>
+  ): (
+    previousResult: DisplayActionResult<Output, Error> | null,
+    input: Input["Encoded"]
+  ) => Promise<DisplayActionResult<Output, Error>>;
+  (
+    options?: ActionSuccessHandler<Output, Context>
+  ): (
+    previousResult: EncodedActionResult<Output, Error> | null,
+    input: Input["Encoded"]
+  ) => Promise<EncodedActionResult<Output, Error>>;
+}
+
 type ContextMiddlewareOperation<ContextIn, ContextOut, Requires> = {
   readonly _tag: "Context";
   readonly resolve: (
@@ -287,22 +309,10 @@ export interface ActionProcedure<
       options?: ActionSuccessHandler<Output, Context>
     ): (input: Input["Encoded"]) => Promise<EncodedActionResult<Output, Error>>;
   };
-  readonly toFormAction: {
-    (
-      options:
-        | ActionFailureMessage<Error, Context>
-        | ActionPresentationAdapter<Output, Error, Context>
-    ): (
-      previousResult: DisplayActionResult<Output, Error> | null,
-      input: Input["Encoded"]
-    ) => Promise<DisplayActionResult<Output, Error>>;
-    (
-      options?: ActionSuccessHandler<Output, Context>
-    ): (
-      previousResult: EncodedActionResult<Output, Error> | null,
-      input: Input["Encoded"]
-    ) => Promise<EncodedActionResult<Output, Error>>;
-  };
+  /** Adapts a procedure to React's `useActionState` reducer signature. */
+  readonly toActionState: ActionStateFactory<Input, Output, Error, Context>;
+  /** Compatibility name for form-oriented action state. */
+  readonly toFormAction: ActionStateFactory<Input, Output, Error, Context>;
 }
 
 interface ActionProcedureMappedHandlerBuilder<
@@ -848,11 +858,11 @@ const makeProcedure = <
       await executeSuccess(adapter, input);
   }
 
-  function toFormAction(): (
+  function toActionState(): (
     previousResult: EncodedActionResult<Output, Error> | null,
     input: Input["Encoded"]
   ) => Promise<EncodedActionResult<Output, Error>>;
-  function toFormAction(
+  function toActionState(
     adapter:
       | ActionFailureMessage<Error, Context>
       | ActionPresentationAdapter<Output, Error, Context>
@@ -860,13 +870,13 @@ const makeProcedure = <
     previousResult: DisplayActionResult<Output, Error> | null,
     input: Input["Encoded"]
   ) => Promise<DisplayActionResult<Output, Error>>;
-  function toFormAction(
+  function toActionState(
     success: ActionSuccessHandler<Output, Context>
   ): (
     previousResult: EncodedActionResult<Output, Error> | null,
     input: Input["Encoded"]
   ) => Promise<EncodedActionResult<Output, Error>>;
-  function toFormAction(
+  function toActionState(
     adapter?:
       | ActionFailureMessage<Error, Context>
       | ActionPresentationAdapter<Output, Error, Context>
@@ -906,7 +916,8 @@ const makeProcedure = <
     outputSchema: options.output,
     resultSchema,
     toAction,
-    toFormAction,
+    toActionState,
+    toFormAction: toActionState,
   };
 };
 /* oxlint-enable typescript/no-unnecessary-type-parameters */

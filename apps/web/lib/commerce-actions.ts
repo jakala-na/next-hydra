@@ -11,10 +11,15 @@ import type { ChangeCartItemsQuantityInput } from "@repo/commerce/cart/change-ca
 import { makeCartProcedures } from "@repo/commerce/cart/procedures";
 import type { RemoveCartItemInput } from "@repo/commerce/cart/remove-cart-item";
 import type {
+  PlaceCheckoutOrderActionInput,
   PlaceCheckoutOrderActionResult,
+  SaveCheckoutContactActionInput,
   SaveCheckoutContactActionResult,
+  SaveCheckoutDeliveryDetailsActionInput,
   SaveCheckoutDeliveryDetailsActionResult,
+  SaveCheckoutPaymentOptionsActionInput,
   SaveCheckoutPaymentOptionsActionResult,
+  SaveCheckoutShippingOptionsActionInput,
   SaveCheckoutShippingOptionsActionResult,
 } from "@repo/commerce/checkout";
 import { makeCheckoutProcedures } from "@repo/commerce/checkout/procedures";
@@ -64,7 +69,7 @@ const addToCartAction = addToCartProcedure.toAction();
 const changeCartItemsQuantityAction =
   changeCartItemsQuantityProcedure.toAction();
 const removeCartItemAction = removeCartItemProcedure.toAction();
-const saveCheckoutContactAction = saveCheckoutContactProcedure.toFormAction({
+const saveCheckoutContactAction = saveCheckoutContactProcedure.toActionState({
   getFailureMessage: async (error, { locale }) => {
     const t = await getTranslations({
       locale,
@@ -79,7 +84,7 @@ const saveCheckoutContactAction = saveCheckoutContactProcedure.toFormAction({
   },
 });
 const saveCheckoutDeliveryDetailsAction =
-  saveCheckoutDeliveryDetailsProcedure.toFormAction({
+  saveCheckoutDeliveryDetailsProcedure.toActionState({
     getFailureMessage: async (error, { locale }) => {
       const t = await getTranslations({
         locale,
@@ -94,7 +99,7 @@ const saveCheckoutDeliveryDetailsAction =
     },
   });
 const saveCheckoutShippingOptionsAction =
-  saveCheckoutShippingOptionsProcedure.toFormAction({
+  saveCheckoutShippingOptionsProcedure.toActionState({
     getFailureMessage: async (error, { locale }) => {
       const t = await getTranslations({
         locale,
@@ -109,7 +114,7 @@ const saveCheckoutShippingOptionsAction =
     },
   });
 const saveCheckoutPaymentOptionsAction =
-  saveCheckoutPaymentOptionsProcedure.toFormAction({
+  saveCheckoutPaymentOptionsProcedure.toActionState({
     getFailureMessage: async (error, { locale }) => {
       const t = await getTranslations({
         locale,
@@ -123,7 +128,7 @@ const saveCheckoutPaymentOptionsAction =
       );
     },
   });
-const placeCheckoutOrderAction = placeCheckoutOrderProcedure.toFormAction({
+const placeCheckoutOrderAction = placeCheckoutOrderProcedure.toActionState({
   // oxlint-disable-next-line eslint/require-await -- Public Checkout errors already carry safe localized messages.
   getFailureMessage: async (error) => error.message,
   onSuccess: async (result, { locale }) => {
@@ -171,8 +176,10 @@ const revalidateCheckoutWhen = async (condition: boolean) => {
   }
 };
 
-const rememberOrderPlacementCart = async (formData: FormData) => {
-  const cartId = Schema.decodeUnknownOption(CartId)(formData.get("cartId"));
+const rememberOrderPlacementCart = async (
+  input: SaveCheckoutPaymentOptionsActionInput | PlaceCheckoutOrderActionInput
+) => {
+  const cartId = Schema.decodeOption(CartId)(input.cart.id);
   if (Option.isSome(cartId)) {
     const cookieStore = await cookies();
     cookieStore.set(
@@ -200,47 +207,38 @@ export const removeCartItem = async (
 
 export const saveCheckoutContact = async (
   previousResult: SaveCheckoutContactActionResult | null,
-  formData: FormData
+  input: SaveCheckoutContactActionInput
 ): Promise<SaveCheckoutContactActionResult> => {
-  const result = await saveCheckoutContactAction(previousResult, formData);
+  const result = await saveCheckoutContactAction(previousResult, input);
   await revalidateCheckoutWhen(shouldRevalidateContact(result));
   return result;
 };
 
 export const saveCheckoutDeliveryDetails = async (
   previousResult: SaveCheckoutDeliveryDetailsActionResult | null,
-  formData: FormData
+  input: SaveCheckoutDeliveryDetailsActionInput
 ): Promise<SaveCheckoutDeliveryDetailsActionResult> => {
-  const result = await saveCheckoutDeliveryDetailsAction(
-    previousResult,
-    formData
-  );
+  const result = await saveCheckoutDeliveryDetailsAction(previousResult, input);
   await revalidateCheckoutWhen(shouldRevalidateDeliveryDetails(result));
   return result;
 };
 
 export const saveCheckoutShippingOptions = async (
   previousResult: SaveCheckoutShippingOptionsActionResult | null,
-  formData: FormData
+  input: SaveCheckoutShippingOptionsActionInput
 ): Promise<SaveCheckoutShippingOptionsActionResult> => {
-  const result = await saveCheckoutShippingOptionsAction(
-    previousResult,
-    formData
-  );
+  const result = await saveCheckoutShippingOptionsAction(previousResult, input);
   await revalidateCheckoutWhen(shouldRevalidateShippingOptions(result));
   return result;
 };
 
 export const saveCheckoutPaymentOptions = async (
   previousResult: SaveCheckoutPaymentOptionsActionResult | null,
-  formData: FormData
+  input: SaveCheckoutPaymentOptionsActionInput
 ): Promise<SaveCheckoutPaymentOptionsActionResult> => {
-  const result = await saveCheckoutPaymentOptionsAction(
-    previousResult,
-    formData
-  );
+  const result = await saveCheckoutPaymentOptionsAction(previousResult, input);
   if (result._tag === "Success") {
-    await rememberOrderPlacementCart(formData);
+    await rememberOrderPlacementCart(input);
   }
   await revalidateCheckoutWhen(shouldRevalidatePaymentOptions(result));
   return result;
@@ -248,10 +246,10 @@ export const saveCheckoutPaymentOptions = async (
 
 export const placeCheckoutOrder = async (
   previousResult: PlaceCheckoutOrderActionResult | null,
-  formData: FormData
+  input: PlaceCheckoutOrderActionInput
 ): Promise<PlaceCheckoutOrderActionResult> => {
-  await rememberOrderPlacementCart(formData);
-  const result = await placeCheckoutOrderAction(previousResult, formData);
+  await rememberOrderPlacementCart(input);
+  const result = await placeCheckoutOrderAction(previousResult, input);
   await revalidateCheckoutWhen(
     result._tag === "Failure" &&
       (result.failure.error._tag ===

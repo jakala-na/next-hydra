@@ -7,7 +7,7 @@ import {
 import { Schema } from "effect";
 
 import { CommerceLocale } from "../store";
-import { Address } from "./address";
+import { Address, CountryCodeFromString } from "./address";
 import { AddressBookReference } from "./address-book";
 import { CartId, LineItemId, ProductId, Sku, VariantId } from "./cart";
 import {
@@ -16,6 +16,7 @@ import {
   CommerceCustomerId,
 } from "./commerce-account";
 import {
+  DeliveryPlanSelection,
   DeliveryPlanQuoteReference,
   DeliveryPlanReference,
   SelectedDeliveryPlan,
@@ -211,6 +212,81 @@ export const CheckoutPaymentSelectionInput = Schema.Struct({
 });
 export type CheckoutPaymentSelectionInput =
   typeof CheckoutPaymentSelectionInput.Type;
+
+const RequiredCheckoutInputString = Schema.Trim.pipe(
+  Schema.check(Schema.isMinLength(1))
+);
+
+const CheckoutMutationBuyerContactInput = Schema.Struct({
+  email: RequiredCheckoutInputString,
+  firstName: RequiredCheckoutInputString,
+  lastName: RequiredCheckoutInputString,
+  phoneNumber: Schema.optional(Schema.String),
+});
+
+const CheckoutMutationContactInput = Schema.Union([
+  Schema.Struct({
+    buyerContact: CheckoutMutationBuyerContactInput,
+    source: Schema.Literal("manual"),
+  }),
+  CustomerProfileCheckoutContactInput,
+]);
+
+const CheckoutMutationShippingAddressInput = Schema.Struct({
+  addressLine1: RequiredCheckoutInputString,
+  addressLine2: Schema.optional(Schema.String),
+  city: RequiredCheckoutInputString,
+  country: CountryCodeFromString,
+  postalCode: RequiredCheckoutInputString,
+  region: Schema.optional(Schema.String),
+});
+
+const CheckoutMutationDeliveryDetailsInput = Schema.Union([
+  Schema.Struct({
+    saveToAddressBook: Schema.Literal(false),
+    shippingAddress: CheckoutMutationShippingAddressInput,
+    type: Schema.Literal("manual"),
+  }),
+  Schema.Struct({
+    makeDefaultShipping: Schema.Boolean,
+    saveToAddressBook: Schema.Literal(true),
+    shippingAddress: CheckoutMutationShippingAddressInput,
+    type: Schema.Literal("manual"),
+  }),
+  AddressBookCheckoutDeliveryDetailsInput,
+]);
+
+export const SaveCheckoutContactInput = Schema.Struct({
+  cart: CheckoutCartReference,
+  contact: CheckoutMutationContactInput,
+}).annotate({ identifier: "SaveCheckoutContactInput" });
+export type SaveCheckoutContactInput = typeof SaveCheckoutContactInput.Type;
+
+export const SaveCheckoutDeliveryDetailsInput = Schema.Struct({
+  cart: CheckoutCartReference,
+  deliveryDetails: CheckoutMutationDeliveryDetailsInput,
+}).annotate({ identifier: "SaveCheckoutDeliveryDetailsInput" });
+export type SaveCheckoutDeliveryDetailsInput =
+  typeof SaveCheckoutDeliveryDetailsInput.Type;
+
+export const SaveCheckoutShippingOptionsInput = Schema.Struct({
+  cart: CheckoutCartReference,
+  selection: DeliveryPlanSelection,
+}).annotate({ identifier: "SaveCheckoutShippingOptionsInput" });
+export type SaveCheckoutShippingOptionsInput =
+  typeof SaveCheckoutShippingOptionsInput.Type;
+
+export const SaveCheckoutPaymentOptionsInput = Schema.Struct({
+  cart: CheckoutCartReference,
+  selection: CheckoutPaymentSelectionInput,
+}).annotate({ identifier: "SaveCheckoutPaymentOptionsInput" });
+export type SaveCheckoutPaymentOptionsInput =
+  typeof SaveCheckoutPaymentOptionsInput.Type;
+
+export const PlaceCheckoutOrderInput = Schema.Struct({
+  cart: CheckoutCartReference,
+}).annotate({ identifier: "PlaceCheckoutOrderInput" });
+export type PlaceCheckoutOrderInput = typeof PlaceCheckoutOrderInput.Type;
 
 export const ViolationTarget = Schema.Union([
   Schema.Struct({

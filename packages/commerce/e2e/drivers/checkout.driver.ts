@@ -230,12 +230,8 @@ export class CheckoutDriver {
   }
 
   async currentPaymentOptionsCartId(): Promise<CartId> {
-    const cartId = await this.#activeStep("Payment Options")
-      .locator("form")
-      .filter({ has: this.#page.locator("[data-payment-method]") })
-      .locator('input[name="cartId"]')
-      .inputValue();
-    return CartId.make(cartId);
+    await expect(this.#activeStep("Payment Options")).toBeVisible();
+    return await this.#currentCartId();
   }
 
   async expectNetTermsBalance(amount: string, currency: string): Promise<void> {
@@ -286,13 +282,13 @@ export class CheckoutDriver {
   async orderPlacementInput(): Promise<{
     readonly cartId: CartId;
   }> {
-    const review = this.#activeStep("Review Order");
-    const form = review.locator("form").filter({
-      has: this.#page.getByRole("button", { name: "Place order" }),
-    });
-    const cartId = await form.locator('input[name="cartId"]').inputValue();
+    await expect(
+      this.#activeStep("Review Order").getByRole("button", {
+        name: "Place order",
+      })
+    ).toBeVisible();
     return {
-      cartId: CartId.make(cartId),
+      cartId: await this.#currentCartId(),
     };
   }
 
@@ -478,6 +474,16 @@ export class CheckoutDriver {
 
   #cart(): Locator {
     return this.#page.locator("aside");
+  }
+
+  async #currentCartId(): Promise<CartId> {
+    const cartId = await this.#page
+      .locator("main[data-checkout-cart-id]")
+      .getAttribute("data-checkout-cart-id");
+    if (cartId === null) {
+      throw new Error("Checkout Cart ID is unavailable");
+    }
+    return CartId.make(cartId);
   }
 
   #deliveryGroup(deliveryGroup: string): Locator {

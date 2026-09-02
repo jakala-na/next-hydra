@@ -68,9 +68,13 @@ import type {
   CheckoutDeliveryDetailsInput,
   CheckoutDeliveryDetailsMutationFailure,
   CheckoutPaymentOptionsMutationFailure,
-  CheckoutPaymentSelectionInput,
   CheckoutScope,
   CheckoutShippingOptionsMutationFailure,
+  PlaceCheckoutOrderInput,
+  SaveCheckoutContactInput,
+  SaveCheckoutDeliveryDetailsInput,
+  SaveCheckoutPaymentOptionsInput,
+  SaveCheckoutShippingOptionsInput,
 } from "../../domain/checkout";
 import type { CheckoutState } from "../../domain/checkout-state";
 import type { CommerceRequestContextNotFound } from "../../domain/commerce-request-context";
@@ -115,33 +119,9 @@ import {
 import { toCheckoutScope } from "./request-context";
 import { buildCheckoutState } from "./state";
 
-export interface SaveCheckoutContactInput {
-  readonly cart: CheckoutCartReference;
-  readonly contact: CheckoutContactInput;
-}
-
-export interface SaveCheckoutDeliveryDetailsInput {
-  readonly cart: CheckoutCartReference;
-  readonly deliveryDetails: CheckoutDeliveryDetailsInput;
-}
-
 export interface SaveCheckoutDeliveryDetailsResult {
   readonly addressBookReference?: AddressBookReference;
   readonly state: CheckoutState;
-}
-
-export interface SaveCheckoutShippingOptionsInput {
-  readonly cart: CheckoutCartReference;
-  readonly selection: DeliveryPlanSelection;
-}
-
-export interface SaveCheckoutPaymentOptionsInput {
-  readonly cart: CheckoutCartReference;
-  readonly selection: CheckoutPaymentSelectionInput;
-}
-
-export interface PlaceCheckoutOrderInput {
-  readonly cart: CheckoutCartReference;
 }
 
 export interface CheckoutSessionSnapshot {

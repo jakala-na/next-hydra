@@ -1,5 +1,6 @@
 import { makeDisplayActionResultSchema } from "@repo/actions";
 
+import type { SaveCheckoutDeliveryDetailsInput } from "../domain/checkout";
 import { SaveCheckoutDeliveryDetailsPublicError } from "./public-errors";
 import { CheckoutPublicState } from "./public-state";
 
@@ -22,8 +23,10 @@ export type SaveCheckoutDeliveryDetailsActionFailure = Extract<
   typeof SaveCheckoutDeliveryDetailsActionResult.Type,
   { readonly _tag: "Failure" }
 >["failure"];
+export type SaveCheckoutDeliveryDetailsActionInput =
+  typeof SaveCheckoutDeliveryDetailsInput.Encoded;
 
 export type SaveCheckoutDeliveryDetailsAction = (
   previousResult: SaveCheckoutDeliveryDetailsActionResult | null,
-  formData: FormData
+  input: SaveCheckoutDeliveryDetailsActionInput
 ) => Promise<SaveCheckoutDeliveryDetailsActionResult>;

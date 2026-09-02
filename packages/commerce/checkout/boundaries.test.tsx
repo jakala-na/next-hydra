@@ -20,6 +20,11 @@ import {
   CheckoutVersionConflict,
   StorefrontCustomerCheckoutScope,
 } from "../domain/checkout";
+import type {
+  SaveCheckoutContactInput,
+  SaveCheckoutDeliveryDetailsInput,
+  SaveCheckoutShippingOptionsInput,
+} from "../domain/checkout";
 import type { CheckoutState } from "../domain/checkout-state";
 import {
   CommerceBusinessUnitId,
@@ -36,19 +41,16 @@ import {
 import type {
   CheckoutSaveContactFailure,
   CheckoutSaveShippingOptionsFailure,
-  SaveCheckoutContactInput,
-  SaveCheckoutDeliveryDetailsInput,
   SaveCheckoutDeliveryDetailsResult,
-  SaveCheckoutShippingOptionsInput,
 } from "../lib/checkout/checkout-session";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import { AddressBook } from "../services/address-book";
 import { CommerceContext } from "../services/commerce-context";
 import { CommerceLocale, resolveStore, StoreKey } from "../store";
+import type { SaveCheckoutShippingOptionsActionInput } from "./action-contract";
 import { CartSidebar } from "./checkout-view";
 import type { CheckoutPageMessages } from "./checkout-view";
 import { makeCheckoutProcedures } from "./procedures";
-import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
 
 const checkoutState: CheckoutState = {
   activeStep: "contact",
@@ -239,20 +241,20 @@ const makeCheckoutHarness = (options?: {
     checkoutSession,
     getLocaleCalls: () => getLocaleCalls,
     provideCalls: () => provideCalls,
-    saveCheckoutContact: saveCheckoutContactProcedure.toFormAction({
+    saveCheckoutContact: saveCheckoutContactProcedure.toActionState({
       getFailureMessage: (error) => `Localized en-US ${error._tag}`,
     }),
     saveCheckoutContactProcedure,
     saveCheckoutDeliveryDetails:
-      saveCheckoutDeliveryDetailsProcedure.toFormAction({
+      saveCheckoutDeliveryDetailsProcedure.toActionState({
         getFailureMessage: (error) => `Localized en-US ${error._tag}`,
       }),
     saveCheckoutPaymentOptions:
-      saveCheckoutPaymentOptionsProcedure.toFormAction({
+      saveCheckoutPaymentOptionsProcedure.toActionState({
         getFailureMessage: (error) => `Localized en-US ${error._tag}`,
       }),
     saveCheckoutShippingOptions:
-      saveCheckoutShippingOptionsProcedure.toFormAction({
+      saveCheckoutShippingOptionsProcedure.toActionState({
         getFailureMessage: (error) => `Localized en-US ${error._tag}`,
       }),
   };
@@ -340,23 +342,30 @@ describe("Checkout boundaries", () => {
 
   it("runs each Checkout mutation with fresh request state", async () => {
     const harness = makeCheckoutHarness();
-    const contact = new FormData();
-    contact.set("cartId", "cart-1");
-    contact.set("source", "manual");
-    contact.set("email", "ada@example.com");
-    contact.set("firstName", "Ada");
-    contact.set("lastName", "Lovelace");
-
-    const deliveryDetails = new FormData();
-    deliveryDetails.set("cartId", "cart-1");
-    deliveryDetails.set("addressLine1", "1 Hydra Way");
-    deliveryDetails.set("postalCode", "10001");
-    deliveryDetails.set("city", "New York");
-    deliveryDetails.set("country", "us");
-    deliveryDetails.set(
-      "deliveryAddressChoice",
-      MANUAL_DELIVERY_ADDRESS_CHOICE
-    );
+    const contact = {
+      cart: { id: "cart-1" },
+      contact: {
+        buyerContact: {
+          email: "ada@example.com",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+        source: "manual" as const,
+      },
+    };
+    const deliveryDetails = {
+      cart: { id: "cart-1" },
+      deliveryDetails: {
+        saveToAddressBook: false as const,
+        shippingAddress: {
+          addressLine1: "1 Hydra Way",
+          city: "New York",
+          country: "us",
+          postalCode: "10001",
+        },
+        type: "manual" as const,
+      },
+    };
 
     const contactResult = await harness.saveCheckoutContact(null, contact);
     const deliveryDetailsResult = await harness.saveCheckoutDeliveryDetails(
@@ -391,9 +400,10 @@ describe("Checkout boundaries", () => {
     const harness = makeCheckoutHarness({
       saveContact: () => Effect.succeed(state),
     });
-    const contact = new FormData();
-    contact.set("cartId", "cart-1");
-    contact.set("source", "customerProfile");
+    const contact = {
+      cart: { id: "cart-1" },
+      contact: { source: "customerProfile" as const },
+    };
 
     const result = await harness.saveCheckoutContact(null, contact);
     const serialized = JSON.stringify(result);
@@ -403,7 +413,7 @@ describe("Checkout boundaries", () => {
     expect(serialized).not.toContain(preparedPayment.preparationReference);
   });
 
-  it("uses the native delivery address choice as the submitted Address Book reference", async () => {
+  it("passes the structured Address Book selection to Checkout Session", async () => {
     let received: unknown;
     const harness = makeCheckoutHarness({
       saveDeliveryDetails: (input) => {
@@ -412,9 +422,13 @@ describe("Checkout boundaries", () => {
       },
     });
 
-    const deliveryDetails = new FormData();
-    deliveryDetails.set("cartId", "cart-1");
-    deliveryDetails.set("deliveryAddressChoice", "office");
+    const deliveryDetails = {
+      cart: { id: "cart-1" },
+      deliveryDetails: {
+        addressBookReference: "office",
+        type: "addressBook" as const,
+      },
+    };
 
     await expect(
       harness.saveCheckoutDeliveryDetails(null, deliveryDetails)
@@ -430,9 +444,10 @@ describe("Checkout boundaries", () => {
 
   it("executes the shared procedure directly with the same encoded result", async () => {
     const harness = makeCheckoutHarness();
-    const contact = new FormData();
-    contact.set("cartId", "cart-1");
-    contact.set("source", "customerProfile");
+    const contact = {
+      cart: { id: "cart-1" },
+      contact: { source: "customerProfile" as const },
+    };
 
     await expect(
       harness.saveCheckoutContactProcedure.execute(contact)
@@ -447,12 +462,13 @@ describe("Checkout boundaries", () => {
         return Effect.succeed(checkoutState);
       },
     });
-    const contact = new FormData();
-    contact.set("cartId", "cart-1");
-    contact.set("source", "manual");
-    contact.set("email", "");
-    contact.set("firstName", "");
-    contact.set("lastName", "");
+    const contact = {
+      cart: { id: "cart-1" },
+      contact: {
+        buyerContact: { email: "", firstName: "", lastName: "" },
+        source: "manual" as const,
+      },
+    };
 
     const result = await harness.saveCheckoutContact(null, contact);
 
@@ -465,9 +481,18 @@ describe("Checkout boundaries", () => {
           category: "bad_input",
           code: "input.invalid",
           issues: [
-            { message: "This field is invalid.", path: ["email"] },
-            { message: "This field is invalid.", path: ["firstName"] },
-            { message: "This field is invalid.", path: ["lastName"] },
+            {
+              message: "This field is invalid.",
+              path: ["contact", "buyerContact", "email"],
+            },
+            {
+              message: "This field is invalid.",
+              path: ["contact", "buyerContact", "firstName"],
+            },
+            {
+              message: "This field is invalid.",
+              path: ["contact", "buyerContact", "lastName"],
+            },
           ],
           message: "Invalid input.",
           recovery: "fix_input",
@@ -478,13 +503,20 @@ describe("Checkout boundaries", () => {
     expect(saveContactCalls).toBe(0);
   });
 
-  it("maps an invalid Payment Method to the submitted form field", async () => {
+  it("maps an invalid Payment Method to its structured input path", async () => {
     const harness = makeCheckoutHarness();
-    const paymentOptions = new FormData();
-    paymentOptions.set("cartId", "cart-1");
-    paymentOptions.set("method", "invented-method");
+    const paymentOptions = {
+      cart: { id: "cart-1" },
+      selection: {
+        billingAddress: { source: "shippingAddress" as const },
+        payment: {
+          method: "invented-method",
+        },
+      },
+    };
 
     await expect(
+      // @ts-expect-error -- Exercise the untrusted Server Action boundary.
       harness.saveCheckoutPaymentOptions(null, paymentOptions)
     ).resolves.toMatchObject({
       _tag: "Failure",
@@ -494,7 +526,7 @@ describe("Checkout boundaries", () => {
           issues: [
             {
               message: "This field is invalid.",
-              path: ["method"],
+              path: ["selection", "payment"],
             },
           ],
         },
@@ -510,16 +542,19 @@ describe("Checkout boundaries", () => {
         return Effect.succeed({ state: checkoutState });
       },
     });
-    const deliveryDetails = new FormData();
-    deliveryDetails.set("addressLine1", "");
-    deliveryDetails.set("cartId", "cart-1");
-    deliveryDetails.set("city", "");
-    deliveryDetails.set("country", "");
-    deliveryDetails.set(
-      "deliveryAddressChoice",
-      MANUAL_DELIVERY_ADDRESS_CHOICE
-    );
-    deliveryDetails.set("postalCode", "");
+    const deliveryDetails = {
+      cart: { id: "cart-1" },
+      deliveryDetails: {
+        saveToAddressBook: false as const,
+        shippingAddress: {
+          addressLine1: "",
+          city: "",
+          country: "",
+          postalCode: "",
+        },
+        type: "manual" as const,
+      },
+    };
 
     const result = await harness.saveCheckoutDeliveryDetails(
       null,
@@ -535,10 +570,22 @@ describe("Checkout boundaries", () => {
           category: "bad_input",
           code: "input.invalid",
           issues: [
-            { message: "This field is invalid.", path: ["addressLine1"] },
-            { message: "This field is invalid.", path: ["city"] },
-            { message: "This field is invalid.", path: ["country"] },
-            { message: "This field is invalid.", path: ["postalCode"] },
+            {
+              message: "This field is invalid.",
+              path: ["deliveryDetails", "shippingAddress", "addressLine1"],
+            },
+            {
+              message: "This field is invalid.",
+              path: ["deliveryDetails", "shippingAddress", "city"],
+            },
+            {
+              message: "This field is invalid.",
+              path: ["deliveryDetails", "shippingAddress", "country"],
+            },
+            {
+              message: "This field is invalid.",
+              path: ["deliveryDetails", "shippingAddress", "postalCode"],
+            },
           ],
           message: "Invalid input.",
           recovery: "fix_input",
@@ -558,9 +605,10 @@ describe("Checkout boundaries", () => {
           })
         ),
     });
-    const contact = new FormData();
-    contact.set("cartId", "cart-1");
-    contact.set("source", "customerProfile");
+    const contact = {
+      cart: { id: "cart-1" },
+      contact: { source: "customerProfile" as const },
+    };
 
     await expect(
       harness.saveCheckoutContact(null, contact)
@@ -654,11 +702,9 @@ describe("Checkout boundaries", () => {
       const harness = makeCheckoutHarness({
         saveShippingOptions: () => Effect.fail(error),
       });
-      const form = new FormData();
-      form.set("cartId", "cart-1");
-      form.set(
-        "selection",
-        JSON.stringify({
+      const input: SaveCheckoutShippingOptionsActionInput = {
+        cart: { id: "cart-1" },
+        selection: {
           groups: [
             {
               deliveryGroupReference: DeliveryGroupReference.make("delivery-1"),
@@ -667,11 +713,11 @@ describe("Checkout boundaries", () => {
           ],
           quoteReference: DeliveryPlanQuoteReference.make("quote-1"),
           reference: DeliveryPlanReference.make("plan-1"),
-        })
-      );
+        },
+      };
 
       // oxlint-disable-next-line no-await-in-loop -- Each isolated action boundary must complete before asserting its projected error.
-      const result = await harness.saveCheckoutShippingOptions(null, form);
+      const result = await harness.saveCheckoutShippingOptions(null, input);
       expect(result).toMatchObject({
         _tag: "Failure",
         failure: { error: expected },
