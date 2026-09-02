@@ -5,6 +5,7 @@ import {
   PRODUCT_FACETS,
   SEARCH_HIT_ATTRIBUTES,
   SEARCH_INDEX_ALIASES,
+  isProductIndexAlias,
 } from "./contract";
 
 const MAX_BATCH_SIZE = 8;
@@ -82,7 +83,7 @@ const searchBatchSchema = z
           .strict()
           .superRefine(({ indexName, params }, context) => {
             if (
-              indexName === "resources" &&
+              !isProductIndexAlias(indexName) &&
               (params.facetFilters !== undefined ||
                 params.facetName !== undefined ||
                 params.facets !== undefined ||
@@ -90,7 +91,7 @@ const searchBatchSchema = z
             ) {
               context.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: "Resource search does not support facets",
+                message: `${indexName === "resources" ? "Resource" : "Query suggestion"} search does not support facets`,
                 path: ["params"],
               });
             }

@@ -1,20 +1,15 @@
 import { expect, Given, Then, When } from "@repo/e2e-testing";
 import type { DataTable, Page } from "@repo/e2e-testing";
-import { z } from "zod";
-
-import { validateSearchBatch } from "../../validation";
 
 interface CombinedSearchScenario {
-  readonly products: readonly string[];
-  readonly resources: readonly string[];
+  readonly productQuery?: string;
+  readonly resourceQuery?: string;
 }
 
 const scenarios = new WeakMap<Page, CombinedSearchScenario>();
 const visibleRows = new WeakMap<Page, readonly string[]>();
-const IRRELEVANT_RESOURCE_TITLE = "Operator safety checklist";
-
-const matchingTitles = (type: "Product" | "Resource"): readonly string[] =>
-  Array.from({ length: 7 }, (_, index) => `Excavator ${type} ${index + 1}`);
+const IRRELEVANT_RESOURCE_TITLE =
+  "A practical preventive maintenance checklist";
 
 const updateScenario = (
   page: Page,
@@ -22,133 +17,40 @@ const updateScenario = (
 ): CombinedSearchScenario => {
   const current = scenarios.get(page);
   const scenario = {
-    products: update.products ?? current?.products ?? [],
-    resources: update.resources ?? current?.resources ?? [],
+    productQuery: update.productQuery ?? current?.productQuery,
+    resourceQuery: update.resourceQuery ?? current?.resourceQuery,
   };
   scenarios.set(page, scenario);
   return scenario;
 };
 
-const requestSchema = z.object({
-  indexName: z.enum([
-    "products",
-    "products@price-asc",
-    "products@price-desc",
-    "resources",
-  ]),
-  params: z
-    .object({
-      hitsPerPage: z.number().default(20),
-      page: z.number().default(0),
-      query: z.string().default(""),
-    })
-    .passthrough(),
-});
-
-type MockSearchRequest = z.infer<typeof requestSchema>;
-
-const productHit = (title: string, index: number) => ({
-  categories: [{ key: "excavators", label: "Excavators" }],
-  objectID: `product-${index + 1}`,
-  productCard: {
-    availableForSale: true,
-    id: `product-${index + 1}`,
-    slug: `excavator-product-${index + 1}`,
-    startingPrice: {
-      centAmount: (10_000 + index * 1000) * 100,
-      currencyCode: "USD",
-    },
-    title,
-  },
-});
-
-const resourceHit = (title: string, index: number) => ({
-  objectID: `resource-${index + 1}`,
-  resourceCard: {
-    id: `resource-${index + 1}`,
-    path: `/resources/excavator-resource-${index + 1}`,
-    publishedAt: "2026-08-22",
-    summary: `Guidance for excavator job ${index + 1}.`,
-    title,
-  },
-});
-
-const searchResponse = (
-  scenario: CombinedSearchScenario,
-  request: MockSearchRequest
-) => {
-  const { hitsPerPage, page, query } = request.params;
-  const resourceIndex = request.indexName === "resources";
-  const titles = resourceIndex ? scenario.resources : scenario.products;
-  const normalizedQuery = query.trim().toLowerCase();
-  const matching = titles.filter(
-    (title) =>
-      normalizedQuery.length === 0 ||
-      title.toLowerCase().includes(normalizedQuery)
-  );
-  const firstHit = page * hitsPerPage;
-
-  return {
-    hits: matching
-      .slice(firstHit, firstHit + hitsPerPage)
-      .map((title, index) =>
-        resourceIndex
-          ? resourceHit(title, firstHit + index)
-          : productHit(title, firstHit + index)
-      ),
-    hitsPerPage,
-    index: request.indexName,
-    nbHits: matching.length,
-    nbPages: Math.ceil(matching.length / hitsPerPage),
-    page,
-    processingTimeMS: 1,
-    query,
-  };
-};
-
-const installSearchProvider = async (
-  page: Page,
-  scenario: CombinedSearchScenario
-): Promise<void> => {
-  await page.route("**/api/search/**", async (route) => {
-    const body: unknown = route.request().postDataJSON();
-    const requests = validateSearchBatch(body).map((request) =>
-      requestSchema.parse(request)
-    );
-    await route.fulfill({
-      contentType: "application/json",
-      json: {
-        results: requests.map((request) => searchResponse(scenario, request)),
-      },
-      status: 200,
-    });
-  });
-};
-
 Given(
   "searchable Products include several results for {string}",
   ({ page }, query: string) => {
-    if (query.toLowerCase() !== "excavator") {
-      throw new Error(`No Product search fixture exists for ${query}`);
+    if (query.trim().length === 0) {
+      throw new Error("The Product search precondition requires a query");
     }
-    updateScenario(page, { products: matchingTitles("Product") });
+    updateScenario(page, { productQuery: query });
   }
 );
 
 Given(
   "searchable Resources include several results for {string}",
-  async ({ page }, query: string) => {
-    if (query.toLowerCase() !== "excavator") {
-      throw new Error(`No Resource search fixture exists for ${query}`);
+  ({ page }, query: string) => {
+    if (query.trim().length === 0) {
+      throw new Error("The Resource search precondition requires a query");
     }
-    const scenario = updateScenario(page, {
-      resources: [IRRELEVANT_RESOURCE_TITLE, ...matchingTitles("Resource")],
-    });
-    await installSearchProvider(page, scenario);
+    updateScenario(page, { resourceQuery: query });
   }
 );
 
 Given("a visitor searches for {string}", async ({ page }, query: string) => {
+  const scenario = scenarios.get(page);
+  if (scenario?.productQuery !== query || scenario.resourceQuery !== query) {
+    throw new Error(
+      `The live Search catalog must include Product and Resource results for ${query}`
+    );
+  }
   await page.goto(`/fr-FR/search?q=${encodeURIComponent(query)}`);
   await expect(
     page.getByRole("heading", { level: 1, name: "Products and Resources" })

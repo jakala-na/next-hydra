@@ -13,9 +13,14 @@ export type ProductIndexAlias = (typeof PRODUCT_INDEX_ALIASES)[number];
 export const RESOURCE_INDEX_ALIASES = ["resources"] as const;
 export type ResourceIndexAlias = (typeof RESOURCE_INDEX_ALIASES)[number];
 
+export const QUERY_SUGGESTION_INDEX_ALIASES = ["query-suggestions"] as const;
+export type QuerySuggestionIndexAlias =
+  (typeof QUERY_SUGGESTION_INDEX_ALIASES)[number];
+
 export const SEARCH_INDEX_ALIASES = [
   ...PRODUCT_INDEX_ALIASES,
   ...RESOURCE_INDEX_ALIASES,
+  ...QUERY_SUGGESTION_INDEX_ALIASES,
 ] as const;
 export type SearchIndexAlias = (typeof SEARCH_INDEX_ALIASES)[number];
 
@@ -29,9 +34,16 @@ export const PRODUCT_HIT_ATTRIBUTES = [
 ] as const;
 
 export const RESOURCE_HIT_ATTRIBUTES = ["objectID", "resourceCard"] as const;
+export const QUERY_SUGGESTION_HIT_ATTRIBUTES = [
+  "objectID",
+  "query",
+  "popularity",
+  "nb_words",
+] as const;
 export const SEARCH_HIT_ATTRIBUTES = [
   ...PRODUCT_HIT_ATTRIBUTES,
   ...RESOURCE_HIT_ATTRIBUTES,
+  ...QUERY_SUGGESTION_HIT_ATTRIBUTES,
 ] as const;
 
 export const ProductSearchCategory = Schema.Struct({
@@ -83,6 +95,18 @@ export type ResourceSearchHit = typeof ResourceSearchHit.Type;
 
 export const decodeResourceSearchHit =
   Schema.decodeUnknownSync(ResourceSearchHit);
+
+export const QuerySuggestionSearchHit = Schema.Struct({
+  nb_words: Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(1))),
+  objectID: Schema.NonEmptyString,
+  popularity: Schema.Finite,
+  query: Schema.NonEmptyString,
+});
+export type QuerySuggestionSearchHit = typeof QuerySuggestionSearchHit.Type;
+
+export const decodeQuerySuggestionSearchHit = Schema.decodeUnknownSync(
+  QuerySuggestionSearchHit
+);
 
 type InstantSearchRequest = Parameters<SearchClient["search"]>[0][number];
 
@@ -141,3 +165,7 @@ export const isProductIndexAlias = (
   indexName: SearchIndexAlias
 ): indexName is ProductIndexAlias =>
   PRODUCT_INDEX_ALIASES.some((candidate) => candidate === indexName);
+
+export const isResourceIndexAlias = (
+  indexName: SearchIndexAlias
+): indexName is ResourceIndexAlias => indexName === "resources";

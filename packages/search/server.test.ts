@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { SearchProvider } from "./contract";
-import { makeSearchRouteHandler } from "./server";
+import { createSearchRouteHandler } from "./server";
 import type { SearchRouteDependencies } from "./server";
 
 const audience = {
@@ -15,7 +15,7 @@ const audience = {
   },
 } as const;
 
-describe(makeSearchRouteHandler, () => {
+describe(createSearchRouteHandler, () => {
   it("derives the audience and delegates a validated batch", async () => {
     const search = vi.fn<SearchProvider["search"]>().mockResolvedValue({
       results: [],
@@ -23,7 +23,7 @@ describe(makeSearchRouteHandler, () => {
     const resolveAudience = vi
       .fn<SearchRouteDependencies["resolveAudience"]>()
       .mockResolvedValue(audience);
-    const handler = makeSearchRouteHandler({
+    const handler = createSearchRouteHandler({
       provider: { search },
       resolveAudience,
     });
@@ -54,7 +54,7 @@ describe(makeSearchRouteHandler, () => {
     const resolveAudience = vi
       .fn<SearchRouteDependencies["resolveAudience"]>()
       .mockResolvedValue(audience);
-    const handler = makeSearchRouteHandler({
+    const handler = createSearchRouteHandler({
       provider: { search: vi.fn<SearchProvider["search"]>() },
       resolveAudience,
     });

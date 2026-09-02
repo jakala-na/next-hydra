@@ -34,6 +34,18 @@ Playwright transforms the test entrypoints themselves. The live provider graph i
 
 Use `pnpm test:e2e` to run the suite unconditionally and `pnpm test:e2e:affected` for a local affected run. GitHub Actions runs the complete regression suite on demand against the deployed demo. Feature tags remain available for focused local diagnosis.
 
+## Live search prerequisites
+
+The `@search` scenarios do not intercept the Search proxy or replace Product and Resource pages. They exercise the selected Search provider through the web application's normal server and browser paths. Configure the web application with its server-side Algolia credentials and locale-independent index base names before running them; physical index names use `<base name>_<locale>`.
+
+Project the shared Product test catalog and CMS test content into Algolia using the canonical documents from `@repo/search/contract`. The scenarios declare their required records in the collocated feature files:
+
+- `product-search.feature` defines the `en-US` Product records, facets, prices, availability, and sorting expectations.
+- `search-autocomplete.feature` expects the live Product and Resource destinations listed in its background, plus the `excavator attachments` record in the `en-US` Query Suggestions index.
+- `combined-search.feature` requires more than six Product results and more than six Resource results for `excavator` in `fr-FR` so both paginated tabs have a second page. The Resource index should also contain `A practical preventive maintenance checklist` as a nonmatching record that proves the query reaches the Resource child index.
+
+Search index publication remains external to Playwright. Wait for Algolia's indexing tasks to finish before starting the suite so failed assertions reflect the application rather than an incomplete index update.
+
 ## Authoring loop
 
 1. Add one scenario under an owning domain's scoped `e2e/@domain` directory.

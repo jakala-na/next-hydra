@@ -10,11 +10,12 @@ import { CartButtonClient } from "@repo/design-system/components/layout/cart-but
 import { MobileMenu } from "@repo/design-system/components/layout/mobile-menu";
 import { Navigation } from "@repo/design-system/components/layout/navigation";
 import { RegionSelector } from "@repo/design-system/components/layout/region-selector";
-import { SearchAutocomplete } from "@repo/design-system/components/layout/search-autocomplete";
 import { SiteFooter } from "@repo/design-system/components/layout/site-footer";
 import { SiteHeader } from "@repo/design-system/components/layout/site-header";
 import { hasLocale, NextIntlClientProvider } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
+import { SearchAutocomplete } from "@repo/search/autocomplete";
+import { searchRuntime } from "@repo/search/runtime";
 import { ShoppingCart } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -55,6 +56,7 @@ export default async function RootLayout({
     notFound();
   }
   const navigation = await getNavigation(locale);
+  const searchClient = searchRuntime.getClientConfiguration(locale);
   return (
     <DocumentShell lang={locale}>
       <NextIntlClientProvider>
@@ -76,7 +78,12 @@ export default async function RootLayout({
                 <RegionSelector />
               </Suspense>
             }
-            Search={<SearchAutocomplete />}
+            Search={
+              <SearchAutocomplete
+                endpoint={searchClient.endpoint}
+                routes={searchClient.autocompleteRoutes}
+              />
+            }
             BusinessUnitSwitcher={
               <Suspense
                 fallback={

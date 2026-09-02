@@ -24,7 +24,7 @@ const errorResponse = (
     { headers: privateResponseHeaders, status }
   );
 
-export const makeSearchRouteHandler =
+export const createSearchRouteHandler =
   ({ provider, resolveAudience }: SearchRouteDependencies) =>
   async (request: Request): Promise<Response> => {
     const requestId = crypto.randomUUID();

@@ -3,6 +3,8 @@ export type {
   ProductSearchDocument,
   ProductSearchHit,
   ProductSearchAudience,
+  QuerySuggestionIndexAlias,
+  QuerySuggestionSearchHit,
   ResourceIndexAlias,
   ResourceSearchCard,
   ResourceSearchDocument,
@@ -17,6 +19,7 @@ export type {
 export {
   PRODUCT_FACETS,
   PRODUCT_INDEX_ALIASES,
+  QUERY_SUGGESTION_INDEX_ALIASES,
   RESOURCE_INDEX_ALIASES,
   SEARCH_INDEX_ALIASES,
 } from "./contract";

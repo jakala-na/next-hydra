@@ -7,7 +7,7 @@
       "type": "registry:item",
       "title": "Algolia Search provider",
       "description": "Installs the Algolia InstantSearch provider adapter.",
-      "docs": "Configure the Algolia server credentials plus the Product and Resource index names described by packages/search-algolia before starting the web application. Resource records must include locales and the provider mapping must project each hit to objectID and resourceCard fields containing id, path, title, summary, and optional image and publishedAt values.",
+      "docs": "Configure the Algolia server credentials plus the locale-independent Product, Resource, and Query Suggestions index base names described by packages/search-algolia before starting the web application. The provider derives every physical index as <base name>_<locale>, including sorting replicas and Query Suggestions. Resource records must include locales and the provider mapping must project each hit to objectID and resourceCard fields containing id, path, title, summary, and optional image and publishedAt values. Configure one Query Suggestions index per storefront language; its provider mapping must project objectID, query, popularity, and nb_words for the autocomplete Keywords section.",
       "registryDependencies": ["jakala-na/next-hydra/search-contract"],
       "meta": {
         "nextHydra": {

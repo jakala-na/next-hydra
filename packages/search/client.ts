@@ -1,6 +1,21 @@
 import type { SearchClient } from "instantsearch.js";
 import { z } from "zod";
 
+const AUTOCOMPLETE_PROXY_CREDENTIAL = "search-proxy";
+
+export interface ProxySearchClient extends SearchClient {
+  /**
+   * Autocomplete's Algolia requester reads these fields to annotate returned
+   * hits. They are compatibility markers only and are never sent to the proxy.
+   */
+  readonly transporter: {
+    readonly headers: {
+      readonly "x-algolia-api-key": string;
+      readonly "x-algolia-application-id": string;
+    };
+  };
+}
+
 const responseEnvelopeSchema = z
   .object({ results: z.array(z.unknown()) })
   .passthrough();
@@ -9,6 +24,10 @@ const errorEnvelopeSchema = z
   .object({
     error: z.object({ requestId: z.string().optional() }).passthrough(),
   })
+  .passthrough();
+
+const autocompleteRequestSchema = z
+  .object({ query: z.string().optional() })
   .passthrough();
 
 export class SearchProxyError extends Error {
@@ -21,11 +40,26 @@ export class SearchProxyError extends Error {
   }
 }
 
-export function createProxySearchClient(endpoint: string): SearchClient {
+const normalizeAutocompleteRequest = (
+  request: Parameters<SearchClient["search"]>[0][number]
+): Parameters<SearchClient["search"]>[0][number] => {
+  const { query } = autocompleteRequestSchema.parse(request);
+  if (query === undefined) {
+    return request;
+  }
+  return {
+    indexName: request.indexName,
+    params: { ...request.params, query },
+  };
+};
+
+export function createProxySearchClient(endpoint: string): ProxySearchClient {
   return {
     search: async (requests) => {
       const response = await fetch(endpoint, {
-        body: JSON.stringify({ requests }),
+        body: JSON.stringify({
+          requests: requests.map(normalizeAutocompleteRequest),
+        }),
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         method: "POST",
@@ -49,6 +83,12 @@ export function createProxySearchClient(endpoint: string): SearchClient {
       // envelope, and the structural results array was parsed above.
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- InstantSearch result hits remain provider-generic at this protocol boundary.
       return envelope.data as Awaited<ReturnType<SearchClient["search"]>>;
+    },
+    transporter: {
+      headers: {
+        "x-algolia-api-key": AUTOCOMPLETE_PROXY_CREDENTIAL,
+        "x-algolia-application-id": AUTOCOMPLETE_PROXY_CREDENTIAL,
+      },
     },
   };
 }

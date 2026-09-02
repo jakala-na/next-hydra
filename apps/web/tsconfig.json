@@ -15,6 +15,7 @@
       "@repo/commerce-provider/*": ["../../packages/commerce-commercetools/*"],
       "@repo/search-provider": ["../../packages/search-algolia"],
       "@repo/search-provider/*": ["../../packages/search-algolia/*"],
+      "@repo/search/runtime": ["./lib/search-runtime.ts"],
       "@repo/*": ["../../packages/*"]
     }
   },

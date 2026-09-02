@@ -63,6 +63,35 @@ describe(validateSearchBatch, () => {
     ]);
   });
 
+  it("accepts query suggestion requests through the portable protocol", () => {
+    const requests = validateSearchBatch({
+      requests: [
+        {
+          indexName: "query-suggestions",
+          params: {
+            analytics: false,
+            attributesToRetrieve: [
+              "objectID",
+              "query",
+              "popularity",
+              "nb_words",
+            ],
+            clickAnalytics: false,
+            highlightPostTag: "__autocomplete-highlight__",
+            highlightPreTag: "__autocomplete-highlight__",
+            hitsPerPage: 4,
+            query: "excavator",
+          },
+        },
+      ],
+    });
+
+    expect(requests[0]).toMatchObject({
+      indexName: "query-suggestions",
+      params: { query: "excavator" },
+    });
+  });
+
   it("rejects Product facets on the Resource index", () => {
     expect(() =>
       validateSearchBatch({
@@ -74,6 +103,19 @@ describe(validateSearchBatch, () => {
         ],
       })
     ).toThrow("Resource search does not support facets");
+  });
+
+  it("rejects Product facets on the Query Suggestions index", () => {
+    expect(() =>
+      validateSearchBatch({
+        requests: [
+          {
+            indexName: "query-suggestions",
+            params: { facets: ["category"] },
+          },
+        ],
+      })
+    ).toThrow("Query suggestion search does not support facets");
   });
 
   it.each([

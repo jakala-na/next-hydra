@@ -20,6 +20,9 @@ const audience = {
   },
 } as const;
 
+const localizedIndex = (baseName: string) => (locale: string) =>
+  `${baseName}_${locale}`;
+
 describe(createAlgoliaSearchProvider, () => {
   it("maps logical sorts and applies an unoverrideable audience filter", async () => {
     const search = vi
@@ -29,7 +32,17 @@ describe(createAlgoliaSearchProvider, () => {
           {
             hits: [],
             hitsPerPage: 12,
-            index: "catalog_price_asc",
+            index: "catalog_price_asc_en-US",
+            nbHits: 0,
+            nbPages: 0,
+            page: 0,
+            processingTimeMS: 1,
+            query: "",
+          },
+          {
+            hits: [],
+            hitsPerPage: 12,
+            index: "catalog_price_desc_en-US",
             nbHits: 0,
             nbPages: 0,
             page: 0,
@@ -41,10 +54,11 @@ describe(createAlgoliaSearchProvider, () => {
     const provider = createAlgoliaSearchProvider({
       client: { search },
       indices: {
-        priceAscending: "catalog_price_asc",
-        priceDescending: "catalog_price_desc",
-        products: "catalog",
-        resources: "resources",
+        priceAscending: localizedIndex("catalog_price_asc"),
+        priceDescending: localizedIndex("catalog_price_desc"),
+        products: localizedIndex("catalog"),
+        querySuggestions: localizedIndex("query_suggestions"),
+        resources: localizedIndex("resources"),
       },
     });
 
@@ -56,6 +70,10 @@ describe(createAlgoliaSearchProvider, () => {
             facetFilters: ["category:excavators"],
             hitsPerPage: 12,
           },
+        },
+        {
+          indexName: "products@price-desc",
+          params: { hitsPerPage: 12 },
         },
       ],
       audience
@@ -69,11 +87,19 @@ describe(createAlgoliaSearchProvider, () => {
           filters:
             'storeKeys:"default-store" AND locales:"en-US" AND currencies:"USD" AND (customerSegmentKeys:"public" OR customerSegmentKeys:"contractors") AND distributionChannelKeys:"north-america" AND supplyChannelKeys:"main-warehouse"',
           hitsPerPage: 12,
-          indexName: "catalog_price_asc",
+          indexName: "catalog_price_asc_en-US",
+        },
+        {
+          attributesToRetrieve: [...PRODUCT_HIT_ATTRIBUTES],
+          filters:
+            'storeKeys:"default-store" AND locales:"en-US" AND currencies:"USD" AND (customerSegmentKeys:"public" OR customerSegmentKeys:"contractors") AND distributionChannelKeys:"north-america" AND supplyChannelKeys:"main-warehouse"',
+          hitsPerPage: 12,
+          indexName: "catalog_price_desc_en-US",
         },
       ],
     });
     expect(response.results[0]).toMatchObject({ index: "products@price-asc" });
+    expect(response.results[1]).toMatchObject({ index: "products@price-desc" });
   });
 
   it("normalizes provider-specific nested records into canonical Product hits", async () => {
@@ -126,10 +152,11 @@ describe(createAlgoliaSearchProvider, () => {
     const provider = createAlgoliaSearchProvider({
       client: { search },
       indices: {
-        priceAscending: "catalog_price_asc",
-        priceDescending: "catalog_price_desc",
-        products: "catalog",
-        resources: "resources",
+        priceAscending: localizedIndex("catalog_price_asc"),
+        priceDescending: localizedIndex("catalog_price_desc"),
+        products: localizedIndex("catalog"),
+        querySuggestions: localizedIndex("query_suggestions"),
+        resources: localizedIndex("resources"),
       },
       productHitMapping: {
         attributesToRetrieve: ["objectID", "product"],
@@ -175,7 +202,7 @@ describe(createAlgoliaSearchProvider, () => {
       requests: [
         expect.objectContaining({
           attributesToRetrieve: ["objectID", "product"],
-          indexName: "catalog",
+          indexName: "catalog_en-US",
         }),
       ],
     });
@@ -245,10 +272,11 @@ describe(createAlgoliaSearchProvider, () => {
     const provider = createAlgoliaSearchProvider({
       client: { search },
       indices: {
-        priceAscending: "catalog_price_asc",
-        priceDescending: "catalog_price_desc",
-        products: "catalog",
-        resources: "cms_resources",
+        priceAscending: localizedIndex("catalog_price_asc"),
+        priceDescending: localizedIndex("catalog_price_desc"),
+        products: localizedIndex("catalog"),
+        querySuggestions: localizedIndex("query_suggestions"),
+        resources: localizedIndex("cms_resources"),
       },
       resourceHitMapping: {
         attributesToRetrieve: ["objectID", "content"],
@@ -287,7 +315,7 @@ describe(createAlgoliaSearchProvider, () => {
         expect.objectContaining({
           attributesToRetrieve: ["objectID", "content"],
           filters: 'locales:"en-US"',
-          indexName: "cms_resources",
+          indexName: "cms_resources_en-US",
         }),
       ],
     });
@@ -303,6 +331,96 @@ describe(createAlgoliaSearchProvider, () => {
         },
       ],
       index: "resources",
+    });
+  });
+
+  it("maps and normalizes the provider Query Suggestions index", async () => {
+    const search = vi
+      .fn<AlgoliaSearchProviderOptions["client"]["search"]>()
+      .mockResolvedValue({
+        results: [
+          {
+            hits: [
+              {
+                objectID: "suggestion-1",
+                suggestion: {
+                  popularity: 12,
+                  text: "excavator attachments",
+                  wordCount: 2,
+                },
+              },
+            ],
+            hitsPerPage: 4,
+            index: "catalog_query_suggestions_fr-FR",
+            nbHits: 1,
+            nbPages: 1,
+            page: 0,
+            processingTimeMS: 1,
+            query: "excavator",
+          },
+        ],
+      });
+    const provider = createAlgoliaSearchProvider({
+      client: { search },
+      indices: {
+        priceAscending: localizedIndex("catalog_price_asc"),
+        priceDescending: localizedIndex("catalog_price_desc"),
+        products: localizedIndex("catalog"),
+        querySuggestions: localizedIndex("catalog_query_suggestions"),
+        resources: localizedIndex("cms_resources"),
+      },
+      querySuggestionHitMapping: {
+        attributesToRetrieve: ["objectID", "suggestion.text"],
+        toQuerySuggestionSearchHit: (record) => {
+          const suggestion = z
+            .object({
+              suggestion: z.object({
+                popularity: z.number(),
+                text: z.string(),
+                wordCount: z.number(),
+              }),
+            })
+            .parse(record);
+          return {
+            nb_words: suggestion.suggestion.wordCount,
+            objectID: String(record.objectID),
+            popularity: suggestion.suggestion.popularity,
+            query: suggestion.suggestion.text,
+          };
+        },
+      },
+    });
+
+    const response = await provider.search(
+      [
+        {
+          indexName: "query-suggestions",
+          params: { hitsPerPage: 4, query: "excavator" },
+        },
+      ],
+      { locale: "fr-FR" }
+    );
+
+    expect(search).toHaveBeenCalledWith({
+      requests: [
+        {
+          attributesToRetrieve: ["objectID", "suggestion.text"],
+          hitsPerPage: 4,
+          indexName: "catalog_query_suggestions_fr-FR",
+          query: "excavator",
+        },
+      ],
+    });
+    expect(response.results[0]).toMatchObject({
+      hits: [
+        {
+          nb_words: 2,
+          objectID: "suggestion-1",
+          popularity: 12,
+          query: "excavator attachments",
+        },
+      ],
+      index: "query-suggestions",
     });
   });
 

@@ -1,4 +1,4 @@
-import { makeSearchRouteHandler } from "@repo/search/server";
+import { createSearchRouteHandler } from "@repo/search/server";
 import type { SearchRouteDependencies } from "@repo/search/server";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -19,6 +19,9 @@ const audience = {
 
 const expectedAudienceFilter =
   'storeKeys:"default-store" AND locales:"en-US" AND currencies:"USD" AND customerSegmentKeys:"contractors" AND distributionChannelKeys:"north-america" AND supplyChannelKeys:"main-warehouse"';
+
+const localizedIndex = (baseName: string) => (locale: string) =>
+  `${baseName}_${locale}`;
 
 const externalSearchRequestSchema = z.object({
   requests: z.array(
@@ -122,16 +125,17 @@ describe("Algolia search proxy", () => {
     const provider = createAlgoliaSearchProvider({
       client: { search },
       indices: {
-        priceAscending: "catalog_price_asc",
-        priceDescending: "catalog_price_desc",
-        products: "catalog",
-        resources: "resources",
+        priceAscending: localizedIndex("catalog_price_asc"),
+        priceDescending: localizedIndex("catalog_price_desc"),
+        products: localizedIndex("catalog"),
+        querySuggestions: localizedIndex("query_suggestions"),
+        resources: localizedIndex("resources"),
       },
     });
     const resolveAudience = vi
       .fn<SearchRouteDependencies["resolveAudience"]>()
       .mockResolvedValue(audience);
-    const handler = makeSearchRouteHandler({
+    const handler = createSearchRouteHandler({
       provider,
       resolveAudience,
     });
@@ -156,7 +160,7 @@ describe("Algolia search proxy", () => {
       requests: [
         expect.objectContaining({
           filters: expectedAudienceFilter,
-          indexName: "catalog",
+          indexName: "catalog_en-US",
         }),
       ],
     });

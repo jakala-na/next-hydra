@@ -1,11 +1,6 @@
 import { hasLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
-import { makeSearchRouteHandler } from "@repo/search/server";
-
-import {
-  cachedSearchProvider,
-  resolveSearchAudience,
-} from "@/lib/product-search";
+import { handleSearchRequest } from "@repo/search/search-route";
 
 export async function POST(
   request: Request,
@@ -20,9 +15,5 @@ export async function POST(
     );
   }
 
-  return await makeSearchRouteHandler({
-    provider: cachedSearchProvider,
-    resolveAudience: async (batch) =>
-      await resolveSearchAudience(locale, batch),
-  })(request);
+  return await handleSearchRequest(request, locale);
 }

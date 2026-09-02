@@ -1,8 +1,7 @@
 import { expect, Given, Then, When } from "@repo/e2e-testing";
 import type { DataTable, Page } from "@repo/e2e-testing";
-import { z } from "zod";
 
-import { validateSearchBatch } from "../../validation";
+import { defineSearchStore, requireSearchStore } from "./search-context";
 
 interface SearchProduct {
   readonly availability: "in-stock" | "out-of-stock";
@@ -15,20 +14,11 @@ interface SearchProduct {
 }
 
 interface ProductSearchScenario {
-  readonly currency: string;
   readonly locale: string;
   readonly products: readonly SearchProduct[];
 }
 
 const scenarios = new WeakMap<Page, ProductSearchScenario>();
-const stores = new WeakMap<
-  Page,
-  {
-    readonly currency: string;
-    readonly locale: string;
-  }
->();
-
 const slugify = (value: string): string =>
   value
     .toLowerCase()
@@ -94,217 +84,25 @@ const requireScenario = (page: Page): ProductSearchScenario => {
   return scenario;
 };
 
-const mockFacetFilterSchema = z.union([z.string(), z.array(z.string())]);
-const mockSearchParametersSchema = z
-  .object({
-    facetFilters: z.array(mockFacetFilterSchema).default([]),
-    hitsPerPage: z.number().default(20),
-    numericFilters: z.array(mockFacetFilterSchema).default([]),
-    page: z.number().default(0),
-    query: z.string().default(""),
-  })
-  .passthrough();
-const mockSearchRequestSchema = z
-  .object({
-    indexName: z.string().default("products"),
-    params: mockSearchParametersSchema.default({}),
-  })
-  .passthrough();
-const mockSearchBatchSchema = z.object({
-  requests: z.array(mockSearchRequestSchema),
-});
-
-type MockFacetFilter = z.infer<typeof mockFacetFilterSchema>;
-type MockSearchRequest = z.infer<typeof mockSearchRequestSchema>;
-
-const facetMatches = (
-  product: SearchProduct,
-  filter: MockFacetFilter
-): boolean => {
-  if (Array.isArray(filter)) {
-    return filter.some((candidate) => facetMatches(product, candidate));
-  }
-
-  const separator = filter.indexOf(":");
-  const attribute = filter.slice(0, separator);
-  const value = filter.slice(separator + 1);
-  if (attribute === "category") {
-    return product.category === value;
-  }
-  if (attribute === "availability") {
-    return product.availability === value;
-  }
-  return true;
-};
-
-const numericMatches = (
-  product: SearchProduct,
-  filter: MockFacetFilter
-): boolean => {
-  if (Array.isArray(filter)) {
-    return filter.some((candidate) => numericMatches(product, candidate));
-  }
-  const match =
-    /^price(?<operator><=|>=|=|<|>)(?<rawValue>-?\d+(?:\.\d+)?)$/u.exec(filter);
-  const operator = match?.groups?.operator;
-  const rawValue = match?.groups?.rawValue;
-  if (operator === undefined || rawValue === undefined) {
-    return true;
-  }
-  const value = Number(rawValue);
-  if (operator === "<") {
-    return product.price < value;
-  }
-  if (operator === "<=") {
-    return product.price <= value;
-  }
-  if (operator === "=") {
-    return product.price === value;
-  }
-  if (operator === ">") {
-    return product.price > value;
-  }
-  if (operator === ">=") {
-    return product.price >= value;
-  }
-  return true;
-};
-
-const facetCounts = (
-  products: readonly SearchProduct[],
-  attribute: "availability" | "category"
-) => {
-  const counts = new Map<string, number>();
-  for (const product of products) {
-    const value = product[attribute];
-    counts.set(value, (counts.get(value) ?? 0) + 1);
-  }
-  return Object.fromEntries(counts);
-};
-
-const searchResponse = (
-  scenario: ProductSearchScenario,
-  request: MockSearchRequest
-) => {
-  const { params } = request;
-  const { facetFilters, hitsPerPage, numericFilters, page, query } = params;
-  const normalizedQuery = query.trim().toLowerCase();
-  const products = scenario.products.filter(
-    (product) =>
-      (normalizedQuery.length === 0 ||
-        product.title.toLowerCase().includes(normalizedQuery)) &&
-      facetFilters.every((filter) => facetMatches(product, filter)) &&
-      numericFilters.every((filter) => numericMatches(product, filter))
-  );
-
-  const { indexName } = request;
-  if (indexName === "products@price-asc") {
-    // oxlint-disable-next-line unicorn/no-array-sort -- Array#filter created this scenario-local result array, so in-place sorting cannot mutate catalog fixtures.
-    products.sort((left, right) => left.price - right.price);
-  } else if (indexName === "products@price-desc") {
-    // oxlint-disable-next-line unicorn/no-array-sort -- Array#filter created this scenario-local result array, so in-place sorting cannot mutate catalog fixtures.
-    products.sort((left, right) => right.price - left.price);
-  }
-
-  const firstHit = page * hitsPerPage;
-  const prices = products.map(({ price }) => price);
-  const priceSum = prices.reduce((sum, price) => sum + price, 0);
-
-  return {
-    facets: {
-      availability: facetCounts(products, "availability"),
-      category: facetCounts(products, "category"),
-    },
-    facets_stats:
-      prices.length === 0
-        ? {}
-        : {
-            price: {
-              avg: priceSum / prices.length,
-              max: Math.max(...prices),
-              min: Math.min(...prices),
-              sum: priceSum,
-            },
-          },
-    hits: products.slice(firstHit, firstHit + hitsPerPage).map((product) => ({
-      categories: [{ key: product.category, label: product.categoryLabel }],
-      objectID: product.objectID,
-      productCard: {
-        availableForSale: product.availability === "in-stock",
-        id: product.objectID,
-        slug: product.slug,
-        startingPrice: {
-          centAmount: product.price * 100,
-          currencyCode: scenario.currency,
-        },
-        title: product.title,
-      },
-    })),
-    hitsPerPage,
-    index: indexName,
-    nbHits: products.length,
-    nbPages: Math.ceil(products.length / hitsPerPage),
-    page,
-    processingTimeMS: 1,
-    query,
-  };
-};
-
-const installSearchProvider = async (
-  page: Page,
-  scenario: ProductSearchScenario
-): Promise<void> => {
-  await page.route("**/api/search/**", async (route) => {
-    const body: unknown = route.request().postDataJSON();
-    const requests = validateSearchBatch(body);
-    const parsedBatch = mockSearchBatchSchema.parse({ requests });
-    await route.fulfill({
-      contentType: "application/json",
-      json: {
-        results: parsedBatch.requests.map((request) =>
-          searchResponse(scenario, request)
-        ),
-      },
-      status: 200,
-    });
-  });
-
-  await page.route("**/product/**", async (route) => {
-    const product = scenario.products.find(({ slug }) =>
-      route.request().url().includes(`/product/${slug}`)
-    );
-    await route.fulfill({
-      body: `<!doctype html><html lang="${scenario.locale}"><body><h1>${product?.title ?? "Product"}</h1></body></html>`,
-      contentType: "text/html",
-      status: 200,
-    });
-  });
-};
-
 Given(
   "Product search uses Store {string} with locale {string} and currency {string}",
   ({ page }, storeKey: string, locale: string, currency: string) => {
     if (storeKey.length === 0) {
       throw new Error("Product search Store must have a key");
     }
-    stores.set(page, { currency, locale });
+    defineSearchStore(page, { currency, locale, storeKey });
   }
 );
 
 Given(
   "the searchable Product Catalog contains:",
-  async ({ page }, dataTable: DataTable) => {
-    const store = stores.get(page);
-    if (store === undefined) {
-      throw new Error("The scenario does not define a Product search Store");
-    }
+  ({ page }, dataTable: DataTable) => {
+    const store = requireSearchStore(page);
     const scenario = {
-      currency: store.currency,
       locale: store.locale,
       products: productsFrom(dataTable),
     };
     scenarios.set(page, scenario);
-    await installSearchProvider(page, scenario);
   }
 );
 
@@ -314,6 +112,12 @@ Given("a buyer is viewing the Products Page", async ({ page }) => {
   await expect(
     page.getByRole("heading", { level: 1, name: "Products" })
   ).toBeVisible();
+  for (const product of requireScenario(page).products) {
+    // oxlint-disable-next-line no-await-in-loop -- Every catalog precondition must be visible through the live Search provider.
+    await expect(
+      page.locator("[data-search-hit]").filter({ hasText: product.title })
+    ).toBeVisible();
+  }
 });
 
 Then(

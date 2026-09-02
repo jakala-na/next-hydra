@@ -5,6 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./index.ts",
+    "./autocomplete": "./autocomplete.tsx",
+    "./autocomplete-routing": "./autocomplete-routing.ts",
     "./client": "./client.ts",
     "./combined-search": "./combined-search.tsx",
     "./combined-search-routing": "./combined-search-routing.ts",
@@ -12,10 +14,16 @@
     "./combined-search-skeleton": "./combined-search-skeleton.tsx",
     "./contract": "./contract.ts",
     "./product-card": "./product-card.tsx",
+    "./product-listing-page": "./product-listing-page.tsx",
     "./product-listing": "./product-listing.tsx",
     "./product-listing-server": "./product-listing-server.tsx",
     "./product-listing-skeleton": "./product-listing-skeleton.tsx",
     "./product-listing-routing": "./product-listing-routing.ts",
+    "./product-search-audience": "./product-search-audience.ts",
+    "./runtime": "./runtime.ts",
+    "./runtime/make-search-runtime": "./runtime/make-search-runtime.ts",
+    "./search-page": "./search-page.tsx",
+    "./search-route": "./search-route.ts",
     "./server": "./server.ts",
     "./validation": "./validation.ts"
   },
@@ -25,6 +33,9 @@
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/search/tsconfig.json"
   },
   "dependencies": {
+    "@algolia/autocomplete-js": "^1.19.9",
+    "@algolia/autocomplete-plugin-query-suggestions": "^1.19.9",
+    "@algolia/autocomplete-theme-classic": "^1.19.9",
     "@repo/commerce": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
