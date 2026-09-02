@@ -12,13 +12,13 @@ export type GeneratedCustomFieldKind =
   | "reference"
   | "referenceSet";
 
-export const checkoutPaymentFieldsCustomFieldKinds = {
+export const orderCustomFieldKinds = {
+  checkoutContact: "text",
+} as const;
+
+export const paymentCustomFieldKinds = {
   checkoutPlacementAttemptReference: "text",
   checkoutTermsInDays: "number",
   checkoutCardBrand: "text",
   checkoutCardLastFour: "text",
-} as const;
-
-export const orderCustomFieldKinds = {
-  checkoutContact: "text",
 } as const;

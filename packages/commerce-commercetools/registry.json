@@ -451,8 +451,8 @@
           "type": "registry:file"
         },
         {
-          "path": "migrations/add-checkout-payment.test.ts",
-          "target": "~/packages/commerce-commercetools/migrations/add-checkout-payment.test.ts",
+          "path": "migrations/create-payment-custom-fields-type.test.ts",
+          "target": "~/packages/commerce-commercetools/migrations/create-payment-custom-fields-type.test.ts",
           "type": "registry:file"
         },
         {
@@ -481,8 +481,8 @@
           "type": "registry:file"
         },
         {
-          "path": "migrations/scripts/2026-08-31-140000-add-checkout-payment.ts",
-          "target": "~/packages/commerce-commercetools/migrations/scripts/2026-08-31-140000-add-checkout-payment.ts",
+          "path": "migrations/scripts/2026-09-02-120000-create-payment-custom-fields-type.ts",
+          "target": "~/packages/commerce-commercetools/migrations/scripts/2026-09-02-120000-create-payment-custom-fields-type.ts",
           "type": "registry:file"
         },
         {
@@ -626,13 +626,13 @@
           "type": "registry:file"
         },
         {
-          "path": "schema/types/checkoutPaymentFields.json",
-          "target": "~/packages/commerce-commercetools/schema/types/checkoutPaymentFields.json",
+          "path": "schema/types/orderCustomFields.json",
+          "target": "~/packages/commerce-commercetools/schema/types/orderCustomFields.json",
           "type": "registry:file"
         },
         {
-          "path": "schema/types/orderCustomFields.json",
-          "target": "~/packages/commerce-commercetools/schema/types/orderCustomFields.json",
+          "path": "schema/types/paymentCustomFields.json",
+          "target": "~/packages/commerce-commercetools/schema/types/paymentCustomFields.json",
           "type": "registry:file"
         },
         {

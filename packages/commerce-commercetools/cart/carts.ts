@@ -103,7 +103,6 @@ import {
 import { readFragment } from "../graphql";
 import {
   PAYMENT_ATTEMPT_REFERENCE_FIELD,
-  PAYMENT_CUSTOM_TYPE_KEY,
   PAYMENT_TERMS_IN_DAYS_FIELD,
 } from "../payment-repository/custom-fields";
 import {
@@ -507,10 +506,7 @@ const preparedPaymentFrom = (
   billingAddress: ShippingAddress | null,
   payment: CommercetoolsPayment
 ): Option.Option<PreparedPayment> => {
-  if (
-    billingAddress === null ||
-    payment.custom?.type?.key !== PAYMENT_CUSTOM_TYPE_KEY
-  ) {
+  if (billingAddress === null) {
     return Option.none();
   }
 

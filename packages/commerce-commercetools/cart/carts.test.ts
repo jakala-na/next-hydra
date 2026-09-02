@@ -161,7 +161,7 @@ const rawPreparedCardPayment = {
         value: "attempt-1",
       },
     ],
-    type: { key: "checkoutPaymentFields" },
+    type: { key: "paymentCustomFields" },
   },
   id: "payment-1",
   interfaceId: "pi-1",
@@ -402,7 +402,7 @@ describe("findById", () => {
                       value: "attempt-1",
                     },
                   ],
-                  type: { key: "checkoutPaymentFields" },
+                  type: { key: "paymentCustomFields" },
                 },
                 paymentMethodInfo: {
                   method: "card",
@@ -453,7 +453,7 @@ describe("findById", () => {
                     },
                     { name: "checkoutTermsInDays", value: 30 },
                   ],
-                  type: { key: "checkoutPaymentFields" },
+                  type: { key: "paymentCustomFields" },
                 },
                 id: "net-terms-payment-1",
                 interfaceId: "checkout-net-terms-cart-1",
@@ -495,7 +495,7 @@ describe("findById", () => {
     }
   );
 
-  it.effect("ignores a Cart with an incompatible linked Payment", () => {
+  it.effect("does not inspect linked Payment Custom Type metadata", () => {
     const clients = makeScriptedClients();
     clients.on(
       "CartById",
@@ -524,7 +524,12 @@ describe("findById", () => {
         store,
       });
 
-      expect(Option.isNone(found)).toBeTruthy();
+      expect(
+        Option.getOrThrow(found).checkoutDetails.preparedPayment
+      ).toMatchObject({
+        method: "card",
+        paymentReference: "payment-1",
+      });
     }).pipe(Effect.provide(clients.layer));
   });
 

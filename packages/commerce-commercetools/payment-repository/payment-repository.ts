@@ -36,7 +36,6 @@ import {
   isConcurrentModification,
 } from "../client/versioned-write";
 import {
-  CHECKOUT_PAYMENT_CUSTOM_FIELD_NAMES,
   PAYMENT_CARD_BRAND_FIELD,
   PAYMENT_CARD_LAST_FOUR_FIELD,
   PAYMENT_ATTEMPT_REFERENCE_FIELD,
@@ -163,15 +162,6 @@ const paymentCustomFieldsOrEmpty = (payment: Payment) =>
     () => EMPTY_PAYMENT_CUSTOM_FIELDS
   );
 
-const hasCheckoutPaymentCustomType = (payment: Payment) =>
-  Option.match(paymentCustomFields(payment), {
-    onNone: () => false,
-    onSome: (fields) =>
-      Object.keys(fields).every((fieldName) =>
-        CHECKOUT_PAYMENT_CUSTOM_FIELD_NAMES.has(fieldName)
-      ),
-  });
-
 const transactionStatePriority = {
   Failure: 1,
   Pending: 0,
@@ -186,10 +176,7 @@ const transactionActions = (
 ): Effect.Effect<readonly PaymentUpdateAction[], PaymentProviderFailure> => {
   const paymentMethodActions: PaymentUpdateAction[] = [];
   if (input.paymentMethod !== undefined) {
-    if (
-      payment.paymentMethodInfo.method !== "card" ||
-      !hasCheckoutPaymentCustomType(payment)
-    ) {
+    if (payment.paymentMethodInfo.method !== "card") {
       return Effect.fail(
         paymentFailure(
           "payment.transaction.record",
@@ -348,15 +335,6 @@ const customFieldActions = (
         type: { key: PAYMENT_CUSTOM_TYPE_KEY, typeId: "type" },
       },
     ]);
-  }
-  if (!hasCheckoutPaymentCustomType(payment)) {
-    return Effect.fail(
-      paymentFailure(
-        "payment.update",
-        new Error("Payment carries an incompatible Custom Type"),
-        "invalidData"
-      )
-    );
   }
   if (customFieldsMatch(payment, desired)) {
     return Effect.succeed([]);

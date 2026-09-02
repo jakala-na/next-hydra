@@ -3,13 +3,13 @@
 
 import type { CustomField } from "../types";
 
-export type CheckoutPaymentFieldsSchema = {
+export type OrderCustomFieldsSchema = {
+  checkoutContact: CustomField<"text">;
+};
+
+export type PaymentCustomFieldsSchema = {
   checkoutPlacementAttemptReference: CustomField<"text">;
   checkoutTermsInDays: CustomField<"number">;
   checkoutCardBrand: CustomField<"text">;
   checkoutCardLastFour: CustomField<"text">;
-};
-
-export type OrderCustomFieldsSchema = {
-  checkoutContact: CustomField<"text">;
 };

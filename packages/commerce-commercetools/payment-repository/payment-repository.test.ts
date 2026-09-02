@@ -120,7 +120,7 @@ describe("Commercetools PaymentRepository", () => {
     expect(created).toMatchObject({
       custom: {
         fields: {},
-        type: { key: "checkoutPaymentFields", typeId: "type" },
+        type: { key: "paymentCustomFields", typeId: "type" },
       },
       interfaceId: "pi-from-input",
     });
@@ -486,7 +486,7 @@ describe("Commercetools PaymentRepository", () => {
             checkoutPlacementAttemptReference: attemptReference,
             checkoutTermsInDays: 30,
           },
-          type: { key: "checkoutPaymentFields", typeId: "type" },
+          type: { key: "paymentCustomFields", typeId: "type" },
         },
       ],
       version: 2,
@@ -771,7 +771,7 @@ describe("Commercetools PaymentRepository", () => {
       amountPlanned: checkout.amount,
       custom: {
         fields: {},
-        type: { key: "checkoutPaymentFields" },
+        type: { key: "paymentCustomFields" },
       },
       id: "card-payment-from-provider",
       interfaceId: "pi-from-provider",

@@ -1,10 +1,10 @@
 {
-  "key": "checkoutPaymentFields",
+  "key": "paymentCustomFields",
   "name": {
-    "en-US": "Checkout Payment Fields"
+    "en-US": "Payment Custom Fields"
   },
   "description": {
-    "en-US": "Checkout assertions attached to a Payment"
+    "en-US": "Custom fields persisted on a Payment"
   },
   "resourceTypeIds": ["payment"],
   "fieldDefinitions": [
