@@ -1,10 +1,13 @@
 import {
   CheckoutPayments,
   PaymentAccountReference,
+  PaymentAttemptReference,
   PaymentCheckoutReference,
+  PaymentOrderReference,
 } from "@repo/payments";
 import type {
   PaymentMethodUnavailable,
+  PaymentOperationDeclined,
   PaymentOptions,
   PaymentPreparationUnavailable,
   PaymentProviderFailure,
@@ -43,6 +46,8 @@ import {
   CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutPaymentMethodUnavailable,
+  CheckoutOrderPlacementUnavailable,
+  CheckoutPaymentRejected,
   CheckoutPaymentOptionsUnavailable,
   CheckoutPaymentPreparationRefreshRequired,
   CheckoutProviderFailure,
@@ -74,6 +79,13 @@ import type {
   DeliveryPlanSelection,
   SelectedDeliveryPlan,
 } from "../../domain/delivery-plan";
+import type {
+  OrderRecord,
+  OrderPlacementRejected,
+  OrderPlacementResult,
+  OrderProviderFailure,
+} from "../../domain/order";
+import { toOrderSnapshot } from "../../domain/order";
 import { AddressBook } from "../../services/address-book";
 import type {
   AddressBookGetFailure,
@@ -88,6 +100,7 @@ import type {
 } from "../../services/current-cart";
 import { CurrentCart } from "../../services/current-cart";
 import { DeliveryPlanning } from "../../services/delivery-planning";
+import { Orders } from "../../services/orders";
 import { CheckoutPolicies } from "./checkout-policy";
 import { allowedContactSourcesForCheckout } from "./contact-source-policy";
 import {
@@ -96,6 +109,7 @@ import {
 } from "./delivery-plan-equality";
 import {
   retainExpectedCheckoutMutationFailures,
+  retainExpectedCheckoutOrderPlacementFailures,
   retainExpectedCheckoutReadFailures,
 } from "./failure-policy";
 import { toCheckoutScope } from "./request-context";
@@ -124,6 +138,10 @@ export interface SaveCheckoutShippingOptionsInput {
 export interface SaveCheckoutPaymentOptionsInput {
   readonly cart: CheckoutCartReference;
   readonly selection: CheckoutPaymentSelectionInput;
+}
+
+export interface PlaceCheckoutOrderInput {
+  readonly cart: CheckoutCartReference;
 }
 
 export interface CheckoutSessionSnapshot {
@@ -155,6 +173,15 @@ export type CheckoutSaveShippingOptionsFailure =
 export type CheckoutSavePaymentOptionsFailure =
   | CheckoutPaymentOptionsMutationFailure
   | CheckoutUnavailable;
+
+export type CheckoutPlaceOrderFailure =
+  | CheckoutCartMismatch
+  | CheckoutOrderPlacementUnavailable
+  | CheckoutPaymentPreparationRefreshRequired
+  | CheckoutPaymentRejected
+  | CheckoutProviderFailure
+  | CheckoutUnavailable
+  | OrderPlacementRejected;
 
 const guestBuyerContext: CheckoutBuyerContext = {
   buyerMode: "guest",
@@ -784,12 +811,15 @@ const checkoutMutationReadFailure = (error: CheckoutProviderFailure) =>
     reason: error.reason,
   });
 
+const checkoutPaymentProviderReason = (error: PaymentProviderFailure) =>
+  error.reason === "outcomeUnknown" ? "unavailable" : error.reason;
+
 const paymentPreparationReadFailure = (error: PaymentProviderFailure) =>
   new CheckoutProviderFailure({
     cause: error,
     message: "Failed to prepare Payment Options",
     operation: `checkout.payments.${error.operation}`,
-    reason: error.reason,
+    reason: checkoutPaymentProviderReason(error),
   });
 
 const paymentSaveFailure = (
@@ -818,13 +848,87 @@ const paymentSaveFailure = (
         cause: error,
         message: "Failed to save Payment Options",
         operation: `checkout.payments.${error.operation}`,
-        reason: error.reason,
+        reason: checkoutPaymentProviderReason(error),
       });
     }
     default: {
       return error satisfies never;
     }
   }
+};
+
+const paymentPlacementFailure = (
+  error:
+    | PaymentOperationDeclined
+    | PaymentPreparationUnavailable
+    | PaymentProviderFailure
+) => {
+  switch (error._tag) {
+    case "PaymentOperationDeclined": {
+      return new CheckoutPaymentRejected({
+        message: error.message,
+        operation: error.operation,
+      });
+    }
+    case "PaymentPreparationUnavailable": {
+      return new CheckoutPaymentPreparationRefreshRequired({
+        message: "Card details must be refreshed before placing the Order",
+        preparationReference: error.preparationReference,
+        reason: error.reason,
+      });
+    }
+    case "PaymentProviderFailure": {
+      return new CheckoutProviderFailure({
+        cause: error,
+        message: "Failed to update the Checkout Payment",
+        operation: `checkout.payments.${error.operation}`,
+        reason: checkoutPaymentProviderReason(error),
+      });
+    }
+    default: {
+      return error satisfies never;
+    }
+  }
+};
+
+const orderProviderFailure = (error: OrderProviderFailure) =>
+  new CheckoutProviderFailure({
+    cause: error,
+    message: "Failed to place the Checkout Order",
+    operation: `checkout.orders.${error.operation}`,
+    reason: error.reason,
+  });
+
+const requireCheckoutReadyForOrder = (state: CheckoutState) => {
+  if (
+    state.steps.some(
+      (step) => step.id !== "reviewOrder" && step.status === "incomplete"
+    )
+  ) {
+    return Effect.fail(
+      new CheckoutOrderPlacementUnavailable({
+        message: "Order placement requires every Checkout step",
+        reason: "checkoutIncomplete",
+      })
+    );
+  }
+  if (state.details.preparedPayment === undefined) {
+    return Effect.fail(
+      new CheckoutOrderPlacementUnavailable({
+        message: "Order placement requires saved Payment Options",
+        reason: "paymentMissing",
+      })
+    );
+  }
+  if (state.violations.length > 0) {
+    return Effect.fail(
+      new CheckoutOrderPlacementUnavailable({
+        message: "Checkout policy violations block Order placement",
+        reason: "policyViolation",
+      })
+    );
+  }
+  return Effect.succeed(state.details.preparedPayment);
 };
 
 export class CheckoutSession extends Context.Service<
@@ -842,6 +946,9 @@ export class CheckoutSession extends Context.Service<
       CheckoutPaymentOptionsSnapshot,
       CheckoutPreparePaymentOptionsFailure
     >;
+    readonly placeOrder: (
+      input: PlaceCheckoutOrderInput
+    ) => Effect.Effect<OrderPlacementResult, CheckoutPlaceOrderFailure>;
     readonly saveContact: (
       input: SaveCheckoutContactInput
     ) => Effect.Effect<CheckoutState, CheckoutSaveContactFailure>;
@@ -910,6 +1017,14 @@ export class CheckoutSession extends Context.Service<
     }).pipe(retainExpectedCheckoutReadFailures)
   );
 
+  static readonly placeOrder = Effect.fn("CheckoutSession.placeOrder")(
+    (input: PlaceCheckoutOrderInput) =>
+      Effect.gen(function* () {
+        const session = yield* CheckoutSession;
+        return yield* session.placeOrder(input);
+      }).pipe(retainExpectedCheckoutOrderPlacementFailures)
+  );
+
   static readonly savePaymentOptions = Effect.fn(
     "CheckoutSession.savePaymentOptions"
   )((input: SaveCheckoutPaymentOptionsInput) =>
@@ -928,6 +1043,7 @@ export class CheckoutSession extends Context.Service<
       const addressBook = yield* AddressBook;
       const deliveryPlanning = yield* DeliveryPlanning;
       const checkoutPayments = yield* CheckoutPayments;
+      const orders = yield* Orders;
       const scope = toCheckoutScope(commerceContext);
 
       const paymentBuyer =
@@ -1003,6 +1119,49 @@ export class CheckoutSession extends Context.Service<
           )
         );
 
+      const finalizeOrder = Effect.fn("CheckoutSession.finalizeOrder")(
+        (order: OrderRecord) =>
+          Effect.gen(function* () {
+            const paymentStatus = yield* checkoutPayments
+              .finalize({
+                buyer: paymentBuyer,
+                checkout: {
+                  amount: order.totalPrice,
+                  reference: PaymentCheckoutReference.make(order.cartId),
+                },
+                orderReference: PaymentOrderReference.make(order.id),
+                paymentReference: order.paymentReference,
+              })
+              .pipe(
+                Effect.as("confirmed" as const),
+                Effect.catch((error) => {
+                  const logFailure = Effect.logError(
+                    "Order exists but Payment finalization is pending",
+                    error
+                  ).pipe(
+                    Effect.annotateLogs({
+                      "checkout.operation": "placeOrder.finalizePayment",
+                      "order.id": order.id,
+                    })
+                  );
+                  return error._tag === "PaymentOperationDeclined" ||
+                    error.reason === "unavailable" ||
+                    error.reason === "outcomeUnknown"
+                    ? logFailure.pipe(Effect.as("pending" as const))
+                    : logFailure.pipe(Effect.andThen(Effect.die(error)));
+                })
+              );
+            const paymentMethod = yield* checkoutPayments
+              .getPaymentMethod(order.paymentReference)
+              .pipe(Effect.mapError(paymentPlacementFailure));
+            return {
+              _tag: "Placed" as const,
+              order: toOrderSnapshot(order, paymentMethod),
+              paymentStatus,
+            };
+          })
+      );
+
       return CheckoutSession.of({
         getCurrent: () =>
           requireCurrent().pipe(Effect.map(({ state }) => state)),
@@ -1013,6 +1172,129 @@ export class CheckoutSession extends Context.Service<
               state,
             }))
           ),
+        placeOrder: (input) =>
+          Effect.gen(function* () {
+            if (
+              scope.channel === "storefrontAnonymous" &&
+              scope.anonymousCartId !== input.cart.id
+            ) {
+              return yield* new CheckoutUnavailable({
+                message: "Checkout Cart is inaccessible",
+                reason: "inaccessibleCart",
+              });
+            }
+            const existing = yield* orders
+              .find({ cartId: input.cart.id, scope })
+              .pipe(Effect.mapError(orderProviderFailure));
+            if (Option.isSome(existing)) {
+              return yield* finalizeOrder(existing.value);
+            }
+
+            const { current, state } = yield* requireCurrent();
+            yield* ensureCurrentCartIdentity(
+              current.cart,
+              input.cart,
+              "Payment Options"
+            );
+            const preparedPayment = yield* requireCheckoutReadyForOrder(state);
+            const checkout = paymentCheckoutFor(current.cart);
+            const paymentInput = {
+              buyer: paymentBuyer,
+              checkout,
+              paymentReference: preparedPayment.paymentReference,
+            };
+            const clearPaymentOptionsAfterFailure = <E>(
+              error: E,
+              operation: string
+            ) =>
+              currentCart.clearPaymentOptions().pipe(
+                // oxlint-disable-next-line promise/no-promise-in-callback -- Effect.catch handles a typed Effect failure; this callback does not receive or return a Promise.
+                Effect.catch((clearError) =>
+                  Effect.logError(
+                    "Payment cannot be reused but saved Payment Options could not be cleared",
+                    clearError
+                  ).pipe(
+                    Effect.annotateLogs({
+                      "checkout.operation": operation,
+                    })
+                  )
+                ),
+                Effect.andThen(Effect.fail(error))
+              );
+            const authorization = yield* checkoutPayments
+              .authorize({
+                ...paymentInput,
+                payment: preparedPayment,
+              })
+              .pipe(
+                Effect.mapError(paymentPlacementFailure),
+                Effect.catchTags({
+                  CheckoutPaymentPreparationRefreshRequired: (error) =>
+                    clearPaymentOptionsAfterFailure(
+                      error,
+                      "placeOrder.clearUnusablePaymentOptions"
+                    ),
+                  CheckoutPaymentRejected: (error) =>
+                    clearPaymentOptionsAfterFailure(
+                      error,
+                      "placeOrder.clearRejectedPaymentOptions"
+                    ),
+                })
+              );
+            if (authorization._tag === "ActionRequired") {
+              return {
+                _tag: "PaymentActionRequired" as const,
+                paymentAction: {
+                  clientToken: authorization.clientToken,
+                  method: "card" as const,
+                  provider: authorization.provider,
+                  publicConfiguration: authorization.publicConfiguration,
+                },
+              };
+            }
+
+            const order = yield* orders
+              .place({
+                cartId: current.cart.id,
+                paymentReference: preparedPayment.paymentReference,
+                scope,
+                totalPrice: current.cart.totalPrice,
+              })
+              .pipe(
+                Effect.catchTags({
+                  OrderPlacementOutcomeUnknown: () => Effect.succeed(null),
+                  OrderPlacementRejected: (error) =>
+                    checkoutPayments
+                      .cancelAuthorization({
+                        ...paymentInput,
+                      })
+                      .pipe(
+                        // oxlint-disable-next-line promise/no-promise-in-callback -- Effect.catch handles a typed Effect failure; this callback does not receive or return a Promise.
+                        Effect.catch((cancelError) =>
+                          Effect.logError(
+                            "Order was rejected and Payment authorization release is pending",
+                            cancelError
+                          ).pipe(
+                            Effect.annotateLogs({
+                              "checkout.operation":
+                                "placeOrder.cancelAuthorization",
+                            })
+                          )
+                        ),
+                        Effect.andThen(Effect.fail(error))
+                      ),
+                }),
+                Effect.mapError((error) =>
+                  error._tag === "OrderProviderFailure"
+                    ? orderProviderFailure(error)
+                    : error
+                )
+              );
+            if (order === null) {
+              return { _tag: "PlacementPending" as const };
+            }
+            return yield* finalizeOrder(order);
+          }),
         preparePaymentOptions: () =>
           Effect.gen(function* () {
             const { current, deliveryPlanQuote, state } =
@@ -1133,6 +1415,11 @@ export class CheckoutSession extends Context.Service<
             }
             const preparedPayment = yield* checkoutPayments
               .save({
+                attemptReference: PaymentAttemptReference.make(
+                  `checkout-${current.cart.id}-${yield* Clock.currentTimeMillis}-${Math.abs(
+                    yield* Random.nextInt
+                  )}`
+                ),
                 billingAddress,
                 buyer: paymentBuyer,
                 checkout: paymentCheckoutFor(current.cart),

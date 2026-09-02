@@ -3,6 +3,8 @@
 import type { CheckoutPaymentOptionsRendererProps } from "@repo/commerce/checkout";
 import { CheckoutPaymentOptionsForm } from "@repo/commerce/checkout/payment-options-form";
 import type { CardPaymentPreparationResult } from "@repo/commerce/checkout/payment-options-form";
+import type { CheckoutPlaceOrderFormProps } from "@repo/commerce/checkout/place-order-form";
+import { CheckoutPlaceOrderForm } from "@repo/commerce/checkout/place-order-form";
 import { PaymentConfirmationReference } from "@repo/payments";
 import {
   PaymentElement,
@@ -159,5 +161,43 @@ export function CheckoutStripePaymentOptionsForm(
     >
       <StripeCardPaymentOptionsForm {...props} />
     </PaymentElementsBoundary>
+  );
+}
+
+export function CheckoutStripePlaceOrderForm(
+  props: Omit<CheckoutPlaceOrderFormProps, "completePaymentAction">
+) {
+  return (
+    <CheckoutPlaceOrderForm
+      {...props}
+      completePaymentAction={async (action) => {
+        if (action.provider !== "Stripe") {
+          return {
+            message: `Payment action belongs to unsupported provider ${action.provider}.`,
+            succeeded: false,
+          };
+        }
+        const stripe = await stripeFor(action.publicConfiguration);
+        if (stripe === null) {
+          return { message: "Stripe could not be loaded.", succeeded: false };
+        }
+        try {
+          const result = await stripe.handleNextAction({
+            clientSecret: action.clientToken,
+          });
+          return result.error === undefined
+            ? { succeeded: true }
+            : { message: result.error.message, succeeded: false };
+        } catch (error) {
+          return {
+            message:
+              error instanceof Error
+                ? error.message
+                : "Stripe could not complete Card authentication.",
+            succeeded: false,
+          };
+        }
+      }}
+    />
   );
 }

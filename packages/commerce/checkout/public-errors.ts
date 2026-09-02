@@ -14,6 +14,7 @@ import {
   DeliveryPlanReference,
   ShippingOptionReference,
 } from "../domain/delivery-plan";
+import { OrderRejectionReason } from "../domain/order";
 import { checkoutApiErrorMessage } from "../http/checkout-api-messages";
 import type { CheckoutApiErrorCode } from "../http/checkout-api-messages";
 import type {
@@ -22,6 +23,7 @@ import type {
   CheckoutPreparePaymentOptionsFailure,
   CheckoutSavePaymentOptionsFailure,
   CheckoutSaveShippingOptionsFailure,
+  CheckoutPlaceOrderFailure,
 } from "../lib/checkout/checkout-session";
 import type { NextCommerceRequestError } from "../runtime";
 
@@ -332,6 +334,7 @@ const PublicCheckoutPaymentPreparationRefreshRequired = definePublicError({
     preparationReference: PreparedPaymentReference,
     reason: Schema.Literals([
       "amountChanged",
+      "authorizationReleased",
       "notFound",
       "confirmationUnavailable",
     ]),
@@ -377,6 +380,49 @@ const PublicCheckoutPaymentOptionsUnavailable = definePublicError({
 const PublicCheckoutPaymentOptionsReadProviderFailure = definePublicError({
   category: "unavailable",
   code: "checkout.paymentOptions.providerFailure",
+  fields: {},
+  recovery: "retry",
+  status: 503,
+  tag: "CheckoutProviderFailure",
+});
+
+const PublicCheckoutOrderPlacementUnavailable = definePublicError({
+  category: "conflict",
+  code: "checkout.orderPlacement.unavailable",
+  fields: {
+    reason: Schema.Literals([
+      "checkoutIncomplete",
+      "paymentChanged",
+      "paymentMissing",
+      "policyViolation",
+    ]),
+  },
+  recovery: "refresh",
+  status: 409,
+  tag: "CheckoutOrderPlacementUnavailable",
+});
+
+const PublicCheckoutPaymentRejected = definePublicError({
+  category: "conflict",
+  code: "checkout.orderPlacement.paymentRejected",
+  fields: { operation: Schema.Literals(["authorize", "capture"]) },
+  recovery: "fix_input",
+  status: 422,
+  tag: "CheckoutPaymentRejected",
+});
+
+const PublicCheckoutOrderRejected = definePublicError({
+  category: "conflict",
+  code: "checkout.orderPlacement.rejected",
+  fields: { reason: OrderRejectionReason },
+  recovery: "refresh",
+  status: 409,
+  tag: "OrderPlacementRejected",
+});
+
+const PublicCheckoutOrderProviderFailure = definePublicError({
+  category: "unavailable",
+  code: "checkout.orderPlacement.providerFailure",
   fields: {},
   recovery: "retry",
   status: 503,
@@ -962,6 +1008,96 @@ export function projectSaveCheckoutPaymentOptionsFailure(
     case "CheckoutMutationProviderFailure": {
       return PublicCheckoutPaymentProviderFailure.make({
         message: message(locale, "checkout.paymentOptions.providerFailure"),
+      });
+    }
+    case "CheckoutUnavailable": {
+      return PublicCheckoutUnavailable.make({
+        message: message(locale, "checkout.notFound"),
+        reason: error.reason,
+      });
+    }
+    case "CommerceAccountUnavailable":
+    case "CommerceRequestContextNotFound": {
+      return projectCheckoutRequestFailure(error, locale);
+    }
+    default: {
+      return absurd(error);
+    }
+  }
+}
+
+export const PlaceCheckoutOrderOperationPublicErrors = [
+  PublicCheckoutOrderPlacementUnavailable.schema,
+  PublicCheckoutPaymentRejected.schema,
+  PublicCheckoutPaymentPreparationRefreshRequired.schema,
+  PublicCheckoutOrderRejected.schema,
+  PublicCheckoutCartMismatch.schema,
+  PublicCheckoutOrderProviderFailure.schema,
+  PublicCheckoutUnavailable.schema,
+] as const;
+export const PlaceCheckoutOrderOperationPublicError = Schema.Union(
+  PlaceCheckoutOrderOperationPublicErrors
+);
+export type PlaceCheckoutOrderOperationPublicError =
+  typeof PlaceCheckoutOrderOperationPublicError.Type;
+export const PlaceCheckoutOrderPublicError = Schema.Union([
+  ...PlaceCheckoutOrderOperationPublicErrors,
+  ...CheckoutRequestPublicErrors,
+]);
+export type PlaceCheckoutOrderPublicError =
+  typeof PlaceCheckoutOrderPublicError.Type;
+
+export function projectPlaceCheckoutOrderFailure(
+  error: CheckoutPlaceOrderFailure,
+  locale: string
+): PlaceCheckoutOrderOperationPublicError;
+export function projectPlaceCheckoutOrderFailure(
+  error: CheckoutPlaceOrderFailure | NextCommerceRequestError,
+  locale: string
+): PlaceCheckoutOrderPublicError;
+export function projectPlaceCheckoutOrderFailure(
+  error: CheckoutPlaceOrderFailure | NextCommerceRequestError,
+  locale: string
+): PlaceCheckoutOrderPublicError {
+  switch (error._tag) {
+    case "CheckoutOrderPlacementUnavailable": {
+      return PublicCheckoutOrderPlacementUnavailable.make({
+        message: message(locale, "checkout.versionConflict"),
+        reason: error.reason,
+      });
+    }
+    case "CheckoutPaymentRejected": {
+      return PublicCheckoutPaymentRejected.make({
+        message: error.message,
+        operation: error.operation,
+      });
+    }
+    case "CheckoutPaymentPreparationRefreshRequired": {
+      return PublicCheckoutPaymentPreparationRefreshRequired.make({
+        message: message(
+          locale,
+          "checkout.paymentOptions.preparationRefreshRequired"
+        ),
+        preparationReference: error.preparationReference,
+        reason: error.reason,
+      });
+    }
+    case "OrderPlacementRejected": {
+      return PublicCheckoutOrderRejected.make({
+        message: error.message,
+        reason: error.reason,
+      });
+    }
+    case "CheckoutCartMismatch": {
+      return PublicCheckoutCartMismatch.make({
+        currentCartId: error.currentCartId,
+        message: message(locale, "checkout.cartMismatch"),
+        submittedCartId: error.submittedCartId,
+      });
+    }
+    case "CheckoutProviderFailure": {
+      return PublicCheckoutOrderProviderFailure.make({
+        message: message(locale, "checkout.internal"),
       });
     }
     case "CheckoutUnavailable": {

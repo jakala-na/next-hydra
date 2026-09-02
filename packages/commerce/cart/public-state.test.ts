@@ -1,5 +1,5 @@
 import {
-  PaymentConfirmationReference,
+  PaymentAttemptReference,
   PaymentReference,
   PreparedPaymentReference,
 } from "@repo/payments";
@@ -14,15 +14,13 @@ describe(toCartPublicState, () => {
   it("removes internal Payment references from the browser Cart state", () => {
     const preparedPayment = {
       amount: { centAmount: 1_700_000, currencyCode: "USD" },
+      attemptReference: PaymentAttemptReference.make("private-attempt"),
       billingAddress: {
         addressLine1: "1 Private Payment Way",
         city: "New York",
         country: "US",
         postalCode: "10001",
       },
-      confirmationReference: PaymentConfirmationReference.make(
-        "private-confirmation-reference"
-      ),
       method: "card" as const,
       paymentReference: PaymentReference.make("private-payment-reference"),
       preparationReference: PreparedPaymentReference.make(
@@ -48,9 +46,11 @@ describe(toCartPublicState, () => {
       amount: preparedPayment.amount,
       method: "card",
     });
+    expect(JSON.stringify(projected)).not.toContain(
+      preparedPayment.attemptReference
+    );
     const serialized = JSON.stringify(projected);
     expect(serialized).not.toContain(preparedPayment.paymentReference);
     expect(serialized).not.toContain(preparedPayment.preparationReference);
-    expect(serialized).not.toContain(preparedPayment.confirmationReference);
   });
 });

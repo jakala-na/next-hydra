@@ -8,6 +8,7 @@ import {
   makeCheckoutAuthenticationUnavailable,
   makeCheckoutUnauthenticated,
   projectCheckoutReadFailure,
+  projectPlaceCheckoutOrderFailure,
   projectPrepareCheckoutPaymentOptionsFailure,
   projectCheckoutRequestFailure,
   projectSaveCheckoutContactFailure,
@@ -367,6 +368,18 @@ const makeCheckoutHttpHandlers = () =>
     Effect.fn("makeCheckoutHttpHandlers")((handlers) =>
       Effect.succeed(
         handlers
+          .handle("placeOrder", ({ headers, payload }) =>
+            CheckoutSession.placeOrder({
+              cart: payload.cart,
+            }).pipe(
+              Effect.mapError((error) =>
+                projectPlaceCheckoutOrderFailure(
+                  error,
+                  headers["x-context-locale"]
+                )
+              )
+            )
+          )
           .handle("current", ({ headers }) =>
             CheckoutSession.getCurrentWithDeliveryPlans().pipe(
               Effect.map(toCheckoutApiSnapshot),

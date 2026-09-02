@@ -16,11 +16,14 @@ import {
   CountryCodeFromString,
 } from "../domain/checkout";
 import { DeliveryPlanSelection } from "../domain/delivery-plan";
+import { OrderPlacementResult } from "../domain/order";
 import type {
   SaveCheckoutContactInput,
   SaveCheckoutDeliveryDetailsInput,
   SaveCheckoutPaymentOptionsInput,
   SaveCheckoutShippingOptionsInput,
+  PlaceCheckoutOrderInput,
+  CheckoutPlaceOrderFailure,
 } from "../lib/checkout/checkout-session";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import type { CommerceActionClient } from "../runtime";
@@ -29,6 +32,7 @@ import {
   SaveCheckoutDeliveryDetailsActionError,
   SaveCheckoutPaymentOptionsActionError,
   SaveCheckoutShippingOptionsActionError,
+  PlaceCheckoutOrderActionError,
 } from "./action-contract";
 import type {
   CheckoutSaveContactExpectedFailure,
@@ -41,6 +45,7 @@ import {
   projectSaveCheckoutDeliveryDetailsFailure,
   projectSaveCheckoutPaymentOptionsFailure,
   projectSaveCheckoutShippingOptionsFailure,
+  projectPlaceCheckoutOrderFailure,
 } from "./public-errors";
 import { CheckoutPublicState, toCheckoutPublicState } from "./public-state";
 import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
@@ -116,6 +121,12 @@ const SaveCheckoutPaymentOptionsForm = Schema.fromFormData(
       method: Schema.Literal("netTerms"),
     }),
   ])
+);
+
+const PlaceCheckoutOrderForm = Schema.fromFormData(
+  Schema.Struct({
+    cartId: CartId,
+  })
 );
 
 const optionalNonEmptyString = (value: string | undefined) =>
@@ -227,6 +238,12 @@ const toSaveCheckoutPaymentOptionsInput = (
   },
 });
 
+const toPlaceCheckoutOrderInput = (
+  input: typeof PlaceCheckoutOrderForm.Type
+): PlaceCheckoutOrderInput => ({
+  cart: { id: input.cartId },
+});
+
 const saveCheckoutContactProgram = Effect.fn("CheckoutAction.saveContact")(
   (input: typeof SaveCheckoutContactForm.Type) =>
     CheckoutSession.saveContact(toSaveCheckoutContactInput(input)).pipe(
@@ -256,6 +273,11 @@ const saveCheckoutPaymentOptionsProgram = Effect.fn(
   CheckoutSession.savePaymentOptions(
     toSaveCheckoutPaymentOptionsInput(input)
   ).pipe(Effect.map(toCheckoutPublicState))
+);
+
+const placeCheckoutOrderProgram = Effect.fn("CheckoutAction.placeOrder")(
+  (input: typeof PlaceCheckoutOrderForm.Type) =>
+    CheckoutSession.placeOrder(toPlaceCheckoutOrderInput(input))
 );
 
 const toCheckoutMutationIssuePath = (
@@ -396,12 +418,30 @@ const checkoutPaymentOptionsInputIssues = (
   );
 };
 
+const checkoutPlaceOrderInputIssues = (error: Schema.SchemaError) =>
+  checkoutInputIssues(
+    error,
+    "Checkout Place Order action input is invalid",
+    (path) => path === "root" || path === "cartId"
+  );
+
 export const makeCheckoutProcedures = <
   RuntimeServices,
   Context extends { readonly locale: string },
 >(
   actions: CommerceActionClient<CheckoutSession, RuntimeServices, Context>
 ) => ({
+  placeCheckoutOrderProcedure: actions
+    .procedure("CheckoutAction.placeOrder")
+    .input(PlaceCheckoutOrderForm)
+    .output(OrderPlacementResult)
+    .error(PlaceCheckoutOrderActionError)
+    .mapInputIssues(checkoutPlaceOrderInputIssues)
+    // oxlint-disable-next-line promise/prefer-await-to-callbacks -- This is an Effect action error mapper, not Promise control flow.
+    .mapError<CheckoutPlaceOrderFailure>((error, { locale }) =>
+      projectPlaceCheckoutOrderFailure(error, locale)
+    )
+    .handle(placeCheckoutOrderProgram),
   saveCheckoutContactProcedure: actions
     .procedure("CheckoutAction.saveContact")
     .input(SaveCheckoutContactForm)

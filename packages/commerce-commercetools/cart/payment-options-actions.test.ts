@@ -1,5 +1,6 @@
 import { CountryCode } from "@repo/commerce/domain/checkout";
 import {
+  PaymentAttemptReference,
   PaymentConfirmationReference,
   PaymentReference,
   PreparedPaymentReference,
@@ -19,6 +20,7 @@ describe(buildSavePaymentOptionsActions, () => {
     );
     const payment = {
       amount: { centAmount: 1_700_000, currencyCode: "USD" },
+      attemptReference: PaymentAttemptReference.make("attempt-from-input"),
       billingAddress: {
         addressLine1: "1 Parameterized Way",
         addressLine2: "Suite 2",
@@ -69,6 +71,7 @@ describe(buildSavePaymentOptionsActions, () => {
       { paymentIds: [] },
       {
         amount: { centAmount: 1_700_000, currencyCode: "USD" },
+        attemptReference: PaymentAttemptReference.make("attempt-from-input"),
         billingAddress: {
           addressLine1: "1 Parameterized Way",
           city: "Testville",

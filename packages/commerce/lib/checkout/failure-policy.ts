@@ -3,12 +3,17 @@ import { Effect, Filter } from "effect";
 
 import type {
   CheckoutMutationProviderFailure,
+  CheckoutCartMismatch,
   CheckoutPaymentOptionsUnavailable,
   CheckoutProviderFailure,
   CheckoutMutationFailure,
   CheckoutMutationUnsupported,
+  CheckoutOrderPlacementUnavailable,
+  CheckoutPaymentPreparationRefreshRequired,
+  CheckoutPaymentRejected,
   CheckoutUnavailable,
 } from "../../domain/checkout";
+import type { OrderPlacementRejected } from "../../domain/order";
 
 type CheckoutDiagnosticFailure =
   | CheckoutMutationProviderFailure
@@ -21,6 +26,14 @@ type CheckoutSessionReadFailure =
   | CheckoutPaymentOptionsUnavailable
   | CheckoutProviderFailure
   | CheckoutUnavailable;
+type CheckoutSessionOrderPlacementFailure =
+  | CheckoutCartMismatch
+  | CheckoutOrderPlacementUnavailable
+  | CheckoutPaymentPreparationRefreshRequired
+  | CheckoutPaymentRejected
+  | CheckoutProviderFailure
+  | CheckoutUnavailable
+  | OrderPlacementRejected;
 
 const logCheckoutDiagnosticFailure = (error: CheckoutDiagnosticFailure) =>
   Effect.logError(
@@ -74,6 +87,26 @@ export const retainExpectedCheckoutMutationFailures = <
 export const retainExpectedCheckoutReadFailures = <
   A,
   E extends CheckoutSessionReadFailure,
+  R,
+>(
+  program: Effect.Effect<A, E, R>
+) =>
+  program.pipe(
+    Effect.catchFilter(Filter.tagged("CheckoutProviderFailure"), (error) =>
+      error.reason === "unavailable"
+        ? Effect.fail(error)
+        : defectCheckoutFailure(error)
+    ),
+    Effect.tapError((error) =>
+      error._tag === "CheckoutProviderFailure"
+        ? logCheckoutDiagnosticFailure(error)
+        : Effect.void
+    )
+  );
+
+export const retainExpectedCheckoutOrderPlacementFailures = <
+  A,
+  E extends CheckoutSessionOrderPlacementFailure,
   R,
 >(
   program: Effect.Effect<A, E, R>

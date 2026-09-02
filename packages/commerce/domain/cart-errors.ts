@@ -12,6 +12,7 @@ export const CartOperation = Schema.Literals([
   "addItem",
   "setLineItemQuantity",
   "removeLineItem",
+  "clearPaymentOptions",
   "saveContact",
   "saveDeliveryDetails",
   "savePaymentOptions",

@@ -13,6 +13,7 @@
     "./cart/public-state": "./cart/public-state.ts",
     "./checkout": "./checkout/index.ts",
     "./checkout/payment-options-form": "./checkout/payment-options-form.tsx",
+    "./checkout/place-order-form": "./checkout/place-order-form.tsx",
     "./checkout/procedures": "./checkout/procedures.ts",
     "./checkout/public-errors": "./checkout/public-errors.ts",
     "./customer-account": "./customer-account/index.ts",
@@ -31,6 +32,7 @@
     "./domain/commerce-account": "./domain/commerce-account.ts",
     "./domain/commerce-request-context": "./domain/commerce-request-context.ts",
     "./domain/money": "./domain/money.ts",
+    "./domain/order": "./domain/order.ts",
     "./domain/provider-failure": "./domain/provider-failure.ts",
     "./e2e/checkout-expectations": "./e2e/checkout-expectations.ts",
     "./e2e/checkout-scenario": "./e2e/checkout-scenario.ts",
@@ -50,6 +52,9 @@
     "./lib/checkout/checkout-session": "./lib/checkout/checkout-session.ts",
     "./lib/checkout/delivery-details-equality": "./lib/checkout/delivery-details-equality.ts",
     "./lib/current-cart/cookie": "./lib/current-cart/cookie.ts",
+    "./lib/order/utils/anonymous-order-access-cookie": "./lib/order/utils/anonymous-order-access-cookie.ts",
+    "./lib/order/order-confirmation": "./lib/order/order-confirmation.ts",
+    "./lib/order/utils/order-placement-recovery-cookie": "./lib/order/utils/order-placement-recovery-cookie.ts",
     "./product": "./product/index.ts",
     "./product/product-collection": "./product/product-collection.tsx",
     "./product/product-detail": "./product/product-detail.tsx",
@@ -63,6 +68,7 @@
     "./services/customer-account-members": "./services/customer-account-members.ts",
     "./services/current-cart": "./services/current-cart.ts",
     "./services/delivery-planning": "./services/delivery-planning.ts",
+    "./services/orders": "./services/orders.ts",
     "./store": "./store/index.ts"
   },
   "scripts": {

@@ -1,6 +1,6 @@
 import { ActionClient, ActionMiddleware } from "@repo/actions";
 import {
-  PaymentConfirmationReference,
+  PaymentAttemptReference,
   PaymentReference,
   PreparedPaymentReference,
 } from "@repo/payments";
@@ -173,6 +173,7 @@ const makeCheckoutHarness = (options?: {
         },
         state: checkoutState,
       }),
+    placeOrder: () => Effect.die("not used"),
     preparePaymentOptions: () => Effect.die("not used"),
     saveContact:
       options?.saveContact ??
@@ -371,10 +372,8 @@ describe("Checkout boundaries", () => {
   it("projects internal payment references out of Action success values", async () => {
     const preparedPayment = {
       amount: checkoutState.cart.totalPrice,
+      attemptReference: PaymentAttemptReference.make("private-attempt"),
       billingAddress: shippingAddress.address,
-      confirmationReference: PaymentConfirmationReference.make(
-        "private-confirmation-reference"
-      ),
       method: "card" as const,
       paymentReference: PaymentReference.make("private-payment-reference"),
       preparationReference: PreparedPaymentReference.make(
@@ -400,8 +399,8 @@ describe("Checkout boundaries", () => {
     const serialized = JSON.stringify(result);
 
     expect(serialized).not.toContain(preparedPayment.paymentReference);
+    expect(serialized).not.toContain(preparedPayment.attemptReference);
     expect(serialized).not.toContain(preparedPayment.preparationReference);
-    expect(serialized).not.toContain(preparedPayment.confirmationReference);
   });
 
   it("uses the native delivery address choice as the submitted Address Book reference", async () => {

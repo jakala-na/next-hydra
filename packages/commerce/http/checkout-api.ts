@@ -15,6 +15,7 @@ import {
   CheckoutAuthenticationUnavailable,
   CheckoutCurrentOperationPublicErrors,
   PrepareCheckoutPaymentOptionsOperationPublicErrors,
+  PlaceCheckoutOrderOperationPublicErrors,
   CheckoutRequestPublicErrors,
   CheckoutUnauthenticated,
   SaveCheckoutContactOperationPublicErrors,
@@ -33,6 +34,7 @@ import {
   DeliveryPlanQuote,
   DeliveryPlanSelection,
 } from "../domain/delivery-plan";
+import { OrderPlacementResult } from "../domain/order";
 import type { CheckoutSession } from "../lib/checkout/checkout-session";
 import { CommerceRequestHeaders } from "./commerce-request";
 
@@ -78,6 +80,12 @@ export class SaveCheckoutPaymentOptionsRequest extends Schema.Class<SaveCheckout
 )({
   cart: CheckoutCartReference,
   selection: CheckoutPaymentSelectionInput,
+}) {}
+
+export class PlaceCheckoutOrderRequest extends Schema.Class<PlaceCheckoutOrderRequest>(
+  "PlaceCheckoutOrderRequest"
+)({
+  cart: CheckoutCartReference,
 }) {}
 
 export class CheckoutSchemaErrorMiddleware extends HttpApiMiddleware.Service<
@@ -140,6 +148,14 @@ export class CheckoutApiGroup extends HttpApiGroup.make("checkout")
         success: CheckoutApiPaymentOptionsSnapshot,
       }
     ).annotateMerge(optionalAccessTokenOpenApi("Prepare payment options"))
+  )
+  .add(
+    HttpApiEndpoint.post("placeOrder", "/checkout/orders", {
+      error: PlaceCheckoutOrderOperationPublicErrors,
+      headers: CommerceRequestHeaders,
+      payload: PlaceCheckoutOrderRequest,
+      success: OrderPlacementResult,
+    }).annotateMerge(optionalAccessTokenOpenApi("Place the checkout order"))
   )
   .add(
     HttpApiEndpoint.post("saveContact", "/checkout/contact", {

@@ -52,6 +52,7 @@ import { CurrencyCode } from "@repo/commerce/domain/money";
 import { Carts } from "@repo/commerce/services/carts";
 import type {
   AddCartItem,
+  ClearCartPaymentOptions,
   CreateAnonymousCart,
   CreateBusinessUnitCart,
   FindActiveCartsForBusinessUnit,
@@ -68,6 +69,7 @@ import type { Locale } from "@repo/i18n/types";
 import {
   cardPreparationReferenceFor,
   PaymentCheckoutReference,
+  PaymentProviderReference,
   PreparedPayment as PreparedPaymentSchema,
 } from "@repo/payments";
 import type { PreparedPayment } from "@repo/payments";
@@ -100,7 +102,7 @@ import {
 } from "../delivery-planning/references";
 import { readFragment } from "../graphql";
 import {
-  PAYMENT_CONFIRMATION_REFERENCE_FIELD,
+  PAYMENT_ATTEMPT_REFERENCE_FIELD,
   PAYMENT_CUSTOM_TYPE_KEY,
   PAYMENT_TERMS_IN_DAYS_FIELD,
 } from "../payment-repository/custom-fields";
@@ -518,24 +520,22 @@ const preparedPaymentFrom = (
   };
   const common = {
     amount: payment.amountPlanned,
+    attemptReference: paymentCustomField(
+      payment,
+      PAYMENT_ATTEMPT_REFERENCE_FIELD
+    ),
     billingAddress,
     paymentReference: payment.id,
   };
-
   if (
     payment.paymentMethodInfo.method === "card" &&
     payment.key === cardPaymentKeyForCheckout(cartId) &&
-    payment.interfaceId !== null &&
-    payment.interfaceId !== undefined &&
+    Schema.is(PaymentProviderReference)(payment.interfaceId) &&
     payment.paymentMethodInfo.paymentInterface !== null &&
     payment.paymentMethodInfo.paymentInterface !== undefined
   ) {
     return Schema.decodeUnknownOption(PreparedPaymentSchema)({
       ...common,
-      confirmationReference: paymentCustomField(
-        payment,
-        PAYMENT_CONFIRMATION_REFERENCE_FIELD
-      ),
       method: "card",
       preparationReference: cardPreparationReferenceFor(checkout),
     });
@@ -1913,8 +1913,30 @@ export const cartsLayer = Layer.effect(
       return yield* toCart(refreshed, operation);
     });
 
+    const clearPaymentOptions = Effect.fn("Carts.clearPaymentOptions")(
+      function* (input: ClearCartPaymentOptions) {
+        const operation: CartOperation = "clearPaymentOptions";
+        const cart = yield* loadTargetCart(input.target, operation);
+        const actions = clearSelectedPaymentActions(cart);
+        if (actions.length > 0) {
+          yield* writeTargetCart({
+            actions,
+            profile: standardCartWrite,
+            projectFailure: (cause) =>
+              failedWrite(operation, input.target.id, cause),
+            retryConcurrentModification: false,
+            target: input.target,
+            version: cart.version,
+          });
+        }
+        const refreshed = yield* loadTargetCart(input.target, operation);
+        return yield* toCart(refreshed, operation);
+      }
+    );
+
     return Carts.of({
       addItem,
+      clearPaymentOptions,
       createAnonymous,
       createForBusinessUnit,
       findActiveForBusinessUnit,

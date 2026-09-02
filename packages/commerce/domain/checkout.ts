@@ -464,9 +464,31 @@ export class CheckoutPaymentPreparationRefreshRequired extends Schema.TaggedErro
     preparationReference: PreparedPaymentReference,
     reason: Schema.Literals([
       "amountChanged",
+      "authorizationReleased",
       "notFound",
       "confirmationUnavailable",
     ]),
+  }
+) {}
+
+export class CheckoutOrderPlacementUnavailable extends Schema.TaggedError<CheckoutOrderPlacementUnavailable>()(
+  "CheckoutOrderPlacementUnavailable",
+  {
+    message: Schema.String,
+    reason: Schema.Literals([
+      "checkoutIncomplete",
+      "paymentChanged",
+      "paymentMissing",
+      "policyViolation",
+    ]),
+  }
+) {}
+
+export class CheckoutPaymentRejected extends Schema.TaggedError<CheckoutPaymentRejected>()(
+  "CheckoutPaymentRejected",
+  {
+    message: Schema.String,
+    operation: Schema.Literals(["authorize", "capture"]),
   }
 ) {}
 

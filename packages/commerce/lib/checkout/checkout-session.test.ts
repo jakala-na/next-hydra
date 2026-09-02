@@ -49,6 +49,7 @@ import {
   DeliveryPlanning,
   DeliveryPlanningProviderFailure,
 } from "../../services/delivery-planning";
+import { Orders } from "../../services/orders";
 import { CommerceLocale, Store, StoreKey } from "../../store";
 import type { CurrentCartCookie } from "../current-cart/cookie";
 import { CheckoutPolicies } from "./checkout-policy";
@@ -109,7 +110,8 @@ const provideCheckout = <A, E>(
     CheckoutPayments.unavailableLayer,
     commerceAccounts,
     checkoutPaymentsOverride,
-    deliveryPlanningOverride
+    deliveryPlanningOverride,
+    Orders.layerMemory()
   );
   const commerceContext = CommerceContext.layer(context).pipe(
     Layer.provide(commerceAccounts)
@@ -163,7 +165,8 @@ const provideCustomerCheckout = <A, E>(
     CheckoutPolicies.layerEmpty,
     CheckoutPayments.unavailableLayer,
     commerceAccounts,
-    DeliveryPlanning.emptyLayer
+    DeliveryPlanning.emptyLayer,
+    Orders.layerMemory()
   );
   const addressBook = AddressBook.layerMemory().pipe(
     Layer.provide(commerceContext)
@@ -969,10 +972,15 @@ describe(CheckoutSession, () => {
           });
 
           expect(state.activeStep).toBe("reviewOrder");
+          const attemptReference =
+            state.details.preparedPayment?.attemptReference;
+          if (!(attemptReference ?? "").startsWith("checkout-cart-1-")) {
+            return yield* Effect.die("Expected a Cart-scoped Payment attempt");
+          }
           expect(state.details.preparedPayment).toStrictEqual({
             amount: readyCart.totalPrice,
+            attemptReference,
             billingAddress: shippingAddress,
-            confirmationReference,
             method: "card",
             paymentReference,
             preparationReference,

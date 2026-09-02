@@ -12,23 +12,30 @@ import type {
   SaveCheckoutDeliveryDetailsAction,
   SaveCheckoutPaymentOptionsAction,
   SaveCheckoutShippingOptionsAction,
+  PlaceCheckoutOrderAction,
 } from "./action-contract";
 import { CheckoutView } from "./checkout-view";
-import type { CheckoutPaymentOptionsRenderer } from "./checkout-view";
+import type {
+  CheckoutPaymentOptionsRenderer,
+  CheckoutPlaceOrderRenderer,
+} from "./checkout-view";
 
 export async function CheckoutPage({
   actions,
   locale,
   renderPaymentOptions,
+  renderPlaceOrder,
 }: {
   readonly actions: {
     readonly saveContact: SaveCheckoutContactAction;
     readonly saveDeliveryDetails: SaveCheckoutDeliveryDetailsAction;
     readonly savePaymentOptions: SaveCheckoutPaymentOptionsAction;
     readonly saveShippingOptions: SaveCheckoutShippingOptionsAction;
+    readonly placeOrder: PlaceCheckoutOrderAction;
   };
   readonly locale: Locale;
   readonly renderPaymentOptions: CheckoutPaymentOptionsRenderer;
+  readonly renderPlaceOrder: CheckoutPlaceOrderRenderer;
 }) {
   await connection();
 
@@ -88,6 +95,7 @@ export async function CheckoutPage({
   return (
     <CheckoutView
       actions={{
+        placeOrder: actions.placeOrder,
         saveContact: actions.saveContact,
         saveDeliveryDetails: actions.saveDeliveryDetails,
         savePaymentOptions: actions.savePaymentOptions,
@@ -97,6 +105,7 @@ export async function CheckoutPage({
       locale={locale}
       paymentOptions={pageData.paymentOptions}
       renderPaymentOptions={renderPaymentOptions}
+      renderPlaceOrder={renderPlaceOrder}
       shippingAddressOptions={pageData.shippingAddressOptions}
       state={pageData.snapshot.state}
     />

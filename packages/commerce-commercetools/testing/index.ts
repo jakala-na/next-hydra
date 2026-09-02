@@ -7,6 +7,7 @@ export {
 export { CommercetoolsRestClient } from "../client/rest-client";
 export { makeCommercetoolsNetTermsTestControl } from "./net-terms-test-control";
 export { makeCommercetoolsPaymentTestControl } from "./payment-test-control";
+export { makeCommercetoolsOrderTestControl } from "./order-test-control";
 export {
   makeCommercetoolsShippingOptionsTestControl,
   shippingOptionsTestControlLayer,

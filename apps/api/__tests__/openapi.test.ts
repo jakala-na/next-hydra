@@ -44,6 +44,11 @@ const documentedOperations = [
     path: "/checkout/shipping-options",
   },
   {
+    method: "post",
+    operationId: "checkout.placeOrder",
+    path: "/checkout/orders",
+  },
+  {
     method: "get",
     operationId: "registrations.list",
     path: "/registrations",
@@ -138,8 +143,10 @@ describe("OpenAPI", () => {
       applicationOpenApi.paths["/checkout/shipping-options"]?.post;
     const savePaymentOptions =
       applicationOpenApi.paths["/checkout/payment-options"]?.post;
+    const placeOrder = applicationOpenApi.paths["/checkout/orders"]?.post;
     const checkoutOperations = [
       currentCheckout,
+      placeOrder,
       preparePaymentOptions,
       saveContact,
       saveDeliveryDetails,
@@ -173,6 +180,9 @@ describe("OpenAPI", () => {
     );
     expect(JSON.stringify(savePaymentOptions?.responses)).toContain(
       "checkout.paymentOptions.providerFailure"
+    );
+    expect(JSON.stringify(placeOrder?.responses)).toContain(
+      "checkout.orderPlacement.providerFailure"
     );
   });
 

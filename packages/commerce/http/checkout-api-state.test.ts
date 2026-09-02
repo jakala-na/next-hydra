@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import {
-  PaymentConfirmationReference,
+  PaymentAttemptReference,
   PaymentReference,
   PreparedPaymentReference,
 } from "@repo/payments";
@@ -24,10 +24,8 @@ describe(toCheckoutApiState, () => {
     };
     const preparedPayment = {
       amount,
+      attemptReference: PaymentAttemptReference.make("private-attempt"),
       billingAddress,
-      confirmationReference: PaymentConfirmationReference.make(
-        "private-confirmation-reference"
-      ),
       method: "card" as const,
       paymentReference: PaymentReference.make("private-payment-reference"),
       preparationReference: PreparedPaymentReference.make(
@@ -80,6 +78,5 @@ describe(toCheckoutApiState, () => {
     const serialized = JSON.stringify(projected);
     expect(serialized).not.toContain(preparedPayment.paymentReference);
     expect(serialized).not.toContain(preparedPayment.preparationReference);
-    expect(serialized).not.toContain(preparedPayment.confirmationReference);
   });
 });

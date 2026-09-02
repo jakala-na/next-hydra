@@ -11,6 +11,7 @@ import {
   commerceAccountsLayer,
   commerceCompanyMembershipsLayer,
   deliveryPlanningLayer,
+  ordersLayer,
   productDiscoveryLayer,
 } from "@repo/commerce-provider/provider";
 import {
@@ -52,6 +53,9 @@ export const CommerceApp = makeCommerceApp({
   commerceCompanyMembershipsLayer: Layer.orDie(commerceCompanyMembershipsLayer),
   deliveryPlanningLayer: Layer.orDie(
     deliveryPlanningLayer.pipe(Layer.provide(commercetoolsClientsLayer))
+  ),
+  ordersLayer: Layer.orDie(
+    ordersLayer.pipe(Layer.provide(commercetoolsClientsLayer))
   ),
   productDiscoveryLayer: Layer.orDie(productDiscoveryLayer),
 });

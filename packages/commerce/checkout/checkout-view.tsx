@@ -11,6 +11,7 @@ import type { DeliveryPlanQuote } from "../domain/delivery-plan";
 import { checkoutViolationMessage } from "../lib/checkout/violation-message";
 import { CommerceLocale } from "../store";
 import type {
+  PlaceCheckoutOrderAction,
   SaveCheckoutContactAction,
   SaveCheckoutDeliveryDetailsAction,
   SaveCheckoutPaymentOptionsAction,
@@ -47,6 +48,7 @@ const merchandiseSubtotalFor = (
 });
 
 interface CheckoutActions {
+  readonly placeOrder: PlaceCheckoutOrderAction;
   readonly saveContact: SaveCheckoutContactAction;
   readonly saveDeliveryDetails: SaveCheckoutDeliveryDetailsAction;
   readonly savePaymentOptions: SaveCheckoutPaymentOptionsAction;
@@ -64,6 +66,15 @@ export interface CheckoutPaymentOptionsRendererProps {
 
 export type CheckoutPaymentOptionsRenderer = (
   props: CheckoutPaymentOptionsRendererProps
+) => ReactNode;
+
+export interface CheckoutPlaceOrderRendererProps {
+  readonly cartId: CartId;
+  readonly placeOrderAction: PlaceCheckoutOrderAction;
+}
+
+export type CheckoutPlaceOrderRenderer = (
+  props: CheckoutPlaceOrderRendererProps
 ) => ReactNode;
 
 export interface CheckoutPageMessages {
@@ -140,6 +151,7 @@ function ActiveStep({
   messages,
   paymentOptions,
   renderPaymentOptions,
+  renderPlaceOrder,
   shippingAddressOptions,
   state,
 }: {
@@ -148,6 +160,7 @@ function ActiveStep({
   readonly messages: CheckoutPageMessages;
   readonly paymentOptions?: PaymentOptions;
   readonly renderPaymentOptions: CheckoutPaymentOptionsRenderer;
+  readonly renderPlaceOrder: CheckoutPlaceOrderRenderer;
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
   readonly state: CheckoutState;
 }) {
@@ -219,21 +232,27 @@ function ActiveStep({
   ) {
     const payment = state.details.preparedPayment;
     content = (
-      <section className="grid gap-2 rounded-md border border-border p-4">
-        <h2 className="font-semibold">{messages.paymentMethod}</h2>
-        <p data-selected-payment-method={payment.method}>
-          {payment.method === "card"
-            ? messages.card
-            : messages.netTerms(payment.termsInDays)}
-        </p>
-        <p
-          data-commerce-money="prepared-payment"
-          data-currency={payment.amount.currencyCode}
-          data-minor-amount={payment.amount.centAmount}
-        >
-          {formatMoney(payment.amount, state.scope.locale)}
-        </p>
-      </section>
+      <div className="grid gap-4">
+        <section className="grid gap-2 rounded-md border border-border p-4">
+          <h2 className="font-semibold">{messages.paymentMethod}</h2>
+          <p data-selected-payment-method={payment.method}>
+            {payment.method === "card"
+              ? messages.card
+              : messages.netTerms(payment.termsInDays)}
+          </p>
+          <p
+            data-commerce-money="prepared-payment"
+            data-currency={payment.amount.currencyCode}
+            data-minor-amount={payment.amount.centAmount}
+          >
+            {formatMoney(payment.amount, state.scope.locale)}
+          </p>
+        </section>
+        {renderPlaceOrder({
+          cartId: state.cart.id,
+          placeOrderAction: actions.placeOrder,
+        })}
+      </div>
     );
   }
 
@@ -379,6 +398,7 @@ export async function CheckoutView({
   locale,
   paymentOptions,
   renderPaymentOptions,
+  renderPlaceOrder,
   shippingAddressOptions,
   state,
 }: {
@@ -387,6 +407,7 @@ export async function CheckoutView({
   readonly locale: Locale;
   readonly paymentOptions?: PaymentOptions;
   readonly renderPaymentOptions: CheckoutPaymentOptionsRenderer;
+  readonly renderPlaceOrder: CheckoutPlaceOrderRenderer;
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
   readonly state: CheckoutState;
 }) {
@@ -430,6 +451,7 @@ export async function CheckoutView({
         messages={messages}
         paymentOptions={paymentOptions}
         renderPaymentOptions={renderPaymentOptions}
+        renderPlaceOrder={renderPlaceOrder}
         shippingAddressOptions={shippingAddressOptions}
         state={state}
       />

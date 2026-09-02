@@ -491,6 +491,21 @@
           "type": "registry:file"
         },
         {
+          "path": "orders/index.ts",
+          "target": "~/packages/commerce-commercetools/orders/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "orders/orders.test.ts",
+          "target": "~/packages/commerce-commercetools/orders/orders.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "orders/orders.ts",
+          "target": "~/packages/commerce-commercetools/orders/orders.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "package.json",
           "target": "~/packages/commerce-commercetools/package.json",
           "type": "registry:file"
@@ -643,6 +658,16 @@
         {
           "path": "testing/net-terms-test-control.ts",
           "target": "~/packages/commerce-commercetools/testing/net-terms-test-control.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/order-test-control.test.ts",
+          "target": "~/packages/commerce-commercetools/testing/order-test-control.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/order-test-control.ts",
+          "target": "~/packages/commerce-commercetools/testing/order-test-control.ts",
           "type": "registry:file"
         },
         {

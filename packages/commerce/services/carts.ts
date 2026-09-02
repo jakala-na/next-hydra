@@ -93,6 +93,10 @@ export interface SaveCartPaymentOptions {
   readonly target: CartTarget;
 }
 
+export interface ClearCartPaymentOptions {
+  readonly target: CartTarget;
+}
+
 export type FindCartFailure = CartAccessDenied | CartProviderFailure;
 export type FindCartsFailure = CartAccessDenied | CartProviderFailure;
 export type CreateCartFailure =
@@ -222,6 +226,9 @@ export class Carts extends Context.Service<
     readonly removeLineItem: (
       input: RemoveCartLineItem
     ) => Effect.Effect<CartSnapshot, RemoveCartLineItemFailure>;
+    readonly clearPaymentOptions: (
+      input: ClearCartPaymentOptions
+    ) => Effect.Effect<CartSnapshot, SaveCartDetailsFailure>;
     readonly saveContact: (
       input: SaveCartContact
     ) => Effect.Effect<CartSnapshot, SaveCartDetailsFailure>;
@@ -308,6 +315,7 @@ export class Carts extends Context.Service<
             | "addItem"
             | "setLineItemQuantity"
             | "removeLineItem"
+            | "clearPaymentOptions"
             | "saveContact"
             | "saveDeliveryDetails"
             | "savePaymentOptions"
@@ -553,8 +561,28 @@ export class Carts extends Context.Service<
             })
         );
 
+        const clearPaymentOptions = Effect.fn("Carts.clearPaymentOptions")(
+          (input: ClearCartPaymentOptions) =>
+            Effect.gen(function* () {
+              const cart = yield* getTargetCart(
+                input.target,
+                "clearPaymentOptions"
+              );
+              const updated = {
+                ...cart,
+                checkoutDetails: {
+                  ...cart.checkoutDetails,
+                  preparedPayment: undefined,
+                },
+              } satisfies CartSnapshot;
+              yield* saveCart(updated);
+              return updated;
+            })
+        );
+
         return Carts.of({
           addItem,
+          clearPaymentOptions,
           createAnonymous,
           createForBusinessUnit,
           findActiveForBusinessUnit,

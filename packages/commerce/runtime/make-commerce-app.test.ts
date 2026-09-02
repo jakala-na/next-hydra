@@ -33,6 +33,7 @@ import { CommerceCompanyMemberships } from "../services/commerce-company-members
 import { CommerceContext } from "../services/commerce-context";
 import { CurrentCart } from "../services/current-cart";
 import { DeliveryPlanning } from "../services/delivery-planning";
+import { Orders } from "../services/orders";
 import { CommerceLocale, resolveStore, StoreKey } from "../store";
 import type { CommerceRequestInput } from "./commerce-request";
 import type {
@@ -154,6 +155,7 @@ const makeApp = (
     }),
     commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
     deliveryPlanningLayer: DeliveryPlanning.emptyLayer,
+    ordersLayer: Orders.layerMemory(),
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 };

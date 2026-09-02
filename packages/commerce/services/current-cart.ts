@@ -132,6 +132,10 @@ export class CurrentCart extends Context.Service<
     readonly addItem: (
       input: AddCurrentCartItem
     ) => Effect.Effect<CurrentCartState, AddCurrentCartItemFailure>;
+    readonly clearPaymentOptions: () => Effect.Effect<
+      CurrentCartState,
+      SaveCurrentCartDetailsFailure
+    >;
     readonly setLineItemQuantity: (
       input: SetCurrentCartLineItemQuantity
     ) => Effect.Effect<CurrentCartState, SetCurrentCartLineItemQuantityFailure>;
@@ -161,6 +165,14 @@ export class CurrentCart extends Context.Service<
       CurrentCart.pipe(
         Effect.flatMap((currentCart) => currentCart.addItem(input))
       )
+  );
+
+  static readonly clearPaymentOptions = Effect.fn(
+    "CurrentCart.clearPaymentOptions"
+  )(() =>
+    CurrentCart.pipe(
+      Effect.flatMap((currentCart) => currentCart.clearPaymentOptions())
+    )
   );
 
   static readonly setLineItemQuantity = Effect.fn(
@@ -400,6 +412,14 @@ export class CurrentCart extends Context.Service<
                 : yield* createAndResolveCart();
               const cart = yield* mapUnavailable(
                 carts.addItem({ ...input, target: resolved.target })
+              );
+              return yield* replaceAndEvaluate(resolved, cart);
+            }),
+          clearPaymentOptions: () =>
+            Effect.gen(function* () {
+              const resolved = yield* requireResolvedCart();
+              const cart = yield* mapUnavailable(
+                carts.clearPaymentOptions({ target: resolved.target })
               );
               return yield* replaceAndEvaluate(resolved, cart);
             }),

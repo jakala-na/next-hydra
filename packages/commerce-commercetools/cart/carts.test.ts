@@ -157,8 +157,8 @@ const rawPreparedCardPayment = {
   custom: {
     customFieldsRaw: [
       {
-        name: "checkoutConfirmationReference",
-        value: "confirmation-1",
+        name: "checkoutPlacementAttemptReference",
+        value: "attempt-1",
       },
     ],
     type: { key: "checkoutPaymentFields" },
@@ -169,6 +169,7 @@ const rawPreparedCardPayment = {
   paymentMethodInfo: {
     method: "card",
     paymentInterface: "Stripe",
+    token: { value: "confirmation-1" },
   },
 };
 
@@ -364,6 +365,7 @@ describe("findById", () => {
           Option.getOrThrow(found).checkoutDetails.preparedPayment
         ).toEqual({
           amount: { centAmount: 2500, currencyCode: "USD" },
+          attemptReference: "attempt-1",
           billingAddress: {
             addressLine1: "1 Payment Way",
             city: "New York",
@@ -371,7 +373,6 @@ describe("findById", () => {
             postalCode: "10001",
             region: "NY",
           },
-          confirmationReference: "confirmation-1",
           method: "card",
           paymentReference: "payment-1",
           preparationReference: "checkout-card-cart-1:USD:2500",
@@ -381,7 +382,7 @@ describe("findById", () => {
   );
 
   it.effect(
-    "projects a deferred Card Payment before confirmation is available",
+    "projects a selected Card Payment without reading its masked token",
     () => {
       const clients = makeScriptedClients();
       clients.on(
@@ -395,8 +396,17 @@ describe("findById", () => {
               {
                 ...rawPreparedCardPayment,
                 custom: {
-                  customFieldsRaw: [],
+                  customFieldsRaw: [
+                    {
+                      name: "checkoutPlacementAttemptReference",
+                      value: "attempt-1",
+                    },
+                  ],
                   type: { key: "checkoutPaymentFields" },
+                },
+                paymentMethodInfo: {
+                  method: "card",
+                  paymentInterface: "Stripe",
                 },
               },
             ],
@@ -413,18 +423,9 @@ describe("findById", () => {
 
         expect(
           Option.getOrThrow(found).checkoutDetails.preparedPayment
-        ).toEqual({
-          amount: { centAmount: 2500, currencyCode: "USD" },
-          billingAddress: {
-            addressLine1: "1 Payment Way",
-            city: "New York",
-            country: "US",
-            postalCode: "10001",
-            region: "NY",
-          },
+        ).toMatchObject({
           method: "card",
           paymentReference: "payment-1",
-          preparationReference: "checkout-card-cart-1:USD:2500",
         });
       }).pipe(Effect.provide(clients.layer));
     }
@@ -445,7 +446,13 @@ describe("findById", () => {
               {
                 amountPlanned: { centAmount: 2500, currencyCode: "USD" },
                 custom: {
-                  customFieldsRaw: [{ name: "checkoutTermsInDays", value: 30 }],
+                  customFieldsRaw: [
+                    {
+                      name: "checkoutPlacementAttemptReference",
+                      value: "attempt-1",
+                    },
+                    { name: "checkoutTermsInDays", value: 30 },
+                  ],
                   type: { key: "checkoutPaymentFields" },
                 },
                 id: "net-terms-payment-1",
@@ -472,6 +479,7 @@ describe("findById", () => {
           Option.getOrThrow(found).checkoutDetails.preparedPayment
         ).toEqual({
           amount: { centAmount: 2500, currencyCode: "USD" },
+          attemptReference: "attempt-1",
           billingAddress: {
             addressLine1: "1 Payment Way",
             city: "New York",

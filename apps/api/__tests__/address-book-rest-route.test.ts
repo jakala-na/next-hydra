@@ -35,6 +35,7 @@ import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { DeliveryPlanning } from "@repo/commerce/services/delivery-planning";
+import { Orders } from "@repo/commerce/services/orders";
 import { StoreKey } from "@repo/commerce/store";
 import { CheckoutPayments } from "@repo/payments";
 import { Context, Effect, Layer } from "effect";
@@ -147,6 +148,7 @@ const makeHandler = (
     commerceAccountsLayer,
     commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
     deliveryPlanningLayer: DeliveryPlanning.emptyLayer,
+    ordersLayer: Orders.layerMemory(),
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 

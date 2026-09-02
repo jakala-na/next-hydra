@@ -64,6 +64,12 @@ import type {
   DeliveryPlanSelection,
   SelectedDeliveryPlan,
 } from "@repo/commerce/domain/delivery-plan";
+import {
+  OrderId,
+  OrderPlacementOutcomeUnknown,
+  OrderPlacementRejected,
+  orderNumberForCart,
+} from "@repo/commerce/domain/order";
 import type { ProviderFailureReason } from "@repo/commerce/domain/provider-failure";
 import {
   ANONYMOUS_CART_COOKIE_NAME,
@@ -85,10 +91,14 @@ import {
 import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { DeliveryPlanning } from "@repo/commerce/services/delivery-planning";
+import { Orders } from "@repo/commerce/services/orders";
 import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
 import type { CurrencyCode, Locale } from "@repo/i18n/types";
 import {
+  CardBrand,
+  CardLastFour,
   CheckoutPayments,
+  PaymentAttemptReference,
   PaymentConfirmationReference,
   PaymentMethodUnavailable,
   PaymentProvider,
@@ -97,6 +107,10 @@ import {
   PreparedPaymentReference,
 } from "@repo/payments";
 import type {
+  AuthorizeCheckoutPaymentInput,
+  CheckoutPaymentOperationInput,
+  FinalizeCheckoutPaymentInput,
+  PaymentAuthorization,
   PaymentOptions,
   SaveCheckoutPaymentFailure,
   SaveCheckoutPaymentInput,
@@ -331,6 +345,9 @@ const cardPreparationReference = PreparedPaymentReference.make(
   "checkout-card-cart-1:USD:2500"
 );
 const cardPaymentReference = PaymentReference.make("payment-from-api-input");
+const paymentAttemptReference = PaymentAttemptReference.make(
+  "attempt-from-api-input"
+);
 
 const paymentReadyCart = (): CartSnapshot => ({
   ...cart(),
@@ -338,6 +355,21 @@ const paymentReadyCart = (): CartSnapshot => ({
     contact: manualContact,
     deliveryDetails: manualDeliveryDetails,
     selectedDeliveryPlan,
+  },
+});
+
+const orderReadyCart = (): CartSnapshot => ({
+  ...paymentReadyCart(),
+  checkoutDetails: {
+    ...paymentReadyCart().checkoutDetails,
+    preparedPayment: {
+      amount: money,
+      attemptReference: paymentAttemptReference,
+      billingAddress: manualDeliveryDetails.shippingAddress,
+      method: "card",
+      paymentReference: cardPaymentReference,
+      preparationReference: cardPreparationReference,
+    },
   },
 });
 
@@ -360,11 +392,29 @@ const cardPaymentOptions: PaymentOptions = {
   ],
 };
 
+const cardPaymentMethod = {
+  cardBrand: CardBrand.make("visa"),
+  lastFour: CardLastFour.make("4242"),
+  method: "card" as const,
+};
+
 const makeCheckoutPaymentsLayer = ({
+  authorization = { _tag: "Authorized", paymentMethod: cardPaymentMethod },
+  finalizeFailure,
+  onAuthorize,
+  onCancelAuthorization,
+  onFinalize,
   onPrepare,
   onSave,
   saveFailure,
 }: {
+  readonly authorization?: PaymentAuthorization;
+  readonly finalizeFailure?: PaymentProviderFailure;
+  readonly onAuthorize?: (input: AuthorizeCheckoutPaymentInput) => void;
+  readonly onCancelAuthorization?: (
+    input: CheckoutPaymentOperationInput
+  ) => void;
+  readonly onFinalize?: (input: FinalizeCheckoutPaymentInput) => void;
   readonly onPrepare?: () => void;
   readonly onSave?: (input: SaveCheckoutPaymentInput) => void;
   readonly saveFailure?: SaveCheckoutPaymentFailure;
@@ -372,6 +422,22 @@ const makeCheckoutPaymentsLayer = ({
   Layer.succeed(
     CheckoutPayments,
     CheckoutPayments.of({
+      authorize: (input) => {
+        onAuthorize?.(input);
+        return Effect.succeed(authorization);
+      },
+      cancelAuthorization: (input) => {
+        onCancelAuthorization?.(input);
+        return Effect.void;
+      },
+      finalize: (input) => {
+        onFinalize?.(input);
+        return finalizeFailure === undefined
+          ? Effect.void
+          : Effect.fail(finalizeFailure);
+      },
+      getFinalizationStatus: () => Effect.succeed("confirmed"),
+      getPaymentMethod: () => Effect.succeed(cardPaymentMethod),
       prepare: () => {
         onPrepare?.();
         return Effect.succeed(cardPaymentOptions);
@@ -383,19 +449,22 @@ const makeCheckoutPaymentsLayer = ({
         }
         const prepared = {
           amount: input.checkout.amount,
+          attemptReference: input.attemptReference,
           billingAddress: input.billingAddress,
-          method: "card" as const,
           paymentReference: cardPaymentReference,
-          preparationReference: cardPreparationReference,
         };
         return Effect.succeed(
-          input.selection.method === "card" &&
-            input.selection.confirmationReference !== undefined
+          input.selection.method === "card"
             ? {
                 ...prepared,
-                confirmationReference: input.selection.confirmationReference,
+                method: "card" as const,
+                preparationReference: cardPreparationReference,
               }
-            : prepared
+            : {
+                ...prepared,
+                method: "netTerms" as const,
+                termsInDays: 30,
+              }
         );
       },
     })
@@ -485,6 +554,23 @@ const savePaymentOptionsRequest = (payment: {
     method: "POST",
   });
 
+const DEFAULT_PLACE_ORDER_PAYLOAD = {
+  cart: { id: "cart-1" },
+};
+
+const placeOrderRequest = (payload?: unknown) =>
+  new Request("http://api.test/checkout/orders", {
+    body: JSON.stringify(
+      payload === undefined ? DEFAULT_PLACE_ORDER_PAYLOAD : payload
+    ),
+    headers: {
+      "content-type": "application/json",
+      cookie: anonymousCartCookieHeader(),
+      "x-context-locale": "en-US",
+    },
+    method: "POST",
+  });
+
 const makeCheckoutLayer = (
   input: {
     readonly currentCart?: ReturnType<typeof cart> | undefined;
@@ -545,6 +631,23 @@ const makeCheckoutLayer = (
     Carts,
     Carts.of({
       addItem: () => Effect.die("not used"),
+      clearPaymentOptions: ({ target }) => {
+        if (activeCart === undefined) {
+          return Effect.die("Cart missing");
+        }
+        activeCart = {
+          ...activeCart,
+          checkoutDetails: {
+            ...activeCart.checkoutDetails,
+            preparedPayment: undefined,
+          },
+        };
+        return Effect.succeed(
+          target._tag === "AnonymousCartTarget"
+            ? forAnonymous(activeCart)
+            : forBusinessUnit(activeCart)
+        );
+      },
       createAnonymous: () => Effect.die("not used"),
       createForBusinessUnit: () => Effect.die("not used"),
       findActiveForBusinessUnit: ({ store }) => {
@@ -887,7 +990,8 @@ const makeTestCommerceApp = (
     never,
     CommerceContext
   > = AddressBook.layerMemory(),
-  checkoutPaymentsLayer: Layer.Layer<CheckoutPayments> = CheckoutPayments.unavailableLayer
+  checkoutPaymentsLayer: Layer.Layer<CheckoutPayments> = CheckoutPayments.unavailableLayer,
+  ordersLayer: Layer.Layer<Orders> = Orders.layerMemory()
 ) =>
   makeCommerceApp({
     addressBookLayer,
@@ -909,6 +1013,7 @@ const makeTestCommerceApp = (
       DeliveryPlanning,
       DeliveryPlanning
     ).pipe(Layer.provide(layer)),
+    ordersLayer,
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 
@@ -924,13 +1029,15 @@ const makeHandler = async (
     never,
     CommerceContext
   > = AddressBook.layerMemory(),
-  checkoutPaymentsLayer: Layer.Layer<CheckoutPayments> = CheckoutPayments.unavailableLayer
+  checkoutPaymentsLayer: Layer.Layer<CheckoutPayments> = CheckoutPayments.unavailableLayer,
+  ordersLayer: Layer.Layer<Orders> = Orders.layerMemory()
 ) => {
   const { makeCheckoutHttpHandler } = await import("../lib/checkout/http");
   const commerceApp = makeTestCommerceApp(
     layer,
     addressBookLayer,
-    checkoutPaymentsLayer
+    checkoutPaymentsLayer,
+    ordersLayer
   );
   const authenticationLayer = makeAuthenticationLayer(layer);
 
@@ -1145,6 +1252,7 @@ describe("Checkout REST API", () => {
     try {
       const response = await handler(
         savePaymentOptionsRequest({
+          confirmationReference: "ctoken-from-api-input",
           method: "card",
           preparationReference: cardPreparationReference,
         }),
@@ -1183,6 +1291,7 @@ describe("Checkout REST API", () => {
     try {
       const response = await handler(
         savePaymentOptionsRequest({
+          confirmationReference: "ctoken-from-api-input",
           method: "card",
           preparationReference: cardPreparationReference,
         }),
@@ -1221,6 +1330,7 @@ describe("Checkout REST API", () => {
     try {
       const response = await handler(
         savePaymentOptionsRequest({
+          confirmationReference: "ctoken-from-api-input",
           method: "card",
           preparationReference: cardPreparationReference,
         }),
@@ -2875,6 +2985,285 @@ describe("Checkout REST API", () => {
         code: "checkout.notFound",
         message: "Der Checkout wurde für diese Anfrage nicht gefunden.",
       });
+    } finally {
+      await dispose();
+    }
+  });
+
+  test("POST /checkout/orders replays one Order with stable Payment operation inputs", async () => {
+    const authorizations: AuthorizeCheckoutPaymentInput[] = [];
+    const finalizations: FinalizeCheckoutPaymentInput[] = [];
+    const payments = makeCheckoutPaymentsLayer({
+      onAuthorize: (input) => {
+        authorizations.push(input);
+      },
+      onFinalize: (input) => {
+        finalizations.push(input);
+      },
+    });
+    const layer = makeCheckoutLayer({
+      currentCart: orderReadyCart(),
+      deliveryPlanQuote,
+    });
+    const { dispose, handler } = await makeHandler(
+      layer,
+      AddressBook.layerMemory(),
+      payments
+    );
+
+    try {
+      const first = await handler(placeOrderRequest(), emptyContext());
+      const replay = await handler(placeOrderRequest(), emptyContext());
+      const firstBody = await first.json();
+      const replayBody = await replay.json();
+
+      expect(first.status).toBe(HTTP_OK);
+      expect(replay.status).toBe(HTTP_OK);
+      expect(firstBody).toStrictEqual(replayBody);
+      expect(firstBody).toMatchObject({
+        _tag: "Placed",
+        order: {
+          cartId: "cart-1",
+          id: "order-cart-1",
+          number: "checkout-cart-1",
+          totalPrice: money,
+        },
+        paymentStatus: "confirmed",
+      });
+      expect(authorizations).toHaveLength(1);
+      expect(authorizations[0]).toMatchObject({
+        checkout: { amount: money, reference: "cart-1" },
+        payment: {
+          paymentReference: "payment-from-api-input",
+        },
+      });
+      expect(finalizations).toHaveLength(2);
+      expect(finalizations).toMatchObject([
+        {
+          checkout: { amount: money, reference: "cart-1" },
+          orderReference: "order-cart-1",
+        },
+        {
+          checkout: { amount: money, reference: "cart-1" },
+          orderReference: "order-cart-1",
+        },
+      ]);
+    } finally {
+      await dispose();
+    }
+  });
+
+  test("POST /checkout/orders returns a browser-safe Card authentication handoff", async () => {
+    const payments = makeCheckoutPaymentsLayer({
+      authorization: {
+        _tag: "ActionRequired",
+        clientToken: "pi-client-secret-for-mobile",
+        provider: PaymentProvider.make("Stripe"),
+        publicConfiguration: "pk_test_for_mobile",
+      },
+    });
+    const layer = makeCheckoutLayer({
+      currentCart: orderReadyCart(),
+      deliveryPlanQuote,
+    });
+    const { dispose, handler } = await makeHandler(
+      layer,
+      AddressBook.layerMemory(),
+      payments
+    );
+
+    try {
+      const response = await handler(placeOrderRequest(), emptyContext());
+      const body = await response.json();
+
+      expect(response.status).toBe(HTTP_OK);
+      expect(body).toStrictEqual({
+        _tag: "PaymentActionRequired",
+        paymentAction: {
+          clientToken: "pi-client-secret-for-mobile",
+          method: "card",
+          provider: "Stripe",
+          publicConfiguration: "pk_test_for_mobile",
+        },
+      });
+      expect(JSON.stringify(body)).not.toContain("paymentReference");
+      expect(JSON.stringify(body)).not.toContain("confirmationReference");
+      expect(JSON.stringify(body)).not.toContain("preparationReference");
+    } finally {
+      await dispose();
+    }
+  });
+
+  test("POST /checkout/orders releases authorization after a definitive Order rejection", async () => {
+    const cancellations: CheckoutPaymentOperationInput[] = [];
+    const payments = makeCheckoutPaymentsLayer({
+      onCancelAuthorization: (input) => {
+        cancellations.push(input);
+      },
+    });
+    const rejectedOrders = Layer.succeed(
+      Orders,
+      Orders.of({
+        find: () => Effect.succeed(Option.none()),
+        findById: () => Effect.succeed(Option.none()),
+        place: () =>
+          Effect.fail(
+            new OrderPlacementRejected({
+              message: "Cart inventory changed",
+              reason: "outOfStock",
+            })
+          ),
+      })
+    );
+    const { dispose, handler } = await makeHandler(
+      makeCheckoutLayer({
+        currentCart: orderReadyCart(),
+        deliveryPlanQuote,
+      }),
+      AddressBook.layerMemory(),
+      payments,
+      rejectedOrders
+    );
+
+    try {
+      const response = await handler(placeOrderRequest(), emptyContext());
+      const body = await response.json();
+
+      expect(response.status).toBe(HTTP_CONFLICT);
+      expect(body).toMatchObject({
+        _tag: "OrderPlacementRejected",
+        code: "checkout.orderPlacement.rejected",
+        reason: "outOfStock",
+      });
+      expect(cancellations).toMatchObject([
+        {
+          checkout: { amount: money, reference: "cart-1" },
+        },
+      ]);
+    } finally {
+      await dispose();
+    }
+  });
+
+  test("POST /checkout/orders reports Payment pending after Order creation when capture fails", async () => {
+    const payments = makeCheckoutPaymentsLayer({
+      finalizeFailure: new PaymentProviderFailure({
+        operation: "stripe.paymentIntent.capture",
+        reason: "unavailable",
+      }),
+    });
+    const { dispose, handler } = await makeHandler(
+      makeCheckoutLayer({
+        currentCart: orderReadyCart(),
+        deliveryPlanQuote,
+      }),
+      AddressBook.layerMemory(),
+      payments
+    );
+
+    try {
+      const response = await handler(placeOrderRequest(), emptyContext());
+      const body = await response.json();
+
+      expect(response.status).toBe(HTTP_OK);
+      expect(body).toMatchObject({
+        _tag: "Placed",
+        order: { id: "order-cart-1" },
+        paymentStatus: "pending",
+      });
+    } finally {
+      await dispose();
+    }
+  });
+
+  test("POST /checkout/orders recovers an uncertain Order before finalizing Payment", async () => {
+    let created = false;
+    const authorizations: AuthorizeCheckoutPaymentInput[] = [];
+    const finalizations: FinalizeCheckoutPaymentInput[] = [];
+    const payments = makeCheckoutPaymentsLayer({
+      onAuthorize: (input) => {
+        authorizations.push(input);
+      },
+      onFinalize: (input) => {
+        finalizations.push(input);
+      },
+    });
+    const recoveringOrders = Layer.succeed(
+      Orders,
+      Orders.of({
+        find: (input) =>
+          Effect.succeed(
+            created
+              ? Option.some({
+                  cartId: input.cartId,
+                  id: OrderId.make("order-created-without-response"),
+                  number: orderNumberForCart(input.cartId),
+                  paymentReference: cardPaymentReference,
+                  totalPrice: money,
+                })
+              : Option.none()
+          ),
+        findById: () => Effect.succeed(Option.none()),
+        place: (input) => {
+          created = true;
+          return Effect.fail(
+            new OrderPlacementOutcomeUnknown({
+              cartId: input.cartId,
+              message: "Order response was lost",
+              number: orderNumberForCart(input.cartId),
+            })
+          );
+        },
+      })
+    );
+    const { dispose, handler } = await makeHandler(
+      makeCheckoutLayer({
+        currentCart: orderReadyCart(),
+        deliveryPlanQuote,
+      }),
+      AddressBook.layerMemory(),
+      payments,
+      recoveringOrders
+    );
+
+    try {
+      const uncertain = await handler(placeOrderRequest(), emptyContext());
+      const recovered = await handler(placeOrderRequest(), emptyContext());
+
+      await expect(uncertain.json()).resolves.toStrictEqual({
+        _tag: "PlacementPending",
+      });
+      await expect(recovered.json()).resolves.toMatchObject({
+        _tag: "Placed",
+        order: { id: "order-created-without-response" },
+        paymentStatus: "confirmed",
+      });
+      expect(authorizations).toHaveLength(1);
+      expect(finalizations).toHaveLength(1);
+    } finally {
+      await dispose();
+    }
+  });
+
+  test("POST /checkout/orders rejects an empty Cart reference", async () => {
+    const { dispose, handler } = await makeHandler(
+      makeCheckoutLayer({
+        currentCart: orderReadyCart(),
+        deliveryPlanQuote,
+      }),
+      AddressBook.layerMemory(),
+      makeCheckoutPaymentsLayer()
+    );
+
+    try {
+      const response = await handler(
+        placeOrderRequest({
+          cart: { id: "" },
+        }),
+        emptyContext()
+      );
+
+      expect(response.status).toBe(HTTP_BAD_REQUEST);
     } finally {
       await dispose();
     }

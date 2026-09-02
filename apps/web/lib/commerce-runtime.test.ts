@@ -31,6 +31,7 @@ import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-com
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
 import { DeliveryPlanning } from "@repo/commerce/services/delivery-planning";
+import { Orders } from "@repo/commerce/services/orders";
 import { StoreKey } from "@repo/commerce/store";
 import type { Locale } from "@repo/i18n/types";
 import { CheckoutPayments } from "@repo/payments";
@@ -98,6 +99,7 @@ const makeTestCommerceApp = (options?: {
     ).pipe(Layer.provide(memoryAccountsLayer)),
     commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
     deliveryPlanningLayer: DeliveryPlanning.emptyLayer,
+    ordersLayer: Orders.layerMemory(),
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 };
