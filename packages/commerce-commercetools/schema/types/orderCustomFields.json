@@ -18,6 +18,17 @@
         "name": "String"
       },
       "inputHint": "MultiLine"
+    },
+    {
+      "name": "checkoutDeliveryDetails",
+      "label": {
+        "en-US": "Checkout delivery details"
+      },
+      "required": false,
+      "type": {
+        "name": "String"
+      },
+      "inputHint": "MultiLine"
     }
   ]
 }

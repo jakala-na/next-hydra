@@ -1,15 +1,12 @@
 import { AddressBookReference } from "@repo/commerce/domain/address-book";
-import {
-  CheckoutDeliveryDetails,
-  CountryCode,
-} from "@repo/commerce/domain/checkout";
-import { Schema } from "effect";
+import type { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
+import { CountryCode } from "@repo/commerce/domain/checkout";
+import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
   buildSaveCheckoutDeliveryDetailsActions,
   hasPersistedCheckoutDeliveryDetails,
-  serializeCheckoutDeliveryDetails,
 } from "./delivery-details-actions";
 
 const shippingAddress = {
@@ -33,20 +30,19 @@ const addressBookDeliveryDetails = {
 } as const satisfies CheckoutDeliveryDetails;
 
 describe(buildSaveCheckoutDeliveryDetailsActions, () => {
-  it("separates the persisted String value from GraphQL JSON encoding", () => {
-    const serialized = serializeCheckoutDeliveryDetails(manualDeliveryDetails);
-
-    expect(serialized).toBe(JSON.stringify(manualDeliveryDetails));
-    expect(
-      Schema.decodeSync(Schema.fromJsonString(CheckoutDeliveryDetails))(
-        serialized
-      )
-    ).toStrictEqual(manualDeliveryDetails);
-  });
-
   it("persists Manual Delivery Details as cart-owned checkout data", () => {
     expect(
-      buildSaveCheckoutDeliveryDetailsActions(manualDeliveryDetails)
+      Effect.runSync(
+        buildSaveCheckoutDeliveryDetailsActions(
+          {
+            custom: {
+              customFieldsRaw: [],
+              type: { key: "orderCustomFields" },
+            },
+          },
+          manualDeliveryDetails
+        )
+      )
     ).toStrictEqual([
       {
         setCustomField: {
@@ -59,12 +55,45 @@ describe(buildSaveCheckoutDeliveryDetailsActions, () => {
 
   it("persists saved-address identity with its Delivery Details", () => {
     expect(
-      buildSaveCheckoutDeliveryDetailsActions(addressBookDeliveryDetails)
+      Effect.runSync(
+        buildSaveCheckoutDeliveryDetailsActions(
+          {
+            custom: {
+              customFieldsRaw: [],
+              type: { key: "orderCustomFields" },
+            },
+          },
+          addressBookDeliveryDetails
+        )
+      )
     ).toStrictEqual([
       {
         setCustomField: {
           name: "checkoutDeliveryDetails",
           value: JSON.stringify(JSON.stringify(addressBookDeliveryDetails)),
+        },
+      },
+    ]);
+  });
+
+  it("assigns the Order Custom Type without a destructive preflight action", () => {
+    expect(
+      Effect.runSync(
+        buildSaveCheckoutDeliveryDetailsActions(
+          { custom: null },
+          manualDeliveryDetails
+        )
+      )
+    ).toStrictEqual([
+      {
+        setCustomType: {
+          fields: [
+            {
+              name: "checkoutDeliveryDetails",
+              value: JSON.stringify(JSON.stringify(manualDeliveryDetails)),
+            },
+          ],
+          typeKey: "orderCustomFields",
         },
       },
     ]);

@@ -1,20 +1,27 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
+
+import { Schema } from "effect";
 
 type CustomTypeFieldDefinition = {
   readonly name: string;
   readonly label: Record<string, string>;
+  readonly required?: boolean;
   readonly type: {
     readonly name:
       | "String"
       | "LocalizedString"
       | "Number"
       | "Boolean"
+      | "Date"
+      | "Time"
       | "DateTime"
+      | "Money"
       | "Enum"
       | "LocalizedEnum"
       | "Set"
       | "Reference";
+    readonly referenceTypeId?: string;
     readonly values?: readonly {
       readonly key: string;
       readonly label: string | Record<string, string>;
@@ -32,6 +39,10 @@ type ProductTypeAttributeType = {
   readonly elementType?: ProductTypeAttributeType;
   readonly name: string;
   readonly referenceTypeId?: string;
+  readonly values?: readonly {
+    readonly key: string;
+    readonly label: string | Record<string, string>;
+  }[];
 };
 
 type ProductTypeAttribute = {
@@ -45,18 +56,85 @@ type ProductTypeSchema = {
   readonly attributes?: readonly ProductTypeAttribute[];
 };
 
-type GeneratedCustomFieldKind =
-  | "text"
-  | "ltext"
-  | "number"
-  | "boolean"
-  | "datetime"
-  | "enum"
-  | "lenum"
-  | "reference"
-  | "referenceSet";
+const CustomTypeFieldType: Schema.Codec<CustomTypeFieldDefinition["type"]> =
+  Schema.Struct({
+    elementType: Schema.optionalKey(Schema.suspend(() => CustomTypeFieldType)),
+    name: Schema.Literals([
+      "String",
+      "LocalizedString",
+      "Number",
+      "Boolean",
+      "Date",
+      "Time",
+      "DateTime",
+      "Money",
+      "Enum",
+      "LocalizedEnum",
+      "Set",
+      "Reference",
+    ]),
+    referenceTypeId: Schema.optionalKey(Schema.String),
+    values: Schema.optionalKey(
+      Schema.Array(
+        Schema.Struct({
+          key: Schema.String,
+          label: Schema.Union([
+            Schema.String,
+            Schema.Record(Schema.String, Schema.String),
+          ]),
+        })
+      )
+    ),
+  });
 
-const CASE_SEPARATOR = /[-_]/;
+const CustomTypeSchema: Schema.Codec<CustomTypeSchema> = Schema.Struct({
+  fieldDefinitions: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        label: Schema.Record(Schema.String, Schema.String),
+        name: Schema.String,
+        required: Schema.optionalKey(Schema.Boolean),
+        type: CustomTypeFieldType,
+      })
+    )
+  ),
+  key: Schema.String,
+});
+
+const ProductTypeAttributeType: Schema.Codec<ProductTypeAttributeType> =
+  Schema.Struct({
+    elementType: Schema.optionalKey(
+      Schema.suspend(() => ProductTypeAttributeType)
+    ),
+    name: Schema.String,
+    referenceTypeId: Schema.optionalKey(Schema.String),
+    values: Schema.optionalKey(
+      Schema.Array(
+        Schema.Struct({
+          key: Schema.String,
+          label: Schema.Union([
+            Schema.String,
+            Schema.Record(Schema.String, Schema.String),
+          ]),
+        })
+      )
+    ),
+  });
+
+const ProductTypeSchema: Schema.Codec<ProductTypeSchema> = Schema.Struct({
+  attributes: Schema.optionalKey(
+    Schema.Array(
+      Schema.Struct({
+        isRequired: Schema.optionalKey(Schema.Boolean),
+        name: Schema.String,
+        type: ProductTypeAttributeType,
+      })
+    )
+  ),
+  key: Schema.String,
+});
+
+const CASE_SEPARATOR = /[-_]/u;
 const FILE_EXTENSION = ".json";
 
 const toPascalCase = (value: string): string =>
@@ -65,15 +143,13 @@ const toPascalCase = (value: string): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join("");
 
-const toCamelCase = (value: string): string => {
-  const pascalCase = toPascalCase(value);
-  return pascalCase.charAt(0).toLowerCase() + pascalCase.slice(1);
-};
-
 const escapeLiteral = (value: string): string =>
   value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 
-const readSchemas = async <TSchema>(directory: string): Promise<TSchema[]> => {
+const readSchemas = async <TSchema>(
+  directory: string,
+  schema: Schema.Codec<TSchema>
+): Promise<TSchema[]> => {
   let files: string[];
   try {
     files = await readdir(directory);
@@ -84,300 +160,134 @@ const readSchemas = async <TSchema>(directory: string): Promise<TSchema[]> => {
     throw error;
   }
 
-  const schemas: TSchema[] = [];
-  for (const file of files
-    .filter((candidate) => candidate.endsWith(FILE_EXTENSION))
-    .sort()) {
-    schemas.push(
-      JSON.parse(await readFile(join(directory, file), "utf-8")) as TSchema
-    );
-  }
-  return schemas;
+  const decode = Schema.decodeUnknownSync(Schema.fromJsonString(schema));
+  const schemaFiles = files.filter((candidate) =>
+    candidate.endsWith(FILE_EXTENSION)
+  );
+  // oxlint-disable-next-line unicorn/no-array-sort -- This locally owned array is sorted for deterministic generated output.
+  schemaFiles.sort();
+  return await Promise.all(
+    schemaFiles.map(async (file) =>
+      decode(await readFile(path.join(directory, file), "utf-8"))
+    )
+  );
 };
 
-const customFieldKind = (
+const customFieldSchema = (
   fieldType: CustomTypeFieldDefinition["type"]
-): GeneratedCustomFieldKind => {
+): string => {
   switch (fieldType.name) {
-    case "LocalizedEnum": {
-      return "lenum";
-    }
-    case "Enum": {
-      return "enum";
+    case "String": {
+      return "Schema.String";
     }
     case "LocalizedString": {
-      return "ltext";
+      return "Schema.Record(Schema.String, Schema.String)";
     }
     case "Number": {
-      return "number";
+      return "Schema.Finite";
     }
     case "Boolean": {
-      return "boolean";
+      return "Schema.Boolean";
+    }
+    case "Date": {
+      return "CustomFields.Date";
+    }
+    case "Time": {
+      return "CustomFields.Time";
     }
     case "DateTime": {
-      return "datetime";
+      return "Schema.DateTimeUtc";
+    }
+    case "Money": {
+      return "CustomFields.Money";
+    }
+    case "Enum":
+    case "LocalizedEnum": {
+      const values = fieldType.values ?? [];
+      if (values.length === 0) {
+        throw new Error(`${fieldType.name} Custom Field has no values`);
+      }
+      return `Schema.Literals([${values
+        .map((value) => `"${escapeLiteral(value.key)}"`)
+        .join(", ")}])`;
     }
     case "Reference": {
-      return "reference";
+      if (fieldType.referenceTypeId === undefined) {
+        throw new Error("Reference Custom Field has no referenceTypeId");
+      }
+      return `CustomFields.reference("${escapeLiteral(fieldType.referenceTypeId)}")`;
     }
     case "Set": {
-      return fieldType.elementType?.name === "Reference"
-        ? "referenceSet"
-        : customFieldKind(fieldType.elementType ?? { name: "String" });
+      if (fieldType.elementType === undefined) {
+        throw new Error("Set Custom Field has no elementType");
+      }
+      return `Schema.ReadonlySet(${customFieldSchema(fieldType.elementType)})`;
     }
     default: {
-      return "text";
+      throw new Error("Unsupported Custom Field type");
     }
   }
 };
-
-const customFieldTypeKind = (
-  fieldType: CustomTypeFieldDefinition["type"]
-): "text" | "ltext" | "number" | "boolean" | "datetime" | "enum" | "lenum" => {
-  const kind = customFieldKind(fieldType);
-  if (kind === "reference" || kind === "referenceSet") {
-    return "text";
-  }
-  return kind;
-};
-
-const enumValues = (
-  fieldType: CustomTypeFieldDefinition["type"]
-): readonly string[] => {
-  if (fieldType.name === "Enum" || fieldType.name === "LocalizedEnum") {
-    return (fieldType.values ?? []).map((value) => value.key);
-  }
-  if (fieldType.name === "Set" && fieldType.elementType) {
-    return enumValues(fieldType.elementType);
-  }
-  return [];
-};
-
-const enumTypeName = (schemaKey: string, fieldName: string): string =>
-  `${toPascalCase(schemaKey)}${toPascalCase(fieldName)}Enum`;
 
 const generateCustomType = (schema: CustomTypeSchema): string => {
-  const fields = schema.fieldDefinitions ?? [];
-  if (fields.length === 0) {
-    return `export type ${toPascalCase(schema.key)}Schema = Record<string, never>;`;
-  }
-
-  const aliases = fields.flatMap((field) => {
-    const values = enumValues(field.type);
-    if (values.length === 0) {
-      return [];
-    }
-    return [
-      `export type ${enumTypeName(schema.key, field.name)} = ${values
-        .map((value) => `"${escapeLiteral(value)}"`)
-        .join(" | ")};`,
-    ];
-  });
-
-  const properties = fields.map((field) => {
-    const kind = customFieldTypeKind(field.type);
-    const values = enumValues(field.type);
-    const enumParameter =
-      values.length === 0 ? "" : `, ${enumTypeName(schema.key, field.name)}`;
-    return `  ${field.name}: CustomField<"${kind}"${enumParameter}>;`;
-  });
-
-  const schemaType = [
-    `export type ${toPascalCase(schema.key)}Schema = {`,
-    ...properties,
-    "};",
-  ].join("\n");
-
-  return [...aliases, schemaType].join("\n\n");
-};
-
-const enumConstName = (schemaKey: string): string =>
-  `${toCamelCase(schemaKey)}EnumFieldValues`;
-
-const customFieldsOwnerTypeName = (schemaKey: string): string => {
-  const typeName = toPascalCase(schemaKey);
-  const suffix = "CustomFields";
-  return typeName.endsWith(suffix)
-    ? typeName.slice(0, -suffix.length)
-    : typeName;
-};
-
-const fieldKindsConstName = (schemaKey: string): string =>
-  `${toCamelCase(customFieldsOwnerTypeName(schemaKey))}CustomFieldKinds`;
-
-const generateEnumValues = (schema: CustomTypeSchema): string => {
-  const rows = (schema.fieldDefinitions ?? []).flatMap((field) => {
-    const values = enumValues(field.type);
-    if (values.length === 0) {
-      return [];
-    }
-    return [
-      `  ${field.name}: [${values
-        .map((value) => `"${escapeLiteral(value)}"`)
-        .join(", ")}],`,
-    ];
-  });
-
-  if (rows.length === 0) {
-    return `export const ${enumConstName(schema.key)} = {} as const;`;
-  }
-
-  return [
-    `export const ${enumConstName(schema.key)} = {`,
-    ...rows,
-    "} as const;",
-  ].join("\n");
-};
-
-const generateFieldKinds = (schema: CustomTypeSchema): string => {
-  const rows = (schema.fieldDefinitions ?? []).map(
-    (field) => `  ${field.name}: "${customFieldKind(field.type)}",`
-  );
-
-  if (rows.length === 0) {
-    return `export const ${fieldKindsConstName(schema.key)} = {} as const;`;
-  }
-
-  return [
-    `export const ${fieldKindsConstName(schema.key)} = {`,
-    ...rows,
-    "} as const;",
-  ].join("\n");
-};
-
-const generateCustomFieldHelpers = (schema: CustomTypeSchema): string => {
   const typeName = toPascalCase(schema.key);
-  const ownerTypeName = customFieldsOwnerTypeName(schema.key);
-  const valuesName = enumConstName(schema.key);
-
-  return `export const get${ownerTypeName}CustomFields = <
-  TLocale extends Locale = Locale,
->(
-  customFieldsRaw: CustomFieldRaw[],
-  locale: TLocale,
-  defaultLocale?: Locale
-): ExtractedCustomFields<${typeName}Schema> =>
-  getCustomFieldsForLocale<${typeName}Schema>(
-    customFieldsRaw,
-    locale,
-    defaultLocale
-  );
-
-export const resolve${ownerTypeName}CustomField = <
-  TField extends keyof ${typeName}Schema,
-  TLocale extends Locale = Locale,
->(
-  customFieldsRaw: CustomFieldRaw[] | null | undefined,
-  fieldName: TField,
-  locale: TLocale,
-  defaultLocale?: Locale
-): ExtractedCustomFields<${typeName}Schema>[TField] => {
-  const allowedEnumValues = (
-    ${valuesName} as Partial<
-      Record<keyof ${typeName}Schema, readonly string[]>
-    >
-  )[fieldName];
-
-  return resolveTypedCustomFieldValue<
-    ExtractedCustomFields<${typeName}Schema>[TField]
-  >(customFieldsRaw, fieldName as string, {
-    locale,
-    defaultLocale,
-    allowedEnumValues,
+  const fields = (schema.fieldDefinitions ?? []).map((field) => {
+    const fieldSchema = customFieldSchema(field.type);
+    return `    ${JSON.stringify(field.name)}: ${
+      field.required === true
+        ? fieldSchema
+        : `Schema.optionalKey(${fieldSchema})`
+    },`;
   });
-};`;
+
+  return `export const ${typeName} = CustomFields.define({
+  typeKey: "${escapeLiteral(schema.key)}",
+  fields: {
+${fields.join("\n")}
+  },
+});
+export type ${typeName} = typeof ${typeName}.schema.Type;`;
 };
 
 export const generateCustomTypes = async (
   schemaDirectory: string,
   outputDirectory: string
 ): Promise<void> => {
-  const schemas = await readSchemas<CustomTypeSchema>(schemaDirectory);
+  const schemas = await readSchemas(schemaDirectory, CustomTypeSchema);
   await mkdir(outputDirectory, { recursive: true });
 
-  const types = schemas.map(generateCustomType).join("\n\n");
-  const enumDefinitions = schemas.map(generateEnumValues).join("\n\n");
-  const fieldKindDefinitions = schemas.map(generateFieldKinds).join("\n\n");
-  const helpers = schemas.map(generateCustomFieldHelpers).join("\n\n");
-
-  const schemaTypeImports = schemas
-    .map(
-      (schema) =>
-        `import type { ${toPascalCase(schema.key)}Schema } from "./types";`
+  const removeLegacyGeneratedFile = async (file: string): Promise<void> => {
+    await rm(path.join(outputDirectory, file), { force: true });
+  };
+  await Promise.all(
+    ["types.ts", "enum-values.ts", "field-kinds.ts"].map(
+      removeLegacyGeneratedFile
     )
-    .join("\n");
-  const enumImports = schemas
-    .map((schema) => enumConstName(schema.key))
-    .join(", ");
-
-  await Promise.all([
-    writeFile(
-      join(outputDirectory, "types.ts"),
-      `// This file is auto-generated. Do not edit manually.
+  );
+  await writeFile(
+    path.join(outputDirectory, "schemas.ts"),
+    `// This file is auto-generated. Do not edit manually.
 // Run \`pnpm cli commerce types generate\` to regenerate.
 
-import type { CustomField } from "../types";
-${types.length === 0 ? "" : `\n${types}`}
+import { Schema } from "effect";
+
+import * as CustomFields from "../definition";
+
+${schemas.map(generateCustomType).join("\n\n")}
 `,
-      "utf-8"
-    ),
-    writeFile(
-      join(outputDirectory, "enum-values.ts"),
-      `// This file is auto-generated. Do not edit manually.
-// Run \`pnpm cli commerce types generate\` to regenerate.
-
-${enumDefinitions}
-`,
-      "utf-8"
-    ),
-    writeFile(
-      join(outputDirectory, "field-kinds.ts"),
-      `// This file is auto-generated. Do not edit manually.
-// Run \`pnpm cli commerce types generate\` to regenerate.
-
-export type GeneratedCustomFieldKind =
-  | "text"
-  | "ltext"
-  | "number"
-  | "boolean"
-  | "datetime"
-  | "enum"
-  | "lenum"
-  | "reference"
-  | "referenceSet";
-
-${fieldKindDefinitions}
-`,
-      "utf-8"
-    ),
-    writeFile(
-      join(outputDirectory, "schemas.ts"),
-      `// This file is auto-generated. Do not edit manually.
-// Run \`pnpm cli commerce types generate\` to regenerate.
-
-import type { Locale } from "@repo/i18n/types";
-import { resolveTypedCustomFieldValue } from "../resolve";
-import type { CustomFieldRaw, ExtractedCustomFields } from "../types";
-import { getCustomFieldsForLocale } from "../utils";
-import { ${enumImports} } from "./enum-values";
-${schemaTypeImports}
-
-${helpers}
-`,
-      "utf-8"
-    ),
-  ]);
+    "utf-8"
+  );
 };
 
 type ProductAttributeDependency =
   | "Money"
   | "ProductAttributeDate"
   | "ProductAttributeDateTime"
-  | "ProductAttributeEnumValue"
+  | "makeProductAttributeEnumValueSchema"
   | "ProductAttributeTime"
   | "ProductId";
 
-const TYPESCRIPT_IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+const TYPESCRIPT_IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/u;
 
 const propertyName = (name: string): string =>
   TYPESCRIPT_IDENTIFIER.test(name) ? name : JSON.stringify(name);
@@ -407,8 +317,16 @@ const productAttributeSchema = (
     }
     case "enum":
     case "lenum": {
-      dependencies.add("ProductAttributeEnumValue");
-      return "ProductAttributeEnumValue";
+      const values = attributeType.values ?? [];
+      if (values.length === 0) {
+        throw new Error(
+          `${attributeType.name} Product Attribute has no values`
+        );
+      }
+      dependencies.add("makeProductAttributeEnumValueSchema");
+      return `makeProductAttributeEnumValueSchema([${values
+        .map((value) => JSON.stringify(value.key))
+        .join(", ")}])`;
     }
     case "money": {
       dependencies.add("Money");
@@ -492,13 +410,14 @@ const generateProductTypesSource = (
   const attributeSchemas = schemas.map((schema) =>
     generateProductAttributesSchema(schema, dependencies)
   );
-  const attributeDependencies = [
+  const supportedAttributeDependencies = [
     "ProductAttributeDate",
     "ProductAttributeDateTime",
-    "ProductAttributeEnumValue",
+    "makeProductAttributeEnumValueSchema",
     "ProductAttributeTime",
-  ].filter((dependency) =>
-    dependencies.has(dependency as ProductAttributeDependency)
+  ] as const satisfies readonly ProductAttributeDependency[];
+  const attributeDependencies = supportedAttributeDependencies.filter(
+    (dependency) => dependencies.has(dependency)
   );
   const attributeImport =
     attributeDependencies.length === 0
@@ -639,11 +558,11 @@ export const generateProductTypes = async (
   schemaDirectory: string,
   outputDirectory: string
 ): Promise<void> => {
-  const schemas = await readSchemas<ProductTypeSchema>(schemaDirectory);
+  const schemas = await readSchemas(schemaDirectory, ProductTypeSchema);
   await mkdir(outputDirectory, { recursive: true });
 
   await writeFile(
-    join(outputDirectory, "attributes.ts"),
+    path.join(outputDirectory, "attributes.ts"),
     generateProductTypesSource(schemas),
     "utf-8"
   );

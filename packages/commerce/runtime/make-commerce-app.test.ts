@@ -65,7 +65,6 @@ const cart = (id: string, businessUnitId: string) => ({
       totalPrice: { centAmount: 1000, currencyCode: "USD" },
       unitPrice: { centAmount: 1000, currencyCode: "USD" },
       variant: {
-        attributes: {},
         id: VariantId.make(`variant-${id}`),
         images: [],
         name: `Product ${id}`,

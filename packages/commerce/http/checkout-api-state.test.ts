@@ -43,7 +43,6 @@ describe(toCheckoutApiState, () => {
           totalPrice: amount,
           unitPrice: amount,
           variant: {
-            attributes: {},
             id: VariantId.make("variant-with-prepared-payment"),
             images: [],
             productId: ProductId.make("product-with-prepared-payment"),

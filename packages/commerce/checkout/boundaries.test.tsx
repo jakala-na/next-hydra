@@ -64,7 +64,6 @@ const checkoutState: CheckoutState = {
         totalPrice: { centAmount: 2500, currencyCode: "USD" },
         unitPrice: { centAmount: 2500, currencyCode: "USD" },
         variant: {
-          attributes: {},
           id: VariantId.make("variant-1"),
           images: [],
           name: "Hydra Wrench",
@@ -109,7 +108,6 @@ const encodedCheckoutSuccess = {
           totalPrice: { centAmount: 2500, currencyCode: "USD" },
           unitPrice: { centAmount: 2500, currencyCode: "USD" },
           variant: {
-            attributes: {},
             id: "variant-1",
             images: [],
             name: "Hydra Wrench",

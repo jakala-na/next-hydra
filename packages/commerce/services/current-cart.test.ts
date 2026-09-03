@@ -1,8 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer, Option } from "effect";
+import { Effect, Layer, Option, Schema } from "effect";
 
 import { CartId, ProductId, Sku, VariantId } from "../domain/cart";
 import { CartPolicyFailure, CartProviderFailure } from "../domain/cart-errors";
+import { ProductTypeKey } from "../domain/cart-snapshot";
 import type { CartSnapshot } from "../domain/cart-snapshot";
 import {
   CommerceBusinessUnitId,
@@ -29,6 +30,7 @@ const store = new Store({
   locale: CommerceLocale.make("en-US"),
   storeKey: StoreKey.make("us-store"),
 });
+const genericProductType = Schema.decodeSync(ProductTypeKey)("generic-product");
 
 const emptyCart = (id: string): CartSnapshot => ({
   checkoutDetails: {},
@@ -56,16 +58,20 @@ const anonymousRequest = ({
   readonly anonymousCartId?: CartId;
   readonly setIds?: CartId[];
   readonly cleared?: boolean[];
-} = {}): TestCurrentCartBoundary => ({
-  contextRequest: new AnonymousCommerceContextRequest({
-    store,
-    ...(anonymousCartId === undefined ? {} : { anonymousCartId }),
-  }),
-  currentCartCookie: {
-    clear: () => Effect.sync(() => cleared.push(true)).pipe(Effect.asVoid),
-    set: (id) => Effect.sync(() => setIds.push(id)).pipe(Effect.asVoid),
-  },
-});
+} = {}): TestCurrentCartBoundary => {
+  const contextRequest =
+    anonymousCartId === undefined
+      ? new AnonymousCommerceContextRequest({ store })
+      : new AnonymousCommerceContextRequest({ anonymousCartId, store });
+
+  return {
+    contextRequest,
+    currentCartCookie: {
+      clear: () => Effect.sync(() => cleared.push(true)).pipe(Effect.asVoid),
+      set: (id) => Effect.sync(() => setIds.push(id)).pipe(Effect.asVoid),
+    },
+  };
+};
 
 const customerId = CommerceCustomerId.make("customer-1");
 const authUserId = AuthUserId.make("auth-user-1");
@@ -147,12 +153,11 @@ describe(CurrentCart, () => {
               {
                 unitPrice: { centAmount: 1250, currencyCode: "USD" },
                 variant: {
-                  attributes: {},
                   id: VariantId.make("variant-1"),
                   images: [],
                   name: "Hydra Wrench",
                   productId: ProductId.make("product-1"),
-                  productType: "generic-product",
+                  productType: genericProductType,
                   sku: Sku.make("SKU-1"),
                 },
               },

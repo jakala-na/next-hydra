@@ -182,11 +182,26 @@ const rawCartLineItem = {
     value: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
   },
   productId: "product-1",
-  productType: { key: "heavy-lifting-and-specialized-equipment" },
+  productType: {
+    attributeDefinitions: {
+      results: [
+        {
+          labelAllLocales: [{ locale: "en-US", value: "Model" }],
+          name: "model",
+        },
+      ],
+    },
+    key: "heavy-earthmoving-and-construction-equipment",
+  },
   quantity: 1,
   totalPrice: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
   variant: {
-    attributesRaw: [],
+    attributesRaw: [
+      {
+        name: "model",
+        value: 2015,
+      },
+    ],
     id: 3,
     images: [{ label: "Crane", url: "https://example.com/crane.jpg" }],
     sku: "SKU-3",
@@ -300,7 +315,129 @@ describe("findById", () => {
         id: "3",
         productId: "product-1",
         sku: "SKU-3",
+        summaryAttribute: { label: "Model", value: "2015" },
       });
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect(
+    "uses configured locale priority for the Cart summary label",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawCartWithLineItem,
+          lineItems: [
+            {
+              ...rawCartLineItem,
+              productType: {
+                ...rawCartLineItem.productType,
+                attributeDefinitions: {
+                  results: [
+                    {
+                      labelAllLocales: [
+                        { locale: "de-DE", value: "Modell" },
+                        { locale: "fr-FR", value: "Modèle" },
+                      ],
+                      name: "model",
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(Option.getOrThrow(found).lineItems[0]?.variant).toMatchObject({
+          summaryAttribute: { label: "Modèle", value: "2015" },
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect("omits a Cart summary attribute without a usable label", () => {
+    const clients = makeScriptedClients();
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawCartWithLineItem,
+        lineItems: [
+          {
+            ...rawCartLineItem,
+            productType: {
+              ...rawCartLineItem.productType,
+              attributeDefinitions: {
+                results: [
+                  {
+                    labelAllLocales: [
+                      { locale: "de-DE", value: "" },
+                      { locale: "en-US", value: "   " },
+                    ],
+                    name: "model",
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({ id: CartId.make("cart-1"), store });
+      const variant = Option.getOrThrow(found).lineItems[0]?.variant;
+
+      expect(variant).not.toHaveProperty("summaryAttribute");
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect("omits Product Attributes not selected for Cart display", () => {
+    const clients = makeScriptedClients();
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawCartWithLineItem,
+        lineItems: [
+          {
+            ...rawCartLineItem,
+            productType: {
+              attributeDefinitions: { results: [] },
+              key: "heavy-lifting-and-specialized-equipment",
+            },
+            variant: {
+              ...rawCartLineItem.variant,
+              attributesRaw: [
+                {
+                  name: "color",
+                  value: {
+                    key: "RED",
+                    label: { "de-DE": "Rot" },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({ id: CartId.make("cart-1"), store });
+      const variant = Option.getOrThrow(found).lineItems[0]?.variant;
+
+      expect(variant).toMatchObject({ id: "3" });
+      expect(variant).not.toHaveProperty("summaryAttribute");
     }).pipe(Effect.provide(clients.layer));
   });
 
@@ -495,43 +632,50 @@ describe("findById", () => {
     }
   );
 
-  it.effect("does not inspect linked Payment Custom Type metadata", () => {
-    const clients = makeScriptedClients();
-    clients.on(
-      "CartById",
-      cartByIdData({
-        ...rawActiveCart,
-        billingAddress: rawPaymentBillingAddress,
-        paymentInfo: {
-          paymentRefs: [{ id: "payment-1" }],
-          payments: [
-            {
-              ...rawPreparedCardPayment,
-              custom: {
-                ...rawPreparedCardPayment.custom,
-                type: { key: "anotherPaymentType" },
+  it.effect(
+    "rejects linked Payment metadata stored under another Custom Type",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          billingAddress: rawPaymentBillingAddress,
+          paymentInfo: {
+            paymentRefs: [{ id: "payment-1" }],
+            payments: [
+              {
+                ...rawPreparedCardPayment,
+                custom: {
+                  ...rawPreparedCardPayment.custom,
+                  type: { key: "anotherPaymentType" },
+                },
               },
-            },
-          ],
-        },
-      })
-    );
+            ],
+          },
+        })
+      );
 
-    return Effect.gen(function* () {
-      const carts = yield* Carts;
-      const found = yield* carts.findById({
-        id: CartId.make("cart-1"),
-        store,
-      });
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const result = yield* carts
+          .findById({
+            id: CartId.make("cart-1"),
+            store,
+          })
+          .pipe(Effect.result);
 
-      expect(
-        Option.getOrThrow(found).checkoutDetails.preparedPayment
-      ).toMatchObject({
-        method: "card",
-        paymentReference: "payment-1",
-      });
-    }).pipe(Effect.provide(clients.layer));
-  });
+        expect(result).toMatchObject({
+          _tag: "Failure",
+          failure: {
+            _tag: "CartProviderFailure",
+            operation: "findById",
+            reason: "invalidData",
+          },
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
 
   it.effect("ignores a Cart whose expanded Payment is not linked", () => {
     const clients = makeScriptedClients();
@@ -582,36 +726,40 @@ describe("findById", () => {
     }
   );
 
-  it.effect("defects when persisted Checkout custom JSON is malformed", () => {
-    const clients = makeScriptedClients();
-    clients.on(
-      "CartById",
-      cartByIdData({
-        ...rawActiveCart,
-        custom: {
-          customFieldsRaw: [
-            { name: "checkoutDeliveryDetails", value: "{not-json" },
-          ],
-          type: { key: "order" },
-        },
-      })
-    );
-
-    return Effect.gen(function* () {
-      const carts = yield* Carts;
-      const exit = yield* carts
-        .findById({ id: CartId.make("cart-1"), store })
-        .pipe(Effect.exit);
-
-      if (!Exit.isFailure(exit)) {
-        throw new Error("Expected malformed persisted Checkout JSON to defect");
-      }
-      expect(exit.cause.reasons.some(Cause.isDieReason)).toBeTruthy();
-      expect(Cause.pretty(exit.cause)).toContain(
-        "Expected a valid JSON string"
+  it.effect(
+    "reports malformed persisted Checkout custom JSON as invalid provider data",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          custom: {
+            customFieldsRaw: [
+              { name: "checkoutDeliveryDetails", value: "{not-json" },
+            ],
+            type: { key: "orderCustomFields" },
+          },
+        })
       );
-    }).pipe(Effect.provide(clients.layer));
-  });
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const result = yield* carts
+          .findById({ id: CartId.make("cart-1"), store })
+          .pipe(Effect.result);
+
+        expect(result).toMatchObject({
+          _tag: "Failure",
+          failure: {
+            _tag: "CartProviderFailure",
+            operation: "findById",
+            reason: "invalidData",
+          },
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
 
   it.effect("ignores native Shipping that no longer matches the Cart", () => {
     const clients = makeScriptedClients();

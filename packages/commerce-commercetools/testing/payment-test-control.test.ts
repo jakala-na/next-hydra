@@ -6,12 +6,18 @@ import { makeCommercetoolsPaymentTestControl } from "./payment-test-control";
 
 describe("Commercetools Payment test control", () => {
   it("reads capture-failure inputs and records the matching authorization", async () => {
+    const paymentReadQueryArgs: unknown[] = [];
     const updates: unknown[] = [];
     const payment = {
       amountPlanned: { centAmount: 2500, currencyCode: "USD" },
       custom: {
         fields: {
           checkoutPlacementAttemptReference: "attempt-from-input",
+        },
+        type: {
+          id: "payment-custom-fields-type-from-provider",
+          obj: { key: "paymentCustomFields" },
+          typeId: "type",
         },
       },
       id: "payment-from-input",
@@ -36,7 +42,12 @@ describe("Commercetools Payment test control", () => {
       }),
       payments: () => ({
         withId: () => ({
-          get: () => ({ execute: () => Promise.resolve({ body: payment }) }),
+          get: ({ queryArgs }: { readonly queryArgs?: unknown } = {}) => ({
+            execute: () => {
+              paymentReadQueryArgs.push(queryArgs);
+              return Promise.resolve({ body: payment });
+            },
+          }),
           post: ({ body }: { readonly body: unknown }) => ({
             execute: () => {
               updates.push(body);
@@ -69,6 +80,10 @@ describe("Commercetools Payment test control", () => {
       providerReference: "pi-from-input",
       version: 3,
     });
+    expect(paymentReadQueryArgs).toStrictEqual([
+      { expand: "custom.type" },
+      { expand: "custom.type" },
+    ]);
     expect(updates).toStrictEqual([
       {
         actions: [

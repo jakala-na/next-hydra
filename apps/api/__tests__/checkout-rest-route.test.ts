@@ -142,12 +142,12 @@ const defaultLineItems: TestLineItem[] = [
     totalPrice: money,
     unitPrice: money,
     variant: {
-      attributes: {},
       id: VariantId.make("1"),
       images: [],
       name: "Hydra Wrench",
       productId: ProductId.make("product-1"),
       sku: Sku.make("HYDRA-WRENCH"),
+      summaryAttribute: { label: "Model", value: "2015" },
     },
   },
 ];
@@ -1058,7 +1058,14 @@ describe("Checkout REST API", () => {
         activeStep: "contact",
         cart: {
           id: "cart-1",
-          lineItems: [{ id: "line-1" }],
+          lineItems: [
+            {
+              id: "line-1",
+              variant: {
+                summaryAttribute: { label: "Model", value: "2015" },
+              },
+            },
+          ],
         },
         deliveryPlanQuote: {
           plans: [],

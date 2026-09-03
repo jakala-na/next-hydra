@@ -235,6 +235,13 @@ Then(
 );
 
 Then(
+  "Product {string} is identified by {string} in the Cart",
+  async ({ page }, productName: string, summary: string) => {
+    await new CartDriver(page).expectProductSummary(productName, summary);
+  }
+);
+
+Then(
   "the Cart subtotal is {string} in currency {string}",
   async ({ page }, amount: string, currency: string) => {
     await new CartDriver(page).expectSubtotal(amount, currency);

@@ -1,11 +1,13 @@
 import type {
+  CartLineItemSummaryAttribute,
+  ProductTypeKey,
+} from "@repo/commerce/domain/cart-snapshot";
+import type {
   CheckoutDetails,
   ShippingAddress,
 } from "@repo/commerce/domain/checkout";
 import type { CommerceBusinessUnitId } from "@repo/commerce/domain/commerce-account";
 import type { CurrencyCode } from "@repo/commerce/domain/money";
-
-import type { ProductAttributes, ProductTypeKey } from "./attributes";
 
 export type CommercetoolsAddress = {
   readonly additionalStreetInfo?: string | null;
@@ -102,7 +104,7 @@ export type CommercetoolsLineItem = {
       readonly url: string;
       readonly altText: string;
     }[];
-    readonly attributes: ProductAttributes;
+    readonly summaryAttribute?: CartLineItemSummaryAttribute;
   } | null;
   readonly price: CommercetoolsPrice;
   readonly quantity: number;

@@ -2,13 +2,14 @@ import type {
   ByProjectKeyRequestBuilder,
   Payment,
 } from "@commercetools/platform-sdk";
-import { Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import {
-  PAYMENT_ATTEMPT_REFERENCE_FIELD,
-  PAYMENT_CARD_BRAND_FIELD,
-  PAYMENT_CARD_LAST_FOUR_FIELD,
-} from "../payment-repository/custom-fields";
+  customFieldsBuilder,
+  customFieldsReader,
+  PaymentCustomFields,
+  REST_CUSTOM_TYPE_EXPANSION,
+} from "../custom-fields";
 import {
   cardPaymentKeyForCheckout,
   netTermsPaymentKeyForCheckout,
@@ -42,10 +43,6 @@ export interface CardCaptureFailurePreparation extends CheckoutPaymentResource {
   readonly attemptReference: string;
   readonly confirmationReference: string;
 }
-
-const CheckoutCardPaymentFields = Schema.Struct({
-  [PAYMENT_ATTEMPT_REFERENCE_FIELD]: Schema.NonEmptyString,
-});
 
 const isNotFound = Schema.is(
   Schema.Struct({ statusCode: Schema.Literal(404) })
@@ -133,15 +130,20 @@ export const makeCommercetoolsPaymentTestControl = (
       const response = await apiRoot
         .payments()
         .withId({ ID: selected.id })
-        .get()
+        .get({ queryArgs: { expand: REST_CUSTOM_TYPE_EXPANSION } })
         .execute();
       const payment = response.body;
       const identity = toPaymentResource(payment);
       if (payment.paymentMethodInfo.method !== "card") {
         throw new Error(`Cart ${cartId} does not use a Card Payment`);
       }
-      const fields = Schema.decodeUnknownSync(CheckoutCardPaymentFields)(
-        payment.custom?.fields
+      const fields = Option.getOrThrow(
+        await Effect.runPromise(
+          customFieldsReader.fromRest(PaymentCustomFields, payment.custom).read
+        )
+      );
+      const attemptReference = Schema.decodeUnknownSync(Schema.NonEmptyString)(
+        fields.checkoutPlacementAttemptReference
       );
       const confirmationReference = Schema.decodeUnknownSync(
         Schema.NonEmptyString
@@ -149,7 +151,7 @@ export const makeCommercetoolsPaymentTestControl = (
       return {
         ...identity,
         amount: payment.amountPlanned,
-        attemptReference: fields[PAYMENT_ATTEMPT_REFERENCE_FIELD],
+        attemptReference,
         confirmationReference,
       };
     },
@@ -233,8 +235,16 @@ export const makeCommercetoolsPaymentTestControl = (
       const current = await apiRoot
         .payments()
         .withId({ ID: payment.paymentReference })
-        .get()
+        .get({ queryArgs: { expand: REST_CUSTOM_TYPE_EXPANSION } })
         .execute();
+      const cardFieldActions = await Effect.runPromise(
+        customFieldsBuilder
+          .forType(PaymentCustomFields)
+          .set("checkoutCardBrand", authorization.cardBrand)
+          .set("checkoutCardLastFour", authorization.lastFour)
+          .againstRest(current.body.custom)
+          .toRestUpdateActions()
+      );
       await apiRoot
         .payments()
         .withId({ ID: payment.paymentReference })
@@ -251,16 +261,7 @@ export const makeCommercetoolsPaymentTestControl = (
                   type: "Authorization",
                 },
               },
-              {
-                action: "setCustomField",
-                name: PAYMENT_CARD_BRAND_FIELD,
-                value: authorization.cardBrand,
-              },
-              {
-                action: "setCustomField",
-                name: PAYMENT_CARD_LAST_FOUR_FIELD,
-                value: authorization.lastFour,
-              },
+              ...cardFieldActions,
             ],
             version: current.body.version,
           },

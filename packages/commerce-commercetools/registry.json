@@ -51,11 +51,6 @@
           "type": "registry:file"
         },
         {
-          "path": "cart/attributes.ts",
-          "target": "~/packages/commerce-commercetools/cart/attributes.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "cart/carts.test.ts",
           "target": "~/packages/commerce-commercetools/cart/carts.test.ts",
           "type": "registry:file"
@@ -63,6 +58,11 @@
         {
           "path": "cart/carts.ts",
           "target": "~/packages/commerce-commercetools/cart/carts.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/checkout-custom-fields.ts",
+          "target": "~/packages/commerce-commercetools/cart/checkout-custom-fields.ts",
           "type": "registry:file"
         },
         {
@@ -366,13 +366,18 @@
           "type": "registry:file"
         },
         {
-          "path": "custom-fields/generated/enum-values.ts",
-          "target": "~/packages/commerce-commercetools/custom-fields/generated/enum-values.ts",
+          "path": "custom-fields/builder.test.ts",
+          "target": "~/packages/commerce-commercetools/custom-fields/builder.test.ts",
           "type": "registry:file"
         },
         {
-          "path": "custom-fields/generated/field-kinds.ts",
-          "target": "~/packages/commerce-commercetools/custom-fields/generated/field-kinds.ts",
+          "path": "custom-fields/builder.ts",
+          "target": "~/packages/commerce-commercetools/custom-fields/builder.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "custom-fields/definition.ts",
+          "target": "~/packages/commerce-commercetools/custom-fields/definition.ts",
           "type": "registry:file"
         },
         {
@@ -381,8 +386,8 @@
           "type": "registry:file"
         },
         {
-          "path": "custom-fields/generated/types.ts",
-          "target": "~/packages/commerce-commercetools/custom-fields/generated/types.ts",
+          "path": "custom-fields/graphql.ts",
+          "target": "~/packages/commerce-commercetools/custom-fields/graphql.ts",
           "type": "registry:file"
         },
         {
@@ -391,18 +396,23 @@
           "type": "registry:file"
         },
         {
-          "path": "custom-fields/resolve.ts",
-          "target": "~/packages/commerce-commercetools/custom-fields/resolve.ts",
+          "path": "custom-fields/reader.test.ts",
+          "target": "~/packages/commerce-commercetools/custom-fields/reader.test.ts",
           "type": "registry:file"
         },
         {
-          "path": "custom-fields/types.ts",
-          "target": "~/packages/commerce-commercetools/custom-fields/types.ts",
+          "path": "custom-fields/reader.ts",
+          "target": "~/packages/commerce-commercetools/custom-fields/reader.ts",
           "type": "registry:file"
         },
         {
-          "path": "custom-fields/utils.ts",
-          "target": "~/packages/commerce-commercetools/custom-fields/utils.ts",
+          "path": "custom-fields/rest.ts",
+          "target": "~/packages/commerce-commercetools/custom-fields/rest.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "custom-fields/source.ts",
+          "target": "~/packages/commerce-commercetools/custom-fields/source.ts",
           "type": "registry:file"
         },
         {
@@ -511,11 +521,6 @@
           "type": "registry:file"
         },
         {
-          "path": "payment-repository/custom-fields.ts",
-          "target": "~/packages/commerce-commercetools/payment-repository/custom-fields.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "payment-repository/index.ts",
           "target": "~/packages/commerce-commercetools/payment-repository/index.ts",
           "type": "registry:file"
@@ -533,6 +538,26 @@
         {
           "path": "payment-repository/payment-repository.ts",
           "target": "~/packages/commerce-commercetools/payment-repository/payment-repository.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-attributes/index.ts",
+          "target": "~/packages/commerce-commercetools/product-attributes/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-attributes/localization.ts",
+          "target": "~/packages/commerce-commercetools/product-attributes/localization.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-attributes/reader.test.ts",
+          "target": "~/packages/commerce-commercetools/product-attributes/reader.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-attributes/reader.ts",
+          "target": "~/packages/commerce-commercetools/product-attributes/reader.ts",
           "type": "registry:file"
         },
         {

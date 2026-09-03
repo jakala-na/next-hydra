@@ -27,7 +27,12 @@ interface StoredPayment {
   };
   readonly custom?: {
     readonly fields: Readonly<Record<string, number | string>>;
-    readonly type?: { readonly key: string };
+    readonly type?: {
+      readonly id?: string;
+      readonly key?: string;
+      readonly obj?: { readonly key: string };
+      readonly typeId?: string;
+    };
   };
   readonly id: string;
   readonly interfaceId?: string;
@@ -72,15 +77,27 @@ const checkout = {
   reference: PaymentCheckoutReference.make("cart-from-input"),
 };
 
+const paymentCustomFields = (
+  fields: Readonly<Record<string, number | string>> = {}
+): NonNullable<StoredPayment["custom"]> => ({
+  fields,
+  type: {
+    id: "payment-custom-fields-type-from-provider",
+    obj: { key: "paymentCustomFields" },
+    typeId: "type",
+  },
+});
+
 const notFound = () =>
   Promise.reject(Object.assign(new Error("Not found"), { statusCode: 404 }));
 
 describe("Commercetools PaymentRepository", () => {
   it("creates a typed Card Payment before a ConfirmationToken is available", async () => {
     let created: unknown;
+    let createQueryArgs: unknown;
     const payment: StoredPayment = {
       amountPlanned: checkout.amount,
-      custom: { fields: {} },
+      custom: paymentCustomFields(),
       id: "card-payment-from-provider",
       interfaceId: "pi-from-input",
       paymentMethodInfo: {
@@ -92,9 +109,16 @@ describe("Commercetools PaymentRepository", () => {
       version: 1,
     };
     const payments = () => ({
-      post: ({ body }: { readonly body: unknown }) => ({
+      post: ({
+        body,
+        queryArgs,
+      }: {
+        readonly body: unknown;
+        readonly queryArgs?: unknown;
+      }) => ({
         execute: () => {
           created = body;
+          createQueryArgs = queryArgs;
           return Promise.resolve({ body: payment });
         },
       }),
@@ -124,17 +148,17 @@ describe("Commercetools PaymentRepository", () => {
       },
       interfaceId: "pi-from-input",
     });
+    expect(createQueryArgs).toStrictEqual({ expand: "custom.type" });
   });
 
   it("returns the provider identity with a Card Payment reference", async () => {
+    let readQueryArgs: unknown;
     const payment: StoredPayment = {
       amountPlanned: checkout.amount,
-      custom: {
-        fields: {
-          checkoutCardBrand: "visa",
-          checkoutCardLastFour: "4242",
-        },
-      },
+      custom: paymentCustomFields({
+        checkoutCardBrand: "visa",
+        checkoutCardLastFour: "4242",
+      }),
       id: "card-payment-from-provider",
       interfaceId: "pi-from-provider",
       paymentMethodInfo: {
@@ -148,7 +172,12 @@ describe("Commercetools PaymentRepository", () => {
     };
     const payments = () => ({
       withKey: () => ({
-        get: () => ({ execute: () => Promise.resolve({ body: payment }) }),
+        get: ({ queryArgs }: { readonly queryArgs?: unknown } = {}) => ({
+          execute: () => {
+            readQueryArgs = queryArgs;
+            return Promise.resolve({ body: payment });
+          },
+        }),
       }),
     });
     // SAFETY: The adapter consumes only the Payments request-builder methods
@@ -177,6 +206,7 @@ describe("Commercetools PaymentRepository", () => {
       provider: PaymentProvider.make("Stripe"),
       providerReference: "pi-from-provider",
     });
+    expect(readQueryArgs).toStrictEqual({ expand: "custom.type" });
   });
 
   it("persists the selected Card confirmation on its Payment", async () => {
@@ -184,7 +214,7 @@ describe("Commercetools PaymentRepository", () => {
       PaymentConfirmationReference.make("ctoken-from-input");
     let current: StoredPayment = {
       amountPlanned: checkout.amount,
-      custom: { fields: {} },
+      custom: paymentCustomFields(),
       id: "card-payment-from-provider",
       interfaceId: "pi-from-provider",
       paymentMethodInfo: {
@@ -196,12 +226,20 @@ describe("Commercetools PaymentRepository", () => {
       version: 1,
     };
     const updateBodies: unknown[] = [];
+    const updateQueryArgs: unknown[] = [];
     const payments = () => ({
       post: () => ({ execute: notFound }),
       withId: () => ({
-        post: ({ body }: { readonly body: unknown }) => ({
+        post: ({
+          body,
+          queryArgs,
+        }: {
+          readonly body: unknown;
+          readonly queryArgs?: unknown;
+        }) => ({
           execute: () => {
             updateBodies.push(body);
+            updateQueryArgs.push(queryArgs);
             current = {
               ...current,
               paymentMethodInfo: {
@@ -247,12 +285,13 @@ describe("Commercetools PaymentRepository", () => {
         version: 1,
       },
     ]);
+    expect(updateQueryArgs).toStrictEqual([{ expand: "custom.type" }]);
   });
 
   it("retains a released Card Payment and creates a new Payment for a new provider reference", async () => {
     const released: StoredPayment = {
       amountPlanned: checkout.amount,
-      custom: { fields: {} },
+      custom: paymentCustomFields(),
       id: "card-payment-from-provider",
       interfaceId: "pi-released-from-provider",
       paymentMethodInfo: {
@@ -337,7 +376,7 @@ describe("Commercetools PaymentRepository", () => {
   it("re-reads a Payment created by a concurrent preparation", async () => {
     const winner: StoredPayment = {
       amountPlanned: checkout.amount,
-      custom: { fields: {} },
+      custom: paymentCustomFields(),
       id: "payment-from-concurrent-request",
       interfaceId: "pi-from-input",
       paymentMethodInfo: {
@@ -432,12 +471,10 @@ describe("Commercetools PaymentRepository", () => {
             }
             current = {
               ...current,
-              custom: {
-                fields: {
-                  checkoutPlacementAttemptReference: attemptReference,
-                  checkoutTermsInDays: 30,
-                },
-              },
+              custom: paymentCustomFields({
+                checkoutPlacementAttemptReference: attemptReference,
+                checkoutTermsInDays: 30,
+              }),
               paymentMethodInfo: {
                 ...current.paymentMethodInfo,
                 name: { "en-US": "Net 30" },

@@ -10,6 +10,8 @@ The Checkout context describes how a buyer completes the information and choices
 
 **Cart Line Item**: One Product Variant and its requested quantity in a Cart. Its identity lets checkout choices refer to that exact Cart entry rather than to the Product in general. _Avoid_: Product, Provider Line Item
 
+**Cart Line Item Summary Attribute**: One presentation-ready Product Attribute selected by a commerce provider to identify a Product Variant in compact Cart presentations. Its label and value are already localized and formatted. _Avoid_: Raw Product Attribute, Product Attribute bag
+
 **Cart Snapshot**: An observation of a Cart's current semantic state, independent of provider resource revisions and storage representation. _Avoid_: Provider Cart, Cart version
 
 **Current Cart**: The Cart resolved for the buyer's current Store and, for B2B activity, Business Unit Buying Context. The `cart` cookie identifies an anonymous Current Cart. _Avoid_: Cart Session, arbitrary Cart

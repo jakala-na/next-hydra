@@ -39,7 +39,6 @@ const cart: CartSnapshot = {
       totalPrice: { centAmount: 9500, currencyCode: "USD" },
       unitPrice: { centAmount: 9500, currencyCode: "USD" },
       variant: {
-        attributes: {},
         id: VariantId.make("variant-1"),
         images: [],
         name: "Hydra Wrench",

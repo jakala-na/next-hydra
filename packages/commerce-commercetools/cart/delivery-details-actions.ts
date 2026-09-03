@@ -1,26 +1,10 @@
-import { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
+import { CartProviderFailure } from "@repo/commerce/domain/cart-errors";
+import type { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
 import { checkoutDeliveryDetailsEqual } from "@repo/commerce/lib/checkout/delivery-details-equality";
-import { Schema } from "effect";
 
+import { customFieldsBuilder } from "../custom-fields";
+import { CheckoutOrderCustomFields } from "./checkout-custom-fields";
 import type { CommercetoolsCart } from "./provider-cart";
-
-type SaveCheckoutDeliveryDetailsAction = {
-  readonly setCustomField: {
-    readonly name: string;
-    readonly value: string;
-  };
-};
-
-export const CHECKOUT_DELIVERY_DETAILS_CUSTOM_FIELD_NAME =
-  "checkoutDeliveryDetails";
-
-const CheckoutDeliveryDetailsFromJson = Schema.fromJsonString(
-  CheckoutDeliveryDetails
-);
-
-export const serializeCheckoutDeliveryDetails = (
-  deliveryDetails: CheckoutDeliveryDetails
-) => Schema.encodeSync(CheckoutDeliveryDetailsFromJson)(deliveryDetails);
 
 export const hasPersistedCheckoutDeliveryDetails = (
   cart: Pick<CommercetoolsCart, "checkoutDetails">,
@@ -38,16 +22,28 @@ export const hasPersistedCheckoutDeliveryDetails = (
   );
 };
 
-export const buildSaveCheckoutDeliveryDetailsActions = (
+export const buildSaveCheckoutDeliveryDetailsUpdate = (
+  cart: Pick<CommercetoolsCart, "custom">,
   deliveryDetails: CheckoutDeliveryDetails
-): SaveCheckoutDeliveryDetailsAction[] => [
-  {
-    setCustomField: {
-      name: CHECKOUT_DELIVERY_DETAILS_CUSTOM_FIELD_NAME,
-      // GraphQL's Custom Field value is itself JSON. A Commercetools String
-      // field therefore needs the serialized checkout JSON encoded as a JSON
-      // string, just like checkoutContact.
-      value: JSON.stringify(serializeCheckoutDeliveryDetails(deliveryDetails)),
-    },
-  },
-];
+) =>
+  customFieldsBuilder
+    .forType(CheckoutOrderCustomFields)
+    .set("checkoutDeliveryDetails", deliveryDetails)
+    .againstGraphql(cart.custom)
+    .mapError(
+      (cause) =>
+        new CartProviderFailure({
+          cause,
+          operation: "saveDeliveryDetails",
+          reason: "invalidData",
+        })
+    );
+
+export const buildSaveCheckoutDeliveryDetailsActions = (
+  cart: Pick<CommercetoolsCart, "custom">,
+  deliveryDetails: CheckoutDeliveryDetails
+) =>
+  buildSaveCheckoutDeliveryDetailsUpdate(
+    cart,
+    deliveryDetails
+  ).toGraphqlUpdateActions();

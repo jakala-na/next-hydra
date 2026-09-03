@@ -111,6 +111,15 @@ export const CartFragment = graphql(
         productId
         productType {
           key
+          attributeDefinitions(includeNames: ["model"]) {
+            results {
+              name
+              labelAllLocales {
+                locale
+                value
+              }
+            }
+          }
         }
         name(locale: $locale)
         quantity

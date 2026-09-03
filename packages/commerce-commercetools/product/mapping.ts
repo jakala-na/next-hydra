@@ -1,22 +1,20 @@
 import {
-  ProductAttributesSchemaByProductType,
   ProductCard,
   ProductDetail,
   ProductTypeKey,
 } from "@repo/commerce/product";
 import type { CommerceLocale } from "@repo/commerce/store";
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
+import { productAttributesReader } from "../product-attributes";
 import type {
   CommercetoolsProductPrice,
   CommercetoolsProductProjection,
   CommercetoolsProductVariant,
 } from "./client";
 
-type ProductTypeKeyValue = typeof ProductTypeKey.Type;
-type ProductTypeName = keyof typeof ProductAttributesSchemaByProductType;
-
-const productTypeName = (value: ProductTypeKeyValue): ProductTypeName => value;
+type ProductTypeKeyValue = ProductTypeKey;
+type ProductTypeName = keyof typeof OPTION_BY_PRODUCT_TYPE;
 
 const OPTION_BY_PRODUCT_TYPE = {
   "generic-product": undefined,
@@ -33,59 +31,88 @@ const OPTION_BY_PRODUCT_TYPE = {
   { readonly key: string; readonly label: string } | undefined
 >;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const productTypeName = (value: ProductTypeKeyValue): ProductTypeName => value;
 
-const localize = (value: unknown, locale: CommerceLocale): unknown => {
-  if (Array.isArray(value)) {
-    return value.map((item) => localize(item, locale));
-  }
-  if (!isRecord(value)) {
-    return value;
-  }
-  if (value.typeId === "product" && typeof value.id === "string") {
-    return value.id;
-  }
-  if (typeof value.key === "string" && "label" in value) {
-    const { label } = value;
-    if (typeof label === "string") {
-      return { key: value.key, label };
-    }
-    if (isRecord(label) && typeof label[locale] === "string") {
-      return { key: value.key, label: label[locale] };
-    }
-  }
-  if (typeof value[locale] === "string") {
-    return value[locale];
-  }
-  return value;
-};
+const unsupportedProductType = (productType: never) =>
+  Effect.die(new Error(`Unsupported Product Type: ${String(productType)}`));
 
-const decodeAttributes = (
-  productType: ProductTypeKeyValue,
+const readVariantAttributes = (
+  productTypeKey: ProductTypeKeyValue,
   variant: CommercetoolsProductVariant,
   locale: CommerceLocale
 ) => {
-  const attributes = Object.fromEntries(
-    variant.attributesRaw.map(({ name, value }) => [
-      name,
-      localize(value, locale),
-    ])
-  );
-  return Schema.decodeUnknownEffect(
-    ProductAttributesSchemaByProductType[productTypeName(productType)]
-  )(attributes);
+  const productType = productTypeName(productTypeKey);
+  switch (productType) {
+    case "generic-product": {
+      const reader = productAttributesReader.fromGraphql(
+        "generic-product",
+        variant.attributesRaw,
+        { locale }
+      );
+      return reader.read.pipe(
+        Effect.map((attributes) => ({ attributes, selectedOption: undefined }))
+      );
+    }
+    case "heavy-earthmoving-and-construction-equipment": {
+      const option =
+        OPTION_BY_PRODUCT_TYPE["heavy-earthmoving-and-construction-equipment"];
+      const reader = productAttributesReader.fromGraphql(
+        "heavy-earthmoving-and-construction-equipment",
+        variant.attributesRaw,
+        { locale }
+      );
+      return Effect.all({
+        attributes: reader.read,
+        selectedAttribute: reader.get(option.key),
+      }).pipe(
+        Effect.map(({ attributes, selectedAttribute }) => ({
+          attributes,
+          selectedOption: selectedAttribute.pipe(
+            Option.map((value) => {
+              const text = String(value);
+              return { key: text, label: text };
+            }),
+            Option.getOrUndefined
+          ),
+        }))
+      );
+    }
+    case "heavy-lifting-and-specialized-equipment": {
+      const option =
+        OPTION_BY_PRODUCT_TYPE["heavy-lifting-and-specialized-equipment"];
+      const reader = productAttributesReader.fromGraphql(
+        "heavy-lifting-and-specialized-equipment",
+        variant.attributesRaw,
+        { locale }
+      );
+      return Effect.all({
+        attributes: reader.read,
+        selectedAttribute: reader.get(option.key),
+      }).pipe(
+        Effect.map(({ attributes, selectedAttribute }) => ({
+          attributes,
+          selectedOption: selectedAttribute.pipe(
+            Option.map(({ key, label }) => ({ key, label })),
+            Option.getOrUndefined
+          ),
+        }))
+      );
+    }
+    default: {
+      return unsupportedProductType(productType);
+    }
+  }
 };
 
-const mapPrice = (price: CommercetoolsProductPrice | null) =>
-  price === null
-    ? undefined
-    : {
-        regular: price.value,
-        ...(price.discounted === null
-          ? {}
-          : { discounted: price.discounted.value }),
-      };
+const mapPrice = (price: CommercetoolsProductPrice | null) => {
+  if (price === null) {
+    return undefined;
+  }
+  if (price.discounted === null) {
+    return { regular: price.value };
+  }
+  return { discounted: price.discounted.value, regular: price.value };
+};
 
 const mapAvailability = (variant: CommercetoolsProductVariant) => {
   const availableQuantity = Math.max(
@@ -102,21 +129,9 @@ const mapAvailability = (variant: CommercetoolsProductVariant) => {
 };
 
 const mapImages = (variant: CommercetoolsProductVariant) =>
-  variant.images.map(({ label, url }) => ({
-    url,
-    ...(label === null ? {} : { altText: label }),
-  }));
-
-const optionValue = (value: unknown) => {
-  if (isRecord(value) && typeof value.key === "string") {
-    return {
-      key: value.key,
-      label: typeof value.label === "string" ? value.label : value.key,
-    };
-  }
-  const text = String(value);
-  return { key: text, label: text };
-};
+  variant.images.map(({ label, url }) =>
+    label === null ? { url } : { altText: label, url }
+  );
 
 const mapVariant = (
   productType: ProductTypeKeyValue,
@@ -124,27 +139,47 @@ const mapVariant = (
   locale: CommerceLocale
 ) =>
   Effect.gen(function* () {
-    const attributes = yield* decodeAttributes(productType, variant, locale);
+    const { attributes, selectedOption } = yield* readVariantAttributes(
+      productType,
+      variant,
+      locale
+    );
     const option = OPTION_BY_PRODUCT_TYPE[productTypeName(productType)];
-    const selectedOption =
-      option === undefined
-        ? undefined
-        : optionValue((attributes as Record<string, unknown>)[option.key]);
 
-    return {
-      id: String(variant.id),
-      ...(variant.sku === null ? {} : { sku: variant.sku }),
-      images: mapImages(variant),
+    const mapped = {
       attributes,
+      availability: mapAvailability(variant),
+      id: String(variant.id),
+      images: mapImages(variant),
       optionValues:
         option === undefined || selectedOption === undefined
           ? {}
           : { [option.key]: selectedOption.key },
-      ...(variant.price === null ? {} : { price: mapPrice(variant.price) }),
-      availability: mapAvailability(variant),
       selectedOption,
     };
+
+    const mappedWithSku =
+      variant.sku === null ? mapped : { ...mapped, sku: variant.sku };
+    return variant.price === null
+      ? mappedWithSku
+      : { ...mappedWithSku, price: mapPrice(variant.price) };
   });
+
+const mapCategory = (
+  category: CommercetoolsProductProjection["categories"][number]
+) => {
+  const { id, name, slug } = category;
+  if (name === null && slug === null) {
+    return { id };
+  }
+  if (name === null) {
+    return { id, slug };
+  }
+  if (slug === null) {
+    return { id, name };
+  }
+  return { id, name, slug };
+};
 
 export const mapProductDetail = (
   product: CommercetoolsProductProjection,
@@ -156,9 +191,9 @@ export const mapProductDetail = (
       product.productType?.key
     );
     const variantsWithOptions = yield* Effect.forEach(
-      eligibleVariants,
-      (item) => mapVariant(productType, item, locale)
-    );
+      (item: CommercetoolsProductVariant) =>
+        mapVariant(productType, item, locale)
+    )(eligibleVariants);
     const option = OPTION_BY_PRODUCT_TYPE[productTypeName(productType)];
     const values =
       option === undefined
@@ -176,26 +211,27 @@ export const mapProductDetail = (
       ({ selectedOption: _selectedOption, ...item }) => item
     );
 
-    return yield* Schema.decodeUnknownEffect(ProductDetail)({
+    const detail = {
+      categories: product.categories.map(mapCategory),
+      defaultVariantId: variants[0]?.id,
       id: product.id,
-      slug: product.slug,
-      productType,
-      title: product.name,
-      ...(product.description === null
-        ? {}
-        : { description: product.description }),
-      categories: product.categories.map(({ id, name, slug }) => ({
-        id,
-        ...(name === null ? {} : { name }),
-        ...(slug === null ? {} : { slug }),
-      })),
       options:
         option === undefined
           ? []
           : [{ key: option.key, label: option.label, values }],
+      productType,
+      slug: product.slug,
+      title: product.name,
       variants,
-      defaultVariantId: variants[0]?.id,
-    });
+    };
+    const detailWithDescription =
+      product.description === null
+        ? detail
+        : { ...detail, description: product.description };
+
+    return yield* Schema.decodeUnknownEffect(ProductDetail)(
+      detailWithDescription
+    );
   });
 
 export const mapProductCard = (
@@ -205,35 +241,45 @@ export const mapProductCard = (
   const prices = eligibleVariants.flatMap(({ price }) =>
     price === null ? [] : [price.value]
   );
-  const startingPrice = prices.reduce<(typeof prices)[number] | undefined>(
-    (lowest, price) =>
-      lowest === undefined || price.centAmount < lowest.centAmount
-        ? price
-        : lowest,
-    undefined
-  );
-  const featuredImage = product.masterVariant.images[0];
-
-  return Schema.decodeUnknownEffect(ProductCard)({
-    id: product.id,
-    slug: product.slug,
-    title: product.name,
-    ...(product.description === null
-      ? {}
-      : { description: product.description }),
-    ...(featuredImage === undefined
-      ? {}
-      : {
-          featuredImage: {
-            url: featuredImage.url,
-            ...(featuredImage.label === null
-              ? {}
-              : { altText: featuredImage.label }),
-          },
-        }),
-    ...(startingPrice === undefined ? {} : { startingPrice }),
+  let startingPrice: (typeof prices)[number] | undefined;
+  for (const price of prices) {
+    if (
+      startingPrice === undefined ||
+      price.centAmount < startingPrice.centAmount
+    ) {
+      startingPrice = price;
+    }
+  }
+  const [featuredImage] = product.masterVariant.images;
+  const card = {
     availableForSale: eligibleVariants.some(
       (item) => mapAvailability(item).availableForSale
     ),
-  });
+    id: product.id,
+    slug: product.slug,
+    title: product.name,
+  };
+  const cardWithDescription =
+    product.description === null
+      ? card
+      : { ...card, description: product.description };
+  let mappedFeaturedImage:
+    | { readonly altText?: string; readonly url: string }
+    | undefined;
+  if (featuredImage !== undefined) {
+    mappedFeaturedImage =
+      featuredImage.label === null
+        ? { url: featuredImage.url }
+        : { altText: featuredImage.label, url: featuredImage.url };
+  }
+  const cardWithFeaturedImage =
+    mappedFeaturedImage === undefined
+      ? cardWithDescription
+      : { ...cardWithDescription, featuredImage: mappedFeaturedImage };
+  const completedCard =
+    startingPrice === undefined
+      ? cardWithFeaturedImage
+      : { ...cardWithFeaturedImage, startingPrice };
+
+  return Schema.decodeUnknownEffect(ProductCard)(completedCard);
 };

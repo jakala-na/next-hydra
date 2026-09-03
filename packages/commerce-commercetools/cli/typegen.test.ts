@@ -1,6 +1,6 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -9,32 +9,57 @@ import { generateCustomTypes, generateProductTypes } from "./typegen";
 const temporaryDirectories: string[] = [];
 
 const createTemporaryDirectory = async () => {
-  const directory = await mkdtemp(join(tmpdir(), "next-hydra-cli-"));
+  const directory = await mkdtemp(path.join(tmpdir(), "next-hydra-cli-"));
   temporaryDirectories.push(directory);
   return directory;
 };
 
-afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories.splice(0).map(async (directory) => {
-      await rm(directory, { force: true, recursive: true });
-    })
-  );
-});
-
 describe("schema type generation", () => {
-  it("generates a typed Custom Type and field resolver", async () => {
+  afterEach(async () => {
+    await Promise.all(
+      temporaryDirectories.splice(0).map(async (directory) => {
+        await rm(directory, { force: true, recursive: true });
+      })
+    );
+  });
+
+  it("generates an executable Effect Custom Type definition", async () => {
     const schemaDirectory = await createTemporaryDirectory();
     const outputDirectory = await createTemporaryDirectory();
 
     await writeFile(
-      join(schemaDirectory, "orderCustomFields.json"),
+      path.join(schemaDirectory, "orderCustomFields.json"),
       JSON.stringify({
         fieldDefinitions: [
           {
             label: { "en-US": "Checkout contact" },
             name: "checkoutContact",
+            required: false,
             type: { name: "String" },
+          },
+          {
+            label: { "en-US": "State" },
+            name: "state",
+            required: true,
+            type: {
+              name: "Enum",
+              values: [
+                { key: "open", label: "Open" },
+                { key: "closed", label: "Closed" },
+              ],
+            },
+          },
+          {
+            label: { "en-US": "Related products" },
+            name: "relatedProducts",
+            required: false,
+            type: {
+              elementType: {
+                name: "Reference",
+                referenceTypeId: "product",
+              },
+              name: "Set",
+            },
           },
         ],
         key: "orderCustomFields",
@@ -44,15 +69,36 @@ describe("schema type generation", () => {
 
     await generateCustomTypes(schemaDirectory, outputDirectory);
 
-    const types = await readFile(join(outputDirectory, "types.ts"), "utf-8");
     const schemas = await readFile(
-      join(outputDirectory, "schemas.ts"),
+      path.join(outputDirectory, "schemas.ts"),
       "utf-8"
     );
 
-    expect(types).toContain("export type OrderCustomFieldsSchema = {");
-    expect(types).toContain('checkoutContact: CustomField<"text">;');
-    expect(schemas).toContain("resolveOrderCustomField");
+    expect({
+      definesCustomType: schemas.includes(
+        "export const OrderCustomFields = CustomFields.define({"
+      ),
+      emitsEnum: schemas.includes(
+        '"state": Schema.Literals(["open", "closed"])'
+      ),
+      emitsOptionalField: schemas.includes(
+        '"checkoutContact": Schema.optionalKey(Schema.String)'
+      ),
+      emitsReferenceSet: schemas.includes(
+        'Schema.ReadonlySet(CustomFields.reference("product"))'
+      ),
+      emitsType: schemas.includes(
+        "export type OrderCustomFields = typeof OrderCustomFields.schema.Type;"
+      ),
+      preservesTypeKey: schemas.includes('typeKey: "orderCustomFields"'),
+    }).toStrictEqual({
+      definesCustomType: true,
+      emitsEnum: true,
+      emitsOptionalField: true,
+      emitsReferenceSet: true,
+      emitsType: true,
+      preservesTypeKey: true,
+    });
   });
 
   it("generates Product Type attribute definitions", async () => {
@@ -60,7 +106,7 @@ describe("schema type generation", () => {
     const outputDirectory = await createTemporaryDirectory();
 
     await writeFile(
-      join(schemaDirectory, "equipment.json"),
+      path.join(schemaDirectory, "equipment.json"),
       JSON.stringify({
         attributes: [
           {
@@ -92,6 +138,17 @@ describe("schema type generation", () => {
             name: "availableOn",
             type: { name: "date" },
           },
+          {
+            isRequired: true,
+            name: "mobility",
+            type: {
+              name: "enum",
+              values: [
+                { key: "tracked", label: "Tracked" },
+                { key: "wheeled", label: "Wheeled" },
+              ],
+            },
+          },
         ],
         key: "equipment",
       }),
@@ -101,25 +158,43 @@ describe("schema type generation", () => {
     await generateProductTypes(schemaDirectory, outputDirectory);
 
     const attributes = await readFile(
-      join(outputDirectory, "attributes.ts"),
+      path.join(outputDirectory, "attributes.ts"),
       "utf-8"
     );
-    expect(attributes).toContain(
-      'const EquipmentProductTypeKey = Schema.Literal("equipment").pipe('
-    );
-    expect(attributes).toContain("capacity: Schema.Number");
-    expect(attributes).toContain(
-      "certifications: Schema.optional(Schema.Array(Schema.String))"
-    );
-    expect(attributes).toContain("relatedProducts: Schema.Array(ProductId)");
-    expect(attributes).toContain("availableOn: ProductAttributeDate");
-    expect(attributes).toContain(
-      "export const ProductAttributesSchemaByProductType = {"
-    );
-    expect(attributes).toContain(
-      "export const ProductDetail = ProductDetailSchema.check("
-    );
-    expect(attributes).not.toContain("@commercetools");
-    expect(attributes).not.toContain("ProductAttribute<");
+    expect({
+      definesAttributeMap: attributes.includes(
+        "export const ProductAttributesSchemaByProductType = {"
+      ),
+      definesDetail: attributes.includes(
+        "export const ProductDetail = ProductDetailSchema.check("
+      ),
+      emitsClosedEnum: attributes.includes(
+        'makeProductAttributeEnumValueSchema(["tracked", "wheeled"])'
+      ),
+      emitsDate: attributes.includes("availableOn: ProductAttributeDate"),
+      emitsNumber: attributes.includes("capacity: Schema.Number"),
+      emitsOptionalSet: attributes.includes(
+        "certifications: Schema.optional(Schema.Array(Schema.String))"
+      ),
+      emitsProductReference: attributes.includes(
+        "relatedProducts: Schema.Array(ProductId)"
+      ),
+      hasLegacyGeneric: attributes.includes("ProductAttribute<"),
+      importsSdk: attributes.includes("@commercetools"),
+      preservesTypeKey: attributes.includes(
+        'const EquipmentProductTypeKey = Schema.Literal("equipment").pipe('
+      ),
+    }).toStrictEqual({
+      definesAttributeMap: true,
+      definesDetail: true,
+      emitsClosedEnum: true,
+      emitsDate: true,
+      emitsNumber: true,
+      emitsOptionalSet: true,
+      emitsProductReference: true,
+      hasLegacyGeneric: false,
+      importsSdk: false,
+      preservesTypeKey: true,
+    });
   });
 });

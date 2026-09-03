@@ -170,7 +170,7 @@ export function useCart() {
         name: variant.name ?? "",
         price: unitPrice.centAmount / CENTS_PER_UNIT,
         quantity,
-        variant: "",
+        summaryAttribute: variant.summaryAttribute,
       };
     });
   }, [cart]);

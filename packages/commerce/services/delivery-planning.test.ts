@@ -23,7 +23,6 @@ const cart = {
       quantity: 3,
       unitPrice: { centAmount: 1000, currencyCode: "USD" },
       variant: {
-        attributes: {},
         id: VariantId.make("1"),
         images: [],
         productId: ProductId.make("product-1"),
@@ -34,7 +33,6 @@ const cart = {
       quantity: 1,
       unitPrice: { centAmount: 2000, currencyCode: "USD" },
       variant: {
-        attributes: {},
         id: VariantId.make("2"),
         images: [],
         productId: ProductId.make("product-2"),

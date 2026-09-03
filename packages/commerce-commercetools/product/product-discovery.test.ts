@@ -70,7 +70,7 @@ const variant = (
     { name: "model", value: 100 },
     {
       name: "mobility",
-      value: { key: "crawler", label: "Crawler" },
+      value: { key: "tracked", label: "Tracked" },
     },
     {
       name: "relatedProducts",
@@ -159,6 +159,12 @@ const runWithClient = <A, E>(
     )
   );
 
+const findProductBySlug = (slug: ProductSlug) =>
+  ProductDiscovery.pipe(Effect.flatMap((service) => service.findBySlug(slug)));
+
+const listProductCards = (input: ListProductCardsInput) =>
+  ProductDiscovery.pipe(Effect.flatMap((service) => service.listCards(input)));
+
 describe("Commercetools Product Discovery", () => {
   it.effect(
     "resolves provider Store details from CommerceContext without exposing them to the caller",
@@ -176,9 +182,7 @@ describe("Commercetools Product Discovery", () => {
         });
 
         const result = yield* runWithClient(
-          Effect.flatMap(ProductDiscovery, (service) =>
-            service.findBySlug(ProductSlug.make("missing-product"))
-          ),
+          findProductBySlug(ProductSlug.make("missing-product")),
           clientLayer
         );
 
@@ -211,9 +215,7 @@ describe("Commercetools Product Discovery", () => {
         });
 
         yield* runWithClient(
-          Effect.flatMap(ProductDiscovery, (service) =>
-            service.findBySlug(ProductSlug.make("missing-product"))
-          ),
+          findProductBySlug(ProductSlug.make("missing-product")),
           clientLayer,
           true
         );
@@ -230,9 +232,7 @@ describe("Commercetools Product Discovery", () => {
       });
 
       const result = yield* runWithClient(
-        Effect.flatMap(ProductDiscovery, (service) =>
-          service.findBySlug(ProductSlug.make("crawler-crane"))
-        ),
+        findProductBySlug(ProductSlug.make("crawler-crane")),
         clientLayer
       );
 
@@ -252,7 +252,7 @@ describe("Commercetools Product Discovery", () => {
         variants: [
           {
             attributes: {
-              mobility: { key: "crawler", label: "Crawler" },
+              mobility: { key: "tracked", label: "Tracked" },
               model: 100,
               relatedProducts: ["related-product-1"],
             },
@@ -316,9 +316,7 @@ describe("Commercetools Product Discovery", () => {
         });
 
         const result = yield* runWithClient(
-          Effect.flatMap(ProductDiscovery, (service) =>
-            service.findBySlug(ProductSlug.make("crawler-crane"))
-          ),
+          findProductBySlug(ProductSlug.make("crawler-crane")),
           clientLayer
         );
         const detail = Option.getOrThrow(result);
@@ -358,9 +356,7 @@ describe("Commercetools Product Discovery", () => {
       });
 
       const result = yield* runWithClient(
-        Effect.flatMap(ProductDiscovery, (service) =>
-          service.findBySlug(ProductSlug.make("crawler-crane"))
-        ),
+        findProductBySlug(ProductSlug.make("crawler-crane")),
         clientLayer
       );
 
@@ -378,9 +374,7 @@ describe("Commercetools Product Discovery", () => {
       });
 
       const result = yield* runWithClient(
-        Effect.flatMap(ProductDiscovery, (service) =>
-          service.findBySlug(ProductSlug.make("crawler-crane"))
-        ),
+        findProductBySlug(ProductSlug.make("crawler-crane")),
         clientLayer
       );
 
@@ -398,9 +392,7 @@ describe("Commercetools Product Discovery", () => {
       });
 
       const result = yield* runWithClient(
-        Effect.flatMap(ProductDiscovery, (service) =>
-          service.findBySlug(ProductSlug.make("crawler-crane"))
-        ),
+        findProductBySlug(ProductSlug.make("crawler-crane")),
         clientLayer
       );
 
@@ -429,9 +421,7 @@ describe("Commercetools Product Discovery", () => {
         });
 
         const result = yield* runWithClient(
-          Effect.flatMap(ProductDiscovery, (service) =>
-            service.findBySlug(ProductSlug.make("crawler-crane"))
-          ),
+          findProductBySlug(ProductSlug.make("crawler-crane")),
           clientLayer
         );
 
@@ -442,7 +432,7 @@ describe("Commercetools Product Discovery", () => {
   );
 
   it.effect(
-    "decodes localized generated attributes and uses them as Variant options",
+    "uses a stored Product Attribute translation when the locale is absent",
     () =>
       Effect.gen(function* () {
         const clientLayer = makeClientLayer({
@@ -455,8 +445,8 @@ describe("Commercetools Product Discovery", () => {
                       {
                         name: "color",
                         value: {
-                          key: "red",
-                          label: { "de-DE": "Rot", "en-US": "Red" },
+                          key: "RED",
+                          label: { "de-DE": "Rot" },
                         },
                       },
                     ],
@@ -470,9 +460,7 @@ describe("Commercetools Product Discovery", () => {
         });
 
         const result = yield* runWithClient(
-          Effect.flatMap(ProductDiscovery, (service) =>
-            service.findBySlug(ProductSlug.make("crawler-crane"))
-          ),
+          findProductBySlug(ProductSlug.make("crawler-crane")),
           clientLayer
         );
 
@@ -481,13 +469,13 @@ describe("Commercetools Product Discovery", () => {
             {
               key: "color",
               label: "Color",
-              values: [{ key: "red", label: "Red" }],
+              values: [{ key: "RED", label: "Rot" }],
             },
           ],
           variants: [
             {
-              attributes: { color: { key: "red", label: "Red" } },
-              optionValues: { color: "red" },
+              attributes: { color: { key: "RED", label: "Rot" } },
+              optionValues: { color: "RED" },
             },
           ],
         });
@@ -501,11 +489,7 @@ describe("Commercetools Product Discovery", () => {
       });
 
       const error = yield* runWithClient(
-        Effect.flatMap(ProductDiscovery, (service) =>
-          service
-            .findBySlug(ProductSlug.make("crawler-crane"))
-            .pipe(Effect.flip)
-        ),
+        findProductBySlug(ProductSlug.make("crawler-crane")).pipe(Effect.flip),
         clientLayer
       );
 
@@ -532,13 +516,11 @@ describe("Commercetools Product Discovery", () => {
         });
 
         const cards = yield* runWithClient(
-          Effect.flatMap(ProductDiscovery, (service) =>
-            service.listCards(
-              new ListProductCardsInput({
-                categoryId: CategoryId.make("category-1"),
-                limit: 3,
-              })
-            )
+          listProductCards(
+            new ListProductCardsInput({
+              categoryId: CategoryId.make("category-1"),
+              limit: 3,
+            })
           ),
           clientLayer
         );
@@ -618,13 +600,11 @@ describe("Commercetools Product Discovery", () => {
         });
 
         const cards = yield* runWithClient(
-          Effect.flatMap(ProductDiscovery, (service) =>
-            service.listCards(
-              new ListProductCardsInput({
-                excludeProductId: excludedProduct,
-                limit: 3,
-              })
-            )
+          listProductCards(
+            new ListProductCardsInput({
+              excludeProductId: excludedProduct,
+              limit: 3,
+            })
           ),
           clientLayer
         );
@@ -650,9 +630,7 @@ describe("Commercetools Product Discovery", () => {
       });
 
       const cards = yield* runWithClient(
-        Effect.flatMap(ProductDiscovery, (service) =>
-          service.listCards(new ListProductCardsInput({ limit: 3 }))
-        ),
+        listProductCards(new ListProductCardsInput({ limit: 3 })),
         clientLayer
       );
 
@@ -676,10 +654,8 @@ describe("Commercetools Product Discovery", () => {
         });
 
         const error = yield* runWithClient(
-          Effect.flatMap(ProductDiscovery, (service) =>
-            service
-              .listCards(new ListProductCardsInput({ limit: 3 }))
-              .pipe(Effect.flip)
+          listProductCards(new ListProductCardsInput({ limit: 3 })).pipe(
+            Effect.flip
           ),
           clientLayer
         );

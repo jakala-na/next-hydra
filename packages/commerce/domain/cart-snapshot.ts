@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { ProductTypeKey as GeneratedProductTypeKey } from "../product/generated/attributes";
 import { ProductImage as ProductImageSchema } from "../product/image";
 import { Store, StoreKey } from "../store";
 import {
@@ -22,48 +23,32 @@ import {
 export const CartStatus = Schema.Literals(["active", "inactive"]);
 export type CartStatus = typeof CartStatus.Type;
 
-export const ProductTypeKey = Schema.Literals([
-  "heavy-earthmoving-and-construction-equipment",
-  "heavy-lifting-and-specialized-equipment",
-  "generic-product",
-]);
+export const ProductTypeKey = GeneratedProductTypeKey;
 export type ProductTypeKey = typeof ProductTypeKey.Type;
 
 export { ProductImage } from "../product/image";
 
-export const ProductAttributeEnumValue = Schema.Struct({
-  key: Schema.String,
-  label: Schema.String,
-});
-export type ProductAttributeEnumValue = typeof ProductAttributeEnumValue.Type;
-
-const ScalarProductAttributeValue = Schema.Union([
-  Schema.String,
-  Schema.Number,
-  Schema.Boolean,
-  ProductAttributeEnumValue,
-]);
-
-export const ProductAttributeValue = Schema.Union([
-  ScalarProductAttributeValue,
-  Schema.Array(ScalarProductAttributeValue),
-]);
-export type ProductAttributeValue = typeof ProductAttributeValue.Type;
-
-export const ProductAttributes = Schema.Record(
-  Schema.String,
-  ProductAttributeValue
+const CartLineItemSummaryAttributeText = Schema.String.check(
+  Schema.makeFilter((value) => value.trim().length > 0, {
+    expected: "a non-blank Cart Line Item Summary Attribute value",
+  })
 );
-export type ProductAttributes = typeof ProductAttributes.Type;
+
+export const CartLineItemSummaryAttribute = Schema.Struct({
+  label: CartLineItemSummaryAttributeText,
+  value: CartLineItemSummaryAttributeText,
+});
+export type CartLineItemSummaryAttribute =
+  typeof CartLineItemSummaryAttribute.Type;
 
 export const CartProductVariant = Schema.Struct({
-  attributes: ProductAttributes,
   id: VariantId,
   images: Schema.Array(ProductImageSchema),
   name: Schema.optional(Schema.String),
   productId: ProductId,
   productType: Schema.optional(ProductTypeKey),
   sku: Schema.optional(Sku),
+  summaryAttribute: Schema.optional(CartLineItemSummaryAttribute),
 });
 export type CartProductVariant = typeof CartProductVariant.Type;
 

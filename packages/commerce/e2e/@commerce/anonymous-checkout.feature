@@ -16,6 +16,7 @@ Feature: Anonymous Checkout
       | Model     | 2015  |
     And the buyer adds 1 unit of the selected Product Variant to their Cart
     Then the Cart is open with 1 unit of Product "A789 BC Deep Mining Excavator"
+    And Product "A789 BC Deep Mining Excavator" is identified by "Model: 2015" in the Cart
     And the Cart subtotal is "16500.00" in currency "USD"
     When the buyer proceeds from the Cart to "Checkout"
     Then the "Checkout" Cart summary contains 1 unit of Product "A789 BC Deep Mining Excavator"

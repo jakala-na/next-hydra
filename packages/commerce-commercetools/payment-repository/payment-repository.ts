@@ -36,12 +36,11 @@ import {
   isConcurrentModification,
 } from "../client/versioned-write";
 import {
-  PAYMENT_CARD_BRAND_FIELD,
-  PAYMENT_CARD_LAST_FOUR_FIELD,
-  PAYMENT_ATTEMPT_REFERENCE_FIELD,
-  PAYMENT_CUSTOM_TYPE_KEY,
-  PAYMENT_TERMS_IN_DAYS_FIELD,
-} from "./custom-fields";
+  customFieldsBuilder,
+  customFieldsReader,
+  PaymentCustomFields,
+  REST_CUSTOM_TYPE_EXPANSION,
+} from "../custom-fields";
 import {
   cardPaymentKeyForCheckout,
   netTermsPaymentKeyForCheckout,
@@ -73,7 +72,11 @@ const providerRequest = <A>(operation: string, request: () => Promise<A>) =>
 
 const findPaymentByKey = (apiRoot: ByProjectKeyRequestBuilder, key: string) =>
   providerRequest("payment.read", async () => {
-    const response = await apiRoot.payments().withKey({ key }).get().execute();
+    const response = await apiRoot
+      .payments()
+      .withKey({ key })
+      .get({ queryArgs: { expand: REST_CUSTOM_TYPE_EXPANSION } })
+      .execute();
     return response.body;
   }).pipe(
     Effect.map(Option.some),
@@ -92,7 +95,7 @@ const findPaymentById = (
     const response = await apiRoot
       .payments()
       .withId({ ID: paymentReference })
-      .get()
+      .get({ queryArgs: { expand: REST_CUSTOM_TYPE_EXPANSION } })
       .execute();
     return response.body;
   });
@@ -145,21 +148,20 @@ const paymentTransactions = (
       )
   );
 
-const PaymentCustomFields = Schema.Record(
-  Schema.String,
-  Schema.Union([Schema.String, Schema.Finite])
-);
+type PaymentCustomFieldValues = typeof PaymentCustomFields.schema.Type;
 
-const paymentCustomFields = (payment: Payment) =>
-  Schema.decodeUnknownOption(PaymentCustomFields)(payment.custom?.fields);
+const paymentCustomFields = (payment: Payment, operation: string) =>
+  customFieldsReader
+    .fromRest(PaymentCustomFields, payment.custom)
+    .read.pipe(
+      Effect.mapError((cause) =>
+        paymentFailure(operation, cause, "invalidData")
+      )
+    );
 
-const EMPTY_PAYMENT_CUSTOM_FIELDS: Readonly<Record<string, number | string>> =
-  {};
-
-const paymentCustomFieldsOrEmpty = (payment: Payment) =>
-  Option.getOrElse(
-    paymentCustomFields(payment),
-    () => EMPTY_PAYMENT_CUSTOM_FIELDS
+const paymentCustomFieldsOrEmpty = (payment: Payment, operation: string) =>
+  paymentCustomFields(payment, operation).pipe(
+    Effect.map(Option.getOrElse((): PaymentCustomFieldValues => ({})))
   );
 
 const transactionStatePriority = {
@@ -173,100 +175,99 @@ const PAYMENT_RECONCILIATION_RETRIES = 1;
 const transactionActions = (
   payment: Payment,
   input: RecordPaymentTransactionInput
-): Effect.Effect<readonly PaymentUpdateAction[], PaymentProviderFailure> => {
-  const paymentMethodActions: PaymentUpdateAction[] = [];
-  if (input.paymentMethod !== undefined) {
-    if (payment.paymentMethodInfo.method !== "card") {
-      return Effect.fail(
-        paymentFailure(
+): Effect.Effect<readonly PaymentUpdateAction[], PaymentProviderFailure> =>
+  Effect.gen(function* () {
+    const paymentMethodActions: PaymentUpdateAction[] = [];
+    if (input.paymentMethod !== undefined) {
+      if (payment.paymentMethodInfo.method !== "card") {
+        return yield* paymentFailure(
           "payment.transaction.record",
           new Error("Card details belong to an incompatible Payment"),
           "invalidData"
-        )
-      );
-    }
-    const currentFields = paymentCustomFieldsOrEmpty(payment);
-    const cardFields = {
-      [PAYMENT_CARD_BRAND_FIELD]: input.paymentMethod.cardBrand,
-      [PAYMENT_CARD_LAST_FOUR_FIELD]: input.paymentMethod.lastFour,
-    };
-    for (const [name, value] of Object.entries(cardFields)) {
-      if (currentFields[name] !== value) {
-        paymentMethodActions.push({ action: "setCustomField", name, value });
+        );
       }
+      const cardFieldActions = yield* customFieldsBuilder
+        .forType(PaymentCustomFields)
+        .set("checkoutCardBrand", input.paymentMethod.cardBrand)
+        .set("checkoutCardLastFour", input.paymentMethod.lastFour)
+        .againstRest(payment.custom)
+        .toRestUpdateActions()
+        .pipe(
+          Effect.mapError((cause) =>
+            paymentFailure("payment.transaction.record", cause, "invalidData")
+          )
+        );
+      paymentMethodActions.push(...cardFieldActions);
     }
-  }
-  const existing = payment.transactions.find(
-    (transaction) => transaction.interactionId === input.operationReference
-  );
-  if (existing === undefined) {
-    return Effect.succeed([
-      {
-        action: "addTransaction",
-        transaction:
-          input.providerReference === undefined
-            ? {
-                amount: input.amount,
-                interactionId: input.operationReference,
-                state: input.state,
-                type: input.type,
-              }
-            : {
-                amount: input.amount,
-                interactionId: input.operationReference,
-                interfaceId: input.providerReference,
-                state: input.state,
-                type: input.type,
-              },
-      },
-      ...paymentMethodActions,
-    ]);
-  }
-  if (
-    existing.type !== input.type ||
-    existing.amount.centAmount !== input.amount.centAmount ||
-    existing.amount.currencyCode !== input.amount.currencyCode
-  ) {
-    return Effect.fail(
-      paymentFailure(
+    const existing = payment.transactions.find(
+      (transaction) => transaction.interactionId === input.operationReference
+    );
+    if (existing === undefined) {
+      return [
+        {
+          action: "addTransaction",
+          transaction:
+            input.providerReference === undefined
+              ? {
+                  amount: input.amount,
+                  interactionId: input.operationReference,
+                  state: input.state,
+                  type: input.type,
+                }
+              : {
+                  amount: input.amount,
+                  interactionId: input.operationReference,
+                  interfaceId: input.providerReference,
+                  state: input.state,
+                  type: input.type,
+                },
+        },
+        ...paymentMethodActions,
+      ];
+    }
+    if (
+      existing.type !== input.type ||
+      existing.amount.centAmount !== input.amount.centAmount ||
+      existing.amount.currencyCode !== input.amount.currencyCode
+    ) {
+      return yield* paymentFailure(
         "payment.transaction.record",
         new Error(
           "Payment transaction identity was reused for another operation"
         ),
         "invalidData"
+      );
+    }
+
+    const actions: PaymentUpdateAction[] = [];
+    if (
+      input.providerReference !== undefined &&
+      existing.interfaceId !== input.providerReference
+    ) {
+      actions.push({
+        action: "setTransactionInterfaceId",
+        interfaceId: input.providerReference,
+        transactionId: existing.id,
+      });
+    }
+    const existingPriority = Option.getOrUndefined(
+      Schema.decodeUnknownOption(PaymentTransactionState)(existing.state).pipe(
+        Option.map((state) => transactionStatePriority[state])
       )
     );
-  }
-
-  const actions: PaymentUpdateAction[] = [];
-  if (
-    input.providerReference !== undefined &&
-    existing.interfaceId !== input.providerReference
-  ) {
-    actions.push({
-      action: "setTransactionInterfaceId",
-      interfaceId: input.providerReference,
-      transactionId: existing.id,
-    });
-  }
-  const existingPriority = Option.getOrUndefined(
-    Schema.decodeUnknownOption(PaymentTransactionState)(existing.state).pipe(
-      Option.map((state) => transactionStatePriority[state])
-    )
-  );
-  if (
-    existing.state !== input.state &&
-    (existingPriority === undefined ||
-      transactionStatePriority[input.state] > existingPriority)
-  ) {
-    actions.push({
-      action: "changeTransactionState",
-      state: input.state,
-      transactionId: existing.id,
-    });
-  }
-  return Effect.succeed([...actions, ...paymentMethodActions]);
-};
+    if (
+      existing.state !== input.state &&
+      (existingPriority === undefined ||
+        transactionStatePriority[input.state] > existingPriority)
+    ) {
+      actions.push({
+        action: "changeTransactionState",
+        state: input.state,
+        transactionId: existing.id,
+      });
+    }
+    return [...actions, ...paymentMethodActions];
+  });
 
 const recordPaymentTransaction = (
   apiRoot: ByProjectKeyRequestBuilder,
@@ -302,7 +303,7 @@ const recordPaymentTransaction = (
 
 interface DesiredPayment {
   readonly checkout: PaymentCheckout;
-  readonly customFields?: Readonly<Record<string, number | string>>;
+  readonly customFields?: PaymentCustomFieldValues;
   readonly interfaceId?: string;
   readonly key: string;
   readonly method: "card" | "netTerms";
@@ -311,49 +312,53 @@ interface DesiredPayment {
   readonly token?: string;
 }
 
-const customFieldsFor = (desired: DesiredPayment) => desired.customFields ?? {};
+const customFieldsFor = (desired: DesiredPayment): PaymentCustomFieldValues =>
+  desired.customFields ?? {};
+
+const paymentCustomFieldsBuilder = (desired: DesiredPayment) =>
+  customFieldsBuilder
+    .forType(PaymentCustomFields)
+    .setAll(customFieldsFor(desired));
 
 const customFieldsMatch = (payment: Payment, desired: DesiredPayment) =>
-  Option.match(paymentCustomFields(payment), {
-    onNone: () => Object.keys(customFieldsFor(desired)).length === 0,
-    onSome: (fields) =>
-      Object.entries(customFieldsFor(desired)).every(
-        ([fieldName, value]) => fields[fieldName] === value
-      ),
-  });
+  paymentCustomFieldsBuilder(desired)
+    .againstRest(payment.custom)
+    .plan.pipe(
+      Effect.map((plan) => plan._tag === "NoChange"),
+      Effect.mapError((cause) =>
+        paymentFailure("payment.read", cause, "invalidData")
+      )
+    );
 
 const customFieldActions = (
   payment: Payment,
   desired: DesiredPayment
-): Effect.Effect<readonly PaymentUpdateAction[], PaymentProviderFailure> => {
-  const fields = customFieldsFor(desired);
-  if (payment.custom === undefined) {
-    return Effect.succeed([
-      {
-        action: "setCustomType",
-        fields,
-        type: { key: PAYMENT_CUSTOM_TYPE_KEY, typeId: "type" },
-      },
-    ]);
-  }
-  if (customFieldsMatch(payment, desired)) {
-    return Effect.succeed([]);
-  }
-  const currentFields = paymentCustomFieldsOrEmpty(payment);
-  return Effect.succeed(
-    Object.entries(fields).flatMap(([name, value]) =>
-      currentFields[name] === value
-        ? []
-        : [{ action: "setCustomField" as const, name, value }]
-    )
-  );
-};
+): Effect.Effect<readonly PaymentUpdateAction[], PaymentProviderFailure> =>
+  paymentCustomFieldsBuilder(desired)
+    .againstRest(payment.custom)
+    .toRestUpdateActions()
+    .pipe(
+      Effect.map((actions): readonly PaymentUpdateAction[] => actions),
+      Effect.mapError((cause) =>
+        paymentFailure("payment.update", cause, "invalidData")
+      )
+    );
+
+const paymentCustomFieldsDraft = (desired: DesiredPayment) =>
+  paymentCustomFieldsBuilder(desired)
+    .toRestDraft()
+    .pipe(
+      Effect.mapError((cause) =>
+        paymentFailure("payment.create", cause, "invalidData")
+      )
+    );
 
 const createPayment = (
   apiRoot: ByProjectKeyRequestBuilder,
   input: DesiredPayment
 ) =>
-  providerRequest("payment.create", async () => {
+  Effect.gen(function* () {
+    const custom = yield* paymentCustomFieldsDraft(input);
     const paymentMethodInfoWithoutToken: PaymentDraft["paymentMethodInfo"] = {
       method: input.method,
       name: { "en-US": input.name },
@@ -376,13 +381,18 @@ const createPayment = (
         : { ...paymentDraftWithoutInterfaceId, interfaceId: input.interfaceId };
     const body: PaymentDraft = {
       ...paymentDraft,
-      custom: {
-        fields: customFieldsFor(input),
-        type: { key: PAYMENT_CUSTOM_TYPE_KEY, typeId: "type" },
-      },
+      custom,
     };
-    const response = await apiRoot.payments().post({ body }).execute();
-    return response.body;
+    return yield* providerRequest("payment.create", async () => {
+      const response = await apiRoot
+        .payments()
+        .post({
+          body,
+          queryArgs: { expand: REST_CUSTOM_TYPE_EXPANSION },
+        })
+        .execute();
+      return response.body;
+    });
   });
 
 const updatePayment = (
@@ -484,7 +494,10 @@ const updatePayment = (
         const response = await apiRoot
           .payments()
           .withId({ ID: payment.id })
-          .post({ body: { actions, version: payment.version } })
+          .post({
+            body: { actions, version: payment.version },
+            queryArgs: { expand: REST_CUSTOM_TYPE_EXPANSION },
+          })
           .execute();
         return response.body;
       });
@@ -495,25 +508,35 @@ const updatePayment = (
 const requireDesiredPayment = (
   payment: Payment,
   desired: DesiredPayment
-): Effect.Effect<Payment, PaymentProviderFailure> =>
-  payment.amountPlanned.centAmount === desired.checkout.amount.centAmount &&
-  payment.amountPlanned.currencyCode === desired.checkout.amount.currencyCode &&
-  (desired.interfaceId === undefined ||
-    payment.interfaceId === desired.interfaceId) &&
-  payment.paymentMethodInfo.method === desired.method &&
-  payment.paymentMethodInfo.name?.["en-US"] === desired.name &&
-  payment.paymentMethodInfo.paymentInterface === desired.paymentInterface &&
-  (desired.token === undefined ||
-    payment.paymentMethodInfo.token?.value === desired.token) &&
-  customFieldsMatch(payment, desired)
-    ? Effect.succeed(payment)
-    : Effect.fail(
-        paymentFailure(
-          "payment.save",
-          new Error("Saved Payment does not match the requested state"),
-          "invalidData"
-        )
-      );
+): Effect.Effect<Payment, PaymentProviderFailure> => {
+  const baseMatches =
+    payment.amountPlanned.centAmount === desired.checkout.amount.centAmount &&
+    payment.amountPlanned.currencyCode ===
+      desired.checkout.amount.currencyCode &&
+    (desired.interfaceId === undefined ||
+      payment.interfaceId === desired.interfaceId) &&
+    payment.paymentMethodInfo.method === desired.method &&
+    payment.paymentMethodInfo.name?.["en-US"] === desired.name &&
+    payment.paymentMethodInfo.paymentInterface === desired.paymentInterface &&
+    (desired.token === undefined ||
+      payment.paymentMethodInfo.token?.value === desired.token);
+  const mismatch = () =>
+    Effect.fail(
+      paymentFailure(
+        "payment.save",
+        new Error("Saved Payment does not match the requested state"),
+        "invalidData"
+      )
+    );
+  if (!baseMatches) {
+    return mismatch();
+  }
+  return customFieldsMatch(payment, desired).pipe(
+    Effect.flatMap((matches) =>
+      matches ? Effect.succeed(payment) : mismatch()
+    )
+  );
+};
 
 const isReconciliationConflict = (failure: PaymentProviderFailure) =>
   isConcurrentModification(failure.cause) ||
@@ -630,79 +653,72 @@ const ensurePayment = (
 
 const requireCardPaymentRecord = (
   payment: Payment
-): Effect.Effect<CardPaymentRecord, PaymentProviderFailure> => {
-  const provider = payment.paymentMethodInfo.paymentInterface;
-  const confirmationReferenceValue = payment.paymentMethodInfo.token?.value;
-  const attemptReference = Schema.decodeUnknownOption(PaymentAttemptReference)(
-    paymentCustomFieldsOrEmpty(payment)[PAYMENT_ATTEMPT_REFERENCE_FIELD]
-  );
-  const confirmationReference =
-    confirmationReferenceValue === undefined
-      ? Option.none()
-      : Schema.decodeOption(PaymentConfirmationReference)(
-          confirmationReferenceValue
-        );
-  const cardBrandValue =
-    paymentCustomFieldsOrEmpty(payment)[PAYMENT_CARD_BRAND_FIELD];
-  const cardLastFourValue =
-    paymentCustomFieldsOrEmpty(payment)[PAYMENT_CARD_LAST_FOUR_FIELD];
-  const cardBrand = Schema.decodeUnknownOption(CardBrand)(cardBrandValue);
-  const cardLastFour =
-    Schema.decodeUnknownOption(CardLastFour)(cardLastFourValue);
-  const providerReference = Schema.decodeUnknownOption(
-    PaymentProviderReference
-  )(payment.interfaceId);
-  if (Option.isNone(providerReference) || provider === undefined) {
-    return Effect.fail(
-      paymentFailure(
+): Effect.Effect<CardPaymentRecord, PaymentProviderFailure> =>
+  Effect.gen(function* () {
+    const provider = payment.paymentMethodInfo.paymentInterface;
+    const confirmationReferenceValue = payment.paymentMethodInfo.token?.value;
+    const fields = yield* paymentCustomFieldsOrEmpty(payment, "payment.read");
+    const attemptReference = Schema.decodeUnknownOption(
+      PaymentAttemptReference
+    )(fields.checkoutPlacementAttemptReference);
+    const confirmationReference =
+      confirmationReferenceValue === undefined
+        ? Option.none()
+        : Schema.decodeOption(PaymentConfirmationReference)(
+            confirmationReferenceValue
+          );
+    const cardBrandValue = fields.checkoutCardBrand;
+    const cardLastFourValue = fields.checkoutCardLastFour;
+    const cardBrand = Schema.decodeUnknownOption(CardBrand)(cardBrandValue);
+    const cardLastFour =
+      Schema.decodeUnknownOption(CardLastFour)(cardLastFourValue);
+    const providerReference = Schema.decodeUnknownOption(
+      PaymentProviderReference
+    )(payment.interfaceId);
+    if (Option.isNone(providerReference) || provider === undefined) {
+      return yield* paymentFailure(
         "payment.read",
         new Error("Card Payment has no provider identity"),
         "invalidData"
-      )
-    );
-  }
-  if (
-    confirmationReferenceValue !== undefined &&
-    Option.isNone(confirmationReference)
-  ) {
-    return Effect.fail(
-      paymentFailure(
+      );
+    }
+    if (
+      confirmationReferenceValue !== undefined &&
+      Option.isNone(confirmationReference)
+    ) {
+      return yield* paymentFailure(
         "payment.read",
         new Error("Card Payment has an invalid confirmation reference"),
         "invalidData"
-      )
-    );
-  }
-  if (
-    (cardBrandValue === undefined) !== (cardLastFourValue === undefined) ||
-    (cardBrandValue !== undefined &&
-      (Option.isNone(cardBrand) || Option.isNone(cardLastFour)))
-  ) {
-    return Effect.fail(
-      paymentFailure(
+      );
+    }
+    if (
+      (cardBrandValue === undefined) !== (cardLastFourValue === undefined) ||
+      (cardBrandValue !== undefined &&
+        (Option.isNone(cardBrand) || Option.isNone(cardLastFour)))
+    ) {
+      return yield* paymentFailure(
         "payment.read",
         new Error("Card Payment has invalid display details"),
         "invalidData"
-      )
-    );
-  }
-  const common = {
-    method: "card" as const,
-    paymentReference: PaymentReference.make(payment.id),
-    provider: PaymentProvider.make(provider),
-    providerReference: providerReference.value,
-  };
-  const withAttempt = Option.isNone(attemptReference)
-    ? common
-    : { ...common, attemptReference: attemptReference.value };
-  const withConfirmation = Option.isNone(confirmationReference)
-    ? withAttempt
-    : {
-        ...withAttempt,
-        confirmationReference: confirmationReference.value,
-      };
-  return Effect.succeed(
-    Option.isNone(cardBrand) || Option.isNone(cardLastFour)
+      );
+    }
+    const common = {
+      method: "card" as const,
+      paymentReference: PaymentReference.make(payment.id),
+      provider: PaymentProvider.make(provider),
+      providerReference: providerReference.value,
+    };
+    const withAttempt = Option.isNone(attemptReference)
+      ? common
+      : { ...common, attemptReference: attemptReference.value };
+    const withConfirmation = Option.isNone(confirmationReference)
+      ? withAttempt
+      : {
+          ...withAttempt,
+          confirmationReference: confirmationReference.value,
+        };
+    return Option.isNone(cardBrand) || Option.isNone(cardLastFour)
       ? withConfirmation
       : {
           ...withConfirmation,
@@ -711,49 +727,46 @@ const requireCardPaymentRecord = (
             lastFour: cardLastFour.value,
             method: "card" as const,
           },
-        }
-  );
-};
+        };
+  });
 
 const requireNetTermsPaymentRecord = (
   payment: Payment
-): Effect.Effect<NetTermsPaymentRecord, PaymentProviderFailure> => {
-  const provider = payment.paymentMethodInfo.paymentInterface;
-  const providerReference = Schema.decodeUnknownOption(
-    PaymentProviderReference
-  )(payment.interfaceId);
-  const termsInDays = Schema.decodeUnknownOption(
-    Schema.Int.check(Schema.isGreaterThan(0))
-  )(paymentCustomFieldsOrEmpty(payment)[PAYMENT_TERMS_IN_DAYS_FIELD]);
-  const attemptReference = Schema.decodeUnknownOption(PaymentAttemptReference)(
-    paymentCustomFieldsOrEmpty(payment)[PAYMENT_ATTEMPT_REFERENCE_FIELD]
-  );
-  if (
-    provider === undefined ||
-    Option.isNone(providerReference) ||
-    Option.isNone(termsInDays)
-  ) {
-    return Effect.fail(
-      paymentFailure(
+): Effect.Effect<NetTermsPaymentRecord, PaymentProviderFailure> =>
+  Effect.gen(function* () {
+    const provider = payment.paymentMethodInfo.paymentInterface;
+    const fields = yield* paymentCustomFieldsOrEmpty(payment, "payment.read");
+    const providerReference = Schema.decodeUnknownOption(
+      PaymentProviderReference
+    )(payment.interfaceId);
+    const termsInDays = Schema.decodeUnknownOption(
+      Schema.Int.check(Schema.isGreaterThan(0))
+    )(fields.checkoutTermsInDays);
+    const attemptReference = Schema.decodeUnknownOption(
+      PaymentAttemptReference
+    )(fields.checkoutPlacementAttemptReference);
+    if (
+      provider === undefined ||
+      Option.isNone(providerReference) ||
+      Option.isNone(termsInDays)
+    ) {
+      return yield* paymentFailure(
         "payment.read",
         new Error("Net Terms Payment has invalid provider metadata"),
         "invalidData"
-      )
-    );
-  }
-  const common = {
-    method: "netTerms",
-    paymentReference: PaymentReference.make(payment.id),
-    provider: PaymentProvider.make(provider),
-    providerReference: providerReference.value,
-    termsInDays: termsInDays.value,
-  } as const;
-  return Effect.succeed(
-    Option.isNone(attemptReference)
+      );
+    }
+    const common = {
+      method: "netTerms",
+      paymentReference: PaymentReference.make(payment.id),
+      provider: PaymentProvider.make(provider),
+      providerReference: providerReference.value,
+      termsInDays: termsInDays.value,
+    } as const;
+    return Option.isNone(attemptReference)
       ? common
-      : { ...common, attemptReference: attemptReference.value }
-  );
-};
+      : { ...common, attemptReference: attemptReference.value };
+  });
 
 const requirePaymentRecord = (
   payment: Payment
@@ -837,7 +850,7 @@ export const paymentRepositoryLayerFrom = (
                   ...base,
                   customFields: {
                     ...customFieldsFor(base),
-                    [PAYMENT_ATTEMPT_REFERENCE_FIELD]: input.attemptReference,
+                    checkoutPlacementAttemptReference: input.attemptReference,
                   },
                 };
           const selectedCustomFields = {
@@ -859,8 +872,8 @@ export const paymentRepositoryLayerFrom = (
           return ensurePayment(apiRoot, {
             checkout: input.checkout,
             customFields: {
-              [PAYMENT_ATTEMPT_REFERENCE_FIELD]: input.attemptReference,
-              [PAYMENT_TERMS_IN_DAYS_FIELD]: input.termsInDays,
+              checkoutPlacementAttemptReference: input.attemptReference,
+              checkoutTermsInDays: input.termsInDays,
             },
             interfaceId: input.providerReference,
             key,
