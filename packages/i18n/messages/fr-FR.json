@@ -294,6 +294,18 @@
       }
     },
     "checkout": {
+      "paymentOptions": {
+        "availableToSpend": "{amount} available to spend",
+        "card": "Card",
+        "cardInvalid": "Check your card details and try again.",
+        "cardNotReady": "Card entry is still loading.",
+        "chooseMethod": "Choose a payment method",
+        "netTerms": "Net {days}",
+        "paymentMethod": "Payment method",
+        "save": "Save payment options",
+        "saving": "Saving...",
+        "useShippingAddress": "Use shipping address for billing"
+      },
       "steps": {
         "contact": "Coordonnées",
         "deliveryDetails": "Détails de livraison",
@@ -347,7 +359,21 @@
           "country": "Pays"
         },
         "actions": {
+          "edit": "Modifier les détails de livraison",
           "save": "Enregistrer les détails de livraison",
+          "saving": "Enregistrement..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Choisir une option de livraison",
+        "choosePlan": "Choisir un plan de livraison",
+        "delivery": "Livraison {number}",
+        "noOptions": "Aucune option n’est disponible pour cette livraison.",
+        "noPlans": "Aucun plan de livraison n’est disponible pour cette adresse.",
+        "plan": "Plan de livraison {number}",
+        "quantity": "Qté {quantity}",
+        "actions": {
+          "save": "Enregistrer les options de livraison",
           "saving": "Enregistrement..."
         }
       },
@@ -361,17 +387,19 @@
         "internal": "Le paiement n’a pas pu être effectué. Réessayez.",
         "deliveryDetails": {
           "addressBookEntryUnavailable": "Cette adresse enregistrée n’est plus disponible.",
-          "invalidInput": "Saisissez l’adresse ligne 1, le code postal, la ville et le pays.",
           "sourceUnavailable": "Cette source de livraison n’est pas disponible pour ce paiement.",
           "providerFailure": "Les détails de livraison n’ont pas pu être enregistrés. Réessayez.",
           "unsupported": "Cette source de livraison n’est pas encore prise en charge."
         },
         "notFound": "Le paiement est introuvable pour cette requête.",
+        "paymentOptions": {
+          "unavailable": "Terminez l’étape actuelle du passage en caisse avant de préparer le paiement."
+        },
         "versionConflict": "Le paiement a changé avant l’enregistrement. Actualisez la page et réessayez.",
         "saveContact": {
           "CheckoutCartMismatch": "Ce paiement n’est plus à jour. Actualisez la page et réessayez.",
           "CheckoutCustomerProfileIncomplete": "Des coordonnées obligatoires manquent dans votre profil client. Saisissez-les ci-dessous pour continuer.",
-          "CheckoutMutationSchemaFailure": "Saisissez une adresse e-mail, un prénom et un nom.",
+          "InputInvalid": "Saisissez une adresse e-mail, un prénom et un nom.",
           "CheckoutMutationOutcomeUnknown": "Nous n’avons pas pu confirmer l’enregistrement de vos coordonnées. Actualisez la page avant de réessayer.",
           "CheckoutMutationSourceUnavailable": "Cette source de coordonnées n’est pas disponible pour ce paiement.",
           "CheckoutMutationProviderFailure": "Les coordonnées n’ont pas pu être enregistrées. Réessayez.",
@@ -385,7 +413,7 @@
         "saveDeliveryDetails": {
           "CheckoutCartMismatch": "Ce paiement n’est plus à jour. Actualisez la page et réessayez.",
           "CheckoutMutationAddressBookEntryUnavailable": "Cette adresse enregistrée n’est plus disponible.",
-          "CheckoutMutationSchemaFailure": "Saisissez l’adresse ligne 1, le code postal, la ville et le pays.",
+          "InputInvalid": "Saisissez l’adresse ligne 1, le code postal, la ville et le pays.",
           "CheckoutMutationOutcomeUnknown": "Nous n’avons pas pu confirmer l’enregistrement de vos informations de livraison. Actualisez la page avant de réessayer.",
           "CheckoutMutationSourceUnavailable": "Cette source de livraison n’est pas disponible pour ce paiement.",
           "CheckoutMutationProviderFailure": "Les détails de livraison n’ont pas pu être enregistrés. Réessayez.",
@@ -395,6 +423,31 @@
           "CheckoutUnavailable": "Le paiement est introuvable pour cette requête.",
           "CommerceRequestContextNotFound": "Le paiement est introuvable pour cette requête.",
           "CheckoutVersionConflict": "Le paiement a changé avant l’enregistrement. Actualisez la page et réessayez."
+        },
+        "savePaymentOptions": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "InputInvalid": "Choose an available payment method and complete its details.",
+          "CheckoutMutationOutcomeUnknown": "We could not confirm whether your payment options were saved. Refresh before trying again.",
+          "CheckoutMutationProviderFailure": "Payment options could not be saved. Try again.",
+          "CheckoutPaymentMethodUnavailable": "That payment method is no longer available. Refresh and choose again.",
+          "CheckoutPaymentOptionsUnavailable": "Terminez l’étape actuelle du passage en caisse avant de préparer le paiement.",
+          "CheckoutPaymentPreparationRefreshRequired": "Card details no longer match this checkout. Refresh and enter them again.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your payment options could be saved. Refresh and try again.",
+          "CommerceAccountUnavailable": "Payment options could not be saved. Try again.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "Ce paiement n’est plus à jour.",
+          "InputInvalid": "Choisissez une option pour chaque livraison.",
+          "CheckoutMutationOutcomeUnknown": "L’enregistrement n’a pas pu être confirmé. Actualisez la page.",
+          "CheckoutMutationProviderFailure": "Les options de livraison n’ont pas pu être enregistrées.",
+          "CheckoutShippingOptionsRefreshRequired": "Les options de livraison ont été enregistrées, mais le paiement n’a pas pu être actualisé. Actualisez la page.",
+          "CheckoutShippingSelectionUnavailable": "Cette option de livraison n’est plus disponible.",
+          "CheckoutUnavailable": "Le paiement est introuvable.",
+          "CheckoutVersionConflict": "Le paiement a changé avant l’enregistrement.",
+          "CommerceAccountUnavailable": "Les options de livraison n’ont pas pu être enregistrées.",
+          "CommerceRequestContextNotFound": "Le paiement est introuvable."
         }
       },
       "violations": {

@@ -1,13 +1,34 @@
 "use client";
 
 import { useTranslations } from "@repo/i18n";
-import { useActionState } from "react";
+import { startTransition, useActionState } from "react";
+import type { ComponentProps } from "react";
 
 import type { BuyerContact, CheckoutContactSource } from "../domain/checkout";
 import type {
   SaveCheckoutContactAction,
   SaveCheckoutContactActionFailure,
+  SaveCheckoutContactActionInput,
 } from "./action-contract";
+
+type FormSubmitHandler = NonNullable<ComponentProps<"form">["onSubmit"]>;
+
+interface SubmittedBuyerContact {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+}
+
+const formInputValue = (form: HTMLFormElement, name: string) => {
+  const input = form.elements.namedItem(name);
+  return input instanceof HTMLInputElement ? input.value : "";
+};
+
+const optionalFormInputValue = (form: HTMLFormElement, name: string) => {
+  const value = formInputValue(form, name);
+  return value === "" ? undefined : value;
+};
 
 export const contactSourceAfterAction = (
   actionFailure: SaveCheckoutContactActionFailure | undefined,
@@ -45,10 +66,41 @@ export const CheckoutContactForm = ({
     submitLabel = t("contact.actions.saving");
   }
 
+  const submit: FormSubmitHandler = (event) => {
+    event.preventDefault();
+    const input: SaveCheckoutContactActionInput =
+      activeSource === "customerProfile"
+        ? {
+            cart: { id: cartId },
+            contact: { source: "customerProfile" },
+          }
+        : (() => {
+            const form = event.currentTarget;
+            const phoneNumber = optionalFormInputValue(form, "phoneNumber");
+            const submittedBuyerContact: SubmittedBuyerContact = {
+              email: formInputValue(form, "email"),
+              firstName: formInputValue(form, "firstName"),
+              lastName: formInputValue(form, "lastName"),
+            };
+            if (phoneNumber !== undefined) {
+              submittedBuyerContact.phoneNumber = phoneNumber;
+            }
+            return {
+              cart: { id: cartId },
+              contact: {
+                buyerContact: submittedBuyerContact,
+                source: "manual",
+              },
+            };
+          })();
+
+    startTransition(() => {
+      formAction(input);
+    });
+  };
+
   return (
-    <form action={formAction} className="grid gap-4">
-      <input name="cartId" type="hidden" value={cartId} />
-      <input name="source" type="hidden" value={activeSource} />
+    <form className="grid gap-4" onSubmit={submit}>
       {actionFailure === undefined ? null : (
         <p
           aria-live="polite"

@@ -1,6 +1,7 @@
 import { AddressBookReference } from "@repo/commerce/domain/address-book";
-import { CountryCode } from "@repo/commerce/domain/checkout";
 import type { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
+import { CountryCode } from "@repo/commerce/domain/checkout";
+import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -29,40 +30,70 @@ const addressBookDeliveryDetails = {
 } as const satisfies CheckoutDeliveryDetails;
 
 describe(buildSaveCheckoutDeliveryDetailsActions, () => {
-  it("copies a Manual address into the Cart without saved identity", () => {
+  it("persists Manual Delivery Details as cart-owned checkout data", () => {
     expect(
-      buildSaveCheckoutDeliveryDetailsActions(manualDeliveryDetails)
+      Effect.runSync(
+        buildSaveCheckoutDeliveryDetailsActions(
+          {
+            custom: {
+              customFieldsRaw: [],
+              type: { key: "orderCustomFields" },
+            },
+          },
+          manualDeliveryDetails
+        )
+      )
     ).toStrictEqual([
       {
-        setShippingAddress: {
-          address: {
-            additionalStreetInfo: "Suite 42",
-            city: "London",
-            country: "GB",
-            postalCode: "SW1A 1AA",
-            region: "Greater London",
-            streetName: "123 Analytical Engine Way",
-          },
+        setCustomField: {
+          name: "checkoutDeliveryDetails",
+          value: JSON.stringify(JSON.stringify(manualDeliveryDetails)),
         },
       },
     ]);
   });
 
-  it("copies a saved address and its Address Book key into the Cart", () => {
+  it("persists saved-address identity with its Delivery Details", () => {
     expect(
-      buildSaveCheckoutDeliveryDetailsActions(addressBookDeliveryDetails)
+      Effect.runSync(
+        buildSaveCheckoutDeliveryDetailsActions(
+          {
+            custom: {
+              customFieldsRaw: [],
+              type: { key: "orderCustomFields" },
+            },
+          },
+          addressBookDeliveryDetails
+        )
+      )
     ).toStrictEqual([
       {
-        setShippingAddress: {
-          address: {
-            additionalStreetInfo: "Suite 42",
-            city: "London",
-            country: "GB",
-            key: "address-book-bG9uZG9uLW9mZmljZQ",
-            postalCode: "SW1A 1AA",
-            region: "Greater London",
-            streetName: "123 Analytical Engine Way",
-          },
+        setCustomField: {
+          name: "checkoutDeliveryDetails",
+          value: JSON.stringify(JSON.stringify(addressBookDeliveryDetails)),
+        },
+      },
+    ]);
+  });
+
+  it("assigns the Order Custom Type without a destructive preflight action", () => {
+    expect(
+      Effect.runSync(
+        buildSaveCheckoutDeliveryDetailsActions(
+          { custom: null },
+          manualDeliveryDetails
+        )
+      )
+    ).toStrictEqual([
+      {
+        setCustomType: {
+          fields: [
+            {
+              name: "checkoutDeliveryDetails",
+              value: JSON.stringify(JSON.stringify(manualDeliveryDetails)),
+            },
+          ],
+          typeKey: "orderCustomFields",
         },
       },
     ]);
@@ -75,7 +106,6 @@ describe(hasPersistedCheckoutDeliveryDetails, () => {
       hasPersistedCheckoutDeliveryDetails(
         {
           checkoutDetails: { deliveryDetails: addressBookDeliveryDetails },
-          shippingAddress,
         },
         addressBookDeliveryDetails
       )
@@ -85,9 +115,11 @@ describe(hasPersistedCheckoutDeliveryDetails, () => {
       hasPersistedCheckoutDeliveryDetails(
         {
           checkoutDetails: { deliveryDetails: addressBookDeliveryDetails },
-          shippingAddress: { ...shippingAddress, city: "Oxford" },
         },
-        addressBookDeliveryDetails
+        {
+          ...addressBookDeliveryDetails,
+          shippingAddress: { ...shippingAddress, city: "Oxford" },
+        }
       )
     ).toBeFalsy();
 
@@ -95,7 +127,6 @@ describe(hasPersistedCheckoutDeliveryDetails, () => {
       hasPersistedCheckoutDeliveryDetails(
         {
           checkoutDetails: { deliveryDetails: manualDeliveryDetails },
-          shippingAddress,
         },
         addressBookDeliveryDetails
       )

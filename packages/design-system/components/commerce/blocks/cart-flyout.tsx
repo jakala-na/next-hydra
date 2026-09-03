@@ -68,6 +68,7 @@ export function CartFlyout() {
             <div className="flex-1 space-y-4 overflow-y-auto">
               {items.map((item) => (
                 <div
+                  data-cart-line-item=""
                   key={item.id}
                   className="flex gap-4 rounded-lg border bg-card p-4"
                 >
@@ -86,9 +87,12 @@ export function CartFlyout() {
                         <h4 className="font-semibold leading-tight">
                           {item.name}
                         </h4>
-                        <p className="text-muted-foreground text-sm">
-                          {item.variant}
-                        </p>
+                        {item.summaryAttribute === undefined ? null : (
+                          <p className="text-muted-foreground text-sm">
+                            {item.summaryAttribute.label}:{" "}
+                            {item.summaryAttribute.value}
+                          </p>
+                        )}
                       </div>
                       <Button
                         variant="ghost"

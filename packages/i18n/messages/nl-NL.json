@@ -294,6 +294,18 @@
       }
     },
     "checkout": {
+      "paymentOptions": {
+        "availableToSpend": "{amount} available to spend",
+        "card": "Card",
+        "cardInvalid": "Check your card details and try again.",
+        "cardNotReady": "Card entry is still loading.",
+        "chooseMethod": "Choose a payment method",
+        "netTerms": "Net {days}",
+        "paymentMethod": "Payment method",
+        "save": "Save payment options",
+        "saving": "Saving...",
+        "useShippingAddress": "Use shipping address for billing"
+      },
       "steps": {
         "contact": "Contact",
         "deliveryDetails": "Bezorggegevens",
@@ -347,7 +359,21 @@
           "country": "Land"
         },
         "actions": {
+          "edit": "Bezorggegevens bewerken",
           "save": "Bezorggegevens opslaan",
+          "saving": "Opslaan..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Kies een verzendoptie",
+        "choosePlan": "Kies een bezorgplan",
+        "delivery": "Bezorging {number}",
+        "noOptions": "Er zijn geen verzendopties voor deze bezorging.",
+        "noPlans": "Er is geen bezorgplan beschikbaar voor dit adres.",
+        "plan": "Bezorgplan {number}",
+        "quantity": "Aantal {quantity}",
+        "actions": {
+          "save": "Verzendopties opslaan",
           "saving": "Opslaan..."
         }
       },
@@ -361,17 +387,19 @@
         "internal": "De checkout kon niet worden voltooid. Probeer het opnieuw.",
         "deliveryDetails": {
           "addressBookEntryUnavailable": "Dit opgeslagen adres is niet meer beschikbaar.",
-          "invalidInput": "Voer adresregel 1, postcode, plaats en land in.",
           "sourceUnavailable": "Deze bezorgbron is niet beschikbaar voor deze checkout.",
           "providerFailure": "De bezorggegevens konden niet worden opgeslagen. Probeer het opnieuw.",
           "unsupported": "Deze bezorgbron wordt nog niet ondersteund."
         },
         "notFound": "De checkout is niet gevonden voor dit verzoek.",
+        "paymentOptions": {
+          "unavailable": "Voltooi de huidige checkoutstap voordat je de betaling voorbereidt."
+        },
         "versionConflict": "De checkout is gewijzigd voordat de gegevens zijn opgeslagen. Vernieuw de pagina en probeer het opnieuw.",
         "saveContact": {
           "CheckoutCartMismatch": "Deze checkout is niet meer actueel. Vernieuw de pagina en probeer het opnieuw.",
           "CheckoutCustomerProfileIncomplete": "In uw klantprofiel ontbreken verplichte contactgegevens. Vul ze hieronder in om verder te gaan.",
-          "CheckoutMutationSchemaFailure": "Voer een e-mailadres, voornaam en achternaam in.",
+          "InputInvalid": "Voer een e-mailadres, voornaam en achternaam in.",
           "CheckoutMutationOutcomeUnknown": "We konden niet bevestigen of uw contactgegevens zijn opgeslagen. Vernieuw de pagina voordat u het opnieuw probeert.",
           "CheckoutMutationSourceUnavailable": "Deze contactbron is niet beschikbaar voor deze checkout.",
           "CheckoutMutationProviderFailure": "Het contact kon niet worden opgeslagen. Probeer het opnieuw.",
@@ -385,7 +413,7 @@
         "saveDeliveryDetails": {
           "CheckoutCartMismatch": "Deze checkout is niet meer actueel. Vernieuw de pagina en probeer het opnieuw.",
           "CheckoutMutationAddressBookEntryUnavailable": "Dit opgeslagen adres is niet meer beschikbaar.",
-          "CheckoutMutationSchemaFailure": "Voer adresregel 1, postcode, plaats en land in.",
+          "InputInvalid": "Voer adresregel 1, postcode, plaats en land in.",
           "CheckoutMutationOutcomeUnknown": "We konden niet bevestigen of uw bezorggegevens zijn opgeslagen. Vernieuw de pagina voordat u het opnieuw probeert.",
           "CheckoutMutationSourceUnavailable": "Deze bezorgbron is niet beschikbaar voor deze checkout.",
           "CheckoutMutationProviderFailure": "De bezorggegevens konden niet worden opgeslagen. Probeer het opnieuw.",
@@ -395,6 +423,31 @@
           "CheckoutUnavailable": "De checkout is niet gevonden voor dit verzoek.",
           "CommerceRequestContextNotFound": "De checkout is niet gevonden voor dit verzoek.",
           "CheckoutVersionConflict": "De checkout is gewijzigd voordat de gegevens zijn opgeslagen. Vernieuw de pagina en probeer het opnieuw."
+        },
+        "savePaymentOptions": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "InputInvalid": "Choose an available payment method and complete its details.",
+          "CheckoutMutationOutcomeUnknown": "We could not confirm whether your payment options were saved. Refresh before trying again.",
+          "CheckoutMutationProviderFailure": "Payment options could not be saved. Try again.",
+          "CheckoutPaymentMethodUnavailable": "That payment method is no longer available. Refresh and choose again.",
+          "CheckoutPaymentOptionsUnavailable": "Voltooi de huidige checkoutstap voordat je de betaling voorbereidt.",
+          "CheckoutPaymentPreparationRefreshRequired": "Card details no longer match this checkout. Refresh and enter them again.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your payment options could be saved. Refresh and try again.",
+          "CommerceAccountUnavailable": "Payment options could not be saved. Try again.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "Deze checkout is niet meer actueel.",
+          "InputInvalid": "Kies voor elke bezorging een verzendoptie.",
+          "CheckoutMutationOutcomeUnknown": "Opslaan kon niet worden bevestigd. Vernieuw de pagina.",
+          "CheckoutMutationProviderFailure": "De verzendopties konden niet worden opgeslagen.",
+          "CheckoutShippingOptionsRefreshRequired": "De verzendopties zijn opgeslagen, maar de checkout kon niet worden vernieuwd. Vernieuw de pagina.",
+          "CheckoutShippingSelectionUnavailable": "Deze verzendoptie is niet meer beschikbaar.",
+          "CheckoutUnavailable": "Checkout is niet gevonden.",
+          "CheckoutVersionConflict": "De checkout is gewijzigd vóór het opslaan.",
+          "CommerceAccountUnavailable": "De verzendopties konden niet worden opgeslagen.",
+          "CommerceRequestContextNotFound": "Checkout is niet gevonden."
         }
       },
       "violations": {

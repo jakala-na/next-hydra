@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 
 export const ProductAttributeEnumValueKey = Schema.NonEmptyString.pipe(
   Schema.brand("ProductAttributeEnumValueKey")
@@ -13,6 +13,18 @@ export const ProductAttributeEnumValue = Schema.Struct({
   label: Schema.NonEmptyString,
 });
 export type ProductAttributeEnumValue = typeof ProductAttributeEnumValue.Type;
+
+export const makeProductAttributeEnumValueSchema = <
+  const Keys extends readonly [string, ...string[]],
+>(
+  keys: Keys
+) =>
+  Schema.Struct({
+    key: Schema.Literals(keys).pipe(
+      Schema.brand("ProductAttributeEnumValueKey")
+    ),
+    label: Schema.NonEmptyString,
+  });
 
 export const ProductAttributeDate = Schema.String.check(
   Schema.makeFilter(
@@ -35,6 +47,6 @@ export const ProductAttributeDateTime = Schema.DateTimeUtcFromString;
 export type ProductAttributeDateTime = typeof ProductAttributeDateTime.Type;
 
 export const ProductAttributeTime = Schema.String.check(
-  Schema.isPattern(/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,9})?)?$/)
+  Schema.isPattern(/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,9})?)?$/u)
 ).pipe(Schema.brand("ProductAttributeTime"));
 export type ProductAttributeTime = typeof ProductAttributeTime.Type;

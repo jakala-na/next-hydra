@@ -32,6 +32,8 @@
     "@repo/i18n": "workspace:*",
     "@repo/next-config": "workspace:*",
     "@repo/observability": "workspace:*",
+    "@repo/payments": "workspace:*",
+    "@repo/payments-stripe": "workspace:*",
     "@repo/rate-limit": "workspace:*",
     "@repo/registration": "workspace:*",
     "@repo/security": "workspace:*",

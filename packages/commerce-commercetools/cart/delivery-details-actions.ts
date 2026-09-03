@@ -1,69 +1,49 @@
+import { CartProviderFailure } from "@repo/commerce/domain/cart-errors";
 import type { CheckoutDeliveryDetails } from "@repo/commerce/domain/checkout";
 import { checkoutDeliveryDetailsEqual } from "@repo/commerce/lib/checkout/delivery-details-equality";
 
-import { toCommercetoolsAddressKey } from "../address-book/address-book-key";
+import { customFieldsBuilder } from "../custom-fields";
+import { CheckoutOrderCustomFields } from "./checkout-custom-fields";
 import type { CommercetoolsCart } from "./provider-cart";
 
-type SaveCheckoutDeliveryDetailsAction = {
-  readonly setShippingAddress: {
-    readonly address: {
-      readonly key?: string;
-      readonly streetName: string;
-      readonly postalCode: string;
-      readonly city: string;
-      readonly country: string;
-      readonly additionalStreetInfo?: string;
-      readonly region?: string;
-    };
-  };
-};
-
 export const hasPersistedCheckoutDeliveryDetails = (
-  cart: Pick<CommercetoolsCart, "checkoutDetails" | "shippingAddress">,
+  cart: Pick<CommercetoolsCart, "checkoutDetails">,
   deliveryDetails: CheckoutDeliveryDetails
 ) => {
   const persistedDeliveryDetails = cart.checkoutDetails?.deliveryDetails;
 
-  if (persistedDeliveryDetails === undefined || cart.shippingAddress == null) {
+  if (persistedDeliveryDetails === undefined) {
     return false;
   }
 
   return checkoutDeliveryDetailsEqual(
-    {
-      ...persistedDeliveryDetails,
-      shippingAddress: cart.shippingAddress,
-    },
+    persistedDeliveryDetails,
     deliveryDetails
   );
 };
 
-export const buildSaveCheckoutDeliveryDetailsActions = (
+export const buildSaveCheckoutDeliveryDetailsUpdate = (
+  cart: Pick<CommercetoolsCart, "custom">,
   deliveryDetails: CheckoutDeliveryDetails
-): SaveCheckoutDeliveryDetailsAction[] => [
-  {
-    setShippingAddress: {
-      address: {
-        ...(deliveryDetails.source === "addressBook"
-          ? {
-              key: toCommercetoolsAddressKey(
-                deliveryDetails.addressBookReference
-              ),
-            }
-          : {}),
-        city: deliveryDetails.shippingAddress.city,
-        country: deliveryDetails.shippingAddress.country,
-        postalCode: deliveryDetails.shippingAddress.postalCode,
-        streetName: deliveryDetails.shippingAddress.addressLine1,
-        ...(deliveryDetails.shippingAddress.addressLine2 === undefined
-          ? {}
-          : {
-              additionalStreetInfo:
-                deliveryDetails.shippingAddress.addressLine2,
-            }),
-        ...(deliveryDetails.shippingAddress.region === undefined
-          ? {}
-          : { region: deliveryDetails.shippingAddress.region }),
-      },
-    },
-  },
-];
+) =>
+  customFieldsBuilder
+    .forType(CheckoutOrderCustomFields)
+    .set("checkoutDeliveryDetails", deliveryDetails)
+    .againstGraphql(cart.custom)
+    .mapError(
+      (cause) =>
+        new CartProviderFailure({
+          cause,
+          operation: "saveDeliveryDetails",
+          reason: "invalidData",
+        })
+    );
+
+export const buildSaveCheckoutDeliveryDetailsActions = (
+  cart: Pick<CommercetoolsCart, "custom">,
+  deliveryDetails: CheckoutDeliveryDetails
+) =>
+  buildSaveCheckoutDeliveryDetailsUpdate(
+    cart,
+    deliveryDetails
+  ).toGraphqlUpdateActions();

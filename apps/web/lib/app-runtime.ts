@@ -10,6 +10,8 @@ import {
   commercetoolsClientsLayer,
   commerceAccountsLayer,
   commerceCompanyMembershipsLayer,
+  deliveryPlanningLayer,
+  ordersLayer,
   productDiscoveryLayer,
 } from "@repo/commerce-provider/provider";
 import {
@@ -20,6 +22,7 @@ import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
 import { makeCommerceApp } from "@repo/commerce/runtime/make-commerce-app";
 import { CartPolicies } from "@repo/commerce/services/cart-policies";
 import { sentryEffectTelemetryLayer } from "@repo/observability/effect";
+import { commercetoolsStripeCheckoutPaymentsLayer } from "@repo/payments-stripe/server/commercetools";
 import {
   CompanyInvitationPolicy,
   CompanyMemberInvitationRecords,
@@ -34,15 +37,26 @@ import { nextServerLayer } from "./next-server";
 
 const commerceAccounts = Layer.orDie(commerceAccountsLayer);
 
+const checkoutPaymentsLayer = Layer.orDie(
+  commercetoolsStripeCheckoutPaymentsLayer
+);
+
 export const CommerceApp = makeCommerceApp({
   addressBookLayer: Layer.orDie(addressBookLayer),
   cartPoliciesLayer: CartPolicies.layer,
   cartsLayer: Layer.orDie(
     cartsLayer.pipe(Layer.provide(commercetoolsClientsLayer))
   ),
+  checkoutPaymentsLayer,
   checkoutPoliciesLayer: CheckoutPolicies.layer,
   commerceAccountsLayer: commerceAccounts,
   commerceCompanyMembershipsLayer: Layer.orDie(commerceCompanyMembershipsLayer),
+  deliveryPlanningLayer: Layer.orDie(
+    deliveryPlanningLayer.pipe(Layer.provide(commercetoolsClientsLayer))
+  ),
+  ordersLayer: Layer.orDie(
+    ordersLayer.pipe(Layer.provide(commercetoolsClientsLayer))
+  ),
   productDiscoveryLayer: Layer.orDie(productDiscoveryLayer),
 });
 

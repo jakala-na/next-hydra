@@ -462,6 +462,8 @@ describe("generated customer-account invitation composition", () => {
     vi.stubEnv("COMMERCETOOLS_PROJECT_KEY", "test-project");
     vi.stubEnv("COMMERCETOOLS_REGION", "test-region");
     vi.stubEnv("COMMERCETOOLS_SCOPE", "test-scope");
+    vi.stubEnv("STRIPE_PUBLISHABLE_KEY", "pk_test_from_input");
+    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_from_input");
     const {
       cancelCompanyMemberInvitation,
       inviteCompanyMember,

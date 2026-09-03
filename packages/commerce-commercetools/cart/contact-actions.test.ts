@@ -1,5 +1,5 @@
-import type { CheckoutContact } from "@repo/commerce/domain/checkout";
-import { Effect } from "effect";
+import { CheckoutContact } from "@repo/commerce/domain/checkout";
+import { Effect, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -87,9 +87,10 @@ describe(buildSaveCheckoutContactActions, () => {
       return;
     }
 
-    const storedContact = JSON.parse(
-      JSON.parse(customTypeAction.setCustomType.fields[0].value)
-    );
+    const encodedContact = customTypeAction.setCustomType.fields.at(0)?.value;
+    const storedContact = Schema.decodeUnknownSync(
+      Schema.fromJsonString(Schema.fromJsonString(CheckoutContact))
+    )(encodedContact);
     expect(storedContact).toStrictEqual(customerProfileContact);
   });
 
@@ -120,7 +121,6 @@ describe(buildSaveCheckoutContactActions, () => {
       operation: "saveContact",
       reason: "invalidData",
     });
-    expect(String(result.failure.cause)).toContain("other-cart-fields");
     expect(String(result.failure.cause)).toContain("orderCustomFields");
   });
 
@@ -154,8 +154,7 @@ describe(buildSaveCheckoutContactActions, () => {
       operation: "saveContact",
       reason: "invalidData",
     });
-    expect(String(result.failure.cause)).toContain("<unavailable>");
-    expect(String(result.failure.cause)).toContain("orderCustomFields");
+    expect(String(result.failure.cause)).toContain("SchemaError");
   });
 });
 

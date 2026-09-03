@@ -1,23 +1,24 @@
 import { checkoutMessageCatalogs } from "@repo/i18n/checkout-messages";
-import type { SupportedLocale } from "@repo/i18n/config";
+import { locales } from "@repo/i18n/config";
 import { Option, Schema } from "effect";
-
-import { CommerceLocale } from "../store";
 
 export type CheckoutApiErrorCode =
   | "checkout.badRequest"
   | "checkout.cartMismatch"
   | "checkout.contact.customerProfileIncomplete"
-  | "checkout.contact.invalidInput"
   | "checkout.contact.outcomeUnknown"
   | "checkout.contact.sourceUnavailable"
   | "checkout.deliveryDetails.addressBookEntryUnavailable"
-  | "checkout.deliveryDetails.invalidInput"
   | "checkout.deliveryDetails.outcomeUnknown"
   | "checkout.deliveryDetails.providerFailure"
   | "checkout.deliveryDetails.sourceUnavailable"
   | "checkout.internal"
   | "checkout.notFound"
+  | "checkout.paymentOptions.methodUnavailable"
+  | "checkout.paymentOptions.outcomeUnknown"
+  | "checkout.paymentOptions.preparationRefreshRequired"
+  | "checkout.paymentOptions.providerFailure"
+  | "checkout.paymentOptions.unavailable"
   | "checkout.versionConflict";
 
 export const checkoutApiErrorMessage = (
@@ -25,11 +26,10 @@ export const checkoutApiErrorMessage = (
   code: CheckoutApiErrorCode
 ) => {
   const decodedLocale = Option.getOrElse(
-    Schema.decodeUnknownOption(CommerceLocale)(locale),
-    () => CommerceLocale.make("en-US")
+    Schema.decodeUnknownOption(Schema.Literals(locales))(locale),
+    () => "en-US" as const
   );
-  const messages =
-    checkoutMessageCatalogs[decodedLocale as SupportedLocale].errors;
+  const messages = checkoutMessageCatalogs[decodedLocale].errors;
 
   switch (code) {
     case "checkout.badRequest": {
@@ -41,9 +41,6 @@ export const checkoutApiErrorMessage = (
     case "checkout.contact.customerProfileIncomplete": {
       return messages.saveContact.CheckoutCustomerProfileIncomplete;
     }
-    case "checkout.contact.invalidInput": {
-      return messages.saveContact.CheckoutMutationSchemaFailure;
-    }
     case "checkout.contact.outcomeUnknown": {
       return messages.saveContact.CheckoutMutationOutcomeUnknown;
     }
@@ -52,9 +49,6 @@ export const checkoutApiErrorMessage = (
     }
     case "checkout.deliveryDetails.addressBookEntryUnavailable": {
       return messages.deliveryDetails.addressBookEntryUnavailable;
-    }
-    case "checkout.deliveryDetails.invalidInput": {
-      return messages.deliveryDetails.invalidInput;
     }
     case "checkout.deliveryDetails.outcomeUnknown": {
       return messages.saveDeliveryDetails.CheckoutMutationOutcomeUnknown;
@@ -70,6 +64,22 @@ export const checkoutApiErrorMessage = (
     }
     case "checkout.notFound": {
       return messages.notFound;
+    }
+    case "checkout.paymentOptions.methodUnavailable": {
+      return messages.savePaymentOptions.CheckoutPaymentMethodUnavailable;
+    }
+    case "checkout.paymentOptions.outcomeUnknown": {
+      return messages.savePaymentOptions.CheckoutMutationOutcomeUnknown;
+    }
+    case "checkout.paymentOptions.preparationRefreshRequired": {
+      return messages.savePaymentOptions
+        .CheckoutPaymentPreparationRefreshRequired;
+    }
+    case "checkout.paymentOptions.providerFailure": {
+      return messages.savePaymentOptions.CheckoutMutationProviderFailure;
+    }
+    case "checkout.paymentOptions.unavailable": {
+      return messages.paymentOptions.unavailable;
     }
     case "checkout.versionConflict": {
       return messages.versionConflict;

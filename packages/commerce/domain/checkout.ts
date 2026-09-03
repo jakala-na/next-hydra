@@ -1,15 +1,27 @@
+import {
+  PaymentMethod,
+  PaymentSelection,
+  PreparedPayment,
+  PreparedPaymentReference,
+} from "@repo/payments";
 import { Schema } from "effect";
 
 import { CommerceLocale } from "../store";
-import { Address } from "./address";
+import { Address, CountryCodeFromString } from "./address";
 import { AddressBookReference } from "./address-book";
 import { CartId, LineItemId, ProductId, Sku, VariantId } from "./cart";
-import { CartSnapshot } from "./cart-snapshot";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "./commerce-account";
+import {
+  DeliveryPlanSelection,
+  DeliveryPlanQuoteReference,
+  DeliveryPlanReference,
+  SelectedDeliveryPlan,
+  ShippingOptionReference,
+} from "./delivery-plan";
 import { ProviderFailureReason } from "./provider-failure";
 
 export class StorefrontAnonymousCheckoutScope extends Schema.TaggedClass<StorefrontAnonymousCheckoutScope>()(
@@ -183,8 +195,98 @@ export const CheckoutDetails = Schema.Struct({
   buyingContext: Schema.optional(BuyingContext),
   contact: Schema.optional(CheckoutContact),
   deliveryDetails: Schema.optional(CheckoutDeliveryDetails),
+  preparedPayment: Schema.optional(PreparedPayment),
+  selectedDeliveryPlan: Schema.optional(SelectedDeliveryPlan),
 });
 export type CheckoutDetails = typeof CheckoutDetails.Type;
+
+export const CheckoutBillingAddressInput = Schema.Struct({
+  source: Schema.Literal("shippingAddress"),
+});
+export type CheckoutBillingAddressInput =
+  typeof CheckoutBillingAddressInput.Type;
+
+export const CheckoutPaymentSelectionInput = Schema.Struct({
+  billingAddress: CheckoutBillingAddressInput,
+  payment: PaymentSelection,
+});
+export type CheckoutPaymentSelectionInput =
+  typeof CheckoutPaymentSelectionInput.Type;
+
+const RequiredCheckoutInputString = Schema.Trim.pipe(
+  Schema.check(Schema.isMinLength(1))
+);
+
+const CheckoutMutationBuyerContactInput = Schema.Struct({
+  email: RequiredCheckoutInputString,
+  firstName: RequiredCheckoutInputString,
+  lastName: RequiredCheckoutInputString,
+  phoneNumber: Schema.optional(Schema.String),
+});
+
+const CheckoutMutationContactInput = Schema.Union([
+  Schema.Struct({
+    buyerContact: CheckoutMutationBuyerContactInput,
+    source: Schema.Literal("manual"),
+  }),
+  CustomerProfileCheckoutContactInput,
+]);
+
+const CheckoutMutationShippingAddressInput = Schema.Struct({
+  addressLine1: RequiredCheckoutInputString,
+  addressLine2: Schema.optional(Schema.String),
+  city: RequiredCheckoutInputString,
+  country: CountryCodeFromString,
+  postalCode: RequiredCheckoutInputString,
+  region: Schema.optional(Schema.String),
+});
+
+const CheckoutMutationDeliveryDetailsInput = Schema.Union([
+  Schema.Struct({
+    saveToAddressBook: Schema.Literal(false),
+    shippingAddress: CheckoutMutationShippingAddressInput,
+    type: Schema.Literal("manual"),
+  }),
+  Schema.Struct({
+    makeDefaultShipping: Schema.Boolean,
+    saveToAddressBook: Schema.Literal(true),
+    shippingAddress: CheckoutMutationShippingAddressInput,
+    type: Schema.Literal("manual"),
+  }),
+  AddressBookCheckoutDeliveryDetailsInput,
+]);
+
+export const SaveCheckoutContactInput = Schema.Struct({
+  cart: CheckoutCartReference,
+  contact: CheckoutMutationContactInput,
+}).annotate({ identifier: "SaveCheckoutContactInput" });
+export type SaveCheckoutContactInput = typeof SaveCheckoutContactInput.Type;
+
+export const SaveCheckoutDeliveryDetailsInput = Schema.Struct({
+  cart: CheckoutCartReference,
+  deliveryDetails: CheckoutMutationDeliveryDetailsInput,
+}).annotate({ identifier: "SaveCheckoutDeliveryDetailsInput" });
+export type SaveCheckoutDeliveryDetailsInput =
+  typeof SaveCheckoutDeliveryDetailsInput.Type;
+
+export const SaveCheckoutShippingOptionsInput = Schema.Struct({
+  cart: CheckoutCartReference,
+  selection: DeliveryPlanSelection,
+}).annotate({ identifier: "SaveCheckoutShippingOptionsInput" });
+export type SaveCheckoutShippingOptionsInput =
+  typeof SaveCheckoutShippingOptionsInput.Type;
+
+export const SaveCheckoutPaymentOptionsInput = Schema.Struct({
+  cart: CheckoutCartReference,
+  selection: CheckoutPaymentSelectionInput,
+}).annotate({ identifier: "SaveCheckoutPaymentOptionsInput" });
+export type SaveCheckoutPaymentOptionsInput =
+  typeof SaveCheckoutPaymentOptionsInput.Type;
+
+export const PlaceCheckoutOrderInput = Schema.Struct({
+  cart: CheckoutCartReference,
+}).annotate({ identifier: "PlaceCheckoutOrderInput" });
+export type PlaceCheckoutOrderInput = typeof PlaceCheckoutOrderInput.Type;
 
 export const ViolationTarget = Schema.Union([
   Schema.Struct({
@@ -212,7 +314,7 @@ export type CheckoutViolationSource = typeof CheckoutViolationSource.Type;
 
 export const CheckoutViolationParameter = Schema.Union([
   Schema.String,
-  Schema.Number,
+  Schema.Finite,
 ]);
 export type CheckoutViolationParameter = typeof CheckoutViolationParameter.Type;
 
@@ -240,16 +342,6 @@ export const CheckoutPolicyViolation = Schema.Struct({
 });
 export type CheckoutPolicyViolation = typeof CheckoutPolicyViolation.Type;
 
-export const CheckoutState = Schema.Struct({
-  activeStep: CheckoutStepId,
-  cart: Schema.suspend(() => CartSnapshot),
-  details: CheckoutDetails,
-  scope: CheckoutScope,
-  steps: Schema.Array(CheckoutStep),
-  violations: Schema.Array(CheckoutViolation),
-});
-export type CheckoutState = typeof CheckoutState.Type;
-
 export const CheckoutBuyerContext = Schema.Struct({
   buyerMode: Schema.Literals(["guest", "customer", "b2bCustomer"]),
   buyingContext: Schema.optional(BuyingContext),
@@ -272,41 +364,6 @@ export class CheckoutProviderFailure extends Schema.TaggedError<CheckoutProvider
     message: Schema.String,
     operation: Schema.String,
     reason: ProviderFailureReason,
-  }
-) {}
-
-export const CheckoutMutationIssuePath = Schema.Literals([
-  "root",
-  "addressLine1",
-  "addressLine2",
-  "cartId",
-  "city",
-  "country",
-  "deliveryAddressChoice",
-  "email",
-  "firstName",
-  "lastName",
-  "makeDefaultShipping",
-  "phoneNumber",
-  "postalCode",
-  "region",
-  "saveToAddressBook",
-  "source",
-]);
-export type CheckoutMutationIssuePath = typeof CheckoutMutationIssuePath.Type;
-
-export class CheckoutMutationIssue extends Schema.Class<CheckoutMutationIssue>(
-  "CheckoutMutationIssue"
-)({
-  message: Schema.String,
-  path: CheckoutMutationIssuePath,
-}) {}
-
-export class CheckoutMutationSchemaFailure extends Schema.TaggedError<CheckoutMutationSchemaFailure>()(
-  "CheckoutMutationSchemaFailure",
-  {
-    issues: Schema.NonEmptyArray(CheckoutMutationIssue),
-    message: Schema.String,
   }
 ) {}
 
@@ -344,6 +401,24 @@ export class CheckoutMutationAddressBookEntryUnavailable extends Schema.TaggedEr
   }
 ) {}
 
+export class CheckoutShippingSelectionUnavailable extends Schema.TaggedError<CheckoutShippingSelectionUnavailable>()(
+  "CheckoutShippingSelectionUnavailable",
+  {
+    message: Schema.String,
+    planReference: DeliveryPlanReference,
+    quoteReference: DeliveryPlanQuoteReference,
+    shippingOptionReference: Schema.optional(ShippingOptionReference),
+  }
+) {}
+
+export class CheckoutShippingOptionsRefreshRequired extends Schema.TaggedError<CheckoutShippingOptionsRefreshRequired>()(
+  "CheckoutShippingOptionsRefreshRequired",
+  {
+    cartId: CartId,
+    message: Schema.String,
+  }
+) {}
+
 export class CheckoutCartMismatch extends Schema.TaggedError<CheckoutCartMismatch>()(
   "CheckoutCartMismatch",
   {
@@ -368,7 +443,12 @@ export class CheckoutMutationOutcomeUnknown extends Schema.TaggedError<CheckoutM
     addressBookReference: Schema.optional(AddressBookReference),
     cartId: Schema.optional(CartId),
     message: Schema.String,
-    operation: Schema.Literals(["saveContact", "saveDeliveryDetails"]),
+    operation: Schema.Literals([
+      "saveContact",
+      "saveDeliveryDetails",
+      "savePaymentOptions",
+      "saveShippingOptions",
+    ]),
   }
 ) {}
 
@@ -387,25 +467,89 @@ export class CheckoutMutationUnsupported extends Schema.TaggedError<CheckoutMuta
   "CheckoutMutationUnsupported",
   {
     message: Schema.String,
-    operation: Schema.Literals(["saveContact", "saveDeliveryDetails"]),
+    operation: Schema.Literals([
+      "saveContact",
+      "saveDeliveryDetails",
+      "savePaymentOptions",
+      "saveShippingOptions",
+    ]),
+  }
+) {}
+
+export class CheckoutPaymentMethodUnavailable extends Schema.TaggedError<CheckoutPaymentMethodUnavailable>()(
+  "CheckoutPaymentMethodUnavailable",
+  {
+    message: Schema.String,
+    method: PaymentMethod,
+    reason: Schema.Literals(["insufficientAvailableCredit", "notEligible"]),
+  }
+) {}
+
+export class CheckoutPaymentOptionsUnavailable extends Schema.TaggedError<CheckoutPaymentOptionsUnavailable>()(
+  "CheckoutPaymentOptionsUnavailable",
+  {
+    message: Schema.String,
+    reason: Schema.Literals([
+      "contactIncomplete",
+      "deliveryDetailsIncomplete",
+      "shippingOptionsIncomplete",
+    ]),
+  }
+) {}
+
+export class CheckoutPaymentPreparationRefreshRequired extends Schema.TaggedError<CheckoutPaymentPreparationRefreshRequired>()(
+  "CheckoutPaymentPreparationRefreshRequired",
+  {
+    message: Schema.String,
+    preparationReference: PreparedPaymentReference,
+    reason: Schema.Literals([
+      "amountChanged",
+      "authorizationReleased",
+      "notFound",
+      "confirmationUnavailable",
+    ]),
+  }
+) {}
+
+export class CheckoutOrderPlacementUnavailable extends Schema.TaggedError<CheckoutOrderPlacementUnavailable>()(
+  "CheckoutOrderPlacementUnavailable",
+  {
+    message: Schema.String,
+    reason: Schema.Literals([
+      "checkoutIncomplete",
+      "paymentChanged",
+      "paymentMissing",
+      "policyViolation",
+    ]),
+  }
+) {}
+
+export class CheckoutPaymentRejected extends Schema.TaggedError<CheckoutPaymentRejected>()(
+  "CheckoutPaymentRejected",
+  {
+    message: Schema.String,
+    operation: Schema.Literals(["authorize", "capture"]),
   }
 ) {}
 
 export const CheckoutMutationFailure = Schema.Union([
-  CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutCustomerProfileIncomplete,
   CheckoutMutationAddressBookEntryUnavailable,
+  CheckoutShippingSelectionUnavailable,
+  CheckoutShippingOptionsRefreshRequired,
   CheckoutCartMismatch,
   CheckoutVersionConflict,
   CheckoutMutationOutcomeUnknown,
   CheckoutMutationProviderFailure,
   CheckoutMutationUnsupported,
+  CheckoutPaymentOptionsUnavailable,
+  CheckoutPaymentMethodUnavailable,
+  CheckoutPaymentPreparationRefreshRequired,
 ]);
 export type CheckoutMutationFailure = typeof CheckoutMutationFailure.Type;
 
 export const CheckoutContactMutationFailure = Schema.Union([
-  CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutCustomerProfileIncomplete,
   CheckoutCartMismatch,
@@ -418,7 +562,6 @@ export type CheckoutContactMutationFailure =
   typeof CheckoutContactMutationFailure.Type;
 
 export const CheckoutDeliveryDetailsMutationFailure = Schema.Union([
-  CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
   CheckoutMutationAddressBookEntryUnavailable,
   CheckoutCartMismatch,
@@ -429,3 +572,28 @@ export const CheckoutDeliveryDetailsMutationFailure = Schema.Union([
 ]);
 export type CheckoutDeliveryDetailsMutationFailure =
   typeof CheckoutDeliveryDetailsMutationFailure.Type;
+
+export const CheckoutShippingOptionsMutationFailure = Schema.Union([
+  CheckoutShippingSelectionUnavailable,
+  CheckoutShippingOptionsRefreshRequired,
+  CheckoutCartMismatch,
+  CheckoutVersionConflict,
+  CheckoutMutationOutcomeUnknown,
+  CheckoutMutationProviderFailure,
+  CheckoutMutationUnsupported,
+]);
+export type CheckoutShippingOptionsMutationFailure =
+  typeof CheckoutShippingOptionsMutationFailure.Type;
+
+export const CheckoutPaymentOptionsMutationFailure = Schema.Union([
+  CheckoutPaymentOptionsUnavailable,
+  CheckoutPaymentMethodUnavailable,
+  CheckoutPaymentPreparationRefreshRequired,
+  CheckoutCartMismatch,
+  CheckoutVersionConflict,
+  CheckoutMutationOutcomeUnknown,
+  CheckoutMutationProviderFailure,
+  CheckoutMutationUnsupported,
+]);
+export type CheckoutPaymentOptionsMutationFailure =
+  typeof CheckoutPaymentOptionsMutationFailure.Type;

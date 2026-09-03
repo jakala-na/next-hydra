@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { CurrentCart } from "../services/current-cart";
 import type { AddToCartAction } from "./add-to-cart";
 import type { ChangeCartItemsQuantityAction } from "./change-cart-items-quantity";
+import { toCartPublicState } from "./public-state";
 import type { RemoveCartItemAction } from "./remove-cart-item";
 
 const loadCurrentCart = async (locale: Locale) => {
@@ -28,7 +29,7 @@ const loadCurrentCart = async (locale: Locale) => {
     );
     return Option.match(cart, {
       onNone: () => null,
-      onSome: (state) => state,
+      onSome: toCartPublicState,
     });
   } catch (error) {
     unstable_rethrow(error);

@@ -294,6 +294,18 @@
       }
     },
     "checkout": {
+      "paymentOptions": {
+        "availableToSpend": "{amount} available to spend",
+        "card": "Card",
+        "cardInvalid": "Check your card details and try again.",
+        "cardNotReady": "Card entry is still loading.",
+        "chooseMethod": "Choose a payment method",
+        "netTerms": "Net {days}",
+        "paymentMethod": "Payment method",
+        "save": "Save payment options",
+        "saving": "Saving...",
+        "useShippingAddress": "Use shipping address for billing"
+      },
       "steps": {
         "contact": "Contact",
         "deliveryDetails": "Delivery details",
@@ -347,7 +359,21 @@
           "country": "Country"
         },
         "actions": {
+          "edit": "Edit delivery details",
           "save": "Save delivery details",
+          "saving": "Saving..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Choose a shipping option",
+        "choosePlan": "Choose a delivery plan",
+        "delivery": "Delivery {number}",
+        "noOptions": "No shipping options are available for this delivery.",
+        "noPlans": "No delivery plan is available for this address.",
+        "plan": "Delivery plan {number}",
+        "quantity": "Qty {quantity}",
+        "actions": {
+          "save": "Save shipping options",
           "saving": "Saving..."
         }
       },
@@ -361,17 +387,19 @@
         "internal": "Checkout could not be completed. Try again.",
         "deliveryDetails": {
           "addressBookEntryUnavailable": "This saved address is no longer available.",
-          "invalidInput": "Enter address line 1, postcode, city, and country.",
           "sourceUnavailable": "This delivery details source is unavailable for this checkout.",
           "providerFailure": "Delivery details could not be saved. Try again.",
           "unsupported": "This delivery details source is not supported yet."
         },
         "notFound": "Checkout was not found for the current request.",
+        "paymentOptions": {
+          "unavailable": "Complete the current checkout step before preparing payment."
+        },
         "versionConflict": "Checkout changed before your details could be saved. Refresh and try again.",
         "saveContact": {
           "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
           "CheckoutCustomerProfileIncomplete": "Your customer profile is missing required contact information. Enter it below to continue.",
-          "CheckoutMutationSchemaFailure": "Enter an email, first name, and last name.",
+          "InputInvalid": "Enter an email, first name, and last name.",
           "CheckoutMutationOutcomeUnknown": "We could not confirm whether your contact details were saved. Refresh before trying again.",
           "CheckoutMutationSourceUnavailable": "This contact source is unavailable for this checkout.",
           "CheckoutMutationProviderFailure": "Contact could not be saved. Try again.",
@@ -385,7 +413,7 @@
         "saveDeliveryDetails": {
           "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
           "CheckoutMutationAddressBookEntryUnavailable": "This saved address is no longer available.",
-          "CheckoutMutationSchemaFailure": "Enter address line 1, postcode, city, and country.",
+          "InputInvalid": "Enter address line 1, postcode, city, and country.",
           "CheckoutMutationOutcomeUnknown": "We could not confirm whether your delivery details were saved. Refresh before trying again.",
           "CheckoutMutationSourceUnavailable": "This delivery details source is unavailable for this checkout.",
           "CheckoutMutationProviderFailure": "Delivery details could not be saved. Try again.",
@@ -395,6 +423,31 @@
           "CheckoutUnavailable": "Checkout was not found for the current request.",
           "CommerceRequestContextNotFound": "Checkout was not found for the current request.",
           "CheckoutVersionConflict": "Checkout changed before your details could be saved. Refresh and try again."
+        },
+        "savePaymentOptions": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "InputInvalid": "Choose an available payment method and complete its details.",
+          "CheckoutMutationOutcomeUnknown": "We could not confirm whether your payment options were saved. Refresh before trying again.",
+          "CheckoutMutationProviderFailure": "Payment options could not be saved. Try again.",
+          "CheckoutPaymentMethodUnavailable": "That payment method is no longer available. Refresh and choose again.",
+          "CheckoutPaymentOptionsUnavailable": "Complete the current checkout step before preparing payment.",
+          "CheckoutPaymentPreparationRefreshRequired": "Card details no longer match this checkout. Refresh and enter them again.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your payment options could be saved. Refresh and try again.",
+          "CommerceAccountUnavailable": "Payment options could not be saved. Try again.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "InputInvalid": "Choose one shipping option for every delivery.",
+          "CheckoutMutationOutcomeUnknown": "We could not confirm whether your shipping options were saved. Refresh before trying again.",
+          "CheckoutMutationProviderFailure": "Shipping options could not be saved. Try again.",
+          "CheckoutShippingOptionsRefreshRequired": "Shipping options were saved, but checkout could not refresh. Refresh the page to continue.",
+          "CheckoutShippingSelectionUnavailable": "That shipping option is no longer available. Refresh and choose again.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your shipping options could be saved. Refresh and try again.",
+          "CommerceAccountUnavailable": "Shipping options could not be saved. Try again.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request."
         }
       },
       "violations": {

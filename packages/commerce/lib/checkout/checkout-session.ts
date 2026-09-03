@@ -1,5 +1,28 @@
-import { Context, Effect, Layer, Option, Redacted } from "effect";
+import {
+  CheckoutPayments,
+  PaymentAccountReference,
+  PaymentAttemptReference,
+  PaymentCheckoutReference,
+  PaymentOrderReference,
+} from "@repo/payments";
+import type {
+  PaymentMethodUnavailable,
+  PaymentOperationDeclined,
+  PaymentOptions,
+  PaymentPreparationUnavailable,
+  PaymentProviderFailure,
+} from "@repo/payments";
+import {
+  Clock,
+  Context,
+  Effect,
+  Layer,
+  Option,
+  Random,
+  Redacted,
+} from "effect";
 
+import type { Address } from "../../domain/address";
 import {
   AddressBookReference,
   SaveAddressBookEntryInput,
@@ -17,12 +40,17 @@ import {
   CheckoutCartMismatch,
   CheckoutCustomerProfileIncomplete,
   CheckoutMutationAddressBookEntryUnavailable,
-  CheckoutMutationIssue,
   CheckoutMutationOutcomeUnknown,
   CheckoutMutationProviderFailure,
-  CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
+  CheckoutPaymentMethodUnavailable,
+  CheckoutOrderPlacementUnavailable,
+  CheckoutPaymentRejected,
+  CheckoutPaymentOptionsUnavailable,
+  CheckoutPaymentPreparationRefreshRequired,
   CheckoutProviderFailure,
+  CheckoutShippingOptionsRefreshRequired,
+  CheckoutShippingSelectionUnavailable,
   CheckoutUnavailable,
   CheckoutVersionConflict,
 } from "../../domain/checkout";
@@ -37,10 +65,29 @@ import type {
   CheckoutDeliveryDetails,
   CheckoutDeliveryDetailsInput,
   CheckoutDeliveryDetailsMutationFailure,
+  CheckoutPaymentOptionsMutationFailure,
   CheckoutScope,
-  CheckoutState,
+  CheckoutShippingOptionsMutationFailure,
+  PlaceCheckoutOrderInput,
+  SaveCheckoutContactInput,
+  SaveCheckoutDeliveryDetailsInput,
+  SaveCheckoutPaymentOptionsInput,
+  SaveCheckoutShippingOptionsInput,
 } from "../../domain/checkout";
+import type { CheckoutState } from "../../domain/checkout-state";
 import type { CommerceRequestContextNotFound } from "../../domain/commerce-request-context";
+import type {
+  DeliveryPlanQuote,
+  DeliveryPlanSelection,
+  SelectedDeliveryPlan,
+} from "../../domain/delivery-plan";
+import type {
+  OrderRecord,
+  OrderPlacementRejected,
+  OrderPlacementResult,
+  OrderProviderFailure,
+} from "../../domain/order";
+import { toOrderSnapshot } from "../../domain/order";
 import { AddressBook } from "../../services/address-book";
 import type {
   AddressBookGetFailure,
@@ -51,31 +98,43 @@ import { CommerceContext } from "../../services/commerce-context";
 import type {
   CurrentCartReadFailure,
   SaveCurrentCartDetailsFailure,
+  SaveCurrentCartShippingOptionsFailure,
 } from "../../services/current-cart";
 import { CurrentCart } from "../../services/current-cart";
+import { DeliveryPlanning } from "../../services/delivery-planning";
+import { Orders } from "../../services/orders";
 import { CheckoutPolicies } from "./checkout-policy";
 import { allowedContactSourcesForCheckout } from "./contact-source-policy";
 import {
+  selectedDeliveryPlansEqual,
+  selectedPlanMatchesQuote,
+} from "./delivery-plan-equality";
+import {
   retainExpectedCheckoutMutationFailures,
+  retainExpectedCheckoutOrderPlacementFailures,
   retainExpectedCheckoutReadFailures,
 } from "./failure-policy";
 import { toCheckoutScope } from "./request-context";
 import { buildCheckoutState } from "./state";
 
-export interface SaveCheckoutContactInput {
-  readonly cart: CheckoutCartReference;
-  readonly contact: CheckoutContactInput;
-}
-
-export interface SaveCheckoutDeliveryDetailsInput {
-  readonly cart: CheckoutCartReference;
-  readonly deliveryDetails: CheckoutDeliveryDetailsInput;
-}
-
 export interface SaveCheckoutDeliveryDetailsResult {
   readonly addressBookReference?: AddressBookReference;
   readonly state: CheckoutState;
 }
+
+export interface CheckoutSessionSnapshot {
+  readonly deliveryPlanQuote: DeliveryPlanQuote;
+  readonly state: CheckoutState;
+}
+
+export interface CheckoutPaymentOptionsSnapshot extends CheckoutSessionSnapshot {
+  readonly paymentOptions: PaymentOptions;
+}
+
+export type CheckoutPreparePaymentOptionsFailure =
+  | CheckoutPaymentOptionsUnavailable
+  | CheckoutProviderFailure
+  | CheckoutUnavailable;
 
 export type CheckoutSaveContactFailure =
   | CheckoutContactMutationFailure
@@ -85,9 +144,66 @@ export type CheckoutSaveDeliveryDetailsFailure =
   | CheckoutDeliveryDetailsMutationFailure
   | CheckoutUnavailable;
 
+export type CheckoutSaveShippingOptionsFailure =
+  | CheckoutShippingOptionsMutationFailure
+  | CheckoutUnavailable;
+
+export type CheckoutSavePaymentOptionsFailure =
+  | CheckoutPaymentOptionsMutationFailure
+  | CheckoutUnavailable;
+
+export type CheckoutPlaceOrderFailure =
+  | CheckoutCartMismatch
+  | CheckoutOrderPlacementUnavailable
+  | CheckoutPaymentPreparationRefreshRequired
+  | CheckoutPaymentRejected
+  | CheckoutProviderFailure
+  | CheckoutUnavailable
+  | OrderPlacementRejected;
+
 const guestBuyerContext: CheckoutBuyerContext = {
   buyerMode: "guest",
   requiresBuyingContext: false,
+};
+
+const paymentCheckoutFor = (cart: CartSnapshot) => ({
+  amount: cart.totalPrice,
+  reference: PaymentCheckoutReference.make(cart.id),
+});
+
+const requireCheckoutReadyForPayment = (state: CheckoutState) => {
+  const incomplete = state.steps.find(
+    (step) =>
+      step.status === "incomplete" &&
+      (step.id === "contact" ||
+        step.id === "deliveryDetails" ||
+        step.id === "shippingOptions")
+  );
+  if (incomplete === undefined) {
+    return Effect.void;
+  }
+  if (incomplete.id === "contact") {
+    return Effect.fail(
+      new CheckoutPaymentOptionsUnavailable({
+        message: "Payment Options require the earlier Checkout steps",
+        reason: "contactIncomplete",
+      })
+    );
+  }
+  if (incomplete.id === "deliveryDetails") {
+    return Effect.fail(
+      new CheckoutPaymentOptionsUnavailable({
+        message: "Payment Options require the earlier Checkout steps",
+        reason: "deliveryDetailsIncomplete",
+      })
+    );
+  }
+  return Effect.fail(
+    new CheckoutPaymentOptionsUnavailable({
+      message: "Payment Options require the earlier Checkout steps",
+      reason: "shippingOptionsIncomplete",
+    })
+  );
 };
 
 const contactSourceUnavailable = (source: CheckoutContactSource) =>
@@ -99,23 +215,9 @@ const contactSourceUnavailable = (source: CheckoutContactSource) =>
     source,
   });
 
-const requiredFieldError = (field: keyof CheckoutContact["buyerContact"]) =>
-  new CheckoutMutationSchemaFailure({
-    issues: [
-      new CheckoutMutationIssue({
-        message: `Manual Contact ${field} is required`,
-        path: field,
-      }),
-    ],
-    message: `Manual Contact ${field} is required`,
-  });
-
 const normalizeManualContact = (
   contact: CheckoutContactInput
-): Effect.Effect<
-  CheckoutContact,
-  CheckoutMutationSchemaFailure | CheckoutMutationSourceUnavailable
-> => {
+): Effect.Effect<CheckoutContact, CheckoutMutationSourceUnavailable> => {
   if (contact.source !== "manual") {
     return Effect.fail(contactSourceUnavailable(contact.source));
   }
@@ -125,32 +227,18 @@ const normalizeManualContact = (
   const lastName = contact.buyerContact.lastName.trim();
   const phoneNumber = contact.buyerContact.phoneNumber?.trim();
 
-  if (email.length === 0) {
-    return Effect.fail(requiredFieldError("email"));
-  }
-
-  if (firstName.length === 0) {
-    return Effect.fail(requiredFieldError("firstName"));
-  }
-
-  if (lastName.length === 0) {
-    return Effect.fail(requiredFieldError("lastName"));
-  }
+  const buyerContact =
+    phoneNumber === undefined || phoneNumber.length === 0
+      ? { email, firstName, lastName }
+      : { email, firstName, lastName, phoneNumber };
 
   return Effect.succeed({
-    buyerContact: {
-      email,
-      firstName,
-      lastName,
-      ...(phoneNumber === undefined || phoneNumber.length === 0
-        ? {}
-        : { phoneNumber }),
-    },
+    buyerContact,
     source: "manual",
   });
 };
 
-type CommerceContextService = Context.Service.Shape<typeof CommerceContext>;
+type CommerceContextService = CommerceContext["Service"];
 
 const customerProfileNotFoundToMutationFailure = (
   _error: CommerceCustomerProfileNotFound | CommerceRequestContextNotFound
@@ -164,7 +252,6 @@ const resolveCustomerProfileContact = Effect.fn(
 ): Effect.fn.Return<
   CheckoutContact,
   | CheckoutCustomerProfileIncomplete
-  | CheckoutMutationSchemaFailure
   | CheckoutMutationSourceUnavailable
   | CheckoutMutationProviderFailure
 > {
@@ -231,19 +318,6 @@ const resolveCheckoutContact = (
     ? normalizeManualContact(contact)
     : resolveCustomerProfileContact(scope, commerceContext);
 
-const requiredShippingAddressFieldError = (
-  field: keyof CheckoutDeliveryDetails["shippingAddress"]
-) =>
-  new CheckoutMutationSchemaFailure({
-    issues: [
-      new CheckoutMutationIssue({
-        message: `Manual Shipping Address ${field} is required`,
-        path: field,
-      }),
-    ],
-    message: `Manual Shipping Address ${field} is required`,
-  });
-
 const normalizeShippingAddress = (
   deliveryDetails: Extract<CheckoutDeliveryDetailsInput, { type: "manual" }>
 ) => {
@@ -254,44 +328,25 @@ const normalizeShippingAddress = (
   const addressLine2 = deliveryDetails.shippingAddress.addressLine2?.trim();
   const region = deliveryDetails.shippingAddress.region?.trim();
 
-  if (addressLine1.length === 0) {
-    return Effect.fail(requiredShippingAddressFieldError("addressLine1"));
+  let shippingAddress: Address = { addressLine1, city, country, postalCode };
+  if (addressLine2 !== undefined && addressLine2.length > 0) {
+    shippingAddress = { ...shippingAddress, addressLine2 };
+  }
+  if (region !== undefined && region.length > 0) {
+    shippingAddress = { ...shippingAddress, region };
   }
 
-  if (postalCode.length === 0) {
-    return Effect.fail(requiredShippingAddressFieldError("postalCode"));
-  }
-
-  if (city.length === 0) {
-    return Effect.fail(requiredShippingAddressFieldError("city"));
-  }
-
-  return Effect.succeed({
-    ...deliveryDetails,
-    shippingAddress: {
-      addressLine1,
-      city,
-      country,
-      postalCode,
-      ...(addressLine2 === undefined || addressLine2.length === 0
-        ? {}
-        : { addressLine2 }),
-      ...(region === undefined || region.length === 0 ? {} : { region }),
-    },
-  });
+  return Effect.succeed({ ...deliveryDetails, shippingAddress });
 };
 
 const normalizeCheckoutDeliveryDetailsInput = (
   deliveryDetails: CheckoutDeliveryDetailsInput
-): Effect.Effect<
-  CheckoutDeliveryDetailsInput,
-  CheckoutMutationSchemaFailure
-> =>
+) =>
   deliveryDetails.type === "manual"
     ? normalizeShippingAddress(deliveryDetails)
     : Effect.succeed(deliveryDetails);
 
-type AddressBookService = Context.Service.Shape<typeof AddressBook>;
+type AddressBookService = AddressBook["Service"];
 
 interface ResolvedCheckoutDeliveryDetails {
   readonly deliveryDetails: CheckoutDeliveryDetails;
@@ -420,8 +475,10 @@ const resolveCheckoutDeliveryDetails = Effect.fn(
     };
   }
 
+  const issuedAt = yield* Clock.currentTimeMillis;
+  const entropy = Math.abs(yield* Random.nextInt);
   const reference = AddressBookReference.make(
-    yield* Effect.sync(() => crypto.randomUUID())
+    `address-book-entry-${issuedAt}-${entropy}`
   );
   const entry = yield* addressBook
     .save(
@@ -449,41 +506,127 @@ const withSavedAddressBookReference = (
     return error;
   }
 
-  switch (error._tag) {
-    case "CheckoutVersionConflict": {
-      return new CheckoutVersionConflict({
-        addressBookReference,
-        cartId: error.cartId,
-        message: error.message,
-      });
-    }
-    case "CheckoutMutationProviderFailure": {
-      return new CheckoutMutationProviderFailure({
-        message: error.message,
-        operation: error.operation,
-        reason: error.reason,
-        ...(error.cause === undefined ? {} : { cause: error.cause }),
-        addressBookReference,
-      });
-    }
-    case "CheckoutMutationOutcomeUnknown": {
-      return new CheckoutMutationOutcomeUnknown({
-        message: error.message,
-        operation: error.operation,
-        ...(error.cartId === undefined ? {} : { cartId: error.cartId }),
-        addressBookReference,
-      });
-    }
-    default: {
-      return error;
-    }
+  if (error._tag === "CheckoutVersionConflict") {
+    return new CheckoutVersionConflict({
+      addressBookReference,
+      cartId: error.cartId,
+      message: error.message,
+    });
   }
+
+  if (error._tag === "CheckoutMutationProviderFailure") {
+    const failure = {
+      addressBookReference,
+      message: error.message,
+      operation: error.operation,
+      reason: error.reason,
+    };
+    return error.cause === undefined
+      ? new CheckoutMutationProviderFailure(failure)
+      : new CheckoutMutationProviderFailure({ ...failure, cause: error.cause });
+  }
+
+  if (error._tag === "CheckoutMutationOutcomeUnknown") {
+    const failure = {
+      addressBookReference,
+      message: error.message,
+      operation: error.operation,
+    };
+    return error.cartId === undefined
+      ? new CheckoutMutationOutcomeUnknown(failure)
+      : new CheckoutMutationOutcomeUnknown({
+          ...failure,
+          cartId: error.cartId,
+        });
+  }
+
+  return error;
+};
+
+const unavailableShippingSelection = (
+  selection: DeliveryPlanSelection,
+  shippingOptionReference?: DeliveryPlanSelection["groups"][number]["shippingOptionReference"]
+) => {
+  const failure = {
+    message: "The selected Shipping Option is no longer available",
+    planReference: selection.reference,
+    quoteReference: selection.quoteReference,
+  };
+  return shippingOptionReference === undefined
+    ? new CheckoutShippingSelectionUnavailable(failure)
+    : new CheckoutShippingSelectionUnavailable({
+        ...failure,
+        shippingOptionReference,
+      });
+};
+
+const resolveSelectedDeliveryPlan = (
+  selection: DeliveryPlanSelection,
+  quote: DeliveryPlanQuote
+): Effect.Effect<
+  SelectedDeliveryPlan,
+  CheckoutShippingSelectionUnavailable
+> => {
+  if (selection.quoteReference !== quote.reference) {
+    return Effect.fail(unavailableShippingSelection(selection));
+  }
+
+  const plan = quote.plans.find(
+    (candidate) => candidate.reference === selection.reference
+  );
+  if (plan === undefined || plan.groups.length !== selection.groups.length) {
+    return Effect.fail(unavailableShippingSelection(selection));
+  }
+
+  const selectedGroups: SelectedDeliveryPlan["groups"][number][] = [];
+  for (const group of plan.groups) {
+    const groupSelections = selection.groups.filter(
+      (candidate) => candidate.deliveryGroupReference === group.reference
+    );
+    const [groupSelection] = groupSelections;
+    if (groupSelection === undefined || groupSelections.length !== 1) {
+      return Effect.fail(unavailableShippingSelection(selection));
+    }
+
+    const option = group.shippingOptions.find(
+      (candidate) =>
+        candidate.reference === groupSelection.shippingOptionReference
+    );
+    if (option === undefined) {
+      return Effect.fail(
+        unavailableShippingSelection(
+          selection,
+          groupSelection.shippingOptionReference
+        )
+      );
+    }
+
+    selectedGroups.push({
+      reference: group.reference,
+      selectedShippingOption: option,
+      shippingAddress: group.shippingAddress,
+      targets: group.targets,
+    });
+  }
+  const [firstGroup, ...remainingGroups] = selectedGroups;
+
+  return firstGroup === undefined
+    ? Effect.fail(unavailableShippingSelection(selection))
+    : Effect.succeed({
+        groups: [firstGroup, ...remainingGroups],
+        quoteReference: selection.quoteReference,
+        reference: selection.reference,
+      });
 };
 
 const ensureCurrentCartIdentity = (
   currentCart: CartSnapshot,
   submittedCart: CheckoutCartReference,
-  detailName: "Contact" | "Delivery Details" = "Contact"
+  detailName:
+    | "Contact"
+    | "Delivery Details"
+    | "Payment Options"
+    | "Shipping Options" = "Contact"
 ) => {
   if (currentCart.id !== submittedCart.id) {
     return Effect.fail(
@@ -498,6 +641,219 @@ const ensureCurrentCartIdentity = (
   return Effect.succeed(currentCart);
 };
 
+const deliveryPlanningReadFailure = (error: {
+  readonly reason: CheckoutProviderFailure["reason"];
+}) =>
+  new CheckoutProviderFailure({
+    cause: error,
+    message: "Failed to quote Delivery Plans",
+    operation: "checkout.deliveryPlanning.quote",
+    reason: error.reason,
+  });
+
+const checkoutReadFailure = (error: CurrentCartReadFailure) =>
+  new CheckoutProviderFailure({
+    cause: error,
+    message: "Failed to resolve Checkout Cart",
+    operation: `checkout.currentCart.${error._tag}`,
+    reason:
+      error._tag === "CartProviderFailure"
+        ? error.reason
+        : "unexpectedResponse",
+  });
+
+const checkoutMutationFailure =
+  (
+    operation:
+      | "saveContact"
+      | "saveDeliveryDetails"
+      | "savePaymentOptions"
+      | "saveShippingOptions"
+  ) =>
+  (error: SaveCurrentCartDetailsFailure) => {
+    // oxlint-disable-next-line typescript/switch-exhaustiveness-check -- All remaining Cart failures become one Checkout provider failure.
+    switch (error._tag) {
+      case "CurrentCartUnavailable": {
+        return new CheckoutUnavailable({
+          message: "Checkout requires an existing Cart",
+          reason: error.reason,
+        });
+      }
+      case "CartWriteConflict": {
+        return new CheckoutVersionConflict({
+          cartId: error.cartId,
+          message: "Checkout Cart changed while it was being updated",
+        });
+      }
+      case "CartWriteOutcomeUnknown": {
+        const failure = {
+          message: "Checkout Cart write outcome could not be confirmed",
+          operation,
+        };
+        return error.cartId === undefined
+          ? new CheckoutMutationOutcomeUnknown(failure)
+          : new CheckoutMutationOutcomeUnknown({
+              ...failure,
+              cartId: error.cartId,
+            });
+      }
+      default: {
+        return new CheckoutMutationProviderFailure({
+          cause: error,
+          message: "Failed to update Checkout Cart",
+          operation: `checkout.currentCart.${error._tag}`,
+          reason:
+            error._tag === "CartProviderFailure"
+              ? error.reason
+              : "unexpectedResponse",
+        });
+      }
+    }
+  };
+
+const checkoutShippingMutationFailure =
+  (selection: DeliveryPlanSelection) =>
+  (error: SaveCurrentCartShippingOptionsFailure) => {
+    if (error._tag === "CartShippingSelectionUnavailable") {
+      return unavailableShippingSelection(selection);
+    }
+    if (error._tag === "CartShippingOptionsRefreshRequired") {
+      return new CheckoutShippingOptionsRefreshRequired({
+        cartId: error.cartId,
+        message: "Shipping Options were saved, but Checkout could not refresh",
+      });
+    }
+    return checkoutMutationFailure("saveShippingOptions")(error);
+  };
+
+const checkoutMutationReadFailure = (error: CheckoutProviderFailure) =>
+  new CheckoutMutationProviderFailure({
+    cause: error,
+    message: error.message,
+    operation: error.operation,
+    reason: error.reason,
+  });
+
+const checkoutPaymentProviderReason = (error: PaymentProviderFailure) =>
+  error.reason === "outcomeUnknown" ? "unavailable" : error.reason;
+
+const paymentPreparationReadFailure = (error: PaymentProviderFailure) =>
+  new CheckoutProviderFailure({
+    cause: error,
+    message: "Failed to prepare Payment Options",
+    operation: `checkout.payments.${error.operation}`,
+    reason: checkoutPaymentProviderReason(error),
+  });
+
+const paymentSaveFailure = (
+  error:
+    | PaymentMethodUnavailable
+    | PaymentPreparationUnavailable
+    | PaymentProviderFailure
+) => {
+  switch (error._tag) {
+    case "PaymentMethodUnavailable": {
+      return new CheckoutPaymentMethodUnavailable({
+        message: "The selected Payment Method is unavailable",
+        method: error.method,
+        reason: error.reason,
+      });
+    }
+    case "PaymentPreparationUnavailable": {
+      return new CheckoutPaymentPreparationRefreshRequired({
+        message: "Card details must be refreshed for the current Cart",
+        preparationReference: error.preparationReference,
+        reason: error.reason,
+      });
+    }
+    case "PaymentProviderFailure": {
+      return new CheckoutMutationProviderFailure({
+        cause: error,
+        message: "Failed to save Payment Options",
+        operation: `checkout.payments.${error.operation}`,
+        reason: checkoutPaymentProviderReason(error),
+      });
+    }
+    default: {
+      return error satisfies never;
+    }
+  }
+};
+
+const paymentPlacementFailure = (
+  error:
+    | PaymentOperationDeclined
+    | PaymentPreparationUnavailable
+    | PaymentProviderFailure
+) => {
+  switch (error._tag) {
+    case "PaymentOperationDeclined": {
+      return new CheckoutPaymentRejected({
+        message: error.message,
+        operation: error.operation,
+      });
+    }
+    case "PaymentPreparationUnavailable": {
+      return new CheckoutPaymentPreparationRefreshRequired({
+        message: "Card details must be refreshed before placing the Order",
+        preparationReference: error.preparationReference,
+        reason: error.reason,
+      });
+    }
+    case "PaymentProviderFailure": {
+      return new CheckoutProviderFailure({
+        cause: error,
+        message: "Failed to update the Checkout Payment",
+        operation: `checkout.payments.${error.operation}`,
+        reason: checkoutPaymentProviderReason(error),
+      });
+    }
+    default: {
+      return error satisfies never;
+    }
+  }
+};
+
+const orderProviderFailure = (error: OrderProviderFailure) =>
+  new CheckoutProviderFailure({
+    cause: error,
+    message: "Failed to place the Checkout Order",
+    operation: `checkout.orders.${error.operation}`,
+    reason: error.reason,
+  });
+
+const requireCheckoutReadyForOrder = (state: CheckoutState) => {
+  if (
+    state.steps.some(
+      (step) => step.id !== "reviewOrder" && step.status === "incomplete"
+    )
+  ) {
+    return Effect.fail(
+      new CheckoutOrderPlacementUnavailable({
+        message: "Order placement requires every Checkout step",
+        reason: "checkoutIncomplete",
+      })
+    );
+  }
+  if (state.details.preparedPayment === undefined) {
+    return Effect.fail(
+      new CheckoutOrderPlacementUnavailable({
+        message: "Order placement requires saved Payment Options",
+        reason: "paymentMissing",
+      })
+    );
+  }
+  if (state.violations.length > 0) {
+    return Effect.fail(
+      new CheckoutOrderPlacementUnavailable({
+        message: "Checkout policy violations block Order placement",
+        reason: "policyViolation",
+      })
+    );
+  }
+  return Effect.succeed(state.details.preparedPayment);
+};
+
 export class CheckoutSession extends Context.Service<
   CheckoutSession,
   {
@@ -505,6 +861,17 @@ export class CheckoutSession extends Context.Service<
       CheckoutState,
       CheckoutUnavailable | CheckoutProviderFailure
     >;
+    readonly getCurrentWithDeliveryPlans: () => Effect.Effect<
+      CheckoutSessionSnapshot,
+      CheckoutUnavailable | CheckoutProviderFailure
+    >;
+    readonly preparePaymentOptions: () => Effect.Effect<
+      CheckoutPaymentOptionsSnapshot,
+      CheckoutPreparePaymentOptionsFailure
+    >;
+    readonly placeOrder: (
+      input: PlaceCheckoutOrderInput
+    ) => Effect.Effect<OrderPlacementResult, CheckoutPlaceOrderFailure>;
     readonly saveContact: (
       input: SaveCheckoutContactInput
     ) => Effect.Effect<CheckoutState, CheckoutSaveContactFailure>;
@@ -514,27 +881,80 @@ export class CheckoutSession extends Context.Service<
       SaveCheckoutDeliveryDetailsResult,
       CheckoutSaveDeliveryDetailsFailure
     >;
+    readonly saveShippingOptions: (
+      input: SaveCheckoutShippingOptionsInput
+    ) => Effect.Effect<CheckoutState, CheckoutSaveShippingOptionsFailure>;
+    readonly savePaymentOptions: (
+      input: SaveCheckoutPaymentOptionsInput
+    ) => Effect.Effect<CheckoutState, CheckoutSavePaymentOptionsFailure>;
   }
 >()("@repo/commerce/checkout/CheckoutSession") {
   static readonly getCurrent = Effect.fn("CheckoutSession.getCurrent")(() =>
-    Effect.flatMap(CheckoutSession, (session) => session.getCurrent()).pipe(
-      retainExpectedCheckoutReadFailures
-    )
+    Effect.gen(function* () {
+      const session = yield* CheckoutSession;
+      return yield* session.getCurrent();
+    }).pipe(retainExpectedCheckoutReadFailures)
+  );
+
+  static readonly getCurrentWithDeliveryPlans = Effect.fn(
+    "CheckoutSession.getCurrentWithDeliveryPlans"
+  )(() =>
+    Effect.gen(function* () {
+      const session = yield* CheckoutSession;
+      return yield* session.getCurrentWithDeliveryPlans();
+    }).pipe(retainExpectedCheckoutReadFailures)
   );
 
   static readonly saveContact = Effect.fn("CheckoutSession.saveContact")(
     (input: SaveCheckoutContactInput) =>
-      Effect.flatMap(CheckoutSession, (session) =>
-        session.saveContact(input)
-      ).pipe(retainExpectedCheckoutMutationFailures)
+      Effect.gen(function* () {
+        const session = yield* CheckoutSession;
+        return yield* session.saveContact(input);
+      }).pipe(retainExpectedCheckoutMutationFailures)
   );
 
   static readonly saveDeliveryDetails = Effect.fn(
     "CheckoutSession.saveDeliveryDetails"
   )((input: SaveCheckoutDeliveryDetailsInput) =>
-    Effect.flatMap(CheckoutSession, (session) =>
-      session.saveDeliveryDetails(input)
-    ).pipe(retainExpectedCheckoutMutationFailures)
+    Effect.gen(function* () {
+      const session = yield* CheckoutSession;
+      return yield* session.saveDeliveryDetails(input);
+    }).pipe(retainExpectedCheckoutMutationFailures)
+  );
+
+  static readonly saveShippingOptions = Effect.fn(
+    "CheckoutSession.saveShippingOptions"
+  )((input: SaveCheckoutShippingOptionsInput) =>
+    Effect.gen(function* () {
+      const session = yield* CheckoutSession;
+      return yield* session.saveShippingOptions(input);
+    }).pipe(retainExpectedCheckoutMutationFailures)
+  );
+
+  static readonly preparePaymentOptions = Effect.fn(
+    "CheckoutSession.preparePaymentOptions"
+  )(() =>
+    Effect.gen(function* () {
+      const session = yield* CheckoutSession;
+      return yield* session.preparePaymentOptions();
+    }).pipe(retainExpectedCheckoutReadFailures)
+  );
+
+  static readonly placeOrder = Effect.fn("CheckoutSession.placeOrder")(
+    (input: PlaceCheckoutOrderInput) =>
+      Effect.gen(function* () {
+        const session = yield* CheckoutSession;
+        return yield* session.placeOrder(input);
+      }).pipe(retainExpectedCheckoutOrderPlacementFailures)
+  );
+
+  static readonly savePaymentOptions = Effect.fn(
+    "CheckoutSession.savePaymentOptions"
+  )((input: SaveCheckoutPaymentOptionsInput) =>
+    Effect.gen(function* () {
+      const session = yield* CheckoutSession;
+      return yield* session.savePaymentOptions(input);
+    }).pipe(retainExpectedCheckoutMutationFailures)
   );
 
   static readonly layer = Layer.effect(
@@ -544,20 +964,36 @@ export class CheckoutSession extends Context.Service<
       const policies = yield* CheckoutPolicies;
       const commerceContext = yield* CommerceContext;
       const addressBook = yield* AddressBook;
+      const deliveryPlanning = yield* DeliveryPlanning;
+      const checkoutPayments = yield* CheckoutPayments;
+      const orders = yield* Orders;
       const scope = toCheckoutScope(commerceContext);
 
-      const buyerContextFor = (cart: CartSnapshot): CheckoutBuyerContext =>
+      const paymentBuyer =
         scope.channel === "storefrontAnonymous"
-          ? guestBuyerContext
-          : {
-              buyerMode: "b2bCustomer",
-              requiresBuyingContext: true,
-              ...(cart.buyingContext === undefined
-                ? {}
-                : { buyingContext: cart.buyingContext }),
-            };
+          ? ({ type: "guest" } as const)
+          : ({
+              accountReference: PaymentAccountReference.make(
+                scope.businessUnitId
+              ),
+              type: "company",
+            } as const);
 
-      const buildState = Effect.fn("CheckoutSession.buildState")(
+      const buyerContextFor = (cart: CartSnapshot): CheckoutBuyerContext => {
+        if (scope.channel === "storefrontAnonymous") {
+          return guestBuyerContext;
+        }
+
+        const buyerContext = {
+          buyerMode: "b2bCustomer",
+          requiresBuyingContext: true,
+        } as const;
+        return cart.buyingContext === undefined
+          ? buyerContext
+          : { ...buyerContext, buyingContext: cart.buyingContext };
+      };
+
+      const buildSnapshot = Effect.fn("CheckoutSession.buildSnapshot")(
         (current: CurrentCartState) =>
           Effect.gen(function* () {
             const buyerContext = buyerContextFor(current.cart);
@@ -566,7 +1002,10 @@ export class CheckoutSession extends Context.Service<
               cart: current.cart,
               details: current.cart.checkoutDetails,
             });
-            return yield* buildCheckoutState({
+            const deliveryPlanQuote = yield* deliveryPlanning
+              .quote({ cart: current.cart, locale: scope.locale })
+              .pipe(Effect.mapError(deliveryPlanningReadFailure));
+            const state = yield* buildCheckoutState({
               allowedContactSources: allowedContactSourcesForCheckout(scope),
               buyerContext,
               cart: current.cart,
@@ -574,70 +1013,18 @@ export class CheckoutSession extends Context.Service<
               checkoutPolicyViolations,
               details: current.cart.checkoutDetails,
               scope,
+              shippingOptionsComplete: selectedPlanMatchesQuote(
+                current.cart.checkoutDetails.selectedDeliveryPlan,
+                deliveryPlanQuote
+              ),
             });
+            return { deliveryPlanQuote, state };
           })
       );
 
-      const readFailure = (error: CurrentCartReadFailure) =>
-        new CheckoutProviderFailure({
-          cause: error,
-          message: "Failed to resolve Checkout Cart",
-          operation: `checkout.currentCart.${error._tag}`,
-          reason:
-            error._tag === "CartProviderFailure"
-              ? error.reason
-              : "unexpectedResponse",
-        });
-
-      const mutationFailure =
-        (operation: "saveContact" | "saveDeliveryDetails") =>
-        (error: SaveCurrentCartDetailsFailure) => {
-          // oxlint-disable-next-line typescript/switch-exhaustiveness-check -- All remaining Cart failures become one Checkout provider failure.
-          switch (error._tag) {
-            case "CurrentCartUnavailable": {
-              return new CheckoutUnavailable({
-                message: "Checkout requires an existing Cart",
-                reason: error.reason,
-              });
-            }
-            case "CartWriteConflict": {
-              return new CheckoutVersionConflict({
-                cartId: error.cartId,
-                message: "Checkout Cart changed while it was being updated",
-              });
-            }
-            case "CartWriteOutcomeUnknown": {
-              return new CheckoutMutationOutcomeUnknown({
-                message: "Checkout Cart write outcome could not be confirmed",
-                operation,
-                ...(error.cartId === undefined ? {} : { cartId: error.cartId }),
-              });
-            }
-            default: {
-              return new CheckoutMutationProviderFailure({
-                cause: error,
-                message: "Failed to update Checkout Cart",
-                operation: `checkout.currentCart.${error._tag}`,
-                reason:
-                  error._tag === "CartProviderFailure"
-                    ? error.reason
-                    : "unexpectedResponse",
-              });
-            }
-          }
-        };
-
-      const mutationReadFailure = (error: CheckoutProviderFailure) =>
-        new CheckoutMutationProviderFailure({
-          cause: error,
-          message: error.message,
-          operation: error.operation,
-          reason: error.reason,
-        });
-
       const requireCurrent = () =>
         currentCart.get().pipe(
-          Effect.mapError(readFailure),
+          Effect.mapError(checkoutReadFailure),
           Effect.flatMap(
             Option.match({
               onNone: () =>
@@ -649,15 +1036,201 @@ export class CheckoutSession extends Context.Service<
             })
           ),
           Effect.flatMap((current) =>
-            buildState(current).pipe(
-              Effect.map((state) => ({ current, state }))
+            buildSnapshot(current).pipe(
+              Effect.map((snapshot) => ({ current, ...snapshot }))
             )
           )
         );
 
+      const finalizeOrder = Effect.fn("CheckoutSession.finalizeOrder")(
+        (order: OrderRecord) =>
+          Effect.gen(function* () {
+            const paymentStatus = yield* checkoutPayments
+              .finalize({
+                buyer: paymentBuyer,
+                checkout: {
+                  amount: order.totalPrice,
+                  reference: PaymentCheckoutReference.make(order.cartId),
+                },
+                orderReference: PaymentOrderReference.make(order.id),
+                paymentReference: order.paymentReference,
+              })
+              .pipe(
+                Effect.as("confirmed" as const),
+                Effect.catch((error) => {
+                  const logFailure = Effect.logError(
+                    "Order exists but Payment finalization is pending",
+                    error
+                  ).pipe(
+                    Effect.annotateLogs({
+                      "checkout.operation": "placeOrder.finalizePayment",
+                      "order.id": order.id,
+                    })
+                  );
+                  return error._tag === "PaymentOperationDeclined" ||
+                    error.reason === "unavailable" ||
+                    error.reason === "outcomeUnknown"
+                    ? logFailure.pipe(Effect.as("pending" as const))
+                    : logFailure.pipe(Effect.andThen(Effect.die(error)));
+                })
+              );
+            const paymentMethod = yield* checkoutPayments
+              .getPaymentMethod(order.paymentReference)
+              .pipe(Effect.mapError(paymentPlacementFailure));
+            return {
+              _tag: "Placed" as const,
+              order: toOrderSnapshot(order, paymentMethod),
+              paymentStatus,
+            };
+          })
+      );
+
       return CheckoutSession.of({
         getCurrent: () =>
           requireCurrent().pipe(Effect.map(({ state }) => state)),
+        getCurrentWithDeliveryPlans: () =>
+          requireCurrent().pipe(
+            Effect.map(({ deliveryPlanQuote, state }) => ({
+              deliveryPlanQuote,
+              state,
+            }))
+          ),
+        placeOrder: (input) =>
+          Effect.gen(function* () {
+            if (
+              scope.channel === "storefrontAnonymous" &&
+              scope.anonymousCartId !== input.cart.id
+            ) {
+              return yield* new CheckoutUnavailable({
+                message: "Checkout Cart is inaccessible",
+                reason: "inaccessibleCart",
+              });
+            }
+            const existing = yield* orders
+              .find({ cartId: input.cart.id, scope })
+              .pipe(Effect.mapError(orderProviderFailure));
+            if (Option.isSome(existing)) {
+              return yield* finalizeOrder(existing.value);
+            }
+
+            const { current, state } = yield* requireCurrent();
+            yield* ensureCurrentCartIdentity(
+              current.cart,
+              input.cart,
+              "Payment Options"
+            );
+            const preparedPayment = yield* requireCheckoutReadyForOrder(state);
+            const checkout = paymentCheckoutFor(current.cart);
+            const paymentInput = {
+              buyer: paymentBuyer,
+              checkout,
+              paymentReference: preparedPayment.paymentReference,
+            };
+            const clearPaymentOptionsAfterFailure = <E>(
+              error: E,
+              operation: string
+            ) =>
+              currentCart.clearPaymentOptions().pipe(
+                // oxlint-disable-next-line promise/no-promise-in-callback -- Effect.catch handles a typed Effect failure; this callback does not receive or return a Promise.
+                Effect.catch((clearError) =>
+                  Effect.logError(
+                    "Payment cannot be reused but saved Payment Options could not be cleared",
+                    clearError
+                  ).pipe(
+                    Effect.annotateLogs({
+                      "checkout.operation": operation,
+                    })
+                  )
+                ),
+                Effect.andThen(Effect.fail(error))
+              );
+            const authorization = yield* checkoutPayments
+              .authorize({
+                ...paymentInput,
+                payment: preparedPayment,
+              })
+              .pipe(
+                Effect.mapError(paymentPlacementFailure),
+                Effect.catchTags({
+                  CheckoutPaymentPreparationRefreshRequired: (error) =>
+                    clearPaymentOptionsAfterFailure(
+                      error,
+                      "placeOrder.clearUnusablePaymentOptions"
+                    ),
+                  CheckoutPaymentRejected: (error) =>
+                    clearPaymentOptionsAfterFailure(
+                      error,
+                      "placeOrder.clearRejectedPaymentOptions"
+                    ),
+                })
+              );
+            if (authorization._tag === "ActionRequired") {
+              return {
+                _tag: "PaymentActionRequired" as const,
+                paymentAction: {
+                  clientToken: authorization.clientToken,
+                  method: "card" as const,
+                  provider: authorization.provider,
+                  publicConfiguration: authorization.publicConfiguration,
+                },
+              };
+            }
+
+            const order = yield* orders
+              .place({
+                cartId: current.cart.id,
+                paymentReference: preparedPayment.paymentReference,
+                scope,
+                totalPrice: current.cart.totalPrice,
+              })
+              .pipe(
+                Effect.catchTags({
+                  OrderPlacementOutcomeUnknown: () => Effect.succeed(null),
+                  OrderPlacementRejected: (error) =>
+                    checkoutPayments
+                      .cancelAuthorization({
+                        ...paymentInput,
+                      })
+                      .pipe(
+                        // oxlint-disable-next-line promise/no-promise-in-callback -- Effect.catch handles a typed Effect failure; this callback does not receive or return a Promise.
+                        Effect.catch((cancelError) =>
+                          Effect.logError(
+                            "Order was rejected and Payment authorization release is pending",
+                            cancelError
+                          ).pipe(
+                            Effect.annotateLogs({
+                              "checkout.operation":
+                                "placeOrder.cancelAuthorization",
+                            })
+                          )
+                        ),
+                        Effect.andThen(Effect.fail(error))
+                      ),
+                }),
+                Effect.mapError((error) =>
+                  error._tag === "OrderProviderFailure"
+                    ? orderProviderFailure(error)
+                    : error
+                )
+              );
+            if (order === null) {
+              return { _tag: "PlacementPending" as const };
+            }
+            return yield* finalizeOrder(order);
+          }),
+        preparePaymentOptions: () =>
+          Effect.gen(function* () {
+            const { current, deliveryPlanQuote, state } =
+              yield* requireCurrent();
+            yield* requireCheckoutReadyForPayment(state);
+            const paymentOptions = yield* checkoutPayments
+              .prepare({
+                buyer: paymentBuyer,
+                checkout: paymentCheckoutFor(current.cart),
+              })
+              .pipe(Effect.mapError(paymentPreparationReadFailure));
+            return { deliveryPlanQuote, paymentOptions, state };
+          }),
         saveContact: (input) =>
           Effect.gen(function* () {
             const allowedContactSources =
@@ -673,15 +1246,22 @@ export class CheckoutSession extends Context.Service<
             const { current } = yield* requireCurrent().pipe(
               Effect.mapError((error) =>
                 error._tag === "CheckoutProviderFailure"
-                  ? mutationReadFailure(error)
+                  ? checkoutMutationReadFailure(error)
                   : error
               )
             );
             yield* ensureCurrentCartIdentity(current.cart, input.cart);
             const updated = yield* currentCart
               .saveContact(contact)
-              .pipe(Effect.mapError(mutationFailure("saveContact")));
-            return yield* buildState(updated);
+              .pipe(Effect.mapError(checkoutMutationFailure("saveContact")));
+            return yield* buildSnapshot(updated).pipe(
+              Effect.map((snapshot) => snapshot.state),
+              Effect.mapError((error) =>
+                error._tag === "CheckoutProviderFailure"
+                  ? checkoutMutationReadFailure(error)
+                  : error
+              )
+            );
           }),
         saveDeliveryDetails: (input) =>
           Effect.gen(function* () {
@@ -692,7 +1272,7 @@ export class CheckoutSession extends Context.Service<
             const { current } = yield* requireCurrent().pipe(
               Effect.mapError((error) =>
                 error._tag === "CheckoutProviderFailure"
-                  ? mutationReadFailure(error)
+                  ? checkoutMutationReadFailure(error)
                   : error
               )
             );
@@ -710,13 +1290,118 @@ export class CheckoutSession extends Context.Service<
               .pipe(
                 Effect.mapError((error) =>
                   withSavedAddressBookReference(
-                    mutationFailure("saveDeliveryDetails")(error),
+                    checkoutMutationFailure("saveDeliveryDetails")(error),
                     resolved.savedAddressBookReference
                   )
                 )
               );
-            const state = yield* buildState(updated);
+            const state = yield* buildSnapshot(updated).pipe(
+              Effect.map((snapshot) => snapshot.state),
+              Effect.mapError((error) =>
+                withSavedAddressBookReference(
+                  error._tag === "CheckoutProviderFailure"
+                    ? checkoutMutationReadFailure(error)
+                    : error,
+                  resolved.savedAddressBookReference
+                )
+              )
+            );
             return saveDeliveryDetailsResult(resolved, state);
+          }),
+        savePaymentOptions: (input) =>
+          Effect.gen(function* () {
+            const { current, state } = yield* requireCurrent().pipe(
+              Effect.mapError((error) =>
+                error._tag === "CheckoutProviderFailure"
+                  ? checkoutMutationReadFailure(error)
+                  : error
+              )
+            );
+            yield* ensureCurrentCartIdentity(
+              current.cart,
+              input.cart,
+              "Payment Options"
+            );
+            yield* requireCheckoutReadyForPayment(state);
+            const billingAddress =
+              current.cart.checkoutDetails.deliveryDetails?.shippingAddress;
+            if (billingAddress === undefined) {
+              return yield* new CheckoutPaymentOptionsUnavailable({
+                message: "Payment Options require current Delivery Details",
+                reason: "deliveryDetailsIncomplete",
+              });
+            }
+            const preparedPayment = yield* checkoutPayments
+              .save({
+                attemptReference: PaymentAttemptReference.make(
+                  `checkout-${current.cart.id}-${yield* Clock.currentTimeMillis}-${Math.abs(
+                    yield* Random.nextInt
+                  )}`
+                ),
+                billingAddress,
+                buyer: paymentBuyer,
+                checkout: paymentCheckoutFor(current.cart),
+                selection: input.selection.payment,
+              })
+              .pipe(Effect.mapError(paymentSaveFailure));
+            const updated = yield* currentCart
+              .savePaymentOptions(preparedPayment)
+              .pipe(
+                Effect.mapError(checkoutMutationFailure("savePaymentOptions"))
+              );
+            return yield* buildSnapshot(updated).pipe(
+              Effect.map((snapshot) => snapshot.state),
+              Effect.mapError((error) =>
+                error._tag === "CheckoutProviderFailure"
+                  ? checkoutMutationReadFailure(error)
+                  : error
+              )
+            );
+          }),
+        saveShippingOptions: (input) =>
+          Effect.gen(function* () {
+            const { current, deliveryPlanQuote } = yield* requireCurrent().pipe(
+              Effect.mapError((error) =>
+                error._tag === "CheckoutProviderFailure"
+                  ? checkoutMutationReadFailure(error)
+                  : error
+              )
+            );
+            yield* ensureCurrentCartIdentity(
+              current.cart,
+              input.cart,
+              "Shipping Options"
+            );
+            const selectedDeliveryPlan = yield* resolveSelectedDeliveryPlan(
+              input.selection,
+              deliveryPlanQuote
+            );
+            const updated = yield* currentCart
+              .saveShippingOptions(selectedDeliveryPlan)
+              .pipe(
+                Effect.mapError(
+                  checkoutShippingMutationFailure(input.selection)
+                )
+              );
+            if (
+              !selectedDeliveryPlansEqual(
+                updated.cart.checkoutDetails.selectedDeliveryPlan,
+                selectedDeliveryPlan
+              )
+            ) {
+              return yield* unavailableShippingSelection(input.selection);
+            }
+            return yield* buildSnapshot(updated).pipe(
+              Effect.map((snapshot) => snapshot.state),
+              Effect.mapError(
+                () =>
+                  new CheckoutShippingOptionsRefreshRequired({
+                    cartId: updated.cart.id,
+                    message:
+                      "Shipping Options were saved, but Checkout could not refresh",
+                  })
+              )
+            );
           }),
       });
     })

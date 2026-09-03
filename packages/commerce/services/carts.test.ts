@@ -1,9 +1,10 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Option } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import { CountryCode } from "../domain/address";
 import { CartId, LineItemId, ProductId, Sku, VariantId } from "../domain/cart";
 import { CartProviderFailure } from "../domain/cart-errors";
+import { ProductTypeKey } from "../domain/cart-snapshot";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -20,6 +21,7 @@ const store = new Store({
 const unitPriceCentAmount = 1250;
 const initialQuantity = 2;
 const updatedQuantity = 4;
+const genericProductType = Schema.decodeSync(ProductTypeKey)("generic-product");
 
 describe("Carts memory Layer", () => {
   it.effect("creates an anonymous Cart and makes it retrievable", () =>
@@ -103,12 +105,11 @@ describe("Carts memory Layer", () => {
                 currencyCode: "USD",
               },
               variant: {
-                attributes: {},
                 id: VariantId.make("variant-1"),
                 images: [],
                 name: "Hydra Wrench",
                 productId: ProductId.make("product-1"),
-                productType: "generic-product",
+                productType: genericProductType,
                 sku: Sku.make("SKU-1"),
               },
             },
@@ -160,12 +161,11 @@ describe("Carts memory Layer", () => {
                 currencyCode: "USD",
               },
               variant: {
-                attributes: {},
                 id: VariantId.make("variant-1"),
                 images: [],
                 name: "Hydra Wrench",
                 productId: ProductId.make("product-1"),
-                productType: "generic-product",
+                productType: genericProductType,
                 sku: Sku.make("SKU-1"),
               },
             },

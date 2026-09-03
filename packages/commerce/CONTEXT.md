@@ -8,6 +8,10 @@ The Checkout context describes how a buyer completes the information and choices
 
 **Cart**: The current collection of products and cart-owned checkout details being prepared for purchase in a Store and, for B2B Checkout, a Business Unit. _Avoid_: Checkout state
 
+**Cart Line Item**: One Product Variant and its requested quantity in a Cart. Its identity lets checkout choices refer to that exact Cart entry rather than to the Product in general. _Avoid_: Product, Provider Line Item
+
+**Cart Line Item Summary Attribute**: One presentation-ready Product Attribute selected by a commerce provider to identify a Product Variant in compact Cart presentations. Its label and value are already localized and formatted. _Avoid_: Raw Product Attribute, Product Attribute bag
+
 **Cart Snapshot**: An observation of a Cart's current semantic state, independent of provider resource revisions and storage representation. _Avoid_: Provider Cart, Cart version
 
 **Current Cart**: The Cart resolved for the buyer's current Store and, for B2B activity, Business Unit Buying Context. The `cart` cookie identifies an anonymous Current Cart. _Avoid_: Cart Session, arbitrary Cart
@@ -154,9 +158,49 @@ The Checkout context describes how a buyer completes the information and choices
 
 **Shipping Options**: The Checkout Step where the buyer chooses how the order should be delivered. _Avoid_: Delivery options
 
-**Payment Method**: The way the buyer will pay or settle the order. _Avoid_: Payment arrangement, payment option
+**Delivery Plan**: A checkout-time proposal that allocates a Current Cart into one or more Delivery Groups using explicit Delivery Targets. It does not itself select Shipping Options or describe how an Order is physically fulfilled. _Avoid_: Shipment Plan, Order Deliveries
 
-**Payment Options**: The Checkout Step where the buyer chooses one or more Payment Methods for the order. _Avoid_: Payment methods step, payment arrangement
+**Delivery Plan Reference**: The opaque identity of one Delivery Plan calculated for the Current Cart. It lets Checkout select and revalidate a complete proposal without accepting caller-supplied routing or promises. _Avoid_: Fulfillment Route ID, Shipment Plan ID
+
+**Delivery Plan Quote**: The current set of Delivery Plans calculated together for one Current Cart state. Checkout replaces it when Cart contents, delivery destinations, or fulfillment constraints require the plans and their Shipping Options to be recalculated. _Avoid_: Shipping Quote, Rate Quote
+
+**Delivery Plan Quote Reference**: The opaque identity of one Delivery Plan Quote. A buyer returns it with a selection so Checkout can reject choices made against a superseded quote without accepting a browser-supplied price. _Avoid_: Price Token, Browser Price
+
+**Delivery Group**: A non-empty collection of Delivery Targets that share one Shipping Address and require one Shipping Option selection. It is a checkout planning unit, not a physical Shipment or Order Delivery. _Avoid_: Shipment, Package
+
+**Delivery Target**: A positive quantity of one exact Cart Line Item allocated to a Delivery Group. It is always explicit; no wildcard or “all Cart quantities” target exists. _Avoid_: Product Target, Item Selector, All Cart Quantities
+
+**Delivery Promise**: The buyer-facing commitment for when a Delivery Group is expected to arrive or be ready for collection. _Avoid_: Carrier estimate, Fulfillment SLA
+
+**Delivery Routing**: The decision that derives and ranks Delivery Plans from the Current Cart, its delivery destinations, and applicable fulfillment constraints. _Avoid_: Shipping Option selection, Order fulfillment
+
+**Shipping Option**: A currently available way to deliver one Delivery Group, including its buyer-facing description, Delivery-Group-dependent price, and any Delivery Promise that can be made. _Avoid_: Shipping Method, Delivery Option
+
+**Shipping Option Reference**: The opaque identity a buyer submits to select a Shipping Option for one Delivery Group in a Delivery Plan. It identifies a choice without exposing a provider Shipping Method identity as Checkout vocabulary. _Avoid_: Provider Shipping Method ID
+
+**Selected Shipping Option**: The Shipping Option currently saved on the Cart for one Delivery Group, including its applied price and whether it still applies to that group. _Avoid_: Saved Shipping Options Step, Shipping Method payload
+
+**Payment Method**: The way the buyer will pay or settle the order. Card and Net Terms are Payment Methods. _Avoid_: Payment arrangement, Payment Plan
+
+**Payment Method Eligibility**: Whether the current buyer may use a Payment Method based on buyer and account qualifications, independently of how much of the current Cart the method can fund. _Avoid_: Funding sufficiency, saved availability
+
+**Payment Method Funding Capacity**: How much of the current Cart amount an eligible Payment Method can fund: full, partial, or none. _Avoid_: Payment Method Eligibility, authorization, captured amount
+
+**Credit Profile**: The payment terms and available credit associated with a Business Unit's financial account for evaluating Net Terms. _Avoid_: Customer credit, Trade Credit Account, ledger
+
+**Available Credit**: The amount the Business Unit's financial account can currently use toward a purchase before any account-credit authorization or reservation. _Avoid_: Credit limit, reserved credit, ledger balance
+
+**Payment Options**: The Checkout Step where the buyer chooses a Payment Method for the order. _Avoid_: Payment methods step, payment arrangement
+
+**Payment**: The planned and attempted settlement associated with a Cart and its resulting Order. It records the selected Payment Method, planned amount, and financial progress without performing payment processing itself. _Avoid_: Payment Plan, provider Payment Object
+
+**Prepared Payment**: A Payment whose method and current planned amount are saved for Checkout but have not been authorized. _Avoid_: Authorized Payment, Payment Plan
+
+**Payment Authorization**: A financially reliable reservation of funds or account credit that begins only when the buyer places the order. A card authorization can create a visible hold. _Avoid_: Payment save, Payment Method selection
+
+**Payment Capture**: The collection of funds from an authorized card Payment after the Order has been placed. _Avoid_: Payment Authorization, Order placement
+
+**Order Placement Attempt**: One resumable attempt to authorize the selected Payment, place the Order, and then capture funds or commit account-credit exposure. Repeating the same attempt does not create another authorization. _Avoid_: Payment Plan, browser submission
 
 **Review Order**: The Checkout Step where the buyer confirms the order before it is placed. _Avoid_: Review checkout, order summary
 
@@ -293,11 +337,32 @@ The Checkout context describes how a buyer completes the information and choices
 - Changing **Buying Context** requires a different **Cart**.
 - A structurally valid **Shipping Address** can be saved even when it produces a **Checkout Policy Violation**.
 - **Shipping Options** can be the **Active Checkout Step** and remain incomplete when blocking violations prevent selecting shipping.
+- **Delivery Routing** produces one or more ranked **Delivery Plans**; plans can differ in their Delivery Groups and in the Shipping Options available to those groups.
+- Each **Delivery Plan** has a **Delivery Plan Reference**, and every Delivery Group contains one or more explicit **Delivery Targets**.
+- For each **Cart Line Item** in a Delivery Plan, its Delivery Target quantities are positive and sum exactly to the quantity currently requested in the Cart; no other Cart Line Item may be targeted.
+- A one-shipment Checkout has one **Delivery Group**; a split Checkout has more than one.
+- One **Delivery Plan** can offer more than one **Shipping Option** for the same Delivery Group.
+- A **Delivery Plan** does not create physical Shipments, Order Deliveries, or Parcels.
+- **Shipping Options** is complete only when every **Delivery Group** from the selected Delivery Plan has its **Selected Shipping Option** saved on the Cart and that selection still applies.
+- Available **Shipping Options** are resolved for each Delivery Group within a Delivery Plan and are presented alongside **Checkout State**, not stored inside it.
+- A buyer selects a **Delivery Plan** by its **Delivery Plan Reference** and one Shipping Option per Delivery Group by its **Shipping Option Reference**; the save resolves those references against the authoritative Current Cart rather than accepting copied allocations, prices, or promises.
+- Saving the selected Delivery Plan's **Selected Shipping Options** is one replacement-style **Checkout Mutation** and is allowed when Shipping Options is already complete.
+- Changing the Cart, its **Shipping Address**, or fulfillment constraints can change the **Delivery Plan** or available **Shipping Options**, which makes Shipping Options incomplete again until every Delivery Group has a current selection.
+- No available **Shipping Options** is a valid availability result rather than a provider failure; Shipping Options remains incomplete.
 - A **Checkout Policy Violation** can have one or more **Violation Targets**.
 - A **Checkout Violation** can have one or more **Violation Targets**.
 - A **Violation Target** can identify a **Checkout Step**, a Cart item, or the whole **Cart**.
-- **Payment Method** includes invoice terms, store credit, card payment, and split-payment components.
-- **Payment Options** saves one or more **Payment Methods** for the current **Cart**.
+- **Payment Method** includes Net Terms, store credit, and card payment; supporting several available methods does not imply split tender.
+- Each **Payment Method** determines its own **Payment Method Eligibility** from the current buyer context.
+- An ineligible **Payment Method** is omitted from **Payment Options**; an eligible Payment Method remains eligible when its **Payment Method Funding Capacity** is partial or none.
+- Net Terms **Payment Method Eligibility** requires an approved Business Unit **Credit Profile**. Its **Payment Method Funding Capacity** is assessed from the current Cart amount and available credit and is reassessed when Net Terms is saved.
+- Payment Options currently permits selecting an eligible Payment Method only when it can fund the full Cart amount; retaining partial funding capacity allows a future Checkout to allocate the shortfall to another Payment Method.
+- **Payment Options** saves one **Prepared Payment** for the current **Cart** and does not perform **Payment Authorization**.
+- A card **Prepared Payment** can be initialized before authorization so the buyer can enter payment details securely; initialization is not **Payment Authorization**.
+- The **Prepared Payment** and current **Cart** must agree on amount and currency before **Payment Authorization**.
+- A **Prepared Payment** is updated when the Cart amount changes; an authorized Payment is not silently changed to match a new Cart amount.
+- **Payment Authorization** begins inside an **Order Placement Attempt** after the buyer chooses Place Order.
+- **Payment Capture** occurs only after the Order has been placed.
 
 ## Example Dialogue
 

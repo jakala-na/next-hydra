@@ -2,10 +2,11 @@ import { graphql } from "../../graphql";
 import { productPriceFragment } from "../price";
 
 export const CartFragment = graphql(
-	`
+  `
     fragment CartFields on Cart {
       id
       version
+      shippingMode
       country
       customerEmail
       shippingAddress {
@@ -16,12 +17,84 @@ export const CartFragment = graphql(
         country
         additionalStreetInfo
         region
+        state
+      }
+      billingAddress {
+        key
+        streetName
+        postalCode
+        city
+        country
+        additionalStreetInfo
+        region
+        state
+      }
+      itemShippingAddresses {
+        key
+        streetName
+        postalCode
+        city
+        country
+        additionalStreetInfo
+        region
+        state
+      }
+      shipping {
+        shippingKey
+        shippingAddress {
+          key
+          streetName
+          postalCode
+          city
+          country
+          additionalStreetInfo
+          region
+          state
+        }
+        shippingInfo {
+          shippingMethodName
+          shippingMethodState
+          shippingMethodRef {
+            id
+          }
+          price {
+            currencyCode
+            centAmount
+          }
+        }
       }
       store {
         key
       }
       businessUnit {
         id
+      }
+      paymentInfo {
+        paymentRefs {
+          id
+        }
+        payments {
+          id
+          key
+          amountPlanned {
+            currencyCode
+            centAmount
+          }
+          interfaceId
+          paymentMethodInfo {
+            method
+            paymentInterface
+          }
+          custom {
+            type {
+              key
+            }
+            customFieldsRaw {
+              name
+              value
+            }
+          }
+        }
       }
       custom {
         type {
@@ -38,6 +111,15 @@ export const CartFragment = graphql(
         productId
         productType {
           key
+          attributeDefinitions(includeNames: ["model"]) {
+            results {
+              name
+              labelAllLocales {
+                locale
+                value
+              }
+            }
+          }
         }
         name(locale: $locale)
         quantity
@@ -60,6 +142,14 @@ export const CartFragment = graphql(
           currencyCode
           centAmount
         }
+        shippingDetails {
+          targets {
+            addressKey
+            quantity
+            shippingMethodKey
+          }
+          valid
+        }
       }
       totalLineItemQuantity
       totalPrice {
@@ -70,5 +160,5 @@ export const CartFragment = graphql(
       cartState
     }
   `,
-	[productPriceFragment],
+  [productPriceFragment]
 );

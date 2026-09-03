@@ -41,7 +41,6 @@ describe(CartPolicies, () => {
                 currencyCode: "USD",
               },
               variant: {
-                attributes: {},
                 id: VariantId.make("variant-1"),
                 images: [],
                 productId: ProductId.make("product-1"),

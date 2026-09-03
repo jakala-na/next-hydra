@@ -26,6 +26,8 @@
     "@repo/errors": "workspace:*",
     "@repo/next-config": "workspace:*",
     "@repo/observability": "workspace:*",
+    "@repo/payments": "workspace:*",
+    "@repo/payments-stripe": "workspace:*",
     "@repo/registration": "workspace:*",
     "@repo/testing": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",

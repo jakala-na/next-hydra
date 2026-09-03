@@ -30,10 +30,13 @@ type CurrentCartService = (typeof CurrentCart)["Service"];
 const currentCartLayer = (overrides: Partial<CurrentCartService> = {}) =>
   Layer.succeed(CurrentCart, {
     addItem: () => Effect.succeed(cartState),
+    clearPaymentOptions: () => Effect.succeed(cartState),
     get: () => Effect.succeed(Option.some(cartState)),
     removeLineItem: () => Effect.succeed(cartState),
     saveContact: () => Effect.die("not used"),
     saveDeliveryDetails: () => Effect.die("not used"),
+    savePaymentOptions: () => Effect.die("not used"),
+    saveShippingOptions: () => Effect.die("not used"),
     setLineItemQuantity: () => Effect.succeed(cartState),
     ...overrides,
   });

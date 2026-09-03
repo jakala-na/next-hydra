@@ -1,5 +1,6 @@
 import { ErrorIssue } from "@repo/errors";
-import { Context, Effect, Layer, ManagedRuntime, Schema } from "effect";
+import type { InputInvalid } from "@repo/errors";
+import { Context, Effect, Layer, ManagedRuntime, Result, Schema } from "effect";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import {
@@ -16,6 +17,9 @@ class TestRuntimeFailure extends Schema.TaggedError<TestRuntimeFailure>()(
   "TestRuntimeFailure",
   {}
 ) {}
+
+type TestActionFailure = InputInvalid | TestFailure;
+type TestActionContext = Readonly<Record<never, never>>;
 
 class Greeting extends Context.Service<Greeting, { readonly prefix: string }>()(
   "@repo/actions/test/Greeting"
@@ -68,7 +72,9 @@ describe("ActionClient", () => {
   });
 
   it("returns declared input failures without running the handler", async () => {
-    const handler = vi.fn(() => Effect.succeed("unreachable"));
+    const handler = vi.fn<() => Effect.Effect<string>>(() =>
+      Effect.succeed("unreachable")
+    );
     const action = makeGreeting().handle(handler).toAction();
 
     await expect(action({ name: "   " })).resolves.toStrictEqual({
@@ -123,7 +129,7 @@ describe("ActionClient", () => {
   });
 
   it("decodes invalid input before acquiring provided Layers", async () => {
-    const acquire = vi.fn();
+    const acquire = vi.fn<() => void>();
     const RequestActions = Actions.provide(() =>
       Layer.effectDiscard(
         Effect.sync(acquire).pipe(
@@ -153,9 +159,13 @@ describe("ActionClient", () => {
   });
 
   it("makes context and encoded input available to input issue mapping", async () => {
-    const mapInputIssues = vi.fn(() => [
-      new ErrorIssue({ message: "Use a name.", path: ["name"] }),
-    ]);
+    const mapInputIssues = vi.fn<
+      (
+        error: Schema.SchemaError,
+        context: TestActionContext,
+        input: { readonly name: string }
+      ) => readonly ErrorIssue[]
+    >(() => [new ErrorIssue({ message: "Use a name.", path: ["name"] })]);
     const action = Actions.procedure("Test.inputErrorContext")
       .input(TestInput)
       .output(Schema.String)
@@ -234,7 +244,9 @@ describe("ActionClient", () => {
   });
 
   it("does not invoke the failure presenter for successful actions", async () => {
-    const getFailureMessage = vi.fn(() => "unreachable");
+    const getFailureMessage = vi.fn<
+      (error: TestActionFailure, context: TestActionContext) => string
+    >(() => "unreachable");
     const action = makeGreeting()
       .handle(({ name }) => Effect.succeed(`Hello, ${name}`))
       .toAction({ getFailureMessage });
@@ -246,10 +258,33 @@ describe("ActionClient", () => {
     expect(getFailureMessage).not.toHaveBeenCalled();
   });
 
-  it("runs a success adapter with the same resolved action context", async () => {
-    const getLocale = vi.fn(() => "fr-FR");
-    const onSuccess =
-      vi.fn<(success: string, context: { readonly locale: string }) => void>();
+  it("runs result then success hooks with the same resolved action context", async () => {
+    const getLocale = vi.fn<() => string>(() => "fr-FR");
+    const calls: string[] = [];
+    let resultSuccess: string | undefined;
+    const onResult = vi.fn<
+      (
+        result: Result.Result<string, TestActionFailure>,
+        context: { readonly locale: string }
+      ) => void
+    >((result) => {
+      if (Result.isSuccess(result)) {
+        resultSuccess = result.success;
+      }
+      calls.push("result");
+    });
+    const onSuccess = vi.fn<
+      (success: string, context: { readonly locale: string }) => void
+    >(() => {
+      calls.push("success");
+    });
+    const onFailure =
+      vi.fn<
+        (
+          failure: TestActionFailure,
+          context: { readonly locale: string }
+        ) => void
+      >();
     const ContextualActions = ActionClient.make(
       ManagedRuntime.make(Layer.empty)
     ).use(
@@ -262,15 +297,122 @@ describe("ActionClient", () => {
       .output(Schema.String)
       .error(TestFailure)
       .handle(({ name }) => Effect.succeed(`Hello, ${name}`))
-      .toAction({ onSuccess });
+      .toAction({ onFailure, onResult, onSuccess });
 
     await expect(action({ name: "Ada" })).resolves.toStrictEqual({
       _tag: "Success",
       success: "Hello, Ada",
     });
-    expect(getLocale).toHaveBeenCalledOnce();
-    expect(onSuccess).toHaveBeenCalledExactlyOnceWith("Hello, Ada", {
-      locale: "fr-FR",
+    expect({
+      calls,
+      getLocaleCalls: getLocale.mock.calls.length,
+      onFailureCalls: onFailure.mock.calls.length,
+      onResultContext: onResult.mock.calls[0]?.[1],
+      onResultSuccess: resultSuccess,
+      onSuccessArguments: onSuccess.mock.calls,
+    }).toStrictEqual({
+      calls: ["result", "success"],
+      getLocaleCalls: 1,
+      onFailureCalls: 0,
+      onResultContext: { locale: "fr-FR" },
+      onResultSuccess: "Hello, Ada",
+      onSuccessArguments: [["Hello, Ada", { locale: "fr-FR" }]],
+    });
+  });
+
+  it("runs result then failure hooks for a presented failure", async () => {
+    const calls: string[] = [];
+    const failure = new TestFailure({ reason: "invalid" });
+    let resultFailure: TestActionFailure | undefined;
+    const onSuccess =
+      vi.fn<(success: string, context: TestActionContext) => void>();
+    const onResult = vi.fn<
+      (
+        result: Result.Result<string, TestActionFailure>,
+        context: TestActionContext
+      ) => void
+    >((result) => {
+      if (Result.isFailure(result)) {
+        resultFailure = result.failure;
+      }
+      calls.push("result");
+    });
+    const onFailure = vi.fn<
+      (failure: TestActionFailure, context: TestActionContext) => void
+    >(() => {
+      calls.push("failure");
+    });
+    const action = makeGreeting()
+      .handle(() => Effect.fail(failure))
+      .toAction({
+        getFailureMessage: (error) => `Localized ${error._tag}`,
+        onFailure,
+        onResult,
+        onSuccess,
+      });
+
+    await expect(action({ name: "Ada" })).resolves.toStrictEqual({
+      _tag: "Failure",
+      failure: {
+        displayMessage: "Localized TestFailure",
+        error: { _tag: "TestFailure", reason: "invalid" },
+      },
+    });
+    expect({
+      calls,
+      onFailureContext: onFailure.mock.calls[0]?.[1],
+      onResultContext: onResult.mock.calls[0]?.[1],
+      onSuccessCalls: onSuccess.mock.calls.length,
+    }).toStrictEqual({
+      calls: ["result", "failure"],
+      onFailureContext: {},
+      onResultContext: {},
+      onSuccessCalls: 0,
+    });
+    expect(resultFailure).toStrictEqual(failure);
+    expect(onFailure.mock.calls[0]?.[0]).toStrictEqual(failure);
+  });
+
+  it("passes input validation failures through result and failure hooks", async () => {
+    const handler = vi.fn<() => Effect.Effect<string>>(() =>
+      Effect.succeed("unreachable")
+    );
+    const onResult =
+      vi.fn<
+        (
+          result: Result.Result<string, TestActionFailure>,
+          context: TestActionContext
+        ) => void
+      >();
+    const onFailure =
+      vi.fn<(failure: TestActionFailure, context: TestActionContext) => void>();
+    const action = makeGreeting().handle(handler).toAction({
+      onFailure,
+      onResult,
+    });
+
+    const result = await action({ name: "   " });
+
+    expect(result).toMatchObject({
+      _tag: "Failure",
+      failure: { _tag: "InputInvalid" },
+    });
+    const lifecycleResult = onResult.mock.calls[0]?.[0];
+    expect({
+      handlerCalls: handler.mock.calls.length,
+      onFailureContext: onFailure.mock.calls[0]?.[1],
+      onFailureTag: onFailure.mock.calls[0]?.[0]._tag,
+      onResultContext: onResult.mock.calls[0]?.[1],
+      onResultFailureTag:
+        lifecycleResult !== undefined && Result.isFailure(lifecycleResult)
+          ? lifecycleResult.failure._tag
+          : undefined,
+    }).toStrictEqual({
+      handlerCalls: 0,
+      onFailureContext: {},
+      onFailureTag: "InputInvalid",
+      onResultContext: {},
+      onResultFailureTag: "InputInvalid",
     });
   });
 
@@ -524,7 +666,17 @@ describe("ActionClient", () => {
   });
 
   it("does not turn defects or invalid declared outputs into action failures", async () => {
+    const onFailure =
+      vi.fn<(failure: TestActionFailure, context: TestActionContext) => void>();
+    const onResult =
+      vi.fn<
+        (
+          result: Result.Result<string, TestActionFailure>,
+          context: TestActionContext
+        ) => void
+      >();
     const defect = makeGreeting().handle(() => Effect.die("unexpected"));
+    const defectAction = defect.toAction({ onFailure, onResult });
     const invalidOutput = Actions.procedure("Test.invalidOutput")
       .input(TestInput)
       .output(Schema.String.pipe(Schema.check(Schema.isMinLength(2))))
@@ -536,10 +688,17 @@ describe("ActionClient", () => {
       Effect.fail(invalidFailure)
     );
 
-    await expect(defect.execute({ name: "Ada" })).rejects.toThrow();
-    await expect(invalidOutput.execute({ name: "Ada" })).rejects.toThrow();
+    await expect(defect.execute({ name: "Ada" })).rejects.toBeInstanceOf(Error);
+    await expect(defectAction({ name: "Ada" })).rejects.toBeInstanceOf(Error);
+    expect([
+      onFailure.mock.calls.length,
+      onResult.mock.calls.length,
+    ]).toStrictEqual([0, 0]);
+    await expect(invalidOutput.execute({ name: "Ada" })).rejects.toBeInstanceOf(
+      Error
+    );
     await expect(
       invalidFailureOutput.execute({ name: "Ada" })
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(Error);
   });
 });

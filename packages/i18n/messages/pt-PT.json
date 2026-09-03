@@ -294,6 +294,18 @@
       }
     },
     "checkout": {
+      "paymentOptions": {
+        "availableToSpend": "{amount} available to spend",
+        "card": "Card",
+        "cardInvalid": "Check your card details and try again.",
+        "cardNotReady": "Card entry is still loading.",
+        "chooseMethod": "Choose a payment method",
+        "netTerms": "Net {days}",
+        "paymentMethod": "Payment method",
+        "save": "Save payment options",
+        "saving": "Saving...",
+        "useShippingAddress": "Use shipping address for billing"
+      },
       "steps": {
         "contact": "Contacto",
         "deliveryDetails": "Detalhes de entrega",
@@ -347,7 +359,21 @@
           "country": "País"
         },
         "actions": {
+          "edit": "Editar detalhes de entrega",
           "save": "Guardar detalhes de entrega",
+          "saving": "A guardar..."
+        }
+      },
+      "shippingOptions": {
+        "chooseOption": "Escolha uma opção de envio",
+        "choosePlan": "Escolha um plano de entrega",
+        "delivery": "Entrega {number}",
+        "noOptions": "Não existem opções de envio para esta entrega.",
+        "noPlans": "Não existe um plano de entrega para esta morada.",
+        "plan": "Plano de entrega {number}",
+        "quantity": "Qtd. {quantity}",
+        "actions": {
+          "save": "Guardar opções de envio",
           "saving": "A guardar..."
         }
       },
@@ -361,17 +387,19 @@
         "internal": "Não foi possível concluir o checkout. Tente novamente.",
         "deliveryDetails": {
           "addressBookEntryUnavailable": "Esta morada guardada já não está disponível.",
-          "invalidInput": "Introduza a morada, o código postal, a cidade e o país.",
           "sourceUnavailable": "Esta origem de entrega não está disponível para este checkout.",
           "providerFailure": "Não foi possível guardar os detalhes de entrega. Tente novamente.",
           "unsupported": "Esta origem de entrega ainda não é suportada."
         },
         "notFound": "O checkout não foi encontrado para este pedido.",
+        "paymentOptions": {
+          "unavailable": "Conclua o passo atual do checkout antes de preparar o pagamento."
+        },
         "versionConflict": "O checkout foi alterado antes de guardar. Atualize a página e tente novamente.",
         "saveContact": {
           "CheckoutCartMismatch": "Este checkout já não está atualizado. Atualize a página e tente novamente.",
           "CheckoutCustomerProfileIncomplete": "Faltam informações de contacto obrigatórias no seu perfil de cliente. Introduza-as abaixo para continuar.",
-          "CheckoutMutationSchemaFailure": "Introduza um e-mail, nome e apelido.",
+          "InputInvalid": "Introduza um e-mail, nome e apelido.",
           "CheckoutMutationOutcomeUnknown": "Não foi possível confirmar se os dados de contacto foram guardados. Atualize a página antes de tentar novamente.",
           "CheckoutMutationSourceUnavailable": "Esta origem de contacto não está disponível para este checkout.",
           "CheckoutMutationProviderFailure": "Não foi possível guardar o contacto. Tente novamente.",
@@ -385,7 +413,7 @@
         "saveDeliveryDetails": {
           "CheckoutCartMismatch": "Este checkout já não está atualizado. Atualize a página e tente novamente.",
           "CheckoutMutationAddressBookEntryUnavailable": "Esta morada guardada já não está disponível.",
-          "CheckoutMutationSchemaFailure": "Introduza a morada, o código postal, a cidade e o país.",
+          "InputInvalid": "Introduza a morada, o código postal, a cidade e o país.",
           "CheckoutMutationOutcomeUnknown": "Não foi possível confirmar se os dados de entrega foram guardados. Atualize a página antes de tentar novamente.",
           "CheckoutMutationSourceUnavailable": "Esta origem de entrega não está disponível para este checkout.",
           "CheckoutMutationProviderFailure": "Não foi possível guardar os detalhes de entrega. Tente novamente.",
@@ -395,6 +423,31 @@
           "CheckoutUnavailable": "O checkout não foi encontrado para este pedido.",
           "CommerceRequestContextNotFound": "O checkout não foi encontrado para este pedido.",
           "CheckoutVersionConflict": "O checkout foi alterado antes de guardar. Atualize a página e tente novamente."
+        },
+        "savePaymentOptions": {
+          "CheckoutCartMismatch": "This checkout is no longer current. Refresh and try again.",
+          "InputInvalid": "Choose an available payment method and complete its details.",
+          "CheckoutMutationOutcomeUnknown": "We could not confirm whether your payment options were saved. Refresh before trying again.",
+          "CheckoutMutationProviderFailure": "Payment options could not be saved. Try again.",
+          "CheckoutPaymentMethodUnavailable": "That payment method is no longer available. Refresh and choose again.",
+          "CheckoutPaymentOptionsUnavailable": "Conclua o passo atual do checkout antes de preparar o pagamento.",
+          "CheckoutPaymentPreparationRefreshRequired": "Card details no longer match this checkout. Refresh and enter them again.",
+          "CheckoutUnavailable": "Checkout was not found for the current request.",
+          "CheckoutVersionConflict": "Checkout changed before your payment options could be saved. Refresh and try again.",
+          "CommerceAccountUnavailable": "Payment options could not be saved. Try again.",
+          "CommerceRequestContextNotFound": "Checkout was not found for the current request."
+        },
+        "saveShippingOptions": {
+          "CheckoutCartMismatch": "Este checkout já não está atualizado.",
+          "InputInvalid": "Escolha uma opção para cada entrega.",
+          "CheckoutMutationOutcomeUnknown": "Não foi possível confirmar o registo. Atualize a página.",
+          "CheckoutMutationProviderFailure": "Não foi possível guardar as opções de envio.",
+          "CheckoutShippingOptionsRefreshRequired": "As opções de envio foram guardadas, mas não foi possível atualizar o checkout. Atualize a página.",
+          "CheckoutShippingSelectionUnavailable": "Esta opção de envio já não está disponível.",
+          "CheckoutUnavailable": "Checkout não encontrado.",
+          "CheckoutVersionConflict": "O checkout foi alterado antes de guardar.",
+          "CommerceAccountUnavailable": "Não foi possível guardar as opções de envio.",
+          "CommerceRequestContextNotFound": "Checkout não encontrado."
         }
       },
       "violations": {

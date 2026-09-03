@@ -30,6 +30,16 @@ export class CartDriver {
     );
   }
 
+  async expectProductSummary(
+    productName: string,
+    summary: string
+  ): Promise<void> {
+    const lineItem = this.#cart()
+      .locator("[data-cart-line-item]")
+      .filter({ hasText: productName });
+    await expect(lineItem.getByText(summary, { exact: true })).toBeVisible();
+  }
+
   async proceedTo(destination: string): Promise<void> {
     if (destination !== "Checkout") {
       throw new Error(`Unsupported Cart destination: ${destination}`);

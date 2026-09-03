@@ -6,7 +6,6 @@ import type {
   CartPolicyFailure,
   CartProviderFailure,
 } from "../domain/cart-errors";
-import { CurrentCartState } from "../domain/cart-snapshot";
 import type {
   CommerceActionClient,
   NextCommerceRequestError,
@@ -20,13 +19,14 @@ import { CurrentCart } from "../services/current-cart";
 import type { CartActionOperation } from "./action-result";
 import {
   AddToCartActionFailure,
-  makeCartContextUnavailable,
+  cartContextUnavailable,
   RemoveCartLineItemActionFailure,
   SetCartLineItemQuantityActionFailure,
 } from "./action-result";
 import { AddToCartInputSchema } from "./add-to-cart";
 import { ChangeCartItemsQuantityInputSchema } from "./change-cart-items-quantity";
 import { retainExpectedCartMutationFailures } from "./failure-policy";
+import { CartPublicState, toCartPublicState } from "./public-state";
 import { RemoveCartItemInputSchema } from "./remove-cart-item";
 
 type AddToCartExpectedFailure = Exclude<
@@ -83,7 +83,7 @@ function cartMutationFailure(
     };
   }
   if (error._tag === "CommerceRequestContextNotFound") {
-    return makeCartContextUnavailable({
+    return cartContextUnavailable({
       message: "The cart is unavailable for the current account.",
       reason: error.reason,
     });
@@ -105,7 +105,8 @@ function cartMutationFailure(
 const addToCartProgram = Effect.fn("CartAction.addToCart")(
   (input: typeof AddToCartInputSchema.Type) =>
     CurrentCart.addItem(input).pipe(
-      retainExpectedCartMutationFailures("addItem")
+      retainExpectedCartMutationFailures("addItem"),
+      Effect.map(toCartPublicState)
     )
 );
 
@@ -113,14 +114,16 @@ const changeCartItemsQuantityProgram = Effect.fn(
   "CartAction.changeCartItemsQuantity"
 )((input: typeof ChangeCartItemsQuantityInputSchema.Type) =>
   CurrentCart.setLineItemQuantity(input).pipe(
-    retainExpectedCartMutationFailures("setLineItemQuantity")
+    retainExpectedCartMutationFailures("setLineItemQuantity"),
+    Effect.map(toCartPublicState)
   )
 );
 
 const removeCartItemProgram = Effect.fn("CartAction.removeCartItem")(
   (input: typeof RemoveCartItemInputSchema.Type) =>
     CurrentCart.removeLineItem(input).pipe(
-      retainExpectedCartMutationFailures("removeLineItem")
+      retainExpectedCartMutationFailures("removeLineItem"),
+      Effect.map(toCartPublicState)
     )
 );
 
@@ -130,7 +133,7 @@ export const makeCartProcedures = <RuntimeServices, Context extends object>(
   addToCartProcedure: actions
     .procedure("CartAction.addToCart")
     .input(AddToCartInputSchema)
-    .output(CurrentCartState)
+    .output(CartPublicState)
     .error(AddToCartActionFailure)
     .mapError(
       (
@@ -144,7 +147,7 @@ export const makeCartProcedures = <RuntimeServices, Context extends object>(
   changeCartItemsQuantityProcedure: actions
     .procedure("CartAction.changeCartItemsQuantity")
     .input(ChangeCartItemsQuantityInputSchema)
-    .output(CurrentCartState)
+    .output(CartPublicState)
     .error(SetCartLineItemQuantityActionFailure)
     .mapError(
       (
@@ -157,7 +160,7 @@ export const makeCartProcedures = <RuntimeServices, Context extends object>(
   removeCartItemProcedure: actions
     .procedure("CartAction.removeCartItem")
     .input(RemoveCartItemInputSchema)
-    .output(CurrentCartState)
+    .output(CartPublicState)
     .error(RemoveCartLineItemActionFailure)
     .mapError(
       (

@@ -12,6 +12,12 @@ import {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "@repo/commerce/domain/commerce-account";
+import {
+  DeliveryGroupReference,
+  DeliveryPlanQuoteReference,
+  DeliveryPlanReference,
+  ShippingOptionReference,
+} from "@repo/commerce/domain/delivery-plan";
 import { Carts } from "@repo/commerce/services/carts";
 import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
 import type { Client } from "@urql/core";
@@ -19,6 +25,10 @@ import { Cause, Effect, Exit, Layer, Option } from "effect";
 
 import { CommercetoolsGraphQLClient } from "../client/graphql-client";
 import { CommercetoolsRestClient } from "../client/rest-client";
+import {
+  deliveryAddressKeyFor,
+  shippingKeyFor,
+} from "../delivery-planning/references";
 import { cartsLayer } from "./carts";
 
 type ScriptedResponse = {
@@ -42,7 +52,7 @@ type RecordedCall = {
 const operationName = (document: GraphqlDocument): string =>
   document.definitions?.[0]?.name?.value ?? "unknown";
 
-const makeScriptedClients = () => {
+const makeScriptedClients = (apiRoot?: ByProjectKeyRequestBuilder) => {
   const queues = new Map<string, ScriptedResponse[]>();
   const sticky = new Map<string, ScriptedResponse>();
   const calls: RecordedCall[] = [];
@@ -90,7 +100,7 @@ const makeScriptedClients = () => {
     Layer.provide(
       Layer.mergeAll(
         CommercetoolsGraphQLClient.testLayer(graphqlClient),
-        CommercetoolsRestClient.testLayer(unusedApiRoot)
+        CommercetoolsRestClient.testLayer(apiRoot ?? unusedApiRoot)
       )
     )
   );
@@ -115,6 +125,7 @@ const providerVersion = 8;
 const unitPriceCentAmount = 2500;
 
 const rawActiveCart = {
+  billingAddress: null,
   businessUnit: null,
   cartState: "Active",
   country: null,
@@ -123,10 +134,43 @@ const rawActiveCart = {
   id: "cart-1",
   lineItems: [],
   shippingAddress: null,
+  shippingMode: "Multiple",
   store: { key: "us-store" },
   totalLineItemQuantity: 0,
   totalPrice: { centAmount: 0, currencyCode: "USD" },
   version: currentVersion,
+};
+
+const rawPaymentBillingAddress = {
+  additionalStreetInfo: null,
+  city: "New York",
+  country: "US",
+  key: null,
+  postalCode: "10001",
+  region: null,
+  state: "NY",
+  streetName: "1 Payment Way",
+};
+
+const rawPreparedCardPayment = {
+  amountPlanned: { centAmount: 2500, currencyCode: "USD" },
+  custom: {
+    customFieldsRaw: [
+      {
+        name: "checkoutPlacementAttemptReference",
+        value: "attempt-1",
+      },
+    ],
+    type: { key: "paymentCustomFields" },
+  },
+  id: "payment-1",
+  interfaceId: "pi-1",
+  key: "checkout-card-cart-1",
+  paymentMethodInfo: {
+    method: "card",
+    paymentInterface: "Stripe",
+    token: { value: "confirmation-1" },
+  },
 };
 
 const rawCartLineItem = {
@@ -138,11 +182,26 @@ const rawCartLineItem = {
     value: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
   },
   productId: "product-1",
-  productType: { key: "heavy-lifting-and-specialized-equipment" },
+  productType: {
+    attributeDefinitions: {
+      results: [
+        {
+          labelAllLocales: [{ locale: "en-US", value: "Model" }],
+          name: "model",
+        },
+      ],
+    },
+    key: "heavy-earthmoving-and-construction-equipment",
+  },
   quantity: 1,
   totalPrice: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
   variant: {
-    attributesRaw: [],
+    attributesRaw: [
+      {
+        name: "model",
+        value: 2015,
+      },
+    ],
     id: 3,
     images: [{ label: "Crane", url: "https://example.com/crane.jpg" }],
     sku: "SKU-3",
@@ -155,6 +214,30 @@ const rawCartWithLineItem = {
   totalLineItemQuantity: 1,
   totalPrice: { centAmount: unitPriceCentAmount, currencyCode: "USD" },
 };
+
+const selectedDeliveryPlan = {
+  groups: [
+    {
+      reference: DeliveryGroupReference.make("delivery-1"),
+      selectedShippingOption: {
+        name: "Standard",
+        price: { centAmount: 500, currencyCode: "USD" as const },
+        reference: ShippingOptionReference.make(
+          "shipping-option-c2hpcHBpbmctbWV0aG9kLTE"
+        ),
+      },
+      shippingAddress: {
+        addressLine1: "1 Hydra Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      },
+      targets: [{ lineItemId: LineItemId.make("line-1"), quantity: 1 }],
+    },
+  ],
+  quoteReference: DeliveryPlanQuoteReference.make("quote-1"),
+  reference: DeliveryPlanReference.make("plan-1"),
+} as const;
 
 const rawBusinessUnitCart = {
   ...rawActiveCart,
@@ -232,7 +315,129 @@ describe("findById", () => {
         id: "3",
         productId: "product-1",
         sku: "SKU-3",
+        summaryAttribute: { label: "Model", value: "2015" },
       });
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect(
+    "uses configured locale priority for the Cart summary label",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawCartWithLineItem,
+          lineItems: [
+            {
+              ...rawCartLineItem,
+              productType: {
+                ...rawCartLineItem.productType,
+                attributeDefinitions: {
+                  results: [
+                    {
+                      labelAllLocales: [
+                        { locale: "de-DE", value: "Modell" },
+                        { locale: "fr-FR", value: "Modèle" },
+                      ],
+                      name: "model",
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(Option.getOrThrow(found).lineItems[0]?.variant).toMatchObject({
+          summaryAttribute: { label: "Modèle", value: "2015" },
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect("omits a Cart summary attribute without a usable label", () => {
+    const clients = makeScriptedClients();
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawCartWithLineItem,
+        lineItems: [
+          {
+            ...rawCartLineItem,
+            productType: {
+              ...rawCartLineItem.productType,
+              attributeDefinitions: {
+                results: [
+                  {
+                    labelAllLocales: [
+                      { locale: "de-DE", value: "" },
+                      { locale: "en-US", value: "   " },
+                    ],
+                    name: "model",
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({ id: CartId.make("cart-1"), store });
+      const variant = Option.getOrThrow(found).lineItems[0]?.variant;
+
+      expect(variant).not.toHaveProperty("summaryAttribute");
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect("omits Product Attributes not selected for Cart display", () => {
+    const clients = makeScriptedClients();
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawCartWithLineItem,
+        lineItems: [
+          {
+            ...rawCartLineItem,
+            productType: {
+              attributeDefinitions: { results: [] },
+              key: "heavy-lifting-and-specialized-equipment",
+            },
+            variant: {
+              ...rawCartLineItem.variant,
+              attributesRaw: [
+                {
+                  name: "color",
+                  value: {
+                    key: "RED",
+                    label: { "de-DE": "Rot" },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({ id: CartId.make("cart-1"), store });
+      const variant = Option.getOrThrow(found).lineItems[0]?.variant;
+
+      expect(variant).toMatchObject({ id: "3" });
+      expect(variant).not.toHaveProperty("summaryAttribute");
     }).pipe(Effect.provide(clients.layer));
   });
 
@@ -271,6 +476,362 @@ describe("findById", () => {
   });
 
   it.effect(
+    "projects a prepared Payment from the linked Payment object",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          billingAddress: rawPaymentBillingAddress,
+          paymentInfo: {
+            paymentRefs: [{ id: "payment-1" }],
+            payments: [rawPreparedCardPayment],
+          },
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(
+          Option.getOrThrow(found).checkoutDetails.preparedPayment
+        ).toEqual({
+          amount: { centAmount: 2500, currencyCode: "USD" },
+          attemptReference: "attempt-1",
+          billingAddress: {
+            addressLine1: "1 Payment Way",
+            city: "New York",
+            country: "US",
+            postalCode: "10001",
+            region: "NY",
+          },
+          method: "card",
+          paymentReference: "payment-1",
+          preparationReference: "checkout-card-cart-1:USD:2500",
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect(
+    "projects a selected Card Payment without reading its masked token",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          billingAddress: rawPaymentBillingAddress,
+          paymentInfo: {
+            paymentRefs: [{ id: "payment-1" }],
+            payments: [
+              {
+                ...rawPreparedCardPayment,
+                custom: {
+                  customFieldsRaw: [
+                    {
+                      name: "checkoutPlacementAttemptReference",
+                      value: "attempt-1",
+                    },
+                  ],
+                  type: { key: "paymentCustomFields" },
+                },
+                paymentMethodInfo: {
+                  method: "card",
+                  paymentInterface: "Stripe",
+                },
+              },
+            ],
+          },
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(
+          Option.getOrThrow(found).checkoutDetails.preparedPayment
+        ).toMatchObject({
+          method: "card",
+          paymentReference: "payment-1",
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect(
+    "projects Net Terms assertions from the linked Payment object",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          billingAddress: rawPaymentBillingAddress,
+          paymentInfo: {
+            paymentRefs: [{ id: "net-terms-payment-1" }],
+            payments: [
+              {
+                amountPlanned: { centAmount: 2500, currencyCode: "USD" },
+                custom: {
+                  customFieldsRaw: [
+                    {
+                      name: "checkoutPlacementAttemptReference",
+                      value: "attempt-1",
+                    },
+                    { name: "checkoutTermsInDays", value: 30 },
+                  ],
+                  type: { key: "paymentCustomFields" },
+                },
+                id: "net-terms-payment-1",
+                interfaceId: "checkout-net-terms-cart-1",
+                key: "checkout-net-terms-cart-1",
+                paymentMethodInfo: {
+                  method: "netTerms",
+                  paymentInterface: "erp-credit",
+                },
+              },
+            ],
+          },
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(
+          Option.getOrThrow(found).checkoutDetails.preparedPayment
+        ).toEqual({
+          amount: { centAmount: 2500, currencyCode: "USD" },
+          attemptReference: "attempt-1",
+          billingAddress: {
+            addressLine1: "1 Payment Way",
+            city: "New York",
+            country: "US",
+            postalCode: "10001",
+            region: "NY",
+          },
+          method: "netTerms",
+          paymentReference: "net-terms-payment-1",
+          termsInDays: 30,
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect(
+    "rejects linked Payment metadata stored under another Custom Type",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          billingAddress: rawPaymentBillingAddress,
+          paymentInfo: {
+            paymentRefs: [{ id: "payment-1" }],
+            payments: [
+              {
+                ...rawPreparedCardPayment,
+                custom: {
+                  ...rawPreparedCardPayment.custom,
+                  type: { key: "anotherPaymentType" },
+                },
+              },
+            ],
+          },
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const result = yield* carts
+          .findById({
+            id: CartId.make("cart-1"),
+            store,
+          })
+          .pipe(Effect.result);
+
+        expect(result).toMatchObject({
+          _tag: "Failure",
+          failure: {
+            _tag: "CartProviderFailure",
+            operation: "findById",
+            reason: "invalidData",
+          },
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect("ignores a Cart whose expanded Payment is not linked", () => {
+    const clients = makeScriptedClients();
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawActiveCart,
+        billingAddress: rawPaymentBillingAddress,
+        paymentInfo: {
+          paymentRefs: [{ id: "another-payment" }],
+          payments: [rawPreparedCardPayment],
+        },
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({
+        id: CartId.make("cart-1"),
+        store,
+      });
+
+      expect(Option.isNone(found)).toBeTruthy();
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect(
+    "ignores a Cart with linked Payments but no prepared Payment",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          paymentInfo: { paymentRefs: [{ id: "orphaned-payment" }] },
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(Option.isNone(found)).toBeTruthy();
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect(
+    "reports malformed persisted Checkout custom JSON as invalid provider data",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawActiveCart,
+          custom: {
+            customFieldsRaw: [
+              { name: "checkoutDeliveryDetails", value: "{not-json" },
+            ],
+            type: { key: "orderCustomFields" },
+          },
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const result = yield* carts
+          .findById({ id: CartId.make("cart-1"), store })
+          .pipe(Effect.result);
+
+        expect(result).toMatchObject({
+          _tag: "Failure",
+          failure: {
+            _tag: "CartProviderFailure",
+            operation: "findById",
+            reason: "invalidData",
+          },
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect("ignores native Shipping that no longer matches the Cart", () => {
+    const clients = makeScriptedClients();
+    const groupReference = DeliveryGroupReference.make("delivery-1");
+    const quoteReference = DeliveryPlanQuoteReference.make("quote-1");
+    const planReference = DeliveryPlanReference.make("plan-1");
+    const shippingKey = shippingKeyFor(
+      groupReference,
+      quoteReference,
+      planReference
+    );
+    const addressKey = deliveryAddressKeyFor(groupReference);
+    const address = {
+      additionalStreetInfo: null,
+      city: "New York",
+      country: "US",
+      key: addressKey,
+      postalCode: "10001",
+      region: null,
+      state: "NY",
+      streetName: "1 Hydra Way",
+    };
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawCartWithLineItem,
+        itemShippingAddresses: [address],
+        lineItems: [
+          {
+            ...rawCartLineItem,
+            shippingDetails: {
+              targets: [
+                {
+                  addressKey,
+                  quantity: 1,
+                  shippingMethodKey: shippingKey,
+                },
+              ],
+              valid: true,
+            },
+          },
+        ],
+        shipping: [
+          {
+            shippingAddress: address,
+            shippingInfo: {
+              price: { centAmount: 500, currencyCode: "USD" },
+              shippingMethodName: "Standard",
+              shippingMethodRef: { id: "standard" },
+              shippingMethodState: "DoesNotMatchCart",
+            },
+            shippingKey,
+          },
+        ],
+        shippingMode: "Multiple",
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({
+        id: CartId.make("cart-1"),
+        store,
+      });
+
+      expect(Option.getOrThrow(found).checkoutDetails).not.toHaveProperty(
+        "selectedDeliveryPlan"
+      );
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect(
     "rejects Business Unit Carts presented as anonymous possession",
     () => {
       const clients = makeScriptedClients();
@@ -283,6 +844,102 @@ describe("findById", () => {
           .pipe(Effect.flip);
 
         expect(error._tag).toBe("CartAccessDenied");
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+});
+
+describe("saveShippingOptions", () => {
+  it.effect("maps merchandise repricing to an unavailable selection", () => {
+    // SAFETY: This test exercises the anonymous Cart update chain consumed by
+    // saveShippingOptions and returns the SDK response shape it awaits.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions
+    const apiRoot = {
+      carts: () => ({
+        withId: () => ({
+          post: () => ({
+            execute: async () =>
+              await Promise.reject(
+                Object.assign(new Error("No matching merchandise price"), {
+                  body: { errors: [{ code: "MatchingPriceNotFound" }] },
+                  statusCode: 400,
+                })
+              ),
+          }),
+        }),
+      }),
+    } as unknown as ByProjectKeyRequestBuilder;
+    const clients = makeScriptedClients(apiRoot);
+    clients.on(
+      "CartById",
+      cartByIdData({
+        ...rawCartWithLineItem,
+        itemShippingAddresses: [],
+        shipping: [],
+        shippingMode: "Multiple",
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const error = yield* carts
+        .saveShippingOptions({
+          selectedDeliveryPlan,
+          target: anonymousTarget,
+        })
+        .pipe(Effect.flip);
+
+      expect(error._tag).toBe("CartShippingSelectionUnavailable");
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect(
+    "requires refresh when the confirmed write cannot be reloaded",
+    () => {
+      // SAFETY: This test exercises only the anonymous Cart update chain consumed
+      // by saveShippingOptions and returns the SDK response shape it awaits.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion, anti-slop/no-chained-type-assertions
+      const apiRoot = {
+        carts: () => ({
+          withId: () => ({
+            post: () => ({
+              execute: async () =>
+                await Promise.resolve({ body: { id: "cart-1" } }),
+            }),
+          }),
+        }),
+      } as unknown as ByProjectKeyRequestBuilder;
+      const clients = makeScriptedClients(apiRoot);
+      clients.on(
+        "CartById",
+        cartByIdData({
+          ...rawCartWithLineItem,
+          itemShippingAddresses: [],
+          shipping: [],
+          shippingMode: "Multiple",
+        }),
+        {
+          error: {
+            message: "Reload unavailable",
+            networkError: new Error("Reload unavailable"),
+          },
+        }
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const error = yield* carts
+          .saveShippingOptions({
+            selectedDeliveryPlan,
+            target: anonymousTarget,
+          })
+          .pipe(Effect.flip);
+
+        expect(error).toMatchObject({
+          _tag: "CartShippingOptionsRefreshRequired",
+          cartId: "cart-1",
+          operation: "saveShippingOptions",
+        });
       }).pipe(Effect.provide(clients.layer));
     }
   );

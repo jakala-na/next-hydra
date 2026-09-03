@@ -9,6 +9,7 @@ import { keys as email } from "@repo/email/keys";
 import { keys as core } from "@repo/next-config/keys";
 import { configurePortlessEnvironment } from "@repo/next-config/portless";
 import { keys as observability } from "@repo/observability/keys";
+import { keys as payments } from "@repo/payments-stripe/keys";
 import { createEnv } from "@t3-oss/env-nextjs";
 
 import { apiServerEnvFields } from "./env-schema";
@@ -26,6 +27,7 @@ export const env = createEnv({
     core(),
     email(),
     observability(),
+    payments(),
   ],
   runtimeEnv: {
     ADMIN_URL: process.env.ADMIN_URL,

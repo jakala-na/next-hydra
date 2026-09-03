@@ -5,6 +5,7 @@ import type { DataTable } from "@repo/e2e-testing";
 import { CartDriver } from "../drivers/cart.driver";
 import { CatalogDriver } from "../drivers/catalog.driver";
 import { CheckoutDriver } from "../drivers/checkout.driver";
+import type { ShippingOptionExpectation } from "../shipping-options-test-control";
 
 const keyValueTable = (
   dataTable: DataTable,
@@ -70,6 +71,41 @@ const expectSameValues = (
   }
 };
 
+const rowsWithHeaders = (
+  dataTable: DataTable,
+  expectedHeaders: readonly string[]
+): readonly ReadonlyMap<string, string>[] => {
+  const [headers, ...rows] = dataTable.raw();
+  if (
+    headers?.length !== expectedHeaders.length ||
+    expectedHeaders.some((header, index) => headers[index] !== header)
+  ) {
+    throw new Error(`Expected table headers ${expectedHeaders.join(", ")}`);
+  }
+
+  return rows.map((row) => {
+    if (row.length !== expectedHeaders.length) {
+      throw new Error(
+        `Each table row must contain ${expectedHeaders.length} values`
+      );
+    }
+    return new Map(
+      expectedHeaders.map((header, index) => [header, row[index] ?? ""])
+    );
+  });
+};
+
+const shippingOptionsFrom = (
+  dataTable: DataTable
+): readonly ShippingOptionExpectation[] =>
+  rowsWithHeaders(dataTable, ["Shipping Option", "Price", "Currency"]).map(
+    (row) => ({
+      currency: row.get("Currency") ?? "",
+      name: row.get("Shipping Option") ?? "",
+      price: row.get("Price") ?? "",
+    })
+  );
+
 const expectCustomer = (auth: AuthContext, customerName: string): void => {
   if (auth.identityFor(customerName) === undefined) {
     throw new Error(
@@ -98,6 +134,16 @@ Given(
     const store = { currency, key: storeKey, locale };
     checkoutScenario.defineStore(store);
     await new CatalogDriver(page).switchStore(store);
+  }
+);
+
+Given(
+  "deliveries to {string} have Shipping Options:",
+  async ({ checkoutScenario }, country: string, dataTable: DataTable) => {
+    await checkoutScenario.expectShippingOptions(
+      country,
+      shippingOptionsFrom(dataTable)
+    );
   }
 );
 
@@ -185,6 +231,13 @@ Then(
   "the Cart is open with {int} unit of Product {string}",
   async ({ page }, quantity: number, productName: string) => {
     await new CartDriver(page).expectOpenWithProduct(quantity, productName);
+  }
+);
+
+Then(
+  "Product {string} is identified by {string} in the Cart",
+  async ({ page }, productName: string, summary: string) => {
+    await new CartDriver(page).expectProductSummary(productName, summary);
   }
 );
 
@@ -300,5 +353,148 @@ When(
     const address = keyValueTable(dataTable, ["Field", "Value"]);
     expectKeys(address, SHIPPING_ADDRESS_FIELDS);
     await new CheckoutDriver(page).enterDeliveryDetails(address);
+  }
+);
+
+Then(
+  "Shipping Options presents a Delivery Plan with targets:",
+  async ({ page }, dataTable: DataTable) => {
+    const targets = rowsWithHeaders(dataTable, [
+      "Delivery Group",
+      "Product",
+      "Quantity",
+    ]).map((row) => {
+      const quantity = Number(row.get("Quantity"));
+      if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+        throw new Error(
+          `Invalid Delivery Target quantity: ${String(quantity)}`
+        );
+      }
+      return {
+        deliveryGroup: row.get("Delivery Group") ?? "",
+        product: row.get("Product") ?? "",
+        quantity,
+      };
+    });
+    await new CheckoutDriver(page).expectDeliveryTargets(targets);
+  }
+);
+
+Then(
+  "Delivery Group {string} offers Shipping Options:",
+  async ({ page }, deliveryGroup: string, dataTable: DataTable) => {
+    await new CheckoutDriver(page).expectShippingOptions(
+      deliveryGroup,
+      shippingOptionsFrom(dataTable)
+    );
+  }
+);
+
+When(
+  "the buyer selects Shipping Option {string} for Delivery Group {string}",
+  async ({ page }, shippingOption: string, deliveryGroup: string) => {
+    await new CheckoutDriver(page).selectShippingOption(
+      deliveryGroup,
+      shippingOption
+    );
+  }
+);
+
+When("the buyer saves Shipping Options", async ({ page }) => {
+  await new CheckoutDriver(page).saveShippingOptions();
+});
+
+Then(
+  "Payment Options offers Payment Methods:",
+  async ({ checkoutScenario, page }, dataTable: DataTable) => {
+    const methods = rowsWithHeaders(dataTable, [
+      "Payment Method",
+      "Availability",
+    ]).map((row) => ({
+      availability: row.get("Availability") ?? "",
+      name: row.get("Payment Method") ?? "",
+    }));
+    const checkout = new CheckoutDriver(page);
+    checkoutScenario.rememberCart(await checkout.currentPaymentOptionsCartId());
+    await checkout.expectPaymentMethods(methods);
+  }
+);
+
+Then(
+  "Net 30 shows {string} available to spend in currency {string}",
+  async ({ page }, amount: string, currency: string) => {
+    await new CheckoutDriver(page).expectNetTermsBalance(amount, currency);
+  }
+);
+
+When(
+  "the buyer enters valid Card details and uses the Shipping Address for Billing",
+  async ({ cardPaymentEntry }) => {
+    await cardPaymentEntry.enterValidDetails();
+  }
+);
+
+When(
+  "the buyer selects Payment Method {string} and uses the Shipping Address for Billing",
+  async ({ page }, method: string) => {
+    await new CheckoutDriver(page).selectPaymentMethod(method);
+  }
+);
+
+When("the buyer saves Payment Options", async ({ checkoutScenario, page }) => {
+  const checkout = new CheckoutDriver(page);
+  checkoutScenario.rememberCart(await checkout.currentPaymentOptionsCartId());
+  await checkout.savePaymentOptions();
+  await checkoutScenario.afterPaymentOptionsSaved();
+});
+
+Then(
+  "Review Order shows Payment Method {string} with planned amount {string} in currency {string}",
+  async ({ page }, method: string, amount: string, currency: string) => {
+    await new CheckoutDriver(page).expectReviewPayment(
+      method,
+      amount,
+      currency
+    );
+  }
+);
+
+Then(
+  "the Card Payment has not been authorized",
+  async ({ checkoutScenario }) => {
+    await checkoutScenario.expectCardNotAuthorized();
+  }
+);
+
+Then(
+  "the buyer cannot select Payment Method {string}",
+  async ({ page }, method: string) => {
+    await new CheckoutDriver(page).expectPaymentMethodCannotBeSelected(method);
+  }
+);
+
+When("the buyer chooses to edit {string}", async ({ page }, step: string) => {
+  await new CheckoutDriver(page).editStep(step);
+});
+
+Then("no selected Shipping Option is shown", async ({ page }) => {
+  await new CheckoutDriver(page).expectNoSelectedShippingOption();
+});
+
+Then(
+  "Delivery Group {string} has selected Shipping Option {string} priced at {string} in currency {string}",
+  async (
+    { page },
+    deliveryGroup: string,
+    shippingOption: string,
+    price: string,
+    currency: string
+  ) => {
+    await new CheckoutDriver(page).expectSelectedShippingOption(
+      deliveryGroup,
+      shippingOption,
+      price,
+      currency
+    );
   }
 );

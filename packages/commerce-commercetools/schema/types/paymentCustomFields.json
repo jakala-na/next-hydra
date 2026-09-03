@@ -1,0 +1,55 @@
+{
+  "key": "paymentCustomFields",
+  "name": {
+    "en-US": "Payment Custom Fields"
+  },
+  "description": {
+    "en-US": "Custom fields persisted on a Payment"
+  },
+  "resourceTypeIds": ["payment"],
+  "fieldDefinitions": [
+    {
+      "name": "checkoutPlacementAttemptReference",
+      "label": {
+        "en-US": "Checkout placement attempt reference"
+      },
+      "required": false,
+      "type": {
+        "name": "String"
+      },
+      "inputHint": "SingleLine"
+    },
+    {
+      "name": "checkoutTermsInDays",
+      "label": {
+        "en-US": "Net Terms duration in days"
+      },
+      "required": false,
+      "type": {
+        "name": "Number"
+      }
+    },
+    {
+      "name": "checkoutCardBrand",
+      "label": {
+        "en-US": "Card brand"
+      },
+      "required": false,
+      "type": {
+        "name": "String"
+      },
+      "inputHint": "SingleLine"
+    },
+    {
+      "name": "checkoutCardLastFour",
+      "label": {
+        "en-US": "Card last four digits"
+      },
+      "required": false,
+      "type": {
+        "name": "String"
+      },
+      "inputHint": "SingleLine"
+    }
+  ]
+}

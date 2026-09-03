@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import {
   shouldRevalidateContact,
   shouldRevalidateDeliveryDetails,
+  shouldRevalidatePlaceOrderFailure,
+  shouldRevalidateShippingOptions,
 } from "./commerce-action-cache-policy";
 import { NextRequestApi } from "./next-request-api";
 
@@ -14,7 +16,7 @@ describe("Commerce action cache policy", () => {
     expect(
       shouldRevalidateContact({
         _tag: "Failure",
-        failure: { error: { _tag: "CheckoutVersionConflict" } },
+        failure: { _tag: "CheckoutVersionConflict" },
       })
     ).toBeTruthy();
   });
@@ -23,7 +25,7 @@ describe("Commerce action cache policy", () => {
     expect(
       shouldRevalidateContact({
         _tag: "Failure",
-        failure: { error: { _tag: "CheckoutMutationSchemaFailure" } },
+        failure: { _tag: "InputInvalid" },
       })
     ).toBeFalsy();
   });
@@ -32,7 +34,7 @@ describe("Commerce action cache policy", () => {
     expect(
       shouldRevalidateContact({
         _tag: "Failure",
-        failure: { error: { _tag: "CheckoutCustomerProfileIncomplete" } },
+        failure: { _tag: "CheckoutCustomerProfileIncomplete" },
       })
     ).toBeFalsy();
   });
@@ -41,7 +43,16 @@ describe("Commerce action cache policy", () => {
     expect(
       shouldRevalidateContact({
         _tag: "Failure",
-        failure: { error: { _tag: "CheckoutMutationOutcomeUnknown" } },
+        failure: { _tag: "CheckoutMutationOutcomeUnknown" },
+      })
+    ).toBeTruthy();
+  });
+
+  it("revalidates after Shipping Options were saved but the refreshed quote failed", () => {
+    expect(
+      shouldRevalidateShippingOptions({
+        _tag: "Failure",
+        failure: { _tag: "CheckoutShippingOptionsRefreshRequired" },
       })
     ).toBeTruthy();
   });
@@ -51,18 +62,27 @@ describe("Commerce action cache policy", () => {
       shouldRevalidateDeliveryDetails({
         _tag: "Failure",
         failure: {
-          error: {
-            _tag: "CheckoutMutationProviderFailure",
-            addressBookReference: "office",
-          },
+          _tag: "CheckoutMutationProviderFailure",
+          addressBookReference: "office",
         },
       })
     ).toBeTruthy();
     expect(
       shouldRevalidateDeliveryDetails({
         _tag: "Failure",
-        failure: { error: { _tag: "CheckoutMutationProviderFailure" } },
+        failure: { _tag: "CheckoutMutationProviderFailure" },
       })
+    ).toBeFalsy();
+  });
+
+  it("revalidates only order-placement failures that can stale checkout", () => {
+    expect(
+      shouldRevalidatePlaceOrderFailure({
+        _tag: "CheckoutPaymentRejected",
+      })
+    ).toBeTruthy();
+    expect(
+      shouldRevalidatePlaceOrderFailure({ _tag: "InputInvalid" })
     ).toBeFalsy();
   });
 

@@ -1,3 +1,5 @@
+/* oxlint-disable vitest/max-expects -- HTTP contract scenarios assert status, public shape, and absence of private identity fields together. */
+/* oxlint-disable typescript/no-unsafe-assignment -- These HTTP contract tests intentionally inspect the untyped JSON returned by the platform Response API. */
 import {
   AuthUserId as AccessTokenAuthUserId,
   AccessTokenInvalid,
@@ -32,9 +34,12 @@ import { Carts } from "@repo/commerce/services/carts";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
 import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
+import { DeliveryPlanning } from "@repo/commerce/services/delivery-planning";
+import { Orders } from "@repo/commerce/services/orders";
 import { StoreKey } from "@repo/commerce/store";
+import { CheckoutPayments } from "@repo/payments";
 import { Context, Effect, Layer } from "effect";
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 
 import { makeAddressBookHttpHandler } from "../lib/address-book/http";
 
@@ -138,9 +143,12 @@ const makeHandler = (
     addressBookLayer,
     cartPoliciesLayer: CartPolicies.layer,
     cartsLayer: Carts.layerMemory(),
+    checkoutPaymentsLayer: CheckoutPayments.unavailableLayer,
     checkoutPoliciesLayer: CheckoutPolicies.layer,
     commerceAccountsLayer,
     commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
+    deliveryPlanningLayer: DeliveryPlanning.emptyLayer,
+    ordersLayer: Orders.layerMemory(),
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 
@@ -150,161 +158,45 @@ const makeHandler = (
   });
 };
 
-const emptyContext = () => Context.empty() as Context.Context<unknown>;
+const emptyContext = () => Context.empty();
 
-test("GET /address-book returns entries for the verified Business Unit principal", async () => {
-  let listedPrincipal: CustomerCommercePrincipal | undefined;
-  const { dispose, handler } = makeHandler(
-    makeAddressBookLayer((principal) => {
-      listedPrincipal = principal;
-      return Effect.succeed([entry]);
-    })
-  );
-
-  try {
-    const response = await handler(
-      addressBookRequest({
-        authorization: "Bearer valid-token",
-        "x-context-business-unit-id": businessUnitId,
-        "x-context-customer-id": "customer-spoof",
-      }),
-      emptyContext()
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(HTTP_OK);
-    expect(body).toEqual([entry]);
-    expect(listedPrincipal?.customerId).toBe(customerId);
-    expect(listedPrincipal?.businessUnitId).toBe(businessUnitId);
-    expect(JSON.stringify(body)).not.toContain(businessUnitId);
-    expect(JSON.stringify(body)).not.toContain(customerId);
-  } finally {
-    await dispose();
-  }
-});
-
-test("GET /address-book sanitizes response schema defects at the shared HTTP boundary", async () => {
-  const { dispose, handler } = makeHandler(
-    makeAddressBookLayer(() => Effect.succeed([undefined as never]))
-  );
-
-  try {
-    const response = await handler(
-      addressBookRequest({ authorization: "Bearer valid-token" }),
-      emptyContext()
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
-    expect(body).toStrictEqual({
-      _tag: "Unexpected",
-      category: "unexpected",
-      code: "unexpected",
-      message: "Something went wrong.",
-      recovery: "none",
-    });
-    expect(JSON.stringify(body)).not.toContain("AddressBookEntry");
-  } finally {
-    await dispose();
-  }
-});
-
-test.each([
-  {
-    headers: undefined,
-    label: "missing",
-  },
-  {
-    headers: { authorization: "Bearer invalid-token" },
-    label: "invalid",
-  },
-  {
-    headers: { authorization: "1234567valid-token" },
-    label: "malformed",
-  },
-])("GET /address-book rejects $label authentication", async ({ headers }) => {
-  const { dispose, handler } = makeHandler(
-    makeAddressBookLayer(() => Effect.succeed([]))
-  );
-
-  try {
-    const response = await handler(addressBookRequest(headers), emptyContext());
-    const body = await response.json();
-
-    expect(response.status).toBe(HTTP_UNAUTHORIZED);
-    expect(body).toMatchObject({
-      _tag: "AddressBookApiUnauthorized",
-      code: "auth.unauthorized",
-    });
-  } finally {
-    await dispose();
-  }
-});
-
-test.each([
-  {
-    code: "addressBook.accessDenied",
-    error: new AddressBookAccessDenied({
-      message: "Buyer cannot access the Address Book",
-      operation: "list",
-    }),
-    message: "Address Book access is denied.",
-    status: HTTP_FORBIDDEN,
-  },
-  {
-    code: "addressBook.contextUnavailable",
-    error: new CommerceRequestContextNotFound({
-      message: "Buying Context no longer exists",
-      reason: "noBuyingContext",
-    }),
-    message: "The Address Book is unavailable for the current account.",
-    status: HTTP_NOT_FOUND,
-  },
-  {
-    code: "addressBook.unavailable",
-    error: new AddressBookProviderFailure({
-      message: "Commercetools is unavailable",
-      operation: "list",
-      reason: "unavailable",
-    }),
-    message: "The Address Book is temporarily unavailable.",
-    status: HTTP_SERVICE_UNAVAILABLE,
-  },
-])(
-  "GET /address-book maps '$error._tag' to its own HTTP error",
-  async ({ error, status, code, message }) => {
+describe("Address Book REST API", () => {
+  test("GET /address-book returns entries for the verified Business Unit principal", async () => {
+    let listedPrincipal: CustomerCommercePrincipal | undefined;
     const { dispose, handler } = makeHandler(
-      makeAddressBookLayer(() => Effect.fail(error))
+      makeAddressBookLayer((principal) => {
+        listedPrincipal = principal;
+        return Effect.succeed([entry]);
+      })
     );
 
     try {
       const response = await handler(
-        addressBookRequest({ authorization: "Bearer valid-token" }),
+        addressBookRequest({
+          authorization: "Bearer valid-token",
+          "x-context-business-unit-id": businessUnitId,
+          "x-context-customer-id": "customer-spoof",
+        }),
         emptyContext()
       );
       const body = await response.json();
 
-      expect(response.status).toBe(status);
-      expect(body).toMatchObject({ code, message });
+      expect(response.status).toBe(HTTP_OK);
+      expect(body).toEqual([entry]);
+      expect(listedPrincipal?.customerId).toBe(customerId);
+      expect(listedPrincipal?.businessUnitId).toBe(businessUnitId);
+      expect(JSON.stringify(body)).not.toContain(businessUnitId);
+      expect(JSON.stringify(body)).not.toContain(customerId);
     } finally {
       await dispose();
     }
-  }
-);
+  });
 
-test.each(["invalidData", "unexpectedResponse"] as const)(
-  "GET /address-book sanitizes %s provider failures as unexpected defects",
-  async (reason) => {
+  test("GET /address-book sanitizes response schema defects at the shared HTTP boundary", async () => {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- SAFETY: This test intentionally violates the service contract to verify the shared HTTP schema sanitizer.
+    const invalidEntry = undefined as never;
     const { dispose, handler } = makeHandler(
-      makeAddressBookLayer(() =>
-        Effect.fail(
-          new AddressBookProviderFailure({
-            message: "Private provider diagnostic",
-            operation: "list",
-            reason,
-          })
-        )
-      )
+      makeAddressBookLayer(() => Effect.succeed([invalidEntry]))
     );
 
     try {
@@ -322,38 +214,163 @@ test.each(["invalidData", "unexpectedResponse"] as const)(
         message: "Something went wrong.",
         recovery: "none",
       });
-      expect(JSON.stringify(body)).not.toContain("Private provider diagnostic");
+      expect(JSON.stringify(body)).not.toContain("AddressBookEntry");
     } finally {
       await dispose();
     }
-  }
-);
+  });
 
-test.each(["en-CA", "toString"])(
-  "GET /address-book rejects unsupported locale %s with its own bad request",
-  async (locale) => {
+  test.each([
+    {
+      headers: undefined,
+      label: "missing",
+    },
+    {
+      headers: { authorization: "Bearer invalid-token" },
+      label: "invalid",
+    },
+    {
+      headers: { authorization: "1234567valid-token" },
+      label: "malformed",
+    },
+  ])("GET /address-book rejects $label authentication", async ({ headers }) => {
     const { dispose, handler } = makeHandler(
       makeAddressBookLayer(() => Effect.succeed([]))
     );
 
     try {
       const response = await handler(
-        addressBookRequest({
-          authorization: "Bearer valid-token",
-          "x-context-locale": locale,
-        }),
+        addressBookRequest(headers),
         emptyContext()
       );
       const body = await response.json();
 
-      expect(response.status).toBe(HTTP_BAD_REQUEST);
+      expect(response.status).toBe(HTTP_UNAUTHORIZED);
       expect(body).toMatchObject({
-        _tag: "InputInvalid",
-        code: "input.invalid",
-        issues: [{ path: ["x-context-locale"] }],
+        _tag: "AddressBookApiUnauthorized",
+        code: "auth.unauthorized",
       });
     } finally {
       await dispose();
     }
-  }
-);
+  });
+
+  test.each([
+    {
+      code: "addressBook.accessDenied",
+      error: new AddressBookAccessDenied({
+        message: "Buyer cannot access the Address Book",
+        operation: "list",
+      }),
+      message: "Address Book access is denied.",
+      status: HTTP_FORBIDDEN,
+    },
+    {
+      code: "addressBook.contextUnavailable",
+      error: new CommerceRequestContextNotFound({
+        message: "Buying Context no longer exists",
+        reason: "noBuyingContext",
+      }),
+      message: "The Address Book is unavailable for the current account.",
+      status: HTTP_NOT_FOUND,
+    },
+    {
+      code: "addressBook.unavailable",
+      error: new AddressBookProviderFailure({
+        message: "Commercetools is unavailable",
+        operation: "list",
+        reason: "unavailable",
+      }),
+      message: "The Address Book is temporarily unavailable.",
+      status: HTTP_SERVICE_UNAVAILABLE,
+    },
+  ])(
+    "GET /address-book maps '$error._tag' to its own HTTP error",
+    async ({ error, status, code, message }) => {
+      const { dispose, handler } = makeHandler(
+        makeAddressBookLayer(() => Effect.fail(error))
+      );
+
+      try {
+        const response = await handler(
+          addressBookRequest({ authorization: "Bearer valid-token" }),
+          emptyContext()
+        );
+        const body = await response.json();
+
+        expect(response.status).toBe(status);
+        expect(body).toMatchObject({ code, message });
+      } finally {
+        await dispose();
+      }
+    }
+  );
+
+  test.each(["invalidData", "unexpectedResponse"] as const)(
+    "GET /address-book sanitizes %s provider failures as unexpected defects",
+    async (reason) => {
+      const { dispose, handler } = makeHandler(
+        makeAddressBookLayer(() =>
+          Effect.fail(
+            new AddressBookProviderFailure({
+              message: "Private provider diagnostic",
+              operation: "list",
+              reason,
+            })
+          )
+        )
+      );
+
+      try {
+        const response = await handler(
+          addressBookRequest({ authorization: "Bearer valid-token" }),
+          emptyContext()
+        );
+        const body = await response.json();
+
+        expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
+        expect(body).toStrictEqual({
+          _tag: "Unexpected",
+          category: "unexpected",
+          code: "unexpected",
+          message: "Something went wrong.",
+          recovery: "none",
+        });
+        expect(JSON.stringify(body)).not.toContain(
+          "Private provider diagnostic"
+        );
+      } finally {
+        await dispose();
+      }
+    }
+  );
+
+  test.each(["en-CA", "toString"])(
+    "GET /address-book rejects unsupported locale %s with its own bad request",
+    async (locale) => {
+      const { dispose, handler } = makeHandler(
+        makeAddressBookLayer(() => Effect.succeed([]))
+      );
+
+      try {
+        const response = await handler(
+          addressBookRequest({
+            authorization: "Bearer valid-token",
+            "x-context-locale": locale,
+          }),
+          emptyContext()
+        );
+        const body = await response.json();
+
+        expect(response.status).toBe(HTTP_BAD_REQUEST);
+        expect(body).toMatchObject({
+          _tag: "InputInvalid",
+          code: "input.invalid",
+          issues: [{ path: ["x-context-locale"] }],
+        });
+      } finally {
+        await dispose();
+      }
+    }
+  );
+});

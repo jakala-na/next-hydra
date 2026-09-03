@@ -2,7 +2,7 @@
 // Run `pnpm cli commerce types generate` to regenerate.
 
 import { Schema } from "effect";
-import { ProductAttributeEnumValue } from "../attributes";
+import { makeProductAttributeEnumValueSchema } from "../attributes";
 import { ProductId } from "../identity";
 import {
   hasCompleteProductOptionSelection,
@@ -44,7 +44,7 @@ export const HeavyEarthmovingAndConstructionEquipmentAttributes = Schema.Struct(
   capacity: Schema.optional(Schema.Number),
   iso45001: Schema.optional(Schema.Boolean),
   relatedProducts: Schema.optional(Schema.Array(ProductId)),
-  mobility: Schema.optional(ProductAttributeEnumValue),
+  mobility: Schema.optional(makeProductAttributeEnumValueSchema(["tracked", "wheeled", "fixed", "marine"])),
   model: Schema.Number,
 });
 export type HeavyEarthmovingAndConstructionEquipmentAttributes = typeof HeavyEarthmovingAndConstructionEquipmentAttributes.Type;
@@ -53,8 +53,8 @@ export const HeavyLiftingAndSpecializedEquipmentAttributes = Schema.Struct({
   capacity: Schema.optional(Schema.Number),
   iso45001: Schema.optional(Schema.Boolean),
   relatedProducts: Schema.optional(Schema.Array(ProductId)),
-  mobility: Schema.optional(ProductAttributeEnumValue),
-  color: ProductAttributeEnumValue,
+  mobility: Schema.optional(makeProductAttributeEnumValueSchema(["tracked", "wheeled", "fixed", "marine"])),
+  color: makeProductAttributeEnumValueSchema(["RED", "BLUE", "GREEN"]),
 });
 export type HeavyLiftingAndSpecializedEquipmentAttributes = typeof HeavyLiftingAndSpecializedEquipmentAttributes.Type;
 
