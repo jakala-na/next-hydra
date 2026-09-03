@@ -13,6 +13,7 @@ type CliActionOptions = {
   yes?: boolean;
   skipGit?: boolean;
   commit?: boolean;
+  maintainerWorkspace?: boolean;
   ref?: string;
   repoUrl?: string;
   verbose?: boolean;
@@ -41,10 +42,13 @@ function buildCreateOptions(
     cms: rawOptions.cms,
     commerce: rawOptions.commerce,
     commit: rawOptions.commit ?? true,
+    maintainerWorkspace: rawOptions.maintainerWorkspace ?? false,
     preset: rawOptions.preset,
     ref: rawOptions.ref,
     repoUrl: rawOptions.repoUrl ?? DEFAULT_REPO_URL,
-    skipGit: rawOptions.skipGit ?? false,
+    skipGit:
+      (rawOptions.maintainerWorkspace ?? false) ||
+      (rawOptions.skipGit ?? false),
     targetDir,
     verbose: rawOptions.verbose ?? false,
     yes: rawOptions.yes ?? false,
@@ -63,6 +67,10 @@ export async function runCli(
     .argument("[project-directory]", "Target directory")
     .option("-y, --yes", "Skip prompts (requires [project-directory])")
     .option("--skip-git", "Skip git initialization")
+    .option(
+      "--maintainer-workspace",
+      "PROTOTYPE: compose from and link sources to the current maintainer checkout"
+    )
     .option("--no-commit", "Initialize git but skip initial commit")
     .option("--ref <git-ref>", "Clone and checkout a specific git ref")
     .option("--repo-url <url>", "Override the starter repo URL")

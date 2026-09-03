@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-export const withCMS = (config: NextConfig) => ({
+export const withCMS = (config: NextConfig): NextConfig => ({
   ...config,
   allowedDevOrigins: [
     ...(config.allowedDevOrigins || []),

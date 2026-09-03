@@ -170,7 +170,8 @@ function readPnpmWorkspaceConfig(source: string): {
 
 export async function applyPnpmPatches(
   workspaceRoot: string,
-  plan: CompositionPlan
+  plan: CompositionPlan,
+  options: { preserveUnselected?: boolean } = {}
 ): Promise<void> {
   if (plan.catalogPnpmPatches.length === 0) {
     return;
@@ -181,7 +182,9 @@ export async function applyPnpmPatches(
     await readFile(workspaceFile, "utf-8")
   );
   const governedDependencies = new Set(
-    plan.catalogPnpmPatches.map((patch) => patch.dependency)
+    options.preserveUnselected
+      ? []
+      : plan.catalogPnpmPatches.map((patch) => patch.dependency)
   );
   const patches = Object.fromEntries(
     Object.entries(config.patchedDependencies ?? {}).filter(
@@ -246,7 +249,8 @@ export async function removeWorkspaceTargets(
 export async function checkWorkspaceComposition(
   workspaceRoot: string,
   plan: CompositionPlan,
-  managedFiles: PreparedComposition["managedFiles"]
+  managedFiles: PreparedComposition["managedFiles"],
+  options: { allowUnselectedPatches?: boolean } = {}
 ): Promise<string[]> {
   const drift: string[] = [];
 
@@ -315,6 +319,9 @@ export async function checkWorkspaceComposition(
     );
     for (const patch of plan.catalogPnpmPatches) {
       const expected = selectedPatches.get(patch.dependency);
+      if (expected === undefined && options.allowUnselectedPatches) {
+        continue;
+      }
       const actual = config.patchedDependencies?.[patch.dependency];
       if (actual !== expected) {
         drift.push(

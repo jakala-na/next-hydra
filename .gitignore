@@ -286,6 +286,7 @@ $RECYCLE.BIN/
 
 # Local agent/reference workspaces
 repos/
+/workspaces/
 
 # Local ad hoc agent research. Durable Wayfinder research belongs under the
 # relevant tracked `.scratch/<effort>/research/` directory instead.

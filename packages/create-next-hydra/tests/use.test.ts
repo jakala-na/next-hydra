@@ -359,7 +359,7 @@ describe("maintainer use", () => {
       cmsAlias: "workspace:@repo/cms-contentstack@*",
       contentstackOnly: "^1.0.0",
       draftRoute: 'export { GET } from "@repo/cms/routes/draft";\n',
-      hasDrupalPatch: false,
+      hasDrupalPatch: true,
       selection: DRUPAL_SELECTION.replace(
         '"cms": "drupal"',
         '"cms": "contentstack"'

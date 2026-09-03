@@ -26,6 +26,7 @@ import {
   applyPackageRequirements,
   applyPnpmPatches,
   removeWorkspaceTargets,
+  writeWorkspaceSelection,
 } from "./composition/workspace.js";
 import { DEFAULT_PACKAGE_MANAGER } from "./constants.js";
 import {
@@ -48,6 +49,14 @@ import {
   success,
   warn,
 } from "./logger.js";
+import {
+  assertMaintainerDependencyCompatibility,
+  assertMaintainerWorkspaceTarget,
+  copyMaintainerEnvironmentFiles,
+  copyMaintainerWorkspace,
+  findMaintainerWorkspaceRoot,
+  linkMaintainerWorkspaceSources,
+} from "./maintainer-workspace.prototype.js";
 import { promptForProvider } from "./prompts.js";
 import { sanitizeStarter } from "./sanitize.js";
 import type {
@@ -239,7 +248,8 @@ export async function scaffoldProject(
   intro("create-next-hydra");
 
   const spin = createSpinner();
-  const { repoUrl, ref, skipGit, commit, verbose } = options;
+  const { repoUrl, ref, commit, verbose } = options;
+  const skipGit = options.maintainerWorkspace || options.skipGit;
   if (!options.targetDir) {
     throw new Error("Missing target directory.");
   }
@@ -256,7 +266,11 @@ export async function scaffoldProject(
     );
   }
 
-  const sourcePath = await localRepositoryPath(repoUrl);
+  const maintainerSourcePath = options.maintainerWorkspace
+    ? await findMaintainerWorkspaceRoot(process.cwd())
+    : undefined;
+  const effectiveRepoUrl = maintainerSourcePath ?? repoUrl;
+  const sourcePath = await localRepositoryPath(effectiveRepoUrl);
   const remoteRepository = sourcePath ? null : githubRepository(repoUrl);
   let sourceCatalog: SourceRegistryCatalog;
   if (sourcePath) {
@@ -287,9 +301,15 @@ export async function scaffoldProject(
   const { targetPath, targetName } = await resolveAndValidateTarget(
     options.targetDir
   );
+  if (maintainerSourcePath) {
+    assertMaintainerWorkspaceTarget(maintainerSourcePath, targetPath);
+  }
+  const prepareSourceLabel = maintainerSourcePath
+    ? "copy the maintainer workspace"
+    : "clone the starter";
   const completed: string[] = [];
   const pending = [
-    "clone the starter",
+    prepareSourceLabel,
     "resolve the composition",
     "remove variable provider source",
     "install selected source",
@@ -297,10 +317,12 @@ export async function scaffoldProject(
     "update TypeScript paths",
     "update pnpm patches",
     "remove maintainer-only files",
+    ...(maintainerSourcePath ? ["copy local environment files"] : []),
     "install dependencies",
+    ...(maintainerSourcePath ? ["link maintainer source"] : []),
     "initialize Git",
   ];
-  let currentStep = "clone the starter";
+  let currentStep = prepareSourceLabel;
 
   const runStep = async <T>(label: string, operation: () => Promise<T>) => {
     currentStep = label;
@@ -311,11 +333,26 @@ export async function scaffoldProject(
   };
 
   try {
-    spin.start("Cloning next-hydra starter");
-    await runStep("clone the starter", async () => {
-      await cloneStarter({ ref, repoUrl, targetPath, verbose });
+    spin.start(
+      maintainerSourcePath
+        ? "Copying the maintainer workspace"
+        : "Cloning next-hydra starter"
+    );
+    await runStep(prepareSourceLabel, async () => {
+      if (maintainerSourcePath) {
+        await copyMaintainerWorkspace(maintainerSourcePath, targetPath);
+        return;
+      }
+      await cloneStarter({
+        ref,
+        repoUrl: effectiveRepoUrl,
+        targetPath,
+        verbose,
+      });
     });
-    spin.stop("Starter cloned");
+    spin.stop(
+      maintainerSourcePath ? "Maintainer workspace copied" : "Starter cloned"
+    );
 
     spin.start("Resolving workspace composition");
     const { catalog, plan, prepared } = await runStep(
@@ -372,6 +409,12 @@ export async function scaffoldProject(
     });
     await runStep("update pnpm patches", async () => {
       await applyPnpmPatches(targetPath, plan);
+      if (maintainerSourcePath) {
+        await assertMaintainerDependencyCompatibility(
+          maintainerSourcePath,
+          targetPath
+        );
+      }
     });
     spin.start("Removing maintainer-only files");
     const { packageName } = await runStep(
@@ -388,6 +431,21 @@ export async function scaffoldProject(
     );
     spin.stop("Maintainer-only files removed");
 
+    const environmentFiles = maintainerSourcePath
+      ? await runStep("copy local environment files", async () =>
+          copyMaintainerEnvironmentFiles(maintainerSourcePath, targetPath)
+        )
+      : [];
+    if (environmentFiles.length > 0) {
+      info(
+        `Copied ${environmentFiles.length} ignored local environment file${environmentFiles.length === 1 ? "" : "s"}.`
+      );
+    }
+
+    if (maintainerSourcePath) {
+      await writeWorkspaceSelection(targetPath, selection);
+    }
+
     spin.start("Installing dependencies");
     await runStep("install dependencies", async () => {
       if (dependencies.install) {
@@ -400,6 +458,19 @@ export async function scaffoldProject(
       });
     });
     spin.stop("Dependencies installed");
+
+    if (maintainerSourcePath) {
+      const linkCount = await runStep("link maintainer source", async () =>
+        linkMaintainerWorkspaceSources({
+          environmentFiles,
+          selectedItems: plan.registryItems,
+          selection,
+          sourceRoot: maintainerSourcePath,
+          targetRoot: targetPath,
+        })
+      );
+      info(`Linked ${linkCount} paths to the maintainer source workspace.`);
+    }
 
     let gitInitialized = false;
     let committed = false;

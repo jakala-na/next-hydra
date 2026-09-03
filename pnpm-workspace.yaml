@@ -31,6 +31,10 @@ overrides:
 patchedDependencies:
   "@contentstack/cli-cm-import@2.0.0": patches/@contentstack__cli-cm-import@2.0.0.patch
   "@contentstack/cli-migration@2.0.0": patches/@contentstack__cli-migration@2.0.0.patch
+  "@drupal-canvas/headless": patches/@drupal-canvas__headless.patch
+  "@drupal-canvas/headless-next": patches/@drupal-canvas__headless-next.patch
+  "@drupal-canvas/headless-react": patches/@drupal-canvas__headless-react.patch
+  "@drupal-canvas/workbench@0.10.0": patches/@drupal-canvas__workbench@0.10.0.patch
 ignoredBuiltDependencies:
   - "@clerk/shared"
   - "@nestjs/core"

@@ -187,7 +187,8 @@ export async function useComposition(
     const drift = await checkWorkspaceComposition(
       cwd,
       plan,
-      prepared.managedFiles
+      prepared.managedFiles,
+      { allowUnselectedPatches: true }
     );
     if (drift.length > 0) {
       throw new CompositionValidationError(
@@ -261,7 +262,7 @@ export async function useComposition(
     await applyTypeScriptPathAliases(cwd, plan);
   });
   await runStep("update pnpm patches", async () => {
-    await applyPnpmPatches(cwd, plan);
+    await applyPnpmPatches(cwd, plan, { preserveUnselected: true });
   });
   await runStep("install dependencies", async () => {
     if (dependencies.install) {

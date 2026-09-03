@@ -36,7 +36,38 @@ node packages/create-next-hydra/dist/cli.js use --preset standard
 node packages/create-next-hydra/dist/cli.js use --check
 ```
 
-`use` updates `next-hydra.json`, governed package entries, Provider-owned application files such as Next.js routes, and the lockfile. It does not remove canonical Provider or Add-on implementation source from the maintainer repository. If an operation fails, it leaves the Git diff in place for inspection or repair.
+`use` updates `next-hydra.json`, governed package entries, Provider-owned application files such as Next.js routes, and the lockfile. It preserves configured patches for unselected Providers so the checkout can remain a stable package-authoring dependency superset. It does not remove canonical Provider or Add-on implementation source from the maintainer repository. If an operation fails, it leaves the Git diff in place for inspection or repair.
+
+## Prototype an isolated maintainer composition
+
+The `--maintainer-workspace` prototype creates a disposable, fully composed workspace below the repository's ignored `workspaces/` directory. Run it from the maintainer checkout after building the CLI and installing the checkout's dependencies:
+
+```bash
+pnpm --filter create-next-hydra build
+node packages/create-next-hydra/dist/cli.js \
+  workspaces/drupal-workos \
+  --maintainer-workspace \
+  --auth workos \
+  --cms drupal \
+  --commerce commercetools \
+  --yes
+```
+
+The prototype runs the same composition, sanitization, package-alias, patch, and dependency-install steps as a Customer Workspace. The generated workspace therefore has its own root `package.json`, application manifests, `pnpm-lock.yaml`, and `node_modules` for the selected graph. It then replaces each retained `packages/*` directory with a link to the canonical package in the maintainer checkout. For example, the generated app's `@repo/cms` workspace alias resolves through `workspaces/drupal-workos/packages/cms-drupal` to the checkout's `packages/cms-drupal` source.
+
+Ignored local environment files named `.env` or `.env.*` are copied from the maintainer checkout to the same relative paths when that application or package exists in the selected composition. Their names and paths may be recorded in the maintainer receipt, but their contents are never printed. This gives each generated application the same local credentials as the checkout without placing those credentials under Git.
+
+Provider-owned application files are linked individually to their canonical registry sources. A Drupal route materialized at `apps/web/app/api/draft/route.ts`, for example, points to `packages/cms-drupal/registry/apps/web/app/api/draft/route.ts`. The same mapping automatically applies to a future Stripe webhook route contributed by its selected registry item. Switching compositions means creating or recreating another generated workspace; it does not rewrite the tracked applications or their manifests in the maintainer checkout.
+
+This is deliberately a bounded prototype:
+
+- The maintainer checkout is the dependency environment for linked packages. Its `pnpm-workspace.yaml` must retain the union of patches required by all linkable Providers, and `pnpm install` must have been run there. The command rejects a composition whose required patch is missing from that superset.
+- A package is linked only when its composed `package.json` is identical to the canonical source manifest. A future Add-on that mutates that package manifest needs a more precise overlay instead of a directory link.
+- Canonical package files and Provider-owned application contributions are live-linked. Ordinary files under generated `apps/*` are composition copies, so edit their tracked counterparts in the maintainer checkout.
+- New files created only inside the ignored generated workspace are disposable. Add new Provider-owned files below the Provider's canonical `registry/` directory and run `pnpm registry:sync`; do not author them only in `workspaces/`.
+- Recreate the generated workspace after changing selections or dependency manifests. It is a test projection, not another source of truth.
+
+The generated `.next-hydra-maintainer-workspace.json` records every source-to-target link and the selected composition for inspection.
 
 ## Add code to a customer workspace
 
