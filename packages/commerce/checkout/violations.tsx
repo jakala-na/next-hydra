@@ -10,17 +10,17 @@ interface CheckoutViolationMessages {
   readonly violation: (violation: CheckoutViolation) => string;
 }
 
-export function ActiveStepViolations({
-  activeStep,
+export function CheckoutStepViolations({
   messages,
+  step,
   violations,
 }: {
-  readonly activeStep: CheckoutStepId;
   readonly messages: CheckoutViolationMessages;
+  readonly step: CheckoutStepId;
   readonly violations: readonly CheckoutViolation[];
 }) {
   const visibleViolations = violations.filter((violation) =>
-    isVisibleForCheckoutStep(violation, activeStep)
+    isVisibleForCheckoutStep(violation, step)
   );
 
   if (visibleViolations.length === 0) {

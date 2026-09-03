@@ -314,7 +314,11 @@
         "incomplete": "Incomplete"
       },
       "activeStep": "Active step",
+      "editingStep": "Editing",
       "attention": "This step needs attention",
+      "actions": {
+        "edit": "Edit"
+      },
       "errorBoundary": {
         "tryAgain": "Try again"
       },
@@ -355,7 +359,6 @@
           "country": "Country"
         },
         "actions": {
-          "edit": "Edit delivery details",
           "save": "Save delivery details",
           "saving": "Saving..."
         }

@@ -192,7 +192,7 @@ describe(CheckoutSession, () => {
           anonymousCartId: cart.id,
           channel: "storefrontAnonymous",
         });
-        expect(state.activeStep).toBe("contact");
+        expect(state.nextStep).toBe("contact");
         expect("version" in state.cart).toBeFalsy();
       })
     )
@@ -220,7 +220,7 @@ describe(CheckoutSession, () => {
           },
           source: "manual",
         });
-        expect(state.activeStep).toBe("deliveryDetails");
+        expect(state.nextStep).toBe("deliveryDetails");
       })
     )
   );
@@ -636,7 +636,7 @@ describe(CheckoutSession, () => {
       return provideCheckout(
         Effect.gen(function* () {
           const before = yield* CheckoutSession.getCurrentWithDeliveryPlans();
-          expect(before.state.activeStep).toBe("shippingOptions");
+          expect(before.state.nextStep).toBe("shippingOptions");
 
           const state = yield* CheckoutSession.saveShippingOptions({
             cart: { id: cart.id },
@@ -652,7 +652,7 @@ describe(CheckoutSession, () => {
             },
           });
 
-          expect(state.activeStep).toBe("paymentOptions");
+          expect(state.nextStep).toBe("paymentOptions");
           expect(
             state.steps.find((step) => step.id === "shippingOptions")?.status
           ).toBe("complete");
@@ -970,7 +970,7 @@ describe(CheckoutSession, () => {
             },
           });
 
-          expect(state.activeStep).toBe("reviewOrder");
+          expect(state.nextStep).toBe("reviewOrder");
           const attemptReference =
             state.details.preparedPayment?.attemptReference;
           if (!(attemptReference ?? "").startsWith("checkout-cart-1-")) {

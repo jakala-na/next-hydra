@@ -5,7 +5,7 @@ import { ProductId } from "../domain/cart";
 import type { CheckoutViolation } from "../domain/checkout";
 import { checkoutViolationMessage } from "../lib/checkout/violation-message";
 import { CommerceLocale } from "../store";
-import { ActiveStepViolations, CartSidebarViolations } from "./violations";
+import { CartSidebarViolations, CheckoutStepViolations } from "./violations";
 
 const violations = [
   {
@@ -58,41 +58,52 @@ const messages = {
 };
 
 describe("Checkout violation rendering", () => {
-  it("renders localized cart and active-step violations in their respective components", () => {
+  it("renders localized cart and Checkout Step violations in their respective components", () => {
     const sidebarHtml = renderToStaticMarkup(
       <CartSidebarViolations messages={messages} violations={violations} />
     );
-    const activeStepHtml = renderToStaticMarkup(
-      <ActiveStepViolations
-        activeStep="shippingOptions"
+    const checkoutStepHtml = renderToStaticMarkup(
+      <CheckoutStepViolations
         messages={messages}
+        step="shippingOptions"
         violations={violations}
       />
     );
 
-    expect(sidebarHtml).toContain("Probleme mit dem Warenkorb");
-    expect(sidebarHtml).toContain(
-      "Der Checkout kann erst fortgesetzt werden, wenn dieses Problem behoben ist."
-    );
-    expect(sidebarHtml).toContain(
-      "Diese Artikel können nicht zusammen gekauft werden."
-    );
-    expect(sidebarHtml).toContain(
-      "Gastwarenkörbe sind auf 50 Artikel begrenzt. Entfernen Sie mindestens 1 Artikel."
-    );
-    expect(sidebarHtml).not.toContain(
-      "Ein oder mehrere Artikel können nicht an diese Adresse geliefert werden."
-    );
-
-    expect(activeStepHtml).toContain("Achtung");
-    expect(activeStepHtml).toContain(
-      "Ein oder mehrere Artikel können nicht an diese Adresse geliefert werden."
-    );
-    expect(activeStepHtml).not.toContain(
-      "Diese Artikel können nicht zusammen gekauft werden."
-    );
-    expect(activeStepHtml).not.toContain(
-      "Die Checkout-Verfügbarkeit konnte nicht geprüft werden."
-    );
+    expect({
+      checkoutStepAttention: checkoutStepHtml.includes("Achtung"),
+      checkoutStepCartViolation: checkoutStepHtml.includes(
+        "Diese Artikel können nicht zusammen gekauft werden."
+      ),
+      checkoutStepProviderViolation: checkoutStepHtml.includes(
+        "Die Checkout-Verfügbarkeit konnte nicht geprüft werden."
+      ),
+      checkoutStepShippingViolation: checkoutStepHtml.includes(
+        "Ein oder mehrere Artikel können nicht an diese Adresse geliefert werden."
+      ),
+      sidebarBlockingViolation: sidebarHtml.includes(
+        "Der Checkout kann erst fortgesetzt werden, wenn dieses Problem behoben ist."
+      ),
+      sidebarCartViolation: sidebarHtml.includes(
+        "Diese Artikel können nicht zusammen gekauft werden."
+      ),
+      sidebarQuantityViolation: sidebarHtml.includes(
+        "Gastwarenkörbe sind auf 50 Artikel begrenzt. Entfernen Sie mindestens 1 Artikel."
+      ),
+      sidebarShippingViolation: sidebarHtml.includes(
+        "Ein oder mehrere Artikel können nicht an diese Adresse geliefert werden."
+      ),
+      sidebarTitle: sidebarHtml.includes("Probleme mit dem Warenkorb"),
+    }).toStrictEqual({
+      checkoutStepAttention: true,
+      checkoutStepCartViolation: false,
+      checkoutStepProviderViolation: false,
+      checkoutStepShippingViolation: true,
+      sidebarBlockingViolation: true,
+      sidebarCartViolation: true,
+      sidebarQuantityViolation: true,
+      sidebarShippingViolation: false,
+      sidebarTitle: true,
+    });
   });
 });

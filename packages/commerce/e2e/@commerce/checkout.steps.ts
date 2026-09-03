@@ -473,7 +473,7 @@ Then(
   }
 );
 
-When("the buyer chooses to edit {string}", async ({ page }, step: string) => {
+When("the buyer edits the {string} step", async ({ page }, step: string) => {
   await new CheckoutDriver(page).editStep(step);
 });
 

@@ -318,7 +318,11 @@
         "incomplete": "Incompleto"
       },
       "activeStep": "Passo ativo",
+      "editingStep": "A editar",
       "attention": "Este passo requer atenção",
+      "actions": {
+        "edit": "Editar"
+      },
       "errorBoundary": {
         "tryAgain": "Tentar novamente"
       },
@@ -359,7 +363,6 @@
           "country": "País"
         },
         "actions": {
-          "edit": "Editar detalhes de entrega",
           "save": "Guardar detalhes de entrega",
           "saving": "A guardar..."
         }
