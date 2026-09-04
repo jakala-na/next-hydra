@@ -88,8 +88,19 @@ export const CheckoutContact = Schema.Struct({
 });
 export type CheckoutContact = typeof CheckoutContact.Type;
 
+const RequiredCheckoutInputString = Schema.Trim.pipe(
+  Schema.check(Schema.isMinLength(1))
+);
+
+const CheckoutBuyerContactInput = Schema.Struct({
+  email: RequiredCheckoutInputString,
+  firstName: RequiredCheckoutInputString,
+  lastName: RequiredCheckoutInputString,
+  phoneNumber: Schema.optional(Schema.String),
+});
+
 export const ManualCheckoutContactInput = Schema.Struct({
-  buyerContact: BuyerContact,
+  buyerContact: CheckoutBuyerContactInput,
   source: Schema.Literal("manual"),
 }).annotate({
   description: "Contact details supplied in this request.",
@@ -213,25 +224,6 @@ export const CheckoutPaymentSelectionInput = Schema.Struct({
 export type CheckoutPaymentSelectionInput =
   typeof CheckoutPaymentSelectionInput.Type;
 
-const RequiredCheckoutInputString = Schema.Trim.pipe(
-  Schema.check(Schema.isMinLength(1))
-);
-
-const CheckoutMutationBuyerContactInput = Schema.Struct({
-  email: RequiredCheckoutInputString,
-  firstName: RequiredCheckoutInputString,
-  lastName: RequiredCheckoutInputString,
-  phoneNumber: Schema.optional(Schema.String),
-});
-
-const CheckoutMutationContactInput = Schema.Union([
-  Schema.Struct({
-    buyerContact: CheckoutMutationBuyerContactInput,
-    source: Schema.Literal("manual"),
-  }),
-  CustomerProfileCheckoutContactInput,
-]);
-
 const CheckoutMutationShippingAddressInput = Schema.Struct({
   addressLine1: RequiredCheckoutInputString,
   addressLine2: Schema.optional(Schema.String),
@@ -258,7 +250,7 @@ const CheckoutMutationDeliveryDetailsInput = Schema.Union([
 
 export const SaveCheckoutContactInput = Schema.Struct({
   cart: CheckoutCartReference,
-  contact: CheckoutMutationContactInput,
+  contact: CheckoutContactInput,
 }).annotate({ identifier: "SaveCheckoutContactInput" });
 export type SaveCheckoutContactInput = typeof SaveCheckoutContactInput.Type;
 
