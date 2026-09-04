@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { dirname, relative, resolve, sep } from "node:path";
+import path from "node:path";
 
 type PackageManifest = {
   readonly dependencies?: Readonly<Record<string, string>>;
@@ -20,14 +20,14 @@ const sourceExtensions = new Set([
   ".ts",
   ".tsx",
 ]);
-const sourceExtensionPattern = /(?:\.[cm]?[jt]sx?)$/;
+const sourceExtensionPattern = /(?:\.[cm]?[jt]sx?)$/u;
 const providerTransportVocabularyPattern =
-  /commercetools|gql\.tada|@urql|wonka/i;
+  /commercetools|gql\.tada|@urql|wonka/iu;
 const providerFieldKindPattern =
-  /["'](?:text|ltext|number|boolean|enum|lenum|money|date|time|datetime|reference|set)["']/;
+  /["'](?:text|ltext|number|boolean|enum|lenum|money|date|time|datetime|reference|set)["']/u;
 const providerPackage = "@repo/commerce-commercetools";
 const corePackage = "@repo/commerce";
-const providerCategoryVocabularyPattern = /\bcommercetoolsCategory\w*\b/i;
+const providerCategoryVocabularyPattern = /\bcommercetoolsCategory\w*\b/iu;
 
 const forbiddenCoreDependencies = new Set([
   "@commercetools/platform-sdk",
@@ -66,15 +66,19 @@ const allowedProviderDependencies = new Set([
   "apps/web/package.json",
 ]);
 
-const posixPath = (path: string) => path.split(sep).join("/");
+const posixPath = (filePath: string) => filePath.split(path.sep).join("/");
 
-const extension = (path: string) => {
-  const match = sourceExtensionPattern.exec(path);
+const extension = (filePath: string) => {
+  const match = sourceExtensionPattern.exec(filePath);
   return match?.[0] ?? "";
 };
 
-const readJson = (path: string): PackageManifest =>
-  JSON.parse(readFileSync(path, "utf-8")) as PackageManifest;
+const readJson = (filePath: string): PackageManifest => {
+  const value: unknown = JSON.parse(readFileSync(filePath, "utf-8"));
+  // SAFETY: Workspace package.json files are untyped JSON; this script only reads dependency maps and export paths.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Validated as package.json objects at the git-ls-files I/O boundary.
+  return value as PackageManifest;
+};
 
 const repositoryFiles = (repoRoot: string): readonly string[] =>
   execFileSync(
@@ -91,22 +95,22 @@ const repositoryFiles = (repoRoot: string): readonly string[] =>
     { cwd: repoRoot, encoding: "utf-8" }
   )
     .split("\n")
-    .filter((path) => path.length > 0)
-    .map((path) => resolve(repoRoot, path))
+    .filter((relativePath) => relativePath.length > 0)
+    .map((relativePath) => path.resolve(repoRoot, relativePath))
     .filter(existsSync);
 
 export const extractImportSpecifiers = (source: string): readonly string[] => {
   const specifiers = new Set<string>();
   const patterns = [
-    /\bfrom\s*["']([^"']+)["']/g,
-    /\bimport\s*["']([^"']+)["']/g,
-    /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
-    /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g,
+    /\bfrom\s*["'](?<specifier>[^"']+)["']/gu,
+    /\bimport\s*["'](?<specifier>[^"']+)["']/gu,
+    /\bimport\s*\(\s*["'](?<specifier>[^"']+)["']\s*\)/gu,
+    /\brequire\s*\(\s*["'](?<specifier>[^"']+)["']\s*\)/gu,
   ];
 
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
-      const specifier = match[1];
+      const specifier = match.groups?.specifier;
       if (specifier !== undefined) {
         specifiers.add(specifier);
       }
@@ -175,7 +179,7 @@ const checkImportedSubpaths = (
         !exports.has(packageSubpath(specifier, packageName))
       ) {
         violations.push(
-          `${posixPath(relative(repoRoot, file))} imports unsupported ${specifier}`
+          `${posixPath(path.relative(repoRoot, file))} imports unsupported ${specifier}`
         );
       }
     }
@@ -197,10 +201,10 @@ export const checkGeneratedProductAttributesSource = (
     }
 
     if (specifier.startsWith(".")) {
-      const importedPath = resolve(dirname(artifactPath), specifier);
+      const importedPath = path.resolve(path.dirname(artifactPath), specifier);
       if (
         importedPath === commerceRoot ||
-        importedPath.startsWith(`${commerceRoot}${sep}`)
+        importedPath.startsWith(`${commerceRoot}${path.sep}`)
       ) {
         continue;
       }
@@ -229,7 +233,10 @@ export const checkGeneratedProductAttributesSource = (
 const checkGeneratedProductAttributes = (
   commerceRoot: string
 ): readonly string[] => {
-  const artifactPath = resolve(commerceRoot, "product/generated/attributes.ts");
+  const artifactPath = path.resolve(
+    commerceRoot,
+    "product/generated/attributes.ts"
+  );
   return checkGeneratedProductAttributesSource(
     readFileSync(artifactPath, "utf-8"),
     artifactPath,
@@ -253,25 +260,29 @@ export const checkApplicationRuntimeBindingSource = (
 export const checkCommerceBoundaries = (
   repoRoot: string
 ): readonly string[] => {
-  const commerceRoot = resolve(repoRoot, "packages/commerce");
-  const providerRoot = resolve(repoRoot, "packages/commerce-commercetools");
+  const commerceRoot = path.resolve(repoRoot, "packages/commerce");
+  const providerRoot = path.resolve(
+    repoRoot,
+    "packages/commerce-commercetools"
+  );
   const cmsRoots = [
-    resolve(repoRoot, "packages/cms-contentstack"),
-    resolve(repoRoot, "packages/cms-drupal"),
+    path.resolve(repoRoot, "packages/cms-contentful"),
+    path.resolve(repoRoot, "packages/cms-contentstack"),
+    path.resolve(repoRoot, "packages/cms-drupal"),
   ];
-  const commerceManifest = readJson(resolve(commerceRoot, "package.json"));
-  const providerManifest = readJson(resolve(providerRoot, "package.json"));
+  const commerceManifest = readJson(path.resolve(commerceRoot, "package.json"));
+  const providerManifest = readJson(path.resolve(providerRoot, "package.json"));
   const allRepositoryFiles = repositoryFiles(repoRoot);
   const commerceFiles = allRepositoryFiles.filter((file) =>
-    file.startsWith(`${commerceRoot}${sep}`)
+    file.startsWith(`${commerceRoot}${path.sep}`)
   );
   const cmsSourceFiles = allRepositoryFiles.filter(
     (file) =>
-      cmsRoots.some((cmsRoot) => file.startsWith(`${cmsRoot}${sep}`)) &&
+      cmsRoots.some((cmsRoot) => file.startsWith(`${cmsRoot}${path.sep}`)) &&
       sourceExtensions.has(extension(file))
   );
-  const allSourceFiles = allRepositoryFiles.filter((path) =>
-    sourceExtensions.has(extension(path))
+  const allSourceFiles = allRepositoryFiles.filter((file) =>
+    sourceExtensions.has(extension(file))
   );
   const violations: string[] = [];
 
@@ -284,7 +295,7 @@ export const checkCommerceBoundaries = (
   }
 
   for (const file of commerceFiles) {
-    const corePath = posixPath(relative(commerceRoot, file));
+    const corePath = posixPath(path.relative(commerceRoot, file));
     if (
       forbiddenCorePathPrefixes.some(
         (prefix) => corePath === prefix || corePath.startsWith(prefix)
@@ -300,23 +311,23 @@ export const checkCommerceBoundaries = (
     const source = readFileSync(file, "utf-8");
     if (providerCategoryVocabularyPattern.test(source)) {
       violations.push(
-        `${posixPath(relative(repoRoot, file))} names a provider Category representation`
+        `${posixPath(path.relative(repoRoot, file))} names a provider Category representation`
       );
     }
   }
 
   for (const directory of ["apps", "packages"] as const) {
-    const root = resolve(repoRoot, directory);
+    const root = path.resolve(repoRoot, directory);
     for (const entry of readdirSync(root, { withFileTypes: true })) {
       if (!entry.isDirectory()) {
         continue;
       }
-      const manifestPath = resolve(root, entry.name, "package.json");
+      const manifestPath = path.resolve(root, entry.name, "package.json");
       if (!existsSync(manifestPath)) {
         continue;
       }
       const manifest = readJson(manifestPath);
-      const manifestRepoPath = posixPath(relative(repoRoot, manifestPath));
+      const manifestRepoPath = posixPath(path.relative(repoRoot, manifestPath));
       if (
         dependencyNames(manifest).has(providerPackage) &&
         !allowedProviderDependencies.has(manifestRepoPath) &&
@@ -347,7 +358,7 @@ export const checkCommerceBoundaries = (
     ...checkGeneratedProductAttributes(commerceRoot),
     ...checkApplicationRuntimeBindingSource(
       readFileSync(
-        resolve(commerceRoot, "customer-account/actions.ts"),
+        path.resolve(commerceRoot, "customer-account/actions.ts"),
         "utf-8"
       ),
       "packages/commerce/customer-account/actions.ts"

@@ -1,4 +1,5 @@
-import { execFile } from "node:child_process";
+/* oxlint-disable vitest/max-expects -- These e2e tests assert complete scaffolded workspaces after a single composition pass. */
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   copyFile,
@@ -11,20 +12,35 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { promisify } from "node:util";
 
 import { parse } from "jsonc-parser";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
 import { pathExists, readJsonFile } from "../../src/fs-utils.js";
 import { scaffoldProject } from "../../src/scaffold.js";
 
-const run = promisify(execFile);
+const execFileFailureSchema = z.object({
+  code: z.union([z.number(), z.string()]).optional(),
+  signal: z.string().optional(),
+  stderr: z.string().optional(),
+  stdout: z.string().optional(),
+});
+const packageDependenciesSchema = z
+  .object({
+    dependencies: z.record(z.string()).optional(),
+  })
+  .passthrough();
+const sourceRegistryDocumentSchema = z
+  .object({
+    include: z.array(z.string()),
+  })
+  .passthrough();
 const repoRoot = path.resolve(import.meta.dirname, "../../../..");
 const E2E_TIMEOUT = 240_000;
-const INCOMPATIBLE_DRUPAL_ADD_ON = /requires next-hydra\/cms\/drupal/;
+const INCOMPATIBLE_DRUPAL_ADD_ON = /requires next-hydra\/cms\/drupal/u;
 const PARTIAL_PROJECT_PRESERVED =
-  /partial project has been left exactly as it stands/;
+  /partial project has been left exactly as it stands/u;
 const WORKOS_SETUP_INSTRUCTION_PREFIX =
   "Configure separate WorkOS projects for the customer web app and admin app";
 let testRoot: string;
@@ -37,10 +53,10 @@ function occurrenceCount(source: string, value: string): number {
 async function createSourceRepository(): Promise<string> {
   const source = path.join(testRoot, "source");
   await mkdir(source, { recursive: true });
-  const { stdout } = await run(
+  const stdout = execFileSync(
     "git",
     ["ls-files", "--cached", "--others", "--exclude-standard"],
-    { cwd: repoRoot }
+    { cwd: repoRoot, encoding: "utf-8" }
   );
   await Promise.all(
     stdout
@@ -57,7 +73,10 @@ async function createSourceRepository(): Promise<string> {
       })
   );
   const rootRegistryPath = path.join(source, "registry.json");
-  const rootRegistry = JSON.parse(await readFile(rootRegistryPath, "utf-8"));
+  const rootRegistryJson: unknown = JSON.parse(
+    await readFile(rootRegistryPath, "utf-8")
+  );
+  const rootRegistry = sourceRegistryDocumentSchema.parse(rootRegistryJson);
   rootRegistry.include.push("fixtures/drupal-commerce-dam/registry.json");
   await writeFile(
     rootRegistryPath,
@@ -136,9 +155,9 @@ async function createSourceRepository(): Promise<string> {
       2
     )}\n`
   );
-  await run("git", ["init"], { cwd: source });
-  await run("git", ["add", "-A"], { cwd: source });
-  await run(
+  execFileSync("git", ["init"], { cwd: source });
+  execFileSync("git", ["add", "-A"], { cwd: source });
+  execFileSync(
     "git",
     [
       "-c",
@@ -158,8 +177,9 @@ const fakeRootInstall = async (cwd: string) => {
   await writeFile(path.join(cwd, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
 };
 
+// eslint-disable-next-line require-await -- The scaffold install hook must return a Promise; execFileSync is synchronous.
 const installApplicationWorkspaces = async (cwd: string): Promise<void> => {
-  await run(
+  execFileSync(
     "pnpm",
     [
       "install",
@@ -222,6 +242,7 @@ const typecheckEnvironment = () => ({
   WORKOS_WEBHOOK_SECRET: "whsec_test",
 });
 
+// eslint-disable-next-line require-await -- Callers await this helper; execFileSync is synchronous.
 const runTypecheck = async (
   cwd: string,
   args: readonly string[],
@@ -230,21 +251,17 @@ const runTypecheck = async (
   const env = typecheckEnvironment();
 
   try {
-    await run("pnpm", [...args], { cwd, env });
+    execFileSync("pnpm", [...args], { cwd, env });
   } catch (error) {
-    const failure = error as {
-      code?: number;
-      signal?: string;
-      stderr?: string;
-      stdout?: string;
-    };
+    const failure = execFileFailureSchema.safeParse(error);
+    const details = failure.success ? failure.data : {};
     throw new Error(
       [
-        `${description} failed with code ${failure.code ?? "unknown"}${
-          failure.signal ? ` and signal ${failure.signal}` : ""
+        `${description} failed with code ${details.code ?? "unknown"}${
+          details.signal ? ` and signal ${details.signal}` : ""
         }`,
-        failure.stdout?.trim(),
-        failure.stderr?.trim(),
+        details.stdout?.trim(),
+        details.stderr?.trim(),
       ]
         .filter(Boolean)
         .join("\n"),
@@ -301,7 +318,7 @@ const testCustomerInvitationComposition = async (target: string) => {
 
 function options(
   targetDir: string,
-  cms: "drupal" | "contentstack",
+  cms: "contentful" | "contentstack" | "drupal",
   auth: "clerk" | "workos" = "workos"
 ) {
   return {
@@ -317,16 +334,20 @@ function options(
   };
 }
 
-beforeAll(async () => {
-  testRoot = await mkdtemp(path.join(tmpdir(), "next-hydra-scaffold-"));
-  sourceRepository = await createSourceRepository();
-});
-
-afterAll(async () => {
-  await rm(testRoot, { force: true, recursive: true });
-}, E2E_TIMEOUT);
+function hashFileContents(content: Uint8Array) {
+  return createHash("sha256").update(content).digest("hex");
+}
 
 describe("scaffold composition", () => {
+  beforeAll(async () => {
+    testRoot = await mkdtemp(path.join(tmpdir(), "next-hydra-scaffold-"));
+    sourceRepository = await createSourceRepository();
+  });
+
+  afterAll(async () => {
+    await rm(testRoot, { force: true, recursive: true });
+  }, E2E_TIMEOUT);
+
   it(
     "prints Provider instructions only in the final setup section",
     async () => {
@@ -491,9 +512,13 @@ describe("scaffold composition", () => {
     "writes maintained Provider aliases into generated TypeScript configurations",
     async () => {
       const variants: {
-        cms: "contentstack" | "drupal";
+        cms: "contentful" | "contentstack" | "drupal";
         sourcePath: string;
       }[] = [
+        {
+          cms: "contentful",
+          sourcePath: "../../packages/cms-contentful",
+        },
         {
           cms: "contentstack",
           sourcePath: "../../packages/cms-contentstack",
@@ -548,6 +573,9 @@ describe("scaffold composition", () => {
           )
         )
       ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(contentstackTarget, "packages/cms-contentful"))
+      ).resolves.toBeFalsy();
       await expect(
         pathExists(path.join(contentstackTarget, "packages/cms-drupal"))
       ).resolves.toBeFalsy();
@@ -615,19 +643,21 @@ describe("scaffold composition", () => {
         )
       ).resolves.toContain('export { GET } from "@repo/cms/routes/draft";');
 
-      const contentstackWeb = JSON.parse(
+      const contentstackWebJson: unknown = JSON.parse(
         await readFile(
           path.join(contentstackTarget, "apps/web/package.json"),
           "utf-8"
         )
       );
-      expect(contentstackWeb.dependencies["@repo/cms"]).toBe(
+      const contentstackWeb =
+        packageDependenciesSchema.parse(contentstackWebJson);
+      expect(contentstackWeb.dependencies?.["@repo/cms"]).toBe(
         "workspace:@repo/cms-contentstack@*"
       );
-      expect(contentstackWeb.dependencies["@repo/auth"]).toBe(
+      expect(contentstackWeb.dependencies?.["@repo/auth"]).toBe(
         "workspace:@repo/auth-workos@*"
       );
-      expect(contentstackWeb.dependencies["@repo/commerce-provider"]).toBe(
+      expect(contentstackWeb.dependencies?.["@repo/commerce-provider"]).toBe(
         "workspace:@repo/commerce-commercetools@*"
       );
       await rm(contentstackTarget, { force: true, recursive: true });
@@ -640,6 +670,9 @@ describe("scaffold composition", () => {
       await expect(
         pathExists(path.join(drupalTarget, "packages/cms-drupal/package.json"))
       ).resolves.toBeTruthy();
+      await expect(
+        pathExists(path.join(drupalTarget, "packages/cms-contentful"))
+      ).resolves.toBeFalsy();
       await expect(
         pathExists(path.join(drupalTarget, "packages/cms-contentstack"))
       ).resolves.toBeFalsy();
@@ -693,11 +726,9 @@ describe("scaffold composition", () => {
 
       const asset =
         "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp";
-      const hash = (content: Uint8Array) =>
-        createHash("sha256").update(content).digest("hex");
-      expect(hash(await readFile(path.join(drupalTarget, asset)))).toBe(
-        hash(await readFile(path.join(repoRoot, asset)))
-      );
+      expect(
+        hashFileContents(await readFile(path.join(drupalTarget, asset)))
+      ).toBe(hashFileContents(await readFile(path.join(repoRoot, asset))));
       await rm(drupalTarget, { force: true, recursive: true });
 
       const presetTarget = path.join(testRoot, "preset-project");
@@ -816,13 +847,14 @@ describe("scaffold composition", () => {
       await expect(
         pathExists(path.join(target, "packages/cms-drupal/registry.json"))
       ).resolves.toBeFalsy();
-      const drupalPackage = JSON.parse(
+      const drupalPackageJson: unknown = JSON.parse(
         await readFile(
           path.join(target, "packages/cms-drupal/package.json"),
           "utf-8"
         )
       );
-      expect(drupalPackage.dependencies.nanoid).toBe("^5.1.6");
+      const drupalPackage = packageDependenciesSchema.parse(drupalPackageJson);
+      expect(drupalPackage.dependencies?.nanoid).toBe("^5.1.6");
       await rm(target, { force: true, recursive: true });
 
       const incompatibleTarget = path.join(testRoot, "incompatible-add-on");
@@ -843,7 +875,7 @@ describe("scaffold composition", () => {
       const target = path.join(testRoot, "failed-project");
       await expect(
         scaffoldProject(options(target, "contentstack"), {
-          install: async () => {
+          install: () => {
             throw new Error("forced package-manager failure");
           },
         })

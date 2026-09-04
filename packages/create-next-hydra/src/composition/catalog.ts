@@ -8,6 +8,7 @@ import {
   loadRegistry,
 } from "shadcn/registry";
 import type { RegistryItem } from "shadcn/schema";
+import { z } from "zod";
 
 import { pathExists } from "../fs-utils.js";
 import { CompositionValidationError } from "./errors.js";
@@ -28,13 +29,21 @@ import type {
 } from "./types.js";
 
 const GITHUB_HOMEPAGE_PATTERN =
-  /^https:\/\/github\.com\/([^/]+\/[^/]+?)(?:\.git)?\/?$/;
+  /^https:\/\/github\.com\/(?<repository>[^/]+\/[^/]+?)(?:\.git)?\/?$/u;
 const SHADCN_REGISTRY_ITEM_SCHEMA_URL =
   "https://ui.shadcn.com/schema/registry-item.json";
+const registryItemMetaSchema = z.object({
+  nextHydra: z.unknown().optional(),
+});
+const sourceRegistryEnvelopeSchema = z.object({
+  homepage: z.string().optional(),
+  include: z.array(z.string()).optional(),
+});
 
-const OFFICIAL_REFERENCES: Record<string, string> = {
+const OFFICIAL_REFERENCES = {
   clerk: "next-hydra/auth/clerk",
   commercetools: "next-hydra/commerce/commercetools",
+  contentful: "next-hydra/cms/contentful",
   contentstack: "next-hydra/cms/contentstack",
   drupal: "next-hydra/cms/drupal",
   standard: "next-hydra/preset/standard",
@@ -45,6 +54,7 @@ const OFFICIAL_ITEM_NAMES = [
   "auth-clerk",
   "auth-contract",
   "auth-workos",
+  "cms-contentful",
   "cms-contentstack",
   "cms-drupal",
   "commerce-commercetools",
@@ -87,8 +97,9 @@ function createCatalog(options: {
   }
 
   for (const item of options.registryItems) {
-    const candidate = item.meta?.nextHydra;
-    if (candidate === undefined) {
+    const meta: unknown = item.meta;
+    const envelope = registryItemMetaSchema.safeParse(meta);
+    if (!envelope.success || envelope.data.nextHydra === undefined) {
       continue;
     }
 
@@ -99,7 +110,7 @@ function createCatalog(options: {
       continue;
     }
 
-    const result = selectionDefinitionSchema.safeParse(candidate);
+    const result = selectionDefinitionSchema.safeParse(envelope.data.nextHydra);
     if (!result.success) {
       issues.push(
         ...formatZodError(result.error).map(
@@ -173,6 +184,7 @@ function createCatalog(options: {
             }) ?? []
       )
     ),
+    // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
   ].sort((left, right) => left.localeCompare(right));
 
   return {
@@ -186,6 +198,7 @@ function createCatalog(options: {
     registryConfig: options.registryConfig,
     registryFile: options.registryFile,
     repository: options.repository,
+    // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
     selections: [...selections].sort((left, right) =>
       left.id.localeCompare(right.id)
     ),
@@ -232,6 +245,7 @@ export function resolveRegistryItemGraph(
     }
   }
 
+  // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
   return [...resolved].sort((left, right) => left.localeCompare(right));
 }
 
@@ -291,6 +305,7 @@ export async function fetchRegistryItemGraph(options: {
         reference,
         options.cwd
       );
+      // oxlint-disable-next-line no-await-in-loop -- Breadth-first discovery reveals each next reference in order.
       const [fetchedArtifact] = await fetchItems([resolvedReference], {
         config: options.config,
       });
@@ -362,13 +377,12 @@ export async function loadSourceRegistryCatalog(
     "source registry file"
   );
   const registryPath = path.resolve(resolvedCwd, safeRegistryFile);
-  const sourceRegistry = JSON.parse(await readFile(registryPath, "utf-8")) as {
-    homepage?: string;
-    include?: string[];
-  };
-  const repository = sourceRegistry.homepage?.match(
-    GITHUB_HOMEPAGE_PATTERN
-  )?.[1];
+  const sourceRegistryJson: unknown = JSON.parse(
+    await readFile(registryPath, "utf-8")
+  );
+  const sourceRegistry = sourceRegistryEnvelopeSchema.parse(sourceRegistryJson);
+  const repository = sourceRegistry.homepage?.match(GITHUB_HOMEPAGE_PATTERN)
+    ?.groups?.repository;
   const registry = await loadRegistry({
     cwd: resolvedCwd,
     registryFile: safeRegistryFile,
@@ -380,12 +394,15 @@ export async function loadSourceRegistryCatalog(
   const registrySourcePaths = includedRegistries.map((included) =>
     path.posix.join(path.posix.dirname(included), "registry")
   );
+  const authoringPaths = [
+    safeRegistryFile,
+    ...includedRegistries,
+    ...registrySourcePaths,
+  ];
+  // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
+  authoringPaths.sort((left, right) => left.localeCompare(right));
   return createCatalog({
-    authoringPaths: [
-      safeRegistryFile,
-      ...includedRegistries,
-      ...registrySourcePaths,
-    ].sort((left, right) => left.localeCompare(right)),
+    authoringPaths,
     cwd: resolvedCwd,
     registryConfig,
     registryFile: safeRegistryFile,

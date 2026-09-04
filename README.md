@@ -63,7 +63,7 @@ The README calls this out explicitly because swappability is a core product prom
 | Domain | Shipped in repo today | Also present | Worth prioritizing next |
 | --- | --- | --- | --- |
 | Commerce | Commercetools | - | Shopify, Medusa, BigCommerce/Saleor adapters |
-| CMS | Contentstack or Drupal through the `@repo/cms` alias | Hydra-owned Drupal recipe and demo content | Contentful, Sanity, Hygraph adapters |
+| CMS | Contentstack or Drupal through the `@repo/cms` alias | Contentful package scaffold (`@repo/cms-contentful`); Hydra-owned Drupal recipe and demo content | Sanity, Hygraph adapters |
 | Auth | WorkOS (wired in `apps/web`) | Clerk package adapter | Better Auth, Auth0/Okta adapters |
 | Email | Resend | - | Postmark/SES adapters |
 | Analytics/Observability | PostHog, GA, Vercel Analytics, Sentry, Logtail | - | Segment and OpenTelemetry-first adapter path |

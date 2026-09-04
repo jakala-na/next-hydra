@@ -74,6 +74,7 @@ describe("Next Hydra source registry", () => {
         "auth-clerk",
         "auth-contract",
         "auth-workos",
+        "cms-contentful",
         "cms-contentstack",
         "cms-drupal",
         "commerce-commercetools",
@@ -83,14 +84,23 @@ describe("Next Hydra source registry", () => {
     );
 
     const drupal = await loadRegistryItem("cms-drupal", { cwd: repoRoot });
+    const contentful = await loadRegistryItem("cms-contentful", {
+      cwd: repoRoot,
+    });
     const contentstack = await loadRegistryItem("cms-contentstack", {
       cwd: repoRoot,
     });
     const backendApp = await loadRegistryItem("drupal", { cwd: repoRoot });
 
     expect(drupal.docs).toContain("From apps/drupal, run ddev install");
+    expect(contentful.docs).toContain(
+      "Configure the Contentful environment variables"
+    );
     expect(drupal.files?.map((file) => file.target)).toContain(
       "~/packages/cms-drupal/package.json"
+    );
+    expect(contentful.files?.map((file) => file.target)).toContain(
+      "~/packages/cms-contentful/package.json"
     );
     expect(contentstack.files?.map((file) => file.target)).toContain(
       "~/packages/cms-contentstack/package.json"
@@ -107,6 +117,7 @@ describe("Next Hydra source registry", () => {
     expect(
       [
         ...(drupal.files ?? []),
+        ...(contentful.files ?? []),
         ...(contentstack.files ?? []),
         ...(backendApp.files ?? []),
       ].every((file) => Boolean(file.target && file.content !== undefined))
@@ -238,7 +249,7 @@ describe("Next Hydra source registry", () => {
     );
 
     expect(requestedAddresses).toHaveLength(1);
-    expect(requestedAddresses[0]).toHaveLength(8);
+    expect(requestedAddresses[0]).toHaveLength(9);
     expect(
       [...catalog.items.values()].every(
         (item) =>
@@ -246,7 +257,7 @@ describe("Next Hydra source registry", () => {
           item.$schema === NEXT_HYDRA_SELECTION_SCHEMA_URL
       )
     ).toBeTruthy();
-    expect(catalog.selections).toHaveLength(6);
+    expect(catalog.selections).toHaveLength(7);
   });
 
   it("plans both supported CMS compositions deterministically", async () => {
@@ -259,6 +270,10 @@ describe("Next Hydra source registry", () => {
       addOns: [],
       providers: { ...base, cms: "drupal" },
     });
+    const contentful = planComposition(catalog, {
+      addOns: [],
+      providers: { ...base, cms: "contentful" },
+    });
     const contentstack = planComposition(catalog, {
       addOns: [],
       providers: { ...base, cms: "contentstack" },
@@ -270,6 +285,12 @@ describe("Next Hydra source registry", () => {
       "cms-drupal",
       "commerce-commercetools",
       "drupal",
+    ]);
+    expect(contentful.registryItems).toStrictEqual([
+      "auth-contract",
+      "auth-workos",
+      "cms-contentful",
+      "commerce-commercetools",
     ]);
     expect(contentstack.registryItems).toStrictEqual([
       "auth-contract",
@@ -304,6 +325,17 @@ describe("Next Hydra source registry", () => {
       section: "dependencies",
       specifier: "workspace:@repo/auth-workos@*",
     });
+    expect(contentful.managedTargets).toStrictEqual([
+      "apps/admin/app/api/auth/callback/route.ts",
+      "apps/admin/app/api/auth/signout/route.ts",
+      "apps/admin/app/sign-in/route.ts",
+      "apps/api/app/api/webhooks/workos/route.ts",
+      "apps/web/app/api/auth/callback/route.ts",
+      "apps/web/app/api/auth/signin/route.ts",
+      "apps/web/app/api/auth/signout/route.ts",
+      "apps/web/app/api/disable-draft/route.ts",
+      "apps/web/app/api/draft/route.ts",
+    ]);
     expect(contentstack.managedTargets).toStrictEqual([
       "apps/admin/app/api/auth/callback/route.ts",
       "apps/admin/app/api/auth/signout/route.ts",
@@ -333,6 +365,7 @@ describe("Next Hydra source registry", () => {
         path: "patches/@drupal-canvas__workbench@0.10.0.patch",
       },
     ]);
+    expect(contentful.pnpmPatches).toStrictEqual([]);
     expect(contentstack.pnpmPatches).toStrictEqual([
       {
         dependency: "@contentstack/cli-cm-import@2.0.0",
@@ -343,12 +376,18 @@ describe("Next Hydra source registry", () => {
         path: "patches/@contentstack__cli-migration@2.0.0.patch",
       },
     ]);
+    expect(contentful.instructions).toStrictEqual([
+      "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output workos-webhook.env` once with the customer WORKOS_API_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets.",
+      "Configure the Contentful environment variables described by packages/cms-contentful before starting the web application.",
+      "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
+    ]);
     expect(drupal.instructions).toStrictEqual([
       "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output workos-webhook.env` once with the customer WORKOS_API_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets.",
       "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
       "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
     ]);
     expect(planComposition(catalog, drupal.selection)).toStrictEqual(drupal);
+    expect(contentful.variableTargets).toStrictEqual(drupal.variableTargets);
     expect(contentstack.variableTargets).toStrictEqual(drupal.variableTargets);
   });
 

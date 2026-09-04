@@ -78,6 +78,10 @@ const KNOWN_PROVIDERS = new Map<
     { dependency: "@repo/auth", packageName: "@repo/auth-workos" },
   ],
   [
+    "next-hydra/cms/contentful",
+    { dependency: "@repo/cms", packageName: "@repo/cms-contentful" },
+  ],
+  [
     "next-hydra/cms/contentstack",
     { dependency: "@repo/cms", packageName: "@repo/cms-contentstack" },
   ],
@@ -147,6 +151,23 @@ function parseSelection(item: RegistryItem): SelectionDefinition | undefined {
   return result.data;
 }
 
+const normalizeFileContent = (content: string) =>
+  content.replaceAll("\r\n", "\n").trim();
+
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- ShadCN resolved trees expose nested untyped JSON.
+const hasShadcnEffectValues = (value: unknown): boolean => {
+  if (Array.isArray(value)) {
+    return value.some(hasShadcnEffectValues);
+  }
+  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- ShadCN resolved trees expose nested untyped JSON.
+  if (value !== null && typeof value === "object") {
+    return Object.values(value).some(hasShadcnEffectValues);
+  }
+  return (
+    value !== undefined && value !== null && value !== false && value !== ""
+  );
+};
+
 async function changeStatus(
   absoluteTarget: string,
   expected: string
@@ -154,10 +175,8 @@ async function changeStatus(
   if (!(await pathExists(absoluteTarget))) {
     return "create";
   }
-  const normalize = (content: string) =>
-    content.replaceAll("\r\n", "\n").trim();
-  return normalize(await readFile(absoluteTarget, "utf-8")) ===
-    normalize(expected)
+  return normalizeFileContent(await readFile(absoluteTarget, "utf-8")) ===
+    normalizeFileContent(expected)
     ? "identical"
     : "changed";
 }
@@ -208,6 +227,7 @@ async function inspectFiles(
     }
     claimed.set(change.target, change.kind);
   }
+  // eslint-disable-next-line unicorn/no-array-sort -- The array is a newly constructed Promise.all result.
   return registryFiles.sort((left, right) =>
     left.target.localeCompare(right.target)
   );
@@ -396,6 +416,7 @@ function validateKnownProviderCompatibility(
       issues
     );
   }
+  // eslint-disable-next-line unicorn/no-array-sort -- The array is a newly constructed Set copy.
   return [...new Set(assumptions)].sort((left, right) =>
     left.localeCompare(right)
   );
@@ -473,31 +494,21 @@ function describeShadcnEffects(
   tree: NonNullable<Awaited<ReturnType<typeof resolveRegistryItems>>>,
   items: Iterable<RegistryItem>
 ): string[] {
-  const hasValues = (value: unknown): boolean => {
-    if (Array.isArray(value)) {
-      return value.some(hasValues);
-    }
-    if (value !== null && typeof value === "object") {
-      return Object.values(value).some(hasValues);
-    }
-    return (
-      value !== undefined && value !== null && value !== false && value !== ""
-    );
-  };
   const effects: string[] = [];
+  // eslint-disable-next-line unicorn/no-array-sort -- Object.keys returns a new array.
   const envKeys = Object.keys(tree.envVars ?? {}).sort();
   if (envKeys.length > 0) {
     effects.push(
       `environment placeholders may be merged by ShadCN: ${envKeys.join(", ")}`
     );
   }
-  if (hasValues(tree.tailwind)) {
+  if (hasShadcnEffectValues(tree.tailwind)) {
     effects.push("Tailwind configuration will be merged by ShadCN");
   }
-  if (hasValues(tree.cssVars)) {
+  if (hasShadcnEffectValues(tree.cssVars)) {
     effects.push("CSS variables will be merged by ShadCN");
   }
-  if (hasValues(tree.css)) {
+  if (hasShadcnEffectValues(tree.css)) {
     effects.push("CSS declarations will be merged by ShadCN");
   }
   if ((tree.fonts?.length ?? 0) > 0) {
@@ -760,11 +771,9 @@ export async function addRegistryItem(
         );
       await applyPackageEntries(cwd, changedPackageEntries);
       if (changedPackageEntries.length > 0) {
-        if (dependencies.install) {
-          await dependencies.install(cwd);
-        } else {
-          await runCommand("pnpm", ["install"], { cwd });
-        }
+        await (dependencies.install
+          ? dependencies.install(cwd)
+          : runCommand("pnpm", ["install"], { cwd }));
       }
     },
   });

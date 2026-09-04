@@ -26,6 +26,11 @@ const manifests = [
     sourceRoot: "packages/auth-workos",
   },
   {
+    item: "cms-contentful",
+    manifest: "packages/cms-contentful/registry.json",
+    sourceRoot: "packages/cms-contentful",
+  },
+  {
     item: "cms-contentstack",
     manifest: "packages/cms-contentstack/registry.json",
     sourceRoot: "packages/cms-contentstack",
@@ -63,9 +68,38 @@ const binaryExtensions = new Set([
   ".zip",
 ]);
 
+type RegistryAsset = {
+  readonly source: string;
+};
+
+type RegistryItem = {
+  files?: {
+    path: string;
+    target: string;
+    type: string;
+  }[];
+  meta?: {
+    nextHydra?: {
+      assets?: RegistryAsset[];
+    };
+  };
+  name: string;
+};
+
+type RegistryDocument = {
+  items: RegistryItem[];
+};
+
+const parseRegistryDocument = (source: string): RegistryDocument => {
+  const value: unknown = JSON.parse(source);
+  // SAFETY: Registry manifests are authored JSON; this script only reads items, names, and asset sources.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The sync script rewrites files[] from git-ls-files after this parse.
+  return value as RegistryDocument;
+};
+
 const declaredAssetSources = new Set(
   manifests.flatMap(({ manifest }) => {
-    const registry = JSON.parse(
+    const registry = parseRegistryDocument(
       readFileSync(path.join(workspaceRoot, manifest), "utf-8")
     );
     return registry.items.flatMap(
@@ -74,7 +108,7 @@ const declaredAssetSources = new Set(
   })
 );
 
-function sourceFiles(sourceRoot) {
+function sourceFiles(sourceRoot: string) {
   const files = execFileSync(
     "git",
     ["ls-files", "--cached", "--others", "--exclude-standard", sourceRoot],
@@ -101,9 +135,12 @@ function sourceFiles(sourceRoot) {
     }
   }
 
-  return files
-    .filter((file) => !declaredAssetSources.has(file))
-    .sort((left, right) => left.localeCompare(right));
+  return (
+    files
+      .filter((file) => !declaredAssetSources.has(file))
+      // eslint-disable-next-line unicorn/no-array-sort -- The array is newly filtered from git ls-files.
+      .sort((left, right) => left.localeCompare(right))
+  );
 }
 
 const formatRegistryJson = async (
@@ -128,7 +165,7 @@ let hasDrift = false;
 const generatedManifests = await Promise.all(
   manifests.map(async (definition) => {
     const manifestPath = path.join(workspaceRoot, definition.manifest);
-    const registry = JSON.parse(readFileSync(manifestPath, "utf-8"));
+    const registry = parseRegistryDocument(readFileSync(manifestPath, "utf-8"));
     const item = registry.items.find(
       (candidate) => candidate.name === definition.item
     );

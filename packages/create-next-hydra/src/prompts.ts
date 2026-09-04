@@ -28,10 +28,7 @@ export async function promptForTargetDirectory(): Promise<string> {
   return result.trim();
 }
 
-const PROVIDER_CHOICES: Record<
-  ProviderSlot,
-  { label: string; value: string; hint?: string }[]
-> = {
+const PROVIDER_CHOICES = {
   auth: [
     { label: "WorkOS", value: "workos" },
     {
@@ -47,9 +44,17 @@ const PROVIDER_CHOICES: Record<
       value: "drupal",
     },
     { label: "Contentstack", value: "contentstack" },
+    {
+      hint: "composition-ready scaffold; delivery queries are not implemented",
+      label: "Contentful",
+      value: "contentful",
+    },
   ],
   commerce: [{ label: "Commercetools", value: "commercetools" }],
-};
+} satisfies Record<
+  ProviderSlot,
+  { hint?: string; label: string; value: string }[]
+>;
 
 export async function promptForProvider(
   slot: ProviderSlot,
