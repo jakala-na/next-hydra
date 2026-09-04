@@ -1,6 +1,7 @@
 import { Command } from "commander";
 
 import { addRegistryItem } from "./composition/add.js";
+import type { ProviderSlot } from "./composition/types.js";
 import { useComposition } from "./composition/use.js";
 import type { UseCompositionOptions } from "./composition/use.js";
 import { CLI_NAME, DEFAULT_REPO_URL } from "./constants.js";
@@ -21,6 +22,8 @@ type CliActionOptions = {
   cms?: string;
   commerce?: string;
   addOn?: string[];
+  without?: ProviderSlot[];
+  webProfile?: string;
   preset?: string;
 };
 
@@ -41,6 +44,8 @@ function buildCreateOptions(
     auth: rawOptions.auth,
     cms: rawOptions.cms,
     commerce: rawOptions.commerce,
+    without: rawOptions.without,
+    webProfile: rawOptions.webProfile,
     commit: rawOptions.commit ?? true,
     maintainerWorkspace: rawOptions.maintainerWorkspace ?? false,
     preset: rawOptions.preset,
@@ -77,6 +82,15 @@ export async function runCli(
     .option("--auth <provider>", "Select the Auth provider")
     .option("--cms <provider>", "Select the CMS provider")
     .option("--commerce <provider>", "Select the Commerce provider")
+    .option("--web-profile <profile>", "Select the web application profile")
+    .option(
+      "--without <slot>",
+      "Leave a provider slot empty (auth, cms, or commerce; repeatable)",
+      (value: string, previous: ProviderSlot[] | undefined) => [
+        ...(previous ?? []),
+        value as ProviderSlot,
+      ]
+    )
     .option(
       "--add-on <selection>",
       "Select an Add-on (repeatable)",
@@ -115,6 +129,15 @@ export async function runCli(
     .option("--auth <provider>", "Select the Auth provider")
     .option("--cms <provider>", "Select the CMS provider")
     .option("--commerce <provider>", "Select the Commerce provider")
+    .option("--web-profile <profile>", "Select the web application profile")
+    .option(
+      "--without <slot>",
+      "Remove a provider from a slot (auth, cms, or commerce; repeatable)",
+      (value: string, previous: ProviderSlot[] | undefined) => [
+        ...(previous ?? []),
+        value as ProviderSlot,
+      ]
+    )
     .option(
       "--add-on <selection>",
       "Select an Add-on (repeatable)",

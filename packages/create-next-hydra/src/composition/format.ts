@@ -1,4 +1,4 @@
-import { PROVIDER_SLOTS } from "./types.js";
+import { APP_SLOTS, PROVIDER_SLOTS } from "./types.js";
 import type { CompositionPlan, WorkspaceSelection } from "./types.js";
 
 const NO_ADD_ONS = "none";
@@ -14,21 +14,36 @@ function sameAddOns(
   return formatAddOns(current) === formatAddOns(proposed);
 }
 
-function formatTransition(current: string, proposed: string): string {
-  return current === proposed
-    ? `${current} (unchanged)`
-    : `${current} -> ${proposed}`;
+function formatProvider(provider: string | undefined): string {
+  return provider ?? "none";
+}
+
+function formatTransition(
+  current: string | undefined,
+  proposed: string | undefined
+): string {
+  const currentProvider = formatProvider(current);
+  const proposedProvider = formatProvider(proposed);
+  return currentProvider === proposedProvider
+    ? `${currentProvider} (unchanged)`
+    : `${currentProvider} -> ${proposedProvider}`;
 }
 
 function compositionChanges(
   current: WorkspaceSelection,
   proposed: WorkspaceSelection
 ): string[] {
+  const appChanges = APP_SLOTS.filter(
+    (app) => current.apps?.[app] !== proposed.apps?.[app]
+  ).map(
+    (app) =>
+      `${app}: ${formatProvider(current.apps?.[app])} -> ${formatProvider(proposed.apps?.[app])}`
+  );
   const providerChanges = PROVIDER_SLOTS.filter(
     (slot) => current.providers[slot] !== proposed.providers[slot]
   ).map(
     (slot) =>
-      `${slot}: ${current.providers[slot]} -> ${proposed.providers[slot]}`
+      `${slot}: ${formatProvider(current.providers[slot])} -> ${formatProvider(proposed.providers[slot])}`
   );
   const addOnChanges = sameAddOns(current.addOns, proposed.addOns)
     ? []
@@ -36,7 +51,7 @@ function compositionChanges(
         `add-ons: ${formatAddOns(current.addOns)} -> ${formatAddOns(proposed.addOns)}`,
       ];
 
-  return [...providerChanges, ...addOnChanges];
+  return [...appChanges, ...providerChanges, ...addOnChanges];
 }
 
 export function hasCompositionChanges(
@@ -56,6 +71,11 @@ export function formatCompositionPreview(
     "Maintainer workspace composition",
     "",
     "Current -> Proposed",
+    "Applications:",
+    ...APP_SLOTS.map(
+      (app) =>
+        `  ${app}: ${formatTransition(current.apps?.[app], proposed.apps?.[app])}`
+    ),
     "Providers:",
     ...PROVIDER_SLOTS.map(
       (slot) =>
@@ -92,9 +112,13 @@ export function formatCompositionResult(
 
 export function formatCompositionPlan(plan: CompositionPlan): string {
   const lines = [
+    "Applications:",
+    ...APP_SLOTS.map(
+      (app) => `  ${app}: ${formatProvider(plan.selection.apps?.[app])}`
+    ),
     "Providers:",
-    ...Object.entries(plan.selection.providers).map(
-      ([slot, provider]) => `  ${slot}: ${provider}`
+    ...PROVIDER_SLOTS.map(
+      (slot) => `  ${slot}: ${formatProvider(plan.selection.providers[slot])}`
     ),
     `Add-ons: ${plan.selection.addOns.length > 0 ? plan.selection.addOns.join(", ") : "none"}`,
     "Registry items:",

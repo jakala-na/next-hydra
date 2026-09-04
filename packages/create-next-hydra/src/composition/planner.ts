@@ -10,6 +10,7 @@ import {
   resolveWorkspacePath,
 } from "./paths.js";
 import type {
+  AppSlot,
   CatalogSelection,
   CompositionPlan,
   PackageRequirement,
@@ -22,7 +23,7 @@ import type {
   TypeScriptPathAliasTarget,
   WorkspaceSelection,
 } from "./types.js";
-import { PROVIDER_ALIASES, PROVIDER_SLOTS } from "./types.js";
+import { APP_SLOTS, PROVIDER_ALIASES, PROVIDER_SLOTS } from "./types.js";
 
 function uniqueSorted(values: Iterable<string>): string[] {
   // eslint-disable-next-line unicorn/no-array-sort -- The newly-created array is safe to sort in place.
@@ -88,13 +89,14 @@ function resolveProviders(
   const issues: string[] = [];
 
   for (const slot of PROVIDER_SLOTS) {
-    const candidate = resolveCatalogSelection(
-      catalog,
-      selection.providers[slot]
-    );
+    const reference = selection.providers[slot];
+    if (!reference) {
+      continue;
+    }
+    const candidate = resolveCatalogSelection(catalog, reference);
     if (candidate.kind !== "provider" || candidate.slot !== slot) {
       issues.push(
-        `${selection.providers[slot]} is ${candidate.kind}${candidate.slot ? ` for ${candidate.slot}` : ""}, not a ${slot} provider`
+        `${reference} is ${candidate.kind}${candidate.slot ? ` for ${candidate.slot}` : ""}, not a ${slot} provider`
       );
       continue;
     }
@@ -109,6 +111,62 @@ function resolveProviders(
   }
 
   return providers;
+}
+
+function resolveAppProfiles(
+  catalog: SourceRegistryCatalog,
+  selection: WorkspaceSelection
+): Map<AppSlot, CatalogSelection> {
+  const profiles = new Map<AppSlot, CatalogSelection>();
+  const issues: string[] = [];
+
+  for (const app of APP_SLOTS) {
+    const reference = selection.apps?.[app];
+    if (!reference) {
+      continue;
+    }
+    const candidate = resolveCatalogSelection(catalog, reference);
+    if (candidate.kind !== "app-profile" || candidate.app !== app) {
+      issues.push(
+        `${reference} is ${candidate.kind}${candidate.app ? ` for ${candidate.app}` : ""}, not a ${app} app profile`
+      );
+      continue;
+    }
+    profiles.set(app, candidate);
+  }
+
+  if (issues.length > 0) {
+    throw new CompositionValidationError(
+      "App Profile selection is invalid.",
+      issues
+    );
+  }
+
+  return profiles;
+}
+
+function validateAppProfileProviders(
+  profiles: Iterable<CatalogSelection>,
+  providers: ReadonlyMap<ProviderSlot, CatalogSelection>
+): void {
+  const issues: string[] = [];
+  for (const profile of profiles) {
+    for (const slot of PROVIDER_SLOTS) {
+      const requirement = profile.providerSlots?.[slot] ?? "optional";
+      if (requirement === "required" && !providers.has(slot)) {
+        issues.push(`${profile.id} requires a ${slot} provider`);
+      }
+      if (requirement === "forbidden" && providers.has(slot)) {
+        issues.push(`${profile.id} forbids a ${slot} provider`);
+      }
+    }
+  }
+  if (issues.length > 0) {
+    throw new CompositionValidationError(
+      "The selected App Profiles and Providers are incompatible.",
+      issues
+    );
+  }
 }
 
 function resolveAddOns(
@@ -202,10 +260,11 @@ const BASELINE_PROVIDER_DEPENDENCIES = [
 ] satisfies ProviderDependency[];
 
 function selectedProviderDependencies(
-  selections: CatalogSelection[]
+  selections: CatalogSelection[],
+  usesLegacyBaseline: boolean
 ): ProviderDependency[] {
   return [
-    ...BASELINE_PROVIDER_DEPENDENCIES,
+    ...(usesLegacyBaseline ? BASELINE_PROVIDER_DEPENDENCIES : []),
     ...selections.flatMap((selection) => selection.providerDependencies),
   ];
 }
@@ -367,10 +426,21 @@ function catalogPnpmPatches(catalog: SourceRegistryCatalog): PnpmPatch[] {
   );
 }
 
-function catalogVariableTargets(catalog: SourceRegistryCatalog): string[] {
+function catalogVariableTargets(
+  catalog: SourceRegistryCatalog,
+  includeAppProfiles: boolean
+): string[] {
+  const appProfileItems = new Set(
+    catalog.selections
+      .filter(({ kind }) => kind === "app-profile")
+      .map(({ itemName }) => itemName)
+  );
   return uniqueSorted(
-    [...catalog.items.values()].flatMap(
-      (item) =>
+    [...catalog.items.values()]
+      .filter(
+        (item) => includeAppProfiles || !appProfileItems.has(item.name)
+      )
+      .flatMap((item) =>
         item.files?.map((file) => {
           if (!file.target) {
             throw new CompositionValidationError(
@@ -380,7 +450,7 @@ function catalogVariableTargets(catalog: SourceRegistryCatalog): string[] {
           }
           return resolveRegistryTarget(file.target);
         }) ?? []
-    )
+      )
   );
 }
 
@@ -421,21 +491,41 @@ export function planComposition(
   selection: WorkspaceSelection
 ): CompositionPlan {
   const providers = resolveProviders(catalog, selection);
-  const providerSelections = PROVIDER_SLOTS.map((slot) => {
-    const provider = providers.get(slot);
-    if (!provider) {
+  const appProfiles = resolveAppProfiles(catalog, selection);
+  const usesLegacyBaseline = appProfiles.size === 0;
+  if (usesLegacyBaseline) {
+    const missing = PROVIDER_SLOTS.filter((slot) => !providers.has(slot));
+    if (missing.length > 0) {
       throw new CompositionValidationError(
         "Provider Slot cardinality is invalid.",
-        [`${slot} requires exactly one provider`]
+        missing.map(
+          (slot) =>
+            `${slot} requires exactly one provider when no App Profile is selected`
+        )
       );
     }
-    return provider;
+  }
+  validateAppProfileProviders(appProfiles.values(), providers);
+  const providerSelections = PROVIDER_SLOTS.flatMap((slot) => {
+    const provider = providers.get(slot);
+    return provider ? [provider] : [];
+  });
+  const appProfileSelections = APP_SLOTS.flatMap((app) => {
+    const profile = appProfiles.get(app);
+    return profile ? [profile] : [];
   });
   const addOns = resolveAddOns(catalog, selection.addOns, providerSelections);
-  const selections = [...providerSelections, ...addOns];
+  const selections = [
+    ...appProfileSelections,
+    ...providerSelections,
+    ...addOns,
+  ];
 
   validateCompatibility(selections);
-  const providerDependencies = selectedProviderDependencies(selections);
+  const providerDependencies = selectedProviderDependencies(
+    selections,
+    usesLegacyBaseline
+  );
   const catalogDependencies = catalogProviderDependencies(catalog);
   const providerRequirements = resolveProviderRequirements(
     providers,
@@ -521,12 +611,13 @@ export function planComposition(
     selection: {
       ...selection,
       addOns: uniqueSorted([...selection.addOns, ...requiredAddOnIds]),
+      apps: { ...selection.apps },
       providers: { ...selection.providers },
     },
     selections,
     typeScriptPathAliases: providerRequirements.typeScriptPathAliases,
     variableTargets: uniqueSorted([
-      ...catalogVariableTargets(catalog),
+      ...catalogVariableTargets(catalog, appProfiles.size > 0),
       ...catalog.selections.flatMap((selected) =>
         selected.assets.map((asset) =>
           resolveWorkspacePath(asset.target, `${selected.id} asset target`)
@@ -543,23 +634,15 @@ export function selectionFromPreset(
   const preset = resolveCatalogSelection(catalog, reference);
   if (preset.kind !== "preset" || !preset.selections?.providers) {
     throw new CompositionValidationError("Invalid Preset selection.", [
-      `${reference} is not a complete Next Hydra preset`,
+      `${reference} is not a Next Hydra preset`,
     ]);
   }
 
   const { addOns, providers } = preset.selections;
-  if (!(providers.auth && providers.cms && providers.commerce)) {
-    throw new CompositionValidationError("Preset is incomplete.", [
-      `${preset.id} must select auth, cms, and commerce providers`,
-    ]);
-  }
 
   return {
     addOns,
-    providers: {
-      auth: providers.auth,
-      cms: providers.cms,
-      commerce: providers.commerce,
-    },
+    apps: { ...preset.selections.apps },
+    providers: { ...providers },
   };
 }

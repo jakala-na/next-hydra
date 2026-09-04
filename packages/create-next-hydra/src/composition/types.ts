@@ -4,14 +4,17 @@ import type { RegistryItem } from "shadcn/schema";
 export type RegistriesConfig = Awaited<ReturnType<typeof getRegistriesConfig>>;
 
 export const PROVIDER_SLOTS = ["auth", "cms", "commerce"] as const;
+export const APP_SLOTS = ["web"] as const;
 
 export type ProviderSlot = (typeof PROVIDER_SLOTS)[number];
+export type AppSlot = (typeof APP_SLOTS)[number];
 export const PROVIDER_ALIASES = {
   auth: "@repo/auth",
   cms: "@repo/cms",
   commerce: "@repo/commerce-provider",
 } as const satisfies Record<ProviderSlot, string>;
-export type SelectionKind = "provider" | "add-on" | "preset";
+export type SelectionKind = "provider" | "add-on" | "preset" | "app-profile";
+export type ProviderSlotRequirement = "optional" | "required" | "forbidden";
 export type DependencySection =
   | "dependencies"
   | "devDependencies"
@@ -47,14 +50,17 @@ export type PnpmPatch = {
 };
 
 export type WorkspaceSelection = {
-  providers: Record<ProviderSlot, string>;
+  apps?: Partial<Record<AppSlot, string>>;
+  providers: Partial<Record<ProviderSlot, string>>;
   addOns: string[];
 };
 
 export type SelectionDefinition = {
   id: string;
   kind: SelectionKind;
+  app?: AppSlot;
   slot?: ProviderSlot;
+  providerSlots?: Partial<Record<ProviderSlot, ProviderSlotRequirement>>;
   binding?: ProviderBinding;
   compatibility: {
     requires: string[];
@@ -65,6 +71,7 @@ export type SelectionDefinition = {
   pnpmPatches: PnpmPatch[];
   assets: AssetContribution[];
   selections?: {
+    apps?: Partial<Record<AppSlot, string>>;
     providers?: Partial<Record<ProviderSlot, string>>;
     addOns: string[];
   };

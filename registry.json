@@ -31,6 +31,7 @@
     }
   ],
   "include": [
+    "apps/web/registry.json",
     "packages/auth-clerk/registry.json",
     "packages/auth-contract/registry.json",
     "packages/auth-workos/registry.json",

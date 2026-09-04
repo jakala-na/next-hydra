@@ -55,7 +55,10 @@
           "minLength": 1
         },
         "kind": {
-          "enum": ["provider", "add-on", "preset"]
+          "enum": ["provider", "add-on", "preset", "app-profile"]
+        },
+        "app": {
+          "enum": ["web"]
         },
         "slot": {
           "enum": ["auth", "cms", "commerce"]
@@ -154,6 +157,21 @@
             }
           }
         },
+        "providerSlots": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "auth": {
+              "enum": ["optional", "required", "forbidden"]
+            },
+            "cms": {
+              "enum": ["optional", "required", "forbidden"]
+            },
+            "commerce": {
+              "enum": ["optional", "required", "forbidden"]
+            }
+          }
+        },
         "pnpmPatches": {
           "type": "array",
           "items": {
@@ -191,6 +209,16 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "apps": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "web": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
             "providers": {
               "type": "object",
               "additionalProperties": false,
@@ -221,6 +249,32 @@
         }
       },
       "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "app-profile"
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["app"],
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["slot"]
+                },
+                {
+                  "required": ["binding"]
+                },
+                {
+                  "required": ["selections"]
+                }
+              ]
+            }
+          }
+        },
         {
           "if": {
             "properties": {

@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import { PROVIDER_ALIASES, PROVIDER_SLOTS } from "./types.js";
+import { APP_SLOTS, PROVIDER_ALIASES, PROVIDER_SLOTS } from "./types.js";
 
 export const NEXT_HYDRA_SELECTION_SCHEMA_URL =
   "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json";
@@ -72,6 +72,12 @@ const providerSelectionsSchema = z
 const presetSelectionsSchema = z
   .object({
     addOns: z.array(z.string().min(1)).default([]),
+    apps: z
+      .object({
+        web: z.string().min(1).optional(),
+      })
+      .strict()
+      .optional(),
     providers: providerSelectionsSchema.optional(),
   })
   .strict();
@@ -98,11 +104,20 @@ export const selectionDefinitionSchema = z
       })
       .strict()
       .default({ conflicts: [], requires: [] }),
+    app: z.enum(APP_SLOTS).optional(),
     id: z.string().min(1),
-    kind: z.enum(["provider", "add-on", "preset"]),
+    kind: z.enum(["provider", "add-on", "preset", "app-profile"]),
     packages: z.array(packageRequirementSchema).default([]),
     pnpmPatches: z.array(pnpmPatchSchema).default([]),
     providerDependencies: z.array(providerDependencySchema).default([]),
+    providerSlots: z
+      .object({
+        auth: z.enum(["optional", "required", "forbidden"]).optional(),
+        cms: z.enum(["optional", "required", "forbidden"]).optional(),
+        commerce: z.enum(["optional", "required", "forbidden"]).optional(),
+      })
+      .strict()
+      .optional(),
     selections: presetSelectionsSchema.optional(),
     slot: z.enum(PROVIDER_SLOTS).optional(),
   })
@@ -113,6 +128,30 @@ export const selectionDefinitionSchema = z
         code: z.ZodIssueCode.custom,
         message: "a provider must declare its slot",
         path: ["slot"],
+      });
+    }
+
+    if (definition.kind === "app-profile" && !definition.app) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "an app profile must declare its app",
+        path: ["app"],
+      });
+    }
+
+    if (definition.kind !== "app-profile" && definition.app) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${definition.kind} must not declare an app`,
+        path: ["app"],
+      });
+    }
+
+    if (definition.kind !== "app-profile" && definition.providerSlots) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${definition.kind} must not declare app provider slots`,
+        path: ["providerSlots"],
       });
     }
 
@@ -182,13 +221,20 @@ export const selectionDefinitionSchema = z
 export const workspaceSelectionSchema = z
   .object({
     addOns: z.array(z.string().min(1)).default([]),
+    apps: z
+      .object({
+        web: z.string().min(1).optional(),
+      })
+      .strict()
+      .default({}),
     providers: z
       .object({
-        auth: z.string().min(1),
-        cms: z.string().min(1),
-        commerce: z.string().min(1),
+        auth: z.string().min(1).optional(),
+        cms: z.string().min(1).optional(),
+        commerce: z.string().min(1).optional(),
       })
-      .strict(),
+      .strict()
+      .default({}),
   })
   .strict();
 

@@ -1,0 +1,212 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "app-web-base",
+      "type": "registry:item",
+      "title": "Shared web application source",
+      "description": "Installs the application files shared by every web profile.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/app/web/base",
+          "kind": "app-profile",
+          "app": "web"
+        }
+      },
+      "files": [
+        {
+          "path": ".env.example",
+          "target": "~/apps/web/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": ".gitignore",
+          "target": "~/apps/web/.gitignore",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/[[...url]]/page.tsx",
+          "target": "~/apps/web/app/[locale]/[[...url]]/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/robots.ts",
+          "target": "~/apps/web/app/[locale]/robots.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/sitemap.ts",
+          "target": "~/apps/web/app/[locale]/sitemap.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/styles.css",
+          "target": "~/apps/web/app/[locale]/styles.css",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/api/revalidate/route.ts",
+          "target": "~/apps/web/app/api/revalidate/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "global.d.ts",
+          "target": "~/apps/web/global.d.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "i18n/request.ts",
+          "target": "~/apps/web/i18n/request.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/cms-revalidation.ts",
+          "target": "~/apps/web/lib/cms-revalidation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/cms-routing.ts",
+          "target": "~/apps/web/lib/cms-routing.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/production-url.ts",
+          "target": "~/apps/web/lib/production-url.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "postcss.config.mjs",
+          "target": "~/apps/web/postcss.config.mjs",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "app-web-content",
+      "type": "registry:item",
+      "title": "Content web application profile",
+      "description": "Installs a CMS-only web application without Auth, Commerce, Search, or cart controls.",
+      "registryDependencies": ["app-web-base", "auth-contract"],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/app/web/content",
+          "kind": "app-profile",
+          "app": "web",
+          "providerSlots": {
+            "auth": "forbidden",
+            "cms": "required",
+            "commerce": "forbidden"
+          },
+          "providerDependencies": [
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "slot": "cms"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "registry/apps/web/app/[locale]/layout.tsx",
+          "target": "~/apps/web/app/[locale]/layout.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/components/layout/document-shell.tsx",
+          "target": "~/apps/web/components/layout/document-shell.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/env.ts",
+          "target": "~/apps/web/env.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/next.config.ts",
+          "target": "~/apps/web/next.config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/package.json",
+          "target": "~/apps/web/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/proxy.ts",
+          "target": "~/apps/web/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/tsconfig.json",
+          "target": "~/apps/web/tsconfig.json",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "app-web-reference",
+      "type": "registry:item",
+      "title": "Reference web application profile",
+      "description": "Declares storefront-only targets currently present in the reference composition.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/app/web/reference",
+          "kind": "app-profile",
+          "app": "web"
+        }
+      },
+      "files": [
+        { "path": "app/.well-known/vercel/flags/route.ts", "target": "~/apps/web/app/.well-known/vercel/flags/route.ts", "type": "registry:file" },
+        { "path": "app/[locale]/account/page.tsx", "target": "~/apps/web/app/[locale]/account/page.tsx", "type": "registry:file" },
+        { "path": "app/[locale]/checkout/error.tsx", "target": "~/apps/web/app/[locale]/checkout/error.tsx", "type": "registry:file" },
+        { "path": "app/[locale]/checkout/orders/[orderId]/page.tsx", "target": "~/apps/web/app/[locale]/checkout/orders/[orderId]/page.tsx", "type": "registry:file" },
+        { "path": "app/[locale]/checkout/page.tsx", "target": "~/apps/web/app/[locale]/checkout/page.tsx", "type": "registry:file" },
+        { "path": "app/[locale]/global-error.tsx", "target": "~/apps/web/app/[locale]/global-error.tsx", "type": "registry:file" },
+        { "path": "app/[locale]/product/[slug]/page.tsx", "target": "~/apps/web/app/[locale]/product/[slug]/page.tsx", "type": "registry:file" },
+        { "path": "app/[locale]/register/awaiting-approval/page.tsx", "target": "~/apps/web/app/[locale]/register/awaiting-approval/page.tsx", "type": "registry:file" },
+        { "path": "app/[locale]/register/page.tsx", "target": "~/apps/web/app/[locale]/register/page.tsx", "type": "registry:file" },
+        { "path": "components/layout/account-menu-client.tsx", "target": "~/apps/web/components/layout/account-menu-client.tsx", "type": "registry:file" },
+        { "path": "components/layout/account-menu.tsx", "target": "~/apps/web/components/layout/account-menu.tsx", "type": "registry:file" },
+        { "path": "components/layout/auth-href.test.ts", "target": "~/apps/web/components/layout/auth-href.test.ts", "type": "registry:file" },
+        { "path": "components/layout/auth-href.ts", "target": "~/apps/web/components/layout/auth-href.ts", "type": "registry:file" },
+        { "path": "env.test.ts", "target": "~/apps/web/env.test.ts", "type": "registry:file" },
+        { "path": "instrumentation-client.ts", "target": "~/apps/web/instrumentation-client.ts", "type": "registry:file" },
+        { "path": "instrumentation.ts", "target": "~/apps/web/instrumentation.ts", "type": "registry:file" },
+        { "path": "lib/actions.ts", "target": "~/apps/web/lib/actions.ts", "type": "registry:file" },
+        { "path": "lib/app-runtime.ts", "target": "~/apps/web/lib/app-runtime.ts", "type": "registry:file" },
+        { "path": "lib/commerce-action-cache-policy.test.ts", "target": "~/apps/web/lib/commerce-action-cache-policy.test.ts", "type": "registry:file" },
+        { "path": "lib/commerce-action-cache-policy.ts", "target": "~/apps/web/lib/commerce-action-cache-policy.ts", "type": "registry:file" },
+        { "path": "lib/commerce-actions.test.ts", "target": "~/apps/web/lib/commerce-actions.test.ts", "type": "registry:file" },
+        { "path": "lib/commerce-actions.ts", "target": "~/apps/web/lib/commerce-actions.ts", "type": "registry:file" },
+        { "path": "lib/commerce-context-actions.test.ts", "target": "~/apps/web/lib/commerce-context-actions.test.ts", "type": "registry:file" },
+        { "path": "lib/commerce-context-actions.ts", "target": "~/apps/web/lib/commerce-context-actions.ts", "type": "registry:file" },
+        { "path": "lib/commerce-context-procedures.ts", "target": "~/apps/web/lib/commerce-context-procedures.ts", "type": "registry:file" },
+        { "path": "lib/commerce-request.ts", "target": "~/apps/web/lib/commerce-request.ts", "type": "registry:file" },
+        { "path": "lib/commerce-runtime.test.ts", "target": "~/apps/web/lib/commerce-runtime.test.ts", "type": "registry:file" },
+        { "path": "lib/commerce-runtime.ts", "target": "~/apps/web/lib/commerce-runtime.ts", "type": "registry:file" },
+        { "path": "lib/current-auth-api.ts", "target": "~/apps/web/lib/current-auth-api.ts", "type": "registry:file" },
+        { "path": "lib/current-auth.test.ts", "target": "~/apps/web/lib/current-auth.test.ts", "type": "registry:file" },
+        { "path": "lib/current-auth.ts", "target": "~/apps/web/lib/current-auth.ts", "type": "registry:file" },
+        { "path": "lib/customer-account-invitation-composition.test.ts", "target": "~/apps/web/lib/customer-account-invitation-composition.test.ts", "type": "registry:file" },
+        { "path": "lib/next-request-api.ts", "target": "~/apps/web/lib/next-request-api.ts", "type": "registry:file" },
+        { "path": "lib/next-request.ts", "target": "~/apps/web/lib/next-request.ts", "type": "registry:file" },
+        { "path": "lib/next-server.test.ts", "target": "~/apps/web/lib/next-server.test.ts", "type": "registry:file" },
+        { "path": "lib/next-server.ts", "target": "~/apps/web/lib/next-server.ts", "type": "registry:file" },
+        { "path": "lib/registration-actions.test.ts", "target": "~/apps/web/lib/registration-actions.test.ts", "type": "registry:file" },
+        { "path": "lib/registration-actions.ts", "target": "~/apps/web/lib/registration-actions.ts", "type": "registry:file" },
+        { "path": "lib/registration-http-response-error.ts", "target": "~/apps/web/lib/registration-http-response-error.ts", "type": "registry:file" },
+        { "path": "lib/registration-procedures.ts", "target": "~/apps/web/lib/registration-procedures.ts", "type": "registry:file" },
+        { "path": "lib/registration-rest-client.test.ts", "target": "~/apps/web/lib/registration-rest-client.test.ts", "type": "registry:file" },
+        { "path": "lib/registration-rest-client.ts", "target": "~/apps/web/lib/registration-rest-client.ts", "type": "registry:file" },
+        { "path": "lib/session-actions.ts", "target": "~/apps/web/lib/session-actions.ts", "type": "registry:file" },
+        { "path": "vitest.config.ts", "target": "~/apps/web/vitest.config.ts", "type": "registry:file" },
+        { "path": "vercel.json", "target": "~/apps/web/vercel.json", "type": "registry:file" },
+        { "path": "scripts/skip-ci.js", "target": "~/apps/web/scripts/skip-ci.js", "type": "registry:file" }
+      ]
+    }
+  ]
+}

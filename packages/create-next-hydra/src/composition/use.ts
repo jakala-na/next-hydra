@@ -19,6 +19,7 @@ import {
 } from "./install.js";
 import { planComposition, selectionFromPreset } from "./planner.js";
 import type { ProviderSlot, WorkspaceSelection } from "./types.js";
+import { PROVIDER_SLOTS } from "./types.js";
 import { applyTypeScriptPathAliases } from "./typescript-paths.js";
 import {
   applyPackageRequirements,
@@ -34,6 +35,8 @@ export type UseCompositionOptions = {
   auth?: string;
   cms?: string;
   commerce?: string;
+  webProfile?: string;
+  without?: ProviderSlot[];
   addOns?: string[];
   preset?: string;
   check?: boolean;
@@ -59,11 +62,18 @@ function requestedSelection(
   const providers = presetSelection
     ? { ...presetSelection.providers }
     : { ...current.providers };
+  const apps = presetSelection
+    ? { ...presetSelection.apps }
+    : { ...current.apps };
   const providerOverrides: Partial<Record<ProviderSlot, string>> = {
     auth: options.auth,
     cms: options.cms,
     commerce: options.commerce,
   };
+
+  for (const slot of options.without ?? []) {
+    delete providers[slot];
+  }
 
   for (const [slot, reference] of Object.entries(providerOverrides) as [
     ProviderSlot,
@@ -72,6 +82,12 @@ function requestedSelection(
     if (reference) {
       providers[slot] = reference;
     }
+  }
+
+  if (options.webProfile) {
+    apps.web = options.webProfile.includes("/")
+      ? options.webProfile
+      : `app-web-${options.webProfile}`;
   }
 
   const presetAddOns = presetSelection ? presetSelection.addOns : [];
@@ -83,6 +99,7 @@ function requestedSelection(
   return {
     ...current,
     addOns: [...new Set(addOns)],
+    apps,
     providers,
   };
 }
@@ -135,6 +152,8 @@ export async function useComposition(
     (options.auth ||
       options.cms ||
       options.commerce ||
+      options.webProfile ||
+      options.without ||
       options.preset ||
       options.addOns)
   ) {
@@ -147,17 +166,57 @@ export async function useComposition(
     throw new Error("`use --check` cannot be combined with `--dry-run`.");
   }
 
-  if (options.preset && (options.auth || options.cms || options.commerce)) {
-    throw new Error("`use --preset` cannot be combined with provider flags.");
+  const providerOverrides: Partial<Record<ProviderSlot, string | undefined>> = {
+    auth: options.auth,
+    cms: options.cms,
+    commerce: options.commerce,
+  };
+  const invalidSlots = (options.without ?? []).filter(
+    (slot) => !PROVIDER_SLOTS.includes(slot)
+  );
+  if (invalidSlots.length > 0) {
+    throw new Error(
+      `Unknown provider slot \`${invalidSlots[0]}\`. Expected auth, cms, or commerce.`
+    );
+  }
+  const conflicts = (options.without ?? []).filter(
+    (slot) => providerOverrides[slot]
+  );
+  if (conflicts.length > 0) {
+    throw new Error(
+      `Provider slots cannot be both selected and empty: ${conflicts.join(", ")}.`
+    );
+  }
+
+  if (
+    options.preset &&
+    (options.auth ||
+      options.cms ||
+      options.commerce ||
+      options.webProfile ||
+      (options.without?.length ?? 0) > 0)
+  ) {
+    throw new Error(
+      "`use --preset` cannot be combined with app profile, provider, or `--without` flags."
+    );
   }
 
   let catalog = await loadSourceRegistryCatalog(cwd);
   catalog = await addCatalogReferences(catalog, [
+    ...Object.values(current.apps ?? {}),
     ...Object.values(current.providers),
     ...current.addOns,
-    ...[options.auth, options.cms, options.commerce, options.preset].filter(
-      (value): value is string => Boolean(value)
-    ),
+    ...[
+      options.auth,
+      options.cms,
+      options.commerce,
+      options.webProfile
+        ? options.webProfile.includes("/")
+          ? options.webProfile
+          : `app-web-${options.webProfile}`
+        : undefined,
+      options.preset,
+    ].filter((value): value is string => Boolean(value)),
     ...(options.addOns ?? []),
   ]);
   const presetSelection = options.preset
@@ -167,6 +226,7 @@ export async function useComposition(
     ? current
     : requestedSelection(current, options, presetSelection);
   catalog = await addCatalogReferences(catalog, [
+    ...Object.values(selection.apps ?? {}),
     ...Object.values(selection.providers),
     ...selection.addOns,
   ]);

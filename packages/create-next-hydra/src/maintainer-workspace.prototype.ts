@@ -12,10 +12,7 @@ import path from "node:path";
 
 import { parse as parseYaml } from "yaml";
 
-import {
-  isManagedApplicationSource,
-  resolveRegistryTarget,
-} from "./composition/paths.js";
+import { resolveRegistryTarget } from "./composition/paths.js";
 import type { WorkspaceSelection } from "./composition/types.js";
 import { pathExists, removePath, writeJsonFile } from "./fs-utils.js";
 import { runGit } from "./git.js";
@@ -44,6 +41,18 @@ type SourceLink = {
 type WorkspaceConfiguration = {
   patchedDependencies?: Record<string, string>;
 };
+
+type PackageManifest = {
+  name?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+};
+
+const GENERATED_APP_TARGETS = new Set([
+  "apps/web/package.json",
+  "apps/web/tsconfig.json",
+]);
 
 const hasMaintainerMarkers = async (directory: string): Promise<boolean> =>
   (await pathExists(path.join(directory, "next-hydra.json"))) &&
@@ -134,46 +143,61 @@ export async function copyMaintainerEnvironmentFiles(
   sourceRoot: string,
   targetRoot: string
 ): Promise<string[]> {
-  const { stdout } = await runGit(
-    [
-      "ls-files",
-      "--others",
-      "--ignored",
-      "--exclude-standard",
-      "-z",
-      "--",
-      ":(glob).env",
-      ":(glob).env.*",
-      ":(glob)apps/**/.env",
-      ":(glob)apps/**/.env.*",
-      ":(glob)packages/**/.env",
-      ":(glob)packages/**/.env.*",
-      ":(glob)tests/**/.env",
-      ":(glob)tests/**/.env.*",
-    ],
+  const { stdout: worktreeOutput } = await runGit(
+    ["worktree", "list", "--porcelain"],
     { cwd: sourceRoot }
   );
-  const copied: string[] = [];
+  const primaryWorktree = worktreeOutput
+    .split("\n")
+    .find((line) => line.startsWith("worktree "))
+    ?.slice("worktree ".length);
+  const sourceRoots = [primaryWorktree, sourceRoot].filter(
+    (root, index, roots): root is string =>
+      Boolean(root) && roots.indexOf(root) === index
+  );
+  const copied = new Set<string>();
 
-  for (const relativePath of stdout.split("\0").filter(Boolean)) {
-    const target = path.join(targetRoot, relativePath);
-    if (!(await pathExists(path.dirname(target)))) {
-      continue;
+  for (const environmentRoot of sourceRoots) {
+    const { stdout } = await runGit(
+      [
+        "ls-files",
+        "--others",
+        "--ignored",
+        "--exclude-standard",
+        "-z",
+        "--",
+        ":(glob).env",
+        ":(glob).env.*",
+        ":(glob)apps/**/.env",
+        ":(glob)apps/**/.env.*",
+        ":(glob)packages/**/.env",
+        ":(glob)packages/**/.env.*",
+        ":(glob)tests/**/.env",
+        ":(glob)tests/**/.env.*",
+      ],
+      { cwd: environmentRoot }
+    );
+
+    for (const relativePath of stdout.split("\0").filter(Boolean)) {
+      const target = path.join(targetRoot, relativePath);
+      if (!(await pathExists(path.dirname(target)))) {
+        continue;
+      }
+      const source = path.join(environmentRoot, relativePath);
+      const sourceStat = await lstat(source);
+      if (!(sourceStat.isFile() || sourceStat.isSymbolicLink())) {
+        continue;
+      }
+      await removePath(target);
+      await copyFile(source, target);
+      if (sourceStat.isFile()) {
+        await chmod(target, sourceStat.mode);
+      }
+      copied.add(relativePath);
     }
-    const source = path.join(sourceRoot, relativePath);
-    const sourceStat = await lstat(source);
-    if (!(sourceStat.isFile() || sourceStat.isSymbolicLink())) {
-      continue;
-    }
-    await removePath(target);
-    await copyFile(source, target);
-    if (sourceStat.isFile()) {
-      await chmod(target, sourceStat.mode);
-    }
-    copied.push(relativePath);
   }
 
-  return copied.sort((left, right) => left.localeCompare(right));
+  return [...copied].sort((left, right) => left.localeCompare(right));
 }
 
 const readWorkspaceConfiguration = async (
@@ -232,15 +256,19 @@ const selectedApplicationLinks = async (
         continue;
       }
       for (const file of item.files ?? []) {
-        if (
-          !file.target ||
-          !isManagedApplicationSource(file.path, file.target)
-        ) {
+        if (!file.target) {
+          continue;
+        }
+        const target = resolveRegistryTarget(file.target);
+        if (!target.startsWith(`apps${path.sep}`)) {
+          continue;
+        }
+        if (GENERATED_APP_TARGETS.has(target)) {
           continue;
         }
         links.push({
           source: path.join(registryRoot, file.path),
-          target: resolveRegistryTarget(file.target),
+          target,
         });
       }
     }
@@ -248,6 +276,172 @@ const selectedApplicationLinks = async (
 
   return links;
 };
+
+async function selectedApplicationNames(
+  sourceRoot: string,
+  selectedItems: ReadonlySet<string>,
+  selection: WorkspaceSelection
+): Promise<Set<string>> {
+  const selected = new Set(
+    Object.entries(selection.apps ?? {}).flatMap(([app, profile]) =>
+      profile ? [app] : []
+    )
+  );
+
+  for (const registryFile of await sourceRegistryFiles(sourceRoot)) {
+    const registryPath = path.join(sourceRoot, registryFile);
+    const registry = JSON.parse(
+      await readFile(registryPath, "utf-8")
+    ) as SourceRegistry;
+    for (const item of registry.items ?? []) {
+      if (!selectedItems.has(item.name)) {
+        continue;
+      }
+      for (const file of item.files ?? []) {
+        if (!file.target) {
+          continue;
+        }
+        const [root, app] = resolveRegistryTarget(file.target).split(path.sep);
+        if (root === "apps" && app) {
+          selected.add(app);
+        }
+      }
+    }
+  }
+
+  return selected;
+}
+
+const workspaceAliasPackage = (specifier: string): string | undefined => {
+  if (!specifier.startsWith("workspace:")) {
+    return;
+  }
+  const candidate = specifier.slice("workspace:".length);
+  if (!candidate.startsWith("@")) {
+    return candidate.split("@", 1)[0];
+  }
+  const separator = candidate.indexOf("@", 1);
+  return separator === -1 ? candidate : candidate.slice(0, separator);
+};
+
+const internalDependencyNames = (manifest: PackageManifest): string[] =>
+  [
+    ...Object.entries(manifest.dependencies ?? {}),
+    ...Object.entries(manifest.devDependencies ?? {}),
+    ...Object.entries(manifest.optionalDependencies ?? {}),
+  ].flatMap(([name, specifier]) => [
+    name,
+    ...(workspaceAliasPackage(specifier)
+      ? [workspaceAliasPackage(specifier) as string]
+      : []),
+  ]);
+
+export async function pruneMaintainerWorkspaceForProfiles(options: {
+  selectedItems: readonly string[];
+  selection: WorkspaceSelection;
+  sourceRoot: string;
+  targetRoot: string;
+}): Promise<string[]> {
+  if (Object.keys(options.selection.apps ?? {}).length === 0) {
+    return [];
+  }
+
+  const removed: string[] = [];
+  const retainedApps = await selectedApplicationNames(
+    options.sourceRoot,
+    new Set(options.selectedItems),
+    options.selection
+  );
+  const appsRoot = path.join(options.targetRoot, "apps");
+  if (await pathExists(appsRoot)) {
+    for (const entry of await readdir(appsRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory() || retainedApps.has(entry.name)) {
+        continue;
+      }
+      const relative = path.join("apps", entry.name);
+      await removePath(path.join(options.targetRoot, relative));
+      removed.push(relative);
+    }
+  }
+
+  const testsRoot = path.join(options.targetRoot, "tests");
+  if (await pathExists(testsRoot)) {
+    for (const entry of await readdir(testsRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const relative = path.join("tests", entry.name);
+      await removePath(path.join(options.targetRoot, relative));
+      removed.push(relative);
+    }
+  }
+
+  const packagesRoot = path.join(options.targetRoot, "packages");
+  if (!(await pathExists(packagesRoot))) {
+    return removed.sort((left, right) => left.localeCompare(right));
+  }
+
+  const packagesByName = new Map<
+    string,
+    { directory: string; manifest: PackageManifest }
+  >();
+  for (const entry of await readdir(packagesRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const manifestPath = path.join(packagesRoot, entry.name, "package.json");
+    if (!(await pathExists(manifestPath))) {
+      continue;
+    }
+    const manifest = JSON.parse(
+      await readFile(manifestPath, "utf-8")
+    ) as PackageManifest;
+    if (manifest.name) {
+      packagesByName.set(manifest.name, { directory: entry.name, manifest });
+    }
+  }
+
+  const pending: string[] = [];
+  const rootManifest = JSON.parse(
+    await readFile(path.join(options.targetRoot, "package.json"), "utf-8")
+  ) as PackageManifest;
+  pending.push(...internalDependencyNames(rootManifest));
+  for (const app of retainedApps) {
+    const manifestPath = path.join(appsRoot, app, "package.json");
+    if (!(await pathExists(manifestPath))) {
+      continue;
+    }
+    const manifest = JSON.parse(
+      await readFile(manifestPath, "utf-8")
+    ) as PackageManifest;
+    pending.push(...internalDependencyNames(manifest));
+  }
+
+  const retainedPackages = new Set<string>();
+  while (pending.length > 0) {
+    const dependency = pending.pop();
+    if (!dependency || retainedPackages.has(dependency)) {
+      continue;
+    }
+    const workspacePackage = packagesByName.get(dependency);
+    if (!workspacePackage) {
+      continue;
+    }
+    retainedPackages.add(dependency);
+    pending.push(...internalDependencyNames(workspacePackage.manifest));
+  }
+
+  for (const [name, workspacePackage] of packagesByName) {
+    if (retainedPackages.has(name)) {
+      continue;
+    }
+    const relative = path.join("packages", workspacePackage.directory);
+    await removePath(path.join(options.targetRoot, relative));
+    removed.push(relative);
+  }
+
+  return removed.sort((left, right) => left.localeCompare(right));
+}
 
 const selectedPackageLinks = async (
   sourceRoot: string,
@@ -318,6 +512,7 @@ const installSourceLink = async (
 
 export async function linkMaintainerWorkspaceSources(options: {
   environmentFiles?: readonly string[];
+  removedPaths?: readonly string[];
   selectedItems: readonly string[];
   selection: WorkspaceSelection;
   sourceRoot: string;
@@ -349,11 +544,13 @@ export async function linkMaintainerWorkspaceSources(options: {
   );
   await writeJsonFile(path.join(options.targetRoot, RECEIPT_FILE), {
     environmentFiles: options.environmentFiles ?? [],
+    generatedTargets: [...GENERATED_APP_TARGETS],
     links: [...uniqueLinks.values()].map((link) => ({
       source: path.relative(options.sourceRoot, link.source),
       target: link.target,
     })),
     selection: options.selection,
+    removedPaths: options.removedPaths ?? [],
     sourceWorkspace: options.sourceRoot,
   });
 

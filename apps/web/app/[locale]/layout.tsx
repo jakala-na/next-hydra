@@ -93,6 +93,7 @@ export default async function RootLayout({
               <MobileMenu
                 key="menu-slot"
                 navigationItems={navigation.navigationItems}
+                Search={<SearchAutocomplete />}
               />
             }
             CartSlot={

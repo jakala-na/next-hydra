@@ -18,9 +18,11 @@ import {
 } from "./composition/install.js";
 import { planComposition, selectionFromPreset } from "./composition/planner.js";
 import type {
+  ProviderSlot,
   SourceRegistryCatalog,
   WorkspaceSelection,
 } from "./composition/types.js";
+import { PROVIDER_SLOTS } from "./composition/types.js";
 import { applyTypeScriptPathAliases } from "./composition/typescript-paths.js";
 import {
   applyPackageRequirements,
@@ -56,6 +58,7 @@ import {
   copyMaintainerWorkspace,
   findMaintainerWorkspaceRoot,
   linkMaintainerWorkspaceSources,
+  pruneMaintainerWorkspaceForProfiles,
 } from "./maintainer-workspace.prototype.js";
 import { promptForProvider } from "./prompts.js";
 import { sanitizeStarter } from "./sanitize.js";
@@ -173,8 +176,45 @@ async function requestedSelection(
   options: CreateOptions,
   catalog: SourceRegistryCatalog
 ): Promise<WorkspaceSelection> {
-  if (options.preset && (options.auth || options.cms || options.commerce)) {
-    throw new Error("`--preset` cannot be combined with provider flags.");
+  const webProfile = options.webProfile
+    ? options.webProfile.includes("/")
+      ? options.webProfile
+      : `app-web-${options.webProfile}`
+    : undefined;
+  const without = new Set<ProviderSlot>();
+  for (const slot of options.without ?? []) {
+    if (!(PROVIDER_SLOTS as readonly string[]).includes(slot)) {
+      throw new Error(
+        `Unknown provider slot \`${slot}\`. Expected auth, cms, or commerce.`
+      );
+    }
+    without.add(slot as ProviderSlot);
+  }
+  const providerOptions = {
+    auth: options.auth,
+    cms: options.cms,
+    commerce: options.commerce,
+  } satisfies Partial<Record<ProviderSlot, string>>;
+  const conflicts = PROVIDER_SLOTS.filter(
+    (slot) => without.has(slot) && providerOptions[slot]
+  );
+  if (conflicts.length > 0) {
+    throw new Error(
+      `Provider slots cannot be both selected and empty: ${conflicts.join(", ")}.`
+    );
+  }
+
+  if (
+    options.preset &&
+    (options.auth ||
+      options.cms ||
+      options.commerce ||
+      options.webProfile ||
+      without.size > 0)
+  ) {
+    throw new Error(
+      "`--preset` cannot be combined with app profile, provider, or `--without` flags."
+    );
   }
 
   if (options.preset) {
@@ -185,20 +225,40 @@ async function requestedSelection(
     };
   }
 
-  if (options.yes && !(options.auth && options.cms && options.commerce)) {
+  if (options.yes && webProfile && !options.cms) {
+    throw new Error("`--yes --web-profile` requires `--cms`.");
+  }
+
+  if (
+    options.yes &&
+    !webProfile &&
+    PROVIDER_SLOTS.some(
+      (slot) => !(providerOptions[slot] || without.has(slot))
+    )
+  ) {
     throw new Error(
-      "`--yes` requires `--auth`, `--cms`, and `--commerce`, or one `--preset`."
+      "`--yes` requires every provider slot to be selected or explicitly left empty with `--without`, or one `--preset`."
     );
   }
 
-  const auth = options.auth ?? (await promptForProvider("auth", "workos"));
-  const cms = options.cms ?? (await promptForProvider("cms", "drupal"));
-  const commerce =
-    options.commerce ?? (await promptForProvider("commerce", "commercetools"));
+  const providers: Partial<Record<ProviderSlot, string>> = {};
+  for (const slot of PROVIDER_SLOTS) {
+    if (webProfile && slot !== "cms" && !providerOptions[slot]) {
+      continue;
+    }
+    if (without.has(slot)) {
+      continue;
+    }
+    const fallback =
+      slot === "auth" ? "workos" : slot === "cms" ? "drupal" : "commercetools";
+    providers[slot] =
+      providerOptions[slot] ?? (await promptForProvider(slot, fallback));
+  }
 
   return {
     addOns: options.addOns ?? [],
-    providers: { auth, cms, commerce },
+    apps: webProfile ? { web: webProfile } : {},
+    providers,
   };
 }
 
@@ -207,6 +267,11 @@ function explicitSelectionReferences(options: CreateOptions): string[] {
     options.auth,
     options.cms,
     options.commerce,
+    options.webProfile
+      ? options.webProfile.includes("/")
+        ? options.webProfile
+        : `app-web-${options.webProfile}`
+      : undefined,
     options.preset,
     ...(options.addOns ?? []),
   ].filter((value): value is string => Boolean(value));
@@ -316,6 +381,9 @@ export async function scaffoldProject(
     "update package aliases",
     "update TypeScript paths",
     "update pnpm patches",
+    ...(maintainerSourcePath && Object.keys(selection.apps ?? {}).length > 0
+      ? ["prune unselected applications and packages"]
+      : []),
     "remove maintainer-only files",
     ...(maintainerSourcePath ? ["copy local environment files"] : []),
     "install dependencies",
@@ -416,6 +484,24 @@ export async function scaffoldProject(
         );
       }
     });
+    const removedPaths =
+      maintainerSourcePath && Object.keys(selection.apps ?? {}).length > 0
+        ? await runStep(
+            "prune unselected applications and packages",
+            async () =>
+              pruneMaintainerWorkspaceForProfiles({
+                selectedItems: plan.registryItems,
+                selection,
+                sourceRoot: maintainerSourcePath,
+                targetRoot: targetPath,
+              })
+          )
+        : [];
+    if (removedPaths.length > 0) {
+      info(
+        `Pruned ${removedPaths.length} unselected application and package roots.`
+      );
+    }
     spin.start("Removing maintainer-only files");
     const { packageName } = await runStep(
       "remove maintainer-only files",
@@ -463,6 +549,7 @@ export async function scaffoldProject(
       const linkCount = await runStep("link maintainer source", async () =>
         linkMaintainerWorkspaceSources({
           environmentFiles,
+          removedPaths,
           selectedItems: plan.registryItems,
           selection,
           sourceRoot: maintainerSourcePath,
