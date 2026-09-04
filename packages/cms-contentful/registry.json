@@ -27,8 +27,28 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/index.test.ts",
+          "target": "~/packages/cms-contentful/cli/index.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/index.ts",
           "target": "~/packages/cms-contentful/cli/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/migrate.test.ts",
+          "target": "~/packages/cms-contentful/cli/migrations/migrate.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/migrate.ts",
+          "target": "~/packages/cms-contentful/cli/migrations/migrate.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/model.ts",
+          "target": "~/packages/cms-contentful/cli/migrations/model.ts",
           "type": "registry:file"
         },
         {
@@ -74,6 +94,21 @@
         {
           "path": "lib/navigation/index.ts",
           "target": "~/packages/cms-contentful/lib/navigation/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/2026-09-04-000000-create-starter-content-model.ts",
+          "target": "~/packages/cms-contentful/migrations/2026-09-04-000000-create-starter-content-model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/starter-content-model.test.ts",
+          "target": "~/packages/cms-contentful/migrations/starter-content-model.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/starter-content-model.ts",
+          "target": "~/packages/cms-contentful/migrations/starter-content-model.ts",
           "type": "registry:file"
         },
         {

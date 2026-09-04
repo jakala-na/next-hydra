@@ -22,11 +22,23 @@ Copy `.env.example` into the consuming application's `.env` and fill:
 
 - `CONTENTFUL_SPACE_ID`
 - `CONTENTFUL_ENVIRONMENT`
+- `CONTENTFUL_MANAGEMENT_TOKEN` (CLI migrations only; not used by the Next.js runtime)
 - `CONTENTFUL_DELIVERY_TOKEN`
 - `CONTENTFUL_PREVIEW_TOKEN`
 - `CONTENTFUL_PREVIEW_SECRET`
 
 Preview URLs should call `/api/draft?secret=<CONTENTFUL_PREVIEW_SECRET>&slug=/path`.
+
+## Content model
+
+The starter Contentful content model matches the Drupal recipe entity types (landing page, article, hero, featured articles, and dynamic product collection). Run it against an **empty** Contentful environment; `createContentType` is not idempotent.
+
+```bash
+pnpm cli cms migrate
+pnpm cli cms migrate --space-id <space> --environment <environment> --management-token <token>
+```
+
+`CONTENTFUL_SPACE_ID`, `CONTENTFUL_ENVIRONMENT` (default `master`), and `CONTENTFUL_MANAGEMENT_TOKEN` are read from the environment when flags are omitted.
 
 ## Validation
 

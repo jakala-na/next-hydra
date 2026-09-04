@@ -28,6 +28,7 @@
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
+    "contentful-migration": "^5.1.0",
     "effect": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
@@ -35,6 +36,7 @@
     "zod": "^3.25.28"
   },
   "devDependencies": {
+    "@effect/platform-node": "catalog:",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
