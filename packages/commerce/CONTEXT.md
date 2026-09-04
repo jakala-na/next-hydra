@@ -12,9 +12,17 @@ The Checkout context describes how a buyer completes the information and choices
 
 **Cart Line Item Summary Attribute**: One presentation-ready Product Attribute selected by a commerce provider to identify a Product Variant in compact Cart presentations. Its label and value are already localized and formatted. _Avoid_: Raw Product Attribute, Product Attribute bag
 
-**Cart Snapshot**: An observation of a Cart's current semantic state, independent of provider resource revisions and storage representation. _Avoid_: Provider Cart, Cart version
+**Money**: A branded amount expressed as an integer Cent Amount together with its Currency Code. Core commerce models and projections retain this shape; provider adapters and presentation boundaries may convert it to provider-specific or major units. _Avoid_: Price number, floating-point amount
+
+**Cart Snapshot**: An observation of a Cart's current semantic state, independent of provider storage representation. A Cart Snapshot carries a Cart Snapshot Version so consumers can replace stale observations. _Avoid_: Provider Cart
+
+**Cart Snapshot Version**: A provider-native freshness token for one Cart Snapshot. A provider may represent it as a numeric revision, a string token, or a derived fingerprint; consumers treat the value as opaque and pair it with Cart Identity for cache or UI replacement. It is neither proof of Cart ownership nor caller-supplied write authority. _Avoid_: Cart authority
+
+**Cart Read Model**: The core Cart projection used by buyer-facing Cart surfaces. It selects presentation-ready Cart Line Items and derives subtotal, saved Shipping Option price, and total as Money before data crosses the React boundary. _Avoid_: Cart component state, provider Cart
 
 **Current Cart**: The Cart resolved for the buyer's current Store and, for B2B activity, Business Unit Buying Context. The `cart` cookie identifies an anonymous Current Cart. _Avoid_: Cart Session, arbitrary Cart
+
+**Legacy Cart**: A provider-stored Cart whose otherwise valid data reflects obsolete platform rules and therefore cannot be a Current Cart. It is distinct from malformed provider data. _Avoid_: Invalid Cart, Corrupt Cart
 
 **Carts**: The process-level Effect Service used by Current Cart for provider-neutral Cart discovery, creation, and persistence programs. _Avoid_: Cart repository, global Cart service
 
@@ -221,6 +229,9 @@ The Checkout context describes how a buyer completes the information and choices
 - A **Product Detail** identifies its **Product Type**, and every included Product Variant's Attributes conform to that Product Type's schema.
 - Product Card and Product Detail contain only Products and Product Variants in the current Store's **Product Catalog**; Product Card price and availability are derived only from those eligible Variants.
 - A **Current Cart** is selected from the buyer's current Store and, for B2B activity, Business Unit Buying Context rather than by treating an arbitrary Cart ID as authority.
+- A **Cart Read Model** projects all Cart arithmetic and saved Shipping Option extraction in core commerce. React Cart surfaces format its Money at the presentation boundary without reconstructing totals.
+- **Money** remains a branded Cent Amount and Currency Code through domain and read models. Conversion to major or provider-specific units happens only at explicit boundaries.
+- **Carts** treats a missing, inactive, or **Legacy Cart** as no Current Cart. Provider outages remain typed failures, while malformed provider data and response-schema violations remain defects.
 - A customer identity authorizes access to profile and associate capabilities; it does not own the **Cart**.
 - An anonymous **Cart** belongs to its Store and has no **Buying Context** Business Unit.
 - A B2B **Cart** belongs to its Store and **Buying Context** Business Unit, so cart reads and writes should use store-scoped and Business Unit-scoped provider operations rather than customer-owned cart semantics.

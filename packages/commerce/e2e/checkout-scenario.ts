@@ -72,9 +72,18 @@ interface AnonymousCartCookiePage {
 }
 
 export interface CheckoutScenarioOptions {
+  readonly createCustomerOwnedCart?: (input: {
+    readonly currency: string;
+    readonly storeKey: string;
+  }) => Promise<{ readonly cartId: CartId; readonly customerId: string }>;
+  readonly createLegacyCart?: (input: {
+    readonly currency: string;
+    readonly storeKey: string;
+  }) => Promise<CartId>;
   readonly deleteOrder?: (cartId: CartId) => Promise<void>;
   readonly deleteNetTerms?: (businessUnitId: string) => Promise<void>;
   readonly deleteCart: (cartId: CartId) => Promise<void>;
+  readonly deleteCustomer?: (customerId: string) => Promise<void>;
   readonly deletePayments?: (cartId: CartId) => Promise<void>;
   readonly expectShippingOptions?: (
     input: ShippingOptionsExpectation
@@ -104,6 +113,7 @@ export interface CheckoutScenarioOptions {
 
 export class CheckoutScenario {
   readonly #cartIds = new Set<CartId>();
+  readonly #customerIdByCartId = new Map<CartId, string>();
   readonly #netTermsBusinessUnitIds = new Set<string>();
   readonly #options: CheckoutScenarioOptions;
   #disposed = false;
@@ -240,6 +250,36 @@ export class CheckoutScenario {
       throw new Error("The scenario has no current Cart");
     }
     return this.#currentCartId;
+  }
+
+  async createLegacyCart(): Promise<CartId> {
+    if (this.#options.createLegacyCart === undefined) {
+      throw new Error("The scenario cannot create a live Legacy Cart");
+    }
+    const store = this.requireStore();
+    const cartId = await this.#options.createLegacyCart({
+      currency: store.currency,
+      storeKey: store.key,
+    });
+    this.rememberCart(cartId);
+    return cartId;
+  }
+
+  async createCustomerOwnedCart(): Promise<CartId> {
+    if (
+      this.#options.createCustomerOwnedCart === undefined ||
+      this.#options.deleteCustomer === undefined
+    ) {
+      throw new Error("The scenario cannot create a customer-owned Cart");
+    }
+    const store = this.requireStore();
+    const fixture = await this.#options.createCustomerOwnedCart({
+      currency: store.currency,
+      storeKey: store.key,
+    });
+    this.rememberCart(fixture.cartId);
+    this.#customerIdByCartId.set(fixture.cartId, fixture.customerId);
+    return fixture.cartId;
   }
 
   requestCardCaptureFailure(): void {
@@ -410,6 +450,14 @@ export class CheckoutScenario {
           await this.#options.deletePayments?.(cartId);
         } catch (error) {
           cartFailures.push(error);
+        }
+        const customerId = this.#customerIdByCartId.get(cartId);
+        if (customerId !== undefined) {
+          try {
+            await this.#options.deleteCustomer?.(customerId);
+          } catch (error) {
+            cartFailures.push(error);
+          }
         }
         if (cartFailures.length === 1) {
           throw cartFailures[0];

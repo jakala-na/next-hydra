@@ -10,8 +10,10 @@ import {
   ProductId,
   VariantId,
 } from "@repo/commerce/domain/cart";
+import { CartSnapshotVersion } from "@repo/commerce/domain/cart-snapshot";
 import type { CartSnapshot } from "@repo/commerce/domain/cart-snapshot";
 import { CountryCode } from "@repo/commerce/domain/checkout";
+import { money } from "@repo/commerce/domain/money";
 import { DeliveryPlanning } from "@repo/commerce/services/delivery-planning";
 import { CommerceLocale, StoreKey } from "@repo/commerce/store";
 import { Effect, Layer } from "effect";
@@ -36,8 +38,8 @@ const cart: CartSnapshot = {
     {
       id: LineItemId.make("line-1"),
       quantity: 1,
-      totalPrice: { centAmount: 9500, currencyCode: "USD" },
-      unitPrice: { centAmount: 9500, currencyCode: "USD" },
+      totalPrice: money(9500, "USD"),
+      unitPrice: money(9500, "USD"),
       variant: {
         id: VariantId.make("variant-1"),
         images: [],
@@ -50,7 +52,8 @@ const cart: CartSnapshot = {
   storeKey: StoreKey.make("us-store"),
   totalLineItemQuantity: 1,
   // Commercetools Cart.totalPrice includes the currently selected 1,000-cent Shipping Rate.
-  totalPrice: { centAmount: 10_500, currencyCode: "USD" },
+  totalPrice: money(10_500, "USD"),
+  version: CartSnapshotVersion.make("cart-1"),
 };
 
 const quoteWithRate = (rate: ShippingRate) => {

@@ -3,7 +3,7 @@ import { Effect, Layer, Option, Schema } from "effect";
 
 import { CartId, ProductId, Sku, VariantId } from "../domain/cart";
 import { CartPolicyFailure, CartProviderFailure } from "../domain/cart-errors";
-import { ProductTypeKey } from "../domain/cart-snapshot";
+import { CartSnapshotVersion, ProductTypeKey } from "../domain/cart-snapshot";
 import type { CartSnapshot } from "../domain/cart-snapshot";
 import {
   CommerceBusinessUnitId,
@@ -17,6 +17,7 @@ import {
   AuthUserId,
   CustomerCommerceContextRequest,
 } from "../domain/commerce-request-context";
+import { money } from "../domain/money";
 import type { CurrentCartCookie } from "../lib/current-cart/cookie";
 import { CommerceLocale, Store, StoreKey } from "../store";
 import { CartPolicies } from "./cart-policies";
@@ -39,7 +40,8 @@ const emptyCart = (id: string): CartSnapshot => ({
   status: "active",
   storeKey: store.storeKey,
   totalLineItemQuantity: 0,
-  totalPrice: { centAmount: 0, currencyCode: "USD" },
+  totalPrice: money(0, "USD"),
+  version: CartSnapshotVersion.make("cart-1"),
 });
 
 interface TestCurrentCartBoundary {
@@ -151,7 +153,7 @@ describe(CurrentCart, () => {
           Carts.layerMemory({
             merchandise: [
               {
-                unitPrice: { centAmount: 1250, currencyCode: "USD" },
+                unitPrice: money(1250, "USD"),
                 variant: {
                   id: VariantId.make("variant-1"),
                   images: [],
@@ -189,7 +191,7 @@ describe(CurrentCart, () => {
     );
   });
 
-  it.effect("does not expose or replace an inaccessible possessed Cart", () => {
+  it.effect("treats an inaccessible possessed Cart as absence", () => {
     const setIds: CartId[] = [];
     const cleared: boolean[] = [];
     const cart = {
@@ -200,29 +202,11 @@ describe(CurrentCart, () => {
     };
     return Effect.gen(function* () {
       const currentCart = yield* CurrentCart;
-      const readError = yield* currentCart.get().pipe(Effect.flip);
+      const state = yield* currentCart.get();
 
-      expect(readError).toMatchObject({
-        _tag: "CartProviderFailure",
-        operation: "findById",
-        reason: "unexpectedResponse",
-      });
-
-      const error = yield* currentCart
-        .addItem({
-          productId: ProductId.make("product-1"),
-          quantity: 1,
-          variantId: VariantId.make("variant-1"),
-        })
-        .pipe(Effect.flip);
-
-      expect(error).toMatchObject({
-        _tag: "CartProviderFailure",
-        operation: "findById",
-        reason: "unexpectedResponse",
-      });
+      expect(Option.isNone(state)).toBeTruthy();
       expect(setIds).toStrictEqual([]);
-      expect(cleared).toStrictEqual([]);
+      expect(cleared).toStrictEqual([true]);
     }).pipe(
       Effect.provide(
         currentCartLayer(

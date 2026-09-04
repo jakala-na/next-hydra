@@ -55,7 +55,18 @@
           "browseProducts": "Blader door Producten"
         }
       },
+      "items": {
+        "heading": "Artikelen in winkelwagen",
+        "unitPrice": "Stukprijs",
+        "lineTotal": "Totaal artikel",
+        "quantity": "Aantal",
+        "quantityLabel": "Aantal van {product}",
+        "decreaseQuantity": "Aantal van {product} verlagen",
+        "increaseQuantity": "Aantal van {product} verhogen",
+        "removeLabel": "{product} uit winkelwagen verwijderen"
+      },
       "summary": {
+        "heading": "Besteloverzicht",
         "subtotal": {
           "label": "Subtotaal"
         },
@@ -70,7 +81,18 @@
       },
       "actions": {
         "checkout": "Ga naar Afrekenen",
-        "continueShopping": "Blijf Winkelen"
+        "continueShopping": "Blijf Winkelen",
+        "openCart": "Winkelwagen openen",
+        "remove": "Verwijderen",
+        "viewCart": "Winkelwagen bekijken"
+      },
+      "error": {
+        "heading": "We konden je winkelwagen niet laden",
+        "description": "Er is iets misgegaan bij het laden van je winkelwagen. Probeer het opnieuw.",
+        "controlUnavailable": "Winkelwagen niet beschikbaar",
+        "actions": {
+          "tryAgain": "Opnieuw proberen"
+        }
       }
     },
     "registration": {

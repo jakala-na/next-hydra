@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import { CountryCode } from "../domain/address";
 import { AddressBookEntry, AddressBookReference } from "../domain/address-book";
 import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
+import { CartSnapshotVersion } from "../domain/cart-snapshot";
 import {
   CheckoutCartMismatch,
   CheckoutMutationOutcomeUnknown,
@@ -38,6 +39,7 @@ import {
   DeliveryPlanReference,
   ShippingOptionReference,
 } from "../domain/delivery-plan";
+import { money } from "../domain/money";
 import type {
   CheckoutSaveContactFailure,
   CheckoutSaveShippingOptionsFailure,
@@ -61,8 +63,8 @@ const checkoutState: CheckoutState = {
       {
         id: LineItemId.make("line-item-1"),
         quantity: 1,
-        totalPrice: { centAmount: 2500, currencyCode: "USD" },
-        unitPrice: { centAmount: 2500, currencyCode: "USD" },
+        totalPrice: money(2500, "USD"),
+        unitPrice: money(2500, "USD"),
         variant: {
           id: VariantId.make("variant-1"),
           images: [],
@@ -74,7 +76,8 @@ const checkoutState: CheckoutState = {
     status: "active",
     storeKey: StoreKey.make("default-store"),
     totalLineItemQuantity: 1,
-    totalPrice: { centAmount: 2500, currencyCode: "USD" },
+    totalPrice: money(2500, "USD"),
+    version: CartSnapshotVersion.make("cart-1"),
   },
   details: {},
   scope: new StorefrontCustomerCheckoutScope({
@@ -105,8 +108,8 @@ const encodedCheckoutSuccess = {
         {
           id: "line-item-1",
           quantity: 1,
-          totalPrice: { centAmount: 2500, currencyCode: "USD" },
-          unitPrice: { centAmount: 2500, currencyCode: "USD" },
+          totalPrice: money(2500, "USD"),
+          unitPrice: money(2500, "USD"),
           variant: {
             id: "variant-1",
             images: [],
@@ -118,7 +121,8 @@ const encodedCheckoutSuccess = {
       status: "active",
       storeKey: "default-store",
       totalLineItemQuantity: 1,
-      totalPrice: { centAmount: 2500, currencyCode: "USD" },
+      totalPrice: money(2500, "USD"),
+      version: "cart-1",
     },
     details: {},
     scope: {
@@ -262,7 +266,7 @@ describe("Checkout boundaries", () => {
   it("renders merchandise subtotal separately from selected Shipping", () => {
     const selectedShippingOption = {
       name: "Standard",
-      price: { centAmount: 500, currencyCode: "USD" as const },
+      price: money(500, "USD"),
       reference: ShippingOptionReference.make("standard"),
     };
     const state: CheckoutState = {
@@ -270,7 +274,7 @@ describe("Checkout boundaries", () => {
       activeStep: "paymentOptions",
       cart: {
         ...checkoutState.cart,
-        totalPrice: { centAmount: 3000, currencyCode: "USD" },
+        totalPrice: money(3000, "USD"),
       },
       details: {
         selectedDeliveryPlan: {

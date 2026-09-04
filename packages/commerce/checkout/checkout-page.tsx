@@ -2,7 +2,7 @@ import "server-only";
 import { NextCommerce } from "@repo/commerce/runtime";
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 
 import { CheckoutSession } from "../lib/checkout/checkout-session";
@@ -22,6 +22,7 @@ import type {
 
 export async function CheckoutPage({
   actions,
+  cartPath,
   locale,
   renderPaymentOptions,
   renderPlaceOrder,
@@ -33,6 +34,7 @@ export async function CheckoutPage({
     readonly saveShippingOptions: SaveCheckoutShippingOptionsAction;
     readonly placeOrder: PlaceCheckoutOrderAction;
   };
+  readonly cartPath: `/${Locale}/cart`;
   readonly locale: Locale;
   readonly renderPaymentOptions: CheckoutPaymentOptionsRenderer;
   readonly renderPlaceOrder: CheckoutPlaceOrderRenderer;
@@ -89,7 +91,7 @@ export async function CheckoutPage({
     notFound();
   }
   if (pageData.snapshot === null) {
-    notFound();
+    redirect(cartPath);
   }
 
   return (

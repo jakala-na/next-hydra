@@ -55,7 +55,18 @@
           "browseProducts": "Parcourir les produits"
         }
       },
+      "items": {
+        "heading": "Articles du panier",
+        "unitPrice": "Prix unitaire",
+        "lineTotal": "Total de l’article",
+        "quantity": "Quantité",
+        "quantityLabel": "Quantité de {product}",
+        "decreaseQuantity": "Réduire la quantité de {product}",
+        "increaseQuantity": "Augmenter la quantité de {product}",
+        "removeLabel": "Retirer {product} du panier"
+      },
       "summary": {
+        "heading": "Récapitulatif de la commande",
         "subtotal": {
           "label": "Sous-total"
         },
@@ -70,7 +81,18 @@
       },
       "actions": {
         "checkout": "Passer à la caisse",
-        "continueShopping": "Continuer vos achats"
+        "continueShopping": "Continuer vos achats",
+        "openCart": "Ouvrir le panier",
+        "remove": "Retirer",
+        "viewCart": "Voir le panier"
+      },
+      "error": {
+        "heading": "Nous n’avons pas pu charger votre panier",
+        "description": "Une erreur s’est produite lors du chargement de votre panier. Veuillez réessayer.",
+        "controlUnavailable": "Panier indisponible",
+        "actions": {
+          "tryAgain": "Réessayer"
+        }
       }
     },
     "registration": {

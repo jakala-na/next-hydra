@@ -10,6 +10,7 @@ import {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "../domain/commerce-account";
+import { money } from "../domain/money";
 import { CommerceLocale, Store, StoreKey } from "../store";
 import { Carts } from "./carts";
 
@@ -65,8 +66,13 @@ describe("Carts memory Layer", () => {
 
       const created = yield* carts.createForBusinessUnit(businessUnit);
       const found = yield* carts.findActiveForBusinessUnit(businessUnit);
+      const anonymousLookup = yield* carts.findById({
+        id: created.id,
+        store,
+      });
 
       expect(found.map((cart) => cart.id)).toStrictEqual([created.id]);
+      expect(Option.isNone(anonymousLookup)).toBeTruthy();
       expect(created.buyingContext?.businessUnitId).toBe(
         businessUnit.businessUnitId
       );
@@ -100,10 +106,7 @@ describe("Carts memory Layer", () => {
         Carts.layerMemory({
           merchandise: [
             {
-              unitPrice: {
-                centAmount: unitPriceCentAmount,
-                currencyCode: "USD",
-              },
+              unitPrice: money(unitPriceCentAmount, "USD"),
               variant: {
                 id: VariantId.make("variant-1"),
                 images: [],
@@ -156,10 +159,7 @@ describe("Carts memory Layer", () => {
         Carts.layerMemory({
           merchandise: [
             {
-              unitPrice: {
-                centAmount: unitPriceCentAmount,
-                currencyCode: "USD",
-              },
+              unitPrice: money(unitPriceCentAmount, "USD"),
               variant: {
                 id: VariantId.make("variant-1"),
                 images: [],

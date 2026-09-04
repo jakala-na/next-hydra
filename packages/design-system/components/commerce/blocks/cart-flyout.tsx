@@ -1,5 +1,7 @@
 "use client";
 
+import type { Money } from "@repo/commerce/domain/money";
+import { CartSummary } from "@repo/design-system/components/commerce/blocks/cart-summary";
 import { useCart } from "@repo/design-system/components/commerce/providers/cart-context";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
@@ -16,27 +18,28 @@ import Link from "next/link";
 
 // SAFETY: Locale routing resolves this temporary destination at runtime while the generated Route union cannot represent it yet.
 const PRODUCTS_ROUTE = "/products" as Route;
+// SAFETY: Locale routing resolves this Cart destination at runtime while the generated Route union cannot represent it yet.
+const CART_ROUTE = "/cart" as Route;
 // SAFETY: Locale routing resolves this Checkout destination at runtime while the generated Route union requires a locale-prefixed path.
 const CHECKOUT_ROUTE = "/checkout" as Route;
 
 export function CartFlyout() {
   const {
     items,
+    summary,
     totalItems,
-    totalPrice,
     removeItem,
     updateQuantity,
     isOpen,
     closeCart,
-    currencyCode,
   } = useCart();
 
   const format = useFormatter();
   const t = useTranslations("web.cart");
 
-  const formatPrice = (price: number) =>
-    format.number(price, "wholeMoneyWithCurrency", {
-      currency: currencyCode,
+  const formatPrice = (price: Money) =>
+    format.number(price.centAmount / 100, "wholeMoneyWithCurrency", {
+      currency: price.currencyCode,
     });
 
   return (
@@ -56,12 +59,17 @@ export function CartFlyout() {
             <p className="mb-6 text-muted-foreground">
               {t("empty.description")}
             </p>
-            <Button onClick={closeCart} asChild>
-              {/* @todo: implement products page */}
-              <Link href={PRODUCTS_ROUTE}>
-                {t("empty.actions.browseProducts")}
-              </Link>
-            </Button>
+            <div className="grid w-full max-w-xs gap-2">
+              <Button onClick={closeCart} asChild>
+                {/* @todo: implement products page */}
+                <Link href={PRODUCTS_ROUTE}>
+                  {t("empty.actions.browseProducts")}
+                </Link>
+              </Button>
+              <Button variant="outline" onClick={closeCart} asChild>
+                <Link href={CART_ROUTE}>{t("actions.viewCart")}</Link>
+              </Button>
+            </div>
           </div>
         ) : (
           <>
@@ -74,7 +82,7 @@ export function CartFlyout() {
                 >
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md bg-muted">
                     <Image
-                      src={item.image || "/placeholder.svg"}
+                      src={item.image?.url ?? "/placeholder.svg"}
                       alt={item.name}
                       fill
                       className="object-cover"
@@ -132,9 +140,7 @@ export function CartFlyout() {
                           <Plus className="h-3 w-3" />
                         </Button>
                       </div>
-                      <p className="font-bold">
-                        {formatPrice(item.price * item.quantity)}
-                      </p>
+                      <p className="font-bold">{formatPrice(item.lineTotal)}</p>
                     </div>
                   </div>
                 </div>
@@ -142,33 +148,9 @@ export function CartFlyout() {
             </div>
 
             <div className="space-y-4 border-t pt-6">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {t("summary.subtotal.label")}
-                  </span>
-                  <span
-                    className="font-medium"
-                    data-commerce-money="cart-subtotal"
-                    data-currency={currencyCode}
-                    data-minor-amount={Math.round(totalPrice * 100)}
-                  >
-                    {formatPrice(totalPrice)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {t("summary.shipping.label")}
-                  </span>
-                  <span className="font-medium">
-                    {t("summary.shipping.description")}
-                  </span>
-                </div>
-                <div className="flex justify-between border-t pt-2 font-bold text-lg">
-                  <span>{t("summary.total.label")}</span>
-                  <span>{formatPrice(totalPrice)}</span>
-                </div>
-              </div>
+              {summary === undefined ? null : (
+                <CartSummary summary={summary} surface="cart" />
+              )}
 
               <div className="space-y-2">
                 <Button className="h-12 w-full" size="lg" asChild>
@@ -179,8 +161,13 @@ export function CartFlyout() {
                 <Button
                   variant="outline"
                   className="w-full bg-transparent"
-                  onClick={closeCart}
+                  asChild
                 >
+                  <Link href={CART_ROUTE} onClick={closeCart}>
+                    {t("actions.viewCart")}
+                  </Link>
+                </Button>
+                <Button variant="ghost" className="w-full" onClick={closeCart}>
                   {t("actions.continueShopping")}
                 </Button>
               </div>

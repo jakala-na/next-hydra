@@ -18,6 +18,7 @@ import {
   DeliveryPlanReference,
   ShippingOptionReference,
 } from "@repo/commerce/domain/delivery-plan";
+import { money } from "@repo/commerce/domain/money";
 import { Carts } from "@repo/commerce/services/carts";
 import { CommerceLocale, Store, StoreKey } from "@repo/commerce/store";
 import type { Client } from "@urql/core";
@@ -131,6 +132,7 @@ const rawActiveCart = {
   country: null,
   custom: null,
   customerEmail: null,
+  customerId: null,
   id: "cart-1",
   lineItems: [],
   shippingAddress: null,
@@ -221,7 +223,7 @@ const selectedDeliveryPlan = {
       reference: DeliveryGroupReference.make("delivery-1"),
       selectedShippingOption: {
         name: "Standard",
-        price: { centAmount: 500, currencyCode: "USD" as const },
+        price: money(500, "USD"),
         reference: ShippingOptionReference.make(
           "shipping-option-c2hpcHBpbmctbWV0aG9kLTE"
         ),
@@ -279,21 +281,44 @@ const associateScopeInput = {
 
 describe("findById", () => {
   it.effect(
-    "projects an owned provider Cart without leaking its version",
+    "projects an owned provider Cart with its numeric provider version",
     () => {
       const clients = makeScriptedClients();
-      clients.on("CartById", cartByIdData(rawActiveCart));
+      clients.on(
+        "CartById",
+        cartByIdData(rawActiveCart),
+        cartByIdData(rawActiveCart),
+        cartByIdData({ ...rawActiveCart, version: providerVersion }),
+        cartByIdData({
+          ...rawActiveCart,
+          totalPrice: { centAmount: 100, currencyCode: "USD" },
+          version: providerVersion + 1,
+        })
+      );
 
       return Effect.gen(function* () {
         const carts = yield* Carts;
-        const found = yield* carts.findById({
-          id: CartId.make("cart-1"),
-          store,
-        });
-        const cart = Option.getOrThrow(found);
+        const first = Option.getOrThrow(
+          yield* carts.findById({ id: CartId.make("cart-1"), store })
+        );
+        const repeated = Option.getOrThrow(
+          yield* carts.findById({ id: CartId.make("cart-1"), store })
+        );
+        const revisionOnly = Option.getOrThrow(
+          yield* carts.findById({
+            id: CartId.make("cart-1"),
+            store,
+          })
+        );
+        const changed = Option.getOrThrow(
+          yield* carts.findById({ id: CartId.make("cart-1"), store })
+        );
 
-        expect(cart).not.toHaveProperty("version");
-        expect(cart).toMatchObject({
+        expect(first.version).toBe(repeated.version);
+        expect(first.version).toBe(currentVersion);
+        expect(revisionOnly.version).toBe(providerVersion);
+        expect(changed.version).toBe(providerVersion + 1);
+        expect(first).toMatchObject({
           id: "cart-1",
           status: "active",
           storeKey: "us-store",
@@ -455,7 +480,69 @@ describe("findById", () => {
     }).pipe(Effect.provide(clients.layer));
   });
 
-  it.effect("reports invalid provider projections as invalid data", () => {
+  it.effect("treats an ordered Cart as no Current Cart", () => {
+    const clients = makeScriptedClients();
+    clients.on(
+      "CartById",
+      cartByIdData({ ...rawActiveCart, cartState: "Ordered" })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const found = yield* carts.findById({
+        id: CartId.make("cart-1"),
+        store,
+      });
+
+      expect(Option.isNone(found)).toBeTruthy();
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect(
+    "treats a Cart incompatible with current shipping rules as no Current Cart",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({ ...rawActiveCart, shippingMode: "Single" })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(Option.isNone(found)).toBeTruthy();
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect("surfaces a Cart API outage as unavailable", () => {
+    const clients = makeScriptedClients();
+    clients.on("CartById", {
+      error: {
+        message: "Cart API unavailable",
+        networkError: new Error("Cart API unavailable"),
+      },
+    });
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const failure = yield* carts
+        .findById({ id: CartId.make("cart-1"), store })
+        .pipe(Effect.flip);
+
+      expect(failure).toMatchObject({
+        _tag: "CartProviderFailure",
+        operation: "findById",
+        reason: "unavailable",
+      });
+    }).pipe(Effect.provide(clients.layer));
+  });
+
+  it.effect("treats schema-invalid provider projections as defects", () => {
     const clients = makeScriptedClients();
     clients.on(
       "CartById",
@@ -464,14 +551,14 @@ describe("findById", () => {
 
     return Effect.gen(function* () {
       const carts = yield* Carts;
-      const error = yield* carts
+      const exit = yield* carts
         .findById({ id: CartId.make("cart-1"), store })
-        .pipe(Effect.flip);
+        .pipe(Effect.exit);
 
-      expect(error).toMatchObject({
-        _tag: "CartProviderFailure",
-        reason: "invalidData",
-      });
+      expect(Exit.isFailure(exit)).toBeTruthy();
+      expect(Exit.isFailure(exit) ? Cause.pretty(exit.cause) : "").toContain(
+        "totalLineItemQuantity"
+      );
     }).pipe(Effect.provide(clients.layer));
   });
 
@@ -633,7 +720,7 @@ describe("findById", () => {
   );
 
   it.effect(
-    "rejects linked Payment metadata stored under another Custom Type",
+    "treats linked Payment metadata under another Custom Type as a defect",
     () => {
       const clients = makeScriptedClients();
       clients.on(
@@ -658,26 +745,19 @@ describe("findById", () => {
 
       return Effect.gen(function* () {
         const carts = yield* Carts;
-        const result = yield* carts
-          .findById({
-            id: CartId.make("cart-1"),
-            store,
-          })
-          .pipe(Effect.result);
+        const exit = yield* carts
+          .findById({ id: CartId.make("cart-1"), store })
+          .pipe(Effect.exit);
 
-        expect(result).toMatchObject({
-          _tag: "Failure",
-          failure: {
-            _tag: "CartProviderFailure",
-            operation: "findById",
-            reason: "invalidData",
-          },
-        });
+        expect(Exit.isFailure(exit)).toBeTruthy();
+        expect(Exit.isFailure(exit) ? Cause.pretty(exit.cause) : "").toContain(
+          "paymentCustomFields"
+        );
       }).pipe(Effect.provide(clients.layer));
     }
   );
 
-  it.effect("ignores a Cart whose expanded Payment is not linked", () => {
+  it.effect("defects when an expanded Payment is not linked", () => {
     const clients = makeScriptedClients();
     clients.on(
       "CartById",
@@ -693,12 +773,14 @@ describe("findById", () => {
 
     return Effect.gen(function* () {
       const carts = yield* Carts;
-      const found = yield* carts.findById({
-        id: CartId.make("cart-1"),
-        store,
-      });
+      const exit = yield* carts
+        .findById({ id: CartId.make("cart-1"), store })
+        .pipe(Effect.exit);
 
-      expect(Option.isNone(found)).toBeTruthy();
+      expect(Exit.isFailure(exit)).toBeTruthy();
+      expect(Exit.isFailure(exit) ? Cause.pretty(exit.cause) : "").toContain(
+        "Payments that do not match its Payment references"
+      );
     }).pipe(Effect.provide(clients.layer));
   });
 
@@ -727,7 +809,7 @@ describe("findById", () => {
   );
 
   it.effect(
-    "reports malformed persisted Checkout custom JSON as invalid provider data",
+    "treats malformed persisted Checkout custom JSON as a defect",
     () => {
       const clients = makeScriptedClients();
       clients.on(
@@ -745,18 +827,14 @@ describe("findById", () => {
 
       return Effect.gen(function* () {
         const carts = yield* Carts;
-        const result = yield* carts
+        const exit = yield* carts
           .findById({ id: CartId.make("cart-1"), store })
-          .pipe(Effect.result);
+          .pipe(Effect.exit);
 
-        expect(result).toMatchObject({
-          _tag: "Failure",
-          failure: {
-            _tag: "CartProviderFailure",
-            operation: "findById",
-            reason: "invalidData",
-          },
-        });
+        expect(Exit.isFailure(exit)).toBeTruthy();
+        expect(Exit.isFailure(exit) ? Cause.pretty(exit.cause) : "").toContain(
+          "checkoutDeliveryDetails"
+        );
       }).pipe(Effect.provide(clients.layer));
     }
   );
@@ -832,18 +910,40 @@ describe("findById", () => {
   });
 
   it.effect(
-    "rejects Business Unit Carts presented as anonymous possession",
+    "returns no Cart for Business Unit possession presented as anonymous",
     () => {
       const clients = makeScriptedClients();
       clients.on("CartById", cartByIdData(rawBusinessUnitCart));
 
       return Effect.gen(function* () {
         const carts = yield* Carts;
-        const error = yield* carts
-          .findById({ id: CartId.make("cart-1"), store })
-          .pipe(Effect.flip);
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
 
-        expect(error._tag).toBe("CartAccessDenied");
+        expect(Option.isNone(found)).toBeTruthy();
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect(
+    "returns no Cart for customer possession presented as anonymous",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on(
+        "CartById",
+        cartByIdData({ ...rawActiveCart, customerId: "customer-1" })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const found = yield* carts.findById({
+          id: CartId.make("cart-1"),
+          store,
+        });
+
+        expect(Option.isNone(found)).toBeTruthy();
       }).pipe(Effect.provide(clients.layer));
     }
   );
@@ -973,6 +1073,76 @@ describe("addItem", () => {
       }).pipe(Effect.provide(clients.layer));
     }
   );
+
+  it.effect(
+    "preserves a successful write with an unusable Cart response as unknown",
+    () => {
+      const clients = makeScriptedClients();
+      clients.on("CartById", cartByIdData(rawActiveCart));
+      clients.on("ProviderCartDistributionChannel", distributionChannelData);
+      clients.on(
+        "AddItemToCart",
+        updateCartData({
+          ...rawCartWithLineItem,
+          totalLineItemQuantity: -1,
+        })
+      );
+
+      return Effect.gen(function* () {
+        const carts = yield* Carts;
+        const error = yield* carts
+          .addItem({
+            productId: ProductId.make("product-1"),
+            quantity: 1,
+            target: anonymousTarget,
+            variantId: VariantId.make("3"),
+          })
+          .pipe(Effect.flip);
+
+        expect(error).toMatchObject({
+          _tag: "CartWriteOutcomeUnknown",
+          cartId: "cart-1",
+          operation: "addItem",
+        });
+      }).pipe(Effect.provide(clients.layer));
+    }
+  );
+
+  it.effect("does not convert a post-write provider defect to unknown", () => {
+    const clients = makeScriptedClients();
+    clients.on("CartById", cartByIdData(rawActiveCart));
+    clients.on("ProviderCartDistributionChannel", distributionChannelData);
+    clients.on(
+      "AddItemToCart",
+      updateCartData({
+        ...rawCartWithLineItem,
+        shipping: [
+          {
+            shippingAddress: null,
+            shippingInfo: null,
+            shippingKey: null,
+          },
+        ],
+      })
+    );
+
+    return Effect.gen(function* () {
+      const carts = yield* Carts;
+      const exit = yield* carts
+        .addItem({
+          productId: ProductId.make("product-1"),
+          quantity: 1,
+          target: anonymousTarget,
+          variantId: VariantId.make("3"),
+        })
+        .pipe(Effect.exit);
+
+      expect(Exit.isFailure(exit)).toBeTruthy();
+      expect(Exit.isFailure(exit) ? Cause.pretty(exit.cause) : "").toContain(
+        "contains incomplete native shipping data"
+      );
+    }).pipe(Effect.provide(clients.layer));
+  });
 
   it.effect("maps provider-confirmed unavailable merchandise", () => {
     const clients = makeScriptedClients();

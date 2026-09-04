@@ -55,7 +55,18 @@
           "browseProducts": "Explorar Productos"
         }
       },
+      "items": {
+        "heading": "Artículos del carrito",
+        "unitPrice": "Precio unitario",
+        "lineTotal": "Total del artículo",
+        "quantity": "Cantidad",
+        "quantityLabel": "Cantidad de {product}",
+        "decreaseQuantity": "Reducir la cantidad de {product}",
+        "increaseQuantity": "Aumentar la cantidad de {product}",
+        "removeLabel": "Eliminar {product} del carrito"
+      },
       "summary": {
+        "heading": "Resumen del pedido",
         "subtotal": {
           "label": "Subtotal"
         },
@@ -70,7 +81,18 @@
       },
       "actions": {
         "checkout": "Proceder al Pago",
-        "continueShopping": "Continuar Comprando"
+        "continueShopping": "Continuar Comprando",
+        "openCart": "Abrir carrito",
+        "remove": "Eliminar",
+        "viewCart": "Ver carrito"
+      },
+      "error": {
+        "heading": "No pudimos cargar tu carrito",
+        "description": "Se produjo un error al cargar tu carrito. Inténtalo de nuevo.",
+        "controlUnavailable": "Carrito no disponible",
+        "actions": {
+          "tryAgain": "Intentar de nuevo"
+        }
       }
     },
     "registration": {

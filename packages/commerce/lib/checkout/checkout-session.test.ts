@@ -17,6 +17,7 @@ import {
   CartWriteConflict,
   CartWriteOutcomeUnknown,
 } from "../../domain/cart-errors";
+import { CartSnapshotVersion } from "../../domain/cart-snapshot";
 import type { CartSnapshot } from "../../domain/cart-snapshot";
 import { CountryCode } from "../../domain/checkout";
 import {
@@ -39,6 +40,7 @@ import {
   ShippingOptionReference,
 } from "../../domain/delivery-plan";
 import type { DeliveryPlanQuote } from "../../domain/delivery-plan";
+import { money } from "../../domain/money";
 import { AddressBook } from "../../services/address-book";
 import { CartPolicies } from "../../services/cart-policies";
 import { Carts } from "../../services/carts";
@@ -68,8 +70,8 @@ const cart: CartSnapshot = {
     {
       id: LineItemId.make("line-1"),
       quantity: 1,
-      totalPrice: { centAmount: 2500, currencyCode: "USD" },
-      unitPrice: { centAmount: 2500, currencyCode: "USD" },
+      totalPrice: money(2500, "USD"),
+      unitPrice: money(2500, "USD"),
       variant: {
         id: VariantId.make("variant-1"),
         images: [],
@@ -81,7 +83,8 @@ const cart: CartSnapshot = {
   status: "active",
   storeKey: store.storeKey,
   totalLineItemQuantity: 1,
-  totalPrice: { centAmount: 2500, currencyCode: "USD" },
+  totalPrice: money(2500, "USD"),
+  version: CartSnapshotVersion.make("cart-1"),
 };
 
 const context = new AnonymousCommerceContextRequest({
@@ -193,7 +196,7 @@ describe(CheckoutSession, () => {
           channel: "storefrontAnonymous",
         });
         expect(state.activeStep).toBe("contact");
-        expect("version" in state.cart).toBeFalsy();
+        expect(state.cart.version).toBe(cart.version);
       })
     )
   );
@@ -259,7 +262,7 @@ describe(CheckoutSession, () => {
               shippingOptions: [
                 {
                   name: "Standard",
-                  price: { centAmount: 500, currencyCode: "USD" },
+                  price: money(500, "USD"),
                   reference: optionReference,
                 },
               ],
@@ -338,7 +341,7 @@ describe(CheckoutSession, () => {
                 shippingOptions: [
                   {
                     name: "Standard",
-                    price: { centAmount: 500, currencyCode: "USD" },
+                    price: money(500, "USD"),
                     reference: optionReference,
                   },
                 ],
@@ -618,7 +621,7 @@ describe(CheckoutSession, () => {
                 shippingOptions: [
                   {
                     name: "Standard",
-                    price: { centAmount: 500, currencyCode: "USD" },
+                    price: money(500, "USD"),
                     reference: optionReference,
                   },
                 ],
@@ -857,7 +860,7 @@ describe(CheckoutSession, () => {
             reference: groupReference,
             selectedShippingOption: {
               name: "Parameterized Shipping",
-              price: { centAmount: 500, currencyCode: "USD" },
+              price: money(500, "USD"),
               reference: optionReference,
             },
             shippingAddress,
@@ -881,7 +884,7 @@ describe(CheckoutSession, () => {
           deliveryDetails: { shippingAddress, source: "manual" },
           selectedDeliveryPlan,
         },
-        totalPrice: { centAmount: 3000, currencyCode: "USD" },
+        totalPrice: money(3000, "USD"),
       };
       const quote = {
         plans: [

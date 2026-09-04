@@ -5,6 +5,7 @@ import type {
   OrderFromCartDraft,
 } from "@commercetools/platform-sdk";
 import { CartId } from "@repo/commerce/domain/cart";
+import { money } from "@repo/commerce/domain/money";
 import type { OrderRecord } from "@repo/commerce/domain/order";
 import {
   OrderId,
@@ -102,7 +103,10 @@ const orderSnapshot = (
     id: OrderId.make(order.id),
     number: expectedNumber,
     paymentReference: PaymentReference.make(payment.id),
-    totalPrice: order.totalPrice,
+    totalPrice: money(
+      order.totalPrice.centAmount,
+      order.totalPrice.currencyCode
+    ),
   });
 };
 

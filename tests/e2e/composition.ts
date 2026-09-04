@@ -13,6 +13,7 @@ import type { commerceAccountsLayer as CommerceAccountsLayer } from "@repo/comme
 import type { commercetoolsClientsLayer as CommercetoolsClientsLayer } from "@repo/commerce-provider/provider";
 import type {
   CommercetoolsRestClient,
+  makeCommercetoolsCartTestControl as MakeCommercetoolsCartTestControl,
   makeCommercetoolsJanitorFromApiRoot as MakeCommercetoolsJanitorFromApiRoot,
   makeCommercetoolsNetTermsTestControl as MakeCommercetoolsNetTermsTestControl,
   makeCommercetoolsOrderTestControl as MakeCommercetoolsOrderTestControl,
@@ -65,6 +66,7 @@ interface CommerceProviderModule {
 
 interface CommerceProviderTestingModule {
   readonly CommercetoolsRestClient: typeof CommercetoolsRestClient;
+  readonly makeCommercetoolsCartTestControl: typeof MakeCommercetoolsCartTestControl;
   readonly makeCommercetoolsJanitorFromApiRoot: typeof MakeCommercetoolsJanitorFromApiRoot;
   readonly makeCommercetoolsNetTermsTestControl: typeof MakeCommercetoolsNetTermsTestControl;
   readonly makeCommercetoolsOrderTestControl: typeof MakeCommercetoolsOrderTestControl;
@@ -80,7 +82,16 @@ interface PaymentsStripeTestingModule {
 interface E2EServices {
   readonly adminAuth: AuthTestControl["Service"];
   readonly customerAuth: AuthTestControl["Service"];
+  readonly createLegacyCart: NonNullable<
+    CheckoutScenarioOptions["createLegacyCart"]
+  >;
+  readonly createCustomerOwnedCart: NonNullable<
+    CheckoutScenarioOptions["createCustomerOwnedCart"]
+  >;
   readonly deleteCart: CheckoutScenarioOptions["deleteCart"];
+  readonly deleteCustomer: NonNullable<
+    CheckoutScenarioOptions["deleteCustomer"]
+  >;
   readonly deleteOrder: NonNullable<CheckoutScenarioOptions["deleteOrder"]>;
   readonly deletePayments: NonNullable<
     CheckoutScenarioOptions["deletePayments"]
@@ -225,7 +236,10 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
     provide
   ) => {
     const checkoutScenario = new CheckoutScenario({
+      createCustomerOwnedCart: e2eServices.createCustomerOwnedCart,
+      createLegacyCart: e2eServices.createLegacyCart,
       deleteCart: e2eServices.deleteCart,
+      deleteCustomer: e2eServices.deleteCustomer,
       deleteNetTerms: e2eServices.deleteNetTerms,
       deleteOrder: e2eServices.deleteOrder,
       deletePayments: e2eServices.deletePayments,
@@ -256,6 +270,7 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
         { commercetoolsClientsLayer },
         {
           CommercetoolsRestClient,
+          makeCommercetoolsCartTestControl,
           makeCommercetoolsJanitorFromApiRoot,
           makeCommercetoolsNetTermsTestControl,
           makeCommercetoolsOrderTestControl,
@@ -306,6 +321,9 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
       const janitor = makeCommercetoolsJanitorFromApiRoot(
         services.restClient.apiRoot
       );
+      const carts = makeCommercetoolsCartTestControl(
+        services.restClient.apiRoot
+      );
       const netTerms = makeCommercetoolsNetTermsTestControl(
         services.restClient.apiRoot
       );
@@ -328,9 +346,12 @@ export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
       try {
         await provide({
           adminAuth,
+          createCustomerOwnedCart: carts.createCustomerOwnedCart,
+          createLegacyCart: carts.createLegacyCart,
           customerAuth: services.auth,
           deleteCart: janitor.deleteCart,
           deleteCommerceAccount: janitor.deleteCommerceAccount,
+          deleteCustomer: carts.deleteCustomer,
           deleteNetTerms: netTerms.delete,
           deleteOrder: orders.deleteForCheckout,
           deletePayments: async (cartId) => {

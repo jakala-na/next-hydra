@@ -40,7 +40,18 @@
           "browseProducts": "Browse Products"
         }
       },
+      "items": {
+        "heading": "Cart items",
+        "unitPrice": "Unit price",
+        "lineTotal": "Line total",
+        "quantity": "Quantity",
+        "quantityLabel": "Quantity for {product}",
+        "decreaseQuantity": "Decrease quantity for {product}",
+        "increaseQuantity": "Increase quantity for {product}",
+        "removeLabel": "Remove {product} from cart"
+      },
       "summary": {
+        "heading": "Order Summary",
         "subtotal": {
           "label": "Subtotal"
         },
@@ -55,7 +66,18 @@
       },
       "actions": {
         "checkout": "Proceed to Checkout",
-        "continueShopping": "Continue Shopping"
+        "continueShopping": "Continue Shopping",
+        "openCart": "Open Cart",
+        "remove": "Remove",
+        "viewCart": "View Cart"
+      },
+      "error": {
+        "heading": "We couldn't load your cart",
+        "description": "Something went wrong while loading your cart. Please try again.",
+        "controlUnavailable": "Cart unavailable",
+        "actions": {
+          "tryAgain": "Try Again"
+        }
       },
       "addedToCartAlert": "Added {quantity} {variantLabel} to cart at {price} each.\nStock Status: {stockStatus}",
       "stockIn": "In Stock",

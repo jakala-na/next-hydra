@@ -2,6 +2,7 @@ import type { AuthContext } from "@repo/auth-contract/e2e/auth-context";
 import { Given, Then, When } from "@repo/e2e-testing";
 import type { DataTable } from "@repo/e2e-testing";
 
+import { rowsWithHeaders } from "../data-table";
 import { CartDriver } from "../drivers/cart.driver";
 import { CatalogDriver } from "../drivers/catalog.driver";
 import { CheckoutDriver } from "../drivers/checkout.driver";
@@ -69,30 +70,6 @@ const expectSameValues = (
       `${label} did not match the Product Variant defined by the scenario`
     );
   }
-};
-
-const rowsWithHeaders = (
-  dataTable: DataTable,
-  expectedHeaders: readonly string[]
-): readonly ReadonlyMap<string, string>[] => {
-  const [headers, ...rows] = dataTable.raw();
-  if (
-    headers?.length !== expectedHeaders.length ||
-    expectedHeaders.some((header, index) => headers[index] !== header)
-  ) {
-    throw new Error(`Expected table headers ${expectedHeaders.join(", ")}`);
-  }
-
-  return rows.map((row) => {
-    if (row.length !== expectedHeaders.length) {
-      throw new Error(
-        `Each table row must contain ${expectedHeaders.length} values`
-      );
-    }
-    return new Map(
-      expectedHeaders.map((header, index) => [header, row[index] ?? ""])
-    );
-  });
 };
 
 const shippingOptionsFrom = (

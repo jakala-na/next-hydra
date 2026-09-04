@@ -13,6 +13,7 @@ import {
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "@repo/commerce/domain/commerce-account";
+import { money } from "@repo/commerce/domain/money";
 import { OrderId } from "@repo/commerce/domain/order";
 import { Orders } from "@repo/commerce/services/orders";
 import { CommerceLocale } from "@repo/commerce/store";
@@ -23,7 +24,7 @@ import { describe, expect, it } from "vitest";
 import { ordersLayerFrom } from "./orders";
 
 const cartId = CartId.make("cart-from-input");
-const totalPrice = { centAmount: 1_700_000, currencyCode: "USD" } as const;
+const totalPrice = money(1_700_000, "USD");
 const paymentReference = PaymentReference.make("payment-from-input");
 const anonymousScope = new StorefrontAnonymousCheckoutScope({
   anonymousCartId: cartId,

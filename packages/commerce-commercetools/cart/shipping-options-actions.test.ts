@@ -5,7 +5,7 @@ import {
   DeliveryPlanQuoteReference,
   DeliveryPlanReference,
 } from "@repo/commerce/domain/delivery-plan";
-import { CurrencyCode } from "@repo/commerce/domain/money";
+import { CurrencyCode, money } from "@repo/commerce/domain/money";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -53,10 +53,7 @@ describe(buildSaveShippingOptionsActions, () => {
           reference: firstGroup,
           selectedShippingOption: {
             name: "Standard",
-            price: {
-              centAmount: 500,
-              currencyCode: CurrencyCode.make("USD"),
-            },
+            price: money(500, CurrencyCode.make("USD")),
             reference: shippingOptionReferenceFor("standard-id"),
           },
           shippingAddress: {
@@ -72,10 +69,7 @@ describe(buildSaveShippingOptionsActions, () => {
           reference: secondGroup,
           selectedShippingOption: {
             name: "Express",
-            price: {
-              centAmount: 1250,
-              currencyCode: CurrencyCode.make("USD"),
-            },
+            price: money(1250, CurrencyCode.make("USD")),
             reference: shippingOptionReferenceFor("express-id"),
           },
           shippingAddress: {

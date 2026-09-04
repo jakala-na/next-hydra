@@ -23,6 +23,12 @@ import {
 export const CartStatus = Schema.Literals(["active", "inactive"]);
 export type CartStatus = typeof CartStatus.Type;
 
+export const CartSnapshotVersion = Schema.Union([
+  Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  Schema.NonEmptyString,
+]).pipe(Schema.brand("CartSnapshotVersion"));
+export type CartSnapshotVersion = typeof CartSnapshotVersion.Type;
+
 export const ProductTypeKey = GeneratedProductTypeKey;
 export type ProductTypeKey = typeof ProductTypeKey.Type;
 
@@ -97,6 +103,7 @@ export const CartSnapshot = Schema.Struct({
   storeKey: StoreKey,
   totalLineItemQuantity: CartQuantity,
   totalPrice: CartMoney,
+  version: CartSnapshotVersion,
 });
 export type CartSnapshot = typeof CartSnapshot.Type;
 

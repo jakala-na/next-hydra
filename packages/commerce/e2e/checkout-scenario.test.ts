@@ -70,6 +70,49 @@ describe(CheckoutScenario, () => {
     expect(deletedCartIds).toStrictEqual(["cart-1"]);
   });
 
+  it("creates and cleans a customer-owned Cart fixture", async () => {
+    const createdFor: unknown[] = [];
+    const cleanup: string[] = [];
+    const scenario = new CheckoutScenario({
+      createCustomerOwnedCart: (input) => {
+        createdFor.push(input);
+        return Promise.resolve({
+          cartId: CartId.make("customer-cart-1"),
+          customerId: "customer-1",
+        });
+      },
+      deleteCart: (cartId) => {
+        cleanup.push(`cart:${cartId}`);
+        return Promise.resolve();
+      },
+      deleteCustomer: (customerId) => {
+        cleanup.push(`customer:${customerId}`);
+        return Promise.resolve();
+      },
+      page: {
+        context: () => ({ cookies: () => Promise.resolve([]) }),
+      },
+    });
+    scenario.defineStore({
+      currency: "USD",
+      key: "default-store",
+      locale: "en-US",
+    });
+
+    await expect(scenario.createCustomerOwnedCart()).resolves.toBe(
+      "customer-cart-1"
+    );
+    await scenario.dispose();
+
+    expect(createdFor).toStrictEqual([
+      { currency: "USD", storeKey: "default-store" },
+    ]);
+    expect(cleanup).toStrictEqual([
+      "cart:customer-cart-1",
+      "customer:customer-1",
+    ]);
+  });
+
   it("cleans Payments for a remembered authenticated Cart", async () => {
     const deletedPaymentCartIds: string[] = [];
     const scenario = new CheckoutScenario({

@@ -5,11 +5,19 @@ import type {
   AddToCartInput,
 } from "@repo/commerce/cart/add-to-cart";
 import type { ChangeCartItemsQuantityAction } from "@repo/commerce/cart/change-cart-items-quantity";
-import type { CartPublicStateEncoded } from "@repo/commerce/cart/public-state";
+import {
+  cartPublicStateIdentity,
+  decodeCartPublicState,
+  isCartUnavailable,
+} from "@repo/commerce/cart/public-state";
+import type {
+  CartProviderState,
+  CartPublicState as CartPublicStateType,
+  CartPublicStateEncoded,
+  CartPublicStateIdentity,
+} from "@repo/commerce/cart/public-state";
 import type { RemoveCartItemAction } from "@repo/commerce/cart/remove-cart-item";
-import type { CartLineItemEncoded } from "@repo/commerce/domain/cart-snapshot";
 import { useTranslations } from "@repo/i18n";
-import type { CurrencyCode } from "@repo/i18n/types";
 import {
   createContext,
   use,
@@ -22,8 +30,6 @@ import {
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
-const CENTS_PER_UNIT = 100 as const;
-
 type CartActions = {
   addToCart: AddToCartAction;
   changeCartItemsQuantity: ChangeCartItemsQuantityAction;
@@ -31,8 +37,10 @@ type CartActions = {
 };
 
 type CartContextType = {
-  cartPromise: Promise<CartPublicStateEncoded | null>;
-  cart: CartPublicStateEncoded | null;
+  adoptedServerSnapshotIdentity?: CartPublicStateIdentity;
+  adoptServerSnapshot: (cart: CartPublicStateType | null) => void;
+  cartPromise: Promise<CartProviderState>;
+  cart: CartPublicStateType | null | undefined;
   setCart: (cart: CartPublicStateEncoded | null) => void;
   isOpen: boolean;
   openCart: () => void;
@@ -44,9 +52,14 @@ const CartContext = createContext<CartContextType | null>(null);
 
 type CartProviderProps = {
   children: ReactNode;
-  cartPromise: Promise<CartPublicStateEncoded | null>;
+  cartPromise: Promise<CartProviderState>;
   actions: CartActions;
 };
+
+interface CartStoreState {
+  readonly adoptedServerSnapshotIdentity?: CartPublicStateIdentity;
+  readonly cart: CartPublicStateType | null | undefined;
+}
 
 /**
  * CartProvider - stores cart promise without resolving it.
@@ -59,8 +72,28 @@ export function CartProvider({
   cartPromise,
   actions,
 }: CartProviderProps) {
-  const [cart, setCart] = useState<CartPublicStateEncoded | null>(null);
+  const [cartState, setCartState] = useState<CartStoreState>({
+    cart: undefined,
+  });
   const [isOpen, setIsOpen] = useState(false);
+
+  const setCart = useCallback((cart: CartPublicStateEncoded | null) => {
+    setCartState((current) => ({
+      ...current,
+      cart: cart === null ? null : decodeCartPublicState(cart),
+    }));
+  }, []);
+  const adoptServerSnapshot = useCallback(
+    (cart: CartPublicStateType | null) => {
+      const identity = cartPublicStateIdentity(cart);
+      setCartState((current) =>
+        current.adoptedServerSnapshotIdentity === identity
+          ? current
+          : { adoptedServerSnapshotIdentity: identity, cart }
+      );
+    },
+    []
+  );
 
   const openCart = useCallback(() => {
     setIsOpen(true);
@@ -72,14 +105,25 @@ export function CartProvider({
   const value = useMemo(
     () => ({
       actions,
-      cart,
+      adoptServerSnapshot,
+      adoptedServerSnapshotIdentity: cartState.adoptedServerSnapshotIdentity,
+      cart: cartState.cart,
       cartPromise,
       closeCart,
       isOpen,
       openCart,
       setCart,
     }),
-    [cartPromise, cart, isOpen, openCart, closeCart, actions]
+    [
+      actions,
+      adoptServerSnapshot,
+      cartPromise,
+      cartState,
+      closeCart,
+      isOpen,
+      openCart,
+      setCart,
+    ]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
@@ -97,20 +141,36 @@ export function useCartData() {
     throw new Error("useCartData must be used within CartProvider");
   }
 
-  const { cartPromise, cart, setCart } = ctx;
+  const {
+    adoptedServerSnapshotIdentity,
+    adoptServerSnapshot,
+    cartPromise,
+    cart,
+  } = ctx;
 
   // Resolve promise - this causes suspension!
   const resolvedCart = use(cartPromise);
+  const resolvedCartIsUnavailable = isCartUnavailable(resolvedCart);
+  const resolvedIdentity = resolvedCartIsUnavailable
+    ? undefined
+    : cartPublicStateIdentity(resolvedCart);
+  const isResolvedSnapshotAdopted =
+    adoptedServerSnapshotIdentity === resolvedIdentity;
 
-  // Sync resolved cart to shared state on first resolve
   useEffect(() => {
-    if (resolvedCart && !cart) {
-      setCart(resolvedCart);
+    if (!resolvedCartIsUnavailable && !isResolvedSnapshotAdopted) {
+      adoptServerSnapshot(resolvedCart);
     }
-  }, [resolvedCart, cart, setCart]);
+  }, [
+    adoptServerSnapshot,
+    isResolvedSnapshotAdopted,
+    resolvedCart,
+    resolvedCartIsUnavailable,
+  ]);
 
-  // Return shared state if available, otherwise the freshly resolved cart
-  return cart ?? resolvedCart;
+  return resolvedCartIsUnavailable || !isResolvedSnapshotAdopted
+    ? resolvedCart
+    : (cart ?? null);
 }
 
 /**
@@ -133,10 +193,10 @@ export function useCartState() {
 
 /**
  * useCart - access cart data and mutation functions.
- * Uses shared state (already resolved by useCartData).
- * Does NOT cause suspension - cart should already be in state.
+ * A server-fresh snapshot seeds the provider-owned Cart state. The prop is
+ * only a first-render fallback while that state is adopted.
  */
-export function useCart() {
+export function useCart(initialCart?: CartPublicStateType | null) {
   const ctx = useContext(CartContext);
   const t = useTranslations("web.cart");
 
@@ -145,51 +205,34 @@ export function useCart() {
   }
 
   const {
-    cart: currentCart,
-    setCart,
+    actions,
+    adoptedServerSnapshotIdentity,
+    adoptServerSnapshot,
+    closeCart,
     isOpen,
     openCart,
-    closeCart,
-    actions,
+    setCart,
   } = ctx;
+  const initialCartIdentity =
+    initialCart === undefined
+      ? undefined
+      : cartPublicStateIdentity(initialCart);
+  const isInitialCartAdopted =
+    initialCartIdentity === undefined ||
+    adoptedServerSnapshotIdentity === initialCartIdentity;
+  const currentCart = isInitialCartAdopted ? (ctx.cart ?? null) : initialCart;
+
+  useEffect(() => {
+    if (initialCart !== undefined && !isInitialCartAdopted) {
+      adoptServerSnapshot(initialCart);
+    }
+  }, [adoptServerSnapshot, initialCart, isInitialCartAdopted]);
+
   const cart = currentCart?.cart ?? null;
-  const cartCurrency = cart?.totalPrice.currencyCode;
-  const currencyCode: CurrencyCode =
-    cartCurrency === "EUR" || cartCurrency === "GBP" ? cartCurrency : "USD";
   const violations = currentCart?.violations ?? [];
-
-  const items = useMemo(() => {
-    const lineItems = cart?.lineItems ?? [];
-    return lineItems.map((lineItem: CartLineItemEncoded) => {
-      const { id, quantity, unitPrice, variant } = lineItem;
-      const image = variant.images[0]?.url ?? "";
-
-      return {
-        id,
-        image,
-        name: variant.name ?? "",
-        price: unitPrice.centAmount / CENTS_PER_UNIT,
-        quantity,
-        summaryAttribute: variant.summaryAttribute,
-      };
-    });
-  }, [cart]);
-
-  const totalItems = useMemo(() => {
-    let sum = 0;
-    for (const i of items) {
-      sum += i.quantity;
-    }
-    return sum;
-  }, [items]);
-
-  const totalPrice = useMemo(() => {
-    let sum = 0;
-    for (const i of items) {
-      sum += i.price * i.quantity;
-    }
-    return sum;
-  }, [items]);
+  const items = cart?.lineItems ?? [];
+  const summary = cart?.summary;
+  const totalItems = cart?.totalLineItemQuantity ?? 0;
 
   const addItem = useCallback(
     async (input: AddToCartInput) => {
@@ -237,13 +280,12 @@ export function useCart() {
   return {
     addItem,
     closeCart,
-    currencyCode,
     isOpen,
     items,
     openCart,
     removeItem,
+    summary,
     totalItems,
-    totalPrice,
     updateQuantity,
     violations,
   };

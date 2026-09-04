@@ -2,8 +2,10 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 
 import { CartId } from "../../domain/cart";
+import { CartSnapshotVersion } from "../../domain/cart-snapshot";
 import type { CartSnapshot } from "../../domain/cart-snapshot";
 import { CountryCode } from "../../domain/checkout";
+import { money } from "../../domain/money";
 import { StoreKey } from "../../store";
 import {
   CheckoutPolicies,
@@ -17,7 +19,8 @@ const cart: CartSnapshot = {
   status: "active",
   storeKey: StoreKey.make("default-store"),
   totalLineItemQuantity: 0,
-  totalPrice: { centAmount: 0, currencyCode: "USD" },
+  totalPrice: money(0, "USD"),
+  version: CartSnapshotVersion.make("cart-1"),
 };
 
 const buyerContext = {

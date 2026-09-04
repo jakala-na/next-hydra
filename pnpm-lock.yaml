@@ -467,9 +467,15 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.0.1
         version: 5.2.2(react-hook-form@7.68.0(react@19.2.8))
+      '@repo/commerce':
+        specifier: workspace:*
+        version: link:../../packages/commerce
       '@repo/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@repo/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

@@ -9,6 +9,7 @@ import { CommerceRequestContextNotFound } from "../domain/commerce-request-conte
 import { CurrentCart } from "../services/current-cart";
 import type { AddToCartActionFailure } from "./action-result";
 import { makeCartProcedures } from "./procedures";
+import { toCartPublicState } from "./public-state";
 
 const CART_MUTATION_COUNT = 3;
 
@@ -21,9 +22,11 @@ const cartState = Schema.decodeSync(CurrentCartState)({
     storeKey: "default-store",
     totalLineItemQuantity: 0,
     totalPrice: { centAmount: 0, currencyCode: "USD" },
+    version: "cart-1",
   },
   violations: [],
 });
+const publicCartState = toCartPublicState(cartState);
 
 type CurrentCartService = (typeof CurrentCart)["Service"];
 
@@ -93,9 +96,15 @@ describe("Cart boundaries", () => {
     const removed = await actions.removeCartItem({ lineItemId: "line-item-1" });
 
     expect(actions.requestLayerCalls()).toBe(CART_MUTATION_COUNT);
-    expect(added).toStrictEqual({ _tag: "Success", success: cartState });
-    expect(changed).toStrictEqual({ _tag: "Success", success: cartState });
-    expect(removed).toStrictEqual({ _tag: "Success", success: cartState });
+    expect(added).toStrictEqual({ _tag: "Success", success: publicCartState });
+    expect(changed).toStrictEqual({
+      _tag: "Success",
+      success: publicCartState,
+    });
+    expect(removed).toStrictEqual({
+      _tag: "Success",
+      success: publicCartState,
+    });
   });
 
   it("returns invalid action input as a typed failure", async () => {
@@ -146,7 +155,7 @@ describe("Cart boundaries", () => {
           variantId: "variant-1",
         })
       )
-    ).resolves.toStrictEqual(cartState);
+    ).resolves.toStrictEqual(publicCartState);
 
     const failure = await Effect.runPromise(
       Effect.flip(

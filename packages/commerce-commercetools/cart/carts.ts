@@ -44,7 +44,7 @@ import type {
   SelectedDeliveryGroup,
   SelectedDeliveryPlan,
 } from "@repo/commerce/domain/delivery-plan";
-import { CurrencyCode } from "@repo/commerce/domain/money";
+import { CurrencyCode, money } from "@repo/commerce/domain/money";
 import { Carts } from "@repo/commerce/services/carts";
 import type {
   AddCartItem,
@@ -178,7 +178,7 @@ type CartProductAttributeDefinition = {
   readonly name: string;
 };
 
-type CartSnapshotCandidate = {
+type CartSnapshotContentCandidate = {
   readonly buyingContext?: {
     readonly businessUnitId: CommerceBusinessUnitId;
   };
@@ -204,7 +204,8 @@ type ProjectedCommercetoolsLineItem = Mutable<CommercetoolsLineItem>;
 type ProjectedCommercetoolsCart = Mutable<CommercetoolsCart>;
 type MutableCartProductVariantCandidate = Mutable<CartProductVariantCandidate>;
 type MutableCartLineItemCandidate = Mutable<CartLineItemCandidate>;
-type MutableCartSnapshotCandidate = Mutable<CartSnapshotCandidate>;
+type MutableCartSnapshotContentCandidate =
+  Mutable<CartSnapshotContentCandidate>;
 
 type ProviderErrorPayload = {
   readonly networkError?: unknown;
@@ -219,15 +220,11 @@ type ProviderErrorPayload = {
 // provider and the capability contract.
 // ---------------------------------------------------------------------------
 
-const providerFailure = (
-  operation: CartOperation,
-  cause: unknown,
-  reason: "unavailable" | "invalidData" | "unexpectedResponse"
-) =>
+const unavailableProviderFailure = (operation: CartOperation, cause: unknown) =>
   new CartProviderFailure({
     cause,
     operation,
-    reason,
+    reason: "unavailable",
   });
 
 const accessDenied = (operation: CartOperation, cartId?: CartId) =>
@@ -252,7 +249,7 @@ const failedRead = (
   error: ProviderErrorPayload
 ): Effect.Effect<never, CartAccessDenied | CartProviderFailure> => {
   if (error.networkError !== undefined) {
-    return Effect.fail(providerFailure(operation, error, "unavailable"));
+    return Effect.fail(unavailableProviderFailure(operation, error));
   }
 
   if (isCommercetoolsAccessDenied(error)) {
@@ -689,7 +686,10 @@ const selectedDeliveryPlanFrom = (
       reference: references.reference,
       selectedShippingOption: {
         name: entry.shippingInfo.shippingMethodName,
-        price: entry.shippingInfo.price,
+        price: money(
+          entry.shippingInfo.price.centAmount,
+          entry.shippingInfo.price.currencyCode
+        ),
         reference: shippingOptionReferenceFor(shippingMethodId),
       },
       shippingAddress: decodedAddress.shippingAddress,
@@ -907,8 +907,9 @@ const toCommercetoolsCart = (
       checkoutDetailsWithShipping.selectedDeliveryPlan = selectedDeliveryPlan;
     }
 
+    const { customerId, ...parsedCartData } = parsedData;
     const cart: ProjectedCommercetoolsCart = {
-      ...parsedData,
+      ...parsedCartData,
       billingAddress,
       checkoutDetails: checkoutDetailsWithShipping,
       itemShippingAddresses,
@@ -924,6 +925,9 @@ const toCommercetoolsCart = (
         currencyCode: parsedData.totalPrice.currencyCode,
       },
     };
+    if (customerId !== null) {
+      cart.customerId = customerId;
+    }
     if (parsedData.businessUnit !== null) {
       cart.businessUnitId = CommerceBusinessUnitId.make(
         parsedData.businessUnit.id
@@ -934,17 +938,10 @@ const toCommercetoolsCart = (
 
 const decodeCommercetoolsCart = (
   fragment: FragmentOf<typeof CartFragment>,
-  locale: Locale,
-  operation: CartOperation
-) =>
-  toCommercetoolsCart(fragment, locale).pipe(
-    Effect.mapError((cause) => providerFailure(operation, cause, "invalidData"))
-  );
+  locale: Locale
+) => toCommercetoolsCart(fragment, locale);
 
-export const toCart = (
-  cart: CommercetoolsCart,
-  operation: CartOperation
-): Effect.Effect<CartSnapshot, CartProviderFailure> => {
+export const toCart = (cart: CommercetoolsCart) => {
   const lineItems: CartLineItemCandidate[] = cart.lineItems.map((lineItem) => {
     const projectedLineItem: MutableCartLineItemCandidate = {
       id: LineItemId.make(lineItem.id),
@@ -977,7 +974,7 @@ export const toCart = (
     return projectedLineItem;
   });
 
-  const value: MutableCartSnapshotCandidate = {
+  const content: MutableCartSnapshotContentCandidate = {
     checkoutDetails: cart.checkoutDetails ?? {},
     id: CartId.make(cart.id),
     lineItems,
@@ -986,16 +983,48 @@ export const toCart = (
     totalPrice: cart.totalPrice,
   };
   if (cart.businessUnitId !== undefined) {
-    value.buyingContext = { businessUnitId: cart.businessUnitId };
+    content.buyingContext = { businessUnitId: cart.businessUnitId };
   }
   if (cart.store?.key !== null && cart.store?.key !== undefined) {
-    value.storeKey = StoreKey.make(cart.store.key);
+    content.storeKey = StoreKey.make(cart.store.key);
   }
 
-  return Schema.decodeUnknownEffect(CartSnapshot)(value).pipe(
-    Effect.mapError((cause) => providerFailure(operation, cause, "invalidData"))
-  );
+  return Schema.decodeUnknownEffect(CartSnapshot)({
+    ...content,
+    version: cart.version,
+  });
 };
+
+const decodeCartFromRead = (
+  fragment: FragmentOf<typeof CartFragment>,
+  locale: Locale
+) => decodeCommercetoolsCart(fragment, locale).pipe(Effect.orDie);
+
+const projectCartFromRead = (cart: CommercetoolsCart) =>
+  toCart(cart).pipe(Effect.orDie);
+
+/**
+ * Once a non-idempotent provider write reports success, any unusable response
+ * or reload leaves the resulting Cart state unknown to this process.
+ */
+const projectAfterSuccessfulWrite = <A, E, R>(
+  program: Effect.Effect<A, E, R>,
+  operation: CartOperation,
+  cartId?: CartId
+) =>
+  program.pipe(Effect.mapError(() => writeOutcomeUnknown(operation, cartId)));
+
+const projectCartFragmentAfterSuccessfulWrite = (
+  fragment: FragmentOf<typeof CartFragment>,
+  locale: Locale,
+  operation: CartOperation,
+  cartId?: CartId
+) =>
+  projectAfterSuccessfulWrite(
+    decodeCommercetoolsCart(fragment, locale).pipe(Effect.flatMap(toCart)),
+    operation,
+    cartId
+  );
 
 // ---------------------------------------------------------------------------
 // Cart ownership
@@ -1034,23 +1063,34 @@ const targetOwnsCart = (target: CartTarget, cart: CommercetoolsCart) => {
 const activeCartForStorePredicate = (storeKey: string) =>
   `cartState="Active" and store(key=${JSON.stringify(storeKey)})`;
 
-const canRepresentCheckoutCart = (cart: CommercetoolsCart) => {
-  if (cart.shippingMode !== "Multiple") {
+const followsCurrentCartRules = (cart: CommercetoolsCart) => {
+  if (cart.cartState !== "Active" || cart.shippingMode !== "Multiple") {
     return false;
   }
 
   const paymentIds = cart.paymentIds ?? [];
-  const payments = cart.payments ?? [];
   if (paymentIds.length === 0) {
-    return payments.length === 0;
+    return true;
   }
 
   return (
     paymentIds.length === 1 &&
-    payments.length === 1 &&
-    paymentIds[0] === payments[0]?.id &&
     cart.checkoutDetails?.preparedPayment?.paymentReference === paymentIds[0]
   );
+};
+
+const validateExpandedPaymentRelationships = (cart: CommercetoolsCart) => {
+  const paymentIds = cart.paymentIds ?? [];
+  const payments = cart.payments ?? [];
+  const relationshipsMatch =
+    new Set(payments.map((payment) => payment.id)).size === payments.length &&
+    payments.every((payment) => paymentIds.includes(payment.id));
+
+  return relationshipsMatch
+    ? Effect.void
+    : dieOnContractViolation(
+        `Commercetools Cart ${cart.id} returned Payments that do not match its Payment references`
+      );
 };
 
 // ---------------------------------------------------------------------------
@@ -1175,7 +1215,7 @@ export const cartsLayer = Layer.effect(
       request: () => PromiseLike<A>
     ): Effect.Effect<A, CartProviderFailure> =>
       Effect.tryPromise({
-        catch: (cause) => providerFailure(operation, cause, "unavailable"),
+        catch: (cause) => unavailableProviderFailure(operation, cause),
         try: async () => await request(),
       });
 
@@ -1202,12 +1242,12 @@ export const cartsLayer = Layer.effect(
         return yield* new CartNotFound({ cartId, operation });
       }
 
-      const cart = yield* decodeCommercetoolsCart(
-        result.data.cart,
-        locale,
-        operation
-      );
-      if (!canRepresentCheckoutCart(cart)) {
+      const cart = yield* decodeCartFromRead(result.data.cart, locale);
+      if (cart.cartState !== "Active" || cart.shippingMode !== "Multiple") {
+        return yield* new CartNotFound({ cartId, operation });
+      }
+      yield* validateExpandedPaymentRelationships(cart);
+      if (!followsCurrentCartRules(cart)) {
         return yield* new CartNotFound({ cartId, operation });
       }
 
@@ -1226,6 +1266,16 @@ export const cartsLayer = Layer.effect(
 
       return cart;
     });
+
+    const reloadTargetCartAfterWrite = Effect.fn(
+      "Carts.reloadTargetCartAfterWrite"
+    )((target: CartTarget, operation: CartOperation) =>
+      projectAfterSuccessfulWrite(
+        loadTargetCart(target, operation).pipe(Effect.flatMap(toCart)),
+        operation,
+        target.id
+      )
+    );
 
     const standardCartWrite = {
       anonymous: {
@@ -1330,7 +1380,7 @@ export const cartsLayer = Layer.effect(
         target,
         version,
       });
-      return yield* loadTargetCart(target, operation);
+      return yield* reloadTargetCartAfterWrite(target, operation);
     });
 
     const findById = Effect.fn("Carts.findById")(function* (
@@ -1354,15 +1404,14 @@ export const cartsLayer = Layer.effect(
       const cart = found.value;
 
       if (
-        cart.cartState !== "Active" ||
         cart.store?.key !== input.store.storeKey ||
         cart.businessUnitId !== undefined ||
         cart.customerId !== undefined
       ) {
-        return yield* accessDenied("findById", input.id);
+        return Option.none<CartSnapshot>();
       }
 
-      return Option.some(yield* toCart(cart, "findById"));
+      return Option.some(yield* projectCartFromRead(cart));
     });
 
     const findActiveForBusinessUnit = Effect.fn(
@@ -1391,11 +1440,16 @@ export const cartsLayer = Layer.effect(
       const carts = yield* Effect.forEach(
         // oxlint-disable-next-line unicorn/no-array-method-this-argument -- This is Effect.forEach's iterable argument, not Array#forEach's thisArg.
         result.data.asAssociate.carts.results,
-        (cart) => decodeCommercetoolsCart(cart, input.store.locale, operation)
+        (cart) => decodeCartFromRead(cart, input.store.locale)
+      );
+      const validatedCarts = yield* Effect.all(
+        carts.map((cart) =>
+          validateExpandedPaymentRelationships(cart).pipe(Effect.as(cart))
+        )
       );
       return yield* Effect.forEach(
-        carts.filter(canRepresentCheckoutCart),
-        (cart) => toCart(cart, operation)
+        validatedCarts.filter((cart) => followsCurrentCartRules(cart)),
+        projectCartFromRead
       );
     });
 
@@ -1421,12 +1475,11 @@ export const cartsLayer = Layer.effect(
         return yield* missingCartData(operation);
       }
 
-      const cart = yield* decodeCommercetoolsCart(
+      return yield* projectCartFragmentAfterSuccessfulWrite(
         result.data.createCart,
         input.store.locale,
         operation
       );
-      return yield* toCart(cart, operation);
     });
 
     const createForBusinessUnit = Effect.fn("Carts.createForBusinessUnit")(
@@ -1454,17 +1507,13 @@ export const cartsLayer = Layer.effect(
         ).pipe(Effect.catch((error) => failedCreate(operation, error)));
 
         const cartId = CartId.make(response.body.id);
-        const cart = yield* readCart(
-          cartId,
-          input.store.locale,
-          operation
-        ).pipe(
-          Effect.catch(() =>
-            Effect.fail(writeOutcomeUnknown(operation, cartId))
-          )
+        return yield* projectAfterSuccessfulWrite(
+          readCart(cartId, input.store.locale, operation).pipe(
+            Effect.flatMap(toCart)
+          ),
+          operation,
+          cartId
         );
-
-        return yield* toCart(cart, operation);
       }
     );
 
@@ -1518,13 +1567,12 @@ export const cartsLayer = Layer.effect(
             variantId,
           },
         ];
-        const refreshed = yield* updateTargetCartAndReload(
+        return yield* updateTargetCartAndReload(
           operation,
           input.target,
           actions,
           cart.version
         );
-        return yield* toCart(refreshed, operation);
       }
 
       const result = yield* executeVersionedGraphqlWrite({
@@ -1566,12 +1614,12 @@ export const cartsLayer = Layer.effect(
         return yield* missingCartData(operation, input.target.id);
       }
 
-      const updatedCart = yield* decodeCommercetoolsCart(
+      return yield* projectCartFragmentAfterSuccessfulWrite(
         result.data.updateCart,
         input.target.store.locale,
-        operation
+        operation,
+        input.target.id
       );
-      return yield* toCart(updatedCart, operation);
     });
 
     const setLineItemQuantity = Effect.fn("Carts.setLineItemQuantity")(
@@ -1602,13 +1650,12 @@ export const cartsLayer = Layer.effect(
               quantity: input.quantity,
             },
           ];
-          const refreshed = yield* updateTargetCartAndReload(
+          return yield* updateTargetCartAndReload(
             operation,
             input.target,
             actions,
             cart.version
           );
-          return yield* toCart(refreshed, operation);
         }
 
         const result = yield* executeVersionedGraphqlWrite({
@@ -1642,12 +1689,12 @@ export const cartsLayer = Layer.effect(
           return yield* missingCartData(operation, input.target.id);
         }
 
-        const updatedCart = yield* decodeCommercetoolsCart(
+        return yield* projectCartFragmentAfterSuccessfulWrite(
           result.data.updateCart,
           input.target.store.locale,
-          operation
+          operation,
+          input.target.id
         );
-        return yield* toCart(updatedCart, operation);
       }
     );
 
@@ -1679,13 +1726,12 @@ export const cartsLayer = Layer.effect(
             lineItemId: String(input.lineItemId),
           },
         ];
-        const refreshed = yield* updateTargetCartAndReload(
+        return yield* updateTargetCartAndReload(
           operation,
           input.target,
           actions,
           cart.version
         );
-        return yield* toCart(refreshed, operation);
       }
 
       const result = yield* executeVersionedGraphqlWrite({
@@ -1712,12 +1758,12 @@ export const cartsLayer = Layer.effect(
         return yield* missingCartData(operation, input.target.id);
       }
 
-      const updatedCart = yield* decodeCommercetoolsCart(
+      return yield* projectCartFragmentAfterSuccessfulWrite(
         result.data.updateCart,
         input.target.store.locale,
-        operation
+        operation,
+        input.target.id
       );
-      return yield* toCart(updatedCart, operation);
     });
 
     const writeCheckoutContact = (
@@ -1806,7 +1852,7 @@ export const cartsLayer = Layer.effect(
       let cart = yield* loadTargetCart(input.target, operation);
 
       if (hasPersistedCheckoutContact(cart, input.contact)) {
-        return yield* toCart(cart, operation);
+        return yield* projectCartFromRead(cart);
       }
 
       let result = yield* Effect.result(
@@ -1829,7 +1875,7 @@ export const cartsLayer = Layer.effect(
         cart = yield* loadTargetCart(input.target, operation);
 
         if (hasPersistedCheckoutContact(cart, input.contact)) {
-          return yield* toCart(cart, operation);
+          return yield* projectCartFromRead(cart);
         }
 
         result = yield* Effect.result(writeCheckoutContact(cart, input, false));
@@ -1839,8 +1885,7 @@ export const cartsLayer = Layer.effect(
         return yield* result.failure;
       }
 
-      const refreshed = yield* loadTargetCart(input.target, operation);
-      return yield* toCart(refreshed, operation);
+      return yield* reloadTargetCartAfterWrite(input.target, operation);
     });
 
     const saveDeliveryDetails = Effect.fn("Carts.saveDeliveryDetails")(
@@ -1907,8 +1952,7 @@ export const cartsLayer = Layer.effect(
           }
         }
 
-        const refreshed = yield* loadTargetCart(input.target, operation);
-        return yield* toCart(refreshed, operation);
+        return yield* reloadTargetCartAfterWrite(input.target, operation);
       }
     );
 
@@ -1931,15 +1975,20 @@ export const cartsLayer = Layer.effect(
           version: cart.version,
         });
 
-        return yield* loadTargetCart(input.target, operation).pipe(
-          Effect.flatMap((refreshed) => toCart(refreshed, operation)),
+        const refreshed = yield* loadTargetCart(input.target, operation).pipe(
           Effect.mapError(
             () =>
               new CartShippingOptionsRefreshRequired({
                 cartId: input.target.id,
                 operation,
               })
+          ),
+          Effect.catchDefect(() =>
+            Effect.fail(writeOutcomeUnknown(operation, input.target.id))
           )
+        );
+        return yield* toCart(refreshed).pipe(
+          Effect.mapError(() => writeOutcomeUnknown(operation, input.target.id))
         );
       }
     );
@@ -1964,8 +2013,7 @@ export const cartsLayer = Layer.effect(
         version: cart.version,
       });
 
-      const refreshed = yield* loadTargetCart(input.target, operation);
-      return yield* toCart(refreshed, operation);
+      return yield* reloadTargetCartAfterWrite(input.target, operation);
     });
 
     const clearPaymentOptions = Effect.fn("Carts.clearPaymentOptions")(
@@ -1983,9 +2031,9 @@ export const cartsLayer = Layer.effect(
             target: input.target,
             version: cart.version,
           });
+          return yield* reloadTargetCartAfterWrite(input.target, operation);
         }
-        const refreshed = yield* loadTargetCart(input.target, operation);
-        return yield* toCart(refreshed, operation);
+        return yield* projectCartFromRead(cart);
       }
     );
 

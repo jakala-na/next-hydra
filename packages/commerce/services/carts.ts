@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { PreparedPayment } from "@repo/payments";
 import { Context, Effect, Layer, Option, Ref } from "effect";
 
@@ -20,6 +22,7 @@ import type {
   CartWriteConflict,
   CartWriteOutcomeUnknown,
 } from "../domain/cart-errors";
+import { CartSnapshotVersion } from "../domain/cart-snapshot";
 import type {
   CartProductVariant,
   CartSnapshot,
@@ -35,6 +38,7 @@ import type {
   CommerceCustomerId,
 } from "../domain/commerce-account";
 import type { SelectedDeliveryPlan } from "../domain/delivery-plan";
+import { money } from "../domain/money";
 import type { Store } from "../store";
 
 export interface FindCartById {
@@ -164,10 +168,8 @@ const emptyCart = (
     status: "active",
     storeKey: store.storeKey,
     totalLineItemQuantity: 0,
-    totalPrice: {
-      centAmount: 0,
-      currencyCode: store.currency,
-    },
+    totalPrice: money(0, store.currency),
+    version: CartSnapshotVersion.make(randomUUID()),
   };
   if (businessUnitId === undefined) {
     return cart;
@@ -177,6 +179,8 @@ const emptyCart = (
 
 const failIfConfigured = <E>(failure: E | undefined) =>
   failure === undefined ? Effect.void : Effect.fail(failure);
+
+const nextCartSnapshotVersion = () => CartSnapshotVersion.make(randomUUID());
 
 const withLineItems = (
   cart: CartSnapshot,
@@ -193,13 +197,14 @@ const withLineItems = (
     (total, lineItem) => total + lineItem.quantity,
     0
   ),
-  totalPrice: {
-    centAmount: lineItems.reduce(
+  totalPrice: money(
+    lineItems.reduce(
       (total, lineItem) => total + (lineItem.totalPrice?.centAmount ?? 0),
       0
     ),
-    currencyCode: cart.totalPrice.currencyCode,
-  },
+    cart.totalPrice.currencyCode
+  ),
+  version: nextCartSnapshotVersion(),
 });
 
 export class Carts extends Context.Service<
@@ -258,7 +263,9 @@ export class Carts extends Context.Service<
               yield* failIfConfigured(seed.failures?.findById);
               const carts = yield* Ref.get(state);
               const cart = carts.get(id);
-              return cart?.storeKey === store.storeKey
+              return cart?.status === "active" &&
+                cart.storeKey === store.storeKey &&
+                cart.buyingContext === undefined
                 ? Option.some(cart)
                 : Option.none<CartSnapshot>();
             })
@@ -325,7 +332,7 @@ export class Carts extends Context.Service<
             const carts = yield* Ref.get(state);
             const cart = carts.get(target.id);
 
-            if (cart === undefined) {
+            if (cart?.status !== "active") {
               return yield* new CartNotFound({
                 cartId: target.id,
                 operation,
@@ -379,10 +386,10 @@ export class Carts extends Context.Service<
                 existing?.id ??
                 LineItemId.make(`line-${cart.lineItems.length + 1}`),
               quantity,
-              totalPrice: {
-                centAmount: merchandise.unitPrice.centAmount * quantity,
-                currencyCode: merchandise.unitPrice.currencyCode,
-              },
+              totalPrice: money(
+                merchandise.unitPrice.centAmount * quantity,
+                merchandise.unitPrice.currencyCode
+              ),
               unitPrice: merchandise.unitPrice,
               variant: merchandise.variant,
             };
@@ -423,11 +430,10 @@ export class Carts extends Context.Service<
                   ? {
                       ...lineItem,
                       quantity: input.quantity,
-                      totalPrice: {
-                        centAmount:
-                          lineItem.unitPrice.centAmount * input.quantity,
-                        currencyCode: lineItem.unitPrice.currencyCode,
-                      },
+                      totalPrice: money(
+                        lineItem.unitPrice.centAmount * input.quantity,
+                        lineItem.unitPrice.currencyCode
+                      ),
                     }
                   : lineItem
               );
@@ -476,6 +482,7 @@ export class Carts extends Context.Service<
                   ...cart.checkoutDetails,
                   contact: input.contact,
                 },
+                version: nextCartSnapshotVersion(),
               } satisfies CartSnapshot;
               yield* saveCart(updated);
               return updated;
@@ -498,6 +505,7 @@ export class Carts extends Context.Service<
                   preparedPayment: undefined,
                   selectedDeliveryPlan: undefined,
                 },
+                version: nextCartSnapshotVersion(),
               } satisfies CartSnapshot;
               yield* saveCart(updated);
               return updated;
@@ -519,22 +527,22 @@ export class Carts extends Context.Service<
                   preparedPayment: undefined,
                   selectedDeliveryPlan: input.selectedDeliveryPlan,
                 },
-                totalPrice: {
-                  centAmount:
-                    cart.lineItems.reduce(
-                      (total, lineItem) =>
-                        total +
-                        (lineItem.totalPrice?.centAmount ??
-                          lineItem.unitPrice.centAmount * lineItem.quantity),
-                      0
-                    ) +
+                totalPrice: money(
+                  cart.lineItems.reduce(
+                    (total, lineItem) =>
+                      total +
+                      (lineItem.totalPrice?.centAmount ??
+                        lineItem.unitPrice.centAmount * lineItem.quantity),
+                    0
+                  ) +
                     input.selectedDeliveryPlan.groups.reduce(
                       (total, group) =>
                         total + group.selectedShippingOption.price.centAmount,
                       0
                     ),
-                  currencyCode: cart.totalPrice.currencyCode,
-                },
+                  cart.totalPrice.currencyCode
+                ),
+                version: nextCartSnapshotVersion(),
               } satisfies CartSnapshot;
               yield* saveCart(updated);
               return updated;
@@ -555,6 +563,7 @@ export class Carts extends Context.Service<
                   ...cart.checkoutDetails,
                   preparedPayment: input.preparedPayment,
                 },
+                version: nextCartSnapshotVersion(),
               } satisfies CartSnapshot;
               yield* saveCart(updated);
               return updated;
@@ -574,6 +583,7 @@ export class Carts extends Context.Service<
                   ...cart.checkoutDetails,
                   preparedPayment: undefined,
                 },
+                version: nextCartSnapshotVersion(),
               } satisfies CartSnapshot;
               yield* saveCart(updated);
               return updated;

@@ -9,6 +9,7 @@ import {
   ProductId,
   VariantId,
 } from "../domain/cart";
+import { CartSnapshotVersion } from "../domain/cart-snapshot";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
@@ -21,6 +22,7 @@ import {
   AuthUserId,
   CustomerCommerceContextRequest,
 } from "../domain/commerce-request-context";
+import { money } from "../domain/money";
 import { CheckoutPolicies } from "../lib/checkout/checkout-policy";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import type { CurrentCartCookie } from "../lib/current-cart/cookie";
@@ -62,8 +64,8 @@ const cart = (id: string, businessUnitId: string) => ({
     {
       id: LineItemId.make(`line-${id}`),
       quantity: 1,
-      totalPrice: { centAmount: 1000, currencyCode: "USD" },
-      unitPrice: { centAmount: 1000, currencyCode: "USD" },
+      totalPrice: money(1000, "USD"),
+      unitPrice: money(1000, "USD"),
       variant: {
         id: VariantId.make(`variant-${id}`),
         images: [],
@@ -75,7 +77,8 @@ const cart = (id: string, businessUnitId: string) => ({
   status: "active" as const,
   storeKey: StoreKey.make("default-store"),
   totalLineItemQuantity: 1,
-  totalPrice: { centAmount: 1000, currencyCode: "USD" },
+  totalPrice: money(1000, "USD"),
+  version: CartSnapshotVersion.make("cart-1"),
 });
 
 const makeCookie = () => {

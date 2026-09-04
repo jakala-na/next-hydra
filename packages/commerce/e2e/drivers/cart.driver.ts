@@ -51,6 +51,15 @@ export class CartDriver {
     await expect(this.#page).toHaveURL(/\/checkout\/?$/u);
   }
 
+  async openCartPage(): Promise<void> {
+    if (!(await this.#cart().isVisible())) {
+      await this.#page.getByRole("button", { name: "Open Cart" }).click();
+      await expect(this.#cart()).toBeVisible();
+    }
+    await this.#cart().getByRole("link", { name: "View Cart" }).click();
+    await expect(this.#page).toHaveURL(/\/cart\/?$/u);
+  }
+
   #cart(): Locator {
     return this.#page.getByRole("dialog");
   }

@@ -8,6 +8,7 @@ export const CartFragment = graphql(
       version
       shippingMode
       country
+      customerId
       customerEmail
       shippingAddress {
         key

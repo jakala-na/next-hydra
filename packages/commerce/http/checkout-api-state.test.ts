@@ -7,15 +7,17 @@ import {
 
 import { CountryCode } from "../domain/address";
 import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
+import { CartSnapshotVersion } from "../domain/cart-snapshot";
 import type { CartSnapshot } from "../domain/cart-snapshot";
 import { StorefrontAnonymousCheckoutScope } from "../domain/checkout";
 import type { CheckoutState } from "../domain/checkout-state";
+import { money } from "../domain/money";
 import { CommerceLocale, StoreKey } from "../store";
 import { toCheckoutApiState } from "./checkout-api-state";
 
 describe(toCheckoutApiState, () => {
   it("keeps internal parameterized Payment references out of the public state", () => {
-    const amount = { centAmount: 1_700_000, currencyCode: "USD" };
+    const amount = money(1_700_000, "USD");
     const billingAddress = {
       addressLine1: "1 Private Payment Way",
       city: "New York",
@@ -53,6 +55,7 @@ describe(toCheckoutApiState, () => {
       storeKey: StoreKey.make("store-with-prepared-payment"),
       totalLineItemQuantity: 1,
       totalPrice: amount,
+      version: CartSnapshotVersion.make("cart-1"),
     };
     const state: CheckoutState = {
       activeStep: "reviewOrder",

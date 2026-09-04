@@ -3,6 +3,7 @@ import { Effect } from "effect";
 
 import { CountryCode } from "../domain/address";
 import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
+import { CartSnapshotVersion } from "../domain/cart-snapshot";
 import type { CartSnapshot } from "../domain/cart-snapshot";
 import {
   DeliveryGroupReference,
@@ -11,6 +12,7 @@ import {
   ShippingOptionReference,
 } from "../domain/delivery-plan";
 import type { DeliveryPlanQuote } from "../domain/delivery-plan";
+import { money } from "../domain/money";
 import { StoreKey } from "../store";
 import { validateDeliveryPlanQuote } from "./delivery-planning";
 
@@ -21,7 +23,7 @@ const cart = {
     {
       id: LineItemId.make("line-1"),
       quantity: 3,
-      unitPrice: { centAmount: 1000, currencyCode: "USD" },
+      unitPrice: money(1000, "USD"),
       variant: {
         id: VariantId.make("1"),
         images: [],
@@ -31,7 +33,7 @@ const cart = {
     {
       id: LineItemId.make("line-2"),
       quantity: 1,
-      unitPrice: { centAmount: 2000, currencyCode: "USD" },
+      unitPrice: money(2000, "USD"),
       variant: {
         id: VariantId.make("2"),
         images: [],
@@ -42,7 +44,8 @@ const cart = {
   status: "active",
   storeKey: StoreKey.make("store"),
   totalLineItemQuantity: 4,
-  totalPrice: { centAmount: 5000, currencyCode: "USD" },
+  totalPrice: money(5000, "USD"),
+  version: CartSnapshotVersion.make("cart-1"),
 } as const satisfies CartSnapshot;
 
 const shippingAddress = {
@@ -54,7 +57,7 @@ const shippingAddress = {
 
 const option = (reference: string, centAmount: number) => ({
   name: reference,
-  price: { centAmount, currencyCode: "USD" as const },
+  price: money(centAmount, "USD"),
   reference: ShippingOptionReference.make(reference),
 });
 

@@ -55,7 +55,18 @@
           "browseProducts": "Produkte durchsuchen"
         }
       },
+      "items": {
+        "heading": "Warenkorbartikel",
+        "unitPrice": "Stückpreis",
+        "lineTotal": "Gesamtpreis",
+        "quantity": "Menge",
+        "quantityLabel": "Menge für {product}",
+        "decreaseQuantity": "Menge für {product} verringern",
+        "increaseQuantity": "Menge für {product} erhöhen",
+        "removeLabel": "{product} aus dem Warenkorb entfernen"
+      },
       "summary": {
+        "heading": "Bestellübersicht",
         "subtotal": {
           "label": "Zwischensumme"
         },
@@ -70,7 +81,18 @@
       },
       "actions": {
         "checkout": "Zur Kasse gehen",
-        "continueShopping": "Einkauf fortsetzen"
+        "continueShopping": "Einkauf fortsetzen",
+        "openCart": "Warenkorb öffnen",
+        "remove": "Entfernen",
+        "viewCart": "Warenkorb ansehen"
+      },
+      "error": {
+        "heading": "Ihr Warenkorb konnte nicht geladen werden",
+        "description": "Beim Laden Ihres Warenkorbs ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+        "controlUnavailable": "Warenkorb nicht verfügbar",
+        "actions": {
+          "tryAgain": "Erneut versuchen"
+        }
       }
     },
     "registration": {

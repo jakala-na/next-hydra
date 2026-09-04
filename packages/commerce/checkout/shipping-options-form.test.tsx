@@ -15,6 +15,7 @@ import {
 
 import { CountryCode } from "../domain/address";
 import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
+import { CartSnapshotVersion } from "../domain/cart-snapshot";
 import type { CartSnapshot } from "../domain/cart-snapshot";
 import {
   DeliveryGroupReference,
@@ -26,7 +27,7 @@ import type {
   DeliveryPlanQuote,
   SelectedDeliveryPlan,
 } from "../domain/delivery-plan";
-import { CurrencyCode } from "../domain/money";
+import { CurrencyCode, money } from "../domain/money";
 import { StoreKey } from "../store";
 import type { SaveCheckoutShippingOptionsAction } from "./action-contract";
 import { CheckoutShippingOptionsForm } from "./shipping-options-form";
@@ -40,8 +41,8 @@ const cart: CartSnapshot = {
     {
       id: LineItemId.make("line-item-1"),
       quantity: 1,
-      totalPrice: { centAmount: 2500, currencyCode: CurrencyCode.make("USD") },
-      unitPrice: { centAmount: 2500, currencyCode: CurrencyCode.make("USD") },
+      totalPrice: money(2500, CurrencyCode.make("USD")),
+      unitPrice: money(2500, CurrencyCode.make("USD")),
       variant: {
         id: VariantId.make("variant-1"),
         images: [],
@@ -53,14 +54,15 @@ const cart: CartSnapshot = {
   status: "active",
   storeKey: StoreKey.make("default-store"),
   totalLineItemQuantity: 1,
-  totalPrice: { centAmount: 2500, currencyCode: CurrencyCode.make("USD") },
+  totalPrice: money(2500, CurrencyCode.make("USD")),
+  version: CartSnapshotVersion.make("cart-1"),
 };
 
 const groupReference = DeliveryGroupReference.make("delivery-1");
 const planReference = DeliveryPlanReference.make("plan-1");
 const shippingOption = {
   name: "Standard",
-  price: { centAmount: 500, currencyCode: CurrencyCode.make("USD") },
+  price: money(500, CurrencyCode.make("USD")),
   reference: ShippingOptionReference.make("standard"),
 };
 const shippingAddress = {

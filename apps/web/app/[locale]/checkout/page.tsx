@@ -47,6 +47,7 @@ export default async function Checkout({ params }: CheckoutRouteProps) {
 
   // oxlint-disable-next-line typescript/no-deprecated -- The app-wide next/root-params migration is outside this Checkout composition slice.
   setRequestLocale(locale);
+  const cartPath = `/${locale}/cart` as const;
   const cookieStore = await cookies();
   const recovery = decodeOrderPlacementRecoveryCookie(
     cookieStore.get(ORDER_PLACEMENT_RECOVERY_COOKIE_NAME)?.value
@@ -82,6 +83,7 @@ export default async function Checkout({ params }: CheckoutRouteProps) {
           savePaymentOptions: saveCheckoutPaymentOptions,
           saveShippingOptions: saveCheckoutShippingOptions,
         }}
+        cartPath={cartPath}
         locale={locale}
         renderPaymentOptions={renderPaymentOptions}
         renderPlaceOrder={renderPlaceOrder}

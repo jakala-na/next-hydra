@@ -3,6 +3,7 @@ import type { Locale } from "@repo/i18n/types";
 import type { PaymentMethod, PaymentOptions } from "@repo/payments";
 import type { ReactNode } from "react";
 
+import { toCartReadModel } from "../cart/public-state";
 import type { Address } from "../domain/address";
 import type { CartId } from "../domain/cart";
 import type { CheckoutStepId, CheckoutViolation } from "../domain/checkout";
@@ -26,26 +27,13 @@ import { ActiveStepViolations, CartSidebarViolations } from "./violations";
 const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
 
 const formatMoney = (
-  money: CheckoutState["cart"]["totalPrice"],
+  money: { readonly centAmount: number; readonly currencyCode: string },
   locale: string
 ) =>
   new Intl.NumberFormat(locale, {
     currency: money.currencyCode,
     style: "currency",
   }).format(money.centAmount / CENTS_PER_MAJOR_CURRENCY_UNIT);
-
-const merchandiseSubtotalFor = (
-  cart: CheckoutState["cart"]
-): CheckoutState["cart"]["totalPrice"] => ({
-  centAmount: cart.lineItems.reduce(
-    (subtotal, lineItem) =>
-      subtotal +
-      (lineItem.totalPrice?.centAmount ??
-        lineItem.unitPrice.centAmount * lineItem.quantity),
-    0
-  ),
-  currencyCode: cart.totalPrice.currencyCode,
-});
 
 interface CheckoutActions {
   readonly placeOrder: PlaceCheckoutOrderAction;
@@ -307,7 +295,7 @@ export function CartSidebar({
   const shippingOptionsComplete =
     state.steps.find((step) => step.id === "shippingOptions")?.status ===
     "complete";
-  const merchandiseSubtotal = merchandiseSubtotalFor(state.cart);
+  const merchandiseSubtotal = toCartReadModel(state.cart).summary.subtotal;
 
   return (
     <aside className="rounded-md border border-border p-6 sm:col-span-2">

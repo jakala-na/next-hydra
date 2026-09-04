@@ -11,7 +11,7 @@ import type {
   DeliveryPlan,
   ShippingOption,
 } from "@repo/commerce/domain/delivery-plan";
-import { CurrencyCode } from "@repo/commerce/domain/money";
+import { CurrencyCode, money } from "@repo/commerce/domain/money";
 import {
   DeliveryPlanning,
   DeliveryPlanningProviderFailure,
@@ -92,10 +92,7 @@ const effectiveRatePrice = (
     rate.freeAbove?.currencyCode === cart.totalPrice.currencyCode &&
     cartValue >= rate.freeAbove.centAmount
   ) {
-    return {
-      centAmount: 0,
-      currencyCode: CurrencyCode.make(rate.price.currencyCode),
-    };
+    return money(0, CurrencyCode.make(rate.price.currencyCode));
   }
 
   const unsupportedTier = rate.tiers.find((tier) => tier.type !== "CartValue");
@@ -124,10 +121,7 @@ const effectiveRatePrice = (
     );
   }
 
-  return {
-    centAmount,
-    currencyCode: CurrencyCode.make(price.currencyCode),
-  };
+  return money(centAmount, CurrencyCode.make(price.currencyCode));
 };
 
 const localizedValue = (

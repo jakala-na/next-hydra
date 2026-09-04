@@ -2,8 +2,10 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 
 import { CartId, LineItemId, ProductId, VariantId } from "../../domain/cart";
+import { CartSnapshotVersion } from "../../domain/cart-snapshot";
 import type { CartSnapshot } from "../../domain/cart-snapshot";
 import { StorefrontAnonymousCheckoutScope } from "../../domain/checkout";
+import { money } from "../../domain/money";
 import { CommerceLocale, StoreKey } from "../../store";
 import { buildCheckoutState } from "./state";
 
@@ -14,8 +16,8 @@ const cart: CartSnapshot = {
     {
       id: LineItemId.make("line-1"),
       quantity: 1,
-      totalPrice: { centAmount: 2500, currencyCode: "USD" },
-      unitPrice: { centAmount: 2500, currencyCode: "USD" },
+      totalPrice: money(2500, "USD"),
+      unitPrice: money(2500, "USD"),
       variant: {
         id: VariantId.make("variant-1"),
         images: [],
@@ -27,7 +29,8 @@ const cart: CartSnapshot = {
   status: "active",
   storeKey: StoreKey.make("default-store"),
   totalLineItemQuantity: 1,
-  totalPrice: { centAmount: 2500, currencyCode: "USD" },
+  totalPrice: money(2500, "USD"),
+  version: CartSnapshotVersion.make("cart-1"),
 };
 
 const scope = new StorefrontAnonymousCheckoutScope({

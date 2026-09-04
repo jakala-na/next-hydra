@@ -3,7 +3,9 @@ import { Effect } from "effect";
 
 import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
 import { CartPolicyFailure } from "../domain/cart-errors";
+import { CartSnapshotVersion } from "../domain/cart-snapshot";
 import type { CartSnapshot } from "../domain/cart-snapshot";
+import { money } from "../domain/money";
 import { StoreKey } from "../store";
 import { CartPolicies } from "./cart-policies";
 
@@ -14,7 +16,8 @@ const cart: CartSnapshot = {
   status: "active",
   storeKey: StoreKey.make("us-store"),
   totalLineItemQuantity: 0,
-  totalPrice: { centAmount: 0, currencyCode: "USD" },
+  totalPrice: money(0, "USD"),
+  version: CartSnapshotVersion.make("cart-1"),
 };
 const quantityOverGuestLimit = 51;
 const unitPriceCentAmount = 100;
@@ -32,14 +35,11 @@ describe(CartPolicies, () => {
             {
               id: LineItemId.make("line-1"),
               quantity: quantityOverGuestLimit,
-              totalPrice: {
-                centAmount: unitPriceCentAmount * quantityOverGuestLimit,
-                currencyCode: "USD",
-              },
-              unitPrice: {
-                centAmount: unitPriceCentAmount,
-                currencyCode: "USD",
-              },
+              totalPrice: money(
+                unitPriceCentAmount * quantityOverGuestLimit,
+                "USD"
+              ),
+              unitPrice: money(unitPriceCentAmount, "USD"),
               variant: {
                 id: VariantId.make("variant-1"),
                 images: [],
@@ -48,10 +48,10 @@ describe(CartPolicies, () => {
             },
           ],
           totalLineItemQuantity: quantityOverGuestLimit,
-          totalPrice: {
-            centAmount: unitPriceCentAmount * quantityOverGuestLimit,
-            currencyCode: "USD",
-          },
+          totalPrice: money(
+            unitPriceCentAmount * quantityOverGuestLimit,
+            "USD"
+          ),
         });
 
         expect(violations).toMatchObject([
