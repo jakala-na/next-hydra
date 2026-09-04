@@ -53,7 +53,7 @@ describe(buildCheckoutState, () => {
         details: {},
         scope,
       });
-      expect(state.activeStep).toBe("contact");
+      expect(state.nextStep).toBe("contact");
       expect(state.violations).toStrictEqual([
         {
           code: "cart.quantity.maximum",

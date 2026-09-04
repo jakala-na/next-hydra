@@ -23,6 +23,29 @@ const assertDeliveryDetailsStep = (stepName: string): void => {
   }
 };
 
+const checkoutStepIdFor = (stepName: string): string => {
+  switch (stepName) {
+    case "Contact": {
+      return "contact";
+    }
+    case "Delivery Details": {
+      return "deliveryDetails";
+    }
+    case "Shipping Options": {
+      return "shippingOptions";
+    }
+    case "Payment Options": {
+      return "paymentOptions";
+    }
+    case "Review Order": {
+      return "reviewOrder";
+    }
+    default: {
+      throw new Error(`Unknown Checkout Step: ${stepName}`);
+    }
+  }
+};
+
 export class CheckoutDriver {
   readonly #page: Page;
 
@@ -401,12 +424,15 @@ export class CheckoutDriver {
   }
 
   async editStep(stepName: string): Promise<void> {
-    if (stepName !== "Delivery Details") {
-      throw new Error(`Editing ${stepName} is not supported`);
-    }
-    await this.#page
-      .getByText("Edit delivery details", { exact: true })
+    const stepId = checkoutStepIdFor(stepName);
+    const step = this.#page.locator(`[data-checkout-step="${stepId}"]`);
+    await step
+      .getByRole("button", {
+        name: exactTextIgnoringCase(`Edit ${stepName}`),
+      })
       .click();
+    await expect(this.#activeStep(stepName)).toBeVisible();
+    expect(new URL(this.#page.url()).searchParams.get("edit")).toBe(stepId);
   }
 
   async expectNoSelectedShippingOption(): Promise<void> {

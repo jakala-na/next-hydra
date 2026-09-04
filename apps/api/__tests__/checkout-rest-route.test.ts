@@ -1055,7 +1055,6 @@ describe("Checkout REST API", () => {
       const body = await response.json();
       expect(response.status).toBe(HTTP_OK);
       expect(body).toMatchObject({
-        activeStep: "contact",
         cart: {
           id: "cart-1",
           lineItems: [
@@ -1072,6 +1071,7 @@ describe("Checkout REST API", () => {
           reference: "empty-delivery-quote",
         },
         details: {},
+        nextStep: "contact",
         scope: {
           channel: "storefrontAnonymous",
           locale: "en-US",
@@ -1138,7 +1138,7 @@ describe("Checkout REST API", () => {
 
       expect(response.status).toBe(HTTP_OK);
       expect(body.paymentOptions).toStrictEqual(cardPaymentOptions);
-      expect(body.state.activeStep).toBe("paymentOptions");
+      expect(body.state.nextStep).toBe("paymentOptions");
       expect(JSON.stringify(body)).not.toContain(cardPaymentReference);
     } finally {
       await dispose();
@@ -1457,10 +1457,10 @@ describe("Checkout REST API", () => {
 
       expect(response.status).toBe(HTTP_OK);
       expect(body).toMatchObject({
-        activeStep: "deliveryDetails",
         details: {
           contact: manualContact,
         },
+        nextStep: "deliveryDetails",
       });
       expect(body.steps[0]).toMatchObject({
         id: "contact",
@@ -1657,10 +1657,10 @@ describe("Checkout REST API", () => {
 
       expect(response.status).toBe(HTTP_OK);
       expect(body).toMatchObject({
-        activeStep: "deliveryDetails",
         details: {
           contact: manualContact,
         },
+        nextStep: "deliveryDetails",
       });
     } finally {
       await dispose();

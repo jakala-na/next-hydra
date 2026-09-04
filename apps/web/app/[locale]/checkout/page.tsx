@@ -1,4 +1,4 @@
-import { CheckoutPage } from "@repo/commerce/checkout";
+import { CheckoutEditStepId, CheckoutPage } from "@repo/commerce/checkout";
 import type { CheckoutPaymentOptionsRenderer } from "@repo/commerce/checkout";
 import { recoverOrderConfirmation } from "@repo/commerce/lib/order/order-confirmation";
 import {
@@ -12,7 +12,7 @@ import {
   CheckoutStripePaymentOptionsForm,
   CheckoutStripePlaceOrderForm,
 } from "@repo/payments-stripe/checkout";
-import { Effect, Option } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -29,6 +29,9 @@ type CheckoutRouteProps = {
   readonly params: Promise<{
     readonly locale: string;
   }>;
+  readonly searchParams: Promise<{
+    readonly edit?: string | readonly string[];
+  }>;
 };
 
 const renderPaymentOptions: CheckoutPaymentOptionsRenderer = (props) => (
@@ -39,14 +42,21 @@ const renderPlaceOrder = (
   props: Parameters<typeof CheckoutStripePlaceOrderForm>[0]
 ) => <CheckoutStripePlaceOrderForm {...props} />;
 
-export default async function Checkout({ params }: CheckoutRouteProps) {
-  const { locale } = await params;
+export default async function Checkout({
+  params,
+  searchParams,
+}: CheckoutRouteProps) {
+  const [{ locale }, { edit }] = await Promise.all([params, searchParams]);
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
 
   // oxlint-disable-next-line typescript/no-deprecated -- The app-wide next/root-params migration is outside this Checkout composition slice.
   setRequestLocale(locale);
+  const requestedEditStep = Schema.decodeUnknownOption(CheckoutEditStepId)(
+    edit
+  ).pipe(Option.getOrUndefined);
+  const checkoutPath = `/${locale}/checkout`;
   const cookieStore = await cookies();
   const recovery = decodeOrderPlacementRecoveryCookie(
     cookieStore.get(ORDER_PLACEMENT_RECOVERY_COOKIE_NAME)?.value
@@ -82,7 +92,9 @@ export default async function Checkout({ params }: CheckoutRouteProps) {
           savePaymentOptions: saveCheckoutPaymentOptions,
           saveShippingOptions: saveCheckoutShippingOptions,
         }}
+        checkoutPath={checkoutPath}
         locale={locale}
+        requestedEditStep={requestedEditStep}
         renderPaymentOptions={renderPaymentOptions}
         renderPlaceOrder={renderPlaceOrder}
       />

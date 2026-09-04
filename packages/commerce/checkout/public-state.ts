@@ -36,9 +36,9 @@ export const CheckoutPublicScope = Schema.Union([
 export type CheckoutPublicScope = typeof CheckoutPublicScope.Type;
 
 export const CheckoutPublicState = Schema.Struct({
-  activeStep: CheckoutState.fields.activeStep,
   cart: CartPublicSnapshot,
   details: CartPublicCheckoutDetails,
+  nextStep: CheckoutState.fields.nextStep,
   scope: CheckoutPublicScope,
   steps: CheckoutState.fields.steps,
   violations: Schema.Array(CheckoutPublicViolation),
@@ -48,9 +48,9 @@ export type CheckoutPublicState = typeof CheckoutPublicState.Type;
 export const toCheckoutPublicState = (
   state: CheckoutState
 ): CheckoutPublicState => ({
-  activeStep: state.activeStep,
   cart: toCartPublicSnapshot(state.cart),
   details: toCartPublicCheckoutDetails(state.details),
+  nextStep: state.nextStep,
   scope: {
     channel: state.scope.channel,
     locale: state.scope.locale,

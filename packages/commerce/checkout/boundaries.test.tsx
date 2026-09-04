@@ -48,12 +48,11 @@ import { AddressBook } from "../services/address-book";
 import { CommerceContext } from "../services/commerce-context";
 import { CommerceLocale, resolveStore, StoreKey } from "../store";
 import type { SaveCheckoutShippingOptionsActionInput } from "./action-contract";
-import { CartSidebar } from "./checkout-view";
+import { CartSidebar, CheckoutSteps } from "./checkout-view";
 import type { CheckoutPageMessages } from "./checkout-view";
 import { makeCheckoutProcedures } from "./procedures";
 
 const checkoutState: CheckoutState = {
-  activeStep: "contact",
   cart: {
     checkoutDetails: {},
     id: CartId.make("cart-1"),
@@ -77,6 +76,7 @@ const checkoutState: CheckoutState = {
     totalPrice: { centAmount: 2500, currencyCode: "USD" },
   },
   details: {},
+  nextStep: "contact",
   scope: new StorefrontCustomerCheckoutScope({
     businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
     businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key"),
@@ -94,10 +94,37 @@ const checkoutState: CheckoutState = {
   violations: [],
 };
 
+const checkoutPageMessages = {
+  activeStep: "Active",
+  attention: "Attention",
+  card: "Card",
+  cartItems: (count: number) => `${count} items`,
+  cartQuantity: (quantity: number) => `Quantity ${quantity}`,
+  cartTitle: "Cart",
+  cartViolations: "Cart issues",
+  delivery: (number: number) => `Delivery ${number}`,
+  edit: "Edit",
+  editingStep: "Editing",
+  netTerms: (days: number) => `Net ${days}`,
+  paymentMethod: "Payment method",
+  stepLabels: {
+    contact: "Contact",
+    deliveryDetails: "Delivery details",
+    paymentOptions: "Payment options",
+    reviewOrder: "Review order",
+    shippingOptions: "Shipping options",
+  },
+  stepStatuses: {
+    complete: "Complete",
+    incomplete: "Incomplete",
+  },
+  subtotal: "Subtotal",
+  violation: () => "Violation",
+} satisfies CheckoutPageMessages;
+
 const encodedCheckoutSuccess = {
   _tag: "Success",
   success: {
-    activeStep: "contact",
     cart: {
       checkoutDetails: {},
       id: "cart-1",
@@ -121,6 +148,7 @@ const encodedCheckoutSuccess = {
       totalPrice: { centAmount: 2500, currencyCode: "USD" },
     },
     details: {},
+    nextStep: "contact",
     scope: {
       channel: "storefrontCustomer",
       locale: "en-US",
@@ -259,6 +287,61 @@ const makeCheckoutHarness = (options?: {
 };
 
 describe("Checkout boundaries", () => {
+  it("routes completed Checkout Steps through explicit edit requests", () => {
+    const state: CheckoutState = {
+      ...checkoutState,
+      nextStep: "reviewOrder",
+      steps: checkoutState.steps.map((step) => ({
+        ...step,
+        status: step.id === "reviewOrder" ? "incomplete" : "complete",
+      })),
+    };
+
+    const markup = renderToStaticMarkup(
+      <CheckoutSteps
+        checkoutPath="/en-US/checkout"
+        isEditing={false}
+        messages={checkoutPageMessages}
+        renderedStep="reviewOrder"
+        state={state}
+      />
+    );
+
+    expect(markup).toContain('action="/en-US/checkout" method="get"');
+    expect(
+      [
+        'aria-label="Edit Delivery details"',
+        'value="deliveryDetails" name="edit"',
+        'aria-label="Edit Payment options"',
+        'value="paymentOptions" name="edit"',
+      ].every((attribute) => markup.includes(attribute))
+    ).toBeTruthy();
+    expect(markup).not.toContain('aria-label="Edit Review order"');
+
+    const editMarkup = renderToStaticMarkup(
+      <CheckoutSteps
+        checkoutPath="/en-US/checkout"
+        isEditing={true}
+        messages={checkoutPageMessages}
+        renderedStep="deliveryDetails"
+        state={state}
+      />
+    );
+    expect({
+      editingLabel: editMarkup.includes("Editing"),
+      editingState: editMarkup.includes(
+        'data-checkout-step="deliveryDetails" data-state="editing"'
+      ),
+      editsContact: editMarkup.includes('aria-label="Edit Contact"'),
+      editsPayment: editMarkup.includes('aria-label="Edit Payment options"'),
+    }).toStrictEqual({
+      editingLabel: true,
+      editingState: true,
+      editsContact: true,
+      editsPayment: false,
+    });
+  });
+
   it("renders merchandise subtotal separately from selected Shipping", () => {
     const selectedShippingOption = {
       name: "Standard",
@@ -267,7 +350,6 @@ describe("Checkout boundaries", () => {
     };
     const state: CheckoutState = {
       ...checkoutState,
-      activeStep: "paymentOptions",
       cart: {
         ...checkoutState.cart,
         totalPrice: { centAmount: 3000, currencyCode: "USD" },
@@ -291,6 +373,7 @@ describe("Checkout boundaries", () => {
           reference: DeliveryPlanReference.make("plan-1"),
         },
       },
+      nextStep: "paymentOptions",
       steps: checkoutState.steps.map((step) => ({
         ...step,
         status:
@@ -300,34 +383,8 @@ describe("Checkout boundaries", () => {
       })),
     };
 
-    const messages = {
-      activeStep: "Active",
-      attention: "Attention",
-      card: "Card",
-      cartItems: (count: number) => `${count} items`,
-      cartQuantity: (quantity: number) => `Quantity ${quantity}`,
-      cartTitle: "Cart",
-      cartViolations: "Cart issues",
-      delivery: (number: number) => `Delivery ${number}`,
-      editDeliveryDetails: "Edit delivery details",
-      netTerms: (days: number) => `Net ${days}`,
-      paymentMethod: "Payment method",
-      stepLabels: {
-        contact: "Contact",
-        deliveryDetails: "Delivery details",
-        paymentOptions: "Payment options",
-        reviewOrder: "Review order",
-        shippingOptions: "Shipping options",
-      },
-      stepStatuses: {
-        complete: "Complete",
-        incomplete: "Incomplete",
-      },
-      subtotal: "Subtotal",
-      violation: () => "Violation",
-    } satisfies CheckoutPageMessages;
     const markup = renderToStaticMarkup(
-      <CartSidebar messages={messages} state={state} />
+      <CartSidebar messages={checkoutPageMessages} state={state} />
     );
 
     expect(markup).toContain(

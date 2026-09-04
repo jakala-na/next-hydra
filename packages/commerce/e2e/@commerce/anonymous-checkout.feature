@@ -66,7 +66,7 @@ Feature: Anonymous Checkout
     And Delivery Group "Delivery 1" has selected Shipping Option "Standard shipping method" priced at "0.00" in currency "USD"
     And the "Checkout" Cart subtotal is "16500.00" in currency "USD"
 
-  Scenario: Changing Delivery Details invalidates saved Shipping Options
+  Scenario: Editing Delivery Details from Checkout Steps invalidates saved Shipping and Payment Options
     Given Store "default-store" serves locale "en-US" in currency "USD"
     And deliveries to "US" have Shipping Options:
       | Shipping Option          | Price  | Currency |
@@ -96,11 +96,12 @@ Feature: Anonymous Checkout
       | Country        | US               |
     And the buyer selects Shipping Option "Standard shipping" for Delivery Group "Delivery 1"
     And the buyer saves Shipping Options
-    Then the Checkout Steps have statuses:
-      | Step             | Status   |
-      | Shipping Options | Complete |
-      | Payment Options  | Active   |
-    When the buyer chooses to edit "Delivery Details"
+    Then Payment Options offers Payment Methods:
+      | Payment Method | Availability |
+      | Card           | Available    |
+    When the buyer enters valid Card details and uses the Shipping Address for Billing
+    And the buyer saves Payment Options
+    When the buyer edits the "Delivery Details" step
     And the buyer enters and saves Delivery Details:
       | Field          | Value             |
       | Address line 1 | 456 Second Street |
