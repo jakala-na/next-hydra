@@ -14,7 +14,7 @@ Applications consume this package through the stable `@repo/cms` dependency name
 
 Application code should import only the supported `@repo/cms/*` entry points declared in this package's export map. It should not import `@repo/cms-contentful` directly.
 
-This package is a composition-ready scaffold. Delivery GraphQL or REST queries, Live Preview, navigation, and space provisioning are not implemented yet. Page routes currently resolve to `notFound()` until those clients land.
+Page routes use Contentful's GraphQL Content API to resolve localized landing pages and articles by slug. Landing pages render ordered hero, featured article, and dynamic product collection entries through the shared CMS design system components. Draft mode switches the same query to the Preview API token. Live Preview editing, navigation, and space provisioning are not implemented yet.
 
 ## Environment
 
@@ -28,6 +28,8 @@ Copy `.env.example` into the consuming application's `.env` and fill:
 - `CONTENTFUL_PREVIEW_SECRET`
 
 Preview URLs should call `/api/draft?secret=<CONTENTFUL_PREVIEW_SECRET>&slug=/path`.
+
+Published requests use `CONTENTFUL_DELIVERY_TOKEN`. Requests made while Next.js Draft Mode is active set GraphQL's `preview` argument and use `CONTENTFUL_PREVIEW_TOKEN`.
 
 ## Content model
 

@@ -1,19 +1,26 @@
+import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
-import { hasLocale } from "@repo/i18n";
-import { routing } from "@repo/i18n/routing";
-import { draftMode } from "next/headers";
-import { notFound } from "next/navigation";
+
+import type { ContentfulLandingPage } from "../../content";
+import { ComponentRenderer } from "../component-renderer";
 
 type LandingPageProps = {
-  locale: Locale;
-  url: string;
+  readonly data: ContentfulLandingPage;
+  readonly locale: Locale;
 };
 
-export async function LandingPage({ locale }: LandingPageProps) {
-  if (!hasLocale(routing.locales, locale)) {
-    notFound();
-  }
-  await draftMode();
-
-  notFound();
+export function LandingPage({ data, locale }: LandingPageProps) {
+  return (
+    <>
+      {data.displayTitle ? (
+        <h1 className={cn(data.hideDisplayTitle === true && "hidden")}>
+          {data.displayTitle}
+        </h1>
+      ) : null}
+      <ComponentRenderer
+        data={data.componentsCollection?.items}
+        locale={locale}
+      />
+    </>
+  );
 }
