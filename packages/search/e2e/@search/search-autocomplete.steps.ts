@@ -71,7 +71,7 @@ const section = (page: Page, name: string) => {
     sourceId = "content";
   } else if (name === "Products") {
     sourceId = "products";
-  } else if (name === "Keywords") {
+  } else if (name === "Search results") {
     sourceId = "querySuggestionsPlugin";
   }
   if (sourceId === undefined) {
@@ -193,7 +193,7 @@ When(
     if (query === undefined) {
       throw new Error("No typed keyword was defined for autocomplete");
     }
-    await section(page, "Keywords")
+    await section(page, "Search results")
       .getByRole("link", {
         name: escapedPattern(`Search for "${query}"`),
       })

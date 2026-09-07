@@ -86,7 +86,7 @@ const requireResourceHit = (
 };
 
 const sectionHeading = (
-  label: "Content" | "Keywords" | "Products",
+  label: "Content" | "Search results" | "Products",
   html: HTMLTemplate
 ) => html`<h2
   class="${styles.sectionHeading}"
@@ -125,10 +125,10 @@ export function SearchAutocomplete({
         getItemUrl: ({ item }) => autocompleteSearchHref(item.query, routes),
         templates: {
           ...source.templates,
-          header: ({ html }) => sectionHeading("Keywords", html),
+          header: ({ html }) => sectionHeading("Search results", html),
           item: ({ html, item }) => html`<a
             class="${styles.resultLink}"
-            data-autocomplete-result-section="Keywords"
+            data-autocomplete-result-section="Search results"
             href="${autocompleteSearchHref(item.query, routes)}"
           >
             <span class="${styles.resultIcon}" aria-hidden="true">⌕</span>
@@ -146,6 +146,7 @@ export function SearchAutocomplete({
       classNames: {
         detachedSearchButton: styles.detachedSearchButton,
         detachedSearchButtonPlaceholder: styles.detachedSearchButtonPlaceholder,
+        detachedSearchButtonQuery: styles.detachedSearchButtonQuery,
         form: styles.form,
         input: styles.input,
         item: styles.item,

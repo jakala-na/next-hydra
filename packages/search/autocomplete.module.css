@@ -94,6 +94,10 @@
 }
 
 .resultBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.15rem;
   min-width: 0;
 }
 
@@ -111,7 +115,6 @@
   color: var(--muted-foreground);
   font-size: 0.75rem;
   line-height: 1.35;
-  margin-top: 0.1rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -133,7 +136,8 @@
     width: 2.5rem;
   }
 
-  .detachedSearchButtonPlaceholder {
+  .detachedSearchButtonPlaceholder,
+  .detachedSearchButtonQuery {
     display: none;
   }
 }

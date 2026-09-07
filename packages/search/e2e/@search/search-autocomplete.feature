@@ -18,13 +18,13 @@ Feature: Search autocomplete
       | Section  |
       | Content  |
       | Products |
-      | Keywords |
+      | Search results |
     And the autocomplete offers these results:
       | Section  | Result                         |
       | Content  | Choosing the right excavator for the job |
       | Products | A789 BC Deep Mining Excavator            |
-      | Keywords | Search for "excavator"         |
-      | Keywords | excavator attachments          |
+      | Search results | Search for "excavator"         |
+      | Search results | excavator attachments          |
     And Content and Product results link to their pages
 
   Scenario Outline: Open a Content or Product result directly
@@ -42,6 +42,6 @@ Feature: Search autocomplete
     And the "All" tab is selected
 
   Scenario: Start an All search from a provider keyword suggestion
-    When the visitor chooses "excavator attachments" from the "Keywords" autocomplete section
+    When the visitor chooses "excavator attachments" from the "Search results" autocomplete section
     Then the Search Page opens with query "excavator attachments"
     And the "All" tab is selected
