@@ -2,35 +2,45 @@ import { z } from "zod";
 
 import type { SearchBatch } from "./contract";
 import {
-  PRODUCT_FACETS,
   SEARCH_HIT_ATTRIBUTES,
   SEARCH_INDEX_ALIASES,
   isProductIndexAlias,
 } from "./contract";
+import {
+  isProductFacet,
+  isProductRangeFacet,
+  isProductRefinementFacet,
+} from "./product-discovery";
 
 const MAX_BATCH_SIZE = 8;
 const MAX_HITS_PER_PAGE = 48;
 const MAX_VALUES_PER_FACET = 100;
 
-const productFacets = new Set<string>(PRODUCT_FACETS);
-
 const facetFilterValueSchema = z.string().refine(
   (filter) => {
     const separator = filter.indexOf(":");
-    return separator > 0 && productFacets.has(filter.slice(0, separator));
+    return (
+      separator > 0 && isProductRefinementFacet(filter.slice(0, separator))
+    );
   },
   { message: "facetFilters contains an unsupported facet" }
 );
 
-const numericFilterValueSchema = z
-  .string()
-  .regex(
-    /^price(?:<=|>=|=|<|>)-?\d+(?:\.\d+)?$/u,
-    "numericFilters contains an unsupported filter"
-  );
+const numericFilterPattern =
+  /^(?<facet>[^<>=!]+)(?:<=|>=|=|<|>)-?\d+(?:\.\d+)?$/u;
+
+const numericFilterValueSchema = z.string().refine((filter) => {
+  const match = numericFilterPattern.exec(filter);
+  const facet = match?.groups?.facet;
+  return facet !== undefined && isProductRangeFacet(facet);
+}, "numericFilters contains an unsupported filter");
+
+const productFacetSchema = z.string().refine(isProductFacet, {
+  message: "unsupported Product facet",
+});
 
 const facetsSchema = z
-  .union([z.enum(PRODUCT_FACETS), z.array(z.enum(PRODUCT_FACETS))])
+  .union([productFacetSchema, z.array(productFacetSchema)])
   .transform((facets) => (Array.isArray(facets) ? facets : [facets]));
 
 const searchParametersSchema = z
@@ -43,8 +53,6 @@ const searchParametersSchema = z
     facetFilters: z
       .array(z.union([facetFilterValueSchema, z.array(facetFilterValueSchema)]))
       .optional(),
-    facetName: z.enum(PRODUCT_FACETS).optional(),
-    facetQuery: z.string().optional(),
     facets: facetsSchema.optional(),
     highlightPostTag: z.string().optional(),
     highlightPreTag: z.string().optional(),
@@ -85,13 +93,12 @@ const searchBatchSchema = z
             if (
               !isProductIndexAlias(indexName) &&
               (params.facetFilters !== undefined ||
-                params.facetName !== undefined ||
                 params.facets !== undefined ||
                 params.numericFilters !== undefined)
             ) {
               context.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: `${indexName === "resources" ? "Resource" : "Query suggestion"} search does not support facets`,
+                message: `${indexName === "content" ? "Content" : "Query suggestion"} search does not support facets`,
                 path: ["params"],
               });
             }

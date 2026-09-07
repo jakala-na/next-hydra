@@ -15,7 +15,7 @@ import {
 
 import {
   combinedProductSearchConfigure,
-  combinedResourceSearchConfigure,
+  combinedContentSearchConfigure,
 } from "./combined-search-config";
 import type { CombinedSearchTab } from "./combined-search-routing";
 import {
@@ -23,7 +23,7 @@ import {
   combinedSearchPageHref,
   combinedSearchTabHref,
 } from "./combined-search-routing";
-import type { ProductSearchHit, ResourceSearchHit } from "./contract";
+import type { ContentSearchHit, ProductSearchHit } from "./contract";
 import { SearchProductCard } from "./product-card";
 import { SearchResourceCard } from "./resource-card";
 
@@ -219,15 +219,10 @@ function ProductResults({
       {items.length === 0 ? (
         <NoResults label="Products" />
       ) : (
-        <div className="space-y-5">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {items.map((hit) => (
             <div data-search-result-type="product" key={hit.objectID}>
-              <SearchProductCard
-                headingLevel="h3"
-                hit={hit}
-                layout="row"
-                locale={locale}
-              />
+              <SearchProductCard headingLevel="h3" hit={hit} locale={locale} />
             </div>
           ))}
         </div>
@@ -253,7 +248,7 @@ function ResourceResults({
   readonly query: string;
 }) {
   const { status } = useInstantSearch({ catchError: true });
-  const { items } = useHits<ResourceSearchHit>();
+  const { items } = useHits<ContentSearchHit>();
   const { nbHits } = useStats();
 
   if (status === "error") {
@@ -312,8 +307,8 @@ function AllSearchResults({
   return (
     <div className="space-y-12">
       <ProductResults locale={locale} preview query={query} />
-      <Index indexName="resources">
-        <Configure {...combinedResourceSearchConfigure("all")} />
+      <Index indexName="content">
+        <Configure {...combinedContentSearchConfigure("all")} />
         <ResourceResults locale={locale} preview query={query} />
       </Index>
     </div>
@@ -327,7 +322,7 @@ export function CombinedSearchView({ locale, tab }: CombinedSearchViewProps) {
     <>
       <Configure
         {...(tab === "resources"
-          ? combinedResourceSearchConfigure(tab)
+          ? combinedContentSearchConfigure(tab)
           : combinedProductSearchConfigure(tab))}
       />
       <div className="space-y-6">

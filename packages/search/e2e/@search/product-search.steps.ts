@@ -167,6 +167,23 @@ Then(
   }
 );
 
+const categoryFacet = (page: Page) =>
+  page.getByRole("group", { name: "Category" });
+
+Then("the Category facet initially shows 5 values", async ({ page }) => {
+  await expect(categoryFacet(page).getByRole("checkbox")).toHaveCount(5);
+});
+
+When("the buyer shows more Category values", async ({ page }) => {
+  await categoryFacet(page).getByRole("button", { name: "Show more" }).click();
+});
+
+Then("additional Category values are shown", async ({ page }) => {
+  await expect
+    .poll(async () => await categoryFacet(page).getByRole("checkbox").count())
+    .toBeGreaterThan(5);
+});
+
 When(
   "the buyer refines the Product listing with:",
   async ({ page }, dataTable: DataTable) => {

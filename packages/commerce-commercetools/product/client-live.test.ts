@@ -160,7 +160,7 @@ describe("Commercetools Product Discovery GraphQL client", () => {
       })
   );
 
-  it.effect("resolves stable Product search audience keys", () =>
+  it.effect("resolves the opaque Product price audience", () =>
     Effect.gen(function* () {
       query.mockResolvedValueOnce(storeResponse).mockResolvedValueOnce({
         data: {
@@ -179,9 +179,7 @@ describe("Commercetools Product Discovery GraphQL client", () => {
       );
 
       expect(audience).toStrictEqual({
-        customerSegmentKeys: ["contractors"],
-        distributionChannelKeys: ["north-america"],
-        supplyChannelKeys: ["main-warehouse", "overflow-warehouse"],
+        priceAudienceIds: ["customer-group-1"],
       });
     })
   );

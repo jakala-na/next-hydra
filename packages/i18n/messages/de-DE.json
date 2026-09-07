@@ -33,6 +33,17 @@
       "products": "Produkte",
       "categoryFallback": "Kategorie"
     },
+    "search": {
+      "productListing": {
+        "facets": {
+          "category": "Kategorie",
+          "availability": "Verfügbarkeit",
+          "price": "Preis"
+        },
+        "showLess": "Weniger anzeigen",
+        "showMore": "Mehr anzeigen"
+      }
+    },
     "article": {
       "readGuide": "Ratgeber lesen"
     },

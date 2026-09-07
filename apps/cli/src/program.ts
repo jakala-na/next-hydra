@@ -1,6 +1,14 @@
 import { createAuthCommand } from "@repo/auth/cli";
 import { createCmsCommand } from "@repo/cms/cli";
-import { createCommerceCommand } from "@repo/commerce-provider/cli";
+import {
+  createContentIndexingHandoff,
+  loadContentSearchProjection,
+} from "@repo/cms/search";
+import {
+  commerceSearchIndexingSource,
+  createCommerceCommand,
+} from "@repo/commerce-provider/cli";
+import { createSearchCommand } from "@repo/search-provider/cli";
 import { Effect, Option } from "effect";
 import { CliConfig, Command, Flag, GlobalFlag } from "effect/unstable/cli";
 
@@ -32,6 +40,13 @@ export const createProgram = (
   const commerce = createCommerceCommand(configProvider);
   const cms = createCmsCommand(configProvider);
   const auth = createAuthCommand(configProvider);
+  const search = createSearchCommand(configProvider, {
+    commerce: commerceSearchIndexingSource,
+    content: {
+      createIndexingHandoff: createContentIndexingHandoff,
+      createProjection: loadContentSearchProjection,
+    },
+  });
 
-  return root.pipe(Command.withSubcommands([auth, cms, commerce]));
+  return root.pipe(Command.withSubcommands([auth, cms, commerce, search]));
 };

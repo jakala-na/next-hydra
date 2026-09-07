@@ -5,8 +5,10 @@ import { searchRuntime } from "@repo/search/runtime";
 import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 
+import { createServerSearchLocation } from "./instant-search-history";
 import { ProductListing } from "./product-listing";
 import type { ProductListingRouteState } from "./product-listing-routing";
+import { createProductListingUrl } from "./product-listing-routing";
 import { getProductListingServerState } from "./product-listing-server";
 import { ProductListingSkeleton } from "./product-listing-skeleton";
 
@@ -42,8 +44,13 @@ async function ProductListingResults({
   locale,
   searchParams,
 }: ProductListingPageProps) {
-  const { endpoint } = searchRuntime.getClientConfiguration(locale);
+  const { endpoint, productListingPath } =
+    searchRuntime.getClientConfiguration(locale);
   const routeState = productListingRouteState(await searchParams);
+  const serverUrl = createProductListingUrl(
+    createServerSearchLocation(productListingPath),
+    routeState
+  );
   let serverState:
     | Awaited<ReturnType<typeof getProductListingServerState>>
     | undefined;
@@ -64,6 +71,7 @@ async function ProductListingResults({
     <ProductListing
       endpoint={endpoint}
       locale={locale}
+      serverUrl={serverUrl}
       serverState={serverState}
     />
   );
@@ -84,7 +92,7 @@ export function ProductListingPage({
       source="search"
       sourceLabel="Search package"
     >
-      <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <div className="container py-10 lg:py-14">
         <div className="mb-10 max-w-3xl">
           <p className="mb-2 font-medium text-muted-foreground text-sm uppercase tracking-wide">
             Product catalog

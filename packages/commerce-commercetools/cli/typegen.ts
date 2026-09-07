@@ -492,6 +492,10 @@ const generateProductTypesSource = (
   const attributeSchemas = schemas.map((schema) =>
     generateProductAttributesSchema(schema, dependencies)
   );
+  const productAttributePathMembers = schemas
+    .filter((schema) => (schema.attributes?.length ?? 0) > 0)
+    .map((schema) => `  | FieldPath<${toPascalCase(schema.key)}Attributes>`)
+    .join("\n");
   const attributeDependencies = [
     "ProductAttributeDate",
     "ProductAttributeDateTime",
@@ -568,6 +572,7 @@ type ${typeKeyName} = typeof ${typeKeyName}.Type;`;
 // Run \`pnpm cli commerce types generate\` to regenerate.
 
 import { Schema } from "effect";
+import type { FieldPath } from "../field-path";
 ${moneyImport}${attributeImport}${productIdImport}import {
   hasCompleteProductOptionSelection,
   hasDefaultProductVariant,
@@ -597,6 +602,9 @@ export type ProductAttributes<
   TKey extends ProductTypeKey = ProductTypeKey,
 > = ${conditionalAttributes}
   : never;
+
+export type ProductAttributePath =
+${productAttributePathMembers.length > 0 ? productAttributePathMembers : "  never"};
 
 ${variants}
 

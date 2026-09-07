@@ -1,5 +1,15 @@
 import { Button } from "@repo/design-system/components/ui/button";
 import { Checkbox } from "@repo/design-system/components/ui/checkbox";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarInset,
+  SidebarProvider,
+} from "@repo/design-system/components/ui/sidebar";
+import { useTranslations } from "@repo/i18n";
 import type { Locale } from "@repo/i18n";
 import {
   Configure,
@@ -16,12 +26,12 @@ import {
 import type { ProductSearchHit } from "./contract";
 import { humanizeSearchValue } from "./presentation";
 import { SearchProductCard } from "./product-card";
+import type { ProductRefinementFacet } from "./product-discovery";
 import {
   PRODUCT_LISTING_CONFIGURE,
   PRODUCT_LISTING_FACETS,
-  PRODUCT_LISTING_RANGE_ATTRIBUTE,
-  PRODUCT_LISTING_REFINEMENT_LIST,
   PRODUCT_LISTING_SORT_ITEMS,
+  productListingRefinementListOptions,
 } from "./product-listing-config";
 
 export interface ProductListingViewProps {
@@ -29,74 +39,104 @@ export interface ProductListingViewProps {
 }
 
 interface FacetListProps {
-  readonly attribute: "availability" | "category";
+  readonly attribute: ProductRefinementFacet["id"];
 }
 
 function FacetList({ attribute }: FacetListProps) {
-  const { items, refine } = useRefinementList({
-    attribute,
-    ...PRODUCT_LISTING_REFINEMENT_LIST,
-  });
+  const t = useTranslations("web.search.productListing");
+  const { canToggleShowMore, isShowingMore, items, refine, toggleShowMore } =
+    useRefinementList({
+      attribute,
+      ...productListingRefinementListOptions(attribute),
+    });
 
   return (
-    <div className="space-y-3">
-      {items.map((item) => {
-        const id = `${attribute}-${item.value}`;
-        return (
-          <div className="flex items-center gap-2" key={item.value}>
-            <Checkbox
-              checked={item.isRefined}
-              id={id}
-              onCheckedChange={() => {
-                refine(item.value);
-              }}
-            />
-            <label
-              className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 text-sm"
-              htmlFor={id}
-            >
-              <span>{humanizeSearchValue(item.label)}</span>
-              <span className="text-muted-foreground tabular-nums">
-                {item.count}
-              </span>
-            </label>
-          </div>
-        );
-      })}
+    <div>
+      <div className="space-y-3">
+        {items.map((item) => {
+          const id = `${attribute}-${item.value}`;
+          return (
+            <div className="flex items-center gap-2" key={item.value}>
+              <Checkbox
+                checked={item.isRefined}
+                id={id}
+                onCheckedChange={() => {
+                  refine(item.value);
+                }}
+              />
+              <label
+                className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 text-sm"
+                htmlFor={id}
+              >
+                <span>{humanizeSearchValue(item.label)}</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {item.count}
+                </span>
+              </label>
+            </div>
+          );
+        })}
+      </div>
+      {canToggleShowMore ? (
+        <Button
+          className="mt-3 h-8 px-0"
+          onClick={toggleShowMore}
+          size="sm"
+          type="button"
+          variant="link"
+        >
+          {isShowingMore ? t("showLess") : t("showMore")}
+        </Button>
+      ) : null}
     </div>
   );
 }
 
 function ProductFilters() {
+  const t = useTranslations("web.search.productListing.facets");
+
   return (
-    <aside
-      aria-label="Product filters"
-      className="space-y-8 border-border border-b pb-8 lg:border-r lg:border-b-0 lg:pr-8 lg:pb-0"
-    >
-      {PRODUCT_LISTING_FACETS.map(({ attribute, label }) => (
-        <fieldset key={attribute}>
-          <legend className="mb-4 font-semibold text-base">{label}</legend>
-          <FacetList attribute={attribute} />
-        </fieldset>
-      ))}
-      <fieldset>
-        <legend className="mb-4 font-semibold text-base">Price</legend>
-        <RangeInput
-          attribute={PRODUCT_LISTING_RANGE_ATTRIBUTE}
-          classNames={{
-            form: "flex items-center gap-2",
-            input:
-              "h-9 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-            separator: "text-muted-foreground",
-            submit:
-              "h-9 rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm shadow-xs hover:bg-primary/90",
-          }}
-          translations={{
-            separatorElementText: "to",
-            submitButtonText: "Apply",
-          }}
-        />
-      </fieldset>
+    <aside aria-label="Product filters" className="w-full shrink-0 lg:w-64">
+      <Sidebar
+        className="h-auto w-full rounded-xl border border-sidebar-border bg-sidebar p-2 text-sidebar-foreground"
+        collapsible="none"
+      >
+        <SidebarContent className="gap-6 overflow-visible">
+          {PRODUCT_LISTING_FACETS.map((facet) => (
+            <SidebarGroup key={facet.id}>
+              <fieldset>
+                <SidebarGroupLabel
+                  asChild
+                  className="mb-3 h-auto px-0 font-semibold text-base text-foreground"
+                >
+                  <legend>{t(facet.id)}</legend>
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  {facet.control === "refinement-list" ? (
+                    <FacetList attribute={facet.id} />
+                  ) : (
+                    <RangeInput
+                      attribute={facet.id}
+                      classNames={{
+                        form: "flex items-center gap-2",
+                        input:
+                          "h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+                        separator: "text-muted-foreground",
+                        submit:
+                          "h-9 rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm shadow-xs hover:bg-primary/90",
+                      }}
+                      translations={{
+                        separatorElementText: "to",
+                        submitButtonText: "Apply",
+                      }}
+                    />
+                  )}
+                </SidebarGroupContent>
+              </fieldset>
+            </SidebarGroup>
+          ))}
+        </SidebarContent>
+      </Sidebar>
     </aside>
   );
 }
@@ -242,12 +282,12 @@ export function ProductListingView({ locale }: ProductListingViewProps) {
         <ProductQuery />
         <ProductSort />
       </div>
-      <div className="grid gap-8 lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <SidebarProvider className="min-h-0 flex-col items-start gap-8 bg-transparent lg:flex-row">
         <ProductFilters />
-        <main>
+        <SidebarInset className="min-w-0 bg-transparent">
           <ProductResults locale={locale} />
-        </main>
-      </div>
+        </SidebarInset>
+      </SidebarProvider>
     </>
   );
 }

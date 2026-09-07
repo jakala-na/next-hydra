@@ -1,6 +1,8 @@
 import type { IndexUiState, StateMapping, UiState } from "instantsearch.js";
 
 import type { ProductIndexAlias } from "./contract";
+import { PRODUCT_DISCOVERY } from "./product-discovery";
+import type { ProductFacetRoute } from "./product-discovery";
 
 export const PRODUCT_SORTS = [
   { label: "Relevance", route: undefined, value: "products" },
@@ -23,14 +25,11 @@ export const PRODUCT_SORTS = [
 export type ProductSortRoute = "price-asc" | "price-desc";
 type RouteValue = string | number | string[] | undefined;
 
-export interface ProductListingRouteState {
-  q?: RouteValue;
-  category?: RouteValue;
-  availability?: RouteValue;
-  price?: RouteValue;
-  page?: RouteValue;
-  sort?: RouteValue;
-}
+type ProductListingRouteKey = ProductFacetRoute | "page" | "q" | "sort";
+
+export type ProductListingRouteState = Partial<
+  Record<ProductListingRouteKey, RouteValue>
+>;
 
 interface ProductListingLocation {
   readonly hash: string;
@@ -40,14 +39,12 @@ interface ProductListingLocation {
   readonly protocol: string;
 }
 
-const PRODUCT_LISTING_ROUTE_KEYS = [
+const PRODUCT_LISTING_ROUTE_KEYS: readonly ProductListingRouteKey[] = [
   "q",
-  "category",
-  "availability",
-  "price",
+  ...PRODUCT_DISCOVERY.facets.map(({ route }) => route),
   "page",
   "sort",
-] as const satisfies readonly (keyof ProductListingRouteState)[];
+];
 
 /** Serializes array refinements as repeated keys instead of provider-shaped brackets. */
 export function createProductListingUrl(
@@ -90,6 +87,7 @@ export function parseProductListingUrl(
     }
   }
 
+  // oxlint-disable-next-line anti-slop/no-known-value-widening -- The known route keys are generated from Product discovery above.
   return routeState;
 }
 
@@ -144,27 +142,33 @@ export const productListingStateMapping: StateMapping<
 > = {
   routeToState: (routeState) => {
     const query = firstString(routeState.q)?.trim();
-    const categories = allStrings(routeState.category);
-    const availability = allStrings(routeState.availability);
-    const price = firstString(routeState.price);
     const page = positivePage(routeState.page);
     const sortBy = sortIndex(routeState.sort);
     const products: IndexUiState = {};
+    const refinementList: Record<string, string[]> = {};
+    const range: Record<string, string> = {};
 
     if (query !== undefined && query.length > 0) {
       products.query = query;
     }
-    if (categories.length > 0 || availability.length > 0) {
-      products.refinementList = {};
-      if (categories.length > 0) {
-        products.refinementList.category = categories;
-      }
-      if (availability.length > 0) {
-        products.refinementList.availability = availability;
+    for (const facet of PRODUCT_DISCOVERY.facets) {
+      if (facet.control === "refinement-list") {
+        const values = allStrings(routeState[facet.route]);
+        if (values.length > 0) {
+          refinementList[facet.id] = values;
+        }
+      } else {
+        const value = firstString(routeState[facet.route]);
+        if (value !== undefined && value.length > 0) {
+          range[facet.id] = value;
+        }
       }
     }
-    if (price !== undefined && price.length > 0) {
-      products.range = { price };
+    if (Object.keys(refinementList).length > 0) {
+      products.refinementList = refinementList;
+    }
+    if (Object.keys(range).length > 0) {
+      products.range = range;
     }
     if (page !== undefined) {
       products.page = page;
@@ -178,9 +182,6 @@ export const productListingStateMapping: StateMapping<
   stateToRoute: (uiState) => {
     const state = uiState.products ?? {};
     const query = state.query?.trim();
-    const category = routeValue(state.refinementList?.category);
-    const availability = routeValue(state.refinementList?.availability);
-    const price = state.range?.price;
     const page =
       state.page !== undefined && state.page > 1 ? state.page : undefined;
     const sort = sortRoute(state.sortBy);
@@ -189,14 +190,14 @@ export const productListingStateMapping: StateMapping<
     if (query !== undefined && query.length > 0) {
       routeState.q = query;
     }
-    if (category !== undefined) {
-      routeState.category = category;
-    }
-    if (availability !== undefined) {
-      routeState.availability = availability;
-    }
-    if (price !== undefined && price.length > 0) {
-      routeState.price = price;
+    for (const facet of PRODUCT_DISCOVERY.facets) {
+      const value =
+        facet.control === "refinement-list"
+          ? routeValue(state.refinementList?.[facet.id])
+          : state.range?.[facet.id];
+      if (value !== undefined && (!Array.isArray(value) || value.length > 0)) {
+        routeState[facet.route] = value;
+      }
     }
     if (page !== undefined) {
       routeState.page = page;

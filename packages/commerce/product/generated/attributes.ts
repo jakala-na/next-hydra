@@ -2,6 +2,7 @@
 // Run `pnpm cli commerce types generate` to regenerate.
 
 import { Schema } from "effect";
+import type { FieldPath } from "../field-path";
 import { ProductAttributeEnumValue } from "../attributes";
 import { ProductId } from "../identity";
 import {
@@ -79,6 +80,10 @@ export type ProductAttributes<
   : TKey extends HeavyLiftingAndSpecializedEquipmentProductTypeKey
   ? HeavyLiftingAndSpecializedEquipmentAttributes
   : never;
+
+export type ProductAttributePath =
+  | FieldPath<HeavyEarthmovingAndConstructionEquipmentAttributes>
+  | FieldPath<HeavyLiftingAndSpecializedEquipmentAttributes>;
 
 const GenericProductVariant = makeProductVariantSchema(
   GenericProductAttributes

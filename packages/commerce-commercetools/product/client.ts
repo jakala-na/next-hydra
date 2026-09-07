@@ -24,7 +24,6 @@ export interface CommercetoolsProductContext {
   readonly supplyChannelIds: readonly string[];
   readonly supplyChannelKeys: readonly string[];
   readonly customerGroupId?: string;
-  readonly customerGroupKey?: string;
 }
 
 export interface FindCommercetoolsProductBySlugInput {

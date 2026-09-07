@@ -199,6 +199,7 @@ const BASELINE_PROVIDER_DEPENDENCIES = [
   { cwd: "apps/cli", section: "dependencies", slot: "commerce" },
   { cwd: "apps/web", section: "dependencies", slot: "commerce" },
   { cwd: "tests/e2e", section: "devDependencies", slot: "commerce" },
+  { cwd: "apps/cli", section: "dependencies", slot: "search" },
   { cwd: "apps/web", section: "dependencies", slot: "search" },
 ] satisfies ProviderDependency[];
 

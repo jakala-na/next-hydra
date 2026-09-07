@@ -10,17 +10,17 @@ import { useEffect, useMemo, useRef } from "react";
 
 import {
   autocompleteProductHref,
-  autocompleteResourceHref,
+  autocompleteContentHref,
   autocompleteSearchHref,
 } from "./autocomplete-routing";
 import type { SearchAutocompleteRoutes } from "./autocomplete-routing";
-import { createProxySearchClient } from "./client";
+import { createAutocompleteProxySearchClient } from "./client";
 import type {
+  ContentSearchHit,
   ProductSearchHit,
   QuerySuggestionSearchHit,
-  ResourceSearchHit,
 } from "./contract";
-import { PRODUCT_HIT_ATTRIBUTES, RESOURCE_HIT_ATTRIBUTES } from "./contract";
+import { CONTENT_HIT_ATTRIBUTES, PRODUCT_HIT_ATTRIBUTES } from "./contract";
 
 import styles from "./autocomplete.module.css";
 
@@ -36,8 +36,8 @@ type KeywordSearchHit = QuerySuggestionSearchHit & {
 };
 
 type SearchAutocompleteItem =
+  | ContentSearchHit
   | ProductSearchHit
-  | ResourceSearchHit
   | KeywordSearchHit;
 
 type AutocompleteRequesterClient = Parameters<
@@ -50,7 +50,7 @@ export interface SearchAutocompleteProps {
 }
 
 const toAutocompleteRequesterClient = (
-  client: ReturnType<typeof createProxySearchClient>
+  client: ReturnType<typeof createAutocompleteProxySearchClient>
 ): AutocompleteRequesterClient =>
   // @ts-expect-error -- The preset declares the complete Algolia client even
   // though its requester only calls search() and reads transporter headers.
@@ -76,10 +76,8 @@ const requireProductHit = (item: SearchAutocompleteItem): ProductSearchHit => {
   throw new Error("The Products autocomplete source returned an invalid hit");
 };
 
-const requireResourceHit = (
-  item: SearchAutocompleteItem
-): ResourceSearchHit => {
-  if ("resourceCard" in item) {
+const requireContentHit = (item: SearchAutocompleteItem): ContentSearchHit => {
+  if ("contentCard" in item) {
     return item;
   }
   throw new Error("The Content autocomplete source returned an invalid hit");
@@ -102,7 +100,7 @@ export function SearchAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const proxyClient = useMemo(
-    () => createProxySearchClient(endpoint),
+    () => createAutocompleteProxySearchClient(endpoint),
     [endpoint]
   );
 
@@ -167,15 +165,15 @@ export function SearchAutocomplete({
         return [
           {
             getItemUrl: ({ item }) =>
-              autocompleteResourceHref(requireResourceHit(item), routes),
+              autocompleteContentHref(requireContentHit(item), routes),
             getItems: () =>
               getAlgoliaResults<SearchAutocompleteItem>({
                 queries: [
                   {
-                    indexName: "resources",
+                    indexName: "content",
                     params: {
                       analytics: false,
-                      attributesToRetrieve: [...RESOURCE_HIT_ATTRIBUTES],
+                      attributesToRetrieve: [...CONTENT_HIT_ATTRIBUTES],
                       clickAnalytics: false,
                       hitsPerPage: DIRECT_RESULT_LIMIT,
                       query: normalizedQuery,
@@ -188,12 +186,12 @@ export function SearchAutocomplete({
             templates: {
               header: ({ html }) => sectionHeading("Content", html),
               item: ({ html, item }) => {
-                const resource = requireResourceHit(item);
-                const { image } = resource.resourceCard;
+                const content = requireContentHit(item);
+                const { image } = content.contentCard;
                 return html`<a
                   class="${styles.resultLink}"
                   data-autocomplete-result-section="Content"
-                  href="${autocompleteResourceHref(resource, routes)}"
+                  href="${autocompleteContentHref(content, routes)}"
                 >
                   ${
                     image === undefined
@@ -212,10 +210,10 @@ export function SearchAutocomplete({
                   }
                   <span class="${styles.resultBody}">
                     <span class="${styles.resultTitle}"
-                      >${resource.resourceCard.title}</span
+                      >${content.contentCard.title}</span
                     >
                     <span class="${styles.resultMeta}"
-                      >${resource.resourceCard.summary}</span
+                      >${content.contentCard.summary}</span
                     >
                   </span>
                 </a>`;

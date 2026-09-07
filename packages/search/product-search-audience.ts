@@ -20,10 +20,8 @@ export const resolveProductSearchAudience = async (
         locale: store.locale,
         product: {
           currency: store.currency,
-          customerSegmentKeys: productAudience.customerSegmentKeys,
-          distributionChannelKeys: productAudience.distributionChannelKeys,
+          priceAudienceIds: productAudience.priceAudienceIds,
           storeKey: store.storeKey,
-          supplyChannelKeys: productAudience.supplyChannelKeys,
         },
       };
     }).pipe(NextCommerce.provide(locale))

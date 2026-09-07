@@ -33,6 +33,17 @@
       "products": "Producten",
       "categoryFallback": "Categorie"
     },
+    "search": {
+      "productListing": {
+        "facets": {
+          "category": "Categorie",
+          "availability": "Beschikbaarheid",
+          "price": "Prijs"
+        },
+        "showLess": "Minder tonen",
+        "showMore": "Meer tonen"
+      }
+    },
     "article": {
       "readGuide": "Gids lezen"
     },

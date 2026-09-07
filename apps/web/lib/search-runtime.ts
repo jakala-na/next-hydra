@@ -1,7 +1,8 @@
 import "server-only";
+import { createContentSearchProjection } from "@repo/cms/search";
 import type { Locale } from "@repo/i18n";
 import { getPathname } from "@repo/i18n/navigation";
-import { searchProvider } from "@repo/search-provider/provider";
+import { createSearchProvider } from "@repo/search-provider/composition";
 import type {
   SearchAudience,
   SearchBatch,
@@ -12,6 +13,10 @@ import { resolveProductSearchAudience } from "@repo/search/product-search-audien
 import { makeSearchRuntime } from "@repo/search/runtime/make-search-runtime";
 import type { SearchClientConfiguration } from "@repo/search/runtime/make-search-runtime";
 import { cacheLife, cacheTag } from "next/cache";
+
+const searchProvider = createSearchProvider({
+  contentProjection: createContentSearchProjection,
+});
 
 const searchResults = async (
   batch: SearchBatch,
@@ -41,11 +46,12 @@ const cachedSearchProvider: SearchProvider = {
 
 const getClientConfiguration = (locale: Locale): SearchClientConfiguration => ({
   autocompleteRoutes: {
+    contentPathPrefix: getPathname({ href: "/", locale }),
     productPathPrefix: getPathname({ href: "/product", locale }),
-    resourcePathPrefix: getPathname({ href: "/", locale }),
     searchPath: getPathname({ href: "/search", locale }),
   },
   endpoint: `/api/search/${locale}`,
+  productListingPath: getPathname({ href: "/products", locale }),
 });
 
 export const searchRuntime = makeSearchRuntime({

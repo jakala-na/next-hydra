@@ -43,9 +43,8 @@ interface ProductDiscoveryMethods {
 }
 
 export interface ProductSearchAudience {
-  readonly customerSegmentKeys: readonly string[];
-  readonly distributionChannelKeys: readonly string[];
-  readonly supplyChannelKeys: readonly string[];
+  /** Opaque identifiers for the current customer's applicable price audiences. */
+  readonly priceAudienceIds: readonly string[];
 }
 
 export type ProductDiscoveryTestHandlers = Partial<ProductDiscoveryMethods>;
@@ -72,9 +71,7 @@ export class ProductDiscovery extends Context.Service<
           () =>
             handlers.searchAudience?.() ??
             Effect.succeed<ProductSearchAudience>({
-              customerSegmentKeys: [],
-              distributionChannelKeys: [],
-              supplyChannelKeys: [],
+              priceAudienceIds: [],
             })
         ),
       })

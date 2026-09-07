@@ -73,15 +73,17 @@ const productDiscoveryImplementationLayer = Layer.effect(
       listCards: Effect.fn("ProductDiscovery.listCards")((input) =>
         Effect.gen(function* () {
           const context = yield* resolveProductContext;
-          const products = yield* client.listProductProjections({
-            ...(input.categoryId === undefined
-              ? {}
-              : { categoryId: input.categoryId }),
+          const listInput = {
             context,
             currency: commerceContext.store.currency,
             limit: input.limit,
             locale: commerceContext.store.locale,
-          });
+          };
+          const products = yield* client.listProductProjections(
+            input.categoryId === undefined
+              ? listInput
+              : { ...listInput, categoryId: input.categoryId }
+          );
           const includedProducts = products.filter(
             ({ id }) => id !== input.excludeProductId
           );
@@ -135,12 +137,10 @@ const productDiscoveryImplementationLayer = Layer.effect(
       searchAudience: Effect.fn("ProductDiscovery.searchAudience")(() =>
         resolveProductContext.pipe(
           Effect.map((context) => ({
-            customerSegmentKeys:
-              context.customerGroupKey === undefined
+            priceAudienceIds:
+              context.customerGroupId === undefined
                 ? []
-                : [context.customerGroupKey],
-            distributionChannelKeys: [context.distributionChannelKey],
-            supplyChannelKeys: context.supplyChannelKeys,
+                : [context.customerGroupId],
           })),
           Effect.mapError(
             (cause) =>

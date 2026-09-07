@@ -1,10 +1,10 @@
 import type { Route } from "next";
 
-import type { ProductSearchHit, ResourceSearchHit } from "./contract";
+import type { ContentSearchHit, ProductSearchHit } from "./contract";
 
 export interface SearchAutocompleteRoutes {
   readonly productPathPrefix: string;
-  readonly resourcePathPrefix: string;
+  readonly contentPathPrefix: string;
   readonly searchPath: string;
 }
 
@@ -22,10 +22,10 @@ export const autocompleteProductHref = (
   routes: SearchAutocompleteRoutes
 ): Route => appendPath(routes.productPathPrefix, hit.productCard.slug);
 
-export const autocompleteResourceHref = (
-  hit: ResourceSearchHit,
+export const autocompleteContentHref = (
+  hit: ContentSearchHit,
   routes: SearchAutocompleteRoutes
-): Route => appendPath(routes.resourcePathPrefix, hit.resourceCard.path);
+): Route => appendPath(routes.contentPathPrefix, hit.contentCard.path);
 
 export const autocompleteSearchHref = (
   query: string,

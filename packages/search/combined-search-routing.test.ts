@@ -30,7 +30,7 @@ describe("combined Search routing", () => {
         q: "excavator",
         tab: "resources",
       })
-    ).toStrictEqual({ resources: { page: 2, query: "excavator" } });
+    ).toStrictEqual({ content: { page: 2, query: "excavator" } });
   });
 
   it("keeps query, focused tab, and page in the public URL", () => {

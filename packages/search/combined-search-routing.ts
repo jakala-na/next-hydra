@@ -36,7 +36,7 @@ export const combinedSearchTab = (value: RouteValue): CombinedSearchTab => {
 
 export const combinedSearchRootIndex = (
   tab: CombinedSearchTab
-): SearchIndexAlias => (tab === "resources" ? "resources" : "products");
+): SearchIndexAlias => (tab === "resources" ? "content" : "products");
 
 const routePageToUiPage = (value: RouteValue): number | undefined => {
   const parsed = Number(firstString(value));

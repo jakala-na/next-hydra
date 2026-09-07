@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   autocompleteProductHref,
-  autocompleteResourceHref,
+  autocompleteContentHref,
   autocompleteSearchHref,
 } from "./autocomplete-routing";
 import type { SearchAutocompleteRoutes } from "./autocomplete-routing";
-import { decodeProductSearchHit, decodeResourceSearchHit } from "./contract";
+import { decodeContentSearchHit, decodeProductSearchHit } from "./contract";
 
 const routes = {
+  contentPathPrefix: "/fr-FR",
   productPathPrefix: "/fr-FR/catalogue",
-  resourcePathPrefix: "/fr-FR",
   searchPath: "/fr-FR/recherche",
 } satisfies SearchAutocompleteRoutes;
 
@@ -26,20 +26,20 @@ describe("autocomplete routing", () => {
         title: "Compact Excavator",
       },
     });
-    const resource = decodeResourceSearchHit({
-      objectID: "resource-1",
-      resourceCard: {
+    const content = decodeContentSearchHit({
+      contentCard: {
         id: "resource-1",
         path: "/guides/compact-excavator",
         summary: "Choose the right machine.",
         title: "Compact excavator guide",
       },
+      objectID: "resource-1",
     });
 
     expect(autocompleteProductHref(product, routes)).toBe(
       "/fr-FR/catalogue/compact-excavator"
     );
-    expect(autocompleteResourceHref(resource, routes)).toBe(
+    expect(autocompleteContentHref(content, routes)).toBe(
       "/fr-FR/guides/compact-excavator"
     );
   });

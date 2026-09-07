@@ -1,5 +1,5 @@
 import { NodeServices } from "@effect/platform-node";
-import { Console, Effect, Exit } from "effect";
+import { ConfigProvider, Console, Effect, Exit } from "effect";
 import { CliConfig, Command } from "effect/unstable/cli";
 import { describe, expect, it, vi } from "vitest";
 
@@ -57,10 +57,139 @@ describe("workspace CLI program", () => {
       [
         "cms",
         "commerce",
+        "search",
         "auth        Customer authentication administration commands",
         "Commercetools administration commands",
       ].every((value) => result.stdout.includes(value))
     ).toBeTruthy();
+    expect(loadConfigProvider).not.toHaveBeenCalled();
+  });
+
+  it("lists selected search provisioning without loading credentials", async () => {
+    const loadConfigProvider = makeConfigProviderLoader();
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "search",
+      "provision",
+      "--help",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain("--index-prefix");
+    expect(result.stdout).toContain("--dry-run");
+    expect(result.stdout).toContain("--locale");
+    expect(loadConfigProvider).not.toHaveBeenCalled();
+  });
+
+  it("plans only the explicitly selected search locales", async () => {
+    const loadConfigProvider = vi.fn<typeof loadCliConfigProvider>(() =>
+      Effect.succeed(
+        ConfigProvider.fromUnknown({
+          CONTENTSTACK_BRANCH: "release-candidate",
+          CONTENTSTACK_ENVIRONMENT: "preview",
+        })
+      )
+    );
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "search",
+      "provision",
+      "--dry-run",
+      "--index-prefix",
+      "acceptance",
+      "--locale",
+      "en-US",
+      "--locale",
+      "de-DE",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain("9 queryable indices");
+    expect(result.stdout).toContain("Content index: acceptance--content");
+    expect(result.stdout).toContain("2 Product primaries");
+    expect(loadConfigProvider).toHaveBeenCalledExactlyOnceWith(undefined);
+  });
+
+  it("plans an arbitrary search locale against the default English Store", async () => {
+    const loadConfigProvider = vi.fn<typeof loadCliConfigProvider>(() =>
+      Effect.succeed(
+        ConfigProvider.fromUnknown({
+          CONTENTSTACK_BRANCH: "main",
+          CONTENTSTACK_ENVIRONMENT: "preview",
+        })
+      )
+    );
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "search",
+      "provision",
+      "--dry-run",
+      "--locale",
+      "fr-CA",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain("Product primary: products--default-store");
+    expect(result.stdout).toContain(
+      "Query Suggestions: query-suggestions--default-store--fr-CA"
+    );
+    expect(result.stdout).toContain("Content index: content (fr-CA)");
+  });
+
+  it("leaves Algolia index names unprefixed when no prefix is requested", async () => {
+    const loadConfigProvider = vi.fn<typeof loadCliConfigProvider>(() =>
+      Effect.succeed(
+        ConfigProvider.fromUnknown({
+          CONTENTSTACK_BRANCH: "main",
+          CONTENTSTACK_ENVIRONMENT: "preview",
+        })
+      )
+    );
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "search",
+      "provision",
+      "--dry-run",
+      "--locale",
+      "en-US",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain("Content index: content");
+    expect(result.stdout).toContain("Product primary: products--default-store");
+    expect(result.stdout).not.toContain("development--");
+  });
+
+  it("identifies missing selected CMS configuration", async () => {
+    const loadConfigProvider = vi.fn<typeof loadCliConfigProvider>(() =>
+      Effect.succeed(ConfigProvider.fromUnknown({}))
+    );
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "search",
+      "provision",
+      "--dry-run",
+      "--locale",
+      "en-US",
+    ]);
+
+    expect(Exit.isFailure(result.exit)).toBeTruthy();
+    expect(result.stderr).toContain("CONTENTSTACK_ENVIRONMENT");
+    expect(result.stderr).not.toContain("An error occurred");
+  });
+
+  it("lists schema-backed search type generation without loading credentials", async () => {
+    const loadConfigProvider = makeConfigProviderLoader();
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "search",
+      "types",
+      "--help",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain("generate");
+    expect(result.stdout).toContain("Product Type schemas");
     expect(loadConfigProvider).not.toHaveBeenCalled();
   });
 

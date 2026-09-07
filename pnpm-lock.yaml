@@ -312,6 +312,9 @@ importers:
       '@repo/commerce-provider':
         specifier: workspace:@repo/commerce-commercetools@*
         version: link:../../packages/commerce-commercetools
+      '@repo/search-provider':
+        specifier: workspace:@repo/search-algolia@*
+        version: link:../../packages/search-algolia
       effect:
         specifier: 'catalog:'
         version: 4.0.0-rc.111
@@ -999,6 +1002,9 @@ importers:
       '@repo/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@repo/search':
+        specifier: workspace:*
+        version: link:../search
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
         version: 0.13.10(@typescript/typescript6@6.0.2)(arktype@2.1.20)(zod@3.25.76)
@@ -1084,6 +1090,9 @@ importers:
       '@repo/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@repo/search':
+        specifier: workspace:*
+        version: link:../search
       '@t3-oss/env-nextjs':
         specifier: 'catalog:'
         version: 0.13.10(@typescript/typescript6@6.0.2)(arktype@2.1.20)(zod@3.25.76)
@@ -1972,6 +1981,15 @@ importers:
 
   packages/search-algolia:
     dependencies:
+      '@algolia/ingestion':
+        specifier: ^1.57.0
+        version: 1.57.0
+      '@repo/cli-core':
+        specifier: workspace:*
+        version: link:../cli-core
+      '@repo/commerce':
+        specifier: workspace:*
+        version: link:../commerce
       '@repo/search':
         specifier: workspace:*
         version: link:../search
@@ -1981,9 +1999,15 @@ importers:
       algoliasearch:
         specifier: ^5.57.0
         version: 5.57.0
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-rc.111
       server-only:
         specifier: 'catalog:'
         version: 0.0.1
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
       zod:
         specifier: ^3.25.28
         version: 3.25.76
@@ -1997,9 +2021,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
-      typescript:
-        specifier: 'catalog:'
-        version: '@typescript/typescript6@6.0.2'
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(jsdom@26.1.0(bufferutil@4.0.9))(msw@2.12.10(@types/node@24.13.3)(@typescript/typescript6@6.0.2))(vite@7.3.0(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.23.12)(yaml@2.9.0))

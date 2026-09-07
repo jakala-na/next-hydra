@@ -236,6 +236,16 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/search-indexing-live.test.ts",
+          "target": "~/packages/commerce-commercetools/cli/search-indexing-live.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/search-indexing-live.ts",
+          "target": "~/packages/commerce-commercetools/cli/search-indexing-live.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/typegen.test.ts",
           "target": "~/packages/commerce-commercetools/cli/typegen.test.ts",
           "type": "registry:file"

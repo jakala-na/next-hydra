@@ -2,11 +2,12 @@ import type { Locale } from "@repo/i18n";
 
 import type { SearchAutocompleteRoutes } from "../autocomplete-routing";
 import type { SearchAudience, SearchBatch, SearchProvider } from "../contract";
-import { isProductIndexAlias } from "../contract";
+import { requiresProductSearchAudience } from "../contract";
 
 export interface SearchClientConfiguration {
   readonly autocompleteRoutes: SearchAutocompleteRoutes;
   readonly endpoint: string;
+  readonly productListingPath: string;
 }
 
 export interface SearchRuntime extends SearchProvider {
@@ -35,7 +36,7 @@ export const makeSearchRuntime = ({
 }: SearchRuntimeOptions): SearchRuntime => ({
   getClientConfiguration,
   resolveAudience: async (locale, batch) =>
-    batch.some(({ indexName }) => isProductIndexAlias(indexName))
+    batch.some(({ indexName }) => requiresProductSearchAudience(indexName))
       ? await resolveProductAudience(locale)
       : { locale },
   resolveProductAudience,

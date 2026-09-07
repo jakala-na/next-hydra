@@ -9,6 +9,7 @@ export const config = {
   matcher: [
     "/((?!api|_next/|_static|_vercel|ingest|monitoring).*)",
     "/api/auth/:path*",
+    "/api/search/:path*",
   ],
 };
 

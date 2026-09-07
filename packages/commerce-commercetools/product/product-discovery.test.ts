@@ -226,7 +226,7 @@ describe("Commercetools Product Discovery", () => {
   );
 
   it.effect(
-    "projects provider audience keys for authenticated Product search",
+    "projects the opaque price audience for authenticated Product search",
     () =>
       Effect.gen(function* () {
         const clientLayer = makeClientLayer({
@@ -234,7 +234,6 @@ describe("Commercetools Product Discovery", () => {
             Effect.succeed({
               ...context,
               customerGroupId: "customer-group-id-1",
-              customerGroupKey: "contractors",
               distributionChannelKey: "north-america",
               supplyChannelKeys: ["main-warehouse", "overflow-warehouse"],
             }),
@@ -249,9 +248,7 @@ describe("Commercetools Product Discovery", () => {
         );
 
         expect(searchAudience).toStrictEqual({
-          customerSegmentKeys: ["contractors"],
-          distributionChannelKeys: ["north-america"],
-          supplyChannelKeys: ["main-warehouse", "overflow-warehouse"],
+          priceAudienceIds: ["customer-group-id-1"],
         });
       })
   );

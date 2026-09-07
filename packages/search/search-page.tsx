@@ -7,10 +7,14 @@ import { Suspense } from "react";
 
 import { CombinedSearch } from "./combined-search";
 import type { CombinedSearchRouteState } from "./combined-search-routing";
-import { combinedSearchTab } from "./combined-search-routing";
+import {
+  combinedSearchTab,
+  createCombinedSearchUrl,
+} from "./combined-search-routing";
 import { getCombinedSearchServerState } from "./combined-search-server";
 import { CombinedSearchSkeleton } from "./combined-search-skeleton";
 import type { SearchAudience } from "./contract";
+import { createServerSearchLocation } from "./instant-search-history";
 
 type SearchParamValue = string | string[] | undefined;
 
@@ -45,9 +49,14 @@ async function CombinedSearchResults({
   locale,
   searchParams,
 }: SearchPageProps) {
-  const { endpoint } = searchRuntime.getClientConfiguration(locale);
+  const { autocompleteRoutes, endpoint } =
+    searchRuntime.getClientConfiguration(locale);
   const routeState = combinedSearchRouteState(await searchParams);
   const tab = combinedSearchTab(routeState.tab);
+  const serverUrl = createCombinedSearchUrl(
+    createServerSearchLocation(autocompleteRoutes.searchPath),
+    routeState
+  );
   let serverState:
     | Awaited<ReturnType<typeof getCombinedSearchServerState>>
     | undefined;
@@ -70,6 +79,7 @@ async function CombinedSearchResults({
       endpoint={endpoint}
       key={`combined-search:${JSON.stringify(routeState)}`}
       locale={locale}
+      serverUrl={serverUrl}
       serverState={serverState}
       tab={tab}
     />
@@ -88,7 +98,7 @@ export function SearchPage({ locale, searchParams }: SearchPageProps) {
       source="search"
       sourceLabel="Search package"
     >
-      <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <div className="container py-10 lg:py-14">
         <div className="mb-10 max-w-3xl">
           <p className="mb-2 font-medium text-muted-foreground text-sm uppercase tracking-wide">
             Search

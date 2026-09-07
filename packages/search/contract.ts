@@ -2,6 +2,12 @@ import { ProductCard } from "@repo/commerce/product";
 import { Schema } from "effect";
 import type { SearchClient } from "instantsearch.js";
 
+export { PRODUCT_FACETS } from "./product-discovery";
+export type {
+  ProductFacet,
+  ProductFacetFieldMapping,
+} from "./product-discovery";
+
 export const PRODUCT_INDEX_ALIASES = [
   "products",
   "products@price-asc",
@@ -10,8 +16,8 @@ export const PRODUCT_INDEX_ALIASES = [
 
 export type ProductIndexAlias = (typeof PRODUCT_INDEX_ALIASES)[number];
 
-export const RESOURCE_INDEX_ALIASES = ["resources"] as const;
-export type ResourceIndexAlias = (typeof RESOURCE_INDEX_ALIASES)[number];
+export const CONTENT_INDEX_ALIASES = ["content"] as const;
+export type ContentIndexAlias = (typeof CONTENT_INDEX_ALIASES)[number];
 
 export const QUERY_SUGGESTION_INDEX_ALIASES = ["query-suggestions"] as const;
 export type QuerySuggestionIndexAlias =
@@ -19,13 +25,10 @@ export type QuerySuggestionIndexAlias =
 
 export const SEARCH_INDEX_ALIASES = [
   ...PRODUCT_INDEX_ALIASES,
-  ...RESOURCE_INDEX_ALIASES,
+  ...CONTENT_INDEX_ALIASES,
   ...QUERY_SUGGESTION_INDEX_ALIASES,
 ] as const;
 export type SearchIndexAlias = (typeof SEARCH_INDEX_ALIASES)[number];
-
-export const PRODUCT_FACETS = ["category", "availability", "price"] as const;
-export type ProductFacet = (typeof PRODUCT_FACETS)[number];
 
 export const PRODUCT_HIT_ATTRIBUTES = [
   "objectID",
@@ -33,7 +36,7 @@ export const PRODUCT_HIT_ATTRIBUTES = [
   "categories",
 ] as const;
 
-export const RESOURCE_HIT_ATTRIBUTES = ["objectID", "resourceCard"] as const;
+export const CONTENT_HIT_ATTRIBUTES = ["objectID", "contentCard"] as const;
 export const QUERY_SUGGESTION_HIT_ATTRIBUTES = [
   "objectID",
   "query",
@@ -42,7 +45,7 @@ export const QUERY_SUGGESTION_HIT_ATTRIBUTES = [
 ] as const;
 export const SEARCH_HIT_ATTRIBUTES = [
   ...PRODUCT_HIT_ATTRIBUTES,
-  ...RESOURCE_HIT_ATTRIBUTES,
+  ...CONTENT_HIT_ATTRIBUTES,
   ...QUERY_SUGGESTION_HIT_ATTRIBUTES,
 ] as const;
 
@@ -62,22 +65,23 @@ export type ProductSearchHit = typeof ProductSearchHit.Type;
 export const decodeProductSearchHit =
   Schema.decodeUnknownSync(ProductSearchHit);
 
-export const ResourceSearchImage = Schema.Struct({
+export const ContentSearchImage = Schema.Struct({
   altText: Schema.String,
   height: Schema.optional(Schema.Int),
   url: Schema.NonEmptyString,
   width: Schema.optional(Schema.Int),
 });
-export type ResourceSearchImage = typeof ResourceSearchImage.Type;
+export type ContentSearchImage = typeof ContentSearchImage.Type;
 
-export const ResourceSearchCard = Schema.Struct({
+export const ContentSearchCard = Schema.Struct({
+  contentType: Schema.optional(Schema.NonEmptyString),
   id: Schema.NonEmptyString,
-  image: Schema.optional(ResourceSearchImage),
+  image: Schema.optional(ContentSearchImage),
   path: Schema.String.pipe(
     Schema.check(
       Schema.isMinLength(1),
       Schema.isPattern(/^\/(?!\/)/u, {
-        message: "Resource paths must be application-relative",
+        message: "Content paths must be application-relative",
       })
     )
   ),
@@ -85,16 +89,16 @@ export const ResourceSearchCard = Schema.Struct({
   summary: Schema.String,
   title: Schema.NonEmptyString,
 });
-export type ResourceSearchCard = typeof ResourceSearchCard.Type;
+export type ContentSearchCard = typeof ContentSearchCard.Type;
 
-export const ResourceSearchHit = Schema.Struct({
+export const ContentSearchHit = Schema.Struct({
+  contentCard: ContentSearchCard,
   objectID: Schema.NonEmptyString,
-  resourceCard: ResourceSearchCard,
 });
-export type ResourceSearchHit = typeof ResourceSearchHit.Type;
+export type ContentSearchHit = typeof ContentSearchHit.Type;
 
-export const decodeResourceSearchHit =
-  Schema.decodeUnknownSync(ResourceSearchHit);
+export const decodeContentSearchHit =
+  Schema.decodeUnknownSync(ContentSearchHit);
 
 export const QuerySuggestionSearchHit = Schema.Struct({
   nb_words: Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(1))),
@@ -119,9 +123,8 @@ export type SearchBatchResult = Awaited<ReturnType<SearchClient["search"]>>;
 export interface ProductSearchAudience {
   readonly storeKey: string;
   readonly currency: string;
-  readonly customerSegmentKeys: readonly string[];
-  readonly distributionChannelKeys: readonly string[];
-  readonly supplyChannelKeys: readonly string[];
+  /** Opaque pricing audience IDs resolved by Commerce; empty means public. */
+  readonly priceAudienceIds: readonly string[];
 }
 
 export interface SearchAudience {
@@ -138,8 +141,9 @@ export interface SearchProvider {
 }
 
 /**
- * Canonical Product document projected into every supported search provider.
- * Index publication is intentionally separate from the query protocol.
+ * Logical Product discovery document shared by search providers. A provider
+ * may store a richer physical projection and localize it into this contract
+ * before returning an InstantSearch response.
  */
 export interface ProductSearchDocument extends ProductSearchHit {
   /** Provider index projection derived from Product Card availability. */
@@ -148,16 +152,12 @@ export interface ProductSearchDocument extends ProductSearchHit {
   readonly category: readonly string[];
   /** Provider index projection in major currency units for range and sort. */
   readonly price?: number;
-  readonly storeKeys: readonly string[];
-  readonly locales: readonly string[];
-  readonly currencies: readonly string[];
-  readonly customerSegmentKeys: readonly string[];
-  readonly distributionChannelKeys: readonly string[];
-  readonly supplyChannelKeys: readonly string[];
+  /** Provider projection IDs; the public fallback is represented as `public`. */
+  readonly priceAudienceIds: readonly string[];
 }
 
-/** Canonical Resource document projected from the selected CMS indexer. */
-export interface ResourceSearchDocument extends ResourceSearchHit {
+/** Canonical Content document projected from the selected CMS indexer. */
+export interface ContentSearchDocument extends ContentSearchHit {
   readonly locales: readonly string[];
 }
 
@@ -166,6 +166,12 @@ export const isProductIndexAlias = (
 ): indexName is ProductIndexAlias =>
   PRODUCT_INDEX_ALIASES.some((candidate) => candidate === indexName);
 
-export const isResourceIndexAlias = (
+/** Indices whose physical destination depends on the active commerce Store. */
+export const requiresProductSearchAudience = (
   indexName: SearchIndexAlias
-): indexName is ResourceIndexAlias => indexName === "resources";
+): boolean =>
+  isProductIndexAlias(indexName) || indexName === "query-suggestions";
+
+export const isContentIndexAlias = (
+  indexName: SearchIndexAlias
+): indexName is ContentIndexAlias => indexName === "content";

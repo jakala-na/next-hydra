@@ -9,10 +9,8 @@ const audience = {
   locale: "en-US",
   product: {
     currency: "USD",
-    customerSegmentKeys: ["public"],
-    distributionChannelKeys: ["north-america"],
+    priceAudienceIds: ["public"],
     storeKey: "default-store",
-    supplyChannelKeys: ["main-warehouse"],
   },
 } as const;
 
@@ -49,14 +47,14 @@ describe(getCombinedSearchServerState, () => {
     expect(received).toHaveLength(1);
     expect(received[0]?.map(({ indexName }) => indexName)).toStrictEqual([
       "products",
-      "resources",
+      "content",
     ]);
     expect(received[0]?.map(({ params }) => params.query)).toStrictEqual([
       "excavator",
       "excavator",
     ]);
     expect(serverState.initialResults.products).toBeDefined();
-    expect(serverState.initialResults.resources).toBeDefined();
+    expect(serverState.initialResults.content).toBeDefined();
   });
 
   it("requests only Resources for the focused Resource tab", async () => {
@@ -71,9 +69,9 @@ describe(getCombinedSearchServerState, () => {
 
     expect(received).toHaveLength(1);
     expect(received[0]?.map(({ indexName }) => indexName)).toStrictEqual([
-      "resources",
+      "content",
     ]);
     expect(received[0]?.[0]?.params.page).toBe(1);
-    expect(serverState.initialResults.resources).toBeDefined();
+    expect(serverState.initialResults.content).toBeDefined();
   });
 });

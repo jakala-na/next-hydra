@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const AUTOCOMPLETE_PROXY_CREDENTIAL = "search-proxy";
 
-export interface ProxySearchClient extends SearchClient {
+interface AutocompleteProxySearchClient extends SearchClient {
   /**
    * Autocomplete's Algolia requester reads these fields to annotate returned
    * hits. They are compatibility markers only and are never sent to the proxy.
@@ -53,7 +53,7 @@ const normalizeAutocompleteRequest = (
   };
 };
 
-export function createProxySearchClient(endpoint: string): ProxySearchClient {
+export function createProxySearchClient(endpoint: string): SearchClient {
   return {
     search: async (requests) => {
       const response = await fetch(endpoint, {
@@ -84,6 +84,14 @@ export function createProxySearchClient(endpoint: string): ProxySearchClient {
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- InstantSearch result hits remain provider-generic at this protocol boundary.
       return envelope.data as Awaited<ReturnType<SearchClient["search"]>>;
     },
+  };
+}
+
+export function createAutocompleteProxySearchClient(
+  endpoint: string
+): AutocompleteProxySearchClient {
+  return {
+    ...createProxySearchClient(endpoint),
     transporter: {
       headers: {
         "x-algolia-api-key": AUTOCOMPLETE_PROXY_CREDENTIAL,

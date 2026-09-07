@@ -1,27 +1,33 @@
 import {
+  createCanonicalContentSearchProjection,
+  defineContentSearchProjection,
+} from "@repo/search/content-search-projection";
+import {
   decodeProductSearchHit,
   PRODUCT_HIT_ATTRIBUTES,
-  RESOURCE_HIT_ATTRIBUTES,
+  CONTENT_HIT_ATTRIBUTES,
 } from "@repo/search/contract";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { audienceFilter, createAlgoliaSearchProvider } from "./provider";
+import { defineAlgoliaProductFacetFields } from "./product-facet-fields";
+import { createAlgoliaSearchProvider } from "./provider";
 import type { AlgoliaSearchProviderOptions } from "./provider";
 
 const audience = {
   locale: "en-US",
   product: {
     currency: "USD",
-    customerSegmentKeys: ["public", "contractors"],
-    distributionChannelKeys: ["north-america"],
+    priceAudienceIds: ["contractors-id"],
     storeKey: "default-store",
-    supplyChannelKeys: ["main-warehouse"],
   },
 } as const;
 
-const localizedIndex = (baseName: string) => (locale: string) =>
-  `${baseName}_${locale}`;
+const localizedIndex =
+  (baseName: string) => (searchAudience: { readonly locale: string }) =>
+    `${baseName}_${searchAudience.locale}`;
+const canonicalContentProjection =
+  createCanonicalContentSearchProjection("content");
 
 describe(createAlgoliaSearchProvider, () => {
   it("maps logical sorts and applies an unoverrideable audience filter", async () => {
@@ -52,14 +58,18 @@ describe(createAlgoliaSearchProvider, () => {
         ],
       });
     const provider = createAlgoliaSearchProvider({
+      analyticsTags: (searchAudience) => [
+        `environment:acceptance|locale:${searchAudience.locale.toLowerCase()}`,
+      ],
       client: { search },
+      contentProjection: canonicalContentProjection,
       indices: {
         priceAscending: localizedIndex("catalog_price_asc"),
         priceDescending: localizedIndex("catalog_price_desc"),
         products: localizedIndex("catalog"),
         querySuggestions: localizedIndex("query_suggestions"),
-        resources: localizedIndex("resources"),
       },
+      priceCustomerGroupIds: ["contractors-id"],
     });
 
     const response = await provider.search(
@@ -82,24 +92,131 @@ describe(createAlgoliaSearchProvider, () => {
     expect(search).toHaveBeenCalledWith({
       requests: [
         {
+          analytics: true,
+          analyticsTags: ["environment:acceptance|locale:en-us"],
           attributesToRetrieve: [...PRODUCT_HIT_ATTRIBUTES],
-          facetFilters: ["category:excavators"],
-          filters:
-            'storeKeys:"default-store" AND locales:"en-US" AND currencies:"USD" AND (customerSegmentKeys:"public" OR customerSegmentKeys:"contractors") AND distributionChannelKeys:"north-america" AND supplyChannelKeys:"main-warehouse"',
+          facetFilters: ["category.en-US:excavators"],
+          filters: 'priceAudienceIds:"contractors-id"',
           hitsPerPage: 12,
           indexName: "catalog_price_asc_en-US",
+          restrictSearchableAttributes: [
+            "productCard.title.en-US",
+            "productCard.description.en-US",
+            "categories.label.en-US",
+          ],
         },
         {
+          analytics: true,
+          analyticsTags: ["environment:acceptance|locale:en-us"],
           attributesToRetrieve: [...PRODUCT_HIT_ATTRIBUTES],
-          filters:
-            'storeKeys:"default-store" AND locales:"en-US" AND currencies:"USD" AND (customerSegmentKeys:"public" OR customerSegmentKeys:"contractors") AND distributionChannelKeys:"north-america" AND supplyChannelKeys:"main-warehouse"',
+          filters: 'priceAudienceIds:"contractors-id"',
           hitsPerPage: 12,
           indexName: "catalog_price_desc_en-US",
+          restrictSearchableAttributes: [
+            "productCard.title.en-US",
+            "productCard.description.en-US",
+            "categories.label.en-US",
+          ],
         },
       ],
     });
     expect(response.results[0]).toMatchObject({ index: "products@price-asc" });
     expect(response.results[1]).toMatchObject({ index: "products@price-desc" });
+  });
+
+  it("translates canonical Product facets at the provider seam", async () => {
+    interface PhysicalProductIndex {
+      readonly inventory: { readonly status: string };
+      readonly pricing: { readonly current: number };
+      readonly taxonomy: { readonly category: readonly string[] };
+    }
+
+    const productFacetFields =
+      defineAlgoliaProductFacetFields<PhysicalProductIndex>()({
+        availability: "inventory.status",
+        category: "taxonomy.category",
+        price: "pricing.current",
+      });
+    const search = vi
+      .fn<AlgoliaSearchProviderOptions["client"]["search"]>()
+      .mockResolvedValue({
+        results: [
+          {
+            facets: {
+              "inventory.status": { "in-stock": 2 },
+              "taxonomy.category": { excavators: 2 },
+            },
+            facets_stats: {
+              "pricing.current": {
+                avg: 15_000,
+                max: 18_000,
+                min: 12_000,
+                sum: 30_000,
+              },
+            },
+            hits: [],
+            hitsPerPage: 12,
+            index: "catalog_en-US",
+            nbHits: 2,
+            nbPages: 1,
+            page: 0,
+            processingTimeMS: 1,
+            query: "",
+          },
+        ],
+      });
+    const provider = createAlgoliaSearchProvider({
+      client: { search },
+      contentProjection: canonicalContentProjection,
+      indices: {
+        priceAscending: localizedIndex("catalog_price_asc"),
+        priceDescending: localizedIndex("catalog_price_desc"),
+        products: localizedIndex("catalog"),
+        querySuggestions: localizedIndex("query_suggestions"),
+      },
+      priceCustomerGroupIds: ["contractors-id"],
+      productFacetFields: () => productFacetFields,
+    });
+
+    const response = await provider.search(
+      [
+        {
+          indexName: "products",
+          params: {
+            facetFilters: [
+              "availability:in-stock",
+              ["category:excavators", "category:loaders"],
+            ],
+            facets: ["availability", "category", "price"],
+            numericFilters: ["price>=12000", "price<=18000"],
+          },
+        },
+      ],
+      audience
+    );
+
+    expect(search).toHaveBeenCalledWith({
+      requests: [
+        expect.objectContaining({
+          facetFilters: [
+            "inventory.status:in-stock",
+            ["taxonomy.category:excavators", "taxonomy.category:loaders"],
+          ],
+          facets: ["inventory.status", "taxonomy.category", "pricing.current"],
+          numericFilters: ["pricing.current>=12000", "pricing.current<=18000"],
+        }),
+      ],
+    });
+    expect(response.results[0]).toMatchObject({
+      facets: {
+        availability: { "in-stock": 2 },
+        category: { excavators: 2 },
+      },
+      facets_stats: {
+        price: { max: 18_000, min: 12_000 },
+      },
+      index: "products",
+    });
   });
 
   it("normalizes provider-specific nested records into canonical Product hits", async () => {
@@ -151,13 +268,14 @@ describe(createAlgoliaSearchProvider, () => {
       });
     const provider = createAlgoliaSearchProvider({
       client: { search },
+      contentProjection: canonicalContentProjection,
       indices: {
         priceAscending: localizedIndex("catalog_price_asc"),
         priceDescending: localizedIndex("catalog_price_desc"),
         products: localizedIndex("catalog"),
         querySuggestions: localizedIndex("query_suggestions"),
-        resources: localizedIndex("resources"),
       },
+      priceCustomerGroupIds: ["contractors-id"],
       productHitMapping: {
         attributesToRetrieve: ["objectID", "product"],
         toProductSearchHit: (value) => {
@@ -231,17 +349,7 @@ describe(createAlgoliaSearchProvider, () => {
     });
   });
 
-  it("normalizes provider-specific Resource records without requiring a Product audience", async () => {
-    const nestedHitSchema = z.object({
-      content: z.object({
-        description: z.string(),
-        id: z.string(),
-        path: z.string(),
-        published: z.string(),
-        title: z.string(),
-      }),
-      objectID: z.string(),
-    });
+  it("normalizes provider-specific Content records without requiring a Product audience", async () => {
     const search = vi
       .fn<AlgoliaSearchProviderOptions["client"]["search"]>()
       .mockResolvedValue({
@@ -249,6 +357,7 @@ describe(createAlgoliaSearchProvider, () => {
           {
             hits: [
               {
+                _content_type: "articles",
                 content: {
                   description: "Choose the right compact excavator.",
                   id: "guide-1",
@@ -260,7 +369,7 @@ describe(createAlgoliaSearchProvider, () => {
               },
             ],
             hitsPerPage: 6,
-            index: "cms_resources",
+            index: "cms_content",
             nbHits: 1,
             nbPages: 1,
             page: 0,
@@ -270,38 +379,68 @@ describe(createAlgoliaSearchProvider, () => {
         ],
       });
     const provider = createAlgoliaSearchProvider({
+      analyticsTags: (searchAudience) => [
+        `environment:acceptance|locale:${searchAudience.locale.toLowerCase()}`,
+      ],
       client: { search },
-      indices: {
-        priceAscending: localizedIndex("catalog_price_asc"),
-        priceDescending: localizedIndex("catalog_price_desc"),
-        products: localizedIndex("catalog"),
-        querySuggestions: localizedIndex("query_suggestions"),
-        resources: localizedIndex("cms_resources"),
-      },
-      resourceHitMapping: {
-        attributesToRetrieve: ["objectID", "content"],
-        toResourceSearchHit: (value) => {
-          const hit = nestedHitSchema.parse(value);
+      contentProjection: defineContentSearchProjection({
+        attributesToRetrieve: ["objectID", "_content_type", "content"],
+        filterAttributes: ["environment", "publish_details.locale"],
+        filters: (searchAudience) => [
+          { attribute: "environment", values: ["dev"] },
+          {
+            attribute: "publish_details.locale",
+            values: [searchAudience.locale.toLowerCase()],
+          },
+        ],
+        indexName: () => "cms_content",
+        restrictSearchableAttributes: (searchAudience) => [
+          `articles.dev.${searchAudience.locale}`,
+          `landing_pages.dev.${searchAudience.locale}`,
+        ],
+        searchableAttributes: () => [],
+        toContentSearchHit: (record) => {
+          const hit = z
+            .object({
+              _content_type: z.string(),
+              content: z.object({
+                description: z.string(),
+                id: z.string(),
+                path: z.string(),
+                published: z.string(),
+                title: z.string(),
+              }),
+              objectID: z.string(),
+            })
+            .parse(record);
           return {
-            objectID: hit.objectID,
-            resourceCard: {
+            contentCard: {
+              contentType: hit._content_type,
               id: hit.content.id,
               path: hit.content.path,
               publishedAt: hit.content.published,
               summary: hit.content.description,
               title: hit.content.title,
             },
+            objectID: hit.objectID,
           };
         },
+      }),
+      indices: {
+        priceAscending: localizedIndex("catalog_price_asc"),
+        priceDescending: localizedIndex("catalog_price_desc"),
+        products: localizedIndex("catalog"),
+        querySuggestions: localizedIndex("query_suggestions"),
       },
+      priceCustomerGroupIds: ["contractors-id"],
     });
 
     const response = await provider.search(
       [
         {
-          indexName: "resources",
+          indexName: "content",
           params: {
-            attributesToRetrieve: [...RESOURCE_HIT_ATTRIBUTES],
+            attributesToRetrieve: [...CONTENT_HIT_ATTRIBUTES],
             hitsPerPage: 6,
             query: "excavator",
           },
@@ -313,24 +452,31 @@ describe(createAlgoliaSearchProvider, () => {
     expect(search).toHaveBeenCalledWith({
       requests: [
         expect.objectContaining({
-          attributesToRetrieve: ["objectID", "content"],
-          filters: 'locales:"en-US"',
-          indexName: "cms_resources_en-US",
+          analytics: true,
+          analyticsTags: ["environment:acceptance|locale:en-us"],
+          attributesToRetrieve: ["objectID", "_content_type", "content"],
+          filters: 'environment:"dev" AND publish_details.locale:"en-us"',
+          indexName: "cms_content",
+          restrictSearchableAttributes: [
+            "articles.dev.en-US",
+            "landing_pages.dev.en-US",
+          ],
         }),
       ],
     });
     expect(response.results[0]).toMatchObject({
       hits: [
         {
-          objectID: "resource-record-1",
-          resourceCard: {
+          contentCard: {
+            contentType: "articles",
             id: "guide-1",
             path: "/resources/excavator-guide",
             title: "Compact excavator guide",
           },
+          objectID: "resource-record-1",
         },
       ],
-      index: "resources",
+      index: "content",
     });
   });
 
@@ -362,13 +508,14 @@ describe(createAlgoliaSearchProvider, () => {
       });
     const provider = createAlgoliaSearchProvider({
       client: { search },
+      contentProjection: canonicalContentProjection,
       indices: {
         priceAscending: localizedIndex("catalog_price_asc"),
         priceDescending: localizedIndex("catalog_price_desc"),
         products: localizedIndex("catalog"),
         querySuggestions: localizedIndex("catalog_query_suggestions"),
-        resources: localizedIndex("cms_resources"),
       },
+      priceCustomerGroupIds: ["contractors-id"],
       querySuggestionHitMapping: {
         attributesToRetrieve: ["objectID", "suggestion.text"],
         toQuerySuggestionSearchHit: (record) => {
@@ -383,7 +530,7 @@ describe(createAlgoliaSearchProvider, () => {
             .parse(record);
           return {
             nb_words: suggestion.suggestion.wordCount,
-            objectID: String(record.objectID),
+            objectID: record.objectID,
             popularity: suggestion.suggestion.popularity,
             query: suggestion.suggestion.text,
           };
@@ -424,19 +571,52 @@ describe(createAlgoliaSearchProvider, () => {
     });
   });
 
-  it("falls back to the public audience for unresolved optional dimensions", () => {
-    expect(
-      audienceFilter({
+  it("falls back to public when the resolved price audience is not provisioned", async () => {
+    const search = vi
+      .fn<AlgoliaSearchProviderOptions["client"]["search"]>()
+      .mockResolvedValue({
+        results: [
+          {
+            hits: [],
+            hitsPerPage: 12,
+            index: "catalog_en-US",
+            nbHits: 0,
+            nbPages: 0,
+            page: 0,
+            processingTimeMS: 1,
+            query: "",
+          },
+        ],
+      });
+    const provider = createAlgoliaSearchProvider({
+      client: { search },
+      contentProjection: canonicalContentProjection,
+      indices: {
+        priceAscending: localizedIndex("catalog_price_asc"),
+        priceDescending: localizedIndex("catalog_price_desc"),
+        products: localizedIndex("catalog"),
+        querySuggestions: localizedIndex("query_suggestions"),
+      },
+      priceCustomerGroupIds: ["contractors-id"],
+    });
+
+    await provider.search(
+      [{ indexName: "products", params: { hitsPerPage: 12 } }],
+      {
         ...audience,
         product: {
           ...audience.product,
-          customerSegmentKeys: [],
-          distributionChannelKeys: [],
-          supplyChannelKeys: [],
+          priceAudienceIds: ["unconfigured-id"],
         },
-      })
-    ).toContain(
-      'customerSegmentKeys:"public" AND distributionChannelKeys:"public" AND supplyChannelKeys:"public"'
+      }
     );
+
+    expect(search).toHaveBeenCalledWith({
+      requests: [
+        expect.objectContaining({
+          filters: 'priceAudienceIds:"public"',
+        }),
+      ],
+    });
   });
 });

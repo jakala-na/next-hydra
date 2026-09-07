@@ -37,6 +37,7 @@
     "./runtime": "./runtime.ts",
     "./runtime/commerce-request": "./runtime/commerce-request.ts",
     "./runtime/make-commerce-app": "./runtime/make-commerce-app.ts",
+    "./search-indexing": "./search-indexing.ts",
     "./lib/cart/utils/anonymous-cart-cookies": "./lib/cart/utils/anonymous-cart-cookies.ts",
     "./lib/checkout/checkout-policy": "./lib/checkout/checkout-policy.ts",
     "./lib/checkout/checkout-session": "./lib/checkout/checkout-session.ts",

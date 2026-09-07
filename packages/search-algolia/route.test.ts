@@ -1,3 +1,4 @@
+import { createCanonicalContentSearchProjection } from "@repo/search/content-search-projection";
 import { createSearchRouteHandler } from "@repo/search/server";
 import type { SearchRouteDependencies } from "@repo/search/server";
 import { describe, expect, it, vi } from "vitest";
@@ -10,18 +11,16 @@ const audience = {
   locale: "en-US",
   product: {
     currency: "USD",
-    customerSegmentKeys: ["contractors"],
-    distributionChannelKeys: ["north-america"],
+    priceAudienceIds: ["contractors-id"],
     storeKey: "default-store",
-    supplyChannelKeys: ["main-warehouse"],
   },
 } as const;
 
-const expectedAudienceFilter =
-  'storeKeys:"default-store" AND locales:"en-US" AND currencies:"USD" AND customerSegmentKeys:"contractors" AND distributionChannelKeys:"north-america" AND supplyChannelKeys:"main-warehouse"';
+const expectedAudienceFilter = 'priceAudienceIds:"contractors-id"';
 
-const localizedIndex = (baseName: string) => (locale: string) =>
-  `${baseName}_${locale}`;
+const localizedIndex =
+  (baseName: string) => (searchAudience: { readonly locale: string }) =>
+    `${baseName}_${searchAudience.locale}`;
 
 const externalSearchRequestSchema = z.object({
   requests: z.array(
@@ -42,49 +41,43 @@ describe("Algolia search proxy", () => {
     const records = [
       {
         availability: "in-stock" as const,
-        categories: [{ key: "excavators", label: "Excavators" }],
-        category: ["excavators"],
-        currencies: ["USD"],
-        customerSegmentKeys: ["contractors"],
-        distributionChannelKeys: ["north-america"],
-        locales: ["en-US"],
+        categories: [{ key: "excavators", label: { "en-US": "Excavators" } }],
+        category: { "en-US": ["excavators"] },
         objectID: "authorized-product",
-        price: 12_500,
+        price: { USD: 12_500 },
+        priceAudienceIds: ["contractors-id"],
         productCard: {
           availableForSale: true,
           id: "product-1",
-          slug: "compact-excavator",
+          slug: { "en-US": "compact-excavator" },
           startingPrice: {
-            centAmount: 1_250_000,
-            currencyCode: "USD",
+            USD: {
+              centAmount: 1_250_000,
+              currencyCode: "USD",
+            },
           },
-          title: "Compact Excavator",
+          title: { "en-US": "Compact Excavator" },
         },
-        storeKeys: ["default-store"],
-        supplyChannelKeys: ["main-warehouse"],
       },
       {
         availability: "in-stock" as const,
-        categories: [{ key: "loaders", label: "Loaders" }],
-        category: ["loaders"],
-        currencies: ["USD"],
-        customerSegmentKeys: ["retail"],
-        distributionChannelKeys: ["europe"],
-        locales: ["en-US"],
+        categories: [{ key: "loaders", label: { "en-US": "Loaders" } }],
+        category: { "en-US": ["loaders"] },
         objectID: "other-audience-product",
-        price: 18_000,
+        price: { USD: 18_000 },
+        priceAudienceIds: ["retail-id"],
         productCard: {
           availableForSale: true,
           id: "product-2",
-          slug: "wheel-loader",
+          slug: { "en-US": "wheel-loader" },
           startingPrice: {
-            centAmount: 1_800_000,
-            currencyCode: "USD",
+            USD: {
+              centAmount: 1_800_000,
+              currencyCode: "USD",
+            },
           },
-          title: "Wheel Loader",
+          title: { "en-US": "Wheel Loader" },
         },
-        storeKeys: ["other-store"],
-        supplyChannelKeys: ["other-warehouse"],
       },
     ];
     const search = vi
@@ -96,20 +89,10 @@ describe("Algolia search proxy", () => {
           results: requests.map((request) => ({
             hits:
               request.filters === expectedAudienceFilter
-                ? records.filter(
-                    (record) =>
-                      record.storeKeys.includes(audience.product.storeKey) &&
-                      record.locales.includes(audience.locale) &&
-                      record.currencies.includes(audience.product.currency) &&
-                      audience.product.customerSegmentKeys.some((value) =>
-                        record.customerSegmentKeys.includes(value)
-                      ) &&
-                      audience.product.distributionChannelKeys.some((value) =>
-                        record.distributionChannelKeys.includes(value)
-                      ) &&
-                      audience.product.supplyChannelKeys.some((value) =>
-                        record.supplyChannelKeys.includes(value)
-                      )
+                ? records.filter((record) =>
+                    audience.product.priceAudienceIds.some((value) =>
+                      record.priceAudienceIds.includes(value)
+                    )
                   )
                 : records,
             hitsPerPage: request.hitsPerPage ?? 20,
@@ -124,13 +107,14 @@ describe("Algolia search proxy", () => {
       });
     const provider = createAlgoliaSearchProvider({
       client: { search },
+      contentProjection: createCanonicalContentSearchProjection("content"),
       indices: {
         priceAscending: localizedIndex("catalog_price_asc"),
         priceDescending: localizedIndex("catalog_price_desc"),
         products: localizedIndex("catalog"),
         querySuggestions: localizedIndex("query_suggestions"),
-        resources: localizedIndex("resources"),
       },
+      priceCustomerGroupIds: ["contractors-id", "retail-id"],
     });
     const resolveAudience = vi
       .fn<SearchRouteDependencies["resolveAudience"]>()

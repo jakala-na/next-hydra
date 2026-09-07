@@ -83,6 +83,11 @@
           "type": "registry:file"
         },
         {
+          "path": "content-search-projection.ts",
+          "target": "~/packages/search/content-search-projection.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "contract.ts",
           "target": "~/packages/search/contract.ts",
           "type": "registry:file"
@@ -128,6 +133,16 @@
           "type": "registry:file"
         },
         {
+          "path": "instant-search-history.test.ts",
+          "target": "~/packages/search/instant-search-history.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "instant-search-history.ts",
+          "target": "~/packages/search/instant-search-history.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "instant-search-server.ts",
           "target": "~/packages/search/instant-search-server.ts",
           "type": "registry:file"
@@ -145,6 +160,11 @@
         {
           "path": "product-card.tsx",
           "target": "~/packages/search/product-card.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-discovery.ts",
+          "target": "~/packages/search/product-discovery.ts",
           "type": "registry:file"
         },
         {
@@ -210,6 +230,11 @@
         {
           "path": "runtime.ts",
           "target": "~/packages/search/runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime/make-search-runtime.test.ts",
+          "target": "~/packages/search/runtime/make-search-runtime.test.ts",
           "type": "registry:file"
         },
         {

@@ -6,31 +6,31 @@ import { getPathname } from "@repo/i18n/navigation";
 import type { Route } from "next";
 import type { ReactElement } from "react";
 
-import type { ResourceSearchHit } from "./contract";
+import type { ContentSearchHit } from "./contract";
 
 export interface SearchResourceCardProps {
-  readonly hit: ResourceSearchHit;
+  readonly hit: ContentSearchHit;
   readonly layout?: "grid" | "row";
   readonly locale: Locale;
 }
 
 export const toSearchResourceCardPresentation = (
-  hit: ResourceSearchHit,
+  hit: ContentSearchHit,
   locale: Locale
 ): ArticleTeaser => {
-  // SAFETY: ResourceSearchCard validates an application-relative path and
+  // SAFETY: ContentSearchCard validates an application-relative path and
   // getPathname combines it with an allowlisted Locale. The application catch-all
   // route accepts the resulting localized path, while Next cannot infer a Route
   // from next-intl's runtime string return type.
-  const href = getPathname({ href: hit.resourceCard.path, locale }) as Route;
+  const href = getPathname({ href: hit.contentCard.path, locale }) as Route;
 
   return {
     href,
-    id: hit.resourceCard.id,
-    image: hit.resourceCard.image,
-    publishedAt: hit.resourceCard.publishedAt,
-    summary: hit.resourceCard.summary,
-    title: hit.resourceCard.title,
+    id: hit.contentCard.id,
+    image: hit.contentCard.image,
+    publishedAt: hit.contentCard.publishedAt,
+    summary: hit.contentCard.summary,
+    title: hit.contentCard.title,
   };
 };
 

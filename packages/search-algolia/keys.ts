@@ -3,41 +3,29 @@ import { z } from "zod";
 
 export const keys = () =>
   createEnv({
+    emptyStringAsUndefined: true,
     runtimeEnv: {
+      ALGOLIA_ADMIN_API_KEY: process.env.ALGOLIA_ADMIN_API_KEY,
       ALGOLIA_APPLICATION_ID: process.env.ALGOLIA_APPLICATION_ID,
-      ALGOLIA_PRODUCTS_INDEX_NAME: process.env.ALGOLIA_PRODUCTS_INDEX_NAME,
-      ALGOLIA_PRODUCTS_PRICE_ASC_INDEX_NAME:
-        process.env.ALGOLIA_PRODUCTS_PRICE_ASC_INDEX_NAME,
-      ALGOLIA_PRODUCTS_PRICE_DESC_INDEX_NAME:
-        process.env.ALGOLIA_PRODUCTS_PRICE_DESC_INDEX_NAME,
-      ALGOLIA_QUERY_SUGGESTIONS_INDEX_NAME:
-        process.env.ALGOLIA_QUERY_SUGGESTIONS_INDEX_NAME,
-      ALGOLIA_RESOURCES_INDEX_NAME: process.env.ALGOLIA_RESOURCES_INDEX_NAME,
+      ALGOLIA_INDEX_PREFIX: process.env.ALGOLIA_INDEX_PREFIX,
+      ALGOLIA_PRICE_CUSTOMER_GROUP_IDS:
+        process.env.ALGOLIA_PRICE_CUSTOMER_GROUP_IDS,
+      ALGOLIA_REGION: process.env.ALGOLIA_REGION,
       ALGOLIA_SEARCH_API_KEY: process.env.ALGOLIA_SEARCH_API_KEY,
     },
     server: {
+      ALGOLIA_ADMIN_API_KEY: z.string().trim().min(1).optional(),
       ALGOLIA_APPLICATION_ID: z.string().trim().min(1),
-      ALGOLIA_PRODUCTS_INDEX_NAME: z.string().trim().min(1).default("products"),
-      ALGOLIA_PRODUCTS_PRICE_ASC_INDEX_NAME: z
+      ALGOLIA_INDEX_PREFIX: z
         .string()
         .trim()
         .min(1)
-        .default("products_price_asc"),
-      ALGOLIA_PRODUCTS_PRICE_DESC_INDEX_NAME: z
-        .string()
-        .trim()
-        .min(1)
-        .default("products_price_desc"),
-      ALGOLIA_QUERY_SUGGESTIONS_INDEX_NAME: z
-        .string()
-        .trim()
-        .min(1)
-        .default("query_suggestions"),
-      ALGOLIA_RESOURCES_INDEX_NAME: z
-        .string()
-        .trim()
-        .min(1)
-        .default("resources"),
+        .refine((value) => !value.includes("--"), {
+          message: 'Must not contain the reserved "--" separator',
+        })
+        .optional(),
+      ALGOLIA_REGION: z.enum(["eu", "us"]).optional(),
+      ALGOLIA_PRICE_CUSTOMER_GROUP_IDS: z.string().trim().optional(),
       ALGOLIA_SEARCH_API_KEY: z.string().trim().min(1),
     },
   });

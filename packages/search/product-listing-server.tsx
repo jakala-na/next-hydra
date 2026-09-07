@@ -17,9 +17,8 @@ import { getInstantSearchServerState } from "./instant-search-server";
 import {
   PRODUCT_LISTING_CONFIGURE,
   PRODUCT_LISTING_FACETS,
-  PRODUCT_LISTING_RANGE_ATTRIBUTE,
-  PRODUCT_LISTING_REFINEMENT_LIST,
   PRODUCT_LISTING_SORT_ITEMS,
+  productListingRefinementListOptions,
 } from "./product-listing-config";
 import type { ProductListingRouteState } from "./product-listing-routing";
 import { productListingStateMapping } from "./product-listing-routing";
@@ -43,15 +42,14 @@ const createProductListingServerWidgets = (): Widget[] => [
   }),
   connectSearchBox(renderNothing)({}),
   connectSortBy(renderNothing)({ items: PRODUCT_LISTING_SORT_ITEMS }),
-  ...PRODUCT_LISTING_FACETS.map(({ attribute }) =>
-    connectRefinementList(renderNothing)({
-      attribute,
-      ...PRODUCT_LISTING_REFINEMENT_LIST,
-    })
+  ...PRODUCT_LISTING_FACETS.map((facet) =>
+    facet.control === "refinement-list"
+      ? connectRefinementList(renderNothing)({
+          attribute: facet.id,
+          ...productListingRefinementListOptions(facet.id),
+        })
+      : connectRange(renderNothing)({ attribute: facet.id })
   ),
-  connectRange(renderNothing)({
-    attribute: PRODUCT_LISTING_RANGE_ATTRIBUTE,
-  }),
   connectPagination(renderNothing)({}),
   connectHits(renderNothing)({}),
   connectStats(renderNothing)({}),

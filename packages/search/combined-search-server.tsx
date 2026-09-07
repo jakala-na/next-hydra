@@ -12,7 +12,7 @@ import type { InstantSearchServerState } from "react-instantsearch";
 
 import {
   combinedProductSearchConfigure,
-  combinedResourceSearchConfigure,
+  combinedContentSearchConfigure,
 } from "./combined-search-config";
 import type {
   CombinedSearchRouteState,
@@ -48,7 +48,7 @@ const createCombinedSearchServerWidgets = (
   const widgets: ServerWidget[] = [
     connectConfigure(renderNothing)({
       searchParameters: rootIsResource
-        ? combinedResourceSearchConfigure(tab)
+        ? combinedContentSearchConfigure(tab)
         : combinedProductSearchConfigure(tab),
     }),
     connectSearchBox(renderNothing)({}),
@@ -56,14 +56,14 @@ const createCombinedSearchServerWidgets = (
   ];
 
   if (tab === "all") {
-    const resources = index({ indexName: "resources" });
-    resources.addWidgets([
+    const content = index({ indexName: "content" });
+    content.addWidgets([
       connectConfigure(renderNothing)({
-        searchParameters: combinedResourceSearchConfigure(tab),
+        searchParameters: combinedContentSearchConfigure(tab),
       }),
       ...resultWidgets(false),
     ]);
-    widgets.push(resources);
+    widgets.push(content);
   }
 
   return widgets;

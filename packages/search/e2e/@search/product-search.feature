@@ -22,6 +22,9 @@ Feature: Product search and listing
       | Category     |
       | Availability |
       | Price        |
+    And the Category facet initially shows 5 values
+    When the buyer shows more Category values
+    Then additional Category values are shown
     When the buyer refines the Product listing with:
       | Facet        | Value       |
       | Category     | Excavators  |

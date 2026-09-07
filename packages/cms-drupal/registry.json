@@ -479,6 +479,16 @@
           "type": "registry:file"
         },
         {
+          "path": "search.test.ts",
+          "target": "~/packages/cms-drupal/search.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "search.ts",
+          "target": "~/packages/cms-drupal/search.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "tsconfig.json",
           "target": "~/packages/cms-drupal/tsconfig.json",
           "type": "registry:file"

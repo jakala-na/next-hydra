@@ -35,13 +35,13 @@ describe(validateSearchBatch, () => {
     expect(requests[1]?.params.facets).toStrictEqual(["price"]);
   });
 
-  it("accepts paged Resource requests without Product facets", () => {
+  it("accepts paged Content requests without Product facets", () => {
     const requests = validateSearchBatch({
       requests: [
         {
-          indexName: "resources",
+          indexName: "content",
           params: {
-            attributesToRetrieve: ["objectID", "resourceCard"],
+            attributesToRetrieve: ["objectID", "contentCard"],
             hitsPerPage: 6,
             page: 1,
             query: "excavator",
@@ -52,9 +52,9 @@ describe(validateSearchBatch, () => {
 
     expect(requests).toStrictEqual([
       {
-        indexName: "resources",
+        indexName: "content",
         params: {
-          attributesToRetrieve: ["objectID", "resourceCard"],
+          attributesToRetrieve: ["objectID", "contentCard"],
           hitsPerPage: 6,
           page: 1,
           query: "excavator",
@@ -92,17 +92,17 @@ describe(validateSearchBatch, () => {
     });
   });
 
-  it("rejects Product facets on the Resource index", () => {
+  it("rejects Product facets on the Content index", () => {
     expect(() =>
       validateSearchBatch({
         requests: [
           {
-            indexName: "resources",
+            indexName: "content",
             params: { facets: ["category"] },
           },
         ],
       })
-    ).toThrow("Resource search does not support facets");
+    ).toThrow("Content search does not support facets");
   });
 
   it("rejects Product facets on the Query Suggestions index", () => {

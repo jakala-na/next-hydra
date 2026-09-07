@@ -9,10 +9,8 @@ const audience = {
   locale: "en-US",
   product: {
     currency: "USD",
-    customerSegmentKeys: ["public"],
-    distributionChannelKeys: ["north-america"],
+    priceAudienceIds: ["public"],
     storeKey: "default-store",
-    supplyChannelKeys: ["main-warehouse"],
   },
 } as const;
 

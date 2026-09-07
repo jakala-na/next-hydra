@@ -8,6 +8,7 @@ import {
   CommercetoolsProductRequestFailure,
 } from "./client";
 import type {
+  CommercetoolsProductContext,
   CommercetoolsProductProjection,
   CommercetoolsProductSelectionRule,
   CommercetoolsProductVariant,
@@ -465,28 +466,15 @@ export const commercetoolsProductDiscoveryClientLayer = Layer.effect(
                     customerId: input.customerId,
                   })
                 ).data?.customer?.customerGroup;
-          const customerGroupContext = (() => {
-            if (customerGroup === undefined || customerGroup === null) {
-              return undefined;
-            }
-            if (customerGroup.key === null) {
-              throw new CommercetoolsProductRequestFailure({
-                message: `Commercetools Customer ${input.customerId} has a Customer Group without a key`,
-              });
-            }
-            return {
-              customerGroupId: customerGroup.id,
-              customerGroupKey: customerGroup.key,
-            };
-          })();
-
-          return {
+          const resolvedContext: CommercetoolsProductContext = {
             distributionChannelId: distributionChannel.id,
             distributionChannelKey: distributionChannel.key,
             supplyChannelIds: supplyChannels.map(({ id }) => id),
             supplyChannelKeys: supplyChannels.map(({ key }) => key),
-            ...(customerGroupContext ?? {}),
           };
+          return customerGroup === undefined || customerGroup === null
+            ? resolvedContext
+            : { ...resolvedContext, customerGroupId: customerGroup.id };
         })
       ),
     });
