@@ -34,6 +34,7 @@
     "packages/auth-clerk/registry.json",
     "packages/auth-contract/registry.json",
     "packages/auth-workos/registry.json",
+    "packages/cms-contentful/registry.json",
     "packages/cms-contentstack/registry.json",
     "packages/cms-drupal/registry.json",
     "packages/commerce-commercetools/registry.json",

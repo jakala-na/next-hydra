@@ -1,0 +1,242 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "cms-contentful",
+      "type": "registry:item",
+      "title": "Next Hydra Contentful CMS provider",
+      "description": "Installs the Contentful CMS provider package.",
+      "docs": "Configure the Contentful environment variables described by packages/cms-contentful before starting the web application.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/cms/contentful",
+          "kind": "provider",
+          "slot": "cms",
+          "binding": {
+            "specifier": "workspace:@repo/cms-contentful@*",
+            "sourcePath": "packages/cms-contentful"
+          },
+          "packages": []
+        }
+      },
+      "files": [
+        {
+          "path": ".env.example",
+          "target": "~/packages/cms-contentful/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/index.test.ts",
+          "target": "~/packages/cms-contentful/cli/index.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/index.ts",
+          "target": "~/packages/cms-contentful/cli/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/migrate.test.ts",
+          "target": "~/packages/cms-contentful/cli/migrations/migrate.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/migrate.ts",
+          "target": "~/packages/cms-contentful/cli/migrations/migrate.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/migrations/model.ts",
+          "target": "~/packages/cms-contentful/cli/migrations/model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client.ts",
+          "target": "~/packages/cms-contentful/client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/blocks/dynamic-product-collection.tsx",
+          "target": "~/packages/cms-contentful/components/blocks/dynamic-product-collection.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/blocks/featured-articles.tsx",
+          "target": "~/packages/cms-contentful/components/blocks/featured-articles.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/blocks/hero-section.tsx",
+          "target": "~/packages/cms-contentful/components/blocks/hero-section.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/component-renderer.tsx",
+          "target": "~/packages/cms-contentful/components/component-renderer.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/global-region.tsx",
+          "target": "~/packages/cms-contentful/components/global-region.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/live-preview.tsx",
+          "target": "~/packages/cms-contentful/components/live-preview.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/page-renderer.tsx",
+          "target": "~/packages/cms-contentful/components/page-renderer.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/page.tsx",
+          "target": "~/packages/cms-contentful/components/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/pages/article.tsx",
+          "target": "~/packages/cms-contentful/components/pages/article.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/pages/landing-page.tsx",
+          "target": "~/packages/cms-contentful/components/pages/landing-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "content.test.ts",
+          "target": "~/packages/cms-contentful/content.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "content.ts",
+          "target": "~/packages/cms-contentful/content.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@cms-contentful/content-rendering.feature",
+          "target": "~/packages/cms-contentful/e2e/@cms-contentful/content-rendering.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@cms-contentful/content-rendering.steps.ts",
+          "target": "~/packages/cms-contentful/e2e/@cms-contentful/content-rendering.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/drivers/content-rendering.driver.ts",
+          "target": "~/packages/cms-contentful/e2e/drivers/content-rendering.driver.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "fetch-page.ts",
+          "target": "~/packages/cms-contentful/fetch-page.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "keys.ts",
+          "target": "~/packages/cms-contentful/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "layout.tsx",
+          "target": "~/packages/cms-contentful/layout.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-category.test.ts",
+          "target": "~/packages/cms-contentful/lib/commerce-category.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-category.ts",
+          "target": "~/packages/cms-contentful/lib/commerce-category.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/content.ts",
+          "target": "~/packages/cms-contentful/lib/content.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/navigation/index.ts",
+          "target": "~/packages/cms-contentful/lib/navigation/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/2026-09-04-000000-create-starter-content-model.ts",
+          "target": "~/packages/cms-contentful/migrations/2026-09-04-000000-create-starter-content-model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/starter-content-model.test.ts",
+          "target": "~/packages/cms-contentful/migrations/starter-content-model.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "migrations/starter-content-model.ts",
+          "target": "~/packages/cms-contentful/migrations/starter-content-model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "next-config.ts",
+          "target": "~/packages/cms-contentful/next-config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/cms-contentful/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "proxy.ts",
+          "target": "~/packages/cms-contentful/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "README.md",
+          "target": "~/packages/cms-contentful/README.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/disable-draft/route.ts",
+          "target": "~/apps/web/app/api/disable-draft/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/api/draft/route.ts",
+          "target": "~/apps/web/app/api/draft/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/disable-draft.ts",
+          "target": "~/packages/cms-contentful/routes/disable-draft.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/draft.ts",
+          "target": "~/packages/cms-contentful/routes/draft.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/cms-contentful/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "typescript-config.json",
+          "target": "~/packages/cms-contentful/typescript-config.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/cms-contentful/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}
