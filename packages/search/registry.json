@@ -128,6 +128,21 @@
           "type": "registry:file"
         },
         {
+          "path": "icons/LICENSE",
+          "target": "~/packages/search/icons/LICENSE",
+          "type": "registry:file"
+        },
+        {
+          "path": "icons/search.svg",
+          "target": "~/packages/search/icons/search.svg",
+          "type": "registry:file"
+        },
+        {
+          "path": "icons/x.svg",
+          "target": "~/packages/search/icons/x.svg",
+          "type": "registry:file"
+        },
+        {
           "path": "index.ts",
           "target": "~/packages/search/index.ts",
           "type": "registry:file"
@@ -243,8 +258,23 @@
           "type": "registry:file"
         },
         {
+          "path": "search-field.module.css",
+          "target": "~/packages/search/search-field.module.css",
+          "type": "registry:file"
+        },
+        {
           "path": "search-page.tsx",
           "target": "~/packages/search/search-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-pagination.tsx",
+          "target": "~/packages/search/search-pagination.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-query.tsx",
+          "target": "~/packages/search/search-query.tsx",
           "type": "registry:file"
         },
         {

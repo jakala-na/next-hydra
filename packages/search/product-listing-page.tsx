@@ -99,7 +99,7 @@ export function ProductListingPage({
           </p>
           <h1 className="font-semibold text-4xl tracking-tight">Products</h1>
           <p className="mt-3 text-muted-foreground text-base">
-            Find products available for your current store and buying context.
+            Find products available to you.
           </p>
         </div>
         <Suspense fallback={<ProductListingSkeleton />}>

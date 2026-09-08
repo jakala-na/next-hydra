@@ -8,7 +8,6 @@ import {
   Index,
   useHits,
   useInstantSearch,
-  usePagination,
   useSearchBox,
   useStats,
 } from "react-instantsearch";
@@ -20,12 +19,13 @@ import {
 import type { CombinedSearchTab } from "./combined-search-routing";
 import {
   COMBINED_SEARCH_TABS,
-  combinedSearchPageHref,
   combinedSearchTabHref,
 } from "./combined-search-routing";
 import type { ContentSearchHit, ProductSearchHit } from "./contract";
 import { SearchProductCard } from "./product-card";
 import { SearchResourceCard } from "./resource-card";
+import { SearchPagination } from "./search-pagination";
+import { SearchQuery } from "./search-query";
 
 export interface CombinedSearchViewProps {
   readonly locale: Locale;
@@ -42,29 +42,6 @@ const tabLabel = (tab: CombinedSearchTab): string => {
 // SAFETY: Combined Search routing only returns query strings built from the
 // allowlisted Search tab and numeric page state.
 const searchRoute = (href: string): Route => href as Route;
-
-function CombinedSearchQuery({
-  query,
-  refine,
-}: {
-  readonly query: string;
-  readonly refine: (value: string) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="sr-only">Search Products and Resources</span>
-      <input
-        className="h-12 w-full rounded-md border border-input bg-background px-4 text-base shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-        onChange={(event) => {
-          refine(event.currentTarget.value);
-        }}
-        placeholder="Search Products and Resources"
-        type="search"
-        value={query}
-      />
-    </label>
-  );
-}
 
 function CombinedSearchTabs({
   query,
@@ -94,64 +71,6 @@ function CombinedSearchTabs({
         ))}
       </div>
     </div>
-  );
-}
-
-function SearchPagination({
-  label,
-  query,
-  tab,
-}: {
-  readonly label: string;
-  readonly query: string;
-  readonly tab: Exclude<CombinedSearchTab, "all">;
-}) {
-  const { currentRefinement, isFirstPage, isLastPage, nbPages } =
-    usePagination();
-
-  if (nbPages <= 1) {
-    return null;
-  }
-
-  return (
-    <nav
-      aria-label={`${label} pagination`}
-      className="mt-8 flex items-center justify-center gap-3"
-    >
-      {isFirstPage ? (
-        <Button disabled type="button" variant="outline">
-          Previous
-        </Button>
-      ) : (
-        <Button asChild variant="outline">
-          <Link
-            href={searchRoute(
-              combinedSearchPageHref(query, tab, currentRefinement)
-            )}
-          >
-            Previous
-          </Link>
-        </Button>
-      )}
-      <span className="text-muted-foreground text-sm">
-        Page {currentRefinement + 1} of {nbPages}
-      </span>
-      {isLastPage ? (
-        <Button disabled type="button" variant="outline">
-          Next
-        </Button>
-      ) : (
-        <Button asChild variant="outline">
-          <Link
-            href={searchRoute(
-              combinedSearchPageHref(query, tab, currentRefinement + 2)
-            )}
-          >
-            Next
-          </Link>
-        </Button>
-      )}
-    </nav>
   );
 }
 
@@ -227,13 +146,7 @@ function ProductResults({
           ))}
         </div>
       )}
-      {preview ? null : (
-        <SearchPagination
-          label="Product results"
-          query={query}
-          tab="products"
-        />
-      )}
+      {preview ? null : <SearchPagination label="Product results pagination" />}
     </section>
   );
 }
@@ -287,11 +200,7 @@ function ResourceResults({
         </div>
       )}
       {preview ? null : (
-        <SearchPagination
-          label="Resource results"
-          query={query}
-          tab="resources"
-        />
+        <SearchPagination label="Resource results pagination" />
       )}
     </section>
   );
@@ -326,7 +235,11 @@ export function CombinedSearchView({ locale, tab }: CombinedSearchViewProps) {
           : combinedProductSearchConfigure(tab))}
       />
       <div className="space-y-6">
-        <CombinedSearchQuery query={query} refine={refine} />
+        <SearchQuery
+          label="Search Products and Resources"
+          query={query}
+          refine={refine}
+        />
         <CombinedSearchTabs query={query} tab={tab} />
       </div>
       <div className="mt-8">

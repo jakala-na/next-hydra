@@ -23,6 +23,7 @@ import type {
 import { CONTENT_HIT_ATTRIBUTES, PRODUCT_HIT_ATTRIBUTES } from "./contract";
 
 import styles from "./autocomplete.module.css";
+import fieldStyles from "./search-field.module.css";
 
 const CONTENT_SOURCE_ID = "content";
 const PRODUCT_SOURCE_ID = "products";
@@ -129,7 +130,10 @@ export function SearchAutocomplete({
             data-autocomplete-result-section="Search results"
             href="${autocompleteSearchHref(item.query, routes)}"
           >
-            <span class="${styles.resultIcon}" aria-hidden="true">⌕</span>
+            <span
+              class="${styles.resultIcon} ${fieldStyles.searchIcon}"
+              aria-hidden="true"
+            ></span>
             <span class="${styles.resultBody}">
               <span class="${styles.resultTitle}"> ${keywordLabel(item)} </span>
               <span class="${styles.resultMeta}">Search all results</span>
@@ -142,17 +146,24 @@ export function SearchAutocomplete({
 
     const instance = autocomplete<SearchAutocompleteItem>({
       classNames: {
+        clearButton: fieldStyles.clearButton,
+        detachedCancelButton: styles.detachedCancelButton,
+        detachedContainer: styles.detachedContainer,
         detachedSearchButton: styles.detachedSearchButton,
+        detachedSearchButtonIcon: `${fieldStyles.searchIcon} ${styles.detachedSearchButtonIcon}`,
         detachedSearchButtonPlaceholder: styles.detachedSearchButtonPlaceholder,
         detachedSearchButtonQuery: styles.detachedSearchButtonQuery,
-        form: styles.form,
-        input: styles.input,
+        form: fieldStyles.form,
+        input: fieldStyles.input,
+        inputWrapperSuffix: styles.inputWrapperSuffix,
         item: styles.item,
+        loadingIndicator: styles.loadingIndicator,
         panel: styles.panel,
         panelLayout: styles.panelLayout,
         root: styles.root,
         source: styles.source,
         sourceHeader: styles.sourceHeader,
+        submitButton: fieldStyles.searchButton,
       },
       container,
       detachedMediaQuery: "(max-width: 1023px)",
@@ -326,6 +337,7 @@ export function SearchAutocomplete({
         ];
       },
       translations: {
+        clearButtonTitle: "Clear search",
         detachedSearchButtonTitle: "Search",
         submitButtonTitle: "Search",
       },

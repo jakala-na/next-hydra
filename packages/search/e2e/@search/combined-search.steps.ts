@@ -187,6 +187,9 @@ Then(
     await expect
       .poll(async () => await rows.allTextContents())
       .not.toStrictEqual(visibleRows.get(page));
+    await expect(
+      page.getByRole("link", { exact: true, name: "Go to page 2" })
+    ).toHaveAttribute("aria-current", "page");
   }
 );
 

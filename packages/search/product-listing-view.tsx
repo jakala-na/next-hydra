@@ -16,7 +16,6 @@ import {
   RangeInput,
   useHits,
   useInstantSearch,
-  usePagination,
   useRefinementList,
   useSearchBox,
   useSortBy,
@@ -33,6 +32,8 @@ import {
   PRODUCT_LISTING_SORT_ITEMS,
   productListingRefinementListOptions,
 } from "./product-listing-config";
+import { SearchPagination } from "./search-pagination";
+import { SearchQuery } from "./search-query";
 
 export interface ProductListingViewProps {
   readonly locale: Locale;
@@ -118,12 +119,13 @@ function ProductFilters() {
                     <RangeInput
                       attribute={facet.id}
                       classNames={{
-                        form: "flex items-center gap-2",
+                        form: "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2",
                         input:
-                          "h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+                          "h-9 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+                        label: "min-w-0",
                         separator: "text-muted-foreground",
                         submit:
-                          "h-9 rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm shadow-xs hover:bg-primary/90",
+                          "col-span-3 h-9 w-full rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm shadow-xs hover:bg-primary/90",
                       }}
                       translations={{
                         separatorElementText: "to",
@@ -145,18 +147,9 @@ function ProductQuery() {
   const { query, refine } = useSearchBox();
 
   return (
-    <label className="block flex-1">
-      <span className="sr-only">Search products</span>
-      <input
-        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-        onChange={(event) => {
-          refine(event.currentTarget.value);
-        }}
-        placeholder="Search products"
-        type="search"
-        value={query}
-      />
-    </label>
+    <div className="flex-1">
+      <SearchQuery label="Search products" query={query} refine={refine} />
+    </div>
   );
 }
 
@@ -183,46 +176,6 @@ function ProductSort() {
         ))}
       </select>
     </label>
-  );
-}
-
-function ProductPagination() {
-  const { currentRefinement, isFirstPage, isLastPage, nbPages, refine } =
-    usePagination();
-
-  if (nbPages <= 1) {
-    return null;
-  }
-
-  return (
-    <nav
-      aria-label="Product listing pagination"
-      className="mt-10 flex items-center justify-center gap-3"
-    >
-      <Button
-        disabled={isFirstPage}
-        onClick={() => {
-          refine(currentRefinement - 1);
-        }}
-        type="button"
-        variant="outline"
-      >
-        Previous
-      </Button>
-      <span className="text-muted-foreground text-sm">
-        Page {currentRefinement + 1} of {nbPages}
-      </span>
-      <Button
-        disabled={isLastPage}
-        onClick={() => {
-          refine(currentRefinement + 1);
-        }}
-        type="button"
-        variant="outline"
-      >
-        Next
-      </Button>
-    </nav>
   );
 }
 
@@ -269,7 +222,7 @@ function ProductResults({ locale }: { readonly locale: Locale }) {
           </div>
         ))}
       </div>
-      <ProductPagination />
+      <SearchPagination label="Product listing pagination" />
     </>
   );
 }

@@ -73,14 +73,14 @@ function ProductCard({
     >
       <Card
         className={cn(
-          "group overflow-hidden transition-all duration-300 hover:shadow-lg",
+          "group h-full gap-0 overflow-hidden py-0 transition-all duration-300 hover:shadow-lg",
           layout === "row" &&
             "sm:grid sm:grid-cols-[14rem_minmax(0,1fr)] sm:grid-rows-[1fr_auto]"
         )}
       >
         <div
           className={cn(
-            "relative h-72 overflow-hidden bg-muted",
+            "relative h-72 shrink-0 overflow-hidden bg-muted",
             layout === "row" && "sm:row-span-2 sm:h-full sm:min-h-56"
           )}
         >
@@ -103,7 +103,7 @@ function ProductCard({
             />
           ) : null}
         </div>
-        <CardContent className="space-y-4 p-6">
+        <CardContent className="flex-1 space-y-4 p-6">
           <div className="space-y-2">
             <p className="font-medium text-primary text-sm">{category}</p>
             <Heading className="font-bold text-2xl">{title}</Heading>
