@@ -109,6 +109,7 @@ const isCustomerAuthEnvironmentName = (name: string): boolean =>
 
 const isCmsEnvironmentName = (name: string): boolean =>
   name.startsWith("CMS_") ||
+  name.startsWith("CONTENTFUL_") ||
   name.startsWith("CONTENTSTACK_") ||
   name.startsWith("NEXT_PUBLIC_CONTENTSTACK_");
 
