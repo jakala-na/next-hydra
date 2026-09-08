@@ -10,6 +10,20 @@ export class CartDriver {
     this.#page = page;
   }
 
+  async open(): Promise<void> {
+    await this.#page.locator("[data-cart-trigger]").click();
+    await expect(this.#cart()).toBeVisible();
+  }
+
+  async expectEmpty(): Promise<void> {
+    const cart = this.#cart();
+    await expect(cart).toBeVisible();
+    await expect(
+      cart.getByRole("heading", { name: "Your cart is empty" })
+    ).toBeVisible();
+    await expect(cart.locator("[data-cart-line-item]")).toHaveCount(0);
+  }
+
   async expectOpenWithProduct(
     quantity: number,
     productName: string
@@ -45,10 +59,10 @@ export class CartDriver {
       throw new Error(`Unsupported Cart destination: ${destination}`);
     }
 
-    await this.#cart()
-      .getByRole("link", { name: "Proceed to Checkout" })
-      .click();
-    await expect(this.#page).toHaveURL(/\/checkout\/?$/u);
+    await Promise.all([
+      this.#page.waitForURL(/\/checkout\/?$/u),
+      this.#cart().getByRole("link", { name: "Proceed to Checkout" }).click(),
+    ]);
   }
 
   #cart(): Locator {

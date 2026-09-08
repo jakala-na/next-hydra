@@ -27,6 +27,7 @@ export function CartButtonClient() {
         variant="ghost"
         size="icon"
         className="relative"
+        data-cart-trigger=""
         onClick={() => {
           openCart();
         }}

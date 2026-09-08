@@ -404,4 +404,57 @@ describe(CurrentCart, () => {
       );
     }
   );
+
+  it.effect(
+    "forgets an anonymous Cart and clears its cookie, never reusing it",
+    () => {
+      const cleared: boolean[] = [];
+      const cart = emptyCart("cart-1");
+      return Effect.gen(function* () {
+        const currentCart = yield* CurrentCart;
+        const before = yield* currentCart.get();
+        expect(Option.isSome(before)).toBeTruthy();
+
+        yield* currentCart.forgetCart();
+
+        expect(cleared).toStrictEqual([true]);
+        const after = yield* currentCart.get();
+        expect(Option.isNone(after)).toBeTruthy();
+      }).pipe(
+        Effect.provide(
+          currentCartLayer(
+            anonymousRequest({ anonymousCartId: cart.id, cleared }),
+            Carts.layerMemory({ carts: [cart] })
+          )
+        )
+      );
+    }
+  );
+
+  it.effect(
+    "forgets a Business Unit Cart from cache without touching cookies",
+    () => {
+      const cart = {
+        ...emptyCart("cart-1"),
+        buyingContext: { businessUnitId },
+      };
+      return Effect.gen(function* () {
+        const currentCart = yield* CurrentCart;
+        const before = yield* currentCart.get();
+        expect(Option.isSome(before)).toBeTruthy();
+
+        yield* currentCart.forgetCart();
+
+        const after = yield* currentCart.get();
+        expect(Option.isNone(after)).toBeTruthy();
+      }).pipe(
+        Effect.provide(
+          currentCartLayer(
+            businessUnitRequest(),
+            Carts.layerMemory({ carts: [cart] })
+          )
+        )
+      );
+    }
+  );
 });
