@@ -318,7 +318,11 @@
         "incomplete": "Onvolledig"
       },
       "activeStep": "Actieve stap",
+      "editingStep": "Bewerken",
       "attention": "Deze stap vereist aandacht",
+      "actions": {
+        "edit": "Bewerken"
+      },
       "errorBoundary": {
         "tryAgain": "Opnieuw proberen"
       },
@@ -359,7 +363,6 @@
           "country": "Land"
         },
         "actions": {
-          "edit": "Bezorggegevens bewerken",
           "save": "Bezorggegevens opslaan",
           "saving": "Opslaan..."
         }

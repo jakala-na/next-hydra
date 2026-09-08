@@ -12,7 +12,7 @@
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "test": "vitest run --passWithNoTests",
+    "test": "NODE_ENV=test vitest run --passWithNoTests",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/payments-stripe/tsconfig.json"
   },
   "dependencies": {

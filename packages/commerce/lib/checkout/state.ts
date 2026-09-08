@@ -113,7 +113,7 @@ const buildCheckoutSteps = (
   },
 ];
 
-const activeStepFrom = (steps: readonly CheckoutStep[]): CheckoutStepId =>
+const nextStepFrom = (steps: readonly CheckoutStep[]): CheckoutStepId =>
   steps.find((step) => step.status === "incomplete")?.id ?? "reviewOrder";
 
 const normalizeCartPolicyViolation = (
@@ -203,9 +203,9 @@ export const buildCheckoutState = Effect.fn("buildCheckoutState")(function* ({
   );
 
   return {
-    activeStep: activeStepFrom(steps),
     cart,
     details,
+    nextStep: nextStepFrom(steps),
     scope,
     steps,
     violations: [

@@ -77,6 +77,9 @@ const revalidateCheckoutWhen = async (condition: boolean) => {
   }
 };
 
+const redirectToCheckout = (locale: string): never =>
+  redirect(`/${locale}/checkout`);
+
 const rememberOrderPlacementCart = async (cartIdInput: string) => {
   const cartId = Schema.decodeOption(CartId)(cartIdInput);
   if (Option.isSome(cartId)) {
@@ -109,6 +112,7 @@ export const saveCheckoutContact: SaveCheckoutContactAction =
     onResult: async (result) => {
       await revalidateCheckoutWhen(shouldRevalidateContact(result));
     },
+    onSuccess: (_result, { locale }) => redirectToCheckout(locale),
   });
 
 export const saveCheckoutDeliveryDetails: SaveCheckoutDeliveryDetailsAction =
@@ -124,6 +128,7 @@ export const saveCheckoutDeliveryDetails: SaveCheckoutDeliveryDetailsAction =
     onResult: async (result) => {
       await revalidateCheckoutWhen(shouldRevalidateDeliveryDetails(result));
     },
+    onSuccess: (_result, { locale }) => redirectToCheckout(locale),
   });
 
 export const saveCheckoutShippingOptions: SaveCheckoutShippingOptionsAction =
@@ -139,6 +144,7 @@ export const saveCheckoutShippingOptions: SaveCheckoutShippingOptionsAction =
     onResult: async (result) => {
       await revalidateCheckoutWhen(shouldRevalidateShippingOptions(result));
     },
+    onSuccess: (_result, { locale }) => redirectToCheckout(locale),
   });
 
 export const saveCheckoutPaymentOptions: SaveCheckoutPaymentOptionsAction =
@@ -157,6 +163,7 @@ export const saveCheckoutPaymentOptions: SaveCheckoutPaymentOptionsAction =
       }
       await revalidateCheckoutWhen(shouldRevalidatePaymentOptions(result));
     },
+    onSuccess: (_result, { locale }) => redirectToCheckout(locale),
   });
 
 const placeCheckoutOrderAction = placeCheckoutOrderProcedure.toActionState({

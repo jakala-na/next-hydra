@@ -1,1 +1,2 @@
+pnpm test:environment
 npx lint-staged

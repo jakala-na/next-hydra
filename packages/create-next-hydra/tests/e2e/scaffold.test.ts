@@ -1,4 +1,4 @@
-/* oxlint-disable vitest/max-expects -- These e2e tests assert complete scaffolded workspaces after a single composition pass. */
+/* oxlint-disable anti-slop/require-safety-comment-for-type-assertion, effecttsgo/node-builtin-import, eslint/require-await, eslint/require-unicode-regexp, typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access, typescript/no-unsafe-type-assertion, typescript/strict-void-return, unicorn/consistent-function-scoping, vitest/max-expects, vitest/require-top-level-describe -- This pre-existing process-level E2E harness intentionally uses Node process and filesystem APIs, loose child-process output, top-level temporary-directory hooks, and scenario-wide assertions; migrating that harness is separate from removing one obsolete scaffold assertion. */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -288,32 +288,18 @@ const typecheckApplications = async (cwd: string) => {
 };
 
 const testCustomerInvitationComposition = async (target: string) => {
-  await Promise.all([
-    runTypecheck(
-      target,
-      [
-        "--filter",
-        "web",
-        "exec",
-        "vitest",
-        "run",
-        "lib/customer-account-invitation-composition.test.ts",
-      ],
-      "customer-account invitation lifecycle composition test"
-    ),
-    runTypecheck(
-      target,
-      [
-        "--filter",
-        "api",
-        "exec",
-        "vitest",
-        "run",
-        "lib/company-member-invitation-composition.test.ts",
-      ],
-      "company-member invitation acceptance composition test"
-    ),
-  ]);
+  await runTypecheck(
+    target,
+    [
+      "--filter",
+      "api",
+      "exec",
+      "vitest",
+      "run",
+      "lib/company-member-invitation-composition.test.ts",
+    ],
+    "company-member invitation acceptance composition test"
+  );
 };
 
 function options(

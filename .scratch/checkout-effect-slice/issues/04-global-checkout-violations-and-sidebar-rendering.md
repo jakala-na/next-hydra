@@ -26,7 +26,7 @@ This slice proves the core checkout state model after Contact and Delivery Detai
 - [x] Checkout Policy can evaluate checkout details saved by Contact and Delivery Details.
 - [x] Cart Policy remains a separate capability even when Checkout displays its violations.
 - [x] The cart sidebar renders whole-cart and cart-item violations from the global list.
-- [x] The active step can render step-targeted violations from the same global list when present.
+- [x] The presented Checkout Step can render step-targeted violations from the same global list when present.
 - [x] Tests cover normalization, source preservation, whole-cart targets, cart-item targets, step targets, non-step-bound violations, and blocking behavior.
 - [x] Relevant typecheck and test commands pass.
 
@@ -39,8 +39,8 @@ This slice proves the core checkout state model after Contact and Delivery Detai
 - The public Checkout HTTP schema decorates normalized violations with localized fallback messages while preserving their codes and parameters; internal diagnostic messages are never exposed.
 - Checkout HTTP errors are a separate boundary contract and expose both stable codes and localized fallback messages.
 - Cart Policy evaluation remains a separate path and preserves `cartPolicy` as the normalized violation source.
-- The Cart sidebar renders untargeted, whole-Cart, and cart-item violations; the Active Checkout Step renders only violations targeted to that step.
-- Component render tests cover localized violation output and the sidebar-versus-active-step targeting boundary.
+- The Cart sidebar renders untargeted, whole-Cart, and cart-item violations; the presented Checkout Step renders only violations targeted to that step.
+- Component render tests cover localized violation output and the sidebar-versus-presented-step targeting boundary.
 
 ## Blocked by
 

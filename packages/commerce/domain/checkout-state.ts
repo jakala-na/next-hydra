@@ -10,9 +10,9 @@ import {
 } from "./checkout";
 
 export const CheckoutState = Schema.Struct({
-  activeStep: CheckoutStepId,
   cart: CartSnapshot,
   details: CheckoutDetails,
+  nextStep: CheckoutStepId,
   scope: CheckoutScope,
   steps: Schema.Array(CheckoutStep),
   violations: Schema.Array(CheckoutViolation),

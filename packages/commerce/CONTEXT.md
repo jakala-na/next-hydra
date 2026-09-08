@@ -150,7 +150,7 @@ The Checkout context describes how a buyer completes the information and choices
 
 **Default Address Flag**: A marker that identifies an Address Book Entry as the Business Unit default for Shipping or Billing. _Avoid_: Address Type
 
-**Active Checkout Step**: The single Checkout Step currently open for buyer input. _Avoid_: Open step, selected step
+**Next Checkout Step**: The first incomplete Checkout Step derived from current Checkout Step Completion. It is the next progression target, independent of which step a user interface currently presents. _Avoid_: Active Checkout Step, open step, selected step
 
 **Checkout Step Completion**: The derived state that a Checkout Step's completion condition is currently satisfied. _Avoid_: Completion flag, saved completion
 
@@ -206,7 +206,7 @@ The Checkout context describes how a buyer completes the information and choices
 
 ## Relationships
 
-- A **Checkout** has exactly one **Active Checkout Step**.
+- A **Checkout** has exactly one **Next Checkout Step**.
 - A **Checkout** requires an existing non-empty **Cart**.
 - A **Product** groups one or more **Product Variants**, and only a Product Variant is purchasable.
 - **Product Card** and **Product Detail** are commerce projections of a Product, not provider payloads or presentation component props.
@@ -240,12 +240,12 @@ The Checkout context describes how a buyer completes the information and choices
 - `CheckoutSession.layer` depends on `CommerceContext` and derives its **Checkout Scope** once for the request.
 - `CheckoutSession.getCurrent()` gets current **Checkout State** for that request-bound session; callers do not pass scope or context to session methods.
 - A **Checkout State Builder** receives an already-resolved **Checkout Scope**, **Cart Snapshot**, **Checkout Details**, buyer context, **Cart Policy Violations**, and **Checkout Policy Violations**.
-- A **Checkout State Builder** validates that Checkout can start, computes binary **Checkout Step** status, computes the **Active Checkout Step**, normalizes violations, and returns **Checkout State**.
+- A **Checkout State Builder** validates that Checkout can start, computes binary **Checkout Step** status, computes the **Next Checkout Step**, normalizes violations, and returns **Checkout State**.
 - A **Checkout State Builder** does not fetch provider data or resolve request context.
 - A **Commerce Context** combines the resolved Store with a verified **Commerce Principal** before Checkout derives **Checkout Scope**.
 - An anonymous **Commerce Principal** may exist without a Cart ID, representing an ordinary guest request with no Current Cart. Access to an existing anonymous Cart is possession-based and requires its request-bound Cart ID.
 - HTTP and Next request adapters construct transport-neutral commerce request values from verified authentication, Store selection, Business Unit selection, and, where relevant, anonymous Cart possession. `CommerceApp.layer` composes stable provider Services. `CommerceApp.provide(request)` adds the request-scoped services needed by Cart and Checkout programs, while `CommerceApp.provideAddressBook(request)` adds only `CommerceContext` and `AddressBook` and therefore requires no Cart cookie adapter. The web app owns one module-level `ManagedRuntime`. React Server Component reads execute request-provided programs through `NextCommerce.runPromise`, while Server Action mutations execute shared procedures through `CommerceActions` and `ActionClient`; both resolve the same app-owned runtime and request services. HTTP adapters let their outer Effect HTTP handlers own Layer lifecycles. Callers invoke named Service methods and map typed errors to transport responses; no Contact, Address Book, or Delivery Details operation accepts context or scope.
-- A first-slice **Checkout State** reports current **Checkout Details**, binary step status, active step, and **Checkout Violations**.
+- A first-slice **Checkout State** reports current **Checkout Details**, binary step status, the **Next Checkout Step**, and **Checkout Violations**.
 - A first-slice **Checkout State** does not report structured incompletion reasons.
 - Blocking violations in **Checkout State** are global and do not have to belong to a **Checkout Step**.
 - A **Checkout State** does not own option lists that have not been saved to the **Cart**.
@@ -285,8 +285,8 @@ The Checkout context describes how a buyer completes the information and choices
 - **Checkout** consumes the **Address Book** as an external capability and does not own its addresses.
 - A **Checkout Step Completion** is derived from current checkout details and is not stored independently.
 - First-slice **Checkout Step** status is binary: complete or incomplete.
-- The **Active Checkout Step** is the first incomplete **Checkout Step** in the step sequence.
-- A **Checkout Step** after the **Active Checkout Step** is unavailable until earlier completion conditions are satisfied.
+- The **Next Checkout Step** is the first incomplete **Checkout Step** in the step sequence.
+- A **Checkout Step** after the **Next Checkout Step** is unavailable until earlier completion conditions are satisfied.
 - A blocking **Cart Policy Violation** prevents Checkout from advancing to a step that assumes a purchasable Cart.
 - **Contact** is complete when required **Buyer Contact** details are available to the current **Checkout** and the current buyer mode is allowed.
 - Required **Buyer Contact** details are email address, first name, and last name.
@@ -336,7 +336,7 @@ The Checkout context describes how a buyer completes the information and choices
 - A later change to or removal of an **Address Book Entry** does not silently change or invalidate the Cart's resolved **Shipping Address**.
 - Changing **Buying Context** requires a different **Cart**.
 - A structurally valid **Shipping Address** can be saved even when it produces a **Checkout Policy Violation**.
-- **Shipping Options** can be the **Active Checkout Step** and remain incomplete when blocking violations prevent selecting shipping.
+- **Shipping Options** can be the **Next Checkout Step** and remain incomplete when blocking violations prevent selecting shipping.
 - **Delivery Routing** produces one or more ranked **Delivery Plans**; plans can differ in their Delivery Groups and in the Shipping Options available to those groups.
 - Each **Delivery Plan** has a **Delivery Plan Reference**, and every Delivery Group contains one or more explicit **Delivery Targets**.
 - For each **Cart Line Item** in a Delivery Plan, its Delivery Target quantities are positive and sum exactly to the quantity currently requested in the Cart; no other Cart Line Item may be targeted.
@@ -380,7 +380,7 @@ The Checkout context describes how a buyer completes the information and choices
 
 > **Dev:** "Should we reject an Alaska shipping address if the current cart contains an item that cannot ship to Alaska?" **Domain expert:** "No — save the structurally valid **Shipping Address**, then show the resulting **Checkout Policy Violation** in **Checkout State**."
 
-> **Dev:** "If Delivery Details are saved but shipping cannot continue because of a policy violation, do we reopen Delivery Details?" **Domain expert:** "No — **Shipping Options** becomes the **Active Checkout Step** and remains incomplete while the blocking violation prevents selecting shipping."
+> **Dev:** "If Delivery Details are saved but shipping cannot continue because of a policy violation, do we reopen Delivery Details?" **Domain expert:** "No — **Shipping Options** becomes the **Next Checkout Step** and remains incomplete while the blocking violation prevents selecting shipping."
 
 > **Dev:** "Does Delivery Details only support manually entered addresses?" **Domain expert:** "No — first design includes **Manual** and **Address Book** as **Delivery Details Sources**."
 
@@ -392,7 +392,7 @@ The Checkout context describes how a buyer completes the information and choices
 
 > **Dev:** "If an Address Book Reference is stale or inaccessible, should Delivery Details save and remain incomplete?" **Domain expert:** "No — saving **Delivery Details** fails with a **Checkout Mutation Failure** because the **Shipping Address** cannot be resolved."
 
-> **Dev:** "Should Checkout Step status include blocked?" **Domain expert:** "No — first-slice **Checkout Step** status is binary, and the **Active Checkout Step** is the first incomplete step."
+> **Dev:** "Should Checkout Step status include blocked?" **Domain expert:** "No — first-slice **Checkout Step** status is binary, and the **Next Checkout Step** is the first incomplete step."
 
 > **Dev:** "Do blocking violations always belong to a Checkout Step?" **Domain expert:** "No — blocking violations are global in **Checkout State** and can target a **Checkout Step**, a Cart item, or the whole **Cart**."
 
@@ -458,7 +458,7 @@ The Checkout context describes how a buyer completes the information and choices
 
 ## Flagged Ambiguities
 
-- "open step" was used near UI state — resolved: the domain term is **Active Checkout Step**, and there is exactly one during Checkout.
+- "open step" was used near UI state — resolved: which step is presented belongs to the user interface; the domain reports the **Next Checkout Step**.
 - "buyer identification" was used for the first step — resolved: **Contact** is the Checkout Step; **Buying Context** and **Buyer Contact** are details that can satisfy it.
 - "context step" was used near contact collection — resolved: the Checkout Step is **Contact** unless the discussion is specifically about choosing **Buying Context**.
 - "contact information" was used to include shipping address — resolved: **Contact** owns buyer contact details, while **Delivery Details** owns **Shipping Address**.
