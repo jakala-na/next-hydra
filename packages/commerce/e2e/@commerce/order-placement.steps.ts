@@ -1,6 +1,7 @@
 import { expect, Then, When, test } from "@repo/e2e-testing";
 import type { DataTable } from "@repo/e2e-testing";
 
+import { CartDriver } from "../drivers/cart.driver";
 import { CheckoutDriver } from "../drivers/checkout.driver";
 
 const transactionsFrom = (dataTable: DataTable) => {
@@ -107,6 +108,19 @@ When(
 
 When("the consumed Checkout Cart cookie is cleared", async ({ page }) => {
   await new CheckoutDriver(page).clearConsumedCartCookieAndReload();
+});
+
+Then(
+  "the anonymous Checkout Cart cookie is no longer set",
+  async ({ page }) => {
+    await new CheckoutDriver(page).expectCartCookieCleared();
+  }
+);
+
+Then("the buyer's Cart is empty", async ({ page }) => {
+  const cart = new CartDriver(page);
+  await cart.open();
+  await cart.expectEmpty();
 });
 
 When("the buyer refreshes Checkout", async ({ page }) => {

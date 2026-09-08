@@ -1077,6 +1077,9 @@ export class CheckoutSession extends Context.Service<
             const paymentMethod = yield* checkoutPayments
               .getPaymentMethod(order.paymentReference)
               .pipe(Effect.mapError(paymentPlacementFailure));
+            if (scope.channel === "storefrontAnonymous") {
+              yield* currentCart.forgetCart();
+            }
             return {
               _tag: "Placed" as const,
               order: toOrderSnapshot(order, paymentMethod),

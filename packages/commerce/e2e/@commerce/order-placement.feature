@@ -51,6 +51,14 @@ Feature: Checkout Order Placement
         | Charge        | Success |
       And Stripe has one authorization and one capture for the Order
 
+    Scenario: Placing an Order clears the anonymous Checkout Cart so it cannot be reused
+      When the buyer enters valid Card details and uses the Shipping Address for Billing
+      And the buyer saves Payment Options
+      And the buyer places the Order
+      Then Order Confirmation shows one Order for "16500.00" in currency "USD"
+      And the anonymous Checkout Cart cookie is no longer set
+      And the buyer's Cart is empty
+
     Scenario: Cancelled Card authentication invalidates the saved Card selection
       When the buyer enters Card details that require additional authentication and uses the Shipping Address for Billing
       And the buyer saves Payment Options

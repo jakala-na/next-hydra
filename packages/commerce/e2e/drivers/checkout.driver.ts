@@ -272,9 +272,18 @@ export class CheckoutDriver {
   }
 
   async savePaymentOptions(): Promise<void> {
-    await this.#activeStep("Payment Options")
-      .getByRole("button", { name: "Save payment options" })
-      .click();
+    const checkoutUrl = this.#page.url();
+    await Promise.all([
+      this.#page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          response.url() === checkoutUrl &&
+          response.request().headers()["next-action"] !== undefined
+      ),
+      this.#activeStep("Payment Options")
+        .getByRole("button", { name: "Save payment options" })
+        .click(),
+    ]);
     await expect(
       this.#activeStep("Review Order").getByRole("button", {
         name: "Place order",
@@ -326,6 +335,14 @@ export class CheckoutDriver {
       name: ANONYMOUS_CART_COOKIE_NAME,
     });
     await this.#page.reload();
+  }
+
+  async expectCartCookieCleared(): Promise<void> {
+    const cookies = await this.#page.context().cookies();
+    const cartCookie = cookies.find(
+      (cookie) => cookie.name === ANONYMOUS_CART_COOKIE_NAME
+    );
+    expect(cartCookie).toBeUndefined();
   }
 
   async dropNextPlaceOrderResponse(

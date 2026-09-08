@@ -17,6 +17,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
@@ -102,12 +103,18 @@ export function useCartData() {
   // Resolve promise - this causes suspension!
   const resolvedCart = use(cartPromise);
 
-  // Sync resolved cart to shared state on first resolve
+  // Sync resolved cart to shared state whenever the server hands us a new
+  // cartPromise (e.g. after order placement clears the cart). Gated on
+  // promise identity, not `cart` truthiness, so a fresh empty cart isn't
+  // masked by stale local state. Mutation actions (add/remove/update) call
+  // setCart directly without changing cartPromise, so they aren't clobbered.
+  const cartPromiseRef = useRef<typeof cartPromise | null>(null);
   useEffect(() => {
-    if (resolvedCart && !cart) {
+    if (cartPromiseRef.current !== cartPromise) {
+      cartPromiseRef.current = cartPromise;
       setCart(resolvedCart);
     }
-  }, [resolvedCart, cart, setCart]);
+  }, [cartPromise, resolvedCart, setCart]);
 
   // Return shared state if available, otherwise the freshly resolved cart
   return cart ?? resolvedCart;
