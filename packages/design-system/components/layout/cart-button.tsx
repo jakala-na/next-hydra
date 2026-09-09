@@ -4,6 +4,7 @@ import { Button } from "@repo/design-system/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 
 import { CartFlyout } from "../commerce/blocks/cart-flyout";
+import type { CartFlyoutLinks } from "../commerce/blocks/cart-flyout";
 import { useCartData, useCartState } from "../commerce/providers/cart-context";
 
 /**
@@ -11,7 +12,7 @@ import { useCartData, useCartState } from "../commerce/providers/cart-context";
  * This component MUST be wrapped in Suspense because it uses useCartData()
  * which calls use() to resolve the cart promise.
  */
-export function CartButtonClient() {
+export function CartButtonClient(links: CartFlyoutLinks) {
   // This causes suspension until cart promise resolves
   const cartData = useCartData();
   const { isOpen, openCart } = useCartState();
@@ -26,6 +27,7 @@ export function CartButtonClient() {
       <Button
         variant="ghost"
         size="icon"
+        aria-label="Open cart"
         className="relative"
         onClick={() => {
           openCart();
@@ -38,7 +40,7 @@ export function CartButtonClient() {
           </span>
         )}
       </Button>
-      {isOpen && <CartFlyout />}
+      {isOpen && <CartFlyout {...links} />}
     </div>
   );
 }

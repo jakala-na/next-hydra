@@ -12,6 +12,7 @@
       }
     ],
     "paths": {
+      "@composition/cms-contentstack/*": ["./components/*"],
       "@repo/*": ["../*"]
     }
   },

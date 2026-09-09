@@ -96,6 +96,11 @@
           "path": "tsconfig.json",
           "target": "~/packages/auth-contract/tsconfig.json",
           "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/auth-contract/vitest.config.ts",
+          "type": "registry:file"
         }
       ]
     }

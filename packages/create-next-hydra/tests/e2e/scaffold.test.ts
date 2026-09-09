@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/max-expects -- Verify the complete owned/excluded file graph from each expensive scaffold; keep these assertions together rather than repeat scaffolding. */
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -15,16 +16,28 @@ import { promisify } from "node:util";
 
 import { parse } from "jsonc-parser";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
 import { pathExists, readJsonFile } from "../../src/fs-utils.js";
 import { scaffoldProject } from "../../src/scaffold.js";
 
+// oxlint-disable-next-line typescript/strict-void-return -- Node explicitly supports promisifying execFile; its ChildProcess return is separate from its completion callback.
 const run = promisify(execFile);
+const scaffoldManifestSchema = z.object({
+  dependencies: z.record(z.string()).default({}),
+  devDependencies: z.record(z.string()).optional(),
+  scripts: z.record(z.string()).optional(),
+  portless: z
+    .object({ name: z.string().optional(), script: z.string().optional() })
+    .optional(),
+});
 const repoRoot = path.resolve(import.meta.dirname, "../../../..");
 const E2E_TIMEOUT = 240_000;
-const INCOMPATIBLE_DRUPAL_ADD_ON = /requires next-hydra\/cms\/drupal/;
+const hash = (content: Uint8Array) =>
+  createHash("sha256").update(content).digest("hex");
+const INCOMPATIBLE_DRUPAL_ADD_ON = /requires next-hydra\/cms\/drupal/u;
 const PARTIAL_PROJECT_PRESERVED =
-  /partial project has been left exactly as it stands/;
+  /partial project has been left exactly as it stands/u;
 const WORKOS_SETUP_INSTRUCTION_PREFIX =
   "Configure separate WorkOS projects for the customer web app and admin app";
 let testRoot: string;
@@ -57,7 +70,10 @@ async function createSourceRepository(): Promise<string> {
       })
   );
   const rootRegistryPath = path.join(source, "registry.json");
-  const rootRegistry = JSON.parse(await readFile(rootRegistryPath, "utf-8"));
+  const rootRegistry = await readJsonFile(
+    rootRegistryPath,
+    z.object({ include: z.array(z.string()) }).passthrough()
+  );
   rootRegistry.include.push("fixtures/drupal-commerce-dam/registry.json");
   await writeFile(
     rootRegistryPath,
@@ -232,12 +248,15 @@ const runTypecheck = async (
   try {
     await run("pnpm", [...args], { cwd, env });
   } catch (error) {
-    const failure = error as {
-      code?: number;
-      signal?: string;
-      stderr?: string;
-      stdout?: string;
-    };
+    const parsed = z
+      .object({
+        code: z.union([z.number(), z.string()]).optional(),
+        signal: z.string().nullable().optional(),
+        stderr: z.string().optional(),
+        stdout: z.string().optional(),
+      })
+      .safeParse(error);
+    const failure = parsed.success ? parsed.data : {};
     throw new Error(
       [
         `${description} failed with code ${failure.code ?? "unknown"}${
@@ -317,16 +336,16 @@ function options(
   };
 }
 
-beforeAll(async () => {
-  testRoot = await mkdtemp(path.join(tmpdir(), "next-hydra-scaffold-"));
-  sourceRepository = await createSourceRepository();
-});
-
-afterAll(async () => {
-  await rm(testRoot, { force: true, recursive: true });
-}, E2E_TIMEOUT);
-
 describe("scaffold composition", () => {
+  beforeAll(async () => {
+    testRoot = await mkdtemp(path.join(tmpdir(), "next-hydra-scaffold-"));
+    sourceRepository = await createSourceRepository();
+  });
+
+  afterAll(async () => {
+    await rm(testRoot, { force: true, recursive: true });
+  }, E2E_TIMEOUT);
+
   it(
     "prints Provider instructions only in the final setup section",
     async () => {
@@ -425,10 +444,10 @@ describe("scaffold composition", () => {
         ])
       ).resolves.toStrictEqual([false, false, false, false, false]);
 
-      const packageJson = await readJsonFile<{
-        scripts?: Record<string, string>;
-        devDependencies?: Record<string, string>;
-      }>(path.join(target, "package.json"));
+      const packageJson = await readJsonFile(
+        path.join(target, "package.json"),
+        scaffoldManifestSchema
+      );
       const maintainerScripts = [
         "changeset",
         "changeset:status",
@@ -438,6 +457,12 @@ describe("scaffold composition", () => {
         "version:cli",
       ].filter((name) => packageJson.scripts?.[name] !== undefined);
       expect(maintainerScripts).toStrictEqual([]);
+      expect(packageJson.scripts).toMatchObject({
+        build: "turbo run build",
+        dev: "turbo run dev",
+        test: "turbo run test",
+        typecheck: "turbo run typecheck",
+      });
 
       const [
         apiPackageJson,
@@ -445,25 +470,27 @@ describe("scaffold composition", () => {
         webEnvironment,
         webPackageJson,
       ] = await Promise.all([
-        readJsonFile<{
-          portless?: { name?: string; script?: string };
-        }>(path.join(target, "apps/api/package.json")),
+        readJsonFile(
+          path.join(target, "apps/api/package.json"),
+          scaffoldManifestSchema
+        ),
         pathExists(path.join(target, "portless.json")),
         readFile(path.join(target, "apps/web/.env.example"), "utf-8"),
-        readJsonFile<{
-          portless?: { name?: string; script?: string };
-        }>(path.join(target, "apps/web/package.json")),
+        readJsonFile(
+          path.join(target, "apps/web/package.json"),
+          scaffoldManifestSchema
+        ),
       ]);
       expect({
         apiPackagePortless: apiPackageJson.portless,
         changesetsDependency: packageJson.devDependencies?.["@changesets/cli"],
         portlessDependency: packageJson.devDependencies?.portless,
         rootPortlessConfigExists,
+        webEnvironmentHasLocalFallback: webEnvironment.includes(
+          "NEXT_PUBLIC_WEB_URL=http://localhost:3000"
+        ),
         webEnvironmentHasMaintainerHostname: webEnvironment.includes(
           "next-hydra.localhost"
-        ),
-        webEnvironmentHasProjectHostname: webEnvironment.includes(
-          'NEXT_PUBLIC_WEB_URL="https://web.customer-release-project.localhost"'
         ),
         webPackagePortless: webPackageJson.portless,
       }).toStrictEqual({
@@ -474,8 +501,8 @@ describe("scaffold composition", () => {
         changesetsDependency: undefined,
         portlessDependency: "0.15.6",
         rootPortlessConfigExists: false,
+        webEnvironmentHasLocalFallback: true,
         webEnvironmentHasMaintainerHostname: false,
-        webEnvironmentHasProjectHostname: true,
         webPackagePortless: {
           name: "web.customer-release-project",
           script: "dev:app",
@@ -615,10 +642,12 @@ describe("scaffold composition", () => {
         )
       ).resolves.toContain('export { GET } from "@repo/cms/routes/draft";');
 
-      const contentstackWeb = JSON.parse(
-        await readFile(
-          path.join(contentstackTarget, "apps/web/package.json"),
-          "utf-8"
+      const contentstackWeb = scaffoldManifestSchema.parse(
+        JSON.parse(
+          await readFile(
+            path.join(contentstackTarget, "apps/web/package.json"),
+            "utf-8"
+          )
         )
       );
       expect(contentstackWeb.dependencies["@repo/cms"]).toBe(
@@ -693,8 +722,6 @@ describe("scaffold composition", () => {
 
       const asset =
         "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp";
-      const hash = (content: Uint8Array) =>
-        createHash("sha256").update(content).digest("hex");
       expect(hash(await readFile(path.join(drupalTarget, asset)))).toBe(
         hash(await readFile(path.join(repoRoot, asset)))
       );
@@ -816,10 +843,12 @@ describe("scaffold composition", () => {
       await expect(
         pathExists(path.join(target, "packages/cms-drupal/registry.json"))
       ).resolves.toBeFalsy();
-      const drupalPackage = JSON.parse(
-        await readFile(
-          path.join(target, "packages/cms-drupal/package.json"),
-          "utf-8"
+      const drupalPackage = scaffoldManifestSchema.parse(
+        JSON.parse(
+          await readFile(
+            path.join(target, "packages/cms-drupal/package.json"),
+            "utf-8"
+          )
         )
       );
       expect(drupalPackage.dependencies.nanoid).toBe("^5.1.6");
@@ -843,9 +872,9 @@ describe("scaffold composition", () => {
       const target = path.join(testRoot, "failed-project");
       await expect(
         scaffoldProject(options(target, "contentstack"), {
-          install: async () => {
-            throw new Error("forced package-manager failure");
-          },
+          install: vi
+            .fn<() => Promise<void>>()
+            .mockRejectedValue(new Error("forced package-manager failure")),
         })
       ).rejects.toThrow(PARTIAL_PROJECT_PRESERVED);
 

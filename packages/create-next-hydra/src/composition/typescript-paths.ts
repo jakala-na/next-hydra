@@ -82,6 +82,11 @@ const expectedPaths = (
   const targetRoot = path.join(workspaceRoot, requirement.sourcePath);
   const relativeTarget = toPosixRelative(consumerRoot, targetRoot);
 
+  // A module override names one file, not a package with importable subpaths.
+  if (/\.[cm]?[jt]sx?$/u.test(requirement.sourcePath)) {
+    return [{ alias: requirement.alias, expected: [relativeTarget] }];
+  }
+
   return [
     { alias: requirement.alias, expected: [relativeTarget] },
     {
@@ -159,16 +164,14 @@ export const applyTypeScriptPathAliases = async (
       const updates = desired.flatMap((entry) =>
         expectedPaths(workspaceRoot, entry)
       );
-      const desiredAliases = new Set(desired.map((entry) => entry.alias));
+      const desiredAliases = new Set(updates.map((entry) => entry.alias));
       const removals = governed
-        .filter((alias) => !desiredAliases.has(alias))
         .flatMap(governedPathAliases)
+        .filter((alias) => !desiredAliases.has(alias))
         .filter((alias) => paths[alias] !== undefined);
       if (
         removals.length === 0 &&
-        updates.every(({ alias, expected }) =>
-          samePath(paths[alias], expected)
-        )
+        updates.every(({ alias, expected }) => samePath(paths[alias], expected))
       ) {
         return;
       }
@@ -208,17 +211,19 @@ export const checkTypeScriptPathAliases = async (
       const source = await readFile(absoluteConfigPath, "utf-8");
       const configValue = parseTypeScriptConfig(source, config);
       const paths = configValue.compilerOptions?.paths ?? {};
-      const desiredAliases = new Set(desired.map((entry) => entry.alias));
-      const pathIssues = desired
-        .flatMap((entry) => expectedPaths(workspaceRoot, entry))
+      const updates = desired.flatMap((entry) =>
+        expectedPaths(workspaceRoot, entry)
+      );
+      const desiredAliases = new Set(updates.map((entry) => entry.alias));
+      const pathIssues = updates
         .filter(({ alias, expected }) => !samePath(paths[alias], expected))
         .map(
           ({ alias, expected }) =>
             `${config}: expected compilerOptions.paths.${alias} to be ${JSON.stringify(expected)}`
         );
       const stalePathIssues = governed
-        .filter((alias) => !desiredAliases.has(alias))
         .flatMap(governedPathAliases)
+        .filter((alias) => !desiredAliases.has(alias))
         .flatMap((alias) => {
           const actual = paths[alias];
           return actual === undefined

@@ -118,11 +118,6 @@
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.component.js.product-collection.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.product-collection.yml",
-          "type": "registry:file"
-        },
-        {
           "path": "recipes/next-hydra-starter/config/canvas.component.js.text.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.text.yml",
           "type": "registry:file"
@@ -140,11 +135,6 @@
         {
           "path": "recipes/next-hydra-starter/config/canvas.js_component.hero.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.hero.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "recipes/next-hydra-starter/config/canvas.js_component.product-collection.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.product-collection.yml",
           "type": "registry:file"
         },
         {
@@ -188,11 +178,6 @@
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/core.entity_form_display.paragraph.dynamic_product_collection.default.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_form_display.paragraph.dynamic_product_collection.default.yml",
-          "type": "registry:file"
-        },
-        {
           "path": "recipes/next-hydra-starter/config/core.entity_form_display.paragraph.featured_articles.default.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_form_display.paragraph.featured_articles.default.yml",
           "type": "registry:file"
@@ -210,11 +195,6 @@
         {
           "path": "recipes/next-hydra-starter/config/core.entity_view_display.node.landing_page.default.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_view_display.node.landing_page.default.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "recipes/next-hydra-starter/config/core.entity_view_display.paragraph.dynamic_product_collection.default.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_view_display.paragraph.dynamic_product_collection.default.yml",
           "type": "registry:file"
         },
         {
@@ -260,21 +240,6 @@
         {
           "path": "recipes/next-hydra-starter/config/field.field.node.landing_page.field_hide_display_title.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.node.landing_page.field_hide_display_title.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.dynamic_product_collection.field_description.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.dynamic_product_collection.field_description.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.dynamic_product_collection.field_heading.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.dynamic_product_collection.field_heading.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.dynamic_product_collection.field_product_category.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.dynamic_product_collection.field_product_category.yml",
           "type": "registry:file"
         },
         {
@@ -373,11 +338,6 @@
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.paragraph.field_product_category.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.paragraph.field_product_category.yml",
-          "type": "registry:file"
-        },
-        {
           "path": "recipes/next-hydra-starter/config/field.storage.paragraph.field_tagline.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.paragraph.field_tagline.yml",
           "type": "registry:file"
@@ -435,11 +395,6 @@
         {
           "path": "recipes/next-hydra-starter/config/node.type.landing_page.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/node.type.landing_page.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "recipes/next-hydra-starter/config/paragraphs.paragraphs_type.dynamic_product_collection.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/paragraphs.paragraphs_type.dynamic_product_collection.yml",
           "type": "registry:file"
         },
         {
@@ -605,6 +560,75 @@
         {
           "path": "scripts/scopes.php",
           "target": "~/apps/drupal/scripts/scopes.php",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "drupal-product-collection",
+      "type": "registry:item",
+      "registryDependencies": ["drupal"],
+      "title": "Drupal product collection recipe",
+      "description": "Native configuration and sample pages installed with the Commerce capability.",
+      "files": [
+        {
+          "path": "recipes/product-collection/recipe.yml",
+          "target": "~/apps/drupal/recipes/product-collection/recipe.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/config/canvas.component.js.product-collection.yml",
+          "target": "~/apps/drupal/recipes/product-collection/config/canvas.component.js.product-collection.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/config/canvas.js_component.product-collection.yml",
+          "target": "~/apps/drupal/recipes/product-collection/config/canvas.js_component.product-collection.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/config/core.entity_form_display.paragraph.dynamic_product_collection.default.yml",
+          "target": "~/apps/drupal/recipes/product-collection/config/core.entity_form_display.paragraph.dynamic_product_collection.default.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/config/core.entity_view_display.paragraph.dynamic_product_collection.default.yml",
+          "target": "~/apps/drupal/recipes/product-collection/config/core.entity_view_display.paragraph.dynamic_product_collection.default.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_description.yml",
+          "target": "~/apps/drupal/recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_description.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_heading.yml",
+          "target": "~/apps/drupal/recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_heading.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_product_category.yml",
+          "target": "~/apps/drupal/recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_product_category.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/config/field.storage.paragraph.field_product_category.yml",
+          "target": "~/apps/drupal/recipes/product-collection/config/field.storage.paragraph.field_product_category.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/config/paragraphs.paragraphs_type.dynamic_product_collection.yml",
+          "target": "~/apps/drupal/recipes/product-collection/config/paragraphs.paragraphs_type.dynamic_product_collection.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/content/node/fd48aa24-e1f0-483f-a1ef-a3b506ca1610.yml",
+          "target": "~/apps/drupal/recipes/product-collection/content/node/fd48aa24-e1f0-483f-a1ef-a3b506ca1610.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/product-collection/content/canvas_page/b2201727-fbfe-44d0-83a1-c7d54ac003dc.yml",
+          "target": "~/apps/drupal/recipes/product-collection/content/canvas_page/b2201727-fbfe-44d0-83a1-c7d54ac003dc.yml",
           "type": "registry:file"
         }
       ]

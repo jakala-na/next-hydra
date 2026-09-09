@@ -1,3 +1,5 @@
+/* oxlint-disable unicorn/no-array-sort -- Sort fresh arrays without requiring an API beyond the CLI's ES2022 library target. */
+/* oxlint-disable no-await-in-loop -- Graph discovery and ordered registry merges depend on the preceding result. */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -8,6 +10,7 @@ import {
   loadRegistry,
 } from "shadcn/registry";
 import type { RegistryItem } from "shadcn/schema";
+import { z } from "zod";
 
 import { pathExists } from "../fs-utils.js";
 import { CompositionValidationError } from "./errors.js";
@@ -21,6 +24,7 @@ import {
   NEXT_HYDRA_SELECTION_SCHEMA_URL,
   selectionDefinitionSchema,
 } from "./schema.js";
+import { slotCompositionSchema } from "./slot-templates.js";
 import type {
   CatalogSelection,
   RegistriesConfig,
@@ -28,11 +32,11 @@ import type {
 } from "./types.js";
 
 const GITHUB_HOMEPAGE_PATTERN =
-  /^https:\/\/github\.com\/([^/]+\/[^/]+?)(?:\.git)?\/?$/;
+  /^https:\/\/github\.com\/(?<repository>[^/]+\/[^/]+?)(?:\.git)?\/?$/u;
 const SHADCN_REGISTRY_ITEM_SCHEMA_URL =
   "https://ui.shadcn.com/schema/registry-item.json";
 
-const OFFICIAL_REFERENCES: Record<string, string> = {
+const OFFICIAL_REFERENCES = {
   clerk: "next-hydra/auth/clerk",
   commercetools: "next-hydra/commerce/commercetools",
   contentstack: "next-hydra/cms/contentstack",
@@ -42,12 +46,19 @@ const OFFICIAL_REFERENCES: Record<string, string> = {
 };
 
 const OFFICIAL_ITEM_NAMES = [
+  "app-web",
+  "web-auth",
+  "app-web-navigation-search",
   "auth-clerk",
   "auth-contract",
   "auth-workos",
   "cms-contentstack",
   "cms-drupal",
   "commerce-commercetools",
+  "commerce",
+  "commerce-api",
+  "commerce-admin",
+  "workspace-cli",
   "drupal",
   "next-hydra-standard",
 ] as const;
@@ -87,7 +98,7 @@ function createCatalog(options: {
   }
 
   for (const item of options.registryItems) {
-    const candidate = item.meta?.nextHydra;
+    const candidate: unknown = item.meta?.nextHydra;
     if (candidate === undefined) {
       continue;
     }
@@ -155,8 +166,8 @@ function createCatalog(options: {
   }
 
   const managedTargets = [
-    ...new Set(
-      options.registryItems.flatMap(
+    ...new Set([
+      ...options.registryItems.flatMap(
         (item) =>
           item.files
             ?.filter((file) =>
@@ -171,8 +182,18 @@ function createCatalog(options: {
               }
               return resolveRegistryTarget(file.target);
             }) ?? []
-      )
-    ),
+      ),
+      ...options.registryItems.flatMap((item) =>
+        slotCompositionSchema
+          .parse(item.meta?.composition ?? {})
+          .templates.map((template) =>
+            resolveWorkspacePath(
+              template.target,
+              `${item.name} template target`
+            )
+          )
+      ),
+    ]),
   ].sort((left, right) => left.localeCompare(right));
 
   return {
@@ -260,6 +281,7 @@ export async function fetchRegistryItemGraph(options: {
   items?: Iterable<RegistryItem>;
   references: Iterable<string>;
   repository?: string;
+  repositoryRef?: string;
 }): Promise<RegistryItemGraph> {
   const items = new Map(
     [...(options.items ?? [])].map((item) => [item.name, item])
@@ -287,8 +309,14 @@ export async function fetchRegistryItemGraph(options: {
     let itemName = itemByReference.get(reference);
     if (!itemName) {
       // oxlint-disable-next-line no-await-in-loop -- Breadth-first discovery reveals each next reference in order.
+      const repositoryReference =
+        options.repository &&
+        !reference.includes("/") &&
+        !reference.includes("#")
+          ? `${options.repository}/${reference}${options.repositoryRef ? `#${options.repositoryRef}` : ""}`
+          : reference;
       const resolvedReference = await resolveRegistryReference(
-        reference,
+        repositoryReference,
         options.cwd
       );
       const [fetchedArtifact] = await fetchItems([resolvedReference], {
@@ -347,6 +375,16 @@ export async function fetchRegistryItemGraph(options: {
     }
     expandedItems.add(itemName);
     pending.push(...(item.registryDependencies ?? []));
+    // Discover potential built-ins so the catalog can plan either composition.
+    // Discovery does not make them unconditional registry dependencies.
+    if (item.meta?.nextHydra !== undefined) {
+      const selection = selectionDefinitionSchema.parse(item.meta.nextHydra);
+      pending.push(
+        ...selection.conditionalDependencies.flatMap(
+          (dependency) => dependency.items
+        )
+      );
+    }
   }
 
   return { fetchedItemNames, itemByReference, items };
@@ -354,7 +392,8 @@ export async function fetchRegistryItemGraph(options: {
 
 export async function loadSourceRegistryCatalog(
   cwd: string,
-  registryFile = "registry.json"
+  registryFile = "registry.json",
+  additionalRegistryFiles: string[] = []
 ): Promise<SourceRegistryCatalog> {
   const resolvedCwd = path.resolve(cwd);
   const safeRegistryFile = resolveWorkspacePath(
@@ -362,10 +401,12 @@ export async function loadSourceRegistryCatalog(
     "source registry file"
   );
   const registryPath = path.resolve(resolvedCwd, safeRegistryFile);
-  const sourceRegistry = JSON.parse(await readFile(registryPath, "utf-8")) as {
-    homepage?: string;
-    include?: string[];
-  };
+  const sourceRegistry = z
+    .object({
+      homepage: z.string().optional(),
+      include: z.array(z.string()).optional(),
+    })
+    .parse(JSON.parse(await readFile(registryPath, "utf-8")));
   const repository = sourceRegistry.homepage?.match(
     GITHUB_HOMEPAGE_PATTERN
   )?.[1];
@@ -373,6 +414,29 @@ export async function loadSourceRegistryCatalog(
     cwd: resolvedCwd,
     registryFile: safeRegistryFile,
   });
+  // Local experiments can add opt-in definitions without changing the published catalog.
+  for (const additional of additionalRegistryFiles) {
+    const extra = await loadRegistry({
+      cwd: resolvedCwd,
+      registryFile: resolveWorkspacePath(additional, "additional registry"),
+    });
+    for (const item of extra.items) {
+      item.files = await Promise.all(
+        (item.files ?? []).map(async (file) => {
+          const source = resolveWorkspacePath(
+            path.posix.join(path.posix.dirname(additional), file.path),
+            "additional registry source"
+          );
+          return {
+            ...file,
+            content: await readFile(path.join(resolvedCwd, source), "utf-8"),
+            path: source,
+          };
+        })
+      );
+      registry.items.push(item);
+    }
+  }
   const registryConfig = await getRegistriesConfig(resolvedCwd);
   const includedRegistries = (sourceRegistry.include ?? []).map((included) =>
     resolveWorkspacePath(included, "source registry include")
@@ -383,6 +447,7 @@ export async function loadSourceRegistryCatalog(
   return createCatalog({
     authoringPaths: [
       safeRegistryFile,
+      ...additionalRegistryFiles,
       ...includedRegistries,
       ...registrySourcePaths,
     ].sort((left, right) => left.localeCompare(right)),
@@ -424,13 +489,24 @@ export async function loadGitHubSourceRegistryCatalog(
     })
   );
 
+  const graph = await fetchRegistryItemGraph({
+    config: registryConfig,
+    cwd: process.cwd(),
+    fetchItems: async (references) =>
+      await (dependencies.fetchItems ?? getRegistryItems)(references),
+    itemByReference,
+    items: registryItems,
+    references: addresses,
+    repository,
+    repositoryRef: ref,
+  });
   return createCatalog({
     authoringPaths: [],
     cwd: "",
-    itemByReference,
+    itemByReference: graph.itemByReference,
     registryConfig,
     registryFile: `${repository}/registry.json${suffix}`,
-    registryItems,
+    registryItems: [...graph.items.values()],
     repository,
   });
 }

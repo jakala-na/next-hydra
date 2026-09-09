@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { z } from "zod";
+
 import {
   SANITIZE_REMOVE_PATHS,
   SANITIZE_REMOVE_ROOT_DEPENDENCIES,
@@ -35,10 +37,14 @@ const PORTLESS_PROJECT_FILES = [
   "packages/cms-contentstack/cli/provisioning/recipe-live.test.ts",
 ] as const;
 
-type PortlessApplicationConfig = { name?: string };
-type PortlessPackageJson = {
-  portless?: PortlessApplicationConfig;
-};
+const portlessPackageSchema = z
+  .object({
+    portless: z
+      .object({ name: z.string().optional() })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
 
 const portlessApplicationName = (
   applicationName: string,
@@ -55,12 +61,14 @@ type SanitizeStarterOptions = {
   registryAuthoringPaths?: string[];
 };
 
-type RootPackageJson = {
-  name?: string;
-  scripts?: Record<string, string>;
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-};
+const rootPackageSchema = z
+  .object({
+    name: z.string().optional(),
+    scripts: z.record(z.string()).optional(),
+    dependencies: z.record(z.string()).optional(),
+    devDependencies: z.record(z.string()).optional(),
+  })
+  .passthrough();
 
 const portlessProjectName = (packageName: string): string => {
   const sanitized = packageName
@@ -92,7 +100,10 @@ const rewritePackagePortlessProject = async (
     return;
   }
 
-  const packageJson = await readJsonFile<PortlessPackageJson>(packageJsonPath);
+  const packageJson = await readJsonFile(
+    packageJsonPath,
+    portlessPackageSchema
+  );
   const config = packageJson.portless;
 
   if (!config?.name) {
@@ -173,13 +184,20 @@ export async function sanitizeStarter({
   );
 
   const packageJsonPath = path.join(targetPath, "package.json");
-  const packageJson = await readJsonFile<RootPackageJson>(packageJsonPath);
+  const packageJson = await readJsonFile(packageJsonPath, rootPackageSchema);
   const packageName = normalizePackageName(targetName);
 
   packageJson.name = packageName;
 
   for (const script of SANITIZE_REMOVE_SCRIPTS) {
     delete packageJson.scripts?.[script];
+  }
+  // The source checkout runs application tasks in named development workspaces.
+  // Customers run their own materialized apps, without maintainer tooling.
+  for (const task of ["build", "dev", "test", "typecheck"]) {
+    if (packageJson.scripts?.[task]?.includes(`workspace:${task}`)) {
+      packageJson.scripts[task] = `turbo run ${task}`;
+    }
   }
   for (const dependency of SANITIZE_REMOVE_ROOT_DEPENDENCIES) {
     delete packageJson.dependencies?.[dependency];

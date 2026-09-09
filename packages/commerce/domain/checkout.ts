@@ -228,9 +228,16 @@ const CheckoutMutationContactInput = Schema.Union([
   Schema.Struct({
     buyerContact: CheckoutMutationBuyerContactInput,
     source: Schema.Literal("manual"),
+  }).annotate({
+    description: "Contact details supplied in this request.",
+    identifier: "ManualCheckoutContactInput",
+    title: "Manual contact",
   }),
   CustomerProfileCheckoutContactInput,
-]);
+]).annotate({
+  identifier: "CheckoutContactInput",
+  title: "Checkout contact",
+});
 
 const CheckoutMutationShippingAddressInput = Schema.Struct({
   addressLine1: RequiredCheckoutInputString,

@@ -96,4 +96,6 @@ pnpm exec portless trust
 pnpm dev
 ```
 
-Local HTTP applications run through Portless with stable HTTPS origins and worktree-aware routing. See [Portless local development](docs/development/portless.md) for application URLs, certificate setup, direct package fallbacks, auth callback handling, and the API-only ngrok workflow.
+The checkout is canonical source, not a preassembled storefront. `pnpm dev` initializes and starts the named `storefront-contentstack` workspace, copying only missing local env files. For another selection, run `pnpm --filter create-next-hydra compose cms-drupal --copy-env --run dev`. Composed layouts and CMS block maps live only in these ignored workspaces; ordinary implementation files link back to source. See [Development workspaces](workspaces/README.md) for initialization, template refresh, source ownership and verification.
+
+Root `pnpm test` runs package/provider suites and composition checks from source, and common application tests once in `storefront-contentstack` (WorkOS, Contentstack, commercetools). Root `pnpm typecheck` and `pnpm build` still cover all named definitions. Use a workspace directly for focused checks. Local HTTP applications use stable Portless origins and worktree-aware routing; see [Portless local development](docs/development/portless.md) for certificate setup and local routing.

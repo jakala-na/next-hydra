@@ -3,23 +3,76 @@
   "items": [
     {
       "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
-      "name": "app-web-base",
+      "name": "app-web",
       "type": "registry:item",
-      "title": "Shared web application source",
-      "description": "Installs the application files shared by every web profile.",
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/app/web/base",
-          "kind": "app-profile",
-          "app": "web"
+          "id": "next-hydra/app/web",
+          "maintainerWorkspace": {
+            "copy": ["apps/web/vitest.config.ts"]
+          },
+          "kind": "package",
+          "providerSlots": {
+            "cms": "required",
+            "auth": "optional",
+            "commerce": "optional"
+          },
+          "providerDependencies": [
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "slot": "cms"
+            }
+          ]
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "apps/web/registry/templates/layout.tsx.template",
+              "target": "apps/web/app/[locale]/layout.tsx",
+              "slots": {
+                "account": "element",
+                "commerce": "wrapper",
+                "cart": "element",
+                "businessUnit": "element",
+                "search": "element"
+              }
+            },
+            {
+              "source": "apps/web/registry/templates/document-shell.tsx.template",
+              "target": "apps/web/components/layout/document-shell.tsx",
+              "slots": {
+                "providers": "wrapper",
+                "toolbar": "element"
+              }
+            },
+            {
+              "source": "apps/web/registry/templates/proxy.ts.template",
+              "target": "apps/web/proxy.ts",
+              "slots": {
+                "proxy": "call"
+              }
+            },
+            {
+              "source": "apps/web/registry/templates/env.ts.template",
+              "target": "apps/web/env.ts",
+              "slots": {
+                "environment": "factory"
+              }
+            },
+            {
+              "source": "apps/web/registry/templates/next.config.ts.template",
+              "target": "apps/web/next.config.ts",
+              "slots": {
+                "configuration": "call"
+              }
+            }
+          ]
         }
       },
+      "title": "Web application",
+      "description": "One shared web application. Installed packages supply their routes, runtime wiring and layout integrations.",
       "files": [
-        {
-          "path": ".env.example",
-          "target": "~/apps/web/.env.example",
-          "type": "registry:file"
-        },
         {
           "path": ".gitignore",
           "target": "~/apps/web/.gitignore",
@@ -56,6 +109,16 @@
           "type": "registry:file"
         },
         {
+          "path": "i18n/request-locale.ts",
+          "target": "~/apps/web/i18n/request-locale.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "i18n/request-locale.test.ts",
+          "target": "~/apps/web/i18n/request-locale.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "i18n/request.ts",
           "target": "~/apps/web/i18n/request.ts",
           "type": "registry:file"
@@ -79,54 +142,40 @@
           "path": "postcss.config.mjs",
           "target": "~/apps/web/postcss.config.mjs",
           "type": "registry:file"
-        }
-      ]
-    },
-    {
-      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
-      "name": "app-web-content",
-      "type": "registry:item",
-      "title": "Content web application profile",
-      "description": "Installs a CMS-only web application without Auth, Commerce, Search, or cart controls.",
-      "registryDependencies": ["app-web-base", "auth-contract"],
-      "meta": {
-        "nextHydra": {
-          "id": "next-hydra/app/web/content",
-          "kind": "app-profile",
-          "app": "web",
-          "providerSlots": {
-            "auth": "forbidden",
-            "cms": "required",
-            "commerce": "forbidden"
-          },
-          "providerDependencies": [
-            {
-              "cwd": "apps/web",
-              "section": "dependencies",
-              "slot": "cms"
-            }
-          ]
-        }
-      },
-      "files": [
+        },
         {
-          "path": "registry/apps/web/app/[locale]/layout.tsx",
-          "target": "~/apps/web/app/[locale]/layout.tsx",
+          "path": "app/[locale]/global-error.tsx",
+          "target": "~/apps/web/app/[locale]/global-error.tsx",
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/web/components/layout/document-shell.tsx",
-          "target": "~/apps/web/components/layout/document-shell.tsx",
+          "path": "instrumentation-client.ts",
+          "target": "~/apps/web/instrumentation-client.ts",
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/web/env.ts",
-          "target": "~/apps/web/env.ts",
+          "path": "instrumentation.ts",
+          "target": "~/apps/web/instrumentation.ts",
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/web/next.config.ts",
-          "target": "~/apps/web/next.config.ts",
+          "path": "vitest.config.ts",
+          "target": "~/apps/web/vitest.config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "vercel.json",
+          "target": "~/apps/web/vercel.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/skip-ci.js",
+          "target": "~/apps/web/scripts/skip-ci.js",
+          "type": "registry:file"
+        },
+        {
+          "path": "env-schema.ts",
+          "target": "~/apps/web/env-schema.ts",
           "type": "registry:file"
         },
         {
@@ -135,77 +184,434 @@
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/web/proxy.ts",
-          "target": "~/apps/web/proxy.ts",
+          "path": "registry/apps/web/tsconfig.json",
+          "target": "~/apps/web/tsconfig.json",
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/web/tsconfig.json",
-          "target": "~/apps/web/tsconfig.json",
+          "path": "registry/templates/web.env.example",
+          "target": "~/apps/web/.env.example",
+          "type": "registry:file"
+        }
+      ],
+      "registryDependencies": ["workspace-cli"]
+    },
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "web-auth",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/integration/web-auth",
+          "kind": "integration",
+          "providerDependencies": [
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "slot": "auth"
+            },
+            {
+              "cwd": "packages/feature-flags",
+              "section": "dependencies",
+              "slot": "auth"
+            },
+            {
+              "cwd": "apps/cli",
+              "slot": "auth",
+              "section": "dependencies"
+            }
+          ],
+          "packages": [
+            {
+              "cwd": "apps/web",
+              "name": "@repo/feature-flags",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            },
+            {
+              "cwd": "apps/web",
+              "name": "lucide-react",
+              "specifier": "^0.511.0",
+              "section": "dependencies"
+            }
+          ]
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "apps/web/registry/templates/account-links.ts.template",
+              "target": "apps/web/components/layout/account-links.ts",
+              "slots": {
+                "links": "members"
+              }
+            }
+          ],
+          "contributions": [
+            {
+              "target": "apps/web/components/layout/document-shell.tsx",
+              "slot": "providers",
+              "module": "@repo/auth/provider",
+              "export": "AuthProvider",
+              "order": 10
+            },
+            {
+              "target": "apps/web/app/[locale]/layout.tsx",
+              "slot": "account",
+              "module": "@/components/layout/account-controls",
+              "export": "AccountControls",
+              "order": 10
+            },
+            {
+              "target": "apps/web/proxy.ts",
+              "slot": "proxy",
+              "module": "@repo/auth/proxy",
+              "export": "authProxy",
+              "order": 10
+            },
+            {
+              "target": "apps/web/env.ts",
+              "slot": "environment",
+              "module": "@repo/auth/keys",
+              "export": "keys",
+              "order": 10
+            },
+            {
+              "target": "apps/web/components/layout/document-shell.tsx",
+              "slot": "toolbar",
+              "module": "@repo/feature-flags/components/toolbar",
+              "export": "Toolbar",
+              "order": 0
+            },
+            {
+              "target": "apps/web/next.config.ts",
+              "slot": "configuration",
+              "module": "@repo/feature-flags/lib/toolbar",
+              "export": "withToolbar",
+              "order": 30
+            },
+            {
+              "target": "apps/web/env.ts",
+              "slot": "environment",
+              "module": "@repo/feature-flags/keys",
+              "export": "keys",
+              "as": "flags",
+              "order": 40
+            },
+            {
+              "target": "apps/cli/src/program.ts",
+              "slot": "commands",
+              "module": "@repo/auth/cli",
+              "export": "createAuthCommand",
+              "order": 10
+            }
+          ]
+        }
+      },
+      "title": "Auth web integration",
+      "files": [
+        {
+          "path": "components/layout/account-menu-client.tsx",
+          "target": "~/apps/web/components/layout/account-menu-client.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/layout/account-menu.tsx",
+          "target": "~/apps/web/components/layout/account-menu.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/layout/auth-href.test.ts",
+          "target": "~/apps/web/components/layout/auth-href.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/layout/auth-href.ts",
+          "target": "~/apps/web/components/layout/auth-href.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/layout/account-controls.tsx",
+          "target": "~/apps/web/components/layout/account-controls.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/.well-known/vercel/flags/route.ts",
+          "target": "~/apps/web/app/.well-known/vercel/flags/route.ts",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "app-web-navigation-search",
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "type": "registry:item",
+      "title": "Navigation search",
+      "description": "Search the CMS navigation in desktop and mobile headers without requiring Commerce.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/add-on/navigation-search",
+          "kind": "add-on",
+          "packages": [
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "name": "lucide-react",
+              "specifier": "^0.511.0"
+            }
+          ]
+        },
+        "composition": {
+          "contributions": [
+            {
+              "target": "apps/web/app/[locale]/layout.tsx",
+              "slot": "search",
+              "module": "@/components/layout/header-search",
+              "export": "HeaderSearch"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "components/layout/header-search.tsx",
+          "target": "~/apps/web/components/layout/header-search.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/layout/navigation-search.tsx",
+          "target": "~/apps/web/components/layout/navigation-search.tsx",
           "type": "registry:file"
         }
       ]
     },
     {
       "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
-      "name": "app-web-reference",
+      "name": "commerce-web",
       "type": "registry:item",
-      "title": "Reference web application profile",
-      "description": "Declares storefront-only targets currently present in the reference composition.",
+      "title": "Commerce web integration",
+      "description": "Standard Commerce routes and runtime wiring, installed automatically with Commerce.",
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/app/web/reference",
-          "kind": "app-profile",
-          "app": "web"
+          "id": "next-hydra/commerce/web",
+          "kind": "integration"
         }
       },
       "files": [
-        { "path": "app/.well-known/vercel/flags/route.ts", "target": "~/apps/web/app/.well-known/vercel/flags/route.ts", "type": "registry:file" },
-        { "path": "app/[locale]/account/page.tsx", "target": "~/apps/web/app/[locale]/account/page.tsx", "type": "registry:file" },
-        { "path": "app/[locale]/checkout/error.tsx", "target": "~/apps/web/app/[locale]/checkout/error.tsx", "type": "registry:file" },
-        { "path": "app/[locale]/checkout/orders/[orderId]/page.tsx", "target": "~/apps/web/app/[locale]/checkout/orders/[orderId]/page.tsx", "type": "registry:file" },
-        { "path": "app/[locale]/checkout/page.tsx", "target": "~/apps/web/app/[locale]/checkout/page.tsx", "type": "registry:file" },
-        { "path": "app/[locale]/global-error.tsx", "target": "~/apps/web/app/[locale]/global-error.tsx", "type": "registry:file" },
-        { "path": "app/[locale]/product/[slug]/page.tsx", "target": "~/apps/web/app/[locale]/product/[slug]/page.tsx", "type": "registry:file" },
-        { "path": "app/[locale]/register/awaiting-approval/page.tsx", "target": "~/apps/web/app/[locale]/register/awaiting-approval/page.tsx", "type": "registry:file" },
-        { "path": "app/[locale]/register/page.tsx", "target": "~/apps/web/app/[locale]/register/page.tsx", "type": "registry:file" },
-        { "path": "components/layout/account-menu-client.tsx", "target": "~/apps/web/components/layout/account-menu-client.tsx", "type": "registry:file" },
-        { "path": "components/layout/account-menu.tsx", "target": "~/apps/web/components/layout/account-menu.tsx", "type": "registry:file" },
-        { "path": "components/layout/auth-href.test.ts", "target": "~/apps/web/components/layout/auth-href.test.ts", "type": "registry:file" },
-        { "path": "components/layout/auth-href.ts", "target": "~/apps/web/components/layout/auth-href.ts", "type": "registry:file" },
-        { "path": "env.test.ts", "target": "~/apps/web/env.test.ts", "type": "registry:file" },
-        { "path": "instrumentation-client.ts", "target": "~/apps/web/instrumentation-client.ts", "type": "registry:file" },
-        { "path": "instrumentation.ts", "target": "~/apps/web/instrumentation.ts", "type": "registry:file" },
-        { "path": "lib/actions.ts", "target": "~/apps/web/lib/actions.ts", "type": "registry:file" },
-        { "path": "lib/app-runtime.ts", "target": "~/apps/web/lib/app-runtime.ts", "type": "registry:file" },
-        { "path": "lib/commerce-action-cache-policy.test.ts", "target": "~/apps/web/lib/commerce-action-cache-policy.test.ts", "type": "registry:file" },
-        { "path": "lib/commerce-action-cache-policy.ts", "target": "~/apps/web/lib/commerce-action-cache-policy.ts", "type": "registry:file" },
-        { "path": "lib/commerce-actions.test.ts", "target": "~/apps/web/lib/commerce-actions.test.ts", "type": "registry:file" },
-        { "path": "lib/commerce-actions.ts", "target": "~/apps/web/lib/commerce-actions.ts", "type": "registry:file" },
-        { "path": "lib/commerce-context-actions.test.ts", "target": "~/apps/web/lib/commerce-context-actions.test.ts", "type": "registry:file" },
-        { "path": "lib/commerce-context-actions.ts", "target": "~/apps/web/lib/commerce-context-actions.ts", "type": "registry:file" },
-        { "path": "lib/commerce-context-procedures.ts", "target": "~/apps/web/lib/commerce-context-procedures.ts", "type": "registry:file" },
-        { "path": "lib/commerce-request.ts", "target": "~/apps/web/lib/commerce-request.ts", "type": "registry:file" },
-        { "path": "lib/commerce-runtime.test.ts", "target": "~/apps/web/lib/commerce-runtime.test.ts", "type": "registry:file" },
-        { "path": "lib/commerce-runtime.ts", "target": "~/apps/web/lib/commerce-runtime.ts", "type": "registry:file" },
-        { "path": "lib/current-auth-api.ts", "target": "~/apps/web/lib/current-auth-api.ts", "type": "registry:file" },
-        { "path": "lib/current-auth.test.ts", "target": "~/apps/web/lib/current-auth.test.ts", "type": "registry:file" },
-        { "path": "lib/current-auth.ts", "target": "~/apps/web/lib/current-auth.ts", "type": "registry:file" },
-        { "path": "lib/customer-account-invitation-composition.test.ts", "target": "~/apps/web/lib/customer-account-invitation-composition.test.ts", "type": "registry:file" },
-        { "path": "lib/next-request-api.ts", "target": "~/apps/web/lib/next-request-api.ts", "type": "registry:file" },
-        { "path": "lib/next-request.ts", "target": "~/apps/web/lib/next-request.ts", "type": "registry:file" },
-        { "path": "lib/next-server.test.ts", "target": "~/apps/web/lib/next-server.test.ts", "type": "registry:file" },
-        { "path": "lib/next-server.ts", "target": "~/apps/web/lib/next-server.ts", "type": "registry:file" },
-        { "path": "lib/registration-actions.test.ts", "target": "~/apps/web/lib/registration-actions.test.ts", "type": "registry:file" },
-        { "path": "lib/registration-actions.ts", "target": "~/apps/web/lib/registration-actions.ts", "type": "registry:file" },
-        { "path": "lib/registration-http-response-error.ts", "target": "~/apps/web/lib/registration-http-response-error.ts", "type": "registry:file" },
-        { "path": "lib/registration-procedures.ts", "target": "~/apps/web/lib/registration-procedures.ts", "type": "registry:file" },
-        { "path": "lib/registration-rest-client.test.ts", "target": "~/apps/web/lib/registration-rest-client.test.ts", "type": "registry:file" },
-        { "path": "lib/registration-rest-client.ts", "target": "~/apps/web/lib/registration-rest-client.ts", "type": "registry:file" },
-        { "path": "lib/session-actions.ts", "target": "~/apps/web/lib/session-actions.ts", "type": "registry:file" },
-        { "path": "vitest.config.ts", "target": "~/apps/web/vitest.config.ts", "type": "registry:file" },
-        { "path": "vercel.json", "target": "~/apps/web/vercel.json", "type": "registry:file" },
-        { "path": "scripts/skip-ci.js", "target": "~/apps/web/scripts/skip-ci.js", "type": "registry:file" }
+        {
+          "path": "lib/header-commerce.test.ts",
+          "target": "~/apps/web/lib/header-commerce.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/account/page.tsx",
+          "target": "~/apps/web/app/[locale]/account/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/checkout/error.tsx",
+          "target": "~/apps/web/app/[locale]/checkout/error.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/checkout/orders/[orderId]/page.tsx",
+          "target": "~/apps/web/app/[locale]/checkout/orders/[orderId]/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/checkout/page.tsx",
+          "target": "~/apps/web/app/[locale]/checkout/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/product/[slug]/page.tsx",
+          "target": "~/apps/web/app/[locale]/product/[slug]/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/register/awaiting-approval/page.tsx",
+          "target": "~/apps/web/app/[locale]/register/awaiting-approval/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/[locale]/register/page.tsx",
+          "target": "~/apps/web/app/[locale]/register/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/actions.ts",
+          "target": "~/apps/web/lib/actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/app-runtime.ts",
+          "target": "~/apps/web/lib/app-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-action-cache-policy.test.ts",
+          "target": "~/apps/web/lib/commerce-action-cache-policy.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-action-cache-policy.ts",
+          "target": "~/apps/web/lib/commerce-action-cache-policy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-actions.test.ts",
+          "target": "~/apps/web/lib/commerce-actions.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-actions.ts",
+          "target": "~/apps/web/lib/commerce-actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-context-actions.test.ts",
+          "target": "~/apps/web/lib/commerce-context-actions.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-context-actions.ts",
+          "target": "~/apps/web/lib/commerce-context-actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-context-procedures.ts",
+          "target": "~/apps/web/lib/commerce-context-procedures.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-request.ts",
+          "target": "~/apps/web/lib/commerce-request.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-runtime.test.ts",
+          "target": "~/apps/web/lib/commerce-runtime.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-runtime.ts",
+          "target": "~/apps/web/lib/commerce-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/current-auth-api.ts",
+          "target": "~/apps/web/lib/current-auth-api.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/current-auth.test.ts",
+          "target": "~/apps/web/lib/current-auth.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/current-auth.ts",
+          "target": "~/apps/web/lib/current-auth.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/customer-account-invitation-composition.test.ts",
+          "target": "~/apps/web/lib/customer-account-invitation-composition.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/next-request-api.ts",
+          "target": "~/apps/web/lib/next-request-api.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/next-request.ts",
+          "target": "~/apps/web/lib/next-request.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/next-server.test.ts",
+          "target": "~/apps/web/lib/next-server.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/next-server.ts",
+          "target": "~/apps/web/lib/next-server.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration-actions.test.ts",
+          "target": "~/apps/web/lib/registration-actions.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration-actions.ts",
+          "target": "~/apps/web/lib/registration-actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration-http-response-error.ts",
+          "target": "~/apps/web/lib/registration-http-response-error.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration-procedures.ts",
+          "target": "~/apps/web/lib/registration-procedures.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration-rest-client.test.ts",
+          "target": "~/apps/web/lib/registration-rest-client.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration-rest-client.ts",
+          "target": "~/apps/web/lib/registration-rest-client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/session-actions.ts",
+          "target": "~/apps/web/lib/session-actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/layout/commerce-provider.tsx",
+          "target": "~/apps/web/components/layout/commerce-provider.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/layout/header-business-unit.tsx",
+          "target": "~/apps/web/components/layout/header-business-unit.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/layout/header-cart.tsx",
+          "target": "~/apps/web/components/layout/header-cart.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/cart-actions.ts",
+          "target": "~/apps/web/lib/cart-actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/cart-links.ts",
+          "target": "~/apps/web/lib/cart-links.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-request-input.ts",
+          "target": "~/apps/web/lib/commerce-request-input.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-config.ts",
+          "target": "~/apps/web/lib/commerce-config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/layout/commerce-account-links.ts",
+          "target": "~/apps/web/components/layout/commerce-account-links.ts",
+          "type": "registry:file"
+        }
       ]
     }
   ]

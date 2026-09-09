@@ -83,7 +83,7 @@ const documentedOperations = [
 describe("OpenAPI", () => {
   test("combines every Effect HTTP API into one OpenAPI document", () => {
     expect(applicationOpenApi.info).toMatchObject({
-      title: "Next Hydra API",
+      title: "Application API",
       version: "1.0.0",
     });
     const documentedPaths = [
@@ -201,6 +201,11 @@ describe("OpenAPI", () => {
       ManualCheckoutContactInput: {
         title: "Manual contact",
       },
+      SaveCheckoutContactInput: {
+        properties: {
+          contact: { $ref: "#/components/schemas/CheckoutContactInput" },
+        },
+      },
     });
   });
 
@@ -289,7 +294,7 @@ describe("OpenAPI", () => {
 
     expect(response.status).toBe(HTTP_OK);
     expect(response.headers.get("content-type")).toContain("text/html");
-    expect(html).toContain("Next Hydra API");
+    expect(html).toContain("Application API");
     expect(html).toContain('id="api-reference"');
     expect(html).toContain("addressBook.list");
     expect(html).toContain("registrations.create");

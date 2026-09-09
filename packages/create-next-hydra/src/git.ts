@@ -8,6 +8,7 @@ type RunCommandOptions = {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   verbose?: boolean;
+  inheritStdio?: boolean;
 };
 
 export class CommandExecutionError extends Error {
@@ -43,13 +44,13 @@ export async function runCommand(
       ...process.env,
       ...options.env,
     },
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: options.inheritStdio ? "inherit" : ["ignore", "pipe", "pipe"],
   });
 
   let stdout = "";
   let stderr = "";
 
-  child.stdout.on("data", (chunk: Buffer) => {
+  child.stdout?.on("data", (chunk: Buffer) => {
     const text = chunk.toString();
     stdout += text;
     if (options.verbose) {
@@ -57,7 +58,7 @@ export async function runCommand(
     }
   });
 
-  child.stderr.on("data", (chunk: Buffer) => {
+  child.stderr?.on("data", (chunk: Buffer) => {
     const text = chunk.toString();
     stderr += text;
     if (options.verbose) {
@@ -65,9 +66,11 @@ export async function runCommand(
     }
   });
 
+  // oxlint-disable-next-line promise/avoid-new -- Convert the child process event lifetime to a single awaited completion.
   const exitCode = await new Promise<number | null>((resolve, reject) => {
     child.on("error", reject);
     child.on("close", resolve);
+    // oxlint-disable-next-line anti-slop/no-unknown-parameters -- A process error event is an untrusted I/O failure; normalize it below.
   }).catch((error: unknown) => {
     throw new CommandExecutionError({
       code: null,

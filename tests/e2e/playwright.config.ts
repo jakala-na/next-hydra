@@ -8,9 +8,13 @@ import {
   loadPortlessApplicationNames,
   resolveE2EApplicationRouting,
 } from "./application-routing";
+import { resolveApplicationWorkspace } from "./application-workspace";
 import { loadE2EEnvironments, withE2EApplicationUrls } from "./environment";
 
-const workspaceRoot = fileURLToPath(new URL("../..", import.meta.url));
+const workspaceRoot = resolveApplicationWorkspace(
+  fileURLToPath(new URL("../..", import.meta.url)),
+  process.env
+);
 const authSetupPath = fileURLToPath(new URL("auth.setup.ts", import.meta.url));
 const loadedEnvironments = loadE2EEnvironments(workspaceRoot);
 Object.assign(process.env, loadedEnvironments.runner);

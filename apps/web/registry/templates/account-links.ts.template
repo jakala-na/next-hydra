@@ -1,0 +1,10 @@
+{{imports}}
+
+type AccountLinks = { accountHref?: string; signUpHref?: string };
+export function accountLinks(locale: string): AccountLinks {
+  const result: AccountLinks = {};
+  for (const links of [{{links}}].map((getLinks: (locale: string) => AccountLinks) => getLinks(locale))) {
+    Object.assign(result, links);
+  }
+  return result;
+}

@@ -116,4 +116,32 @@ describe("TypeScript provider paths", () => {
       'apps/web/tsconfig.json: expected compilerOptions.paths.@repo/commerce-provider/* to be absent, found ["../../packages/old-commerce/*"]',
     ]);
   });
+
+  it("treats a file alias as exact and removes its stale directory wildcard", async () => {
+    const workspace = await workspaceFixture();
+    const modulePlan = {
+      ...plan,
+      typeScriptPathAliases: [
+        {
+          alias: "@repo/cms",
+          cwd: "apps/web",
+          sourcePath: "apps/web/lib/cms.ts",
+        },
+      ],
+    };
+    await applyTypeScriptPathAliases(workspace, modulePlan);
+    const source = await readFile(
+      path.join(workspace, "apps/web/tsconfig.json"),
+      "utf-8"
+    );
+    expect(source).toContain('"./lib/cms.ts"');
+    expect(source).not.toContain('"@repo/cms/*"');
+    await expect(
+      checkTypeScriptPathAliases(workspace, modulePlan)
+    ).resolves.toEqual([]);
+    await applyTypeScriptPathAliases(workspace, modulePlan);
+    await expect(
+      readFile(path.join(workspace, "apps/web/tsconfig.json"), "utf-8")
+    ).resolves.toBe(source);
+  });
 });

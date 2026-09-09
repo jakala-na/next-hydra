@@ -12,6 +12,7 @@
       }
     ],
     "paths": {
+      "@composition/cms-drupal/*": ["./components/*"],
       "@repo/*": ["../*"]
     }
   },

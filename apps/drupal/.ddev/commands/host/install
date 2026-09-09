@@ -14,7 +14,11 @@ ddev composer install
 ddev drush site:install minimal --verbose -y
 
 ## Apply the starter recipe
-ddev drush recipe ../recipes/next-hydra-starter -v
+starter_recipe=../recipes/next-hydra-starter
+if [[ -f recipes/product-collection/recipe.yml ]]; then
+  starter_recipe=../recipes/product-collection
+fi
+ddev drush recipe "$starter_recipe" -v
 ddev drush cr
 
 ### Generate scopes

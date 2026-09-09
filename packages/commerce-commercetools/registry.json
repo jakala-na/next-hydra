@@ -7,6 +7,7 @@
       "type": "registry:item",
       "title": "Next Hydra Commercetools provider",
       "description": "Installs the Commercetools implementation package.",
+      "registryDependencies": ["commerce"],
       "docs": "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
       "meta": {
         "nextHydra": {
@@ -498,6 +499,11 @@
         {
           "path": "migrations/types.ts",
           "target": "~/packages/commerce-commercetools/migrations/types.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "next-config.ts",
+          "target": "~/packages/commerce-commercetools/next-config.ts",
           "type": "registry:file"
         },
         {

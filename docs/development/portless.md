@@ -22,7 +22,7 @@ Use `pnpm exec portless doctor` to diagnose proxy, certificate, DNS, or route pr
 
 ## Application origins
 
-The primary checkout uses these origins, where `<workspace>` is the sanitized root package name:
+For the source-only checkout, root `pnpm dev` initializes and starts `workspaces/storefront-contentstack`. Other selections run with `pnpm --filter create-next-hydra compose <name> --copy-env --run dev`. The original root `apps/web` directory is authoring source, not an assembled app. Inside a named workspace, `<workspace>` below is its definition directory name; for a customer project it is the sanitized project name:
 
 | Application        | Origin                                    |
 | ------------------ | ----------------------------------------- |
@@ -36,7 +36,7 @@ The primary checkout uses these origins, where `<workspace>` is the sanitized ro
 Each package keeps a `dev:app` script that starts its framework directly. Use that script for a focused fallback or noninteractive environment:
 
 ```bash
-pnpm --filter web dev:app
+pnpm --dir workspaces/storefront-contentstack --filter web dev:app
 ```
 
 Direct Next.js application scripts use the framework's default port unless `PORT` is supplied, so they are not intended to start the whole workspace together. Build, test, typecheck, and CI tasks do not require the Portless proxy or certificate authority.
@@ -75,10 +75,10 @@ For a session that runs the rest of the workspace locally and exposes only the A
 
 ```bash
 # Terminal 1
-pnpm dev:without-api
+pnpm --dir workspaces/storefront-contentstack exec turbo run dev --filter='!api'
 
 # Terminal 2
-pnpm dev:api:public
+pnpm --dir workspaces/storefront-contentstack --filter api dev:public
 ```
 
 Portless prints the temporary public ngrok URL, adds it to `portless list`, and injects it into the API process as `PORTLESS_NGROK_URL`. The local API remains available at its Portless HTTPS origin. The tunnel stops with the API process.
@@ -92,7 +92,8 @@ Do not set `PORTLESS_NGROK=1` for this workspace: that setting can expose every 
 Portless and DDEV both claim host ports 80 and 443 by default. This project's DDEV configuration pins its router to 8080 and 8443, leaving the standard ports to Portless. Start Drupal normally:
 
 ```bash
-cd apps/drupal
+pnpm --filter create-next-hydra compose cms-drupal --copy-env
+cd workspaces/cms-drupal/apps/drupal
 ddev start
 cd ../..
 pnpm --filter @repo/drupal dev:web

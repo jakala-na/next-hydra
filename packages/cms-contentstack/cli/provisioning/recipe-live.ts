@@ -6,8 +6,12 @@ import {
   ContentstackRecipeReceipt,
 } from "./model";
 import { ContentstackRecipe } from "./recipe";
+import {
+  applyRecipeContribution,
+  recipeContributionTarget,
+} from "./recipe-contributions";
 
-export const CONTENTSTACK_RECIPE_VERSION = "2";
+export const CONTENTSTACK_RECIPE_VERSION = "3";
 
 const LOCAL_URL_PLACEHOLDER = "__NEXT_HYDRA_LOCAL_URL__";
 const PRODUCTION_URL_PLACEHOLDER = "__NEXT_HYDRA_PRODUCTION_URL__";
@@ -99,6 +103,129 @@ export const contentstackRecipeLayer = Layer.effect(
               )
             )
           );
+
+        const contributionsDirectory = path.join(directory, "contributions");
+        const hasContributions = yield* fileSystem
+          .exists(contributionsDirectory)
+          .pipe(
+            Effect.mapError((cause) =>
+              recipeError(
+                "render",
+                "Could not inspect Contentstack recipe contributions",
+                cause
+              )
+            )
+          );
+        if (hasContributions) {
+          const contributionFiles = yield* fileSystem
+            .readDirectory(contributionsDirectory)
+            .pipe(
+              Effect.mapError((cause) =>
+                recipeError(
+                  "render",
+                  "Could not enumerate Contentstack recipe contributions",
+                  cause
+                )
+              )
+            );
+
+          const contributionJsonFiles = contributionFiles.filter((file) =>
+            file.endsWith(".json")
+          );
+          // eslint-disable-next-line unicorn/no-array-sort -- filter returns a fresh array.
+          contributionJsonFiles.sort();
+          for (const contributionFile of contributionJsonFiles) {
+            const contributionPath = path.join(
+              contributionsDirectory,
+              contributionFile
+            );
+            const contributionSource = yield* fileSystem
+              .readFileString(contributionPath)
+              .pipe(
+                Effect.mapError((cause) =>
+                  recipeError(
+                    "render",
+                    `Could not read Contentstack recipe contribution ${contributionFile}`,
+                    cause
+                  )
+                )
+              );
+            const target = yield* Effect.try({
+              catch: (cause) =>
+                recipeError(
+                  "render",
+                  `Contentstack recipe contribution ${contributionFile} is invalid`,
+                  cause
+                ),
+              try: () => recipeContributionTarget(contributionSource),
+            });
+            const contentTypePath = path.join(
+              directory,
+              "content_types",
+              `${target.contentTypeUid}.json`
+            );
+            const entriesPath = path.join(
+              directory,
+              "entries",
+              target.entryContentType,
+              target.entryLocale,
+              "1-entries.json"
+            );
+            const [contentType, entries] = yield* Effect.all([
+              fileSystem.readFileString(contentTypePath),
+              fileSystem.readFileString(entriesPath),
+            ]).pipe(
+              Effect.mapError((cause) =>
+                recipeError(
+                  "render",
+                  `Could not read targets for Contentstack recipe contribution ${target.id}`,
+                  cause
+                )
+              )
+            );
+            const materialized = yield* Effect.try({
+              catch: (cause) =>
+                recipeError(
+                  "render",
+                  `Could not apply Contentstack recipe contribution ${target.id}`,
+                  cause
+                ),
+              try: () =>
+                applyRecipeContribution({
+                  contentType,
+                  contribution: contributionSource,
+                  entries,
+                }),
+            });
+            yield* Effect.all([
+              fileSystem.writeFileString(
+                contentTypePath,
+                materialized.contentType
+              ),
+              fileSystem.writeFileString(entriesPath, materialized.entries),
+            ]).pipe(
+              Effect.mapError((cause) =>
+                recipeError(
+                  "render",
+                  `Could not write Contentstack recipe contribution ${target.id}`,
+                  cause
+                )
+              )
+            );
+          }
+
+          yield* fileSystem
+            .remove(contributionsDirectory, { recursive: true })
+            .pipe(
+              Effect.mapError((cause) =>
+                recipeError(
+                  "render",
+                  "Could not remove materialized Contentstack recipe contributions",
+                  cause
+                )
+              )
+            );
+        }
 
         const environmentsPath = path.join(
           directory,

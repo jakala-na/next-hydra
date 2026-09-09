@@ -8,7 +8,7 @@
       "title": "Next Hydra WorkOS Auth provider",
       "description": "Installs the WorkOS AuthKit provider package.",
       "docs": "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output workos-webhook.env` once with the customer WORKOS_API_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets.",
-      "registryDependencies": ["jakala-na/next-hydra/auth-contract"],
+      "registryDependencies": ["auth-contract", "web-auth"],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/auth/workos",
@@ -17,7 +17,10 @@
           "binding": {
             "specifier": "workspace:@repo/auth-workos@*",
             "sourcePath": "packages/auth-workos"
-          }
+          },
+          "conditionalDependencies": [
+            { "providers": ["commerce"], "items": ["auth-workos-commerce"] }
+          ]
         }
       },
       "files": [
@@ -57,26 +60,6 @@
           "type": "registry:file"
         },
         {
-          "path": "identity-users.test.ts",
-          "target": "~/packages/auth-workos/identity-users.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "identity-users.ts",
-          "target": "~/packages/auth-workos/identity-users.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "invitations.test.ts",
-          "target": "~/packages/auth-workos/invitations.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "invitations.ts",
-          "target": "~/packages/auth-workos/invitations.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "keys.ts",
           "target": "~/packages/auth-workos/keys.ts",
           "type": "registry:file"
@@ -107,26 +90,6 @@
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/admin/app/api/auth/callback/route.ts",
-          "target": "~/apps/admin/app/api/auth/callback/route.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "registry/apps/admin/app/api/auth/signout/route.ts",
-          "target": "~/apps/admin/app/api/auth/signout/route.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "registry/apps/admin/app/sign-in/route.ts",
-          "target": "~/apps/admin/app/sign-in/route.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "registry/apps/api/app/api/webhooks/workos/route.ts",
-          "target": "~/apps/api/app/api/webhooks/workos/route.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "registry/apps/web/app/api/auth/callback/route.ts",
           "target": "~/apps/web/app/api/auth/callback/route.ts",
           "type": "registry:file"
@@ -154,16 +117,6 @@
         {
           "path": "route-handlers/signout.ts",
           "target": "~/packages/auth-workos/route-handlers/signout.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "route-handlers/webhook.test.ts",
-          "target": "~/packages/auth-workos/route-handlers/webhook.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "route-handlers/webhook.ts",
-          "target": "~/packages/auth-workos/route-handlers/webhook.ts",
           "type": "registry:file"
         },
         {
@@ -214,6 +167,103 @@
         {
           "path": "tsconfig.json",
           "target": "~/packages/auth-workos/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/auth-workos/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "auth-workos-commerce",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/integration/auth-workos-commerce",
+          "kind": "integration",
+          "packages": [
+            {
+              "cwd": "packages/auth-workos",
+              "name": "@repo/registration",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            }
+          ]
+        }
+      },
+      "title": "workos Commerce identity integration",
+      "files": [
+        {
+          "path": "identity-users.test.ts",
+          "target": "~/packages/auth-workos/identity-users.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "identity-users.ts",
+          "target": "~/packages/auth-workos/identity-users.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.test.ts",
+          "target": "~/packages/auth-workos/invitations.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.ts",
+          "target": "~/packages/auth-workos/invitations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/customer-account.test.ts",
+          "target": "~/packages/auth-workos/testing/customer-account.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/api/app/api/webhooks/workos/route.ts",
+          "target": "~/apps/api/app/api/webhooks/workos/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/webhook.test.ts",
+          "target": "~/packages/auth-workos/route-handlers/webhook.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route-handlers/webhook.ts",
+          "target": "~/packages/auth-workos/route-handlers/webhook.ts",
+          "type": "registry:file"
+        }
+      ],
+      "registryDependencies": ["auth-workos-admin"]
+    },
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "auth-workos-admin",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/integration/auth-workos-admin",
+          "kind": "integration"
+        }
+      },
+      "title": "Admin authentication routes",
+      "files": [
+        {
+          "path": "registry/apps/admin/app/api/auth/callback/route.ts",
+          "target": "~/apps/admin/app/api/auth/callback/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/admin/app/api/auth/signout/route.ts",
+          "target": "~/apps/admin/app/api/auth/signout/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/admin/app/sign-in/route.ts",
+          "target": "~/apps/admin/app/sign-in/route.ts",
           "type": "registry:file"
         }
       ]

@@ -3,13 +3,13 @@ import { CheckoutHttpApi } from "@repo/commerce/http/checkout-api";
 import { RegistrationHttpApi } from "@repo/registration/http/registration-api";
 import { HttpApi, OpenApi } from "effect/unstable/httpapi";
 
-export class ApplicationHttpApi extends HttpApi.make("next-hydra-api")
+export class ApplicationHttpApi extends HttpApi.make("application-api")
   .addHttpApi(AddressBookHttpApi)
   .addHttpApi(CheckoutHttpApi)
   .addHttpApi(RegistrationHttpApi)
   .annotateMerge(
     OpenApi.annotations({
-      title: "Next Hydra API",
+      title: "Application API",
       version: "1.0.0",
     })
   ) {}

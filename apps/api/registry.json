@@ -1,0 +1,296 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "commerce-api",
+      "type": "registry:item",
+      "title": "Commerce backend application",
+      "description": "The Commerce backend: Checkout, Address Book, company Registration and its workflow. Installed with the whole Commerce package.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/commerce/api",
+          "maintainerWorkspace": {
+            "copy": [
+              "apps/api/vitest.config.ts",
+              "apps/api/env.ts",
+              "apps/api/next.config.ts"
+            ]
+          },
+          "kind": "integration",
+          "providerDependencies": [
+            { "cwd": "apps/api", "section": "dependencies", "slot": "auth" },
+            { "cwd": "apps/api", "section": "dependencies", "slot": "commerce" }
+          ],
+          "assets": [
+            {
+              "source": "apps/api/app/apple-icon.png",
+              "target": "apps/api/app/apple-icon.png"
+            },
+            {
+              "source": "apps/api/app/icon.png",
+              "target": "apps/api/app/icon.png"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "__tests__/address-book-rest-route.test.ts",
+          "target": "~/apps/api/__tests__/address-book-rest-route.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "__tests__/checkout-rest-route.test.ts",
+          "target": "~/apps/api/__tests__/checkout-rest-route.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "__tests__/composition.test.ts",
+          "target": "~/apps/api/__tests__/composition.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "__tests__/environment.test.ts",
+          "target": "~/apps/api/__tests__/environment.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "__tests__/health.test.ts",
+          "target": "~/apps/api/__tests__/health.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "__tests__/openapi.test.ts",
+          "target": "~/apps/api/__tests__/openapi.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "__tests__/registration-rest-route.test.ts",
+          "target": "~/apps/api/__tests__/registration-rest-route.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": ".env.example",
+          "target": "~/apps/api/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": ".gitignore",
+          "target": "~/apps/api/.gitignore",
+          "type": "registry:file"
+        },
+        {
+          "path": "AGENTS.md",
+          "target": "~/apps/api/AGENTS.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/address-book/route.ts",
+          "target": "~/apps/api/app/address-book/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/checkout/[[...rest]]/route.ts",
+          "target": "~/apps/api/app/checkout/[[...rest]]/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/cron/README.md",
+          "target": "~/apps/api/app/cron/README.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/docs/route.ts",
+          "target": "~/apps/api/app/docs/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/global-error.tsx",
+          "target": "~/apps/api/app/global-error.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/health/route.ts",
+          "target": "~/apps/api/app/health/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/layout.tsx",
+          "target": "~/apps/api/app/layout.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/openapi.json/route.ts",
+          "target": "~/apps/api/app/openapi.json/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/registrations/[[...rest]]/route.ts",
+          "target": "~/apps/api/app/registrations/[[...rest]]/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "CLAUDE.md",
+          "target": "~/apps/api/CLAUDE.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "env-schema.ts",
+          "target": "~/apps/api/env-schema.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "env.ts",
+          "target": "~/apps/api/env.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "instrumentation.ts",
+          "target": "~/apps/api/instrumentation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/address-book/http.ts",
+          "target": "~/apps/api/lib/address-book/http.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/address-book/runtime.ts",
+          "target": "~/apps/api/lib/address-book/runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/auth/admin-runtime.ts",
+          "target": "~/apps/api/lib/auth/admin-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/auth/bearer-token.ts",
+          "target": "~/apps/api/lib/auth/bearer-token.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/auth/runtime.ts",
+          "target": "~/apps/api/lib/auth/runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/http.ts",
+          "target": "~/apps/api/lib/checkout/http.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/runtime.ts",
+          "target": "~/apps/api/lib/checkout/runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce/runtime.ts",
+          "target": "~/apps/api/lib/commerce/runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/company-member-invitation-composition.test.ts",
+          "target": "~/apps/api/lib/company-member-invitation-composition.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/company-member-invitations/runtime.ts",
+          "target": "~/apps/api/lib/company-member-invitations/runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/openapi-docs.ts",
+          "target": "~/apps/api/lib/openapi-docs.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/openapi.ts",
+          "target": "~/apps/api/lib/openapi.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration/env.ts",
+          "target": "~/apps/api/lib/registration/env.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration/http-runtime.ts",
+          "target": "~/apps/api/lib/registration/http-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration/http.ts",
+          "target": "~/apps/api/lib/registration/http.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration/repository-runtime.ts",
+          "target": "~/apps/api/lib/registration/repository-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration/runtime.ts",
+          "target": "~/apps/api/lib/registration/runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration/workflow-hook-validation.ts",
+          "target": "~/apps/api/lib/registration/workflow-hook-validation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration/workflow-runtime-api.ts",
+          "target": "~/apps/api/lib/registration/workflow-runtime-api.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration/workflow-runtime.test.ts",
+          "target": "~/apps/api/lib/registration/workflow-runtime.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration/workflow-runtime.ts",
+          "target": "~/apps/api/lib/registration/workflow-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "next.config.ts",
+          "target": "~/apps/api/next.config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/apps/api/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/skip-ci.js",
+          "target": "~/apps/api/scripts/skip-ci.js",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/apps/api/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vercel.json",
+          "target": "~/apps/api/vercel.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/apps/api/vitest.config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "workflows/register-company.ts",
+          "target": "~/apps/api/workflows/register-company.ts",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

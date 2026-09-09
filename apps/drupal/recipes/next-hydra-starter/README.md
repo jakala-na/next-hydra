@@ -3,7 +3,7 @@
 This recipe provisions the Drupal content contract used by `@repo/cms-drupal`:
 
 - routeable `landing_page` and `article` node types;
-- `hero`, `dynamic_product_collection`, and `featured_articles` Paragraph bundles;
+- `hero` and `featured_articles` Paragraph bundles;
 - Image Media for hero assets;
 - CKEditor 5 with Drupal's Basic HTML toolbar for Article bodies;
 - GraphQL Compose routes, native menus, and revision preview;
@@ -32,7 +32,7 @@ Canvas page translations share component-tree structure while retaining independ
 
 The recipe preinstalls the external Canvas component definitions used by its default Canvas homepage and their corresponding derived `canvas.component.js.*` records. Recipe config synchronization suppresses Canvas component discovery, so both layers are included explicitly and a clean install does not require an initial component push. Run the package's `canvas:push` command after changing local component metadata to update Drupal. The Canvas parametrized-width image style is included explicitly so components with image entity-reference props can calculate their dependencies during the same clean recipe installation.
 
-The Canvas demo homepage mirrors the regular homepage's Hero, Product Collection, and Featured Articles blocks. Featured Articles composes Article Card children through its `articles` slot, and each card selects an Article content entity.
+The Canvas demo homepage mirrors the regular homepage's Hero and Featured Articles blocks. Featured Articles composes Article Card children through its `articles` slot, and each card selects an Article content entity.
 
 The frontend sends the requested Drupal langcode explicitly for GraphQL routes, menus, and previews. Canvas requests use Drupal's localized path. A translation therefore cannot reuse another locale's cached route or menu result.
 
@@ -44,7 +44,7 @@ Apply it to a fresh Drupal installation from the web root:
 drush recipe ../recipes/next-hydra-starter -v
 ```
 
-The demo product collection deliberately has no category ID, so the active Hydra commerce provider returns an unfiltered product collection.
+The sibling `product-collection` recipe adds Commerce's Paragraph and Canvas blocks and dedicated catalog sample pages when Commerce is selected. Those samples deliberately omit the category ID to request an unfiltered collection. The base homepages do not require Commerce.
 
 The regular homepage, Canvas homepage, and `/resources` page reference the same three demo Articles. Their Featured Articles blocks expose every referenced `node:{id}` dependency through Drupal cacheability. Editing one Article therefore refreshes its Article route and each cached page that embeds it, without invalidating unrelated pages. Canvas page changes likewise invalidate the matching `canvas_page:{id}` frontend cache entry.
 

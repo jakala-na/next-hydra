@@ -5,6 +5,7 @@ import { AccountMenu } from "@repo/design-system/components/layout/account-menu"
 import type { AccountMenuUser } from "@repo/design-system/components/layout/account-menu";
 import { useLocale, useTranslations } from "@repo/i18n";
 
+import { accountLinks } from "./account-links";
 import { localizeAuthHref } from "./auth-href";
 
 type AccountMenuClientProps = {
@@ -33,7 +34,7 @@ export function AccountMenuClient({
       sourceLabel="Next.js application"
     >
       <AccountMenu
-        accountHref={`/${locale}/account`}
+        {...accountLinks(locale)}
         labels={{
           account: t("account"),
           signIn: t("signIn"),
@@ -43,7 +44,6 @@ export function AccountMenuClient({
         }}
         signInHref={localizeAuthHref(signInHref, locale)}
         signOutHref={localizeAuthHref(signOutHref, locale)}
-        signUpHref={`/${locale}/register`}
         user={user}
       />
     </ArchitectureBoundary>

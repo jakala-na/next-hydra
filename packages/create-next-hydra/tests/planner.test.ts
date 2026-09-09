@@ -63,12 +63,15 @@ function addOn(overrides: Partial<CatalogSelection> = {}): CatalogSelection {
       conflicts: [],
       requires: ["next-hydra/cms/drupal", "next-hydra/commerce/commercetools"],
     },
+    conditionalDependencies: [],
     id: "next-hydra/add-on/drupal-commerce-dam",
     itemName: "drupal-commerce-dam",
     kind: "add-on",
+    maintainerWorkspace: { copy: [] },
     packages: [],
     pnpmPatches: [],
     providerDependencies: [],
+    typeScriptAliases: [],
     ...overrides,
   };
 }
@@ -129,13 +132,16 @@ describe("composition planner failures", () => {
     const provider: CatalogSelection = {
       assets: [],
       compatibility: { conflicts: [], requires: [] },
+      conditionalDependencies: [],
       id: "vendor/cms/private",
       itemName: "private-cms",
       kind: "provider",
+      maintainerWorkspace: { copy: [] },
       packages: [],
       pnpmPatches: [],
       providerDependencies: [],
       slot: "cms",
+      typeScriptAliases: [],
     };
     const catalog = withSelection(
       await loadSourceRegistryCatalog(repoRoot),
@@ -177,12 +183,25 @@ describe("composition planner failures", () => {
 
     expect(plan.selection.addOns).toStrictEqual(["drupal-commerce-dam"]);
     expect(plan.registryItems).toStrictEqual([
+      "app-web",
       "auth-contract",
       "auth-workos",
+      "auth-workos-admin",
+      "auth-workos-commerce",
       "cms-drupal",
+      "cms-drupal-product-collection",
+      "commerce",
+      "commerce-admin",
+      "commerce-api",
       "commerce-commercetools",
+      "commerce-design-system",
+      "commerce-web",
       "drupal",
       "drupal-commerce-dam",
+      "drupal-product-collection",
+      "web-auth",
+      "workspace-cli",
+      "workspace-cli-commerce",
     ]);
   });
 

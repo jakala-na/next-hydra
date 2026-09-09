@@ -6,19 +6,25 @@ The Workspace Composition context describes the selectable parts of a Next Hydra
 
 **Baseline**: The mandatory workspace content included in every composed Next Hydra project and maintained as ordinary canonical starter source. A currently fixed integration remains part of the Baseline until it becomes a Provider Slot. _Avoid_: Default provider, mandatory add-on
 
-**Maintainer Workspace**: The canonical Next Hydra source workspace in which Contribution Sources are authored and a selected stack can be recomposed for development. _Avoid_: Customer project, disposable clone
+**Maintainer Workspace**: The canonical Next Hydra source checkout containing implementation modules, templates and registry ownership. _Avoid_: Customer project, disposable clone
+
+**Development Workspace**: A named, locally materialized composition with its own dependency graph, ordinary source linked to the Maintainer Workspace, and physical composed files. _Avoid_: Customer Workspace, second source of truth
+
+**Workspace Definition**: A version-controlled request for a named Development Workspace, containing its Workspace Selection and optional local development settings. Its stable name also identifies its local application hosts; materialized manifests are not part of the definition. _Avoid_: Generated app, application profile, ownership receipt
+
+**Applied Workspace State**: Ignored local ownership and before/after fingerprints used to protect files during Development Workspace refresh and interruption recovery. _Avoid_: Desired selection, backup, customer management contract
 
 **Customer Workspace**: A product-neutral scaffolded workspace after ownership of all materialized code has transferred to its customer. It does not retain the maintainer product name in application-facing identifiers or content, is inspected as it exists, and is not treated as a managed composition. _Avoid_: Maintainer Workspace, managed project
 
-**Reference Composition**: The selected stack that keeps the canonical Maintainer Workspace runnable and reviewable. It is not an endorsement or automatic scaffold default. _Avoid_: Preferred stack, default Provider
+**Reference Composition**: A named Development Workspace used to exercise a representative stack. Its assembled files are not retained in the canonical Maintainer Workspace. It is not an endorsement or automatic customer scaffold default. _Avoid_: Preferred stack, default Provider
 
-**Workspace Selection**: The authoritative desired Provider and Add-on choices recorded only for a Maintainer Workspace. It is not retained as a receipt or management contract in a Customer Workspace. _Avoid_: Scaffold receipt, customer ownership ledger
+**Workspace Selection**: The authoritative desired Provider and Add-on choices in a Workspace Definition. It is not retained as a receipt or management contract in a Customer Workspace. _Avoid_: Scaffold receipt, customer ownership ledger
 
 **Preset**: A reusable, explicit request containing Provider and Add-on choices for a new composition. A Preset references Selection Definitions but does not replace their compatibility declarations or become retained management state in the Customer Workspace. _Avoid_: Default stack, Reference Composition, scaffold receipt
 
-**Provider Slot**: A dimension of the stack that governs how many Providers may be selected for a role. The v1 Auth, CMS, and Commerce slots each require exactly one Provider; future compositions may support different cardinalities when the application does. _Avoid_: Optional integration, package alias
+**Provider Slot**: A role in the selected stack filled by a Provider, distinct from a location in a composed file. Its cardinality is constrained by installed packages. _Avoid_: UI slot, package alias
 
-**Slot Cardinality**: The minimum and maximum number of Providers a composition may select for a Provider Slot. V1 assigns `1..1` to Auth, CMS, and Commerce. _Avoid_: Permanent exactly-one invariant
+**Slot Cardinality**: The minimum and maximum number of Providers a composition may select for a Provider Slot. Installed packages may require or forbid a role; otherwise it is optional. _Avoid_: Permanent exactly-one invariant
 
 **Provider**: A selectable implementation that fills one Provider Slot and may depend on other registry items. _Avoid_: Provider package, registry item
 
@@ -31,6 +37,14 @@ The Workspace Composition context describes the selectable parts of a Next Hydra
 **Provider Dependency**: A consumer-owned declaration that one workspace package uses the Provider selected for a Provider Slot through that slot's Provider Alias. It does not select or require a concrete Provider. _Avoid_: Compatibility declaration, registry dependency, concrete Provider requirement
 
 **Add-on**: An optional composition selection that may depend on other registry items and is valid only when its compatibility requirements are satisfied by the complete selected stack. _Avoid_: Provider, optional package
+
+**Package**: A complete domain implementation installed as one unit, including its standard functionality and required integrations. _Avoid_: Catalog/cart/checkout feature switches
+
+**Package Integration**: A package-owned extension to another package or application, installed automatically when the participating packages are present. It is not an independent customer feature choice. _Avoid_: Contribution, add-on, independently selectable subfeature
+
+**Composition Template**: The canonical structure of one materialized file, with named locations for selected contributions. Templates may belong to applications or packages; their output is ordinary customer-owned source. _Avoid_: Full-stack template permutation, runtime plugin host
+
+**Module Reference**: A reference to an export from canonical implementation source placed into a named Composition Template location by a Package Integration. _Avoid_: Text snippet, contribution, executable scaffold hook
 
 **Selection ID**: The stable, globally scoped identity of a Provider or Add-on, independent of where its materialization content is obtained. _Avoid_: Registry URL, repository path, registry item name
 
@@ -48,7 +62,7 @@ The Workspace Composition context describes the selectable parts of a Next Hydra
 
 **Composition Plan**: The deterministic, validated expansion of a Baseline, selected Providers, and Add-ons into declarative materialization work. It contains no Provider-supplied executable hooks. _Avoid_: Setup script, Provider hook
 
-**Managed Application File**: A Provider- or Add-on-owned registry file placed outside that contribution's normal source directory, such as a Next.js route under `apps/web`. Its source lives under the contribution's colocated `registry/` directory. Maintainer `use` may replace known Managed Application Files when changing the selected stack; after scaffolding or customer `add`, the copied file is customer-owned. _Avoid_: Generated adapter, ownership receipt, customer-managed file
+**Managed Application File**: A package-owned registry file materialized outside its canonical source location, such as a provider-specific route in the web application. A Development Workspace retains its source ownership for safe refresh; a Customer Workspace owns the copied file outright. _Avoid_: Generated adapter, ownership receipt, customer-managed file
 
 **Additive Installation**: A customer-approved materialization that inspects the intact requested registry graph, creates missing targets, skips identical targets, and treats changed targets as explicit conflicts without inferring ownership or removing code. V1 accepts only explicitly targeted exact-copy ShadCN file types so its preview matches the installed content. It checks compatibility visible through the graph and exact known Provider aliases and discloses assumptions that cannot be proven without customer selection state. _Avoid_: Recomposition, synchronization, provider switch, Customer Workspace upgrade
 

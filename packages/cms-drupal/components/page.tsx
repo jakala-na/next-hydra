@@ -1,3 +1,4 @@
+import { CanvasComponentTree } from "@composition/cms-drupal/canvas-component-tree";
 import {
   fetchPage as fetchDraftAwareCanvasPage,
   isPageRedirect,
@@ -5,9 +6,8 @@ import {
 import { fetchPage as fetchPublishedCanvasPage } from "@drupal-canvas/headless/server";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import type { Locale } from "@repo/i18n";
-import { hasLocale, setRequestLocale } from "@repo/i18n";
+import { hasLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
-import type { Route } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { draftMode } from "next/headers";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
@@ -25,7 +25,6 @@ import type {
   DrupalPreviewContext,
 } from "../lib/preview-context";
 import { getDrupalPreviewContext } from "../lib/preview-session";
-import { CanvasComponentTree } from "./canvas-component-tree";
 import PageRenderer, { isPageKey } from "./page-renderer";
 
 const routeQuery = graphql(
@@ -65,7 +64,7 @@ const pagePreviewQuery = graphql(
   [...PageRenderer.fragments]
 );
 
-const LEADING_SLASHES = /^\/+/;
+const LEADING_SLASHES = /^\/+/u;
 const MOVED_PERMANENTLY_STATUS = 301;
 const PERMANENT_REDIRECT_STATUS = 308;
 
@@ -179,7 +178,6 @@ export async function Page(props: { url: string; locale: Locale }) {
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
-  setRequestLocale(locale);
 
   const { isEnabled: preview } = await draftMode();
   const previewContext = preview ? await getDrupalPreviewContext() : undefined;
@@ -190,7 +188,7 @@ export async function Page(props: { url: string; locale: Locale }) {
     : await getCachedCanvasPage(drupalPath);
 
   if (canvasPage && isPageRedirect(canvasPage)) {
-    const destination = canvasPage.redirect.url as Route;
+    const destination = canvasPage.redirect.url;
     if (
       canvasPage.redirect.statusCode === MOVED_PERMANENTLY_STATUS ||
       canvasPage.redirect.statusCode === PERMANENT_REDIRECT_STATUS

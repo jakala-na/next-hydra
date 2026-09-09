@@ -3,13 +3,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import type { CompositionPlan } from "../src/composition/types.js";
 import {
   applyPackageEntries,
   applyPackageRequirements,
-  readWorkspaceSelection,
 } from "../src/composition/workspace.js";
+import { readJsonFile } from "../src/fs-utils.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -42,6 +43,7 @@ function removalPlan(): CompositionPlan {
     catalogTypeScriptPathAliases: [],
     entryItems: [],
     instructions: [],
+    maintainerCopyTargets: [],
     managedTargets: [],
     packageRequirements: [],
     pnpmPatches: [],
@@ -55,20 +57,36 @@ function removalPlan(): CompositionPlan {
       },
     },
     selections: [],
+    templates: [],
     typeScriptPathAliases: [],
     variableTargets: [],
   };
 }
 
-afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories.splice(0).map(async (directory) => {
-      await rm(directory, { force: true, recursive: true });
-    })
-  );
-});
-
 describe("package manifest updates", () => {
+  afterEach(async () => {
+    await Promise.all(
+      temporaryDirectories.splice(0).map(async (directory) => {
+        await rm(directory, { force: true, recursive: true });
+      })
+    );
+  });
+
+  it("validates JSON at the read boundary without dropping unrelated fields", async () => {
+    const { manifestPath } = await packageFixture(
+      '{"name":"example","custom":true}'
+    );
+    const schema = z.object({ name: z.string() }).passthrough();
+    await expect(readJsonFile(manifestPath, schema)).resolves.toEqual({
+      custom: true,
+      name: "example",
+    });
+    await writeFile(manifestPath, '{"name":42}');
+    await expect(readJsonFile(manifestPath, schema)).rejects.toThrow(
+      "Expected string"
+    );
+  });
+
   it("preserves existing key positions when updating a dependency", async () => {
     const source = `{
   "name": "web",
@@ -195,35 +213,5 @@ describe("package manifest updates", () => {
   "private": true
 }
 `);
-  });
-});
-
-describe("workspace selection updates", () => {
-  it("appends defaulted keys without reordering existing keys", async () => {
-    const workspaceRoot = await mkdtemp(
-      path.join(tmpdir(), "next-hydra-selection-")
-    );
-    temporaryDirectories.push(workspaceRoot);
-    await writeFile(
-      path.join(workspaceRoot, "next-hydra.json"),
-      `{
-  "providers": {
-    "commerce": "commercetools",
-    "auth": "workos",
-    "cms": "drupal"
-  }
-}
-`
-    );
-
-    const selection = await readWorkspaceSelection(workspaceRoot);
-
-    expect(Object.keys(selection)).toStrictEqual(["providers", "addOns"]);
-    expect(Object.keys(selection.providers)).toStrictEqual([
-      "commerce",
-      "auth",
-      "cms",
-    ]);
-    expect(selection.addOns).toStrictEqual([]);
   });
 });

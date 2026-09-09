@@ -9,11 +9,13 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
-const INVALID_PACKAGE_CHARS_REGEX = /[^a-z0-9._-]+/g;
-const DUPLICATE_DASHES_REGEX = /-+/g;
-const LEADING_PUNCTUATION_REGEX = /^[._-]+/;
-const TRAILING_PUNCTUATION_REGEX = /[._-]+$/;
-const PACKAGE_START_CHAR_REGEX = /^[a-z0-9]/;
+import type { ZodType } from "zod";
+
+const INVALID_PACKAGE_CHARS_REGEX = /[^a-z0-9._-]+/gu;
+const DUPLICATE_DASHES_REGEX = /-+/gu;
+const LEADING_PUNCTUATION_REGEX = /^[._-]+/u;
+const TRAILING_PUNCTUATION_REGEX = /[._-]+$/u;
+const PACKAGE_START_CHAR_REGEX = /^[a-z0-9]/u;
 const MAX_UNSCOPED_PACKAGE_NAME_LENGTH = 214;
 
 export async function pathExists(targetPath: string): Promise<boolean> {
@@ -45,13 +47,17 @@ export async function removePath(targetPath: string): Promise<void> {
   await rm(targetPath, { force: true, recursive: true });
 }
 
-export async function readJsonFile<T>(filePath: string): Promise<T> {
+export async function readJsonFile<T>(
+  filePath: string,
+  schema: ZodType<T>
+): Promise<T> {
   const raw = await readFile(filePath, "utf-8");
-  return JSON.parse(raw) as T;
+  return schema.parse(JSON.parse(raw));
 }
 
 export async function writeJsonFile(
   filePath: string,
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- Serialization is this I/O boundary's responsibility; callers supply their validated domain value.
   value: unknown
 ): Promise<void> {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
@@ -83,7 +89,7 @@ export function normalizePackageName(input: string): string {
   value = value.replace(TRAILING_PUNCTUATION_REGEX, "");
 
   if (!value) {
-    return "next-hydra-app";
+    return "application";
   }
 
   if (!PACKAGE_START_CHAR_REGEX.test(value)) {

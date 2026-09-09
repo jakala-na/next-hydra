@@ -12,7 +12,6 @@ export type CreateOptions = {
   auth?: string;
   cms?: string;
   commerce?: string;
-  webProfile?: string;
   without?: ProviderSlot[];
   addOns?: string[];
   preset?: string;

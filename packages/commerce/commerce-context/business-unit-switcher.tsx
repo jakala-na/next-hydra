@@ -1,5 +1,5 @@
 import "server-only";
-import { NextCommerce } from "@repo/commerce/runtime";
+import { HeaderCommerceRuntime } from "@repo/commerce/runtime/header-runtime";
 import { BusinessUnitSwitcher as BusinessUnitSwitcherView } from "@repo/design-system/components/layout/business-unit-switcher";
 import type { Locale } from "@repo/i18n/types";
 import { Effect } from "effect";
@@ -26,7 +26,8 @@ async function loadBusinessUnitSwitcherData(
   locale: Locale
 ): Promise<BusinessUnitSwitcherData | null> {
   try {
-    const result = await NextCommerce.runPromise(
+    const result = await HeaderCommerceRuntime.run(
+      locale,
       Effect.gen(function* () {
         const context = yield* CommerceContext;
         if (context.principal._tag !== "CustomerCommercePrincipal") {
@@ -51,7 +52,6 @@ async function loadBusinessUnitSwitcherData(
           ),
         };
       }).pipe(
-        NextCommerce.provide(locale),
         Effect.tapError((error) =>
           Effect.logError("Failed to load Business Unit switcher", error).pipe(
             Effect.annotateLogs({ operation: "buyingContext.switcher.load" })

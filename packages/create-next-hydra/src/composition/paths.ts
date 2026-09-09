@@ -2,13 +2,13 @@ import path from "node:path";
 
 import { CompositionValidationError } from "./errors.js";
 
-const LEADING_CURRENT_DIRECTORY = /^\.\//;
+const LEADING_CURRENT_DIRECTORY = /^\.\//u;
 const REGISTRY_SOURCE_DIRECTORY = "registry";
 
 function normalizeRelativePath(value: string, label: string): string {
-  if (value.includes("\\")) {
+  if (value.includes("\\") || value.includes("\0")) {
     throw new CompositionValidationError("Unsafe composition path.", [
-      `${label} must use forward slashes: ${value}`,
+      `${label} must use forward slashes and contain no null bytes: ${value}`,
     ]);
   }
 

@@ -34,7 +34,6 @@ import { DEFAULT_PACKAGE_MANAGER } from "./constants.js";
 import {
   ensureParentDirectory,
   isDirectoryEmpty,
-  pathExists,
   toDisplayPath,
 } from "./fs-utils.js";
 import {
@@ -58,8 +57,8 @@ import {
   copyMaintainerWorkspace,
   findMaintainerWorkspaceRoot,
   linkMaintainerWorkspaceSources,
-  pruneMaintainerWorkspaceForProfiles,
-} from "./maintainer-workspace.prototype.js";
+  pruneUnselectedWorkspacePackages,
+} from "./maintainer-workspace.js";
 import { promptForProvider } from "./prompts.js";
 import { sanitizeStarter } from "./sanitize.js";
 import type {
@@ -67,16 +66,20 @@ import type {
   ResolvedCreateOptions,
   ScaffoldResult,
 } from "./types.js";
+import {
+  assertDirectoryPath,
+  assertNewWorkspaceDirectory,
+} from "./workspace-files.js";
 
 type ScaffoldDependencies = {
   install?: (cwd: string, verbose: boolean) => Promise<void>;
 };
 
-const SHELL_NEEDS_QUOTING_REGEX = /[\s"'\\]/;
+const SHELL_NEEDS_QUOTING_REGEX = /[\s"'\\]/u;
 const GITHUB_SCP_REPOSITORY =
-  /^(?:git@|ssh:\/\/git@)github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/;
-const LEADING_SLASH = /^\//;
-const GIT_SUFFIX = /\.git$/;
+  /^(?:git@|ssh:\/\/git@)github\.com[:/](?<owner>[^/]+)\/(?<repository>[^/]+?)(?:\.git)?$/u;
+const LEADING_SLASH = /^\//u;
+const GIT_SUFFIX = /\.git$/u;
 
 function quotePathForShell(value: string): string {
   if (!SHELL_NEEDS_QUOTING_REGEX.test(value)) {
@@ -87,7 +90,8 @@ function quotePathForShell(value: string): string {
 }
 
 async function resolveAndValidateTarget(
-  inputTargetDir: string
+  inputTargetDir: string,
+  maintainerSourcePath?: string
 ): Promise<
   Pick<ResolvedCreateOptions, "targetDir" | "targetName" | "targetPath">
 > {
@@ -99,7 +103,10 @@ async function resolveAndValidateTarget(
     throw new Error("Please provide a valid target folder.");
   }
 
-  if (await pathExists(targetPath)) {
+  if (maintainerSourcePath) {
+    assertMaintainerWorkspaceTarget(maintainerSourcePath, targetPath);
+    await assertNewWorkspaceDirectory(targetPath);
+  } else if (await assertDirectoryPath(targetPath)) {
     const isEmpty = await isDirectoryEmpty(targetPath);
     if (!isEmpty) {
       throw new Error(
@@ -143,7 +150,8 @@ async function localRepositoryPath(repoUrl: string): Promise<string | null> {
   }
 
   try {
-    return (await stat(candidate)).isDirectory() ? candidate : null;
+    const candidateStat = await stat(candidate);
+    return candidateStat.isDirectory() ? candidate : null;
   } catch {
     return null;
   }
@@ -176,19 +184,15 @@ async function requestedSelection(
   options: CreateOptions,
   catalog: SourceRegistryCatalog
 ): Promise<WorkspaceSelection> {
-  const webProfile = options.webProfile
-    ? options.webProfile.includes("/")
-      ? options.webProfile
-      : `app-web-${options.webProfile}`
-    : undefined;
   const without = new Set<ProviderSlot>();
   for (const slot of options.without ?? []) {
-    if (!(PROVIDER_SLOTS as readonly string[]).includes(slot)) {
+    const providerSlot = PROVIDER_SLOTS.find((candidate) => candidate === slot);
+    if (!providerSlot) {
       throw new Error(
         `Unknown provider slot \`${slot}\`. Expected auth, cms, or commerce.`
       );
     }
-    without.add(slot as ProviderSlot);
+    without.add(providerSlot);
   }
   const providerOptions = {
     auth: options.auth,
@@ -196,7 +200,7 @@ async function requestedSelection(
     commerce: options.commerce,
   } satisfies Partial<Record<ProviderSlot, string>>;
   const conflicts = PROVIDER_SLOTS.filter(
-    (slot) => without.has(slot) && providerOptions[slot]
+    (slot) => without.has(slot) && Boolean(providerOptions[slot])
   );
   if (conflicts.length > 0) {
     throw new Error(
@@ -206,14 +210,10 @@ async function requestedSelection(
 
   if (
     options.preset &&
-    (options.auth ||
-      options.cms ||
-      options.commerce ||
-      options.webProfile ||
-      without.size > 0)
+    (options.auth || options.cms || options.commerce || without.size > 0)
   ) {
     throw new Error(
-      "`--preset` cannot be combined with app profile, provider, or `--without` flags."
+      "`--preset` cannot be combined with provider, or `--without` flags."
     );
   }
 
@@ -225,16 +225,9 @@ async function requestedSelection(
     };
   }
 
-  if (options.yes && webProfile && !options.cms) {
-    throw new Error("`--yes --web-profile` requires `--cms`.");
-  }
-
   if (
     options.yes &&
-    !webProfile &&
-    PROVIDER_SLOTS.some(
-      (slot) => !(providerOptions[slot] || without.has(slot))
-    )
+    PROVIDER_SLOTS.some((slot) => !providerOptions[slot] && !without.has(slot))
   ) {
     throw new Error(
       "`--yes` requires every provider slot to be selected or explicitly left empty with `--without`, or one `--preset`."
@@ -243,21 +236,21 @@ async function requestedSelection(
 
   const providers: Partial<Record<ProviderSlot, string>> = {};
   for (const slot of PROVIDER_SLOTS) {
-    if (webProfile && slot !== "cms" && !providerOptions[slot]) {
-      continue;
-    }
     if (without.has(slot)) {
       continue;
     }
-    const fallback =
-      slot === "auth" ? "workos" : slot === "cms" ? "drupal" : "commercetools";
+    const fallback = {
+      auth: "workos",
+      cms: "drupal",
+      commerce: "commercetools",
+    }[slot];
     providers[slot] =
+      // oxlint-disable-next-line no-await-in-loop -- Interactive provider prompts must be presented one at a time.
       providerOptions[slot] ?? (await promptForProvider(slot, fallback));
   }
 
   return {
     addOns: options.addOns ?? [],
-    apps: webProfile ? { web: webProfile } : {},
     providers,
   };
 }
@@ -267,17 +260,13 @@ function explicitSelectionReferences(options: CreateOptions): string[] {
     options.auth,
     options.cms,
     options.commerce,
-    options.webProfile
-      ? options.webProfile.includes("/")
-        ? options.webProfile
-        : `app-web-${options.webProfile}`
-      : undefined,
     options.preset,
     ...(options.addOns ?? []),
   ].filter((value): value is string => Boolean(value));
 }
 
 function scaffoldFailure(
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- Caught exceptions are untrusted; this boundary narrows Error and CommandExecutionError before reading their fields.
   error: unknown,
   targetPath: string,
   failedStep: string,
@@ -314,7 +303,7 @@ export async function scaffoldProject(
 
   const spin = createSpinner();
   const { repoUrl, ref, commit, verbose } = options;
-  const skipGit = options.maintainerWorkspace || options.skipGit;
+  const skipGit = options.maintainerWorkspace === true || options.skipGit;
   if (!options.targetDir) {
     throw new Error("Missing target directory.");
   }
@@ -355,20 +344,18 @@ export async function scaffoldProject(
     explicitSelectionReferences(options),
     process.cwd()
   );
-  const selection = await requestedSelection(options, sourceCatalog);
+  let selection = await requestedSelection(options, sourceCatalog);
   sourceCatalog = await addCatalogReferences(
     sourceCatalog,
     [...Object.values(selection.providers), ...selection.addOns],
     process.cwd()
   );
-  planComposition(sourceCatalog, selection);
+  ({ selection } = planComposition(sourceCatalog, selection));
 
   const { targetPath, targetName } = await resolveAndValidateTarget(
-    options.targetDir
+    options.targetDir,
+    maintainerSourcePath
   );
-  if (maintainerSourcePath) {
-    assertMaintainerWorkspaceTarget(maintainerSourcePath, targetPath);
-  }
   const prepareSourceLabel = maintainerSourcePath
     ? "copy the maintainer workspace"
     : "clone the starter";
@@ -381,7 +368,7 @@ export async function scaffoldProject(
     "update package aliases",
     "update TypeScript paths",
     "update pnpm patches",
-    ...(maintainerSourcePath && Object.keys(selection.apps ?? {}).length > 0
+    ...(sourceCatalog.items.has("app-web")
       ? ["prune unselected applications and packages"]
       : []),
     "remove maintainer-only files",
@@ -484,19 +471,17 @@ export async function scaffoldProject(
         );
       }
     });
-    const removedPaths =
-      maintainerSourcePath && Object.keys(selection.apps ?? {}).length > 0
-        ? await runStep(
-            "prune unselected applications and packages",
-            async () =>
-              pruneMaintainerWorkspaceForProfiles({
-                selectedItems: plan.registryItems,
-                selection,
-                sourceRoot: maintainerSourcePath,
-                targetRoot: targetPath,
-              })
-          )
-        : [];
+    const removedPaths = sourceCatalog.items.has("app-web")
+      ? await runStep(
+          "prune unselected applications and packages",
+          async () =>
+            await pruneUnselectedWorkspacePackages({
+              selectedItems: plan.registryItems,
+              sourceRoot: maintainerSourcePath ?? targetPath,
+              targetRoot: targetPath,
+            })
+        )
+      : [];
     if (removedPaths.length > 0) {
       info(
         `Pruned ${removedPaths.length} unselected application and package roots.`
@@ -518,8 +503,13 @@ export async function scaffoldProject(
     spin.stop("Maintainer-only files removed");
 
     const environmentFiles = maintainerSourcePath
-      ? await runStep("copy local environment files", async () =>
-          copyMaintainerEnvironmentFiles(maintainerSourcePath, targetPath)
+      ? await runStep(
+          "copy local environment files",
+          async () =>
+            await copyMaintainerEnvironmentFiles(
+              maintainerSourcePath,
+              targetPath
+            )
         )
       : [];
     if (environmentFiles.length > 0) {
@@ -538,23 +528,31 @@ export async function scaffoldProject(
         await dependencies.install(targetPath, verbose);
         return;
       }
-      await runCommand(DEFAULT_PACKAGE_MANAGER, ["install"], {
-        cwd: targetPath,
-        verbose,
-      });
+      await runCommand(
+        DEFAULT_PACKAGE_MANAGER,
+        maintainerSourcePath ? ["install", "--offline"] : ["install"],
+        {
+          cwd: targetPath,
+          verbose,
+        }
+      );
     });
     spin.stop("Dependencies installed");
 
     if (maintainerSourcePath) {
-      const linkCount = await runStep("link maintainer source", async () =>
-        linkMaintainerWorkspaceSources({
-          environmentFiles,
-          removedPaths,
-          selectedItems: plan.registryItems,
-          selection,
-          sourceRoot: maintainerSourcePath,
-          targetRoot: targetPath,
-        })
+      const linkCount = await runStep(
+        "link maintainer source",
+        async () =>
+          await linkMaintainerWorkspaceSources({
+            composedTargets: plan.templates.map((template) => template.target),
+            copyTargets: plan.maintainerCopyTargets,
+            environmentFiles,
+            removedPaths,
+            selectedItems: plan.registryItems,
+            selection,
+            sourceRoot: maintainerSourcePath,
+            targetRoot: targetPath,
+          })
       );
       info(`Linked ${linkCount} paths to the maintainer source workspace.`);
     }

@@ -1,0 +1,216 @@
+/* oxlint-disable vitest/max-expects -- Each fixture checks the complete capability exclusion contract. */
+import { mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import path from "node:path";
+
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+import { loadSourceRegistryCatalog } from "../src/composition/catalog.js";
+import { prepareComposition } from "../src/composition/install.js";
+import { planComposition } from "../src/composition/planner.js";
+import type { WorkspaceSelection } from "../src/composition/types.js";
+import { pathExists, writeJsonFile } from "../src/fs-utils.js";
+import { pruneUnselectedWorkspacePackages } from "../src/maintainer-workspace.js";
+import { scaffoldProject } from "../src/scaffold.js";
+
+const repoRoot = path.resolve(import.meta.dirname, "../../..");
+
+describe("backend ownership", () => {
+  it.each(["clerk", "workos"])(
+    "the full %s storefront contributes API through the registry",
+    async (auth) => {
+      const catalog = await loadSourceRegistryCatalog(repoRoot);
+      const plan = planComposition(catalog, {
+        addOns: [],
+        providers: { auth, cms: "contentstack", commerce: "commercetools" },
+      });
+      expect(plan.registryItems).toContain("commerce-api");
+      const prepared = await prepareComposition(catalog, plan);
+      const backend = prepared.artifacts.find(
+        (item) => item.name === "commerce-api"
+      );
+      const targets = backend?.files?.map((file) => file.target) ?? [];
+      expect(targets).toEqual(
+        expect.arrayContaining([
+          "~/apps/api/package.json",
+          "~/apps/api/app/checkout/[[...rest]]/route.ts",
+          "~/apps/api/app/address-book/route.ts",
+          "~/apps/api/app/registrations/[[...rest]]/route.ts",
+        ])
+      );
+      // Auth keeps ownership of its webhook; the backend must not claim its copy.
+      expect(
+        targets.some((target) => target?.includes("/webhooks/"))
+      ).toBeFalsy();
+      expect(plan.packageRequirements).toContainEqual({
+        cwd: "apps/api",
+        name: "@repo/auth",
+        section: "dependencies",
+        specifier: `workspace:@repo/auth-${auth}@*`,
+      });
+    }
+  );
+
+  it.each([false, true])(
+    "Commerce=%s owns the backend independently of navigation search",
+    async (commerce) => {
+      const catalog = await loadSourceRegistryCatalog(
+        repoRoot,
+        "registry.json"
+      );
+      const selection: WorkspaceSelection = {
+        addOns: ["app-web-navigation-search"],
+        providers: {
+          auth: "auth-clerk",
+          cms: "contentstack",
+        },
+      };
+      if (commerce) {
+        selection.providers.commerce = "commercetools";
+      }
+      const plan = planComposition(catalog, selection);
+      expect(plan.registryItems.includes("commerce-api")).toBe(commerce);
+      const prepared = await prepareComposition(catalog, plan);
+      expect(
+        prepared.artifacts
+          .filter((item) => plan.registryItems.includes(item.name))
+          .flatMap((item) => item.files ?? [])
+          .some((file) => file.target?.startsWith("~/apps/api/"))
+      ).toBe(commerce);
+    }
+  );
+});
+
+describe("clone-based CMS package exclusions", () => {
+  let scratch: string;
+  beforeAll(async () => {
+    await mkdir(path.join(repoRoot, "workspaces"), { recursive: true });
+    scratch = await mkdtemp(
+      path.join(repoRoot, "workspaces", "composition-gaps-test-")
+    );
+  });
+
+  afterAll(async () => {
+    // Only this suite's uniquely created outputs, never an existing workspace.
+    await rm(scratch, { force: true, recursive: true });
+  });
+
+  it.each([false, true])(
+    "customer-shaped search backend=%s follows registry ownership, not Commerce",
+    async (backend) => {
+      const targetRoot = path.join(scratch, `customer-${backend}`);
+      await Promise.all(
+        ["web", "api", "admin"].map(async (app) => {
+          await mkdir(path.join(targetRoot, "apps", app), { recursive: true });
+          await writeJsonFile(
+            path.join(targetRoot, "apps", app, "package.json"),
+            { name: app, private: true }
+          );
+        })
+      );
+      await writeJsonFile(path.join(targetRoot, "package.json"), {
+        name: "customer",
+        private: true,
+      });
+      await writeJsonFile(path.join(targetRoot, "registry.json"), {
+        items: [
+          {
+            files: [
+              {
+                path: "apps/web/package.json",
+                target: "~/apps/web/package.json",
+              },
+            ],
+            name: "app-web",
+          },
+          {
+            files: [
+              {
+                path: "apps/api/package.json",
+                target: "~/apps/api/package.json",
+              },
+            ],
+            name: "search-backend",
+          },
+        ],
+      });
+      await pruneUnselectedWorkspacePackages({
+        selectedItems: backend ? ["app-web", "search-backend"] : ["app-web"],
+        sourceRoot: targetRoot,
+        targetRoot,
+      });
+      await expect(pathExists(path.join(targetRoot, "apps/api"))).resolves.toBe(
+        backend
+      );
+      await expect(
+        pathExists(path.join(targetRoot, "apps/admin"))
+      ).resolves.toBeFalsy();
+      await expect(
+        pathExists(path.join(targetRoot, "apps/web"))
+      ).resolves.toBeTruthy();
+    }
+  );
+
+  it.each(["contentstack", "drupal"])(
+    "%s removes reference-only imports and authoring inputs",
+    async (cms) => {
+      const targetRoot = path.join(scratch, cms);
+      await scaffoldProject(
+        {
+          cms,
+          commit: false,
+          maintainerWorkspace: true,
+          repoUrl: repoRoot,
+          skipGit: true,
+          targetDir: targetRoot,
+          verbose: false,
+          without: ["auth", "commerce"],
+          yes: true,
+        },
+        { install: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) }
+      );
+
+      const excludedTargets = [
+        "apps/api",
+        "apps/admin",
+        "apps/web/site-shell",
+        "apps/web/registry",
+        "apps/web/components/layout/header-cart.tsx",
+        "apps/web/components/layout/header-business-unit.tsx",
+        "apps/web/components/layout/account-controls.tsx",
+        "apps/web/components/layout/header-search.tsx",
+        "apps/web/lib/catalog-runtime.ts",
+        "apps/web/lib/cart-actions.ts",
+        "packages/commerce",
+        "packages/registration",
+        "packages/payments-stripe",
+      ];
+      await Promise.all(
+        excludedTargets.map(async (target) => {
+          expect({
+            exists: await pathExists(path.join(targetRoot, target)),
+            target,
+          }).toEqual({ exists: false, target });
+        })
+      );
+      const web = path.join(targetRoot, "apps/web");
+      const inventory = await readdir(web, { recursive: true });
+      const sourceFiles = inventory.filter((file) =>
+        /\.[cm]?[jt]sx?$/u.test(file)
+      );
+      await Promise.all(
+        sourceFiles.map(async (file) => {
+          const source = await readFile(path.join(web, file), "utf-8");
+          const forbiddenImport =
+            /(?:from\s*|import\s*\(?\s*)["']@repo\/(?:auth(?:\/|["'])|commerce|registration|payments)/u.exec(
+              source
+            );
+          expect({ file, forbiddenImport }).toEqual({
+            file,
+            forbiddenImport: null,
+          });
+        })
+      );
+    },
+    30_000
+  );
+});

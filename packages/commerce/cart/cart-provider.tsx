@@ -1,5 +1,5 @@
 import "server-only";
-import { NextCommerce } from "@repo/commerce/runtime";
+import { HeaderCommerceRuntime } from "@repo/commerce/runtime/header-runtime";
 import { CartProvider } from "@repo/design-system/components/commerce/providers/cart-context";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Option } from "effect";
@@ -17,14 +17,14 @@ const loadCurrentCart = async (locale: Locale) => {
   await connection();
 
   try {
-    const cart = await NextCommerce.runPromise(
+    const cart = await HeaderCommerceRuntime.run(
+      locale,
       CurrentCart.get().pipe(
         Effect.tapError((error) =>
           Effect.logError("Failed to read Current Cart", error).pipe(
             Effect.annotateLogs({ operation: "currentCart.get" })
           )
-        ),
-        NextCommerce.provide(locale)
+        )
       )
     );
     return Option.match(cart, {

@@ -50,7 +50,11 @@ echo "Installing Drupal..."
 remote_drush site:install minimal --verbose --yes
 
 echo "Applying the Next Hydra starter recipe..."
-remote_drush recipe ../recipes/next-hydra-starter --verbose
+starter_recipe=../recipes/next-hydra-starter
+if remote_ssh test -f recipes/product-collection/recipe.yml; then
+  starter_recipe=../recipes/product-collection
+fi
+remote_drush recipe "$starter_recipe" --verbose
 remote_drush cache:rebuild
 
 echo "Creating OAuth scopes and consumers..."

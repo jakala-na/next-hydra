@@ -6,6 +6,7 @@ export default defineConfig({
     alias: {
       "server-only": serverOnlyShim,
     },
+    preserveSymlinks: true,
   },
   test: {
     include: ["**/*.test.ts"],

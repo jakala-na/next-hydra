@@ -10,7 +10,9 @@ Configure each application with the same runtime files it normally uses. Next's 
 - `apps/api` contains the consumer API values and the admin identity verification values.
 - `apps/admin` contains the isolated admin runtime values using the same generic provider names the admin app normally consumes.
 
-Start the workspace with `pnpm dev`, then run `pnpm test:e2e`. Locally, Playwright asks Portless for this checkout's web, API, and admin origins. That preserves worktree prefixes and the proxy's configured HTTPS port while keeping the applications in the same long-lived development composition you already use. Playwright verifies all three applications are available but does not start or stop them.
+Start the reference workspace with root `pnpm dev`, then run `pnpm test:e2e`. In the source checkout, Playwright reads application manifests and env files from `workspaces/storefront-contentstack`, not the root app source. Local runs are pinned to that WorkOS + Contentstack + commercetools reference, matching this runner's provider dependencies. A different `E2E_WORKSPACE` or mismatched app provider manifest is rejected rather than testing one application with another provider's fixtures. CMS-only workspaces cannot run this suite because it requires web, API and admin. Provider contract suites and composition checks cover the other selections independently. Customer projects run directly from their own root. Fully external regression URLs do not require local composition and must use providers matching the runner's fixtures. Portless retains worktree prefixes and the proxy's configured HTTPS port. Locally Playwright verifies the applications are available but does not start or stop them.
+
+Root `pnpm test` includes this package's fast runner/helper unit tests, without pulling in root app tasks. Live browser scenarios run only through `pnpm test:e2e` and remain owned by their domain packages.
 
 Install the Chromium binary once on a new machine with `pnpm --filter @repo/e2e exec playwright install chromium`.
 

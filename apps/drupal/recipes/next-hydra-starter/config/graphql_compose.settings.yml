@@ -18,9 +18,6 @@ entity_config:
       query_load_enabled: false
       routes_enabled: true
   paragraph:
-    dynamic_product_collection:
-      enabled: true
-      query_load_enabled: false
     featured_articles:
       enabled: true
       query_load_enabled: false
@@ -48,13 +45,6 @@ field_config:
       field_hide_display_title:
         enabled: true
   paragraph:
-    dynamic_product_collection:
-      field_description:
-        enabled: true
-      field_heading:
-        enabled: true
-      field_product_category:
-        enabled: true
     featured_articles:
       field_articles:
         enabled: true

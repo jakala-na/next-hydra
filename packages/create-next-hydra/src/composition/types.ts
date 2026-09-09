@@ -1,19 +1,26 @@
 import type { getRegistriesConfig } from "shadcn/registry";
 import type { RegistryItem } from "shadcn/schema";
 
+import type { RegistryPackageDependency } from "./registry-dependencies.js";
+import type { PlannedSlotTemplate } from "./slot-templates.js";
+
 export type RegistriesConfig = Awaited<ReturnType<typeof getRegistriesConfig>>;
 
 export const PROVIDER_SLOTS = ["auth", "cms", "commerce"] as const;
-export const APP_SLOTS = ["web"] as const;
 
 export type ProviderSlot = (typeof PROVIDER_SLOTS)[number];
-export type AppSlot = (typeof APP_SLOTS)[number];
 export const PROVIDER_ALIASES = {
   auth: "@repo/auth",
   cms: "@repo/cms",
   commerce: "@repo/commerce-provider",
 } as const satisfies Record<ProviderSlot, string>;
-export type SelectionKind = "provider" | "add-on" | "preset" | "app-profile";
+export type SelectionKind =
+  | "provider"
+  | "add-on"
+  | "preset"
+  | "package"
+  | "integration"
+  | "contribution";
 export type ProviderSlotRequirement = "optional" | "required" | "forbidden";
 export type DependencySection =
   | "dependencies"
@@ -43,14 +50,26 @@ export type AssetContribution = {
   source: string;
   target: string;
 };
+export type PlannedAsset = AssetContribution & { owner: string };
 
 export type PnpmPatch = {
   dependency: string;
   path: string;
 };
 
+export type TypeScriptPathAlias = {
+  alias: string;
+  cwd: string;
+  sourcePath: string;
+};
+
+export type PlannedCompositionTemplate = PlannedSlotTemplate;
+
+export type MaintainerWorkspacePolicy = {
+  copy: string[];
+};
+
 export type WorkspaceSelection = {
-  apps?: Partial<Record<AppSlot, string>>;
   providers: Partial<Record<ProviderSlot, string>>;
   addOns: string[];
 };
@@ -58,7 +77,6 @@ export type WorkspaceSelection = {
 export type SelectionDefinition = {
   id: string;
   kind: SelectionKind;
-  app?: AppSlot;
   slot?: ProviderSlot;
   providerSlots?: Partial<Record<ProviderSlot, ProviderSlotRequirement>>;
   binding?: ProviderBinding;
@@ -70,8 +88,13 @@ export type SelectionDefinition = {
   providerDependencies: ProviderDependency[];
   pnpmPatches: PnpmPatch[];
   assets: AssetContribution[];
+  maintainerWorkspace: MaintainerWorkspacePolicy;
+  conditionalDependencies: {
+    providers: ProviderSlot[];
+    items: string[];
+  }[];
+  typeScriptAliases: TypeScriptPathAlias[];
   selections?: {
-    apps?: Partial<Record<AppSlot, string>>;
     providers?: Partial<Record<ProviderSlot, string>>;
     addOns: string[];
   };
@@ -96,18 +119,19 @@ export type SourceRegistryCatalog = {
 };
 
 export type PreparedComposition = {
+  registryDependencies: RegistryPackageDependency[];
   artifacts: RegistryItem[];
   itemByReference: Map<string, string>;
   entryItems: string[];
   registryConfig: RegistriesConfig;
-  assets: (AssetContribution & { content: Uint8Array })[];
+  assets: (PlannedAsset & { content: Uint8Array })[];
+  renderedFiles: {
+    content: string;
+    target: string;
+    owner: string;
+    source: string;
+  }[];
   managedFiles: { content: string; target: string }[];
-};
-
-export type TypeScriptPathAlias = {
-  alias: string;
-  cwd: string;
-  sourcePath: string;
 };
 
 export type TypeScriptPathAliasTarget = Pick<
@@ -124,7 +148,9 @@ export type CompositionPlan = {
   catalogPackageRequirementTargets: PackageRequirementTarget[];
   pnpmPatches: PnpmPatch[];
   catalogPnpmPatches: PnpmPatch[];
-  assets: AssetContribution[];
+  assets: PlannedAsset[];
+  maintainerCopyTargets: string[];
+  templates: PlannedCompositionTemplate[];
   managedTargets: string[];
   catalogManagedTargets: string[];
   catalogTypeScriptPathAliases: TypeScriptPathAliasTarget[];

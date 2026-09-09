@@ -1,23 +1,35 @@
 ---
 name: playwright-bdd
-description: 'Enforces Behavior Driven Development. Use when: implementing new features, making significant code changes, adding functionality, refactoring behavior. Requires writing a Gherkin feature file first, getting user approval, then implementing.'
+description: "Use Behavior Driven Development only for changes explicitly targeting a customer or end-user journey. Do not use for maintainer tooling, monorepo composition, scaffolding, developer workflows, internal architecture, or refactors."
 ---
 
 # Playwright BDD
 
 ## Phase 0: BDD Necessity Check
 
-For every user-requested task, first decide whether the requested outcome needs to be specified in new or updated BDD scenarios. Base this decision on changes to observable product behavior, not on the size of the code change or the number of files involved.
+For every user-requested task, first decide whether its direct purpose is to change a journey experienced by a customer or end user of the deployed product. Only those journeys belong in BDD scenarios. Base this decision on the user's stated outcome, not on code size or possible downstream consequences.
+
+Never create or modify a feature file, show proposed Gherkin, or request Gherkin approval for maintainer- or developer-facing work. This exclusion includes:
+
+- monorepo package and application composition;
+- registry authoring and materialization;
+- scaffolding, code generation, and workspace management;
+- provider-selection plumbing and maintainer CLI behavior;
+- build, development, test, release, and CI workflows; and
+- internal architecture, refactoring, and implementation seams.
+
+Do not reclassify such work as customer-facing merely because it changes which files, packages, routes, or controls may eventually appear in a generated application. If the task is mixed, apply BDD only to the explicitly requested customer journey and do not block the internal work on feature-file approval.
 
 BDD feature-file changes are needed when the task:
 
 - Explicitly requests adding, updating or removing BDD scenarios.
-- Adds, removes, or changes user-observable behavior or an end-to-end user outcome.
-- Changes a user flow, acceptance criterion, validation rule, permission, or user-visible error behavior.
+- Directly adds, removes, or changes behavior experienced by a customer or end user of the deployed product.
+- Directly changes a customer or end-user flow, acceptance criterion, validation rule, permission, or visible error behavior.
 - Fixes a bug whose expected behavior is missing from, or inaccurately described by, the existing scenarios.
 
 BDD feature-file changes are not needed when the task:
 
+- Changes maintainer tooling, developer tooling, monorepo composition, registries, scaffolding, or generated workspace structure.
 - Refactors or reorganizes implementation while preserving existing observable behavior.
 - Changes documentation, comments, formatting, tooling, or other development infrastructure without changing product behavior.
 - Makes presentation-only visual or geometric adjustments without changing user interaction or meaning.
@@ -71,12 +83,9 @@ npx bddgen && npx playwright test .features-gen/@homepage/homepage.feature.spec.
 
 - **Reuse existing steps when composing scenarios.** Discover existing step definitions and feature files for steps that can be reused in new scenarios before inventing new phrasing. Use `npx bddgen export` or file search tool to list all registered step definitions.
 
-- **Prefer business-aware step names over technical, heavily parameterized ones.**
-  Bad: `When('I click {string} on {string}', ...)`
-  Good: `When('I click the "Add" button in the product list', ...)`\
+- **Prefer business-aware step names over technical, heavily parameterized ones.** Bad: `When('I click {string} on {string}', ...)` Good: `When('I click the "Add" button in the product list', ...)`\
 
-- **For multiple similar actions, prefer single step with a data table instead of multiple steps.** When a scenario involves providing several values of the same kind (e.g. filling form fields, adding list items), consolidate them into one step with a DataTable rather than repeating a step for each value.
-  Bad:
+- **For multiple similar actions, prefer single step with a data table instead of multiple steps.** When a scenario involves providing several values of the same kind (e.g. filling form fields, adding list items), consolidate them into one step with a DataTable rather than repeating a step for each value. Bad:
 
   ```gherkin
   When I fill "Name" with "Alice"
@@ -99,8 +108,7 @@ npx bddgen && npx playwright test .features-gen/@homepage/homepage.feature.spec.
 
 ## Scoped Step Definitions
 
-Prefer `@`-prefixed directories to scope step definitions to specific feature domains. This avoids conflicts when common step names (e.g. `I should see {string} text`) need different implementations depending on context.
-More details on scoped steps: https://vitalets.github.io/playwright-bdd/#/writing-steps/scoped?id=tags-from-path
+Prefer `@`-prefixed directories to scope step definitions to specific feature domains. This avoids conflicts when common step names (e.g. `I should see {string} text`) need different implementations depending on context. More details on scoped steps: https://vitalets.github.io/playwright-bdd/#/writing-steps/scoped?id=tags-from-path
 
 **Example structure with scoped steps**
 
@@ -135,17 +143,20 @@ Feature: Shopping cart
 ## Example Step Definitions
 
 ```typescript
-import { Given, When, Then } from './fixtures';
+import { Given, When, Then } from "./fixtures";
 
-Given('I am on a product page', async ({ page }) => {
-  await page.goto('/product');
+Given("I am on a product page", async ({ page }) => {
+  await page.goto("/product");
 });
 
-When('I add the product {string} to the cart', async ({ page }, name: string) => {
-  await page.getByRole('button', { name: `Add ${name}` }).click();
-});
+When(
+  "I add the product {string} to the cart",
+  async ({ page }, name: string) => {
+    await page.getByRole("button", { name: `Add ${name}` }).click();
+  }
+);
 
-Then('the cart badge should show {int}', async ({ page }, count: number) => {
-  await expect(page.locator('.cart-badge')).toHaveText(String(count));
+Then("the cart badge should show {int}", async ({ page }, count: number) => {
+  await expect(page.locator(".cart-badge")).toHaveText(String(count));
 });
 ```

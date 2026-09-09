@@ -2,16 +2,57 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
 import { addRegistryItem } from "../src/composition/add.js";
 import { NEXT_HYDRA_SELECTION_SCHEMA_URL } from "../src/composition/schema.js";
 
+const mutableArtifact = (content: string) =>
+  `${JSON.stringify({
+    files: [
+      {
+        content,
+        path: "approved.ts",
+        target: "~/src/approved.ts",
+        type: "registry:file",
+      },
+    ],
+    name: "mutable",
+    type: "registry:item",
+  })}\n`;
+
 const temporaryDirectories: string[] = [];
-const OVERWRITE_REQUIRED = /requires --overwrite/;
-const PROVIDER_ALIAS_MISMATCH = /current provider alias/;
-const EXACT_COPY_FILES = /exact-copy registry files/;
-const INVALID_PACKAGE_JSON = /not a valid package\.json/;
+const fixtureRegistrySchema = z
+  .object({
+    dependencies: z.array(z.string()).optional(),
+    registryDependencies: z.array(z.string()).optional(),
+    meta: z
+      .object({
+        nextHydra: z
+          .object({
+            compatibility: z
+              .object({ requires: z.array(z.string()) })
+              .passthrough(),
+          })
+          .passthrough(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+function parseFixtureManifest(source: string) {
+  return z
+    .object({ dependencies: z.record(z.string()) })
+    .passthrough()
+    .parse(JSON.parse(source));
+}
+function parseFixtureArtifact(source: string) {
+  return fixtureRegistrySchema.parse(JSON.parse(source));
+}
+const OVERWRITE_REQUIRED = /requires --overwrite/u;
+const PROVIDER_ALIAS_MISMATCH = /current provider alias/u;
+const EXACT_COPY_FILES = /exact-copy registry files/u;
+const INVALID_PACKAGE_JSON = /not a valid package\.json/u;
 
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), "next-hydra-add-"));
@@ -80,16 +121,53 @@ async function fixture() {
   return { artifactPath, root };
 }
 
-afterEach(async () => {
-  const { rm } = await import("node:fs/promises");
-  await Promise.all(
-    temporaryDirectories.splice(0).map(async (directory) => {
-      await rm(directory, { force: true, recursive: true });
-    })
-  );
-});
-
 describe("customer add", () => {
+  afterEach(async () => {
+    const { rm } = await import("node:fs/promises");
+    await Promise.all(
+      temporaryDirectories.splice(0).map(async (directory) => {
+        await rm(directory, { force: true, recursive: true });
+      })
+    );
+  });
+
+  it("rejects template contributions before mutating customer-owned source", async () => {
+    const { root, artifactPath } = await fixture();
+    await writeFile(
+      artifactPath,
+      JSON.stringify({
+        files: [
+          {
+            content: "export const feature = true;",
+            path: "feature.ts",
+            target: "~/feature.ts",
+            type: "registry:file",
+          },
+        ],
+        meta: {
+          composition: {
+            contributions: [
+              {
+                target: "apps/web/layout.tsx",
+                slot: "providers",
+                module: "./feature",
+                export: "Feature",
+              },
+            ],
+          },
+        },
+        name: "composed-feature",
+        type: "registry:item",
+      })
+    );
+    await expect(
+      addRegistryItem(artifactPath, { cwd: root, yes: true })
+    ).rejects.toThrow("cannot recompose customer-owned files");
+    await expect(readFile(path.join(root, "feature.ts"))).rejects.toThrow(
+      "ENOENT"
+    );
+  });
+
   it("accepts an ordinary registry item without Next Hydra workspace metadata", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "next-hydra-ordinary-add-"));
     temporaryDirectories.push(root);
@@ -156,7 +234,7 @@ describe("customer add", () => {
     ).rejects.toThrow(EXACT_COPY_FILES);
     await expect(
       readFile(path.join(root, "src/component.tsx"), "utf-8")
-    ).rejects.toThrow();
+    ).rejects.toThrow("ENOENT");
   });
 
   it("uses ShadCN whitespace normalization when detecting identical files", async () => {
@@ -197,12 +275,9 @@ describe("customer add", () => {
   it("creates missing files, skips identical files, and never deletes other code", async () => {
     const { root, artifactPath } = await fixture();
     const unrelated = path.join(root, "customer-owned.ts");
-    let installCount = 0;
-    const install = async (cwd: string) => {
-      expect(cwd).toBe(root);
-      installCount += 1;
-      return;
-    };
+    const install = vi
+      .fn<(cwd: string) => Promise<void>>()
+      .mockResolvedValue(undefined);
     await writeFile(unrelated, "keep me\n");
 
     await addRegistryItem(artifactPath, { cwd: root, yes: true }, { install });
@@ -215,12 +290,12 @@ describe("customer add", () => {
       )
     ).resolves.toBe("export const dam = true;\n");
     await expect(readFile(unrelated, "utf-8")).resolves.toBe("keep me\n");
-    expect(installCount).toBe(1);
+    expect(install.mock.calls).toEqual([[root]]);
     await expect(
       readFile(path.join(root, "apps/web/app/api/dam/sync/route.ts"), "utf-8")
     ).resolves.toContain("export const POST");
     expect(
-      JSON.parse(
+      parseFixtureManifest(
         await readFile(
           path.join(root, "packages/cms-drupal/package.json"),
           "utf-8"
@@ -260,14 +335,14 @@ describe("customer add", () => {
         overwrite: true,
         yes: true,
       },
-      { install: async () => {} }
+      { install: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) }
     );
 
     await expect(readFile(target, "utf-8")).resolves.toBe(
       "export const dam = true;\n"
     );
     expect(
-      JSON.parse(
+      parseFixtureManifest(
         await readFile(
           path.join(root, "packages/cms-drupal/package.json"),
           "utf-8"
@@ -278,7 +353,9 @@ describe("customer add", () => {
 
   it("discloses and refuses conflicting standard registry dependencies", async () => {
     const { artifactPath, root } = await fixture();
-    const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
+    const artifact = parseFixtureArtifact(
+      await readFile(artifactPath, "utf-8")
+    );
     artifact.dependencies = ["standard-dam-client@^2.0.0"];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
     await writeFile(
@@ -294,8 +371,9 @@ describe("customer add", () => {
       addRegistryItem(artifactPath, { cwd: root, yes: true })
     ).rejects.toThrow(OVERWRITE_REQUIRED);
     expect(
-      JSON.parse(await readFile(path.join(root, "package.json"), "utf-8"))
-        .dependencies["standard-dam-client"]
+      parseFixtureManifest(
+        await readFile(path.join(root, "package.json"), "utf-8")
+      ).dependencies["standard-dam-client"]
     ).toBe("^1.0.0");
   });
 
@@ -307,17 +385,19 @@ describe("customer add", () => {
       addRegistryItem(
         artifactPath,
         { cwd: root },
-        { confirm: async () => false }
+        { confirm: vi.fn<() => Promise<boolean>>().mockResolvedValue(false) }
       )
     ).rejects.toThrow("Installation cancelled");
 
-    await expect(readFile(target, "utf-8")).rejects.toThrow();
+    await expect(readFile(target, "utf-8")).rejects.toThrow("ENOENT");
   });
 
   it("installs and checks the complete registry dependency graph", async () => {
     const { artifactPath, root } = await fixture();
     const dependencyPath = path.join(root, "dam-backend.json");
-    const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
+    const artifact = parseFixtureArtifact(
+      await readFile(artifactPath, "utf-8")
+    );
     artifact.registryDependencies = [dependencyPath];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
     await writeFile(
@@ -340,7 +420,7 @@ describe("customer add", () => {
     await addRegistryItem(
       artifactPath,
       { cwd: root, yes: true },
-      { install: async () => {} }
+      { install: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) }
     );
 
     await expect(
@@ -357,7 +437,9 @@ describe("customer add", () => {
   it("rejects target collisions in registry dependencies before writing", async () => {
     const { artifactPath, root } = await fixture();
     const dependencyPath = path.join(root, "dam-collision.json");
-    const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
+    const artifact = parseFixtureArtifact(
+      await readFile(artifactPath, "utf-8")
+    );
     artifact.registryDependencies = [dependencyPath];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
     await writeFile(
@@ -384,7 +466,7 @@ describe("customer add", () => {
         path.join(root, "packages/cms-drupal/integrations/dam.ts"),
         "utf-8"
       )
-    ).rejects.toThrow();
+    ).rejects.toThrow("ENOENT");
   });
 
   it("does not accept a similarly named package as the required Provider alias", async () => {
@@ -402,7 +484,9 @@ describe("customer add", () => {
   it("validates a fetched Provider from its exact binding", async () => {
     const { artifactPath, root } = await fixture();
     const providerPath = path.join(root, "private-cms.json");
-    const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
+    const artifact = parseFixtureArtifact(
+      await readFile(artifactPath, "utf-8")
+    );
     artifact.meta.nextHydra.compatibility.requires = ["vendor/cms/private"];
     artifact.registryDependencies = [providerPath];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
@@ -433,7 +517,7 @@ describe("customer add", () => {
       addRegistryItem(
         artifactPath,
         { cwd: root, yes: true },
-        { install: async () => {} }
+        { install: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) }
       )
     ).resolves.toBeUndefined();
   });
@@ -441,7 +525,9 @@ describe("customer add", () => {
   it("does not let a nested Provider switch the customer alias", async () => {
     const { artifactPath, root } = await fixture();
     const providerPath = path.join(root, "nested-drupal-provider.json");
-    const artifact = JSON.parse(await readFile(artifactPath, "utf-8"));
+    const artifact = parseFixtureArtifact(
+      await readFile(artifactPath, "utf-8")
+    );
     artifact.meta.nextHydra.compatibility.requires = [];
     artifact.registryDependencies = [providerPath];
     await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
@@ -485,13 +571,13 @@ describe("customer add", () => {
     ).rejects.toThrow(PROVIDER_ALIAS_MISMATCH);
 
     expect(
-      JSON.parse(
+      parseFixtureManifest(
         await readFile(path.join(root, "apps/web/package.json"), "utf-8")
       ).dependencies["@repo/cms"]
     ).toBe("workspace:@repo/cms-contentstack@*");
     await expect(
       readFile(path.join(root, "packages/cms-drupal/provider.ts"), "utf-8")
-    ).rejects.toThrow();
+    ).rejects.toThrow("ENOENT");
   });
 
   it("installs the exact registry graph that was approved", async () => {
@@ -502,27 +588,17 @@ describe("customer add", () => {
       '{"name":"customer","private":true,"dependencies":{}}\n'
     );
     const artifactPath = path.join(root, "mutable.json");
-    const artifact = (content: string) =>
-      `${JSON.stringify({
-        files: [
-          {
-            content,
-            path: "approved.ts",
-            target: "~/src/approved.ts",
-            type: "registry:file",
-          },
-        ],
-        name: "mutable",
-        type: "registry:item",
-      })}\n`;
-    await writeFile(artifactPath, artifact("approved content\n"));
+    await writeFile(artifactPath, mutableArtifact("approved content\n"));
 
     await addRegistryItem(
       artifactPath,
       { cwd: root },
       {
         confirm: async () => {
-          await writeFile(artifactPath, artifact("changed after approval\n"));
+          await writeFile(
+            artifactPath,
+            mutableArtifact("changed after approval\n")
+          );
           return true;
         },
       }
@@ -587,11 +663,11 @@ describe("customer add", () => {
     await addRegistryItem(
       artifactPath,
       { cwd: root, yes: true },
-      { install: async () => {} }
+      { install: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) }
     );
 
     expect(
-      JSON.parse(
+      parseFixtureManifest(
         await readFile(
           path.join(root, "packages/new-package/package.json"),
           "utf-8"
@@ -599,7 +675,7 @@ describe("customer add", () => {
       ).dependencies["example-client"]
     ).toBe("^1.0.0");
     expect(
-      JSON.parse(
+      parseFixtureManifest(
         await readFile(
           path.join(root, "packages/new-package/package.json"),
           "utf-8"
@@ -659,6 +735,6 @@ describe("customer add", () => {
     ).rejects.toThrow(INVALID_PACKAGE_JSON);
     await expect(
       readFile(path.join(root, "packages/invalid/package.json"), "utf-8")
-    ).rejects.toThrow();
+    ).rejects.toThrow("ENOENT");
   });
 });

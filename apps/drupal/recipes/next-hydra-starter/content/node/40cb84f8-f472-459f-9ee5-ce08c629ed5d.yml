@@ -167,60 +167,6 @@ default:
         _meta:
           version: "1.0"
           entity_type: paragraph
-          uuid: aabf450d-66d3-44aa-a40a-943f9ecfd47d
-          bundle: dynamic_product_collection
-          default_langcode: en
-        default:
-          status:
-            - value: true
-          created:
-            - value: 1754352000
-          behavior_settings:
-            - value: {}
-          field_heading:
-            - value: "Featured products"
-          field_description:
-            - value: "Products supplied by the active Hydra commerce provider."
-        translations:
-          en-gb:
-            field_heading:
-              - value: "Featured products"
-            field_description:
-              - value: "Products supplied by the active Hydra commerce provider."
-          es:
-            field_heading:
-              - value: "Productos destacados"
-            field_description:
-              - value: "Productos suministrados por el proveedor de comercio Hydra activo."
-          fr:
-            field_heading:
-              - value: "Produits à la une"
-            field_description:
-              - value: "Produits fournis par le fournisseur de commerce Hydra actif."
-          de:
-            field_heading:
-              - value: "Ausgewählte Produkte"
-            field_description:
-              - value: "Produkte des aktiven Hydra-Commerce-Anbieters."
-          it:
-            field_heading:
-              - value: "Prodotti in evidenza"
-            field_description:
-              - value: "Prodotti forniti dal provider di commercio Hydra attivo."
-          pt-pt:
-            field_heading:
-              - value: "Produtos em destaque"
-            field_description:
-              - value: "Produtos fornecidos pelo fornecedor de comércio Hydra ativo."
-          nl:
-            field_heading:
-              - value: "Uitgelichte producten"
-            field_description:
-              - value: "Producten geleverd door de actieve Hydra-commerceprovider."
-    - entity:
-        _meta:
-          version: "1.0"
-          entity_type: paragraph
           uuid: 241525bb-4516-4b95-80c3-0ee28309b602
           bundle: featured_articles
           default_langcode: en

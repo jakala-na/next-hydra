@@ -11,6 +11,26 @@ const checkOnly = process.argv.includes("--check");
 const managedSourceDirectory = "registry";
 const manifests = [
   {
+    item: "commerce-admin",
+    manifest: "apps/admin/registry.json",
+    sourceRoot: "apps/admin",
+  },
+  {
+    item: "workspace-cli",
+    manifest: "apps/cli/registry.json",
+    sourceRoot: "apps/cli",
+  },
+  {
+    item: "commerce",
+    manifest: "packages/commerce/registry.json",
+    sourceRoot: "packages/commerce",
+  },
+  {
+    item: "commerce-api",
+    manifest: "apps/api/registry.json",
+    sourceRoot: "apps/api",
+  },
+  {
     item: "auth-clerk",
     manifest: "packages/auth-clerk/registry.json",
     sourceRoot: "packages/auth-clerk",
@@ -63,18 +83,82 @@ const binaryExtensions = new Set([
   ".zip",
 ]);
 
+type SourceRegistry = {
+  items: {
+    files?: { path: string; target?: string; type: string }[];
+    meta?: {
+      nextHydra?: {
+        assets?: { source: string }[];
+      };
+      composition?: {
+        templates?: { source: string; target: string }[];
+      };
+    };
+    name: string;
+  }[];
+};
+
+// eslint-disable-next-line arrow-body-style -- The block keeps the safety proof adjacent to the assertion.
+const readSourceRegistry = (manifest: string): SourceRegistry => {
+  // SAFETY: registry files are validated against source-registry.json in the
+  // composition tests and registry build before this maintenance script runs.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  return JSON.parse(
+    readFileSync(path.join(workspaceRoot, manifest), "utf-8")
+  ) as SourceRegistry;
+};
+
 const declaredAssetSources = new Set(
   manifests.flatMap(({ manifest }) => {
-    const registry = JSON.parse(
-      readFileSync(path.join(workspaceRoot, manifest), "utf-8")
-    );
+    const registry = readSourceRegistry(manifest);
     return registry.items.flatMap(
       (item) => item.meta?.nextHydra?.assets?.map((asset) => asset.source) ?? []
     );
   })
 );
 
-function sourceFiles(sourceRoot) {
+// Provider-owned app routes are authored under the provider's registry folder.
+// Do not claim their materialized copies as application-owned source.
+const managedApplicationCopies = new Set(
+  manifests.flatMap(({ manifest, sourceRoot }) =>
+    readSourceRegistry(manifest).items.flatMap((item) =>
+      (item.files ?? []).flatMap((file) => {
+        const target = file.target?.replace(/^~\//u, "");
+        return target?.startsWith("apps/") &&
+          target !== path.posix.join(sourceRoot, file.path)
+          ? [target]
+          : [];
+      })
+    )
+  )
+);
+
+function sourceFiles(
+  sourceRoot: string,
+  registry: SourceRegistry,
+  baseItemName: string
+) {
+  const compositionAuthoringSources = new Set(
+    registry.items.flatMap(
+      (item) =>
+        item.meta?.composition?.templates?.map((template) => template.source) ??
+        []
+    )
+  );
+  const renderedTargets = new Set(
+    registry.items.flatMap(
+      (item) =>
+        item.meta?.composition?.templates?.map((template) => template.target) ??
+        []
+    )
+  );
+  const secondaryItemSources = new Set(
+    registry.items
+      .filter((item) => item.name !== baseItemName)
+      .flatMap((item) =>
+        (item.files ?? []).map((file) => path.posix.join(sourceRoot, file.path))
+      )
+  );
   const files = execFileSync(
     "git",
     ["ls-files", "--cached", "--others", "--exclude-standard", sourceRoot],
@@ -87,8 +171,15 @@ function sourceFiles(sourceRoot) {
     .filter(Boolean)
     .filter((file) => existsSync(path.join(workspaceRoot, file)))
     .filter((file) => path.posix.basename(file) !== "registry.json")
+    .filter((file) => !managedApplicationCopies.has(file))
     // Prototypes are maintainer references, not generated workspace source.
-    .filter((file) => !file.startsWith(`${sourceRoot}/prototypes/`));
+    .filter((file) => !file.startsWith(`${sourceRoot}/prototypes/`))
+    // Composition authoring inputs produce ordinary targets; they are not
+    // themselves installed into customer workspaces.
+    .filter((file) => !compositionAuthoringSources.has(file))
+    .filter((file) => !renderedTargets.has(file))
+    // A colocated manifest may assign exact source files to secondary items.
+    .filter((file) => !secondaryItemSources.has(file));
 
   for (const file of files) {
     if (
@@ -101,9 +192,11 @@ function sourceFiles(sourceRoot) {
     }
   }
 
-  return files
-    .filter((file) => !declaredAssetSources.has(file))
-    .sort((left, right) => left.localeCompare(right));
+  const installableFiles = files.filter(
+    (file) => !declaredAssetSources.has(file)
+  );
+  // eslint-disable-next-line unicorn/no-array-sort -- filter returns a fresh array.
+  return installableFiles.sort((left, right) => left.localeCompare(right));
 }
 
 const formatRegistryJson = async (
@@ -128,7 +221,7 @@ let hasDrift = false;
 const generatedManifests = await Promise.all(
   manifests.map(async (definition) => {
     const manifestPath = path.join(workspaceRoot, definition.manifest);
-    const registry = JSON.parse(readFileSync(manifestPath, "utf-8"));
+    const registry = readSourceRegistry(definition.manifest);
     const item = registry.items.find(
       (candidate) => candidate.name === definition.item
     );
@@ -138,7 +231,11 @@ const generatedManifests = await Promise.all(
       );
     }
 
-    item.files = sourceFiles(definition.sourceRoot).map((repoPath) => {
+    item.files = sourceFiles(
+      definition.sourceRoot,
+      registry,
+      definition.item
+    ).map((repoPath) => {
       const relativePath = path.posix.relative(definition.sourceRoot, repoPath);
       const managedPrefix = `${managedSourceDirectory}/`;
       const target = relativePath.startsWith(managedPrefix)

@@ -1,0 +1,86 @@
+_meta:
+  version: "1.0"
+  entity_type: node
+  uuid: fd48aa24-e1f0-483f-a1ef-a3b506ca1610
+  bundle: landing_page
+  default_langcode: en
+default:
+  revision_uid:
+    - target_id: 1
+  status:
+    - value: true
+  uid:
+    - target_id: 1
+  title:
+    - value: Product collection
+  created:
+    - value: 1754352000
+  promote:
+    - value: false
+  sticky:
+    - value: false
+  revision_translation_affected:
+    - value: true
+  path:
+    - alias: /catalog-example
+      langcode: en
+      pathauto: 0
+  field_display_title:
+    - value: Product collection
+  field_hide_display_title:
+    - value: true
+  field_components:
+    - entity:
+        _meta:
+          version: "1.0"
+          entity_type: paragraph
+          uuid: aabf450d-66d3-44aa-a40a-943f9ecfd47d
+          bundle: dynamic_product_collection
+          default_langcode: en
+        default:
+          status:
+            - value: true
+          created:
+            - value: 1754352000
+          behavior_settings:
+            - value: {}
+          field_heading:
+            - value: Featured products
+          field_description:
+            - value: Products supplied by the active commerce provider.
+        translations:
+          en-gb:
+            field_heading:
+              - value: Featured products
+            field_description:
+              - value: Products supplied by the active commerce provider.
+          es:
+            field_heading:
+              - value: Productos destacados
+            field_description:
+              - value: Productos suministrados por el proveedor de comercio activo.
+          fr:
+            field_heading:
+              - value: Produits à la une
+            field_description:
+              - value: Produits fournis par le fournisseur de commerce actif.
+          de:
+            field_heading:
+              - value: Ausgewählte Produkte
+            field_description:
+              - value: Produkte des aktiven Commerce-Anbieters.
+          it:
+            field_heading:
+              - value: Prodotti in evidenza
+            field_description:
+              - value: Prodotti forniti dal provider di commercio attivo.
+          pt-pt:
+            field_heading:
+              - value: Produtos em destaque
+            field_description:
+              - value: Produtos fornecidos pelo fornecedor de comércio ativo.
+          nl:
+            field_heading:
+              - value: Uitgelichte producten
+            field_description:
+              - value: Producten geleverd door de actieve commerceprovider.

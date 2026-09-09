@@ -1,6 +1,6 @@
 # create-next-hydra
 
-`create-next-hydra` composes a Next Hydra workspace from one Auth Provider, one CMS Provider, one Commerce Provider, and any compatible Add-ons. It uses [ShadCN registry items](https://ui.shadcn.com/docs/registry/registry-item-json) to copy code and adds Next Hydra's stack validation and package-specific manifest changes.
+`create-next-hydra` composes customer-owned applications from selected Providers and compatible Add-ons. There is one shared web application: CMS is required, Auth is optional, and Commerce requires Auth. Commerce is installed as one complete package, not separately selectable catalog, cart, or checkout features. It uses [ShadCN registry items](https://ui.shadcn.com/docs/registry/registry-item-json) to copy code and adds stack validation and package-specific manifest changes.
 
 ## Create a project
 
@@ -19,28 +19,55 @@ pnpm dlx create-next-hydra@latest my-project --yes \
   --commerce commercetools
 
 pnpm dlx create-next-hydra@latest my-project --yes --preset standard
+
+pnpm dlx create-next-hydra@latest content-site --yes \
+  --cms contentstack --without auth --without commerce
 ```
 
 Use `--add-on <selection>` more than once to include compatible Add-ons. A selection can be an official shorthand, a local registry-item JSON file, a URL, a public GitHub address such as `owner/repository/item#ref`, or a configured ShadCN registry name.
 
-The destination must be missing or empty. If scaffolding fails, the CLI leaves the partial project in place and reports what completed and what was not attempted.
+The customer destination must be missing or an empty physical directory, without symlinked parents. Ad-hoc maintainer scaffolding requires a missing destination. Named development workspaces support safe initialization and updates instead.
 
-## Change the maintainer workspace
+## Initialize and update named workspaces
 
-The repository root is a Maintainer Workspace because it contains `next-hydra.json` and the source registry. Build the local CLI, then change a Provider or apply a Preset:
+The preferred maintainer workflow uses committed definitions in `workspaces/`. No `apps` field or app-profile flag is needed: the shared web application is implicit, and selected packages extend its templates.
 
-```bash
-pnpm --filter create-next-hydra build
-node packages/create-next-hydra/dist/cli.js use --cms contentstack
-node packages/create-next-hydra/dist/cli.js use --preset standard
-node packages/create-next-hydra/dist/cli.js use --check
+```sh
+pnpm --filter create-next-hydra compose cms-contentstack --copy-env
+pnpm --filter create-next-hydra compose --all --copy-env
+pnpm --filter create-next-hydra compose cms-contentstack --watch
+pnpm --filter create-next-hydra compose --all --check
+pnpm --filter create-next-hydra compose cms-contentstack --explain 'apps/web/app/[locale]/layout.tsx'
+pnpm --filter create-next-hydra compose cms-contentstack --run typecheck
+pnpm --dir workspaces/cms-contentstack dev
 ```
 
-`use` updates `next-hydra.json`, governed package entries, Provider-owned application files such as Next.js routes, and the lockfile. It preserves configured patches for unselected Providers so the checkout can remain a stable package-authoring dependency superset. It does not remove canonical Provider or Add-on implementation source from the maintainer repository. If an operation fails, it leaves the Git diff in place for inspection or repair.
+The same command initializes or updates. Ordinary files are source-linked, composed files stay physical, and changed templates refresh without reinstalling unchanged dependencies. Local edits block conflicting updates; unregistered files are reported and preserved. `--no-install` leaves dependency installation pending, `--offline` uses the local store, and `--copy-env` copies only missing env files without changing existing values. Watch mode reports dependency changes but does not install them after its initial run. External provisioning is separate.
 
-## Prototype an isolated maintainer composition
+See [Development workspaces](../../workspaces/README.md) for the four definitions, stable Portless hostnames, interruption recovery, and reconciliation instructions. Only their definitions and optional READMEs are tracked; generated manifests, installed files and applied state are ignored. The workspace name determines each Next app's `<app>.<workspace>.localhost` hostname (with Portless's branch prefix inside a Git worktree). Version-1 ad-hoc outputs remain intact and are not automatically adopted.
 
-The `--maintainer-workspace` prototype creates a disposable, fully composed workspace below the repository's ignored `workspaces/` directory. Run it from the maintainer checkout after building the CLI and installing the checkout's dependencies:
+## Command boundaries
+
+- `create-next-hydra <directory>` creates a customer-owned project. It clones the repository baseline, selects packages, renders shared templates and hands over ordinary copied source. There is no ongoing customer composition step.
+- `create-next-hydra compose <name>` initializes or refreshes a named local development workspace from canonical source. `compose --all` covers all committed definitions; `compose --all --check` checks their local state.
+- `create-next-hydra add <item>` performs additive installation into customer-owned code.
+
+The old `use` command and its in-place switching implementation have been removed. An old invocation fails with migration instructions rather than creating a project named `use`. Move its desired provider/add-on choices into a named definition and run `compose`. Root composed files, duplicate provider routes and the old root selection have been removed: templates and canonical implementation source are authoritative. `--explain <file>` shows the selected owner and edit location without updating; `--run <task>` refreshes first and then runs the selected workspace's dev/build/test/typecheck task. Root `pnpm dev` runs the `storefront-contentstack` reference definition. Root `pnpm test` runs package/provider suites and composition checks from source, with common app integration tests only in that WorkOS + Contentstack + commercetools reference; build/typecheck still cover all named definitions. Customer creation and named composition share the registry planner and template renderer, not yet the entire baseline/scaffolding pipeline.
+
+## Ad-hoc output from local source
+
+When passed explicit `--cms` and an output directory instead of a definition name, `compose` creates a fresh ad-hoc output. This lower-level path is useful for copied-output verification; it uses the same registry and renderer as named development workspaces and customer scaffolding:
+
+```bash
+pnpm --filter create-next-hydra compose workspaces/content-site \
+  --cms contentstack --linked --copy-env --offline
+```
+
+Use `--cms drupal` for Drupal, including its backend app. Add `--auth workos` or `--auth clerk` for authentication and account controls. Add `--commerce commercetools` together with Auth for the complete storefront, API and registration-review admin app, plus the selected CMS's product-collection mapping. Add `--search` for CMS navigation search with or without Commerce. Every composition includes the workspace administration CLI with only the selected providers' commands. Omit `--linked` for ordinary copied source. Every invocation requires a new output directory. See [Web composition](../../apps/web/COMPOSITION.md) for ownership and authoring.
+
+## Legacy clone-based maintainer scaffolding
+
+The older `--maintainer-workspace` option remains available for clone-path verification, but does not support safe refresh. Prefer named definitions for development. Run the legacy option from the maintainer checkout after building the CLI and installing the checkout's dependencies:
 
 ```bash
 pnpm --filter create-next-hydra build
@@ -53,21 +80,53 @@ node packages/create-next-hydra/dist/cli.js \
   --yes
 ```
 
-The prototype runs the same composition, sanitization, package-alias, patch, and dependency-install steps as a Customer Workspace. The generated workspace therefore has its own root `package.json`, application manifests, `pnpm-lock.yaml`, and `node_modules` for the selected graph. It then replaces each retained `packages/*` directory with a link to the canonical package in the maintainer checkout. For example, the generated app's `@repo/cms` workspace alias resolves through `workspaces/drupal-workos/packages/cms-drupal` to the checkout's `packages/cms-drupal` source.
+Exercise the Contentstack block split through `compose` in both cases:
 
-Ignored local environment files named `.env` or `.env.*` are copied from the maintainer checkout to the same relative paths when that application or package exists in the selected composition. Their names and paths may be recorded in the maintainer receipt, but their contents are never printed. This gives each generated application the same local credentials as the checkout without placing those credentials under Git.
+```bash
+node packages/create-next-hydra/dist/cli.js compose \
+  workspaces/contentstack-only \
+  --cms contentstack \
+  --linked --copy-env
 
-Provider-owned application files are linked individually to their canonical registry sources. A Drupal route materialized at `apps/web/app/api/draft/route.ts`, for example, points to `packages/cms-drupal/registry/apps/web/app/api/draft/route.ts`. The same mapping automatically applies to a future Stripe webhook route contributed by its selected registry item. Switching compositions means creating or recreating another generated workspace; it does not rewrite the tracked applications or their manifests in the maintainer checkout.
+node packages/create-next-hydra/dist/cli.js compose \
+  workspaces/contentstack-commerce \
+  --cms contentstack \
+  --auth workos \
+  --commerce commercetools \
+  --linked --copy-env
+```
 
-This is deliberately a bounded prototype:
+This option runs the same composition, sanitization, package-alias, patch, and dependency-install steps as a Customer Workspace. The isolated workspace has its own root `package.json`, application manifests, `pnpm-lock.yaml`, and `node_modules` for the selected graph. A package whose manifest and composed files do not vary can be linked as a whole directory, unless it contains copied environment files. Otherwise its directory and composed files remain physical, while registry-owned implementation files link individually to canonical source. The app's `@repo/cms` workspace alias resolves through the selected local package. `compose --linked` uses file links throughout instead of whole-package links.
+
+Ignored local environment files named `.env` or `.env.*` are copied into matching directories of selected applications and packages. The primary checkout supplies defaults; the current worktree takes precedence. Copies are regular files with owner-only permissions (`0600`). Symlinked sources/destination parents and existing destination files, directories, or symlinks are rejected before copying; dependency/build directories and example files are excluded. Paths may be recorded in the maintainer receipt, but contents are never printed. These are local credentials, not distribution assets, and unused capability credentials inside a selected env file are not filtered out.
+
+Provider-owned application files are linked individually to their canonical registry sources. A Drupal route materialized at `apps/web/app/api/draft/route.ts`, for example, points to `packages/cms-drupal/registry/apps/web/app/api/draft/route.ts`. The same mapping applies to a webhook route contributed by its selected registry item. Switching compositions means creating a new workspace; existing folders, including empty ones, are never reused by maintainer composition. Symlinked parents and dangling destination links are rejected before directory creation. No switch rewrites tracked applications or manifests in the maintainer checkout.
+
+Authoring constraints:
 
 - The maintainer checkout is the dependency environment for linked packages. Its `pnpm-workspace.yaml` must retain the union of patches required by all linkable Providers, and `pnpm install` must have been run there. The command rejects a composition whose required patch is missing from that superset.
-- A package is linked only when its composed `package.json` is identical to the canonical source manifest. A future Add-on that mutates that package manifest needs a more precise overlay instead of a directory link.
-- Canonical package files and Provider-owned application contributions are live-linked. Ordinary files under generated `apps/*` are composition copies, so edit their tracked counterparts in the maintainer checkout.
-- New files created only inside the ignored generated workspace are disposable. Add new Provider-owned files below the Provider's canonical `registry/` directory and run `pnpm registry:sync`; do not author them only in `workspaces/`.
-- Recreate the generated workspace after changing selections or dependency manifests. It is a test projection, not another source of truth.
+- Package manifests, composed template outputs, composition-governed `tsconfig.json` files, and paths declared by `maintainerWorkspace.copy` stay physical. Provider-owned application contributions are live-linked. The clone-based maintainer command leaves ordinary app files as copies; `compose --linked` links their canonical source files too. Inspect the receipt before assuming an edit will reach source.
+- New files and edits to physical copies in an ad-hoc workspace are **work to preserve**. Those legacy outputs have no safe status or refresh contract. Named workspaces provide `compose --check`, but adoption remains manual. Reconcile changes into canonical source and registry ownership, run `pnpm registry:sync` and `pnpm registry:check`, then verify a fresh output. Keep the original output until this is done; a receipt is not a backup.
+- Create a new workspace after changing selections, templates, or dependency manifests. Failed composition preserves its partial output and reports the failing stage; it does not delete or retry over that folder.
 
-The generated `.next-hydra-maintainer-workspace.json` records every source-to-target link and the selected composition for inspection.
+The clone-based command writes `.next-hydra-maintainer-workspace.json`; `compose --linked` writes `.workspace-composition.json`. These maintainer-only diagnostics have `version: 1`. The former uses `composedTargets` for physical template outputs; older unversioned receipts used `generatedTargets` and remain unchanged. Neither receipt is an input to customer runtime code. Copied `compose` outputs retain no receipt or source-root metadata and require no ongoing generation step.
+
+## Hardening and verification
+
+The implementation uses one shared planner and module-reference renderer. Package integrations insert normal modules into shared templates; materialized modules have ordinary filenames. The CLI builds with its own pinned TypeScript compiler rather than depending on a root-level executable.
+
+Run the bounded local suite before accepting composition changes:
+
+```sh
+pnpm --filter create-next-hydra build
+pnpm --filter create-next-hydra test --maxWorkers 2 --testTimeout 30000
+pnpm registry:check
+node packages/create-next-hydra/dist/cli.js compose --all --check
+```
+
+The suite covers the provider matrix, copied/source-linked materialization, template ownership and normalized path collisions, working-tree deletions, environment isolation and overwrite refusal, and workspace peer-dependency retention. Install-heavy E2E tests are a separate command and need sufficient local disk/store capacity. Local filesystem safety checks protect against pre-existing redirections and competing scaffold invocations; this is not a sandbox for hostile package lifecycle scripts or processes mutating the directory tree concurrently.
+
+Whole-package and exact-route materialization are covered by local tests. Named-workspace tests also cover template refresh, dependency retry, link replacement, local-edit protection, unregistered files and interruption recovery. Fresh external provisioning, hosted authentication, payment journeys and production builds remain separate integration gates. `compose --check` reports reconciliation work; automatic adoption is not implemented.
 
 ## Add code to a customer workspace
 
@@ -83,25 +142,34 @@ Customer `add` accepts ordinary registry items and Next Hydra Add-ons. It does n
 
 ## Author a Provider or Add-on
 
+Commerce's registry item depends on `commerce-web`, `commerce-api`, and `commerce-admin`. These are automatic package integrations, not independent shopping-feature choices. Auth owns its provider routes and its Commerce identity/webhook integration. No application profile or separate web shell is required. The planner includes `app-web` automatically; the clone workflow also prunes unselected applications and packages.
+
 Keep source in its normal package or application directory and place a `registry.json` beside it. Add that registry file to the root `registry.json` `include` list. A registry containing Selection Definitions uses [`source-registry.json`](./schema/source-registry.json), which applies the complete [`selection-definition.json`](./schema/selection-definition.json) registry-item schema whenever an item contains `meta.nextHydra`. Ordinary registry items continue to use ShadCN's schema.
 
 A Selection Definition declares:
 
-- its stable ID and whether it is a Provider, Add-on, or Preset;
+- its stable ID and whether it is a Provider, Package, Integration, Add-on, or Preset;
 - a Provider Slot and one package `binding` when it is a Provider;
 - an optional `binding.sourcePath` for resolving a maintained Provider directly to workspace source;
 - `providerDependencies` for packages contributed by the selection that consume a Provider Slot;
 - standard ShadCN `registryDependencies` for any other registry items it needs;
+- conditional dependencies for package integrations activated by occupied Provider Slots;
+- `providerSlots` requirements on a Package or Integration, such as Commerce requiring Auth;
 - required and conflicting selection IDs;
 - ordinary exact package entries;
-- exact pnpm patch entries and their patch-file assets; and
+- exact pnpm patch entries and their patch-file assets;
+- composition templates, named insertion slots, and ordered contributions to those slots;
+- selection-owned TypeScript aliases needed for composed modules to resolve inside the workspace;
+- maintainer-only copy boundaries for files that resolve selected resources relative to their own physical location; and
 - setup instructions through the registry item's standard `docs` field.
 
 Every copied registry file must have an explicit workspace-root target such as `~/packages/cms-drupal/src/index.ts`. The source `path` remains relative to the colocated registry, so maintainers edit and test canonical Provider code in its normal package or application.
 
-When a Provider or Add-on needs to place a file outside its own source directory, keep that source under a colocated `registry/` directory using its final workspace path. For example, `packages/cms-drupal/registry/apps/web/app/api/draft/route.ts` is installed as `~/apps/web/app/api/draft/route.ts`. These files are ordinary ShadCN registry files: ShadCN installs them during scaffolding and customer `add`, while maintainer `use` may remove or replace their known targets when the selected stack changes.
+When a Provider or Add-on needs to place a file outside its own source directory, keep that source under a colocated `registry/` directory using its final workspace path. For example, `packages/cms-drupal/registry/apps/web/app/api/draft/route.ts` is installed as `~/apps/web/app/api/draft/route.ts`. These files are ordinary ShadCN registry files: ShadCN installs them during scaffolding and customer `add`, while named `compose` links their canonical sources and may remove or replace unchanged owned targets when the selected stack changes.
 
-Run these commands after adding, moving, or removing contribution files:
+An integration may instead reference ordinary files already authored in the destination app, as `commerce-web` does for Checkout. Its colocated app registry declares those files, and the owning package depends on that item. This preserves direct authoring and source linking without making duplicate route templates or using unsupported parent-directory registry paths.
+
+Run these commands after adding, moving, or removing registry-owned files:
 
 ```bash
 pnpm registry:sync
@@ -111,6 +179,12 @@ pnpm registry:check
 `registry:sync` regenerates only each registry item's `files` list and its final workspace-root targets. Provider-owned metadata stays in the colocated registry file. Next Hydra first walks the intact `registryDependencies` graph to retain metadata and detect target conflicts, then prepares those exact artifacts and asks ShadCN to install them once from the workspace root.
 
 Standard ShadCN `dependencies` and `devDependencies` apply to the workspace root. Use `meta.nextHydra.packages` only when an ordinary dependency must be added to a specific workspace package. Stable Provider aliases are derived from the slot and cannot be declared in `packages`.
+
+Customer creation and named `compose` record those standard dependency fields through the same manifest logic before the final package install, including with `--no-install`. Only selected registry items and their transitive dependencies participate. Bare package names preserve existing requirements; a new bare name uses `latest` until installation resolves it. Explicit versions, tags, and named aliases are preserved, and conflicting explicit requirements fail during preparation. URL or local-path requirements must include a package name (`name@specifier`); unnamed sources cannot be resolved in an install-free plan. Customer `add` continues to use ShadCN's dependency installer.
+
+Use `meta.composition.templates` for shared-file structure and `meta.composition.contributions` for references to ordinary module exports. This is the single renderer used by `compose` and initial scaffolding; the former text-snippet metadata and renderer have been removed. Modules remain normal TypeScript/TSX source, and targets have ordinary filenames with no ongoing customer generation step. A selection may declare `typeScriptAliases` when a linked consumer must resolve a composed target through its workspace instead of its source symlink's real path. Both target and alias are catalog-governed. Customer `add` rejects template recomposition because those files already belong to the customer.
+
+Contentstack declares `conditionalDependencies: [{ providers: ["commerce"], items: ["cms-contentstack-product-collection"] }]`. The dependency is a `kind: "contribution"` item, not an Add-on; it adds the CMS mapping and `@repo/commerce` dependency whenever a Commerce provider is selected. It does not depend on a Commercetools selection. Registry discovery fetches possible built-ins, while planning installs only applicable ones.
 
 A Provider declares its installable package once:
 
@@ -139,7 +213,7 @@ An Add-on that contributes a package which imports the selected CMS declares the
 }
 ```
 
-Scaffold and maintainer `use` resolve that dependency to `@repo/cms` using the selected Provider's `binding.specifier`. If the Provider also declares `binding.sourcePath`, they write the exact alias and its `/*` wildcard into every selected consumer's `tsconfig.json` for direct-source development. Without `sourcePath`, pnpm's installed alias is the only resolution path and Next Hydra writes no TypeScript path override. Catalog-governed overrides are removed when they are no longer selected, and `use --check` reports incorrect or stale paths. Customer `add`, which has no retained selection receipt, copies the exact Provider alias already present in `apps/web/package.json` into each contributed consumer.
+Scaffold and `compose` resolve that dependency to `@repo/cms` using the selected Provider's `binding.specifier`. If the Provider also declares `binding.sourcePath`, they write the exact alias and its `/*` wildcard into every selected consumer's `tsconfig.json` for direct-source development. Without `sourcePath`, pnpm's installed alias is the only resolution path and Next Hydra writes no TypeScript path override. Catalog-governed overrides are removed when they are no longer selected; named `compose --check` reports changed or stale physical configuration. Customer `add`, which has no retained selection receipt, copies the exact Provider alias already present in `apps/web/package.json` into each contributed consumer.
 
 ShadCN reads registry source files as text. For a binary file that must survive byte-for-byte, or a root patch file referenced by `pnpmPatches`, an official or locally included source-registry selection may declare a typed `assets` source and target instead. Separately fetched external selections cannot contribute assets in v1.
 
@@ -147,7 +221,7 @@ ShadCN registry mappings, including private registry URLs and environment-backed
 
 ## Current limits
 
-- Auth, CMS, and Commerce each require exactly one Provider.
+- The official registry requires CMS. Auth is optional; Commerce requires Auth. Older external registries without the shared `app-web` item retain their all-provider baseline contract.
 - A scaffolded Customer Workspace has no composition receipt and cannot be automatically upgraded or switched later.
 - Composition installs local code and JavaScript dependencies. Remote service setup, real secrets, Composer changes, Drupal module enablement, and deployed extensions remain manual.
 - Selection Definitions are declarative and cannot run arbitrary hooks.

@@ -19,6 +19,7 @@ export const SANITIZE_REMOVE_PATHS = [
   ".scratch",
   "RELEASING.md",
   "apps/docs",
+  "apps/web/site-shell",
   "next-hydra.json",
   "packages/create-next-hydra",
   "scripts/release-create-next-hydra.mjs",

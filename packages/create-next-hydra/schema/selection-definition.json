@@ -18,6 +18,9 @@
           "type": "object",
           "required": ["nextHydra"],
           "properties": {
+            "composition": {
+              "$ref": "#/$defs/composition"
+            },
             "nextHydra": {
               "$ref": "#/$defs/nextHydra"
             }
@@ -28,6 +31,74 @@
     }
   ],
   "$defs": {
+    "composition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "templates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "target", "slots"],
+            "properties": {
+              "source": {
+                "$ref": "#/$defs/workspaceFilePath"
+              },
+              "target": {
+                "$ref": "#/$defs/workspaceFilePath"
+              },
+              "slots": {
+                "type": "object",
+                "additionalProperties": {
+                  "enum": [
+                    "element",
+                    "wrapper",
+                    "call",
+                    "factory",
+                    "members",
+                    "graphql"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "contributions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target", "slot", "module", "export"],
+            "properties": {
+              "target": {
+                "$ref": "#/$defs/workspaceFilePath"
+              },
+              "slot": {
+                "type": "string",
+                "minLength": 1
+              },
+              "module": {
+                "type": "string",
+                "minLength": 1
+              },
+              "export": {
+                "type": "string",
+                "pattern": "^[A-Za-z_$][\\w$]*$"
+              },
+              "as": {
+                "type": "string",
+                "pattern": "^[A-Za-z_$][\\w$]*$"
+              },
+              "order": {
+                "type": "integer",
+                "default": 0
+              }
+            }
+          }
+        }
+      }
+    },
     "workspacePath": {
       "type": "string",
       "minLength": 1,
@@ -55,10 +126,26 @@
           "minLength": 1
         },
         "kind": {
-          "enum": ["provider", "add-on", "preset", "app-profile"]
+          "enum": [
+            "provider",
+            "add-on",
+            "preset",
+            "contribution",
+            "package",
+            "integration"
+          ]
         },
-        "app": {
-          "enum": ["web"]
+        "maintainerWorkspace": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "copy": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/workspaceFilePath"
+              }
+            }
+          }
         },
         "slot": {
           "enum": ["auth", "cms", "commerce"]
@@ -120,11 +207,7 @@
                 "type": "string",
                 "minLength": 1,
                 "not": {
-                  "enum": [
-                    "@repo/auth",
-                    "@repo/cms",
-                    "@repo/commerce-provider"
-                  ]
+                  "enum": ["@repo/auth", "@repo/cms", "@repo/commerce-provider"]
                 }
               },
               "specifier": {
@@ -189,6 +272,26 @@
             }
           }
         },
+        "typeScriptAliases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["alias", "cwd", "sourcePath"],
+            "properties": {
+              "alias": {
+                "type": "string",
+                "minLength": 1
+              },
+              "cwd": {
+                "$ref": "#/$defs/workspaceRelativePath"
+              },
+              "sourcePath": {
+                "$ref": "#/$defs/workspaceFilePath"
+              }
+            }
+          }
+        },
         "assets": {
           "type": "array",
           "items": {
@@ -209,16 +312,6 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "apps": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "web": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
-            },
             "providers": {
               "type": "object",
               "additionalProperties": false,
@@ -246,35 +339,34 @@
               "uniqueItems": true
             }
           }
+        },
+        "conditionalDependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["providers", "items"],
+            "properties": {
+              "providers": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "enum": ["auth", "cms", "commerce"]
+                }
+              },
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
         }
       },
       "allOf": [
-        {
-          "if": {
-            "properties": {
-              "kind": {
-                "const": "app-profile"
-              }
-            },
-            "required": ["kind"]
-          },
-          "then": {
-            "required": ["app"],
-            "not": {
-              "anyOf": [
-                {
-                  "required": ["slot"]
-                },
-                {
-                  "required": ["binding"]
-                },
-                {
-                  "required": ["selections"]
-                }
-              ]
-            }
-          }
-        },
         {
           "if": {
             "properties": {

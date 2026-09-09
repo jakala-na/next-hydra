@@ -1,3 +1,4 @@
+/* oxlint-disable unicorn/no-array-sort -- Sort newly constructed arrays while preserving the CLI's ES2022 library target. */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -147,6 +148,10 @@ function parseSelection(item: RegistryItem): SelectionDefinition | undefined {
   return result.data;
 }
 
+function normalizeFileContent(content: string): string {
+  return content.replaceAll("\r\n", "\n").trim();
+}
+
 async function changeStatus(
   absoluteTarget: string,
   expected: string
@@ -154,10 +159,8 @@ async function changeStatus(
   if (!(await pathExists(absoluteTarget))) {
     return "create";
   }
-  const normalize = (content: string) =>
-    content.replaceAll("\r\n", "\n").trim();
-  return normalize(await readFile(absoluteTarget, "utf-8")) ===
-    normalize(expected)
+  return normalizeFileContent(await readFile(absoluteTarget, "utf-8")) ===
+    normalizeFileContent(expected)
     ? "identical"
     : "changed";
 }
@@ -469,21 +472,32 @@ function validateRegistryTargetClaims(items: Iterable<RegistryItem>): void {
   }
 }
 
+type ShadcnConfigurationValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | ShadcnConfigurationValue[]
+  | { [key: string]: ShadcnConfigurationValue };
+
+function hasConfigurationValues(value: ShadcnConfigurationValue): boolean {
+  if (Array.isArray(value)) {
+    return value.some(hasConfigurationValues);
+  }
+  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- Walk the recursive JSON values already decoded by ShadCN; this format has no object discriminator.
+  if (value !== null && typeof value === "object") {
+    return Object.values(value).some(hasConfigurationValues);
+  }
+  return (
+    value !== undefined && value !== null && value !== false && value !== ""
+  );
+}
+
 function describeShadcnEffects(
   tree: NonNullable<Awaited<ReturnType<typeof resolveRegistryItems>>>,
   items: Iterable<RegistryItem>
 ): string[] {
-  const hasValues = (value: unknown): boolean => {
-    if (Array.isArray(value)) {
-      return value.some(hasValues);
-    }
-    if (value !== null && typeof value === "object") {
-      return Object.values(value).some(hasValues);
-    }
-    return (
-      value !== undefined && value !== null && value !== false && value !== ""
-    );
-  };
   const effects: string[] = [];
   const envKeys = Object.keys(tree.envVars ?? {}).sort();
   if (envKeys.length > 0) {
@@ -491,13 +505,13 @@ function describeShadcnEffects(
       `environment placeholders may be merged by ShadCN: ${envKeys.join(", ")}`
     );
   }
-  if (hasValues(tree.tailwind)) {
+  if (hasConfigurationValues(tree.tailwind)) {
     effects.push("Tailwind configuration will be merged by ShadCN");
   }
-  if (hasValues(tree.cssVars)) {
+  if (hasConfigurationValues(tree.cssVars)) {
     effects.push("CSS variables will be merged by ShadCN");
   }
-  if (hasValues(tree.css)) {
+  if (hasConfigurationValues(tree.css)) {
     effects.push("CSS declarations will be merged by ShadCN");
   }
   if ((tree.fonts?.length ?? 0) > 0) {
@@ -599,6 +613,21 @@ export async function addRegistryItem(
   const graphSelections = [...graph.items.values()]
     .map(parseSelection)
     .filter((value): value is SelectionDefinition => Boolean(value));
+  const compositionItems = [...graph.items.values()].filter(
+    (item) => item.meta?.composition !== undefined
+  );
+  const builtIns = graphSelections.filter(
+    (item) =>
+      item.kind === "contribution" || item.conditionalDependencies.length > 0
+  );
+  if (compositionItems.length > 0 || builtIns.length > 0) {
+    throw new CompositionValidationError(
+      "Customer add cannot recompose customer-owned files.",
+      [
+        "Select composition contributions during scaffolding; add only supports exact-copy Add-ons and does not re-render templates.",
+      ]
+    );
+  }
   if (selection) {
     if (selection.kind === "preset") {
       throw new Error(
@@ -760,11 +789,9 @@ export async function addRegistryItem(
         );
       await applyPackageEntries(cwd, changedPackageEntries);
       if (changedPackageEntries.length > 0) {
-        if (dependencies.install) {
-          await dependencies.install(cwd);
-        } else {
-          await runCommand("pnpm", ["install"], { cwd });
-        }
+        await (dependencies.install
+          ? dependencies.install(cwd)
+          : runCommand("pnpm", ["install"], { cwd }));
       }
     },
   });

@@ -37,12 +37,6 @@ default:
         secondaryCtaUrl:
           uri: "https://github.com/next-hydra"
           options: {}
-    - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
-      component_id: js.product-collection
-      inputs:
-        title: "Featured products"
-        description: "Products supplied by the active Hydra commerce provider."
-        limit: 3
     - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
       component_id: js.featured-articles
       inputs:
@@ -107,12 +101,6 @@ translations:
           secondaryCtaUrl:
             uri: "https://github.com/next-hydra"
             options: {}
-      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
-        component_id: js.product-collection
-        inputs:
-          title: "Featured products"
-          description: "Products supplied by the active Hydra commerce provider."
-          limit: 3
       - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
@@ -174,12 +162,6 @@ translations:
           secondaryCtaUrl:
             uri: "https://github.com/next-hydra"
             options: {}
-      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
-        component_id: js.product-collection
-        inputs:
-          title: "Productos destacados"
-          description: "Productos suministrados por el proveedor de comercio Hydra activo."
-          limit: 3
       - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
@@ -241,12 +223,6 @@ translations:
           secondaryCtaUrl:
             uri: "https://github.com/next-hydra"
             options: {}
-      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
-        component_id: js.product-collection
-        inputs:
-          title: "Produits à la une"
-          description: "Produits fournis par le fournisseur de commerce Hydra actif."
-          limit: 3
       - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
@@ -308,12 +284,6 @@ translations:
           secondaryCtaUrl:
             uri: "https://github.com/next-hydra"
             options: {}
-      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
-        component_id: js.product-collection
-        inputs:
-          title: "Ausgewählte Produkte"
-          description: "Produkte des aktiven Hydra-Commerce-Anbieters."
-          limit: 3
       - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
@@ -375,12 +345,6 @@ translations:
           secondaryCtaUrl:
             uri: "https://github.com/next-hydra"
             options: {}
-      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
-        component_id: js.product-collection
-        inputs:
-          title: "Prodotti in evidenza"
-          description: "Prodotti forniti dal provider di commercio Hydra attivo."
-          limit: 3
       - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
@@ -442,12 +406,6 @@ translations:
           secondaryCtaUrl:
             uri: "https://github.com/next-hydra"
             options: {}
-      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
-        component_id: js.product-collection
-        inputs:
-          title: "Produtos em destaque"
-          description: "Produtos fornecidos pelo fornecedor de comércio Hydra ativo."
-          limit: 3
       - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:
@@ -509,12 +467,6 @@ translations:
           secondaryCtaUrl:
             uri: "https://github.com/next-hydra"
             options: {}
-      - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
-        component_id: js.product-collection
-        inputs:
-          title: "Uitgelichte producten"
-          description: "Producten geleverd door de actieve Hydra-commerceprovider."
-          limit: 3
       - uuid: 79d5eeaa-8c4b-4a84-8878-59a2079e9d33
         component_id: js.featured-articles
         inputs:

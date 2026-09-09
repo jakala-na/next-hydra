@@ -1,0 +1,17 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": { "dependsOn": ["typecheck"], "outputs": ["dist/**"] },
+    "typecheck": { "dependsOn": [] },
+    "test": { "dependsOn": [], "cache": false },
+    "workspace:dev": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    },
+    "workspace:build": { "dependsOn": ["build"], "cache": false },
+    "workspace:test": { "dependsOn": ["build"], "cache": false },
+    "workspace:lint": { "dependsOn": ["build"], "cache": false },
+    "workspace:typecheck": { "dependsOn": ["build"], "cache": false }
+  }
+}

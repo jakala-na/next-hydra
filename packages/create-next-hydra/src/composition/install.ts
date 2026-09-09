@@ -1,3 +1,4 @@
+/* oxlint-disable unicorn/no-array-sort -- Sort only newly constructed arrays; the CLI's library target is ES2022. */
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -5,10 +6,15 @@ import path from "node:path";
 import { addRegistryItems, loadRegistryItem } from "shadcn/registry";
 import type { RegistryItem } from "shadcn/schema";
 
-import { pathExists } from "../fs-utils.js";
+import { pathExists, writeJsonFile } from "../fs-utils.js";
 import { CompositionValidationError } from "./errors.js";
 import { parsePackageJson, readPackageJson } from "./packages.js";
 import { isManagedApplicationSource, resolveRegistryTarget } from "./paths.js";
+import {
+  applyRegistryDependencies,
+  planRegistryDependencies,
+} from "./registry-dependencies.js";
+import { renderPlannedSlotTemplates } from "./slot-templates.js";
 import type {
   CompositionPlan,
   PreparedComposition,
@@ -25,18 +31,27 @@ type AddRegistryItemsOptions = Omit<
 async function suppressShadcnEnvironmentHeading<T>(
   operation: () => Promise<T>
 ): Promise<T> {
+  // oxlint-disable-next-line typescript/unbound-method -- Restore the exact stream method in finally; all calls below retain the stream receiver.
   const originalWrite = process.stderr.write;
-  process.stderr.write = (...args: unknown[]) => {
-    const [chunk] = args;
+  process.stderr.write = (
+    chunk: string | Uint8Array,
+    encodingOrCallback?: BufferEncoding | ((error?: Error | null) => void),
+    callback?: (error?: Error | null) => void
+  ) => {
     // ShadCN 4.16.2 emits this Ora heading even when `silent` is enabled.
     if (String(chunk).includes(SHADCN_ENVIRONMENT_HEADING)) {
-      const callback = args.find(
-        (argument): argument is () => void => typeof argument === "function"
-      );
+      // oxlint-disable-next-line anti-slop/no-runtime-typeof -- Node's typed write overload distinguishes an encoding from a completion callback.
+      if (typeof encodingOrCallback === "function") {
+        encodingOrCallback();
+        return true;
+      }
       callback?.();
       return true;
     }
-    return Reflect.apply(originalWrite, process.stderr, args) as boolean;
+    // oxlint-disable-next-line anti-slop/no-runtime-typeof -- Dispatch Node's write overload without erasing its argument types.
+    return typeof encodingOrCallback === "function"
+      ? originalWrite.call(process.stderr, chunk, undefined, encodingOrCallback)
+      : originalWrite.call(process.stderr, chunk, encodingOrCallback, callback);
   };
 
   try {
@@ -55,7 +70,10 @@ export async function addRegistryItemsQuietly(
   });
 }
 
-function resolveArtifact(catalog: SourceRegistryCatalog, item: string) {
+async function resolveArtifact(
+  catalog: SourceRegistryCatalog,
+  item: string
+): Promise<RegistryItem> {
   const resolved = catalog.items.get(item);
   if (
     resolved &&
@@ -63,7 +81,7 @@ function resolveArtifact(catalog: SourceRegistryCatalog, item: string) {
   ) {
     return resolved;
   }
-  return loadRegistryItem(item, {
+  return await loadRegistryItem(item, {
     cwd: catalog.cwd,
     registryFile: catalog.registryFile,
   });
@@ -74,10 +92,16 @@ export async function prepareComposition(
   plan: CompositionPlan
 ): Promise<PreparedComposition> {
   const artifacts = await Promise.all(
-    [...catalog.items].map(([item]) => resolveArtifact(catalog, item))
+    [...catalog.items].map(
+      async ([item]) => await resolveArtifact(catalog, item)
+    )
   );
   const selectedItemNames = new Set(plan.registryItems);
-  const managedFiles = artifacts
+  const renderedFiles = await renderPlannedSlotTemplates(
+    catalog.cwd,
+    plan.templates
+  );
+  const registryManagedFiles = artifacts
     .filter((artifact) => selectedItemNames.has(artifact.name))
     .flatMap(
       (artifact) =>
@@ -108,8 +132,14 @@ export async function prepareComposition(
     ),
     entryItems: plan.entryItems,
     itemByReference: new Map(catalog.itemByReference),
-    managedFiles,
+    managedFiles: [...registryManagedFiles, ...renderedFiles].sort(
+      (left, right) => left.target.localeCompare(right.target)
+    ),
     registryConfig: catalog.registryConfig,
+    registryDependencies: planRegistryDependencies(
+      artifacts.filter((artifact) => selectedItemNames.has(artifact.name))
+    ),
+    renderedFiles,
   };
 }
 
@@ -203,31 +233,32 @@ export async function validatePackageRequirementTargets(
     }
   }
 
-  const issues = (
-    await Promise.all(
-      plan.packageRequirements.map(async (requirement) => {
-        const manifest = path.posix.join(requirement.cwd, "package.json");
-        const prospective = prospectiveManifests.get(manifest);
-        try {
-          if (prospective !== undefined) {
-            parsePackageJson(prospective, manifest);
-          } else if (
-            !removed.has(manifest) &&
-            (await pathExists(path.join(workspaceRoot, manifest)))
-          ) {
-            await readPackageJson(path.join(workspaceRoot, manifest), manifest);
-          } else {
-            return `${manifest} is not present or supplied by the selected graph`;
-          }
-        } catch (error) {
-          if (error instanceof CompositionValidationError) {
-            return `${manifest}: ${error.issues.join("; ")}`;
-          }
-          return `${manifest} could not be read`;
+  const manifestIssues = await Promise.all(
+    plan.packageRequirements.map(async (requirement) => {
+      const manifest = path.posix.join(requirement.cwd, "package.json");
+      const prospective = prospectiveManifests.get(manifest);
+      try {
+        if (prospective !== undefined) {
+          parsePackageJson(prospective, manifest);
+        } else if (
+          !removed.has(manifest) &&
+          (await pathExists(path.join(workspaceRoot, manifest)))
+        ) {
+          await readPackageJson(path.join(workspaceRoot, manifest), manifest);
+        } else {
+          return `${manifest} is not present or supplied by the selected graph`;
         }
-      })
-    )
-  ).filter((issue): issue is string => issue !== undefined);
+      } catch (error) {
+        if (error instanceof CompositionValidationError) {
+          return `${manifest}: ${error.issues.join("; ")}`;
+        }
+        return `${manifest} could not be read`;
+      }
+    })
+  );
+  const issues = manifestIssues.filter(
+    (issue): issue is string => issue !== undefined
+  );
 
   if (issues.length > 0) {
     throw new CompositionValidationError(
@@ -252,6 +283,9 @@ export async function installPreparedComposition(
   await withPreparedRegistryArtifacts({
     artifacts: prepared.artifacts.map((artifact) => ({
       ...artifact,
+      // Record standard dependency fields below, without ShadCN running an early install.
+      dependencies: undefined,
+      devDependencies: undefined,
       docs: undefined,
     })),
     entryItems: prepared.entryItems,
@@ -264,4 +298,19 @@ export async function installPreparedComposition(
       });
     },
   });
+
+  if (prepared.registryDependencies.length) {
+    const manifestPath = path.join(workspaceRoot, "package.json");
+    const manifest = await readPackageJson(manifestPath);
+    applyRegistryDependencies(manifest, prepared.registryDependencies);
+    await writeJsonFile(manifestPath, manifest);
+  }
+
+  await Promise.all(
+    prepared.renderedFiles.map(async (file) => {
+      const target = path.join(workspaceRoot, file.target);
+      await mkdir(path.dirname(target), { recursive: true });
+      await writeFile(target, file.content, "utf-8");
+    })
+  );
 }

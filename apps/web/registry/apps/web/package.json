@@ -11,6 +11,7 @@
     "dev": "portless",
     "dev:app": "NODE_USE_SYSTEM_CA=1 next dev --turbopack",
     "start": "NODE_USE_SYSTEM_CA=1 next start",
+    "test": "NODE_ENV=test vitest run --passWithNoTests",
     "typecheck": "next typegen && pnpm --workspace-root exec tsc --noEmit --project apps/web/tsconfig.json"
   },
   "dependencies": {
@@ -23,7 +24,18 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "server-only": "catalog:",
-    "zod": "^3.25.28"
+    "zod": "^3.25.28",
+    "@repo/analytics": "workspace:*",
+    "@repo/email": "workspace:*",
+    "@repo/errors": "workspace:*",
+    "@repo/observability": "workspace:*",
+    "@repo/rate-limit": "workspace:*",
+    "@repo/security": "workspace:*",
+    "@repo/seo": "workspace:*",
+    "@sentry/nextjs": "^10.22.0",
+    "effect": "catalog:",
+    "import-in-the-middle": "2.0.0",
+    "require-in-the-middle": "8.0.1"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
@@ -31,6 +43,8 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "tailwindcss": "^4.1.7",
-    "typescript": "catalog:typescript7"
+    "typescript": "catalog:typescript7",
+    "@repo/testing": "workspace:*",
+    "vitest": "catalog:"
   }
 }

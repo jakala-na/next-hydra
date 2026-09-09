@@ -286,7 +286,21 @@ $RECYCLE.BIN/
 
 # Local agent/reference workspaces
 repos/
-/workspaces/
+/workspaces/*
+!/workspaces/README.md
+!/workspaces/*/
+/workspaces/*/*
+!/workspaces/*/next-hydra.json
+!/workspaces/*/README.md
+# Retired ad-hoc outputs retain their original configuration; they are not definitions.
+/workspaces/contentstack-cms-only-product-split*/
+/workspaces/contentstack-commerce-product-split*/
+/workspaces/contentstack-content-profile*/
+/workspaces/drupal-content-profile*/
+/workspaces/contentstack-workos-linked-poc/
+/workspaces/drupal-workos-linked-poc/
+/workspaces/drupal-workos-poc/
+/workspaces/workspace-test-*/
 
 # Local ad hoc agent research. Durable Wayfinder research belongs under the
 # relevant tracked `.scratch/<effort>/research/` directory instead.

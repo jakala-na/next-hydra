@@ -1,0 +1,1077 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "commerce",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/commerce/core",
+          "kind": "package",
+          "providerSlots": {
+            "auth": "required"
+          },
+          "providerDependencies": [
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "slot": "commerce"
+            },
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "slot": "auth"
+            },
+            {
+              "cwd": "apps/cli",
+              "slot": "commerce",
+              "section": "dependencies"
+            }
+          ],
+          "packages": [
+            {
+              "cwd": "apps/web",
+              "name": "@repo/actions",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            },
+            {
+              "cwd": "apps/web",
+              "name": "@repo/auth-contract",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            },
+            {
+              "cwd": "apps/web",
+              "name": "@repo/commerce",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            },
+            {
+              "cwd": "apps/web",
+              "name": "@repo/payments",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            },
+            {
+              "cwd": "apps/web",
+              "name": "@repo/payments-stripe",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            },
+            {
+              "cwd": "apps/web",
+              "name": "@repo/registration",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            },
+            {
+              "cwd": "apps/web",
+              "name": "lucide-react",
+              "specifier": "^0.511.0",
+              "section": "dependencies"
+            },
+            {
+              "cwd": "apps/web",
+              "name": "@repo/versioned-store",
+              "specifier": "workspace:*",
+              "section": "devDependencies"
+            }
+          ],
+          "typeScriptAliases": [
+            {
+              "cwd": "apps/web",
+              "alias": "@repo/commerce/runtime",
+              "sourcePath": "apps/web/lib/commerce-runtime.ts"
+            }
+          ]
+        },
+        "composition": {
+          "contributions": [
+            {
+              "target": "apps/web/env.ts",
+              "slot": "environment",
+              "module": "@repo/next-config/keys",
+              "export": "keys",
+              "as": "core",
+              "order": 21
+            },
+            {
+              "target": "apps/web/env.ts",
+              "slot": "environment",
+              "module": "@repo/email/keys",
+              "export": "keys",
+              "as": "email",
+              "order": 22
+            },
+            {
+              "target": "apps/web/next.config.ts",
+              "slot": "configuration",
+              "module": "@repo/commerce-provider/next-config",
+              "export": "withCommerce",
+              "order": 10
+            },
+            {
+              "target": "apps/web/env.ts",
+              "slot": "environment",
+              "module": "@repo/commerce-provider/keys",
+              "export": "keys",
+              "as": "commerce",
+              "order": 20
+            },
+            {
+              "target": "apps/web/app/[locale]/layout.tsx",
+              "slot": "commerce",
+              "module": "@/components/layout/commerce-provider",
+              "export": "CommerceProvider"
+            },
+            {
+              "target": "apps/web/app/[locale]/layout.tsx",
+              "slot": "cart",
+              "module": "@/components/layout/header-cart",
+              "export": "HeaderCart"
+            },
+            {
+              "target": "apps/web/next.config.ts",
+              "slot": "configuration",
+              "module": "./lib/commerce-config",
+              "export": "withCommerceRuntime",
+              "order": 0
+            },
+            {
+              "target": "apps/web/env.ts",
+              "slot": "environment",
+              "module": "@repo/payments-stripe/keys",
+              "export": "keys",
+              "as": "payments",
+              "order": 30
+            },
+            {
+              "target": "apps/web/app/[locale]/layout.tsx",
+              "slot": "businessUnit",
+              "module": "@/components/layout/header-business-unit",
+              "export": "HeaderBusinessUnit",
+              "order": 0
+            },
+            {
+              "target": "apps/web/components/layout/account-links.ts",
+              "slot": "links",
+              "module": "./commerce-account-links",
+              "export": "commerceAccountLinks",
+              "order": 0
+            },
+            {
+              "target": "apps/cli/src/program.ts",
+              "slot": "commands",
+              "module": "@repo/commerce-provider/cli",
+              "export": "createCommerceCommand",
+              "order": 20
+            }
+          ]
+        }
+      },
+      "title": "Commerce",
+      "description": "The complete Commerce package, standard storefront routes, payments and backend. Requires Auth.",
+      "registryDependencies": [
+        "auth-contract",
+        "commerce-api",
+        "commerce-design-system",
+        "commerce-web",
+        "commerce-admin"
+      ],
+      "files": [
+        {
+          "path": "cart/action-result.test.ts",
+          "target": "~/packages/commerce/cart/action-result.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/action-result.ts",
+          "target": "~/packages/commerce/cart/action-result.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/add-to-cart.test.ts",
+          "target": "~/packages/commerce/cart/add-to-cart.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/add-to-cart.ts",
+          "target": "~/packages/commerce/cart/add-to-cart.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/boundaries.test.tsx",
+          "target": "~/packages/commerce/cart/boundaries.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/cart-provider.tsx",
+          "target": "~/packages/commerce/cart/cart-provider.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/change-cart-items-quantity.ts",
+          "target": "~/packages/commerce/cart/change-cart-items-quantity.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/failure-policy.ts",
+          "target": "~/packages/commerce/cart/failure-policy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/index.ts",
+          "target": "~/packages/commerce/cart/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/procedures.ts",
+          "target": "~/packages/commerce/cart/procedures.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/public-state.test.ts",
+          "target": "~/packages/commerce/cart/public-state.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/public-state.ts",
+          "target": "~/packages/commerce/cart/public-state.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cart/remove-cart-item.ts",
+          "target": "~/packages/commerce/cart/remove-cart-item.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/action-contract.test.ts",
+          "target": "~/packages/commerce/checkout/action-contract.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/action-contract.ts",
+          "target": "~/packages/commerce/checkout/action-contract.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/boundaries.test.tsx",
+          "target": "~/packages/commerce/checkout/boundaries.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/checkout-page.tsx",
+          "target": "~/packages/commerce/checkout/checkout-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/checkout-view.tsx",
+          "target": "~/packages/commerce/checkout/checkout-view.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/contact-form.test.ts",
+          "target": "~/packages/commerce/checkout/contact-form.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/contact-form.tsx",
+          "target": "~/packages/commerce/checkout/contact-form.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/delivery-details-form.test.tsx",
+          "target": "~/packages/commerce/checkout/delivery-details-form.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/delivery-details-form.tsx",
+          "target": "~/packages/commerce/checkout/delivery-details-form.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/index.ts",
+          "target": "~/packages/commerce/checkout/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/order-confirmation-page.tsx",
+          "target": "~/packages/commerce/checkout/order-confirmation-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/payment-method-label.ts",
+          "target": "~/packages/commerce/checkout/payment-method-label.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/payment-method-selection.test.ts",
+          "target": "~/packages/commerce/checkout/payment-method-selection.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/payment-method-selection.ts",
+          "target": "~/packages/commerce/checkout/payment-method-selection.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/payment-options-form.test.tsx",
+          "target": "~/packages/commerce/checkout/payment-options-form.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/payment-options-form.tsx",
+          "target": "~/packages/commerce/checkout/payment-options-form.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/place-order-action-contract.ts",
+          "target": "~/packages/commerce/checkout/place-order-action-contract.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/place-order-form.test.tsx",
+          "target": "~/packages/commerce/checkout/place-order-form.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/place-order-form.tsx",
+          "target": "~/packages/commerce/checkout/place-order-form.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/procedures.ts",
+          "target": "~/packages/commerce/checkout/procedures.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/public-errors.ts",
+          "target": "~/packages/commerce/checkout/public-errors.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/public-state.ts",
+          "target": "~/packages/commerce/checkout/public-state.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/save-contact-action-contract.ts",
+          "target": "~/packages/commerce/checkout/save-contact-action-contract.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/save-delivery-details-action-contract.ts",
+          "target": "~/packages/commerce/checkout/save-delivery-details-action-contract.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/save-payment-options-action-contract.ts",
+          "target": "~/packages/commerce/checkout/save-payment-options-action-contract.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/save-shipping-options-action-contract.ts",
+          "target": "~/packages/commerce/checkout/save-shipping-options-action-contract.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/shipping-options-form.test.tsx",
+          "target": "~/packages/commerce/checkout/shipping-options-form.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/shipping-options-form.tsx",
+          "target": "~/packages/commerce/checkout/shipping-options-form.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/violations.test.tsx",
+          "target": "~/packages/commerce/checkout/violations.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/violations.tsx",
+          "target": "~/packages/commerce/checkout/violations.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "commerce-context/business-unit-cookie.test.ts",
+          "target": "~/packages/commerce/commerce-context/business-unit-cookie.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "commerce-context/business-unit-cookie.ts",
+          "target": "~/packages/commerce/commerce-context/business-unit-cookie.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "commerce-context/business-unit-switcher.tsx",
+          "target": "~/packages/commerce/commerce-context/business-unit-switcher.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "commerce-context/can-select-business-unit.ts",
+          "target": "~/packages/commerce/commerce-context/can-select-business-unit.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "commerce-context/commerce-context-observation.tsx",
+          "target": "~/packages/commerce/commerce-context/commerce-context-observation.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "commerce-context/index.ts",
+          "target": "~/packages/commerce/commerce-context/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "CONTEXT.md",
+          "target": "~/packages/commerce/CONTEXT.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/action-contract.ts",
+          "target": "~/packages/commerce/customer-account/action-contract.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/actions.ts",
+          "target": "~/packages/commerce/customer-account/actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/boundaries.test.ts",
+          "target": "~/packages/commerce/customer-account/boundaries.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/company-member-invitation-form.test.tsx",
+          "target": "~/packages/commerce/customer-account/company-member-invitation-form.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/company-member-invitation-form.tsx",
+          "target": "~/packages/commerce/customer-account/company-member-invitation-form.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/company-members-management.test.tsx",
+          "target": "~/packages/commerce/customer-account/company-members-management.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/company-members-management.tsx",
+          "target": "~/packages/commerce/customer-account/company-members-management.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/customer-account-page.tsx",
+          "target": "~/packages/commerce/customer-account/customer-account-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/index.ts",
+          "target": "~/packages/commerce/customer-account/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/procedures.ts",
+          "target": "~/packages/commerce/customer-account/procedures.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/programs.test.ts",
+          "target": "~/packages/commerce/customer-account/programs.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "customer-account/programs.ts",
+          "target": "~/packages/commerce/customer-account/programs.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/address-book.ts",
+          "target": "~/packages/commerce/domain/address-book.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/address.ts",
+          "target": "~/packages/commerce/domain/address.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/cart-errors.ts",
+          "target": "~/packages/commerce/domain/cart-errors.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/cart-snapshot.ts",
+          "target": "~/packages/commerce/domain/cart-snapshot.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/cart.ts",
+          "target": "~/packages/commerce/domain/cart.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/checkout-state.ts",
+          "target": "~/packages/commerce/domain/checkout-state.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/checkout.ts",
+          "target": "~/packages/commerce/domain/checkout.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/commerce-account.ts",
+          "target": "~/packages/commerce/domain/commerce-account.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/commerce-request-context.ts",
+          "target": "~/packages/commerce/domain/commerce-request-context.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/delivery-plan.ts",
+          "target": "~/packages/commerce/domain/delivery-plan.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/money.ts",
+          "target": "~/packages/commerce/domain/money.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/order.ts",
+          "target": "~/packages/commerce/domain/order.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "domain/provider-failure.ts",
+          "target": "~/packages/commerce/domain/provider-failure.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@commerce/anonymous-checkout.feature",
+          "target": "~/packages/commerce/e2e/@commerce/anonymous-checkout.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@commerce/authenticated-checkout.feature",
+          "target": "~/packages/commerce/e2e/@commerce/authenticated-checkout.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@commerce/checkout.steps.ts",
+          "target": "~/packages/commerce/e2e/@commerce/checkout.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@commerce/order-placement.feature",
+          "target": "~/packages/commerce/e2e/@commerce/order-placement.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@commerce/order-placement.steps.ts",
+          "target": "~/packages/commerce/e2e/@commerce/order-placement.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@commerce/payment-options.feature",
+          "target": "~/packages/commerce/e2e/@commerce/payment-options.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@commerce/payment-options.steps.ts",
+          "target": "~/packages/commerce/e2e/@commerce/payment-options.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/business-unit-lookup.ts",
+          "target": "~/packages/commerce/e2e/business-unit-lookup.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/card-payment-entry-driver.ts",
+          "target": "~/packages/commerce/e2e/card-payment-entry-driver.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/checkout-expectations.test.ts",
+          "target": "~/packages/commerce/e2e/checkout-expectations.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/checkout-expectations.ts",
+          "target": "~/packages/commerce/e2e/checkout-expectations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/checkout-scenario.test.ts",
+          "target": "~/packages/commerce/e2e/checkout-scenario.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/checkout-scenario.ts",
+          "target": "~/packages/commerce/e2e/checkout-scenario.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/company-switcher.steps.ts",
+          "target": "~/packages/commerce/e2e/company-switcher.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/drivers/cart.driver.ts",
+          "target": "~/packages/commerce/e2e/drivers/cart.driver.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/drivers/catalog.driver.ts",
+          "target": "~/packages/commerce/e2e/drivers/catalog.driver.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/drivers/checkout.driver.ts",
+          "target": "~/packages/commerce/e2e/drivers/checkout.driver.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/drivers/money.driver.ts",
+          "target": "~/packages/commerce/e2e/drivers/money.driver.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/shipping-options-test-control.ts",
+          "target": "~/packages/commerce/e2e/shipping-options-test-control.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "http/address-book-api.ts",
+          "target": "~/packages/commerce/http/address-book-api.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "http/checkout-api-messages.ts",
+          "target": "~/packages/commerce/http/checkout-api-messages.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "http/checkout-api-state.test.ts",
+          "target": "~/packages/commerce/http/checkout-api-state.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "http/checkout-api-state.ts",
+          "target": "~/packages/commerce/http/checkout-api-state.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "http/checkout-api.ts",
+          "target": "~/packages/commerce/http/checkout-api.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "http/commerce-request.ts",
+          "target": "~/packages/commerce/http/commerce-request.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "index.ts",
+          "target": "~/packages/commerce/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/cart/utils/anonymous-cart-cookies.test.ts",
+          "target": "~/packages/commerce/lib/cart/utils/anonymous-cart-cookies.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/cart/utils/anonymous-cart-cookies.ts",
+          "target": "~/packages/commerce/lib/cart/utils/anonymous-cart-cookies.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/address-equality.ts",
+          "target": "~/packages/commerce/lib/checkout/address-equality.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/checkout-policy.test.ts",
+          "target": "~/packages/commerce/lib/checkout/checkout-policy.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/checkout-policy.ts",
+          "target": "~/packages/commerce/lib/checkout/checkout-policy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/checkout-session.test.ts",
+          "target": "~/packages/commerce/lib/checkout/checkout-session.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/checkout-session.ts",
+          "target": "~/packages/commerce/lib/checkout/checkout-session.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/contact-source-policy.test.ts",
+          "target": "~/packages/commerce/lib/checkout/contact-source-policy.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/contact-source-policy.ts",
+          "target": "~/packages/commerce/lib/checkout/contact-source-policy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/delivery-details-equality.ts",
+          "target": "~/packages/commerce/lib/checkout/delivery-details-equality.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/delivery-plan-equality.ts",
+          "target": "~/packages/commerce/lib/checkout/delivery-plan-equality.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/failure-policy.ts",
+          "target": "~/packages/commerce/lib/checkout/failure-policy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/request-context.test.ts",
+          "target": "~/packages/commerce/lib/checkout/request-context.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/request-context.ts",
+          "target": "~/packages/commerce/lib/checkout/request-context.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/state.test.ts",
+          "target": "~/packages/commerce/lib/checkout/state.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/state.ts",
+          "target": "~/packages/commerce/lib/checkout/state.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/violation-message.test.ts",
+          "target": "~/packages/commerce/lib/checkout/violation-message.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/violation-message.ts",
+          "target": "~/packages/commerce/lib/checkout/violation-message.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/violation-visibility.test.ts",
+          "target": "~/packages/commerce/lib/checkout/violation-visibility.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/checkout/violation-visibility.ts",
+          "target": "~/packages/commerce/lib/checkout/violation-visibility.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/current-cart/cookie.ts",
+          "target": "~/packages/commerce/lib/current-cart/cookie.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/order/order-confirmation.ts",
+          "target": "~/packages/commerce/lib/order/order-confirmation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/order/utils/anonymous-order-access-cookie.test.ts",
+          "target": "~/packages/commerce/lib/order/utils/anonymous-order-access-cookie.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/order/utils/anonymous-order-access-cookie.ts",
+          "target": "~/packages/commerce/lib/order/utils/anonymous-order-access-cookie.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/order/utils/order-placement-recovery-cookie.ts",
+          "target": "~/packages/commerce/lib/order/utils/order-placement-recovery-cookie.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/commerce/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/attributes.ts",
+          "target": "~/packages/commerce/product/attributes.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/catalog-runtime.test.ts",
+          "target": "~/packages/commerce/product/catalog-runtime.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/catalog-runtime.ts",
+          "target": "~/packages/commerce/product/catalog-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/generated/attributes-boundary.test.ts",
+          "target": "~/packages/commerce/product/generated/attributes-boundary.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/generated/attributes.ts",
+          "target": "~/packages/commerce/product/generated/attributes.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/identity.ts",
+          "target": "~/packages/commerce/product/identity.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/image.ts",
+          "target": "~/packages/commerce/product/image.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/index.ts",
+          "target": "~/packages/commerce/product/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/model.ts",
+          "target": "~/packages/commerce/product/model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/presentation.test.ts",
+          "target": "~/packages/commerce/product/presentation.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/presentation.ts",
+          "target": "~/packages/commerce/product/presentation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/product-collection.tsx",
+          "target": "~/packages/commerce/product/product-collection.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/product-detail.tsx",
+          "target": "~/packages/commerce/product/product-detail.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/product-discovery.test.ts",
+          "target": "~/packages/commerce/product/product-discovery.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/product-discovery.ts",
+          "target": "~/packages/commerce/product/product-discovery.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/product.test.ts",
+          "target": "~/packages/commerce/product/product.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "README.md",
+          "target": "~/packages/commerce/README.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime.test.ts",
+          "target": "~/packages/commerce/runtime.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime.ts",
+          "target": "~/packages/commerce/runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime/commerce-request.test.ts",
+          "target": "~/packages/commerce/runtime/commerce-request.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime/commerce-request.ts",
+          "target": "~/packages/commerce/runtime/commerce-request.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime/header-layer.ts",
+          "target": "~/packages/commerce/runtime/header-layer.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime/header-runtime.ts",
+          "target": "~/packages/commerce/runtime/header-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime/make-commerce-app.test.ts",
+          "target": "~/packages/commerce/runtime/make-commerce-app.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime/make-commerce-app.ts",
+          "target": "~/packages/commerce/runtime/make-commerce-app.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/check-commerce-boundaries.ts",
+          "target": "~/packages/commerce/scripts/check-commerce-boundaries.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/commerce-boundaries.test.ts",
+          "target": "~/packages/commerce/scripts/commerce-boundaries.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/commerce-boundaries.ts",
+          "target": "~/packages/commerce/scripts/commerce-boundaries.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/address-book.test.ts",
+          "target": "~/packages/commerce/services/address-book.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/address-book.ts",
+          "target": "~/packages/commerce/services/address-book.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/cart-policies.test.ts",
+          "target": "~/packages/commerce/services/cart-policies.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/cart-policies.ts",
+          "target": "~/packages/commerce/services/cart-policies.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/carts.test.ts",
+          "target": "~/packages/commerce/services/carts.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/carts.ts",
+          "target": "~/packages/commerce/services/carts.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/commerce-accounts.test.ts",
+          "target": "~/packages/commerce/services/commerce-accounts.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/commerce-accounts.ts",
+          "target": "~/packages/commerce/services/commerce-accounts.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/commerce-company-memberships.ts",
+          "target": "~/packages/commerce/services/commerce-company-memberships.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/commerce-context.test.ts",
+          "target": "~/packages/commerce/services/commerce-context.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/commerce-context.ts",
+          "target": "~/packages/commerce/services/commerce-context.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/company-member-removal-records.ts",
+          "target": "~/packages/commerce/services/company-member-removal-records.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/current-cart.test.ts",
+          "target": "~/packages/commerce/services/current-cart.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/current-cart.ts",
+          "target": "~/packages/commerce/services/current-cart.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/customer-account-members.ts",
+          "target": "~/packages/commerce/services/customer-account-members.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/delivery-planning.test.ts",
+          "target": "~/packages/commerce/services/delivery-planning.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/delivery-planning.ts",
+          "target": "~/packages/commerce/services/delivery-planning.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "services/orders.ts",
+          "target": "~/packages/commerce/services/orders.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "store/index.ts",
+          "target": "~/packages/commerce/store/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "store/store.test.ts",
+          "target": "~/packages/commerce/store/store.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/commerce/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "turbo.json",
+          "target": "~/packages/commerce/turbo.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/commerce/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

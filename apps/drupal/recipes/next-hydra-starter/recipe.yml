@@ -61,7 +61,6 @@ config:
     - field.storage.paragraph.field_description
     - field.storage.paragraph.field_heading
     - field.storage.paragraph.field_image
-    - field.storage.paragraph.field_product_category
     - field.storage.paragraph.field_tagline
     - filter.format.basic_html
   import:
@@ -268,25 +267,6 @@ config:
       createIfNotExists:
         target_entity_type_id: paragraph
         target_bundle: hero
-      setProperties:
-        default_langcode: site_default
-        language_alterable: true
-      setThirdPartySetting:
-        module: content_translation
-        key: enabled
-        value: false
-      setThirdPartySettings:
-        - module: content_translation
-          key: enabled
-          value: true
-        - module: content_translation
-          key: bundle_settings
-          value:
-            untranslatable_fields_hide: "1"
-    language.content_settings.paragraph.dynamic_product_collection:
-      createIfNotExists:
-        target_entity_type_id: paragraph
-        target_bundle: dynamic_product_collection
       setProperties:
         default_langcode: site_default
         language_alterable: true

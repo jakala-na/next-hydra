@@ -1,7 +1,11 @@
-import { defineConfig } from "vitest/config";
+import { workspaceConfig } from "@repo/testing";
+import { defineConfig, mergeConfig } from "vitest/config";
 
-export default defineConfig({
-  test: {
-    include: ["**/*.test.ts"],
-  },
-});
+export default mergeConfig(
+  workspaceConfig,
+  defineConfig({
+    test: {
+      include: ["**/*.test.ts"],
+    },
+  })
+);

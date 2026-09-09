@@ -171,52 +171,6 @@
           ],
           "title": "Hero section",
           "uid": "hero_section"
-        },
-        {
-          "schema": [
-            {
-              "data_type": "text",
-              "display_name": "Heading",
-              "field_metadata": {},
-              "mandatory": false,
-              "multiple": false,
-              "non_localizable": false,
-              "uid": "heading",
-              "unique": false
-            },
-            {
-              "data_type": "json",
-              "display_name": "Description",
-              "field_metadata": {
-                "allow_json_rte": true,
-                "embed_entry": false,
-                "multiline": false,
-                "rich_text_type": "advanced"
-              },
-              "mandatory": false,
-              "multiple": false,
-              "non_localizable": false,
-              "reference_to": [],
-              "uid": "description",
-              "unique": false
-            },
-            {
-              "data_type": "json",
-              "display_name": "Commerce category",
-              "field_metadata": {
-                "allow_json_rte": false,
-                "description": "A Commercetools category resource identifier."
-              },
-              "mandatory": false,
-              "multiple": false,
-              "non_localizable": true,
-              "reference_to": [],
-              "uid": "product_category",
-              "unique": false
-            }
-          ],
-          "title": "Dynamic product collection",
-          "uid": "dynamic_product_collection"
         }
       ],
       "data_type": "blocks",

@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import { APP_SLOTS, PROVIDER_ALIASES, PROVIDER_SLOTS } from "./types.js";
+import { PROVIDER_ALIASES, PROVIDER_SLOTS } from "./types.js";
 
 export const NEXT_HYDRA_SELECTION_SCHEMA_URL =
   "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json";
@@ -17,7 +17,7 @@ const workspaceRelativePathSchema = z
     "must not escape the workspace"
   );
 
-const workspaceFilePathSchema = workspaceRelativePathSchema.refine(
+export const workspaceFilePathSchema = workspaceRelativePathSchema.refine(
   (value) => ![".", "./"].includes(path.posix.normalize(value)),
   "must name a file or directory below the workspace root"
 );
@@ -61,6 +61,14 @@ const pnpmPatchSchema = z
   })
   .strict();
 
+const typeScriptPathAliasSchema = z
+  .object({
+    alias: z.string().min(1),
+    cwd: workspaceRelativePathSchema,
+    sourcePath: workspaceFilePathSchema,
+  })
+  .strict();
+
 const providerSelectionsSchema = z
   .object({
     auth: z.string().min(1).optional(),
@@ -72,12 +80,6 @@ const providerSelectionsSchema = z
 const presetSelectionsSchema = z
   .object({
     addOns: z.array(z.string().min(1)).default([]),
-    apps: z
-      .object({
-        web: z.string().min(1).optional(),
-      })
-      .strict()
-      .optional(),
     providers: providerSelectionsSchema.optional(),
   })
   .strict();
@@ -104,9 +106,31 @@ export const selectionDefinitionSchema = z
       })
       .strict()
       .default({ conflicts: [], requires: [] }),
-    app: z.enum(APP_SLOTS).optional(),
+    conditionalDependencies: z
+      .array(
+        z
+          .object({
+            providers: z.array(z.enum(PROVIDER_SLOTS)).min(1),
+            items: z.array(z.string().min(1)).min(1),
+          })
+          .strict()
+      )
+      .default([]),
     id: z.string().min(1),
-    kind: z.enum(["provider", "add-on", "preset", "app-profile"]),
+    kind: z.enum([
+      "provider",
+      "add-on",
+      "preset",
+      "package",
+      "integration",
+      "contribution",
+    ]),
+    maintainerWorkspace: z
+      .object({
+        copy: z.array(workspaceFilePathSchema).default([]),
+      })
+      .strict()
+      .default({ copy: [] }),
     packages: z.array(packageRequirementSchema).default([]),
     pnpmPatches: z.array(pnpmPatchSchema).default([]),
     providerDependencies: z.array(providerDependencySchema).default([]),
@@ -120,6 +144,7 @@ export const selectionDefinitionSchema = z
       .optional(),
     selections: presetSelectionsSchema.optional(),
     slot: z.enum(PROVIDER_SLOTS).optional(),
+    typeScriptAliases: z.array(typeScriptPathAliasSchema).default([]),
   })
   .strict()
   .superRefine((definition, context) => {
@@ -131,26 +156,13 @@ export const selectionDefinitionSchema = z
       });
     }
 
-    if (definition.kind === "app-profile" && !definition.app) {
+    if (
+      !["package", "integration"].includes(definition.kind) &&
+      definition.providerSlots
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "an app profile must declare its app",
-        path: ["app"],
-      });
-    }
-
-    if (definition.kind !== "app-profile" && definition.app) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `${definition.kind} must not declare an app`,
-        path: ["app"],
-      });
-    }
-
-    if (definition.kind !== "app-profile" && definition.providerSlots) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `${definition.kind} must not declare app provider slots`,
+        message: `${definition.kind} must not declare provider requirements`,
         path: ["providerSlots"],
       });
     }
@@ -221,12 +233,6 @@ export const selectionDefinitionSchema = z
 export const workspaceSelectionSchema = z
   .object({
     addOns: z.array(z.string().min(1)).default([]),
-    apps: z
-      .object({
-        web: z.string().min(1).optional(),
-      })
-      .strict()
-      .default({}),
     providers: z
       .object({
         auth: z.string().min(1).optional(),

@@ -1,0 +1,46 @@
+name: Product collection
+description: Drupal Paragraph and Canvas adapters for the selected Commerce provider.
+type: Content
+recipes:
+  - next-hydra-starter
+config:
+  strict:
+    - field.storage.paragraph.field_product_category
+  actions:
+    field.field.node.landing_page.field_components:
+      setProperties:
+        settings.handler_settings.target_bundles.dynamic_product_collection: dynamic_product_collection
+        settings.handler_settings.target_bundles_drag_drop.dynamic_product_collection:
+          weight: 1
+          enabled: true
+    graphql_compose.settings:
+      simpleConfigUpdate:
+        entity_config.paragraph.dynamic_product_collection:
+          enabled: true
+          query_load_enabled: false
+        field_config.paragraph.dynamic_product_collection:
+          field_description:
+            enabled: true
+          field_heading:
+            enabled: true
+          field_product_category:
+            enabled: true
+    language.content_settings.paragraph.dynamic_product_collection:
+      createIfNotExists:
+        target_entity_type_id: paragraph
+        target_bundle: dynamic_product_collection
+      setProperties:
+        default_langcode: site_default
+        language_alterable: true
+      setThirdPartySetting:
+        module: content_translation
+        key: enabled
+        value: false
+      setThirdPartySettings:
+        - module: content_translation
+          key: enabled
+          value: true
+        - module: content_translation
+          key: bundle_settings
+          value:
+            untranslatable_fields_hide: "1"

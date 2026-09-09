@@ -1,0 +1,32 @@
+import { graphql } from "../../graphql";
+{{imports}}
+
+export const landingPageQuery = graphql(
+  `
+    query PageQuery($url: String, $locale: String!) {
+      all_landing_page(
+        locale: $locale
+        fallback_locale: true
+        limit: 1
+        where: { url: $url }
+      ) {
+        items {
+          title
+          display_title
+          hide_display_title
+          url
+          components {
+            __typename
+            {{pageBlocks.spreads}}
+          }
+          system {
+            uid
+            content_type_uid
+            locale
+          }
+        }
+      }
+    }
+  `,
+  [{{pageBlocks.documents}}]
+);
