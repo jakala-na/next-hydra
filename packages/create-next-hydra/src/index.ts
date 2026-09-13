@@ -16,7 +16,6 @@ type CliActionOptions = {
   yes?: boolean;
   skipGit?: boolean;
   commit?: boolean;
-  maintainerWorkspace?: boolean;
   ref?: string;
   repoUrl?: string;
   verbose?: boolean;
@@ -50,13 +49,10 @@ function buildCreateOptions(
     cms: rawOptions.cms,
     commerce: rawOptions.commerce,
     commit: rawOptions.commit ?? true,
-    maintainerWorkspace: rawOptions.maintainerWorkspace ?? false,
     preset: rawOptions.preset,
     ref: rawOptions.ref,
     repoUrl: rawOptions.repoUrl ?? DEFAULT_REPO_URL,
-    skipGit:
-      (rawOptions.maintainerWorkspace ?? false) ||
-      (rawOptions.skipGit ?? false),
+    skipGit: rawOptions.skipGit ?? false,
     targetDir,
     verbose: rawOptions.verbose ?? false,
     without: rawOptions.without,
@@ -70,6 +66,11 @@ export async function runCli(
 ): Promise<void> {
   // Reserve the retired name so old scripts cannot accidentally scaffold a project named "use".
   rejectRetiredCommand(argv[2]);
+  if (argv.includes("--maintainer-workspace")) {
+    throw new Error(
+      "--maintainer-workspace has been removed. Define workspaces/<name>/next-hydra.json and run create-next-hydra compose <name> --copy-env."
+    );
+  }
   const program = new Command().enablePositionalOptions();
 
   program
@@ -169,10 +170,6 @@ export async function runCli(
     .argument("[project-directory]", "Target directory")
     .option("-y, --yes", "Skip prompts (requires [project-directory])")
     .option("--skip-git", "Skip git initialization")
-    .option(
-      "--maintainer-workspace",
-      "Compose from and link sources to the current maintainer checkout"
-    )
     .option("--no-commit", "Initialize git but skip initial commit")
     .option("--ref <git-ref>", "Clone and checkout a specific git ref")
     .option("--repo-url <url>", "Override the starter repo URL")

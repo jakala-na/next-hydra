@@ -1,9 +1,16 @@
 /* oxlint-disable unicorn/no-array-sort -- Only a newly filtered array is sorted; the CLI targets ES2022. */
-import { lstat, mkdir } from "node:fs/promises";
+import { lstat, mkdir, readdir, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import { resolveWorkspacePath } from "./composition/paths.js";
 import { runGit } from "./git.js";
+
+export function isEnvironmentFile(name: string): boolean {
+  return (
+    /^\.env(?:\.|$)/u.test(name) &&
+    !/\.(?:example|sample|template)$/u.test(name)
+  );
+}
 
 /** Catch file/directory collisions before any output exists, not halfway through copying. */
 export function assertDistinctFileTargets(targets: readonly string[]): void {
@@ -73,6 +80,31 @@ export async function createWorkspaceDirectory(target: string): Promise<void> {
   await mkdir(path.dirname(target), { recursive: true });
   // Exclusive claim: concurrent invocations cannot both own the output.
   await mkdir(target);
+}
+
+/** Claim a new output or an explicitly allowed empty directory without replacing user files. */
+export async function claimWorkspaceDirectory(
+  target: string,
+  allowEmpty = false
+): Promise<() => Promise<void>> {
+  if (!allowEmpty || !(await assertDirectoryPath(target))) {
+    await createWorkspaceDirectory(target);
+  }
+  const lock = path.join(target, ".workspace-create.lock");
+  await writeFile(lock, "Workspace creation in progress\n", { flag: "wx" });
+  const release = async () => {
+    await unlink(lock);
+  };
+  try {
+    const files = await readdir(target);
+    if (files.some((file) => file !== ".workspace-create.lock")) {
+      throw new Error(`Refusing to replace a nonempty workspace: ${target}`);
+    }
+    return release;
+  } catch (error) {
+    await release();
+    throw error;
+  }
 }
 
 /** The working tree is authoritative, including new files and unstaged deletions. */

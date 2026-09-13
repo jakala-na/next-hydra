@@ -50,16 +50,31 @@ describe("whole-package composition", () => {
         )
         .map((item) => item.itemName)
     ).toEqual(["app-web"]);
-    expect(catalog.items.has("app-web-catalog")).toBeFalsy();
-    expect(catalog.items.has("auth-workos-sign-in")).toBeFalsy();
-    expect(catalog.items.has("auth-clerk-sign-in")).toBeFalsy();
-    const standard = selectionFromPreset(catalog, "standard");
-    const explicit = planComposition(catalog, standard);
-    const implicit = planComposition(catalog, {
-      addOns: standard.addOns,
-      providers: standard.providers,
+    expect(
+      ["app-web-catalog", "auth-workos-sign-in", "auth-clerk-sign-in"].filter(
+        (name) => catalog.items.has(name)
+      )
+    ).toEqual([]);
+    const minimal = planComposition(catalog, {
+      addOns: [],
+      providers: { cms: "contentstack" },
     });
-    expect(implicit).toEqual(explicit);
+    const prepared = await prepareComposition(catalog, minimal);
+    const targets = [
+      ...prepared.artifacts
+        .filter((item) => minimal.registryItems.includes(item.name))
+        .flatMap((item) => item.files?.map((file) => file.target) ?? []),
+      ...minimal.templates.map((template) => `~/${template.target}`),
+    ];
+    expect(targets).toEqual(
+      expect.arrayContaining([
+        "~/apps/web/package.json",
+        "~/apps/web/app/[locale]/layout.tsx",
+      ])
+    );
+    expect(targets).not.toEqual(
+      expect.arrayContaining(["~/apps/web/app/[locale]/checkout/page.tsx"])
+    );
   });
 
   it.each(

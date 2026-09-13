@@ -636,7 +636,7 @@ export async function addRegistryItem(
     }
     if (selection.kind === "provider") {
       throw new Error(
-        "Providers must be selected while scaffolding or with `create-next-hydra use`; `add` does not switch a customer workspace provider."
+        "Select providers with `create-next-hydra <directory>` when scaffolding. For a named Development Workspace, edit workspaces/<name>/next-hydra.json and run `create-next-hydra compose <name>`. `add` does not switch a Customer Workspace provider."
       );
     }
   }

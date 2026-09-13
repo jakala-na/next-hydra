@@ -6,6 +6,12 @@ import { runCli } from "../src/index.js";
 import { CLI_VERSION } from "../src/version.js";
 
 describe("CLI", () => {
+  it("rejects the retired maintainer flag with named-workspace migration instructions", async () => {
+    await expect(
+      runCli(["node", "create-next-hydra", "output", "--maintainer-workspace"])
+    ).rejects.toThrow("compose <name> --copy-env");
+  });
+
   it("reports the version from the published package manifest", () => {
     expect(CLI_VERSION).toBe(packageManifest.version);
   });

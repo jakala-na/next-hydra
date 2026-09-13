@@ -11,7 +11,8 @@
           "maintainerWorkspace": {
             "copy": [
               "apps/cli/vitest.config.ts",
-              "apps/cli/src/config-provider.ts"
+              "apps/cli/src/config-provider.ts",
+              "apps/cli/src/index.ts"
             ]
           },
           "kind": "integration",

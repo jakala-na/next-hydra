@@ -8,8 +8,7 @@ import { loadSourceRegistryCatalog } from "../src/composition/catalog.js";
 import { prepareComposition } from "../src/composition/install.js";
 import { planComposition } from "../src/composition/planner.js";
 import type { WorkspaceSelection } from "../src/composition/types.js";
-import { pathExists, writeJsonFile } from "../src/fs-utils.js";
-import { pruneUnselectedWorkspacePackages } from "../src/maintainer-workspace.js";
+import { pathExists } from "../src/fs-utils.js";
 import { scaffoldProject } from "../src/scaffold.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
@@ -80,7 +79,7 @@ describe("backend ownership", () => {
   );
 });
 
-describe("clone-based CMS package exclusions", () => {
+describe("customer CMS package exclusions", () => {
   let scratch: string;
   beforeAll(async () => {
     await mkdir(path.join(repoRoot, "workspaces"), { recursive: true });
@@ -94,62 +93,6 @@ describe("clone-based CMS package exclusions", () => {
     await rm(scratch, { force: true, recursive: true });
   });
 
-  it.each([false, true])(
-    "customer-shaped search backend=%s follows registry ownership, not Commerce",
-    async (backend) => {
-      const targetRoot = path.join(scratch, `customer-${backend}`);
-      await Promise.all(
-        ["web", "api", "admin"].map(async (app) => {
-          await mkdir(path.join(targetRoot, "apps", app), { recursive: true });
-          await writeJsonFile(
-            path.join(targetRoot, "apps", app, "package.json"),
-            { name: app, private: true }
-          );
-        })
-      );
-      await writeJsonFile(path.join(targetRoot, "package.json"), {
-        name: "customer",
-        private: true,
-      });
-      await writeJsonFile(path.join(targetRoot, "registry.json"), {
-        items: [
-          {
-            files: [
-              {
-                path: "apps/web/package.json",
-                target: "~/apps/web/package.json",
-              },
-            ],
-            name: "app-web",
-          },
-          {
-            files: [
-              {
-                path: "apps/api/package.json",
-                target: "~/apps/api/package.json",
-              },
-            ],
-            name: "search-backend",
-          },
-        ],
-      });
-      await pruneUnselectedWorkspacePackages({
-        selectedItems: backend ? ["app-web", "search-backend"] : ["app-web"],
-        sourceRoot: targetRoot,
-        targetRoot,
-      });
-      await expect(pathExists(path.join(targetRoot, "apps/api"))).resolves.toBe(
-        backend
-      );
-      await expect(
-        pathExists(path.join(targetRoot, "apps/admin"))
-      ).resolves.toBeFalsy();
-      await expect(
-        pathExists(path.join(targetRoot, "apps/web"))
-      ).resolves.toBeTruthy();
-    }
-  );
-
   it.each(["contentstack", "drupal"])(
     "%s removes reference-only imports and authoring inputs",
     async (cms) => {
@@ -158,7 +101,6 @@ describe("clone-based CMS package exclusions", () => {
         {
           cms,
           commit: false,
-          maintainerWorkspace: true,
           repoUrl: repoRoot,
           skipGit: true,
           targetDir: targetRoot,

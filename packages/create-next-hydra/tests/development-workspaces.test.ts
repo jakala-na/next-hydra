@@ -152,7 +152,10 @@ describe("named workspace lifecycle through the actual scaffold", () => {
           portless: { appPort, name: `${app}.${name}`, script: "dev:app" },
           scripts: {
             dev: "portless",
-            "dev:app": "NODE_USE_SYSTEM_CA=1 next dev --turbopack",
+            "dev:app":
+              app === "api"
+                ? "next dev --turbopack"
+                : "NODE_USE_SYSTEM_CA=1 next dev --turbopack",
           },
         });
       })

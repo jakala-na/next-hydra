@@ -1,21 +1,14 @@
-import { stat } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { intro } from "@clack/prompts";
 
 import { cloneStarter } from "./clone.js";
 import {
   addCatalogReferences,
-  loadGitHubSourceRegistryCatalog,
   loadSourceRegistryCatalog,
 } from "./composition/catalog.js";
-import { formatCompositionPlan } from "./composition/format.js";
-import {
-  installPreparedComposition,
-  prepareComposition,
-  validatePackageRequirementTargets,
-} from "./composition/install.js";
 import { planComposition, selectionFromPreset } from "./composition/planner.js";
 import type {
   ProviderSlot,
@@ -23,13 +16,6 @@ import type {
   WorkspaceSelection,
 } from "./composition/types.js";
 import { PROVIDER_SLOTS } from "./composition/types.js";
-import { applyTypeScriptPathAliases } from "./composition/typescript-paths.js";
-import {
-  applyPackageRequirements,
-  applyPnpmPatches,
-  removeWorkspaceTargets,
-  writeWorkspaceSelection,
-} from "./composition/workspace.js";
 import { DEFAULT_PACKAGE_MANAGER } from "./constants.js";
 import {
   ensureParentDirectory,
@@ -50,37 +36,19 @@ import {
   success,
   warn,
 } from "./logger.js";
-import {
-  assertMaintainerDependencyCompatibility,
-  assertMaintainerWorkspaceTarget,
-  copyMaintainerEnvironmentFiles,
-  copyMaintainerWorkspace,
-  findMaintainerWorkspaceRoot,
-  linkMaintainerWorkspaceSources,
-  pruneUnselectedWorkspacePackages,
-} from "./maintainer-workspace.js";
 import { promptForProvider } from "./prompts.js";
-import { sanitizeStarter } from "./sanitize.js";
 import type {
   CreateOptions,
   ResolvedCreateOptions,
   ScaffoldResult,
 } from "./types.js";
-import {
-  assertDirectoryPath,
-  assertNewWorkspaceDirectory,
-} from "./workspace-files.js";
+import { constructWorkspace } from "./workspace-construction.js";
+import { assertDirectoryPath } from "./workspace-files.js";
 
 type ScaffoldDependencies = {
   install?: (cwd: string, verbose: boolean) => Promise<void>;
 };
-
 const SHELL_NEEDS_QUOTING_REGEX = /[\s"'\\]/u;
-const GITHUB_SCP_REPOSITORY =
-  /^(?:git@|ssh:\/\/git@)github\.com[:/](?<owner>[^/]+)\/(?<repository>[^/]+?)(?:\.git)?$/u;
-const LEADING_SLASH = /^\//u;
-const GIT_SUFFIX = /\.git$/u;
-
 function quotePathForShell(value: string): string {
   if (!SHELL_NEEDS_QUOTING_REGEX.test(value)) {
     return value;
@@ -90,8 +58,7 @@ function quotePathForShell(value: string): string {
 }
 
 async function resolveAndValidateTarget(
-  inputTargetDir: string,
-  maintainerSourcePath?: string
+  inputTargetDir: string
 ): Promise<
   Pick<ResolvedCreateOptions, "targetDir" | "targetName" | "targetPath">
 > {
@@ -103,10 +70,7 @@ async function resolveAndValidateTarget(
     throw new Error("Please provide a valid target folder.");
   }
 
-  if (maintainerSourcePath) {
-    assertMaintainerWorkspaceTarget(maintainerSourcePath, targetPath);
-    await assertNewWorkspaceDirectory(targetPath);
-  } else if (await assertDirectoryPath(targetPath)) {
+  if (await assertDirectoryPath(targetPath)) {
     const isEmpty = await isDirectoryEmpty(targetPath);
     if (!isEmpty) {
       throw new Error(
@@ -133,51 +97,6 @@ function formatGitError(error: CommandExecutionError): string {
     : [];
 
   return [error.command, "", detail, ...hint].join("\n");
-}
-
-async function localRepositoryPath(repoUrl: string): Promise<string | null> {
-  let candidate: string;
-  if (repoUrl.startsWith("file:")) {
-    candidate = fileURLToPath(repoUrl);
-  } else if (
-    path.isAbsolute(repoUrl) ||
-    repoUrl.startsWith(".") ||
-    !repoUrl.includes(":")
-  ) {
-    candidate = path.resolve(repoUrl);
-  } else {
-    return null;
-  }
-
-  try {
-    const candidateStat = await stat(candidate);
-    return candidateStat.isDirectory() ? candidate : null;
-  } catch {
-    return null;
-  }
-}
-
-function githubRepository(repoUrl: string): string | null {
-  const scpMatch = GITHUB_SCP_REPOSITORY.exec(repoUrl);
-  if (scpMatch?.[1] && scpMatch[2]) {
-    return `${scpMatch[1]}/${scpMatch[2]}`;
-  }
-
-  try {
-    const url = new URL(repoUrl);
-    if (url.hostname !== "github.com") {
-      return null;
-    }
-    const parts = url.pathname
-      .replace(LEADING_SLASH, "")
-      .replace(GIT_SUFFIX, "")
-      .split("/");
-    return parts.length === 2 && parts[0] && parts[1]
-      ? `${parts[0]}/${parts[1]}`
-      : null;
-  } catch {
-    return null;
-  }
 }
 
 async function requestedSelection(
@@ -300,85 +219,25 @@ export async function scaffoldProject(
   dependencies: ScaffoldDependencies = {}
 ): Promise<ScaffoldResult> {
   intro("create-next-hydra");
-
-  const spin = createSpinner();
-  const { repoUrl, ref, commit, verbose } = options;
-  const skipGit = options.maintainerWorkspace === true || options.skipGit;
   if (!options.targetDir) {
     throw new Error("Missing target directory.");
   }
-
-  spin.start("Checking git availability");
-  try {
-    await ensureGitInstalled(verbose);
-    spin.stop("Git detected");
-  } catch (error) {
-    spin.stop("Git not available");
-    throw new Error(
-      "Git is required to scaffold a project. Please install git and try again.",
-      { cause: error }
-    );
-  }
-
-  const maintainerSourcePath = options.maintainerWorkspace
-    ? await findMaintainerWorkspaceRoot(process.cwd())
-    : undefined;
-  const effectiveRepoUrl = maintainerSourcePath ?? repoUrl;
-  const sourcePath = await localRepositoryPath(effectiveRepoUrl);
-  const remoteRepository = sourcePath ? null : githubRepository(repoUrl);
-  let sourceCatalog: SourceRegistryCatalog;
-  if (sourcePath) {
-    sourceCatalog = await loadSourceRegistryCatalog(sourcePath);
-  } else if (remoteRepository) {
-    sourceCatalog = await loadGitHubSourceRegistryCatalog(
-      remoteRepository,
-      ref
-    );
-  } else {
-    throw new Error(
-      "Composition preflight supports a local starter path or a public GitHub repository. Use one of those forms with `--repo-url`."
-    );
-  }
-  sourceCatalog = await addCatalogReferences(
-    sourceCatalog,
-    explicitSelectionReferences(options),
-    process.cwd()
-  );
-  let selection = await requestedSelection(options, sourceCatalog);
-  sourceCatalog = await addCatalogReferences(
-    sourceCatalog,
-    [...Object.values(selection.providers), ...selection.addOns],
-    process.cwd()
-  );
-  ({ selection } = planComposition(sourceCatalog, selection));
-
   const { targetPath, targetName } = await resolveAndValidateTarget(
-    options.targetDir,
-    maintainerSourcePath
+    options.targetDir
   );
-  const prepareSourceLabel = maintainerSourcePath
-    ? "copy the maintainer workspace"
-    : "clone the starter";
+  await ensureGitInstalled(options.verbose);
+  const spin = createSpinner();
+  const temporary = await mkdtemp(path.join(tmpdir(), "workspace-source-"));
+  const sourceRoot = path.join(temporary, "source");
   const completed: string[] = [];
   const pending = [
-    prepareSourceLabel,
+    "acquire source",
     "resolve the composition",
-    "remove variable provider source",
-    "install selected source",
-    "update package aliases",
-    "update TypeScript paths",
-    "update pnpm patches",
-    ...(sourceCatalog.items.has("app-web")
-      ? ["prune unselected applications and packages"]
-      : []),
-    "remove maintainer-only files",
-    ...(maintainerSourcePath ? ["copy local environment files"] : []),
+    "construct workspace",
     "install dependencies",
-    ...(maintainerSourcePath ? ["link maintainer source"] : []),
     "initialize Git",
   ];
-  let currentStep = prepareSourceLabel;
-
+  let currentStep = "acquire source";
   const runStep = async <T>(label: string, operation: () => Promise<T>) => {
     currentStep = label;
     pending.shift();
@@ -386,213 +245,87 @@ export async function scaffoldProject(
     completed.push(label);
     return result;
   };
-
   try {
-    spin.start(
-      maintainerSourcePath
-        ? "Copying the maintainer workspace"
-        : "Cloning next-hydra starter"
-    );
-    await runStep(prepareSourceLabel, async () => {
-      if (maintainerSourcePath) {
-        await copyMaintainerWorkspace(maintainerSourcePath, targetPath);
-        return;
-      }
+    spin.start("Acquiring workspace source");
+    await runStep("acquire source", async () => {
       await cloneStarter({
-        ref,
-        repoUrl: effectiveRepoUrl,
-        targetPath,
-        verbose,
+        ref: options.ref,
+        repoUrl: options.repoUrl,
+        targetPath: sourceRoot,
+        verbose: options.verbose,
       });
     });
-    spin.stop(
-      maintainerSourcePath ? "Maintainer workspace copied" : "Starter cloned"
-    );
-
-    spin.start("Resolving workspace composition");
-    const { catalog, plan, prepared } = await runStep(
+    spin.stop("Source acquired");
+    const { catalog, selection } = await runStep(
       "resolve the composition",
       async () => {
-        let targetCatalog = await loadSourceRegistryCatalog(targetPath);
-        targetCatalog = await addCatalogReferences(
-          targetCatalog,
-          [
-            ...explicitSelectionReferences(options),
-            ...Object.values(selection.providers),
-            ...selection.addOns,
-          ],
+        let sourceCatalog = await addCatalogReferences(
+          await loadSourceRegistryCatalog(sourceRoot),
+          explicitSelectionReferences(options),
           process.cwd()
         );
-        const targetPlan = planComposition(targetCatalog, selection);
-        const targetPrepared = await prepareComposition(
-          targetCatalog,
-          targetPlan
-        );
-        await validatePackageRequirementTargets(
-          targetPath,
-          targetPlan,
-          targetPrepared,
-          targetPlan.variableTargets
+        const requested = await requestedSelection(options, sourceCatalog);
+        sourceCatalog = await addCatalogReferences(
+          sourceCatalog,
+          [...Object.values(requested.providers), ...requested.addOns],
+          process.cwd()
         );
         return {
-          catalog: targetCatalog,
-          plan: targetPlan,
-          prepared: targetPrepared,
+          catalog: sourceCatalog,
+          selection: planComposition(sourceCatalog, requested).selection,
         };
       }
     );
-    spin.stop("Composition resolved");
-    info(formatCompositionPlan(plan));
-
-    spin.start("Removing unselected provider source");
-    await runStep("remove variable provider source", async () => {
-      await removeWorkspaceTargets(targetPath, plan.variableTargets);
-    });
-    spin.stop("Variable provider source removed");
-
-    spin.start("Installing selected provider source");
-    await runStep("install selected source", async () => {
-      await installPreparedComposition(targetPath, prepared);
-    });
-    spin.stop("Selected provider source installed");
-
-    await runStep("update package aliases", async () => {
-      await applyPackageRequirements(targetPath, plan);
-    });
-    await runStep("update TypeScript paths", async () => {
-      await applyTypeScriptPathAliases(targetPath, plan);
-    });
-    await runStep("update pnpm patches", async () => {
-      await applyPnpmPatches(targetPath, plan);
-      if (maintainerSourcePath) {
-        await assertMaintainerDependencyCompatibility(
-          maintainerSourcePath,
-          targetPath
-        );
-      }
-    });
-    const removedPaths = sourceCatalog.items.has("app-web")
-      ? await runStep(
-          "prune unselected applications and packages",
-          async () =>
-            await pruneUnselectedWorkspacePackages({
-              selectedItems: plan.registryItems,
-              sourceRoot: maintainerSourcePath ?? targetPath,
-              targetRoot: targetPath,
-            })
-        )
-      : [];
-    if (removedPaths.length > 0) {
-      info(
-        `Pruned ${removedPaths.length} unselected application and package roots.`
-      );
-    }
-    spin.start("Removing maintainer-only files");
-    const { packageName } = await runStep(
-      "remove maintainer-only files",
-      async () => {
-        const result = await sanitizeStarter({
-          registryAuthoringPaths: catalog.authoringPaths,
-          targetName,
-          targetPath,
-        });
-        await removeWorkspaceTargets(targetPath, catalog.authoringPaths);
-        return result;
-      }
+    const constructed = await runStep(
+      "construct workspace",
+      async () =>
+        await constructWorkspace(targetPath, {
+          allowEmpty: true,
+          catalog,
+          install: false,
+          name: targetName,
+          report: info,
+          selection,
+        })
     );
-    spin.stop("Maintainer-only files removed");
-
-    const environmentFiles = maintainerSourcePath
-      ? await runStep(
-          "copy local environment files",
-          async () =>
-            await copyMaintainerEnvironmentFiles(
-              maintainerSourcePath,
-              targetPath
-            )
-        )
-      : [];
-    if (environmentFiles.length > 0) {
-      info(
-        `Copied ${environmentFiles.length} ignored local environment file${environmentFiles.length === 1 ? "" : "s"}.`
-      );
-    }
-
-    if (maintainerSourcePath) {
-      await writeWorkspaceSelection(targetPath, selection);
-    }
-
     spin.start("Installing dependencies");
     await runStep("install dependencies", async () => {
-      if (dependencies.install) {
-        await dependencies.install(targetPath, verbose);
-        return;
-      }
-      await runCommand(
-        DEFAULT_PACKAGE_MANAGER,
-        maintainerSourcePath ? ["install", "--offline"] : ["install"],
-        {
-          cwd: targetPath,
-          verbose,
-        }
-      );
+      await (dependencies.install
+        ? dependencies.install(targetPath, options.verbose)
+        : runCommand(
+            DEFAULT_PACKAGE_MANAGER,
+            ["install", "--no-frozen-lockfile"],
+            { cwd: targetPath, verbose: options.verbose }
+          ));
     });
     spin.stop("Dependencies installed");
-
-    if (maintainerSourcePath) {
-      const linkCount = await runStep(
-        "link maintainer source",
-        async () =>
-          await linkMaintainerWorkspaceSources({
-            composedTargets: plan.templates.map((template) => template.target),
-            copyTargets: plan.maintainerCopyTargets,
-            environmentFiles,
-            removedPaths,
-            selectedItems: plan.registryItems,
-            selection,
-            sourceRoot: maintainerSourcePath,
-            targetRoot: targetPath,
-          })
-      );
-      info(`Linked ${linkCount} paths to the maintainer source workspace.`);
-    }
-
     let gitInitialized = false;
     let committed = false;
-    if (skipGit) {
+    if (options.skipGit) {
       pending.shift();
       completed.push("skip Git initialization");
-      info("Skipped git initialization (--skip-git).");
     } else {
-      spin.start(
-        commit
-          ? "Initializing git repo and creating initial commit"
-          : "Initializing git repo"
-      );
-      const gitResult = await runStep(
+      const result = await runStep(
         "initialize Git",
         async () =>
-          await initializeGitRepository(targetPath, { commit, verbose })
+          await initializeGitRepository(targetPath, {
+            commit: options.commit,
+            verbose: options.verbose,
+          })
       );
-      ({ committed, gitInitialized } = gitResult);
-      spin.stop(
-        committed
-          ? "Git repo initialized with initial commit"
-          : "Git repo initialized"
-      );
-      if (gitResult.commitError) {
+      ({ gitInitialized, committed } = result);
+      if (result.commitError) {
         warn(
-          `Project was scaffolded, but the initial commit failed. You can commit manually.\n${gitResult.commitError}`
+          `Project was scaffolded, but the initial commit failed. You can commit manually.\n${result.commitError}`
         );
       }
     }
-
     const displayTarget = toDisplayPath(targetPath);
     printInstructions([
-      ...(plan.instructions.length > 0
+      ...(constructed.instructions.length
         ? [
             {
-              entries: plan.instructions.map((text) => ({
+              entries: constructed.instructions.map((text) => ({
                 kind: "text" as const,
                 text,
               })),
@@ -606,24 +339,24 @@ export async function scaffoldProject(
             command: `cd ${quotePathForShell(displayTarget)}`,
             kind: "command",
           },
-          {
-            command: `${DEFAULT_PACKAGE_MANAGER} dev`,
-            kind: "command",
-          },
+          { command: `${DEFAULT_PACKAGE_MANAGER} dev`, kind: "command" },
         ],
         title: "Next steps",
       },
     ]);
     success(`Created project in ${displayTarget}`);
     finish("Scaffold complete.");
-
     return {
       committed,
       gitInitialized,
-      packageName,
+      packageName: constructed.packageName,
       projectPath: targetPath,
     };
   } catch (error) {
+    spin.stop("Scaffolding stopped");
     throw scaffoldFailure(error, targetPath, currentStep, completed, pending);
+  } finally {
+    // Only the exclusively created source cache is removed; never partial customer output.
+    await rm(temporary, { force: true, recursive: true });
   }
 }

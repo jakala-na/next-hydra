@@ -5,7 +5,6 @@ export type CreateOptions = {
   yes: boolean;
   skipGit: boolean;
   commit: boolean;
-  maintainerWorkspace?: boolean;
   ref?: string;
   repoUrl: string;
   verbose: boolean;

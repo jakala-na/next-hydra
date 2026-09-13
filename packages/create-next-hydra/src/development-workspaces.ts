@@ -19,11 +19,15 @@ import { z } from "zod";
 import { composeWorkspace } from "./compose.js";
 import { parsePackageJson } from "./composition/packages.js";
 import { resolveWorkspacePath } from "./composition/paths.js";
-import { workspaceSelectionSchema } from "./composition/schema.js";
+import {
+  workspaceSelectionSchema,
+  workspaceFilePathSchema,
+} from "./composition/schema.js";
 import { runCommand } from "./git.js";
 import {
   copyMaintainerEnvironmentFiles,
   findMaintainerWorkspaceRoot,
+  seedWorkspaceEnvironmentFile,
 } from "./maintainer-workspace.js";
 import {
   assertDirectoryPath,
@@ -62,6 +66,7 @@ export type DevelopmentWorkspaceOptions = {
 };
 const definitionName = "next-hydra.json";
 const sourceReceiptSchema = z.object({
+  environmentDefaults: z.array(workspaceFilePathSchema).default([]),
   files: z.array(
     z.object({
       mode: z.enum(["linked", "copied"]),
@@ -228,7 +233,18 @@ async function prepareDevelopmentWorkspace(
         )
       )
     );
-    return { dependencyDirectories, dependencyHash, files };
+    const environmentDefaults = await Promise.all(
+      receipt.environmentDefaults.map(async (target) => ({
+        content: await readFile(path.join(outputRoot, target)),
+        target,
+      }))
+    );
+    return {
+      dependencyDirectories,
+      dependencyHash,
+      environmentDefaults,
+      files,
+    };
   } finally {
     // This unique temporary directory was created by this invocation. rm does not follow file symlinks.
     await rm(stagingRoot, { force: true, recursive: true });
@@ -300,7 +316,7 @@ export async function updateDevelopmentWorkspace(
               );
             },
     });
-    if (!options.check && options.copyEnv) {
+    if (!options.check && result.conflicts.length === 0 && options.copyEnv) {
       const copied = await copyMaintainerEnvironmentFiles(
         sourceRoot,
         targetRoot,
@@ -309,6 +325,11 @@ export async function updateDevelopmentWorkspace(
       console.log(
         `${name}: copied ${copied.length} missing environment files; existing values preserved.`
       );
+    }
+    if (!options.check && result.conflicts.length === 0) {
+      for (const file of prepared.environmentDefaults) {
+        await seedWorkspaceEnvironmentFile(targetRoot, file);
+      }
     }
     return result;
   } finally {

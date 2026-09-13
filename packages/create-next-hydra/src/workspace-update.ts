@@ -23,6 +23,7 @@ import { workspaceFilePathSchema } from "./composition/schema.js";
 import {
   assertDirectoryPath,
   assertDistinctFileTargets,
+  isEnvironmentFile,
 } from "./workspace-files.js";
 
 export const WORKSPACE_STATE = ".workspace-composition.json";
@@ -242,13 +243,6 @@ async function writeMetadata(
     owner: "workspace state",
     target: name,
   });
-}
-
-function isEnvironmentFile(name: string): boolean {
-  return (
-    /^\.env(?:\.|$)/u.test(name) &&
-    !/\.(?:example|sample|template)$/u.test(name)
-  );
 }
 
 function validateEntries(files: readonly Entry[]): void {

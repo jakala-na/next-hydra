@@ -115,7 +115,6 @@ export type SourceRegistryCatalog = {
   selections: CatalogSelection[];
   byId: Map<string, CatalogSelection>;
   byReference: Map<string, CatalogSelection>;
-  managedTargets: string[];
 };
 
 export type PreparedComposition = {
@@ -131,7 +130,6 @@ export type PreparedComposition = {
     owner: string;
     source: string;
   }[];
-  managedFiles: { content: string; target: string }[];
 };
 
 export type TypeScriptPathAliasTarget = Pick<
@@ -152,9 +150,7 @@ export type CompositionPlan = {
   maintainerCopyTargets: string[];
   templates: PlannedCompositionTemplate[];
   managedTargets: string[];
-  catalogManagedTargets: string[];
   catalogTypeScriptPathAliases: TypeScriptPathAliasTarget[];
   typeScriptPathAliases: TypeScriptPathAlias[];
-  variableTargets: string[];
   instructions: string[];
 };

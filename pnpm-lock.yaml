@@ -1230,6 +1230,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(jsdom@26.1.0(bufferutil@4.0.9))(msw@2.12.10(@types/node@24.13.3)(@typescript/typescript6@6.0.2))(vite@7.3.0(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/commerce-commercetools:
     dependencies:
@@ -1560,6 +1563,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(jsdom@26.1.0(bufferutil@4.0.9))(msw@2.12.10(@types/node@24.13.3)(@typescript/typescript6@6.0.2))(vite@7.3.0(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/e2e-testing:
     dependencies:
@@ -1619,6 +1625,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(jsdom@26.1.0(bufferutil@4.0.9))(msw@2.12.10(@types/node@24.13.3)(@typescript/typescript6@6.0.2))(vite@7.3.0(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/errors:
     devDependencies:
@@ -1758,6 +1767,9 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
       next:
         specifier: 'catalog:'
         version: 16.3.1(@babel/core@7.26.10)(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(@types/node@24.13.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1770,6 +1782,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(jsdom@26.1.0(bufferutil@4.0.9))(msw@2.12.10(@types/node@24.13.3)(@typescript/typescript6@6.0.2))(vite@7.3.0(@types/node@24.13.3)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/observability:
     dependencies:
@@ -2031,6 +2046,9 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
@@ -2074,6 +2092,9 @@ importers:
 
   packages/testing:
     devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3

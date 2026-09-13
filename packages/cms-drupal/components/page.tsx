@@ -8,6 +8,7 @@ import { ArchitectureBoundary } from "@repo/design-system/components/architectur
 import type { Locale } from "@repo/i18n";
 import { hasLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
+import type { Route } from "next";
 import { cacheLife, cacheTag } from "next/cache";
 import { draftMode } from "next/headers";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
@@ -188,7 +189,8 @@ export async function Page(props: { url: string; locale: Locale }) {
     : await getCachedCanvasPage(drupalPath);
 
   if (canvasPage && isPageRedirect(canvasPage)) {
-    const destination = canvasPage.redirect.url;
+    // SAFETY: CMS-managed destinations are resolved at runtime, outside Next's generated route inventory.
+    const destination = canvasPage.redirect.url as Route;
     if (
       canvasPage.redirect.statusCode === MOVED_PERMANENTLY_STATUS ||
       canvasPage.redirect.statusCode === PERMANENT_REDIRECT_STATUS

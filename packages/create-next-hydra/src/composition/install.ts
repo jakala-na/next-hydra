@@ -6,10 +6,8 @@ import path from "node:path";
 import { addRegistryItems, loadRegistryItem } from "shadcn/registry";
 import type { RegistryItem } from "shadcn/schema";
 
-import { pathExists, writeJsonFile } from "../fs-utils.js";
-import { CompositionValidationError } from "./errors.js";
-import { parsePackageJson, readPackageJson } from "./packages.js";
-import { isManagedApplicationSource, resolveRegistryTarget } from "./paths.js";
+import { writeJsonFile } from "../fs-utils.js";
+import { readPackageJson } from "./packages.js";
 import {
   applyRegistryDependencies,
   planRegistryDependencies,
@@ -101,26 +99,6 @@ export async function prepareComposition(
     catalog.cwd,
     plan.templates
   );
-  const registryManagedFiles = artifacts
-    .filter((artifact) => selectedItemNames.has(artifact.name))
-    .flatMap(
-      (artifact) =>
-        artifact.files
-          ?.filter((file) => isManagedApplicationSource(file.path, file.target))
-          .map((file) => {
-            if (!(file.target && file.content !== undefined)) {
-              throw new CompositionValidationError(
-                "Managed application files require targets and resolved content.",
-                [`${artifact.name}:${file.path} cannot be prepared`]
-              );
-            }
-            return {
-              content: file.content,
-              target: resolveRegistryTarget(file.target),
-            };
-          }) ?? []
-    )
-    .sort((left, right) => left.target.localeCompare(right.target));
 
   return {
     artifacts,
@@ -132,9 +110,6 @@ export async function prepareComposition(
     ),
     entryItems: plan.entryItems,
     itemByReference: new Map(catalog.itemByReference),
-    managedFiles: [...registryManagedFiles, ...renderedFiles].sort(
-      (left, right) => left.target.localeCompare(right.target)
-    ),
     registryConfig: catalog.registryConfig,
     registryDependencies: planRegistryDependencies(
       artifacts.filter((artifact) => selectedItemNames.has(artifact.name))
@@ -206,65 +181,6 @@ export async function withPreparedRegistryArtifacts<T>(options: {
     return await options.run(entries);
   } finally {
     await rm(artifactDirectory, { force: true, recursive: true });
-  }
-}
-
-export async function validatePackageRequirementTargets(
-  workspaceRoot: string,
-  plan: CompositionPlan,
-  prepared: PreparedComposition,
-  removedTargets: Iterable<string> = []
-): Promise<void> {
-  const selectedItems = new Set(plan.registryItems);
-  const removed = new Set(removedTargets);
-  const prospectiveManifests = new Map<string, string>();
-  for (const artifact of prepared.artifacts) {
-    if (!selectedItems.has(artifact.name)) {
-      continue;
-    }
-    for (const file of artifact.files ?? []) {
-      if (!(file.target && file.content !== undefined)) {
-        continue;
-      }
-      const target = resolveRegistryTarget(file.target);
-      if (target.endsWith("/package.json") || target === "package.json") {
-        prospectiveManifests.set(target, file.content);
-      }
-    }
-  }
-
-  const manifestIssues = await Promise.all(
-    plan.packageRequirements.map(async (requirement) => {
-      const manifest = path.posix.join(requirement.cwd, "package.json");
-      const prospective = prospectiveManifests.get(manifest);
-      try {
-        if (prospective !== undefined) {
-          parsePackageJson(prospective, manifest);
-        } else if (
-          !removed.has(manifest) &&
-          (await pathExists(path.join(workspaceRoot, manifest)))
-        ) {
-          await readPackageJson(path.join(workspaceRoot, manifest), manifest);
-        } else {
-          return `${manifest} is not present or supplied by the selected graph`;
-        }
-      } catch (error) {
-        if (error instanceof CompositionValidationError) {
-          return `${manifest}: ${error.issues.join("; ")}`;
-        }
-        return `${manifest} could not be read`;
-      }
-    })
-  );
-  const issues = manifestIssues.filter(
-    (issue): issue is string => issue !== undefined
-  );
-
-  if (issues.length > 0) {
-    throw new CompositionValidationError(
-      "Package requirements have invalid package.json targets.",
-      [...new Set(issues)].sort((left, right) => left.localeCompare(right))
-    );
   }
 }
 

@@ -31,7 +31,6 @@ async function packageFixture(source: string): Promise<{
 function removalPlan(): CompositionPlan {
   return {
     assets: [],
-    catalogManagedTargets: [],
     catalogPackageRequirementTargets: [
       {
         cwd: "apps/web",
@@ -59,7 +58,6 @@ function removalPlan(): CompositionPlan {
     selections: [],
     templates: [],
     typeScriptPathAliases: [],
-    variableTargets: [],
   };
 }
 

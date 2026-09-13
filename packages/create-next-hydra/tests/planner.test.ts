@@ -95,6 +95,21 @@ const addOnItem = {
 } satisfies RegistryItem;
 
 describe("composition planner failures", () => {
+  it("rejects legacy catalogs instead of silently restoring a maximal baseline", async () => {
+    const catalog = await loadSourceRegistryCatalog(repoRoot);
+    catalog.byReference.delete("app-web");
+    expect(() =>
+      planComposition(catalog, {
+        addOns: [],
+        providers: {
+          auth: "workos",
+          cms: "contentstack",
+          commerce: "commercetools",
+        },
+      })
+    ).toThrow("no shared application");
+  });
+
   it("rejects unknown metadata keys", () => {
     const result = selectionDefinitionSchema.safeParse({
       id: "next-hydra/cms/example",

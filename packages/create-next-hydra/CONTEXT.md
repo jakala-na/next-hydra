@@ -2,6 +2,12 @@
 
 The Workspace Composition context describes the selectable parts of a Next Hydra workspace and how registry items materialize them.
 
+Customer scaffolding and local composition use one workspace constructor. It owns baseline files, the selected registry graph, package dependency closure, templates, registry transformations, aliases and patches. Scaffolding acquires a source revision in a temporary checkout, constructs copied output, installs dependencies and initializes customer Git. Development composition constructs from canonical local source, links eligible files and applies ownership-aware refresh. There is no clone-and-prune application baseline or separate maintainer scaffold path.
+
+Registry environment defaults are initialization inputs, not refresh-owned files. Named composition seeds missing environment files without changing existing files; `--copy-env` local credential overlays take precedence. Refresh does not merge newly required variables into existing files or retain credential contents/fingerprints in applied state. Both customer and developer task graphs preserve shell environment access, type-check/test build gates, and non-maintainer package commands.
+
+Package manifests own their scripts and tooling dependencies. Composition adapts only explicitly declared Portless hosting; it does not infer commands from a Next dependency. Entrypoints importing composed siblings, such as the administration CLI entrypoint, are copied and refreshed together with those siblings so Node resolves them inside the selected workspace.
+
 ## Language
 
 **Baseline**: The mandatory workspace content included in every composed Next Hydra project and maintained as ordinary canonical starter source. A currently fixed integration remains part of the Baseline until it becomes a Provider Slot. _Avoid_: Default provider, mandatory add-on

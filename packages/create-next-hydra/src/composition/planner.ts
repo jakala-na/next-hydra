@@ -9,7 +9,7 @@ import {
   resolveRegistryTarget,
   resolveWorkspacePath,
 } from "./paths.js";
-import { planSlotTemplates, slotCompositionSchema } from "./slot-templates.js";
+import { planSlotTemplates } from "./slot-templates.js";
 import type {
   CatalogSelection,
   CompositionPlan,
@@ -212,42 +212,6 @@ function validateCompatibility(selections: CatalogSelection[]): void {
       uniqueSorted(issues)
     );
   }
-}
-
-const BASELINE_PROVIDER_DEPENDENCIES = [
-  { cwd: "apps/admin", section: "dependencies", slot: "auth" },
-  { cwd: "apps/api", section: "dependencies", slot: "auth" },
-  { cwd: "apps/cli", section: "dependencies", slot: "auth" },
-  { cwd: "apps/web", section: "dependencies", slot: "auth" },
-  { cwd: "packages/feature-flags", section: "dependencies", slot: "auth" },
-  { cwd: "tests/e2e", section: "devDependencies", slot: "auth" },
-  { cwd: "apps/cli", section: "dependencies", slot: "cms" },
-  { cwd: "apps/web", section: "dependencies", slot: "cms" },
-  { cwd: "apps/api", section: "dependencies", slot: "commerce" },
-  { cwd: "apps/cli", section: "dependencies", slot: "commerce" },
-  { cwd: "apps/web", section: "dependencies", slot: "commerce" },
-  { cwd: "tests/e2e", section: "devDependencies", slot: "commerce" },
-] satisfies ProviderDependency[];
-
-function selectedProviderDependencies(
-  selections: CatalogSelection[],
-  usesLegacyBaseline: boolean
-): ProviderDependency[] {
-  return [
-    ...(usesLegacyBaseline ? BASELINE_PROVIDER_DEPENDENCIES : []),
-    ...selections.flatMap((selection) => selection.providerDependencies),
-  ];
-}
-
-function catalogProviderDependencies(
-  catalog: SourceRegistryCatalog
-): ProviderDependency[] {
-  return [
-    ...BASELINE_PROVIDER_DEPENDENCIES,
-    ...catalog.selections.flatMap(
-      (selection) => selection.providerDependencies
-    ),
-  ];
 }
 
 export function resolveProviderRequirements(
@@ -454,30 +418,6 @@ function catalogPnpmPatches(catalog: SourceRegistryCatalog): PnpmPatch[] {
   );
 }
 
-function catalogVariableTargets(catalog: SourceRegistryCatalog): string[] {
-  return uniqueSorted([
-    ...[...catalog.items.values()].flatMap(
-      (item) =>
-        item.files?.map((file) => {
-          if (!file.target) {
-            throw new CompositionValidationError(
-              "Registry items require explicit targets.",
-              [`${item.name}:${file.path} does not declare files[].target`]
-            );
-          }
-          return resolveRegistryTarget(file.target);
-        }) ?? []
-    ),
-    ...[...catalog.items.values()].flatMap((item) =>
-      slotCompositionSchema
-        .parse(item.meta?.composition ?? {})
-        .templates.map((template) =>
-          resolveWorkspacePath(template.target, "template target")
-        )
-    ),
-  ]);
-}
-
 function validateMaterializationTargets(options: {
   catalog: SourceRegistryCatalog;
   registryItems: string[];
@@ -563,25 +503,6 @@ function resolveBuiltInContributions(
   return selections;
 }
 
-function legacyBaselineContributions(
-  catalog: SourceRegistryCatalog
-): CatalogSelection[] {
-  // The clone-based reference workflow retains its web source in place. Its
-  // contributed backends still need to be selected explicitly before pruning.
-  // Shared-application workflows already discover these through registryDependencies.
-  const reference = catalog.items.get("app-web-reference");
-  if (!reference) {
-    return [];
-  }
-  const dependencies = new Set(
-    resolveRegistryItemGraph(catalog, [reference.name])
-  );
-  return catalog.selections.filter(
-    (selection) =>
-      selection.kind === "contribution" && dependencies.has(selection.itemName)
-  );
-}
-
 export function planComposition(
   catalog: SourceRegistryCatalog,
   selection: WorkspaceSelection
@@ -589,28 +510,22 @@ export function planComposition(
   // One shared web application; installed packages extend it through registry dependencies.
   const providers = resolveProviders(catalog, selection);
   const application = catalog.byReference.get("app-web");
-  const usesLegacyBaseline = !application;
-  if (usesLegacyBaseline) {
-    const missing = PROVIDER_SLOTS.filter((slot) => !providers.has(slot));
-    if (missing.length > 0) {
-      throw new CompositionValidationError(
-        "Provider Slot cardinality is invalid.",
-        missing.map(
-          (slot) =>
-            `${slot} requires exactly one provider in a registry without the shared application`
-        )
-      );
-    }
+  if (!application) {
+    throw new CompositionValidationError(
+      "The source registry has no shared application.",
+      [
+        "Choose a source revision with the app-web selection; clone-based baselines are no longer supported.",
+      ]
+    );
   }
-  validateProviderRequirements(application ? [application] : [], providers);
+  validateProviderRequirements([application], providers);
   const providerSelections = PROVIDER_SLOTS.flatMap((slot) => {
     const provider = providers.get(slot);
     return provider ? [provider] : [];
   });
   const addOns = resolveAddOns(catalog, selection.addOns, providerSelections);
   const selections = resolveBuiltInContributions(catalog, providers, [
-    ...(usesLegacyBaseline ? legacyBaselineContributions(catalog) : []),
-    ...(application ? [application] : []),
+    application,
     ...providerSelections,
     ...addOns,
   ]);
@@ -619,11 +534,12 @@ export function planComposition(
   // dependencies (for example Commerce requires an Auth provider).
   validateProviderRequirements(selections, providers);
   validateCompatibility(selections);
-  const providerDependencies = selectedProviderDependencies(
-    selections,
-    usesLegacyBaseline
+  const providerDependencies = selections.flatMap(
+    (item) => item.providerDependencies
   );
-  const catalogDependencies = catalogProviderDependencies(catalog);
+  const catalogDependencies = catalog.selections.flatMap(
+    (item) => item.providerDependencies
+  );
   const providerRequirements = resolveProviderRequirements(
     providers,
     providerDependencies
@@ -708,14 +624,9 @@ export function planComposition(
   const requiredAddOnIds = addOns
     .filter((addOn) => !directlySelectedAddOnIds.has(addOn.id))
     .map((addOn) => addOn.id);
-  const registryVariableTargets = catalogVariableTargets(catalog);
-  const variableRegistryTargets = new Set(registryVariableTargets);
 
   return {
     assets,
-    catalogManagedTargets: catalog.managedTargets.filter((target) =>
-      variableRegistryTargets.has(target)
-    ),
     catalogPackageRequirementTargets: catalogPackageRequirementTargets(
       catalog,
       catalogDependencies
@@ -746,14 +657,6 @@ export function planComposition(
     selections,
     templates,
     typeScriptPathAliases,
-    variableTargets: uniqueSorted([
-      ...registryVariableTargets,
-      ...catalog.selections.flatMap((selected) =>
-        selected.assets.map((asset) =>
-          resolveWorkspacePath(asset.target, `${selected.id} asset target`)
-        )
-      ),
-    ]),
   };
 }
 

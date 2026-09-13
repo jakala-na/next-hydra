@@ -14,17 +14,12 @@ import { z } from "zod";
 
 import { pathExists } from "../fs-utils.js";
 import { CompositionValidationError } from "./errors.js";
-import {
-  isManagedApplicationSource,
-  resolveRegistryTarget,
-  resolveWorkspacePath,
-} from "./paths.js";
+import { resolveWorkspacePath } from "./paths.js";
 import {
   formatZodError,
   NEXT_HYDRA_SELECTION_SCHEMA_URL,
   selectionDefinitionSchema,
 } from "./schema.js";
-import { slotCompositionSchema } from "./slot-templates.js";
 import type {
   CatalogSelection,
   RegistriesConfig,
@@ -44,24 +39,6 @@ const OFFICIAL_REFERENCES = {
   standard: "next-hydra/preset/standard",
   workos: "next-hydra/auth/workos",
 };
-
-const OFFICIAL_ITEM_NAMES = [
-  "app-web",
-  "web-auth",
-  "app-web-navigation-search",
-  "auth-clerk",
-  "auth-contract",
-  "auth-workos",
-  "cms-contentstack",
-  "cms-drupal",
-  "commerce-commercetools",
-  "commerce",
-  "commerce-api",
-  "commerce-admin",
-  "workspace-cli",
-  "drupal",
-  "next-hydra-standard",
-] as const;
 
 function restoreFetchedSelectionSchema(item: RegistryItem): RegistryItem {
   // ShadCN assigns its registry-item schema to every resolved artifact,
@@ -165,37 +142,6 @@ function createCatalog(options: {
     );
   }
 
-  const managedTargets = [
-    ...new Set([
-      ...options.registryItems.flatMap(
-        (item) =>
-          item.files
-            ?.filter((file) =>
-              isManagedApplicationSource(file.path, file.target)
-            )
-            .map((file) => {
-              if (!file.target) {
-                throw new CompositionValidationError(
-                  "Managed application files require explicit targets.",
-                  [`${item.name}:${file.path} does not declare files[].target`]
-                );
-              }
-              return resolveRegistryTarget(file.target);
-            }) ?? []
-      ),
-      ...options.registryItems.flatMap((item) =>
-        slotCompositionSchema
-          .parse(item.meta?.composition ?? {})
-          .templates.map((template) =>
-            resolveWorkspacePath(
-              template.target,
-              `${item.name} template target`
-            )
-          )
-      ),
-    ]),
-  ].sort((left, right) => left.localeCompare(right));
-
   return {
     authoringPaths: options.authoringPaths,
     byId,
@@ -203,7 +149,6 @@ function createCatalog(options: {
     cwd: options.cwd,
     itemByReference,
     items,
-    managedTargets,
     registryConfig: options.registryConfig,
     registryFile: options.registryFile,
     repository: options.repository,
@@ -281,7 +226,6 @@ export async function fetchRegistryItemGraph(options: {
   items?: Iterable<RegistryItem>;
   references: Iterable<string>;
   repository?: string;
-  repositoryRef?: string;
 }): Promise<RegistryItemGraph> {
   const items = new Map(
     [...(options.items ?? [])].map((item) => [item.name, item])
@@ -313,7 +257,7 @@ export async function fetchRegistryItemGraph(options: {
         options.repository &&
         !reference.includes("/") &&
         !reference.includes("#")
-          ? `${options.repository}/${reference}${options.repositoryRef ? `#${options.repositoryRef}` : ""}`
+          ? `${options.repository}/${reference}`
           : reference;
       const resolvedReference = await resolveRegistryReference(
         repositoryReference,
@@ -455,58 +399,6 @@ export async function loadSourceRegistryCatalog(
     registryConfig,
     registryFile: safeRegistryFile,
     registryItems: registry.items,
-    repository,
-  });
-}
-
-export async function loadGitHubSourceRegistryCatalog(
-  repository: string,
-  ref?: string,
-  dependencies: {
-    fetchItems?: (
-      addresses: string[]
-    ) => RegistryItem[] | Promise<RegistryItem[]>;
-    loadRegistryConfig?: (
-      cwd: string
-    ) => RegistriesConfig | Promise<RegistriesConfig>;
-  } = {}
-): Promise<SourceRegistryCatalog> {
-  const suffix = ref ? `#${ref}` : "";
-  const addresses = OFFICIAL_ITEM_NAMES.map(
-    (item) => `${repository}/${item}${suffix}`
-  );
-  const fetchedItems = await (dependencies.fetchItems ?? getRegistryItems)(
-    addresses
-  );
-  const registryItems = fetchedItems.map(restoreFetchedSelectionSchema);
-  const registryConfig = await (
-    dependencies.loadRegistryConfig ?? getRegistriesConfig
-  )(process.cwd());
-  const itemByReference = new Map(
-    registryItems.flatMap((item, index) => {
-      const address = addresses[index];
-      return address ? [[address, item.name] as const] : [];
-    })
-  );
-
-  const graph = await fetchRegistryItemGraph({
-    config: registryConfig,
-    cwd: process.cwd(),
-    fetchItems: async (references) =>
-      await (dependencies.fetchItems ?? getRegistryItems)(references),
-    itemByReference,
-    items: registryItems,
-    references: addresses,
-    repository,
-    repositoryRef: ref,
-  });
-  return createCatalog({
-    authoringPaths: [],
-    cwd: "",
-    itemByReference: graph.itemByReference,
-    registryConfig,
-    registryFile: `${repository}/registry.json${suffix}`,
-    registryItems: [...graph.items.values()],
     repository,
   });
 }

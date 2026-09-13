@@ -6,7 +6,9 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -18,6 +20,7 @@ import { parse } from "jsonc-parser";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
+import { updateDevelopmentWorkspace } from "../../src/development-workspaces.js";
 import { pathExists, readJsonFile } from "../../src/fs-utils.js";
 import { scaffoldProject } from "../../src/scaffold.js";
 
@@ -26,10 +29,10 @@ const run = promisify(execFile);
 const scaffoldManifestSchema = z.object({
   dependencies: z.record(z.string()).default({}),
   devDependencies: z.record(z.string()).optional(),
-  scripts: z.record(z.string()).optional(),
   portless: z
     .object({ name: z.string().optional(), script: z.string().optional() })
     .optional(),
+  scripts: z.record(z.string()).optional(),
 });
 const repoRoot = path.resolve(import.meta.dirname, "../../../..");
 const E2E_TIMEOUT = 240_000;
@@ -174,32 +177,35 @@ const fakeRootInstall = async (cwd: string) => {
   await writeFile(path.join(cwd, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
 };
 
-const installApplicationWorkspaces = async (cwd: string): Promise<void> => {
-  await run(
-    "pnpm",
-    [
-      "install",
-      "--filter",
-      "admin...",
-      "--filter",
-      "web...",
-      "--filter",
-      "api...",
-      "--filter",
-      "cli...",
-    ],
-    { cwd }
-  );
+const installWorkspace = async (cwd: string): Promise<void> => {
+  await run("pnpm", ["install"], { cwd });
 };
 
-const typecheckEnvironment = () => ({
-  ...process.env,
+const workspaceEnvironment = (nodeEnv: "test" | "production") => ({
+  // Preserve process essentials, not live provider credentials or test-runner NODE_ENV.
+  ...Object.fromEntries(
+    Object.entries(process.env).filter(([name]) =>
+      [
+        "PATH",
+        "HOME",
+        "USERPROFILE",
+        "SystemRoot",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "LANG",
+        "NODE_EXTRA_CA_CERTS",
+        "SSL_CERT_FILE",
+      ].includes(name)
+    )
+  ),
   ADMIN_CLERK_AUTHORIZED_PARTIES: "https://admin.customer-project.localhost",
   ADMIN_CLERK_PUBLISHABLE_KEY: "pk_test_admin_publishable",
   ADMIN_CLERK_SECRET_KEY: "sk_test_admin_secret",
   ADMIN_URL: "https://admin.customer-project.localhost",
   ADMIN_WORKOS_API_KEY: "sk_test_admin",
   ADMIN_WORKOS_CLIENT_ID: "client_test_admin",
+  CI: "1",
   CLERK_AUTHORIZED_PARTIES: "https://web.customer-project.localhost",
   CLERK_SECRET_KEY: "sk_test_secret",
   CLERK_WEBHOOK_SECRET: "whsec_test",
@@ -207,7 +213,7 @@ const typecheckEnvironment = () => ({
   COMMERCETOOLS_CLIENT_SECRET: "test-secret",
   COMMERCETOOLS_PROJECT_KEY: "test-project",
   COMMERCETOOLS_REGION: "test-region",
-  COMMERCETOOLS_SCOPE: "test-scope",
+  COMMERCETOOLS_SCOPE: "manage_project:test-project",
   CONTENTSTACK_API_KEY: "test-api-key",
   CONTENTSTACK_DELIVERY_TOKEN: "cs-test-delivery",
   CONTENTSTACK_ENVIRONMENT: "test",
@@ -229,24 +235,35 @@ const typecheckEnvironment = () => ({
   NEXT_PUBLIC_WEB_URL: "https://web.customer-project.localhost",
   NEXT_PUBLIC_WORKOS_REDIRECT_URI:
     "https://web.customer-project.localhost/api/auth/callback",
+  NEXT_TELEMETRY_DISABLED: "1",
+  NODE_ENV: nodeEnv,
   REGISTRATION_APPROVER_EMAIL: "approver@example.com",
   RESEND_FROM: "test@example.com",
   RESEND_TOKEN: "re_test",
+  STRIPE_PUBLISHABLE_KEY: "pk_test_fixture",
+  STRIPE_SECRET_KEY: "sk_test_fixture",
+  TURBO_TELEMETRY_DISABLED: "1",
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "test-cookie-password-at-least-32-characters",
   WORKOS_WEBHOOK_SECRET: "whsec_test",
 });
 
-const runTypecheck = async (
+const runWorkspaceCommand = async (
   cwd: string,
   args: readonly string[],
-  description: string
-): Promise<void> => {
-  const env = typecheckEnvironment();
+  description: string,
+  nodeEnv: "test" | "production" = "test"
+): Promise<string> => {
+  const env = workspaceEnvironment(nodeEnv);
 
   try {
-    await run("pnpm", [...args], { cwd, env });
+    const { stdout } = await run("pnpm", [...args], {
+      cwd,
+      env,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    return stdout;
   } catch (error) {
     const parsed = z
       .object({
@@ -272,26 +289,35 @@ const runTypecheck = async (
   }
 };
 
-const typecheckApplications = async (cwd: string) => {
-  await runTypecheck(
+const typecheckWorkspace = async (cwd: string) => {
+  await runWorkspaceCommand(
     cwd,
-    [
-      "exec",
-      "turbo",
-      "run",
-      "typecheck",
-      "--filter=admin",
-      "--filter=web",
-      "--filter=api",
-      "--filter=cli",
-    ],
-    "application typecheck"
+    ["run", "typecheck", "--continue=always"],
+    "workspace typecheck"
+  );
+};
+
+const runDocumentedCliHelp = async (target: string) => {
+  const readme = await readFile(
+    path.join(target, "apps/cli/README.md"),
+    "utf-8"
+  );
+  const command = readme
+    .split("\n")
+    .find((line) => line.startsWith("pnpm ") && line.endsWith(" --help"));
+  if (!command) {
+    throw new Error("The installed CLI README must document a help command.");
+  }
+  return await runWorkspaceCommand(
+    target,
+    command.split(" ").slice(1),
+    "documented CLI help"
   );
 };
 
 const testCustomerInvitationComposition = async (target: string) => {
   await Promise.all([
-    runTypecheck(
+    runWorkspaceCommand(
       target,
       [
         "--filter",
@@ -303,7 +329,7 @@ const testCustomerInvitationComposition = async (target: string) => {
       ],
       "customer-account invitation lifecycle composition test"
     ),
-    runTypecheck(
+    runWorkspaceCommand(
       target,
       [
         "--filter",
@@ -340,11 +366,85 @@ describe("scaffold composition", () => {
   beforeAll(async () => {
     testRoot = await mkdtemp(path.join(tmpdir(), "next-hydra-scaffold-"));
     sourceRepository = await createSourceRepository();
+    // A linked workspace runs against an installed maintainer checkout. Reuse
+    // its real dependencies without making standalone customer installs see them.
+    const apps = await readdir(path.join(repoRoot, "apps"));
+    const packages = await readdir(path.join(repoRoot, "packages"));
+    const packageRoots = [
+      ".",
+      ...apps.map((name) => `apps/${name}`),
+      ...packages.map((name) => `packages/${name}`),
+    ];
+    await Promise.all(
+      packageRoots.map(async (relativePath) => {
+        const dependencies = path.join(repoRoot, relativePath, "node_modules");
+        const fixturePackage = path.join(sourceRepository, relativePath);
+        if (
+          (await pathExists(dependencies)) &&
+          (await pathExists(fixturePackage))
+        ) {
+          await symlink(
+            dependencies,
+            path.join(fixturePackage, "node_modules"),
+            "dir"
+          );
+        }
+      })
+    );
   });
 
   afterAll(async () => {
     await rm(testRoot, { force: true, recursive: true });
   }, E2E_TIMEOUT);
+
+  it.each(["contentstack", "drupal"])(
+    "runs the documented CLI command in its linked %s composition",
+    async (cms) => {
+      const name = `linked-cli-${cms}`;
+      const target = path.join(sourceRepository, "workspaces", name);
+      await mkdir(target, { recursive: true });
+      await writeFile(
+        path.join(target, "next-hydra.json"),
+        JSON.stringify({
+          addOns: [],
+          providers: { cms },
+        })
+      );
+      await updateDevelopmentWorkspace(sourceRepository, name);
+      const help = await runDocumentedCliHelp(target);
+      expect(help).toContain(
+        cms === "drupal"
+          ? "Drupal CMS administration commands"
+          : "Contentstack CMS administration commands"
+      );
+      expect(help).not.toContain("Commercetools administration commands");
+    },
+    E2E_TIMEOUT
+  );
+
+  it.each(["contentstack", "drupal"] as const)(
+    "typechecks a standalone %s CMS-only customer workspace including all packages",
+    async (cms) => {
+      const target = path.join(testRoot, `cms-only-${cms}-customer`);
+      await scaffoldProject(
+        {
+          ...options(target, cms),
+          auth: undefined,
+          commerce: undefined,
+          without: ["auth", "commerce"],
+        },
+        { install: installWorkspace }
+      );
+      await typecheckWorkspace(target);
+      const help = await runDocumentedCliHelp(target);
+      expect(help).toContain(
+        cms === "drupal"
+          ? "Drupal CMS administration commands"
+          : "Contentstack CMS administration commands"
+      );
+    },
+    E2E_TIMEOUT
+  );
 
   it(
     "prints Provider instructions only in the final setup section",
@@ -494,19 +594,13 @@ describe("scaffold composition", () => {
         ),
         webPackagePortless: webPackageJson.portless,
       }).toStrictEqual({
-        apiPackagePortless: {
-          name: "api.customer-release-project",
-          script: "dev:app",
-        },
+        apiPackagePortless: undefined,
         changesetsDependency: undefined,
-        portlessDependency: "0.15.6",
+        portlessDependency: undefined,
         rootPortlessConfigExists: false,
         webEnvironmentHasLocalFallback: true,
         webEnvironmentHasMaintainerHostname: false,
-        webPackagePortless: {
-          name: "web.customer-release-project",
-          script: "dev:app",
-        },
+        webPackagePortless: undefined,
       });
 
       await rm(target, { force: true, recursive: true });
@@ -558,13 +652,18 @@ describe("scaffold composition", () => {
   );
 
   it(
-    "reconstructs both CMS variants from the Baseline and selected registry items",
+    "reconstructs and builds the Contentstack storefront from selected registry items",
     async () => {
       const contentstackTarget = path.join(testRoot, "contentstack-project");
       await scaffoldProject(options(contentstackTarget, "contentstack"), {
-        install: installApplicationWorkspaces,
+        install: installWorkspace,
       });
-      await typecheckApplications(contentstackTarget);
+      await runWorkspaceCommand(
+        contentstackTarget,
+        ["run", "build", "--force", "--output-logs=errors-only"],
+        "storefront production build with typecheck and test gates",
+        "production"
+      );
       await testCustomerInvitationComposition(contentstackTarget);
 
       await expect(
@@ -660,12 +759,18 @@ describe("scaffold composition", () => {
         "workspace:@repo/commerce-commercetools@*"
       );
       await rm(contentstackTarget, { force: true, recursive: true });
+    },
+    E2E_TIMEOUT
+  );
 
+  it(
+    "reconstructs the Drupal storefront from the Baseline and selected registry items",
+    async () => {
       const drupalTarget = path.join(testRoot, "drupal-project");
       await scaffoldProject(options(drupalTarget, "drupal"), {
-        install: installApplicationWorkspaces,
+        install: installWorkspace,
       });
-      await typecheckApplications(drupalTarget);
+      await typecheckWorkspace(drupalTarget);
       await expect(
         pathExists(path.join(drupalTarget, "packages/cms-drupal/package.json"))
       ).resolves.toBeTruthy();
@@ -712,9 +817,7 @@ describe("scaffold composition", () => {
         frontendHasMaintainerHostname: frontendConfig.includes(
           "web.next-hydra.localhost"
         ),
-        frontendHasProjectHostname: frontendConfig.includes(
-          "web.drupal-project.localhost"
-        ),
+        frontendHasProjectHostname: frontendConfig.includes("localhost:3000"),
       }).toStrictEqual({
         frontendHasMaintainerHostname: false,
         frontendHasProjectHostname: true,
@@ -726,7 +829,13 @@ describe("scaffold composition", () => {
         hash(await readFile(path.join(repoRoot, asset)))
       );
       await rm(drupalTarget, { force: true, recursive: true });
+    },
+    E2E_TIMEOUT
+  );
 
+  it(
+    "scaffolds the selected preset",
+    async () => {
       const presetTarget = path.join(testRoot, "preset-project");
       await scaffoldProject(
         {
@@ -759,9 +868,9 @@ describe("scaffold composition", () => {
     async () => {
       const target = path.join(testRoot, "clerk-project");
       await scaffoldProject(options(target, "contentstack", "clerk"), {
-        install: installApplicationWorkspaces,
+        install: installWorkspace,
       });
-      await typecheckApplications(target);
+      await typecheckWorkspace(target);
       await testCustomerInvitationComposition(target);
 
       await expect(

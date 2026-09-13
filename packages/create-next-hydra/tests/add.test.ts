@@ -26,7 +26,6 @@ const temporaryDirectories: string[] = [];
 const fixtureRegistrySchema = z
   .object({
     dependencies: z.array(z.string()).optional(),
-    registryDependencies: z.array(z.string()).optional(),
     meta: z
       .object({
         nextHydra: z
@@ -38,6 +37,7 @@ const fixtureRegistrySchema = z
           .passthrough(),
       })
       .passthrough(),
+    registryDependencies: z.array(z.string()).optional(),
   })
   .passthrough();
 function parseFixtureManifest(source: string) {
@@ -53,6 +53,35 @@ const OVERWRITE_REQUIRED = /requires --overwrite/u;
 const PROVIDER_ALIAS_MISMATCH = /current provider alias/u;
 const EXACT_COPY_FILES = /exact-copy registry files/u;
 const INVALID_PACKAGE_JSON = /not a valid package\.json/u;
+
+async function verifyProviderGuidance() {
+  const root = await mkdtemp(path.join(tmpdir(), "provider-guidance-"));
+  temporaryDirectories.push(root);
+  await writeFile(
+    path.join(root, "package.json"),
+    '{"name":"customer","private":true}\n'
+  );
+  const artifact = path.join(root, "provider.json");
+  await writeFile(
+    artifact,
+    JSON.stringify({
+      $schema: NEXT_HYDRA_SELECTION_SCHEMA_URL,
+      meta: {
+        nextHydra: {
+          binding: { specifier: "workspace:*" },
+          id: "fixture/cms/provider",
+          kind: "provider",
+          slot: "cms",
+        },
+      },
+      name: "fixture-provider",
+      type: "registry:item",
+    })
+  );
+  await expect(
+    addRegistryItem(artifact, { cwd: root, yes: true })
+  ).rejects.toThrow("create-next-hydra compose <name>");
+}
 
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), "next-hydra-add-"));
@@ -131,6 +160,11 @@ describe("customer add", () => {
     );
   });
 
+  it(
+    "directs provider selection to scaffolding and named composition, not the retired command",
+    verifyProviderGuidance
+  );
+
   it("rejects template contributions before mutating customer-owned source", async () => {
     const { root, artifactPath } = await fixture();
     await writeFile(
@@ -148,10 +182,10 @@ describe("customer add", () => {
           composition: {
             contributions: [
               {
-                target: "apps/web/layout.tsx",
-                slot: "providers",
-                module: "./feature",
                 export: "Feature",
+                module: "./feature",
+                slot: "providers",
+                target: "apps/web/layout.tsx",
               },
             ],
           },

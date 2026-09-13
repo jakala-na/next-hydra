@@ -15,17 +15,16 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { normalizePackageName, writeJsonFile } from "../src/fs-utils.js";
+import { normalizePackageName } from "../src/fs-utils.js";
 import { runGit } from "../src/git.js";
 import {
   copyMaintainerEnvironmentFiles,
-  copyMaintainerWorkspace,
-  linkMaintainerWorkspaceSources,
-  pruneUnselectedWorkspacePackages,
+  seedWorkspaceEnvironmentFile,
 } from "../src/maintainer-workspace.js";
 import {
   assertDistinctFileTargets,
   assertNewWorkspaceDirectory,
+  claimWorkspaceDirectory,
   createWorkspaceDirectory,
   workspaceSourceFiles,
 } from "../src/workspace-files.js";
@@ -55,6 +54,30 @@ describe("maintainer workspace safety", () => {
   });
 
   describe("fresh workspace boundaries", () => {
+    it("claims an existing empty customer directory without replacing it", async () => {
+      await mkdir(target);
+      const before = await lstat(target);
+      const release = await claimWorkspaceDirectory(target, true);
+      await expect(claimWorkspaceDirectory(target, true)).rejects.toMatchObject(
+        { code: "EEXIST" }
+      );
+      await release();
+      const after = await lstat(target);
+      expect(after.ino).toBe(before.ino);
+      await expect(readdir(target)).resolves.toEqual([]);
+    });
+
+    it("preserves files added to a customer target before construction", async () => {
+      await file(target, "keep.ts", "local work");
+      await expect(claimWorkspaceDirectory(target, true)).rejects.toThrow(
+        "nonempty workspace"
+      );
+      await expect(readdir(target)).resolves.toEqual(["keep.ts"]);
+      await expect(
+        readFile(path.join(target, "keep.ts"), "utf-8")
+      ).resolves.toBe("local work");
+    });
+
     it("rejects an existing empty directory", async () => {
       await mkdir(target);
       await expect(createWorkspaceDirectory(target)).rejects.toThrow(
@@ -120,6 +143,62 @@ describe("maintainer workspace safety", () => {
   });
 
   describe("environment overlays", () => {
+    it("seeds registry defaults privately and preserves local overlays", async () => {
+      await file(source, "apps/web/.env.local", "LOCAL_VALUE=credential");
+      await mkdir(path.join(target, "apps/web"), { recursive: true });
+      const defaults = {
+        content: Buffer.from("LOCAL_VALUE=default"),
+        target: "apps/web/.env.local",
+      };
+      await copyMaintainerEnvironmentFiles(source, target, {
+        preserveExisting: true,
+      });
+      await seedWorkspaceEnvironmentFile(target, defaults);
+      await expect(
+        readFile(path.join(target, defaults.target), "utf-8")
+      ).resolves.toBe("LOCAL_VALUE=credential");
+      await seedWorkspaceEnvironmentFile(target, {
+        ...defaults,
+        target: "apps/web/.env.development",
+      });
+      const seeded = await lstat(
+        path.join(target, "apps/web/.env.development")
+      );
+      expect(seeded.mode.toString(8).slice(-3)).toBe("600");
+    });
+
+    it("never follows environment links or redirected parent directories", async () => {
+      const secret = await file(source, ".env.local", "LOCAL_VALUE=credential");
+      await mkdir(target);
+      await symlink(secret, path.join(target, ".env.local"));
+      await seedWorkspaceEnvironmentFile(target, {
+        content: Buffer.from("replacement"),
+        target: ".env.local",
+      });
+      await expect(readFile(secret, "utf-8")).resolves.toBe(
+        "LOCAL_VALUE=credential"
+      );
+      await symlink(source, path.join(target, "redirected"));
+      await expect(
+        seedWorkspaceEnvironmentFile(target, {
+          content: Buffer.from("replacement"),
+          target: "redirected/.env.local",
+        })
+      ).rejects.toThrow("physical directory");
+    });
+
+    it.each(["../.env.local", "package.json", ".env.example"])(
+      "rejects non-environment or escaping defaults: %s",
+      async (relative) => {
+        await expect(
+          seedWorkspaceEnvironmentFile(target, {
+            content: Buffer.from("replacement"),
+            target: relative,
+          })
+        ).rejects.toThrow(/environment/u);
+      }
+    );
+
     it("copies only into selected directories, with private permissions", async () => {
       await file(source, "apps/web/.env.local", "DUMMY_VALUE=local");
       await file(source, "apps/api/.env.local", "DUMMY_VALUE=excluded");
@@ -238,62 +317,9 @@ describe("maintainer workspace safety", () => {
         copyMaintainerEnvironmentFiles(source, target)
       ).resolves.toEqual([]);
     });
-
-    it("keeps a package physical when it contains an environment overlay", async () => {
-      await file(source, "registry.json", '{"items":[]}');
-      await file(source, "packages/demo/package.json", '{"name":"@repo/demo"}');
-      await file(target, "packages/demo/package.json", '{"name":"@repo/demo"}');
-      await file(target, "packages/demo/.env.local", "DUMMY_VALUE=isolated");
-      await linkMaintainerWorkspaceSources({
-        environmentFiles: ["packages/demo/.env.local"],
-        selectedItems: [],
-        selection: { addOns: [], providers: {} },
-        sourceRoot: source,
-        targetRoot: target,
-      });
-      const packageDirectory = await lstat(path.join(target, "packages/demo"));
-      expect(packageDirectory.isSymbolicLink()).toBeFalsy();
-      await expect(
-        readFile(path.join(target, "packages/demo/.env.local"), "utf-8")
-      ).resolves.toBe("DUMMY_VALUE=isolated");
-    });
   });
 
   describe("canonical inventories and naming", () => {
-    it("does not remove a materialized file when its canonical link source is missing", async () => {
-      await file(
-        source,
-        "registry.json",
-        JSON.stringify({
-          items: [
-            {
-              files: [
-                {
-                  path: "missing.ts",
-                  target: "~/apps/web/app/api/example/route.ts",
-                },
-              ],
-              name: "route",
-            },
-          ],
-        })
-      );
-      const route = await file(
-        target,
-        "apps/web/app/api/example/route.ts",
-        "keep this source"
-      );
-      await expect(
-        linkMaintainerWorkspaceSources({
-          selectedItems: ["route"],
-          selection: { addOns: [], providers: {} },
-          sourceRoot: source,
-          targetRoot: target,
-        })
-      ).rejects.toMatchObject({ code: "ENOENT" });
-      await expect(readFile(route, "utf-8")).resolves.toBe("keep this source");
-    });
-
     it("retains new files but excludes working-tree deletions", async () => {
       await file(source, "kept.ts");
       const deleted = await file(source, "deleted.ts");
@@ -304,37 +330,6 @@ describe("maintainer workspace safety", () => {
         "kept.ts",
         "new.ts",
       ]);
-      await copyMaintainerWorkspace(source, target);
-      const entries = await readdir(target);
-      expect(entries.sort()).toEqual(["kept.ts", "new.ts"]);
-    });
-
-    it("retains workspace peers when pruning unselected applications", async () => {
-      await file(
-        target,
-        "registry.json",
-        '{"items":[{"name":"app-web","files":[{"path":"apps/web/package.json","target":"~/apps/web/package.json"}]}]}'
-      );
-      await file(target, "package.json", "{}");
-      await file(
-        target,
-        "apps/web/package.json",
-        '{"dependencies":{"@repo/core":"workspace:*"}}'
-      );
-      await file(
-        target,
-        "packages/core/package.json",
-        '{"name":"@repo/core","peerDependencies":{"@repo/peer":"workspace:*"}}'
-      );
-      await file(target, "packages/peer/package.json", '{"name":"@repo/peer"}');
-      await writeJsonFile(path.join(target, "packages/core/tsconfig.json"), {});
-      await expect(
-        pruneUnselectedWorkspacePackages({
-          selectedItems: ["app-web"],
-          sourceRoot: target,
-          targetRoot: target,
-        })
-      ).resolves.toEqual([]);
     });
 
     it("uses a product-neutral fallback application name", () => {

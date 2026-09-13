@@ -10,7 +10,6 @@ import { z } from "zod";
 import {
   addCatalogReferences,
   fetchRegistryItemGraph,
-  loadGitHubSourceRegistryCatalog,
   loadSourceRegistryCatalog,
 } from "../src/composition/catalog.js";
 import { prepareComposition } from "../src/composition/install.js";
@@ -243,76 +242,6 @@ describe("Next Hydra source registry", () => {
     );
   });
 
-  it("loads ShadCN-normalized GitHub registry artifacts", async () => {
-    const localCatalog = await loadSourceRegistryCatalog(repoRoot);
-    const artifactsByName = new Map(
-      [...localCatalog.items].map(([name, item]) => [
-        name,
-        {
-          ...item,
-          $schema: "https://ui.shadcn.com/schema/registry-item.json",
-        },
-      ])
-    );
-    const requestedAddresses: string[][] = [];
-
-    const catalog = await loadGitHubSourceRegistryCatalog(
-      "jakala-na/next-hydra",
-      "pinned-ref",
-      {
-        fetchItems: (addresses) => {
-          requestedAddresses.push(addresses);
-          return addresses.map((address) => {
-            const itemName = address.split("/").at(-1)?.split("#")[0];
-            const artifact = itemName
-              ? artifactsByName.get(itemName)
-              : undefined;
-            if (!artifact) {
-              throw new Error(`Missing registry artifact for ${address}`);
-            }
-            return artifact;
-          });
-        },
-        loadRegistryConfig: () => localCatalog.registryConfig,
-      }
-    );
-
-    expect(requestedAddresses.flat()).toContain(
-      "jakala-na/next-hydra/app-web#pinned-ref"
-    );
-    expect(
-      [...catalog.items.values()].every(
-        (item) =>
-          item.meta?.nextHydra === undefined ||
-          item.$schema === NEXT_HYDRA_SELECTION_SCHEMA_URL
-      )
-    ).toBeTruthy();
-    expect(requestedAddresses.flat()).toEqual(
-      expect.arrayContaining([
-        "jakala-na/next-hydra/cms-contentstack-product-collection#pinned-ref",
-      ])
-    );
-    expect(requestedAddresses.flat()).toContain(
-      "jakala-na/next-hydra/cms-drupal-product-collection#pinned-ref"
-    );
-    expect(requestedAddresses.flat()).toContain(
-      "jakala-na/next-hydra/drupal-product-collection#pinned-ref"
-    );
-    expect(new Set(catalog.items.keys())).toEqual(
-      new Set(localCatalog.items.keys())
-    );
-    expect(
-      planComposition(catalog, {
-        addOns: [],
-        providers: {
-          auth: "workos",
-          cms: "contentstack",
-          commerce: "commercetools",
-        },
-      }).registryItems
-    ).toContain("cms-contentstack-product-collection");
-  });
-
   it("plans both supported CMS compositions deterministically", async () => {
     const catalog = await loadSourceRegistryCatalog(repoRoot);
     const base = {
@@ -461,12 +390,6 @@ describe("Next Hydra source registry", () => {
     expect(contentstackOnly.registryItems).not.toContain(
       "cms-contentstack-product-collection"
     );
-    expect(contentstack.catalogManagedTargets).toContain(
-      "apps/web/package.json"
-    );
-    expect(contentstackOnly.catalogManagedTargets).toContain(
-      "apps/web/package.json"
-    );
     expect(contentstackOnly.packageRequirements).not.toContainEqual(
       expect.objectContaining({
         cwd: "packages/cms-contentstack",
@@ -512,7 +435,6 @@ describe("Next Hydra source registry", () => {
       "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
     ]);
     expect(planComposition(catalog, drupal.selection)).toStrictEqual(drupal);
-    expect(contentstack.variableTargets).toStrictEqual(drupal.variableTargets);
   });
 
   it("loads a locally developed Add-on without adding it to the root registry", async () => {

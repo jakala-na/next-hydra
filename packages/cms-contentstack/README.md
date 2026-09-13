@@ -26,13 +26,13 @@ pnpm --filter @repo/cms-contentstack exec csdx auth:tokens:add \
   --management
 ```
 
-Then run the provider-neutral workspace command:
+Then run the provider-neutral workspace command from the installed workspace root. pnpm runs it in `apps/cli`, so the relative output path below writes `apps/cli/.env.contentstack.local`:
 
 ```bash
-pnpm cli cms provision \
+pnpm --filter cli cli cms provision \
   --management-token-alias next-hydra-bootstrap \
   --production-url https://store.example.com \
-  --output apps/cli/.env.contentstack.local
+  --output .env.contentstack.local
 ```
 
 The command verifies the pinned Contentstack CLI, resolves the target Stack API Key from the alias, reads the region already configured in `csdx`, and imports the checked-in recipe. The recipe creates the baseline `landing_page`, `navigation`, and administrative `migrations` content types, English starter entries, and the `development` and `production` environments. Provisioning then applies every pending migration before collecting runtime credentials. Environment URLs default to `https://web.next-hydra.localhost` and the supplied production URL. Runtime credentials target the Contentstack `development` environment by default; select another with `--contentstack-environment`.
@@ -40,11 +40,11 @@ The command verifies the pinned Contentstack CLI, resolves the target Stack API 
 The target stack master locale defaults to `en-us`. If the stack uses another master locale, declare it so the materialized import includes English as an additional locale instead of silently skipping the starter entries:
 
 ```bash
-pnpm cli cms provision \
+pnpm --filter cli cli cms provision \
   --management-token-alias next-hydra-bootstrap \
   --stack-master-locale fr-fr \
   --production-url https://store.example.com \
-  --output apps/cli/.env.contentstack.local
+  --output .env.contentstack.local
 ```
 
 After the import, create Delivery and Preview Tokens for the runtime environment. Enter them in the masked prompts; alternatively, supply both as `CONTENTSTACK_DELIVERY_TOKEN` and `CONTENTSTACK_PREVIEW_TOKEN` through `--env-file`. If `CONTENTSTACK_WEBHOOK_SECRET` is present, the handoff preserves it; otherwise it publishes an empty value for later configuration. The default local store writes a new `0600` dotenv file with the region's GraphQL delivery and preview hosts. `--store vercel` instead publishes the same manifest to every required linked application project; select Production, Preview, a Preview branch, or an existing custom environment with repeatable `--environment` flags. Existing assignments fail by default. Operators may pass `--overwrite` to upsert only Contentstack's exact manifest keys in those selected targets. Vercel Development is intentionally unsupported. Neither store prints the Management Token or runtime secrets. Contentstack's importer owns recipe auditing and streams its audit and import output directly to the terminal. A provider-owned patch makes importer exceptions return a failing process status, so the command stops before credential collection when CSDX reports an import failure.
@@ -65,13 +65,13 @@ The import is intentionally a one-shot empty-stack operation. It does not pass `
 Content-model changes after the baseline import live as timestamped CommonJS files in `migrations/`. Preview or apply them with the same local Management Token alias:
 
 ```bash
-pnpm cli cms migrate plan \
+pnpm --filter cli cli cms migrate plan \
   --management-token-alias next-hydra-bootstrap
 
-pnpm cli cms migrate \
+pnpm --filter cli cli cms migrate \
   --management-token-alias next-hydra-bootstrap
 
-pnpm cli cms migrate status \
+pnpm --filter cli cli cms migrate status \
   --management-token-alias next-hydra-bootstrap
 ```
 

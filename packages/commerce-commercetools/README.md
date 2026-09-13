@@ -32,15 +32,15 @@ Raw clients, schemas, migrations, and generators are intentionally not package e
 
 ## Schema and migration tooling
 
-Run the commands through the workspace CLI:
+Run the commands from the installed workspace root. pnpm runs the CLI in `apps/cli`, so relative environment-file and output paths below resolve there:
 
 ```bash
-pnpm cli --env-file apps/cli/.env.bootstrap.local commerce project provision --output apps/cli/.env.runtime.local
-pnpm cli --env-file apps/cli/.env.runtime.local commerce project seed
-pnpm cli commerce schema export
-pnpm cli commerce types generate
-pnpm cli commerce migrate plan
-pnpm cli commerce migrate
+pnpm --filter cli cli --env-file .env.bootstrap.local commerce project provision --output .env.runtime.local
+pnpm --filter cli cli --env-file .env.runtime.local commerce project seed
+pnpm --filter cli cli commerce schema export
+pnpm --filter cli cli commerce types generate
+pnpm --filter cli cli commerce migrate plan
+pnpm --filter cli cli commerce migrate
 ```
 
 Project provisioning reads a manually-created bootstrap API Client from the standard `CTP_*` variables, including its auth/API URLs and scopes. It verifies the client can manage project settings and API clients, creates the versioned application runtime scopes, applies pending migrations, and publishes the application's `COMMERCETOOLS_*` runtime credentials before deleting the bootstrap client. The default local store exclusively creates and verifies a new `0600` dotenv file; existing files are never overwritten. `--store vercel` publishes to every required linked application project after checking all links, selected environments, access, and key conflicts. Existing assignments fail by default; `--overwrite` explicitly upserts only the exact runtime manifest in the selected targets, which supports replacing an expired demo without touching unrelated variables. Vercel publication requires a new deployment. Ambiguous overwrite responses are retried in-process with the same values. After a partial or unknown publication failure, the runtime client is preserved because a Vercel project may reference it; a fresh `--overwrite` provisioning run creates replacement credentials and converges every selected target, potentially leaving the earlier client for manual cleanup.
