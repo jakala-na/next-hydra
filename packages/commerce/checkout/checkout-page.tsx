@@ -19,10 +19,14 @@ import type {
   CheckoutPaymentOptionsRenderer,
   CheckoutPlaceOrderRenderer,
 } from "./checkout-view";
+import type { CheckoutEditStepId } from "./edit-step";
+import { checkoutEditedStepFor, checkoutRenderedStepFor } from "./edit-step";
 
 export async function CheckoutPage({
   actions,
+  checkoutPath,
   locale,
+  requestedEditStep,
   renderPaymentOptions,
   renderPlaceOrder,
 }: {
@@ -33,7 +37,9 @@ export async function CheckoutPage({
     readonly saveShippingOptions: SaveCheckoutShippingOptionsAction;
     readonly placeOrder: PlaceCheckoutOrderAction;
   };
+  readonly checkoutPath: string;
   readonly locale: Locale;
+  readonly requestedEditStep?: CheckoutEditStepId;
   readonly renderPaymentOptions: CheckoutPaymentOptionsRenderer;
   readonly renderPlaceOrder: CheckoutPlaceOrderRenderer;
 }) {
@@ -52,8 +58,13 @@ export async function CheckoutPage({
           snapshot,
         };
       }
+      const editedStep = checkoutEditedStepFor(
+        snapshot.state,
+        requestedEditStep
+      );
+      const renderedStep = checkoutRenderedStepFor(snapshot.state, editedStep);
       const paymentSnapshot =
-        snapshot.state.activeStep === "paymentOptions"
+        renderedStep === "paymentOptions"
           ? yield* CheckoutSession.preparePaymentOptions()
           : undefined;
       const currentSnapshot = paymentSnapshot ?? snapshot;
@@ -91,6 +102,10 @@ export async function CheckoutPage({
   if (pageData.snapshot === null) {
     notFound();
   }
+  const editedStep = checkoutEditedStepFor(
+    pageData.snapshot.state,
+    requestedEditStep
+  );
 
   return (
     <CheckoutView
@@ -101,7 +116,9 @@ export async function CheckoutPage({
         savePaymentOptions: actions.savePaymentOptions,
         saveShippingOptions: actions.saveShippingOptions,
       }}
+      checkoutPath={checkoutPath}
       deliveryPlanQuote={pageData.snapshot.deliveryPlanQuote}
+      editedStep={editedStep}
       locale={locale}
       paymentOptions={pageData.paymentOptions}
       renderPaymentOptions={renderPaymentOptions}

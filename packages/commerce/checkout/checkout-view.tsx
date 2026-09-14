@@ -20,8 +20,10 @@ import type {
 import { CheckoutContactForm } from "./contact-form";
 import { CheckoutDeliveryDetailsForm } from "./delivery-details-form";
 import type { CheckoutShippingAddressOption } from "./delivery-details-form";
+import type { CheckoutEditStepId } from "./edit-step";
+import { checkoutRenderedStepFor } from "./edit-step";
 import { CheckoutShippingOptionsForm } from "./shipping-options-form";
-import { ActiveStepViolations, CartSidebarViolations } from "./violations";
+import { CartSidebarViolations, CheckoutStepViolations } from "./violations";
 
 const CENTS_PER_MAJOR_CURRENCY_UNIT = 100;
 
@@ -86,7 +88,8 @@ export interface CheckoutPageMessages {
   readonly cartViolations: string;
   readonly delivery: (number: number) => string;
   readonly card: string;
-  readonly editDeliveryDetails: string;
+  readonly edit: string;
+  readonly editingStep: string;
   readonly netTerms: (days: number) => string;
   readonly paymentMethod: string;
   readonly subtotal: string;
@@ -98,69 +101,113 @@ export interface CheckoutPageMessages {
   readonly violation: (violation: CheckoutViolation) => string;
 }
 
-function CheckoutSteps({
+export function CheckoutSteps({
+  checkoutPath,
+  isEditing,
   messages,
+  renderedStep,
   state,
 }: {
+  readonly checkoutPath: string;
+  readonly isEditing: boolean;
   readonly messages: CheckoutPageMessages;
+  readonly renderedStep: CheckoutStepId;
   readonly state: CheckoutState;
 }) {
-  return (
-    <ol className="grid gap-2 sm:col-span-5 sm:grid-cols-5">
-      {state.steps.map((step, index) => {
-        const isActive = step.id === state.activeStep;
-        const presentationState = isActive ? "active" : step.status;
-        const statusLabel = isActive
-          ? messages.activeStep
-          : messages.stepStatuses[step.status];
+  const renderedStepIndex = state.steps.findIndex(
+    (step) => step.id === renderedStep
+  );
 
-        return (
-          <li
-            aria-current={isActive ? "step" : undefined}
-            className="rounded-md border border-border p-3 data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=complete]:bg-muted/50"
-            data-state={presentationState}
-            key={step.id}
-          >
-            <div className="flex items-center gap-3">
-              <span
-                aria-hidden="true"
-                className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border font-medium text-xs data-[state=active]:border-primary data-[state=complete]:border-primary data-[state=active]:bg-primary data-[state=complete]:bg-primary data-[state=active]:text-primary-foreground data-[state=complete]:text-primary-foreground"
-                data-state={presentationState}
-              >
-                {index + 1}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate font-medium text-sm">
-                  {messages.stepLabels[step.id]}
-                </span>
-                <span className="block text-muted-foreground text-xs">
-                  {statusLabel}
-                </span>
-              </span>
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+  return (
+    <nav aria-label="Checkout steps" className="sm:col-span-5">
+      <ol className="grid gap-2 sm:grid-cols-5">
+        {state.steps.map((step, index) => {
+          const isActive = !isEditing && step.id === renderedStep;
+          const isEdited = isEditing && step.id === renderedStep;
+          const isCurrent = isActive || isEdited;
+          let presentationState:
+            | "active"
+            | "complete"
+            | "editing"
+            | "incomplete" = step.status;
+          let statusLabel = messages.stepStatuses[step.status];
+          if (isEdited) {
+            presentationState = "editing";
+            statusLabel = messages.editingStep;
+          } else if (isActive) {
+            presentationState = "active";
+            statusLabel = messages.activeStep;
+          }
+          const stepLabel = messages.stepLabels[step.id];
+
+          return (
+            <li
+              aria-current={isCurrent ? "step" : undefined}
+              className="rounded-md border border-border p-3 data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=complete]:bg-muted/50 data-[state=editing]:border-primary data-[state=editing]:bg-primary/5"
+              data-checkout-step={step.id}
+              data-state={presentationState}
+              key={step.id}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border font-medium text-xs data-[state=active]:border-primary data-[state=complete]:border-primary data-[state=editing]:border-primary data-[state=active]:bg-primary data-[state=complete]:bg-primary data-[state=editing]:bg-primary data-[state=active]:text-primary-foreground data-[state=complete]:text-primary-foreground data-[state=editing]:text-primary-foreground"
+                    data-state={presentationState}
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium text-sm">
+                      {stepLabel}
+                    </span>
+                    <span className="block text-muted-foreground text-xs">
+                      {statusLabel}
+                    </span>
+                  </span>
+                </div>
+                {step.status === "complete" && index < renderedStepIndex ? (
+                  <form action={checkoutPath} method="get">
+                    <button
+                      aria-label={`${messages.edit} ${stepLabel}`}
+                      className="font-medium text-primary text-xs underline-offset-4 hover:underline"
+                      name="edit"
+                      type="submit"
+                      value={step.id}
+                    >
+                      {messages.edit}
+                    </button>
+                  </form>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
 
-function ActiveStep({
+function CheckoutStepContent({
   actions,
   deliveryPlanQuote,
+  isEditing,
   messages,
   paymentOptions,
   renderPaymentOptions,
   renderPlaceOrder,
+  renderedStep,
   shippingAddressOptions,
   state,
 }: {
   readonly actions: CheckoutActions;
   readonly deliveryPlanQuote: DeliveryPlanQuote;
+  readonly isEditing: boolean;
   readonly messages: CheckoutPageMessages;
   readonly paymentOptions?: PaymentOptions;
   readonly renderPaymentOptions: CheckoutPaymentOptionsRenderer;
   readonly renderPlaceOrder: CheckoutPlaceOrderRenderer;
+  readonly renderedStep: CheckoutStepId;
   readonly shippingAddressOptions?: readonly CheckoutShippingAddressOption[];
   readonly state: CheckoutState;
 }) {
@@ -168,11 +215,8 @@ function ActiveStep({
   const shippingOptionsComplete =
     state.steps.find((step) => step.id === "shippingOptions")?.status ===
     "complete";
-  const deliveryDetailsComplete =
-    state.steps.find((step) => step.id === "deliveryDetails")?.status ===
-    "complete";
 
-  if (state.activeStep === "contact") {
+  if (renderedStep === "contact") {
     content = (
       <CheckoutContactForm
         buyerContact={state.details.contact?.buyerContact}
@@ -185,7 +229,7 @@ function ActiveStep({
         }
       />
     );
-  } else if (state.activeStep === "deliveryDetails") {
+  } else if (renderedStep === "deliveryDetails") {
     content = (
       <CheckoutDeliveryDetailsForm
         addressBookReference={
@@ -199,7 +243,7 @@ function ActiveStep({
         shippingAddressOptions={shippingAddressOptions}
       />
     );
-  } else if (state.activeStep === "shippingOptions") {
+  } else if (renderedStep === "shippingOptions") {
     content = (
       <CheckoutShippingOptionsForm
         cart={state.cart}
@@ -214,7 +258,7 @@ function ActiveStep({
       />
     );
   } else if (
-    state.activeStep === "paymentOptions" &&
+    renderedStep === "paymentOptions" &&
     paymentOptions !== undefined &&
     state.details.deliveryDetails !== undefined
   ) {
@@ -227,7 +271,7 @@ function ActiveStep({
       selectedMethod: state.details.preparedPayment?.method,
     });
   } else if (
-    state.activeStep === "reviewOrder" &&
+    renderedStep === "reviewOrder" &&
     state.details.preparedPayment !== undefined
   ) {
     const payment = state.details.preparedPayment;
@@ -259,38 +303,18 @@ function ActiveStep({
   return (
     <section className="min-h-80 rounded-md border border-border p-6 sm:col-span-3">
       <div className="mb-6 border-border border-b pb-4">
-        <p className="text-muted-foreground text-sm">{messages.activeStep}</p>
+        <p className="text-muted-foreground text-sm">
+          {isEditing ? messages.editingStep : messages.activeStep}
+        </p>
         <h1 className="font-semibold text-2xl">
-          {messages.stepLabels[state.activeStep]}
+          {messages.stepLabels[renderedStep]}
         </h1>
       </div>
-      <ActiveStepViolations
-        activeStep={state.activeStep}
+      <CheckoutStepViolations
         messages={messages}
+        step={renderedStep}
         violations={state.violations}
       />
-      {deliveryDetailsComplete &&
-      state.activeStep !== "contact" &&
-      state.activeStep !== "deliveryDetails" ? (
-        <details className="mb-6 rounded-md border border-border p-4">
-          <summary className="cursor-pointer font-medium text-sm">
-            {messages.editDeliveryDetails}
-          </summary>
-          <div className="mt-4 border-border border-t pt-4">
-            <CheckoutDeliveryDetailsForm
-              addressBookReference={
-                state.details.deliveryDetails?.source === "addressBook"
-                  ? state.details.deliveryDetails.addressBookReference
-                  : undefined
-              }
-              cartId={state.cart.id}
-              saveAction={actions.saveDeliveryDetails}
-              shippingAddress={state.details.deliveryDetails?.shippingAddress}
-              shippingAddressOptions={shippingAddressOptions}
-            />
-          </div>
-        </details>
-      ) : null}
       {content}
     </section>
   );
@@ -394,7 +418,9 @@ export function CartSidebar({
 
 export async function CheckoutView({
   actions,
+  checkoutPath,
   deliveryPlanQuote,
+  editedStep,
   locale,
   paymentOptions,
   renderPaymentOptions,
@@ -403,7 +429,9 @@ export async function CheckoutView({
   state,
 }: {
   readonly actions: CheckoutActions;
+  readonly checkoutPath: string;
   readonly deliveryPlanQuote: DeliveryPlanQuote;
+  readonly editedStep?: CheckoutEditStepId;
   readonly locale: Locale;
   readonly paymentOptions?: PaymentOptions;
   readonly renderPaymentOptions: CheckoutPaymentOptionsRenderer;
@@ -423,7 +451,8 @@ export async function CheckoutView({
     cartTitle: t("cart.title"),
     cartViolations: t("cart.violations"),
     delivery: (number) => t("shippingOptions.delivery", { number }),
-    editDeliveryDetails: t("deliveryDetails.actions.edit"),
+    edit: t("actions.edit"),
+    editingStep: t("editingStep"),
     netTerms: (days) => t("paymentOptions.netTerms", { days }),
     paymentMethod: t("paymentOptions.paymentMethod"),
     stepLabels: {
@@ -441,20 +470,30 @@ export async function CheckoutView({
     violation: (violation) =>
       checkoutViolationMessage(checkoutLocale, violation),
   };
+  const renderedStep = checkoutRenderedStepFor(state, editedStep);
+  const isEditing = editedStep !== undefined;
 
   return (
     <main
       className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-8 sm:grid-cols-5"
       data-checkout-cart-id={state.cart.id}
     >
-      <CheckoutSteps messages={messages} state={state} />
-      <ActiveStep
+      <CheckoutSteps
+        checkoutPath={checkoutPath}
+        isEditing={isEditing}
+        messages={messages}
+        renderedStep={renderedStep}
+        state={state}
+      />
+      <CheckoutStepContent
         actions={actions}
         deliveryPlanQuote={deliveryPlanQuote}
+        isEditing={isEditing}
         messages={messages}
         paymentOptions={paymentOptions}
         renderPaymentOptions={renderPaymentOptions}
         renderPlaceOrder={renderPlaceOrder}
+        renderedStep={renderedStep}
         shippingAddressOptions={shippingAddressOptions}
         state={state}
       />

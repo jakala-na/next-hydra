@@ -4,7 +4,7 @@
   "envMode": "loose",
   "tasks": {
     "build": {
-      "dependsOn": ["^build", "typecheck", "test"],
+      "dependsOn": ["//#test:environment", "^build", "typecheck", "test"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": [
         ".next/**",
@@ -17,7 +17,7 @@
       ]
     },
     "test": {
-      "dependsOn": ["^test"],
+      "dependsOn": ["//#test:environment", "^test"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"]
     },
     "e2e": {
@@ -107,6 +107,16 @@
     },
     "//#clean": {
       "cache": false
+    },
+    "//#test:environment": {
+      "inputs": [
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/pnpm-workspace.yaml",
+        "$TURBO_ROOT$/scripts/check-test-environments.ts",
+        "$TURBO_ROOT$/apps/*/package.json",
+        "$TURBO_ROOT$/packages/*/package.json",
+        "$TURBO_ROOT$/tests/*/package.json"
+      ]
     }
   }
 }

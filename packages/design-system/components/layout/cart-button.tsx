@@ -29,6 +29,7 @@ export function CartButtonClient(links: CartFlyoutLinks) {
         size="icon"
         aria-label="Open cart"
         className="relative"
+        data-cart-trigger=""
         onClick={() => {
           openCart();
         }}

@@ -55,9 +55,9 @@ describe(toCheckoutApiState, () => {
       totalPrice: amount,
     };
     const state: CheckoutState = {
-      activeStep: "reviewOrder",
       cart,
       details: checkoutDetails,
+      nextStep: "reviewOrder",
       scope: new StorefrontAnonymousCheckoutScope({
         anonymousCartId: cart.id,
         channel: "storefrontAnonymous",

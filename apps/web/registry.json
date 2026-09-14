@@ -513,11 +513,6 @@
           "type": "registry:file"
         },
         {
-          "path": "lib/customer-account-invitation-composition.test.ts",
-          "target": "~/apps/web/lib/customer-account-invitation-composition.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "lib/next-request-api.ts",
           "target": "~/apps/web/lib/next-request-api.ts",
           "type": "registry:file"

@@ -136,6 +136,7 @@ export class CurrentCart extends Context.Service<
       CurrentCartState,
       SaveCurrentCartDetailsFailure
     >;
+    readonly forgetCart: () => Effect.Effect<void>;
     readonly setLineItemQuantity: (
       input: SetCurrentCartLineItemQuantity
     ) => Effect.Effect<CurrentCartState, SetCurrentCartLineItemQuantityFailure>;
@@ -173,6 +174,10 @@ export class CurrentCart extends Context.Service<
     CurrentCart.pipe(
       Effect.flatMap((currentCart) => currentCart.clearPaymentOptions())
     )
+  );
+
+  static readonly forgetCart = Effect.fn("CurrentCart.forgetCart")(() =>
+    CurrentCart.pipe(Effect.flatMap((currentCart) => currentCart.forgetCart()))
   );
 
   static readonly setLineItemQuantity = Effect.fn(
@@ -423,6 +428,10 @@ export class CurrentCart extends Context.Service<
               );
               return yield* replaceAndEvaluate(resolved, cart);
             }),
+          forgetCart: () =>
+            Ref.set(resolvedCart, Option.none<ResolvedCart>()).pipe(
+              Effect.andThen(isAnonymous ? cookie.clear() : Effect.void)
+            ),
           get: () =>
             resolveCart().pipe(
               Effect.flatMap(

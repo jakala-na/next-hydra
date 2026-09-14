@@ -315,33 +315,19 @@ const runDocumentedCliHelp = async (target: string) => {
   );
 };
 
-const testCustomerInvitationComposition = async (target: string) => {
-  await Promise.all([
-    runWorkspaceCommand(
-      target,
-      [
-        "--filter",
-        "web",
-        "exec",
-        "vitest",
-        "run",
-        "lib/customer-account-invitation-composition.test.ts",
-      ],
-      "customer-account invitation lifecycle composition test"
-    ),
-    runWorkspaceCommand(
-      target,
-      [
-        "--filter",
-        "api",
-        "exec",
-        "vitest",
-        "run",
-        "lib/company-member-invitation-composition.test.ts",
-      ],
-      "company-member invitation acceptance composition test"
-    ),
-  ]);
+const testCompanyMemberInvitationComposition = async (target: string) => {
+  await runWorkspaceCommand(
+    target,
+    [
+      "--filter",
+      "api",
+      "exec",
+      "vitest",
+      "run",
+      "lib/company-member-invitation-composition.test.ts",
+    ],
+    "company-member invitation acceptance composition test"
+  );
 };
 
 function options(
@@ -674,7 +660,7 @@ describe("scaffold composition", () => {
         "storefront production build with typecheck and test gates",
         "production"
       );
-      await testCustomerInvitationComposition(contentstackTarget);
+      await testCompanyMemberInvitationComposition(contentstackTarget);
 
       await expect(
         pathExists(
@@ -883,7 +869,7 @@ describe("scaffold composition", () => {
         install: installWorkspace,
       });
       await typecheckWorkspace(target);
-      await testCustomerInvitationComposition(target);
+      await testCompanyMemberInvitationComposition(target);
 
       await expect(
         Promise.all([

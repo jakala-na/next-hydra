@@ -26,15 +26,15 @@ This slice should establish the names and boundaries future checkout issues copy
 - [x] Checkout defines the first concrete Commercetools-backed `CheckoutSession` layer without renaming existing Cart or Store Context services.
 - [x] Only `CheckoutSession.getCurrent` needs full behavior in this slice; save methods may return structured unsupported failures until their slices land.
 - [x] `CheckoutSession.getCurrent` resolves the current Cart, buyer context, Checkout Details, and policy results, then calls `buildCheckoutState` before returning.
-- [x] `buildCheckoutState` receives resolved checkout inputs, validates Checkout can start, computes step completion, computes active step, normalizes violations, and returns Checkout State.
+- [x] `buildCheckoutState` receives resolved checkout inputs, validates Checkout can start, computes step completion, computes the Next Checkout Step, normalizes violations, and returns Checkout State.
 - [x] `buildCheckoutState` is documented as a state-builder function, not a Service or use-case program.
 - [x] Checkout requires an existing non-empty Cart before the checkout experience renders.
 - [x] Checkout State is derived and not persisted.
 - [x] Checkout State uses the planned step sequence: Contact, Delivery Details, Shipping Options, Payment Options, Review Order.
 - [x] Checkout Step status is binary: complete or incomplete.
-- [x] Active Checkout Step is derived as the first incomplete step.
+- [x] Next Checkout Step is derived as the first incomplete step.
 - [x] Checkout Read Schema can represent ordinary incomplete Checkout without failing decoding.
-- [x] Checkout State reports current Checkout Details, step status, active step, and an empty or populated global violations list.
+- [x] Checkout State reports current Checkout Details, step status, the Next Checkout Step, and an empty or populated global violations list.
 - [x] Checkout State stays lean: option catalogs such as address book entries or customer profile candidates come from separate resolver or option capabilities.
 - [x] A reusable checkout runtime layer composes `CheckoutSession` with provider layers.
 - [x] The HTTP API exposes a current checkout read path that resolves adapter input to Checkout Scope, runs `CheckoutSession.getCurrent`, and maps structured failures.
@@ -43,9 +43,9 @@ This slice should establish the names and boundaries future checkout issues copy
 - [x] Checkout documents `CurrentCheckoutScope` as request-scoped context, separate from the domain `CheckoutSession` capability.
 - [x] The HTTP API uses `x-context-anonymous-cart-id` when an anonymous Cart ID must be supplied explicitly.
 - [x] The checkout page shell uses `CheckoutSession` through an in-process runtime path instead of calling the HTTP API from the same backend.
-- [x] The checkout page shell renders the active step area and cart sidebar from Checkout State.
+- [x] The checkout page shell renders the currently presented step and cart sidebar from Checkout State.
 - [x] The cart sidebar renders the current Cart without duplicating cart ownership in Checkout.
-- [x] Tests cover incomplete Checkout decoding, active-step calculation, binary step status, non-empty Cart requirement, runtime-layer composition, direct use-case program usage, and HTTP read adapter behavior.
+- [x] Tests cover incomplete Checkout decoding, Next Checkout Step calculation, binary step status, non-empty Cart requirement, runtime-layer composition, direct use-case program usage, and HTTP read adapter behavior.
 - [x] Relevant typecheck and test commands pass.
 
 ## Blocked by

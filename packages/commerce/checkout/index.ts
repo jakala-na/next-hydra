@@ -1,4 +1,5 @@
 export * from "./action-contract";
+export * from "./edit-step";
 export { CheckoutPublicState, toCheckoutPublicState } from "./public-state";
 export { CheckoutPaymentOptionsForm } from "./payment-options-form";
 export { CheckoutPlaceOrderForm } from "./place-order-form";

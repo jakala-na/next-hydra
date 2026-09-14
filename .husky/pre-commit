@@ -1,2 +1,3 @@
+pnpm test:environment
 npx lint-staged
 pnpm --filter create-next-hydra lint:staged

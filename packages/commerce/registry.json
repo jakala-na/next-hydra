@@ -282,6 +282,16 @@
           "type": "registry:file"
         },
         {
+          "path": "checkout/edit-step.test.ts",
+          "target": "~/packages/commerce/checkout/edit-step.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/edit-step.ts",
+          "target": "~/packages/commerce/checkout/edit-step.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "checkout/index.ts",
           "target": "~/packages/commerce/checkout/index.ts",
           "type": "registry:file"
