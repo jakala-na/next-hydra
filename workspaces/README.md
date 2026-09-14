@@ -17,7 +17,7 @@ The same command updates an existing workspace. Add `--no-link` to materialize p
 | cms-contentstack | Contentstack | web.cms-contentstack.localhost |
 | cms-drupal | Drupal | web.cms-drupal.localhost |
 | storefront-contentstack | Contentstack, WorkOS, commercetools, navigation search | web.storefront-contentstack.localhost |
-| storefront-drupal | Drupal, Clerk, commercetools, navigation search | web.storefront-drupal.localhost |
+| storefront-drupal | Drupal, WorkOS, commercetools, navigation search | web.storefront-drupal.localhost |
 
 The folder name determines the stable Portless name for each installed Next app: `<app>.<workspace>.localhost`. API/admin use `api.<workspace>.localhost` and `admin.<workspace>.localhost`; a CMS-only selection does not install these apps. Portless adds the Git worktree's branch prefix when applicable, so separate checkouts do not fight over the same host. Check the actual URL without starting a server with `pnpm --dir workspaces/cms-contentstack exec portless get web.cms-contentstack`.
 

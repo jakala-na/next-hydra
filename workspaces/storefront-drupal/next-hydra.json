@@ -1,7 +1,7 @@
 {
   "providers": {
     "cms": "drupal",
-    "auth": "clerk",
+    "auth": "workos",
     "commerce": "commercetools"
   },
   "addOns": ["app-web-navigation-search"]

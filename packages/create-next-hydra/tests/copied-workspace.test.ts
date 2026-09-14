@@ -29,7 +29,7 @@ async function createCustomer(name: string, target: string) {
       )
     )
   );
-  return await composeWorkspace(
+  await composeWorkspace(
     target,
     {
       addOns: definition.addOns,
@@ -40,6 +40,7 @@ async function createCustomer(name: string, target: string) {
     },
     { sourceRoot }
   );
+  return definition;
 }
 
 describe("copied customer workspace", () => {
@@ -60,7 +61,7 @@ describe("copied customer workspace", () => {
     "%s materializes physical applications without maintainer state or source links",
     async (name) => {
       const target = path.join(scratch, "application");
-      await createCustomer(name, target);
+      const { providers } = await createCustomer(name, target);
       const entries = await readdir(target, {
         recursive: true,
         withFileTypes: true,
@@ -90,8 +91,8 @@ describe("copied customer workspace", () => {
         receipt: false,
         vercel: true,
       });
-      const hasCommerce = name.startsWith("storefront-");
-      const auth = name === "storefront-drupal" ? "clerk" : "workos";
+      const hasCommerce = Boolean(providers.commerce);
+      const { auth } = providers;
       expect({
         admin: paths.has(
           auth === "clerk"
@@ -99,10 +100,12 @@ describe("copied customer workspace", () => {
             : "apps/admin/app/api/auth/callback/route.ts"
         ),
         api: paths.has(`apps/api/app/api/webhooks/${auth}/route.ts`),
+        auth: web.dependencies?.["@repo/auth"],
         checkout: paths.has("apps/web/app/[locale]/checkout/page.tsx"),
       }).toEqual({
         admin: hasCommerce,
         api: hasCommerce,
+        auth: auth ? `workspace:@repo/auth-${auth}@*` : undefined,
         checkout: hasCommerce,
       });
       const sourceManifest = await readPackageJson(
