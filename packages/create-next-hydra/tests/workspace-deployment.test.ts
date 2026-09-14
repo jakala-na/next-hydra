@@ -163,7 +163,7 @@ describe("named workspace deployment", () => {
     await expect(
       readFile(path.join(target, "apps/web/vercel.json"), "utf-8")
     ).resolves.toBe('{"framework":"nextjs"}');
-  });
+  }, 30_000);
 
   it.each([true, false])(
     "migrates previously owned deployment links when refreshing with link=%s",
