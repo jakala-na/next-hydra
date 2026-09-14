@@ -20,7 +20,6 @@ export type ComposeOptions = {
 };
 
 export type CompositionOutput = {
-  development?: boolean;
   name?: string;
   report?: (message: string) => void;
   sourceRoot?: string;

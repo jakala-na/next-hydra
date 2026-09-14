@@ -18,6 +18,7 @@ import path from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { z } from "zod";
 
+import { CompositionValidationError } from "./composition/errors.js";
 import {
   installPreparedComposition,
   prepareComposition,
@@ -53,6 +54,7 @@ import {
   isEnvironmentFile,
   workspaceSourceFiles,
 } from "./workspace-files.js";
+import { workspaceTaskConfiguration } from "./workspace-tasks.js";
 import type { WorkspaceOrigin } from "./workspace-update.js";
 
 export type WorkspaceConstructionOptions = {
@@ -63,7 +65,6 @@ export type WorkspaceConstructionOptions = {
   install?: boolean;
   offline?: boolean;
   port?: number;
-  development?: boolean;
   name?: string;
   report?: (message: string) => void;
   allowEmpty?: boolean;
@@ -267,7 +268,7 @@ export async function constructWorkspace(
       /^@repo\/(?:commerce|registration|payments)/u.test(name)
     ) {
       throw new Error(
-        `CMS-only composition still requires ${name}. Separate that provider's commerce contribution before claiming CMS-only support.`
+        `CMS-only composition still requires ${name}. Separate that provider's Commerce recipe before claiming CMS-only support.`
       );
     }
     const dir = packagesByName.get(name);
@@ -313,9 +314,9 @@ export async function constructWorkspace(
   const sourceManifest = await readPackageJson(
     path.join(sourceRoot, "package.json")
   );
-  if (options.development && !sourceManifest.devDependencies?.portless) {
+  if (!sourceManifest.devDependencies?.portless) {
     throw new Error(
-      "Named development workspaces require Portless in the source checkout's devDependencies."
+      "Workspace composition requires Portless in the source checkout's devDependencies."
     );
   }
   const rootManifest = {
@@ -323,9 +324,7 @@ export async function constructWorkspace(
       Object.entries({
         "@typescript/native":
           sourceManifest.devDependencies?.["@typescript/native"],
-        portless: options.development
-          ? sourceManifest.devDependencies?.portless
-          : undefined,
+        portless: sourceManifest.devDependencies.portless,
         turbo: sourceManifest.devDependencies?.turbo,
         typescript: "catalog:",
       }).filter((entry): entry is [string, string] => entry[1] !== undefined)
@@ -341,6 +340,12 @@ export async function constructWorkspace(
       typecheck: "turbo run typecheck",
     },
   };
+  // Customer package names may contain dots/underscores or exceed a DNS label.
+  // Keep one project label so the runtime adapter can derive sibling app URLs.
+  const hostNamespace = rootManifest.name
+    .replaceAll(/[._]/gu, "-")
+    .slice(0, 63)
+    .replace(/-+$/u, "");
   applyRegistryDependencies(rootManifest, prepared.registryDependencies);
   addFile("package.json", {
     content: `${JSON.stringify(rootManifest, null, 2)}\n`,
@@ -366,35 +371,7 @@ export async function constructWorkspace(
     owner: "workspace baseline",
   });
   addFile("turbo.json", {
-    content: JSON.stringify(
-      {
-        envMode: "loose",
-        tasks: {
-          build: {
-            cache: options.linked ? false : undefined,
-            dependsOn: ["^build", "typecheck", "test"],
-            inputs: ["$TURBO_DEFAULT$", ".env", ".env.*"],
-            outputs: [".next/**", "!.next/cache/**"],
-          },
-          dev: {
-            cache: false,
-            passThroughEnv: options.development ? ["PORTLESS_*"] : undefined,
-            persistent: true,
-          },
-          test: {
-            cache: options.linked ? false : undefined,
-            dependsOn: ["^test"],
-            inputs: ["$TURBO_DEFAULT$", ".env", ".env.*"],
-          },
-          typecheck: {
-            cache: options.linked ? false : undefined,
-            dependsOn: ["^typecheck"],
-          },
-        },
-      },
-      null,
-      2
-    ),
+    content: JSON.stringify(workspaceTaskConfiguration(files), null, 2),
     owner: "workspace baseline",
   });
   addFile(".gitignore", {
@@ -432,24 +409,12 @@ export async function constructWorkspace(
       ["apps/web/package.json", options.port ?? 3000],
     ]);
     const port = applicationPorts.get(manifestPath);
-    if (options.development) {
-      const application = path.posix.basename(path.posix.dirname(manifestPath));
-      appManifest.portless = {
-        ...hosting,
-        appPort: options.port === undefined ? undefined : port,
-        name: `${application}.${rootManifest.name}`,
-      };
-    } else {
-      delete appManifest.portless;
-      // Passing PORT through pnpm preserves compound package commands too.
-      scripts.dev = `${port === undefined ? "" : `PORT=${port} `}pnpm run ${JSON.stringify(hosting.script)}`;
-      appManifest.scripts = Object.fromEntries(
-        Object.entries(scripts).filter(
-          ([, command]) =>
-            command !== "portless" && !command.startsWith("portless ")
-        )
-      );
-    }
+    const application = path.posix.basename(path.posix.dirname(manifestPath));
+    appManifest.portless = {
+      ...hosting,
+      appPort: options.port === undefined ? undefined : port,
+      name: `${application}.${hostNamespace}`,
+    };
     appManifestFile.content = `${JSON.stringify(appManifest, null, 2)}\n`;
   }
 
@@ -484,20 +449,12 @@ export async function constructWorkspace(
   if (!options.linked) {
     // Customer output has ordinary module names and relative imports, not maintainer projection aliases.
     for (const [target, file] of files) {
-      // Copied projects run plain Next servers. Their examples and provider
-      // setup defaults must not point back at the maintainer's Portless hosts.
+      // Retain Portless URLs, but never send customers back to maintainer hosts.
       if (/\.(?:[cm]?[jt]sx?|json|ya?ml|md|example)$/u.test(target)) {
         file.content = String(file.content).replaceAll(
-          /(?:https?:\/\/)?(?<application>web|api|admin)\.next-hydra\.localhost/gu,
-          (hostname, application: string) => {
-            const offset =
-              new Map([
-                ["web", 0],
-                ["api", 1],
-                ["admin", 2],
-              ]).get(application) ?? 0;
-            return `${hostname.startsWith("http") ? "http://" : ""}localhost:${(options.port ?? 3000) + offset}`;
-          }
+          /(?<application>web|api|admin)\.next-hydra\.localhost/gu,
+          (_hostname, application: string) =>
+            `${application}.${hostNamespace}.localhost`
         );
       }
       if (!/\.(?:ts|tsx)$/u.test(target)) {
@@ -528,6 +485,19 @@ export async function constructWorkspace(
   // eslint-disable-next-line unicorn/no-array-sort -- The array is newly created.
   report(`Packages: ${[...includedPackages].sort().join(", ")}`);
   assertDistinctFileTargets([...files.keys()]);
+  const missingManifests = [
+    ...new Set(
+      plan.packageRequirements.map((requirement) =>
+        path.posix.join(requirement.cwd, "package.json")
+      )
+    ),
+  ].filter((manifest) => !files.has(manifest));
+  if (missingManifests.length) {
+    throw new CompositionValidationError(
+      "Package requirements target manifests absent from the selected workspace. Nothing was written.",
+      missingManifests
+    );
+  }
   // Exclusive: never replace an existing workspace.
   const release = await claimWorkspaceDirectory(targetRoot, options.allowEmpty);
   let stage = "writing the selected files";
@@ -589,6 +559,12 @@ export async function constructWorkspace(
       }
     }
     await applyPackageRequirements(targetRoot, plan);
+    // Registry transformations may introduce environment defaults. Capture their names too,
+    // before local credentials are overlaid; values never enter the task configuration.
+    await writeJsonFile(
+      path.join(targetRoot, "turbo.json"),
+      workspaceTaskConfiguration(files)
+    );
     await applyTypeScriptPathAliases(targetRoot, {
       ...plan,
       typeScriptPathAliases: plan.typeScriptPathAliases.filter(
@@ -700,6 +676,7 @@ export async function constructWorkspace(
       links: links.length,
       origins: [...files].map(([target, file]) => ({
         origin: file.origin,
+        owner: file.owner,
         target,
       })),
       packageName: rootManifest.name,

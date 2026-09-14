@@ -64,7 +64,7 @@
             }
           }
         },
-        "contributions": {
+        "slotBindings": {
           "type": "array",
           "items": {
             "type": "object",
@@ -126,14 +126,7 @@
           "minLength": 1
         },
         "kind": {
-          "enum": [
-            "provider",
-            "add-on",
-            "preset",
-            "contribution",
-            "package",
-            "integration"
-          ]
+          "enum": ["provider", "add-on", "preset", "package", "recipe"]
         },
         "maintainerWorkspace": {
           "type": "object",

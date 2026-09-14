@@ -6,6 +6,51 @@ import { runCli } from "../src/index.js";
 import { CLI_VERSION } from "../src/version.js";
 
 describe("CLI", () => {
+  it("refreshes the same named workspace with physical sources when linking is disabled", async () => {
+    const compose = vi.fn<typeof composeDevelopmentWorkspaces>();
+    await runCli(
+      ["node", "create-next-hydra", "compose", "cms-contentstack", "--no-link"],
+      { composeDevelopmentWorkspaces: compose }
+    );
+    expect(compose).toHaveBeenCalledWith(
+      "cms-contentstack",
+      expect.objectContaining({ install: true, link: false })
+    );
+  });
+
+  it.each(["--reuse", "--output=/tmp/site", "--linked", "--cms=drupal"])(
+    "rejects the removed compose option %s without invoking composition",
+    async (option) => {
+      const compose = vi.fn<typeof composeDevelopmentWorkspaces>();
+      await expect(
+        runCli(["node", "create-next-hydra", "compose", "cms-drupal", option], {
+          composeDevelopmentWorkspaces: compose,
+        })
+      ).rejects.toThrow(
+        "Compose initializes or refreshes workspaces/<name> in place"
+      );
+      expect(compose).not.toHaveBeenCalled();
+    }
+  );
+
+  it("rejects local credential overlays for copied deployment workspaces", async () => {
+    const compose = vi.fn<typeof composeDevelopmentWorkspaces>();
+    await expect(
+      runCli(
+        [
+          "node",
+          "create-next-hydra",
+          "compose",
+          "cms-drupal",
+          "--no-link",
+          "--copy-env",
+        ],
+        { composeDevelopmentWorkspaces: compose }
+      )
+    ).rejects.toThrow("--copy-env is for linked development");
+    expect(compose).not.toHaveBeenCalled();
+  });
+
   it("rejects the retired maintainer flag with named-workspace migration instructions", async () => {
     await expect(
       runCli(["node", "create-next-hydra", "output", "--maintainer-workspace"])
@@ -37,7 +82,7 @@ describe("CLI", () => {
 
     expect(compose).toHaveBeenCalledWith(
       "cms-contentstack",
-      expect.objectContaining({ copyEnv: true, watch: true })
+      expect.objectContaining({ copyEnv: true, link: true, watch: true })
     );
   });
 

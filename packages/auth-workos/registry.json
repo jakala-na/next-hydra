@@ -182,8 +182,8 @@
       "type": "registry:item",
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/integration/auth-workos-commerce",
-          "kind": "integration",
+          "id": "next-hydra/recipe/auth-workos-commerce",
+          "kind": "recipe",
           "packages": [
             {
               "cwd": "packages/auth-workos",
@@ -194,7 +194,7 @@
           ]
         }
       },
-      "title": "workos Commerce identity integration",
+      "title": "WorkOS Commerce identity recipe",
       "files": [
         {
           "path": "identity-users.test.ts",
@@ -245,8 +245,8 @@
       "type": "registry:item",
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/integration/auth-workos-admin",
-          "kind": "integration"
+          "id": "next-hydra/recipe/auth-workos-admin",
+          "kind": "recipe"
         }
       },
       "title": "Admin authentication routes",

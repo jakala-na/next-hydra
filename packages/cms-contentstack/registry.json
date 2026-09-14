@@ -73,7 +73,7 @@
               "slots": { "pageBlocks": "graphql" }
             }
           ],
-          "contributions": [
+          "slotBindings": [
             {
               "target": "packages/cms-contentstack/components/component-registry.ts",
               "slot": "blocks",
@@ -143,6 +143,11 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/provisioning/block-recipes.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/block-recipes.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/provisioning/contentstack-cli-live.test.ts",
           "target": "~/packages/cms-contentstack/cli/provisioning/contentstack-cli-live.test.ts",
           "type": "registry:file"
@@ -170,11 +175,6 @@
         {
           "path": "cli/provisioning/provision.ts",
           "target": "~/packages/cms-contentstack/cli/provisioning/provision.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "cli/provisioning/recipe-contributions.ts",
-          "target": "~/packages/cms-contentstack/cli/provisioning/recipe-contributions.ts",
           "type": "registry:file"
         },
         {
@@ -452,8 +452,8 @@
       "description": "Adds the Commerce-backed Product Collection block to Contentstack landing pages.",
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/contribution/cms-contentstack-product-collection",
-          "kind": "contribution",
+          "id": "next-hydra/recipe/cms-contentstack-product-collection",
+          "kind": "recipe",
           "compatibility": { "requires": ["next-hydra/cms/contentstack"] },
           "packages": [
             {
@@ -465,7 +465,7 @@
           ]
         },
         "composition": {
-          "contributions": [
+          "slotBindings": [
             {
               "target": "packages/cms-contentstack/components/component-registry.ts",
               "slot": "blocks",
@@ -485,8 +485,8 @@
       },
       "files": [
         {
-          "path": "cli/provisioning/recipe-contributions.test.ts",
-          "target": "~/packages/cms-contentstack/cli/provisioning/recipe-contributions.test.ts",
+          "path": "cli/provisioning/block-recipes.test.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/block-recipes.test.ts",
           "type": "registry:file"
         },
         {
@@ -505,8 +505,8 @@
           "type": "registry:file"
         },
         {
-          "path": "recipe/contributions/product-collection.json",
-          "target": "~/packages/cms-contentstack/recipe/contributions/product-collection.json",
+          "path": "recipe/recipes/product-collection.json",
+          "target": "~/packages/cms-contentstack/recipe/recipes/product-collection.json",
           "type": "registry:file"
         }
       ]

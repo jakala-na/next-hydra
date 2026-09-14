@@ -15,7 +15,7 @@ const repoRoot = path.resolve(import.meta.dirname, "../../..");
 
 describe("backend ownership", () => {
   it.each(["clerk", "workos"])(
-    "the full %s storefront contributes API through the registry",
+    "the full %s storefront installs API through the registry",
     async (auth) => {
       const catalog = await loadSourceRegistryCatalog(repoRoot);
       const plan = planComposition(catalog, {

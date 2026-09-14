@@ -1,6 +1,8 @@
 # Use Next Hydra over ShadCN for Workspace Composition
 
-Status: Accepted
+Status: Accepted; workspace source modes, committed deployment settings and customer Portless behavior partially superseded by [ADR-0010](0010-compose-named-workspaces-for-development-and-deployment.md).
+
+The historical restrictions below on linked-only ordinary source, definition/README-only workspace inputs and customer commands without Portless are replaced by ADR-0010. The registry and customer ownership decisions remain accepted.
 
 Next Hydra will use ShadCN's registry protocol for distributing code, with `create-next-hydra` adding the Provider, Add-on, compatibility, and workspace composition rules specific to Next Hydra. This gives Next Hydra more governance than raw ShadCN without building and maintaining a complete custom generator.
 
@@ -28,6 +30,6 @@ ShadCN can distribute files to multiple workspace locations when registry items 
 - Composition provisions local code and JavaScript dependencies only. Explicit provider-owned workspace administration commands may perform confirmed, one-off remote provisioning after scaffolding and publish their runtime manifest to a selected configuration store; those commands are separate from composition and are never arbitrary installation hooks. External setup without such a command remains manual.
 - In-place `use` has been removed in favor of named Development Workspaces. Workspace definitions and optional READMEs are the only committed per-workspace inputs; materialized manifests and Portless application names derive from those definitions and their directory names. Customer creation acquires the requested source revision in a temporary checkout and uses the same constructor as local composition. There is no clone-and-prune application baseline or customer sanitizer. The constructor copies customer-owned files and links eligible development sources; only the development adapter retains ownership state for safe refresh. Root application tasks execute in named Development Workspaces. No root Workspace Selection is retained.
 - Both outputs retain environment access for shell-supplied provider credentials and build gates for type checking and tests. Package-owned commands are preserved; customer app commands do not require Portless. Registry environment defaults seed missing environment files only, outside refresh ownership. Existing environment files are never merged, replaced or deleted by refresh; maintainers manage any newly required variables in those files. With `--copy-env`, local credential overlays take precedence over defaults. Neither values nor credential fingerprints are stored in applied workspace state.
-- Providers and Add-ons are declarative. V1 does not allow them to run arbitrary installation hooks.
+- Providers, composition recipes and Add-ons are declarative. Recipes group files, dependencies and slot bindings and may depend on other recipes; they do not turn Commerce's standard functionality into separate feature choices. Provisioning recipes describe provider-specific external setup and run only through explicit provisioning commands, never as composition hooks.
 
 The accepted contract is recorded in the [Provider and Add-on Composition specification](../../.scratch/provider-package-contributions/spec.md); its decision history and delivery sequence remain in the [Wayfinder map](../../.scratch/provider-package-contributions/map.md).

@@ -63,6 +63,189 @@ describe("development workspace lifecycle", () => {
   });
 
   describe("safe workspace refresh", () => {
+    it.each(["unowned", "redirected", "outside source"])(
+      "refuses %s deployment links without changing any files",
+      async (scenario) => {
+        const target = "apps/web/vercel.json";
+        const canonical = path.join(sourceRoot, "settings.json");
+        const outside = path.join(root, "other-settings.json");
+        await writeFile(canonical, "canonical settings");
+        await writeFile(outside, "other settings");
+        await update([
+          file("apps/web/page.tsx", "before"),
+          ...(scenario === "unowned"
+            ? []
+            : [
+                {
+                  owner: "web",
+                  source: scenario === "outside source" ? outside : canonical,
+                  target,
+                },
+              ]),
+        ]);
+        if (scenario === "redirected") {
+          await unlink(path.join(targetRoot, target));
+        }
+        if (scenario !== "outside source") {
+          await symlink(
+            scenario === "unowned" ? canonical : outside,
+            path.join(targetRoot, target)
+          );
+        }
+        const before = await readFile(
+          path.join(targetRoot, WORKSPACE_STATE),
+          "utf-8"
+        );
+        const linkBefore = await readlink(path.join(targetRoot, target));
+        await expect(
+          update([file("apps/web/page.tsx", "after")], {
+            preservedFiles: [target],
+          })
+        ).rejects.toThrow(
+          scenario === "outside source"
+            ? "must not escape the workspace"
+            : "Cannot migrate unowned or redirected workspace settings"
+        );
+        expect({
+          canonical: await readFile(canonical, "utf-8"),
+          page: await readFile(
+            path.join(targetRoot, "apps/web/page.tsx"),
+            "utf-8"
+          ),
+          settings: await readlink(path.join(targetRoot, target)),
+          state: await readFile(
+            path.join(targetRoot, WORKSPACE_STATE),
+            "utf-8"
+          ),
+        }).toEqual({
+          canonical: "canonical settings",
+          page: "before",
+          settings: linkBefore,
+          state: before,
+        });
+      }
+    );
+
+    it("does not detach owned settings when another application file conflicts", async () => {
+      const target = "apps/web/vercel.json";
+      const canonical = path.join(sourceRoot, "settings.json");
+      await writeFile(canonical, "canonical settings");
+      await update([
+        { owner: "web", source: canonical, target },
+        file("apps/web/page.tsx", "before"),
+      ]);
+      await writeFile(path.join(targetRoot, "apps/web/page.tsx"), "local work");
+      await expect(
+        update([file("apps/web/page.tsx", "after")], {
+          preservedFiles: [target],
+        })
+      ).rejects.toThrow("locally modified");
+      const settingsInfo = await lstat(path.join(targetRoot, target));
+      expect(settingsInfo.isSymbolicLink()).toBeTruthy();
+      await expect(
+        readFile(path.join(targetRoot, "apps/web/page.tsx"), "utf-8")
+      ).resolves.toBe("local work");
+    });
+
+    it.each([false, true])(
+      "recovers an interrupted settings migration with detached=%s",
+      async (detached) => {
+        const target = "apps/web/vercel.json";
+        const canonical = path.join(sourceRoot, "settings.json");
+        await writeFile(canonical, "settings");
+        await update([
+          { owner: "web", source: canonical, target },
+          file("apps/web/page.tsx", "before"),
+        ]);
+        const state = z
+          .object({
+            files: z.array(z.object({ target: z.string() }).passthrough()),
+          })
+          .passthrough()
+          .parse(
+            JSON.parse(
+              await readFile(path.join(targetRoot, WORKSPACE_STATE), "utf-8")
+            )
+          );
+        const pending = {
+          ...state,
+          files: state.files.map((entry) => {
+            const fingerprint = {
+              hash: hashWorkspaceContent(
+                entry.target === target ? "settings" : "after"
+              ),
+              kind: "file",
+              mode: 0o644,
+            };
+            return { ...entry, applied: fingerprint, desired: fingerprint };
+          }),
+        };
+        await writeFile(
+          path.join(targetRoot, WORKSPACE_STATE),
+          JSON.stringify({ ...state, pending })
+        );
+        if (detached) {
+          await unlink(path.join(targetRoot, target));
+          await writeFile(path.join(targetRoot, target), "settings");
+        }
+        await update([file("apps/web/page.tsx", "after")], {
+          preservedFiles: [target],
+        });
+        const released = z
+          .object({
+            files: z.array(z.object({ target: z.string() })),
+            pending: z.unknown().optional(),
+          })
+          .parse(
+            JSON.parse(
+              await readFile(path.join(targetRoot, WORKSPACE_STATE), "utf-8")
+            )
+          );
+        const settingsInfo = await lstat(path.join(targetRoot, target));
+        expect({
+          owned: released.files.map((entry) => entry.target),
+          page: await readFile(
+            path.join(targetRoot, "apps/web/page.tsx"),
+            "utf-8"
+          ),
+          pending: released.pending,
+          physical: settingsInfo.isFile(),
+          settings: await readFile(path.join(targetRoot, target), "utf-8"),
+        }).toEqual({
+          owned: ["apps/web/page.tsx"],
+          page: "after",
+          pending: undefined,
+          physical: true,
+          settings: "settings",
+        });
+      }
+    );
+
+    it("releases formerly generated deployment settings without replacing local changes", async () => {
+      const target = "apps/web/vercel.json";
+      await update([file(target, "old registry settings")]);
+      await writeFile(path.join(targetRoot, target), "workspace settings");
+      const result = await update([file("apps/web/page.tsx", "page")], {
+        preservedFiles: [target],
+        rejectUnowned: true,
+      });
+      expect(result).toMatchObject({ removed: 0, unowned: [] });
+      await expect(
+        readFile(path.join(targetRoot, target), "utf-8")
+      ).resolves.toBe("workspace settings");
+      await expect(
+        update([file(target, "registry collision")], {
+          preservedFiles: [target],
+        })
+      ).rejects.toThrow("cannot overwrite workspace-owned settings");
+      await expect(
+        readFile(path.join(targetRoot, "apps/web/page.tsx"), "utf-8")
+      ).resolves.toBe("page");
+      await expect(
+        update([], { preservedFiles: ["apps/web/page.tsx"] })
+      ).rejects.toThrow("Not a workspace deployment setting");
+    });
+
     it("adds provenance to an existing v2 state without rewriting output or reinstalling", async () => {
       const target = "apps/web/layout.tsx";
       const install = vi.fn<() => Promise<void>>(async () => {

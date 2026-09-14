@@ -19,8 +19,7 @@ export type SelectionKind =
   | "add-on"
   | "preset"
   | "package"
-  | "integration"
-  | "contribution";
+  | "recipe";
 export type ProviderSlotRequirement = "optional" | "required" | "forbidden";
 export type DependencySection =
   | "dependencies"
@@ -46,11 +45,11 @@ export type ProviderDependency = {
   slot: ProviderSlot;
 };
 
-export type AssetContribution = {
+export type RegistryAsset = {
   source: string;
   target: string;
 };
-export type PlannedAsset = AssetContribution & { owner: string };
+export type PlannedAsset = RegistryAsset & { owner: string };
 
 export type PnpmPatch = {
   dependency: string;
@@ -87,7 +86,7 @@ export type SelectionDefinition = {
   packages: PackageRequirement[];
   providerDependencies: ProviderDependency[];
   pnpmPatches: PnpmPatch[];
-  assets: AssetContribution[];
+  assets: RegistryAsset[];
   maintainerWorkspace: MaintainerWorkspacePolicy;
   conditionalDependencies: {
     providers: ProviderSlot[];

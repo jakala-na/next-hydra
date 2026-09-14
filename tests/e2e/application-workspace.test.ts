@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -35,6 +35,23 @@ describe("application workspace selection", () => {
               "@repo/commerce-provider":
                 "workspace:@repo/commerce-commercetools@*",
             },
+          })
+        );
+        await mkdir(path.join(directory, "node_modules/@repo"), {
+          recursive: true,
+        });
+        await Promise.all(
+          Object.entries({
+            auth: "auth-workos",
+            cms: "cms-contentstack",
+            "commerce-provider": "commerce-commercetools",
+          }).map(async ([alias, provider]) => {
+            const source = path.join(workspace, "packages", provider);
+            await mkdir(source, { recursive: true });
+            await symlink(
+              source,
+              path.join(directory, "node_modules/@repo", alias)
+            );
           })
         );
       })
@@ -80,7 +97,20 @@ describe("application workspace selection", () => {
       })
     );
     expect(() => resolveApplicationWorkspace(root, {})).toThrow(
-      "@repo/auth must select auth-workos"
+      "@repo/auth must resolve to auth-workos"
+    );
+  });
+
+  it("rejects correct manifests with redirected provider links", async () => {
+    await maintainer();
+    const workspace = await composition("storefront-contentstack");
+    const link = path.join(workspace, "apps/api/node_modules/@repo/auth");
+    const wrongProvider = path.join(root, "packages/auth-workos");
+    await mkdir(wrongProvider, { recursive: true });
+    await rm(link);
+    await symlink(wrongProvider, link);
+    expect(() => resolveApplicationWorkspace(root, {})).toThrow(
+      "not the source checkout"
     );
   });
 

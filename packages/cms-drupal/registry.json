@@ -106,7 +106,7 @@
               "slots": { "pageBlocks": "graphql" }
             }
           ],
-          "contributions": [
+          "slotBindings": [
             {
               "target": "packages/cms-drupal/components/component-registry.ts",
               "slot": "blocks",
@@ -550,8 +550,8 @@
       "registryDependencies": ["drupal-product-collection"],
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/contribution/cms-drupal-product-collection",
-          "kind": "contribution",
+          "id": "next-hydra/recipe/cms-drupal-product-collection",
+          "kind": "recipe",
           "compatibility": { "requires": ["next-hydra/cms/drupal"] },
           "packages": [
             {
@@ -563,7 +563,7 @@
           ]
         },
         "composition": {
-          "contributions": [
+          "slotBindings": [
             {
               "target": "packages/cms-drupal/components/component-registry.ts",
               "slot": "blocks",

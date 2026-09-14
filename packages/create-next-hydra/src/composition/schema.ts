@@ -110,21 +110,14 @@ export const selectionDefinitionSchema = z
       .array(
         z
           .object({
-            providers: z.array(z.enum(PROVIDER_SLOTS)).min(1),
             items: z.array(z.string().min(1)).min(1),
+            providers: z.array(z.enum(PROVIDER_SLOTS)).min(1),
           })
           .strict()
       )
       .default([]),
     id: z.string().min(1),
-    kind: z.enum([
-      "provider",
-      "add-on",
-      "preset",
-      "package",
-      "integration",
-      "contribution",
-    ]),
+    kind: z.enum(["provider", "add-on", "preset", "package", "recipe"]),
     maintainerWorkspace: z
       .object({
         copy: z.array(workspaceFilePathSchema).default([]),
@@ -157,7 +150,7 @@ export const selectionDefinitionSchema = z
     }
 
     if (
-      !["package", "integration"].includes(definition.kind) &&
+      !["package", "recipe"].includes(definition.kind) &&
       definition.providerSlots
     ) {
       context.addIssue({

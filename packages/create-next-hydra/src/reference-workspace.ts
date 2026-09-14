@@ -1,36 +1,19 @@
-import { readFile, realpath } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { readPackageJson } from "./composition/packages.js";
 import {
   workspaceDefinitionSchema,
   updateDevelopmentWorkspace,
 } from "./development-workspaces.js";
 import { runCommand } from "./git.js";
 import { info } from "./logger.js";
+import {
+  assertReferenceWorkspaceBindings,
+  REFERENCE_PROVIDERS,
+  REFERENCE_WORKSPACE_NAME,
+} from "./reference-workspace-bindings.js";
 
-export const REFERENCE_WORKSPACE_NAME = "storefront-contentstack";
-const providers = {
-  auth: "workos",
-  cms: "contentstack",
-  commerce: "commercetools",
-} as const;
-const appBindings = [
-  { alias: "@repo/auth", app: "web", provider: "auth-workos" },
-  { alias: "@repo/cms", app: "web", provider: "cms-contentstack" },
-  {
-    alias: "@repo/commerce-provider",
-    app: "web",
-    provider: "commerce-commercetools",
-  },
-  { alias: "@repo/auth", app: "api", provider: "auth-workos" },
-  {
-    alias: "@repo/commerce-provider",
-    app: "api",
-    provider: "commerce-commercetools",
-  },
-  { alias: "@repo/auth", app: "admin", provider: "auth-workos" },
-] as const;
+export { REFERENCE_WORKSPACE_NAME } from "./reference-workspace-bindings.js";
 
 /** Run common app integration tests once; domain/provider suites run from source. */
 export async function testReferenceWorkspace(
@@ -52,7 +35,7 @@ export async function testReferenceWorkspace(
   );
   if (
     (["auth", "cms", "commerce"] as const).some(
-      (slot) => definition.providers[slot] !== providers[slot]
+      (slot) => definition.providers[slot] !== REFERENCE_PROVIDERS[slot]
     )
   ) {
     throw new Error(
@@ -66,25 +49,7 @@ export async function testReferenceWorkspace(
       "Reference workspace must be refreshed and installed before running its application tests."
     );
   }
-  await Promise.all(
-    appBindings.map(async ({ app, alias, provider }) => {
-      const appRoot = path.join(targetRoot, "apps", app);
-      const manifest = await readPackageJson(
-        path.join(appRoot, "package.json")
-      );
-      const expectedSpecifier = `workspace:@repo/${provider}@*`;
-      const expectedPath = path.join(targetRoot, "packages", provider);
-      if (
-        manifest.dependencies?.[alias] !== expectedSpecifier ||
-        (await realpath(path.join(appRoot, "node_modules", alias))) !==
-          (await realpath(expectedPath))
-      ) {
-        throw new Error(
-          `${app}'s ${alias} must resolve to ${provider} inside ${REFERENCE_WORKSPACE_NAME}, not the source checkout or another provider. Refresh and reinstall the reference workspace.`
-        );
-      }
-    })
-  );
+  assertReferenceWorkspaceBindings(targetRoot);
   info(
     `Application tests: ${REFERENCE_WORKSPACE_NAME} (WorkOS, Contentstack, commercetools)`
   );

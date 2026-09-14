@@ -29,8 +29,10 @@ import {
   findMaintainerWorkspaceRoot,
   seedWorkspaceEnvironmentFile,
 } from "./maintainer-workspace.js";
+import { workspaceCacheDirectories } from "./workspace-artifacts.js";
 import {
   assertDirectoryPath,
+  isEnvironmentFile,
   workspaceSourceFiles,
 } from "./workspace-files.js";
 import {
@@ -55,6 +57,7 @@ export const workspaceDefinitionSchema = workspaceSelectionSchema.extend({
 });
 type Definition = z.infer<typeof workspaceDefinitionSchema>;
 export type DevelopmentWorkspaceOptions = {
+  link?: boolean;
   all?: boolean;
   check?: boolean;
   watch?: boolean;
@@ -127,10 +130,11 @@ async function readDefinition(targetRoot: string): Promise<Definition> {
 }
 
 /** Use the actual scaffold and renderer, without installing or touching the destination. */
-async function prepareDevelopmentWorkspace(
+async function prepareWorkspaceFiles(
   sourceRoot: string,
   name: string,
-  definition: Definition
+  definition: Definition,
+  linked = true
 ) {
   const stagingRoot = await mkdtemp(
     path.join(sourceRoot, "workspaces", ".prepare-")
@@ -141,7 +145,7 @@ async function prepareDevelopmentWorkspace(
     if (!cms) {
       throw new Error(`${name} requires a CMS provider.`);
     }
-    await composeWorkspace(
+    const created = await composeWorkspace(
       outputRoot,
       {
         addOns: definition.addOns,
@@ -150,20 +154,57 @@ async function prepareDevelopmentWorkspace(
         commerce: definition.providers.commerce,
         copyEnv: false,
         install: false,
-        linked: true,
-        port: definition.development?.port,
+        linked,
+        port: linked ? definition.development?.port : undefined,
       },
-      { development: true, name, report: () => undefined, sourceRoot }
+      { name, report: () => undefined, sourceRoot }
     );
-    const receipt = sourceReceiptSchema.parse(
-      JSON.parse(
-        await readFile(path.join(outputRoot, WORKSPACE_STATE), "utf-8")
-      )
-    );
+    const receipt = linked
+      ? sourceReceiptSchema.parse(
+          JSON.parse(
+            await readFile(path.join(outputRoot, WORKSPACE_STATE), "utf-8")
+          )
+        )
+      : {
+          environmentDefaults: created.origins
+            .filter((file) =>
+              isEnvironmentFile(path.posix.basename(file.target))
+            )
+            .map((file) => file.target),
+          files: created.origins
+            .filter(
+              (file) => !isEnvironmentFile(path.posix.basename(file.target))
+            )
+            .map((file) => ({
+              ...file,
+              mode: "copied" as const,
+              source: undefined,
+            })),
+        };
     const files: WorkspaceFile[] = [];
     const dependencyInputs: Record<string, string> = {};
     const dependencyDirectories: string[] = [];
     for (const entry of receipt.files) {
+      if (/^apps\/[^/]+\/vercel\.json$/u.test(entry.target)) {
+        // Customer defaults belong to the registry; named deployments use their own settings.
+        continue;
+      }
+      if (
+        entry.target === ".gitignore" ||
+        /^apps\/[^/]+\/\.gitignore$/u.test(entry.target)
+      ) {
+        files.push({
+          content: Buffer.from(
+            entry.target === ".gitignore"
+              ? "/*\n!/next-hydra.json\n!/README.md\n!/apps/\n/apps/*\n!/apps/*/\n/apps/*/*\n!/apps/*/vercel.json\n"
+              : "/*\n!/vercel.json\n"
+          ),
+          mode: 0o644,
+          owner: "named workspace Git visibility",
+          target: entry.target,
+        });
+        continue;
+      }
       if (entry.mode === "linked") {
         if (!entry.source) {
           throw new Error(`Missing link source for ${entry.target}`);
@@ -251,19 +292,59 @@ async function prepareDevelopmentWorkspace(
   }
 }
 
-async function assertUninitializedDirectory(targetRoot: string): Promise<void> {
+/** Only explicit workspace settings and restored caches may precede the first composition. */
+async function inspectWorkspaceDirectory(
+  targetRoot: string
+): Promise<string[]> {
   const entries = await readdir(targetRoot);
-  if (entries.includes(WORKSPACE_STATE)) {
-    return;
-  }
-  const unexpected = entries.filter(
-    (entry) => ![definitionName, "README.md", WORKSPACE_LOCK].includes(entry)
-  );
-  if (unexpected.length) {
-    throw new Error(
-      `Cannot initialize an existing unowned workspace: ${unexpected.join(", ")}. Only ${definitionName} and README.md may precede initialization. Nothing was replaced.`
-    );
-  }
+  const initialized = entries.includes(WORKSPACE_STATE);
+  const settings: string[] = [];
+  const inspect = async (relative: string): Promise<void> => {
+    for (const entry of await readdir(path.join(targetRoot, relative), {
+      withFileTypes: true,
+    })) {
+      const target = path.posix.join(relative, entry.name);
+      const absolute = path.join(targetRoot, target);
+      if (workspaceCacheDirectories.has(entry.name)) {
+        await assertDirectoryPath(absolute);
+        continue;
+      }
+      if (target === ".git") {
+        throw new Error("Cannot compose over a customer Git repository.");
+      }
+      if (/^apps\/[^/]+\/vercel\.json$/u.test(target)) {
+        // Previously owned links are validated and detached by the update engine.
+        if (!entry.isFile() && !(initialized && entry.isSymbolicLink())) {
+          throw new Error(
+            `Workspace deployment settings must be regular files: ${target}`
+          );
+        }
+        settings.push(target);
+        continue;
+      }
+      if (
+        [definitionName, "README.md", WORKSPACE_LOCK, WORKSPACE_STATE].includes(
+          target
+        )
+      ) {
+        if (!entry.isFile()) {
+          throw new Error(
+            `Workspace metadata must be regular files: ${target}`
+          );
+        }
+        continue;
+      }
+      if (entry.isDirectory()) {
+        await inspect(target);
+      } else if (!initialized) {
+        throw new Error(
+          `Cannot initialize an existing unowned workspace containing ${target}. Only its definition, README, app vercel.json files and restored caches may precede initialization. Nothing was replaced.`
+        );
+      }
+    }
+  };
+  await inspect("");
+  return settings;
 }
 
 export async function updateDevelopmentWorkspace(
@@ -271,6 +352,11 @@ export async function updateDevelopmentWorkspace(
   name: string,
   options: DevelopmentWorkspaceOptions = {}
 ): Promise<WorkspaceUpdateResult> {
+  if (options.link === false && options.copyEnv) {
+    throw new Error(
+      "--copy-env is for linked development; copied workspaces use their own environment."
+    );
+  }
   if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(name)) {
     throw new Error(
       "Use a workspace name of 1–63 lowercase letters, numbers or hyphens, starting and ending with a letter or number, not a path. It also names the local host."
@@ -290,12 +376,24 @@ export async function updateDevelopmentWorkspace(
   }
   try {
     await lock.writeFile(`${JSON.stringify({ pid: process.pid })}\n`);
-    await assertUninitializedDirectory(targetRoot);
-    const prepared = await prepareDevelopmentWorkspace(
+    const preservedFiles = await inspectWorkspaceDirectory(targetRoot);
+    const prepared = await prepareWorkspaceFiles(
       sourceRoot,
       name,
-      definition
+      definition,
+      options.link !== false
     );
+    for (const target of preservedFiles) {
+      const manifest = path.posix.join(
+        path.posix.dirname(target),
+        "package.json"
+      );
+      if (!prepared.files.some((file) => file.target === manifest)) {
+        throw new Error(
+          `Deployment settings target an app not selected by this workspace: ${target}`
+        );
+      }
+    }
     const result = await updateWorkspaceFiles({
       sourceRoot,
       targetRoot,
@@ -315,6 +413,8 @@ export async function updateDevelopmentWorkspace(
                 { cwd, verbose: true }
               );
             },
+      preservedFiles,
+      rejectUnowned: options.link === false,
     });
     if (!options.check && result.conflicts.length === 0 && options.copyEnv) {
       const copied = await copyMaintainerEnvironmentFiles(
@@ -363,7 +463,8 @@ function describeResult(
 export async function explainDevelopmentWorkspace(
   sourceRoot: string,
   name: string,
-  target: string
+  target: string,
+  link = true
 ): Promise<string> {
   if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(name)) {
     throw new Error("Explain requires a valid named workspace, not a path.");
@@ -372,10 +473,14 @@ export async function explainDevelopmentWorkspace(
   const definition = await readDefinition(
     path.join(sourceRoot, "workspaces", name)
   );
-  const prepared = await prepareDevelopmentWorkspace(
+  if (/^apps\/[^/]+\/vercel\.json$/u.test(normalized)) {
+    return `${name}: ${normalized} is workspace-owned deployment configuration, not registry output. Edit and commit it in this workspace.`;
+  }
+  const prepared = await prepareWorkspaceFiles(
     sourceRoot,
     name,
-    definition
+    definition,
+    link
   );
   const file = prepared.files.find((entry) => entry.target === normalized);
   if (!file) {
@@ -531,7 +636,8 @@ export async function composeDevelopmentWorkspaces(
         await explainDevelopmentWorkspace(
           sourceRoot,
           workspace,
-          options.explain
+          options.explain,
+          options.link !== false
         )
       );
     }

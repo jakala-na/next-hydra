@@ -6,6 +6,7 @@ import {
   readFile,
   readdir,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -143,22 +144,23 @@ describe("shared customer and developer construction", () => {
       }
       const web = path.join(target, "apps/web");
       const manifest = await readPackageJson(path.join(web, "package.json"));
-      expect(manifest.portless).toEqual(
-        mode === "developer"
-          ? { name: `web.${name}`, script: "dev:app" }
-          : undefined
+      expect(manifest.portless).toEqual({
+        name: `web.${name}`,
+        script: "dev:app",
+      });
+      const bin = path.join(target, "node_modules/.bin");
+      await mkdir(bin, { recursive: true });
+      await symlink(
+        path.join(repoRoot, "node_modules/portless/dist/cli.js"),
+        path.join(bin, "portless")
       );
-      const result = await runCommand(
-        "pnpm",
-        ["run", mode === "developer" ? "dev:app" : "dev"],
-        {
-          cwd: web,
-          env: { NODE_ENV: "test", PORT: "3900" },
-        }
-      );
-      expect(result.stdout).toContain(
-        mode === "developer" ? "DEV_PORT=3900" : "DEV_PORT=3000"
-      );
+      // Exercise the real Portless script dispatcher without starting a proxy
+      // or modifying the machine's certificates in this command-contract test.
+      const result = await runCommand("pnpm", ["run", "dev"], {
+        cwd: web,
+        env: { NODE_ENV: "test", PORT: "3900", PORTLESS: "0" },
+      });
+      expect(result.stdout).toContain("DEV_PORT=3900");
     },
     30_000
   );

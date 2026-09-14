@@ -22,6 +22,7 @@
     "@repo/registration": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
+    "create-next-hydra": "workspace:*",
     "effect": "catalog:",
     "jiti": "^2.6.1",
     "playwright-bdd": "catalog:",

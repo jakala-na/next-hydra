@@ -3,7 +3,7 @@ import { getLocale } from "@repo/i18n";
 
 import { NavigationSearch } from "./navigation-search";
 
-/** Local navigation search; a search provider can contribute a different module. */
+/** Local navigation search; a search recipe can bind a different module. */
 export async function HeaderSearch() {
   const locale = await getLocale();
   const { navigationItems } = await getNavigation(locale);

@@ -224,7 +224,7 @@ export async function lintCompositions(
           install: true,
           linked: false,
         },
-        { development: true, name, report: info, sourceRoot }
+        { name, report: info, sourceRoot }
       );
       await generateLintRouteTypes(path.join(targetRoot, "apps/web"));
       // A private Git boundary prevents the parent's ignored workspaces directory

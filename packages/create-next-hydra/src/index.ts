@@ -1,7 +1,5 @@
 import { Command, Option } from "commander";
 
-import { composeWorkspace } from "./compose.js";
-import type { ComposeOptions } from "./compose.js";
 import { addRegistryItem } from "./composition/add.js";
 import type { ProviderSlot } from "./composition/types.js";
 import { CLI_NAME, DEFAULT_REPO_URL } from "./constants.js";
@@ -71,16 +69,36 @@ export async function runCli(
       "--maintainer-workspace has been removed. Define workspaces/<name>/next-hydra.json and run create-next-hydra compose <name> --copy-env."
     );
   }
+  if (
+    argv[2] === "compose" &&
+    argv
+      .slice(3)
+      .some((argument) =>
+        [
+          "--output",
+          "--reuse",
+          "--linked",
+          "--cms",
+          "--commerce",
+          "--auth",
+          "--search",
+        ].includes(argument.split("=")[0] ?? "")
+      )
+  ) {
+    throw new Error(
+      "Compose initializes or refreshes workspaces/<name> in place. Set providers in next-hydra.json; use --no-link for copied source. --output, --reuse and ad-hoc provider flags have been removed. Use the root creation command for a new customer application."
+    );
+  }
   const program = new Command().enablePositionalOptions();
 
   program
     .command("compose")
     .description(
-      "Initialize or update named development workspaces from local sources"
+      "Initialize or refresh named workspaces in place from local sources"
     )
     .argument(
-      "[name-or-directory]",
-      "Named workspace, or a new output directory when using --cms"
+      "[name]",
+      "Workspace defined by workspaces/<name>/next-hydra.json"
     )
     .option(
       "--all",
@@ -105,19 +123,9 @@ export async function runCli(
       "Refresh named workspaces when templates or definitions change"
     )
     .option(
-      "--cms <provider>",
-      "Create an ad-hoc output: contentstack or drupal"
+      "--no-link",
+      "Copy source files instead of linking to the maintainer checkout"
     )
-    .option(
-      "--commerce <provider>",
-      "Include the complete Commerce package, API and admin (requires --auth)"
-    )
-    .option(
-      "--auth <provider>",
-      "WorkOS or Clerk authentication (required with Commerce)"
-    )
-    .option("--linked", "Link ordinary source files to the maintainer checkout")
-    .option("--search", "Include CMS navigation search in both headers")
     .option(
       "--copy-env",
       "Copy ignored local environment files into matching paths"
@@ -126,39 +134,18 @@ export async function runCli(
     .option("--offline", "Install only from the local pnpm store")
     .action(
       async (
-        directory: string | undefined,
-        options: ComposeOptions & DevelopmentWorkspaceOptions
+        name: string | undefined,
+        options: DevelopmentWorkspaceOptions
       ) => {
-        if (options.cms) {
-          if (
-            !directory ||
-            options.all ||
-            options.check ||
-            options.watch ||
-            options.explain ||
-            options.run
-          ) {
-            throw new Error(
-              "Ad-hoc --cms output requires a new directory and cannot use --all, --check, --watch, --explain or --run. Use a named definition for refreshable workspaces."
-            );
-          }
-          await composeWorkspace(directory, options);
-        } else {
-          if (
-            options.auth ||
-            options.commerce ||
-            options.search ||
-            options.linked
-          ) {
-            throw new Error(
-              "Select providers and add-ons in the named workspace's next-hydra.json. Named workspaces are linked automatically."
-            );
-          }
-          await (
-            dependencies.composeDevelopmentWorkspaces ??
-            composeDevelopmentWorkspaces
-          )(directory, options);
+        if (options.link === false && options.copyEnv) {
+          throw new Error(
+            "--copy-env is for linked development; copied workspaces use their own environment."
+          );
         }
+        await (
+          dependencies.composeDevelopmentWorkspaces ??
+          composeDevelopmentWorkspaces
+        )(name, options);
       }
     );
 

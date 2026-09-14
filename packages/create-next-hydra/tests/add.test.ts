@@ -165,7 +165,7 @@ describe("customer add", () => {
     verifyProviderGuidance
   );
 
-  it("rejects template contributions before mutating customer-owned source", async () => {
+  it("rejects template slot bindings before mutating customer-owned source", async () => {
     const { root, artifactPath } = await fixture();
     await writeFile(
       artifactPath,
@@ -180,7 +180,7 @@ describe("customer add", () => {
         ],
         meta: {
           composition: {
-            contributions: [
+            slotBindings: [
               {
                 export: "Feature",
                 module: "./feature",
@@ -201,6 +201,49 @@ describe("customer add", () => {
       "ENOENT"
     );
   });
+
+  it.each([false, true])(
+    "rejects a composition recipe without slot bindings before writing (nested=%s)",
+    async (nested) => {
+      const { root, artifactPath } = await fixture();
+      const recipePath = path.join(root, "recipe.json");
+      await writeFile(
+        recipePath,
+        JSON.stringify({
+          $schema: NEXT_HYDRA_SELECTION_SCHEMA_URL,
+          files: [
+            {
+              content: "export const feature = true;",
+              path: "feature.ts",
+              target: "~/feature.ts",
+              type: "registry:file",
+            },
+          ],
+          meta: { nextHydra: { id: "example/recipe", kind: "recipe" } },
+          name: "example-recipe",
+          type: "registry:item",
+        })
+      );
+      await writeFile(
+        artifactPath,
+        JSON.stringify({
+          name: "example-add-on",
+          registryDependencies: [recipePath],
+          type: "registry:item",
+        })
+      );
+
+      await expect(
+        addRegistryItem(nested ? artifactPath : recipePath, {
+          cwd: root,
+          yes: true,
+        })
+      ).rejects.toThrow("Select composition recipes during scaffolding");
+      await expect(readFile(path.join(root, "feature.ts"))).rejects.toThrow(
+        "ENOENT"
+      );
+    }
+  );
 
   it("accepts an ordinary registry item without Next Hydra workspace metadata", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "next-hydra-ordinary-add-"));

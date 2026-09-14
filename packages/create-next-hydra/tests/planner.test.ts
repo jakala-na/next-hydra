@@ -303,7 +303,7 @@ describe("composition planner failures", () => {
     expect(plan.registryItems).toContain("drupal-commerce-dam");
   });
 
-  it("rejects two selected contributions that write the same target", async () => {
+  it("rejects two selected registry items that write the same target", async () => {
     const collision = addOn();
     const catalog = withSelection(
       await loadSourceRegistryCatalog(repoRoot),

@@ -15,7 +15,7 @@
               "apps/cli/src/index.ts"
             ]
           },
-          "kind": "integration",
+          "kind": "recipe",
           "providerDependencies": [
             { "cwd": "apps/cli", "slot": "cms", "section": "dependencies" }
           ],
@@ -84,7 +84,7 @@
       "meta": {
         "nextHydra": {
           "id": "next-hydra/workspace/cli-commerce",
-          "kind": "integration"
+          "kind": "recipe"
         }
       },
       "files": [

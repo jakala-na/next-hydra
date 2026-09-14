@@ -403,7 +403,7 @@ describe("Next Hydra source registry", () => {
     });
     expect(
       contentstackOnly.templates.flatMap((template) =>
-        template.contributions.map((contribution) => contribution.owner)
+        template.slotBindings.map((binding) => binding.owner)
       )
     ).not.toContain("cms-contentstack-product-collection");
 
@@ -426,7 +426,7 @@ describe("Next Hydra source registry", () => {
     });
     expect(
       contentstackWithProducts.templates.flatMap((template) =>
-        template.contributions.map((contribution) => contribution.owner)
+        template.slotBindings.map((binding) => binding.owner)
       )
     ).toContain("cms-contentstack-product-collection");
     expect(drupal.instructions).toStrictEqual([

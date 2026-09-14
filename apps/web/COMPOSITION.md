@@ -6,7 +6,7 @@ The source checkout owns modules, templates and registry metadata. Named develop
 
 ## Ownership
 
-| Owner | Installed source and integrations |
+| Owner | Installed source and recipes |
 | --- | --- |
 | Web | CMS routes, document/layout, environment and Next configuration templates |
 | Auth provider | Provider implementation and sign-in routes; `web-auth` adds account controls, provider wrapper, proxy and keys |
@@ -16,7 +16,7 @@ The source checkout owns modules, templates and registry metadata. Named develop
 | Navigation search | Header search independent of Commerce |
 | Workspace CLI | CMS administration plus Auth and Commerce commands when selected |
 
-`commerce-web`, `commerce-api` and `commerce-admin` are registry dependencies of Commerce, not selectable portions of Commerce. API source is copied directly and needs no composition template.
+`commerce-web`, `commerce-api` and `commerce-admin` are composition recipes installed as registry dependencies of Commerce, not selectable portions of Commerce. API source is copied directly and needs no composition template.
 
 Checkout remains ordinary source in `app/[locale]/checkout/page.tsx`, delegating to `@repo/commerce/checkout`. It is copied byte-for-byte, or linked to that canonical file in a linked workspace. It is never assembled from fragments.
 
@@ -24,7 +24,7 @@ Checkout remains ordinary source in `app/[locale]/checkout/page.tsx`, delegating
 
 `registry/templates/layout.tsx.template` owns the shared header structure. Auth supplies account controls; Commerce supplies its provider, cart and business-unit controls; navigation search supplies search. The document frame, environment, proxy and Next configuration use the same module-reference mechanism. Account links receive Commerce destinations only with Commerce.
 
-Templates describe structure and reference ordinary TS/TSX modules. Customer output has ordinary filenames, imports and functions, no runtime registry and no continuing generation step. Composed files exist only in materialized workspaces, not as duplicate root source. Tests render all four committed definitions into fresh linked workspaces and check their physical output against the templates. Provider routes likewise live only at their canonical registry paths until materialization.
+Templates describe structure; recipes use `meta.composition.slotBindings` to place ordinary TS/TSX module exports into their named slots. Customer output has ordinary filenames, imports and functions, no runtime registry and no continuing generation step. Composed files exist only in materialized workspaces, not as duplicate root source. Tests render all four committed definitions into fresh linked workspaces and check their physical output against the templates. Provider routes likewise live only at their canonical registry paths until materialization.
 
 ## Local workspaces
 
@@ -44,4 +44,4 @@ Each named definition has its own manifests, dependencies and lockfile. Ordinary
 
 Run `pnpm dev` inside the output, or `pnpm --filter web dev` for web alone. When overriding the dev server's hostname, use `localhost`: binding explicitly to `127.0.0.1` can cause default-locale rewrites to cross origins and redirect back to themselves.
 
-New files created in an ignored output are reported by `compose --check` and are never deleted or automatically adopted. Reconcile them into canonical source and registry ownership before discarding that output. Locally modified composed files block refresh until reconciled. `registry:sync` refreshes complete package inventories; app integrations such as `commerce-web` keep explicit ownership. Run registry checks, composition tests, and a fresh copied scaffold after changing ownership or templates.
+New files created in an ignored output are reported by `compose --check` and are never deleted or automatically adopted. Reconcile them into canonical source and registry ownership before discarding that output. Locally modified composed files block refresh until reconciled. `registry:sync` refreshes complete package inventories; app recipes such as `commerce-web` keep explicit ownership. Run registry checks, composition tests, and a fresh copied scaffold after changing ownership or templates.

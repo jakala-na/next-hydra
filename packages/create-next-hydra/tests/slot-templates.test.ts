@@ -12,6 +12,7 @@ import { selectionDefinitionSchema } from "../src/composition/schema.js";
 import {
   planSlotTemplates,
   renderSlotTemplates,
+  slotCompositionSchema,
 } from "../src/composition/slot-templates.js";
 import type { WorkspaceSelection } from "../src/composition/types.js";
 
@@ -56,7 +57,7 @@ describe("shared application slot templates", () => {
         selection.providers.auth = "workos";
       }
       const plan = planComposition(catalog, selection);
-      // Exercise the shared preparation path used by compose, create and use.
+      // Exercise the shared preparation path used by compose and customer creation.
       const prepared = await prepareComposition(catalog, plan);
       const files = new Map(
         prepared.renderedFiles.map((file) => [file.target, file.content])
@@ -154,7 +155,7 @@ describe("shared application slot templates", () => {
     expect(
       plan.selections.find(
         (item) =>
-          item.kind === "contribution" &&
+          item.kind === "recipe" &&
           item.itemName === "cms-contentstack-product-collection"
       )?.compatibility.requires
     ).toStrictEqual(["next-hydra/cms/contentstack"]);
@@ -183,15 +184,40 @@ describe("shared application slot templates", () => {
     ).toBeFalsy();
   });
 
-  it("composes a CMS shell without authentication contributions", async () => {
+  it.each(["contribution", "integration"])(
+    "rejects the retired %s kind instead of treating it as a recipe",
+    (kind) => {
+      expect(
+        selectionDefinitionSchema.safeParse({ id: "example/recipe", kind })
+          .success
+      ).toBeFalsy();
+    }
+  );
+
+  it("rejects the retired binding field instead of silently omitting its modules", () => {
+    expect(
+      slotCompositionSchema.safeParse({
+        contributions: [
+          {
+            export: "Account",
+            module: "./account",
+            slot: "account",
+            target: layoutTarget,
+          },
+        ],
+      }).success
+    ).toBeFalsy();
+  });
+
+  it("composes a CMS shell without authentication recipes", async () => {
     const items = await workspaceItems(false);
     const files = await renderSlotTemplates(repoRoot, items);
     const layout = files.find((file) => file.target === layoutTarget);
 
     expect(files).toHaveLength(8);
     expect(layout).toMatchObject({
-      contributions: [],
       owner: "app-web",
+      slotBindings: [],
       source: "apps/web/registry/templates/layout.tsx.template",
     });
     expect(layout?.content).not.toContain("AccountSlot=");
@@ -200,7 +226,7 @@ describe("shared application slot templates", () => {
     );
   });
 
-  it("installs account controls and contributes authentication to all four shared files", async () => {
+  it("installs account controls and binds authentication into all four shared files", async () => {
     const items = await workspaceItems(true);
     const files = await renderSlotTemplates(repoRoot, items);
     const contentByTarget = new Map(
@@ -254,7 +280,7 @@ describe("shared application slot templates", () => {
   });
 
   it.each(["missingSearch", "toString", "constructor"])(
-    "rejects a contribution to undeclared slot %s",
+    "rejects a binding to undeclared slot %s",
     async (slot) => {
       const items = await workspaceItems(false);
 
@@ -264,7 +290,7 @@ describe("shared application slot templates", () => {
           {
             meta: {
               composition: {
-                contributions: [
+                slotBindings: [
                   {
                     export: "Search",
                     module: "@/components/search",
@@ -299,13 +325,13 @@ describe("shared application slot templates", () => {
     );
   });
 
-  it("matches contributions using normalized target paths", () => {
+  it("matches slot bindings using normalized target paths", () => {
     expect(
       planSlotTemplates([
         {
           meta: {
             composition: {
-              contributions: [
+              slotBindings: [
                 {
                   export: "Account",
                   module: "./account",
@@ -325,7 +351,7 @@ describe("shared application slot templates", () => {
           name: "shell",
           type: "registry:item",
         },
-      ])[0]?.contributions
+      ])[0]?.slotBindings
     ).toMatchObject([{ export: "Account", target: layoutTarget }]);
   });
 });

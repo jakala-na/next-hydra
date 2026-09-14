@@ -1,4 +1,4 @@
-/** Templates own structure; selected registry items contribute module references. */
+/** Templates own structure; selected registry items bind module references to slots. */
 /* oxlint-disable unicorn/no-array-sort, unicorn/no-array-reverse -- Only newly filtered/copied arrays are mutated; the CLI targets ES2022. */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -11,7 +11,7 @@ import { resolveWorkspacePath } from "./paths.js";
 
 export const slotCompositionSchema = z
   .object({
-    contributions: z
+    slotBindings: z
       .array(
         z
           .object({
@@ -54,7 +54,7 @@ export const slotCompositionSchema = z
 type SlotDefinition = z.infer<typeof slotCompositionSchema>;
 export type PlannedSlotTemplate = SlotDefinition["templates"][number] & {
   owner: string;
-  contributions: (SlotDefinition["contributions"][number] & {
+  slotBindings: (SlotDefinition["slotBindings"][number] & {
     owner: string;
   })[];
 };
@@ -78,12 +78,12 @@ export function planSlotTemplates(
         target: resolveWorkspacePath(template.target, "composition target"),
       }))
   );
-  const contributions = definitions.flatMap(
-    ({ owner, contributions: ownedContributions }) =>
-      ownedContributions.map((contribution) => ({
+  const slotBindings = definitions.flatMap(
+    ({ owner, slotBindings: ownedSlotBindings }) =>
+      ownedSlotBindings.map((binding) => ({
         owner,
-        ...contribution,
-        target: resolveWorkspacePath(contribution.target, "composition target"),
+        ...binding,
+        target: resolveWorkspacePath(binding.target, "composition target"),
       }))
   );
   if (
@@ -94,21 +94,21 @@ export function planSlotTemplates(
       "A composition target must have exactly one template owner."
     );
   }
-  for (const contribution of contributions) {
+  for (const binding of slotBindings) {
     const template = templates.find(
-      (candidate) => candidate.target === contribution.target
+      (candidate) => candidate.target === binding.target
     );
-    if (!template || !Object.hasOwn(template.slots, contribution.slot)) {
+    if (!template || !Object.hasOwn(template.slots, binding.slot)) {
       throw new Error(
-        `${contribution.owner}: missing target or slot ${contribution.target}#${contribution.slot}`
+        `${binding.owner}: missing target or slot ${binding.target}#${binding.slot}`
       );
     }
   }
   return templates
     .map((template) => ({
       ...template,
-      contributions: contributions
-        .filter((c) => c.target === template.target)
+      slotBindings: slotBindings
+        .filter((binding) => binding.target === template.target)
         .sort(
           (a, b) =>
             a.order - b.order ||
@@ -125,14 +125,16 @@ export async function renderPlannedSlotTemplates(
 ) {
   return await Promise.all(
     templates.map(async (template) => {
-      const selected = template.contributions;
-      const imports = selected.map((c) => ({
-        ...c,
-        local: c.as ?? c.export,
+      const selected = template.slotBindings;
+      const imports = selected.map((binding) => ({
+        ...binding,
+        local: binding.as ?? binding.export,
       }));
-      if (new Set(imports.map((c) => c.local)).size !== imports.length) {
+      if (
+        new Set(imports.map((binding) => binding.local)).size !== imports.length
+      ) {
         throw new Error(
-          `${template.target} has conflicting import names; give contributions distinct 'as' names.`
+          `${template.target} has conflicting import names; give slot bindings distinct 'as' names.`
         );
       }
       const values = new Map<string, string>([
@@ -140,14 +142,14 @@ export async function renderPlannedSlotTemplates(
           "imports",
           imports
             .map(
-              (c) =>
-                `import { ${c.export}${c.local === c.export ? "" : ` as ${c.local}`} } from ${JSON.stringify(c.module)};`
+              (binding) =>
+                `import { ${binding.export}${binding.local === binding.export ? "" : ` as ${binding.local}`} } from ${JSON.stringify(binding.module)};`
             )
             .join("\n"),
         ],
       ]);
       for (const [slot, kind] of Object.entries(template.slots)) {
-        const entries = imports.filter((c) => c.slot === slot);
+        const entries = imports.filter((binding) => binding.slot === slot);
         if (kind === "element" && entries.length > 1) {
           throw new Error(
             `${template.target}#${slot} accepts at most one element.`
@@ -157,37 +159,41 @@ export async function renderPlannedSlotTemplates(
           values.set(
             `${slot}.open`,
             entries
-              .map((c) => (kind === "wrapper" ? `<${c.local}>` : `${c.local}(`))
+              .map((binding) =>
+                kind === "wrapper" ? `<${binding.local}>` : `${binding.local}(`
+              )
               .join("")
           );
           values.set(
             `${slot}.close`,
             [...entries]
               .reverse()
-              .map((c) => (kind === "wrapper" ? `</${c.local}>` : ")"))
+              .map((binding) =>
+                kind === "wrapper" ? `</${binding.local}>` : ")"
+              )
               .join("")
           );
         } else if (kind === "graphql") {
           values.set(
             `${slot}.spreads`,
-            entries.map((c) => `...${c.export}`).join("\n")
+            entries.map((binding) => `...${binding.export}`).join("\n")
           );
           values.set(
             `${slot}.documents`,
-            entries.map((c) => c.local).join(", ")
+            entries.map((binding) => binding.local).join(", ")
           );
         } else {
           values.set(
             slot,
             entries
-              .map((c) => {
+              .map((binding) => {
                 if (kind === "element") {
-                  return `<${c.local} />`;
+                  return `<${binding.local} />`;
                 }
                 if (kind === "members") {
-                  return c.local;
+                  return binding.local;
                 }
-                return `${c.local}()`;
+                return `${binding.local}()`;
               })
               .join(", ")
           );
@@ -217,7 +223,7 @@ export async function renderPlannedSlotTemplates(
               `${template.source} has an undeclared conditional slot: ${slot}`
             );
           }
-          return selected.some((c) => c.slot === slot) ? body : "";
+          return selected.some((binding) => binding.slot === slot) ? body : "";
         }
       );
       if (/\{\{[^}]+\}\}/u.test(content)) {
@@ -235,8 +241,8 @@ export async function renderPlannedSlotTemplates(
       }
       return {
         content: formatted.code,
-        contributions: selected,
         owner: template.owner,
+        slotBindings: selected,
         source: template.source,
         target: resolveWorkspacePath(template.target, "composition target"),
       };

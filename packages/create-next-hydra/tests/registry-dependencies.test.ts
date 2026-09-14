@@ -154,7 +154,6 @@ describe("standard registry npm dependencies", () => {
       development,
       { cms: "contentstack", install: false, linked: true, search: true },
       {
-        development: true,
         name: "dependency-check",
         report: () => undefined,
         sourceRoot: repoRoot,

@@ -23,6 +23,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./reference-workspace": {
+      "types": "./dist/reference-workspace-bindings.d.ts",
+      "import": "./dist/reference-workspace-bindings.js"
+    },
     "./cli": {
       "import": "./dist/cli.js"
     }

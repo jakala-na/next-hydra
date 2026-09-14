@@ -71,7 +71,7 @@
         }
       },
       "title": "Web application",
-      "description": "One shared web application. Installed packages supply their routes, runtime wiring and layout integrations.",
+      "description": "One shared web application. Installed packages supply recipes for routes, runtime wiring and layout slot bindings.",
       "files": [
         {
           "path": ".gitignore",
@@ -202,8 +202,8 @@
       "type": "registry:item",
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/integration/web-auth",
-          "kind": "integration",
+          "id": "next-hydra/recipe/web-auth",
+          "kind": "recipe",
           "providerDependencies": [
             {
               "cwd": "apps/web",
@@ -246,7 +246,7 @@
               }
             }
           ],
-          "contributions": [
+          "slotBindings": [
             {
               "target": "apps/web/components/layout/document-shell.tsx",
               "slot": "providers",
@@ -307,7 +307,7 @@
           ]
         }
       },
-      "title": "Auth web integration",
+      "title": "Auth web recipe",
       "files": [
         {
           "path": "components/layout/account-menu-client.tsx",
@@ -361,7 +361,7 @@
           ]
         },
         "composition": {
-          "contributions": [
+          "slotBindings": [
             {
               "target": "apps/web/app/[locale]/layout.tsx",
               "slot": "search",
@@ -388,12 +388,12 @@
       "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
       "name": "commerce-web",
       "type": "registry:item",
-      "title": "Commerce web integration",
+      "title": "Commerce web recipe",
       "description": "Standard Commerce routes and runtime wiring, installed automatically with Commerce.",
       "meta": {
         "nextHydra": {
           "id": "next-hydra/commerce/web",
-          "kind": "integration"
+          "kind": "recipe"
         }
       },
       "files": [

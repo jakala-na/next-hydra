@@ -581,26 +581,36 @@ describe("scaffold composition", () => {
           scaffoldManifestSchema
         ),
       ]);
+      const sourceManifest = await readJsonFile(
+        path.join(repoRoot, "package.json"),
+        scaffoldManifestSchema
+      );
       expect({
         apiPackagePortless: apiPackageJson.portless,
         changesetsDependency: packageJson.devDependencies?.["@changesets/cli"],
         portlessDependency: packageJson.devDependencies?.portless,
         rootPortlessConfigExists,
-        webEnvironmentHasLocalFallback: webEnvironment.includes(
-          "NEXT_PUBLIC_WEB_URL=http://localhost:3000"
-        ),
         webEnvironmentHasMaintainerHostname: webEnvironment.includes(
           "next-hydra.localhost"
         ),
+        webEnvironmentHasProjectHostname: webEnvironment.includes(
+          "NEXT_PUBLIC_WEB_URL=https://web.customer-release-project.localhost"
+        ),
         webPackagePortless: webPackageJson.portless,
       }).toStrictEqual({
-        apiPackagePortless: undefined,
+        apiPackagePortless: {
+          name: "api.customer-release-project",
+          script: "dev:app",
+        },
         changesetsDependency: undefined,
-        portlessDependency: undefined,
+        portlessDependency: sourceManifest.devDependencies?.portless,
         rootPortlessConfigExists: false,
-        webEnvironmentHasLocalFallback: true,
         webEnvironmentHasMaintainerHostname: false,
-        webPackagePortless: undefined,
+        webEnvironmentHasProjectHostname: true,
+        webPackagePortless: {
+          name: "web.customer-release-project",
+          script: "dev:app",
+        },
       });
 
       await rm(target, { force: true, recursive: true });
@@ -817,7 +827,9 @@ describe("scaffold composition", () => {
         frontendHasMaintainerHostname: frontendConfig.includes(
           "web.next-hydra.localhost"
         ),
-        frontendHasProjectHostname: frontendConfig.includes("localhost:3000"),
+        frontendHasProjectHostname: frontendConfig.includes(
+          "https://web.drupal-project.localhost"
+        ),
       }).toStrictEqual({
         frontendHasMaintainerHostname: false,
         frontendHasProjectHostname: true,

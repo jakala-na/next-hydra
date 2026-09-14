@@ -20,6 +20,7 @@ import path from "node:path";
 import { z } from "zod";
 
 import { workspaceFilePathSchema } from "./composition/schema.js";
+import { workspaceNonSourceDirectories } from "./workspace-artifacts.js";
 import {
   assertDirectoryPath,
   assertDistinctFileTargets,
@@ -33,17 +34,6 @@ const metadata = new Set([
   WORKSPACE_LOCK,
   "next-hydra.json",
   "README.md",
-]);
-const runtimeDirectories = new Set([
-  "node_modules",
-  ".next",
-  ".turbo",
-  ".git",
-  "dist",
-  "coverage",
-  ".cache",
-  ".workflow-data",
-  ".swc",
 ]);
 const fingerprintSchema = z.discriminatedUnion("kind", [
   z
@@ -251,7 +241,9 @@ function validateEntries(files: readonly Entry[]): void {
     if (
       target !== path.posix.normalize(target) ||
       metadata.has(target) ||
-      target.split("/").some((part) => runtimeDirectories.has(part)) ||
+      target
+        .split("/")
+        .some((part) => workspaceNonSourceDirectories.has(part)) ||
       isEnvironmentFile(path.basename(target))
     ) {
       throw new Error(
@@ -261,7 +253,11 @@ function validateEntries(files: readonly Entry[]): void {
   }
 }
 
-async function inventory(targetRoot: string, relative = ""): Promise<string[]> {
+async function inventory(
+  targetRoot: string,
+  preservedFiles: ReadonlySet<string>,
+  relative = ""
+): Promise<string[]> {
   const files: string[] = [];
   for (const entry of await readdir(path.join(targetRoot, relative), {
     withFileTypes: true,
@@ -271,7 +267,8 @@ async function inventory(targetRoot: string, relative = ""): Promise<string[]> {
     if (/^apps\/[^/]+\/app\/\.well-known\/workflow\/v1$/u.test(target)) {
       continue;
     }
-    if (entry.isDirectory() && runtimeDirectories.has(entry.name)) {
+    if (workspaceNonSourceDirectories.has(entry.name)) {
+      await assertDirectoryPath(path.join(targetRoot, target));
       continue;
     }
     if (
@@ -282,8 +279,8 @@ async function inventory(targetRoot: string, relative = ""): Promise<string[]> {
       continue;
     }
     if (entry.isDirectory()) {
-      files.push(...(await inventory(targetRoot, target)));
-    } else if (!metadata.has(target)) {
+      files.push(...(await inventory(targetRoot, preservedFiles, target)));
+    } else if (!metadata.has(target) && !preservedFiles.has(target)) {
       files.push(target);
     }
   }
@@ -293,7 +290,8 @@ async function inventory(targetRoot: string, relative = ""): Promise<string[]> {
 /** Recover only exact before/after fingerprints from an interrupted atomic-file update. */
 async function readState(
   targetRoot: string,
-  sourceRoot: string
+  sourceRoot: string,
+  preservedFiles: ReadonlySet<string>
 ): Promise<State> {
   const raw = await readMetadata(targetRoot, WORKSPACE_STATE);
   const empty: State = {
@@ -308,13 +306,19 @@ async function readState(
       : stateDocumentSchema.parse(raw);
   validateEntries(state.files);
   if (pending === undefined) {
-    return state;
+    return {
+      ...state,
+      files: state.files.filter((file) => !preservedFiles.has(file.target)),
+    };
   }
   validateEntries(pending.files);
   const before = new Map(state.files.map((entry) => [entry.target, entry]));
   const after = new Map(pending.files.map((entry) => [entry.target, entry]));
   const recovered: Entry[] = [];
   for (const target of new Set([...before.keys(), ...after.keys()])) {
+    if (preservedFiles.has(target)) {
+      continue;
+    }
     const current = await inspect(path.join(targetRoot, target));
     const previous = before.get(target);
     const next = after.get(target);
@@ -335,6 +339,67 @@ async function readState(
   return { ...state, files: recovered, installedDependencies: undefined };
 }
 
+async function inspectPreservedSettings(
+  targetRoot: string,
+  preservedFiles: ReadonlySet<string>,
+  files: readonly WorkspaceFile[]
+): Promise<Map<string, Fingerprint>> {
+  const settings = new Map<string, Fingerprint>();
+  for (const target of preservedFiles) {
+    workspaceFilePathSchema.parse(target);
+    if (!/^apps\/[^/]+\/vercel\.json$/u.test(target)) {
+      throw new Error(`Not a workspace deployment setting: ${target}`);
+    }
+    const current = await inspect(path.join(targetRoot, target));
+    if (!current) {
+      throw new Error(`Workspace settings must be regular files: ${target}`);
+    }
+    settings.set(target, current);
+  }
+  for (const { target } of files) {
+    if (preservedFiles.has(target)) {
+      throw new Error(
+        `Composition cannot overwrite workspace-owned settings: ${target}`
+      );
+    }
+  }
+  return settings;
+}
+
+/** Detach only unchanged, previously owned links; never follow an unowned settings link. */
+async function prepareSettingsMigration(
+  settings: ReadonlyMap<string, Fingerprint>,
+  previous: State,
+  sourceRoot: string
+): Promise<WorkspaceFile[]> {
+  const files: WorkspaceFile[] = [];
+  for (const [target, current] of settings) {
+    if (current.kind !== "link") {
+      continue;
+    }
+    const owned = previous.files.find((file) => file.target === target);
+    if (!same(current, owned?.applied)) {
+      throw new Error(
+        `Cannot migrate unowned or redirected workspace settings: ${target}`
+      );
+    }
+    workspaceFilePathSchema.parse(path.relative(sourceRoot, current.source));
+    const source = await inspect(current.source);
+    if (source?.kind !== "file") {
+      throw new Error(
+        `Workspace settings source must be a regular file: ${target}`
+      );
+    }
+    files.push({
+      content: await readFile(current.source),
+      mode: source.mode,
+      owner: "workspace deployment settings",
+      target,
+    });
+  }
+  return files;
+}
+
 /** The caller holds the workspace lock. Preparation and preflight do not change app/source files. */
 export async function updateWorkspaceFiles(options: {
   sourceRoot: string;
@@ -343,12 +408,31 @@ export async function updateWorkspaceFiles(options: {
   dependencyHash: string;
   dependencyDirectories?: string[];
   check?: boolean;
+  rejectUnowned?: boolean;
+  preservedFiles?: readonly string[];
   install?: (cwd: string) => Promise<void>;
 }): Promise<WorkspaceUpdateResult> {
   const { targetRoot, sourceRoot } = options;
+  const preservedFiles = new Set(options.preservedFiles);
+  const settings = await inspectPreservedSettings(
+    targetRoot,
+    preservedFiles,
+    options.files
+  );
   await assertDirectoryPath(targetRoot);
-  const desired = new Map(options.files.map((file) => [file.target, file]));
-  const entries = options.files.map(
+  // Physical settings are already workspace-owned; links still need their recorded ownership.
+  const physicalSettings = new Set(
+    [...settings]
+      .filter(([, value]) => value.kind === "file")
+      .map(([target]) => target)
+  );
+  const previous = await readState(targetRoot, sourceRoot, physicalSettings);
+  const files = [
+    ...options.files,
+    ...(await prepareSettingsMigration(settings, previous, sourceRoot)),
+  ];
+  const desired = new Map(files.map((file) => [file.target, file]));
+  const entries = files.map(
     (file): Entry => ({
       applied: desiredFingerprint(file),
       desired: desiredFingerprint(file),
@@ -358,7 +442,6 @@ export async function updateWorkspaceFiles(options: {
     })
   );
   validateEntries(entries);
-  const previous = await readState(targetRoot, sourceRoot);
   const prior = new Map(previous.files.map((file) => [file.target, file]));
   const next: State = {
     dependencyHash: options.dependencyHash,
@@ -402,7 +485,7 @@ export async function updateWorkspaceFiles(options: {
       removals.push(old.target);
     }
   }
-  const presentFiles = await inventory(targetRoot);
+  const presentFiles = await inventory(targetRoot, preservedFiles);
   const unowned = presentFiles
     .filter((target) => !prior.has(target) && !desired.has(target))
     .sort();
@@ -442,6 +525,11 @@ export async function updateWorkspaceFiles(options: {
   if (options.check) {
     return result;
   }
+  if (options.rejectUnowned && unowned.length) {
+    throw new Error(
+      `Workspace refresh blocked by unregistered files; nothing was replaced:\n${unowned.join("\n")}`
+    );
+  }
   if (conflicts.length) {
     throw new Error(
       `Workspace refresh blocked; no application files changed:\n${conflicts.map((item) => `  ${describeWorkspaceFile(item, result.origins, sourceRoot)}`).join("\n")}\nMove intended changes into canonical source/templates or preserve them separately, then reconcile these paths. No force overwrite is supported.`
@@ -465,6 +553,8 @@ export async function updateWorkspaceFiles(options: {
       ? atomicWrite(path.join(targetRoot, target), file)
       : unlink(path.join(targetRoot, target)));
   }
+  // Pending state above includes detachment writes for interruption recovery. Release them only after writing.
+  next.files = next.files.filter((file) => !preservedFiles.has(file.target));
   await writeMetadata(targetRoot, WORKSPACE_STATE, next);
   if (needsInstall && options.install) {
     // Installation owns lockfile normalization; a failed install is safely retryable.

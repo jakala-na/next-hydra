@@ -1,6 +1,7 @@
 {
   "extends": ["//"],
   "tasks": {
-    "test": { "dependsOn": [], "cache": false }
+    "e2e": { "dependsOn": ["create-next-hydra#build"] },
+    "test": { "dependsOn": ["create-next-hydra#build"], "cache": false }
   }
 }

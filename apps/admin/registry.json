@@ -16,7 +16,7 @@
               "apps/admin/next.config.ts"
             ]
           },
-          "kind": "integration",
+          "kind": "recipe",
           "providerDependencies": [
             { "cwd": "apps/admin", "slot": "auth", "section": "dependencies" }
           ]

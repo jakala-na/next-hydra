@@ -616,15 +616,14 @@ export async function addRegistryItem(
   const compositionItems = [...graph.items.values()].filter(
     (item) => item.meta?.composition !== undefined
   );
-  const builtIns = graphSelections.filter(
-    (item) =>
-      item.kind === "contribution" || item.conditionalDependencies.length > 0
+  const scaffoldOnlySelections = graphSelections.filter(
+    (item) => item.kind === "recipe" || item.conditionalDependencies.length > 0
   );
-  if (compositionItems.length > 0 || builtIns.length > 0) {
+  if (compositionItems.length > 0 || scaffoldOnlySelections.length > 0) {
     throw new CompositionValidationError(
       "Customer add cannot recompose customer-owned files.",
       [
-        "Select composition contributions during scaffolding; add only supports exact-copy Add-ons and does not re-render templates.",
+        "Select composition recipes during scaffolding; add only supports exact-copy Add-ons and does not re-render templates.",
       ]
     );
   }

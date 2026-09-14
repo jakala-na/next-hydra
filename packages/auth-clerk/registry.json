@@ -182,8 +182,8 @@
       "type": "registry:item",
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/integration/auth-clerk-commerce",
-          "kind": "integration",
+          "id": "next-hydra/recipe/auth-clerk-commerce",
+          "kind": "recipe",
           "packages": [
             {
               "cwd": "packages/auth-clerk",
@@ -194,7 +194,7 @@
           ]
         }
       },
-      "title": "clerk Commerce identity integration",
+      "title": "Clerk Commerce identity recipe",
       "files": [
         {
           "path": "identity-users.test.ts",
@@ -255,8 +255,8 @@
       "type": "registry:item",
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/integration/auth-clerk-admin",
-          "kind": "integration"
+          "id": "next-hydra/recipe/auth-clerk-admin",
+          "kind": "recipe"
         }
       },
       "title": "Admin authentication routes",

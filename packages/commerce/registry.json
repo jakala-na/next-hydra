@@ -9,25 +9,15 @@
         "nextHydra": {
           "id": "next-hydra/commerce/core",
           "kind": "package",
-          "providerSlots": {
-            "auth": "required"
-          },
+          "providerSlots": { "auth": "required" },
           "providerDependencies": [
             {
               "cwd": "apps/web",
               "section": "dependencies",
               "slot": "commerce"
             },
-            {
-              "cwd": "apps/web",
-              "section": "dependencies",
-              "slot": "auth"
-            },
-            {
-              "cwd": "apps/cli",
-              "slot": "commerce",
-              "section": "dependencies"
-            }
+            { "cwd": "apps/web", "section": "dependencies", "slot": "auth" },
+            { "cwd": "apps/cli", "slot": "commerce", "section": "dependencies" }
           ],
           "packages": [
             {
@@ -88,7 +78,7 @@
           ]
         },
         "composition": {
-          "contributions": [
+          "slotBindings": [
             {
               "target": "apps/web/env.ts",
               "slot": "environment",

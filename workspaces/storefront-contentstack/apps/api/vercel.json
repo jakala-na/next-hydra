@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "ignoreCommand": "node ../../../../packages/create-next-hydra/scripts/ignore-vercel-build.mjs",
+  "installCommand": "cd ../../../.. && pnpm install --frozen-lockfile && pnpm --filter create-next-hydra compose storefront-contentstack --no-link",
+  "buildCommand": "cd ../.. && pnpm exec turbo run build --filter=api --cache-dir=node_modules/.cache/turbo",
+  "outputDirectory": ".next"
+}

@@ -85,17 +85,6 @@ describe("source-only authoring", () => {
             )
           )
         ).resolves.toBe(Boolean(definition.providers.commerce));
-        expect(
-          JSON.parse(
-            await readFile(path.join(targetRoot, "turbo.json"), "utf-8")
-          )
-        ).toMatchObject({
-          tasks: {
-            build: { cache: false },
-            test: { cache: false },
-            typecheck: { cache: false },
-          },
-        });
         await Promise.all(
           prepared.renderedFiles.map(async (file) => {
             await expect(

@@ -292,6 +292,14 @@ repos/
 /workspaces/*/*
 !/workspaces/*/next-hydra.json
 !/workspaces/*/README.md
+!/workspaces/cms-contentstack/apps/
+!/workspaces/cms-drupal/apps/
+!/workspaces/storefront-contentstack/apps/
+!/workspaces/storefront-drupal/apps/
+/workspaces/*/apps/*
+!/workspaces/*/apps/*/
+/workspaces/*/apps/*/*
+!/workspaces/*/apps/*/vercel.json
 # Retired ad-hoc outputs retain their original configuration; they are not definitions.
 /workspaces/contentstack-cms-only-product-split*/
 /workspaces/contentstack-commerce-product-split*/

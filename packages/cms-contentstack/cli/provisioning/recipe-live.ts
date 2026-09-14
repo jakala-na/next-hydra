@@ -1,15 +1,12 @@
 import { Effect, FileSystem, Layer, Path } from "effect";
 
+import { applyBlockRecipe, blockRecipeTarget } from "./block-recipes";
 import {
   CONTENTSTACK_ENVIRONMENTS,
   ContentstackRecipeError,
   ContentstackRecipeReceipt,
 } from "./model";
 import { ContentstackRecipe } from "./recipe";
-import {
-  applyRecipeContribution,
-  recipeContributionTarget,
-} from "./recipe-contributions";
 
 export const CONTENTSTACK_RECIPE_VERSION = "3";
 
@@ -104,48 +101,45 @@ export const contentstackRecipeLayer = Layer.effect(
             )
           );
 
-        const contributionsDirectory = path.join(directory, "contributions");
-        const hasContributions = yield* fileSystem
-          .exists(contributionsDirectory)
+        const recipesDirectory = path.join(directory, "recipes");
+        const hasRecipes = yield* fileSystem
+          .exists(recipesDirectory)
           .pipe(
             Effect.mapError((cause) =>
               recipeError(
                 "render",
-                "Could not inspect Contentstack recipe contributions",
+                "Could not inspect Contentstack block recipes",
                 cause
               )
             )
           );
-        if (hasContributions) {
-          const contributionFiles = yield* fileSystem
-            .readDirectory(contributionsDirectory)
+        if (hasRecipes) {
+          const recipeFiles = yield* fileSystem
+            .readDirectory(recipesDirectory)
             .pipe(
               Effect.mapError((cause) =>
                 recipeError(
                   "render",
-                  "Could not enumerate Contentstack recipe contributions",
+                  "Could not enumerate Contentstack block recipes",
                   cause
                 )
               )
             );
 
-          const contributionJsonFiles = contributionFiles.filter((file) =>
+          const recipeJsonFiles = recipeFiles.filter((file) =>
             file.endsWith(".json")
           );
           // eslint-disable-next-line unicorn/no-array-sort -- filter returns a fresh array.
-          contributionJsonFiles.sort();
-          for (const contributionFile of contributionJsonFiles) {
-            const contributionPath = path.join(
-              contributionsDirectory,
-              contributionFile
-            );
-            const contributionSource = yield* fileSystem
-              .readFileString(contributionPath)
+          recipeJsonFiles.sort();
+          for (const recipeFile of recipeJsonFiles) {
+            const recipePath = path.join(recipesDirectory, recipeFile);
+            const recipeSource = yield* fileSystem
+              .readFileString(recipePath)
               .pipe(
                 Effect.mapError((cause) =>
                   recipeError(
                     "render",
-                    `Could not read Contentstack recipe contribution ${contributionFile}`,
+                    `Could not read Contentstack block recipe ${recipeFile}`,
                     cause
                   )
                 )
@@ -154,10 +148,10 @@ export const contentstackRecipeLayer = Layer.effect(
               catch: (cause) =>
                 recipeError(
                   "render",
-                  `Contentstack recipe contribution ${contributionFile} is invalid`,
+                  `Contentstack block recipe ${recipeFile} is invalid`,
                   cause
                 ),
-              try: () => recipeContributionTarget(contributionSource),
+              try: () => blockRecipeTarget(recipeSource),
             });
             const contentTypePath = path.join(
               directory,
@@ -178,7 +172,7 @@ export const contentstackRecipeLayer = Layer.effect(
               Effect.mapError((cause) =>
                 recipeError(
                   "render",
-                  `Could not read targets for Contentstack recipe contribution ${target.id}`,
+                  `Could not read targets for Contentstack block recipe ${target.id}`,
                   cause
                 )
               )
@@ -187,14 +181,14 @@ export const contentstackRecipeLayer = Layer.effect(
               catch: (cause) =>
                 recipeError(
                   "render",
-                  `Could not apply Contentstack recipe contribution ${target.id}`,
+                  `Could not apply Contentstack block recipe ${target.id}`,
                   cause
                 ),
               try: () =>
-                applyRecipeContribution({
+                applyBlockRecipe({
                   contentType,
-                  contribution: contributionSource,
                   entries,
+                  recipe: recipeSource,
                 }),
             });
             yield* Effect.all([
@@ -207,7 +201,7 @@ export const contentstackRecipeLayer = Layer.effect(
               Effect.mapError((cause) =>
                 recipeError(
                   "render",
-                  `Could not write Contentstack recipe contribution ${target.id}`,
+                  `Could not write Contentstack block recipe ${target.id}`,
                   cause
                 )
               )
@@ -215,12 +209,12 @@ export const contentstackRecipeLayer = Layer.effect(
           }
 
           yield* fileSystem
-            .remove(contributionsDirectory, { recursive: true })
+            .remove(recipesDirectory, { recursive: true })
             .pipe(
               Effect.mapError((cause) =>
                 recipeError(
                   "render",
-                  "Could not remove materialized Contentstack recipe contributions",
+                  "Could not remove materialized Contentstack block recipes",
                   cause
                 )
               )

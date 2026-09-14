@@ -454,7 +454,7 @@ function validateMaterializationTargets(options: {
   }
 }
 
-function resolveBuiltInContributions(
+function resolvePackageRecipes(
   catalog: SourceRegistryCatalog,
   providers: Map<ProviderSlot, CatalogSelection>,
   selected: CatalogSelection[]
@@ -464,7 +464,7 @@ function resolveBuiltInContributions(
   const selectionsByItem = new Map(
     catalog.selections.map((item) => [item.itemName, item])
   );
-  // New built-ins join the queue so their own conditions and registry dependencies are considered.
+  // New package recipes join the queue so their own conditions and registry dependencies are considered.
   for (const owner of selections) {
     const references = (owner.conditionalDependencies ?? [])
       .filter((dependency) =>
@@ -472,16 +472,14 @@ function resolveBuiltInContributions(
       )
       .flatMap((dependency) => dependency.items);
     const roots = references.map((reference) => {
-      const contribution = resolveCatalogSelection(catalog, reference);
-      if (
-        !["contribution", "integration", "package"].includes(contribution.kind)
-      ) {
+      const recipe = resolveCatalogSelection(catalog, reference);
+      if (!["recipe", "package"].includes(recipe.kind)) {
         throw new CompositionValidationError(
           "Invalid conditional dependency.",
-          [`${reference} must be a package or package integration`]
+          [`${reference} must be a package or composition recipe`]
         );
       }
-      return contribution.itemName;
+      return recipe.itemName;
     });
     for (const name of resolveRegistryItemGraph(catalog, [
       owner.itemName,
@@ -491,10 +489,7 @@ function resolveBuiltInContributions(
         continue;
       }
       const dependency = selectionsByItem.get(name);
-      if (
-        dependency &&
-        ["contribution", "integration", "package"].includes(dependency.kind)
-      ) {
+      if (dependency && ["recipe", "package"].includes(dependency.kind)) {
         included.add(name);
         selections.push(dependency);
       }
@@ -524,7 +519,7 @@ export function planComposition(
     return provider ? [provider] : [];
   });
   const addOns = resolveAddOns(catalog, selection.addOns, providerSelections);
-  const selections = resolveBuiltInContributions(catalog, providers, [
+  const selections = resolvePackageRecipes(catalog, providers, [
     application,
     ...providerSelections,
     ...addOns,

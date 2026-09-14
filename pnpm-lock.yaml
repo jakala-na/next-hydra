@@ -2169,6 +2169,9 @@ importers:
       api:
         specifier: workspace:*
         version: link:../../apps/api
+      create-next-hydra:
+        specifier: workspace:*
+        version: link:../../packages/create-next-hydra
       effect:
         specifier: 'catalog:'
         version: 4.0.0-rc.111

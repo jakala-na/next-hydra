@@ -76,11 +76,6 @@ describe("copied and source-linked provider workspaces", () => {
           readFile(path.join(target, ".gitignore"), "utf-8")
         ).resolves.not.toContain("workspace-composition");
       }
-      expect(
-        JSON.parse(await readFile(path.join(target, "turbo.json"), "utf-8"))
-      ).toMatchObject({
-        tasks: { build: { inputs: ["$TURBO_DEFAULT$", ".env", ".env.*"] } },
-      });
       const source = `packages/cms-${cms}/components/blocks/hero-section.tsx`;
       const composed = `packages/cms-${cms}/components/component-registry.ts`;
       const sourceStat = await lstat(path.join(target, source));
@@ -193,7 +188,7 @@ describe("symmetric provider composition", () => {
       })
     );
     const base = prepared.artifacts.find((item) => item.name === "drupal");
-    const contribution = prepared.artifacts.find(
+    const packageRecipe = prepared.artifacts.find(
       (item) => item.name === "drupal-product-collection"
     );
     const baseData = base?.files
@@ -205,7 +200,7 @@ describe("symmetric provider composition", () => {
     expect(baseData).not.toMatch(
       /dynamic_product_collection|js\.product-collection|field_product_category/u
     );
-    const recipe = contribution?.files?.find((file) =>
+    const recipe = packageRecipe?.files?.find((file) =>
       file.path.endsWith("/recipe.yml")
     );
     expect(parseYaml(recipe?.content ?? "")).toMatchObject({
@@ -228,7 +223,7 @@ describe("symmetric provider composition", () => {
       },
       recipes: ["next-hydra-starter"],
     });
-    const samples = contribution?.files
+    const samples = packageRecipe?.files
       ?.filter((file) => file.path.includes("/content/"))
       .map((file) => file.content)
       .join("\n");
