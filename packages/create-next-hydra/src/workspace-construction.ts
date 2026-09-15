@@ -123,6 +123,12 @@ export async function constructWorkspace(
     plan.registryItems.includes(item.name)
   );
   const { templates } = plan;
+  const sourceInputs = new Set([
+    ...selected.flatMap((item) => (item.files ?? []).map((file) => file.path)),
+    ...prepared.renderedFiles.map((file) => file.source),
+    ...prepared.assets.map((file) => file.source),
+    ...plan.pnpmPatches.map((patch) => patch.path),
+  ]);
   const files = new Map<string, File>();
   const addFile = (target: string, file: File) => {
     if (files.has(target)) {
@@ -296,6 +302,7 @@ export async function constructWorkspace(
           owner: `baseline:${name}`,
           source,
         });
+        sourceInputs.add(source);
       }
     }
     const file = files.get(target);
@@ -681,6 +688,13 @@ export async function constructWorkspace(
       })),
       packageName: rootManifest.name,
       packages: [...includedPackages],
+      sourceInputs: {
+        complete:
+          !plan.registryItems.some((name) =>
+            catalog.externalItemNames.has(name)
+          ) && [...sourceInputs].every((source) => sourcePaths.has(source)),
+        sources: [...sourceInputs],
+      },
       targetRoot,
     };
   } catch (error) {

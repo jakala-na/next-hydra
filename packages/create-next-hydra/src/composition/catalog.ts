@@ -147,6 +147,7 @@ function createCatalog(options: {
     byId,
     byReference,
     cwd: options.cwd,
+    externalItemNames: new Set<string>(),
     itemByReference,
     items,
     registryConfig: options.registryConfig,
@@ -440,7 +441,11 @@ export async function addCatalogReferences(
     current.byReference.set(reference, selection);
   }
 
+  for (const name of catalog.externalItemNames) {
+    current.externalItemNames.add(name);
+  }
   for (const itemName of graph.fetchedItemNames) {
+    current.externalItemNames.add(itemName);
     const externalSelection = current.byReference.get(itemName);
     if (
       externalSelection !== undefined &&

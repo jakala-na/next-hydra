@@ -1,0 +1,13 @@
+{
+  "devDependencies": {
+    "create-next-hydra": "workspace:*"
+  },
+  "name": "@workspaces/cms-contentstack",
+  "nextHydra": {
+    "localSourcesOnly": true
+  },
+  "private": true,
+  "scripts": {
+    "build": "node ../../../packages/create-next-hydra/dist/cli.js compose cms-contentstack --run build"
+  }
+}

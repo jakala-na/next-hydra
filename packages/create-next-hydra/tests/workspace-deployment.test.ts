@@ -82,6 +82,9 @@ describe("named workspace deployment", () => {
         "utf-8"
       );
       await write("apps/web/vercel.json", settings);
+      const taskSettings = '{"name":"@workspaces/fixture","private":true}';
+      await write("tasks/package.json", taskSettings);
+      await write("tasks/turbo.json", '{"extends":["//"]}');
       await write("apps/web/.next/cache/sentinel", "keep");
       await write("node_modules/.cache/turbo/sentinel", "keep");
       await updateDevelopmentWorkspace(sourceRoot, name, {
@@ -120,6 +123,10 @@ describe("named workspace deployment", () => {
           path.join(target, "apps/web/vercel.json"),
           "utf-8"
         ),
+        taskSettings: await readFile(
+          path.join(target, "tasks/package.json"),
+          "utf-8"
+        ),
         turboCache: await readFile(
           path.join(target, "node_modules/.cache/turbo/sentinel"),
           "utf-8"
@@ -130,6 +137,7 @@ describe("named workspace deployment", () => {
         nextCache: "keep",
         second: { changed: 0, removed: 0, unowned: [] },
         settings,
+        taskSettings,
         turboCache: "keep",
       });
       await expect(
@@ -144,7 +152,12 @@ describe("named workspace deployment", () => {
         { cwd: target }
       );
       expect(new Set(visible.stdout.trim().split("\n"))).toEqual(
-        new Set(["next-hydra.json", "apps/web/vercel.json"])
+        new Set([
+          "next-hydra.json",
+          "apps/web/vercel.json",
+          "tasks/package.json",
+          "tasks/turbo.json",
+        ])
       );
     },
     30_000
@@ -267,6 +280,8 @@ describe("named workspace deployment", () => {
     "unknown source",
     "linked cache",
     "linked settings",
+    "linked task metadata",
+    "unknown task source",
     "unselected app",
     "preexisting build output",
   ])(
@@ -284,6 +299,16 @@ describe("named workspace deployment", () => {
           path.join(scratch, "settings.json"),
           path.join(target, "apps/web/vercel.json")
         );
+      }
+      if (scenario === "linked task metadata") {
+        await mkdir(path.join(target, "tasks"));
+        await symlink(
+          path.join(scratch, "manifest.json"),
+          path.join(target, "tasks/package.json")
+        );
+      }
+      if (scenario === "unknown task source") {
+        await write("tasks/new-script.ts", "do not lose");
       }
       if (scenario === "unselected app") {
         await write("apps/api/vercel.json", "{}");

@@ -43,7 +43,7 @@
   "scripts": {
     "prebuild": "node scripts/clean-dist.js",
     "build": "tsc6 -p tsconfig.json",
-    "compose": "pnpm run build && node dist/cli.js compose",
+    "compose": "pnpm --workspace-root exec turbo run build --filter=create-next-hydra && node dist/cli.js compose",
     "pack": "npm pack",
     "prepublishOnly": "pnpm run build",
     "publish:dry-run": "npm publish --access public --dry-run",
@@ -53,6 +53,8 @@
     "typecheck": "tsc6 --noEmit -p tsconfig.json",
     "workspace:dev": "node dist/cli.js compose storefront-contentstack --copy-env --run dev",
     "workspace:build": "node dist/cli.js compose --all --run build",
+    "workspace:sync": "node dist/sync-workspace-tasks.js",
+    "workspace:check": "node dist/sync-workspace-tasks.js --check",
     "workspace:test": "node dist/test-reference-workspace.js",
     "workspace:lint": "node dist/lint-workspaces.js",
     "lint:staged": "pnpm run build && node dist/lint-workspaces.js --staged",

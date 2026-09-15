@@ -22,6 +22,8 @@
     "prepare": "husky && effect-tsgo patch --typescript --oxlint",
     "publish:cli": "changeset publish",
     "registry:check": "node scripts/sync-registry-files.ts --check",
+    "workspace:sync": "turbo run workspace:sync --filter=create-next-hydra",
+    "workspace:check": "turbo run workspace:check --filter=create-next-hydra",
     "registry:sync": "node scripts/sync-registry-files.ts",
     "release:create-next-hydra": "node scripts/release-create-next-hydra.mjs",
     "release:create-next-hydra:dry-run": "node scripts/release-create-next-hydra.mjs --dry-run",
@@ -59,7 +61,7 @@
     "oxlint": "1.78.0",
     "oxlint-tsgolint": "7.0.2001",
     "portless": "0.15.6",
-    "turbo": "2.6.3",
+    "turbo": "2.10.13",
     "typescript": "catalog:",
     "ultracite": "7.10.0",
     "vitest": "catalog:"

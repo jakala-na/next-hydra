@@ -2,7 +2,7 @@
 
 The architecture and its ownership boundaries are recorded in [ADR-0010: Compose Named Workspaces for Development and Deployment](../docs/adr/0010-compose-named-workspaces-for-development-and-deployment.md).
 
-These named definitions and their app-local Vercel settings are source-controlled. Their materialized apps, packages, dependencies, local state and credentials are not. The same folders serve development and deployment. After cloning, install the source checkout's dependencies, then initialize one workspace or all four:
+These named definitions, their `tasks/` metadata and app-local Vercel settings are source-controlled. Their materialized apps, packages, dependencies, local state and credentials are not. The same folders serve development and deployment. After cloning, install the source checkout's dependencies, then initialize one workspace or all four:
 
 ```sh
 pnpm --filter create-next-hydra compose cms-contentstack --copy-env
@@ -99,9 +99,9 @@ Commerce also owns installation of the design system's Commerce components and c
 - Do not edit physical composed files or run another package install during a refresh. The lock serializes composition commands, not editors or arbitrary processes; preflight checks are not a filesystem sandbox.
 - Earlier ad-hoc workspaces with version-1 receipts have no applied hashes and cannot be safely auto-adopted. Keep them intact and initialize a named workspace.
 
-Before initialization a named directory may contain its `next-hydra.json`, optional `README.md`, regular `apps/<app>/vercel.json` settings and restored caches. Settings are not registry-owned: named composition omits registry Vercel defaults, preserves independently authored settings, and refuses settings for unselected apps. Do not delete a workspace containing unregistered files. Ignoring output in Git is not a backup for new authoring work. Copied refresh refuses unregistered files; `--check --no-link` reports them without changing files. Switching back to linking also protects locally edited physical copies.
+Before initialization a named directory may contain its `next-hydra.json`, optional `README.md`, regular `apps/<app>/vercel.json` settings, `tasks/package.json`, `tasks/turbo.json` and restored caches. Settings are not registry-owned: named composition omits registry Vercel defaults, preserves independently authored settings, and refuses settings for unselected apps. Do not delete a workspace containing unregistered files. Ignoring output in Git is not a backup for new authoring work. Copied refresh refuses unregistered files; `--check --no-link` reports them without changing files. Switching back to linking also protects locally edited physical copies.
 
-Named workspaces materialize their own Git ignore files so only definitions, documentation and app deployment settings are visible to Git. These ignore files are physical maintainer metadata, not editable links to customer ignore rules; application source and `.env.example` files remain ignored. When adding deployment settings before the first composition, add the workspace's `apps/` exception to the source root's `.gitignore`, as shown for the four maintained definitions.
+Named workspaces materialize their own Git ignore files so only definitions, documentation, task metadata and app deployment settings are visible to Git. These ignore files are physical maintainer metadata, not editable links to customer ignore rules; application source and `.env.example` files remain ignored. Refresh older initialized workspaces once to make new task metadata visible to Git. When adding deployment settings before the first composition, add the workspace's `apps/` exception to the source root's `.gitignore`, as shown for the four maintained definitions.
 
 `use` has been removed: the source checkout is no longer switched in place. The 11 template outputs and duplicate provider-owned routes have been retired from the root checkout. Ordinary app implementations and authoring manifests remain source. Default customer creation acquires the requested source revision in a temporary directory and uses the same workspace constructor as named `compose`. Source acquisition, linking, credentials, Git initialization and refresh lifecycle differ; application selection and materialization do not. Customer scaffolds own ordinary copied files and do not retain this update contract or the root maintainer task routing.
 
@@ -127,7 +127,7 @@ Keep the existing Vercel projects and Git connections. Each project points at it
 | Contentstack storefront web/API/admin | `workspaces/storefront-contentstack/apps/web`, `apps/api`, or `apps/admin` under that same workspace |
 | Drupal storefront web/API/admin | `workspaces/storefront-drupal/apps/web`, `apps/api`, or `apps/admin` under that same workspace |
 
-Set Root Directory and enable access to files outside it in Vercel. Use Node 24 and the repository's pinned pnpm. Disable automatic unaffected-project skipping: before composition, the app's generated package graph is absent, so it cannot reliably represent changes to canonical templates, registries and package sources. The committed ignored-build command still honors `[skip ci]` using a dependency-free maintainer script.
+Set Root Directory and enable access to files outside it in Vercel. Use Node 24 and the repository's pinned pnpm. Keep Vercel's automatic unaffected-project skipping disabled: before composition, the app's generated package graph is absent. The committed ignored-build command instead queries the outer composition task through Turbo before application installation. It needs Node 24, Git and Turbo (or npm to obtain the pinned executable), not installed application packages or materialized apps.
 
 The app's committed configuration explicitly selects Next.js and provides:
 
@@ -138,6 +138,23 @@ The app's committed configuration explicitly selects Next.js and provides:
 Composition itself does not require Next.js. Vercel's builder resolves Next after its Install Command but before its Build Command, so composition and dependency installation belong in the Install Command. The actual composed app supplies Next at that point. See the [builder's installation order](https://github.com/vercel/vercel/blob/c628be7835e03a965b93e9cf9e2bd5ac2acbf5eb/packages/next/src/index.ts). The source root's build command exercises all definitions; the hosted project builds only its selected app.
 
 Preview and production remain Git-triggered, with credentials and hosted URLs in Vercel. Each project has an isolated build checkout. Drupal-backed web follows the same path; Drupal's PHP backend is deployed separately. No command here changes hosted project settings or deploys through the Vercel CLI.
+
+### Skip unaffected compositions
+
+Each named workspace commits `tasks/package.json` and `tasks/turbo.json`. The outer pnpm workspace discovers these small task packages before application materialization. Their native Turbo inputs come from the actual constructor's selected sources, templates, assets, patches and package dependency closure. There is no separate deployment inventory or custom changed-file matcher. After changing definitions, registry metadata or dependency membership, synchronize the task files and commit the result:
+
+```sh
+pnpm workspace:sync
+pnpm workspace:check
+```
+
+Registry integrity CI checks freshness; stale task metadata must not be merged. Synchronization uses disposable composition staging, then runs `pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile` at the source root. This updates the outer lockfile, including new workspace package entries, without installing dependencies, running lifecycle scripts, copying credentials or changing the named application. Commit the task files and `pnpm-lock.yaml` together. If resolution fails, the task files remain available for inspection; rerunning synchronization retries the lockfile even if those files are already current. `workspace:check` also validates the lockfile in frozen, offline mode without repairing it. Ordinary implementation edits within an existing selected package do not require synchronization. Detection is deliberately whole-composition and package-granular: a selected package's new files, removals and tests count, even if only part of that package is rendered. Web, API and admin deployments of the same composition share the decision. Drupal source edits skip Contentstack compositions; Commerce source edits skip CMS-only compositions; maintainer CLI test edits skip application deployments. The GitHub registry tests still run.
+
+The ignore script runs `turbo query affected --tasks build --packages @workspaces/<name>` from the outer repository root, comparing the current commit with `VERCEL_GIT_PREVIOUS_SHA`. It never substitutes the parent commit or `main`. Turbo matches task inputs and propagates task dependencies. Missing or divergent history, unavailable Turbo, missing/invalid task metadata and unresolved external sources allow a build. Input membership freshness is enforced by CI, not reconstructed by the deployment script. Configuration changes build conservatively even if synchronized metadata accompanies them. Skipping cancels the build before application dependency installation; it does not prevent Vercel from creating the deployment attempt.
+
+For environment changes, refreshed external CMS content, or troubleshooting, redeploy with Vercel's **Use project's Ignore Build Step** option unchecked, or set `VERCEL_FORCE_BUILD=1`. Same-commit redeploys are also allowed. `[skip ci]` remains supported, with the force setting taking precedence; do not use it when you need GitHub CI to run.
+
+The gate uses Turbo 2.10.13: an available matching executable, or `npx --yes turbo@2.10.13` before project installation. The application configuration is shared unchanged between customer, linked and copied outputs and enables task-input-aware affected execution. CLI compilation/typechecking exclude maintainer tests while including compiler configuration. Composition itself is uncached: it must reconcile selected files, ownership and restored dependencies. The application Build Command remains an ordinary filtered build so cache hits restore required output files rather than omitting tasks. The outer task directory avoids conflicting with the inner application's standalone `turbo.json`; it is never included in customer output.
 
 These committed files are maintainer settings, not registry sources. Customer scaffolds retain the original app-local `vercel.json` files and skip-CI scripts from the registry. They do not receive the maintainer composition commands, cache-location settings or maintainer ignore script. For example, the customer web and API defaults remain:
 

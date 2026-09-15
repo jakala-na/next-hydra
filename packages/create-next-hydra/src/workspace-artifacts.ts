@@ -16,3 +16,9 @@ export const workspaceNonSourceDirectories: ReadonlySet<string> = new Set([
   "coverage",
   ".workflow-data",
 ]);
+
+/** Maintainer task metadata is preserved alongside deployment settings, never scaffolded to customers. */
+export const workspaceTaskFiles: ReadonlySet<string> = new Set([
+  "tasks/package.json",
+  "tasks/turbo.json",
+]);

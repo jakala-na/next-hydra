@@ -41,3 +41,6 @@ jobs:
 
       - name: Test registry composition
         run: pnpm --filter create-next-hydra test
+
+      - name: Check workspace Turbo metadata
+        run: pnpm workspace:check

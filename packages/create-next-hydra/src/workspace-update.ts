@@ -20,7 +20,10 @@ import path from "node:path";
 import { z } from "zod";
 
 import { workspaceFilePathSchema } from "./composition/schema.js";
-import { workspaceNonSourceDirectories } from "./workspace-artifacts.js";
+import {
+  workspaceNonSourceDirectories,
+  workspaceTaskFiles,
+} from "./workspace-artifacts.js";
 import {
   assertDirectoryPath,
   assertDistinctFileTargets,
@@ -347,10 +350,18 @@ async function inspectPreservedSettings(
   const settings = new Map<string, Fingerprint>();
   for (const target of preservedFiles) {
     workspaceFilePathSchema.parse(target);
-    if (!/^apps\/[^/]+\/vercel\.json$/u.test(target)) {
+    if (
+      !workspaceTaskFiles.has(target) &&
+      !/^apps\/[^/]+\/vercel\.json$/u.test(target)
+    ) {
       throw new Error(`Not a workspace deployment setting: ${target}`);
     }
     const current = await inspect(path.join(targetRoot, target));
+    if (workspaceTaskFiles.has(target) && current?.kind !== "file") {
+      throw new Error(
+        `Workspace task settings must be regular files: ${target}`
+      );
+    }
     if (!current) {
       throw new Error(`Workspace settings must be regular files: ${target}`);
     }

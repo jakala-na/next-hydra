@@ -108,6 +108,7 @@ export type SourceRegistryCatalog = {
   registryFile: string;
   repository?: string;
   authoringPaths: string[];
+  externalItemNames: Set<string>;
   items: Map<string, RegistryItem>;
   itemByReference: Map<string, string>;
   registryConfig: RegistriesConfig;

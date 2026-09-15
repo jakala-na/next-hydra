@@ -47,7 +47,9 @@ pnpm --dir workspaces/cms-contentstack dev
 
 The same command initializes or updates the same folder. Ordinary files are source-linked by default; `--no-link` uses physical copies for deployment or customer-like verification. Composed files stay physical in either case. Refresh preserves caches and does not reinstall unchanged dependencies. Local edits block conflicting updates; unregistered files are reported and preserved, and block copied refresh. `--no-install` leaves dependency installation pending, `--offline` uses the local store, and `--copy-env` copies only missing env files during linked development. It cannot be combined with `--no-link`. Watch mode reports dependency changes but does not install them after its initial run. External provisioning is separate.
 
-See [Named workspaces](../../workspaces/README.md) for the four definitions, stable Portless hostnames, deployment settings, interruption recovery, and reconciliation instructions. Definitions, optional READMEs and app-local `vercel.json` settings are tracked; materialized manifests, installed files and applied state are ignored. The workspace name determines each Next app's `<app>.<workspace>.localhost` hostname (with Portless's branch prefix inside a Git worktree). Version-1 ad-hoc outputs remain intact and are not automatically adopted.
+See [Named workspaces](../../workspaces/README.md) for the four definitions, stable Portless hostnames, deployment settings, interruption recovery, and reconciliation instructions. Definitions, optional READMEs, app-local `vercel.json` settings and derived `tasks/package.json` / `tasks/turbo.json` metadata are tracked; materialized runtime manifests, installed files and applied state are ignored. The workspace name determines each Next app's `<app>.<workspace>.localhost` hostname (with Portless's branch prefix inside a Git worktree). Version-1 ad-hoc outputs remain intact and are not automatically adopted.
+
+After adding or renaming a definition, changing selections, or changing registry/dependency membership, run `pnpm workspace:sync` from the source checkout. It derives the task files and asks pnpm to synchronize the outer lockfile without installing dependencies or running lifecycle scripts. Commit the task files and `pnpm-lock.yaml` together. `pnpm workspace:check` verifies metadata freshness and frozen-lockfile compatibility without repairing either. Ordinary source edits within a selected package do not require synchronization.
 
 ## Command boundaries
 
@@ -99,6 +101,7 @@ Run the bounded local suite before accepting composition changes:
 pnpm --filter create-next-hydra build
 pnpm --filter create-next-hydra test --maxWorkers 2 --testTimeout 30000
 pnpm registry:check
+pnpm workspace:check
 node packages/create-next-hydra/dist/cli.js compose --all --check
 ```
 
@@ -154,9 +157,11 @@ Run these commands after adding, moving, or removing registry-owned files:
 ```bash
 pnpm registry:sync
 pnpm registry:check
+pnpm workspace:sync
+pnpm workspace:check
 ```
 
-`registry:sync` regenerates only each registry item's `files` list and its final workspace-root targets. Provider-owned metadata stays in the colocated registry file. Next Hydra first walks the intact `registryDependencies` graph to retain metadata and detect target conflicts, then prepares those exact artifacts and asks ShadCN to install them once from the workspace root.
+`registry:sync` regenerates only each registry item's `files` list and its final workspace-root targets. Provider-owned metadata stays in the colocated registry file. `workspace:sync` then updates named-workspace task inputs and the outer lockfile from that registry; commit those changes together. Next Hydra first walks the intact `registryDependencies` graph to retain metadata and detect target conflicts, then prepares those exact artifacts and asks ShadCN to install them once from the workspace root.
 
 Standard ShadCN `dependencies` and `devDependencies` apply to the workspace root. Use `meta.nextHydra.packages` only when an ordinary dependency must be added to a specific workspace package. Stable Provider aliases are derived from the slot and cannot be declared in `packages`.
 

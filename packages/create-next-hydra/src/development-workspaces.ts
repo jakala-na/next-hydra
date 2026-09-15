@@ -29,7 +29,10 @@ import {
   findMaintainerWorkspaceRoot,
   seedWorkspaceEnvironmentFile,
 } from "./maintainer-workspace.js";
-import { workspaceCacheDirectories } from "./workspace-artifacts.js";
+import {
+  workspaceCacheDirectories,
+  workspaceTaskFiles,
+} from "./workspace-artifacts.js";
 import {
   assertDirectoryPath,
   isEnvironmentFile,
@@ -196,7 +199,7 @@ async function prepareWorkspaceFiles(
         files.push({
           content: Buffer.from(
             entry.target === ".gitignore"
-              ? "/*\n!/next-hydra.json\n!/README.md\n!/apps/\n/apps/*\n!/apps/*/\n/apps/*/*\n!/apps/*/vercel.json\n"
+              ? "/*\n!/next-hydra.json\n!/README.md\n!/tasks/\n/tasks/*\n!/tasks/package.json\n!/tasks/turbo.json\n!/apps/\n/apps/*\n!/apps/*/\n/apps/*/*\n!/apps/*/vercel.json\n"
               : "/*\n!/vercel.json\n"
           ),
           mode: 0o644,
@@ -312,7 +315,15 @@ async function inspectWorkspaceDirectory(
       if (target === ".git") {
         throw new Error("Cannot compose over a customer Git repository.");
       }
-      if (/^apps\/[^/]+\/vercel\.json$/u.test(target)) {
+      if (
+        workspaceTaskFiles.has(target) ||
+        /^apps\/[^/]+\/vercel\.json$/u.test(target)
+      ) {
+        if (workspaceTaskFiles.has(target) && !entry.isFile()) {
+          throw new Error(
+            `Workspace task settings must be regular files: ${target}`
+          );
+        }
         // Previously owned links are validated and detached by the update engine.
         if (!entry.isFile() && !(initialized && entry.isSymbolicLink())) {
           throw new Error(
@@ -338,7 +349,7 @@ async function inspectWorkspaceDirectory(
         await inspect(target);
       } else if (!initialized) {
         throw new Error(
-          `Cannot initialize an existing unowned workspace containing ${target}. Only its definition, README, app vercel.json files and restored caches may precede initialization. Nothing was replaced.`
+          `Cannot initialize an existing unowned workspace containing ${target}. Only its definition, README, app vercel.json files, task metadata and restored caches may precede initialization. Nothing was replaced.`
         );
       }
     }
@@ -384,6 +395,9 @@ export async function updateDevelopmentWorkspace(
       options.link !== false
     );
     for (const target of preservedFiles) {
+      if (workspaceTaskFiles.has(target)) {
+        continue;
+      }
       const manifest = path.posix.join(
         path.posix.dirname(target),
         "package.json"
@@ -475,6 +489,9 @@ export async function explainDevelopmentWorkspace(
   );
   if (/^apps\/[^/]+\/vercel\.json$/u.test(normalized)) {
     return `${name}: ${normalized} is workspace-owned deployment configuration, not registry output. Edit and commit it in this workspace.`;
+  }
+  if (workspaceTaskFiles.has(normalized)) {
+    return `${name}: ${normalized} is derived Turbo task metadata, not application output. Run pnpm workspace:sync from the source checkout and commit the result.`;
   }
   const prepared = await prepareWorkspaceFiles(
     sourceRoot,

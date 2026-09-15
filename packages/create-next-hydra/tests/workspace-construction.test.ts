@@ -534,6 +534,28 @@ describe("shared customer and developer construction", () => {
     }).toEqual({ backend: true, linked: false, peer: true });
   }, 30_000);
 
+  it("does not claim Git covers external registry items that contain no files", async () => {
+    const external = path.join(scratch, "external-environment.json");
+    await writeJsonFile(external, {
+      $schema: selectionSchema,
+      envVars: { EXTERNAL_TEST_VALUE: "dummy" },
+      meta: {
+        nextHydra: { id: "fixture/add-on/environment", kind: "add-on" },
+      },
+      name: "external-environment",
+      type: "registry:item",
+    });
+    const result = await composeWorkspace(
+      path.join(scratch, "external-environment-workspace"),
+      { addOns: [external], cms: "contentstack", install: false },
+      { sourceRoot: source }
+    );
+    expect(result.sourceInputs.complete).toBeFalsy();
+    await expect(
+      readFile(path.join(result.targetRoot, ".env.local"), "utf-8")
+    ).resolves.toContain("EXTERNAL_TEST_VALUE=dummy");
+  }, 30_000);
+
   it("preserves partial customer output when installation fails", async () => {
     const target = path.join(scratch, "failed-install");
     await expect(

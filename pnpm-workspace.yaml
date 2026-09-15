@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - tests/*
+  - workspaces/*/tasks
 catalog:
   "@effect/platform-node": 4.0.0-rc.111
   "@effect/vitest": 4.0.0-rc.111

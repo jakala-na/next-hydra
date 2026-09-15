@@ -292,6 +292,10 @@ repos/
 /workspaces/*/*
 !/workspaces/*/next-hydra.json
 !/workspaces/*/README.md
+!/workspaces/*/tasks/
+/workspaces/*/tasks/*
+!/workspaces/*/tasks/package.json
+!/workspaces/*/tasks/turbo.json
 !/workspaces/cms-contentstack/apps/
 !/workspaces/cms-drupal/apps/
 !/workspaces/storefront-contentstack/apps/

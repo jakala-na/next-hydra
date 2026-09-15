@@ -41,6 +41,7 @@ export function workspaceTaskConfiguration(
   ];
   return {
     envMode: "loose",
+    futureFlags: { affectedUsingTaskInputs: true },
     globalEnv: [...environment],
     tasks: {
       build: {
