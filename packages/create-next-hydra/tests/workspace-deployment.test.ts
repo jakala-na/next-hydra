@@ -72,6 +72,11 @@ describe("named workspace deployment", () => {
         )
       );
       await write("next-hydra.json", JSON.stringify(definition));
+      const ignoreRules = await readFile(
+        path.join(sourceRoot, "workspaces", definitionName, ".gitignore"),
+        "utf-8"
+      );
+      await write(".gitignore", ignoreRules);
       const settings = await readFile(
         path.join(
           sourceRoot,
@@ -113,6 +118,7 @@ describe("named workspace deployment", () => {
       });
       expect({
         config: await readFile(path.join(target, "turbo.json"), "utf-8"),
+        ignoreRules: await readFile(path.join(target, ".gitignore"), "utf-8"),
         links: entries.filter((entry) => entry.isSymbolicLink()).length,
         nextCache: await readFile(
           path.join(target, "apps/web/.next/cache/sentinel"),
@@ -133,6 +139,7 @@ describe("named workspace deployment", () => {
         ),
       }).toMatchObject({
         config: await readFile(path.join(customer, "turbo.json"), "utf-8"),
+        ignoreRules,
         links: 0,
         nextCache: "keep",
         second: { changed: 0, removed: 0, unowned: [] },
@@ -153,12 +160,44 @@ describe("named workspace deployment", () => {
       );
       expect(new Set(visible.stdout.trim().split("\n"))).toEqual(
         new Set([
+          ".gitignore",
           "next-hydra.json",
           "apps/web/vercel.json",
           "tasks/package.json",
           "tasks/turbo.json",
         ])
       );
+    },
+    30_000
+  );
+
+  it.each([true, false])(
+    "preserves edited ignore rules and retires old app rules with link=%s",
+    async (link) => {
+      await updateWorkspaceFiles({
+        dependencyHash: "previous-composition",
+        files: [".gitignore", "apps/web/.gitignore"].map((file) => ({
+          content: Buffer.from("/*\n!/vercel.json\n"),
+          mode: 0o644,
+          owner: "named workspace Git visibility",
+          target: file,
+        })),
+        sourceRoot,
+        targetRoot: target,
+      });
+      const ignoreRules =
+        "/*\n!/.gitignore\n!/next-hydra.json\n# Workspace-owned policy\n";
+      await write(".gitignore", ignoreRules);
+      await updateDevelopmentWorkspace(sourceRoot, name, {
+        install: false,
+        link,
+      });
+      await expect(
+        readFile(path.join(target, ".gitignore"), "utf-8")
+      ).resolves.toBe(ignoreRules);
+      await expect(
+        lstat(path.join(target, "apps/web/.gitignore"))
+      ).rejects.toThrow("ENOENT");
     },
     30_000
   );

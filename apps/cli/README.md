@@ -1,6 +1,6 @@
 # Workspace CLI
 
-`apps/cli` is the executable composition root for administration commands owned by workspace packages. It defines the root `cli` program, composes package environment fragments in `env.ts`, and adds the commands exported by those packages.
+`apps/cli` is the executable composition root for administration commands owned by workspace packages. It defines the root `cli` program, supplies shell and environment-file configuration, and adds the commands exported by those packages.
 
 The Commercetools project provisioning, migration, schema export, and type-generation commands are implemented by `packages/commerce-commercetools/cli`. CMS provisioning and migrations are implemented behind the selected provider's `@repo/cms/cli` export.
 
@@ -12,7 +12,7 @@ pnpm --filter cli cli --help
 
 The selected packages determine which commands are available. pnpm runs the CLI in `apps/cli`, so relative `--env-file` and `--output` paths resolve there. There is no root `pnpm cli` shortcut.
 
-Copy `apps/cli/.env.example` to `apps/cli/.env` and provide the environment required by the composed package schemas. Environment validation is lazy: help and commands that do not use Commercetools can run without Commercetools credentials. To target a different environment without changing `.env`, pass the global option before the command:
+Copy `apps/cli/.env.example` to `apps/cli/.env` and provide the environment required by the commands you run, or supply it through the shell. With the default `.env`, shell values take precedence. Environment validation is lazy: help and commands that do not need credentials can run without them. To target a different environment without changing `.env`, pass the global option before the command; an explicit `--env-file` takes precedence over shell values:
 
 ```bash
 pnpm --filter cli cli --env-file /absolute/path/to/project.env commerce migrate plan
@@ -79,18 +79,20 @@ The gitignored `.env.bootstrap.local` uses the standard Commercetools API Client
 
 Package composition:
 
-- `apps/cli/env.ts` extends environment fragments exported by command packages.
-- `apps/cli/src/program.ts` adds the `Command` objects declared by packages.
-- `packages/commerce-commercetools/keys.ts` owns the Commercetools environment schema.
+- `apps/cli/src/config-provider.ts` loads configuration without validating every installed package's requirements.
+- `apps/cli/src/program.ts` wires package command factories into the root command and passes them the lazy configuration provider.
+- Command handlers and services resolve and validate the configuration they need through Effect Config. There is no CLI-wide `env.ts` or eager composition of package `keys.ts` validators.
 - `packages/commerce-commercetools/cli` owns the Commercetools commands and implementation.
 - The selected auth package's `cli` export owns its customer webhook manifest and provider API integration.
 - The selected CMS package's `cli` export owns its provider-specific provisioning workflow.
 
 To add commands from another package:
 
-1. Export that package's environment fragment from its `keys.ts`.
-2. Export one namespaced root-command factory from its `cli` module. Accept an environment provider rather than reading `process.env` in the command.
-3. Extend the package keys in `apps/cli/env.ts`.
-4. Add the returned root command in `apps/cli/src/program.ts`.
+1. Export one namespaced root-command factory from the package's `cli` module. Accept the lazy configuration provider rather than reading `process.env` directly.
+2. Validate configuration in the command handler or service that needs it. Provisioning may need bootstrap credentials before application runtime credentials exist; unrelated commands must not require either.
+3. Wire the factory according to where you are authoring:
 
-The app owns environment-file loading and composition. Package commands own their schemas and only resolve the composed environment when a command actually needs it.
+   - In the maintainer source, add a registry `slotBindings` entry targeting the `commands` slot of `apps/cli/src/program.ts`, with the factory's module and export. Composition uses `apps/cli/registry/templates/program.ts.template` to materialize the program. Edit that template when changing its shared structure.
+   - In an installed customer workspace, edit the ordinary `apps/cli/src/program.ts` directly: import the factory and add its result to `Command.withSubcommands`, passing the existing `configProvider`. No registry or template refresh is needed.
+
+The app owns environment-file loading and command wiring. Packages own command-specific schemas and validation; application startup validation remains separate.

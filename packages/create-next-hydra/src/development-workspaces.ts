@@ -188,24 +188,12 @@ async function prepareWorkspaceFiles(
     const dependencyInputs: Record<string, string> = {};
     const dependencyDirectories: string[] = [];
     for (const entry of receipt.files) {
-      if (/^apps\/[^/]+\/vercel\.json$/u.test(entry.target)) {
-        // Customer defaults belong to the registry; named deployments use their own settings.
-        continue;
-      }
       if (
         entry.target === ".gitignore" ||
-        /^apps\/[^/]+\/\.gitignore$/u.test(entry.target)
+        /^apps\/[^/]+\/(?:\.gitignore|vercel\.json)$/u.test(entry.target)
       ) {
-        files.push({
-          content: Buffer.from(
-            entry.target === ".gitignore"
-              ? "/*\n!/next-hydra.json\n!/README.md\n!/tasks/\n/tasks/*\n!/tasks/package.json\n!/tasks/turbo.json\n!/apps/\n/apps/*\n!/apps/*/\n/apps/*/*\n!/apps/*/vercel.json\n"
-              : "/*\n!/vercel.json\n"
-          ),
-          mode: 0o644,
-          owner: "named workspace Git visibility",
-          target: entry.target,
-        });
+        // Customer defaults stay in customer output; named workspaces own their
+        // deployment settings and commit one root ignore file for materialized output.
         continue;
       }
       if (entry.mode === "linked") {
@@ -316,12 +304,16 @@ async function inspectWorkspaceDirectory(
         throw new Error("Cannot compose over a customer Git repository.");
       }
       if (
+        target === ".gitignore" ||
         workspaceTaskFiles.has(target) ||
         /^apps\/[^/]+\/vercel\.json$/u.test(target)
       ) {
-        if (workspaceTaskFiles.has(target) && !entry.isFile()) {
+        if (
+          (target === ".gitignore" || workspaceTaskFiles.has(target)) &&
+          !entry.isFile()
+        ) {
           throw new Error(
-            `Workspace task settings must be regular files: ${target}`
+            `Workspace settings must be regular files: ${target}`
           );
         }
         // Previously owned links are validated and detached by the update engine.
@@ -349,7 +341,7 @@ async function inspectWorkspaceDirectory(
         await inspect(target);
       } else if (!initialized) {
         throw new Error(
-          `Cannot initialize an existing unowned workspace containing ${target}. Only its definition, README, app vercel.json files, task metadata and restored caches may precede initialization. Nothing was replaced.`
+          `Cannot initialize an existing unowned workspace containing ${target}. Only its definition, .gitignore, README, app vercel.json files, task metadata and restored caches may precede initialization. Nothing was replaced.`
         );
       }
     }
@@ -395,7 +387,7 @@ export async function updateDevelopmentWorkspace(
       options.link !== false
     );
     for (const target of preservedFiles) {
-      if (workspaceTaskFiles.has(target)) {
+      if (target === ".gitignore" || workspaceTaskFiles.has(target)) {
         continue;
       }
       const manifest = path.posix.join(
@@ -487,6 +479,9 @@ export async function explainDevelopmentWorkspace(
   const definition = await readDefinition(
     path.join(sourceRoot, "workspaces", name)
   );
+  if (normalized === ".gitignore") {
+    return `${name}: .gitignore is workspace-owned Git visibility configuration, not registry output. Edit and commit it in this workspace.`;
+  }
   if (/^apps\/[^/]+\/vercel\.json$/u.test(normalized)) {
     return `${name}: ${normalized} is workspace-owned deployment configuration, not registry output. Edit and commit it in this workspace.`;
   }

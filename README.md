@@ -96,6 +96,8 @@ pnpm exec portless trust
 pnpm dev
 ```
 
-The checkout is canonical source, not a preassembled storefront. `pnpm dev` initializes and starts the named `storefront-contentstack` workspace, copying only missing local env files. For another selection, run `pnpm --filter create-next-hydra compose cms-drupal --copy-env --run dev`. Composed layouts and CMS block maps live only in these ignored workspaces; ordinary implementation files link back to source. See [Development workspaces](workspaces/README.md) for initialization, template refresh, source ownership and verification.
+The checkout is canonical source, not a preassembled storefront. **Compose** reads a named workspace's `next-hydra.json`, selects its packages and recipes, and materializes a runnable application in that workspace's folder. Rerunning it safely refreshes the output; ordinary files link back to source by default, while `--no-link` produces physical copies for deployment.
+
+`pnpm dev` composes and starts `storefront-contentstack`, copying only missing local env files. The four committed definitions cover Contentstack and Drupal, each as a CMS-only site or a complete storefront. For example: `pnpm --filter create-next-hydra compose cms-drupal --copy-env --run dev`. See [Named workspaces](workspaces/README.md) for the definitions, template refresh, committed settings and deployment workflow.
 
 Root `pnpm test` runs package/provider suites and composition checks from source, and common application tests once in `storefront-contentstack` (WorkOS, Contentstack, commercetools). Root `pnpm typecheck` and `pnpm build` still cover all named definitions. Use a workspace directly for focused checks. Local HTTP applications use stable Portless origins and worktree-aware routing; see [Portless local development](docs/development/portless.md) for certificate setup and local routing.

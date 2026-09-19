@@ -46,23 +46,8 @@
           "type": "registry:file"
         },
         {
-          "path": "__tests__/composition.test.ts",
-          "target": "~/apps/api/__tests__/composition.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "__tests__/environment.test.ts",
-          "target": "~/apps/api/__tests__/environment.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "__tests__/health.test.ts",
           "target": "~/apps/api/__tests__/health.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "__tests__/openapi.test.ts",
-          "target": "~/apps/api/__tests__/openapi.test.ts",
           "type": "registry:file"
         },
         {
@@ -136,11 +121,6 @@
           "type": "registry:file"
         },
         {
-          "path": "env-schema.ts",
-          "target": "~/apps/api/env-schema.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "env.ts",
           "target": "~/apps/api/env.ts",
           "type": "registry:file"
@@ -208,11 +188,6 @@
         {
           "path": "lib/openapi.ts",
           "target": "~/apps/api/lib/openapi.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "lib/registration/env.ts",
-          "target": "~/apps/api/lib/registration/env.ts",
           "type": "registry:file"
         },
         {

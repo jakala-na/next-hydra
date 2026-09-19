@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import packageManifest from "../package.json" with { type: "json" };
 import type { composeDevelopmentWorkspaces } from "../src/development-workspaces.js";
 import { runCli } from "../src/index.js";
-import { CLI_VERSION } from "../src/version.js";
 
 describe("CLI", () => {
   it("refreshes the same named workspace with physical sources when linking is disabled", async () => {
@@ -55,10 +53,6 @@ describe("CLI", () => {
     await expect(
       runCli(["node", "create-next-hydra", "output", "--maintainer-workspace"])
     ).rejects.toThrow("compose <name> --copy-env");
-  });
-
-  it("reports the version from the published package manifest", () => {
-    expect(CLI_VERSION).toBe(packageManifest.version);
   });
 
   it("passes the named definition and refresh options to composition", async () => {

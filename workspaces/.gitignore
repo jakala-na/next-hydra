@@ -1,0 +1,19 @@
+# Keep uninitialized/scratch output hidden. Each named workspace owns its allowlist.
+/*
+!/.gitignore
+!/README.md
+!/*/
+/*/*
+!/*/next-hydra.json
+!/*/README.md
+
+# Retired scratch outputs are not definitions, even with their old local allowlists.
+/contentstack-cms-only-product-split*/
+/contentstack-commerce-product-split*/
+/contentstack-content-profile*/
+/drupal-content-profile*/
+/contentstack-workos-linked-poc/
+/drupal-workos-linked-poc/
+/drupal-workos-poc/
+/workspace-test-*/
+/.*/

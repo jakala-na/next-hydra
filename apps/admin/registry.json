@@ -5,7 +5,7 @@
       "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
       "type": "registry:item",
       "title": "Commerce administration application",
-      "description": "The existing company-registration review application, installed with Commerce.",
+      "description": "An administration application for reviewing, approving, and rejecting company registrations, included with Commerce.",
       "meta": {
         "nextHydra": {
           "id": "next-hydra/commerce/admin",

@@ -26,7 +26,7 @@ The root customer-creation command acquires the requested source revision and us
 
 ### Commit intent and deployment settings, not assembled applications
 
-Within each named workspace, commit the definition, an optional README, independently authored `apps/<app>/vercel.json` files, and `tasks/package.json` plus `tasks/turbo.json`. The task metadata is derived from the composition constructor, registered in the outer pnpm workspace and checked for drift in CI. Materialized application source, runtime manifests, dependencies, applied state, caches and credentials remain ignored. Deployment and task settings belong to the named workspace, not to registry refresh, and remain physical files.
+Within each named workspace, commit the definition, its `.gitignore`, an optional README, independently authored `apps/<app>/vercel.json` files, and `tasks/package.json` plus `tasks/turbo.json`. The task metadata is derived from the composition constructor, registered in the outer pnpm workspace and checked for drift in CI. Materialized application source, runtime manifests, dependencies, applied state, caches and credentials remain ignored. Ignore rules, deployment and task settings belong to the named workspace, not to registry refresh, and remain physical files. Each workspace owns its Git allowlist without a source-root inventory of workspace names. Customer ignore rules remain ordinary scaffold output.
 
 Customer scaffolds retain the registry's existing app-local `vercel.json` defaults and skip-CI scripts. They do not receive maintainer composition commands or deployment-specific cache settings. Customers can continue using dashboard build settings or edit their own configuration files.
 

@@ -351,16 +351,18 @@ async function inspectPreservedSettings(
   for (const target of preservedFiles) {
     workspaceFilePathSchema.parse(target);
     if (
+      target !== ".gitignore" &&
       !workspaceTaskFiles.has(target) &&
       !/^apps\/[^/]+\/vercel\.json$/u.test(target)
     ) {
       throw new Error(`Not a workspace deployment setting: ${target}`);
     }
     const current = await inspect(path.join(targetRoot, target));
-    if (workspaceTaskFiles.has(target) && current?.kind !== "file") {
-      throw new Error(
-        `Workspace task settings must be regular files: ${target}`
-      );
+    if (
+      (target === ".gitignore" || workspaceTaskFiles.has(target)) &&
+      current?.kind !== "file"
+    ) {
+      throw new Error(`Workspace settings must be regular files: ${target}`);
     }
     if (!current) {
       throw new Error(`Workspace settings must be regular files: ${target}`);
