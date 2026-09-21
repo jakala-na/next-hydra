@@ -1,8 +1,8 @@
-name: Product collection
+name: Commerce
 description: Drupal Paragraph and Canvas adapters for the selected Commerce provider.
 type: Content
 recipes:
-  - next-hydra-starter
+  - next-hydra-base
 config:
   strict:
     - field.storage.paragraph.field_product_category

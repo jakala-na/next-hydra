@@ -64,7 +64,7 @@ export const createCmsCommand = <E, R>(
         Effect.mapError((cause) => new CliError.UserError({ cause }))
       )
   ).pipe(
-    Command.withDescription("Install Drupal and apply the starter recipe")
+    Command.withDescription("Install Drupal and apply the selected recipes")
   );
 
   return Command.make("cms", {}, () => Effect.void).pipe(

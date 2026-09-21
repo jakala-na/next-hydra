@@ -1,4 +1,4 @@
-# Next Hydra Drupal starter recipe
+# Drupal base recipe
 
 This recipe provisions the Drupal content contract used by `@repo/cms-drupal`:
 
@@ -9,7 +9,7 @@ This recipe provisions the Drupal content contract used by `@repo/cms-drupal`:
 - GraphQL Compose routes, native menus, and revision preview;
 - regional languages and content translation for Drupal and Canvas;
 - Canvas Translate for Canvas pages, content templates, and page regions;
-- preinstalled Hero, Product Collection, Featured Articles, Article Card, and Text external Canvas component definitions;
+- preinstalled Hero, Featured Articles, Article Card, and Text external Canvas component definitions;
 - a Next.js for Drupal site that renders landing pages in the View-tab iframe;
 - cache-tag revalidation for pages and their referenced article dependencies;
 - viewer and previewer roles for OAuth clients;
@@ -22,7 +22,7 @@ The recipe defaults browser previews to `https://web.next-hydra.localhost`. For 
 
 ## Languages and translations
 
-The recipe uses Drupal's standard catalogue IDs (`en`, `en-gb`, `es`, `fr`, `de`, `it`, `pt-pt`, and `nl`) while retaining the frontend's regional URL prefixes (`/en-GB`, `/es-ES`, `/fr-FR`, and so on). Landing pages, Articles, Paragraph text, menu links, Image Media, and Canvas pages are translation-enabled. Structural references such as the product category ID and hero image remain shared across translations.
+The recipe uses Drupal's standard catalogue IDs (`en`, `en-gb`, `es`, `fr`, `de`, `it`, `pt-pt`, and `nl`) while retaining the frontend's regional URL prefixes (`/en-GB`, `/es-ES`, `/fr-FR`, and so on). Landing pages, Articles, Paragraph text, menu links, Image Media, and Canvas pages are translation-enabled. Structural references such as the hero image remain shared across translations.
 
 Canvas Translate adds a translation workspace at `/canvas/app/canvas_translate`. It translates Canvas page component values as content translations and stores translated content-template and page-region values as language-specific configuration overrides. The module is currently an alpha dependency, so review its release status before a production upgrade. Administrators can access the workspace; grant its restricted `translate canvas content` permission deliberately when creating a dedicated translator role.
 
@@ -41,10 +41,10 @@ The recipe configures local revalidation through `http://host.docker.internal:30
 Apply it to a fresh Drupal installation from the web root:
 
 ```sh
-drush recipe ../recipes/next-hydra-starter -v
+drush recipe ../recipes/next-hydra-base -v
 ```
 
-The sibling `product-collection` recipe adds Commerce's Paragraph and Canvas blocks and dedicated catalog sample pages when Commerce is selected. Those samples deliberately omit the category ID to request an unfiltered collection. The base homepages do not require Commerce.
+The sibling `next-hydra-commerce` recipe includes this base recipe and adds Commerce's Paragraph and Canvas blocks and dedicated catalog sample pages when Commerce is selected. Those samples deliberately omit the category ID to request an unfiltered collection. The base homepages do not require Commerce.
 
 The regular homepage, Canvas homepage, and `/resources` page reference the same three demo Articles. Their Featured Articles blocks expose every referenced `node:{id}` dependency through Drupal cacheability. Editing one Article therefore refreshes its Article route and each cached page that embeds it, without invalidating unrelated pages. Canvas page changes likewise invalidate the matching `canvas_page:{id}` frontend cache entry.
 
@@ -61,7 +61,7 @@ Drupal 11.4 can refresh demo content, including referenced media and files, with
 ```sh
 php core/scripts/drupal content:export node <node-id> \
   --with-dependencies \
-  --dir=../recipes/next-hydra-starter/content
+  --dir=../recipes/next-hydra-base/content
 ```
 
 Core's exporter does not currently emit portable embedded values for `entity_reference_revisions` fields. Keep Paragraphs embedded under the parent node's `field_components` values, as the demo landing pages do, rather than committing exported numeric Paragraph IDs.

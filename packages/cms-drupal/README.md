@@ -25,9 +25,9 @@ The generated schema now exposes the Drupal-native Hydra structure:
 - `ParagraphFeaturedArticle` with an ordered set of referenced Articles.
 - `menu(name: MAIN, langcode:)` for translated native Drupal navigation.
 
-Base configuration lives in `apps/drupal/recipes/next-hydra-starter/config`. Commerce's Paragraph and Canvas configuration lives in `apps/drupal/recipes/product-collection`, installed automatically with a Commerce provider. Its recipe adds product blocks and sample pages at `/catalog-example` and `/canvas-catalog-example`; the base homepages remain content-only.
+Base configuration lives in `apps/drupal/recipes/next-hydra-base/config`. Commerce's Paragraph and Canvas configuration lives in `apps/drupal/recipes/next-hydra-commerce`, installed automatically with a Commerce provider. Its recipe adds product blocks and sample pages at `/catalog-example` and `/canvas-catalog-example`; the base homepages remain content-only.
 
-Both `component-registry.ts` and `pages/landing-page-query.ts` are materialized by the shared module-reference renderer. The provider-local block modules own the data mapping and cache-tag behavior. `cms-drupal-commerce` connects Drupal to Commerce core, not Commercetools, and is a composition recipe included with Commerce rather than a selectable Add-on. Its native Drupal provisioning recipe remains named `product-collection` for the content configuration it applies.
+Both `component-registry.ts` and `pages/landing-page-query.ts` are materialized by the shared module-reference renderer. The provider-local block modules own the data mapping and cache-tag behavior. `cms-drupal-commerce` connects Drupal to Commerce core, not Commercetools, and is a composition recipe included with Commerce rather than a selectable Add-on. It includes the `drupal-commerce` registry item, which installs the native `next-hydra-commerce` provisioning recipe.
 
 ## Environment
 

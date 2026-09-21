@@ -7,7 +7,7 @@
       "type": "registry:item",
       "title": "Next Hydra Drupal CMS provider",
       "description": "Installs the Drupal CMS provider package and its Drupal backend app.",
-      "docs": "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
+      "docs": "From apps/drupal, run ddev install to install Drupal and apply the base recipe, including the Commerce recipe when selected. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
       "registryDependencies": ["jakala-na/next-hydra/drupal"],
       "meta": {
         "nextHydra": {
@@ -36,20 +36,20 @@
               "target": "patches/@drupal-canvas__workbench@0.10.0.patch"
             },
             {
-              "source": "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp",
-              "target": "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp"
+              "source": "apps/drupal/recipes/next-hydra-base/content/file/next-hydra-hero.webp",
+              "target": "apps/drupal/recipes/next-hydra-base/content/file/next-hydra-hero.webp"
             },
             {
-              "source": "apps/drupal/recipes/next-hydra-starter/content/file/article-excavator-selection.jpg",
-              "target": "apps/drupal/recipes/next-hydra-starter/content/file/article-excavator-selection.jpg"
+              "source": "apps/drupal/recipes/next-hydra-base/content/file/article-excavator-selection.jpg",
+              "target": "apps/drupal/recipes/next-hydra-base/content/file/article-excavator-selection.jpg"
             },
             {
-              "source": "apps/drupal/recipes/next-hydra-starter/content/file/article-ground-pressure.jpg",
-              "target": "apps/drupal/recipes/next-hydra-starter/content/file/article-ground-pressure.jpg"
+              "source": "apps/drupal/recipes/next-hydra-base/content/file/article-ground-pressure.jpg",
+              "target": "apps/drupal/recipes/next-hydra-base/content/file/article-ground-pressure.jpg"
             },
             {
-              "source": "apps/drupal/recipes/next-hydra-starter/content/file/article-preventive-maintenance.jpg",
-              "target": "apps/drupal/recipes/next-hydra-starter/content/file/article-preventive-maintenance.jpg"
+              "source": "apps/drupal/recipes/next-hydra-base/content/file/article-preventive-maintenance.jpg",
+              "target": "apps/drupal/recipes/next-hydra-base/content/file/article-preventive-maintenance.jpg"
             }
           ],
           "pnpmPatches": [
@@ -549,7 +549,7 @@
       "type": "registry:item",
       "title": "Drupal Commerce integration",
       "description": "Connects Drupal to Commerce core, including product-collection mapping and CMS provisioning files. Installed automatically when both are selected.",
-      "registryDependencies": ["drupal-product-collection"],
+      "registryDependencies": ["drupal-commerce"],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/recipe/cms-drupal-commerce",

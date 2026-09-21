@@ -213,8 +213,8 @@ describe("composition planner failures", () => {
       "commerce-design-system",
       "commerce-web",
       "drupal",
+      "drupal-commerce",
       "drupal-commerce-dam",
-      "drupal-product-collection",
       "workspace-cli",
     ]);
   });

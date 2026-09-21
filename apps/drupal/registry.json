@@ -98,438 +98,438 @@
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/composer.json",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/composer.json",
+          "path": "recipes/next-hydra-base/composer.json",
+          "target": "~/apps/drupal/recipes/next-hydra-base/composer.json",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.component.js.article-card.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.article-card.yml",
+          "path": "recipes/next-hydra-base/config/canvas.component.js.article-card.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.component.js.article-card.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.component.js.featured-articles.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.featured-articles.yml",
+          "path": "recipes/next-hydra-base/config/canvas.component.js.featured-articles.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.component.js.featured-articles.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.component.js.hero.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.hero.yml",
+          "path": "recipes/next-hydra-base/config/canvas.component.js.hero.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.component.js.hero.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.component.js.text.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.text.yml",
+          "path": "recipes/next-hydra-base/config/canvas.component.js.text.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.component.js.text.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.js_component.article-card.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.article-card.yml",
+          "path": "recipes/next-hydra-base/config/canvas.js_component.article-card.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.js_component.article-card.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.js_component.featured-articles.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.featured-articles.yml",
+          "path": "recipes/next-hydra-base/config/canvas.js_component.featured-articles.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.js_component.featured-articles.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.js_component.hero.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.hero.yml",
+          "path": "recipes/next-hydra-base/config/canvas.js_component.hero.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.js_component.hero.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.js_component.text.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.text.yml",
+          "path": "recipes/next-hydra-base/config/canvas.js_component.text.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.js_component.text.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.page_region.next_hydra.post_footer.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.page_region.next_hydra.post_footer.yml",
+          "path": "recipes/next-hydra-base/config/canvas.page_region.next_hydra.post_footer.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.page_region.next_hydra.post_footer.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.page_region.next_hydra.post_header.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.page_region.next_hydra.post_header.yml",
+          "path": "recipes/next-hydra-base/config/canvas.page_region.next_hydra.post_header.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.page_region.next_hydra.post_header.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.page_region.next_hydra.pre_footer.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.page_region.next_hydra.pre_footer.yml",
+          "path": "recipes/next-hydra-base/config/canvas.page_region.next_hydra.pre_footer.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.page_region.next_hydra.pre_footer.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.page_region.next_hydra.pre_header.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.page_region.next_hydra.pre_header.yml",
+          "path": "recipes/next-hydra-base/config/canvas.page_region.next_hydra.pre_header.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/canvas.page_region.next_hydra.pre_header.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/core.base_field_override.canvas_page.canvas_page.components.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.base_field_override.canvas_page.canvas_page.components.yml",
+          "path": "recipes/next-hydra-base/config/core.base_field_override.canvas_page.canvas_page.components.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/core.base_field_override.canvas_page.canvas_page.components.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/core.entity_form_display.node.article.default.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_form_display.node.article.default.yml",
+          "path": "recipes/next-hydra-base/config/core.entity_form_display.node.article.default.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/core.entity_form_display.node.article.default.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/core.entity_form_display.node.landing_page.default.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_form_display.node.landing_page.default.yml",
+          "path": "recipes/next-hydra-base/config/core.entity_form_display.node.landing_page.default.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/core.entity_form_display.node.landing_page.default.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/core.entity_form_display.paragraph.featured_articles.default.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_form_display.paragraph.featured_articles.default.yml",
+          "path": "recipes/next-hydra-base/config/core.entity_form_display.paragraph.featured_articles.default.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/core.entity_form_display.paragraph.featured_articles.default.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/core.entity_form_display.paragraph.hero.default.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_form_display.paragraph.hero.default.yml",
+          "path": "recipes/next-hydra-base/config/core.entity_form_display.paragraph.hero.default.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/core.entity_form_display.paragraph.hero.default.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/core.entity_view_display.node.article.default.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_view_display.node.article.default.yml",
+          "path": "recipes/next-hydra-base/config/core.entity_view_display.node.article.default.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/core.entity_view_display.node.article.default.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/core.entity_view_display.node.landing_page.default.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_view_display.node.landing_page.default.yml",
+          "path": "recipes/next-hydra-base/config/core.entity_view_display.node.landing_page.default.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/core.entity_view_display.node.landing_page.default.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/core.entity_view_display.paragraph.featured_articles.default.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_view_display.paragraph.featured_articles.default.yml",
+          "path": "recipes/next-hydra-base/config/core.entity_view_display.paragraph.featured_articles.default.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/core.entity_view_display.paragraph.featured_articles.default.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/core.entity_view_display.paragraph.hero.default.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/core.entity_view_display.paragraph.hero.default.yml",
+          "path": "recipes/next-hydra-base/config/core.entity_view_display.paragraph.hero.default.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/core.entity_view_display.paragraph.hero.default.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/editor.editor.basic_html.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/editor.editor.basic_html.yml",
+          "path": "recipes/next-hydra-base/config/editor.editor.basic_html.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/editor.editor.basic_html.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.node.article.body.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.node.article.body.yml",
+          "path": "recipes/next-hydra-base/config/field.field.node.article.body.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.node.article.body.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.node.article.field_image.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.node.article.field_image.yml",
+          "path": "recipes/next-hydra-base/config/field.field.node.article.field_image.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.node.article.field_image.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.node.article.field_summary.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.node.article.field_summary.yml",
+          "path": "recipes/next-hydra-base/config/field.field.node.article.field_summary.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.node.article.field_summary.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.node.landing_page.field_components.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.node.landing_page.field_components.yml",
+          "path": "recipes/next-hydra-base/config/field.field.node.landing_page.field_components.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.node.landing_page.field_components.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.node.landing_page.field_display_title.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.node.landing_page.field_display_title.yml",
+          "path": "recipes/next-hydra-base/config/field.field.node.landing_page.field_display_title.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.node.landing_page.field_display_title.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.node.landing_page.field_hide_display_title.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.node.landing_page.field_hide_display_title.yml",
+          "path": "recipes/next-hydra-base/config/field.field.node.landing_page.field_hide_display_title.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.node.landing_page.field_hide_display_title.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.featured_articles.field_articles.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.featured_articles.field_articles.yml",
+          "path": "recipes/next-hydra-base/config/field.field.paragraph.featured_articles.field_articles.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.paragraph.featured_articles.field_articles.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.featured_articles.field_description.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.featured_articles.field_description.yml",
+          "path": "recipes/next-hydra-base/config/field.field.paragraph.featured_articles.field_description.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.paragraph.featured_articles.field_description.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.featured_articles.field_heading.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.featured_articles.field_heading.yml",
+          "path": "recipes/next-hydra-base/config/field.field.paragraph.featured_articles.field_heading.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.paragraph.featured_articles.field_heading.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.hero.field_actions.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.hero.field_actions.yml",
+          "path": "recipes/next-hydra-base/config/field.field.paragraph.hero.field_actions.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.paragraph.hero.field_actions.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.hero.field_description.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.hero.field_description.yml",
+          "path": "recipes/next-hydra-base/config/field.field.paragraph.hero.field_description.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.paragraph.hero.field_description.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.hero.field_heading.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.hero.field_heading.yml",
+          "path": "recipes/next-hydra-base/config/field.field.paragraph.hero.field_heading.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.paragraph.hero.field_heading.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.hero.field_image.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.hero.field_image.yml",
+          "path": "recipes/next-hydra-base/config/field.field.paragraph.hero.field_image.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.paragraph.hero.field_image.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.field.paragraph.hero.field_tagline.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.field.paragraph.hero.field_tagline.yml",
+          "path": "recipes/next-hydra-base/config/field.field.paragraph.hero.field_tagline.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.field.paragraph.hero.field_tagline.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.node.body.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.node.body.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.node.body.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.node.body.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.node.field_components.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.node.field_components.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.node.field_components.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.node.field_components.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.node.field_display_title.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.node.field_display_title.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.node.field_display_title.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.node.field_display_title.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.node.field_hide_display_title.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.node.field_hide_display_title.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.node.field_hide_display_title.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.node.field_hide_display_title.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.node.field_image.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.node.field_image.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.node.field_image.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.node.field_image.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.node.field_summary.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.node.field_summary.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.node.field_summary.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.node.field_summary.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.paragraph.field_actions.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.paragraph.field_actions.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.paragraph.field_actions.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.paragraph.field_actions.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.paragraph.field_articles.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.paragraph.field_articles.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.paragraph.field_articles.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.paragraph.field_articles.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.paragraph.field_description.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.paragraph.field_description.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.paragraph.field_description.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.paragraph.field_description.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.paragraph.field_heading.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.paragraph.field_heading.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.paragraph.field_heading.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.paragraph.field_heading.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.paragraph.field_image.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.paragraph.field_image.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.paragraph.field_image.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.paragraph.field_image.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/field.storage.paragraph.field_tagline.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/field.storage.paragraph.field_tagline.yml",
+          "path": "recipes/next-hydra-base/config/field.storage.paragraph.field_tagline.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/field.storage.paragraph.field_tagline.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/filter.format.basic_html.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/filter.format.basic_html.yml",
+          "path": "recipes/next-hydra-base/config/filter.format.basic_html.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/filter.format.basic_html.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/graphql_compose.settings.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/graphql_compose.settings.yml",
+          "path": "recipes/next-hydra-base/config/graphql_compose.settings.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/graphql_compose.settings.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/graphql.graphql_servers.graphql_compose_server.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/graphql.graphql_servers.graphql_compose_server.yml",
+          "path": "recipes/next-hydra-base/config/graphql.graphql_servers.graphql_compose_server.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/graphql.graphql_servers.graphql_compose_server.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/image.style.canvas_parametrized_width.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/image.style.canvas_parametrized_width.yml",
+          "path": "recipes/next-hydra-base/config/image.style.canvas_parametrized_width.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/image.style.canvas_parametrized_width.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/next.next_entity_type_config.canvas_page.canvas_page.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/next.next_entity_type_config.canvas_page.canvas_page.yml",
+          "path": "recipes/next-hydra-base/config/next.next_entity_type_config.canvas_page.canvas_page.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/next.next_entity_type_config.canvas_page.canvas_page.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/next.next_entity_type_config.node.article.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/next.next_entity_type_config.node.article.yml",
+          "path": "recipes/next-hydra-base/config/next.next_entity_type_config.node.article.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/next.next_entity_type_config.node.article.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/next.next_entity_type_config.node.landing_page.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/next.next_entity_type_config.node.landing_page.yml",
+          "path": "recipes/next-hydra-base/config/next.next_entity_type_config.node.landing_page.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/next.next_entity_type_config.node.landing_page.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/next.next_entity_type_config.page_region.page_region.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/next.next_entity_type_config.page_region.page_region.yml",
+          "path": "recipes/next-hydra-base/config/next.next_entity_type_config.page_region.page_region.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/next.next_entity_type_config.page_region.page_region.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/next.next_site.next_hydra.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/next.next_site.next_hydra.yml",
+          "path": "recipes/next-hydra-base/config/next.next_site.next_hydra.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/next.next_site.next_hydra.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/node.type.article.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/node.type.article.yml",
+          "path": "recipes/next-hydra-base/config/node.type.article.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/node.type.article.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/node.type.landing_page.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/node.type.landing_page.yml",
+          "path": "recipes/next-hydra-base/config/node.type.landing_page.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/node.type.landing_page.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/paragraphs.paragraphs_type.featured_articles.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/paragraphs.paragraphs_type.featured_articles.yml",
+          "path": "recipes/next-hydra-base/config/paragraphs.paragraphs_type.featured_articles.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/paragraphs.paragraphs_type.featured_articles.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/paragraphs.paragraphs_type.hero.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/paragraphs.paragraphs_type.hero.yml",
+          "path": "recipes/next-hydra-base/config/paragraphs.paragraphs_type.hero.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/paragraphs.paragraphs_type.hero.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/user.role.previewer.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/user.role.previewer.yml",
+          "path": "recipes/next-hydra-base/config/user.role.previewer.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/user.role.previewer.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/user.role.viewer.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/user.role.viewer.yml",
+          "path": "recipes/next-hydra-base/config/user.role.viewer.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/config/user.role.viewer.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/canvas_page/5d687db1-edd8-43b5-84c4-aa7a9301aedc.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/canvas_page/5d687db1-edd8-43b5-84c4-aa7a9301aedc.yml",
+          "path": "recipes/next-hydra-base/content/canvas_page/5d687db1-edd8-43b5-84c4-aa7a9301aedc.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/canvas_page/5d687db1-edd8-43b5-84c4-aa7a9301aedc.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/consumer/5bba2dd6-0bf1-4d4d-8c29-8e2da51eacdb.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/consumer/5bba2dd6-0bf1-4d4d-8c29-8e2da51eacdb.yml",
+          "path": "recipes/next-hydra-base/content/consumer/5bba2dd6-0bf1-4d4d-8c29-8e2da51eacdb.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/consumer/5bba2dd6-0bf1-4d4d-8c29-8e2da51eacdb.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/file/187f65b5-5811-4554-9378-a8f9f8f1c493.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/file/187f65b5-5811-4554-9378-a8f9f8f1c493.yml",
+          "path": "recipes/next-hydra-base/content/file/187f65b5-5811-4554-9378-a8f9f8f1c493.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/file/187f65b5-5811-4554-9378-a8f9f8f1c493.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/file/24aa80c5-cfbe-48b2-99a3-98a447c27f56.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/file/24aa80c5-cfbe-48b2-99a3-98a447c27f56.yml",
+          "path": "recipes/next-hydra-base/content/file/24aa80c5-cfbe-48b2-99a3-98a447c27f56.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/file/24aa80c5-cfbe-48b2-99a3-98a447c27f56.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/file/3f30269c-bd99-43e8-bcd3-60912acf00ac.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/file/3f30269c-bd99-43e8-bcd3-60912acf00ac.yml",
+          "path": "recipes/next-hydra-base/content/file/3f30269c-bd99-43e8-bcd3-60912acf00ac.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/file/3f30269c-bd99-43e8-bcd3-60912acf00ac.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/file/d1508587-433e-4c73-8249-1becea181c99.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/file/d1508587-433e-4c73-8249-1becea181c99.yml",
+          "path": "recipes/next-hydra-base/content/file/d1508587-433e-4c73-8249-1becea181c99.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/file/d1508587-433e-4c73-8249-1becea181c99.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/media/0dd07a58-07fa-4c54-addc-1ef23420b75d.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/media/0dd07a58-07fa-4c54-addc-1ef23420b75d.yml",
+          "path": "recipes/next-hydra-base/content/media/0dd07a58-07fa-4c54-addc-1ef23420b75d.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/media/0dd07a58-07fa-4c54-addc-1ef23420b75d.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/media/43b667b9-c3c0-4938-a896-1e19b59244da.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/media/43b667b9-c3c0-4938-a896-1e19b59244da.yml",
+          "path": "recipes/next-hydra-base/content/media/43b667b9-c3c0-4938-a896-1e19b59244da.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/media/43b667b9-c3c0-4938-a896-1e19b59244da.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/media/8ca9c299-9626-4435-87db-27924e2400c3.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/media/8ca9c299-9626-4435-87db-27924e2400c3.yml",
+          "path": "recipes/next-hydra-base/content/media/8ca9c299-9626-4435-87db-27924e2400c3.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/media/8ca9c299-9626-4435-87db-27924e2400c3.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/media/dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/media/dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b.yml",
+          "path": "recipes/next-hydra-base/content/media/dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/media/dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/menu_link_content/15492a61-b442-4c3f-87b9-c855201c9049.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/menu_link_content/15492a61-b442-4c3f-87b9-c855201c9049.yml",
+          "path": "recipes/next-hydra-base/content/menu_link_content/15492a61-b442-4c3f-87b9-c855201c9049.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/menu_link_content/15492a61-b442-4c3f-87b9-c855201c9049.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/menu_link_content/3307f099-20e7-4fde-91d2-f726f79c2852.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/menu_link_content/3307f099-20e7-4fde-91d2-f726f79c2852.yml",
+          "path": "recipes/next-hydra-base/content/menu_link_content/3307f099-20e7-4fde-91d2-f726f79c2852.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/menu_link_content/3307f099-20e7-4fde-91d2-f726f79c2852.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/menu_link_content/3c2a08c5-f3d7-4cbc-8fbe-f2169491ac4a.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/menu_link_content/3c2a08c5-f3d7-4cbc-8fbe-f2169491ac4a.yml",
+          "path": "recipes/next-hydra-base/content/menu_link_content/3c2a08c5-f3d7-4cbc-8fbe-f2169491ac4a.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/menu_link_content/3c2a08c5-f3d7-4cbc-8fbe-f2169491ac4a.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/menu_link_content/c8ea134d-7dbc-4977-8e41-a9cb76b28205.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/menu_link_content/c8ea134d-7dbc-4977-8e41-a9cb76b28205.yml",
+          "path": "recipes/next-hydra-base/content/menu_link_content/c8ea134d-7dbc-4977-8e41-a9cb76b28205.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/menu_link_content/c8ea134d-7dbc-4977-8e41-a9cb76b28205.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/menu_link_content/d53f6b84-47d8-4f88-b01b-fb40e8f46f9e.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/menu_link_content/d53f6b84-47d8-4f88-b01b-fb40e8f46f9e.yml",
+          "path": "recipes/next-hydra-base/content/menu_link_content/d53f6b84-47d8-4f88-b01b-fb40e8f46f9e.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/menu_link_content/d53f6b84-47d8-4f88-b01b-fb40e8f46f9e.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/menu_link_content/e2a1c674-690a-4fc3-a828-acc50a5fa2b6.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/menu_link_content/e2a1c674-690a-4fc3-a828-acc50a5fa2b6.yml",
+          "path": "recipes/next-hydra-base/content/menu_link_content/e2a1c674-690a-4fc3-a828-acc50a5fa2b6.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/menu_link_content/e2a1c674-690a-4fc3-a828-acc50a5fa2b6.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/node/40cb84f8-f472-459f-9ee5-ce08c629ed5d.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/node/40cb84f8-f472-459f-9ee5-ce08c629ed5d.yml",
+          "path": "recipes/next-hydra-base/content/node/40cb84f8-f472-459f-9ee5-ce08c629ed5d.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/node/40cb84f8-f472-459f-9ee5-ce08c629ed5d.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/node/823f1c6c-ed43-4d95-8632-fb983ee89030.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/node/823f1c6c-ed43-4d95-8632-fb983ee89030.yml",
+          "path": "recipes/next-hydra-base/content/node/823f1c6c-ed43-4d95-8632-fb983ee89030.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/node/823f1c6c-ed43-4d95-8632-fb983ee89030.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/node/86f0e2fb-8e92-4698-b85e-27cd4154ca9e.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/node/86f0e2fb-8e92-4698-b85e-27cd4154ca9e.yml",
+          "path": "recipes/next-hydra-base/content/node/86f0e2fb-8e92-4698-b85e-27cd4154ca9e.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/node/86f0e2fb-8e92-4698-b85e-27cd4154ca9e.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/node/b883487a-71fa-424a-9881-1b6ac99cd98d.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/node/b883487a-71fa-424a-9881-1b6ac99cd98d.yml",
+          "path": "recipes/next-hydra-base/content/node/b883487a-71fa-424a-9881-1b6ac99cd98d.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/node/b883487a-71fa-424a-9881-1b6ac99cd98d.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/content/node/d128b08b-22c0-4603-8d90-4595df7e6853.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/content/node/d128b08b-22c0-4603-8d90-4595df7e6853.yml",
+          "path": "recipes/next-hydra-base/content/node/d128b08b-22c0-4603-8d90-4595df7e6853.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/content/node/d128b08b-22c0-4603-8d90-4595df7e6853.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/README.md",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/README.md",
+          "path": "recipes/next-hydra-base/README.md",
+          "target": "~/apps/drupal/recipes/next-hydra-base/README.md",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/recipe.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/recipe.yml",
+          "path": "recipes/next-hydra-base/recipe.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-base/recipe.yml",
           "type": "registry:file"
         },
         {
@@ -565,70 +565,70 @@
       ]
     },
     {
-      "name": "drupal-product-collection",
+      "name": "drupal-commerce",
       "type": "registry:item",
       "registryDependencies": ["drupal"],
-      "title": "Drupal product collection recipe",
+      "title": "Drupal Commerce recipe",
       "description": "Native configuration and sample pages installed with the Commerce capability.",
       "files": [
         {
-          "path": "recipes/product-collection/recipe.yml",
-          "target": "~/apps/drupal/recipes/product-collection/recipe.yml",
+          "path": "recipes/next-hydra-commerce/recipe.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/recipe.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/config/canvas.component.js.product-collection.yml",
-          "target": "~/apps/drupal/recipes/product-collection/config/canvas.component.js.product-collection.yml",
+          "path": "recipes/next-hydra-commerce/config/canvas.component.js.product-collection.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/config/canvas.component.js.product-collection.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/config/canvas.js_component.product-collection.yml",
-          "target": "~/apps/drupal/recipes/product-collection/config/canvas.js_component.product-collection.yml",
+          "path": "recipes/next-hydra-commerce/config/canvas.js_component.product-collection.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/config/canvas.js_component.product-collection.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/config/core.entity_form_display.paragraph.dynamic_product_collection.default.yml",
-          "target": "~/apps/drupal/recipes/product-collection/config/core.entity_form_display.paragraph.dynamic_product_collection.default.yml",
+          "path": "recipes/next-hydra-commerce/config/core.entity_form_display.paragraph.dynamic_product_collection.default.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/config/core.entity_form_display.paragraph.dynamic_product_collection.default.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/config/core.entity_view_display.paragraph.dynamic_product_collection.default.yml",
-          "target": "~/apps/drupal/recipes/product-collection/config/core.entity_view_display.paragraph.dynamic_product_collection.default.yml",
+          "path": "recipes/next-hydra-commerce/config/core.entity_view_display.paragraph.dynamic_product_collection.default.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/config/core.entity_view_display.paragraph.dynamic_product_collection.default.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_description.yml",
-          "target": "~/apps/drupal/recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_description.yml",
+          "path": "recipes/next-hydra-commerce/config/field.field.paragraph.dynamic_product_collection.field_description.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/config/field.field.paragraph.dynamic_product_collection.field_description.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_heading.yml",
-          "target": "~/apps/drupal/recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_heading.yml",
+          "path": "recipes/next-hydra-commerce/config/field.field.paragraph.dynamic_product_collection.field_heading.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/config/field.field.paragraph.dynamic_product_collection.field_heading.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_product_category.yml",
-          "target": "~/apps/drupal/recipes/product-collection/config/field.field.paragraph.dynamic_product_collection.field_product_category.yml",
+          "path": "recipes/next-hydra-commerce/config/field.field.paragraph.dynamic_product_collection.field_product_category.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/config/field.field.paragraph.dynamic_product_collection.field_product_category.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/config/field.storage.paragraph.field_product_category.yml",
-          "target": "~/apps/drupal/recipes/product-collection/config/field.storage.paragraph.field_product_category.yml",
+          "path": "recipes/next-hydra-commerce/config/field.storage.paragraph.field_product_category.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/config/field.storage.paragraph.field_product_category.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/config/paragraphs.paragraphs_type.dynamic_product_collection.yml",
-          "target": "~/apps/drupal/recipes/product-collection/config/paragraphs.paragraphs_type.dynamic_product_collection.yml",
+          "path": "recipes/next-hydra-commerce/config/paragraphs.paragraphs_type.dynamic_product_collection.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/config/paragraphs.paragraphs_type.dynamic_product_collection.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/content/node/fd48aa24-e1f0-483f-a1ef-a3b506ca1610.yml",
-          "target": "~/apps/drupal/recipes/product-collection/content/node/fd48aa24-e1f0-483f-a1ef-a3b506ca1610.yml",
+          "path": "recipes/next-hydra-commerce/content/node/fd48aa24-e1f0-483f-a1ef-a3b506ca1610.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/content/node/fd48aa24-e1f0-483f-a1ef-a3b506ca1610.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/product-collection/content/canvas_page/b2201727-fbfe-44d0-83a1-c7d54ac003dc.yml",
-          "target": "~/apps/drupal/recipes/product-collection/content/canvas_page/b2201727-fbfe-44d0-83a1-c7d54ac003dc.yml",
+          "path": "recipes/next-hydra-commerce/content/canvas_page/b2201727-fbfe-44d0-83a1-c7d54ac003dc.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-commerce/content/canvas_page/b2201727-fbfe-44d0-83a1-c7d54ac003dc.yml",
           "type": "registry:file"
         }
       ]

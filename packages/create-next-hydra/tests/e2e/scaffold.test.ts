@@ -805,7 +805,7 @@ describe("scaffold composition", () => {
       const frontendConfig = await readFile(
         path.join(
           drupalTarget,
-          "apps/drupal/recipes/next-hydra-starter/config/next.next_site.next_hydra.yml"
+          "apps/drupal/recipes/next-hydra-base/config/next.next_site.next_hydra.yml"
         ),
         "utf-8"
       );
@@ -822,7 +822,7 @@ describe("scaffold composition", () => {
       });
 
       const asset =
-        "apps/drupal/recipes/next-hydra-starter/content/file/next-hydra-hero.webp";
+        "apps/drupal/recipes/next-hydra-base/content/file/next-hydra-hero.webp";
       expect(hash(await readFile(path.join(drupalTarget, asset)))).toBe(
         hash(await readFile(path.join(repoRoot, asset)))
       );

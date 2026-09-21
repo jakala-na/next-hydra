@@ -189,7 +189,7 @@ describe("symmetric provider composition", () => {
     );
     const base = prepared.artifacts.find((item) => item.name === "drupal");
     const packageRecipe = prepared.artifacts.find(
-      (item) => item.name === "drupal-product-collection"
+      (item) => item.name === "drupal-commerce"
     );
     const baseData = base?.files
       ?.filter((file) =>
@@ -221,7 +221,7 @@ describe("symmetric provider composition", () => {
           },
         },
       },
-      recipes: ["next-hydra-starter"],
+      recipes: ["next-hydra-base"],
     });
     const samples = packageRecipe?.files
       ?.filter((file) => file.path.includes("/content/"))
@@ -363,15 +363,14 @@ describe("symmetric provider composition", () => {
         ).toBe(commerce);
         expect(
           targets.includes(
-            "~/apps/drupal/recipes/product-collection/recipe.yml"
+            "~/apps/drupal/recipes/next-hydra-commerce/recipe.yml"
           )
         ).toBe(commerce);
         const baseRecipe = artifacts
           .flatMap((item) => item.files ?? [])
           .find(
             (file) =>
-              file.target ===
-              "~/apps/drupal/recipes/next-hydra-starter/recipe.yml"
+              file.target === "~/apps/drupal/recipes/next-hydra-base/recipe.yml"
           );
         expect(baseRecipe?.content).not.toContain("dynamic_product_collection");
         expect(baseRecipe?.content).not.toContain("field_product_category");

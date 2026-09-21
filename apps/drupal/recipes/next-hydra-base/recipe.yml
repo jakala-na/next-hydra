@@ -1,5 +1,5 @@
-name: "Next Hydra starter"
-description: "A minimal Drupal backend for Next Hydra with landing pages, articles, Hydra blocks, native navigation, GraphQL, and preview."
+name: Base
+description: Drupal content, Canvas components, native navigation, GraphQL, and preview.
 type: "Site"
 
 recipes:

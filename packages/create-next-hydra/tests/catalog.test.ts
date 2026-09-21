@@ -92,7 +92,7 @@ describe("Next Hydra source registry", () => {
         "commerce-commercetools",
         "commerce-design-system",
         "drupal",
-        "drupal-product-collection",
+        "drupal-commerce",
         "next-hydra-standard",
       ])
     );
@@ -115,7 +115,7 @@ describe("Next Hydra source registry", () => {
     );
     expect(backendTargets).toContain("~/apps/drupal/composer.json");
     expect(backendTargets).toContain(
-      "~/apps/drupal/recipes/next-hydra-starter/recipe.yml"
+      "~/apps/drupal/recipes/next-hydra-base/recipe.yml"
     );
     expect(backendTargets).not.toContain("~/apps/drupal/docroot/index.php");
     expect(backendTargets).not.toContain("~/apps/drupal/docroot/.htaccess");
@@ -171,7 +171,7 @@ describe("Next Hydra source registry", () => {
       "commerce-design-system",
       "commerce-web",
       "drupal",
-      "drupal-product-collection",
+      "drupal-commerce",
       "workspace-cli",
     ]);
     expect(clerk.managedTargets).toStrictEqual([
@@ -271,7 +271,7 @@ describe("Next Hydra source registry", () => {
       "commerce-design-system",
       "commerce-web",
       "drupal",
-      "drupal-product-collection",
+      "drupal-commerce",
       "workspace-cli",
     ]);
     expect(contentstack.registryItems).toStrictEqual([
@@ -427,7 +427,7 @@ describe("Next Hydra source registry", () => {
     ).toContain("cms-contentstack-commerce");
     expect(drupal.instructions).toStrictEqual([
       "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output workos-webhook.env` once with the customer WORKOS_API_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets.",
-      "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
+      "From apps/drupal, run ddev install to install Drupal and apply the base recipe, including the Commerce recipe when selected. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",
       "Configure the Commercetools environment variables described by packages/commerce-commercetools before starting the applications.",
     ]);
     expect(planComposition(catalog, drupal.selection)).toStrictEqual(drupal);

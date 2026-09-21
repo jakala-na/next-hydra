@@ -20,7 +20,7 @@ cd apps/drupal
 ddev install
 ```
 
-The command installs Composer dependencies, installs Drupal, applies the Next Hydra recipe, creates the OAuth consumers, configures revalidation, rebuilds permissions, and prints a one-time login link.
+The command installs Composer dependencies, installs Drupal, applies the selected recipes, creates the OAuth consumers, configures revalidation, rebuilds permissions, and prints a one-time login link. It applies `recipes/next-hydra-base` for a CMS-only project, or `recipes/next-hydra-commerce` when Commerce is installed; the Commerce recipe includes the base recipe.
 
 Copy the generated credentials into `apps/web/.env.local`:
 
@@ -151,21 +151,23 @@ Delete `next-hydra-bootstrap.env` from Acquia after storing the credentials secu
 - Deliver changes for installed environments through update hooks or an explicit configuration deployment process.
 - Rotate OAuth secrets and the revalidation secret through the appropriate Drupal, Vercel, Acquia, and GitHub settings.
 
-## Starter content model
+## Content recipes
 
-The Next Hydra recipe installs the demo content model and integration configuration:
+The base recipe (`recipes/next-hydra-base`) installs the demo content model and integration configuration:
 
-- Page and product content types
+- Landing page and Article content types
 - Canvas components and page templates
 - GraphQL Compose schema configuration
 - Preview and revalidation configuration
 - Previewer and viewer OAuth consumers
 
+The Commerce recipe (`recipes/next-hydra-commerce`) adds product collection blocks for Paragraphs and Canvas, along with catalog sample pages. Product data comes from the selected Commerce provider rather than a Drupal product content type.
+
 ## Update the Drupal schema
 
 After changing the Drupal content model:
 
-1. Export the dependency-closed configuration into the Next Hydra recipe.
+1. Export the dependency-closed configuration into the base or Commerce recipe according to which capability owns it.
 2. Reinstall a fresh local site and verify that the recipe applies successfully.
 3. Regenerate the frontend Drupal schema from the repository root:
 

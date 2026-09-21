@@ -49,12 +49,12 @@ remote_ssh php scripts/initialize_acquia_secrets.php
 echo "Installing Drupal..."
 remote_drush site:install minimal --verbose --yes
 
-echo "Applying the Next Hydra starter recipe..."
-starter_recipe=../recipes/next-hydra-starter
-if remote_ssh test -f recipes/product-collection/recipe.yml; then
-  starter_recipe=../recipes/product-collection
+echo "Applying the selected Drupal recipe..."
+site_recipe=../recipes/next-hydra-base
+if remote_ssh test -f recipes/next-hydra-commerce/recipe.yml; then
+  site_recipe=../recipes/next-hydra-commerce
 fi
-remote_drush recipe "$starter_recipe" --verbose
+remote_drush recipe "$site_recipe" --verbose
 remote_drush cache:rebuild
 
 echo "Creating OAuth scopes and consumers..."

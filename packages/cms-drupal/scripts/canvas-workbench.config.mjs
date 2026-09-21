@@ -13,7 +13,7 @@ const aliases = Symbol.iterator in baseAliases
     }));
 const recipeImageDir = fileURLToPath(
   new URL(
-    "../../../apps/drupal/recipes/next-hydra-starter/content/file/",
+    "../../../apps/drupal/recipes/next-hydra-base/content/file/",
     import.meta.url
   )
 );

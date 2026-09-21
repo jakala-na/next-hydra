@@ -1,6 +1,6 @@
 {
-  "name": "next-hydra/drupal-starter-recipe",
-  "description": "A minimal Drupal backend recipe for Next Hydra.",
+  "name": "next-hydra/drupal-base-recipe",
+  "description": "Base content and integration configuration for a headless Drupal site.",
   "license": "GPL-2.0-or-later",
   "type": "drupal-recipe",
   "keywords": [
