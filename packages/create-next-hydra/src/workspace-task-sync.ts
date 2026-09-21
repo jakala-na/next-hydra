@@ -4,9 +4,11 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   writeFile,
 } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
@@ -80,7 +82,7 @@ export async function planWorkspaceTaskFiles(sourceRoot: string, name: string) {
     throw new Error(`${name} requires a CMS provider.`);
   }
   const temporary = await mkdtemp(
-    path.join(sourceRoot, "workspaces", ".tasks-")
+    path.join(await realpath(tmpdir()), "workspace-tasks-")
   );
   try {
     const composed = await composeWorkspace(

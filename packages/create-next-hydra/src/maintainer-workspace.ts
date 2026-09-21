@@ -78,7 +78,7 @@ export function assertMaintainerWorkspaceTarget(
     path.isAbsolute(relativeTarget)
   ) {
     throw new Error(
-      "Maintainer workspaces must be created below the checkout's ignored `workspaces/` directory."
+      "Maintainer workspaces must be created below the checkout's `workspaces/` directory."
     );
   }
 }

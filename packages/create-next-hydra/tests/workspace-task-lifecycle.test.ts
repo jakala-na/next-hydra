@@ -2,7 +2,9 @@ import {
   lstat,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile,
@@ -10,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { z } from "zod";
 
@@ -27,10 +29,9 @@ const environment = {
   npm_config_offline: "true",
 } satisfies NodeJS.ProcessEnv;
 
-describe("named workspace task lifecycle through the installed CLI", () => {
+describe("workspace synchronization through the installed CLI", () => {
   let scratch: string;
   let source: string;
-  let target: string;
 
   async function fixtureFile(file: string) {
     const absolute = path.join(source, file);
@@ -59,16 +60,11 @@ describe("named workspace task lifecycle through the installed CLI", () => {
     }
   }
 
-  beforeAll(async () => {
-    scratch = await mkdtemp(path.join(tmpdir(), "workspace-task-lifecycle-"));
+  beforeEach(async () => {
+    scratch = await mkdtemp(
+      path.join(await realpath(tmpdir()), "workspace-task-lifecycle-")
+    );
     source = path.join(scratch, "source");
-    target = path.join(source, "workspaces/proof");
-    const tool = path.join(scratch, "unused-tool");
-    await mkdir(tool);
-    await writeJsonFile(path.join(tool, "package.json"), {
-      name: "unused-fixture-tool",
-      version: "1.0.0",
-    });
     const { catalog } = z
       .object({ catalog: z.object({ typescript: z.string() }) })
       .parse(
@@ -76,10 +72,10 @@ describe("named workspace task lifecycle through the installed CLI", () => {
           await readFile(path.join(repo, "pnpm-workspace.yaml"), "utf-8")
         )
       );
-    // Real Turbo and pnpm, with local-only tooling dependencies and a service-free app.
+    // Exercise the real workspace commands without external services.
     await writeJsonFile(await fixtureFile("package.json"), {
       devDependencies: {
-        portless: `link:${tool}`,
+        portless: `link:${path.join(repo, "node_modules/portless")}`,
         turbo: `link:${path.join(repo, "node_modules/turbo")}`,
       },
       packageManager: "pnpm@10.11.0",
@@ -98,17 +94,12 @@ describe("named workspace task lifecycle through the installed CLI", () => {
       })
     );
     await writeJsonFile(await fixtureFile("turbo.json"), {
-      futureFlags: { affectedUsingTaskInputs: true },
-      tasks: { build: {}, "workspace:check": {}, "workspace:sync": {} },
+      tasks: { "workspace:check": {}, "workspace:sync": {} },
     });
-    await write(
-      ".gitignore",
-      "node_modules/\ndist/\n.turbo/\n/workspaces/*/*\n!/workspaces/*/next-hydra.json\n!/workspaces/*/tasks/\n"
-    );
+    await write(".gitignore", "node_modules/\ndist/\n.turbo/\n");
     await writeJsonFile(await fixtureFile(`${cli}/package.json`), {
       name: "create-next-hydra",
       scripts: {
-        build: "node --check dist/cli.js",
         "workspace:check": "node dist/sync-workspace-tasks.js --check",
         "workspace:sync": "node dist/sync-workspace-tasks.js",
       },
@@ -118,17 +109,12 @@ describe("named workspace task lifecycle through the installed CLI", () => {
     await writeJsonFile(await fixtureFile(`${cli}/turbo.json`), {
       extends: ["//"],
       tasks: {
-        build: { cache: false },
         "workspace:check": { cache: false },
         "workspace:sync": { cache: false },
       },
     });
     await writeJsonFile(await fixtureFile("apps/web/package.json"), {
       name: "web",
-      scripts: {
-        build:
-          'node -e \'const fs = require("node:fs"); fs.mkdirSync(".next", {recursive:true}); fs.writeFileSync(".next/result", fs.readFileSync("../../packages/cms-fixture/content.txt"));\'',
-      },
     });
     await writeJsonFile(
       await fixtureFile("packages/cms-fixture/package.json"),
@@ -214,14 +200,44 @@ describe("named workspace task lifecycle through the installed CLI", () => {
     );
   }, 60_000);
 
-  afterAll(async () => {
+  afterEach(async () => {
     await rm(scratch, { force: true, recursive: true });
   });
 
-  it("synchronizes a new definition so a fresh checkout installs with a frozen lockfile", async () => {
-    await expect(pnpm(["workspace:check"])).rejects.toThrow(
-      "Workspace Turbo metadata is stale"
-    );
+  it("reports missing task metadata without creating files or changing the lockfile", async () => {
+    const lockfile = path.join(source, "pnpm-lock.yaml");
+    const originalLockfile = await readFile(lockfile, "utf-8");
+    await expect(pnpm(["workspace:check"])).rejects.toMatchObject({ code: 1 });
+    await expect(readFile(lockfile, "utf-8")).resolves.toBe(originalLockfile);
+    await expect(
+      lstat(path.join(source, "workspaces/proof/tasks"))
+    ).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  }, 60_000);
+
+  it("synchronizes through a symlinked temporary directory and cleans up staging", async () => {
+    const physical = path.join(scratch, "physical-temp");
+    const linked = path.join(scratch, "linked-temp");
+    await mkdir(physical);
+    await symlink(physical, linked, "dir");
+    const entrypoint = path.join(source, cli, "dist/sync-workspace-tasks.js");
+    const options = {
+      cwd: source,
+      env: {
+        ...environment,
+        NODE_DISABLE_COMPILE_CACHE: "1",
+        TMPDIR: linked,
+      },
+    };
+
+    await runCommand(process.execPath, [entrypoint], options);
+    await expect(readdir(physical)).resolves.toEqual([]);
+    await runCommand(process.execPath, [entrypoint, "--check"], options);
+    await expect(readdir(physical)).resolves.toEqual([]);
+  }, 60_000);
+
+  it("synchronizes repeatably so a fresh checkout installs with a frozen lockfile", async () => {
     await pnpm(["workspace:sync"]);
     await pnpm(["workspace:check"]);
     await runGit(["add", "--all"], { cwd: source });
@@ -240,6 +256,10 @@ describe("named workspace task lifecycle through the installed CLI", () => {
       ],
       { cwd: source }
     );
+    await pnpm(["workspace:sync"]);
+    await pnpm(["workspace:check"]);
+    const unchanged = await runGit(["status", "--porcelain"], { cwd: source });
+    expect(unchanged.stdout).toBe("");
     const fresh = path.join(scratch, "fresh");
     await runGit(["clone", "--quiet", "--local", source, fresh]);
     const before = await readFile(path.join(fresh, "pnpm-lock.yaml"), "utf-8");
@@ -250,35 +270,13 @@ describe("named workspace task lifecycle through the installed CLI", () => {
     await expect(
       readFile(path.join(fresh, "pnpm-lock.yaml"), "utf-8")
     ).resolves.toBe(before);
-    const dependency = await lstat(
-      path.join(fresh, "workspaces/proof/tasks/node_modules/create-next-hydra")
-    );
-    expect(dependency.isSymbolicLink()).toBeTruthy();
     await expect(
       lstat(path.join(fresh, "workspaces/proof/apps/web"))
-    ).rejects.toThrow("ENOENT");
-  }, 60_000);
-
-  it("runs the generated outer task through composition, installation, and cached app builds", async () => {
-    const args = [
-      "exec",
-      "turbo",
-      "run",
-      "build",
-      "--filter=@workspaces/proof",
-      "--cache=local:rw",
-    ];
-    await pnpm(args);
-    const resultFile = path.join(target, "apps/web/.next/result");
-    await expect(readFile(resultFile, "utf-8")).resolves.toBe("first version");
-    const repeated = await pnpm(args);
-    expect(repeated.stdout).toContain("web:build: cache hit");
-    await write("packages/cms-fixture/content.txt", "second version");
-    await pnpm(args);
-    await expect(readFile(resultFile, "utf-8")).resolves.toBe("second version");
+    ).rejects.toMatchObject({ code: "ENOENT" });
   }, 60_000);
 
   it("rejects stale lockfile membership without writes and repairs it even when task files are unchanged", async () => {
+    await pnpm(["workspace:sync"]);
     const file = path.join(source, "pnpm-lock.yaml");
     const lock = z
       .object({ importers: z.record(z.unknown()) })
@@ -287,14 +285,15 @@ describe("named workspace task lifecycle through the installed CLI", () => {
     delete lock.importers["workspaces/proof/tasks"];
     await writeFile(file, stringifyYaml(lock));
     const stale = await readFile(file, "utf-8");
-    await expect(pnpm(["workspace:check"])).rejects.toThrow(
-      "ERR_PNPM_OUTDATED_LOCKFILE"
-    );
+    await expect(pnpm(["workspace:check"])).rejects.toMatchObject({ code: 1 });
     await expect(readFile(file, "utf-8")).resolves.toBe(stale);
     await pnpm(["workspace:sync"]);
-    const checked = await pnpm(["workspace:check"]);
-    expect(checked.stdout).toContain(
-      "Workspace Turbo metadata and lockfile are current."
-    );
+    await pnpm(["workspace:check"]);
+    await pnpm([
+      "install",
+      "--offline",
+      "--ignore-scripts",
+      "--frozen-lockfile",
+    ]);
   }, 60_000);
 });

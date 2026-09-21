@@ -50,6 +50,118 @@ describe("named workspace deployment", () => {
     await writeFile(absolute, content);
   }
 
+  it.each([true, false])(
+    "seeds workspace-local Git policy without hiding its definition, with link=%s",
+    async (link) => {
+      const before = await runGit(
+        ["ls-files", "--others", "--exclude-standard", "--", "."],
+        { cwd: target }
+      );
+      expect(before.stdout.trim()).toBe("next-hydra.json");
+      await updateDevelopmentWorkspace(sourceRoot, name, {
+        check: true,
+        install: false,
+        link,
+      });
+      await expect(
+        lstat(path.join(target, ".gitignore"))
+      ).rejects.toMatchObject({ code: "ENOENT" });
+
+      await updateDevelopmentWorkspace(sourceRoot, name, {
+        install: false,
+        link,
+      });
+      const visible = await runGit(
+        ["ls-files", "--others", "--exclude-standard", "--", "."],
+        { cwd: target }
+      );
+      expect(visible.stdout.trim().split("\n")).toEqual([
+        ".gitignore",
+        "next-hydra.json",
+      ]);
+
+      await unlink(path.join(target, ".gitignore"));
+      const check = await updateDevelopmentWorkspace(sourceRoot, name, {
+        check: true,
+        install: false,
+        link,
+      });
+      expect(check.changed).toBe(1);
+      await expect(
+        lstat(path.join(target, ".gitignore"))
+      ).rejects.toMatchObject({ code: "ENOENT" });
+    },
+    30_000
+  );
+
+  it("keeps an empty author-owned ignore file empty", async () => {
+    await write(".gitignore", "");
+    await updateDevelopmentWorkspace(sourceRoot, name, { install: false });
+    await expect(
+      readFile(path.join(target, ".gitignore"), "utf-8")
+    ).resolves.toBe("");
+    const visible = await runGit(
+      ["ls-files", "--others", "--exclude-standard", "--", "package.json"],
+      { cwd: target }
+    );
+    expect(visible.stdout.trim()).toBe("package.json");
+  }, 30_000);
+
+  it.each([
+    {
+      content: "// Local work to reconcile\n",
+      error: /blocked by unregistered files/u,
+      file: "draft.ts",
+      reason: "unregistered files",
+    },
+    {
+      content: "{}\n",
+      error: /locally modified or deleted/u,
+      file: "turbo.json",
+      reason: "local edits",
+    },
+    {
+      content: "{}\n",
+      error: /Unsupported or invalid workspace state/u,
+      file: ".workspace-composition.json",
+      reason: "invalid ownership state",
+    },
+  ])(
+    "preserves Git visibility when refresh rejects $reason",
+    async ({ file, content, error }) => {
+      await updateDevelopmentWorkspace(sourceRoot, name, {
+        install: false,
+        link: false,
+      });
+      await unlink(path.join(target, ".gitignore"));
+      await write(file, content);
+      const before = await runGit(
+        ["ls-files", "--others", "--exclude-standard", "--", "."],
+        { cwd: target }
+      );
+
+      await expect(
+        updateDevelopmentWorkspace(sourceRoot, name, {
+          install: false,
+          link: false,
+        })
+      ).rejects.toThrow(error);
+
+      await expect(
+        lstat(path.join(target, ".gitignore"))
+      ).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(readFile(path.join(target, file), "utf-8")).resolves.toBe(
+        content
+      );
+      const after = await runGit(
+        ["ls-files", "--others", "--exclude-standard", "--", "."],
+        { cwd: target }
+      );
+      expect(after.stdout).toBe(before.stdout);
+    },
+    30_000
+  );
+
   it.each([
     "cms-contentstack",
     "cms-drupal",

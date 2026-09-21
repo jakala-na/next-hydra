@@ -207,6 +207,7 @@ export async function lintCompositions(
     if (!cms) {
       throw new Error(`${name} requires a CMS provider.`);
     }
+    // The type-aware lint backend resolves maintainer tooling through parent directories.
     const temporary = await mkdtemp(
       path.join(sourceRoot, "workspaces", ".lint-")
     );
@@ -227,8 +228,8 @@ export async function lintCompositions(
         { name, report: info, sourceRoot }
       );
       await generateLintRouteTypes(path.join(targetRoot, "apps/web"));
-      // A private Git boundary prevents the parent's ignored workspaces directory
-      // from hiding this verification tree. No user index is read or changed.
+      // A private Git boundary isolates verification from any surrounding checkout.
+      // No user index is read or changed.
       await runGit(["init", "--quiet"], {
         cwd: targetRoot,
         env: {

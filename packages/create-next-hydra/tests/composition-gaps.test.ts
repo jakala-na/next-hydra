@@ -1,5 +1,6 @@
 /* oxlint-disable vitest/max-expects -- Each fixture checks the complete capability exclusion contract. */
-import { mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -82,10 +83,7 @@ describe("backend ownership", () => {
 describe("customer CMS package exclusions", () => {
   let scratch: string;
   beforeAll(async () => {
-    await mkdir(path.join(repoRoot, "workspaces"), { recursive: true });
-    scratch = await mkdtemp(
-      path.join(repoRoot, "workspaces", "composition-gaps-test-")
-    );
+    scratch = await mkdtemp(path.join(tmpdir(), "composition-gaps-test-"));
   });
 
   afterAll(async () => {

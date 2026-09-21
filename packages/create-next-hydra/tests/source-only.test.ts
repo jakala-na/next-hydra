@@ -9,7 +9,6 @@ import { loadSourceRegistryCatalog } from "../src/composition/catalog.js";
 import { prepareComposition } from "../src/composition/install.js";
 import { planComposition } from "../src/composition/planner.js";
 import {
-  discoverDevelopmentWorkspaces,
   explainDevelopmentWorkspace,
   updateDevelopmentWorkspace,
   workspaceDefinitionSchema,
@@ -115,9 +114,6 @@ describe("source-only authoring", () => {
             }))
           )
         );
-        await expect(
-          discoverDevelopmentWorkspaces(sourceRoot)
-        ).resolves.not.toContain(name);
       } finally {
         await rm(targetRoot, { force: true, recursive: true });
       }

@@ -11,6 +11,7 @@ import {
   rm,
   stat,
   unlink,
+  writeFile,
 } from "node:fs/promises";
 import path from "node:path";
 
@@ -71,6 +72,21 @@ export type DevelopmentWorkspaceOptions = {
   run?: "dev" | "build" | "test" | "typecheck";
 };
 const definitionName = "next-hydra.json";
+const defaultIgnoreRules = `# Commit workspace settings only; Compose owns the materialized application.
+/*
+!/.gitignore
+!/next-hydra.json
+!/README.md
+!/tasks/
+/tasks/*
+!/tasks/package.json
+!/tasks/turbo.json
+!/apps/
+/apps/*
+!/apps/*/
+/apps/*/*
+!/apps/*/vercel.json
+`;
 const sourceReceiptSchema = z.object({
   environmentDefaults: z.array(workspaceFilePathSchema).default([]),
   files: z.array(
@@ -91,7 +107,7 @@ export async function discoverDevelopmentWorkspaces(
   if (!(await assertDirectoryPath(root))) {
     return [];
   }
-  // Git-visible definitions include newly authored files, but exclude ignored legacy scratch output.
+  // New definitions participate before they are committed; explicitly ignored ones opt out.
   const inventory = new Set(await workspaceSourceFiles(sourceRoot));
   const names: string[] = [];
   for (const entry of await readdir(root, { withFileTypes: true })) {
@@ -130,6 +146,26 @@ async function readDefinition(targetRoot: string): Promise<Definition> {
   return workspaceDefinitionSchema.parse(
     JSON.parse(await readFile(file, "utf-8"))
   );
+}
+
+/** Seed once; subsequent Git visibility decisions belong to the workspace author. */
+async function seedWorkspaceIgnoreFile(targetRoot: string): Promise<void> {
+  const target = path.join(targetRoot, ".gitignore");
+  try {
+    await writeFile(target, defaultIgnoreRules, { flag: "wx" });
+  } catch (error) {
+    if (
+      !(error instanceof Error && "code" in error && error.code === "EEXIST")
+    ) {
+      throw error;
+    }
+    const info = await lstat(target);
+    if (!info.isFile()) {
+      throw new Error(`Workspace settings must be regular files: ${target}`, {
+        cause: error,
+      });
+    }
+  }
 }
 
 /** Use the actual scaffold and renderer, without installing or touching the destination. */
@@ -400,6 +436,7 @@ export async function updateDevelopmentWorkspace(
         );
       }
     }
+    const needsIgnoreFile = !preservedFiles.includes(".gitignore");
     const result = await updateWorkspaceFiles({
       sourceRoot,
       targetRoot,
@@ -436,6 +473,13 @@ export async function updateDevelopmentWorkspace(
       for (const file of prepared.environmentDefaults) {
         await seedWorkspaceEnvironmentFile(targetRoot, file);
       }
+    }
+    if (needsIgnoreFile) {
+      // A failed refresh must not hide previously visible work needing reconciliation.
+      if (!options.check) {
+        await seedWorkspaceIgnoreFile(targetRoot);
+      }
+      result.changed += 1;
     }
     return result;
   } finally {

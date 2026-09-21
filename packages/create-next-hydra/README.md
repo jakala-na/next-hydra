@@ -32,7 +32,7 @@ Customer projects include Portless. Run `pnpm dev` in the installed project for 
 
 ## Initialize and update named workspaces
 
-The preferred maintainer workflow uses committed definitions in `workspaces/`. No `apps` field or app-profile flag is needed: the shared web application is implicit, and selected packages extend its templates.
+The preferred maintainer workflow uses definitions in `workspaces/`. New definitions are visible to Git before being committed; no parent ignore exception is needed. Compose seeds a missing workspace-local `.gitignore` with defaults that expose settings and hide materialized output, then leaves that file under your control. An existing file, including an empty one, is never replaced. No `apps` field or app-profile flag is needed: the shared web application is implicit, and selected packages extend its templates.
 
 ```sh
 pnpm --filter create-next-hydra compose cms-contentstack --copy-env
@@ -54,7 +54,7 @@ After adding or renaming a definition, changing selections, or changing registry
 ## Command boundaries
 
 - `create-next-hydra <directory>` creates a customer-owned project. It acquires the requested source revision in a temporary directory, constructs only selected files and hands over ordinary copied source. There is no ongoing customer composition step.
-- `create-next-hydra compose <name>` initializes or refreshes a named workspace from canonical source. `--no-link` copies rather than links sources; it does not change the location or refresh contract. `compose --all` covers all committed definitions; `compose --all --check` checks their local state.
+- `create-next-hydra compose <name>` initializes or refreshes a named workspace from canonical source. `--no-link` copies rather than links sources; it does not change the location or refresh contract. `compose --all` covers Git-visible definitions, including new untracked ones; `compose --all --check` checks their local state.
 - `create-next-hydra add <item>` performs additive installation into customer-owned code.
 
 The old `use` command and its in-place switching implementation have been removed. An old invocation fails with migration instructions rather than creating a project named `use`. Move its desired provider/add-on choices into a named definition and run `compose`. Root composed files, duplicate provider routes and the old root selection have been removed: templates and canonical implementation source are authoritative. `--explain <file>` shows the selected owner and edit location without updating; `--run <task>` refreshes first and then runs the selected workspace's dev/build/test/typecheck task. Root `pnpm dev` runs the `storefront-contentstack` reference definition. Root `pnpm test` runs package/provider suites and composition checks from source, with common app integration tests only in that WorkOS + Contentstack + commercetools reference; build/typecheck still cover all named definitions. Customer creation and named composition share one constructor for the baseline, selected files, dependency closure, registry transformations, templates, aliases and patches. Customer scaffolding owns source acquisition and Git initialization; named composition owns linking and safe refresh.

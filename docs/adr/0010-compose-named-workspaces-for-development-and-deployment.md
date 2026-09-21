@@ -28,6 +28,8 @@ The root customer-creation command acquires the requested source revision and us
 
 Within each named workspace, commit the definition, its `.gitignore`, an optional README, independently authored `apps/<app>/vercel.json` files, and `tasks/package.json` plus `tasks/turbo.json`. The task metadata is derived from the composition constructor, registered in the outer pnpm workspace and checked for drift in CI. Materialized application source, runtime manifests, dependencies, applied state, caches and credentials remain ignored. Ignore rules, deployment and task settings belong to the named workspace, not to registry refresh, and remain physical files. Each workspace owns its Git allowlist without a source-root inventory of workspace names. Customer ignore rules remain ordinary scaffold output.
 
+New workspace files are untracked rather than hidden by a parent ignore policy. Compose seeds a missing workspace-local `.gitignore` with settings-only defaults, never replaces an existing file, and reports a missing file without creating it in check mode. Authors may customize that policy, including supplying an empty file; normal repository-wide exclusions still protect secrets and caches. Disposable verification uses uniquely allocated directories with cleanup rather than persistent experimental workspace names.
+
 Customer scaffolds retain the registry's existing app-local `vercel.json` defaults and skip-CI scripts. They do not receive maintainer composition commands or deployment-specific cache settings. Customers can continue using dashboard build settings or edit their own configuration files.
 
 ### Preserve local development behavior and credential boundaries

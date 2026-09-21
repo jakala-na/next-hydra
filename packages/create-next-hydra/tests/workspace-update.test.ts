@@ -611,10 +611,7 @@ describe("development workspace lifecycle", () => {
       );
       await mkdir(path.join(folder, "legacy"));
       await writeFile(path.join(folder, "legacy/next-hydra.json"), "{}");
-      await writeFile(
-        path.join(sourceRoot, ".gitignore"),
-        "workspaces/legacy/\n"
-      );
+      await writeFile(path.join(folder, "legacy/.gitignore"), "*\n");
       await expect(discoverDevelopmentWorkspaces(sourceRoot)).resolves.toEqual([
         "cms-drupal",
       ]);
