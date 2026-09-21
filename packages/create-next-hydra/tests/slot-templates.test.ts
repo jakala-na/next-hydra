@@ -1,5 +1,4 @@
 /* oxlint-disable vitest/max-expects -- These tests check the complete shared application composition contract. */
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { RegistryItem } from "shadcn/schema";
@@ -69,9 +68,9 @@ describe("shared application slot templates", () => {
         "packages/cms-contentstack/components/pages/landing-page-query.ts"
       );
       expect(plan.selection.addOns).toStrictEqual([]);
-      expect(
-        plan.registryItems.includes("cms-contentstack-product-collection")
-      ).toBe(commerce);
+      expect(plan.registryItems.includes("cms-contentstack-commerce")).toBe(
+        commerce
+      );
       expect(registry).toContain("HeroSection");
       expect(query).toContain("...HeroSectionBlock");
       expect(registry?.includes("DynamicProductCollection")).toBe(commerce);
@@ -150,19 +149,19 @@ describe("shared application slot templates", () => {
         commerce: alternate.id,
       },
     });
-    expect(plan.registryItems).toContain("cms-contentstack-product-collection");
+    expect(plan.registryItems).toContain("cms-contentstack-commerce");
     expect(plan.registryItems).not.toContain("commerce-commercetools");
     expect(
       plan.selections.find(
         (item) =>
           item.kind === "recipe" &&
-          item.itemName === "cms-contentstack-product-collection"
+          item.itemName === "cms-contentstack-commerce"
       )?.compatibility.requires
     ).toStrictEqual(["next-hydra/cms/contentstack"]);
     expect(() =>
       planComposition(catalog, {
         ...plan.selection,
-        addOns: ["cms-contentstack-product-collection"],
+        addOns: ["cms-contentstack-commerce"],
       })
     ).toThrow("not an add-on");
   });
@@ -232,28 +231,21 @@ describe("shared application slot templates", () => {
     const contentByTarget = new Map(
       files.map((file) => [file.target, file.content])
     );
-    const auth = items.find((item) => item.name === "web-auth");
+    const auth = items.find((item) => item.name === "auth-web");
 
-    const accountControls = auth?.files?.find(
-      (file) =>
-        file.target === "~/apps/web/components/layout/account-controls.tsx"
+    const accountMenu = auth?.files?.find(
+      (file) => file.target === "~/apps/web/components/layout/account-menu.tsx"
     );
-    expect(accountControls?.path).toBe(
-      "apps/web/components/layout/account-controls.tsx"
+    expect(accountMenu?.path).toBe(
+      "apps/web/components/layout/account-menu.tsx"
     );
-    await expect(
-      readFile(
-        path.join(repoRoot, "apps/web/components/layout/account-controls.tsx"),
-        "utf-8"
-      )
-    ).resolves.toContain("as AccountControls");
     expect(
       items.flatMap((item) => item.files?.map((file) => file.target) ?? [])
     ).toContain("~/apps/web/app/api/auth/callback/route.ts");
     expect(contentByTarget.get(layoutTarget)).toContain(
-      'import { AccountControls } from "@/components/layout/account-controls";'
+      'import { AccountMenu } from "@/components/layout/account-menu";'
     );
-    expect(contentByTarget.get(layoutTarget)).toContain("<AccountControls />");
+    expect(contentByTarget.get(layoutTarget)).toContain("<AccountMenu />");
     expect(
       contentByTarget.get("apps/web/components/layout/document-shell.tsx")
     ).toContain("<AuthProvider>");

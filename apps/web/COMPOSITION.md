@@ -9,10 +9,10 @@ The source checkout owns modules, templates and registry metadata. Named develop
 | Owner | Installed source and recipes |
 | --- | --- |
 | Web | CMS routes, document/layout, environment and Next configuration templates |
-| Auth provider | Provider implementation and sign-in routes; `web-auth` adds account controls, provider wrapper, proxy and keys |
+| Auth provider | Provider implementation and sign-in routes; `auth-web` adds account controls, provider wrapper, proxy and keys |
 | Commerce | Whole core package; `commerce-web` installs product, checkout, confirmation, account and registration routes and the full runtime |
 | Commerce | `commerce-api` installs Checkout, Address Book and Registration; `commerce-admin` installs registration review |
-| CMS + Commerce | Provider-local product-collection mapping and CMS recipe/schema integration, dependent on core Commerce rather than its concrete provider |
+| CMS + Commerce | `cms-contentstack-commerce` or `cms-drupal-commerce` connects the selected CMS to core Commerce through provider-local product-collection mapping and CMS recipe/schema integration |
 | Navigation search | Header search independent of Commerce |
 | Workspace CLI | CMS administration plus Auth and Commerce commands when selected |
 

@@ -4,6 +4,13 @@ import baseConfig from "@drupal-canvas/workbench/dist/server/vite.published.conf
 import { imageConfigDefault } from "next/dist/shared/lib/image-config.js";
 
 const resolvedBaseConfig = await baseConfig;
+const baseAliases = resolvedBaseConfig.resolve?.alias ?? {};
+const aliases = Symbol.iterator in baseAliases
+  ? [...baseAliases]
+  : Object.entries(baseAliases).map(([find, replacement]) => ({
+      find,
+      replacement,
+    }));
 const recipeImageDir = fileURLToPath(
   new URL(
     "../../../apps/drupal/recipes/next-hydra-starter/content/file/",
@@ -35,11 +42,14 @@ export default {
   publicDir: recipeImageDir,
   resolve: {
     ...resolvedBaseConfig.resolve,
-    alias: {
-      ...resolvedBaseConfig.resolve?.alias,
-      "server-only": fileURLToPath(
-        new URL("workbench-shims/server-only.mjs", import.meta.url)
-      ),
-    },
+    alias: [
+      {
+        find: "server-only",
+        replacement: fileURLToPath(
+          new URL("workbench-shims/server-only.mjs", import.meta.url)
+        ),
+      },
+      ...aliases,
+    ],
   },
 };

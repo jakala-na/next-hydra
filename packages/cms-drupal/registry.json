@@ -71,10 +71,7 @@
             }
           ],
           "conditionalDependencies": [
-            {
-              "providers": ["commerce"],
-              "items": ["cms-drupal-product-collection"]
-            }
+            { "providers": ["commerce"], "items": ["cms-drupal-commerce"] }
           ],
           "typeScriptAliases": [
             {
@@ -515,6 +512,11 @@
           "type": "registry:file"
         },
         {
+          "path": "scripts/tsconfig.json",
+          "target": "~/packages/cms-drupal/scripts/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
           "path": "scripts/workbench-shims/server-only.mjs",
           "target": "~/packages/cms-drupal/scripts/workbench-shims/server-only.mjs",
           "type": "registry:file"
@@ -542,15 +544,15 @@
       ]
     },
     {
-      "name": "cms-drupal-product-collection",
+      "name": "cms-drupal-commerce",
       "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
       "type": "registry:item",
-      "title": "Drupal product collection",
-      "description": "Maps Drupal product collections to Commerce core when Commerce is selected.",
+      "title": "Drupal Commerce integration",
+      "description": "Connects Drupal to Commerce core, including product-collection mapping and CMS provisioning files. Installed automatically when both are selected.",
       "registryDependencies": ["drupal-product-collection"],
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/recipe/cms-drupal-product-collection",
+          "id": "next-hydra/recipe/cms-drupal-commerce",
           "kind": "recipe",
           "compatibility": { "requires": ["next-hydra/cms/drupal"] },
           "packages": [

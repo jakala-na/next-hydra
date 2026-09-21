@@ -118,7 +118,7 @@ describe("customer CMS package exclusions", () => {
         "apps/web/registry",
         "apps/web/components/layout/header-cart.tsx",
         "apps/web/components/layout/header-business-unit.tsx",
-        "apps/web/components/layout/account-controls.tsx",
+        "apps/web/components/layout/account-menu.tsx",
         "apps/web/components/layout/header-search.tsx",
         "apps/web/lib/catalog-runtime.ts",
         "apps/web/lib/cart-actions.ts",

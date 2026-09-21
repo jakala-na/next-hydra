@@ -18,9 +18,6 @@
           "kind": "recipe",
           "providerDependencies": [
             { "cwd": "apps/cli", "slot": "cms", "section": "dependencies" }
-          ],
-          "conditionalDependencies": [
-            { "providers": ["commerce"], "items": ["workspace-cli-commerce"] }
           ]
         },
         "composition": {
@@ -72,25 +69,6 @@
         {
           "path": "vitest.config.ts",
           "target": "~/apps/cli/vitest.config.ts",
-          "type": "registry:file"
-        }
-      ]
-    },
-    {
-      "name": "workspace-cli-commerce",
-      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
-      "type": "registry:item",
-      "title": "Commerce CLI integration tests",
-      "meta": {
-        "nextHydra": {
-          "id": "next-hydra/workspace/cli-commerce",
-          "kind": "recipe"
-        }
-      },
-      "files": [
-        {
-          "path": "src/program.test.ts",
-          "target": "~/apps/cli/src/program.test.ts",
           "type": "registry:file"
         }
       ]

@@ -301,9 +301,7 @@ describe("symmetric provider composition", () => {
       expect(
         targets.includes("~/apps/api/app/checkout/[[...rest]]/route.ts")
       ).toBe(commerce);
-      expect(plan.registryItems.includes(`cms-${cms}-product-collection`)).toBe(
-        commerce
-      );
+      expect(plan.registryItems.includes(`cms-${cms}-commerce`)).toBe(commerce);
       expect(
         rendered
           .get(`packages/cms-${cms}/components/component-registry.ts`)
@@ -332,7 +330,7 @@ describe("symmetric provider composition", () => {
       expect(
         rendered
           .get("apps/web/app/[locale]/layout.tsx")
-          ?.includes("<AccountControls />")
+          ?.includes("<AccountMenu />")
       ).toBe(Boolean(auth));
       expect(
         rendered

@@ -114,11 +114,6 @@
           "type": "registry:file"
         },
         {
-          "path": "i18n/request-locale.test.ts",
-          "target": "~/apps/web/i18n/request-locale.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "i18n/request.ts",
           "target": "~/apps/web/i18n/request.ts",
           "type": "registry:file"
@@ -198,11 +193,11 @@
     },
     {
       "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
-      "name": "web-auth",
+      "name": "auth-web",
       "type": "registry:item",
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/recipe/web-auth",
+          "id": "next-hydra/recipe/auth-web",
           "kind": "recipe",
           "providerDependencies": [
             {
@@ -257,8 +252,8 @@
             {
               "target": "apps/web/app/[locale]/layout.tsx",
               "slot": "account",
-              "module": "@/components/layout/account-controls",
-              "export": "AccountControls",
+              "module": "@/components/layout/account-menu",
+              "export": "AccountMenu",
               "order": 10
             },
             {
@@ -317,21 +312,6 @@
         {
           "path": "components/layout/account-menu.tsx",
           "target": "~/apps/web/components/layout/account-menu.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "components/layout/auth-href.test.ts",
-          "target": "~/apps/web/components/layout/auth-href.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "components/layout/auth-href.ts",
-          "target": "~/apps/web/components/layout/auth-href.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "components/layout/account-controls.tsx",
-          "target": "~/apps/web/components/layout/account-controls.tsx",
           "type": "registry:file"
         },
         {

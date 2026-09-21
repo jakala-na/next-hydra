@@ -71,13 +71,12 @@ describe("Next Hydra source registry", () => {
     expect(new Set(catalog.items.keys())).toStrictEqual(
       new Set([
         "app-web",
-        "web-auth",
+        "auth-web",
         "app-web-navigation-search",
         "commerce",
         "commerce-web",
         "commerce-admin",
         "workspace-cli",
-        "workspace-cli-commerce",
         "auth-clerk-commerce",
         "auth-clerk-admin",
         "auth-workos-commerce",
@@ -86,9 +85,9 @@ describe("Next Hydra source registry", () => {
         "auth-contract",
         "auth-workos",
         "cms-contentstack",
-        "cms-contentstack-product-collection",
+        "cms-contentstack-commerce",
         "cms-drupal",
-        "cms-drupal-product-collection",
+        "cms-drupal-commerce",
         "commerce-api",
         "commerce-commercetools",
         "commerce-design-system",
@@ -162,8 +161,9 @@ describe("Next Hydra source registry", () => {
       "auth-clerk-admin",
       "auth-clerk-commerce",
       "auth-contract",
+      "auth-web",
       "cms-drupal",
-      "cms-drupal-product-collection",
+      "cms-drupal-commerce",
       "commerce",
       "commerce-admin",
       "commerce-api",
@@ -172,9 +172,7 @@ describe("Next Hydra source registry", () => {
       "commerce-web",
       "drupal",
       "drupal-product-collection",
-      "web-auth",
       "workspace-cli",
-      "workspace-cli-commerce",
     ]);
     expect(clerk.managedTargets).toStrictEqual([
       "apps/admin/app/sign-in/page.tsx",
@@ -260,11 +258,12 @@ describe("Next Hydra source registry", () => {
     expect(drupal.registryItems).toStrictEqual([
       "app-web",
       "auth-contract",
+      "auth-web",
       "auth-workos",
       "auth-workos-admin",
       "auth-workos-commerce",
       "cms-drupal",
-      "cms-drupal-product-collection",
+      "cms-drupal-commerce",
       "commerce",
       "commerce-admin",
       "commerce-api",
@@ -273,27 +272,24 @@ describe("Next Hydra source registry", () => {
       "commerce-web",
       "drupal",
       "drupal-product-collection",
-      "web-auth",
       "workspace-cli",
-      "workspace-cli-commerce",
     ]);
     expect(contentstack.registryItems).toStrictEqual([
       "app-web",
       "auth-contract",
+      "auth-web",
       "auth-workos",
       "auth-workos-admin",
       "auth-workos-commerce",
       "cms-contentstack",
-      "cms-contentstack-product-collection",
+      "cms-contentstack-commerce",
       "commerce",
       "commerce-admin",
       "commerce-api",
       "commerce-commercetools",
       "commerce-design-system",
       "commerce-web",
-      "web-auth",
       "workspace-cli",
-      "workspace-cli-commerce",
     ]);
     expect(drupal.managedTargets).toStrictEqual([
       "apps/admin/app/api/auth/callback/route.ts",
@@ -388,7 +384,7 @@ describe("Next Hydra source registry", () => {
       providers: { cms: "contentstack" },
     });
     expect(contentstackOnly.registryItems).not.toContain(
-      "cms-contentstack-product-collection"
+      "cms-contentstack-commerce"
     );
     expect(contentstackOnly.packageRequirements).not.toContainEqual(
       expect.objectContaining({
@@ -405,7 +401,7 @@ describe("Next Hydra source registry", () => {
       contentstackOnly.templates.flatMap((template) =>
         template.slotBindings.map((binding) => binding.owner)
       )
-    ).not.toContain("cms-contentstack-product-collection");
+    ).not.toContain("cms-contentstack-commerce");
 
     const contentstackWithProducts = planComposition(catalog, {
       addOns: [],
@@ -416,7 +412,7 @@ describe("Next Hydra source registry", () => {
       },
     });
     expect(contentstackWithProducts.registryItems).toContain(
-      "cms-contentstack-product-collection"
+      "cms-contentstack-commerce"
     );
     expect(contentstackWithProducts.packageRequirements).toContainEqual({
       cwd: "packages/cms-contentstack",
@@ -428,7 +424,7 @@ describe("Next Hydra source registry", () => {
       contentstackWithProducts.templates.flatMap((template) =>
         template.slotBindings.map((binding) => binding.owner)
       )
-    ).toContain("cms-contentstack-product-collection");
+    ).toContain("cms-contentstack-commerce");
     expect(drupal.instructions).toStrictEqual([
       "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output workos-webhook.env` once with the customer WORKOS_API_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets.",
       "From apps/drupal, run ddev install to install Drupal and apply the starter recipe. Then configure the Drupal and Canvas environment variables described by packages/cms-drupal and apps/drupal.",

@@ -200,11 +200,12 @@ describe("composition planner failures", () => {
     expect(plan.registryItems).toStrictEqual([
       "app-web",
       "auth-contract",
+      "auth-web",
       "auth-workos",
       "auth-workos-admin",
       "auth-workos-commerce",
       "cms-drupal",
-      "cms-drupal-product-collection",
+      "cms-drupal-commerce",
       "commerce",
       "commerce-admin",
       "commerce-api",
@@ -214,9 +215,7 @@ describe("composition planner failures", () => {
       "drupal",
       "drupal-commerce-dam",
       "drupal-product-collection",
-      "web-auth",
       "workspace-cli",
-      "workspace-cli-commerce",
     ]);
   });
 

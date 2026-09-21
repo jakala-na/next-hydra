@@ -56,7 +56,7 @@
           "conditionalDependencies": [
             {
               "providers": ["commerce"],
-              "items": ["cms-contentstack-product-collection"]
+              "items": ["cms-contentstack-commerce"]
             }
           ]
         },
@@ -446,13 +446,13 @@
     },
     {
       "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
-      "name": "cms-contentstack-product-collection",
+      "name": "cms-contentstack-commerce",
       "type": "registry:item",
-      "title": "Contentstack Product Collection block",
-      "description": "Adds the Commerce-backed Product Collection block to Contentstack landing pages.",
+      "title": "Contentstack Commerce integration",
+      "description": "Connects Contentstack to Commerce core, including product-collection mapping and CMS provisioning files. Installed automatically when both are selected.",
       "meta": {
         "nextHydra": {
-          "id": "next-hydra/recipe/cms-contentstack-product-collection",
+          "id": "next-hydra/recipe/cms-contentstack-commerce",
           "kind": "recipe",
           "compatibility": { "requires": ["next-hydra/cms/contentstack"] },
           "packages": [
