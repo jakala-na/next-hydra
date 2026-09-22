@@ -391,6 +391,11 @@
           "type": "registry:file"
         },
         {
+          "path": "app/[locale]/checkout/loading.tsx",
+          "target": "~/apps/web/app/[locale]/checkout/loading.tsx",
+          "type": "registry:file"
+        },
+        {
           "path": "app/[locale]/checkout/orders/[orderId]/page.tsx",
           "target": "~/apps/web/app/[locale]/checkout/orders/[orderId]/page.tsx",
           "type": "registry:file"

@@ -294,6 +294,7 @@
       }
     },
     "checkout": {
+      "title": "Finaliser la commande",
       "paymentOptions": {
         "availableToSpend": "{amount} available to spend",
         "card": "Card",

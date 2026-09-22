@@ -253,8 +253,18 @@
           "type": "registry:file"
         },
         {
+          "path": "checkout/checkout-layout.tsx",
+          "target": "~/packages/commerce/checkout/checkout-layout.tsx",
+          "type": "registry:file"
+        },
+        {
           "path": "checkout/checkout-page.tsx",
           "target": "~/packages/commerce/checkout/checkout-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "checkout/checkout-skeleton.tsx",
+          "target": "~/packages/commerce/checkout/checkout-skeleton.tsx",
           "type": "registry:file"
         },
         {
