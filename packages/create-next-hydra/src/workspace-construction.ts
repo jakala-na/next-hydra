@@ -4,6 +4,7 @@
  * Every run requires a new output directory; existing workspaces are never replaced.
  */
 /* oxlint-disable complexity, no-await-in-loop, no-console -- Composition reports ordered progress; package discovery depends on previously resolved manifests. */
+import { isUtf8 } from "node:buffer";
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -78,6 +79,40 @@ function internalDependencies(manifest: PackageJson): string[] {
           : name
       )
   );
+}
+
+/** Replace declared hostnames in text, preserving opaque assets and binary source bytes. */
+function rewriteHostnames(
+  files: Map<string, File>,
+  hostnames: Map<string, string>
+): void {
+  if (hostnames.size === 0) {
+    return;
+  }
+  const names = [...hostnames.keys()].map((hostname) =>
+    hostname.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")
+  );
+  const pattern = new RegExp(
+    `(?<![\\w.-])(?:${names.join("|")})(?![\\w.-])`,
+    "gu"
+  );
+  for (const file of files.values()) {
+    if (file.origin?.kind === "asset") {
+      continue;
+    }
+    const content = Buffer.from(file.content);
+    if (!isUtf8(content) || content.includes(0)) {
+      continue;
+    }
+    const text = content.toString("utf-8");
+    const updated = text.replaceAll(
+      pattern,
+      (hostname) => hostnames.get(hostname) ?? hostname
+    );
+    if (updated !== text) {
+      file.content = updated;
+    }
+  }
 }
 
 export async function constructWorkspace(
@@ -384,6 +419,7 @@ export async function constructWorkspace(
   });
   // Only adapt applications that explicitly use Portless. Package-owned build,
   // test, typecheck and custom development commands must survive composition.
+  const hostnames = new Map<string, string>();
   for (const [manifestPath, appManifestFile] of files) {
     if (!/^apps\/[^/]+\/package\.json$/u.test(manifestPath)) {
       continue;
@@ -396,7 +432,7 @@ export async function constructWorkspace(
       continue;
     }
     const hosting = z
-      .object({ script: z.string() })
+      .object({ name: z.string().min(1).optional(), script: z.string() })
       .passthrough()
       .parse(appManifest.portless);
     const scripts = z.record(z.string()).parse(appManifest.scripts ?? {});
@@ -414,6 +450,15 @@ export async function constructWorkspace(
     ]);
     const port = applicationPorts.get(manifestPath);
     const application = path.posix.basename(path.posix.dirname(manifestPath));
+    if (hosting.name !== undefined) {
+      const hostname = `${hosting.name}.localhost`;
+      if (hostnames.has(hostname)) {
+        throw new Error(
+          `Duplicate Portless hostname in ${manifestPath}: ${hostname}`
+        );
+      }
+      hostnames.set(hostname, `${application}.${hostNamespace}.localhost`);
+    }
     appManifest.portless = {
       ...hosting,
       appPort: options.port === undefined ? undefined : port,
@@ -450,16 +495,7 @@ export async function constructWorkspace(
     owner: "workspace baseline",
   });
 
-  // Keep local host names scoped to the materialized project in every workflow.
-  for (const [target, file] of files) {
-    if (/\.(?:[cm]?[jt]sx?|json|ya?ml|md|example)$/u.test(target)) {
-      file.content = String(file.content).replaceAll(
-        /(?<application>web|api|admin)\.next-hydra\.localhost/gu,
-        (_hostname, application: string) =>
-          `${application}.${hostNamespace}.localhost`
-      );
-    }
-  }
+  rewriteHostnames(files, hostnames);
   report(
     `Composition plan: ${Object.values(selection.providers).join(" + ")}; ${files.size} files; ${templates.length} templates; ${includedPackages.size} packages; copied sources.`
   );

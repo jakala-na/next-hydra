@@ -15,34 +15,6 @@ describe("CLI", () => {
     );
   });
 
-  it.each([
-    "--reuse",
-    "--output=/tmp/site",
-    "--linked",
-    "--link",
-    "--no-link",
-    "--cms=drupal",
-  ])(
-    "rejects an unsupported compose option %s without invoking composition",
-    async (option) => {
-      const compose = vi.fn<typeof composeDevelopmentWorkspaces>();
-      await expect(
-        runCli(["node", "create-next-hydra", "compose", "cms-drupal", option], {
-          composeDevelopmentWorkspaces: compose,
-        })
-      ).rejects.toThrow(
-        "Compose initializes or refreshes workspaces/<name> in place"
-      );
-      expect(compose).not.toHaveBeenCalled();
-    }
-  );
-
-  it("directs unsupported scaffold options to the named-workspace workflow", async () => {
-    await expect(
-      runCli(["node", "create-next-hydra", "output", "--maintainer-workspace"])
-    ).rejects.toThrow("run create-next-hydra compose <name>");
-  });
-
   it("passes the named definition and refresh options to composition", async () => {
     const compose = vi
       .fn<typeof composeDevelopmentWorkspaces>()

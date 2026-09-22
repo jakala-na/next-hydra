@@ -16,11 +16,16 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { composeWorkspace } from "../src/compose.js";
+import {
+  addCatalogReferences,
+  loadSourceRegistryCatalog,
+} from "../src/composition/catalog.js";
 import { readPackageJson } from "../src/composition/packages.js";
 import { updateDevelopmentWorkspace } from "../src/development-workspaces.js";
 import { writeJsonFile } from "../src/fs-utils.js";
 import { runCommand, runGit } from "../src/git.js";
 import { scaffoldProject } from "../src/scaffold.js";
+import { constructWorkspace } from "../src/workspace-construction.js";
 import { createSourceRepository } from "./fixtures/source-repository.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
@@ -160,6 +165,185 @@ describe("shared customer and developer construction", () => {
     },
     30_000
   );
+
+  it("assigns scoped names to applications without explicit Portless names", async () => {
+    const applications = ["portal", "console"];
+    const scripts = { dev: "portless", "dev:app": "node server.mjs" };
+    const registry = path.join(scratch, "inferred-hosts.json");
+    await writeJsonFile(registry, {
+      $schema: selectionSchema,
+      files: applications.map((name) => ({
+        content: JSON.stringify({
+          name,
+          portless: { script: "dev:app" },
+          private: true,
+          scripts,
+        }),
+        path: `${name}/package.json`,
+        target: `~/apps/${name}/package.json`,
+        type: "registry:file",
+      })),
+      meta: {
+        nextHydra: { id: "fixture/add-on/inferred-hosts", kind: "add-on" },
+      },
+      name: "inferred-hosts",
+      type: "registry:item",
+    });
+    const target = path.join(scratch, "inferred-hosts");
+    await composeWorkspace(
+      target,
+      { addOns: [registry], cms: "contentstack", install: false },
+      { report: () => {}, sourceRoot: source }
+    );
+    const manifests = await Promise.all(
+      applications.map(
+        async (name) =>
+          await readPackageJson(path.join(target, "apps", name, "package.json"))
+      )
+    );
+    expect(manifests).toEqual(
+      applications.map((name) => ({
+        name,
+        portless: { name: `${name}.inferred-hosts`, script: "dev:app" },
+        private: true,
+        scripts,
+      }))
+    );
+  }, 30_000);
+
+  it("scopes declared application hosts in arbitrary text while preserving binary sources and assets", async () => {
+    const packageRoot = path.join(source, "packages/hostname-fixture");
+    await mkdir(packageRoot);
+    await writeJsonFile(path.join(packageRoot, "package.json"), {
+      name: "@repo/hostname-fixture",
+    });
+    const hostname = "preview.provider-example.localhost";
+    const text = `https://${hostname}:1234/path\nhttps://sub.${hostname}/\nhttps://${hostname}.example.com/\n`;
+    const binary = Buffer.concat([
+      Buffer.from([0, 255]),
+      Buffer.from(hostname),
+    ]);
+    const nullBytes = Buffer.concat([Buffer.from([0]), Buffer.from(hostname)]);
+    await writeFile(path.join(packageRoot, "settings.conf"), text);
+    await writeFile(path.join(packageRoot, "binary.data"), binary);
+    await writeFile(path.join(packageRoot, "null.data"), nullBytes);
+    await writeFile(path.join(packageRoot, "opaque.txt"), hostname);
+    await writeJsonFile(path.join(packageRoot, "registry.json"), {
+      $schema:
+        "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+      homepage: "https://example.test",
+      items: [
+        {
+          $schema: selectionSchema,
+          files: [],
+          meta: {
+            nextHydra: {
+              assets: [
+                {
+                  source: "packages/hostname-fixture/opaque.txt",
+                  target: "apps/portal/opaque.txt",
+                },
+              ],
+              id: "fixture/add-on/hostname-assets",
+              kind: "add-on",
+            },
+          },
+          name: "hostname-assets",
+          type: "registry:item",
+        },
+      ],
+      name: "hostname-fixture",
+    });
+    const registry = path.join(scratch, "hostname-addon.json");
+    await writeJsonFile(registry, {
+      $schema: selectionSchema,
+      files: [
+        {
+          content: JSON.stringify({
+            dependencies: { "@repo/hostname-fixture": "workspace:*" },
+            name: "portal",
+            portless: { name: "preview.provider-example", script: "dev:app" },
+            private: true,
+            scripts: { dev: "portless", "dev:app": "node server.mjs" },
+          }),
+          path: "package.json",
+          target: "~/apps/portal/package.json",
+          type: "registry:file",
+        },
+        {
+          content: text,
+          path: "ENDPOINTS",
+          target: "~/apps/portal/ENDPOINTS",
+          type: "registry:file",
+        },
+      ],
+      meta: {
+        nextHydra: {
+          id: "fixture/add-on/hostnames",
+          kind: "add-on",
+        },
+      },
+      name: "hostname-addon",
+      type: "registry:item",
+    });
+    const target = path.join(scratch, "scoped-hosts");
+    const catalog = await addCatalogReferences(
+      await loadSourceRegistryCatalog(source, "registry.json", [
+        "packages/hostname-fixture/registry.json",
+      ]),
+      [registry],
+      source
+    );
+    await constructWorkspace(target, {
+      catalog,
+      install: false,
+      report: () => {},
+      selection: {
+        addOns: [registry, "hostname-assets"],
+        providers: { cms: "contentstack" },
+      },
+    });
+    const expected = text.replace(
+      `https://${hostname}:`,
+      "https://portal.scoped-hosts.localhost:"
+    );
+    expect({
+      asset: await readFile(
+        path.join(target, "apps/portal/opaque.txt"),
+        "utf-8"
+      ),
+      binary: await readFile(
+        path.join(target, "packages/hostname-fixture/binary.data")
+      ),
+      nullBytes: await readFile(
+        path.join(target, "packages/hostname-fixture/null.data")
+      ),
+      registryText: await readFile(
+        path.join(target, "apps/portal/ENDPOINTS"),
+        "utf-8"
+      ),
+      sourceText: await readFile(
+        path.join(target, "packages/hostname-fixture/settings.conf"),
+        "utf-8"
+      ),
+      sourceUnchanged: await readFile(
+        path.join(packageRoot, "settings.conf"),
+        "utf-8"
+      ),
+    }).toEqual({
+      asset: hostname,
+      binary,
+      nullBytes,
+      registryText: expected,
+      sourceText: expected,
+      sourceUnchanged: text,
+    });
+    await expect(
+      readPackageJson(path.join(target, "apps/portal/package.json"))
+    ).resolves.toMatchObject({
+      portless: { name: "portal.scoped-hosts", script: "dev:app" },
+    });
+  }, 30_000);
 
   it.each(["customer", "developer"])(
     "%s preserves and executes an external application's own standard commands",

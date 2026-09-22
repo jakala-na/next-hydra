@@ -1,3 +1,5 @@
+import path from "node:path";
+
 /** These cache directories may be restored before a named workspace is initialized. */
 export const workspaceCacheDirectories: ReadonlySet<string> = new Set([
   "node_modules",
@@ -20,24 +22,18 @@ export const workspaceNonSourceDirectories: ReadonlySet<string> = new Set([
   ".workflow-data",
 ]);
 
-/** Maintainer task metadata is preserved alongside deployment settings, never scaffolded to customers. */
-export const workspaceTaskFiles: ReadonlySet<string> = new Set([
-  "tasks/package.json",
-  "tasks/turbo.json",
-]);
+/** Workspace-owned settings, shared by initialization, refresh and inspection. */
+const workspaceSettings = [
+  { kind: "ignore", patterns: [".gitignore", "apps/*/.gitignore"] },
+  { kind: "deployment", patterns: ["apps/*/vercel.json"] },
+  { kind: "tasks", patterns: ["tasks/package.json", "tasks/turbo.json"] },
+] as const;
 
 /** Named-workspace settings are preserved independently of registry-owned output. */
 export function workspaceSettingKind(
   target: string
 ): "ignore" | "deployment" | "tasks" | undefined {
-  if (target === ".gitignore" || /^apps\/[^/]+\/\.gitignore$/u.test(target)) {
-    return "ignore";
-  }
-  if (/^apps\/[^/]+\/vercel\.json$/u.test(target)) {
-    return "deployment";
-  }
-  if (workspaceTaskFiles.has(target)) {
-    return "tasks";
-  }
-  return undefined;
+  return workspaceSettings.find(({ patterns }) =>
+    patterns.some((pattern) => path.posix.matchesGlob(target, pattern))
+  )?.kind;
 }

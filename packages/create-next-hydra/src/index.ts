@@ -64,33 +64,6 @@ export async function runCli(
 ): Promise<void> {
   // Reserved command names must not be interpreted as scaffold destinations.
   rejectReservedCommand(argv[2]);
-  if (argv.includes("--maintainer-workspace")) {
-    throw new Error(
-      "For local development, define workspaces/<name>/next-hydra.json and run create-next-hydra compose <name>. Add --copy-env to initialize missing local credentials."
-    );
-  }
-  if (
-    argv[2] === "compose" &&
-    argv
-      .slice(3)
-      .some((argument) =>
-        [
-          "--output",
-          "--reuse",
-          "--linked",
-          "--link",
-          "--no-link",
-          "--cms",
-          "--commerce",
-          "--auth",
-          "--search",
-        ].includes(argument.split("=")[0] ?? "")
-      )
-  ) {
-    throw new Error(
-      "Compose initializes or refreshes workspaces/<name> in place. Source files are always copied. Set providers in next-hydra.json. Use create-next-hydra <directory> for a new application."
-    );
-  }
   const program = new Command().enablePositionalOptions();
 
   program

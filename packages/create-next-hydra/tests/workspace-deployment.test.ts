@@ -23,11 +23,7 @@ import {
 } from "../src/development-workspaces.js";
 import { runGit } from "../src/git.js";
 import { workspaceSnapshotDirectory } from "../src/workspace-snapshots.js";
-import {
-  inspectWorkspaceChanges,
-  updateWorkspaceFiles,
-} from "../src/workspace-update.js";
-import { seedLinkedWorkspace } from "./fixtures/legacy-workspace.js";
+import { inspectWorkspaceChanges } from "../src/workspace-update.js";
 
 const sourceRoot = path.resolve(import.meta.dirname, "../../..");
 
@@ -163,7 +159,7 @@ describe("named workspace deployment", () => {
     },
     {
       content: "{}\n",
-      error: /Unsupported or invalid workspace state/u,
+      error: /Invalid workspace state/u,
       file: ".workspace-composition.json",
       reason: "invalid ownership state",
     },
@@ -320,32 +316,6 @@ describe("named workspace deployment", () => {
     30_000
   );
 
-  it("preserves edited ignore rules and releases old app rules", async () => {
-    await updateWorkspaceFiles({
-      dependencyHash: "previous-composition",
-      files: [".gitignore", "apps/web/.gitignore"].map((file) => ({
-        content: Buffer.from("/*\n!/vercel.json\n"),
-        mode: 0o644,
-        owner: "named workspace Git visibility",
-        target: file,
-      })),
-      sourceRoot,
-      targetRoot: target,
-    });
-    const ignoreRules =
-      "/*\n!/.gitignore\n!/next-hydra.json\n# Workspace-owned policy\n";
-    await write(".gitignore", ignoreRules);
-    await updateDevelopmentWorkspace(sourceRoot, name, {
-      install: false,
-    });
-    await expect(
-      readFile(path.join(target, ".gitignore"), "utf-8")
-    ).resolves.toBe(ignoreRules);
-    await expect(
-      readFile(path.join(target, "apps/web/.gitignore"), "utf-8")
-    ).resolves.toBe("/*\n!/vercel.json\n");
-  }, 30_000);
-
   it("keeps named deployment settings opt-in instead of installing customer hosting defaults", async () => {
     await updateDevelopmentWorkspace(sourceRoot, name, {
       install: false,
@@ -359,51 +329,6 @@ describe("named workspace deployment", () => {
       readFile(path.join(target, "apps/web/vercel.json"), "utf-8")
     ).resolves.toBe('{"framework":"nextjs"}');
   }, 30_000);
-
-  it.each(["apps/web/vercel.json", "apps/api/.gitignore"])(
-    "migrates previously owned settings at %s",
-    async (settingsPath) => {
-      const canonical = path.join(sourceRoot, settingsPath);
-      const settings = await readFile(canonical, "utf-8");
-      // The previous constructor registered the source link in version-2 applied state.
-      await seedLinkedWorkspace({
-        files: [{ owner: "web", source: canonical, target: settingsPath }],
-        sourceRoot,
-        targetRoot: target,
-      });
-      await updateDevelopmentWorkspace(sourceRoot, name, {
-        check: true,
-        install: false,
-      });
-      const before = await lstat(path.join(target, settingsPath));
-      await updateDevelopmentWorkspace(sourceRoot, name, {
-        install: false,
-      });
-      const after = await lstat(path.join(target, settingsPath));
-      const migrated = await readFile(path.join(target, settingsPath), "utf-8");
-      expect(after.isFile()).toBeTruthy();
-      await write(settingsPath, '{"framework":"nextjs"}');
-      const refreshed = await updateDevelopmentWorkspace(sourceRoot, name, {
-        install: false,
-      });
-      expect({
-        before: before.isSymbolicLink(),
-        canonical: await readFile(canonical, "utf-8"),
-        migrated,
-        physical: after.isFile(),
-        settings: await readFile(path.join(target, settingsPath), "utf-8"),
-        unowned: refreshed.unowned,
-      }).toEqual({
-        before: true,
-        canonical: settings,
-        migrated: settings,
-        physical: true,
-        settings: '{"framework":"nextjs"}',
-        unowned: [],
-      });
-    },
-    30_000
-  );
 
   it("uses independent physical source files on every refresh and protects local work", async () => {
     const settings = '{"framework":"nextjs"}';

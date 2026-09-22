@@ -28,7 +28,6 @@ import {
   WORKSPACE_STATE,
 } from "../src/workspace-update.js";
 import type { WorkspaceFile } from "../src/workspace-update.js";
-import { seedLinkedWorkspace } from "./fixtures/legacy-workspace.js";
 
 let root: string;
 let sourceRoot: string;
@@ -51,12 +50,6 @@ const update = async (
     ...options,
   });
 
-const seedLegacy = async (
-  files: Parameters<typeof seedLinkedWorkspace>[0]["files"]
-) => {
-  await seedLinkedWorkspace({ files, sourceRoot, targetRoot });
-};
-
 describe("development workspace lifecycle", () => {
   beforeEach(async () => {
     root = await mkdtemp(path.join(tmpdir(), "workspace-update-"));
@@ -70,217 +63,62 @@ describe("development workspace lifecycle", () => {
   });
 
   describe("safe workspace refresh", () => {
-    it.each(
-      ["unowned", "redirected", "outside source"].flatMap((scenario) =>
-        ["apps/web/vercel.json", "apps/web/.gitignore"].map((target) => ({
-          scenario,
-          target,
-        }))
-      )
-    )(
-      "refuses $scenario settings links at $target without changing any files",
-      async ({ scenario, target }) => {
+    it.each(["apps/preview/vercel.json", "apps/preview/.gitignore"])(
+      "rejects a symlink at workspace setting %s before changing files",
+      async (target) => {
+        await update([file("page.tsx", "before")]);
         const canonical = path.join(sourceRoot, "settings.json");
-        const outside = path.join(root, "other-settings.json");
-        await writeFile(canonical, "canonical settings");
-        await writeFile(outside, "other settings");
-        await seedLegacy([
-          file("apps/web/page.tsx", "before"),
-          ...(scenario === "unowned"
-            ? []
-            : [
-                {
-                  owner: "web",
-                  source: scenario === "outside source" ? outside : canonical,
-                  target,
-                },
-              ]),
-        ]);
-        if (scenario === "redirected") {
-          await unlink(path.join(targetRoot, target));
-        }
-        if (scenario !== "outside source") {
-          await symlink(
-            scenario === "unowned" ? canonical : outside,
-            path.join(targetRoot, target)
-          );
-        }
+        await writeFile(canonical, "source settings");
+        await mkdir(path.dirname(path.join(targetRoot, target)), {
+          recursive: true,
+        });
+        await symlink(canonical, path.join(targetRoot, target));
         const before = await readFile(
           path.join(targetRoot, WORKSPACE_STATE),
           "utf-8"
         );
-        const linkBefore = await readlink(path.join(targetRoot, target));
         await expect(
-          update([file("apps/web/page.tsx", "after")], {
-            preservedFiles: [target],
-          })
-        ).rejects.toThrow(
-          scenario === "outside source"
-            ? "must not escape the workspace"
-            : "Cannot replace unowned or redirected workspace settings"
-        );
+          update([file("page.tsx", "after")], { preservedFiles: [target] })
+        ).rejects.toThrow("Workspace settings must be regular files");
         expect({
-          canonical: await readFile(canonical, "utf-8"),
-          page: await readFile(
-            path.join(targetRoot, "apps/web/page.tsx"),
-            "utf-8"
-          ),
-          settings: await readlink(path.join(targetRoot, target)),
+          page: await readFile(path.join(targetRoot, "page.tsx"), "utf-8"),
+          setting: await readlink(path.join(targetRoot, target)),
+          source: await readFile(canonical, "utf-8"),
           state: await readFile(
             path.join(targetRoot, WORKSPACE_STATE),
             "utf-8"
           ),
         }).toEqual({
-          canonical: "canonical settings",
           page: "before",
-          settings: linkBefore,
+          setting: canonical,
+          source: "source settings",
           state: before,
         });
       }
     );
 
-    it("does not detach owned settings when another application file conflicts", async () => {
-      const target = "apps/web/vercel.json";
-      const canonical = path.join(sourceRoot, "settings.json");
-      await writeFile(canonical, "canonical settings");
-      await seedLegacy([
-        { owner: "web", source: canonical, target },
-        file("apps/web/page.tsx", "before"),
-      ]);
-      await writeFile(path.join(targetRoot, "apps/web/page.tsx"), "local work");
+    it("preserves workspace settings while refusing registry ownership of them", async () => {
+      const target = "apps/preview/vercel.json";
+      await mkdir(path.dirname(path.join(targetRoot, target)), {
+        recursive: true,
+      });
+      await writeFile(path.join(targetRoot, target), "author settings");
+      await update([file("page.tsx", "before")], { preservedFiles: [target] });
+      await update([file("page.tsx", "after")], { preservedFiles: [target] });
       await expect(
-        update([file("apps/web/page.tsx", "after")], {
+        update([file(target, "registry settings")], {
           preservedFiles: [target],
         })
-      ).rejects.toThrow("locally modified");
-      const settingsInfo = await lstat(path.join(targetRoot, target));
-      expect(settingsInfo.isSymbolicLink()).toBeTruthy();
-      await expect(
-        readFile(path.join(targetRoot, "apps/web/page.tsx"), "utf-8")
-      ).resolves.toBe("local work");
-    });
-
-    it.each([false, true])(
-      "recovers an interrupted settings migration with detached=%s",
-      async (detached) => {
-        const target = "apps/web/vercel.json";
-        const canonical = path.join(sourceRoot, "settings.json");
-        await writeFile(canonical, "settings");
-        await seedLegacy([
-          { owner: "web", source: canonical, target },
-          file("apps/web/page.tsx", "before"),
-        ]);
-        const state = z
-          .object({
-            files: z.array(z.object({ target: z.string() }).passthrough()),
-          })
-          .passthrough()
-          .parse(
-            JSON.parse(
-              await readFile(path.join(targetRoot, WORKSPACE_STATE), "utf-8")
-            )
-          );
-        const pending = {
-          ...state,
-          files: state.files.map((entry) => {
-            const fingerprint = {
-              hash: hashWorkspaceContent(
-                entry.target === target ? "settings" : "after"
-              ),
-              kind: "file",
-              mode: 0o644,
-            };
-            return { ...entry, applied: fingerprint, desired: fingerprint };
-          }),
-        };
-        await writeFile(
-          path.join(targetRoot, WORKSPACE_STATE),
-          JSON.stringify({ ...state, pending })
-        );
-        if (detached) {
-          await unlink(path.join(targetRoot, target));
-          await writeFile(path.join(targetRoot, target), "settings");
-        }
-        await update([file("apps/web/page.tsx", "after")], {
-          preservedFiles: [target],
-        });
-        const released = z
-          .object({
-            files: z.array(z.object({ target: z.string() })),
-            pending: z.unknown().optional(),
-          })
-          .parse(
-            JSON.parse(
-              await readFile(path.join(targetRoot, WORKSPACE_STATE), "utf-8")
-            )
-          );
-        const settingsInfo = await lstat(path.join(targetRoot, target));
-        expect({
-          owned: released.files.map((entry) => entry.target),
-          page: await readFile(
-            path.join(targetRoot, "apps/web/page.tsx"),
-            "utf-8"
-          ),
-          pending: released.pending,
-          physical: settingsInfo.isFile(),
-          settings: await readFile(path.join(targetRoot, target), "utf-8"),
-        }).toEqual({
-          owned: ["apps/web/page.tsx"],
-          page: "after",
-          pending: undefined,
-          physical: true,
-          settings: "settings",
-        });
-      }
-    );
-
-    it.each(["apps/web/vercel.json", "apps/web/.gitignore"])(
-      "releases formerly generated settings at %s without replacing local changes",
-      async (target) => {
-        await update([file(target, "old registry settings")]);
-        await writeFile(path.join(targetRoot, target), "workspace settings");
-        const result = await update([file("apps/web/page.tsx", "page")], {
-          preservedFiles: [target],
-          rejectUnowned: true,
-        });
-        expect(result).toMatchObject({ removed: 0, unowned: [] });
-        await expect(
-          readFile(path.join(targetRoot, target), "utf-8")
-        ).resolves.toBe("workspace settings");
-        await expect(
-          update([file(target, "registry collision")], {
-            preservedFiles: [target],
-          })
-        ).rejects.toThrow("cannot overwrite workspace-owned settings");
-        await expect(
-          readFile(path.join(targetRoot, "apps/web/page.tsx"), "utf-8")
-        ).resolves.toBe("page");
-        await expect(
-          update([], { preservedFiles: ["apps/web/page.tsx"] })
-        ).rejects.toThrow("Not a workspace setting");
-      }
-    );
-
-    it("detaches an owned app ignore link and never edits its canonical source", async () => {
-      const target = "apps/web/.gitignore";
-      const canonical = path.join(sourceRoot, "app.gitignore");
-      await writeFile(canonical, "/.swc\n");
-      await seedLegacy([{ owner: "web", source: canonical, target }]);
-      await update([], { preservedFiles: [target], rejectUnowned: true });
-      const info = await lstat(path.join(targetRoot, target));
-      expect(info.isFile()).toBeTruthy();
+      ).rejects.toThrow("cannot overwrite workspace-owned settings");
       await expect(
         readFile(path.join(targetRoot, target), "utf-8")
-      ).resolves.toBe("/.swc\n");
-      await writeFile(path.join(targetRoot, target), "/.swc\n/local\n");
-      await update([], { preservedFiles: [target], rejectUnowned: true });
-      await expect(readFile(canonical, "utf-8")).resolves.toBe("/.swc\n");
+      ).resolves.toBe("author settings");
       await expect(
-        readFile(path.join(targetRoot, target), "utf-8")
-      ).resolves.toBe("/.swc\n/local\n");
+        update([], { preservedFiles: ["page.tsx"] })
+      ).rejects.toThrow("Not a workspace setting");
     });
 
-    it("adds provenance to an existing v2 state without rewriting output or reinstalling", async () => {
+    it("refreshes source provenance without rewriting output or reinstalling", async () => {
       const target = "apps/web/layout.tsx";
       const install = vi.fn<() => Promise<void>>(async () => {
         await mkdir(path.join(targetRoot, "node_modules"), { recursive: true });
@@ -427,36 +265,11 @@ describe("development workspace lifecycle", () => {
       expect(install).not.toHaveBeenCalled();
     });
 
-    it("removes a legacy provider link without removing its canonical source", async () => {
-      const source = path.join(sourceRoot, "route.ts");
-      await writeFile(source, "original");
-      await seedLegacy([
-        { owner: "cms", source, target: "apps/web/api/revalidate/route.ts" },
-      ]);
-      await writeFile(
-        path.join(targetRoot, "apps/web/api/revalidate/route.ts"),
-        "edited source"
-      );
-      await expect(update([], { check: true })).resolves.toMatchObject({
-        removed: 1,
-      });
-      await update([]);
-      await expect(readFile(source, "utf-8")).resolves.toBe("edited source");
-      await expect(
-        lstat(path.join(targetRoot, "apps/web/api/revalidate/route.ts")).catch(
-          () => undefined
-        )
-      ).resolves.toBeUndefined();
-    });
-
-    it("resolves source imports beside composed siblings after migrating a link", async () => {
+    it("resolves copied source imports beside composed siblings", async () => {
       const entrySource =
         'import { value } from "./settings.mjs"; console.log(value);\n';
       const canonical = path.join(sourceRoot, "entry.mjs");
       await writeFile(canonical, entrySource);
-      await seedLegacy([
-        { owner: "fixture", source: canonical, target: "entry.mjs" },
-      ]);
       await update([
         file("entry.mjs", entrySource),
         file("settings.mjs", 'export const value = "workspace settings";\n'),
@@ -469,25 +282,6 @@ describe("development workspace lifecycle", () => {
         lstat(path.join(sourceRoot, "settings.mjs"))
       ).rejects.toMatchObject({ code: "ENOENT" });
       await expect(readFile(canonical, "utf-8")).resolves.toBe(entrySource);
-    });
-
-    it("migrates a legacy provider link to a copy and protects subsequent local edits", async () => {
-      const canonical = path.join(sourceRoot, "route.ts");
-      await writeFile(canonical, "first");
-      await seedLegacy([
-        { owner: "cms", source: canonical, target: "route.ts" },
-      ]);
-      await update([file("route.ts", "second")]);
-      const refreshed = await lstat(path.join(targetRoot, "route.ts"));
-      expect(refreshed.isFile()).toBeTruthy();
-      await writeFile(path.join(targetRoot, "route.ts"), "local work");
-      await expect(update([file("route.ts", "third")])).rejects.toThrow(
-        "locally modified"
-      );
-      await expect(readFile(canonical, "utf-8")).resolves.toBe("first");
-      await expect(
-        readFile(path.join(targetRoot, "route.ts"), "utf-8")
-      ).resolves.toBe("local work");
     });
 
     it.each(["edit", "delete", "redirect"])(
@@ -578,22 +372,15 @@ describe("development workspace lifecycle", () => {
       "../outside",
       "./next-hydra.json",
       "next-hydra.json",
+      "apps/preview/vercel.json",
+      "apps/preview/.gitignore",
+      "tasks/turbo.json",
       ".env.local",
       "node_modules/file",
       "a/../../outside",
     ])("rejects protected or escaping target %s", async (target) => {
       await expect(update([file(target, "bad")])).rejects.toThrow(
         /workspace|protected/iu
-      );
-    });
-
-    it("refuses legacy receipts without hashes instead of claiming their files", async () => {
-      await writeFile(
-        path.join(targetRoot, WORKSPACE_STATE),
-        '{"version":1,"files":[]}'
-      );
-      await expect(update([file("layout.tsx", "new")])).rejects.toThrow(
-        "Legacy receipts cannot be auto-adopted"
       );
     });
 
@@ -668,9 +455,9 @@ describe("development workspace lifecycle", () => {
         path.join(folder, "cms-drupal"),
         path.join(folder, "linked")
       );
-      await mkdir(path.join(folder, "legacy"));
-      await writeFile(path.join(folder, "legacy/next-hydra.json"), "{}");
-      await writeFile(path.join(folder, "legacy/.gitignore"), "*\n");
+      await mkdir(path.join(folder, "ignored"));
+      await writeFile(path.join(folder, "ignored/next-hydra.json"), "{}");
+      await writeFile(path.join(folder, "ignored/.gitignore"), "*\n");
       await expect(discoverDevelopmentWorkspaces(sourceRoot)).resolves.toEqual([
         "cms-drupal",
       ]);

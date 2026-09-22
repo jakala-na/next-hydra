@@ -305,16 +305,7 @@ async function inspectWorkspaceDirectory(
       }
       const setting = workspaceSettingKind(target);
       if (setting) {
-        if (
-          (target === ".gitignore" || setting === "tasks") &&
-          !entry.isFile()
-        ) {
-          throw new Error(
-            `Workspace settings must be regular files: ${target}`
-          );
-        }
-        // Previously owned links are validated and detached by the update engine.
-        if (!entry.isFile() && !(initialized && entry.isSymbolicLink())) {
+        if (!entry.isFile()) {
           throw new Error(
             `Workspace settings must be regular files: ${target}`
           );
