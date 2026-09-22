@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import { addRegistryItem } from "../src/composition/add.js";
+import { CompositionValidationError } from "../src/composition/errors.js";
 import { NEXT_HYDRA_SELECTION_SCHEMA_URL } from "../src/composition/schema.js";
 
 const mutableArtifact = (content: string) =>
@@ -196,7 +197,7 @@ describe("customer add", () => {
     );
     await expect(
       addRegistryItem(artifactPath, { cwd: root, yes: true })
-    ).rejects.toThrow("cannot recompose customer-owned files");
+    ).rejects.toThrow(CompositionValidationError);
     await expect(readFile(path.join(root, "feature.ts"))).rejects.toThrow(
       "ENOENT"
     );
@@ -537,7 +538,7 @@ describe("customer add", () => {
 
     await expect(
       addRegistryItem(artifactPath, { cwd: root, yes: true })
-    ).rejects.toThrow("targets the same customer file");
+    ).rejects.toThrow(CompositionValidationError);
     await expect(
       readFile(
         path.join(root, "packages/cms-drupal/integrations/dam.ts"),

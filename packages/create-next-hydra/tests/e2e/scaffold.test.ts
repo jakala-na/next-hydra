@@ -6,9 +6,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
-  readdir,
   rm,
-  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -352,31 +350,6 @@ describe("scaffold composition", () => {
   beforeAll(async () => {
     testRoot = await mkdtemp(path.join(tmpdir(), "next-hydra-scaffold-"));
     sourceRepository = await createSourceRepository();
-    // A linked workspace runs against an installed maintainer checkout. Reuse
-    // its real dependencies without making standalone customer installs see them.
-    const apps = await readdir(path.join(repoRoot, "apps"));
-    const packages = await readdir(path.join(repoRoot, "packages"));
-    const packageRoots = [
-      ".",
-      ...apps.map((name) => `apps/${name}`),
-      ...packages.map((name) => `packages/${name}`),
-    ];
-    await Promise.all(
-      packageRoots.map(async (relativePath) => {
-        const dependencies = path.join(repoRoot, relativePath, "node_modules");
-        const fixturePackage = path.join(sourceRepository, relativePath);
-        if (
-          (await pathExists(dependencies)) &&
-          (await pathExists(fixturePackage))
-        ) {
-          await symlink(
-            dependencies,
-            path.join(fixturePackage, "node_modules"),
-            "dir"
-          );
-        }
-      })
-    );
   });
 
   afterAll(async () => {
@@ -384,9 +357,9 @@ describe("scaffold composition", () => {
   }, E2E_TIMEOUT);
 
   it.each(["contentstack", "drupal"])(
-    "runs the documented CLI command in its linked %s composition",
+    "runs the documented CLI command in its named %s composition",
     async (cms) => {
-      const name = `linked-cli-${cms}`;
+      const name = `named-cli-${cms}`;
       const target = path.join(sourceRepository, "workspaces", name);
       await mkdir(target, { recursive: true });
       await writeFile(

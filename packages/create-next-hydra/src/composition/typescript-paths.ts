@@ -237,22 +237,3 @@ export const checkTypeScriptPathAliases = async (
   );
   return issues.flat();
 };
-
-/** Copied application code uses ordinary imports, not maintainer projection aliases. */
-export async function removeCompositionPathAliases(
-  configPath: string
-): Promise<void> {
-  let source = await readFile(configPath, "utf-8");
-  const config = parseTypeScriptConfig(source, configPath);
-  for (const alias of Object.keys(config.compilerOptions?.paths ?? {})) {
-    if (alias.startsWith("@composition/")) {
-      source = applyEdits(
-        source,
-        modify(source, ["compilerOptions", "paths", alias], undefined, {
-          formattingOptions,
-        })
-      );
-    }
-  }
-  await writeFile(configPath, source, "utf-8");
-}

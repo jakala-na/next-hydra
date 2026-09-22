@@ -1,7 +1,7 @@
 {
   "name": "create-next-hydra",
   "version": "0.3.0",
-  "description": "CLI to compose customer-owned applications from the Next Hydra registry",
+  "description": "CLI to compose applications from the Next Hydra registry",
   "keywords": [
     "cli",
     "create-next-app",

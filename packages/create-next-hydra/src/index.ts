@@ -29,10 +29,10 @@ type CliDependencies = {
   composeDevelopmentWorkspaces?: typeof composeDevelopmentWorkspaces;
 };
 
-function rejectRetiredCommand(target: string | undefined): void {
+function rejectReservedCommand(target: string | undefined): void {
   if (target === "use") {
     throw new Error(
-      "The use command has been removed. Define workspaces/<name>/next-hydra.json and run create-next-hydra compose <name> (or compose --all --check). The source checkout is no longer recomposed in place."
+      "Choose create-next-hydra <directory> for a new application, or define workspaces/<name>/next-hydra.json and run create-next-hydra compose <name> for a named workspace."
     );
   }
 }
@@ -62,11 +62,11 @@ export async function runCli(
   argv = process.argv,
   dependencies: CliDependencies = {}
 ): Promise<void> {
-  // Reserve the retired name so old scripts cannot accidentally scaffold a project named "use".
-  rejectRetiredCommand(argv[2]);
+  // Reserved command names must not be interpreted as scaffold destinations.
+  rejectReservedCommand(argv[2]);
   if (argv.includes("--maintainer-workspace")) {
     throw new Error(
-      "--maintainer-workspace has been removed. Define workspaces/<name>/next-hydra.json and run create-next-hydra compose <name> --copy-env."
+      "For local development, define workspaces/<name>/next-hydra.json and run create-next-hydra compose <name>. Add --copy-env to initialize missing local credentials."
     );
   }
   if (
@@ -78,6 +78,8 @@ export async function runCli(
           "--output",
           "--reuse",
           "--linked",
+          "--link",
+          "--no-link",
           "--cms",
           "--commerce",
           "--auth",
@@ -86,7 +88,7 @@ export async function runCli(
       )
   ) {
     throw new Error(
-      "Compose initializes or refreshes workspaces/<name> in place. Set providers in next-hydra.json; use --no-link for copied source. --output, --reuse and ad-hoc provider flags have been removed. Use the root creation command for a new customer application."
+      "Compose initializes or refreshes workspaces/<name> in place. Source files are always copied. Set providers in next-hydra.json. Use create-next-hydra <directory> for a new application."
     );
   }
   const program = new Command().enablePositionalOptions();
@@ -109,8 +111,12 @@ export async function runCli(
       "Report pending changes, local edits and unregistered files without applying"
     )
     .option(
-      "--explain <file>",
-      "Show the selected owner and canonical edit location for a workspace-relative file without updating"
+      "--explain [file]",
+      "Locate the source of one workspace-relative file; omit the file for a full selected-file inventory. Read-only"
+    )
+    .option(
+      "--diff",
+      "Show local file changes and patches against the last composition snapshot without updating"
     )
     .addOption(
       new Option(
@@ -120,11 +126,7 @@ export async function runCli(
     )
     .option(
       "--watch",
-      "Refresh named workspaces when templates or definitions change"
-    )
-    .option(
-      "--no-link",
-      "Copy source files instead of linking to the maintainer checkout"
+      "Refresh named workspaces when source files, templates or definitions change"
     )
     .option(
       "--copy-env",
@@ -137,11 +139,6 @@ export async function runCli(
         name: string | undefined,
         options: DevelopmentWorkspaceOptions
       ) => {
-        if (options.link === false && options.copyEnv) {
-          throw new Error(
-            "--copy-env is for linked development; copied workspaces use their own environment."
-          );
-        }
         await (
           dependencies.composeDevelopmentWorkspaces ??
           composeDevelopmentWorkspaces
@@ -151,9 +148,7 @@ export async function runCli(
 
   program
     .name(CLI_NAME)
-    .description(
-      "Compose a customer-owned application from the Next Hydra registry"
-    )
+    .description("Compose an application from the Next Hydra registry")
     .argument("[project-directory]", "Target directory")
     .option("-y, --yes", "Skip prompts (requires [project-directory])")
     .option("--skip-git", "Skip git initialization")
@@ -190,7 +185,7 @@ export async function runCli(
         rawOptions: CliActionOptions
       ) => {
         let targetDir = projectDirectory?.trim();
-        rejectRetiredCommand(targetDir);
+        rejectReservedCommand(targetDir);
 
         if (!targetDir) {
           if (rawOptions.yes) {
@@ -208,7 +203,7 @@ export async function runCli(
 
   program
     .command("add")
-    .description("Add a registry item to a customer-owned workspace")
+    .description("Add a registry item to your project")
     .argument("<item-or-url>", "Registry item, URL, or local item JSON")
     .option("-y, --yes", "Skip confirmation prompts")
     .option("-o, --overwrite", "Overwrite changed files and package entries")

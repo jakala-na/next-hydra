@@ -1,13 +1,6 @@
 /* oxlint-disable vitest/max-expects -- Exercise initialization, update and ownership preservation as one real lifecycle. */
 import { randomUUID } from "node:crypto";
-import {
-  lstat,
-  mkdir,
-  readFile,
-  readlink,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { lstat, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
@@ -17,6 +10,7 @@ import {
   explainDevelopmentWorkspace,
   updateDevelopmentWorkspace,
 } from "../src/development-workspaces.js";
+import { workspaceSnapshotDirectory } from "../src/workspace-snapshots.js";
 import { WORKSPACE_LOCK } from "../src/workspace-update.js";
 
 const sourceRoot = path.resolve(import.meta.dirname, "../../..");
@@ -26,6 +20,10 @@ const targetRoot = path.join(sourceRoot, "workspaces", name);
 describe("named workspace lifecycle through the actual scaffold", () => {
   afterAll(async () => {
     await rm(targetRoot, { force: true, recursive: true });
+    await rm(workspaceSnapshotDirectory(sourceRoot, targetRoot), {
+      force: true,
+      recursive: true,
+    });
   });
 
   it("initializes, refreshes, swaps providers and guards local work", async () => {
@@ -98,7 +96,7 @@ describe("named workspace lifecycle through the actual scaffold", () => {
         name,
         "apps/web/app/api/draft/route.ts"
       )
-    ).resolves.toContain("Source-linked");
+    ).resolves.toContain("Physical output");
     await expect(
       explainDevelopmentWorkspace(sourceRoot, name, "apps/web/new.tsx")
     ).resolves.toContain("not selected");
@@ -127,10 +125,15 @@ describe("named workspace lifecycle through the actual scaffold", () => {
     expect(refreshedLayout).not.toBe(originalLayout);
     expect(refreshedLayout).toContain("<HeaderSearch />");
     const route = path.join(targetRoot, "apps/web/app/api/draft/route.ts");
-    expect(path.resolve(path.dirname(route), await readlink(route))).toBe(
-      path.join(
-        sourceRoot,
-        "packages/cms-drupal/registry/apps/web/app/api/draft/route.ts"
+    const routeInfo = await lstat(route);
+    expect(routeInfo.isFile()).toBeTruthy();
+    await expect(readFile(route, "utf-8")).resolves.toBe(
+      await readFile(
+        path.join(
+          sourceRoot,
+          "packages/cms-drupal/registry/apps/web/app/api/draft/route.ts"
+        ),
+        "utf-8"
       )
     );
 
@@ -190,7 +193,7 @@ describe("named workspace lifecycle through the actual scaffold", () => {
     await writeFile(layout, "local layout edit");
     await expect(
       updateDevelopmentWorkspace(sourceRoot, name, { install: false })
-    ).rejects.toThrow("locally modified");
+    ).rejects.toThrow("unregistered files");
     await expect(readFile(layout, "utf-8")).resolves.toBe("local layout edit");
     await expect(readFile(newFile, "utf-8")).resolves.toBe(
       "new authoring work"

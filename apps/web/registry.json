@@ -8,9 +8,6 @@
       "meta": {
         "nextHydra": {
           "id": "next-hydra/app/web",
-          "maintainerWorkspace": {
-            "copy": ["apps/web/vitest.config.ts"]
-          },
           "kind": "package",
           "providerSlots": {
             "cms": "required",

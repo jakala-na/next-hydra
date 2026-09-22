@@ -6,6 +6,5 @@ export default defineConfig({
     alias: {
       "server-only": serverOnlyShim,
     },
-    preserveSymlinks: true,
   },
 });

@@ -94,7 +94,6 @@ export async function planWorkspaceTaskFiles(sourceRoot: string, name: string) {
         commerce: definition.providers.commerce,
         copyEnv: false,
         install: false,
-        linked: false,
       },
       { name, report: () => undefined, sourceRoot }
     );

@@ -72,23 +72,7 @@
           ],
           "conditionalDependencies": [
             { "providers": ["commerce"], "items": ["cms-drupal-commerce"] }
-          ],
-          "typeScriptAliases": [
-            {
-              "alias": "@composition/cms-drupal",
-              "cwd": "apps/web",
-              "sourcePath": "packages/cms-drupal/components"
-            }
-          ],
-          "maintainerWorkspace": {
-            "copy": [
-              "packages/cms-drupal/canvas-project.ts",
-              "packages/cms-drupal/next-config.ts",
-              "packages/cms-drupal/components/canvas-component-tree.tsx",
-              "packages/cms-drupal/scripts",
-              "packages/cms-drupal/canvas.config.json"
-            ]
-          }
+          ]
         },
         "composition": {
           "templates": [

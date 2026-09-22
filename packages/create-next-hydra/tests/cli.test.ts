@@ -4,20 +4,26 @@ import type { composeDevelopmentWorkspaces } from "../src/development-workspaces
 import { runCli } from "../src/index.js";
 
 describe("CLI", () => {
-  it("refreshes the same named workspace with physical sources when linking is disabled", async () => {
+  it("refreshes a named workspace with dependency installation enabled", async () => {
     const compose = vi.fn<typeof composeDevelopmentWorkspaces>();
-    await runCli(
-      ["node", "create-next-hydra", "compose", "cms-contentstack", "--no-link"],
-      { composeDevelopmentWorkspaces: compose }
-    );
+    await runCli(["node", "create-next-hydra", "compose", "cms-contentstack"], {
+      composeDevelopmentWorkspaces: compose,
+    });
     expect(compose).toHaveBeenCalledWith(
       "cms-contentstack",
-      expect.objectContaining({ install: true, link: false })
+      expect.objectContaining({ install: true })
     );
   });
 
-  it.each(["--reuse", "--output=/tmp/site", "--linked", "--cms=drupal"])(
-    "rejects the removed compose option %s without invoking composition",
+  it.each([
+    "--reuse",
+    "--output=/tmp/site",
+    "--linked",
+    "--link",
+    "--no-link",
+    "--cms=drupal",
+  ])(
+    "rejects an unsupported compose option %s without invoking composition",
     async (option) => {
       const compose = vi.fn<typeof composeDevelopmentWorkspaces>();
       await expect(
@@ -31,28 +37,10 @@ describe("CLI", () => {
     }
   );
 
-  it("rejects local credential overlays for copied deployment workspaces", async () => {
-    const compose = vi.fn<typeof composeDevelopmentWorkspaces>();
-    await expect(
-      runCli(
-        [
-          "node",
-          "create-next-hydra",
-          "compose",
-          "cms-drupal",
-          "--no-link",
-          "--copy-env",
-        ],
-        { composeDevelopmentWorkspaces: compose }
-      )
-    ).rejects.toThrow("--copy-env is for linked development");
-    expect(compose).not.toHaveBeenCalled();
-  });
-
-  it("rejects the retired maintainer flag with named-workspace migration instructions", async () => {
+  it("directs unsupported scaffold options to the named-workspace workflow", async () => {
     await expect(
       runCli(["node", "create-next-hydra", "output", "--maintainer-workspace"])
-    ).rejects.toThrow("compose <name> --copy-env");
+    ).rejects.toThrow("run create-next-hydra compose <name>");
   });
 
   it("passes the named definition and refresh options to composition", async () => {
@@ -76,7 +64,7 @@ describe("CLI", () => {
 
     expect(compose).toHaveBeenCalledWith(
       "cms-contentstack",
-      expect.objectContaining({ copyEnv: true, link: true, watch: true })
+      expect.objectContaining({ copyEnv: true, watch: true })
     );
   });
 
@@ -132,6 +120,23 @@ describe("CLI", () => {
     );
   });
 
+  it.each([
+    { flag: "--explain", option: "explain" },
+    { flag: "--diff", option: "diff" },
+  ])(
+    "accepts $flag without consuming the workspace name as a file",
+    async ({ flag, option }) => {
+      const compose = vi.fn<typeof composeDevelopmentWorkspaces>();
+      await runCli(["node", "create-next-hydra", "compose", "example", flag], {
+        composeDevelopmentWorkspaces: compose,
+      });
+      expect(compose).toHaveBeenCalledWith(
+        "example",
+        expect.objectContaining({ [option]: true })
+      );
+    }
+  );
+
   it.each(["dev", "build", "test", "typecheck"])(
     "forwards the %s workspace task",
     async (task) => {
@@ -157,11 +162,11 @@ describe("CLI", () => {
   );
 
   it.each([["use"], ["use", "--cms", "contentstack"], ["--yes", "use"]])(
-    "rejects retired use invocations without scaffolding: %j",
+    "rejects reserved command names without scaffolding: %j",
     async (...args) => {
       await expect(
         runCli(["node", "create-next-hydra", ...args])
-      ).rejects.toThrow("The use command has been removed");
+      ).rejects.toThrow("Choose create-next-hydra <directory>");
     }
   );
 });

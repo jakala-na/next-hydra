@@ -11,4 +11,5 @@
 /apps/*
 !/apps/*/
 /apps/*/*
+!/apps/*/.gitignore
 !/apps/*/vercel.json

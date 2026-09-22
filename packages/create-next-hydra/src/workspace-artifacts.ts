@@ -22,3 +22,19 @@ export const workspaceTaskFiles: ReadonlySet<string> = new Set([
   "tasks/package.json",
   "tasks/turbo.json",
 ]);
+
+/** Named-workspace settings are preserved independently of registry-owned output. */
+export function workspaceSettingKind(
+  target: string
+): "ignore" | "deployment" | "tasks" | undefined {
+  if (target === ".gitignore" || /^apps\/[^/]+\/\.gitignore$/u.test(target)) {
+    return "ignore";
+  }
+  if (/^apps\/[^/]+\/vercel\.json$/u.test(target)) {
+    return "deployment";
+  }
+  if (workspaceTaskFiles.has(target)) {
+    return "tasks";
+  }
+  return undefined;
+}

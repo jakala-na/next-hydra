@@ -1,4 +1,3 @@
-import { landingPageFragment } from "@composition/cms-drupal/pages/landing-page-query";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
 
@@ -6,8 +5,9 @@ import { readFragment } from "../../graphql";
 import type { FragmentOf } from "../../graphql";
 import { getNodeCacheTag } from "../../lib/cache-tags";
 import ComponentRenderer from "../component-renderer";
+import { landingPageFragment } from "./landing-page-query";
 
-export { landingPageFragment } from "@composition/cms-drupal/pages/landing-page-query";
+export { landingPageFragment } from "./landing-page-query";
 
 type LandingPageProps = {
   data: FragmentOf<typeof landingPageFragment>;

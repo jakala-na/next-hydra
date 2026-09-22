@@ -223,7 +223,6 @@ export async function lintCompositions(
           commerce,
           copyEnv: false,
           install: true,
-          linked: false,
         },
         { name, report: info, sourceRoot }
       );

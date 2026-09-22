@@ -6,12 +6,6 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
-      "@composition/cms-contentstack": [
-        "../../packages/cms-contentstack/components"
-      ],
-      "@composition/cms-contentstack/*": [
-        "../../packages/cms-contentstack/components/*"
-      ],
       "@repo/auth": ["../../packages/auth-workos"],
       "@repo/auth/*": ["../../packages/auth-workos/*"],
       "@repo/cms": ["../../packages/cms-contentstack"],

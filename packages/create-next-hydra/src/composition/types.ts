@@ -64,10 +64,6 @@ export type TypeScriptPathAlias = {
 
 export type PlannedCompositionTemplate = PlannedSlotTemplate;
 
-export type MaintainerWorkspacePolicy = {
-  copy: string[];
-};
-
 export type WorkspaceSelection = {
   providers: Partial<Record<ProviderSlot, string>>;
   addOns: string[];
@@ -87,7 +83,6 @@ export type SelectionDefinition = {
   providerDependencies: ProviderDependency[];
   pnpmPatches: PnpmPatch[];
   assets: RegistryAsset[];
-  maintainerWorkspace: MaintainerWorkspacePolicy;
   conditionalDependencies: {
     providers: ProviderSlot[];
     items: string[];
@@ -147,7 +142,6 @@ export type CompositionPlan = {
   pnpmPatches: PnpmPatch[];
   catalogPnpmPatches: PnpmPatch[];
   assets: PlannedAsset[];
-  maintainerCopyTargets: string[];
   templates: PlannedCompositionTemplate[];
   managedTargets: string[];
   catalogTypeScriptPathAliases: TypeScriptPathAliasTarget[];

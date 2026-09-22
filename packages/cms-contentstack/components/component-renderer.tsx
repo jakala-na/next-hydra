@@ -1,8 +1,3 @@
-import {
-  componentFragments,
-  componentMap,
-} from "@composition/cms-contentstack/component-registry";
-import type { landingPageQuery } from "@composition/cms-contentstack/pages/landing-page-query";
 import { VB_EmptyBlockParentClass } from "@contentstack/live-preview-utils";
 import type { Locale } from "@repo/i18n";
 import { createElement } from "react";
@@ -10,8 +5,10 @@ import type { ComponentProps, ReactNode } from "react";
 
 import type { ResultOf } from "../graphql";
 import type { LivePreviewHelper } from "../lib/utils/live-preview-helper";
+import { componentFragments, componentMap } from "./component-registry";
+import type { landingPageQuery } from "./pages/landing-page-query";
 
-export { componentMap } from "@composition/cms-contentstack/component-registry";
+export { componentMap } from "./component-registry";
 
 type ComponentKey = keyof typeof componentMap;
 type DataMap = {

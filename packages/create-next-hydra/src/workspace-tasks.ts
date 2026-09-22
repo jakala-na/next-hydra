@@ -3,7 +3,7 @@ import path from "node:path";
 import { workspaceNonSourceDirectories } from "./workspace-artifacts.js";
 import { isEnvironmentFile } from "./workspace-files.js";
 
-/** Cache correctness is application policy, independent of source linking or deployment location. */
+/** Cache correctness is application policy, shared by customer and named workspaces regardless of deployment location. */
 export function workspaceTaskConfiguration(
   files: Iterable<[string, { content: string | Uint8Array }]>
 ) {

@@ -118,12 +118,6 @@ export const selectionDefinitionSchema = z
       .default([]),
     id: z.string().min(1),
     kind: z.enum(["provider", "add-on", "preset", "package", "recipe"]),
-    maintainerWorkspace: z
-      .object({
-        copy: z.array(workspaceFilePathSchema).default([]),
-      })
-      .strict()
-      .default({ copy: [] }),
     packages: z.array(packageRequirementSchema).default([]),
     pnpmPatches: z.array(pnpmPatchSchema).default([]),
     providerDependencies: z.array(providerDependencySchema).default([]),

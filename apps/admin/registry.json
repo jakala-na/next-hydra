@@ -9,13 +9,6 @@
       "meta": {
         "nextHydra": {
           "id": "next-hydra/commerce/admin",
-          "maintainerWorkspace": {
-            "copy": [
-              "apps/admin/vitest.config.ts",
-              "apps/admin/env.ts",
-              "apps/admin/next.config.ts"
-            ]
-          },
           "kind": "recipe",
           "providerDependencies": [
             { "cwd": "apps/admin", "slot": "auth", "section": "dependencies" }

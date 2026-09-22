@@ -1,4 +1,3 @@
-import { landingPageQuery } from "@composition/cms-contentstack/pages/landing-page-query";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
@@ -11,6 +10,7 @@ import { graphqlClient } from "../../client";
 import { entryLivePreview } from "../../lib/utils/live-preview-helper";
 import { transformLocale } from "../../lib/utils/transform-locale";
 import ComponentRenderer from "../component-renderer";
+import { landingPageQuery } from "./landing-page-query";
 
 const getPageCached = async (
   url: string,

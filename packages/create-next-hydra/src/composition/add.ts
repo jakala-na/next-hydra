@@ -168,7 +168,7 @@ async function changeStatus(
 function requireExactCopyFile(type: string, owner: string): void {
   if (!EXACT_COPY_FILE_TYPES.has(type)) {
     throw new CompositionValidationError(
-      "Customer add supports only exact-copy registry files in v1.",
+      "`add` supports only exact-copy registry files in v1.",
       [
         `${owner} uses ${type}; use registry:file or registry:item with an explicit target so the reviewed content is exactly what ShadCN writes`,
       ]
@@ -205,7 +205,7 @@ async function inspectFiles(
     const existing = claimed.get(change.target);
     if (existing) {
       throw new CompositionValidationError(
-        "The requested Add-on targets the same customer file more than once.",
+        "The requested Add-on targets the same project file more than once.",
         [`${change.target} is both a ${existing} and a ${change.kind}`]
       );
     }
@@ -370,7 +370,7 @@ function validateKnownProviderCompatibility(
         issues.push(`${selection.id} requires ${required}`);
       } else if (!(provider || requiredSelection?.kind === "add-on")) {
         assumptions.push(
-          `${selection.id} requires ${required}; this customer workspace has no authoritative selection record, so Next Hydra cannot verify it`
+          `${selection.id} requires ${required}; this project has no authoritative selection record, so Next Hydra cannot verify it`
         );
       }
     }
@@ -388,7 +388,7 @@ function validateKnownProviderCompatibility(
         issues.push(`${selection.id} conflicts with ${conflict}`);
       } else if (!provider) {
         assumptions.push(
-          `${selection.id} conflicts with ${conflict}; this customer workspace has no authoritative selection record, so Next Hydra cannot verify its absence`
+          `${selection.id} conflicts with ${conflict}; this project has no authoritative selection record, so Next Hydra cannot verify its absence`
         );
       }
     }
@@ -432,7 +432,7 @@ function resolveCustomerProviderRequirements(
 
   if (issues.length > 0) {
     throw new CompositionValidationError(
-      "The Add-on's Provider dependencies could not be resolved from the customer workspace.",
+      "The Add-on's Provider dependencies could not be resolved from this project.",
       issues
     );
   }
@@ -466,7 +466,7 @@ function validateRegistryTargetClaims(items: Iterable<RegistryItem>): void {
   }
   if (issues.length > 0) {
     throw new CompositionValidationError(
-      "The registry dependency graph targets the same customer file more than once.",
+      "The registry dependency graph targets the same project file more than once.",
       issues
     );
   }
@@ -550,7 +550,7 @@ async function confirmChanges(
 
   if (yes && !overwrite && conflicts.length > 0) {
     throw new CompositionValidationError(
-      "Additive installation found customer-owned conflicts.",
+      "Installation conflicts with existing project files or dependencies.",
       conflicts.map(
         (conflict) =>
           `${conflict.label} requires --overwrite; --yes only skips confirmation prompts for non-conflicting changes`
@@ -621,7 +621,7 @@ export async function addRegistryItem(
   );
   if (compositionItems.length > 0 || scaffoldOnlySelections.length > 0) {
     throw new CompositionValidationError(
-      "Customer add cannot recompose customer-owned files.",
+      "`add` cannot recompose existing project files.",
       [
         "Select composition recipes during scaffolding; add only supports exact-copy Add-ons and does not re-render templates.",
       ]
@@ -635,7 +635,7 @@ export async function addRegistryItem(
     }
     if (selection.kind === "provider") {
       throw new Error(
-        "Select providers with `create-next-hydra <directory>` when scaffolding. For a named Development Workspace, edit workspaces/<name>/next-hydra.json and run `create-next-hydra compose <name>`. `add` does not switch a Customer Workspace provider."
+        "Select providers with `create-next-hydra <directory>` when scaffolding. For a named development workspace, edit workspaces/<name>/next-hydra.json and run `create-next-hydra compose <name>`. `add` does not switch providers in an existing project."
       );
     }
   }
@@ -645,7 +645,7 @@ export async function addRegistryItem(
   );
   if (nestedPresets.length > 0) {
     throw new CompositionValidationError(
-      "Presets cannot be installed into a Customer Workspace.",
+      "Presets cannot be installed into an existing project.",
       nestedPresets.map(
         (candidate) =>
           `${candidate.id} appears in the requested registry dependency graph`
@@ -658,7 +658,7 @@ export async function addRegistryItem(
   );
   if (assetSelections.length > 0) {
     throw new CompositionValidationError(
-      "Customer Add-ons cannot install separate binary assets in v1.",
+      "`add` cannot install separate binary assets in v1.",
       assetSelections.map(
         (candidate) =>
           `${candidate.id} must put text files in its registry item; binary asset transport requires a future extension`
@@ -670,7 +670,7 @@ export async function addRegistryItem(
   );
   if (patchSelections.length > 0) {
     throw new CompositionValidationError(
-      "Customer Add-ons cannot change pnpm patches in v1.",
+      "`add` cannot change pnpm patches in v1.",
       patchSelections.map(
         (candidate) =>
           `${candidate.id} must avoid pnpmPatches or be selected during a new scaffold`

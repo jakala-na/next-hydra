@@ -96,7 +96,7 @@ pnpm exec portless trust
 pnpm dev
 ```
 
-The checkout is canonical source, not a preassembled storefront. **Compose** reads a named workspace's `next-hydra.json`, selects its packages and recipes, and materializes a runnable application in that workspace's folder. Rerunning it safely refreshes the output; ordinary files link back to source by default, while `--no-link` produces physical copies for deployment.
+The checkout is canonical source, not a preassembled storefront. **Compose** reads a named workspace's `next-hydra.json`, selects its packages and recipes, and materializes a runnable application in that workspace's folder. Rerunning it safely refreshes the output; all application files are physical copies, with the same imports and aliases used in scaffolded projects. Use `--explain` to find canonical sources and `--diff` to inspect workspace-local changes.
 
 `pnpm dev` composes and starts `storefront-contentstack`, copying only missing local env files. The four committed definitions cover Contentstack and Drupal, each as a CMS-only site or a complete storefront. For example: `pnpm --filter create-next-hydra compose cms-drupal --copy-env --run dev`. See [Named workspaces](workspaces/README.md) for the definitions, template refresh, committed settings and deployment workflow.
 

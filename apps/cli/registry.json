@@ -8,13 +8,6 @@
       "meta": {
         "nextHydra": {
           "id": "next-hydra/workspace/cli",
-          "maintainerWorkspace": {
-            "copy": [
-              "apps/cli/vitest.config.ts",
-              "apps/cli/src/config-provider.ts",
-              "apps/cli/src/index.ts"
-            ]
-          },
           "kind": "recipe",
           "providerDependencies": [
             { "cwd": "apps/cli", "slot": "cms", "section": "dependencies" }

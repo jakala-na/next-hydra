@@ -1,15 +1,12 @@
-import {
-  componentMap,
-  componentFragments,
-} from "@composition/cms-drupal/component-registry";
-import type { landingPageFragment } from "@composition/cms-drupal/pages/landing-page-query";
 import type { Locale } from "@repo/i18n";
 import { createElement } from "react";
 import type { ComponentProps, ReactNode } from "react";
 
 import type { ResultOf } from "../graphql";
+import { componentMap, componentFragments } from "./component-registry";
+import type { landingPageFragment } from "./pages/landing-page-query";
 
-export { componentMap } from "@composition/cms-drupal/component-registry";
+export { componentMap } from "./component-registry";
 
 type ComponentMap = typeof componentMap;
 type ComponentKey = keyof ComponentMap;

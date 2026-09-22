@@ -4,15 +4,7 @@
  * Every run requires a new output directory; existing workspaces are never replaced.
  */
 /* oxlint-disable complexity, no-await-in-loop, no-console -- Composition reports ordered progress; package discovery depends on previously resolved manifests. */
-import {
-  mkdir,
-  readFile,
-  readdir,
-  stat,
-  symlink,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
@@ -32,10 +24,7 @@ import type {
   SourceRegistryCatalog,
   WorkspaceSelection,
 } from "./composition/types.js";
-import {
-  applyTypeScriptPathAliases,
-  removeCompositionPathAliases,
-} from "./composition/typescript-paths.js";
+import { applyTypeScriptPathAliases } from "./composition/typescript-paths.js";
 import {
   applyPackageRequirements,
   applyPnpmPatches,
@@ -43,7 +32,6 @@ import {
 import { normalizePackageName, pathExists, writeJsonFile } from "./fs-utils.js";
 import { runCommand } from "./git.js";
 import {
-  assertMaintainerDependencyCompatibility,
   assertMaintainerWorkspaceTarget,
   copyMaintainerEnvironmentFiles,
 } from "./maintainer-workspace.js";
@@ -51,7 +39,6 @@ import {
   assertNewWorkspaceDirectory,
   assertDistinctFileTargets,
   claimWorkspaceDirectory,
-  isEnvironmentFile,
   workspaceSourceFiles,
 } from "./workspace-files.js";
 import { workspaceTaskConfiguration } from "./workspace-tasks.js";
@@ -60,7 +47,6 @@ import type { WorkspaceOrigin } from "./workspace-update.js";
 export type WorkspaceConstructionOptions = {
   catalog: SourceRegistryCatalog;
   selection: WorkspaceSelection;
-  linked?: boolean;
   copyEnv?: boolean;
   install?: boolean;
   offline?: boolean;
@@ -104,7 +90,6 @@ export async function constructWorkspace(
   const targetRoot = path.resolve(sourceRoot, targetDirectory);
   const relativeTarget = path.relative(sourceRoot, targetRoot);
   if (
-    options.linked ||
     relativeTarget === "" ||
     (!relativeTarget.startsWith(`..${path.sep}`) &&
       relativeTarget !== ".." &&
@@ -285,7 +270,7 @@ export async function constructWorkspace(
     if (!files.has(target)) {
       if (governed.has(target)) {
         throw new Error(
-          `${name} is required but its registry item was not selected. Do not hide this dependency by linking the maximal checkout.`
+          `${name} is required but its registry item was not selected.`
         );
       }
       for (const source of sourceFiles.filter(
@@ -382,7 +367,7 @@ export async function constructWorkspace(
     owner: "workspace baseline",
   });
   addFile(".gitignore", {
-    content: `node_modules/\n.next/\n.turbo/\n.env\n.env.*\n!.env.example\n*.tsbuildinfo\n${options.linked ? ".workspace-composition.json\n" : ""}`,
+    content: `node_modules/\n.next/\n.turbo/\n.env\n.env.*\n!.env.example\n*.tsbuildinfo\n`,
     owner: "workspace baseline",
   });
   // Only adapt applications that explicitly use Portless. Package-owned build,
@@ -453,41 +438,18 @@ export async function constructWorkspace(
     owner: "workspace baseline",
   });
 
-  if (!options.linked) {
-    // Customer output has ordinary module names and relative imports, not maintainer projection aliases.
-    for (const [target, file] of files) {
-      // Retain Portless URLs, but never send customers back to maintainer hosts.
-      if (/\.(?:[cm]?[jt]sx?|json|ya?ml|md|example)$/u.test(target)) {
-        file.content = String(file.content).replaceAll(
-          /(?<application>web|api|admin)\.next-hydra\.localhost/gu,
-          (_hostname, application: string) =>
-            `${application}.${hostNamespace}.localhost`
-        );
-      }
-      if (!/\.(?:ts|tsx)$/u.test(target)) {
-        continue;
-      }
-      for (const alias of plan.typeScriptPathAliases.filter((item) =>
-        item.alias.startsWith("@composition/")
-      )) {
-        file.content = String(file.content).replaceAll(
-          new RegExp(
-            `(["'])${alias.alias.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/([^"']+)\\1`,
-            "gu"
-          ),
-          (_match, quote: string, module: string) => {
-            const relative = path.posix.relative(
-              path.posix.dirname(target),
-              path.posix.join(alias.sourcePath, module)
-            );
-            return `${quote}${relative.startsWith(".") ? relative : `./${relative}`}${quote}`;
-          }
-        );
-      }
+  // Keep local host names scoped to the materialized project in every workflow.
+  for (const [target, file] of files) {
+    if (/\.(?:[cm]?[jt]sx?|json|ya?ml|md|example)$/u.test(target)) {
+      file.content = String(file.content).replaceAll(
+        /(?<application>web|api|admin)\.next-hydra\.localhost/gu,
+        (_hostname, application: string) =>
+          `${application}.${hostNamespace}.localhost`
+      );
     }
   }
   report(
-    `Composition plan: ${Object.values(selection.providers).join(" + ")}; ${files.size} files; ${templates.length} templates; ${includedPackages.size} packages; ${options.linked ? "linked sources" : "copied sources"}.`
+    `Composition plan: ${Object.values(selection.providers).join(" + ")}; ${files.size} files; ${templates.length} templates; ${includedPackages.size} packages; copied sources.`
   );
   // eslint-disable-next-line unicorn/no-array-sort -- The array is newly created.
   report(`Packages: ${[...includedPackages].sort().join(", ")}`);
@@ -572,27 +534,8 @@ export async function constructWorkspace(
       path.join(targetRoot, "turbo.json"),
       workspaceTaskConfiguration(files)
     );
-    await applyTypeScriptPathAliases(targetRoot, {
-      ...plan,
-      typeScriptPathAliases: plan.typeScriptPathAliases.filter(
-        (alias) =>
-          options.linked === true || !alias.alias.startsWith("@composition/")
-      ),
-    });
-    if (!options.linked) {
-      await Promise.all(
-        [...files.keys()]
-          .filter((target) => target.endsWith("/tsconfig.json"))
-          .map(async (target) => {
-            await removeCompositionPathAliases(path.join(targetRoot, target));
-          })
-      );
-    }
+    await applyTypeScriptPathAliases(targetRoot, plan);
     await applyPnpmPatches(targetRoot, plan);
-    stage = "checking source-link compatibility";
-    if (options.linked) {
-      await assertMaintainerDependencyCompatibility(sourceRoot, targetRoot);
-    }
     stage = "copying local environment files";
     const environmentFiles = options.copyEnv
       ? await copyMaintainerEnvironmentFiles(sourceRoot, targetRoot)
@@ -613,74 +556,14 @@ export async function constructWorkspace(
         { cwd: targetRoot, verbose: true }
       );
     }
-    const links: { source: string; target: string }[] = [];
-    if (options.linked) {
-      stage = "linking canonical source";
-      // File links preserve each projection's manifest and node_modules. Composition-sensitive entries stay physical.
-      const copied = plan.maintainerCopyTargets;
-      for (const [target, file] of files) {
-        if (
-          !file.source ||
-          isEnvironmentFile(path.posix.basename(target)) ||
-          target.endsWith("/package.json") ||
-          target.endsWith("/tsconfig.json") ||
-          copied.some(
-            (root) => target === root || target.startsWith(`${root}/`)
-          )
-        ) {
-          continue;
-        }
-        const destination = path.join(targetRoot, target);
-        // Replace only a file we just wrote, never a user-created path.
-        await unlink(destination);
-        await symlink(
-          path.relative(
-            path.dirname(destination),
-            path.join(sourceRoot, file.source)
-          ),
-          destination
-        );
-        links.push({ source: file.source, target });
-      }
-      stage = "recording maintainer ownership";
-      const environmentDefaults = [...files.keys()].filter((target) =>
-        isEnvironmentFile(path.posix.basename(target))
-      );
-      await writeJsonFile(
-        path.join(targetRoot, ".workspace-composition.json"),
-        {
-          environmentDefaults,
-          environmentFiles,
-          files: [...files]
-            .filter(([target]) => !environmentDefaults.includes(target))
-            .map(([target, file]) => ({
-              mode: links.some((link) => link.target === target)
-                ? "linked"
-                : "copied",
-              origin: file.origin,
-              owner: file.owner,
-              source: file.source,
-              target,
-            })),
-          linked: options.linked ?? false,
-          links,
-          selection,
-          sourceRoot,
-          templates,
-          version: 1,
-        }
-      );
-    }
-    const authoringInstructions = options.linked
-      ? "Composed files are physical; edit their template and scaffold a new folder to recompose. Preserve any locally authored files before switching outputs."
-      : "These are ordinary customer-owned files; no generation or composition step is required to maintain them.";
+    const authoringInstructions =
+      "These are ordinary project files; no generation or composition step is required to maintain them.";
     report(
       `Created ${targetRoot}\nRun: pnpm --dir ${JSON.stringify(targetRoot)} dev\n${authoringInstructions}`
     );
     return {
       files: files.size,
       instructions: plan.instructions,
-      links: links.length,
       origins: [...files].map(([target, file]) => ({
         origin: file.origin,
         owner: file.owner,

@@ -1,12 +1,5 @@
 /* oxlint-disable vitest/max-expects, vitest/no-conditional-expect -- One matrix checks both the shared contract and provider-specific routes. */
-import {
-  lstat,
-  mkdir,
-  mkdtemp,
-  readFile,
-  realpath,
-  rm,
-} from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -29,7 +22,7 @@ const combinations = ["contentstack", "drupal"].flatMap((cms) =>
   )
 );
 
-describe("copied and source-linked provider workspaces", () => {
+describe("physical provider workspaces", () => {
   let scratch: string;
   beforeAll(async () => {
     await mkdir(path.join(repoRoot, "workspaces"), { recursive: true });
@@ -45,18 +38,15 @@ describe("copied and source-linked provider workspaces", () => {
 
   it.each(
     ["contentstack", "drupal"].flatMap((cms) =>
-      [false, true].flatMap((linked) =>
-        [false, true].map((commerce) => ({ cms, commerce, linked }))
-      )
+      [false, true].map((commerce) => ({ cms, commerce }))
     )
   )(
-    "$cms linked=$linked commerce=$commerce",
-    async ({ cms, linked, commerce }) => {
-      const target = path.join(scratch, `${cms}-${linked}-${commerce}`);
+    "$cms commerce=$commerce",
+    async ({ cms, commerce }) => {
+      const target = path.join(scratch, `${cms}-${commerce}`);
       const options: ComposeOptions = {
         cms,
         install: false,
-        linked,
         search: true,
       };
       if (commerce) {
@@ -65,39 +55,13 @@ describe("copied and source-linked provider workspaces", () => {
       }
       await composeWorkspace(target, options);
       const receipt = path.join(target, ".workspace-composition.json");
-      if (linked) {
-        expect(JSON.parse(await readFile(receipt, "utf-8"))).toMatchObject({
-          linked: true,
-          version: 1,
-        });
-      } else {
-        await expect(lstat(receipt)).rejects.toMatchObject({ code: "ENOENT" });
-        await expect(
-          readFile(path.join(target, ".gitignore"), "utf-8")
-        ).resolves.not.toContain("workspace-composition");
-      }
+      await expect(lstat(receipt)).rejects.toMatchObject({ code: "ENOENT" });
       const source = `packages/cms-${cms}/components/blocks/hero-section.tsx`;
       const composed = `packages/cms-${cms}/components/component-registry.ts`;
       const sourceStat = await lstat(path.join(target, source));
-      expect(sourceStat.isSymbolicLink()).toBe(linked);
-      if (linked) {
-        await expect(realpath(path.join(target, source))).resolves.toBe(
-          path.join(repoRoot, source)
-        );
-      }
+      expect(sourceStat.isSymbolicLink()).toBeFalsy();
       const composedStat = await lstat(path.join(target, composed));
       expect(composedStat.isSymbolicLink()).toBeFalsy();
-      const renderer = await readFile(
-        path.join(
-          target,
-          `packages/cms-${cms}/components/component-renderer.tsx`
-        ),
-        "utf-8"
-      );
-      expect(renderer.includes("@composition/")).toBe(linked);
-      if (!linked) {
-        expect(renderer).toContain('"./component-registry"');
-      }
       const manifest = await readPackageJson(
         path.join(target, `packages/cms-${cms}/package.json`)
       );
@@ -111,7 +75,7 @@ describe("copied and source-linked provider workspaces", () => {
       expect(app.dependencies?.["lucide-react"]).toBe("^0.511.0");
       const search = "apps/web/components/layout/header-search.tsx";
       const searchStat = await lstat(path.join(target, search));
-      expect(searchStat.isSymbolicLink()).toBe(linked);
+      expect(searchStat.isSymbolicLink()).toBeFalsy();
       const layout = await readFile(
         path.join(target, "apps/web/app/[locale]/layout.tsx"),
         "utf-8"
@@ -131,7 +95,7 @@ describe("copied and source-linked provider workspaces", () => {
         const cartStat = await lstat(
           path.join(target, "apps/web/components/layout/header-cart.tsx")
         );
-        expect(cartStat.isSymbolicLink()).toBe(linked);
+        expect(cartStat.isSymbolicLink()).toBeFalsy();
         const cartActions = await readFile(
           path.join(target, "apps/web/lib/cart-actions.ts"),
           "utf-8"
@@ -139,7 +103,7 @@ describe("copied and source-linked provider workspaces", () => {
         expect(cartActions).toContain("./commerce-actions");
         const checkout = "apps/web/app/[locale]/checkout/page.tsx";
         const checkoutInfo = await lstat(path.join(target, checkout));
-        expect(checkoutInfo.isSymbolicLink()).toBe(linked);
+        expect(checkoutInfo.isSymbolicLink()).toBeFalsy();
         const checkoutSource = await readFile(
           path.join(repoRoot, checkout),
           "utf-8"
@@ -151,12 +115,7 @@ describe("copied and source-linked provider workspaces", () => {
       if (commerce) {
         const route = "apps/web/app/[locale]/sign-in/[[...sign-in]]/page.tsx";
         const routeStat = await lstat(path.join(target, route));
-        expect(routeStat.isSymbolicLink()).toBe(linked);
-        if (linked) {
-          await expect(realpath(path.join(target, route))).resolves.toBe(
-            path.join(repoRoot, "packages/auth-clerk/registry", route)
-          );
-        }
+        expect(routeStat.isSymbolicLink()).toBeFalsy();
       }
       if (cms === "drupal") {
         const projectStat = await lstat(

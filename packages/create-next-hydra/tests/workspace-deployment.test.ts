@@ -17,11 +17,17 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { composeWorkspace } from "../src/compose.js";
 import {
+  explainDevelopmentWorkspace,
   updateDevelopmentWorkspace,
   workspaceDefinitionSchema,
 } from "../src/development-workspaces.js";
 import { runGit } from "../src/git.js";
-import { updateWorkspaceFiles } from "../src/workspace-update.js";
+import { workspaceSnapshotDirectory } from "../src/workspace-snapshots.js";
+import {
+  inspectWorkspaceChanges,
+  updateWorkspaceFiles,
+} from "../src/workspace-update.js";
+import { seedLinkedWorkspace } from "./fixtures/legacy-workspace.js";
 
 const sourceRoot = path.resolve(import.meta.dirname, "../../..");
 
@@ -41,6 +47,10 @@ describe("named workspace deployment", () => {
   });
   afterEach(async () => {
     await rm(target, { force: true, recursive: true });
+    await rm(workspaceSnapshotDirectory(sourceRoot, target), {
+      force: true,
+      recursive: true,
+    });
     await rm(scratch, { force: true, recursive: true });
   });
 
@@ -50,49 +60,42 @@ describe("named workspace deployment", () => {
     await writeFile(absolute, content);
   }
 
-  it.each([true, false])(
-    "seeds workspace-local Git policy without hiding its definition, with link=%s",
-    async (link) => {
-      const before = await runGit(
-        ["ls-files", "--others", "--exclude-standard", "--", "."],
-        { cwd: target }
-      );
-      expect(before.stdout.trim()).toBe("next-hydra.json");
-      await updateDevelopmentWorkspace(sourceRoot, name, {
-        check: true,
-        install: false,
-        link,
-      });
-      await expect(
-        lstat(path.join(target, ".gitignore"))
-      ).rejects.toMatchObject({ code: "ENOENT" });
+  it("seeds workspace-local Git policy without hiding its definition", async () => {
+    const before = await runGit(
+      ["ls-files", "--others", "--exclude-standard", "--", "."],
+      { cwd: target }
+    );
+    expect(before.stdout.trim()).toBe("next-hydra.json");
+    await updateDevelopmentWorkspace(sourceRoot, name, {
+      check: true,
+      install: false,
+    });
+    await expect(lstat(path.join(target, ".gitignore"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
 
-      await updateDevelopmentWorkspace(sourceRoot, name, {
-        install: false,
-        link,
-      });
-      const visible = await runGit(
-        ["ls-files", "--others", "--exclude-standard", "--", "."],
-        { cwd: target }
-      );
-      expect(visible.stdout.trim().split("\n")).toEqual([
-        ".gitignore",
-        "next-hydra.json",
-      ]);
+    await updateDevelopmentWorkspace(sourceRoot, name, {
+      install: false,
+    });
+    const visible = await runGit(
+      ["ls-files", "--others", "--exclude-standard", "--", "."],
+      { cwd: target }
+    );
+    expect(visible.stdout.trim().split("\n")).toEqual([
+      ".gitignore",
+      "next-hydra.json",
+    ]);
 
-      await unlink(path.join(target, ".gitignore"));
-      const check = await updateDevelopmentWorkspace(sourceRoot, name, {
-        check: true,
-        install: false,
-        link,
-      });
-      expect(check.changed).toBe(1);
-      await expect(
-        lstat(path.join(target, ".gitignore"))
-      ).rejects.toMatchObject({ code: "ENOENT" });
-    },
-    30_000
-  );
+    await unlink(path.join(target, ".gitignore"));
+    const check = await updateDevelopmentWorkspace(sourceRoot, name, {
+      check: true,
+      install: false,
+    });
+    expect(check.changed).toBe(1);
+    await expect(lstat(path.join(target, ".gitignore"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  }, 30_000);
 
   it("keeps an empty author-owned ignore file empty", async () => {
     await write(".gitignore", "");
@@ -106,6 +109,44 @@ describe("named workspace deployment", () => {
     );
     expect(visible.stdout.trim()).toBe("package.json");
   }, 30_000);
+
+  it.each([false, true])(
+    "preserves app-local ignore settings during copied composition with initialized=%s",
+    async (initialized) => {
+      if (initialized) {
+        await updateDevelopmentWorkspace(sourceRoot, name, { install: false });
+      }
+      // Tool-created ignore settings do not require the app to remain selected.
+      const settings = "apps/api/.gitignore";
+      const content = "/.swc\n# Keep local ignore rules\n";
+      await write(settings, content);
+      await updateDevelopmentWorkspace(sourceRoot, name, {
+        install: false,
+      });
+      await expect(
+        readFile(path.join(target, settings), "utf-8")
+      ).resolves.toBe(content);
+      const changes = await inspectWorkspaceChanges(sourceRoot, target);
+      expect(
+        changes.files.filter((file) => file.status !== "unchanged")
+      ).toEqual([]);
+      const visible = await runGit(
+        ["ls-files", "--others", "--exclude-standard", "--", settings],
+        { cwd: target }
+      );
+      expect(visible.stdout.trim()).toBe(settings);
+      await expect(
+        explainDevelopmentWorkspace(sourceRoot, name, settings)
+      ).resolves.toContain("workspace-owned Git visibility configuration");
+      await write("apps/api/unregistered.ts", "local work");
+      await expect(
+        updateDevelopmentWorkspace(sourceRoot, name, {
+          install: false,
+        })
+      ).rejects.toThrow("apps/api/unregistered.ts");
+    },
+    30_000
+  );
 
   it.each([
     {
@@ -131,7 +172,6 @@ describe("named workspace deployment", () => {
     async ({ file, content, error }) => {
       await updateDevelopmentWorkspace(sourceRoot, name, {
         install: false,
-        link: false,
       });
       await unlink(path.join(target, ".gitignore"));
       await write(file, content);
@@ -143,7 +183,6 @@ describe("named workspace deployment", () => {
       await expect(
         updateDevelopmentWorkspace(sourceRoot, name, {
           install: false,
-          link: false,
         })
       ).rejects.toThrow(error);
 
@@ -206,11 +245,9 @@ describe("named workspace deployment", () => {
       await write("node_modules/.cache/turbo/sentinel", "keep");
       await updateDevelopmentWorkspace(sourceRoot, name, {
         install: false,
-        link: false,
       });
       const second = await updateDevelopmentWorkspace(sourceRoot, name, {
         install: false,
-        link: false,
       });
       const customer = path.join(scratch, name);
       await composeWorkspace(
@@ -283,41 +320,35 @@ describe("named workspace deployment", () => {
     30_000
   );
 
-  it.each([true, false])(
-    "preserves edited ignore rules and retires old app rules with link=%s",
-    async (link) => {
-      await updateWorkspaceFiles({
-        dependencyHash: "previous-composition",
-        files: [".gitignore", "apps/web/.gitignore"].map((file) => ({
-          content: Buffer.from("/*\n!/vercel.json\n"),
-          mode: 0o644,
-          owner: "named workspace Git visibility",
-          target: file,
-        })),
-        sourceRoot,
-        targetRoot: target,
-      });
-      const ignoreRules =
-        "/*\n!/.gitignore\n!/next-hydra.json\n# Workspace-owned policy\n";
-      await write(".gitignore", ignoreRules);
-      await updateDevelopmentWorkspace(sourceRoot, name, {
-        install: false,
-        link,
-      });
-      await expect(
-        readFile(path.join(target, ".gitignore"), "utf-8")
-      ).resolves.toBe(ignoreRules);
-      await expect(
-        lstat(path.join(target, "apps/web/.gitignore"))
-      ).rejects.toThrow("ENOENT");
-    },
-    30_000
-  );
+  it("preserves edited ignore rules and releases old app rules", async () => {
+    await updateWorkspaceFiles({
+      dependencyHash: "previous-composition",
+      files: [".gitignore", "apps/web/.gitignore"].map((file) => ({
+        content: Buffer.from("/*\n!/vercel.json\n"),
+        mode: 0o644,
+        owner: "named workspace Git visibility",
+        target: file,
+      })),
+      sourceRoot,
+      targetRoot: target,
+    });
+    const ignoreRules =
+      "/*\n!/.gitignore\n!/next-hydra.json\n# Workspace-owned policy\n";
+    await write(".gitignore", ignoreRules);
+    await updateDevelopmentWorkspace(sourceRoot, name, {
+      install: false,
+    });
+    await expect(
+      readFile(path.join(target, ".gitignore"), "utf-8")
+    ).resolves.toBe(ignoreRules);
+    await expect(
+      readFile(path.join(target, "apps/web/.gitignore"), "utf-8")
+    ).resolves.toBe("/*\n!/vercel.json\n");
+  }, 30_000);
 
   it("keeps named deployment settings opt-in instead of installing customer hosting defaults", async () => {
     await updateDevelopmentWorkspace(sourceRoot, name, {
       install: false,
-      link: false,
     });
     await expect(
       lstat(path.join(target, "apps/web/vercel.json"))
@@ -329,15 +360,13 @@ describe("named workspace deployment", () => {
     ).resolves.toBe('{"framework":"nextjs"}');
   }, 30_000);
 
-  it.each([true, false])(
-    "migrates previously owned deployment links when refreshing with link=%s",
-    async (link) => {
-      const settingsPath = "apps/web/vercel.json";
+  it.each(["apps/web/vercel.json", "apps/api/.gitignore"])(
+    "migrates previously owned settings at %s",
+    async (settingsPath) => {
       const canonical = path.join(sourceRoot, settingsPath);
       const settings = await readFile(canonical, "utf-8");
       // The previous constructor registered the source link in version-2 applied state.
-      await updateWorkspaceFiles({
-        dependencyHash: "previous-composition",
+      await seedLinkedWorkspace({
         files: [{ owner: "web", source: canonical, target: settingsPath }],
         sourceRoot,
         targetRoot: target,
@@ -345,12 +374,10 @@ describe("named workspace deployment", () => {
       await updateDevelopmentWorkspace(sourceRoot, name, {
         check: true,
         install: false,
-        link,
       });
       const before = await lstat(path.join(target, settingsPath));
       await updateDevelopmentWorkspace(sourceRoot, name, {
         install: false,
-        link,
       });
       const after = await lstat(path.join(target, settingsPath));
       const migrated = await readFile(path.join(target, settingsPath), "utf-8");
@@ -358,7 +385,6 @@ describe("named workspace deployment", () => {
       await write(settingsPath, '{"framework":"nextjs"}');
       const refreshed = await updateDevelopmentWorkspace(sourceRoot, name, {
         install: false,
-        link,
       });
       expect({
         before: before.isSymbolicLink(),
@@ -379,58 +405,52 @@ describe("named workspace deployment", () => {
     30_000
   );
 
-  it("switches between linked and copied sources in place, protecting deployment settings and local work", async () => {
+  it("uses independent physical source files on every refresh and protects local work", async () => {
     const settings = '{"framework":"nextjs"}';
     await write("apps/web/vercel.json", settings);
     await updateDevelopmentWorkspace(sourceRoot, name, { install: false });
-    const route = path.join(target, "apps/web/app/api/draft/route.ts");
-    const linkedInfo = await lstat(route);
-    const linked = linkedInfo.isSymbolicLink();
-    const config = await readFile(path.join(target, "turbo.json"), "utf-8");
-    await updateDevelopmentWorkspace(sourceRoot, name, {
-      install: false,
-      link: false,
-    });
-    const copiedInfo = await lstat(route);
-    const copied = copiedInfo.isSymbolicLink();
+    const routePath = "apps/web/app/api/draft/route.ts";
+    const route = path.join(target, routePath);
+    const canonical = path.join(
+      sourceRoot,
+      "packages/cms-contentstack/registry",
+      routePath
+    );
+    const canonicalBefore = await readFile(canonical, "utf-8");
     const original = await readFile(route, "utf-8");
+    const firstRoute = await lstat(route);
+    expect(firstRoute.isFile()).toBeTruthy();
     await writeFile(route, "local edit");
     await expect(
       updateDevelopmentWorkspace(sourceRoot, name, { install: false })
     ).rejects.toThrow("locally modified");
+    await expect(readFile(canonical, "utf-8")).resolves.toBe(canonicalBefore);
     await writeFile(route, original);
     await write("apps/web/new.ts", "unregistered");
     await expect(
-      updateDevelopmentWorkspace(sourceRoot, name, {
-        install: false,
-        link: false,
-      })
+      updateDevelopmentWorkspace(sourceRoot, name, { install: false })
     ).rejects.toThrow("unregistered files");
     await unlink(path.join(target, "apps/web/new.ts"));
-    await updateDevelopmentWorkspace(sourceRoot, name, { install: false });
-    const relinkedInfo = await lstat(route);
+    const second = await updateDevelopmentWorkspace(sourceRoot, name, {
+      install: false,
+    });
+    const secondRoute = await lstat(route);
     expect({
-      config: await readFile(path.join(target, "turbo.json"), "utf-8"),
-      copied,
-      linked,
-      relinked: relinkedInfo.isSymbolicLink(),
+      changed: second.changed,
+      physical: secondRoute.isFile(),
       settings: await readFile(
         path.join(target, "apps/web/vercel.json"),
         "utf-8"
       ),
-    }).toEqual({
-      config,
-      copied: false,
-      linked: true,
-      relinked: true,
-      settings,
-    });
+    }).toEqual({ changed: 0, physical: true, settings });
   }, 30_000);
 
   it.each([
     "unknown source",
     "linked cache",
     "linked settings",
+    "linked ignore settings",
+    "directory ignore settings",
     "linked task metadata",
     "unknown task source",
     "unselected app",
@@ -451,6 +471,18 @@ describe("named workspace deployment", () => {
           path.join(target, "apps/web/vercel.json")
         );
       }
+      if (scenario === "linked ignore settings") {
+        await mkdir(path.join(target, "apps/web"), { recursive: true });
+        await symlink(
+          path.join(scratch, "ignore"),
+          path.join(target, "apps/web/.gitignore")
+        );
+      }
+      if (scenario === "directory ignore settings") {
+        await mkdir(path.join(target, "apps/web/.gitignore"), {
+          recursive: true,
+        });
+      }
       if (scenario === "linked task metadata") {
         await mkdir(path.join(target, "tasks"));
         await symlink(
@@ -470,7 +502,6 @@ describe("named workspace deployment", () => {
       await expect(
         updateDevelopmentWorkspace(sourceRoot, name, {
           install: false,
-          link: false,
         })
       ).rejects.toThrow(
         /unowned|physical directory|regular files|not selected/u

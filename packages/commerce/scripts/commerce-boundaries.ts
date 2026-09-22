@@ -90,7 +90,7 @@ const runtimeDirectories = new Set([
   "test-results",
 ]);
 
-// Inspect the actual composition, including source-linked files in ignored
+// Inspect the actual composition, including materialized files in ignored
 // workspaces. Git's tracked-file inventory is empty for those workspaces.
 export const repositoryFiles = (repoRoot: string): readonly string[] => {
   const walk = (directory: string): string[] =>

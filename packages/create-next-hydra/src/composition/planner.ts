@@ -509,7 +509,7 @@ export function planComposition(
     throw new CompositionValidationError(
       "The source registry has no shared application.",
       [
-        "Choose a source revision with the app-web selection; clone-based baselines are no longer supported.",
+        "The source registry must include app-web, which provides the shared web application.",
       ]
     );
   }
@@ -578,16 +578,6 @@ export function planComposition(
       return item;
     })
   );
-  const maintainerCopyTargets = uniqueSorted(
-    selections.flatMap((selectedSelection) =>
-      (selectedSelection.maintainerWorkspace?.copy ?? []).map((target) =>
-        resolveWorkspacePath(
-          target,
-          `${selectedSelection.id} maintainer workspace copy target`
-        )
-      )
-    )
-  );
   const assetTargets = new Set(assets.map((asset) => asset.target));
   const missingPatchAssets = pnpmPatches
     .filter((patch) => !assetTargets.has(patch.path))
@@ -639,7 +629,6 @@ export function planComposition(
           .filter((value): value is string => Boolean(value))
       ),
     ],
-    maintainerCopyTargets,
     managedTargets,
     packageRequirements,
     pnpmPatches,

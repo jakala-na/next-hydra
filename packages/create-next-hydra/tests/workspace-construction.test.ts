@@ -15,13 +15,13 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { cloneStarter } from "../src/clone.js";
 import { composeWorkspace } from "../src/compose.js";
 import { readPackageJson } from "../src/composition/packages.js";
 import { updateDevelopmentWorkspace } from "../src/development-workspaces.js";
 import { writeJsonFile } from "../src/fs-utils.js";
 import { runCommand, runGit } from "../src/git.js";
 import { scaffoldProject } from "../src/scaffold.js";
+import { createSourceRepository } from "./fixtures/source-repository.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const selectionSchema =
@@ -54,11 +54,7 @@ describe("shared customer and developer construction", () => {
       path.join(tmpdir(), "workspace-construction-test-")
     );
     source = path.join(scratch, "source");
-    await cloneStarter({
-      repoUrl: repoRoot,
-      targetPath: source,
-      verbose: false,
-    });
+    await createSourceRepository(repoRoot, source);
     await mkdir(path.join(source, "packages/fixture-peer"), {
       recursive: true,
     });
@@ -516,22 +512,16 @@ describe("shared customer and developer construction", () => {
     await expect(
       readFile(path.join(customer, ".env.local"), "utf-8")
     ).resolves.toContain("EXTERNAL_TEST_VALUE=dummy");
-    const linked = path.join(source, "workspaces/external-linked");
-    await composeWorkspace(
-      linked,
-      { addOns: [external], cms: "contentstack", install: false, linked: true },
-      { sourceRoot: source }
-    );
     const implementation = await lstat(
-      path.join(linked, "packages/external/index.ts")
+      path.join(developer, "packages/external/index.ts")
     );
-    const peer = await lstat(path.join(linked, "packages/fixture-peer"));
-    const backend = await lstat(path.join(linked, "apps/api/package.json"));
+    const peer = await lstat(path.join(developer, "packages/fixture-peer"));
+    const backend = await lstat(path.join(developer, "apps/api/package.json"));
     expect({
       backend: backend.isFile(),
-      linked: implementation.isSymbolicLink(),
       peer: peer.isDirectory(),
-    }).toEqual({ backend: true, linked: false, peer: true });
+      physical: implementation.isFile(),
+    }).toEqual({ backend: true, peer: true, physical: true });
   }, 30_000);
 
   it("does not claim Git covers external registry items that contain no files", async () => {

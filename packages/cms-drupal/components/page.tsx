@@ -1,4 +1,3 @@
-import { CanvasComponentTree } from "@composition/cms-drupal/canvas-component-tree";
 import {
   fetchPage as fetchDraftAwareCanvasPage,
   isPageRedirect,
@@ -26,6 +25,7 @@ import type {
   DrupalPreviewContext,
 } from "../lib/preview-context";
 import { getDrupalPreviewContext } from "../lib/preview-session";
+import { CanvasComponentTree } from "./canvas-component-tree";
 import PageRenderer, { isPageKey } from "./page-renderer";
 
 const routeQuery = graphql(

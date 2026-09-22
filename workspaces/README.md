@@ -10,7 +10,7 @@ pnpm --filter create-next-hydra compose --all --copy-env
 pnpm --dir workspaces/cms-contentstack dev
 ```
 
-The same command updates an existing workspace. Add `--no-link` to materialize physical copies instead of source links, in the same folder with the same safe refresh lifecycle. No output/reuse mode or web-app/profile selection is needed. CMS is required; Auth and Commerce are optional, but Commerce requires Auth and includes the complete storefront, checkout, API and admin. Packages bring composition recipes through registry dependencies; their slot bindings extend shared templates. Recipes can build on other recipes without splitting Commerce into selectable shopping features. Provisioning recipes configure external services separately and are never executed by composition.
+The same command updates an existing workspace. All application files are physical copies. The shared web application is implicit in every definition. CMS is required; Auth and Commerce are optional, but Commerce requires Auth and includes the complete storefront, checkout, API and admin. Packages bring composition recipes through registry dependencies; their slot bindings extend shared templates. Recipes can build on other recipes without splitting Commerce into selectable shopping features. Provisioning recipes configure external services separately and are never executed by composition.
 
 | Name | Selection | Web hostname |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ The existing Portless environment adapter derives sibling app URLs and local aut
 
 ## Author and refresh
 
-Ordinary source files, including provider routes, are file-symlinked to their canonical sources. Edit them in either location. Each workspace has its own physical manifests and `node_modules`, so pnpm resolves its selected aliases and source-only packages without building or publishing them. The source checkout still needs its own dependencies installed for source tooling.
+Ordinary source files, including provider routes, are copied into the selected workspace. Use `--explain <file>` when you need to find their canonical sources, edit there, then refresh. Workspace edits never change canonical source automatically. Each workspace has its own physical manifests and `node_modules`, so pnpm resolves its selected aliases and source-only packages without building or publishing them. The source checkout still needs its own dependencies installed for source tooling.
 
 Composed files such as the web layout remain physical. Edit their templates and refresh; don't author a second implementation in the output:
 
@@ -41,9 +41,58 @@ pnpm --filter create-next-hydra compose storefront-drupal --explain packages/cms
 
 Refresh prepares the actual registry composition in isolation, preflights all owned files, then applies changes. Template-only edits do not reinstall dependencies. Changed dependency inputs or missing `node_modules` require an install; `--no-install` leaves that work pending, and `--offline` uses the local pnpm store. The watcher never runs a dependency install after its initial run; it tells you when to rerun the command. External CMS/search provisioning is a separate operation, never an initialization/update side effect.
 
-`--explain <workspace-relative-file>` is read-only: it shows the selected registry owner, absolute canonical source/template path, and whether edits are live-linked or require refresh. It also works before initialization. Applied state retains this provenance, and conflict reports include the edit location. Old version-2 state gains provenance on the next refresh without rewriting unchanged files. The watcher also tracks physical copy exceptions such as app-local test configuration.
+`--explain <workspace-relative-file>` is read-only: it shows the selected registry owner, absolute canonical source/template path, and the source to edit before refreshing. It also works before initialization. Applied state retains this provenance, and conflict reports include the edit location. The watcher tracks additions, edits, renames and deletions in selected source trees, along with registry files, templates and dependency inputs. It excludes dependencies, caches, ignored output and local environment files. New registry-owned files still require registration; watching does not infer ownership.
+
+### Inspect workspace changes
+
+All workspaces use physical copies so imports and dependency resolution match scaffolded projects. The authoring commands are:
+
+```sh
+pnpm --filter create-next-hydra compose storefront-contentstack
+# Locate one file's canonical source or template:
+pnpm --filter create-next-hydra compose storefront-contentstack --explain 'apps/web/app/[locale]/layout.tsx'
+# Composition-wide audit only: list every selected file and its edit location:
+pnpm --filter create-next-hydra compose storefront-contentstack --explain
+# Local edits, deletions, unregistered files and patches:
+pnpm --filter create-next-hydra compose storefront-contentstack --diff
+# After editing canonical source, refresh physical output automatically:
+pnpm --filter create-next-hydra compose storefront-contentstack --watch
+```
+
+Each successful composition saves its approved files in a private bare Git repository under the source checkout's ignored `.cache/workspace-snapshots/` directory. Applied workspace state records the snapshot commit. There is no `.git` directory or pointer inside the application, no remote, and no change to the source repository's index or history. Unchanged compositions reuse the same commit. `--no-install` also records materialized files; a snapshot does not certify that dependencies, type checking or builds succeeded.
+
+`--diff` compares physical output with that saved snapshot, without composing or advancing it. It reports existing files as modified or deleted and includes their Git patches and source ownership. New files are found independently of `.gitignore`, listed as unregistered, and never automatically staged or copied back. Their contents are not included in patches. Environment files, known credential paths, dependency directories and build caches are excluded; this is not a general-purpose secret scanner. Workspace-owned definitions, settings and task metadata remain visible through the source repository's ordinary Git status.
+
+For agent-driven editing, use the known canonical path or search source first. When ownership is unclear, use `--explain <workspace-relative-file>` for that file; reserve the full inventory for composition-wide audits and filter it before loading it into context. Edit canonical implementations or templates, then refresh. If experimenting directly in physical output, use `--diff` to reconcile changes manually into the indicated source or template. Move new files into canonical source and register their targets before refreshing. Template output cannot be automatically reversed into its inputs. Refresh refuses conflicting local edits and unregistered files; there is no force-overwrite or automatic adoption. A cleared snapshot cache can be rebuilt by composition only after ownership checks pass.
+
+These snapshots are local inspection history, not a backup of unregistered work. They are never included in newly scaffolded projects. `--check` still answers whether the current definition and source require refresh; `--diff` answers what changed locally since the last composition snapshot.
 
 `--check` reports stale output, missing workspace ignore files, modified/deleted managed files, unregistered files and pending dependency installation, and exits nonzero if any need attention. `--all` processes each named definition independently and reports failures without preventing the others from updating. Definitions must be direct children of `workspaces/` and visible to Git (tracked or new); explicitly ignored definitions and nested scratch definitions are not discovered. Next, SWC and Workflow build artifacts are excluded from unregistered-file reports.
+
+### Freshness before application verification
+
+These checks answer different questions:
+
+| Command | What it establishes |
+| --- | --- |
+| `compose <name> --explain <file>` | Which canonical source or template owns an application file. |
+| `compose <name> --check` | Whether the selected workspace needs refresh, reconciliation or dependency installation against the current definition and source. This is the application freshness gate. |
+| `compose <name> --diff` | Which workspace files changed locally since the last composition snapshot. It prints diagnostics and patches; a successful exit or an empty diff does not certify source freshness. |
+| Root `pnpm workspace:check` | Whether committed task metadata and outer lockfile compatibility are current. It does not certify the materialized application. |
+
+After editing canonical source, refresh the workspace and check immediately before running application tests or inspecting its browser UI. For example, from the repository root:
+
+```sh
+pnpm --filter create-next-hydra compose storefront-contentstack
+pnpm --filter create-next-hydra compose storefront-contentstack --check
+pnpm --dir workspaces/storefront-contentstack --filter web test
+```
+
+If refresh or check reports local changes, inspect `compose storefront-contentstack --diff` and use the source mappings to reconcile them before retrying. Preserve unregistered work. A clean snapshot diff can coexist with stale application copies when only canonical source changed. Newly added source files must also be covered by registry ownership; use `pnpm registry:check` when changing that inventory.
+
+Root `pnpm dev` refreshes once before starting the reference applications. For subsequent edits, refresh explicitly or run `compose <name> --watch` separately. Wait for an in-progress refresh to finish before checking; a lock failure is not a passing check. A watcher can report conflicts or pending installation, so its presence does not replace the gate. `--no-install` is only appropriate when the workspace dependencies are already current.
+
+Passing the gate describes files on disk. Confirm the resolved server URL belongs to that workspace and allow development compilation to finish. Restart or rebuild when needed for configuration, dependency or runtime changes. If relevant source or output changes during verification, refresh and repeat affected checks; a previous pass does not cover later edits.
 
 ## Run and verify the composition
 
@@ -55,23 +104,23 @@ The root checkout is source-only, not a runnable storefront. Root `pnpm dev` ini
 - Registry/planner/template/materialization tests live in `create-next-hydra` and check supported selections without repeating domain suites in every workspace.
 - Common application integration tests remain beside the web/API/admin/CLI source, but run only inside `storefront-contentstack`, pinned to WorkOS, Contentstack and commercetools. The runner refreshes and installs that definition first, verifies the selected provider aliases and installed links, and runs app tasks without rerunning their package dependencies. It never falls back to the root apps. The E2E runner's own helper tests also run once from their source package; live browser scenarios remain a separate `pnpm test:e2e` command.
 
-Root `pnpm typecheck` and `pnpm build` still cover all named definitions. Application checks need a composition's layouts, CMS block maps, provider aliases and dependencies. Open a named workspace in your editor for that complete TypeScript context; linked implementations still edit canonical source. Neither app tests nor provider tests are copied into a new root-level test collection.
+Root `pnpm typecheck` and `pnpm build` still cover all named definitions. Application checks need a composition's layouts, CMS block maps, provider aliases and dependencies. Open a named workspace in your editor for that complete TypeScript context; use `--explain <file>` when the canonical edit location is unclear. Neither app tests nor provider tests are copied into a new root-level test collection.
 
 ```sh
 pnpm --filter create-next-hydra compose cms-contentstack --run typecheck
 pnpm --filter create-next-hydra compose storefront-drupal --copy-env --run dev
 # Optional broader diagnostic, not the default test policy:
 pnpm --filter create-next-hydra compose --all --run test
-# Already initialized: run a focused package task without another refresh.
+# After refresh and a passing compose --check, run a focused application task.
 pnpm --dir workspaces/storefront-contentstack --filter web test
 pnpm --dir workspaces/storefront-contentstack --filter cli cli --help
 ```
 
-`--run` refreshes and installs first, then runs `dev`, `build`, `test` or `typecheck`. It does not perform remote provisioning. Development runs require one named workspace; finite tasks may use `--all` and report failures independently. Tests preserve source symlinks so relative imports and provider aliases resolve within the selected workspace. Build/type checks still require valid credentials and provider schemas; composition does not regenerate remote schemas or fix domain-code failures.
+`--run` refreshes and installs first, then runs `dev`, `build`, `test` or `typecheck`. It does not perform remote provisioning. Development runs require one named workspace; finite tasks may use `--all` and report failures independently. Tests resolve physical sources and provider aliases within the selected workspace, just as in a scaffolded project. Build/type checks still require valid credentials and provider schemas; composition does not regenerate remote schemas or fix domain-code failures.
 
-Root `cli`, `analyze`, `dev:without-api` and `dev:api:public` shortcuts have been retired; run provider administration or specialized app tasks explicitly from a named workspace. Do not run app-local scripts against the root authoring directories.
+Run provider administration or specialized app tasks explicitly from a named workspace. Do not run app-local scripts against the root authoring directories.
 
-Linked development, copied deployment and customer workspaces use the same Turbo task configuration. Explicit source inputs include files below ignored workspace folders and hash linked file contents; caches and build outputs are excluded. Source edits do not require recomposition to invalidate a linked task's cache. Environment-variable names come from selected examples/defaults; keep these or explicit task declarations current as build inputs evolve.
+Development, deployment and scaffolded workspaces use the same Turbo task configuration. Explicit source inputs include physical files below ignored workspace folders; caches and build outputs are excluded. Refresh after canonical source edits, or keep `compose <name> --watch` running, before invoking application tasks. Environment-variable names come from selected examples/defaults; keep these or explicit task declarations current as build inputs evolve.
 
 ## Lint verification
 
@@ -81,7 +130,7 @@ Linked development, copied deployment and customer workspaces use the same Turbo
 node packages/create-next-hydra/dist/lint-workspaces.js packages/cms-contentstack/components/component-renderer.tsx
 ```
 
-Composition-dependent sources are checked in disposable physical copies produced by the same materializer, with each selection's own installed dependency graph. Development workspaces keep their source links and are never refreshed by lint. Verification does not copy credentials, run development servers, or provision remote systems. Dependency installation may need package-registry access.
+Composition-dependent sources are checked in disposable physical copies produced by the same materializer, with each selection's own installed dependency graph. Existing development workspaces are never refreshed by lint. Verification does not copy credentials, run development servers, or provision remote systems. Dependency installation may need package-registry access.
 
 Each snapshot loads the repository's actual lint configuration, preserving app/package-relative overrides and custom rules. It checks rendered templates as well as the requested source files. Shared configuration still excludes vendor/codegen files; after that source filtering, missing file coverage is an error. Compiler diagnostics are enabled alongside lint, so unresolved imports cannot masquerade as successful checks. Diagnostics identify the canonical implementation or the template and its rendered target; line numbers for templates refer to their rendered output.
 
@@ -89,38 +138,37 @@ Before linting, Next generates route types from the snapshot's actual web route 
 
 Source files not installed in any named definition are linted in the source checkout. Uncovered web/API files and requested templates fail explicitly instead of falling back to the incomplete root app. Add a named definition when introducing a new composition that needs verification. Snapshots are removed after each check, including failures, and verification caching is disabled. `lint:staged` selects paths from the index but checks current working-tree content, like other local development checks; unrelated unstaged changes should be kept separate when verifying a commit.
 
-Commerce also owns installation of the design system's Commerce components and cart button. They stay in their existing source package but are absent from CMS-only output; Commerce itself is still installed whole. The Commerce boundary check scans the composed filesystem, including source links, rather than an empty Git inventory in the ignored workspace.
+Commerce also owns installation of the design system's Commerce components and cart button. They stay in their existing source package but are absent from CMS-only output; Commerce itself is still installed whole. The Commerce boundary check scans the composed filesystem, rather than an empty Git inventory in the ignored workspace.
 
 ## Safety and reconciliation
 
 - Refresh refuses to overwrite local edits, deleted managed files, redirected symlinks or unknown files occupying an intended target. No force flag bypasses this. Reconcile intended edits into their canonical source/template first.
-- New files in a development workspace are reported as unregistered and are never deleted. Move them to canonical source, register their target/owner, then refresh to install the link. Automatic adoption is not implemented.
-- Provider removal unlinks owned files only; it never recursively removes a package directory or follows a symlink into source. Unknown files in an unselected package are preserved and reported; reconcile them explicitly.
+- New files in a development workspace are reported as unregistered and are never deleted. Move them to canonical source, register their target/owner, then refresh to install the file. Automatic adoption is not implemented.
+- Provider removal deletes unchanged owned files only; it never recursively removes a package directory or follows a symlink into source. Unknown files in an unselected package are preserved and reported; reconcile them explicitly.
 - `--copy-env` copies only missing ignored env files for installed paths, with private permissions. Existing files remain untouched; symlinked env paths are rejected. Secret values are never logged or stored in the ownership state.
 - Updates have an exclusive local lock and atomic per-file writes. Interrupted updates retain before/after fingerprints for retry. After an abrupt process termination, verify that its recorded PID is no longer running before removing `.workspace-update.lock`; then rerun the same command. Failed installs can be retried without recreating the workspace.
 - Do not edit physical composed files or run another package install during a refresh. The lock serializes composition commands, not editors or arbitrary processes; preflight checks are not a filesystem sandbox.
-- Earlier ad-hoc workspaces with version-1 receipts have no applied hashes and cannot be safely auto-adopted. Keep them intact and initialize a named workspace.
 
-Before initialization a named directory may contain its `next-hydra.json`, `.gitignore`, optional `README.md`, regular `apps/<app>/vercel.json` settings, `tasks/package.json`, `tasks/turbo.json` and restored caches. Settings are not registry-owned: named composition omits customer ignore and Vercel defaults, preserves independently authored settings, and refuses deployment settings for unselected apps. Do not delete a workspace containing unregistered files. Ignoring output in Git is not a backup for new authoring work. Copied refresh refuses unregistered files; `--check --no-link` reports them without changing files. Switching back to linking also protects locally edited physical copies.
+Before initialization a named directory may contain its `next-hydra.json`, root and `apps/<app>/.gitignore` files, optional `README.md`, regular `apps/<app>/vercel.json` settings, `tasks/package.json`, `tasks/turbo.json` and restored caches. Settings are not registry-owned: named composition omits customer ignore and Vercel defaults, preserves independently authored settings, and refuses deployment settings for unselected apps. App-local ignore rules remain preserved even when their app is no longer selected. Do not delete a workspace containing unregistered files. Ignoring output in Git is not a backup for new authoring work. Refresh refuses unregistered files; `--check` reports them without changing files.
 
-New workspace files are visible as untracked files by default; there is no parent ignore policy hiding workspace folders. Add `workspaces/<name>/next-hydra.json`, then run `compose <name>`. Compose creates a workspace-local `.gitignore` only if it is missing. The default exposes the definition, `.gitignore`, README, task metadata and app deployment settings while ignoring materialized application source, manifests and local state. Repository-wide secret, dependency and cache exclusions still apply. Commit the definition and the settings you want to maintain.
+New workspace files are visible as untracked files by default; there is no parent ignore policy hiding workspace folders. Add `workspaces/<name>/next-hydra.json`, then run `compose <name>`. Compose creates a workspace-local `.gitignore` only if it is missing. The default exposes the definition, root/app `.gitignore` files, README, task metadata and app deployment settings while ignoring materialized application source, manifests and local state. Repository-wide secret, dependency and cache exclusions still apply. Commit the definition and the settings you want to maintain.
 
-Each workspace owns that ignore policy. Edit it before or after initialization, or provide an empty file to decline the default. Compose preserves it, including local edits, in both linked and copied modes; `--check` reports a missing file without creating it. Refresh releases older generated root ignore files from composition ownership and removes only unchanged generated app-level ignore files. New files inside ignored application directories still need `compose --check` and reconciliation into canonical source: Git visibility is not an ownership or backup mechanism.
+Each workspace owns that ignore policy. Edit it before or after initialization, or provide an empty file to decline the default. Compose preserves it, including local edits; `--check` reports a missing root file without creating it. App-local `.gitignore` files are preserved settings, not unregistered code, including files written by tools to ignore caches such as `.swc`. `--diff` excludes these settings and `--explain` identifies their workspace ownership. Existing root ignore rules are never rewritten automatically; add `!/apps/*/.gitignore` to their app allowlist if you want to commit app-local settings. New source files inside ignored application directories still need `compose --check` and reconciliation into canonical source: Git visibility is not an ownership or backup mechanism.
 
-Use stable named workspaces for ongoing development. Disposable verification should allocate unique temporary directories and remove them in `finally` or test teardown, not accumulate numbered workspace copies. Task-metadata staging and copied customer fixtures use the system temp directory. Linked fixtures stay below `workspaces/` for the source-link safety boundary, and lint snapshots stay there to resolve maintainer tooling; both use unique temporary directories with the same cleanup discipline.
+Use stable named workspaces for ongoing development. Disposable verification should allocate unique temporary directories and remove them in `finally` or test teardown, not accumulate numbered workspace copies. Task-metadata staging and copied customer fixtures use the system temp directory. Lint snapshots stay below `workspaces/` to resolve maintainer tooling and use the same cleanup discipline.
 
-`use` has been removed: the source checkout is no longer switched in place. The 11 template outputs and duplicate provider-owned routes have been retired from the root checkout. Ordinary app implementations and authoring manifests remain source. Default customer creation acquires the requested source revision in a temporary directory and uses the same workspace constructor as named `compose`. Source acquisition, linking, credentials, Git initialization and refresh lifecycle differ; application selection and materialization do not. Customer scaffolds own ordinary copied files and do not retain this update contract or the root maintainer task routing.
+The source checkout holds ordinary app implementations, authoring manifests, templates and provider-owned routes in their canonical registry locations. Project creation acquires the requested source revision in a temporary directory and uses the same workspace constructor as named `compose`. Source acquisition, credentials, Git initialization and refresh lifecycle differ; application selection and materialization do not. Scaffolded projects own ordinary copied files and do not retain this update contract or the root maintainer task routing.
 
 ## Deploy a composed application
 
 The application must be materialized before it is built. The hosting service does that directly from its Git checkout, in the same named folder used for development:
 
 ```sh
-pnpm --filter create-next-hydra compose storefront-contentstack --no-link
+pnpm --filter create-next-hydra compose storefront-contentstack
 pnpm --dir workspaces/storefront-contentstack exec turbo run build --filter=web
 ```
 
-There is no separate deployment output, upload workflow or extra repository. Refresh preserves caches automatically. `--no-install` separates materialization from dependency installation. Copied workspaces do not copy ignored source credentials or apply `development.port`; Portless stays available with normal dynamically allocated ports. Existing destination environment files are preserved, not removed. `--copy-env` is only for linked development.
+Hosting builds materialize the named workspace from its Git checkout, preserving restored caches. `--no-install` separates materialization from dependency installation. Ignored source credentials are copied only with explicit `--copy-env`, which is intended for local development, not hosted builds. Existing destination environment files are preserved. Portless uses dynamically allocated ports unless the named definition sets `development.port`.
 
 ### Vercel Git deployments
 
@@ -137,7 +185,7 @@ Set Root Directory and enable access to files outside it in Vercel. Use Node 24 
 
 The app's committed configuration explicitly selects Next.js and provides:
 
-1. **Install Command:** install source tooling, compose that workspace with `--no-link`, and install the selected dependency graph.
+1. **Install Command:** install source tooling, compose that workspace, and install the selected dependency graph.
 2. **Build Command:** run `turbo run build --filter=<app>` from the composed workspace, with the local cache under `node_modules/.cache/turbo`.
 3. **Output Directory:** `.next`, directly beneath this app. No parent-relative output redirection or canonical-app stand-in is needed.
 
@@ -160,7 +208,7 @@ The ignore script runs `turbo query affected --tasks build --packages @workspace
 
 For environment changes, refreshed external CMS content, or troubleshooting, redeploy with Vercel's **Use project's Ignore Build Step** option unchecked, or set `VERCEL_FORCE_BUILD=1`. Same-commit redeploys are also allowed. `[skip ci]` remains supported, with the force setting taking precedence; do not use it when you need GitHub CI to run.
 
-The gate uses Turbo 2.10.13: an available matching executable, or `npx --yes turbo@2.10.13` before project installation. The application configuration is shared unchanged between customer, linked and copied outputs and enables task-input-aware affected execution. CLI compilation/typechecking exclude maintainer tests while including compiler configuration. Composition itself is uncached: it must reconcile selected files, ownership and restored dependencies. The application Build Command remains an ordinary filtered build so cache hits restore required output files rather than omitting tasks. The outer task directory avoids conflicting with the inner application's standalone `turbo.json`; it is never included in customer output.
+The gate uses Turbo 2.10.13: an available matching executable, or `npx --yes turbo@2.10.13` before project installation. The application configuration is shared unchanged between customer and named workspace outputs and enables task-input-aware affected execution. CLI compilation/typechecking exclude maintainer tests while including compiler configuration. Composition itself is uncached: it must reconcile selected files, ownership and restored dependencies. The application Build Command remains an ordinary filtered build so cache hits restore required output files rather than omitting tasks. The outer task directory avoids conflicting with the inner application's standalone `turbo.json`; it is never included in customer output.
 
 These committed files are maintainer settings, not registry sources. Customer scaffolds retain the original app-local `vercel.json` files and skip-CI scripts from the registry. They do not receive the maintainer composition commands, cache-location settings or maintainer ignore script. For example, the customer web and API defaults remain:
 
@@ -175,16 +223,16 @@ Admin uses the same configuration with `scripts/skip-ci.mjs`. Customers can cont
 
 ### Cache reuse and refresh safety
 
-When an existing version-2 workspace still owns a source-linked `vercel.json`, refresh detaches that unchanged link into a physical workspace-owned file, preserving its contents. `--check` reports the pending change without applying it. Unowned or redirected links remain blocked. This ownership migration does not replace the old settings with new deployment commands; review and commit the desired settings for that workspace.
+Workspace-owned settings remain editable physical files. Commit deployment commands and ignore rules alongside the workspace definition; composition preserves them. Redirected settings paths block refresh.
 
-`compose <name> --no-link` uses the same ownership-aware update engine as linked development: unchanged source is not rewritten, changed templates and files are refreshed, and retired owned files are removed. It never clears the workspace or its cache directories. Next's `.next/cache`, package `node_modules` and Turbo artifacts stay in place. Dependency installation runs when selected dependency inputs change, dependencies are missing, or installation needs retry. The `--reuse` and `--output` flags have been removed.
+`compose <name>` uses ownership-aware updates: unchanged source is not rewritten, changed templates and files are refreshed, and unchanged files no longer selected are removed. It never clears the workspace or its cache directories. Next's `.next/cache`, package `node_modules` and Turbo artifacts stay in place. Dependency installation runs when selected dependency inputs change, dependencies are missing, or installation needs retry.
 
-On a clean hosted checkout, the committed settings may coexist with restored caches but no ownership state. This is accepted; arbitrary preexisting source is not. Installation still runs to reconcile restored dependencies when state is absent. Later refreshes retain `.workspace-composition.json` for conflict detection and interrupted-update recovery. Edited/deleted managed files, unregistered files and redirected cache roots block copied refresh. Link/copy switching keeps the same directory and ownership contract. Customer Git repositories cannot be converted into named workspaces.
+On a clean hosted checkout, the committed settings may coexist with restored caches but no ownership state. This is accepted; arbitrary preexisting source is not. Installation still runs to reconcile restored dependencies when state is absent. Later refreshes retain `.workspace-composition.json` for conflict detection and interrupted-update recovery. Edited/deleted managed files, unregistered files and redirected cache roots block refresh. Customer Git repositories cannot be converted into named workspaces.
 
 Application task configuration is shared with customer creation, including environment inputs, dependency ordering, source hashing and output declarations. The Vercel build invocation selects `node_modules/.cache/turbo` so its local Turbo cache sits inside the restored dependency-cache tree. This changes cache location, not `turbo.json` or cache correctness. Remote-cache environment is passed through unchanged. Next's incremental compiler cache is preserved separately from Turbo's complete build-output cache.
 
 Environment variable names from the selected `.env.example` files and registry defaults, plus public Next variables and the standard build environment, participate in Turbo's cache keys. Values are not written into composition state or generated configuration. This is conservative across the selected workspace; maintainers must keep examples/defaults or explicit Turbo `env` declarations current when adding build-affecting variables. Composition does not copy ignored local credentials into hosted builds.
 
-Before changing production settings, verify a Git-triggered preview and a subsequent cached rebuild, including server routes, static assets and provider-specific handlers. Local composition/cache checks do not validate the hosted builder, external credentials or provider services. Migrating project roots may cause an initial cache miss; subsequent builds use stable named paths. Old copied exports are left intact; reconcile any local work rather than deleting them as part of migration.
+Before changing production settings, verify a Git-triggered preview and a subsequent cached rebuild, including server routes, static assets and provider-specific handlers. Local composition/cache checks do not validate the hosted builder, external credentials or provider services. Stable named paths allow subsequent builds to reuse caches.
 
 No hosted project settings are changed by composition. General references: [Vercel build configuration](https://vercel.com/docs/builds/configure-a-build), [Vercel monorepos](https://vercel.com/docs/monorepos).

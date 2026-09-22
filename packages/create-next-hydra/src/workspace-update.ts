@@ -11,7 +11,6 @@ import {
   readlink,
   rename,
   rm,
-  symlink,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -22,13 +21,19 @@ import { z } from "zod";
 import { workspaceFilePathSchema } from "./composition/schema.js";
 import {
   workspaceNonSourceDirectories,
-  workspaceTaskFiles,
+  workspaceSettingKind,
 } from "./workspace-artifacts.js";
 import {
   assertDirectoryPath,
   assertDistinctFileTargets,
   isEnvironmentFile,
 } from "./workspace-files.js";
+import {
+  diffWorkspaceSnapshot,
+  isWorkspaceSnapshotTarget,
+  saveWorkspaceSnapshot,
+} from "./workspace-snapshots.js";
+import type { WorkspaceSnapshotFile } from "./workspace-snapshots.js";
 
 export const WORKSPACE_STATE = ".workspace-composition.json";
 export const WORKSPACE_LOCK = ".workspace-update.lock";
@@ -71,6 +76,10 @@ const stateSchema = z
     dependencyHash: z.string(),
     files: z.array(entrySchema),
     installedDependencies: z.string().optional(),
+    snapshot: z
+      .string()
+      .regex(/^[a-f0-9]{40}$/u)
+      .optional(),
     sourceRoot: z.string(),
     version: z.literal(2),
   })
@@ -85,7 +94,9 @@ export type WorkspaceFile = {
   target: string;
   owner: string;
   origin?: WorkspaceOrigin;
-} & ({ source: string } | { content: Uint8Array; mode: number });
+  content: Uint8Array;
+  mode: number;
+};
 export type WorkspaceUpdateResult = {
   changed: number;
   removed: number;
@@ -94,19 +105,28 @@ export type WorkspaceUpdateResult = {
   needsInstall: boolean;
   origins: { target: string; owner: string; origin?: WorkspaceOrigin }[];
 };
+export type WorkspaceChanges = {
+  files: {
+    target: string;
+    owner?: string;
+    origin?: WorkspaceOrigin;
+    status: "unchanged" | "modified" | "deleted" | "unregistered";
+  }[];
+  patch: string;
+};
 export const hashWorkspaceContent = (content: string | Uint8Array): string =>
   createHash("sha256").update(content).digest("hex");
 
 /** Include edit locations without exposing file contents or relying on a saved receipt. */
 export function describeWorkspaceFile(
   target: string,
-  origins: WorkspaceUpdateResult["origins"],
+  origins: { target: string; owner?: string; origin?: WorkspaceOrigin }[],
   sourceRoot: string
 ): string {
   const file = origins.find(
     (entry) => target === entry.target || target.startsWith(`${entry.target} (`)
   );
-  if (!file) {
+  if (!file?.owner) {
     return `${target}\n    No registered owner; reconcile this file into canonical source.`;
   }
   const location = file.origin
@@ -129,14 +149,11 @@ function same(a: Fingerprint | undefined, b: Fingerprint | undefined): boolean {
     a.mode === b.mode
   );
 }
-const desiredFingerprint = (file: WorkspaceFile): Fingerprint =>
-  "source" in file
-    ? { kind: "link", source: path.resolve(file.source) }
-    : {
-        hash: hashWorkspaceContent(file.content),
-        kind: "file",
-        mode: file.mode,
-      };
+const desiredFingerprint = (file: WorkspaceFile): Fingerprint => ({
+  hash: hashWorkspaceContent(file.content),
+  kind: "file",
+  mode: file.mode,
+});
 
 async function inspect(target: string): Promise<Fingerprint | undefined> {
   await assertDirectoryPath(path.dirname(target));
@@ -193,7 +210,7 @@ async function readMetadata(
   return parsed.data;
 }
 
-/** Physical outputs need refresh when their canonical inputs change; links are already live. */
+/** Outputs need refresh when their canonical inputs change. */
 export async function copiedWorkspaceSources(
   targetRoot: string
 ): Promise<string[]> {
@@ -206,36 +223,6 @@ export async function copiedWorkspaceSources(
       )
     ),
   ];
-}
-
-async function atomicWrite(target: string, file: WorkspaceFile): Promise<void> {
-  await assertDirectoryPath(path.dirname(target));
-  await mkdir(path.dirname(target), { recursive: true });
-  const temporary = `${target}.${randomUUID()}.tmp`;
-  try {
-    await ("source" in file
-      ? symlink(path.relative(path.dirname(target), file.source), temporary)
-      : writeFile(temporary, file.content, { flag: "wx", mode: file.mode }));
-    if (!("source" in file)) {
-      await chmod(temporary, file.mode);
-    }
-    await rename(temporary, target);
-  } finally {
-    await rm(temporary, { force: true });
-  }
-}
-
-async function writeMetadata(
-  targetRoot: string,
-  name: string,
-  value: StateDocument
-): Promise<void> {
-  await atomicWrite(path.join(targetRoot, name), {
-    content: Buffer.from(`${JSON.stringify(value, null, 2)}\n`),
-    mode: 0o600,
-    owner: "workspace state",
-    target: name,
-  });
 }
 
 function validateEntries(files: readonly Entry[]): void {
@@ -288,6 +275,125 @@ async function inventory(
     }
   }
   return files;
+}
+
+/** Inspect the saved composition snapshot without rendering or adopting local edits. */
+export async function inspectWorkspaceChanges(
+  sourceRoot: string,
+  targetRoot: string
+): Promise<WorkspaceChanges> {
+  await assertDirectoryPath(targetRoot);
+  const state = await readMetadata(targetRoot, WORKSPACE_STATE);
+  if (!state?.snapshot) {
+    throw new Error(
+      "No composition snapshot exists. Run compose <name> first; existing local edits will not be adopted automatically."
+    );
+  }
+  if (state.pending) {
+    throw new Error(
+      "Workspace refresh was interrupted. Reconcile and retry composition before inspecting its composition snapshot."
+    );
+  }
+  if (path.resolve(state.sourceRoot) !== path.resolve(sourceRoot)) {
+    throw new Error("Workspace state belongs to a different source checkout.");
+  }
+  validateEntries(state.files);
+  const owned = new Map(
+    state.files
+      .filter((file) => isWorkspaceSnapshotTarget(file.target))
+      .map((file) => [file.target, file])
+  );
+  // Do not let Git read tracked files through redirected parent directories.
+  for (const target of owned.keys()) {
+    await assertDirectoryPath(path.dirname(path.join(targetRoot, target)));
+  }
+  const currentFiles = await inventory(targetRoot, new Set());
+  const present = currentFiles.filter(
+    (target) =>
+      isWorkspaceSnapshotTarget(target) && !workspaceSettingKind(target)
+  );
+  const { changes, patch } = await diffWorkspaceSnapshot({
+    commit: state.snapshot,
+    sourceRoot,
+    targetRoot,
+  });
+  const targets = [
+    ...new Set([...owned.keys(), ...present, ...changes.keys()]),
+  ].sort();
+  return {
+    files: targets.map((target) => {
+      const file = owned.get(target);
+      const change = changes.get(target);
+      let status: WorkspaceChanges["files"][number]["status"] = "unchanged";
+      if (change === "D") {
+        status = "deleted";
+      } else if (change) {
+        status = "modified";
+      } else if (!file) {
+        status = "unregistered";
+      }
+      return { origin: file?.origin, owner: file?.owner, status, target };
+    }),
+    patch,
+  };
+}
+
+async function snapshotWorkspace(
+  sourceRoot: string,
+  targetRoot: string,
+  state: State
+): Promise<string> {
+  const files: WorkspaceSnapshotFile[] = [];
+  for (const file of state.files) {
+    if (!isWorkspaceSnapshotTarget(file.target)) {
+      continue;
+    }
+    const current = await inspect(path.join(targetRoot, file.target));
+    if (current?.kind !== "file" || !same(current, file.applied)) {
+      throw new Error(
+        `File changed before its composition snapshot was saved: ${file.target}. No new composition snapshot was published.`
+      );
+    }
+    const content = await readFile(path.join(targetRoot, file.target));
+    if (hashWorkspaceContent(content) !== current.hash) {
+      throw new Error(
+        `File changed while preparing its composition snapshot: ${file.target}. No new composition snapshot was published.`
+      );
+    }
+    files.push({ content, mode: current.mode, target: file.target });
+  }
+  return await saveWorkspaceSnapshot({
+    files,
+    previous: state.snapshot,
+    sourceRoot,
+    targetRoot,
+  });
+}
+
+async function atomicWrite(target: string, file: WorkspaceFile): Promise<void> {
+  await assertDirectoryPath(path.dirname(target));
+  await mkdir(path.dirname(target), { recursive: true });
+  const temporary = `${target}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, file.content, { flag: "wx", mode: file.mode });
+    await chmod(temporary, file.mode);
+    await rename(temporary, target);
+  } finally {
+    await rm(temporary, { force: true });
+  }
+}
+
+async function writeMetadata(
+  targetRoot: string,
+  name: string,
+  value: StateDocument
+): Promise<void> {
+  await atomicWrite(path.join(targetRoot, name), {
+    content: Buffer.from(`${JSON.stringify(value, null, 2)}\n`),
+    mode: 0o600,
+    owner: "workspace state",
+    target: name,
+  });
 }
 
 /** Recover only exact before/after fingerprints from an interrupted atomic-file update. */
@@ -350,16 +456,13 @@ async function inspectPreservedSettings(
   const settings = new Map<string, Fingerprint>();
   for (const target of preservedFiles) {
     workspaceFilePathSchema.parse(target);
-    if (
-      target !== ".gitignore" &&
-      !workspaceTaskFiles.has(target) &&
-      !/^apps\/[^/]+\/vercel\.json$/u.test(target)
-    ) {
-      throw new Error(`Not a workspace deployment setting: ${target}`);
+    const setting = workspaceSettingKind(target);
+    if (!setting) {
+      throw new Error(`Not a workspace setting: ${target}`);
     }
     const current = await inspect(path.join(targetRoot, target));
     if (
-      (target === ".gitignore" || workspaceTaskFiles.has(target)) &&
+      (target === ".gitignore" || setting === "tasks") &&
       current?.kind !== "file"
     ) {
       throw new Error(`Workspace settings must be regular files: ${target}`);
@@ -393,7 +496,7 @@ async function prepareSettingsMigration(
     const owned = previous.files.find((file) => file.target === target);
     if (!same(current, owned?.applied)) {
       throw new Error(
-        `Cannot migrate unowned or redirected workspace settings: ${target}`
+        `Cannot replace unowned or redirected workspace settings: ${target}`
       );
     }
     workspaceFilePathSchema.parse(path.relative(sourceRoot, current.source));
@@ -406,7 +509,7 @@ async function prepareSettingsMigration(
     files.push({
       content: await readFile(current.source),
       mode: source.mode,
-      owner: "workspace deployment settings",
+      owner: "workspace settings",
       target,
     });
   }
@@ -424,6 +527,7 @@ export async function updateWorkspaceFiles(options: {
   rejectUnowned?: boolean;
   preservedFiles?: readonly string[];
   install?: (cwd: string) => Promise<void>;
+  snapshot?: boolean;
 }): Promise<WorkspaceUpdateResult> {
   const { targetRoot, sourceRoot } = options;
   const preservedFiles = new Set(options.preservedFiles);
@@ -460,6 +564,7 @@ export async function updateWorkspaceFiles(options: {
     dependencyHash: options.dependencyHash,
     files: [],
     installedDependencies: previous.installedDependencies,
+    snapshot: options.snapshot ? previous.snapshot : undefined,
     sourceRoot,
     version: 2,
   };
@@ -612,6 +717,10 @@ export async function updateWorkspaceFiles(options: {
     if (installError) {
       throw installError;
     }
+  }
+  if (options.snapshot) {
+    next.snapshot = await snapshotWorkspace(sourceRoot, targetRoot, next);
+    await writeMetadata(targetRoot, WORKSPACE_STATE, next);
   }
   return result;
 }

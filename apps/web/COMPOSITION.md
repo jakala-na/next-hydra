@@ -18,13 +18,13 @@ The source checkout owns modules, templates and registry metadata. Named develop
 
 `commerce-web`, `commerce-api` and `commerce-admin` are composition recipes installed as registry dependencies of Commerce, not selectable portions of Commerce. API source is copied directly and needs no composition template.
 
-Checkout remains ordinary source in `app/[locale]/checkout/page.tsx`, delegating to `@repo/commerce/checkout`. It is copied byte-for-byte, or linked to that canonical file in a linked workspace. It is never assembled from fragments.
+Checkout remains ordinary source in `app/[locale]/checkout/page.tsx`, delegating to `@repo/commerce/checkout`. It is copied byte-for-byte into the selected workspace. It is never assembled from fragments.
 
 ## Shared files
 
 `registry/templates/layout.tsx.template` owns the shared header structure. Auth supplies account controls; Commerce supplies its provider, cart and business-unit controls; navigation search supplies search. The document frame, environment, proxy and Next configuration use the same module-reference mechanism. Account links receive Commerce destinations only with Commerce.
 
-Templates describe structure; recipes use `meta.composition.slotBindings` to place ordinary TS/TSX module exports into their named slots. Customer output has ordinary filenames, imports and functions, no runtime registry and no continuing generation step. Composed files exist only in materialized workspaces, not as duplicate root source. Tests render all four committed definitions into fresh linked workspaces and check their physical output against the templates. Provider routes likewise live only at their canonical registry paths until materialization.
+Templates describe structure; recipes use `meta.composition.slotBindings` to place ordinary TS/TSX module exports into their named slots. Customer output has ordinary filenames, imports and functions, no runtime registry and no continuing generation step. Composed files exist only in materialized workspaces, not as duplicate root source. Tests render all four committed definitions into fresh physical workspaces and check their physical output against the templates. Provider routes likewise live only at their canonical registry paths until materialization.
 
 ## Local workspaces
 
@@ -40,7 +40,9 @@ pnpm --filter create-next-hydra compose cms-contentstack --explain 'apps/web/app
 pnpm --filter create-next-hydra compose storefront-contentstack --run test
 ```
 
-Each named definition has its own manifests, dependencies and lockfile. Ordinary source files link to the maintainer checkout. Composed targets, manifests and location-sensitive configuration stay physical. Repeating the command safely refreshes them; unchanged dependency inputs do not trigger installation. `--copy-env` copies only missing env files without printing values. See [Development workspaces](../../workspaces/README.md) for definitions and local ports.
+Each named definition has its own manifests, dependencies and lockfile. All application files are physical copies. Use `compose <name> --explain <workspace-relative-file>` to locate the canonical implementation or template, edit there, then refresh the workspace. Repeating the command safely refreshes it; unchanged dependency inputs do not trigger installation. `--copy-env` copies only missing env files without printing values. See [Named workspaces](../../workspaces/README.md) for definitions and local ports.
+
+Before application tests or browser verification, require `compose <name> --check` to pass and verify that the server uses that workspace. `--diff` diagnoses local output edits against the last composition snapshot; it does not detect source changes that have not been copied yet. The [agent verification guidance](../../AGENTS.md#source-and-application-verification) distinguishes source tests, application tests and browser checks.
 
 Run `pnpm dev` inside the output, or `pnpm --filter web dev` for web alone. When overriding the dev server's hostname, use `localhost`: binding explicitly to `127.0.0.1` can cause default-locale rewrites to cross origins and redirect back to themselves.
 

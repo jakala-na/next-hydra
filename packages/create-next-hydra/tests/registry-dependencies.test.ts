@@ -152,7 +152,7 @@ describe("standard registry npm dependencies", () => {
     const development = path.join(scratch, "development");
     await composeWorkspace(
       development,
-      { cms: "contentstack", install: false, linked: true, search: true },
+      { cms: "contentstack", install: false, search: true },
       {
         name: "dependency-check",
         report: () => undefined,

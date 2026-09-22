@@ -1,4 +1,3 @@
-import { CanvasComponentTree } from "@composition/cms-drupal/canvas-component-tree";
 import { getDraftConfig, getDraftData } from "@drupal-canvas/headless-next";
 import type { Locale } from "@repo/i18n";
 import { cacheLife, cacheTag } from "next/cache";
@@ -9,6 +8,7 @@ import { keys } from "../keys";
 import { getCanvasCachePolicy } from "../lib/canvas-cacheability";
 import { fetchCanvasGlobalRegions } from "../lib/canvas-global-region";
 import { toDrupalPath } from "../lib/locale";
+import { CanvasComponentTree } from "./canvas-component-tree";
 
 export type CmsGlobalRegionName =
   | "pre-header"

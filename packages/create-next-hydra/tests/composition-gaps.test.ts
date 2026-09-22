@@ -11,6 +11,7 @@ import { planComposition } from "../src/composition/planner.js";
 import type { WorkspaceSelection } from "../src/composition/types.js";
 import { pathExists } from "../src/fs-utils.js";
 import { scaffoldProject } from "../src/scaffold.js";
+import { createSourceRepository } from "./fixtures/source-repository.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 
@@ -84,6 +85,7 @@ describe("customer CMS package exclusions", () => {
   let scratch: string;
   beforeAll(async () => {
     scratch = await mkdtemp(path.join(tmpdir(), "composition-gaps-test-"));
+    await createSourceRepository(repoRoot, path.join(scratch, "source"));
   });
 
   afterAll(async () => {
@@ -99,7 +101,7 @@ describe("customer CMS package exclusions", () => {
         {
           cms,
           commit: false,
-          repoUrl: repoRoot,
+          repoUrl: path.join(scratch, "source"),
           skipGit: true,
           targetDir: targetRoot,
           verbose: false,

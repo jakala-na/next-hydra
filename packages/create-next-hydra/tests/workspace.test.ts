@@ -42,7 +42,6 @@ function removalPlan(): CompositionPlan {
     catalogTypeScriptPathAliases: [],
     entryItems: [],
     instructions: [],
-    maintainerCopyTargets: [],
     managedTargets: [],
     packageRequirements: [],
     pnpmPatches: [],

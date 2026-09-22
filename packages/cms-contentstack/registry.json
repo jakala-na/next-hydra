@@ -38,21 +38,6 @@
             }
           ],
           "packages": [],
-          "maintainerWorkspace": {
-            "copy": [
-              "packages/cms-contentstack/cli/index.ts",
-              "packages/cms-contentstack/cli/layer.ts",
-              "packages/cms-contentstack/cli/provisioning/recipe-live.ts",
-              "packages/cms-contentstack/recipe"
-            ]
-          },
-          "typeScriptAliases": [
-            {
-              "alias": "@composition/cms-contentstack",
-              "cwd": "apps/web",
-              "sourcePath": "packages/cms-contentstack/components"
-            }
-          ],
           "conditionalDependencies": [
             {
               "providers": ["commerce"],

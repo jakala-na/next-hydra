@@ -128,18 +128,6 @@
         "kind": {
           "enum": ["provider", "add-on", "preset", "package", "recipe"]
         },
-        "maintainerWorkspace": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "copy": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/workspaceFilePath"
-              }
-            }
-          }
-        },
         "slot": {
           "enum": ["auth", "cms", "commerce"]
         },

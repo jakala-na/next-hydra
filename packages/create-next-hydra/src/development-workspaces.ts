@@ -20,11 +20,8 @@ import { z } from "zod";
 import { composeWorkspace } from "./compose.js";
 import { parsePackageJson } from "./composition/packages.js";
 import { resolveWorkspacePath } from "./composition/paths.js";
-import {
-  workspaceSelectionSchema,
-  workspaceFilePathSchema,
-} from "./composition/schema.js";
-import { runCommand } from "./git.js";
+import { workspaceSelectionSchema } from "./composition/schema.js";
+import { runCommand, runGit } from "./git.js";
 import {
   copyMaintainerEnvironmentFiles,
   findMaintainerWorkspaceRoot,
@@ -32,7 +29,8 @@ import {
 } from "./maintainer-workspace.js";
 import {
   workspaceCacheDirectories,
-  workspaceTaskFiles,
+  workspaceNonSourceDirectories,
+  workspaceSettingKind,
 } from "./workspace-artifacts.js";
 import {
   assertDirectoryPath,
@@ -41,9 +39,9 @@ import {
 } from "./workspace-files.js";
 import {
   hashWorkspaceContent,
+  inspectWorkspaceChanges,
   describeWorkspaceFile,
   copiedWorkspaceSources,
-  workspaceOriginSchema,
   updateWorkspaceFiles,
   WORKSPACE_LOCK,
   WORKSPACE_STATE,
@@ -61,17 +59,26 @@ export const workspaceDefinitionSchema = workspaceSelectionSchema.extend({
 });
 type Definition = z.infer<typeof workspaceDefinitionSchema>;
 export type DevelopmentWorkspaceOptions = {
-  link?: boolean;
   all?: boolean;
   check?: boolean;
   watch?: boolean;
   copyEnv?: boolean;
   install?: boolean;
   offline?: boolean;
-  explain?: string;
+  explain?: string | true;
+  diff?: boolean;
   run?: "dev" | "build" | "test" | "typecheck";
 };
 const definitionName = "next-hydra.json";
+function developmentWorkspacePath(sourceRoot: string, name: string): string {
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(name)) {
+    throw new Error(
+      "Use a workspace name of 1–63 lowercase letters, numbers or hyphens, starting and ending with a letter or number, not a path. It also names the local host."
+    );
+  }
+  return path.join(sourceRoot, "workspaces", name);
+}
+
 const defaultIgnoreRules = `# Commit workspace settings only; Compose owns the materialized application.
 /*
 !/.gitignore
@@ -85,20 +92,9 @@ const defaultIgnoreRules = `# Commit workspace settings only; Compose owns the m
 /apps/*
 !/apps/*/
 /apps/*/*
+!/apps/*/.gitignore
 !/apps/*/vercel.json
 `;
-const sourceReceiptSchema = z.object({
-  environmentDefaults: z.array(workspaceFilePathSchema).default([]),
-  files: z.array(
-    z.object({
-      mode: z.enum(["linked", "copied"]),
-      origin: workspaceOriginSchema.optional(),
-      owner: z.string(),
-      source: z.string().optional(),
-      target: z.string(),
-    })
-  ),
-});
 
 export async function discoverDevelopmentWorkspaces(
   sourceRoot: string
@@ -172,8 +168,7 @@ async function seedWorkspaceIgnoreFile(targetRoot: string): Promise<void> {
 async function prepareWorkspaceFiles(
   sourceRoot: string,
   name: string,
-  definition: Definition,
-  linked = true
+  definition: Definition
 ) {
   const stagingRoot = await mkdtemp(
     path.join(sourceRoot, "workspaces", ".prepare-")
@@ -193,102 +188,71 @@ async function prepareWorkspaceFiles(
         commerce: definition.providers.commerce,
         copyEnv: false,
         install: false,
-        linked,
-        port: linked ? definition.development?.port : undefined,
+        port: definition.development?.port,
       },
       { name, report: () => undefined, sourceRoot }
     );
-    const receipt = linked
-      ? sourceReceiptSchema.parse(
-          JSON.parse(
-            await readFile(path.join(outputRoot, WORKSPACE_STATE), "utf-8")
-          )
-        )
-      : {
-          environmentDefaults: created.origins
-            .filter((file) =>
-              isEnvironmentFile(path.posix.basename(file.target))
-            )
-            .map((file) => file.target),
-          files: created.origins
-            .filter(
-              (file) => !isEnvironmentFile(path.posix.basename(file.target))
-            )
-            .map((file) => ({
-              ...file,
-              mode: "copied" as const,
-              source: undefined,
-            })),
-        };
+    const environmentTargets = created.origins
+      .filter((file) => isEnvironmentFile(path.posix.basename(file.target)))
+      .map((file) => file.target);
+    const entries = created.origins.filter(
+      (file) => !isEnvironmentFile(path.posix.basename(file.target))
+    );
     const files: WorkspaceFile[] = [];
     const dependencyInputs: Record<string, string> = {};
     const dependencyDirectories: string[] = [];
-    for (const entry of receipt.files) {
-      if (
-        entry.target === ".gitignore" ||
-        /^apps\/[^/]+\/(?:\.gitignore|vercel\.json)$/u.test(entry.target)
-      ) {
+    for (const entry of entries) {
+      const setting = workspaceSettingKind(entry.target);
+      if (setting === "ignore" || setting === "deployment") {
         // Customer defaults stay in customer output; named workspaces own their
-        // deployment settings and commit one root ignore file for materialized output.
+        // deployment and Git visibility settings.
         continue;
       }
-      if (entry.mode === "linked") {
-        if (!entry.source) {
-          throw new Error(`Missing link source for ${entry.target}`);
-        }
-        files.push({
-          origin: entry.origin,
-          owner: entry.owner,
-          source: path.join(sourceRoot, entry.source),
-          target: entry.target,
-        });
-      } else {
-        const file = path.join(outputRoot, entry.target);
-        const content = await readFile(file);
-        const info = await stat(file);
-        files.push({
-          content,
-          // oxlint-disable-next-line no-bitwise -- Preserve ordinary POSIX permissions.
-          mode: info.mode & 0o777,
-          origin: entry.origin,
-          owner: entry.owner,
-          target: entry.target,
-        });
-        if (path.basename(entry.target) === "package.json") {
-          const manifest = parsePackageJson(content.toString(), entry.target);
-          if (
-            [
-              manifest.dependencies,
-              manifest.devDependencies,
-              manifest.optionalDependencies,
-              manifest.peerDependencies,
-            ].some((section) => Object.keys(section ?? {}).length > 0)
-          ) {
-            dependencyDirectories.push(path.posix.dirname(entry.target));
-          }
-          dependencyInputs[entry.target] = hashWorkspaceContent(
-            JSON.stringify(
-              Object.fromEntries(
-                [
-                  "name",
-                  "version",
-                  "packageManager",
-                  "engines",
-                  "dependencies",
-                  "devDependencies",
-                  "optionalDependencies",
-                  "peerDependencies",
-                  "pnpm",
-                ].map((key) => [key, manifest[key]])
-              )
-            )
-          );
-        } else if (
-          ["pnpm-lock.yaml", "pnpm-workspace.yaml"].includes(entry.target) ||
-          entry.target.endsWith(".patch")
+      const file = path.join(outputRoot, entry.target);
+      const content = await readFile(file);
+      const info = await stat(file);
+      files.push({
+        content,
+        // oxlint-disable-next-line no-bitwise -- Preserve ordinary POSIX permissions.
+        mode: info.mode & 0o777,
+        origin: entry.origin,
+        owner: entry.owner,
+        target: entry.target,
+      });
+      if (path.basename(entry.target) === "package.json") {
+        const manifest = parsePackageJson(content.toString(), entry.target);
+        if (
+          [
+            manifest.dependencies,
+            manifest.devDependencies,
+            manifest.optionalDependencies,
+            manifest.peerDependencies,
+          ].some((section) => Object.keys(section ?? {}).length > 0)
         ) {
-          dependencyInputs[entry.target] = hashWorkspaceContent(content);
+          dependencyDirectories.push(path.posix.dirname(entry.target));
         }
+        dependencyInputs[entry.target] = hashWorkspaceContent(
+          JSON.stringify(
+            Object.fromEntries(
+              [
+                "name",
+                "version",
+                "packageManager",
+                "engines",
+                "dependencies",
+                "devDependencies",
+                "optionalDependencies",
+                "peerDependencies",
+                "pnpm",
+              ].map((key) => [key, manifest[key]])
+            )
+          )
+        );
+      } else if (
+        ["pnpm-lock.yaml", "pnpm-workspace.yaml"].includes(entry.target) ||
+        entry.target.endsWith(".patch")
+      ) {
+        dependencyInputs[entry.target] = hashWorkspaceContent(content);
       }
     }
     // Sorting avoids reinstalls caused by registry inventory ordering alone.
@@ -302,7 +266,7 @@ async function prepareWorkspaceFiles(
       )
     );
     const environmentDefaults = await Promise.all(
-      receipt.environmentDefaults.map(async (target) => ({
+      environmentTargets.map(async (target) => ({
         content: await readFile(path.join(outputRoot, target)),
         target,
       }))
@@ -337,15 +301,12 @@ async function inspectWorkspaceDirectory(
         continue;
       }
       if (target === ".git") {
-        throw new Error("Cannot compose over a customer Git repository.");
+        throw new Error("Cannot compose over an existing Git repository.");
       }
-      if (
-        target === ".gitignore" ||
-        workspaceTaskFiles.has(target) ||
-        /^apps\/[^/]+\/vercel\.json$/u.test(target)
-      ) {
+      const setting = workspaceSettingKind(target);
+      if (setting) {
         if (
-          (target === ".gitignore" || workspaceTaskFiles.has(target)) &&
+          (target === ".gitignore" || setting === "tasks") &&
           !entry.isFile()
         ) {
           throw new Error(
@@ -355,7 +316,7 @@ async function inspectWorkspaceDirectory(
         // Previously owned links are validated and detached by the update engine.
         if (!entry.isFile() && !(initialized && entry.isSymbolicLink())) {
           throw new Error(
-            `Workspace deployment settings must be regular files: ${target}`
+            `Workspace settings must be regular files: ${target}`
           );
         }
         settings.push(target);
@@ -377,7 +338,7 @@ async function inspectWorkspaceDirectory(
         await inspect(target);
       } else if (!initialized) {
         throw new Error(
-          `Cannot initialize an existing unowned workspace containing ${target}. Only its definition, .gitignore, README, app vercel.json files, task metadata and restored caches may precede initialization. Nothing was replaced.`
+          `Cannot initialize an existing unowned workspace containing ${target}. Only its definition, root/app .gitignore files, README, app vercel.json files, task metadata and restored caches may precede initialization. Nothing was replaced.`
         );
       }
     }
@@ -391,17 +352,7 @@ export async function updateDevelopmentWorkspace(
   name: string,
   options: DevelopmentWorkspaceOptions = {}
 ): Promise<WorkspaceUpdateResult> {
-  if (options.link === false && options.copyEnv) {
-    throw new Error(
-      "--copy-env is for linked development; copied workspaces use their own environment."
-    );
-  }
-  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(name)) {
-    throw new Error(
-      "Use a workspace name of 1–63 lowercase letters, numbers or hyphens, starting and ending with a letter or number, not a path. It also names the local host."
-    );
-  }
-  const targetRoot = path.join(sourceRoot, "workspaces", name);
+  const targetRoot = developmentWorkspacePath(sourceRoot, name);
   const definition = await readDefinition(targetRoot);
   const lockPath = path.join(targetRoot, WORKSPACE_LOCK);
   let lock;
@@ -416,14 +367,9 @@ export async function updateDevelopmentWorkspace(
   try {
     await lock.writeFile(`${JSON.stringify({ pid: process.pid })}\n`);
     const preservedFiles = await inspectWorkspaceDirectory(targetRoot);
-    const prepared = await prepareWorkspaceFiles(
-      sourceRoot,
-      name,
-      definition,
-      options.link !== false
-    );
+    const prepared = await prepareWorkspaceFiles(sourceRoot, name, definition);
     for (const target of preservedFiles) {
-      if (target === ".gitignore" || workspaceTaskFiles.has(target)) {
+      if (workspaceSettingKind(target) !== "deployment") {
         continue;
       }
       const manifest = path.posix.join(
@@ -457,7 +403,8 @@ export async function updateDevelopmentWorkspace(
               );
             },
       preservedFiles,
-      rejectUnowned: options.link === false,
+      rejectUnowned: true,
+      snapshot: true,
     });
     if (!options.check && result.conflicts.length === 0 && options.copyEnv) {
       const copied = await copyMaintainerEnvironmentFiles(
@@ -513,42 +460,150 @@ function describeResult(
 export async function explainDevelopmentWorkspace(
   sourceRoot: string,
   name: string,
-  target: string,
-  link = true
+  target?: string
 ): Promise<string> {
-  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(name)) {
-    throw new Error("Explain requires a valid named workspace, not a path.");
+  const targetRoot = developmentWorkspacePath(sourceRoot, name);
+  const normalized =
+    target === undefined
+      ? undefined
+      : resolveWorkspacePath(target, "workspace file to explain");
+  const definition = await readDefinition(targetRoot);
+  const setting =
+    normalized === undefined ? undefined : workspaceSettingKind(normalized);
+  if (setting === "ignore") {
+    return `${name}: ${normalized} is workspace-owned Git visibility configuration, not registry output. Edit it in this workspace; the root .gitignore controls which settings Git exposes.`;
   }
-  const normalized = resolveWorkspacePath(target, "workspace file to explain");
-  const definition = await readDefinition(
-    path.join(sourceRoot, "workspaces", name)
-  );
-  if (normalized === ".gitignore") {
-    return `${name}: .gitignore is workspace-owned Git visibility configuration, not registry output. Edit and commit it in this workspace.`;
-  }
-  if (/^apps\/[^/]+\/vercel\.json$/u.test(normalized)) {
+  if (setting === "deployment") {
     return `${name}: ${normalized} is workspace-owned deployment configuration, not registry output. Edit and commit it in this workspace.`;
   }
-  if (workspaceTaskFiles.has(normalized)) {
+  if (setting === "tasks") {
     return `${name}: ${normalized} is derived Turbo task metadata, not application output. Run pnpm workspace:sync from the source checkout and commit the result.`;
   }
-  const prepared = await prepareWorkspaceFiles(
-    sourceRoot,
-    name,
-    definition,
-    link
-  );
+  const prepared = await prepareWorkspaceFiles(sourceRoot, name, definition);
+  if (normalized === undefined) {
+    return `${name}: ${prepared.files.length} selected files\n${prepared.files.map((file) => describeWorkspaceFile(file.target, prepared.files, sourceRoot)).join("\n")}`;
+  }
   const file = prepared.files.find((entry) => entry.target === normalized);
   if (!file) {
     return `${name}: ${normalized} is not selected by this definition. If locally authored, reconcile it into canonical source and registry ownership.`;
   }
-  return `${name}: ${describeWorkspaceFile(normalized, prepared.files, sourceRoot)}\n    ${"source" in file ? "Source-linked: edits change canonical source immediately." : "Physical output: edit the source/template, then refresh this workspace."}`;
+  return `${name}: ${describeWorkspaceFile(normalized, prepared.files, sourceRoot)}\n    Physical output: edit the source/template, then refresh this workspace.`;
 }
 
-async function watchWorkspaceInputs(
+/** Watch selected authoring trees without traversing dependencies, caches or ignored output. */
+async function workspaceWatchPlan(
+  sourceRoot: string,
+  names: string[]
+): Promise<{
+  accepts: (file: string) => boolean;
+  directories: Map<string, boolean>;
+  files: Set<string>;
+}> {
+  const sourceFiles = await workspaceSourceFiles(sourceRoot);
+  const ignoredResult = await runGit(
+    [
+      "ls-files",
+      "--others",
+      "--ignored",
+      "--exclude-standard",
+      "--directory",
+      "-z",
+    ],
+    { cwd: sourceRoot }
+  );
+  const ignored = ignoredResult.stdout
+    .split("\0")
+    .filter(Boolean)
+    .map((file) => file.replace(/\/$/u, ""));
+  const accepts = (file: string) =>
+    !file
+      .split("/")
+      .some(
+        (part) =>
+          workspaceNonSourceDirectories.has(part) ||
+          isEnvironmentFile(part) ||
+          part.endsWith(".tsbuildinfo")
+      ) &&
+    !ignored.some((entry) => file === entry || file.startsWith(`${entry}/`));
+  const files = new Set([
+    ".gitignore",
+    ...sourceFiles.filter((file) =>
+      /(?:^|\/)(?:\.gitignore|registry\.json|package\.json|pnpm-workspace\.yaml|pnpm-lock\.yaml)$/u.test(
+        file
+      )
+    ),
+  ]);
+  const trees = new Set<string>();
+  for (const file of sourceFiles) {
+    const index = file.indexOf("/registry/");
+    if (index !== -1) {
+      trees.add(file.slice(0, index + "/registry".length));
+    }
+  }
+  for (const name of names) {
+    files.add(path.posix.join("workspaces", name, definitionName));
+    for (const source of await copiedWorkspaceSources(
+      path.join(sourceRoot, "workspaces", name)
+    )) {
+      const tree = /^(?:apps|packages)\/[^/]+(?=\/)/u.exec(source)?.[0];
+      if (tree) {
+        trees.add(tree);
+      } else {
+        files.add(source);
+      }
+    }
+  }
+  const directories = new Map<string, boolean>();
+  // Parent watches also see a selected root being removed or recreated.
+  for (const tree of trees) {
+    files.add(tree);
+  }
+  for (const file of files) {
+    directories.set(path.posix.dirname(file), false);
+  }
+  const visit = async (directory: string): Promise<void> => {
+    if (!accepts(directory)) {
+      return;
+    }
+    let entries;
+    try {
+      entries = await readdir(path.join(sourceRoot, directory), {
+        withFileTypes: true,
+      });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        return;
+      }
+      throw error;
+    }
+    directories.set(directory, true);
+    for (const entry of entries) {
+      // Dirents do not follow symlinks into dependency or external source trees.
+      if (entry.isDirectory()) {
+        await visit(path.posix.join(directory, entry.name));
+      }
+    }
+  };
+  for (const tree of trees) {
+    if ([...trees].some((parent) => tree.startsWith(`${parent}/`))) {
+      continue;
+    }
+    if (await assertDirectoryPath(path.join(sourceRoot, tree))) {
+      await visit(tree);
+    }
+  }
+  return { accepts, directories, files };
+}
+
+export async function watchWorkspaceInputs(
   sourceRoot: string,
   names: string[],
-  refresh: () => Promise<void>
+  refresh: () => Promise<void>,
+  signal: AbortSignal
 ): Promise<void> {
   const watchers = new Map<string, FSWatcher>();
   let dirty = false;
@@ -565,9 +620,7 @@ async function watchWorkspaceInputs(
       }
       watchers.clear();
       // oxlint-disable-next-line no-use-before-define -- Paired lifetime callbacks reference each other but run only after setup.
-      process.off("SIGINT", stop);
-      // oxlint-disable-next-line no-use-before-define -- Paired lifetime callbacks reference each other but run only after setup.
-      process.off("SIGTERM", stop);
+      signal.removeEventListener("abort", stop);
     };
     const fail = (error: Error) => {
       cleanup();
@@ -579,57 +632,66 @@ async function watchWorkspaceInputs(
       void (running ?? Promise.resolve()).then(resolve, reject);
     };
     const connect = async () => {
-      const sourceFiles = await workspaceSourceFiles(sourceRoot);
-      const watchedFiles = new Set(
-        sourceFiles
-          .filter(
-            (file) =>
-              file.includes("/registry/") ||
-              /(?:^|\/)(?:registry\.json|package\.json|pnpm-workspace\.yaml|pnpm-lock\.yaml)$/u.test(
-                file
-              )
-          )
-          .map((file) => path.join(sourceRoot, file))
-      );
-      for (const name of names) {
-        watchedFiles.add(
-          path.join(sourceRoot, "workspaces", name, definitionName)
-        );
-        for (const source of await copiedWorkspaceSources(
-          path.join(sourceRoot, "workspaces", name)
-        )) {
-          watchedFiles.add(path.join(sourceRoot, source));
-        }
-      }
-      const directories = new Map<string, boolean>();
-      for (const file of watchedFiles) {
-        const index = file.indexOf("/registry/");
-        // Watch authoring trees recursively, never dependency trees or materialized workspaces.
-        directories.set(
-          index === -1
-            ? path.dirname(file)
-            : file.slice(0, index + "/registry".length),
-          index !== -1
-        );
-      }
+      const plan = await workspaceWatchPlan(sourceRoot, names);
       if (stopped) {
         return;
       }
+      const onChange =
+        (directory: string, tree: boolean) =>
+        (event: string, filename: string | null) => {
+          if (!filename) {
+            dirty = true;
+            return;
+          }
+          const file = path.posix.join(directory, filename);
+          if (plan.accepts(file) && (tree || plan.files.has(file))) {
+            if (event === "rename") {
+              // Directory watches follow the old inode after a rename. Retire it
+              // so reconnect schedules a refresh even when the same path is reused.
+              watchers.get(file)?.close();
+              watchers.delete(file);
+            }
+            dirty = true;
+          }
+        };
+      const next = new Map<string, FSWatcher>();
+      try {
+        for (const [directory, tree] of plan.directories) {
+          try {
+            const watcher = watch(
+              path.join(sourceRoot, directory),
+              onChange(directory, tree)
+            );
+            watcher.on("error", fail);
+            next.set(directory, watcher);
+          } catch (error) {
+            // A directory can disappear while an editor renames its tree. Parent watches remain active.
+            if (
+              error instanceof Error &&
+              "code" in error &&
+              error.code === "ENOENT"
+            ) {
+              continue;
+            }
+            throw error;
+          }
+        }
+      } catch (error) {
+        for (const watcher of next.values()) {
+          watcher.close();
+        }
+        throw error;
+      }
+      // A new directory may receive files between composition and watcher connection.
+      if ([...next.keys()].some((directory) => !watchers.has(directory))) {
+        dirty = true;
+      }
+      // Keep current watches alive until the replacement set is ready.
       for (const watcher of watchers.values()) {
         watcher.close();
       }
       watchers.clear();
-      for (const [directory, recursive] of directories) {
-        // oxlint-disable-next-line no-loop-func -- Each callback captures block-scoped paths; the shared dirty flag deliberately coalesces events.
-        const watcher = watch(directory, { recursive }, (_event, filename) => {
-          if (
-            recursive ||
-            (filename && watchedFiles.has(path.join(directory, filename)))
-          ) {
-            dirty = true;
-          }
-        });
-        watcher.on("error", fail);
+      for (const [directory, watcher] of next) {
         watchers.set(directory, watcher);
       }
     };
@@ -645,8 +707,11 @@ async function watchWorkspaceInputs(
           running = undefined;
         });
     }, 300);
-    process.once("SIGINT", stop);
-    process.once("SIGTERM", stop);
+    signal.addEventListener("abort", stop, { once: true });
+    if (signal.aborted) {
+      stop();
+      return;
+    }
     // Refresh once after connecting to cover edits between the initial update and watcher startup.
     void connect()
       .then(() => {
@@ -666,12 +731,21 @@ export async function composeDevelopmentWorkspaces(
   if (options.check && options.watch) {
     throw new Error("--check and --watch cannot be combined.");
   }
-  if (options.explain && (options.check || options.watch || options.copyEnv)) {
+  const explaining = options.explain !== undefined;
+  if (
+    (explaining || options.diff) &&
+    (options.check || options.watch || options.copyEnv || options.run)
+  ) {
     throw new Error(
-      "--explain is read-only and cannot be combined with --check, --watch or --copy-env."
+      "--explain and --diff are read-only and cannot be combined with --check, --watch, --copy-env or --run."
     );
   }
-  if (options.run && (options.check || options.watch || options.explain)) {
+  if (explaining && options.diff) {
+    throw new Error(
+      "Choose --explain for source ownership or --diff for local changes."
+    );
+  }
+  if (options.run && (options.check || options.watch || explaining)) {
     throw new Error(
       "--run cannot be combined with --check, --watch or --explain."
     );
@@ -686,14 +760,36 @@ export async function composeDevelopmentWorkspaces(
       "No named workspace definitions found in workspaces/*/next-hydra.json."
     );
   }
-  if (options.explain) {
+  if (options.diff) {
+    for (const workspace of names) {
+      const result = await inspectWorkspaceChanges(
+        sourceRoot,
+        developmentWorkspacePath(sourceRoot, workspace)
+      );
+      const changed = result.files.filter(
+        (file) => file.status !== "unchanged"
+      );
+      console.log(
+        `${workspace}: ${changed.length} local changes since the last composition snapshot.`
+      );
+      for (const file of changed) {
+        console.log(
+          `${file.status}: ${describeWorkspaceFile(file.target, result.files, sourceRoot)}`
+        );
+      }
+      if (result.patch) {
+        console.log(result.patch);
+      }
+    }
+    return;
+  }
+  if (explaining) {
     for (const workspace of names) {
       console.log(
         await explainDevelopmentWorkspace(
           sourceRoot,
           workspace,
-          options.explain,
-          options.link !== false
+          options.explain === true ? undefined : options.explain
         )
       );
     }
@@ -749,9 +845,25 @@ export async function composeDevelopmentWorkspaces(
     return;
   }
   console.log(
-    "Watching templates, copied source inputs, registry files, dependency inputs and selected definitions. Ordinary linked source edits are already live. Dependency changes are reported, not installed by the watcher."
+    "Watching templates, copied source inputs, registry files, dependency inputs and selected definitions. Dependency changes are reported, not installed by the watcher."
   );
-  await watchWorkspaceInputs(sourceRoot, names, async () => {
-    await refresh(true);
-  });
+  const controller = new AbortController();
+  const stop = () => {
+    controller.abort();
+  };
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
+  try {
+    await watchWorkspaceInputs(
+      sourceRoot,
+      names,
+      async () => {
+        await refresh(true);
+      },
+      controller.signal
+    );
+  } finally {
+    process.off("SIGINT", stop);
+    process.off("SIGTERM", stop);
+  }
 }

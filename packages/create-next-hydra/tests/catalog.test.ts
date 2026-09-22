@@ -392,11 +392,6 @@ describe("Next Hydra source registry", () => {
         name: "@repo/commerce",
       })
     );
-    expect(contentstackOnly.typeScriptPathAliases).toContainEqual({
-      alias: "@composition/cms-contentstack",
-      cwd: "apps/web",
-      sourcePath: "packages/cms-contentstack/components",
-    });
     expect(
       contentstackOnly.templates.flatMap((template) =>
         template.slotBindings.map((binding) => binding.owner)

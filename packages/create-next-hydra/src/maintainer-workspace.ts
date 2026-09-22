@@ -3,9 +3,6 @@
 import { lstat, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { parse as parseYaml } from "yaml";
-import { z } from "zod";
-
 import { resolveWorkspacePath } from "./composition/paths.js";
 import { pathExists } from "./fs-utils.js";
 import { runGit } from "./git.js";
@@ -33,10 +30,6 @@ export async function seedWorkspaceEnvironmentFile(
     }
   }
 }
-
-const workspaceConfigurationSchema = z.object({
-  patchedDependencies: z.record(z.string()).optional(),
-});
 
 const hasMaintainerMarkers = async (directory: string): Promise<boolean> =>
   (await pathExists(path.join(directory, "pnpm-workspace.yaml"))) &&
@@ -184,36 +177,4 @@ export async function copyMaintainerEnvironmentFiles(
   return files
     .map((file) => file.relativePath)
     .sort((left, right) => left.localeCompare(right));
-}
-
-const readWorkspaceConfiguration = async (
-  workspaceRoot: string
-): Promise<z.infer<typeof workspaceConfigurationSchema>> =>
-  workspaceConfigurationSchema.parse(
-    parseYaml(
-      await readFile(path.join(workspaceRoot, "pnpm-workspace.yaml"), "utf-8")
-    )
-  );
-
-export async function assertMaintainerDependencyCompatibility(
-  sourceRoot: string,
-  targetRoot: string
-): Promise<void> {
-  const sourceConfiguration = await readWorkspaceConfiguration(sourceRoot);
-  const targetConfiguration = await readWorkspaceConfiguration(targetRoot);
-  const sourcePatches = sourceConfiguration.patchedDependencies ?? {};
-
-  for (const [dependency, patchPath] of Object.entries(
-    targetConfiguration.patchedDependencies ?? {}
-  )) {
-    if (sourcePatches[dependency] !== patchPath) {
-      throw new Error(
-        [
-          `Cannot link the composed workspace because ${dependency} requires ${patchPath}.`,
-          "The maintainer checkout resolves dependencies for linked source packages, so its `pnpm-workspace.yaml` must contain every Provider patch used by the composition.",
-          "Add the patch to the maintainer dependency superset and run `pnpm install` there before trying again.",
-        ].join(" ")
-      );
-    }
-  }
 }

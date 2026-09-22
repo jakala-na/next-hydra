@@ -10,13 +10,6 @@
       "meta": {
         "nextHydra": {
           "id": "next-hydra/commerce/api",
-          "maintainerWorkspace": {
-            "copy": [
-              "apps/api/vitest.config.ts",
-              "apps/api/env.ts",
-              "apps/api/next.config.ts"
-            ]
-          },
           "kind": "recipe",
           "providerDependencies": [
             { "cwd": "apps/api", "section": "dependencies", "slot": "auth" },

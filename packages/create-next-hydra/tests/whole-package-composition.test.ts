@@ -237,7 +237,6 @@ describe("whole-package composition", () => {
       auth: "clerk",
       cms: "contentstack",
       install: false,
-      linked: true,
     });
     const forbidden = [
       "packages/commerce",

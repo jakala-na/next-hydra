@@ -11,7 +11,6 @@ export type ComposeOptions = {
   auth?: string;
   commerce?: string;
   search?: boolean;
-  linked?: boolean;
   copyEnv?: boolean;
   install?: boolean;
   offline?: boolean;
