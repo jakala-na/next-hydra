@@ -29,8 +29,8 @@
     "release:create-next-hydra:dry-run": "node scripts/release-create-next-hydra.mjs --dry-run",
     "test": "turbo run test workspace:test --filter='./packages/*' --filter=@repo/e2e --continue=always",
     "test:environment": "node scripts/check-test-environments.ts",
-    "test:e2e": "turbo run e2e",
-    "test:e2e:affected": "turbo run e2e --affected",
+    "test:e2e": "turbo run workspace:e2e",
+    "test:e2e:affected": "turbo run workspace:e2e --affected",
     "translate": "turbo translate",
     "typecheck": "turbo run typecheck workspace:typecheck --filter=create-next-hydra",
     "version:cli": "changeset version"

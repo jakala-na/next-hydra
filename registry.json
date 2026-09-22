@@ -116,6 +116,7 @@
     "apps/drupal/registry.json",
     "packages/commerce/registry.json",
     "apps/admin/registry.json",
-    "apps/cli/registry.json"
+    "apps/cli/registry.json",
+    "tests/e2e/registry.json"
   ]
 }

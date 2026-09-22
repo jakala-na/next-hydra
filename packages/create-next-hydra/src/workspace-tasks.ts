@@ -56,6 +56,8 @@ export function workspaceTaskConfiguration(
         passThroughEnv: ["PORTLESS_*"],
         persistent: true,
       },
+      e2e: { cache: false },
+      "e2e:list": { cache: false },
       test: { dependsOn: ["^test"], inputs },
       typecheck: { dependsOn: ["^typecheck"], inputs },
     },

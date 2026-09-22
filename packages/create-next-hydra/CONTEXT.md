@@ -14,6 +14,8 @@ Named Vercel deployments use Turbo's pre-install affected-task query against the
 
 Workspace Git visibility is owned locally: no parent workspace ignore policy hides new folders. Compose seeds missing `.gitignore` settings once with defaults that expose definitions and settings while excluding materialized output. Existing rules, including an empty file, remain author-owned. Check mode reports missing rules without creating them. Untracked definitions participate in discovery unless explicitly ignored. Ignoring new application files does not register their ownership; reconciliation remains necessary.
 
+Browser tests are part of the shared constructor output. Every web workspace receives its own `tests/e2e` runner; selected recipes add provider fixtures and scenarios. Maintainer task packages discover named workspaces and delegate to those same project commands, without resolving test helpers from canonical source or selecting a separate reference-only test stack.
+
 ## Language
 
 **Baseline**: The mandatory workspace content included in every composed Next Hydra project and maintained as ordinary canonical starter source. A currently fixed integration remains part of the Baseline until it becomes a Provider Slot. _Avoid_: Default provider, mandatory add-on

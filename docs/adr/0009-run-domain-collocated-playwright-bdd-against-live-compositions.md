@@ -39,3 +39,7 @@ The browser suite is intentionally closer to end-to-end testing than to a fast m
 The suite does not promise coverage of every theoretical composition. A provider combination becomes a CI row only when the repository can install, configure, and operate that complete composition. Domain features remain reusable across those rows because provider divergence stays behind test-control contracts and concrete Layers.
 
 This decision extends ADR-0002 and ADR-0003: test adapters remain thin and invoke domain programs through live Layers. It also preserves the Admin/customer identity isolation established by ADR-0008.
+
+## Workspace ownership
+
+The shared constructor installs the workspace-level runner in customer and named Development Workspaces through the same registry graph. Selected recipes supply fixture composition and dependencies; scenarios requiring commerce are included with commerce. The runner resolves scenarios, provider modules and applications inside that workspace. Maintainer-only tasks discover named workspaces and delegate to their project commands. Source freshness and deployment revision policies stay outside the customer runner.

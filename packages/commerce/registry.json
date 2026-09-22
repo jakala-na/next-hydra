@@ -168,7 +168,8 @@
         "commerce-api",
         "commerce-design-system",
         "commerce-web",
-        "commerce-admin"
+        "commerce-admin",
+        "commerce-e2e"
       ],
       "files": [
         {

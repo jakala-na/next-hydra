@@ -14,6 +14,9 @@ export const workspaceNonSourceDirectories: ReadonlySet<string> = new Set([
   ".git",
   "dist",
   "coverage",
+  ".features-gen",
+  "playwright-report",
+  "test-results",
   ".workflow-data",
 ]);
 

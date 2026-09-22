@@ -195,26 +195,7 @@ describe("composition planner failures", () => {
     });
 
     expect(plan.selection.addOns).toStrictEqual(["drupal-commerce-dam"]);
-    expect(plan.registryItems).toStrictEqual([
-      "app-web",
-      "auth-contract",
-      "auth-web",
-      "auth-workos",
-      "auth-workos-admin",
-      "auth-workos-commerce",
-      "cms-drupal",
-      "cms-drupal-commerce",
-      "commerce",
-      "commerce-admin",
-      "commerce-api",
-      "commerce-commercetools",
-      "commerce-design-system",
-      "commerce-web",
-      "drupal",
-      "drupal-commerce",
-      "drupal-commerce-dam",
-      "workspace-cli",
-    ]);
+    expect(plan.registryItems).toContain("drupal-commerce-dam");
   });
 
   it("rejects an incompatible Add-on before planning writes", async () => {

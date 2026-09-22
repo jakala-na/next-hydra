@@ -92,7 +92,7 @@ If refresh or check reports local changes, inspect `compose storefront-contentst
 
 Root `pnpm dev` refreshes once before starting the reference applications. For subsequent edits, refresh explicitly or run `compose <name> --watch` separately. Wait for an in-progress refresh to finish before checking; a lock failure is not a passing check. A watcher can report conflicts or pending installation, so its presence does not replace the gate. `--no-install` is only appropriate when the workspace dependencies are already current.
 
-Passing the gate describes files on disk. Confirm the resolved server URL belongs to that workspace and allow development compilation to finish. Restart or rebuild when needed for configuration, dependency or runtime changes. If relevant source or output changes during verification, refresh and repeat affected checks; a previous pass does not cover later edits.
+Passing the gate describes files on disk. Confirm the resolved server URL belongs to that workspace and allow development compilation to finish. Restart or rebuild when needed for configuration, dependency or runtime changes. If relevant source or output changes during verification, refresh and repeat affected checks; a previous pass does not cover later edits. See the [E2E guide](../docs/agents/e2e.md#freshness-before-application-verification) for the browser-suite workflow and the limits of current enforcement.
 
 ## Run and verify the composition
 
@@ -236,3 +236,9 @@ Environment variable names from the selected `.env.example` files and registry d
 Before changing production settings, verify a Git-triggered preview and a subsequent cached rebuild, including server routes, static assets and provider-specific handlers. Local composition/cache checks do not validate the hosted builder, external credentials or provider services. Stable named paths allow subsequent builds to reuse caches.
 
 No hosted project settings are changed by composition. General references: [Vercel build configuration](https://vercel.com/docs/builds/configure-a-build), [Vercel monorepos](https://vercel.com/docs/monorepos).
+
+## Browser tests
+
+Every composed web workspace receives the same project-level E2E runner delivered to customers. Run `pnpm --dir workspaces/<name> test:e2e` inside its dependency graph, or delegate from the maintainer root with `pnpm test:e2e --filter=@workspaces/<name>`. The latter uses derived workspace task metadata and forwards Playwright arguments after `--`. It does not materialize or refresh the workspace implicitly.
+
+Refresh and check freshness first using the workflow above. `pnpm --dir workspaces/<name> test:e2e:list` lists available scenarios. CMS-only workspaces currently report zero supplied browser tests; commerce workspaces include the selected company, registration and checkout scenarios. Fixture imports and scenario discovery resolve entirely inside the composition.

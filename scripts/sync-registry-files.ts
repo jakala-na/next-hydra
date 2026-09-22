@@ -11,6 +11,11 @@ const checkOnly = process.argv.includes("--check");
 const managedSourceDirectory = "registry";
 const manifests = [
   {
+    item: "workspace-e2e",
+    manifest: "tests/e2e/registry.json",
+    sourceRoot: "tests/e2e",
+  },
+  {
     item: "commerce-admin",
     manifest: "apps/admin/registry.json",
     sourceRoot: "apps/admin",
@@ -117,14 +122,14 @@ const declaredAssetSources = new Set(
   })
 );
 
-// Provider-owned app routes are authored under the provider's registry folder.
-// Do not claim their materialized copies as application-owned source.
-const managedApplicationCopies = new Set(
+// Registry overlays own their materialized app and test files.
+// Do not also claim their source-checkout counterparts as baseline files.
+const managedSourceCopies = new Set(
   manifests.flatMap(({ manifest, sourceRoot }) =>
     readSourceRegistry(manifest).items.flatMap((item) =>
       (item.files ?? []).flatMap((file) => {
         const target = file.target?.replace(/^~\//u, "");
-        return target?.startsWith("apps/") &&
+        return (target?.startsWith("apps/") || target?.startsWith("tests/")) &&
           target !== path.posix.join(sourceRoot, file.path)
           ? [target]
           : [];
@@ -171,7 +176,7 @@ function sourceFiles(
     .filter(Boolean)
     .filter((file) => existsSync(path.join(workspaceRoot, file)))
     .filter((file) => path.posix.basename(file) !== "registry.json")
-    .filter((file) => !managedApplicationCopies.has(file))
+    .filter((file) => !managedSourceCopies.has(file))
     // Prototypes are maintainer references, not generated workspace source.
     .filter((file) => !file.startsWith(`${sourceRoot}/prototypes/`))
     // Composition authoring inputs produce ordinary targets; they are not

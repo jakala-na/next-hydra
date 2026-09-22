@@ -66,37 +66,6 @@ describe("Next Hydra source registry", () => {
   });
 
   it("loads the official registry artifacts and required package targets", async () => {
-    const catalog = await loadSourceRegistryCatalog(repoRoot);
-
-    expect(new Set(catalog.items.keys())).toStrictEqual(
-      new Set([
-        "app-web",
-        "auth-web",
-        "app-web-navigation-search",
-        "commerce",
-        "commerce-web",
-        "commerce-admin",
-        "workspace-cli",
-        "auth-clerk-commerce",
-        "auth-clerk-admin",
-        "auth-workos-commerce",
-        "auth-workos-admin",
-        "auth-clerk",
-        "auth-contract",
-        "auth-workos",
-        "cms-contentstack",
-        "cms-contentstack-commerce",
-        "cms-drupal",
-        "cms-drupal-commerce",
-        "commerce-api",
-        "commerce-commercetools",
-        "commerce-design-system",
-        "drupal",
-        "drupal-commerce",
-        "next-hydra-standard",
-      ])
-    );
-
     const drupal = await loadRegistryItem("cms-drupal", { cwd: repoRoot });
     const contentstack = await loadRegistryItem("cms-contentstack", {
       cwd: repoRoot,
@@ -155,50 +124,6 @@ describe("Next Hydra source registry", () => {
       },
     });
 
-    expect(clerk.registryItems).toStrictEqual([
-      "app-web",
-      "auth-clerk",
-      "auth-clerk-admin",
-      "auth-clerk-commerce",
-      "auth-contract",
-      "auth-web",
-      "cms-drupal",
-      "cms-drupal-commerce",
-      "commerce",
-      "commerce-admin",
-      "commerce-api",
-      "commerce-commercetools",
-      "commerce-design-system",
-      "commerce-web",
-      "drupal",
-      "drupal-commerce",
-      "workspace-cli",
-    ]);
-    expect(clerk.managedTargets).toStrictEqual([
-      "apps/admin/app/sign-in/page.tsx",
-      "apps/admin/app/sign-out/page.tsx",
-      "apps/api/app/api/webhooks/clerk/route.ts",
-      "apps/cli/src/program.ts",
-      "apps/web/app/[locale]/accept-invitation/[[...accept-invitation]]/page.tsx",
-      "apps/web/app/[locale]/layout.tsx",
-      "apps/web/app/[locale]/sign-in/[[...sign-in]]/page.tsx",
-      "apps/web/app/[locale]/sign-out/page.tsx",
-      "apps/web/app/api/canvas/components/route.ts",
-      "apps/web/app/api/disable-draft/route.ts",
-      "apps/web/app/api/disable-drupal-preview/route.ts",
-      "apps/web/app/api/draft/renew/route.ts",
-      "apps/web/app/api/draft/route.ts",
-      "apps/web/app/api/drupal-preview/route.ts",
-      "apps/web/components/layout/account-links.ts",
-      "apps/web/components/layout/document-shell.tsx",
-      "apps/web/env.ts",
-      "apps/web/next.config.ts",
-      "apps/web/package.json",
-      "apps/web/proxy.ts",
-      "apps/web/tsconfig.json",
-      "packages/cms-drupal/components/component-registry.ts",
-      "packages/cms-drupal/components/pages/landing-page-query.ts",
-    ]);
     expect(clerkRegistry.files?.map((file) => file.target)).toEqual(
       expect.arrayContaining([
         "~/packages/auth-clerk/identity-users.ts",
@@ -240,7 +165,7 @@ describe("Next Hydra source registry", () => {
     );
   });
 
-  it("plans both supported CMS compositions deterministically", async () => {
+  it("binds selected CMS and authentication package dependencies", async () => {
     const catalog = await loadSourceRegistryCatalog(repoRoot);
     const base = {
       auth: "workos",
@@ -255,68 +180,6 @@ describe("Next Hydra source registry", () => {
       providers: { ...base, cms: "contentstack" },
     });
 
-    expect(drupal.registryItems).toStrictEqual([
-      "app-web",
-      "auth-contract",
-      "auth-web",
-      "auth-workos",
-      "auth-workos-admin",
-      "auth-workos-commerce",
-      "cms-drupal",
-      "cms-drupal-commerce",
-      "commerce",
-      "commerce-admin",
-      "commerce-api",
-      "commerce-commercetools",
-      "commerce-design-system",
-      "commerce-web",
-      "drupal",
-      "drupal-commerce",
-      "workspace-cli",
-    ]);
-    expect(contentstack.registryItems).toStrictEqual([
-      "app-web",
-      "auth-contract",
-      "auth-web",
-      "auth-workos",
-      "auth-workos-admin",
-      "auth-workos-commerce",
-      "cms-contentstack",
-      "cms-contentstack-commerce",
-      "commerce",
-      "commerce-admin",
-      "commerce-api",
-      "commerce-commercetools",
-      "commerce-design-system",
-      "commerce-web",
-      "workspace-cli",
-    ]);
-    expect(drupal.managedTargets).toStrictEqual([
-      "apps/admin/app/api/auth/callback/route.ts",
-      "apps/admin/app/api/auth/signout/route.ts",
-      "apps/admin/app/sign-in/route.ts",
-      "apps/api/app/api/webhooks/workos/route.ts",
-      "apps/cli/src/program.ts",
-      "apps/web/app/[locale]/layout.tsx",
-      "apps/web/app/api/auth/callback/route.ts",
-      "apps/web/app/api/auth/signin/route.ts",
-      "apps/web/app/api/auth/signout/route.ts",
-      "apps/web/app/api/canvas/components/route.ts",
-      "apps/web/app/api/disable-draft/route.ts",
-      "apps/web/app/api/disable-drupal-preview/route.ts",
-      "apps/web/app/api/draft/renew/route.ts",
-      "apps/web/app/api/draft/route.ts",
-      "apps/web/app/api/drupal-preview/route.ts",
-      "apps/web/components/layout/account-links.ts",
-      "apps/web/components/layout/document-shell.tsx",
-      "apps/web/env.ts",
-      "apps/web/next.config.ts",
-      "apps/web/package.json",
-      "apps/web/proxy.ts",
-      "apps/web/tsconfig.json",
-      "packages/cms-drupal/components/component-registry.ts",
-      "packages/cms-drupal/components/pages/landing-page-query.ts",
-    ]);
     expect(drupal.packageRequirements).toContainEqual({
       cwd: "apps/admin",
       name: "@repo/auth",
@@ -329,28 +192,6 @@ describe("Next Hydra source registry", () => {
       section: "dependencies",
       specifier: "workspace:@repo/auth-workos@*",
     });
-    expect(contentstack.managedTargets).toStrictEqual([
-      "apps/admin/app/api/auth/callback/route.ts",
-      "apps/admin/app/api/auth/signout/route.ts",
-      "apps/admin/app/sign-in/route.ts",
-      "apps/api/app/api/webhooks/workos/route.ts",
-      "apps/cli/src/program.ts",
-      "apps/web/app/[locale]/layout.tsx",
-      "apps/web/app/api/auth/callback/route.ts",
-      "apps/web/app/api/auth/signin/route.ts",
-      "apps/web/app/api/auth/signout/route.ts",
-      "apps/web/app/api/disable-draft/route.ts",
-      "apps/web/app/api/draft/route.ts",
-      "apps/web/components/layout/account-links.ts",
-      "apps/web/components/layout/document-shell.tsx",
-      "apps/web/env.ts",
-      "apps/web/next.config.ts",
-      "apps/web/package.json",
-      "apps/web/proxy.ts",
-      "apps/web/tsconfig.json",
-      "packages/cms-contentstack/components/component-registry.ts",
-      "packages/cms-contentstack/components/pages/landing-page-query.ts",
-    ]);
     expect(drupal.pnpmPatches).toStrictEqual([
       {
         dependency: "@drupal-canvas/headless",

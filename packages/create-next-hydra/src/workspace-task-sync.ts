@@ -28,40 +28,40 @@ export function workspaceCompositionTask(
 ) {
   const selected = new Set(
     sources.map((source) => {
-      const directory = /^(?:apps|packages)\/[^/]+(?=\/)/u.exec(source)?.[0];
+      const directory = /^(?:apps|packages|tests)\/[^/]+(?=\/)/u.exec(
+        source
+      )?.[0];
       return directory ? `${directory}/**` : source;
     })
   );
-  return {
-    extends: ["//"],
-    tasks: {
-      build: {
-        cache: false,
-        dependsOn: ["^build"],
-        inputs: [
-          "$TURBO_DEFAULT$",
-          `$TURBO_ROOT$/workspaces/${name}/next-hydra.json`,
-          `$TURBO_ROOT$/workspaces/${name}/apps/*/vercel.json`,
-          "$TURBO_ROOT$/*",
-          "$TURBO_ROOT$/apps/**/registry.json",
-          "$TURBO_ROOT$/packages/**/registry.json",
-          "$TURBO_ROOT$/apps/*/package.json",
-          "$TURBO_ROOT$/packages/*/package.json",
-          "$TURBO_ROOT$/packages/create-next-hydra/schema/**",
-          "$TURBO_ROOT$/packages/create-next-hydra/scripts/**",
-          ...[...selected].toSorted().map((source) => `$TURBO_ROOT$/${source}`),
-          ...[...workspaceNonSourceDirectories].map(
-            (directory) => `!$TURBO_ROOT$/**/${directory}/**`
-          ),
-          "!$TURBO_ROOT$/**/.env",
-          "!$TURBO_ROOT$/**/.env.local",
-          "!$TURBO_ROOT$/**/.env.*.local",
-          "!$TURBO_ROOT$/**/*.tsbuildinfo",
-        ],
-        outputs: [],
-      },
-    },
+  const task = {
+    cache: false,
+    dependsOn: ["^build"],
+    inputs: [
+      "$TURBO_DEFAULT$",
+      `$TURBO_ROOT$/workspaces/${name}/next-hydra.json`,
+      `$TURBO_ROOT$/workspaces/${name}/apps/*/vercel.json`,
+      "$TURBO_ROOT$/*",
+      "$TURBO_ROOT$/apps/**/registry.json",
+      "$TURBO_ROOT$/packages/**/registry.json",
+      "$TURBO_ROOT$/tests/**/registry.json",
+      "$TURBO_ROOT$/apps/*/package.json",
+      "$TURBO_ROOT$/packages/*/package.json",
+      "$TURBO_ROOT$/tests/*/package.json",
+      "$TURBO_ROOT$/packages/create-next-hydra/schema/**",
+      "$TURBO_ROOT$/packages/create-next-hydra/scripts/**",
+      ...[...selected].toSorted().map((source) => `$TURBO_ROOT$/${source}`),
+      ...[...workspaceNonSourceDirectories].map(
+        (directory) => `!$TURBO_ROOT$/**/${directory}/**`
+      ),
+      "!$TURBO_ROOT$/**/.env",
+      "!$TURBO_ROOT$/**/.env.local",
+      "!$TURBO_ROOT$/**/.env.*.local",
+      "!$TURBO_ROOT$/**/*.tsbuildinfo",
+    ],
+    outputs: [],
   };
+  return { extends: ["//"], tasks: { build: task, "workspace:e2e": task } };
 }
 
 export async function planWorkspaceTaskFiles(sourceRoot: string, name: string) {

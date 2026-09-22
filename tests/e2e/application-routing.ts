@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import type { E2EApplicationUrls } from "@repo/e2e-testing";
 import { Schema } from "effect";
 
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -13,14 +12,14 @@ interface ResolveE2EApplicationRoutingInput {
 }
 
 export interface E2EApplicationNames {
-  readonly admin: string;
-  readonly api: string;
+  readonly admin?: string;
+  readonly api?: string;
   readonly web: string;
 }
 
 export interface E2EApplicationRouting {
   readonly mode: "direct" | "external" | "portless";
-  readonly urls: E2EApplicationUrls;
+  readonly urls: E2EApplicationNames;
 }
 
 const PortlessPackageJson = Schema.Struct({
@@ -46,11 +45,21 @@ const loadPortlessApplicationName = (
 
 export const loadPortlessApplicationNames = (
   workspaceRoot: string
-): E2EApplicationNames => ({
-  admin: loadPortlessApplicationName(workspaceRoot, "admin"),
-  api: loadPortlessApplicationName(workspaceRoot, "api"),
-  web: loadPortlessApplicationName(workspaceRoot, "web"),
-});
+): E2EApplicationNames => {
+  const optionalName = (application: "admin" | "api") => {
+    if (
+      existsSync(path.join(workspaceRoot, "apps", application, "package.json"))
+    ) {
+      return loadPortlessApplicationName(workspaceRoot, application);
+    }
+    return undefined;
+  };
+  return {
+    admin: optionalName("admin"),
+    api: optionalName("api"),
+    web: loadPortlessApplicationName(workspaceRoot, "web"),
+  };
+};
 
 const directApplicationUrls = {
   admin: "http://localhost:3005",
@@ -58,47 +67,38 @@ const directApplicationUrls = {
   web: "http://localhost:3001",
 } as const;
 
-const externalApplicationUrls = (
-  environment: Environment
-): E2EApplicationUrls | undefined => {
-  const admin = environment.E2E_ADMIN_URL;
-  const api = environment.E2E_API_URL;
-  const web = environment.E2E_WEB_URL;
-
-  return admin && api && web ? { admin, api, web } : undefined;
-};
-
 export const resolveE2EApplicationRouting = ({
   environment,
   getPortlessUrl,
-  portlessApplicationNames,
+  portlessApplicationNames: names,
 }: ResolveE2EApplicationRoutingInput): E2EApplicationRouting => {
-  const externalUrls = externalApplicationUrls(environment);
-  if (externalUrls !== undefined) {
-    return { mode: "external", urls: externalUrls };
-  }
-
+  const explicit = {
+    admin: environment.E2E_ADMIN_URL,
+    api: environment.E2E_API_URL,
+    web: environment.E2E_WEB_URL,
+  };
+  const external =
+    Boolean(explicit.web) &&
+    (!names.api || Boolean(explicit.api)) &&
+    (!names.admin || Boolean(explicit.admin));
+  let mode: E2EApplicationRouting["mode"] = "portless";
   if (environment.CI) {
-    return {
-      mode: "direct",
-      urls: {
-        admin: environment.E2E_ADMIN_URL ?? directApplicationUrls.admin,
-        api: environment.E2E_API_URL ?? directApplicationUrls.api,
-        web: environment.E2E_WEB_URL ?? directApplicationUrls.web,
-      },
-    };
+    mode = "direct";
   }
-
+  if (external) {
+    mode = "external";
+  }
+  const url = (application: keyof E2EApplicationNames, name: string) =>
+    explicit[application] ??
+    (mode === "direct"
+      ? directApplicationUrls[application]
+      : getPortlessUrl(name));
   return {
-    mode: "portless",
+    mode,
     urls: {
-      admin:
-        environment.E2E_ADMIN_URL ??
-        getPortlessUrl(portlessApplicationNames.admin),
-      api:
-        environment.E2E_API_URL ?? getPortlessUrl(portlessApplicationNames.api),
-      web:
-        environment.E2E_WEB_URL ?? getPortlessUrl(portlessApplicationNames.web),
+      admin: names.admin ? url("admin", names.admin) : undefined,
+      api: names.api ? url("api", names.api) : undefined,
+      web: url("web", names.web),
     },
   };
 };

@@ -9,6 +9,7 @@ export function workspaceTaskManifest(name: string, localSourcesOnly = true) {
     nextHydra: { localSourcesOnly },
     private: true,
     scripts: {
+      "workspace:e2e": `node ../../../packages/create-next-hydra/dist/run-workspace-e2e.js ${name}`,
       build: `node ../../../packages/create-next-hydra/dist/cli.js compose ${name} --run build`,
     },
   };

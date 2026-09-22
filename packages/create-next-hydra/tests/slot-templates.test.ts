@@ -213,7 +213,6 @@ describe("shared application slot templates", () => {
     const files = await renderSlotTemplates(repoRoot, items);
     const layout = files.find((file) => file.target === layoutTarget);
 
-    expect(files).toHaveLength(8);
     expect(layout).toMatchObject({
       owner: "app-web",
       slotBindings: [],

@@ -8,6 +8,7 @@
   },
   "private": true,
   "scripts": {
+    "workspace:e2e": "node ../../../packages/create-next-hydra/dist/run-workspace-e2e.js cms-contentstack",
     "build": "node ../../../packages/create-next-hydra/dist/cli.js compose cms-contentstack --run build"
   }
 }

@@ -15,21 +15,12 @@
     "@next/env": "catalog:",
     "@playwright/test": "catalog:",
     "@repo/e2e-testing": "workspace:*",
-    "@repo/auth": "workspace:@repo/auth-workos@*",
-    "@repo/auth-contract": "workspace:*",
-    "@repo/commerce": "workspace:*",
-    "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
-    "@repo/payments-stripe": "workspace:*",
-    "@repo/registration": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "effect": "catalog:",
     "jiti": "^2.6.1",
     "playwright-bdd": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "admin": "workspace:*",
-    "api": "workspace:*",
-    "web": "workspace:*"
+    "vitest": "catalog:"
   }
 }

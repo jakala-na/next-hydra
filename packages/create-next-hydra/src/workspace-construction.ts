@@ -223,7 +223,7 @@ export async function constructWorkspace(
   );
   // Registry packages may come from outside the source repository.
   for (const [target, file] of files) {
-    if (/^packages\/[^/]+\/package.json$/u.test(target)) {
+    if (/^(?:apps|packages|tests)\/[^/]+\/package.json$/u.test(target)) {
       const { name } = z
         .object({ name: z.string() })
         .parse(parsePackageJson(String(file.content), target));
@@ -240,7 +240,9 @@ export async function constructWorkspace(
   const registryManifest: PackageJson = {};
   applyRegistryDependencies(registryManifest, prepared.registryDependencies);
   const pending = [...files.entries()]
-    .filter(([name]) => /^(?:apps|packages)\/[^/]+\/package.json$/u.test(name))
+    .filter(([name]) =>
+      /^(?:apps|packages|tests)\/[^/]+\/package.json$/u.test(name)
+    )
     .flatMap(([name, file]) =>
       internalDependencies(parsePackageJson(String(file.content), name))
     );
@@ -332,6 +334,12 @@ export async function constructWorkspace(
       typecheck: "turbo run typecheck",
     },
   };
+  if (files.has("tests/e2e/package.json")) {
+    Object.assign(rootManifest.scripts, {
+      "test:e2e": "turbo run e2e",
+      "test:e2e:list": "turbo run e2e:list",
+    });
+  }
   // Customer package names may contain dots/underscores or exceed a DNS label.
   // Keep one project label so the runtime adapter can derive sibling app URLs.
   const hostNamespace = rootManifest.name
@@ -354,7 +362,11 @@ export async function constructWorkspace(
         await readFile(path.join(sourceRoot, "pnpm-workspace.yaml"), "utf-8")
       )
     );
-  workspace.packages = ["apps/*", "packages/*"];
+  workspace.packages = [
+    "apps/*",
+    "packages/*",
+    ...(files.has("tests/e2e/package.json") ? ["tests/*"] : []),
+  ];
   workspace.patchedDependencies = Object.fromEntries(
     plan.pnpmPatches.map((p) => [p.dependency, p.path])
   );

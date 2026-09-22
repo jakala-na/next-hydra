@@ -42,7 +42,7 @@ This checkout is canonical source. Runnable applications under `workspaces/<name
 - Use `compose <name> --diff` to inspect workspace-local edits against the last composition snapshot and reconcile them into canonical source. A clean diff does not prove that current source has been materialized. Root `pnpm workspace:check` validates task metadata and lockfile compatibility; it is not this application freshness check.
 - Verify that the browser or test runner targets the checked workspace's server. Let development compilation finish; restart or rebuild when dependency, configuration or runtime changes require it. Report which workspace and checks were actually exercised.
 
-Choose verification for the change. Package/domain and provider tests can run from source. Application integration tests and browser verification need a current composition. Presentation-only changes normally use focused component checks and visual inspection; changed customer journeys use relevant existing BDD scenarios, adding or changing scenarios only when their specified behavior needs to change. Materialization does not by itself require an E2E run.
+Choose verification for the change. Package/domain and provider tests can run from source. Application integration tests and browser verification need a current composition. Presentation-only changes normally use focused component checks and visual inspection; changed customer journeys use relevant existing BDD scenarios, adding or changing scenarios only when their specified behavior needs to change. Materialization does not by itself require an E2E run. See the [E2E guide](docs/agents/e2e.md) for workspace delegation, manual freshness preflight and targeted execution.
 
 ## Test environment
 

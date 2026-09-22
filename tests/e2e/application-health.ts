@@ -1,4 +1,8 @@
-import type { E2EApplicationUrls } from "@repo/e2e-testing";
+import { request } from "@playwright/test";
+import type { FullConfig } from "@playwright/test";
+import { Schema } from "effect";
+
+import type { E2EApplicationNames } from "./application-routing";
 
 interface ApplicationResponse {
   readonly status: () => number;
@@ -10,7 +14,7 @@ interface AssertE2EApplicationsAreRunningInput {
     options: { readonly timeout: number }
   ) => Promise<ApplicationResponse>;
   readonly isCI: boolean;
-  readonly urls: E2EApplicationUrls;
+  readonly urls: E2EApplicationNames;
 }
 
 export const assertE2EApplicationsAreRunning = async ({
@@ -20,8 +24,8 @@ export const assertE2EApplicationsAreRunning = async ({
 }: AssertE2EApplicationsAreRunningInput): Promise<void> => {
   const applications = [
     ["web", urls.web],
-    ["API", new URL("/health", urls.api).href],
-    ["admin", urls.admin],
+    ...(urls.api ? [["API", new URL("/health", urls.api).href] as const] : []),
+    ...(urls.admin ? [["admin", urls.admin] as const] : []),
   ] as const;
 
   await Promise.all(
@@ -44,3 +48,25 @@ export const assertE2EApplicationsAreRunning = async ({
     })
   );
 };
+
+export async function checkApplicationHealth(
+  config: FullConfig
+): Promise<void> {
+  const urls = Schema.decodeUnknownSync(
+    Schema.Struct({
+      admin: Schema.optional(Schema.String),
+      api: Schema.optional(Schema.String),
+      web: Schema.String,
+    })
+  )(config.metadata.applicationUrls);
+  const api = await request.newContext({ ignoreHTTPSErrors: true });
+  try {
+    await assertE2EApplicationsAreRunning({
+      get: api.get.bind(api),
+      isCI: Boolean(process.env.CI),
+      urls,
+    });
+  } finally {
+    await api.dispose();
+  }
+}

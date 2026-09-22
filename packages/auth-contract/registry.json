@@ -23,11 +23,6 @@
           "type": "registry:file"
         },
         {
-          "path": "e2e/@auth/company-login.feature",
-          "target": "~/packages/auth-contract/e2e/@auth/company-login.feature",
-          "type": "registry:file"
-        },
-        {
           "path": "e2e/auth-context.test.ts",
           "target": "~/packages/auth-contract/e2e/auth-context.test.ts",
           "type": "registry:file"
@@ -100,6 +95,18 @@
         {
           "path": "vitest.config.ts",
           "target": "~/packages/auth-contract/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "auth-commerce-e2e",
+      "type": "registry:item",
+      "title": "Company login browser scenarios",
+      "files": [
+        {
+          "path": "e2e/@auth/company-login.feature",
+          "target": "~/packages/auth-contract/e2e/@auth/company-login.feature",
           "type": "registry:file"
         }
       ]

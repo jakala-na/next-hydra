@@ -186,7 +186,7 @@
           "type": "registry:file"
         }
       ],
-      "registryDependencies": ["workspace-cli"]
+      "registryDependencies": ["workspace-cli", "workspace-e2e"]
     },
     {
       "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
@@ -316,7 +316,8 @@
           "target": "~/apps/web/app/.well-known/vercel/flags/route.ts",
           "type": "registry:file"
         }
-      ]
+      ],
+      "registryDependencies": ["auth-e2e"]
     },
     {
       "name": "app-web-navigation-search",

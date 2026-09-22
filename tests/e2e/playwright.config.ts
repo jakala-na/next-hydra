@@ -2,22 +2,23 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { defineConfig, devices } from "@playwright/test";
+import type { PlaywrightTestConfig } from "@playwright/test";
 import { defineBddConfig } from "playwright-bdd";
 
 import {
   loadPortlessApplicationNames,
   resolveE2EApplicationRouting,
 } from "./application-routing";
-import { resolveApplicationWorkspace } from "./application-workspace";
 import { loadE2EEnvironments, withE2EApplicationUrls } from "./environment";
 
-const workspaceRoot = resolveApplicationWorkspace(
-  fileURLToPath(new URL("../..", import.meta.url)),
-  process.env
-);
-const authSetupPath = fileURLToPath(new URL("auth.setup.ts", import.meta.url));
+const workspaceRoot = fileURLToPath(new URL("../..", import.meta.url));
 const loadedEnvironments = loadE2EEnvironments(workspaceRoot);
 Object.assign(process.env, loadedEnvironments.runner);
+const explicitUrls = {
+  admin: process.env.E2E_ADMIN_URL,
+  api: process.env.E2E_API_URL,
+  web: process.env.E2E_WEB_URL,
+};
 const portlessExecutable = fileURLToPath(
   new URL(
     `../../node_modules/.bin/portless${process.platform === "win32" ? ".cmd" : ""}`,
@@ -35,72 +36,83 @@ const applicationRouting = resolveE2EApplicationRouting({
     ).origin,
   portlessApplicationNames: loadPortlessApplicationNames(workspaceRoot),
 });
-const applicationUrls = applicationRouting.urls;
-const environments = withE2EApplicationUrls(
-  loadedEnvironments,
-  applicationUrls
-);
-Object.assign(process.env, {
-  E2E_ADMIN_URL: applicationUrls.admin,
-  E2E_API_URL: applicationUrls.api,
-  E2E_WEB_URL: applicationUrls.web,
-});
+const { urls } = applicationRouting;
+const environments = withE2EApplicationUrls(loadedEnvironments, urls);
+process.env.E2E_WEB_URL = urls.web;
+if (urls.api) {
+  process.env.E2E_API_URL = urls.api;
+}
+if (urls.admin) {
+  process.env.E2E_ADMIN_URL = urls.admin;
+}
+const webServers: NonNullable<PlaywrightTestConfig["webServer"]> = [];
+if (applicationRouting.mode === "direct") {
+  if (!explicitUrls.web) {
+    webServers.push({
+      command: "pnpm --filter web dev:app",
+      cwd: workspaceRoot,
+      env: { ...environments.servers.web, PORT: "3001" },
+      timeout: 120_000,
+      url: urls.web,
+    });
+  }
+  if (urls.api && !explicitUrls.api) {
+    webServers.push({
+      command: "pnpm --filter api dev:app",
+      cwd: workspaceRoot,
+      env: { ...environments.servers.api, PORT: "3002" },
+      timeout: 120_000,
+      url: new URL("/health", urls.api).href,
+    });
+  }
+  if (urls.admin && !explicitUrls.admin) {
+    webServers.push({
+      command: "pnpm --filter admin dev:app",
+      cwd: workspaceRoot,
+      env: { ...environments.servers.admin, PORT: "3005" },
+      timeout: 120_000,
+      url: urls.admin,
+    });
+  }
+}
 
-const testDir = defineBddConfig({
+const bddTestDir = defineBddConfig({
   disableWarnings: { importTestFrom: true },
-  features: "../../packages/*/e2e/**/*.feature",
+  features: ["../../packages/*/e2e/**/*.feature", "features/**/*.feature"],
   featuresRoot: "../..",
   importTestFrom: "composition.ts",
-  missingSteps: "fail-on-run",
+  missingSteps: "fail-on-gen",
   outputDir: ".features-gen",
-  steps: "../../packages/*/e2e/**/*.steps.ts",
+  steps: ["../../packages/*/e2e/**/*.steps.ts", "features/**/*.steps.ts"],
 });
 
 export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   fullyParallel: true,
-  globalSetup: authSetupPath,
+  globalSetup: fileURLToPath(new URL("global.setup.ts", import.meta.url)),
+  metadata: { applicationUrls: urls },
   outputDir: "test-results",
   projects: [
     {
       name: "chromium",
+      testDir: bddTestDir,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "browser",
+      testDir: ".",
+      testMatch: "**/*.spec.ts",
       use: { ...devices["Desktop Chrome"] },
     },
   ],
   reporter: [["list"], ["html", { open: "never" }]],
   retries: process.env.CI ? 2 : 0,
-  testDir,
   use: {
-    baseURL: applicationUrls.web,
+    baseURL: urls.web,
     ignoreHTTPSErrors: applicationRouting.mode === "portless",
     screenshot: "only-on-failure",
     trace: "on-first-retry",
     video: "retain-on-failure",
   },
-  webServer:
-    applicationRouting.mode === "direct"
-      ? [
-          {
-            command: "pnpm --filter web dev:app",
-            cwd: workspaceRoot,
-            env: { ...environments.servers.web, PORT: "3001" },
-            timeout: 120_000,
-            url: applicationUrls.web,
-          },
-          {
-            command: "pnpm --filter api dev:app",
-            cwd: workspaceRoot,
-            env: { ...environments.servers.api, PORT: "3002" },
-            timeout: 120_000,
-            url: new URL("/health", applicationUrls.api).href,
-          },
-          {
-            command: "pnpm --filter admin dev:app",
-            cwd: workspaceRoot,
-            env: { ...environments.servers.admin, PORT: "3005" },
-            timeout: 120_000,
-            url: applicationUrls.admin,
-          },
-        ]
-      : undefined,
+  webServer: webServers,
 });

@@ -1,0 +1,222 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "workspace-e2e",
+      "type": "registry:item",
+      "title": "Application browser tests",
+      "files": [
+        {
+          "path": ".gitignore",
+          "target": "~/tests/e2e/.gitignore",
+          "type": "registry:file"
+        },
+        {
+          "path": "application-health.test.ts",
+          "target": "~/tests/e2e/application-health.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "application-health.ts",
+          "target": "~/tests/e2e/application-health.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "application-routing.test.ts",
+          "target": "~/tests/e2e/application-routing.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "application-routing.ts",
+          "target": "~/tests/e2e/application-routing.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "environment.test.ts",
+          "target": "~/tests/e2e/environment.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "environment.ts",
+          "target": "~/tests/e2e/environment.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "playwright.config.ts",
+          "target": "~/tests/e2e/playwright.config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "README.md",
+          "target": "~/tests/e2e/README.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/tests/e2e/package.json",
+          "target": "~/tests/e2e/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/tests/e2e/tsconfig.json",
+          "target": "~/tests/e2e/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "turbo.json",
+          "target": "~/tests/e2e/turbo.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/tests/e2e/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/workspace-e2e",
+          "kind": "recipe",
+          "packages": [
+            {
+              "cwd": "tests/e2e",
+              "name": "web",
+              "specifier": "workspace:*",
+              "section": "devDependencies"
+            }
+          ],
+          "providerDependencies": [
+            { "cwd": "tests/e2e", "section": "devDependencies", "slot": "cms" }
+          ]
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "tests/e2e/registry/templates/composition.ts.template",
+              "target": "tests/e2e/composition.ts",
+              "slots": { "fixtures": "members" }
+            },
+            {
+              "source": "tests/e2e/registry/templates/global.setup.ts.template",
+              "target": "tests/e2e/global.setup.ts",
+              "slots": { "setup": "members" }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "commerce-e2e",
+      "type": "registry:item",
+      "title": "Commerce browser test fixtures",
+      "registryDependencies": [
+        "workspace-e2e",
+        "auth-commerce-e2e",
+        "auth-e2e"
+      ],
+      "files": [
+        {
+          "path": "commerce.ts",
+          "target": "~/tests/e2e/commerce.ts",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/commerce-e2e",
+          "kind": "recipe",
+          "providerDependencies": [
+            {
+              "cwd": "tests/e2e",
+              "section": "devDependencies",
+              "slot": "commerce"
+            }
+          ],
+          "packages": [
+            {
+              "cwd": "tests/e2e",
+              "name": "@repo/auth-contract",
+              "specifier": "workspace:*",
+              "section": "devDependencies"
+            },
+            {
+              "cwd": "tests/e2e",
+              "name": "@repo/commerce",
+              "specifier": "workspace:*",
+              "section": "devDependencies"
+            },
+            {
+              "cwd": "tests/e2e",
+              "name": "@repo/payments-stripe",
+              "specifier": "workspace:*",
+              "section": "devDependencies"
+            },
+            {
+              "cwd": "tests/e2e",
+              "name": "@repo/registration",
+              "specifier": "workspace:*",
+              "section": "devDependencies"
+            },
+            {
+              "cwd": "tests/e2e",
+              "name": "admin",
+              "specifier": "workspace:*",
+              "section": "devDependencies"
+            },
+            {
+              "cwd": "tests/e2e",
+              "name": "api",
+              "specifier": "workspace:*",
+              "section": "devDependencies"
+            }
+          ]
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "tests/e2e/composition.ts",
+              "slot": "fixtures",
+              "module": "./commerce",
+              "export": "test",
+              "as": "commerceTest"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "auth-e2e",
+      "type": "registry:item",
+      "title": "Authentication browser test setup",
+      "registryDependencies": ["workspace-e2e"],
+      "files": [
+        {
+          "path": "authentication.ts",
+          "target": "~/tests/e2e/authentication.ts",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/auth-e2e",
+          "kind": "recipe",
+          "providerDependencies": [
+            { "cwd": "tests/e2e", "section": "devDependencies", "slot": "auth" }
+          ]
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "tests/e2e/global.setup.ts",
+              "slot": "setup",
+              "module": "./authentication",
+              "export": "setupAuthentication"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
