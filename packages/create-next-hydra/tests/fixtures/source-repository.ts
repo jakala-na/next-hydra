@@ -16,6 +16,10 @@ export async function createSourceRepository(
   await mkdir(targetRoot, { recursive: true });
   await Promise.all(
     [...new Set(stdout.split("\0").filter(Boolean))].map(async (relative) => {
+      // Git reports untracked nested repositories as directories, not files.
+      if (relative.endsWith("/")) {
+        return;
+      }
       const source = path.join(sourceRoot, relative);
       if (!(await pathExists(source))) {
         return;

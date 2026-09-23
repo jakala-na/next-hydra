@@ -29,7 +29,7 @@ export interface AcceptedCompanyMemberIdentityInput {
 }
 
 const recordsLayer = Layer.unwrap(
-  Config.string("COMPANY_MEMBER_INVITATION_CONTAINER").pipe(
+  Config.String("COMPANY_MEMBER_INVITATION_CONTAINER").pipe(
     Config.orElse(() =>
       Config.succeed(DEFAULT_COMPANY_MEMBER_INVITATION_CONTAINER)
     ),

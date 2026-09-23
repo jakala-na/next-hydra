@@ -4,8 +4,8 @@ packages:
   - tests/*
   - workspaces/*/tasks
 catalog:
-  "@effect/platform-node": 4.0.0-rc.111
-  "@effect/vitest": 4.0.0-rc.111
+  "@effect/platform-node": 4.0.0-rc.117
+  "@effect/vitest": 4.0.0-rc.117
   "@next/bundle-analyzer": 16.3.1
   "@next/env": 16.3.1
   "@next/third-parties": 16.3.1
@@ -14,14 +14,14 @@ catalog:
   "@types/node": 24.13.3
   "@types/react": 19.2.10
   "@types/react-dom": 19.2.3
-  effect: 4.0.0-rc.111
+  effect: 4.0.0-rc.117
   next: 16.3.1
   playwright-bdd: 9.2.0
   react: 19.2.8
   react-dom: 19.2.8
   server-only: ^0.0.1
   typescript: npm:@typescript/typescript6@6.0.2
-  vitest: 4.1.11
+  vitest: 5.0.1
 catalogs:
   typescript7:
     "@typescript/native": npm:typescript@7.0.2

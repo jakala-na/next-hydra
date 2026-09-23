@@ -22,7 +22,7 @@ export const makeAuthCommand = <E, R>(
   const provision = Command.make(
     "provision",
     {
-      apiUrl: Flag.string("api-url").pipe(
+      apiUrl: Flag.String("api-url").pipe(
         Flag.withDescription(
           "Public HTTPS base URL of the customer API application"
         )

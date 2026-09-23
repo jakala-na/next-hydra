@@ -15,7 +15,7 @@ export const createProgram = (
   const root = Command.make("cli", {}, () => Effect.void).pipe(
     Command.withDescription("Workspace administration CLI"),
     Command.withSharedFlags({
-      envFile: Flag.string("env-file").pipe(
+      envFile: Flag.String("env-file").pipe(
         Flag.withDescription(
           "Load environment variables from a file before validating package keys"
         ),

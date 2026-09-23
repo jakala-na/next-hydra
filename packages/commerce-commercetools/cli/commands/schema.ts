@@ -155,7 +155,7 @@ export const createSchemaCommand = () => {
   const exportSchema = Command.make(
     "export",
     {
-      output: Flag.string("output").pipe(
+      output: Flag.String("output").pipe(
         Flag.withDescription(
           "Output directory (defaults to packages/commerce-commercetools/schema)"
         ),

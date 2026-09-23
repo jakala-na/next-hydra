@@ -54,7 +54,7 @@ export const createCmsCommand = <E, R>(
   const provision = Command.make(
     "provision",
     {
-      appDirectory: Flag.string("app-directory").pipe(
+      appDirectory: Flag.String("app-directory").pipe(
         Flag.withDescription("Directory containing the Drupal DDEV project"),
         Flag.withDefault("apps/drupal")
       ),

@@ -20,7 +20,7 @@ const asUserError = <A, E, R>(effect: EffectType.Effect<A, E, R>) =>
   effect.pipe(Effect.mapError((cause) => new CliError.UserError({ cause })));
 
 const managementTokenAliasFlag = () =>
-  Flag.string("management-token-alias").pipe(
+  Flag.String("management-token-alias").pipe(
     Flag.withDescription(
       "Local csdx alias for the target stack Management Token"
     )
@@ -40,28 +40,28 @@ export const createCmsCommand = <E, R>(
   const provision = Command.make(
     "provision",
     {
-      contentstackEnvironment: Flag.choice(
+      contentstackEnvironment: Flag.Literals(
         "contentstack-environment",
         CONTENTSTACK_ENVIRONMENTS
       ).pipe(
         Flag.withDescription("Environment used by the generated runtime file"),
         Flag.withDefault("development")
       ),
-      localUrl: Flag.string("local-url").pipe(
+      localUrl: Flag.String("local-url").pipe(
         Flag.withDescription("Local application URL for Contentstack previews"),
         Flag.withDefault("https://web.next-hydra.localhost")
       ),
       managementTokenAlias: managementTokenAliasFlag(),
       ...runtimeEnvironmentDestinationFlags(),
-      productionUrl: Flag.string("production-url").pipe(
+      productionUrl: Flag.String("production-url").pipe(
         Flag.withDescription(
           "Production application URL for Contentstack previews"
         ),
         Flag.withFallbackPrompt(
-          Prompt.text({ message: "Production application URL" })
+          Prompt.String({ message: "Production application URL" })
         )
       ),
-      stackMasterLocale: Flag.string("stack-master-locale").pipe(
+      stackMasterLocale: Flag.String("stack-master-locale").pipe(
         Flag.withDescription(
           "Target stack master locale used to map the English starter entries"
         ),
@@ -132,7 +132,7 @@ export const createCmsCommand = <E, R>(
   const migrate = Command.make(
     "migrate",
     {
-      dryRun: Flag.boolean("dry-run").pipe(
+      dryRun: Flag.Boolean("dry-run").pipe(
         Flag.withDescription("Show pending migrations without applying them"),
         Flag.withDefault(false)
       ),
