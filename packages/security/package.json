@@ -16,5 +16,8 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "next": "catalog:"
   }
 }

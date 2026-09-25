@@ -1,7 +1,7 @@
 {
   "providers": {
     "auth": "workos",
-    "cms": "contentstack",
+    "cms": "drupal",
     "commerce": "commercetools"
   },
   "addOns": []

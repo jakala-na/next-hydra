@@ -73,6 +73,8 @@ The draft route validates the UUID and token through Drupal's GraphQL `preview` 
 
 Drupal Canvas owns `/api/draft`, `/api/draft/renew`, `/api/disable-draft`, and `/api/canvas/components`. `CANVAS_SITE_URL` can override the Drupal origin for Canvas; when omitted it defaults to `DRUPAL_BASE_URL`.
 
+The web application's Nosecone proxy owns the framing policy. The provider exports `cmsFrameAncestors` through `@repo/cms/security`, using the configured Canvas site origin. Set `CANVAS_EDITOR_ORIGINS` to a comma-separated list to override that editor allowlist. The web proxy adds same-origin framing and serializes the policy through Nosecone.
+
 ## Canvas component Workbench
 
 Use Canvas Workbench to demonstrate and review the package's Canvas components without running Drupal or the consuming Next.js application:
@@ -85,7 +87,7 @@ Open the local URL printed by the command. Workbench discovers components from `
 
 Add a component in `canvas-components/<component-name>` with a default-exported `index.tsx` and a `component.yml`. Its built-in preview uses the examples in the component metadata. Add `mocks.json` beside those files when a realistic preview needs authored props or slot content. Workbench shows authored mocks in place of the generated Default preview. Components with content-entity-reference pickers retain Default so authenticated authors can select a real entity; their mock fixture remains available to type generation. Keep one representative preview unless another state adds clear review value.
 
-Workbench-only composed examples live in `pages`. They may reuse the local recipe images served by the custom Workbench Vite config. Page synchronization is disabled in `canvas.config.json`, so these preview fixtures are not pushed to Drupal Canvas.
+Workbench-only composed examples live in `pages` and `page-templates`. They may reuse the local recipe images served by the custom Workbench Vite config. Page and template synchronization is disabled in `canvas.config.json` and excluded from `canvas:push`, so component pushes preserve editor-authored content. The starter recipe seeds the Site template on installation; subsequent template edits belong in Drupal Canvas.
 
 ## GraphQL schema
 

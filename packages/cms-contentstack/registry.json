@@ -382,6 +382,16 @@
           "type": "registry:file"
         },
         {
+          "path": "security.test.ts",
+          "target": "~/packages/cms-contentstack/security.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "security.ts",
+          "target": "~/packages/cms-contentstack/security.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "tsconfig.json",
           "target": "~/packages/cms-contentstack/tsconfig.json",
           "type": "registry:file"

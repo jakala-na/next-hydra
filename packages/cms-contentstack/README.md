@@ -16,6 +16,8 @@ Application code should import only the supported `@repo/cms/*` entry points dec
 
 Contentstack-specific GraphQL, generated types, environment keys, preview behavior, and image configuration remain owned by this package.
 
+`@repo/cms/security` exports `cmsFrameAncestors`, a list of editor origins for the web application's Nosecone framing policy. Contentstack resolves its editor origin from `CONTENTSTACK_REGION` using the SDK's endpoint catalogue. The web application adds same-origin framing. The existing CMS proxy continues to handle preview redirects and request context.
+
 ## Provision a stack
 
 Version 1 provisions an existing, empty Contentstack stack. Add its Management Token to the pinned Contentstack CLI as a local alias:

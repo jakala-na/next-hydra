@@ -50,5 +50,8 @@ export default mergeConfig(
         { find: "@", replacement: import.meta.dirname },
       ],
     },
+    test: {
+      server: { deps: { inline: ["@zanreal/nemo", "next-intl"] } },
+    },
   })
 );

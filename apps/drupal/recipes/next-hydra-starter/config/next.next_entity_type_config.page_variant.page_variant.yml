@@ -3,7 +3,7 @@ status: true
 dependencies:
   module:
     - canvas
-id: page_region.page_region
+id: page_variant.page_variant
 site_resolver: site_selector
 configuration:
   sites:

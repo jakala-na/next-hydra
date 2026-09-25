@@ -7,4 +7,5 @@ export default defineConfig({
       "server-only": serverOnlyShim,
     },
   },
+  test: { server: { deps: { inline: ["@drupal-canvas/headless-next"] } } },
 });

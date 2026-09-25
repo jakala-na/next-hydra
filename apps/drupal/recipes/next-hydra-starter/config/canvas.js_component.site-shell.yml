@@ -1,0 +1,20 @@
+langcode: en
+status: true
+dependencies: {  }
+machineName: site-shell
+name: 'Site shell'
+type: external
+props: {  }
+required: {  }
+slots:
+  preHeader:
+    title: 'Before header'
+  postHeader:
+    title: 'After header'
+  content:
+    title: 'Page content'
+  preFooter:
+    title: 'Before footer'
+  postFooter:
+    title: 'After footer'
+dataDependencies: {  }

@@ -24,6 +24,7 @@ const PORTLESS_PROJECT_FILES = [
   "apps/admin/.env.example",
   "apps/api/.env.example",
   "apps/drupal/recipes/next-hydra-starter/README.md",
+  "apps/drupal/recipes/next-hydra-starter/config/canvas_headless.settings.yml",
   "apps/drupal/recipes/next-hydra-starter/config/core.entity_view_display.node.article.default.yml",
   "apps/drupal/recipes/next-hydra-starter/config/core.entity_view_display.node.landing_page.default.yml",
   "apps/drupal/recipes/next-hydra-starter/config/next.next_site.next_hydra.yml",

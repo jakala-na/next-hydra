@@ -1,0 +1,17 @@
+name: Site shell
+machineName: site-shell
+status: true
+required: []
+props:
+  properties: {}
+slots:
+  preHeader:
+    title: Before header
+  postHeader:
+    title: After header
+  content:
+    title: Page content
+  preFooter:
+    title: Before footer
+  postFooter:
+    title: After footer

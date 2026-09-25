@@ -18,8 +18,6 @@ export function withCMS(config: NextConfig) {
   process.env.CANVAS_SITE_URL ??= canvasSiteUrl;
   process.env.CANVAS_PROJECT_ROOT = canvasProjectRoot;
 
-  const { headers } = config;
-
   const canvasOptions = {
     appRoot: process.cwd(),
     projectRoot: canvasProjectRoot,
@@ -36,18 +34,6 @@ export function withCMS(config: NextConfig) {
         ...config.env,
         CANVAS_SITE_URL: canvasSiteUrl,
       },
-      headers: async () => [
-        ...(headers ? await headers() : []),
-        {
-          headers: [
-            {
-              key: "Content-Security-Policy",
-              value: `frame-ancestors 'self' ${drupalUrl.origin}`,
-            },
-          ],
-          source: "/:path*",
-        },
-      ],
       images: {
         ...config.images,
         dangerouslyAllowLocalIP:

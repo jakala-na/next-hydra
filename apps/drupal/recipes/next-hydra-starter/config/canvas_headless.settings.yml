@@ -1,0 +1,11 @@
+frontends:
+  - url: 'https://web.next-hydra.localhost'
+    components:
+      - js.article-card
+      - js.featured-articles
+      - js.hero
+      - js.latest-articles
+      - js.product-collection
+      - js.site-shell
+      - js.text
+assertion_expiration: 60

@@ -73,13 +73,18 @@
           "type": "registry:file"
         },
         {
-          "path": "patches/drupal-canvas-1.10-headless-global-regions.patch",
-          "target": "~/apps/drupal/patches/drupal-canvas-1.10-headless-global-regions.patch",
+          "path": "patches/drupal-canvas-cacheability.patch",
+          "target": "~/apps/drupal/patches/drupal-canvas-cacheability.patch",
           "type": "registry:file"
         },
         {
-          "path": "patches/drupal-canvas-1.10-next-hydra-compatibility.patch",
-          "target": "~/apps/drupal/patches/drupal-canvas-1.10-next-hydra-compatibility.patch",
+          "path": "patches/drupal-canvas-default-content-translations.patch",
+          "target": "~/apps/drupal/patches/drupal-canvas-default-content-translations.patch",
+          "type": "registry:file"
+        },
+        {
+          "path": "patches/drupal-canvas-translate-page-variants.patch",
+          "target": "~/apps/drupal/patches/drupal-canvas-translate-page-variants.patch",
           "type": "registry:file"
         },
         {
@@ -103,6 +108,11 @@
           "type": "registry:file"
         },
         {
+          "path": "recipes/next-hydra-starter/config/canvas_headless.settings.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas_headless.settings.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "recipes/next-hydra-starter/config/canvas.component.js.article-card.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.article-card.yml",
           "type": "registry:file"
@@ -123,8 +133,18 @@
           "type": "registry:file"
         },
         {
+          "path": "recipes/next-hydra-starter/config/canvas.component.js.site-shell.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.site-shell.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "recipes/next-hydra-starter/config/canvas.component.js.text.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.text.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/config/canvas.component.marker.page_content.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.marker.page_content.yml",
           "type": "registry:file"
         },
         {
@@ -148,28 +168,18 @@
           "type": "registry:file"
         },
         {
+          "path": "recipes/next-hydra-starter/config/canvas.js_component.site-shell.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.site-shell.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "recipes/next-hydra-starter/config/canvas.js_component.text.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.text.yml",
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/canvas.page_region.next_hydra.post_footer.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.page_region.next_hydra.post_footer.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "recipes/next-hydra-starter/config/canvas.page_region.next_hydra.post_header.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.page_region.next_hydra.post_header.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "recipes/next-hydra-starter/config/canvas.page_region.next_hydra.pre_footer.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.page_region.next_hydra.pre_footer.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "recipes/next-hydra-starter/config/canvas.page_region.next_hydra.pre_header.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.page_region.next_hydra.pre_header.yml",
+          "path": "recipes/next-hydra-starter/config/canvas.page_variant.site.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.page_variant.site.yml",
           "type": "registry:file"
         },
         {
@@ -418,8 +428,8 @@
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-starter/config/next.next_entity_type_config.page_region.page_region.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-starter/config/next.next_entity_type_config.page_region.page_region.yml",
+          "path": "recipes/next-hydra-starter/config/next.next_entity_type_config.page_variant.page_variant.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/next.next_entity_type_config.page_variant.page_variant.yml",
           "type": "registry:file"
         },
         {
@@ -465,6 +475,11 @@
         {
           "path": "recipes/next-hydra-starter/content/canvas_page/5d687db1-edd8-43b5-84c4-aa7a9301aedc.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/content/canvas_page/5d687db1-edd8-43b5-84c4-aa7a9301aedc.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/content/canvas_page/ef0cb445-2e3d-4cdf-917a-a89a677e137e.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/content/canvas_page/ef0cb445-2e3d-4cdf-917a-a89a677e137e.yml",
           "type": "registry:file"
         },
         {
@@ -580,6 +595,11 @@
         {
           "path": "scripts/bootstrap_acquia.sh",
           "target": "~/apps/drupal/scripts/bootstrap_acquia.sh",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/build-canvas.sh",
+          "target": "~/apps/drupal/scripts/build-canvas.sh",
           "type": "registry:file"
         },
         {

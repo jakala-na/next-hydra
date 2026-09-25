@@ -192,7 +192,7 @@ const typecheckEnvironment = () => ({
   COMMERCETOOLS_CLIENT_SECRET: "test-secret",
   COMMERCETOOLS_PROJECT_KEY: "test-project",
   COMMERCETOOLS_REGION: "test-region",
-  COMMERCETOOLS_SCOPE: "test-scope",
+  COMMERCETOOLS_SCOPE: "manage_project:test-project",
   CONTENTSTACK_API_KEY: "test-api-key",
   CONTENTSTACK_DELIVERY_TOKEN: "cs-test-delivery",
   CONTENTSTACK_ENVIRONMENT: "test",
@@ -217,6 +217,8 @@ const typecheckEnvironment = () => ({
   REGISTRATION_APPROVER_EMAIL: "approver@example.com",
   RESEND_FROM: "test@example.com",
   RESEND_TOKEN: "re_test",
+  STRIPE_PUBLISHABLE_KEY: "pk_test_fixture",
+  STRIPE_SECRET_KEY: "sk_test_fixture",
   WORKOS_API_KEY: "sk_test",
   WORKOS_CLIENT_ID: "client_test",
   WORKOS_COOKIE_PASSWORD: "test-cookie-password-at-least-32-characters",
@@ -376,7 +378,7 @@ describe("scaffold composition", () => {
           );
 
           expect(workspaceConfig).not.toContain(
-            '"@drupal-canvas/workbench@0.10.0"'
+            '"@drupal-canvas/workbench@0.12.0"'
           );
           expect(workspaceConfig).toContain(
             '"@contentstack/cli-cm-import@2.0.0"'
@@ -542,7 +544,7 @@ describe("scaffold composition", () => {
         pathExists(
           path.join(
             contentstackTarget,
-            "patches/@drupal-canvas__headless.patch"
+            "patches/@drupal-canvas__headless-next.patch"
           )
         )
       ).resolves.toBeFalsy();
@@ -644,7 +646,7 @@ describe("scaffold composition", () => {
       ).resolves.toBeFalsy();
       await expect(
         pathExists(
-          path.join(drupalTarget, "patches/@drupal-canvas__headless.patch")
+          path.join(drupalTarget, "patches/@drupal-canvas__headless-next.patch")
         )
       ).resolves.toBeTruthy();
       await expect(

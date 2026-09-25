@@ -1,1 +1,1 @@
-export { GET } from "@repo/cms/routes/disable-draft";
+export { disableCanvasDraft as POST } from "@repo/cms/routes/canvas";

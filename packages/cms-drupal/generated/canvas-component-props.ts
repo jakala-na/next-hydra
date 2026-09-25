@@ -61,6 +61,13 @@ export type CanvasComponentPropsMap = {
     categoryId?: string;
     limit?: 3 | 6 | 9;
   };
+  "site-shell": {
+    preHeader?: ReactNode;
+    postHeader?: ReactNode;
+    content?: ReactNode;
+    preFooter?: ReactNode;
+    postFooter?: ReactNode;
+  };
   "text": {
     text: string;
   };

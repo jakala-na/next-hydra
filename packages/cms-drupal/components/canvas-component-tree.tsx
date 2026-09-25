@@ -11,7 +11,7 @@ const canvasComponents = {
 } satisfies CanvasComponentRegistry;
 
 type CanvasComponentTreeProps = {
-  regionId?: string;
+  components?: CanvasComponentRegistry;
   tree: CanvasComponentTreeElement | null;
 };
 
@@ -20,9 +20,9 @@ type CanvasComponentTreeProps = {
  * Individual registry entries can still opt into a client boundary.
  */
 export const CanvasComponentTree = ({
-  regionId,
+  components,
   tree,
 }: CanvasComponentTreeProps) => {
-  const props = { components: canvasComponents, regionId, tree };
+  const props = { components: { ...canvasComponents, ...components }, tree };
   return <ReactCanvasComponentTree {...props} />;
 };

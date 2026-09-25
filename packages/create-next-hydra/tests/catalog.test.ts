@@ -317,20 +317,12 @@ describe("Next Hydra source registry", () => {
     ]);
     expect(drupal.pnpmPatches).toStrictEqual([
       {
-        dependency: "@drupal-canvas/headless",
-        path: "patches/@drupal-canvas__headless.patch",
-      },
-      {
         dependency: "@drupal-canvas/headless-next",
         path: "patches/@drupal-canvas__headless-next.patch",
       },
       {
-        dependency: "@drupal-canvas/headless-react",
-        path: "patches/@drupal-canvas__headless-react.patch",
-      },
-      {
-        dependency: "@drupal-canvas/workbench@0.10.0",
-        path: "patches/@drupal-canvas__workbench@0.10.0.patch",
+        dependency: "@drupal-canvas/workbench@0.12.0",
+        path: "patches/@drupal-canvas__workbench@0.12.0.patch",
       },
     ]);
     expect(contentstack.pnpmPatches).toStrictEqual([
