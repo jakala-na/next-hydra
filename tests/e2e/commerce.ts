@@ -119,7 +119,7 @@ interface RegistrationFixtures {
   readonly registrationTestData: RegistrationTestData;
 }
 
-interface E2EFixtures extends RegistrationFixtures {
+export interface E2EFixtures extends RegistrationFixtures {
   readonly adminPage: Page;
   readonly apiRequest: APIRequestContext;
   readonly auth: AuthContext;
@@ -129,7 +129,7 @@ interface E2EFixtures extends RegistrationFixtures {
   readonly checkoutScenario: CheckoutScenario;
 }
 
-interface E2EWorkerFixtures {
+export interface E2EWorkerFixtures {
   readonly e2eServices: E2EServices;
 }
 

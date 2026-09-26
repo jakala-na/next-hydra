@@ -1,0 +1,73 @@
+{
+  "name": "example",
+  "homepage": "https://example.com",
+  "items": [
+    {
+      "name": "app-web",
+      "type": "registry:item",
+      "files": [
+        {
+          "path": "apps/web/package.json",
+          "target": "~/apps/web/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "apps/web/tsconfig.json",
+          "target": "~/apps/web/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "apps/web/turbo.json",
+          "target": "~/apps/web/turbo.json",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "composition": {
+          "templates": [
+            {
+              "source": "page.ts.template",
+              "target": "apps/web/page.ts",
+              "slots": { "content": "members" }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "article",
+      "type": "registry:item",
+      "files": [
+        {
+          "path": "content/[locale]/[[...slug]]/article.ts",
+          "target": "~/apps/web/article.ts",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": { "id": "example/add-ons/article", "kind": "add-on" },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/web/page.ts",
+              "slot": "content",
+              "module": "./article.js",
+              "export": "article"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "site",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/preset/site",
+          "kind": "preset",
+          "selections": { "providers": {}, "addOns": ["article"] }
+        }
+      }
+    }
+  ]
+}

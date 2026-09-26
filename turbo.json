@@ -120,9 +120,6 @@
         "$TURBO_ROOT$/packages/*/package.json",
         "$TURBO_ROOT$/tests/*/package.json"
       ]
-    },
-    "workspace:e2e": {
-      "cache": false
     }
   }
 }

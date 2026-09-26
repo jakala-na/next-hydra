@@ -1,0 +1,4 @@
+# These are authored inputs, including intentionally fake environment data.
+!**/.env.local
+!**/workspaces/
+!**/next-hydra.json

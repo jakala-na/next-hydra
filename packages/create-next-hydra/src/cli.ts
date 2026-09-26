@@ -1,23 +1,8 @@
 #!/usr/bin/env node
+import { NodeRuntime } from "@effect/platform-node";
+import { Effect } from "effect";
 
-import { cancel } from "@clack/prompts";
+import { cliProgram } from "./index.ts";
+import { runtime } from "./runtime.ts";
 
-import { runCli } from "./index.js";
-import { UserCancelledError } from "./prompts.js";
-
-async function main() {
-  try {
-    await runCli(process.argv);
-  } catch (error) {
-    if (error instanceof UserCancelledError) {
-      process.exitCode = 1;
-      return;
-    }
-
-    const message = error instanceof Error ? error.message : "Unknown error";
-    cancel(message);
-    process.exitCode = 1;
-  }
-}
-
-main();
+NodeRuntime.runMain(cliProgram().pipe(Effect.provide(runtime)));

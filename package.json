@@ -9,30 +9,25 @@
   },
   "scripts": {
     "boundaries": "turbo run boundaries",
-    "build": "turbo run build workspace:build --filter=create-next-hydra",
+    "build": "turbo run build --filter=create-next-hydra",
     "bump-deps": "npx npm-check-updates --deep -u -x react-day-picker",
     "bump-ui": "npx shadcn@latest add --all --overwrite -c packages/design-system",
     "changeset": "changeset",
     "changeset:status": "changeset status --verbose",
     "clean": "git clean -xdf node_modules",
-    "dev": "turbo run workspace:dev --filter=create-next-hydra",
     "e2e:env:split": "node scripts/split-e2e-github-env.ts",
     "format": "ultracite fix",
     "lint": "turbo run workspace:lint --filter=create-next-hydra",
     "prepare": "husky && effect-tsgo patch --typescript --oxlint",
     "publish:cli": "changeset publish",
     "registry:check": "node scripts/sync-registry-files.ts --check",
-    "workspace:sync": "turbo run workspace:sync --filter=create-next-hydra",
-    "workspace:check": "turbo run workspace:check --filter=create-next-hydra",
     "registry:sync": "node scripts/sync-registry-files.ts",
     "release:create-next-hydra": "node scripts/release-create-next-hydra.mjs",
     "release:create-next-hydra:dry-run": "node scripts/release-create-next-hydra.mjs --dry-run",
     "test": "turbo run test workspace:test --filter='./packages/*' --filter=@repo/e2e --continue=always",
     "test:environment": "node scripts/check-test-environments.ts",
-    "test:e2e": "turbo run workspace:e2e",
-    "test:e2e:affected": "turbo run workspace:e2e --affected",
     "translate": "turbo translate",
-    "typecheck": "turbo run typecheck workspace:typecheck --filter=create-next-hydra",
+    "typecheck": "turbo run typecheck --filter=create-next-hydra",
     "version:cli": "changeset version"
   },
   "lint-staged": {
@@ -42,10 +37,6 @@
     "*.{json,jsonc,css,scss,md,mdx}": [
       "oxfmt --write"
     ]
-  },
-  "dependencies": {
-    "@clack/prompts": "^0.11.0",
-    "commander": "^14.0.0"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.1",

@@ -37,7 +37,8 @@ pnpm --filter create-next-hydra compose storefront-drupal --copy-env
 pnpm --filter create-next-hydra compose --all
 pnpm --filter create-next-hydra compose cms-contentstack --watch
 pnpm --filter create-next-hydra compose cms-contentstack --explain 'apps/web/app/[locale]/layout.tsx'
-pnpm --filter create-next-hydra compose storefront-contentstack --run test
+pnpm --filter create-next-hydra compose storefront-contentstack
+pnpm --dir workspaces/storefront-contentstack exec turbo run test
 ```
 
 Each named definition has its own manifests, dependencies and lockfile. All application files are physical copies. Use `compose <name> --explain <workspace-relative-file>` to locate the canonical implementation or template, edit there, then refresh the workspace. Repeating the command safely refreshes it; unchanged dependency inputs do not trigger installation. `--copy-env` copies only missing env files without printing values. See [Named workspaces](../../workspaces/README.md) for definitions and local ports.

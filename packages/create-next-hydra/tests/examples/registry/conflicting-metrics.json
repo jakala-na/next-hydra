@@ -1,0 +1,19 @@
+{
+  "name": "conflicting-metrics",
+  "type": "registry:item",
+  "registryDependencies": ["metrics-dependencies.json", "banner.json"],
+  "meta": {
+    "nextHydra": {
+      "id": "example/add-on/conflicting-metrics",
+      "kind": "add-on",
+      "packages": [
+        {
+          "cwd": "apps/web",
+          "name": "site-metrics",
+          "specifier": "^3",
+          "section": "dependencies"
+        }
+      ]
+    }
+  }
+}

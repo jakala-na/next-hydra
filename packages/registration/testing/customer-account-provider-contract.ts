@@ -31,6 +31,7 @@ import {
   customerAccountMembersLayer,
 } from "@repo/registration";
 import { Effect, Layer, ManagedRuntime, Redacted } from "effect";
+import { TestClock } from "effect/testing";
 import { describe, expect, it } from "vitest";
 
 const identityProjectionLayer = Layer.succeed(
@@ -155,12 +156,17 @@ export function customerAccountProviderContract(
           membersLayer,
           recordsLayer,
           membershipLayer,
-          CompanyMemberRemovalRecords.layerMemory
+          CompanyMemberRemovalRecords.layerMemory,
+          TestClock.layer()
         )
       );
       onTestFinished(async () => {
         await runtime.dispose();
       });
+      // Provider responses describe an active invitation at this point in time.
+      await runtime.runPromise(
+        TestClock.setTime(Date.parse("2026-08-26T12:00:00.000Z"))
+      );
       const actions = ActionClient.make(runtime)
         .use(
           ActionMiddleware.context<

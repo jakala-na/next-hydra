@@ -1,144 +1,149 @@
-import { describe, expect, it, vi } from "vitest";
+import { expect, it } from "@effect/vitest";
+import { Effect, FileSystem, Layer, Stdio } from "effect";
+import { TestConsole } from "effect/testing";
+import { ChildProcessSpawner } from "effect/unstable/process";
+import { describe } from "vitest";
 
-import type { composeDevelopmentWorkspaces } from "../src/development-workspaces.js";
-import { runCli } from "../src/index.js";
+import { runCommand } from "../src/commands.ts";
+import { Workspaces } from "../src/workspaces.ts";
+import { memoryWorkspace } from "./fixtures/memory-workspace.ts";
+import { terminalInput } from "./fixtures/terminal.ts";
 
-describe("CLI", () => {
-  it("refreshes a named workspace with dependency installation enabled", async () => {
-    const compose = vi.fn<typeof composeDevelopmentWorkspaces>();
-    await runCli(["node", "create-next-hydra", "compose", "cms-contentstack"], {
-      composeDevelopmentWorkspaces: compose,
-    });
-    expect(compose).toHaveBeenCalledWith(
-      "cms-contentstack",
-      expect.objectContaining({ install: true })
-    );
-  });
+const noProcesses = Layer.succeed(
+  ChildProcessSpawner.ChildProcessSpawner,
+  ChildProcessSpawner.make(() =>
+    Effect.die("Inspection must not execute processes")
+  )
+);
 
-  it("passes the named definition and refresh options to composition", async () => {
-    const compose = vi
-      .fn<typeof composeDevelopmentWorkspaces>()
-      .mockResolvedValue(undefined);
+it.effect(
+  "accepts safe existing workspace host names and rejects names that cannot identify one folder",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const api = yield* Workspaces;
+        yield* fs.makeDirectory("/source/workspaces/site--review");
+        yield* fs.writeFile(
+          "/source/workspaces/site--review/next-hydra.json",
+          yield* fs.readFile(
+            "/source/workspaces/configured-site/next-hydra.json"
+          )
+        );
+        const workspace = yield* api.named({
+          name: "site--review",
+          sourceRoot: "/source",
+        });
+        expect(
+          (yield* workspace.explain("apps/web/layout.tsx")).files[0]?.target
+        ).toBe("apps/web/layout.tsx");
+        for (const name of ["../outside", "not/a/name", "a".repeat(64)]) {
+          expect(
+            yield* api.named({ name, sourceRoot: "/source" }).pipe(Effect.flip)
+          ).toMatchObject({ _tag: "InvalidComposition" });
+        }
+      }).pipe(Effect.provide(layer));
+    })
+);
 
-    await runCli(
-      [
-        "node",
-        "create-next-hydra",
-        "compose",
-        "cms-contentstack",
-        "--watch",
-        "--copy-env",
-      ],
-      {
-        composeDevelopmentWorkspaces: compose,
-      }
-    );
-
-    expect(compose).toHaveBeenCalledWith(
-      "cms-contentstack",
-      expect.objectContaining({ copyEnv: true, watch: true })
-    );
-  });
-
-  it("checks all definitions without installing", async () => {
-    const compose = vi
-      .fn<typeof composeDevelopmentWorkspaces>()
-      .mockResolvedValue(undefined);
-
-    await runCli(
-      [
-        "node",
-        "create-next-hydra",
-        "compose",
-        "--all",
-        "--check",
-        "--no-install",
-      ],
-      {
-        composeDevelopmentWorkspaces: compose,
-      }
-    );
-
-    expect(compose).toHaveBeenCalledWith(
-      undefined,
-      expect.objectContaining({
-        all: true,
-        check: true,
-        install: false,
+describe.each([
+  ["compose", "configured-site", "--explain=apps/web/layout.tsx"],
+  ["compose", "--explain=apps/web/layout.tsx", "configured-site"],
+  ["compose", "configured-site", "--explain", "apps/web/layout.tsx"],
+  ["compose", "--all", "--explain=apps/web/layout.tsx"],
+])("file explanation: %s", (...args) => {
+  it.effect(
+    "locates the requested file without materializing the application",
+    () =>
+      Effect.gen(function* () {
+        const layer = yield* memoryWorkspace("application");
+        yield* Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          yield* runCommand("/source", args, "0.3.0");
+          const output = (yield* TestConsole.logLines).join("\n");
+          expect(output).toContain("/source/layout.tsx.template");
+          expect(output).not.toContain("source: /source/controls.tsx");
+          expect(
+            yield* fs.exists(
+              "/source/workspaces/configured-site/apps/web/layout.tsx"
+            )
+          ).toBeFalsy();
+        }).pipe(
+          Effect.provide([
+            layer,
+            noProcesses,
+            terminalInput("cancel"),
+            TestConsole.layer,
+            Stdio.layerTest({}),
+          ])
+        );
       })
-    );
-  });
-
-  it("passes a read-only file explanation request", async () => {
-    const compose = vi
-      .fn<typeof composeDevelopmentWorkspaces>()
-      .mockResolvedValue(undefined);
-    await runCli(
-      [
-        "node",
-        "create-next-hydra",
-        "compose",
-        "cms-drupal",
-        "--explain",
-        "packages/cms-drupal/components/component-registry.ts",
-      ],
-      { composeDevelopmentWorkspaces: compose }
-    );
-    expect(compose).toHaveBeenCalledWith(
-      "cms-drupal",
-      expect.objectContaining({
-        explain: "packages/cms-drupal/components/component-registry.ts",
-      })
-    );
-  });
-
-  it.each([
-    { flag: "--explain", option: "explain" },
-    { flag: "--diff", option: "diff" },
-  ])(
-    "accepts $flag without consuming the workspace name as a file",
-    async ({ flag, option }) => {
-      const compose = vi.fn<typeof composeDevelopmentWorkspaces>();
-      await runCli(["node", "create-next-hydra", "compose", "example", flag], {
-        composeDevelopmentWorkspaces: compose,
-      });
-      expect(compose).toHaveBeenCalledWith(
-        "example",
-        expect.objectContaining({ [option]: true })
-      );
-    }
-  );
-
-  it.each(["dev", "build", "test", "typecheck"])(
-    "forwards the %s workspace task",
-    async (task) => {
-      const compose = vi
-        .fn<typeof composeDevelopmentWorkspaces>()
-        .mockResolvedValue(undefined);
-      await runCli(
-        [
-          "node",
-          "create-next-hydra",
-          "compose",
-          "cms-contentstack",
-          "--run",
-          task,
-        ],
-        { composeDevelopmentWorkspaces: compose }
-      );
-      expect(compose).toHaveBeenCalledWith(
-        "cms-contentstack",
-        expect.objectContaining({ run: task })
-      );
-    }
-  );
-
-  it.each([["use"], ["use", "--cms", "contentstack"], ["--yes", "use"]])(
-    "rejects reserved command names without scaffolding: %j",
-    async (...args) => {
-      await expect(
-        runCli(["node", "create-next-hydra", ...args])
-      ).rejects.toThrow("Choose create-next-hydra <directory>");
-    }
   );
 });
+
+it.effect(
+  "finds the source checkout when Compose is invoked from a package directory",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        yield* fs.makeDirectory("/source/packages/tooling", {
+          recursive: true,
+        });
+        yield* runCommand(
+          "/source/packages/tooling",
+          ["compose", "configured-site", "--explain", "apps/web/layout.tsx"],
+          "0.3.0"
+        );
+        expect((yield* TestConsole.logLines).join("\n")).toContain(
+          "/source/layout.tsx.template"
+        );
+        expect(
+          yield* fs.exists(
+            "/source/workspaces/configured-site/apps/web/layout.tsx"
+          )
+        ).toBeFalsy();
+      }).pipe(
+        Effect.provide([
+          layer,
+          noProcesses,
+          terminalInput("cancel"),
+          TestConsole.layer,
+          Stdio.layerTest({}),
+        ])
+      );
+    })
+);
+
+it.effect(
+  "rejects credential-copy requests combined with read-only explanation",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        expect(
+          yield* runCommand(
+            "/source",
+            ["compose", "configured-site", "--explain", "--copy-env"],
+            "0.3.0"
+          ).pipe(Effect.flip)
+        ).toMatchObject({ _tag: "InvalidComposition" });
+        expect(
+          yield* fs.exists(
+            "/source/workspaces/configured-site/apps/web/layout.tsx"
+          )
+        ).toBeFalsy();
+      }).pipe(
+        Effect.provide([
+          layer,
+          noProcesses,
+          terminalInput("cancel"),
+          TestConsole.layer,
+          Stdio.layerTest({}),
+        ])
+      );
+    })
+);

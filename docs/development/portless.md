@@ -22,7 +22,7 @@ Use `pnpm exec portless doctor` to diagnose proxy, certificate, DNS, or route pr
 
 ## Application origins
 
-For the source-only checkout, root `pnpm dev` initializes and starts `workspaces/storefront-contentstack`. Other selections run with `pnpm --filter create-next-hydra compose <name> --copy-env --run dev`. The original root `apps/web` directory is authoring source, not an assembled app. Inside a named workspace, `<workspace>` below is its definition directory name; for a customer project it is the sanitized project name:
+For local development in the source-only checkout, run `pnpm --filter create-next-hydra compose <name> --copy-env`, then `pnpm --dir workspaces/<name> dev`. Composition and the application's Turbo dev tasks are separate commands. The original root `apps/web` directory is authoring source, not an assembled app. Inside a named workspace, `<workspace>` below is its definition directory name; for a customer project it is the sanitized project name:
 
 | Application        | Origin                                    |
 | ------------------ | ----------------------------------------- |

@@ -3,10 +3,6 @@
 !/.gitignore
 !/next-hydra.json
 !/README.md
-!/tasks/
-/tasks/*
-!/tasks/package.json
-!/tasks/turbo.json
 !/apps/
 /apps/*
 !/apps/*/

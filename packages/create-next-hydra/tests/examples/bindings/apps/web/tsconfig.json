@@ -1,0 +1,13 @@
+{
+  // This application owns the rest of its compiler settings.
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["./*"],
+      "@metrics": ["../../packages/retired-metrics"],
+      "@metrics/*": ["../../packages/retired-metrics/*"],
+      "@repo/cms": ["../../packages/archive"],
+      "@repo/cms/*": ["../../packages/archive/*"]
+    }
+  }
+}

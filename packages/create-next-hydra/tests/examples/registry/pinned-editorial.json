@@ -1,0 +1,20 @@
+{
+  "name": "editorial",
+  "type": "registry:item",
+  "files": [
+    {
+      "path": "published/article.ts",
+      "target": "~/apps/web/article.ts",
+      "type": "registry:file",
+      "content": "export const article = 'Pinned release';\n"
+    }
+  ],
+  "meta": {
+    "nextHydra": {
+      "id": "example/cms/editorial",
+      "kind": "provider",
+      "slot": "cms",
+      "binding": { "specifier": "workspace:@example/editorial@*" }
+    }
+  }
+}

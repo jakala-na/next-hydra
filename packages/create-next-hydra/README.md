@@ -26,9 +26,13 @@ pnpm dlx create-next-hydra@latest content-site --yes \
 
 Use `--add-on <selection>` more than once to include compatible Add-ons. A selection can be an official shorthand, a local registry-item JSON file, a URL, a public GitHub address such as `owner/repository/item#ref`, or a configured ShadCN registry name.
 
-The project destination must be missing or an empty physical directory, without symlinked parents. Named workspaces support safe initialization and updates instead. New applications retain the registry's existing `vercel.json` defaults and app-local skip-CI scripts. Maintainer composition commands and cache-location settings are not added to these files.
+Use `--repo-url <repository>` to scaffold from another Git repository and `--ref <revision>` to select a revision. Local repository paths, including `--repo-url .`, resolve from the directory where you invoke the command. Scaffolding reads the committed revision, not uncommitted source edits.
 
-Projects include Portless. Run `pnpm dev` in the installed project for stable `<app>.<project>.localhost` origins and automatically allocated application ports. The project hostname label replaces dots/underscores with hyphens and is limited to 63 characters. Package-owned dev scripts, including API tunneling, remain intact. Local HTTPS may require Portless's one-time proxy/certificate setup; remote authentication callback allowlists must match the actual development origins. Drupal's `dev:web` command keeps Portless while pinning the internal frontend port for DDEV revalidation.
+After installation, the CLI prints setup instructions supplied by the selected registry items. Follow those instructions before starting the application; composition does not run external provisioning commands for you.
+
+The project destination must be missing or empty. Named workspaces support safe initialization and updates instead. New applications retain the registry's existing `vercel.json` defaults and app-local skip-CI scripts. Maintainer composition commands and cache-location settings are not added to these files.
+
+Projects include Portless. Run `pnpm dev` in the installed project for stable `<app>.<project>.localhost` origins and automatically allocated application ports. The package name is normalized from the destination name without renaming the folder: `My App` becomes `my-app`. The project hostname label also replaces dots/underscores with hyphens and is limited to 63 characters. Package-owned dev scripts, including API tunneling, remain intact. Local HTTPS may require Portless's one-time proxy/certificate setup; remote authentication callback allowlists must match the actual development origins. Drupal's `dev:web` command keeps Portless while pinning the internal frontend port for DDEV revalidation.
 
 ## Initialize and update named workspaces
 
@@ -41,15 +45,15 @@ pnpm --filter create-next-hydra compose --all --copy-env
 pnpm --filter create-next-hydra compose cms-contentstack --watch
 pnpm --filter create-next-hydra compose --all --check
 pnpm --filter create-next-hydra compose cms-contentstack --explain 'apps/web/app/[locale]/layout.tsx'
-pnpm --filter create-next-hydra compose cms-contentstack --run typecheck
+pnpm --dir workspaces/cms-contentstack typecheck
 pnpm --dir workspaces/cms-contentstack dev
 ```
 
-The same command initializes or updates the same folder. All files are physical copies, including ordinary source and template output. Refresh preserves caches and does not reinstall unchanged dependencies. Local edits block conflicting updates; unregistered files are reported, preserved, and block refresh. `--no-install` leaves dependency installation pending, `--offline` uses the local store, and `--copy-env` explicitly copies only missing local env files. Omit it for deployment. Watch mode reports dependency changes but does not install them after its initial run. External provisioning is separate.
+The same command initializes or updates the same folder. All files are physical copies, including ordinary source and template output. Refresh preserves caches and does not reinstall unchanged dependencies. Unowned local files remain untouched and do not block refresh or `--check`. Conflicting edits to managed files and unowned files occupying new output targets still block changes. `--diff` lists eligible unowned files for optional reconciliation without adopting them. `--no-install` leaves dependency installation pending, `--offline` uses the local store, and `--copy-env` explicitly copies only missing local env files. Omit it for deployment. Watch uses the same synchronization and installation policy on every refresh; it does not run an application server. External provisioning is separate.
 
-See [Named workspaces](../../workspaces/README.md) for the four definitions, stable Portless hostnames, deployment settings, interruption recovery, and reconciliation instructions. Definitions, workspace-owned `.gitignore` files, optional READMEs, app-local `vercel.json` settings and derived `tasks/package.json` / `tasks/turbo.json` metadata are tracked; materialized runtime manifests, installed files and applied state are ignored. Compose preserves these ignore rules rather than regenerating them. The workspace name determines each Next app's `<app>.<workspace>.localhost` hostname (with Portless's branch prefix inside a Git worktree).
+See [Named workspaces](../../workspaces/README.md) for the four definitions, stable Portless hostnames, deployment settings, interruption recovery, and reconciliation instructions. Definitions, workspace-owned `.gitignore` files, optional READMEs, app-local `vercel.json` settings are tracked; materialized runtime manifests, installed files and applied state are ignored. Compose preserves these ignore rules rather than regenerating them. The workspace name determines each Next app's `<app>.<workspace>.localhost` hostname (with Portless's branch prefix inside a Git worktree).
 
-After adding or renaming a definition, changing selections, or changing registry/dependency membership, run `pnpm workspace:sync` from the source checkout. It derives the task files and asks pnpm to synchronize the outer lockfile without installing dependencies or running lifecycle scripts. Commit the task files and `pnpm-lock.yaml` together. `pnpm workspace:check` verifies metadata freshness and frozen-lockfile compatibility without repairing either. Ordinary source edits within a selected package do not require synchronization.
+Adding a definition or changing its selection requires no task-inventory synchronization. Compose it, then run Turbo inside its installed workspace. Deployments compose directly and use ordinary application-task caching. The source checkout's pnpm workspace declarations still supply canonical package discovery. A filtered tooling install can omit source application dependencies; see [application-root caching](../../workspaces/README.md#application-root-caching).
 
 ## Command boundaries
 
@@ -57,7 +61,7 @@ After adding or renaming a definition, changing selections, or changing registry
 - `create-next-hydra compose <name>` initializes or refreshes a named workspace from canonical source. Application source is always copied. `compose --all` covers Git-visible definitions, including new untracked ones; `compose --all --check` checks their local state.
 - `create-next-hydra add <item>` adds registry items to an existing project.
 
-The source checkout contains canonical modules, templates and registry ownership; runnable applications live in named workspaces. `--explain <file>` shows the selected owner and edit location without updating; `--run <task>` refreshes first and then runs the selected workspace's dev/build/test/typecheck task. Root `pnpm dev` runs the `storefront-contentstack` reference definition. Root `pnpm test` runs package/provider suites and composition checks from source, with common app integration tests only in that WorkOS + Contentstack + commercetools reference; build/typecheck cover all named definitions. Project creation and named composition share one constructor for the baseline, selected files, dependency closure, registry transformations, templates, aliases and patches. Scaffolding owns source acquisition and Git initialization; named composition owns safe refresh and local change inspection.
+The source checkout contains canonical modules, templates and registry ownership; runnable applications live in named workspaces. `--explain <file>` shows the selected owner and edit location without updating. Compose explicitly before running application tasks inside the workspace's own Turbo graph. Root `pnpm test` runs package/provider suites and composition checks from source, with common app integration tests only in that WorkOS + Contentstack + commercetools reference; root build/typecheck target the composition CLI. Project creation and named composition share preparation for the baseline, selected files, dependency closure, registry transformations, templates, aliases and patches. Scaffolding owns source acquisition and Git initialization; named composition owns safe refresh and local change inspection.
 
 ## Deploy a named workspace
 
@@ -78,7 +82,7 @@ Use a named definition and `compose <name>` for local development. Add `--copy-e
 
 Each workspace has its own manifests, lockfile, dependencies and physical application files. Canonical modules, template output and third-party registry content use the same materialization as scaffolded projects. Provider aliases and application runtime aliases resolve inside that workspace; no maintainer-only resolution layer is installed.
 
-Ignored local environment files named `.env` or `.env.*` are copied into matching directories of selected applications and packages. The primary checkout supplies defaults; the current worktree takes precedence. Copies are regular files with owner-only permissions (`0600`). Existing destination files are preserved; symlinked sources, destination parents, and non-file destinations are rejected before copying; dependency/build directories and example files are excluded. Contents are never printed or recorded in ownership state or Git snapshots. These are local credentials, not distribution assets, and unused capability credentials inside a selected env file are not filtered out.
+With `--copy-env`, ignored local environment files named `.env` or `.env.*` are copied into matching materialized paths. The primary checkout supplies defaults; the current worktree takes precedence. Copies have owner-only permissions (`0600`). Existing destination files are preserved; occupied non-file destinations are rejected before copying; dependency/build directories and example files are excluded. Contents are never printed or recorded in ownership state or Git snapshots. Composition does not seed values from examples: provisioning owns that. These are local credentials, not distribution assets, and unused capability credentials inside a selected env file are not filtered out.
 
 Provider-owned application files are copied from their canonical registry sources. Use `--explain <file>` when the edit location is unclear, edit that source, then refresh. Selection changes never rewrite tracked source applications or manifests.
 
@@ -99,11 +103,10 @@ Run the bounded local suite before accepting composition changes:
 pnpm --filter create-next-hydra build
 pnpm --filter create-next-hydra test --maxWorkers 2 --testTimeout 30000
 pnpm registry:check
-pnpm workspace:check
 node packages/create-next-hydra/dist/cli.js compose --all --check
 ```
 
-The suite covers the provider matrix, physical materialization and filesystem redirection safety, template ownership and normalized path collisions, working-tree deletions, environment isolation and overwrite refusal, and workspace peer-dependency retention. Install-heavy E2E tests are a separate command and need sufficient local disk/store capacity. Local filesystem safety checks protect against pre-existing redirections and competing scaffold invocations; this is not a sandbox for hostile package lifecycle scripts or processes mutating the directory tree concurrently.
+The suite checks materialization, template ownership and path collisions, working-tree deletions, environment isolation, overwrite refusal, installation recovery, observation and package closure through the workspace and CLI boundaries. Install-heavy E2E tests use the executable to create independent applications and need sufficient local disk/store capacity. Filesystem paths are trusted; ownership checks are not a sandbox for hostile package lifecycle scripts or concurrent directory mutation. See the [implementation guide](src/README.md) for services, state, packaging exercises and platform limits.
 
 Whole-package and exact-route materialization are covered by local tests. Named-workspace tests also cover template refresh, dependency retry, local-edit protection, unregistered files and interruption recovery. Fresh external provisioning, hosted authentication, payment journeys and production builds remain separate integration gates. `compose --check` reports reconciliation work; automatic adoption is not implemented.
 
@@ -115,9 +118,11 @@ Run `add` from an existing project:
 pnpm dlx create-next-hydra@latest add owner/repository/drupal-dam
 ```
 
-The command walks the complete registry dependency graph before ShadCN flattens it, rejects duplicate file targets, and lists every prospective file, package entry, and other ShadCN-managed effect. It verifies known Provider requirements through exact aliases in `apps/web/package.json` and labels compatibility requirements that cannot be proven without a retained selection record. The inspected graph is prepared locally so the exact approved artifacts are also the installation input. To keep that preview truthful, `add` accepts only explicitly targeted, exact-copy `registry:file` and `registry:item` file entries; file types that ShadCN would transform are rejected. It creates missing files, skips files ShadCN considers identical after newline and surrounding-whitespace normalization, and asks before replacing a changed file or dependency. Like ShadCN, `--yes` skips confirmation prompts and `--overwrite` authorizes replacing changed targets. Combine them for a fully non-interactive installation after reviewing the disclosed plan. `--yes` alone still refuses to overwrite changed project code. When package-specific entries change, `add` runs the root `pnpm install` to settle the lockfile and workspace links. The command never deletes files and does not retain a receipt.
+The command inspects the complete registry graph, checks known Provider requirements against installed aliases, and discloses compatibility assumptions it cannot prove without selection state. Inspection and execution retain the same artifacts and recheck project preconditions. ShadCN performs native installation in the existing project; Hydra then reconciles package-local requirements. Configuration-dependent changes need an explicitly configured ShadCN context: the CLI does not invent a workspace-root `components.json` or CSS configuration. Like ShadCN, `--yes` skips confirmation prompts and `--overwrite` authorizes replacing changed targets. `--yes` alone never approves replacing code or dependency versions. Dependency-bearing additions install on every explicit invocation, including retries. Addition has no project lock, receipt or composition snapshot. A native operation or installation failure may leave changes; inspect them before retrying rather than assuming rollback.
 
 `add` accepts ordinary registry items and Next Hydra Add-ons. It does not switch Providers or apply Presets. In v1, an Add-on that declares separate binary assets or pnpm patches must be selected in a named workspace or during a new scaffold.
+
+After a successful addition, the CLI prints setup instructions from the installed item and its registry dependencies.
 
 ## Author a Provider, Recipe or Add-on
 
@@ -154,11 +159,9 @@ Run these commands after adding, moving, or removing registry-owned files:
 ```bash
 pnpm registry:sync
 pnpm registry:check
-pnpm workspace:sync
-pnpm workspace:check
 ```
 
-`registry:sync` regenerates only each registry item's `files` list and its final workspace-root targets. Provider-owned metadata stays in the colocated registry file. `workspace:sync` then updates named-workspace task inputs and the outer lockfile from that registry; commit those changes together. Next Hydra first walks the intact `registryDependencies` graph to retain metadata and detect target conflicts, then prepares those exact artifacts and asks ShadCN to install them once from the workspace root.
+`registry:sync` regenerates only each registry item's `files` list and its final workspace-root targets. Provider-owned metadata stays in the colocated registry file. Next Hydra first walks the intact `registryDependencies` graph to retain metadata and detect target conflicts, then prepares those exact artifacts and asks ShadCN to install them once from the workspace root.
 
 Standard ShadCN `dependencies` and `devDependencies` apply to the workspace root. Use `meta.nextHydra.packages` only when an ordinary dependency must be added to a specific workspace package. Stable Provider aliases are derived from the slot and cannot be declared in `packages`.
 

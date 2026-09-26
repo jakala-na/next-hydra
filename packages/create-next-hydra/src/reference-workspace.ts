@@ -1,69 +1,91 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { Console, Effect, FileSystem, Path, Schema } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
+import { ApplicationTaskFailed, InvalidComposition } from "./errors.ts";
+import { WorkspaceDefinition } from "./model.ts";
+import { ManifestJson } from "./packages.ts";
 import {
-  workspaceDefinitionSchema,
-  updateDevelopmentWorkspace,
-} from "./development-workspaces.js";
-import { runCommand } from "./git.js";
-import { info } from "./logger.js";
-import {
-  assertReferenceWorkspaceBindings,
+  referenceBindings,
   REFERENCE_PROVIDERS,
   REFERENCE_WORKSPACE_NAME,
-} from "./reference-workspace-bindings.js";
+} from "./reference-workspace-bindings.ts";
+import { Workspaces } from "./workspaces.ts";
 
-export { REFERENCE_WORKSPACE_NAME } from "./reference-workspace-bindings.js";
-
-/** Run common app integration tests once; domain/provider suites run from source. */
-export async function testReferenceWorkspace(
-  sourceRoot: string,
-  dependencies: {
-    update?: typeof updateDevelopmentWorkspace;
-    run?: typeof runCommand;
-  } = {}
-): Promise<void> {
-  const targetRoot = path.join(
-    sourceRoot,
-    "workspaces",
-    REFERENCE_WORKSPACE_NAME
-  );
-  const definition = workspaceDefinitionSchema.parse(
-    JSON.parse(
-      await readFile(path.join(targetRoot, "next-hydra.json"), "utf-8")
-    )
-  );
-  if (
-    (["auth", "cms", "commerce"] as const).some(
-      (slot) => definition.providers[slot] !== REFERENCE_PROVIDERS[slot]
-    )
-  ) {
-    throw new Error(
-      "Workspace tests require storefront-contentstack with WorkOS, Contentstack and commercetools. Restore its reference definition before running tests."
+export const testReferenceWorkspace = Effect.fn("WorkspaceTasks.testReference")(
+  function* (sourceRoot: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const directory = path.join(
+      sourceRoot,
+      "workspaces",
+      REFERENCE_WORKSPACE_NAME
     );
-  }
-  const update = dependencies.update ?? updateDevelopmentWorkspace;
-  const result = await update(sourceRoot, REFERENCE_WORKSPACE_NAME);
-  if (result.needsInstall || result.conflicts.length) {
-    throw new Error(
-      "Reference workspace must be refreshed and installed before running its application tests."
+    const definition = yield* fs
+      .readFileString(path.join(directory, "next-hydra.json"))
+      .pipe(
+        Effect.flatMap(
+          Schema.decodeEffect(Schema.fromJsonString(WorkspaceDefinition))
+        )
+      );
+    if (
+      (["auth", "cms", "commerce"] as const).some(
+        (slot) => definition.providers[slot] !== REFERENCE_PROVIDERS[slot]
+      )
+    ) {
+      return yield* new InvalidComposition({
+        message:
+          "Application tests require the reference storefront definition with WorkOS, Contentstack and commercetools.",
+      });
+    }
+    const workspace = yield* (yield* Workspaces).named({
+      name: REFERENCE_WORKSPACE_NAME,
+      sourceRoot,
+    });
+    const result = yield* workspace.sync({});
+    if (result.dependencies !== "current") {
+      return yield* new InvalidComposition({
+        message: "Reference workspace dependencies are not current.",
+      });
+    }
+    for (const { app, alias, provider } of referenceBindings) {
+      const appRoot = path.join(directory, "apps", app);
+      const manifest = yield* fs
+        .readFileString(path.join(appRoot, "package.json"))
+        .pipe(Effect.flatMap(Schema.decodeEffect(ManifestJson)));
+      if (
+        manifest.dependencies?.[alias] !== `workspace:@repo/${provider}@*` ||
+        (yield* fs.realPath(path.join(appRoot, "node_modules", alias))) !==
+          (yield* fs.realPath(path.join(directory, "packages", provider)))
+      ) {
+        return yield* new InvalidComposition({
+          message: `${app}'s ${alias} must resolve to ${provider} inside ${REFERENCE_WORKSPACE_NAME}. Refresh and reinstall it before testing.`,
+        });
+      }
+    }
+    yield* Console.log(`Application tests: ${REFERENCE_WORKSPACE_NAME}`);
+    const process = yield* ChildProcessSpawner.ChildProcessSpawner;
+    const code = yield* process.exitCode(
+      ChildProcess.make(
+        "pnpm",
+        [
+          "exec",
+          "turbo",
+          "run",
+          "test",
+          "--filter=./apps/*",
+          "--only",
+          "--continue=always",
+        ],
+        {
+          cwd: directory,
+          stderr: "inherit",
+          stdin: "inherit",
+          stdout: "inherit",
+        }
+      )
     );
+    if (code !== 0) {
+      return yield* new ApplicationTaskFailed({ code, directory });
+    }
   }
-  assertReferenceWorkspaceBindings(targetRoot);
-  info(
-    `Application tests: ${REFERENCE_WORKSPACE_NAME} (WorkOS, Contentstack, commercetools)`
-  );
-  await (dependencies.run ?? runCommand)(
-    "pnpm",
-    [
-      "exec",
-      "turbo",
-      "run",
-      "test",
-      "--filter=./apps/*",
-      "--only",
-      "--continue=always",
-    ],
-    { cwd: targetRoot, inheritStdio: true }
-  );
-}
+);

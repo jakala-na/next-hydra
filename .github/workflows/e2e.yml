@@ -142,7 +142,7 @@ jobs:
         run: pnpm --dir workspaces/storefront-contentstack --filter @repo/e2e exec playwright install --with-deps chromium
 
       - name: Run production regressions
-        run: pnpm test:e2e --filter=@workspaces/storefront-contentstack --output-logs=full
+        run: pnpm --dir workspaces/storefront-contentstack test:e2e --output-logs=full
 
       - name: Upload Playwright diagnostics
         if: ${{ !cancelled() }}

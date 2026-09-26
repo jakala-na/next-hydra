@@ -93,11 +93,12 @@ packages/
 ```bash
 pnpm install
 pnpm exec portless trust
-pnpm dev
+pnpm --filter create-next-hydra compose storefront-contentstack --copy-env
+pnpm --dir workspaces/storefront-contentstack dev
 ```
 
 The checkout is canonical source, not a preassembled storefront. **Compose** reads a named workspace's `next-hydra.json`, selects its packages and recipes, and materializes a runnable application in that workspace's folder. Rerunning it safely refreshes the output; all application files are physical copies, with the same imports and aliases used in scaffolded projects. Use `--explain` to find canonical sources and `--diff` to inspect workspace-local changes.
 
-`pnpm dev` composes and starts `storefront-contentstack`, copying only missing local env files. The four committed definitions cover Contentstack and Drupal, each as a CMS-only site or a complete storefront. For example: `pnpm --filter create-next-hydra compose cms-drupal --copy-env --run dev`. See [Named workspaces](workspaces/README.md) for the definitions, template refresh, committed settings and deployment workflow.
+The commands above are for local development; `--copy-env` copies only missing local env files. The four committed definitions cover Contentstack and Drupal, each as a CMS-only site or a complete storefront. Compose the definition you want, then use its ordinary application commands. See [Named workspaces](workspaces/README.md) for template refresh and committed settings, and [Vercel Git deployments](workspaces/README.md#vercel-git-deployments) for hosted installation and selected-app builds.
 
-Root `pnpm test` runs package/provider suites and composition checks from source, and common application tests once in `storefront-contentstack` (WorkOS, Contentstack, commercetools). Root `pnpm typecheck` and `pnpm build` still cover all named definitions. Use a workspace directly for focused checks. Local HTTP applications use stable Portless origins and worktree-aware routing; see [Portless local development](docs/development/portless.md) for certificate setup and local routing.
+Root `pnpm test` runs package/provider suites and composition checks from source, and common application tests once in `storefront-contentstack` (WorkOS, Contentstack, commercetools). Root `pnpm typecheck` and `pnpm build` check and build the composition CLI. Run application tasks inside a composed workspace, just as in a scaffolded project. Local HTTP applications use stable Portless origins and worktree-aware routing; see [Portless local development](docs/development/portless.md) for certificate setup and local routing.

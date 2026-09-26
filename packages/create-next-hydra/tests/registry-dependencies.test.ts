@@ -1,181 +1,217 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { NodeServices } from "@effect/platform-node";
+import { expect, it } from "@effect/vitest";
+import { Effect, FileSystem, Layer, Schema } from "effect";
+import { applyEdits, modify } from "jsonc-parser";
 
-import type { RegistryItem } from "shadcn/schema";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { Workspaces } from "../src/workspaces.ts";
+import { liveWorkspace } from "./fixtures/live-workspace.ts";
+import { memoryWorkspace } from "./fixtures/memory-workspace.ts";
+import { fixture } from "./fixtures/workspace.ts";
 
-import { composeWorkspace } from "../src/compose.js";
-// oxlint-disable-next-line import/no-namespace -- Spy on the shared catalog loader in both creation paths.
-import * as catalogModule from "../src/composition/catalog.js";
-import {
-  installPreparedComposition,
-  prepareComposition,
-} from "../src/composition/install.js";
-import type { PackageJson } from "../src/composition/packages.js";
-import { readPackageJson } from "../src/composition/packages.js";
-import { planComposition } from "../src/composition/planner.js";
-import {
-  applyRegistryDependencies,
-  planRegistryDependencies,
-} from "../src/composition/registry-dependencies.js";
+const json = Schema.decodeEffect(Schema.fromJsonString(Schema.Unknown));
 
-const repoRoot = path.resolve(import.meta.dirname, "../../..");
-const scratchDirectories: string[] = [];
-
-function item(
-  name: string,
-  dependencies: string[] = [],
-  devDependencies: string[] = []
-): RegistryItem {
-  return { dependencies, devDependencies, name, type: "registry:item" };
+for (const { dependencyPath, description } of [
+  {
+    dependencyPath: ["items", 2, "registryDependencies"],
+    description: "an unselected provider",
+  },
+  {
+    dependencyPath: [
+      "items",
+      0,
+      "meta",
+      "nextHydra",
+      "conditionalDependencies",
+      0,
+      "items",
+    ],
+    description: "an inactive conditional recipe",
+  },
+]) {
+  it.effect(`does not acquire unavailable dependencies of ${description}`, () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("conditional");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const registry = yield* fs.readFileString("/source/registry.json");
+        yield* fs.writeFileString(
+          "/source/registry.json",
+          applyEdits(
+            registry,
+            modify(
+              registry,
+              dependencyPath,
+              ["https://unavailable.example/recipe.json"],
+              {}
+            )
+          )
+        );
+        const workspace = yield* (yield* Workspaces).fresh({
+          destination: "/application",
+          name: "editorial-site",
+          selection: { addOns: [], providers: { cms: "editorial" } },
+          source: { kind: "working-tree", root: "/source" },
+        });
+        yield* workspace.materialize({ install: "skip" });
+        expect(
+          yield* fs.readFileString("/application/apps/web/article.ts")
+        ).toBe(yield* fs.readFileString("/source/article.ts"));
+      }).pipe(Effect.provide(layer));
+    })
+  );
 }
 
-describe("standard registry npm dependencies", () => {
-  afterEach(async () => {
-    vi.restoreAllMocks();
-    await Promise.all(
-      scratchDirectories.splice(0).map(async (directory) => {
-        await rm(directory, { force: true, recursive: true });
+it.effect(
+  "removes deselected root dependencies on refresh while retaining application tooling",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const root = "/source/workspaces/editorial-site";
+        const definition = yield* fs.readFileString(`${root}/next-hydra.json`);
+        yield* fs.writeFileString(
+          `${root}/next-hydra.json`,
+          applyEdits(
+            definition,
+            modify(definition, ["addOns"], ["root-dependencies"], {})
+          )
+        );
+        const workspace = yield* (yield* Workspaces).named({
+          name: "editorial-site",
+          sourceRoot: "/source",
+        });
+        yield* workspace.sync({ install: "skip" });
+        expect(
+          yield* json(yield* fs.readFileString(`${root}/package.json`))
+        ).toHaveProperty(["dependencies", "picocolors"], "1.1.1");
+        yield* fs.writeFileString(`${root}/next-hydra.json`, definition);
+        yield* workspace.sync({ install: "skip" });
+        const manifest = yield* json(
+          yield* fs.readFileString(`${root}/package.json`)
+        );
+        expect(manifest).not.toHaveProperty(["dependencies", "picocolors"]);
+        expect(manifest).not.toHaveProperty(["dependencies", "color-alias"]);
+        expect(manifest).not.toHaveProperty(["devDependencies", "@types/node"]);
+        expect(manifest).toHaveProperty(
+          ["devDependencies", "portless"],
+          "0.15.6"
+        );
+      }).pipe(Effect.provide(layer));
+    })
+);
+
+for (const request of ["picocolors@2.0.0", "https://example.com/archive.tgz"]) {
+  it.effect(
+    `rejects an incompatible or unnamed registry dependency: ${request}`,
+    () =>
+      Effect.gen(function* () {
+        const layer = yield* memoryWorkspace("application");
+        yield* Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          const registry = yield* fs.readFileString("/source/registry.json");
+          yield* fs.writeFileString(
+            "/source/registry.json",
+            applyEdits(
+              registry,
+              modify(registry, ["items", 1, "dependencies"], [request], {})
+            )
+          );
+          const workspace = yield* (yield* Workspaces).fresh({
+            destination: "/application",
+            name: "invalid-site",
+            selection: { addOns: ["root-dependencies"], providers: {} },
+            source: { kind: "working-tree", root: "/source" },
+          });
+          expect(
+            yield* workspace.materialize({ install: "skip" }).pipe(Effect.flip)
+          ).toMatchObject({ _tag: "InvalidComposition" });
+          expect(yield* fs.exists("/application")).toBeFalsy();
+        }).pipe(Effect.provide(layer));
       })
-    );
-  });
-
-  it("keeps scoped packages, version ranges, tags and named aliases", () => {
-    const manifest: PackageJson = {};
-    applyRegistryDependencies(
-      manifest,
-      planRegistryDependencies([
-        item(
-          "addon",
-          [
-            "@scope/runtime@^2.0.0",
-            "new-client",
-            "compat@npm:other-client@1.2.3",
-            "remote@https://example.test/library.tgz",
-          ],
-          ["tool@next"]
-        ),
-      ])
-    );
-    expect(manifest).toEqual({
-      dependencies: {
-        "@scope/runtime": "^2.0.0",
-        compat: "npm:other-client@1.2.3",
-        "new-client": "latest",
-        remote: "https://example.test/library.tgz",
-      },
-      devDependencies: { tool: "next" },
-    });
-  });
-
-  it("preserves installed bare-name requirements and prefers explicit versions", () => {
-    const manifest: PackageJson = {
-      dependencies: { existing: "catalog:" },
-      devDependencies: { tool: "^1.0.0" },
-    };
-    applyRegistryDependencies(
-      manifest,
-      planRegistryDependencies([
-        item("first", ["existing", "shared"], ["tool"]),
-        item("second", [], ["shared@2.0.0"]),
-      ])
-    );
-    expect(manifest).toEqual({
-      dependencies: { existing: "catalog:", shared: "2.0.0" },
-      devDependencies: { tool: "^1.0.0" },
-    });
-  });
-
-  it("rejects conflicting explicit versions instead of picking an arbitrary item", () => {
-    expect(() =>
-      planRegistryDependencies([
-        item("first", ["client@1"]),
-        item("second", [], ["client@2"]),
-      ])
-    ).toThrow("Registry package dependencies conflict");
-  });
-
-  it.each([
-    "https://example.test/library.tgz",
-    "../local-package",
-    "--ignore-scripts",
-  ])(
-    "rejects unnamed or unsafe requirement %s before materialization",
-    (dependency) => {
-      expect(() =>
-        planRegistryDependencies([item("addon", [dependency])])
-      ).toThrow("explicit package names");
-    }
   );
+}
 
-  it("materializes the same selected requirements through customer and named-workspace paths without installing", async () => {
-    const scratch = await mkdtemp(
-      path.join(repoRoot, "workspaces", "registry-dependencies-test-")
-    );
-    scratchDirectories.push(scratch);
-    const catalog = await catalogModule.loadSourceRegistryCatalog(repoRoot);
-    const addon = catalog.items.get("app-web-navigation-search");
-    if (!addon) {
-      throw new Error("Missing navigation search fixture");
-    }
-    const child = item(
-      "dependency-fixture",
-      ["runtime-fixture@1.2.3"],
-      ["@scope/tool-fixture@^2.0.0"]
-    );
-    catalog.items.set(child.name, child);
-    catalog.itemByReference.set(child.name, child.name);
-    catalog.items.set(addon.name, {
-      ...addon,
-      registryDependencies: [...(addon.registryDependencies ?? []), child.name],
-    });
-    // Unselected requirements must not leak from the full source catalog.
-    catalog.items.set(
-      "unselected-fixture",
-      item("unselected-fixture", ["unselected-client@1"])
-    );
-    vi.spyOn(catalogModule, "loadSourceRegistryCatalog").mockResolvedValue(
-      catalog
-    );
-    const plan = planComposition(catalog, {
-      addOns: [addon.name],
-      providers: { cms: "contentstack" },
-    });
-    const prepared = await prepareComposition(catalog, plan);
-    const customer = path.join(scratch, "customer");
-    await mkdir(customer);
-    await writeFile(
-      path.join(customer, "package.json"),
-      JSON.stringify({ name: "customer", private: true })
-    );
-    await installPreparedComposition(customer, prepared);
-    const development = path.join(scratch, "development");
-    await composeWorkspace(
-      development,
-      { cms: "contentstack", install: false, search: true },
-      {
-        name: "dependency-check",
-        report: () => undefined,
-        sourceRoot: repoRoot,
-      }
-    );
-    const customerManifest = await readPackageJson(
-      path.join(customer, "package.json")
-    );
-    const developmentManifest = await readPackageJson(
-      path.join(development, "package.json")
-    );
-    expect(customerManifest.dependencies).toEqual({
-      "runtime-fixture": "1.2.3",
-    });
-    expect(developmentManifest.dependencies).toEqual(
-      customerManifest.dependencies
-    );
-    expect(customerManifest.devDependencies).toEqual({
-      "@scope/tool-fixture": "^2.0.0",
-    });
-    expect(developmentManifest.devDependencies?.["@scope/tool-fixture"]).toBe(
-      customerManifest.devDependencies?.["@scope/tool-fixture"]
-    );
-  }, 30_000);
-});
+it.live(
+  "keeps npm requirements out of upstream installation while materializing through real ShadCN",
+  () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const { source, destination } = yield* fixture("application");
+      const workspace = yield* (yield* Workspaces).fresh({
+        destination,
+        name: "color-site",
+        selection: { addOns: ["root-dependencies"], providers: {} },
+        source: { kind: "working-tree", root: source },
+      });
+      yield* workspace.materialize({ install: "skip" });
+      expect(
+        yield* json(yield* fs.readFileString(`${destination}/package.json`))
+      ).toHaveProperty(["dependencies", "color-alias"], "npm:picocolors@1.1.1");
+      expect(yield* fs.exists(`${destination}/node_modules`)).toBeFalsy();
+    }).pipe(
+      Effect.provide(liveWorkspace.pipe(Layer.provideMerge(NodeServices.layer)))
+    )
+);
+
+it.effect(
+  "rejects conflicting registry and package-local requests before publishing",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const workspace = yield* (yield* Workspaces).fresh({
+          destination: "/application",
+          name: "conflicting-site",
+          selection: {
+            addOns: ["root-dependencies", "root-package-requirement"],
+            providers: {},
+          },
+          source: { kind: "working-tree", root: "/source" },
+        });
+        expect(
+          yield* workspace.materialize({ install: "skip" }).pipe(Effect.flip)
+        ).toMatchObject({
+          _tag: "InvalidComposition",
+        });
+        expect(yield* fs.exists("/application")).toBeFalsy();
+      }).pipe(Effect.provide(layer));
+    })
+);
+
+it.effect(
+  "materializes root dependencies from the selected registry graph without installing",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const sourceManifest = yield* fs.readFileString("/source/package.json");
+        const workspace = yield* (yield* Workspaces).fresh({
+          destination: "/application",
+          name: "color-site",
+          selection: { addOns: ["root-dependencies"], providers: {} },
+          source: { kind: "working-tree", root: "/source" },
+        });
+        const result = yield* workspace.materialize({ install: "skip" });
+        const manifest = yield* json(
+          yield* fs.readFileString("/application/package.json")
+        );
+        expect(manifest).toMatchObject({
+          dependencies: {
+            "color-alias": "npm:picocolors@1.1.1",
+            kleur: "latest",
+            picocolors: "1.1.1",
+          },
+          devDependencies: { "@types/node": "24.13.3", portless: "0.15.6" },
+        });
+        expect(manifest).not.toHaveProperty(["devDependencies", "picocolors"]);
+        expect(result.dependencies).toBe("pending");
+        expect(yield* fs.exists("/application/node_modules")).toBeFalsy();
+        expect(yield* fs.readFileString("/source/package.json")).toBe(
+          sourceManifest
+        );
+      }).pipe(Effect.provide(layer));
+    })
+);

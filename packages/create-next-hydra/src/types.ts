@@ -1,5 +1,3 @@
-import type { ProviderSlot } from "./composition/types.js";
-
 export type CreateOptions = {
   targetDir?: string;
   yes: boolean;
@@ -11,7 +9,7 @@ export type CreateOptions = {
   auth?: string;
   cms?: string;
   commerce?: string;
-  without?: ProviderSlot[];
+  without?: ("auth" | "cms" | "commerce")[];
   addOns?: string[];
   preset?: string;
 };
@@ -33,15 +31,4 @@ export type ScaffoldResult = {
   packageName: string;
   gitInitialized: boolean;
   committed: boolean;
-};
-
-export type GitInitResult = {
-  gitInitialized: boolean;
-  committed: boolean;
-  commitError?: string;
-};
-
-export type RunCommandResult = {
-  stdout: string;
-  stderr: string;
 };

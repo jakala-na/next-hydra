@@ -1,0 +1,6 @@
+{
+  "name": "@example/metrics",
+  "dependencies": {
+    "@example/tokens": "workspace:*"
+  }
+}

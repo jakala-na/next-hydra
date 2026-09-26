@@ -1,0 +1,6 @@
+{
+  "name": "@example/editorial",
+  "dependencies": {
+    "@example/tokens": "workspace:*"
+  }
+}
